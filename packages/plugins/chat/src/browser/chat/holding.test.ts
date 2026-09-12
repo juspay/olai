@@ -15,7 +15,7 @@ import { UsageFailure } from "@olai/format"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
-import { createHolding, sorting } from "./holding.ts"
+import { createHolding, createHoldingMemory, sorting } from "./holding.ts"
 import type { Chat, Uploaded } from "./state.ts"
 
 const file = (name: string, type: string) => new File([new Uint8Array(3)], name, { type })
@@ -95,7 +95,8 @@ const oversized = (name: string): File => {
 const conversation = (answering: (file: File) => Uploaded) => {
   const said: Array<ReadonlyArray<string>> = []
   const chat = {
-    state: () => ({ session: { id: "one" } }),
+    state: () => ({ session: { id: "one" }, uploadScope: "one" }),
+    ui: { holding: createHoldingMemory() },
     attach: (file: File) => Promise.resolve(answering(file)),
     refuse: (reasons: ReadonlyArray<string>) => said.push(reasons),
   } as unknown as Chat

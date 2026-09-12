@@ -47,7 +47,7 @@ import type { UserEntry } from "olai-plugin-chat/wire"
 import { createEffect, createMemo, Show } from "solid-js"
 
 import { createDeclared } from "../references.ts"
-import { isUnfolded, toggleFold } from "./folds.ts"
+import { useConversationUI } from "./ui.tsx"
 import { Quoted } from "./Quoted.tsx"
 import { rangRow } from "./rang.ts"
 import { markNodeRefs } from "./refs.ts"
@@ -176,6 +176,7 @@ export function Rang(props: {
    *  above says why it is not looked up here. */
   readonly fated: string | undefined
 }) {
+  const { isUnfolded, toggleFold } = useConversationUI().folds
   /** The essence line the plugin put at the top of its own sentence, what is
    *  left under it, and whether that rest is on screen ({@link ./rang.ts}, over
    *  {@link ./byline.ts}'s split).

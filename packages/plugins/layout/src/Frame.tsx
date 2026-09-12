@@ -37,7 +37,7 @@ import { PluginsMounted } from "./Mounted.tsx"
 import { PluginPanel } from "./Seats.tsx"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { desktop } from "./layout/live.ts"
-import { panelOpen,sidebarOpen,toggleSidebar } from "./layout/live.ts"
+import { sidebarOpen,toggleSidebar } from "./layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { RouterProvider } from "olai-plugin-navigation/routing"
@@ -109,7 +109,6 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
         <div
           class="flex-1"
           classList={{
-            "lg:pr-[var(--width-panel)]": panelOpen(),
             "min-h-0": split(),
           }}
         >

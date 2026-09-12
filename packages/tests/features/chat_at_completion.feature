@@ -17,9 +17,10 @@ Feature: Typing @ in the chat completes a file of the directory
   something a scenario can read rather than assume.
 
   Background:
-    Given I open the app
+    Given I open the outline "house.olai"
     And I mark the page
-    And the agent panel is open
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
 
   @scratch:chat
   Scenario: An @ offers the directory, and taking a row writes the path

@@ -6,7 +6,7 @@ Feature: A refused node fresh-session request leaves its current work usable
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "install the cabinets"
-    And the agent panel is open
+    And the node agent's fold is ready
     When I remember this conversation as "question session"
     And I mark the page
     And I ask the agent "askstrict"

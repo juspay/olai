@@ -1749,7 +1749,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // paragraph that is already on screen, and that is a claim about the second
     // chunk and every one after it.
     say("working on it")
-    await released(() => say("."))
+    await releasedIn(cwd, async () => { await takeSteering(); say(".") }, () => cancelled)
     notify("session/update", {
       sessionId,
       update: {
@@ -1760,7 +1760,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       },
     })
     say(" — and done.")
-    reply(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
     return
   }
 

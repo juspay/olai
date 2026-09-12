@@ -34,7 +34,7 @@ import { createMemo, Show } from "solid-js"
 import type { ChatEntry } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
 import { doorOf } from "./door.ts"
-import { isPreviewing, togglePreview } from "./previewing.ts"
+import { useConversationUI } from "./ui.tsx"
 import { whoOf } from "./spawn.ts"
 import { Entry } from "./Entry.tsx"
 import type { Lane } from "./lanes.ts"
@@ -59,6 +59,7 @@ export function Row(props: {
    *  is a fact about the LIST, and a row cannot see one. */
   readonly speaker: Faced | null
 }) {
+  const { isPreviewing, togglePreview } = useConversationUI().previewing
   // An agent's work door belongs to its row wherever that row is drawn.
   // Only spawned-agent rows subscribe to the child list; ordinary rows never
   // wake for somebody else's tool stream.

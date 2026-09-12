@@ -47,16 +47,14 @@
 import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
-import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
-import { selectConversation } from "../selection.ts"
+import { type Accessor, createEffect, createMemo, createSignal, on, onCleanup } from "solid-js"
 import { chatWire } from "../wire.ts"
 
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
 import { attaching } from "./attach.ts"
 import { createRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
-import { previewScope, remember } from "./previews.ts"
-import { closePreview } from "./previewing.ts"
+import { createConversationUI, type ConversationUI } from "./ui.tsx"
 
 /**
  * What became of one upload — THREE arms, because there are three answers and
@@ -75,6 +73,7 @@ export type Uploaded =
   | { readonly _tag: "gone" }
 
 export interface Chat {
+  readonly ui: ConversationUI
   /** Where the conversation stands: session, model, commands, whether a turn
    *  is running. */
   readonly state: Accessor<ChatState>
@@ -241,8 +240,10 @@ export const createChatState = (conv: Conversing): Accessor<ChatState> => {
 
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-export const createChat = (conv: Conversing): Chat => {
-  const [refused, setRefused] = createSignal<OpFailure | null>(null)
+export const createChat = (conv: Conversing, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void } = {}): Chat => {
+  const ui = options.ui ?? createConversationUI()
+  const { closePreview } = ui.previewing
+  const [refused, setRefused] = ui.refused
   const served = createChatState(conv)
   const transcript = chatWire().streams.transcript.useCollection(conv, transcriptRows)
   // THE ROW STILL BEING SAID, in pieces. A second subscription rather than a
@@ -322,8 +323,32 @@ export const createChat = (conv: Conversing): Chat => {
    * sequence, and a second answer coming back must not clear a first that is
    * still in flight.
    */
-  const [starting, setStarting] = createSignal(0)
-  const [pendingSends, setPendingSends] = createSignal(0)
+  const [starting, setStarting] = ui.starting
+  const [pendingSends, setPendingSends] = ui.pendingSends
+
+  // Before this keyed reading has opened, there is no upload lifetime to
+  // address. Keep the gesture until its own conversation arrives; never send
+  // the default cell's null scope or borrow another conversation's scope.
+  const [awaiting, setAwaiting] = createSignal<ReadonlySet<(scope: string | null) => void>>(new Set())
+  let disposed = false
+  onCleanup(() => {
+    disposed = true
+    for (const settle of awaiting()) settle(null)
+    setAwaiting(new Set<(scope: string | null) => void>())
+  })
+  createEffect(() => {
+    const current = served()
+    if (current.unopened === null && (current.session?.id !== conv.session || current.uploadScope === null)) return
+    const scope = current.unopened === null ? current.uploadScope : null
+    for (const settle of awaiting()) settle(scope)
+    if (awaiting().size > 0) setAwaiting(new Set<(scope: string | null) => void>())
+  })
+  const sendingScope = (): Promise<string | null> => {
+    const current = served()
+    if (disposed || current.unopened !== null) return Promise.resolve(null)
+    if (current.session?.id === conv.session && current.uploadScope !== null) return Promise.resolve(current.uploadScope)
+    return new Promise(resolve => setAwaiting(before => new Set([...before, resolve])))
+  }
 
   /**
    * Where the conversation stands, with this tab's own press folded in.
@@ -397,13 +422,14 @@ export const createChat = (conv: Conversing): Chat => {
     }, { defer: true }),
   )
 
-  createEffect(() => previewScope(state().uploadScope))
+  createEffect(() => ui.uploadScope[1](state().uploadScope))
 
   return {
     state,
     rows: rows.keys,
     lanes: rows.lanes,
     entry,
+    ui,
     refused,
     pendingSends,
     refuse: (reasons) =>
@@ -416,9 +442,14 @@ export const createChat = (conv: Conversing): Chat => {
       setPendingSends(count => count + 1)
       try {
         setRefused(null)
+        const scope = await sendingScope()
+        if (scope === null) {
+          setRefused(new UsageFailure({ reason: "the conversation did not open; your message was kept" }))
+          return false
+        }
         const outcome = await runAsync(chatWire().procedures.conversation.send({
           conv,
-          scope: state().uploadScope,
+          scope,
           text,
           attachments,
           context,
@@ -454,7 +485,7 @@ export const createChat = (conv: Conversing): Chat => {
             // The Blob is the one already in hand — this tab is the only
             // reader that will ever have it, and the name it is filed under is
             // the SERVER's, which is what the transcript row will carry.
-            remember(stored.name, file, asked)
+            ui.previews.remember(stored.name, file, asked)
             resolve({ _tag: "stored", stored })
           },
         )
@@ -465,9 +496,9 @@ export const createChat = (conv: Conversing): Chat => {
     cancel: () => verb(chatWire().procedures.conversation.cancel({ conv, scope: state().uploadScope })),
     // The three doors that OPEN a conversation, and the fourth that reopens
     // a refused one. Each says so from the click ({@link opens}).
-    newSession: (agent) => run(chatWire().procedures.conversation.newSession({ agent }), setRefused, selectConversation),
-    chooseAgent: (agent) => run(chatWire().procedures.conversation.chooseAgent({ agent }), setRefused, selectConversation),
-    loadSession: (agent, session) => selectConversation({ agent, session }),
+    newSession: (agent) => run(chatWire().procedures.conversation.newSession({ agent }), setRefused, to => options.visit?.(to)),
+    chooseAgent: (agent) => run(chatWire().procedures.conversation.chooseAgent({ agent }), setRefused, to => options.visit?.(to)),
+    loadSession: (agent, session) => options.visit?.({ agent, session }),
     // An ordinary verb, and deliberately not one of the four above: pointing a
     // doorbell at a file opens nothing, so the panel has nothing to say from
     // the click — what it did shows up as the strip's own row changing, which

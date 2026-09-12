@@ -20,7 +20,7 @@ Feature: Undo history survives plugin changes without overwriting other work
     And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the conversation is gone-from the header
+    Then chat controls are gone-from the outline
     When I press "ControlOrMeta+z"
     Then the node "knobs" has the title "pick the knobs"
     And the node "handles" has the title "first retained edit"

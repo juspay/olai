@@ -109,8 +109,6 @@ import {
   type SessionInfo,
   type Unreachable,
 } from "olai-plugin-chat/wire"
-import { panelOpen } from "../shell.ts"
-import { createChatState } from "../chat/state.ts"
 import { run } from "@olai/web/client/run.ts"
 import { type Chatting } from "../../lineage.ts"
 import type { Row } from "./roster.ts"
@@ -159,9 +157,6 @@ export interface Roster {
    *  when it is in none. Off the chat cell this provider already holds, so a
    *  list that marks the row a reader is already looking at costs no second
    *  subscription. */
-  readonly openChat: Accessor<Chatting | null>
-  readonly conversation: Accessor<ChatState>
-  readonly select: (to: Conversing) => void
   /** Ask the agents again — what a person opening the list gets, because a
    *  conversation started in a terminal a moment ago should be in it. Called
    *  on the press, and by the provider itself when a settled turn lands the
@@ -178,22 +173,6 @@ export function createAgents(): Roster {
   const cell = chatWire().cells.agents.use()
   const rows = createMemo(() => cell.value() ?? NO_AGENT_ROSTER)
   const byNode = createMemo(() => new Map(rows().map(row => [row.id, row])))
-  const [picked, setPicked] = createSignal<{ readonly to: Conversing; readonly node: string | null } | null>(null)
-  const select = (to: Conversing) => setPicked({ to,
-    node: rows().find(row => row.engine === to.agent && row.session === to.session)?.id ?? null,
-  })
-  const openChat = createMemo((): Conversing | null => {
-    const choice = picked()
-    if (choice === null) return null
-    if (choice.node === null) return choice.to
-    const row = byNode().get(choice.node)
-    return row?.session == null ? null : { agent: row.engine, session: row.session }
-  }, null, { equals: (left, right) => left?.agent === right?.agent && left?.session === right?.session })
-  const reading = createMemo(() => {
-    const to = openChat()
-    return to === null || !panelOpen() ? () => ({ ...CHAT_OFF, roster: engineCell.value() ?? [] }) : createChatState(to)
-  })
-  const chat = () => reading()()
   let active = true
   onCleanup(() => { active = false })
   const engines = createMemo(() => engineCell.value() ?? [])
@@ -280,8 +259,8 @@ export function createAgents(): Roster {
    *  reading of the CELL and so is live: the frame an assignment lands on is
    *  the frame that row leaves this list. */
 
-  return { conversation: chat, select, rows, at: node => byNode().get(node), engines, chats,
-    unreachable, openChat, chatsRefusal, askChats }
+  return { rows, at: node => byNode().get(node), engines, chats,
+    unreachable, chatsRefusal, askChats }
 }
 
 /** Each contribution carries the same activation-owned roster to its children. */

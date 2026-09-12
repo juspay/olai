@@ -33,7 +33,9 @@ Feature: Plugins depend on doors
   Scenario: The transcript follows the shared viewer when identity leaves and returns
     Given I am the Tailscale user "ada@example.com"
     And I open the app
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "the viewer is shared"
     Then the agent's answer mentions "you said: the viewer is shared"
     And my transcript speaker is "ada@example.com"
@@ -64,8 +66,10 @@ Feature: Plugins depend on doors
   Scenario: The speaker waits visibly while the conversation remains usable
     Given I am the Tailscale user "ada@example.com"
     And I open the app
+    And I open the outline "house.olai"
     And I mark the page
-    And the agent panel is open
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "identity can arrive later"
     Then the agent's answer mentions "you said: identity can arrive later"
     And my transcript speaker is "you"

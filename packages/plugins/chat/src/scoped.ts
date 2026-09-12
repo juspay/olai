@@ -126,6 +126,8 @@ export interface Options extends PanelOptions {
 interface NodeSlot {
   uses: number
   switching: boolean
+  openingFor: Conversing | null
+  readingFor: Conversing | null
   readonly opening: Semaphore.Semaphore
   readonly key: string
   readonly history: boolean
@@ -172,14 +174,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const panelOptions: PanelOptions = { ...givenPanelOptions, memory }
     const gate = yield* Semaphore.make(1)
     const nodes = new Map<string, NodeSlot>()
+    // Reaped slots leave the live map immediately; shutdown still owns their cleanup.
+    const closing = new Map<NodeSlot, Deferred.Deferred<void>>()
     const readers = new Map<string, Set<ReadingObserver>>()
+    let knownEngines = new Set(options.roster().map(row => row.id))
     const readingKey = (to: Conversing) => JSON.stringify([to.agent, to.session])
     const listeners = (state: ReturnType<Panel["state"]>) => {
       const agent = agentIn(state)
       const session = state.session?.id ?? state.unopened?.what
       return agent == null || session == null ? undefined : readers.get(readingKey({ agent: agent.id, session }))
     }
-    const read = (slot: NodeSlot) => (listeners(slot.state)?.size ?? 0) > 0
+    const readingListeners = (slot: NodeSlot) => listeners(slot.state)
+      ?? (slot.openingFor === null ? undefined : readers.get(readingKey(slot.openingFor)))
+      ?? (slot.readingFor === null ? undefined : readers.get(readingKey(slot.readingFor)))
+    const read = (slot: NodeSlot) => (readingListeners(slot)?.size ?? 0) > 0
     const pending = new Map<string, Array<PendingDelivery>>()
     let stopped = false
     let relocating = false
@@ -268,7 +276,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
     const close = (slot: NodeSlot, reason: StopReason = "scope released"): Effect.Effect<void> =>
       Effect.suspend(() => {
-        if (slot.closing || nodes.get(slot.key) !== slot) return Effect.void
+        if (slot.closing) {
+          const done = closing.get(slot)
+          return done === undefined ? Effect.void : Deferred.await(done)
+        }
+        if (nodes.get(slot.key) !== slot) return Effect.void
+        const done = Deferred.makeUnsafe<void>()
+        closing.set(slot, done)
         slot.closing = true
         slot.closeReason = reason
         nodes.delete(slot.key)
@@ -279,8 +293,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         return Effect.andThen(
           timer === null ? Effect.void : Fiber.interrupt(timer),
           Scope.close(slot.scope, Exit.void),
-        )
-      })
+        ).pipe(Effect.ensuring(Effect.sync(() => {
+          Deferred.doneUnsafe(done, Effect.void)
+          closing.delete(slot)
+        })))
+      }).pipe(Effect.uninterruptible)
 
     const armIdle = (slot: NodeSlot): void => {
       // NOTHING NEW ONCE EITHER IS DONE. `close` interrupts the timer it can
@@ -429,6 +446,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               onState: (state) => {
                 if (slot.state.status !== state.status) slot.since = new Date().toISOString()
                 slot.state = state
+                const agent = agentIn(state)
+                const session = state.session?.id ?? state.unopened?.what
+                if (agent != null && session != null) slot.readingFor = { agent: agent.id, session }
                 options.onConversationState?.(state, slot.panel.entries(), slot.node)
                 slot.touched = Date.now()
                 if (
@@ -441,13 +461,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                   slot.generation++
                 }
                 if (active.kind === "node" && active.slot === slot) panelOptions.onState(state)
-                if (!slot.switching) for (const reader of listeners(state) ?? []) reader.state(state)
+                if (!slot.switching) for (const reader of readingListeners(slot) ?? []) reader.state(state)
                 onLive?.()
               },
               onTranscript: (change) => {
                 options.onConversationTranscript?.(slot.state, change)
                 if (active.kind === "node" && active.slot === slot) panelOptions.onTranscript(change)
-                if (!slot.switching) for (const reader of listeners(slot.state) ?? []) reader.transcript(change)
+                if (!slot.switching) for (const reader of readingListeners(slot) ?? []) reader.transcript(change)
               },
             }),
             (made) => made.stopWithReason(slot?.closeReason ?? "scope released"),
@@ -455,6 +475,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           slot = {
             uses: 1,
             switching: false,
+            openingFor: null,
+            readingFor: null,
             opening: Semaphore.makeUnsafe(1),
             key,
             history: history !== undefined,
@@ -545,7 +567,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // A navigation press must reach the busy refusal immediately, rather
       // than waiting for that turn to finish and switching after it. The
       // picker already read the lineage; reuse it while root is working.
-      const listed = root.state().status === "thinking" ? lastListed : yield* listSessions
+      const busy = root.state().status === "thinking" || [...nodes.values()].some(slot => slot.state.status === "thinking")
+      const listed = busy ? lastListed : yield* listSessions
       if (listed === null) return null
       const node = nodesAt().find((candidate) =>
         candidate.engine === to.agent && candidate.session !== null
@@ -758,6 +781,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       yield* settled
       yield* root.stopWithReason(reason)
       yield* Effect.forEach([...nodes.values()], (slot) => close(slot, reason), { discard: true })
+      yield* Effect.forEach([...closing.values()], Deferred.await, { discard: true })
     })
 
     const reading: Chat["reading"] = (to, observer) => Effect.gen(function*() {
@@ -788,10 +812,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
             yield* slot.opening.withPermit(Effect.gen(function*() {
               const state = slot.panel.state()
-              if (state.session?.id !== to.session || state.status === "gone") {
+              if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
                 // An agent's refusal is conversation state, not a broken wire.
                 // Keep the reader so Unopened can show it and retry explicitly.
-                yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void)
+                slot.openingFor = to
+                yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
+                  Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
+                )
               }
               if (!place.history) yield* flush(slot)
             }))
@@ -839,8 +866,23 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * and an order is one less thing to reason about.
        */
       enginesMoved: Effect.gen(function*() {
+        const present = new Set(options.roster().map(row => row.id))
+        const returned = new Set([...present].filter(id => !knownEngines.has(id)))
+        knownEngines = present
         yield* root.enginesMoved
-        for (const slot of [...nodes.values()]) yield* slot.panel.enginesMoved
+        for (const slot of [...nodes.values()]) {
+          yield* slot.panel.enginesMoved
+          const to = slot.readingFor
+          // Returning capability resumes only explicitly held readings. It
+          // never opens a sleeping binding or picks a different conversation.
+          if (to !== null && returned.has(to.agent) && read(slot)) {
+            yield* Effect.catch(
+              working(slot.node, slot.history ? to : undefined, ({ slot }) =>
+                slot.opening.withPermit(slot.panel.loadSession(to.agent, to.session))),
+              failure => Effect.logWarning(`the returning engine could not reopen its held conversation: ${failure.message}`),
+            )
+          }
+        }
       }),
       reread: () => {
         root.reread()
@@ -866,6 +908,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const held = [...nodes.values()].find(slot => matches(slot.panel))
         if (held !== undefined) return working(held.node, held.history ? to : undefined, ({ slot }) => apply(slot.panel))
         if (matches(root)) return apply(root)
+        // An upload/send names an already acquired lifetime. Reopening a stale
+        // pair here could replace a freshly opened session while its binding
+        // write is still landing; no new process can satisfy the old token.
+        if (scope !== undefined) return Effect.fail(new UsageFailure({
+          reason: "the conversation changed; this action was not applied",
+        }))
         return Effect.scoped(Effect.flatMap(reading(to, { state: () => {}, transcript: () => {} }), apply))
       }),
       setSetting: (agent, session, config, value) => foreground((panel) => panel.setSetting(agent, session, config, value)),
@@ -903,6 +951,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           : working(node, undefined, ({ slot }) =>
             Effect.gen(function*() {
               activate(slot)
+              const before = [...slot.panel.entries()].map(([id]) => id)
               yield* Effect.acquireUseRelease(
                 Effect.sync(() => { slot.switching = true }),
                 () => slot.panel.newSession(agent),
@@ -912,6 +961,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               if (session === null) return yield* new UsageFailure({
                 reason: `${agent} opened no conversation to bind to this node`,
               })
+              // A harness may return the same identity for fresh start. Its
+              // existing readers still need the new state and cleared replay.
+              for (const reader of listeners(slot.state) ?? []) {
+                reader.state(slot.state)
+                reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+              }
               yield* flush(slot)
               return { agent, session: session.id }
             })),

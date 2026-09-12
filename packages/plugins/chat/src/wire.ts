@@ -252,6 +252,11 @@ export const surface = defineSurface({
        * for declining to write a property — a record that is gone, a file that
        * would not take the write.
        */
+      agentAbove: {
+        input: Schema.Struct({ node: Schema.String }),
+        output: Schema.NullOr(Schema.Struct({ node: Schema.String, file: Schema.String, agent: Schema.String, session: Schema.NullOr(Schema.String) })),
+        error: ChatFailure,
+      },
       startAgentSession: {
         input: Schema.Struct({
           /** The node whose property is about to name the session — the id the
@@ -461,6 +466,7 @@ export const faces = {
     "conversation.setSetting": "tool",
     "conversation.newSession": "tool",
     "conversation.startAgentSession": "tool",
+    "conversation.agentAbove": "tool",
     "conversation.chooseAgent": "tool",
     "conversation.loadSession": "tool",
     "conversation.reopen": "tool",

@@ -92,11 +92,11 @@ import { useShowNode } from "../references.ts"
 import { useFollow } from "olai-plugin-navigation/routing"
 import { selector } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "../../testids.ts"
-import { revealed, revealing, wholeYet } from "./attention/reveal.ts"
+import { wholeYet } from "./attention/whole.ts"
 import { declaringFailure } from "../references.ts"
 import { laneOf } from "./lanes.ts"
 import { NEAR } from "./near.ts"
-import { previewing } from "./previewing.ts"
+import { useConversationUI } from "./ui.tsx"
 import { railOf, sameRail } from "./rail.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
@@ -111,7 +111,10 @@ import type { Chat } from "./state.ts"
  *  for, spelled off the panel's own declared handles rather than off a class. */
 const WAITING_ASK = `${selector(TESTID.chatAsk)}[data-asking="true"]`
 
-export function Transcript(props: { readonly chat: Chat }) {
+export function Transcript(props: { readonly chat: Chat; readonly unbounded?: boolean }) {
+  const [revealing, setRevealing] = props.chat.ui.reveal
+  const revealed = () => setRevealing(false)
+  const { previewing } = useConversationUI().previewing
   const show = useShowNode()
   const follow = useFollow()
   let pane: HTMLDivElement | undefined
@@ -330,6 +333,7 @@ export function Transcript(props: { readonly chat: Chat }) {
       // (`./DropTarget.tsx`) becomes the scrollport, carrying the composer
       // away with the rows. `overscroll-contain` stops a wheel at the end of
       // this pane from moving the page beside it.
+      style={{ "max-height": props.unbounded ? undefined : "24rem" }}
       class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-2 text-ink"
       classList={{
         // A FLOOR, and ONLY WHILE A SHELF IS TAKING ROOM. What can squeeze this

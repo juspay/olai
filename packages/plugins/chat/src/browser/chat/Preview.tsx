@@ -74,14 +74,14 @@ import { For, Show } from "solid-js"
 import type { ChatEntry } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
 import type { Lane } from "./lanes.ts"
-import { reveal } from "./attention/reveal.ts"
-import { closePreview, previewing, togglePreview } from "./previewing.ts"
+import { useConversationUI } from "./ui.tsx"
 import { railOf } from "./rail.ts"
 import { Row } from "./Row.tsx"
 import { sentOf, whoOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
 export function Preview(props: { readonly chat: Chat }) {
+  const { closePreview, previewing, togglePreview } = useConversationUI().previewing
   /** WHICH agent, and whether it is one this conversation still has. A key that
    *  named a row of the last conversation — or of a turn that has been cleared
    *  — reads as nothing here rather than as an empty shelf, which is the same
@@ -101,6 +101,7 @@ function Shelf(props: {
   readonly chat: Chat
   readonly open: { readonly row: string; readonly entry: ChatEntry }
 }) {
+  const { closePreview, previewing, togglePreview } = useConversationUI().previewing
   const calls = () => props.chat.lanes().get(props.open.row) ?? EMPTY
   /** The lane every row in here is in — MINTED ONCE for the whole shelf rather
    *  than asked of {@link ./lanes.ts} per row, and with no label at all.
@@ -156,7 +157,7 @@ function Shelf(props: {
             // back. Pressing through to the same ask rather than scrolling from
             // here is what keeps one answer to "show me what is waiting".
             closePreview()
-            reveal()
+            props.chat.ui.reveal[1](true)
           }}
         >
           <span aria-hidden="true">◆</span>

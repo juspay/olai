@@ -26,10 +26,15 @@
 
 import { createSignal } from "solid-js"
 
+export const diffKey = (call: string, at: number, path: string): string =>
+  `${call}\u0000${at}\u0000${path}`
+
+
+export const createFolds = () => {
 const [unfolded, setUnfolded] = createSignal<ReadonlySet<string>>(new Set())
 
 /** Is this one open? */
-export const isUnfolded = (id: string): boolean => unfolded().has(id)
+const isUnfolded = (id: string): boolean => unfolded().has(id)
 
 /**
  * The name of ONE BLOCK of change inside one call: the call, WHERE IN THAT
@@ -61,13 +66,13 @@ export const isUnfolded = (id: string): boolean => unfolded().has(id)
  * file binary to git — which is what the first draft of this line did, and a
  * file nothing can diff or blame line by line is a worse price than any key.
  */
-export const diffKey = (call: string, at: number, path: string): string =>
-  `${call}\u0000${at}\u0000${path}`
-
-export const toggleFold = (id: string): void => {
+const toggleFold = (id: string): void => {
   setUnfolded((open) => {
     const next = new Set(open)
     if (!next.delete(id)) next.add(id)
     return next
   })
+}
+
+return { isUnfolded, toggleFold }
 }

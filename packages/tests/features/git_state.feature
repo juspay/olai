@@ -103,7 +103,8 @@ Feature: What git is doing is on screen, in ONE indicator
     # the history, in git's own words, in the block a reader opens on the call
     # that made it. The whole path is real here: panel, ops, git, and the tool
     # result coming back.
-    Given the agent panel is open
+    When I open the "claude" agent on node "herbs"
+    Given the node agent's fold is ready
     When I ask the agent "done mint"
     Then the chat shows a completed tool call
     And node "mint" is done

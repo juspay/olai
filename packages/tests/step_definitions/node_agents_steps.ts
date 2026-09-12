@@ -183,6 +183,7 @@ Then(
 
 When("I press the agent {string}", async function (this: OlaiWorld, node: string) {
   await this.showSidebar();
+  this.activeAgent = node;
   await this.press(rowFor(this, node));
 });
 
@@ -482,15 +483,15 @@ When("I take the node the assign search refused", async function (this: OlaiWorl
 Then(
   "the panel says this agent has had {int} past session(s)",
   async function (this: OlaiWorld, many: number) {
-    const line = this.page.locator(PAST);
+    const line = this.chat(PAST);
     await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(await line.getAttribute("data-count"), String(many));
   },
 );
 
 Then("the past sessions hold {string}", async function (this: OlaiWorld, title: string) {
-  await this.page
-    .locator(PAST_SESSION, { hasText: title })
+  await this
+    .chat(PAST_SESSION, { hasText: title })
     .first()
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
@@ -501,7 +502,7 @@ Then("the past sessions hold {string}", async function (this: OlaiWorld, title: 
 Then(
   "the panel offers a fresh session, saying {string}",
   async function (this: OlaiWorld, words: string) {
-    const fresh = this.page.locator(FRESH);
+    const fresh = this.chat(FRESH);
     await fresh.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
       (await fresh.innerText()).replaceAll("\n", " ").includes(words),
@@ -519,7 +520,7 @@ Then(
  *  conversation the node names. The second is the one the trap needs, and a step
  *  that spelled a location would have to be two steps for one act. */
 When("I start a fresh session", async function (this: OlaiWorld) {
-  const fresh = this.page.locator(FRESH);
+  const fresh = this.chat(FRESH);
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
 });
@@ -530,9 +531,9 @@ When("I start a fresh session", async function (this: OlaiWorld) {
  *  panel is drawn before `bound` has arrived, and the claim is about where it
  *  settles. */
 Then("the panel offers no sessions of its own", async function (this: OlaiWorld) {
-  await this.page.locator(CHAT_INPUT).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.chat(CHAT_INPUT).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitUntil(
-    async () => (await this.page.locator(CHAT_SESSIONS).count()) === 0,
+    async () => (await this.chat(CHAT_SESSIONS).count()) === 0,
     "the panel to offer no sessions control",
   );
 });
@@ -551,7 +552,7 @@ Then("the unassigned list is not drawn", async function (this: OlaiWorld) {
 Then(
   "the panel refuses, saying {string}",
   async function (this: OlaiWorld, words: string) {
-    const line = this.page.locator(selector(PLUGIN_TESTID.chatRefused));
+    const line = this.chat(selector(PLUGIN_TESTID.chatRefused));
     await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
       (await line.innerText()).replaceAll("\n", " ").includes(words),
@@ -574,38 +575,39 @@ Then(
 Then(
   "the panel header names the node agent {string}",
   async function (this: OlaiWorld, title: string) {
-    const line = this.page.locator(selector(PLUGIN_TESTID.chatNode));
+    assert.ok(this.activeAgent);
+    const line = this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(this.activeAgent))}`);
     await this.waitUntil(
-      async () => (await line.allInnerTexts()).some(text => text.replaceAll("\n", " ").includes(title)),
+      async () => (await line.getAttribute("aria-label")) === title,
       `the panel header to name the node agent ${JSON.stringify(title)}`,
     );
   },
 );
 
 When("I open the past session {string}", async function (this: OlaiWorld, title: string) {
-  const row = this.page.locator(PAST_SESSION, { hasText: title }).first();
+  const row = this.chat(PAST_SESSION, { hasText: title }).first();
   const session = await row.getAttribute("data-session-id");
   assert.ok(session);
   await row.click();
   await this.waitUntil(async () =>
-    await this.page.locator(selector(PLUGIN_TESTID.chatPanel)).getAttribute("data-session-id") === session,
+    await this.chat(selector(PLUGIN_TESTID.chatPanel)).getAttribute("data-session-id") === session,
     "the selected past conversation to open",
   );
 });
 
 Then("the past session {string} is selected", async function (this: OlaiWorld, title: string) {
-  const row = this.page.locator(PAST_SESSION, { hasText: title }).first();
+  const row = this.chat(PAST_SESSION, { hasText: title }).first();
   await this.waitUntil(async () => await row.getAttribute("data-current") === "true", "the past conversation to be selected");
   assert.ok(await row.isDisabled());
 });
 
 When("I return to the node agent's current session", async function (this: OlaiWorld) {
-  const button = this.page.getByRole("button", { name: "current session", exact: true });
+  const button = this.chatRoot().getByRole("button", { name: "current session", exact: true });
   const session = await button.getAttribute("data-session-id");
   assert.ok(session);
   await button.click();
   await this.waitUntil(async () => {
-    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    const panel = this.chat(selector(PLUGIN_TESTID.chatPanel));
     return await panel.getAttribute("data-session-id") === session
       && await panel.getAttribute("data-status") === "idle";
   }, "the node's current conversation to be ready");
@@ -613,7 +615,7 @@ When("I return to the node agent's current session", async function (this: OlaiW
 
 const notedSessions = new WeakMap<OlaiWorld, Map<string, string>>();
 When("I remember this conversation as {string}", async function (this: OlaiWorld, name: string) {
-  const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+  const panel = this.chat(selector(PLUGIN_TESTID.chatPanel));
   await this.waitUntil(async () => await panel.getAttribute("data-status") === "idle", "the conversation to be ready");
   const id = await panel.getAttribute("data-session-id");
   assert.ok(id);
@@ -626,7 +628,7 @@ Then("the panel is in the remembered conversation {string}", async function (thi
   const id = notedSessions.get(this)?.get(name);
   assert.ok(id, `no conversation remembered as ${name}`);
   await this.waitUntil(async () => {
-    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    const panel = this.chat(selector(PLUGIN_TESTID.chatPanel));
     return await panel.getAttribute("data-session-id") === id
       && await panel.getAttribute("data-status") === "idle";
   }, `the panel to open ${name}`);
@@ -638,7 +640,7 @@ Then("the panel is ready in a new conversation after {string}", async function (
   // Clicking fresh starts an asynchronous switch. Idle on its own can still
   // describe the old conversation; require the new identity before typing.
   await this.waitUntil(async () => {
-    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    const panel = this.chat(selector(PLUGIN_TESTID.chatPanel));
     const current = await panel.getAttribute("data-session-id");
     return current !== null && current !== "" && current !== previous
       && await panel.getAttribute("data-status") === "idle";
@@ -649,7 +651,7 @@ Then("the panel is in the working conversation {string}", async function (this: 
   const id = notedSessions.get(this)?.get(name);
   assert.ok(id, `no conversation remembered as ${name}`);
   await this.waitUntil(async () => {
-    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    const panel = this.chat(selector(PLUGIN_TESTID.chatPanel));
     return await panel.getAttribute("data-session-id") === id
       && await panel.getAttribute("data-status") === "thinking";
   }, `the panel to show the running conversation ${name}`);
@@ -659,14 +661,14 @@ Then("the panel has a different conversation from {string}", async function (thi
   const id = notedSessions.get(this)?.get(name);
   assert.ok(id, `no conversation remembered as ${name}`);
   await this.waitUntil(async () => {
-    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    const panel = this.chat(selector(PLUGIN_TESTID.chatPanel));
     const current = await panel.getAttribute("data-session-id");
     return current !== null && current !== id && await panel.getAttribute("data-status") === "idle";
   }, `a fresh conversation replacing ${name}`);
 });
 
 When("I press the fresh-session button position again", async function (this: OlaiWorld) {
-  const button = this.page.locator(FRESH).first();
+  const button = this.chat(FRESH).first();
   const box = await button.boundingBox();
   assert.ok(box, "the pending fresh-session button must remain visible");
   // A physical repeat press must land even if the control is now disabled.
@@ -674,20 +676,20 @@ When("I press the fresh-session button position again", async function (this: Ol
 });
 
 Then("the fresh-session request is pending", async function (this: OlaiWorld) {
-  const button = this.page.locator(FRESH).first();
+  const button = this.chat(FRESH).first();
   await this.waitUntil(() => button.isDisabled(), "the fresh-session button to block repeat submissions");
   assert.equal(await button.getAttribute("aria-busy"), "true");
 });
 
 Then("the fresh-session control refuses {string} and allows retry", async function (this: OlaiWorld, text: string) {
-  const refusal = this.page.locator(selector(PLUGIN_TESTID.chatFreshSaid));
+  const refusal = this.chat(selector(PLUGIN_TESTID.chatFreshSaid));
   await refusal.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitUntil(async () => (await refusal.innerText()).includes(text), "the fresh-session refusal to explain the failed request");
-  await this.waitUntil(async () => !(await this.page.locator(FRESH).first().isDisabled()), "the fresh-session button to allow retry");
+  await this.waitUntil(async () => !(await this.chat(FRESH).first().isDisabled()), "the fresh-session button to allow retry");
 });
 
 Then("the node session control counts {int} conversations", async function (this: OlaiWorld, count: number) {
-  const button = this.page.locator(CHAT_SESSIONS);
+  const button = this.chat(CHAT_SESSIONS);
   await this.waitUntil(async () => (await button.innerText()).trim() === `sessions (${count})`, "the node's session count to reflect its current history");
 });
 
@@ -731,6 +733,7 @@ When("I hover the agent start pill on {string}", async function (this: OlaiWorld
   await startFor(this, node).hover({ force: true });
 });
 When("I press the agent start pill on {string}", async function (this: OlaiWorld, node: string) {
+  this.activeAgent = node;
   await this.press(startFor(this, node));
 });
 Then("the agent start pill on {string} is visible", async function (this: OlaiWorld, node: string) {
@@ -772,6 +775,7 @@ When("I open the filed conversation {string} as node {string}", async function (
   const id = await row.getAttribute("data-agent");
   assert.ok(id);
   this.nodeNames.set(name, id);
+  this.activeAgent = name;
   await this.press(row);
 });
 
@@ -819,6 +823,7 @@ When("I open the filed {string} conversation {string} as node {string}", async f
   const id = await row.getAttribute("data-agent");
   assert.ok(id);
   this.nodeNames.set(name, id);
+  this.activeAgent = name;
   await this.press(row);
 });
 
@@ -837,5 +842,19 @@ When("I open the {string} conversation for delivery", async function (this: Olai
   const row = kind === "node-bound" ? rowFor(this, "door-live")
     : this.page.locator(`${ROSTER} ${ROW}${attr("title", "the last conversation — claude:", "^=")}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  this.activeAgent = await row.getAttribute("data-agent");
   await this.press(row);
+});
+
+Then("node {string} still binds remembered conversation {string} in {string}", async function(this: OlaiWorld, node: string, name: string, file: string) {
+  const id = notedSessions.get(this)?.get(name);
+  assert.ok(id, `no conversation remembered as ${name}`);
+  await this.waitUntil(async () => {
+    const row = this.servedNodesSoFar(file).find(row => row.id === this.nodeId(node));
+    return row !== undefined && Object.values(row.custom as Record<string, unknown>).some(value => typeof value === "string" && value.endsWith(`:${id}`));
+  }, `${node}'s binding to remain on ${name}`);
+});
+
+When("I begin opening the past session {string}", async function(this: OlaiWorld, title: string) {
+  await this.chat(PAST_SESSION, { hasText: title }).click();
 });

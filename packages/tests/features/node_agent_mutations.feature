@@ -5,7 +5,7 @@ Feature: Node session ownership follows changes to the node
     And I open the outline "house.olai"
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
+    And the node agent's fold is ready
     And I ask the agent "first cabinet history"
     Then the agent has answered "first cabinet history" exactly once
     When I remember this conversation as "first"
@@ -46,11 +46,7 @@ Feature: Node session ownership follows changes to the node
     And I choose "Move to Trash" from the node menu
     Then "_olai/Trash.olai" holds the node "install"
     And the agents roster holds 0 agents
-    When I show the done nodes
-    And I ask the agent "done order"
-    Then the agent is idle
-    And node "order" is done
-    And the chat shows no refusal
+    And no agent fold is open
     When I open the Trash
     And I put back "install" from the Trash
     Then "house.olai" holds the node "install"
@@ -62,18 +58,25 @@ Feature: Node session ownership follows changes to the node
     And I open the past session "first cabinet history"
     Then the panel is in the remembered conversation "first"
     And the panel header names the node agent "install the cabinets"
+    When I ask the agent "done order"
+    Then the agent is idle
+    And node "order" is done
+    And the chat shows no refusal
     When I ask the agent "done hinges"
     Then the agent is idle
     And node "hinges" is done
+    And node "install" still binds remembered conversation "current" in "house.olai"
     And there should be no page errors
 
   Scenario: Restoring chat while reading node history restores the same scoped conversation
     When I open the plugins panel
     And I switch the plugin "chat" off
-    Then the conversation is gone-from the header
+    Then chat controls are gone-from the outline
     When I switch the plugin "chat" on
     And I close the plugins panel
-    And the agent panel is open
+    And the node agent's fold is ready
+    And I open the session picker
+    And I open the past session "first cabinet history"
     Then the panel is in the remembered conversation "first"
     And the panel header names the node agent "install the cabinets"
     When I show the done nodes

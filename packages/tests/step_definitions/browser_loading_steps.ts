@@ -1,7 +1,7 @@
 import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import { BROWSER_MODULES_ID } from "@olai/web/testlib"
+import { BROWSER_MODULES_ID, selector } from "@olai/web/testlib"
 import type { OlaiWorld } from "../support/world.ts";
 
 const refused = new WeakMap<OlaiWorld, { url: string; requests: number }>();
@@ -72,12 +72,12 @@ When("the desktop window narrows to {int} pixels", async function (this: OlaiWor
 });
 
 Then("layout reserves at least {int} pixels for content", async function (this: OlaiWorld, width: number) {
-  await this.page.waitForFunction((minimum) => {
-    const style = document.documentElement.style;
-    const side = parseFloat(style.getPropertyValue("--width-sidebar"));
-    const panel = parseFloat(style.getPropertyValue("--width-panel"));
-    return window.innerWidth - side - panel >= minimum;
-  }, width);
+  await this.page.waitForFunction(({ minimum, paneSelector }) => {
+    const pane = document.querySelector(paneSelector);
+    if (pane === null) return false;
+    const box = pane.getBoundingClientRect();
+    return Math.min(box.right, window.innerWidth) - Math.max(box.left, 0) >= minimum;
+  }, { minimum: width, paneSelector: selector(TESTID.pane) });
 });
 
 Given("the browser cannot obtain its initial selection", async function (this: OlaiWorld) {

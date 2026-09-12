@@ -11,7 +11,7 @@ Feature: A restored node recovers its complete conversation history
     When I open the node menu of "history-recovery"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "History recovery agent"
-    And the agent panel is open
+    And the node agent's fold is ready
     When I ask the agent "historical recovery session"
     Then the agent has answered "historical recovery session" exactly once
     When I remember this conversation as "historical"
@@ -28,12 +28,17 @@ Feature: A restored node recovers its complete conversation history
     When I remove the served file "history-recovery.olai"
     Then the Unassigned row and list are absent
     When I restore the remembered served bytes of "history-recovery.olai"
+    And I open the outline "history-recovery.olai"
+    And I unfold node agent "history-recovery"
     Then the panel header names the node agent "History recovery agent"
     And the Unassigned row and list are absent
     When I reload the page
+    And I unfold node agent "history-recovery"
+    And the node agent's fold is ready
     Then the panel header names the node agent "History recovery agent"
-    And the agent panel is open
-    And the panel is in the remembered conversation "historical"
+    When I open the session picker
+    And I open the past session "historical recovery session"
+    Then the panel is in the remembered conversation "historical"
     When I ask the agent "history continued after restoration"
     Then the agent has answered "history continued after restoration" exactly once
     When I show the done nodes

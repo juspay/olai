@@ -82,8 +82,7 @@ Given("the notification worker is ready", async function (this: OlaiWorld) {
 Then(
   "the agent button says the agent is waiting on me",
   async function (this: OlaiWorld) {
-    await this.expectAttribute(
-      CHAT_TOGGLE,
+    await this.expectAttribute(this.chatSelector(CHAT_TOGGLE),
       "data-asking",
       "true",
       "the agent toggle",
@@ -268,9 +267,9 @@ When("the notification is pressed", async function (this: OlaiWorld) {
 });
 
 Then("the panel is open at the question", async function (this: OlaiWorld) {
-  const panel = this.page.locator(CHAT_PANEL);
+  const panel = this.chat(CHAT_PANEL);
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const waiting = this.page.locator(WAITING_ASK);
+  const waiting = this.chat(WAITING_ASK);
   await waiting.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   // In view rather than merely present: the press promises the question is
   // where the reader is looking, and a form below the fold of a long

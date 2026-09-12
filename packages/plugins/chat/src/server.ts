@@ -551,6 +551,11 @@ export default definePlugin({
         withChat((open) => Effect.andThen(open.newSession(input.agent), () => openedConversation(open))),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
+      agentAbove: ({ input }: { input: { node: string } }) => Effect.sync(() => {
+        const id = nodeAgents.nearestAt(input.node, new Set(nodeAgents.nodes().map(node => node.id)))
+        const node = id === null ? null : nodeAgents.nodeAt(id)
+        return node === null ? null : { node: node.id, file: node.file, agent: node.engine, session: node.session }
+      }),
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
         withChat((open) => startAgentSession(open, binding, input)).pipe(
           // Publish after both the binding and its history link are written.

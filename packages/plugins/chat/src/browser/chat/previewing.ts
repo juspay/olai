@@ -44,20 +44,21 @@
 
 import { createSignal } from "solid-js"
 
+export const createPreviewing = () => {
 const [open, setOpen] = createSignal<string | null>(null)
 
 /** The `Agent` frame whose calls are being read, or `null` — which is nearly
  *  every moment of nearly every conversation. */
-export const previewing = open
+const previewing = open
 
 /** Whether THIS frame is the open one. Spelled here rather than compared at
  *  each door, so that "open" is one question with one answer. */
-export const isPreviewing = (row: string): boolean => open() === row
+const isPreviewing = (row: string): boolean => open() === row
 
 /** Open this agent's work — or close it, when it is the one already open. The
  *  door is the same control both ways round, because a reader who presses the
  *  agent they are already reading means *put it away*. */
-export const togglePreview = (row: string): void => {
+const togglePreview = (row: string): void => {
   setOpen((was) => (was === row ? null : row))
 }
 
@@ -71,6 +72,9 @@ export const togglePreview = (row: string): void => {
  *  conversation changing underneath it ({@link ./state.ts}). Both are the panel
  *  taking the shelf away for a reason of its own, which is why neither can be
  *  the toggle. */
-export const closePreview = (): void => {
+const closePreview = (): void => {
   setOpen(null)
+}
+
+return { previewing, isPreviewing, togglePreview, closePreview }
 }

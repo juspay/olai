@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { previewText } from "./last.ts"
+import { previewText } from "./preview-text.ts"
 
 test("preview leaves a short line alone", () => {
   expect(previewText("hello")).toBe("hello")

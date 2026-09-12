@@ -1,8 +1,9 @@
 @scratch:chat
 Feature: Concurrent attachments with the same name retain distinct bytes
   Scenario: Two overlapping drops in one conversation remain independently readable
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     And I mark the page
     When I drop two different text files with the same name at once
     Then the pending attachment "collision.txt" shows size "5 B"

@@ -568,3 +568,12 @@ Then(
     );
   },
 );
+
+Then("the vault node {string} has property {string} holding {string}", async function(this: OlaiWorld, name: string, key: string, value: string) {
+  const file = await this.node(name).getAttribute("data-file");
+  assert.ok(file);
+  await this.waitUntil(async () => {
+    const node = this.servedNodes(file).find(row => row.id === this.nodeId(name));
+    return (node?.custom as Record<string, unknown> | undefined)?.[key] === value;
+  }, `the stored property ${key} on ${name} to equal ${value}`);
+});

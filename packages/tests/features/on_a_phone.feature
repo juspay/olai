@@ -46,18 +46,6 @@ Feature: On a phone
     Then the directory drawer is open with a scrim
     And there should be no page errors
 
-  @scratch:chat @phone
-  Scenario: The agent is one tap away on a phone
-    # The one control that has to be reachable. It is the thumb strip — never
-    # behind the burger, never a fifth chip in the bar — so a thumb can open
-    # the panel without opening the directory drawer first.
-    Given I open the app
-    Then the burger is on screen
-    And the chat strip is showing
-    When I tap the agent toggle
-    Then the agent panel is showing
-    And I can type into the chat
-
   @scratch:good @phone
   Scenario: A live phone does not advertise health
     # WhatsApp's rule. The pills that used to crowd the bar — live, the commit

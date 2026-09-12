@@ -2161,6 +2161,23 @@ export class OlaiWorld extends World {
    *  subtree is rendered a second time, or inside a split, where a second pane
    *  may draw the same file; those steps scope explicitly ({@link pane}). */
   /** Scenario names for ids minted by ordinary UI/server writes. */
+  /** The conversation explicitly selected by this scenario's last node gesture.
+   * Multiple folds may remain open; chat assertions never choose the first. */
+  private readonly activeAgents = new WeakMap<Page, string>();
+  private readonly menuNodes = new WeakMap<Page, string>();
+  get activeAgent(): string | null { return this.activeAgents.get(this.page) ?? null; }
+  set activeAgent(node: string | null) { if (node === null) this.activeAgents.delete(this.page); else this.activeAgents.set(this.page, node); }
+  get menuNode(): string | null { return this.menuNodes.get(this.page) ?? null; }
+  set menuNode(node: string | null) { if (node === null) this.menuNodes.delete(this.page); else this.menuNodes.set(this.page, node); }
+  chatSelector(control: string): string {
+    assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
+    return `${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
+  }
+  chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
+  chatRoot(): Locator {
+    assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
+    return this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(this.activeAgent))}`);
+  }
   readonly nodeNames = new Map<string, string>();
   nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }
 

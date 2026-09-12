@@ -48,7 +48,6 @@
 
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
-import { panelOpen } from "../../shell.ts"
 import { createTicking } from "@olai/web/client/clock.ts"
 import { broadcast, createElsewhere, WATCHED_BEAT } from "./elsewhere.ts"
 
@@ -64,7 +63,7 @@ const WATCHED = "olai.chat.watched"
  * Whether the conversation is in front of somebody, as a signal that follows
  * the window, the panel, and the browser's other tabs.
  */
-export const createWatching = (): Accessor<boolean> => {
+export const createWatching = (reading: Accessor<boolean>, identity: string): Accessor<boolean> => {
   const [front, setFront] = createSignal(documentInFront())
   const look = (): void => {
     setFront(documentInFront())
@@ -80,9 +79,9 @@ export const createWatching = (): Accessor<boolean> => {
   })
 
   /** THIS document's answer, which is what it beats out to the others. */
-  const here = (): boolean => front() && panelOpen()
+  const here = (): boolean => front() && reading()
 
-  const elsewhere = createElsewhere(broadcast(WATCHED))
+  const elsewhere = createElsewhere(broadcast(`${WATCHED}:${identity}`))
   onCleanup(elsewhere.close)
 
   // THE ONE REPEATING TIMER IN THIS CLIENT is `../../clock.ts`'s, and this is a

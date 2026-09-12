@@ -76,6 +76,7 @@ import { chatWire } from "../wire.ts"
 import { memoryOf } from "@olai/format"
 import { agentIn } from "olai-plugin-chat/wire"
 import type { SessionInfo } from "olai-plugin-chat/wire"
+import { agentReadings } from "../agents/reading.ts"
 import { useAgents } from "../agents/answered.tsx"
 import { pastOf, successorIn } from "../../lineage.ts"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
@@ -129,12 +130,14 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
 
   const fresh = (): void => {
     if (starting()) return
+    const node = props.agent.id
+    const engine = props.agent.engine
     setStarting(true)
     saying.say(undefined)
     run(
       chatWire().procedures.conversation.startAgentSession({
-        node: props.agent.id,
-        agent: props.agent.engine,
+        node,
+        agent: engine,
       }),
       (failure) => {
         setStarting(false)
@@ -142,6 +145,7 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
       },
       () => {
         setStarting(false)
+        agentReadings()?.visit(node)
         // The completed history revision refreshes this tab and its siblings.
         picker.shut()
       },

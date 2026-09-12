@@ -32,7 +32,7 @@
 import type { ChatState } from "olai-plugin-chat/wire"
 import type { Notice } from "olai-plugin-alerts/contract"
 import type { Asked } from "./asked.ts"
-import { previewText } from "../last.ts"
+import { previewText } from "../preview-text.ts"
 
 /** How much of the question's first line a banner is given. Two lines of a
  *  notification on every platform that draws one; past this the OS truncates

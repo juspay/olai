@@ -6,8 +6,9 @@ Feature: Messages sent while Codex works steer its current turn
   Background:
     Given I open the app
     And I show the done nodes
-    And the agent panel is open
-    When I choose the agent "codex"
+    And I open the outline "house.olai"
+    And I open the "codex" agent on node "kitchen"
+    And the node agent's fold is ready
 
   Scenario Outline: Normal sends reach the running turn and its busy indicators clear
     When I ask the agent "hold"

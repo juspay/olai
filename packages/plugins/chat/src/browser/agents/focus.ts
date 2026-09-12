@@ -41,86 +41,19 @@
  * — so it draws no press at all (`./Door.tsx`).
  */
 
-import { setPanelOpen } from "../shell.ts"
-import { atElement, type Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
-import { run } from "@olai/web/client/run.ts"
-import { createSaying, type Saying } from "@olai/web/client/saying.ts"
+import { atElement, type Route } from "olai-plugin-navigation/routes"
+import { createSaying } from "@olai/web/client/saying.ts"
 import type { Row } from "./roster.ts"
-import { selectConversation } from "../selection.ts"
-
-/** WHERE A NODE AGENT LIVES — the outline it is written in, at its own row.
- *
- *  `atElement` and not `atNode`: the design's own rule is that the outline
- *  never narrows for this feature, and a node's own page is exactly a narrowing
- *  — it would replace the board a person is reading with one row of it. What
- *  they asked for is *show me this agent*, which is the row in its context. */
-export const rowOf = (agent: Pick<Row, "id" | "file">): Route =>
-  atElement(agent.file, agent.id)
-
-/**
- * THE GESTURE, AND THE LINE IT MAY LEAVE — held together, because they are one
- * thing: a press either takes you to the agent or it says why it could not.
- *
- * ONE MODULE FOR BOTH FACES. The two of them were spelling the same three lines
- * apiece — clear the line, do the verb, word the refusal — and the wording was
- * the part that mattered and the part most likely to drift: a stale property
- * names a conversation the agent no longer has — another machine's session, or
- * one this agent has forgotten — and *that* is the sentence a person needs,
- * because only rewriting the property can fix it. A gesture whose
- * refusal is worded at each caller is a gesture that says two different things
- * about one failure.
- *
- * THE SAYING IS THE CALLER'S LIFETIME. Called in the owner the LINE belongs to
- * ({@link ../saying.ts}) — the section for the sidebar, the door's own wrapper
- * for a row — so a line outlives the row it was about and not the surface.
- */
-export interface Focus {
-  /** What the last press said, or `null` — drawn by whichever face owns it. */
-  readonly said: Saying["said"]
-  /**
-   * SWITCH THE PANEL to this agent's conversation, and open the panel, because
-   * a switch nobody can see is a switch that looks like nothing happened.
-   *
-   * Does nothing for an agent with no session bound: there is no conversation
-   * to open, and the row that pressed it already says so in its own words
-   * rather than refusing on a click.
-   */
-  readonly open: (agent: Row) => void
-  /** ...and the sidebar's whole gesture: the node's page AND its conversation
-   *  (see this file's header on why one press means both). */
-  readonly press: (agent: Row) => void
-}
-
-export const createFocus = (): Focus => {
-  const saying = createSaying()
+import { unfold } from "./folding.ts"
+import { agentReadings } from "./reading.ts"
+export const rowOf = (agent: Pick<Row, "id" | "file">): Route => atElement(agent.file, agent.id)
+export const createFocus = () => {
   const router = useRouter()
-
-  const open = (agent: Row) => {
-    saying.say(undefined)
-    const session = agent.session
-    if (session === null) return
-    setPanelOpen(true)
-    // ... AND THE PANEL STOPS SHOWING THE UNASSIGNED LIST, wherever it was
-    // showing it ({@link ./showing.ts}): pressing an agent is asking for that
-    // agent's conversation, and a list left up over it would be a press that
-    // looked like it did nothing.
-    // BOTH HALVES, because a session id means nothing to the wrong agent: the
-    // row carries the engine the property named beside the session it named,
-    // and the pair is what opens one.
-    //
-    // `run` HAS NO OVERLOAD WITHOUT A FAILURE HANDLER, deliberately
-    // (`../run.ts`), and a press that swallowed one would be a press that
-    // silently did nothing.
-    selectConversation({ agent: agent.engine, session })
-  }
-
-  return {
-    said: saying.said,
-    open,
-    press: (agent) => {
-      router.go(rowOf(agent))
-      open(agent)
-    },
-  }
+  const saying = createSaying()
+  return { said: saying.said, press: (row: Row) => {
+    router.go(rowOf(row))
+    agentReadings()?.visit(row.id)
+    if (row.session !== null) unfold(row.id)
+  } }
 }

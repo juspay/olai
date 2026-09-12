@@ -11,7 +11,7 @@ Feature: A stale fresh-session action cannot create a chat for a removed node
     When I open the node menu of "removed-agent"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "Temporary node agent"
-    And the agent panel is open
+    And the node agent's fold is ready
     When I ask the agent "before removal"
     Then the agent has answered "before removal" exactly once
     When I remember this conversation as "before removal"
@@ -20,15 +20,17 @@ Feature: A stale fresh-session action cannot create a chat for a removed node
     And I hold incoming updates to the original browser tab
     And I remove the served file "removed-agent.olai"
     And I open another browser tab
-    Then the agent panel is open
-    And the panel is in the remembered conversation "before removal"
+    Then no agent fold is open
     When I use the original browser tab
     And I start a fresh session
     And I release incoming updates to the original browser tab
-    Then the panel is in the remembered conversation "before removal"
-    And the agent has answered "before removal" exactly once
+    Then no agent fold is open
     When I restore the remembered served bytes of "removed-agent.olai"
+    And I open the outline "removed-agent.olai"
+    And I unfold node agent "removed-agent"
     Then the panel header names the node agent "Temporary node agent"
+    And the panel is in the remembered conversation "before removal"
+    And the agent has answered "before removal" exactly once
     When I open the session picker
     Then the node session control counts 1 conversations
     And the Unassigned row and list are absent

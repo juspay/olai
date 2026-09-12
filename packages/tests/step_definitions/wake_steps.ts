@@ -62,9 +62,9 @@ import type { OlaiWorld } from "../support/world.ts";
  * picker already stamps `data-plugin`; the step names whose.
  */
 const thePicker = async (world: OlaiWorld, plugin: string): Promise<Locator> => {
-  const strip = world.page.locator(CHAT_WAKE);
+  const strip = world.chat(CHAT_WAKE);
   await strip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const picker = world.page.locator(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`);
+  const picker = world.chat(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`);
   await picker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return picker;
 };
@@ -78,7 +78,7 @@ const pointedAt = async (
   expected: string,
 ): Promise<void> => {
   await world.expectAttribute(
-    `${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`,
+    world.chatSelector(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`),
     "data-file",
     expected,
     `${plugin}'s wake control`,
@@ -107,10 +107,10 @@ When(
   "I point this conversation's {string} wake at {string}",
   async function (this: OlaiWorld, plugin: string, file: string) {
     await this.press(await thePicker(this, plugin));
-    const query = this.page.locator(CHAT_WAKE_QUERY);
+    const query = this.chat(CHAT_WAKE_QUERY);
     await query.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await query.fill(file);
-    await this.press(this.page.locator(`${CHAT_WAKE_FILE}${attr("data-file", file)}`));
+    await this.press(this.chat(`${CHAT_WAKE_FILE}${attr("data-file", file)}`));
   },
 );
 
@@ -125,7 +125,7 @@ Then(
 );
 
 Then("this conversation offers no {string} wake control", async function (this: OlaiWorld, plugin: string) {
-  await this.page.locator(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`).waitFor({
+  await this.chat(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`).waitFor({
     state: "detached", timeout: POLL_TIMEOUT,
   });
 });
@@ -164,7 +164,7 @@ When("the watch is told to report a held terminal at once", function (this: Olai
 
 /** THE MACHINE'S ROW — the `user` entry whose words a plugin put there. */
 const rungRow = (world: OlaiWorld): Locator =>
-  world.page.locator(CHAT_ENTRY).filter({ has: world.page.locator(CHAT_RANG) });
+  world.chat(CHAT_ENTRY).filter({ has: world.page.locator(CHAT_RANG) });
 
 
 /**
@@ -198,7 +198,7 @@ Then(
     // above the first of their messages and beside none of the rest — the
     // group-level rule the transcript keeps for all three faces. So it is found
     // by the name it stamps rather than by walking up from the row.
-    const mark = this.page.locator(`${CHAT_PLUGIN_MARK}${attr("data-mark", plugin)}`);
+    const mark = this.chat(`${CHAT_PLUGIN_MARK}${attr("data-mark", plugin)}`);
     await this.waitUntil(
       async () => (await mark.locator("linearGradient").count()) >= 1,
       "the machine's row to wear a mark built from the pinned brand asset",
@@ -255,8 +255,7 @@ When("I open that sentence", async function (this: OlaiWorld) {
   );
 });
 Then("the chat shows a sentence no person typed", async function (this: OlaiWorld) {
-  await this.page
-    .locator(CHAT_RANG)
+  await this.chat(CHAT_RANG)
     .first()
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
@@ -267,8 +266,7 @@ Then("the chat shows a sentence no person typed", async function (this: OlaiWorl
 Then(
   "that sentence was rung by {string}",
   async function (this: OlaiWorld, plugin: string) {
-    await this.expectAttribute(
-      CHAT_RANG,
+    await this.expectAttribute(this.chatSelector(CHAT_RANG),
       "data-rang-by",
       plugin,
       "the machine's message",
@@ -364,7 +362,7 @@ Then("that sentence offers no way to send it again", async function (this: OlaiW
 Then(
   "the chat input still holds {string}",
   async function (this: OlaiWorld, text: string) {
-    const input = this.page.locator(CHAT_INPUT);
+    const input = this.chat(CHAT_INPUT);
     for (let look = 0; look < 5; look += 1) {
       assert.strictEqual(
         await input.inputValue(),

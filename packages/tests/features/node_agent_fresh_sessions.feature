@@ -5,7 +5,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     And I open the outline "house.olai"
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
+    And the node agent's fold is ready
     Then the panel header names the node agent "install the cabinets"
     When I ask the agent "cabinet first session"
     Then the agent has answered "cabinet first session" exactly once
@@ -31,7 +31,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     Then the panel is in the remembered conversation "second"
     And the agent has answered "cabinet second session" exactly once
     When I reload the page
-    And the agent panel is open
+    And the node agent's fold is ready
     Then the panel is in the remembered conversation "second"
     When I open the session picker
     And I open the past session "cabinet first session"
@@ -81,7 +81,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     And the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And the node agent's fold is ready
     And I press the agent "install"
     Then the panel is in the remembered conversation "second"
     And the agent has answered "cabinet second session" exactly once
@@ -117,7 +117,9 @@ Feature: Fresh node sessions have distinct identities and durable history
     When the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And the node agent's fold is ready
+    And I open the session picker
+    And I open the past session "cabinet first session"
     Then the panel is in the remembered conversation "first"
     And the panel header names the node agent "install the cabinets"
     When I show the done nodes
@@ -207,7 +209,9 @@ Feature: Fresh node sessions have distinct identities and durable history
   Scenario: A settled historical turn also discovers a terminal conversation
     When I open the session picker
     And I start a fresh session
-    And I ask the agent "cabinet current session"
+    Then the panel has a different conversation from "first"
+    And the node agent's fold is ready
+    When I ask the agent "cabinet current session"
     And the agent is idle
     And I open the session picker
     And I open the past session "cabinet first session"

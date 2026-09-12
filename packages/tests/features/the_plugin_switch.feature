@@ -137,7 +137,7 @@ Feature: A plugin is turned on and off while the serve runs
     # tenants name chat's doors, so they come up `waiting` — which is the
     # doorbell feature's own scenario, and the state this one starts from.
     Given I open the outline "lanes.olai"
-    Then the conversation is gone-from the header
+    Then chat controls are gone-from the outline
     When I open the plugins panel
     Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
     # ...and the panel says the row is off because the file disabled it, which is
@@ -152,7 +152,8 @@ Feature: A plugin is turned on and off while the serve runs
     # because its members are on the wire and the tab's redial reached them.
     Then the plugins panel says nothing more about "kolu"
     And every plugin enable switch has a session-only ring
-    And the conversation is in the header
+    And the agents roster holds 9 agents
+    And the agent start pill on "lane-fresh" is absent
     # THE ASSERTION THAT WOULD HAVE BEEN RED WHATEVER ELSE PASSED. The rest of
     # this scenario can be satisfied by chrome that mounted off a roster frame;
     # this one asks whether the members behind it are being served.
@@ -172,7 +173,7 @@ Feature: A plugin is turned on and off while the serve runs
     # gives back. The header's toggle is chat's own, drawn by chat's browser
     # half off the sibling its server half serves — so its presence is the one
     # assertion on the page that answers whether `surface/chat/` is on the wire.
-    Then the conversation is in the header
+    Then chat controls are in the outline
     When I open the plugins panel
     # THE SENTENCE A SWITCH OWES BEFORE IT MOVES. It used to sit under On as a
     # caption; it is a confirm now, because the ordinary running row says
@@ -195,7 +196,7 @@ Feature: A plugin is turned on and off while the serve runs
     # ...AND CHAT'S OWN CHROME IS GONE, not disabled. The members left the wire,
     # so the tab loaded no chunk for them and mounted nothing — which is the
     # browser's exact twin of *no fiber, no surface, no handler*.
-    And the conversation is gone-from the header
+    And chat controls are gone-from the outline
     # THE OUTLINER IS WHOLE, which is the other half of the ruling: what a serve
     # without chat gives up is the conversation, not the product.
     And the outline list is shown
@@ -213,7 +214,7 @@ Feature: A plugin is turned on and off while the serve runs
     # being served again is the listener's question, and the two scenarios above
     # are the ones that ask it. Saying so here rather than letting a reader take
     # this line for more than it is.
-    And the conversation is in the header
+    And chat controls are in the outline
     And there should be no page errors
 
   @scratch:good

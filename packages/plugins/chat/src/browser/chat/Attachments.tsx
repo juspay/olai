@@ -24,7 +24,8 @@ import { isPicture } from "@olai/format"
 import { createMemo, For, onCleanup, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
-import { previewOf, sizeText } from "./previews.ts"
+import { useConversationUI } from "./ui.tsx"
+import { sizeText } from "./previews.ts"
 
 export function Attachments(props: {
   readonly names: ReadonlyArray<string>
@@ -52,6 +53,8 @@ function Attachment(props: {
    *  disposes this memo with the row, and an unrevoked URL is a Blob the tab
    *  cannot free. Only for a PICTURE: a URL made for a PDF would be a URL an
    *  `<img>` cannot draw. */
+  const ui = useConversationUI()
+  const previewOf = (name: string) => ui.previews.previewOf(name, ui.uploadScope[0]())
   const source = createMemo<string | undefined>(() => {
     const blob = previewOf(props.name)
     if (blob === undefined || !isPicture(props.name)) return undefined

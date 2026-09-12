@@ -101,7 +101,7 @@ import { DescEditor, DraftSaid, keyHandler, TitleEditor } from "./edit/RowEditor
 import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
-import { focusedNode } from "./focus.ts"
+import { focusedNode, selectNode } from "./focus.ts"
 import { doneUnder } from "@olai/web/client/hidden.ts"
 import { hotOf } from "./hot.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
@@ -507,6 +507,14 @@ function Branch(props: {
       // found rather than computed: a mirror of the node wears it too, and
       // either will do.
       data-focused={focused() ? "true" : undefined}
+      onFocusIn={event => {
+        // A nested row's focus bubbles through its ancestors. Only the row
+        // containing the actual control claims it; a portal keeps that claim
+        // while the reader moves into the palette or row menu.
+        if (!event.target.closest("[data-outline-fold]") && event.target.closest(`[data-testid="${TESTID.node}"]`) === event.currentTarget) {
+          selectNode(foldIdOf(props.row))
+        }
+      }}
       // The ids this row is waiting on, in the promised order — absent when
       // nothing is in its way. The dim beside it is a styling decision a
       // refactor may change; this is the fact a scenario asks about.

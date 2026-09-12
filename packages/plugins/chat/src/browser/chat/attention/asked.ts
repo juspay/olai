@@ -27,7 +27,7 @@
  * departure this makes from it is argued at the pick below.
  */
 
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
+import { type Accessor } from "solid-js"
 
 import { createNewest } from "../newest.ts"
 import type { Chat } from "../state.ts"
@@ -50,32 +50,7 @@ export interface Asked {
 
 /** Two snapshots are the same question when they are the same row saying the
  *  same thing — so a frame that moved neither wakes no banner. */
-const same = (a: Asked | undefined, b: Asked | undefined): boolean =>
-  a === b || (a?.id === b?.id && a?.text === b?.text)
-
-const [pending, setPending] = createSignal<Asked | undefined>(undefined, {
-  equals: same,
-})
-
-/** The question waiting on a person, or `undefined` — no question, or no open
- *  panel to have seen one. */
-export const askPending: Accessor<Asked | undefined> = pending
-
-
-/**
- * Keep the snapshot for as long as this panel is open.
- *
- * The scan is `../newest.ts`, whose whole subject is the rule this has to
- * follow — track membership, never what a row says — and the ONE place this
- * departs from it is the reason the escape hatch is there: a question's
- * OUTCOME moves from `null` to answered under a key that never moves, so this
- * pick takes the tracked read itself, for ask rows and no others. That costs
- * one read per question in a conversation rather than one per row per token.
- *
- * The NEWEST waiting one, because a person answers the question in front of
- * them and the newest is the one at the foot of the transcript.
- */
-export const createAsked = (chat: Chat): void => {
+export const createAsked = (chat: Chat): Accessor<Asked | undefined> => {
   const waiting = createNewest<Asked>(chat, (row, at) => {
     // `kind` is fixed the moment a row exists, so everything that is not a
     // question is dismissed without subscribing to it.
@@ -86,12 +61,5 @@ export const createAsked = (chat: Chat): void => {
     return row.ask.outcome === null ? { id: row.id, text: row.text } : undefined
   })
 
-  createEffect(() => {
-    setPending(waiting())
-  })
-
-  // The panel is shut (or replaced): nobody is watching the transcript, so
-  // nothing here is current any more. See the header — a stale question is
-  // worse than none.
-  onCleanup(() => setPending(undefined))
+  return waiting
 }

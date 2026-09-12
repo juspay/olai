@@ -43,7 +43,7 @@ Feature: Ending a panel resize releases its pointer listeners and retains the re
     And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the conversation is gone-from the header
+    Then chat controls are gone-from the outline
     When I move the held resize pointer another 80px
     And I let go
     Then the sidebar has grown by 80px since the resize was held

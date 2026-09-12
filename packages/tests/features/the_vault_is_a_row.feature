@@ -12,11 +12,11 @@ Feature: The vault is a row
     When I switch the plugin "vault" off
     Then the node "mint" is not shown
     And the MCP vault refuses a write because no directory is served
-    And the conversation is gone-from the header
+    And chat controls are gone-from the outline
     When I switch the plugin "vault" on
     Then the node "mint" is shown
     And the MCP vault can read an outline
-    And the conversation is in the header
+    And chat controls are in the outline
     When I switch the plugin "vault" off
     Then the MCP vault refuses a write because no directory is served
     When I switch the plugin "vault" on

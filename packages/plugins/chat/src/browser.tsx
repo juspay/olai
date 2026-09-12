@@ -7,62 +7,14 @@ import { slotContracts } from "./slots.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
 /**
- * CHAT'S BROWSER HALF — the right panel, the sidebar's agents section, the door
- * on an agent row, the two verbs on a row's `•••`, and the palette's `>`.
+ * Chat owns the activation roster, per-conversation UI, and tab-local folds.
+ * Outlines owns the row and page slots; sidebar and navigation own their
+ * surfaces. Each mounted fold acquires its keyed wire reading and releases it
+ * when its row or slot leaves. No layout shell service is held here.
  *
- * ## What this module replaced
- *
- * `@olai/web`'s `App.tsx` imported `chat/Panel.tsx` and wrapped the whole tree
- * in `agents/answered.tsx`'s provider; its `AppHeader.tsx` drew the toggle; its
- * `NodeBody.tsx` drew the door on every row; its `Sidebar.tsx` drew the roster
- * section; its `menu/verbs.ts` carried two agent verbs in core's own catalogue
- * and its `palette/Palette.tsx` carried a `>` prefix that sent a line to an ACP
- * agent. Every one of those was core naming a feature, and the tab could not
- * turn any of it off.
- *
- * They are SLOT REGISTRATIONS now. The shell declares where a face may hang and
- * keeps the box — the panel's width and its open/closed preference, the
- * sidebar's region and heading shape, the menu's order and its dividers, the
- * palette's input and where a refusal is drawn — and this plugin brings the
- * words and the drawings. A serve run with a policy with all rows off composes no chat row, so
- * this module is never fetched, and the tab draws the outliner alone with no
- * panel, no section, no door and no `>`.
- *
- * ## THE WIRE IS THIS PLUGIN'S OWN, and it is held rather than threaded
- *
- * `Wired` hands over the sibling client the framework minted for this plugin,
- * keyed by the word the registry bound the fiber under. Thirty modules in this
- * package read it at module scope, so it is put in a holder here and read
- * through {@link ./browser/wire.ts} — the same arrangement `@olai/web` keeps for
- * core's own client, and the header there argues why the holder holds the READ
- * rather than the client.
- *
- * ## THREE SERVICES AND NOT SIX, and the three that are missing are the point
- *
- * `Bar`, `Clocks` and `Links` are the app's chrome furniture, and a tenant that
- * draws a pill or a duration names them. This half does not: its faces are the
- * PANEL and the sidebar's own region, which draw with the app's layout, its type
- * scale and its router directly — through the shell door (`@olai/web`'s
- * `./client/*`), which is what that door is for and what the manifest there
- * argues at length.
- *
- * They were named here for one revision and spent nowhere, under a comment
- * saying the fiber should wait for the app to have furnished them. That is a
- * coefficient as a WISH: `needs` is what the runtime holds a fiber PENDING
- * against, so naming a service this half never reads makes the panel wait on a
- * provider it has no use for — the exact opposite of what the declaration is,
- * and a thing that would go wrong silently the day the app furnished one of them
- * later than it does now.
- *
- * ## WHAT THIS HALF READS OF OTHER PLUGINS
- *
- * Two slots, through `Faces`: the mark a plugin's delivered sentence wears in a
- * transcript (`delivery.mark`), and each engine's install sentence on the
- * face drawn when this machine has no agent at all (`engine.install`). That
- * is the door the plan named — a plugin reading what other plugins hung — and it
- * is a read with no privilege in it: the same three reads the tab has, off the
- * same tables, with each registering plugin's word beside its face and no way to
- * write one.
+ * Wired and Faces are held under this activation for chat's internal modules.
+ * Cross-plugin live readings are declared services or scoped contributions;
+ * naming an unused service would leave this component waiting for no reader.
  */
 
 import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
@@ -73,17 +25,17 @@ import { createFolding, holdFolding } from "./browser/agents/folding.ts"
 import { Agents } from "./browser/agents/Agents.tsx"
 import { AgentsProvider, createAgents } from "./browser/agents/answered.tsx"
 import { createAskCommand, rowVerbs } from "./browser/verbs.tsx"
-import { holdSelection } from "./browser/selection.ts"
 import { trackCamera } from "./browser/chat/camera.ts"
-import { Panel, Toggle } from "./browser/chat/Panel.tsx"
+import { Fold } from "./browser/agents/Fold.tsx"
+import { createAgentReadings, holdAgentReadings } from "./browser/agents/reading.ts"
+import { navigation as navigationService } from "olai-plugin-navigation/contract"
+import { holdNavigation } from "./browser/navigation.ts"
 import { holdFaces } from "./browser/faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
 import { references as outlineReferences } from "olai-plugin-outlines/references"
 import { holdReferences } from "./browser/references.ts"
 import { holdServed } from "./browser/vault.ts"
-import { shell as appShell } from "olai-plugin-layout/contract"
-import { holdShell } from "./browser/shell.ts"
 import { deployment as appDeployment } from "olai-plugin-layout/contract"
 import { holdDeployment } from "./browser/deployment.ts"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
@@ -124,25 +76,17 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, conversation: agents.conversation, agents, folding: createFolding() }
+      return { dispose, agents, readings: createAgentReadings(agents), folding: createFolding() }
     })), state => Effect.sync(state.dispose))
-    yield* Effect.acquireRelease(Effect.sync(() => holdConversation(state.conversation)), stop => Effect.sync(stop))
-    yield* Effect.acquireRelease(Effect.sync(() => holdSelection(state.agents.select)), stop => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
     yield* (yield* Offers).own("state", () => state)
 
 
-    // THE PANEL, in the seat the shell reserves for one. What travels with it is
-    // everything that draws INSIDE that seat — the dock, the mobile sheet, the
-    // minimized strip and the wake strip — because none of those is a bar
-    // readout in this app's geometry and all of them are the panel positioning
-    // itself in what it was given.
-    yield* slots.register("app.panel", () => <AgentsProvider value={state.agents}><Panel /></AgentsProvider>, {
+    yield* Effect.acquireRelease(Effect.sync(trackCamera), stop => Effect.sync(stop))
+    yield* slots.register("outline.row.fold", props => <AgentsProvider value={state.agents}><Fold {...props} /></AgentsProvider>, {
       children: [slotContracts["delivery.mark"], slotContracts["engine.install"]],
-      activate: Effect.acquireRelease(Effect.sync(trackCamera), (stop) => Effect.sync(stop)),
     })
-    // ...and the control in the bar that opens and shuts it.
-    yield* slots.register("app.header", { place: "cluster", body: () => <AgentsProvider value={state.agents}><Toggle /></AgentsProvider> })
     // THE ROSTER SECTION, under the app's own sidebar regions.
     yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Agents /></AgentsProvider> })
     // The aside reads the activation roster once per row; only opening a fold
@@ -152,8 +96,7 @@ export default definePlugin({
     // THE VERBS ON A ROW'S `•••`, as a READING rather than a list — the count
     // is one per installed engine plus the ask, and the roster that decides it
     // arrives after this fiber does (`./browser/verbs.tsx` argues both).
-    yield* slots.register("outline.row.action", node => rowVerbs(node,state.agents,state.conversation))
-    yield* slots.register("app.command", createAskCommand(state.conversation))
+    yield* slots.register("outline.row.action", node => rowVerbs(node,state.agents))
 
   }),
 })
@@ -162,7 +105,6 @@ export default definePlugin({
 import { speaker } from "./browser/viewer.ts"
 import { alertsChannel } from "olai-plugin-alerts/contract"
 import { holdChannel } from "./browser/channel.ts"
-import { holdConversation, conversation } from "./browser/conversation.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
 import { createEffect, createRoot, untrack } from "solid-js"
 export const components = {
@@ -173,12 +115,10 @@ export const components = {
     const named = yield* appDeployment
     yield* Effect.acquireRelease(Effect.sync(() => holdDeployment(named)), stop => Effect.sync(stop))
   }) }),
-  /** The shell's geometry, DECLARED — a component of its own because content
-   *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
-   *  that waited for this one could not (`./browser/shell.ts`). */
-  shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
-    const geometry = yield* appShell
-    yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
+  navigation: definePlugin({ name: "navigation", needs: [navigationService, Slots], apply: Effect.gen(function*() {
+    const router = yield* navigationService
+    yield* Effect.acquireRelease(Effect.sync(() => holdNavigation(router)), stop => Effect.sync(stop))
+    yield* (yield* Slots).register("app.command", createAskCommand())
   }) }),
   /** The matcher, DECLARED — a component of its own so the panel, the
    *  transcript and the roster keep working with no matcher mounted
@@ -194,14 +134,12 @@ export const components = {
     const value = yield* outlineReferences
     yield* Effect.acquireRelease(Effect.sync(() => holdReferences(value)), stop => Effect.sync(stop))
   }) }),
-  attention: definePlugin({ name: "attention", needs: [alertsChannel], apply: Effect.gen(function*() {
+  attention: definePlugin({ name: "attention", needs: [alertsChannel, navigationService], apply: Effect.gen(function*() {
+    const router = yield* navigationService
     const channel = yield* alertsChannel
     yield* Effect.acquireRelease(Effect.sync(() => holdChannel(channel)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-      createEffect(() => {
-        const reading = conversation()
-        if (reading) untrack(() => createAttention(reading))
-      })
+      createAttention(router)
       return dispose
     })), dispose => Effect.sync(dispose))
   }) }),

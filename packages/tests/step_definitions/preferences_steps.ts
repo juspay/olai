@@ -1347,35 +1347,13 @@ When(
   },
 );
 
-/**
- * IS THE CONVERSATION HERE AT ALL — the chat row's own chrome, by presence.
- *
- * The header's agent toggle is chat's, drawn by chat's browser half off a
- * sibling surface chat's server half serves. So it is the one control on the
- * page whose presence answers *did `surface/chat/` leave the wire and come
- * back*, which is what a scenario about flipping that row wants and what no
- * reading of the plugins panel could say — the panel is core's, and it would go
- * on drawing a row for chat whether or not anything of chat was served.
- *
- * BY PRESENCE AND NOT BY A SENTENCE, because the claim is absence: a plugin
- * that is off is not a disabled version of itself, it is gone, and the only
- * assertion that can tell those apart is one about whether the element is
- * there.
- */
-Then(
-  "the conversation is {word} the header",
-  async function (this: OlaiWorld, presence: string) {
-    if (presence !== "in" && presence !== "gone-from") {
-      throw new Error(`the step says "in" or "gone-from", not "${presence}"`);
-    }
-    await this.page
-      .locator(CHAT_TOGGLE)
-      .waitFor({
-        state: presence === "in" ? "visible" : "detached",
-        timeout: POLL_TIMEOUT,
-      });
-  },
-);
+/** Chat's outline contributions leave and return with its browser activation. */
+Then("chat controls are {word} the outline", async function(this: OlaiWorld, presence: string) {
+  assert.ok(presence === "in" || presence === "gone-from");
+  await this.page.locator(`${selector(TESTID.agentStart)}, ${selector(TESTID.agentStanding)}`).first().waitFor({
+    state: presence === "in" ? "attached" : "detached", timeout: POLL_TIMEOUT,
+  });
+});
 
 /** ...AND THE REFUSAL, when the serve would not take it. One place on the panel
  *  rather than per row, because it is about the press just made. */

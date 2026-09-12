@@ -22,7 +22,7 @@ interface Reading {
   readonly pieces: Set<Sink<Rows<Saying>>>
 }
 
-export const readings = (ready: Effect.Effect<Chat>) => Effect.gen(function*() {
+export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.gen(function*() {
   const held = yield* RcMap.make({
     lookup: (to: Conversing) => Effect.gen(function*() {
       let state: ChatState = CHAT_OFF
@@ -40,10 +40,10 @@ export const readings = (ready: Effect.Effect<Chat>) => Effect.gen(function*() {
         (clock) => Effect.sync(clock.stop),
       )
       const chat = yield* ready
-      yield* chat.reading(to, {
+      yield* Effect.forkScoped(chat.reading(to, {
         state: (value) => { state = value; for (const send of states) send(value) },
         transcript: clock.publish,
-      })
+      }))
       return { state: () => state, entries, clock, states, rows, pieces }
     }),
   })

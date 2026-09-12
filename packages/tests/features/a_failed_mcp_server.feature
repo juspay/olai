@@ -5,8 +5,10 @@ Feature: Actual MCP connection failures are visible
   so the attach command below changes what the following turn reports.
 
   Background:
-    Given I open the app
-    And the agent panel is open
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
 
   @scratch:chat
   Scenario: A failed connection is named with the adapter's reason
@@ -27,7 +29,8 @@ Feature: Actual MCP connection failures are visible
     When I ask the agent "hello"
     Then the agent is idle
     And the panel says the agent could not attach "kolu"
-    When I start a new conversation
+    When I open the session picker
+    And I start a fresh session
     Then the chat is empty
     And the panel says this conversation has "kolu"
     And the panel does not claim the agent attached "kolu"

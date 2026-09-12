@@ -174,6 +174,16 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     await until("the sleeping scope to wake and finish", () => chat.live().get("one")?.status === "idle")
     expect(chat.state().bound).toBe("two")
     expect(chat.live().has("two")).toBe(true)
+    // A delayed action from an expired lifetime cannot reopen its old pair
+    // through the current node scope, even if its binding is still visible.
+    const currentScope = chat.state().uploadScope
+    const stale = await run(Effect.result(chat.inConversation(
+      { agent: "beta", session: "expired-conversation" }, "expired-upload-scope",
+      () => Effect.die("a stale action must never run"),
+    )))
+    expect(stale._tag).toBe("Failure")
+    expect(chat.state().session?.id).toBe(twoSession)
+    expect(chat.state().uploadScope).toBe(currentScope)
     expect(observed.every(session => session === twoSession)).toBe(true)
     await run(Scope.close(secondTab, Exit.void))
     await until("the last reading to release the idle scope", () => !chat.live().has("two"))
@@ -191,6 +201,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
 
 test("boot opens no conversation, even with an old remembered session", async () => {
   let probes = 0
+  let roster = [installed("alpha")]
   const remembered: NodeAgent = {
     id: "one",
     file: "Work.olai",
@@ -215,8 +226,8 @@ test("boot opens no conversation, even with an old remembered session", async ()
   const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
   const chat = await logged(make({
     fork: (work) => Effect.runFork(under(work)),
-    roster: () => [installed("alpha")],
-    engines: () => ["alpha"],
+    roster: () => roster,
+    engines: () => roster.map(row => row.id),
     cwd,
     memory,
     probes: () => Effect.succeed([{
@@ -247,6 +258,31 @@ test("boot opens no conversation, even with an old remembered session", async ()
     expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(0)
     expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(0)
     expect(probes).toBe(0)
+    const tab = Scope.makeUnsafe()
+    const states: Array<string> = []
+    try {
+      await logged(chat.reading({ agent: "alpha", session: "remembered" }, {
+        state: state => { states.push(state.status) }, transcript: () => {},
+      }).pipe(Effect.provideService(Scope.Scope, tab)))
+      expect(states).toContain("booting")
+      expect(states.at(-1)).toBe("idle")
+      roster = []
+      await logged(chat.enginesMoved)
+      expect(states.at(-1)).toBe("off")
+      roster = [installed("alpha")]
+      await logged(chat.enginesMoved)
+      expect(states.at(-1)).toBe("idle")
+      expect(said.filter(line => line.message.includes("conversation opened"))).toHaveLength(2)
+      await logged(Scope.close(tab, Exit.void))
+      roster = []
+      await logged(chat.enginesMoved)
+      roster = [installed("alpha")]
+      await logged(chat.enginesMoved)
+      // Capability arrival without a reader must not open the stored chat.
+      expect(said.filter(line => line.message.includes("conversation opened"))).toHaveLength(2)
+    } finally {
+      await logged(Scope.close(tab, Exit.void))
+    }
   } finally {
     await logged(chat.stop)
   }

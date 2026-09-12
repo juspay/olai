@@ -37,8 +37,7 @@ import type { OlaiWorld } from "../support/world.ts";
  *  gone with a message. Told apart by that rather than by where they sit,
  *  because "it can still be removed" is exactly what "not sent yet" means. */
 const armed = (world: OlaiWorld, id?: string) =>
-  world.page
-    .locator(
+  world.chat(
       id === undefined
         ? CHAT_CONTEXT_CHIP
         : `${CHAT_CONTEXT_CHIP}${attr("data-node", id)}`,
@@ -71,8 +70,7 @@ Then(
   async function (this: OlaiWorld, id: string) {
     // On the MESSAGE, which is the server's own record of what was sent —
     // never the composer's strip, which is empty by now.
-    await this.page
-      .locator(`${CHAT_ENTRY}[data-kind="user"] ${CHAT_CONTEXT_CHIP}${attr("data-node", id)}`)
+    await this.chat(`${CHAT_ENTRY}[data-kind="user"] ${CHAT_CONTEXT_CHIP}${attr("data-node", id)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
@@ -136,14 +134,12 @@ Then(
     // its own escaped text with no `<code>` in it at all, and an absence
     // asserted then is an absence about a paragraph — the same shape of
     // nothing this suite has already been caught believing once.
-    await this.page
-      .locator(`${CHAT_SAID} code`)
+    await this.chat(`${CHAT_SAID} code`)
       .filter({ hasText: text })
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(
-      await this.page
-        .locator(`${CHAT_SAID} code${NODE_REF_ANY}`)
+      await this.chat(`${CHAT_SAID} code${NODE_REF_ANY}`)
         .filter({ hasText: text })
         .count(),
       0,
@@ -163,8 +159,7 @@ Then(
 Then(
   "the agent's answer says {string}",
   async function (this: OlaiWorld, said: string) {
-    await this.page
-      .locator(CHAT_SAID)
+    await this.chat(CHAT_SAID)
       .filter({ hasText: said })
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });

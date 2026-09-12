@@ -13,7 +13,7 @@
  */
 
 import * as assert from "node:assert";
-import { Then } from "@cucumber/cucumber";
+import { Then, When } from "@cucumber/cucumber";
 
 import {
   APP_HEADER,
@@ -208,3 +208,7 @@ Then(
 );
 
 
+
+When("I bring the file tree into the directory viewport", async function (this: OlaiWorld) {
+  await this.page.locator(OUTLINE_LIST).scrollIntoViewIfNeeded();
+});

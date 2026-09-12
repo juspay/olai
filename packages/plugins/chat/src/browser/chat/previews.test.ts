@@ -10,7 +10,7 @@
 
 import { expect, test } from "bun:test"
 
-import { sizeText } from "./previews.ts"
+import { createPreviews, sizeText } from "./previews.ts"
 
 test("bytes are whole, and stay bytes to the last one before a kilobyte", () => {
   expect(sizeText(0)).toBe("0 B")
@@ -40,4 +40,16 @@ test("a size no attachment can reach still reads as a size", () => {
   // The cap makes this unreachable through the composer, and the function is
   // still asked rather than left to produce `1024 MB`.
   expect(sizeText(2 * 1024 * 1024 * 1024)).toBe("2 GB")
+})
+
+
+test("attachment previews with the same name remain isolated by upload lifetime", () => {
+  const previews = createPreviews()
+  const first = new Blob(["first"])
+  const other = new Blob(["other"])
+  previews.remember("notes.txt", first, "one")
+  previews.remember("notes.txt", other, "two")
+  expect(previews.previewOf("notes.txt", "one")).toBe(first)
+  expect(previews.previewOf("notes.txt", "two")).toBe(other)
+  expect(previews.previewOf("notes.txt", "restarted")).toBeUndefined()
 })

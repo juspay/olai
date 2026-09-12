@@ -1,5 +1,5 @@
 @phone @scratch:chat
-Feature: Node chat history remains usable through the phone sheet
+Feature: Node chat history remains usable in phone folds
   Scenario: A phone can revisit history, create a third chat from it, and return after reloading
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
@@ -29,6 +29,7 @@ Feature: Node chat history remains usable through the phone sheet
     Then the agent has answered "phone cabinet third" exactly once
     When I remember this conversation as "third"
     And I reload the page
+    And I unfold node agent "install"
     Then the panel header names the node agent "install the cabinets"
     And the panel is in the remembered conversation "third"
     When I open the session picker
@@ -50,7 +51,7 @@ Feature: Node chat history remains usable through the phone sheet
     When I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "install the cabinets"
     When I type "unsent cabinet thought" into the chat
-    And I tap the chat sheet scrim
+    And I close the agent fold
     And I hold a finger on the node "order"
     Then the node menu is open
     When I choose "Start an agent session" from the node menu
@@ -58,13 +59,13 @@ Feature: Node chat history remains usable through the phone sheet
     And the chat input reads ""
     When I ask the agent "phone order thought"
     Then the agent has answered "phone order thought" exactly once
-    When I tap the chat sheet scrim
+    When I close the agent fold
     And I press the agent "install"
     Then the panel header names the node agent "install the cabinets"
     And the chat input reads "unsent cabinet thought"
     When I send the chat message
     Then the agent has answered "unsent cabinet thought" exactly once
-    When I tap the chat sheet scrim
+    When I close the agent fold
     And I press the agent "order"
     Then the panel header names the node agent "order the new cabinets"
     And the chat input reads ""

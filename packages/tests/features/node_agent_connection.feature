@@ -6,7 +6,7 @@ Feature: Node conversation controls remain usable after reconnecting
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "install the cabinets"
-    And the agent panel is open
+    And the node agent's fold is ready
     And I remember this conversation as "cabinet"
     And I mark the page
 
@@ -35,7 +35,7 @@ Feature: Node conversation controls remain usable after reconnecting
     And I start a fresh session
     Then the panel has a different conversation from "cabinet"
     And the panel header names the node agent "install the cabinets"
-    And the agent panel is open
+    And the node agent's fold is ready
     When I ask the agent "cabinet current session"
     Then the agent has answered "cabinet current session" exactly once
     When I remember this conversation as "current"

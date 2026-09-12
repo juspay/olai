@@ -82,9 +82,10 @@ const bin = () => {
   const [sending, setSending] = createSignal(0)
   return { pending, setPending, sending, setSending }
 }
-const held = new Map<string, ReturnType<typeof bin>>()
+export const createHoldingMemory = () => new Map<string, ReturnType<typeof bin>>()
 
 export const createHolding = (chat: Chat): Holding => {
+  const held = chat.ui.holding
   // A drawer mount is not an upload lifetime. The server's token survives
   // remounts and node switches, but changes when its temporary files go away,
   // even if a restart reopens the same durable harness session.

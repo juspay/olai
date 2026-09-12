@@ -31,7 +31,7 @@ import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 import { type DiffLine, diffOf } from "./diff.ts"
-import { isUnfolded, toggleFold } from "./folds.ts"
+import { useConversationUI } from "./ui.tsx"
 
 /** How many rows a trimmed diff shows. Enough for a small edit to be whole —
  *  which is most of them — and few enough that four rewritten files still read
@@ -67,6 +67,7 @@ export function Diff(props: {
   readonly id: string
   readonly diff: FileDiff
 }) {
+  const { isUnfolded, toggleFold } = useConversationUI().folds
   // Recomputed when the texts change and not on every render: an agent
   // rewriting a file reports the call twice, and the second report is the same
   // two texts with a status beside them.
