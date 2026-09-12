@@ -6,9 +6,23 @@ import { NOTHING_WRONG, Verdict } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 import { Head, Manifest } from "./wire.ts"
+export const FileKindsState = Schema.Struct({
+  claims: Schema.Array(Schema.Struct({
+    kind: Schema.String,
+    exts: Schema.NonEmptyArray(Schema.String),
+    holds: Schema.Literals(["nodes", "text", "bytes"]),
+    kept: Schema.Boolean,
+    fetched: Schema.Boolean,
+    noun: Schema.String,
+    article: Schema.Literals(["a", "an"]),
+  })),
+  outlineRow: Schema.String,
+})
+export type FileKindsState = typeof FileKindsState.Type
 const sameSet = (a: Manifest, b: Manifest): boolean => (a === null) === (b === null)
 export const surface = defineSurface({
 cells: {
+    "file-kinds": { schema: Schema.NullOr(FileKindsState), default: null, verbs: ["get"] },
 // Wire-read-only: the server is the only writer, and a write verb it never
     // serves would crash surface's boot walk.
     errors: {
@@ -135,6 +149,7 @@ export const resources = {
 
 export const faces = {
   browser: {
+    "file-kinds": "resource",
     // WHAT IS WRONG ACROSS THE SET RIGHT NOW, on both faces — the one member
     // here that is, and the reason it is worth saying out loud.
     //

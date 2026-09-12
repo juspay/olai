@@ -16,7 +16,7 @@ export default definePlugin({name:"vault",needs:[Wired, Offers],apply:Effect.gen
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
 
  const state=yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
-  const value=createDirectory(client().collections.heads.use(),client().cells.manifest.use().value)
+  const value=createDirectory(client().collections.heads.use(),client().cells.manifest.use().value,client().cells["file-kinds"].use().value)
   return {value,dispose}
  })),state=>Effect.sync(state.dispose))
  yield* (yield* Offers).own("files",()=>state.value)

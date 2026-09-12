@@ -2,11 +2,11 @@ import { selectFixtureRows } from "@olai/bundle/testlib"
 /** Real capability rows over an explicitly supplied test vault. Store fault
  * injection stays below the rows; their handlers and subscriptions are real. */
 import { mountBundle, provide, settled } from "@olai/bundle/bundle"
-import { openPlugins, Directory, Ops, Vault, VaultViews, vaultEvents, opsEvents, mountPlugin, rowReport, openLoading } from "@olai/plugin-api/services"
+import { openPlugins, Directory, FileKinds, Ops, Vault, VaultViews, vaultEvents, opsEvents, mountPlugin, rowReport, openLoading } from "@olai/plugin-api/services"
 import type { Plugins } from "@olai/plugin-api/services"
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Deferred, Effect, Stream } from "effect"
-import { fileAccess } from "olai-plugin-vault/testlib"
+import { fileAccess, openViews, OutlineRow } from "olai-plugin-vault/testlib"
 import type { PluginRuntime } from "./runtime.ts"
 
 export const CONTENT_ROWS = ["outlines", "markdown", "files", "pins", "capture", "trash"] as const
@@ -51,6 +51,9 @@ export const capabilitiesOver = (store: Store, gate: Gate, root: string, options
    * serve without those providers says.
    */
   yield* provide(plugins.host, VaultViews, () => ({ ledger: () => Effect.void, search: () => Effect.void }))
+  const views = openViews()
+  yield* provide(plugins.host, FileKinds, views.fileKinds.provision)
+  yield* provide(plugins.host, OutlineRow, () => "olai")
   yield* provide(plugins.host, Vault, events.door)
   yield* mountPlugin(plugins.host,fileAccess)
   yield* mountBundle(plugins.host,selectFixtureRows(rows),"surface")

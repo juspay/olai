@@ -141,7 +141,7 @@ const live = () => {
   }
 
   return createRoot((dispose) => {
-    const directory = createDirectory(entries, manifest)
+    const directory = createDirectory(entries, manifest, () => null)
     return {
       wrote,
       reads: () => reads,

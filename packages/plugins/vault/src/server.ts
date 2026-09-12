@@ -59,6 +59,7 @@ export default definePlugin({
   apply: (config: Config) => Effect.gen(function*() {
     const settings = (yield* VaultSettings) as Settings
     const offers = yield* Offers
+    yield* offers.own("outline-row", () => config.format)
     const directory = yield* openDirectory(settings.root, codecs[config.format](settings.kinds), settings.runtime)
     const refusals = opsEvents()
     const gate = yield* Effect.acquireRelease(

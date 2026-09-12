@@ -1,25 +1,33 @@
 /** Vault owns file-access wire members and the write authority. Readings and
  * subscriptions are acquired on this provider's scope; UI and layout are not dependencies of this half. */
-import { definePlugin, Directory, Surfaces, Vault } from "@olai/plugin-api/services"
+import { definePlugin, Directory, FileKinds, Surfaces, Vault } from "@olai/plugin-api/services"
 import type { Store } from "@olai/ops"
-import { Effect } from "effect"
+import { Effect, Stream } from "effect"
 import { followSubscription } from "./subscription.ts"
 import { inMemoryStore, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
 import type { Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
-import { surface, faces, resources } from "./file-surface.ts"
+import { surface, faces, resources, type FileKindsState } from "./file-surface.ts"
 
 import type { Projection } from "@olai/surface/projection"
 import { headProjection } from "./projection.ts"
 import type { Head } from "./wire.ts"
 import { NOTHING_WRONG } from "@olai/format"
 import { LOADED, type Manifest } from "./wire.ts"
+import { OutlineRow } from "./format.ts"
 
 export default definePlugin({
-  name: "file-access", needs: [Directory, Vault, Surfaces],
+  name: "file-access", needs: [Directory, Vault, Surfaces, FileKinds, OutlineRow],
   apply: Effect.gen(function*() {
     const store = (yield* Directory).store as Store
     const vault = yield* Vault
+    const kinds = yield* FileKinds
+    const outlineRow = yield* OutlineRow
+    const kindState = (): FileKindsState => ({
+      outlineRow,
+      claims: [...kinds.current().values()].map(({ format: _format, ...claim }) => claim),
+    })
+    const fileKinds = inMemoryStore<FileKindsState | null>(kindState())
     let ctx: SurfaceRuntime<typeof surface.spec>["ctx"] | undefined
     let held: Projection<Head> | undefined
     const empty = new Map<string, Head>()
@@ -41,6 +49,10 @@ export default definePlugin({
     }))
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
+        "file-kinds": {
+          store: fileKinds,
+          connect: cell => Stream.runForEach(kinds.changes, () => Effect.sync(() => cell.set(kindState()))),
+        },
         errors: { store: errors, connect: cell => followSubscription(store.errors, value => cell.set(value ?? NOTHING_WRONG)) },
         manifest: { store: manifest }
       },

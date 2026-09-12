@@ -134,7 +134,8 @@
  * kept.
  */
 
-import type { BrokenFile } from "@olai/format"
+import { claims as makeClaims, type Claims, type BrokenFile } from "@olai/format"
+import type { FileKindsState } from "../file-surface.ts"
 import type { Head, Manifest } from "../wire.ts"
 import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
@@ -165,6 +166,9 @@ import { sameMap } from "@olai/web/client/same.ts"
 export type Standing = "reading" | "never" | "loaded"
 
 export interface Directory {
+  readonly claims: Accessor<Claims>
+  readonly outlineRow: Accessor<string | undefined>
+  readonly kindOf: (path: string) => string | null
   /** Which of the three states this tab's directory is in — see
    *  {@link Standing}, and the header for the two arrival orders it is
    *  resolved from. */
@@ -461,6 +465,7 @@ const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
 export const createDirectory = (
   entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
+  fileKinds: Accessor<FileKindsState | null | undefined>,
 ): Directory => {
   // THE HEAD SET, FOLDED — the wire's own frames accumulated into the two
   // readings this app asks a directory for, instead of the whole set being
@@ -468,7 +473,14 @@ export const createDirectory = (
   // fold's own requirement: `./App.tsx` calls this inside the app's root, and
   // the registration is dropped by that owner's `onCleanup`.
   const held = entries.fold(SERVED_FILES)
+  const claims = createMemo(() => makeClaims(fileKinds()?.claims ?? []))
   return {
+    claims,
+    outlineRow: () => fileKinds()?.outlineRow,
+    kindOf: path => {
+      for (const [ext, kind] of claims().byExt) if (path.endsWith(ext)) return kind
+      return null
+    },
     // THE ONE PLACE THE TWO SOURCES ARE READ TOGETHER, which is the whole
     // reason the cell is handed in here rather than read by the shell: they are
     // two members on two channels, either can arrive first, and only a reader
