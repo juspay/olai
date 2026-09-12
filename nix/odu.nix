@@ -87,9 +87,9 @@ in
           names = builtins.filter (n: builtins.match "@odu/.*" n == null)
             (builtins.attrNames deps);
         in
-          builtins.listToAttrs (map (n: { name = n; value = deps.${n}; }) names);
+        builtins.listToAttrs (map (n: { name = n; value = deps.${n}; }) names);
     in
-      (npmOf "run-client") // (npmOf "run-history") // (npmOf "service-client");
+    (npmOf "run-client") // (npmOf "run-history") // (npmOf "service-client");
 
   # The revision this tree consumes, so a report can name it without anybody
   # reading JSON. Same fact `npins/sources.json` holds; exposed because the
