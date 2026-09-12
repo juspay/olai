@@ -108,6 +108,16 @@ export const advanceSub = (
 
 const nowIso = (): string => new Date().toISOString()
 
+/** Collection members are on the runtime face and not on `SurfaceReadFace`. */
+const runsGet = (
+  client: ServiceConnection["client"],
+): ((input: { readonly key: string }) => Stream.Stream<RunRow, unknown>) =>
+  (client.surface as unknown as {
+    readonly runs: {
+      readonly get: (input: { readonly key: string }) => Stream.Stream<RunRow, unknown>
+    }
+  }).runs.get
+
 export const makeWatch = (deps: WatchDeps): Watch => {
   let wanted = new Set<string>()
   const board = new Map<string, RunRow>()
@@ -202,7 +212,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       const client = connection.client
       let self: Fiber.Fiber<void, never> | undefined
       const work = Stream.runForEach(
-        unenrolledStreamCall(client.surface.runs.get, { key: id }),
+        unenrolledStreamCall(runsGet(client), { key: id }),
         (record: RunRow) =>
           Effect.sync(() => {
             if (record === null || record === undefined) onRemove(id)
