@@ -312,7 +312,7 @@ Feature: A node with an `agent-session` property IS an agent
     When I ask the agent "where were we?"
     Then the agent was told its contract 1 time
     And the contract says the conversation was assigned
-    When I open the session picker
+    When I open the fold history
     Then the past sessions hold "an older conversation"
 
   @agent-stored @scratch:good
@@ -335,7 +335,7 @@ Feature: A node with an `agent-session` property IS an agent
     When I open the outline "backlog.olai"
     And I press the agent "filed-chat"
     Then the sidebar marks the outline "lanes.olai" as the one open
-    When I open the session picker
+    When I open the fold history
     Then the past sessions hold "an older conversation"
     And the Unassigned row and list are absent
 
@@ -409,7 +409,7 @@ Feature: A node with an `agent-session` property IS an agent
     And I press the agent "door-live"
     And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
-    When I open the session picker
+    When I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
     And the panel offers a fresh session, saying "the transcript becomes history"
 
@@ -454,7 +454,7 @@ Feature: A node with an `agent-session` property IS an agent
     # own fresh session, unmoved: the memory is the subtree, so nothing a person
     # wrote is being thrown away, and *try again* is still there beside it for an
     # engine that had merely lost its store for a moment.
-    When I open the session picker
+    When I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
     # ...and pressing it moves. A fresh conversation is `session/new`, which this
     # agent never refused — it said no to the old one — so the node comes back to
@@ -472,7 +472,7 @@ Feature: A node with an `agent-session` property IS an agent
     # conversation it superseded — is its history.
     Given I open the outline "lanes.olai"
     When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     Then the panel says this agent has had 1 past session
     And the past sessions hold "an older conversation"
 
@@ -480,7 +480,7 @@ Feature: A node with an `agent-session` property IS an agent
   Scenario: A filed conversation has the node session controls immediately
     Given I open the outline "lanes.olai"
     When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
     And the past sessions hold "an older conversation"
 
@@ -538,7 +538,7 @@ Feature: A node with an `agent-session` property IS an agent
     Then no agent fold is open
     When I press the agent "door-live"
     Then the sidebar marks the outline "lanes.olai" as the one open
-    When I open the session picker
+    When I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
 
   @corpus:lanes
@@ -559,7 +559,7 @@ Feature: A node with an `agent-session` property IS an agent
     When I open the filed conversation "the last conversation" as node "filed-chat"
     And I ask the agent "hold"
     Then the agent "filed-chat" stands "working"
-    When I open the session picker
+    When I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
     And the agent "filed-chat" stands "working"

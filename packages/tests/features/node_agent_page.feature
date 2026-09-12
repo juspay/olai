@@ -79,3 +79,38 @@ Feature: A node's page holds its memory and conversation
     Then the plain node composer has no available engine
     And the agent start pill on "install" is absent
     And there should be no page errors
+
+  Scenario Outline: Fresh start and writable history share the page on <screen>
+    Given the harness keeps distinct sessions on disk
+    And I open the plain node composer for "install"
+    When I send "page first session" from the plain node composer
+    Then the node page conversation is ready for "install"
+    And the agent has answered "page first session" exactly once
+    When I remember this conversation as "first"
+    Then the page has fresh start above its fold history
+    When I start a fresh session
+    Then the panel has a different conversation from "first"
+    And the chat is empty
+    When I ask the agent "page current session"
+    Then the agent has answered "page current session" exactly once
+    When I remember this conversation as "current"
+    And I open the fold history
+    Then the panel says this agent has had 1 past session
+    When I open the past session "page first session"
+    Then the panel is in the remembered conversation "first"
+    When I ask the agent "done hinges"
+    Then the agent is idle
+    And "house.olai" holds a node marked done titled "pick the hinges"
+    And node "install" still binds remembered conversation "current" in "house.olai"
+    When I return to the node agent's current session
+    Then the panel is in the remembered conversation "current"
+    And there should be no page errors
+
+    Examples:
+      | screen  |
+      | desktop |
+
+    @phone
+    Examples:
+      | screen |
+      | phone  |

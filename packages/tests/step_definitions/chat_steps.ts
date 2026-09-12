@@ -2371,7 +2371,7 @@ Then("the chat is empty", async function (this: OlaiWorld) {
  *  the fresh session that ends the current one. It is drawn only where the
  *  panel's conversation belongs to a node agent; every OTHER stored
  *  conversation is the sidebar's now ("I open the unassigned chats"). */
-When("I open the session picker", async function (this: OlaiWorld) {
+When("I open the fold history", async function (this: OlaiWorld) {
   await this.chat(CHAT_SESSIONS).click();
 });
 /** No `trouble` on screen — what went wrong where nobody was waiting, and the

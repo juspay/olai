@@ -29,8 +29,7 @@ Feature: Actual MCP connection failures are visible
     When I ask the agent "hello"
     Then the agent is idle
     And the panel says the agent could not attach "kolu"
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then the chat is empty
     And the panel says this conversation has "kolu"
     And the panel does not claim the agent attached "kolu"

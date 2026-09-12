@@ -92,12 +92,11 @@ Feature: Chat remains usable as the plugin runtime changes
     And the node agent's fold is ready
     Then the chat input reads "only for the last conversation"
     When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
     And the chat input reads ""
     When I type "only for the older conversation" into the chat
-    And I open the session picker
     And I return to the node agent's current session
     Then the chat input reads "only for the last conversation"
     When I send the chat message

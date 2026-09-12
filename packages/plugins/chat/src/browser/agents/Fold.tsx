@@ -6,6 +6,7 @@ import { useAgents } from "./answered.tsx"
 import { unfolded } from "./folding.ts"
 import { createChat, type Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
+import { History } from "./History.tsx"
 import { AgentLine } from "./AgentLine.tsx"
 import { Plan } from "../chat/Plan.tsx"
 import { Roster } from "../chat/Roster.tsx"
@@ -33,18 +34,19 @@ export function Fold(props: { readonly node: string }) {
     createEffect(() => chat.ui.question[1](question()))
     return <ConversationUIProvider value={chat.ui}><section class="my-2 rounded border border-rule bg-panel" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
       <AgentLine chat={chat} node={props.node} />
-      <Conversation chat={chat} />
+      <Conversation chat={chat} node={props.node} />
     </section></ConversationUIProvider>
   }}</Show></Show>
 }
 
-export function Conversation(props: { readonly chat: Chat; readonly unbounded?: boolean }) {
+export function Conversation(props: { readonly chat: Chat; readonly unbounded?: boolean; readonly node: string }) {
   const holding = createHolding(props.chat)
   const live = () => props.chat.state().status === "thinking" || props.chat.state().watching.length > 0
   return <div class="flex min-h-0 flex-col" data-testid={TESTID.chatPanel}
     data-session-id={props.chat.state().session?.id} data-session-title={props.chat.state().session?.title ?? undefined} data-status={props.chat.state().status} data-pending-sends={props.chat.pendingSends()}>
     <ElapsedProvider live={live()}>
       <Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} /><Wake chat={props.chat} />
+      <History chat={props.chat} node={props.node} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget onFiles={files => void holding.take(files)}>
         <Preview chat={props.chat} /><Transcript chat={props.chat} unbounded={props.unbounded} />
         <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} />

@@ -11,28 +11,26 @@ Feature: A node history count follows session creation in another tab
     Then the agent has answered "first session in live history" exactly once
     When I remember this conversation as "first"
     And I mark the page
-    And I open the session picker
+    And I open the fold history
     And I open another browser tab
     And I press the agent "install"
     Then the panel header names the node agent "install the cabinets"
     And the node agent's fold is ready
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then the panel has a different conversation from "first"
     When I remember this conversation as "second"
     And I use the original browser tab
     Then the panel is in the remembered conversation "second"
     And the node session control counts 2 conversations
     And the Unassigned row and list are absent
-    When I open the session picker
+    When I open the fold history
     Then the panel says this agent has had 1 past session
     And the past sessions hold "first session in live history"
     When I open the past session "first session in live history"
     Then the panel is in the remembered conversation "first"
     When I ask the agent "continued from the updated history"
     Then the agent has answered "continued from the updated history" exactly once
-    When I open the session picker
-    And I return to the node agent's current session
+    When I return to the node agent's current session
     Then the panel is in the remembered conversation "second"
     When I ask the agent "second remains usable"
     Then the agent has answered "second remains usable" exactly once

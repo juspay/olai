@@ -9,13 +9,12 @@ Feature: Node session ownership follows changes to the node
     And I ask the agent "first cabinet history"
     Then the agent has answered "first cabinet history" exactly once
     When I remember this conversation as "first"
-    And I open the session picker
     And I start a fresh session
     Then the panel is ready in a new conversation after "first"
     When I ask the agent "current cabinet conversation"
     Then the agent has answered "current cabinet conversation" exactly once
     When I remember this conversation as "current"
-    And I open the session picker
+    And I open the fold history
     And I open the past session "first cabinet history"
     Then the panel is in the remembered conversation "first"
 
@@ -35,8 +34,7 @@ Feature: Node session ownership follows changes to the node
     Then the agent is idle
     And node "fence" is done
     And the chat shows no refusal
-    When I open the session picker
-    And I return to the node agent's current session
+    When I return to the node agent's current session
     Then the panel is in the remembered conversation "current"
     And there should be no page errors
 
@@ -54,7 +52,7 @@ Feature: Node session ownership follows changes to the node
     Then the node "hinges" is shown
     When I show the done nodes
     Then the panel is in the remembered conversation "current"
-    When I open the session picker
+    When I open the fold history
     And I open the past session "first cabinet history"
     Then the panel is in the remembered conversation "first"
     And the panel header names the node agent "install the cabinets"
@@ -75,7 +73,7 @@ Feature: Node session ownership follows changes to the node
     When I switch the plugin "chat" on
     And I close the plugins panel
     And the node agent's fold is ready
-    And I open the session picker
+    And I open the fold history
     And I open the past session "first cabinet history"
     Then the panel is in the remembered conversation "first"
     And the panel header names the node agent "install the cabinets"
@@ -84,8 +82,7 @@ Feature: Node session ownership follows changes to the node
     Then the agent is idle
     And node "order" is done
     And the chat shows no refusal
-    When I open the session picker
-    And I return to the node agent's current session
+    When I return to the node agent's current session
     Then the panel is in the remembered conversation "current"
     And there should be no page errors
 
@@ -95,8 +92,7 @@ Feature: Node session ownership follows changes to the node
     And I press "Enter"
     Then the panel header names the node agent "fit the cabinets"
     And the panel is in the remembered conversation "first"
-    When I open the session picker
-    And I return to the node agent's current session
+    When I return to the node agent's current session
     Then the panel is in the remembered conversation "current"
     And the panel header names the node agent "fit the cabinets"
     And there should be no page errors

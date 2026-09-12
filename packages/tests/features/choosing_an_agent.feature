@@ -320,7 +320,7 @@ Feature: Choosing a node agent's engine
     Then the header names the agent "opencode"
     When I open the filed conversation "the last conversation" as node "claude-chat"
     Then the header names the agent "claude"
-    When I open the session picker
+    When I open the fold history
     Then the past sessions hold "an older conversation"
 
   @opencode @agent-stored @scratch:chat
@@ -329,7 +329,7 @@ Feature: Choosing a node agent's engine
     And the node agent's fold is ready
     When I open the filed conversation "the last conversation" as node "filed-chat"
     Then the filed node "filed-chat" has a note containing "1 messages"
-    When I open the session picker
+    When I open the fold history
     Then the row for "an older conversation" says it has 47 messages
     And the row for "an older conversation" was superseded by "the last conversation"
     When I open the filed "opencode" conversation "an opencode conversation" as node "opencode-chat"
@@ -341,7 +341,7 @@ Feature: Choosing a node agent's engine
     And the node agent's fold is ready
     When I open the filed conversation "the last conversation" as node "filed-chat"
     And the conversation "fake-stored-new" is gone from the agent
-    And I open the session picker
+    And I open the fold history
     Then the row for "an older conversation" says it has 47 messages
     And the row for "an older conversation" was not superseded
 
@@ -355,7 +355,7 @@ Feature: Choosing a node agent's engine
     # conversation — the same change + new makes, through the same door.
     Then the header names the agent "opencode"
     When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     And I open the past session "an older conversation"
     Then the header names the agent "claude"
     And the opened conversation carries the title "an older conversation"
@@ -366,7 +366,7 @@ Feature: Choosing a node agent's engine
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     Then the past sessions hold "an older conversation"
     And the Unassigned row and list are absent
 

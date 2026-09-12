@@ -41,8 +41,7 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
   Scenario: A new conversation cannot send the previous conversation's attachments
     When I paste a picture called "old.png" into the chat
     Then the composer is holding the picture "old.png"
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then the chat is empty
     And the composer is holding nothing
     When I close the agent fold
@@ -69,7 +68,6 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     And I drop "notes.txt" on the chat panel
     Then the attachment file is still being read
     When I remember this conversation as "before fresh"
-    And I open the session picker
     And I start a fresh session
     Then the panel has a different conversation from "before fresh"
     And the node agent's fold is ready

@@ -584,7 +584,7 @@ Feature: Talking to a node agent
     Given the chat eventually shows "we decided to order the cabinets"
     When the next conversation load will hang
     And I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     And I begin opening the past session "an older conversation"
     And I ask the agent "hello"
     And the agent is released
@@ -620,7 +620,7 @@ Feature: Talking to a node agent
     # an agent that says no there used to leave the panel reporting a dead
     # process.
     When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
     When the agent refuses to load a conversation
@@ -628,7 +628,7 @@ Feature: Talking to a node agent
     And the server starts again on the same port
     And I open the app
     And I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     And I begin opening the past session "an older conversation"
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "no such conversation"
@@ -676,7 +676,7 @@ Feature: Talking to a node agent
     When I open the filed conversation "the last conversation" as node "filed-chat"
     And the node agent's fold is ready
     When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     Then the past sessions hold "an older conversation"
     When I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
@@ -842,8 +842,7 @@ Feature: Talking to a node agent
     # conversation that no longer exists.
     When I ask the agent "hello"
     Then the panel header says the context is "13k/200k"
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then the agent is idle
     And the panel header says nothing about the context
 
@@ -1130,8 +1129,7 @@ Feature: Talking to a node agent
     And the agent is idle
     # A NEW CONVERSATION is a new session, and the defect is per session — so
     # the gesture comes back rather than being lost for the life of the panel.
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then the chat is empty
     When I ask the agent "hold"
     Then the agent is working
@@ -1491,7 +1489,7 @@ Feature: Talking to a node agent
     And the transcript is scrolled to the newest line
     When I scroll the transcript to the top
     And I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
     And the chat eventually shows "line 39"
@@ -1510,7 +1508,7 @@ Feature: Talking to a node agent
     # rather than slept, so the two moments are steps, not a race.
     When I arm late growth on the next stored conversation
     And I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the session picker
+    And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
     And the chat eventually shows "line 39"

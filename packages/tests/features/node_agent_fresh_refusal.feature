@@ -12,7 +12,6 @@ Feature: A refused node fresh-session request leaves its current work usable
     And I ask the agent "askstrict"
     Then the chat shows a question
     When I type "answer after a refused fresh session" into the question's "note" box
-    And I open the session picker
     And I start a fresh session
     Then the fresh-session control refuses "a turn is running; cancel it before switching conversations" and allows retry
     And the panel is in the working conversation "question session"
@@ -22,12 +21,11 @@ Feature: A refused node fresh-session request leaves its current work usable
     And I answer the question
     Then the agent is idle
     And the agent's answer mentions "answer after a refused fresh session"
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then the panel has a different conversation from "question session"
     When I ask the agent "fresh after answering"
     Then the agent has answered "fresh after answering" exactly once
-    When I open the session picker
+    When I open the fold history
     Then the panel says this agent has had 1 past session
     When I open the past session "askstrict"
     Then the panel is in the remembered conversation "question session"

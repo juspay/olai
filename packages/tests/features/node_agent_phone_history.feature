@@ -10,18 +10,16 @@ Feature: Node chat history remains usable in phone folds
     When I ask the agent "phone cabinet first"
     Then the agent has answered "phone cabinet first" exactly once
     When I remember this conversation as "first"
-    And I open the session picker
     And I start a fresh session
     Then the panel has a different conversation from "first"
     When I ask the agent "phone cabinet second"
     Then the agent has answered "phone cabinet second" exactly once
     When I remember this conversation as "second"
-    And I open the session picker
+    And I open the fold history
     Then the panel says this agent has had 1 past session
     When I open the past session "phone cabinet first"
     Then the panel is in the remembered conversation "first"
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then the panel has a different conversation from "first"
     And the panel has a different conversation from "second"
     And the panel header names the node agent "install the cabinets"
@@ -32,13 +30,12 @@ Feature: Node chat history remains usable in phone folds
     And I unfold node agent "install"
     Then the panel header names the node agent "install the cabinets"
     And the panel is in the remembered conversation "third"
-    When I open the session picker
+    When I open the fold history
     Then the panel says this agent has had 2 past sessions
     When I open the past session "phone cabinet second"
     Then the panel is in the remembered conversation "second"
     And the agent has answered "phone cabinet second" exactly once
-    When I open the session picker
-    And I return to the node agent's current session
+    When I return to the node agent's current session
     Then the panel is in the remembered conversation "third"
     And the agent has answered "phone cabinet third" exactly once
     And there should be no page errors

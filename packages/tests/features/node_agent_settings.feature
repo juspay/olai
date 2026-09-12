@@ -23,7 +23,6 @@ Feature: Session settings belong to the node conversation that offered them
     And I ask the agent "settings"
     Then the agent's answer mentions "reasoning=high, mode=code, fast=true"
     When I remember this conversation as "configured"
-    And I open the session picker
     And I start a fresh session
     Then the panel has a different conversation from "configured"
     And the panel header names the node agent "install the cabinets"

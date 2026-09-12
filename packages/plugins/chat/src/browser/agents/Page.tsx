@@ -117,7 +117,7 @@ export function PageFoot(props: { readonly node: string }) {
   return <Show when={page()}>{owner =>
     <div class="mt-6" data-testid={TESTID.agentPageFoot} data-agent={props.node}>
       <Show when={owner().chat()} keyed fallback={<PlainComposer node={props.node} page={owner()} />}>{chat =>
-        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} unbounded /></ConversationUIProvider>
+        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} unbounded /></ConversationUIProvider>
       }</Show>
     </div>
   }</Show>

@@ -31,7 +31,6 @@ Feature: Node-agent progress follows its conversation across node switches
     And the node agent's fold is ready
     Then the execution plan contains "Verify the changes" as "completed"
     When I remember this conversation as "planned"
-    And I open the session picker
     And I start a fresh session
     Then the panel has a different conversation from "planned"
     And there is no execution plan

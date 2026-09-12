@@ -66,3 +66,16 @@ Then("the plain node composer has no available engine", async function(this: Ola
   assert.ok((await this.page.locator(plain).innerText()).includes("No agent engine is available."));
   assert.equal(await this.page.locator(send).count(), 0);
 });
+
+Then("the page has fresh start above its fold history", async function(this: OlaiWorld) {
+  const fresh = this.chat(selector(PLUGIN_TESTID.chatFreshSession));
+  const history = this.chat(selector(PLUGIN_TESTID.chatSessions));
+  assert.equal((await fresh.innerText()).trim(), "fresh start");
+  assert.ok((await fresh.getAttribute("title"))?.includes("the transcript becomes history"));
+  const top = await this.box(fresh, "fresh start");
+  const line = await this.box(history, "the fold history");
+  const transcript = await this.box(this.chat(CHAT_TRANSCRIPT), "the transcript");
+  assert.ok(top.y < line.y && line.y < transcript.y);
+  assert.equal(await this.chat(selector(PLUGIN_TESTID.chatSessionList)).count(), 0);
+  assert.ok(!(await history.innerText()).includes("sessions ("));
+});

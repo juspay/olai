@@ -90,8 +90,7 @@ Feature: Agent session controls and progress
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When the agent is released
     Then the agent is idle
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then there is no execution plan
 
   Scenario: A new conversation gets the agent's default settings
@@ -99,7 +98,6 @@ Feature: Agent session controls and progress
     And I open the session settings
     And I set session setting "Reasoning" to "high"
     And I open the session settings
-    And I open the session picker
     And I start a fresh session
     Then the panel is ready in a new conversation after "before fresh settings"
     When I open the session settings

@@ -12,7 +12,7 @@ Feature: A send during node session replacement stays with its original conversa
     Then the agent has answered "before replacement" exactly once
     When I remember this conversation as "original"
     And I mark the page
-    And I open the session picker
+    And I open the fold history
     And I hold incoming updates to the original browser tab
     And I start a fresh session
     And I open another browser tab
@@ -27,15 +27,14 @@ Feature: A send during node session replacement stays with its original conversa
     Then the panel is in the remembered conversation "replacement"
     And the chat shows no refusal
     And the chat input reads ""
-    When I open the session picker
+    When I open the fold history
     And I open the past session "before replacement"
     Then the panel is in the remembered conversation "original"
     And the panel refuses, saying "the conversation changed; this action was not applied"
     And the chat input reads "draft sent during replacement"
     When I send the recovered draft again
     Then the agent has answered "draft sent during replacement" exactly once
-    When I open the session picker
-    And I return to the node agent's current session
+    When I return to the node agent's current session
     Then the panel is in the remembered conversation "replacement"
     When I ask the agent "replacement remains usable"
     Then the agent has answered "replacement remains usable" exactly once

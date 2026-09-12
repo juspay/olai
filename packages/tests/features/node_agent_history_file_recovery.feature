@@ -15,14 +15,13 @@ Feature: A restored node recovers its complete conversation history
     When I ask the agent "historical recovery session"
     Then the agent has answered "historical recovery session" exactly once
     When I remember this conversation as "historical"
-    And I open the session picker
     And I start a fresh session
     Then the panel has a different conversation from "historical"
     When I ask the agent "current recovery session"
     Then the agent has answered "current recovery session" exactly once
     When I remember this conversation as "current"
     And I remember the served bytes of "history-recovery.olai"
-    And I open the session picker
+    And I open the fold history
     And I open the past session "historical recovery session"
     Then the panel is in the remembered conversation "historical"
     When I remove the served file "history-recovery.olai"
@@ -36,7 +35,7 @@ Feature: A restored node recovers its complete conversation history
     And I unfold node agent "history-recovery"
     And the node agent's fold is ready
     Then the panel header names the node agent "History recovery agent"
-    When I open the session picker
+    When I open the fold history
     And I open the past session "historical recovery session"
     Then the panel is in the remembered conversation "historical"
     When I ask the agent "history continued after restoration"
@@ -46,8 +45,7 @@ Feature: A restored node recovers its complete conversation history
     Then the agent is idle
     And node "outside-recovery" is done
     And the chat shows no refusal
-    When I open the session picker
-    And I return to the node agent's current session
+    When I return to the node agent's current session
     Then the panel is in the remembered conversation "current"
     And the agent has answered "current recovery session" exactly once
     When I ask the agent "current continued after restoration"

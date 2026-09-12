@@ -505,9 +505,9 @@ Then(
     const fresh = this.chat(FRESH);
     await fresh.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
-      (await fresh.innerText()).replaceAll("\n", " ").includes(words),
+      (await fresh.getAttribute("title") ?? "").includes(words),
       `the fresh session to say ${JSON.stringify(words)}, and it says ` +
-        JSON.stringify((await fresh.innerText()).replaceAll("\n", " ")),
+        JSON.stringify((await fresh.getAttribute("title") ?? "")),
     );
   },
 );
@@ -602,7 +602,7 @@ Then("the past session {string} is selected", async function (this: OlaiWorld, t
 });
 
 When("I return to the node agent's current session", async function (this: OlaiWorld) {
-  const button = this.chatRoot().getByRole("button", { name: "current session", exact: true });
+  const button = this.chatRoot().getByRole("button", { name: "current session ↩", exact: true });
   const session = await button.getAttribute("data-session-id");
   assert.ok(session);
   await button.click();
@@ -690,7 +690,7 @@ Then("the fresh-session control refuses {string} and allows retry", async functi
 
 Then("the node session control counts {int} conversations", async function (this: OlaiWorld, count: number) {
   const button = this.chat(CHAT_SESSIONS);
-  await this.waitUntil(async () => (await button.innerText()).trim() === `sessions (${count})`, "the node's session count to reflect its current history");
+  await this.waitUntil(async () => await button.getAttribute("data-count") === String(count), "the node's session count to reflect its current history");
 });
 
 Then("the agent {string} remains {string} across two idle deadlines", async function (this: OlaiWorld, node: string, standing: string) {

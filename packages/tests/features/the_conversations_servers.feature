@@ -104,8 +104,7 @@ Feature: The panel says which MCP servers a conversation has
     # conversation's servers over every conversation after it.
     When I ask the agent "hello"
     Then the agent is idle
-    When I open the session picker
-    And I start a fresh session
+    When I start a fresh session
     Then the chat is empty
     And the panel says this conversation has "olai"
     And the panel says this conversation has "kolu"
@@ -131,7 +130,6 @@ Feature: The panel says which MCP servers a conversation has
     # here is that it is DROPPED.
     Then the panel says this conversation has "olai"
     When the agent refuses to new a conversation
-    And I open the session picker
     And I start a fresh session
     Then the fresh-session control refuses "this agent will not start a conversation in this directory" and allows retry
     When I press "Escape"
