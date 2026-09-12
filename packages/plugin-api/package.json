@@ -17,7 +17,8 @@
     "./contracts": "./src/contracts.ts",
     "./authority": "./src/authority.ts",
     "./slots": "./src/slots.ts",
-    "./configuration": "./src/configuration.ts"
+    "./configuration": "./src/configuration.ts",
+    "./file-kinds": "./src/file-kinds.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

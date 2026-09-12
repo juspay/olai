@@ -34,8 +34,7 @@
     "olai-plugin-outlines": "workspace:*",
     "@olai/edit-history": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
-    "olai-plugin-layout": "workspace:*",
-    "olai-plugin-files": "workspace:*"
+    "olai-plugin-layout": "workspace:*"
   },
   "olai": {
     "contracts": [

@@ -1,4 +1,4 @@
-import { TESTID } from "olai-plugin-markdown/testids"
+import { TESTID } from "olai-plugin-csv/testids"
 /**
  * A served `.csv`, drawn — a header row and the rows under it, as a table, and
  * the honest sentence about the rows that would not fit.
@@ -55,11 +55,11 @@ import { createEffect, createSignal, onCleanup, createMemo, For, Show } from "so
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 
-import { BodyRefused } from "./BodyRefused.tsx"
+import { BodyRefused } from "olai-plugin-markdown/body-refused"
 import { clampSaid } from "./clamped.ts"
 import { Effect } from "effect"
 import type { Body } from "olai-plugin-vault/surface"
-import { servedDirectory } from "../vault.ts"
+import { servedDirectory } from "./vault.ts"
 
 /** The file, and nothing else — ./faces.tsx's `Reading`, spelled here rather
  *  than imported for the reason ./Hypertext.tsx spells its own: the table

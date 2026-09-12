@@ -14,8 +14,8 @@ import { servedDirectory } from "./vault.ts"
 
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { Glyph } from "olai-plugin-files/icons"
-import { ROW_TESTID } from "olai-plugin-files/kinds"
+import { Glyph } from "./glyphs.tsx"
+import { drawingOf } from "./glyphs.tsx"
 import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
 import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
 
@@ -435,22 +435,22 @@ function File(props: {
   // Only the ⚠ is asked of the kind here, and it is not one of `./file/kinds.ts`
   // answers: a file that could not be READ is a fact about this row's file, and
   // only an outline's unreadability costs the reader a tree.
-  const outline = servedDirectory()?.claims().byKind.get(props.row.of)?.holds === "nodes"
+  const outline = () => servedDirectory()?.claims().byKind.get(props.row.of)?.holds === "nodes"
 
   return (
     <li class="mb-0.5">
       <Link
         route={atFile(props.row.file)}
         class={ENTRY}
-        testid={ROW_TESTID[props.row.of]}
+        testid={drawingOf(props.row.of)?.testid ?? TESTID.fileLink}
         current={props.view.isActive(props.row.file)}
-        broken={outline && props.view.broken.has(props.row.file)}
+        broken={outline() && props.view.broken.has(props.row.file)}
         title={props.row.file}
       >
         <FileAnatomy
           of={props.row.of}
           name={props.row.name}
-          broken={outline && props.view.broken.has(props.row.file)}
+          broken={outline() && props.view.broken.has(props.row.file)}
         />
       </Link>
     </li>

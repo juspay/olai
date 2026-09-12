@@ -1,7 +1,7 @@
 import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-files/testids"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
-import { Glyph } from "olai-plugin-files/icons"
+import { Glyph } from "./glyphs.tsx"
 
 import { setSidebarOpen } from "./shell.ts"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"

@@ -1,3 +1,8 @@
+import { fileKindKey } from "@olai/plugin-api/file-kinds"
+import { fileKinds } from "olai-plugin-files/contract"
+import { pages } from "olai-plugin-navigation/contract"
+import { KindGlyph } from "./glyph.tsx"
+import { TESTID as KIND_IDS } from "./testids.ts"
 import { holdServed } from "./browser/vault.ts"
 import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
@@ -119,6 +124,10 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
 import { documentProperties } from "./browser/document-properties.tsx"
 import { palette, messages } from "./browser/palette/adapter.tsx"
 export const components = {
+  glyph: definePlugin({ name: "glyph", needs: [rendererSlots], apply: Effect.gen(function*() {
+    const by = { holds: "nodes" } as const
+    yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: "outline", article: "an", testid: KIND_IDS.outlineLink }, { key: fileKindKey(by) })
+  }) }),
   palette, messages, "document-properties": documentProperties,
   /** The shell's geometry, DECLARED — a component of its own because content
    *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
@@ -149,9 +158,11 @@ export const components = {
     // ...and the walks over the locations this page draws, from the same
     // renderer (`./browser/locations.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
+    const Page = () => <OutlinePageView />
+    yield* slots.contribute(pages, { by: { holds: "nodes" }, edits: true, page: Page }, { key: fileKindKey({ holds: "nodes" }) })
     yield* slots.contribute(content, {
       matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || (served.kindOf(route.address.path) === null || served.claims().byKind.get(served.kindOf(route.address.path)!)?.holds === "nodes"))),
-      Page: () => <OutlinePageView />,
+      Page,
     }, { children: [...Object.values(slotContracts), datedRows, documentReferences, pageView, titles, propertyRoutes] })
     yield* slots.contribute(datedRows, DatedRow)
     yield* slots.contribute(pageView, OutlinePageView)

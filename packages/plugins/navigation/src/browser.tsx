@@ -20,7 +20,7 @@ import { Effect } from "effect"
 import { overlays } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createMemo,createRoot,createRenderEffect } from "solid-js"
-import { name,navigation,type PaletteControl } from "./index.ts"
+import { name,navigation,content,pages,type PaletteControl } from "./index.ts"
 import { askInPalette,closePalette,dropQuestion,openPalette,paletteAsking } from "./palette/state.ts"
 import { paletteOpen } from "./palette/state.ts"
 import { PageView } from "./PageView.tsx"
@@ -29,7 +29,7 @@ import { scopePaletteState } from "./palette/open-owner.ts"
 import { Palette,resetPaletteMemory } from "./palette/Palette.tsx"
 import { PaneProvider } from "./pane/context.tsx"
 import { atFile,settleRoutePages } from "./routes.ts"
-import { holdRoutePages,holdFileClaims,fileClaims,routing } from "./pages.ts"
+import { holdRoutePages,holdFiles,fileClaims,routing } from "./pages.ts"
 import { Link,RouterProvider } from "./routing.tsx"
 import { createNavigation } from "./state.ts"
 
@@ -95,6 +95,9 @@ export const components = {
  // holder the survivor is still reading through (`./faces.ts`).
  yield* holdRouteFaces(yield* Faces)
  const slots=yield* rendererSlots
+ // This integration owns the file-page location under the content container.
+ // It draws nothing itself; PageView dispatches the contributed file pages.
+ yield* slots.contribute(content,{matches:()=>false,Page:()=>null},{children:[pages]})
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
    const stop=holdRoutePages(createMemo(()=>settleRoutePages(routeFaces("app.route"))))
@@ -102,7 +105,7 @@ export const components = {
  })),stop=>Effect.sync(stop))
 })}), files:definePlugin({name:"files",needs:[fileAccess,Offers],apply:Effect.gen(function*(){
  const files=yield* fileAccess
- yield* Effect.acquireRelease(Effect.sync(()=>holdFileClaims(files.claims)),stop=>Effect.sync(stop))
+ yield* Effect.acquireRelease(Effect.sync(()=>holdFiles(files)),stop=>Effect.sync(stop))
  const opens=(path:string,at?:string)=>files.paths().includes(path)?atElement(files.claims(),path,at??null):undefined
  yield* (yield* Offers).own("file-links",()=>opens)
 })}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,appShell],apply:Effect.gen(function*(){

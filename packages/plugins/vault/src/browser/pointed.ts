@@ -32,10 +32,8 @@
 import { mediaHref } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
-import { useHead } from "../vault.ts"
 
-export const usePointed = (file: Accessor<string>): Accessor<string> => {
-  const rev = useHead(file)
+export const usePointed = (file: Accessor<string>, rev: Accessor<number | undefined>): Accessor<string> => {
   const pointed = createMemo<{ readonly file: string; readonly href: string }>((previous) => {
     const name = file()
     const at = rev()

@@ -81,7 +81,10 @@
 
 import { bareOf, type Claims, mintExt, fileKind } from "@olai/format"
 
-import { oneNamed } from "olai-plugin-files/kinds"
+const oneNamed = (claims: Claims, kind: string): string => {
+  const claim = claims.byKind.get(kind)
+  return claim === undefined ? "a file" : `${claim.article} ${claim.noun}`
+}
 
 /**
  * The last segments that name a PLACE rather than a file — what the completion

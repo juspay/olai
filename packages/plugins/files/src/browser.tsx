@@ -1,3 +1,4 @@
+import { holdKindDrawings } from "./glyphs.tsx"
 import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
@@ -18,7 +19,7 @@ import { railEntries,regions } from "olai-plugin-sidebar/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Files } from "./Files.tsx"
 import { FileRail } from "./Rail.tsx"
-import { fileState,fileTypes } from "./contract.ts"
+import { fileState,fileTypes,fileKinds } from "./contract.ts"
 import { followFolders } from "./fold/folders.ts"
 export default definePlugin({name:"files", needs:[Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
  // The served directory the tree is drawn from, held for this activation
@@ -50,8 +51,9 @@ export const components = {
  })}),
  sidebar: definePlugin({name:"sidebar", needs:[fileState,fileAccess, rendererSlots, navigation], apply:Effect.gen(function*(){
  const nav=yield* navigation, slots=yield* rendererSlots
+ yield* Effect.acquireRelease(Effect.sync(()=>holdKindDrawings(slots.read)),stop=>Effect.sync(stop))
  yield* slots.contribute(railEntries,FileRail)
- yield* slots.contribute(regions,{at:"files" as const,Body:props=><Files {...props} active={fileNamed(nav.route())??nav.focused()?.file} />},{children:[fileTypes]})
+ yield* slots.contribute(regions,{at:"files" as const,Body:props=><Files {...props} active={fileNamed(nav.route())??nav.focused()?.file} />},{children:[fileTypes,fileKinds]})
 })}) }
 
 export { surface } from "./surface.ts"

@@ -1,3 +1,4 @@
+import type { Directory } from "olai-plugin-vault/file-state"
 import type { Claims } from "@olai/format"
 /**
  * THE ROUTES THE MOUNTED PLUGINS CLAIM — this row's own table, and PRIVATE to
@@ -31,9 +32,10 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 
 import { type MountedPages, NO_PAGES, type Routing, routingOver } from "./routes.ts"
 
-const files = heldService<() => Claims>()
-export const holdFileClaims = files.hold
-export const fileClaims = () => files.read()?.()
+const files = heldService<Pick<Directory, "claims" | "paths" | "standing">>()
+export const holdFiles = files.hold
+export const directory = files.read
+export const fileClaims = () => files.read()?.claims()
 const table = heldService<() => MountedPages>()
 
 /** Told by `./browser.tsx`'s `renderer` component, for that activation. */

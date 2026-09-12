@@ -15,7 +15,11 @@
     "./testids": "./src/testids.ts",
     "./wire": "./src/wire.ts",
     "./projection": "./src/projection.ts",
-    "./claim": "./src/claim.ts"
+    "./claim": "./src/claim.ts",
+    "./body-page": "./src/browser/BodyPage.tsx",
+    "./body-refused": "./src/browser/document/BodyRefused.tsx",
+    "./document-route": "./src/browser/document-route.ts",
+    "./referrers": "./src/browser/document/Referrers.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -49,7 +53,11 @@
       "./testids",
       "./surface",
       "./wire",
-      "./claim"
+      "./claim",
+      "./body-page",
+      "./body-refused",
+      "./document-route",
+      "./referrers"
     ]
   }
 }

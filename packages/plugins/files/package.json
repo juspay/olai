@@ -13,8 +13,6 @@
     "./tools": "./src/tools.ts",
     "./making": "./src/file/making.ts",
     "./testids": "./src/testids.ts",
-    "./icons": "./src/contracts/icons.tsx",
-    "./kinds": "./src/contracts/kinds.ts",
     "./completing": "./src/contracts/completing.ts"
   },
   "scripts": {
@@ -43,8 +41,6 @@
     "contracts": [
       "./making",
       "./testids",
-      "./icons",
-      "./kinds",
       "./surface",
       "./completing"
     ]

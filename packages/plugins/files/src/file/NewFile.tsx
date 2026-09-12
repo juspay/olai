@@ -41,7 +41,7 @@ import { createSignal,Show } from "solid-js"
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { meantAt } from "olai-plugin-files/completing"
-import { Glyph } from "olai-plugin-files/icons"
+import { Glyph } from "../glyphs.tsx"
 import { Refused } from "@olai/web/client/Refused.tsx"
 import type { Making } from "olai-plugin-files/making"
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"

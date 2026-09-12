@@ -1,4 +1,5 @@
-import { TESTID } from "olai-plugin-markdown/testids"
+import { useHead } from "./vault.ts"
+import { TESTID } from "olai-plugin-pdf/testids"
 /**
  * A served `.pdf`, drawn — the browser's own viewer, pointed at the file's own
  * URL on the media route.
@@ -48,7 +49,7 @@ import { TESTID } from "olai-plugin-markdown/testids"
 import { mediaHref } from "@olai/surface"
 
 
-import { usePointed } from "./pointed.ts"
+import { usePointed } from "olai-plugin-vault/pointed"
 
 /** What the browser is told this is. Spelled here rather than left to the
  *  response's own `Content-Type`, because it is what makes the element ASK for
@@ -60,7 +61,7 @@ const PDF_TYPE = "application/pdf"
 /** The file, and nothing else — ./faces.tsx's `Reading`, spelled here for the
  *  reason ./Csv.tsx spells its own. */
 export function Pdf(props: { readonly file: string }) {
-  const src = usePointed(() => props.file)
+  const src = usePointed(() => props.file, useHead(() => props.file))
 
   return (
     <object

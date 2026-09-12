@@ -1,5 +1,6 @@
-import { servedDirectory } from "../vault.ts"
-import { TESTID } from "olai-plugin-markdown/testids"
+import { useHead } from "./vault.ts"
+import { servedDirectory } from "./vault.ts"
+import { TESTID } from "olai-plugin-image/testids"
 /**
  * A served picture, drawn — one `<img>`, pointed at the file's own URL on the
  * media route.
@@ -38,12 +39,12 @@ import { TESTID } from "olai-plugin-markdown/testids"
 import { stemOf } from "@olai/format"
 
 
-import { usePointed } from "./pointed.ts"
+import { usePointed } from "olai-plugin-vault/pointed"
 
 /** The file, and nothing else — ./faces.tsx's `Reading`, spelled here for the
  *  reason ./Csv.tsx spells its own. */
 export function Image(props: { readonly file: string }) {
-  const src = usePointed(() => props.file)
+  const src = usePointed(() => props.file, useHead(() => props.file))
 
   return (
     <img

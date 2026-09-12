@@ -312,8 +312,10 @@ test("a row's line is marked in exactly the module that reads it and the tree th
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
   expect(filesSpelling(/data-pane/)).toEqual([
     "plugins/layout/src/pane/Panes.tsx",
+    "plugins/markdown/src/browser/BodyPage.tsx",
     "plugins/markdown/src/browser/PageView.tsx",
-    "plugins/markdown/src/browser/document/faces.tsx",
+    "plugins/markdown/src/browser/document/Rendered.tsx",
+    "plugins/navigation/src/PageView.tsx",
     "plugins/outlines/src/browser/OutlinePage.tsx",
     "plugins/outlines/src/browser/PageView.tsx",
     "plugins/outlines/src/browser/drag/lines.ts"

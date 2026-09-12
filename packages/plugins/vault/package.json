@@ -20,7 +20,8 @@
     "./surface": "./src/file-surface.ts",
     "./errors/Report.tsx": "./src/browser/errors/Report.tsx",
     "./wire": "./src/wire.ts",
-    "./projection": "./src/projection.ts"
+    "./projection": "./src/projection.ts",
+    "./pointed": "./src/browser/pointed.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -54,7 +55,8 @@
       "./errors/Broken.tsx",
       "./surface",
       "./errors/Report.tsx",
-      "./wire"
+      "./wire",
+      "./pointed"
     ]
   }
 }

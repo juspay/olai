@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import type { Claims } from "@olai/format"
-import { holdFileClaims } from "./pages.ts"
+import { holdFiles } from "./pages.ts"
 import { createRouter } from "./router.tsx"
 
 // Only the address bar and event listeners are needed: no page is drawn.
@@ -26,7 +26,7 @@ test("late claims land every pane once, without reviving a spent landing on anot
       return createRouter()
     })
     expect(router.landing(0)).toBeUndefined()
-    release = holdFileClaims(() => claims()!)
+    release = holdFiles({ claims: () => claims()!, paths: () => [], standing: () => "loaded" })
     publish(TEST_CLAIMS)
     await Promise.resolve()
     expect(router.landing(0)).toEqual({ file: "house.olai", at: "handles", spent: false })

@@ -54,7 +54,17 @@ import { PLUGIN_TESTID } from "@olai/bundle/testids";
 // read from the other end: the boot package's line in that table is empty now,
 // and these two are the suite's, recorded. `ROW_TESTID` is which row one KIND
 // of file draws; `REFERRINGS` is the outline's word for a reference.
-import { ROW_TESTID } from "olai-plugin-files/kinds";
+import { TESTID as KIND_OUTLINES } from "olai-plugin-outlines/testids";
+import { TESTID as KIND_MARKDOWN } from "olai-plugin-markdown/testids";
+import { TESTID as KIND_HYPERTEXT } from "olai-plugin-hypertext/testids";
+import { TESTID as KIND_CSV } from "olai-plugin-csv/testids";
+import { TESTID as KIND_IMAGE } from "olai-plugin-image/testids";
+import { TESTID as KIND_PDF } from "olai-plugin-pdf/testids";
+const ROW_TESTID = {
+  olai: KIND_OUTLINES.outlineLink, markdown: KIND_MARKDOWN.documentLink,
+  hypertext: KIND_HYPERTEXT.hypertextLink, csv: KIND_CSV.csvLink,
+  image: KIND_IMAGE.imageLink, pdf: KIND_PDF.pdfLink,
+};
 import { REFERRINGS } from "olai-plugin-outlines/testlib";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "olai-plugin-kolu/appliance/testlib";

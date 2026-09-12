@@ -1,124 +1,21 @@
+/** Markdown's own reading face, including heading and source-line landings. */
 import { servedDirectory } from "../vault.ts"
 import { lineAt } from "olai-plugin-navigation/routes"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { TESTID as IDS_MARKDOWN } from "olai-plugin-markdown/testids"
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
-/**
- * The FACE a bodied file's page wears — one per kind, in one table.
- *
- * `/<file>` opens any file whose content is a body (`@olai/format`'s registry:
- * a `.md`, a `.html`, a `.csv`, a picture, a `.pdf`), and what changes between
- * them is not the page — same address, same heading, same "the directory does
- * not hold that" screen — but what the file is DRAWN AS, and whether the reader
- * may write it. Those are exactly two facts, so they are two fields, and the
- * table is a `Record` over `BodyKind`: a kind added to the registry with a body
- * is a compile error here, naming the one thing a new kind of file cannot
- * inherit.
- *
- * FOUR OF THE FIVE ARE READ-ONLY, and that is one decision rather than four
- * omissions: `markdown_write` takes a `.md` and nothing else (`@olai/ops`), so
- * an Edit control on any of the others would be a door onto a refusal. The
- * viewers are viewers.
- *
- * The alternative is what this replaces before it could be written: a `Show`
- * per kind in `./DocumentPage.tsx`, with the Edit control gated by a second
- * condition somewhere above it. Two conditions about one kind is two answers,
- * and the page they disagree in is the one where a reader is offered an editor
- * for a file the ops layer will refuse to write.
- *
- * WHAT A FACE IS HANDED is the file and nothing else ({@link Reading}), and
- * that is the decision this table gained last. Each face asks the wire for what
- * it draws from — a document's body, a `.csv`'s text, a saved page's revision,
- * a picture's — through the one module that owns each member
- * (`./documents.tsx`, `../served.tsx`), so a face cannot be handed a value it
- * does not read, and what a kind costs this tab is a fact about that kind's own
- * component rather than about a props type shared with another. It is what
- * makes the five genuinely unequal: the `.csv` face opens a body and the
- * picture's opens nothing at all, and neither had to be declared here.
- */
-
 import { today } from "../clock.ts"
 import { proseIn, proseLineOffset, needlesFrom } from "@olai/format"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
-
 import { markdownReady } from "@olai/markdown-ui/chunk.ts"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { landingId, outlineOf } from "@olai/markdown-ui/render.ts"
 import { useHere, useLanding, useRouter } from "olai-plugin-navigation/routing"
-
 import { BodyRefused } from "./BodyRefused.tsx"
-import { Csv } from "./Csv.tsx"
 import { isServed, useDocument } from "./documents.tsx"
-import { Hypertext } from "./Hypertext.tsx"
-import { Image } from "./Image.tsx"
-import { Pdf } from "./Pdf.tsx"
 import { Toc } from "./Toc.tsx"
 
-/**
- * What a reading face is handed: THE FILE, and nothing else.
- *
- * It used to be handed the body as well, and that is the field this type lost
- * on purpose. A face draws from what it draws from — the markdown face from
- * the document's text, the hypertext face from a frame that fetches the file
- * over HTTP and from the revision that says the file moved — and those are two
- * different members of the wire (`@olai/surface`: `documents`, `heads`). A
- * props type carrying both meant handing each face a value it does not read,
- * which for the hypertext face was an empty string standing in for bytes this
- * tab never asked for: a body-shaped hole that a future face could read and
- * quietly draw as an empty document.
- *
- * So each face ASKS, through the one module that owns both members
- * (`./documents.tsx`), and a face's cost on the wire is a fact about the face
- * rather than about this table's props. That is what makes a preview cost a
- * revision: `Hypertext` reads a head and never opens a body, and nothing here
- * can hand it one by accident.
- */
-export interface Reading {
-  readonly file: string
-}
-
-export interface Face {
-  /** The reading face: the file, drawn however this kind of file is drawn. */
-  readonly reads: (props: Reading) => JSX.Element
-  /**
-   * Whether this kind's page offers the WRITING face — the Edit control, the
-   * draft and the conflict story (`./DocEditor.tsx`).
-   *
-   * It is also what decides whether the PAGE asks for the body
-   * (`./DocumentPage.tsx`), and the two are one question rather than two: the
-   * page holds the body for the editor's sake — a draft is a change to a text,
-   * judged against the text it was read from — and for nothing else, since the
-   * reading face fetches whatever it draws for itself. A face that does not
-   * edit is a page that opens no body, which is why a `.html` preview costs
-   * this tab a revision and not a megabyte.
-   *
-   * `edits` is not a preference. `markdown_write` takes a `.md` and nothing
-   * else (`@olai/ops`), so a page offering Edit for a `.html` would be a door
-   * onto a refusal.
-   */
-  readonly edits: boolean
-}
-
-export const FACES: Record<string, Face> = {
-  markdown: { reads: Rendered, edits: true },
-  hypertext: { reads: Hypertext, edits: false },
-  csv: { reads: Csv, edits: false },
-  image: { reads: Image, edits: false },
-  pdf: { reads: Pdf, edits: false },
-}
-
-/** A document's reading face: the contents, then the body — exactly what the
- *  page was before it could edit, in a component so the mode switch stays one
- *  `Show` rather than two trees interleaved.
- *
- *  IT ASKS FOR THE BODY ITSELF, which is what it draws from ({@link Reading}).
- *  The page above it asks for one too, for the editor's sake, and that is one
- *  subscription rather than two: interest is counted per PATH by the module
- *  that owns the member (`./documents.tsx`), so two readers of one document
- *  share its stream. Nothing arrives until it arrives — the body is a frame
- *  behind the heading on a fresh open, which is what a `<Show>` and no
- *  placeholder mean here as they did when the page held it. */
-function Rendered(props: Reading) {
+export function Rendered(props: { readonly file: string }) {
   const here = useHere()
   const served = useDocument(() => props.file)
   /**

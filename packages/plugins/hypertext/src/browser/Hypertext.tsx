@@ -1,4 +1,4 @@
-import { TESTID } from "olai-plugin-markdown/testids"
+import { TESTID } from "olai-plugin-hypertext/testids"
 /**
  * A served `.html`, drawn — and, since the ruling of 2026-08-16, RUNNING.
  *
@@ -116,12 +116,12 @@ import {
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { Lede } from "@olai/web/client/errors/Lede.tsx"
-import { useOpens } from "../links.ts"
+import { useOpens } from "./links.ts"
 import { useGo, useLanding } from "olai-plugin-navigation/routing"
 import { fileNamed } from "olai-plugin-navigation/routes"
 
-import { useHead } from "../vault.ts"
-import { BodyRefused } from "./BodyRefused.tsx"
+import { useHead } from "./vault.ts"
+import { BodyRefused } from "olai-plugin-markdown/body-refused"
 import { echo } from "./echo.ts"
 
 /**

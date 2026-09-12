@@ -21,3 +21,15 @@ export interface FileControls {
  * those rows declares it on a component of its own now and draws the control
  * out of what it was handed.
  */
+
+
+import type { FileKindKey } from "@olai/plugin-api/file-kinds"
+import type { AnyTestId } from "@olai/ui-primitives/testids.ts"
+export interface FileKindDrawing {
+  readonly by: FileKindKey
+  readonly glyph: () => JSX.Element
+  readonly noun: string
+  readonly article: "a" | "an"
+  readonly testid: AnyTestId
+}
+export const fileKinds = location<FileKindDrawing>("files.kinds", "many", "key")

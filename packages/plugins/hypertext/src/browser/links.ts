@@ -5,11 +5,11 @@
  * There is exactly one asker and it is a strange one: a `.html` preview, where
  * a reader clicks a link inside somebody else's saved page and the seal hands
  * the path out over `postMessage` (`@olai/surface`'s `seal.ts`,
- * `./document/Hypertext.tsx`). Everywhere else in this client a link is already
+ * `./Hypertext.tsx`). Everywhere else in this client a link is already
  * a `Route` by the time anything looks at it.
  *
  * The answer is `olai-plugin-navigation`'s and arrives on `navigation.file-links`
- * — a service `../browser.tsx`'s `content` component already names. It used to
+ * — a service `../browser.tsx`'s `page` component already names. It used to
  * arrive as `useOpens`: a module variable in navigation's own `opens.tsx`, set
  * by that row's `files` component and read across the wall with nothing
  * declared (the audit's §12).
@@ -23,7 +23,7 @@ import type { Opens } from "olai-plugin-navigation/opens"
 
 const provider = heldService<Opens>()
 
-/** Told by `../browser.tsx`'s `content` component, for that activation. */
+/** Told by `../browser.tsx`'s `page` component, for that activation. */
 export const holdOpens = provider.hold
 
 /** Where a vault path opens. */
