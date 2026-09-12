@@ -12,6 +12,7 @@ Feature: Enter preserves prose that happens to match a node's note
     When I type "<message>" into the chat
     Then the completion offers "review-hinges"
     And no chat completion is selected
+    And the composer is armed with nothing
     When I press "Enter" in the chat
     Then the chat shows my message "<message>"
     And the agent's answer mentions "you said: <message>"
@@ -21,7 +22,7 @@ Feature: Enter preserves prose that happens to match a node's note
     Examples:
       | message                                                       |
       | look at @review-hinges and decide what to do about the doors    |
-      | ask @alex and decide what to do about the doors                 |
+      | discuss @alex and decide what to do about the doors             |
       | look at @is:done and then                                      |
 
   Scenario: Returning to an accepted handle cannot swallow the following clause
