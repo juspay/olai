@@ -1781,7 +1781,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugin-build/src/imports.ts",
       "plugins/capture/src/server.ts",
       "plugins/capture/src/tools.ts",
-      "plugins/chat/src/browser/chat/OutlineDiff.tsx",
       "plugins/chat/src/browser/chat/outline.ts",
       "plugins/chat/src/server.ts",
       "plugins/files/src/Files.tsx",
@@ -2102,6 +2101,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "ops/src/sorted.ts",
       "ops/src/standing.bench.ts",
       "ops/src/walks.bench.ts",
+      "plugins/capture/src/browser.tsx",
       "plugins/chat/src/browser/chat/Composer.tsx",
       "plugins/chat/src/browser/chat/DropTarget.tsx",
       "plugins/chat/src/browser/chat/Panel.tsx",
@@ -2132,11 +2132,13 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/outlines/src/browser/page.ts",
       "plugins/outlines/src/projection.ts",
       "plugins/outlines/src/tools.ts",
+      "plugins/pins/src/browser.tsx",
       "plugins/search/src/browser.tsx",
       "plugins/search/src/browser/KindSelector.tsx",
       "plugins/search/src/table.bench.ts",
       "plugins/search/src/table.ts",
       "plugins/sidebar/src/Sidebar.tsx",
+      "plugins/trash/src/browser.tsx",
       "plugins/trash/src/browser/PageView.tsx",
       "plugins/trash/src/browser/TrashPage.tsx",
       "plugins/trash/src/tools.ts",
@@ -2996,5 +2998,21 @@ test("bundle static asset and policy catalogs match declared row exports", () =>
     if (door === "./policy") {
       expect(graph.reached.filter(edge => /^node:|^solid-js(?:\/|$)/.test(edge.spec))).toEqual([])
     }
+  }
+})
+
+
+test("outline formats never reach their registry and git/chat never select the Olai parser by import", () => {
+  const olai = tree.get("plugins/olai") ?? []
+  expect(olai.length).toBeGreaterThan(0)
+  for (const source of olai) {
+    if (source.file.endsWith("/server.ts") || /\.(?:test|testlib)\./.test(source.file)) continue
+    const code = readFileSync(path.join(PACKAGES, source.file), "utf8")
+    expect(code).not.toMatch(/\bFileKinds\b/)
+  }
+  for (const member of ["plugins/git", "plugins/chat"]) {
+    const sources = tree.get(member) ?? []
+    expect(sources.length).toBeGreaterThan(0)
+    for (const source of sources) expect(source.specs.filter(spec => spec === "olai-plugin-olai" || spec.startsWith("olai-plugin-olai/"))).toEqual([])
   }
 })

@@ -6,7 +6,7 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { holdLocations } from "./browser/locations.ts"
 import { documentEditing } from "olai-plugin-markdown/contract"
 import { holdDocumentActions } from "./browser/editing.ts"
-import { holdServed } from "./browser/vault.ts"
+import { holdServed, servedDirectory } from "./browser/vault.ts"
 import { useToday } from "./browser/clock.ts"
 import { createOwed } from "./browser/dates.ts"
 import { holdReady, journalReady } from "./browser/ready.ts"
@@ -51,7 +51,7 @@ function AgendaFace(props: {
   readonly today: string
 }) {
   const drawn = () => only(props.drawn, "agenda")?.agenda
-  return <>{drawn() === undefined ? null : <AgendaPage agenda={drawn()!} today={props.page.date} />}</>
+  return <Show when={servedDirectory()?.outlineRow() === undefined || servedDirectory()!.claims().byKind.has(servedDirectory()!.outlineRow()!)} fallback={<section><h1>Agenda</h1><p>the {servedDirectory()?.outlineRow()} row is off.</p></section>}>{drawn() === undefined ? null : <AgendaPage agenda={drawn()!} today={props.page.date} />}</Show>
 }
 
 export default definePlugin({

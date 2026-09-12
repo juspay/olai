@@ -1,8 +1,10 @@
 /** Registered suffixes belong to their claiming rows. Prose and complete
  * filenames are not suffix decisions; bare suffix string literals are. */
 import { expect, test } from "bun:test"
-import { TEST_CLAIMS } from "@olai/format/testlib"
-import { read, tracked, withoutComments } from "./support/sweep.ts"
+import type { Claim } from "@olai/format"
+import { pathToFileURL } from "node:url"
+import { resolve } from "node:path"
+import { ROOT, read, tracked, withoutComments } from "./support/sweep.ts"
 
 const sources = tracked(import.meta.filename)
   .filter(file => /\.tsx?$/.test(file))
@@ -20,13 +22,13 @@ const independent = new Set([
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
-test("the suffix sweep reads the repository and the actual registrations", () => {
+test("the suffix sweep reads the repository and the actual registrations", async () => {
   expect(sources.length).toBeGreaterThan(100)
-  expect(TEST_CLAIMS.byKind.size).toBeGreaterThan(0)
-  for (const claim of TEST_CLAIMS.byKind.values()) {
-    const row = `packages/plugins/${claim.kind}/`
-    const server = sources.find(source => source.file === `${row}src/server.ts`)
-    expect(server).toBeDefined()
+  const registrations = sources.filter(source => /^packages\/plugins\/[^/]+\/src\/server\.ts$/.test(source.file) && /\bFileKinds\b/.test(source.code))
+  expect(registrations.length).toBeGreaterThan(0)
+  for (const server of registrations) {
+    const row = server.file.slice(0, -"src/server.ts".length)
+    const { claim } = await import(pathToFileURL(resolve(ROOT, row, "src/claim.ts")).href) as { claim: Omit<Claim, "kind"> }
     // Follow the row's registration to its inert claim module. No second
     // roster of suffixes or allowed server filenames lives in this sweep.
     expect(server!.code).toMatch(/register\(claim\)/)

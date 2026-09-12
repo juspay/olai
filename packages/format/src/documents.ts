@@ -319,8 +319,8 @@ export const isPicture = (claims: Claims, path: string): boolean => {
  * The kinds a browser fetches are NOT here either: which suffixes those are is
  * `./kinds.ts`'s single answer, and {@link isAsset} asks it there.
  *
- * Module-private, unlike {@link PICTURE_EXTENSIONS} beside it, because nothing
- * outside needs the LIST — the route asks {@link isAsset} a question and gets a
+ * This companion-asset list is module-private because nothing outside needs
+ * the LIST — the route asks {@link isAsset} a question and gets a
  * yes or a no. A second exported list would be a second thing to keep in step
  * for no reader.
  */

@@ -39,6 +39,7 @@
 import { expect, test } from "bun:test"
 import { type Accessor, createRoot, createSignal, untrack } from "solid-js"
 
+import type { FileKindsState } from "../file-surface.ts"
 import type { BrokenFile } from "@olai/format"
 import type { Head, Manifest } from "../wire.ts"
 import type { CollectionFoldOptions } from "@kolu/surface/solid"
@@ -118,6 +119,7 @@ const live = () => {
     step: (frame: CollectionDelta<string, Head>) => void
     invalidate: () => void
   }> = []
+  const [fileKinds, publishClaims] = createSignal<FileKindsState | null>(null)
   const [manifest, setManifest] = createSignal<Manifest | undefined>(undefined)
 
   const entries: HeadEntries = {
@@ -141,9 +143,13 @@ const live = () => {
   }
 
   return createRoot((dispose) => {
-    const directory = createDirectory(entries, manifest, () => null)
+    const directory = createDirectory(entries, manifest, fileKinds)
     return {
       wrote,
+      publishClaims,
+      claims: directory.claims,
+      kindOf: directory.kindOf,
+      outlineRow: directory.outlineRow,
       reads: () => reads,
       standing: directory.standing,
       paths: directory.paths,
@@ -563,5 +569,26 @@ test("...and the error report is not lost, only held until this tab is holding n
   expect(directory.standing()).toBe("loaded")
   directory.snapshot([])
   expect(directory.standing()).toBe("never")
+  directory.stop()
+})
+
+
+test("retiring the wire and republishing claims replaces the directory's kind reading", () => {
+  const directory = live()
+  const claim = { kind: "first", exts: [".drawing"] as const, holds: "bytes" as const, kept: false, fetched: true, noun: "drawing", article: "a" as const }
+  directory.publishClaims({ claims: [claim], outlineRow: "configured" })
+  directory.snapshot([["a.drawing", directory.wrote(1)]])
+  expect(directory.kindOf("a.drawing")).toBe("first")
+  const previous = directory.claims()
+  directory.invalidate()
+  directory.publishClaims(null)
+  expect(directory.kindOf("a.drawing")).toBeNull()
+  directory.publishClaims({ claims: [{ ...claim, kind: "returned" }], outlineRow: "next" })
+  directory.snapshot([["a.drawing", directory.wrote(2)]])
+  expect(directory.paths()).toEqual(["a.drawing"])
+  expect(directory.kindOf("a.drawing")).toBe("returned")
+  expect(directory.outlineRow()).toBe("next")
+  expect(previous.byKind.has("first")).toBe(true)
+  expect(previous.byKind.has("returned")).toBe(false)
   directory.stop()
 })

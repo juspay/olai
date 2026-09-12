@@ -7,7 +7,8 @@
     "./server": "./src/server.ts",
     "./claim": "./src/claim.ts",
     "./browser": "./src/browser.tsx",
-    "./testids": "./src/testids.ts"
+    "./testids": "./src/testids.ts",
+    "./testlib": "./src/browser/glyph.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -8,7 +8,7 @@ import { Deferred, Effect, Fiber, Result, Stream } from "effect"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { VaultSettings, VaultViews } from "@olai/plugin-api/services"
+import { FileKinds, VaultSettings, VaultViews } from "@olai/plugin-api/services"
 import { VaultBoot } from "olai-plugin-vault/boot"
 
 const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
@@ -170,10 +170,18 @@ test("vault teardown drains an accepted write before releasing the directory loc
  * only question that distinguishes the two: with a ledger registered in EACH
  * host, does A still answer A's?
  */
-test("one process's two vaults do not share the ledger a row registered with either", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+test("one process's two vaults share neither ledgers nor file-kind claims", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const named = (name: string): Ledger => ({ ...NO_LEDGER, whyWaiting: () => Effect.succeed(name) })
   const a = yield* opening(rootWithNote(), { ledger: named("host A") })
   const b = yield* opening(rootWithNote(), { ledger: named("host B") })
+  yield* mountPlugin(a.plugins.host, definePlugin({
+    name: "host-a-kind", needs: [FileKinds], apply: Effect.flatMap(FileKinds, kinds => kinds.register({
+      exts: [".host-a"], holds: "bytes", kept: false, fetched: true, noun: "file", article: "a",
+    })),
+  }))
+  yield* settled(a.plugins.host, ["host-a-kind"])
+  expect(offered(a.plugins.host, FileKinds)?.current().has("host-a-kind")).toBe(true)
+  expect(offered(b.plugins.host, FileKinds)?.current().has("host-a-kind")).toBe(false)
   // Through the SETTINGS rather than the table: what the finding was about is
   // which ledger a vault's store writes through, and the settings are what
   // carries it (`vault-setup` builds them over the views it minted).

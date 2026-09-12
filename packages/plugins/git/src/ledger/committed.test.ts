@@ -270,3 +270,26 @@ test("one unanswerable file does not stop the rest of the round being remembered
   expect(titles(answer.get("a.olai"))).toEqual(["as one had it"])
   expect(titles(answer.get("b.olai"))).toEqual(["b as one had it"])
 })
+
+/** The git object is unchanged while its claiming parser changes. A cache
+ * keyed only by commit/path would return the departed format's reading. */
+test("committed copies use the path's format and retire when its Claims snapshot changes", async () => {
+  const { claims, parserFor } = await import("@olai/format")
+  const { TEST_CLAIMS } = await import("@olai/format/testlib")
+  const original = [...TEST_CLAIMS.byKind.values()].find(claim => claim.holds === "nodes")!
+  const table = (prefix: string) => claims([{ ...original, kind: "alternate", exts: [".alternate"], format: {
+    serialize: original.format!.serialize,
+    parse: (file, contents, snapshot) => original.format!.parse(file, node("a", prefix + contents), snapshot),
+  } }])
+  let current = table("first: ")
+  const committed = remembering({ parserFor: path => {
+    const snapshot = current, format = parserFor(snapshot, path)
+    return format === null ? null : { claims: snapshot, format }
+  } })
+  const repo = fake({ "sha-one:a.alternate": "format-specific bytes" }, "sha-one")
+  expect(titles((await Effect.runPromise(committed.at(repo.git, ["a.alternate"]))).get("a.alternate"))).toEqual(["first: format-specific bytes"])
+  current = claims([])
+  expect((await Effect.runPromise(committed.at(repo.git, ["a.alternate"]))).get("a.alternate")?._tag).toBe("Absent")
+  current = table("returned: ")
+  expect(titles((await Effect.runPromise(committed.at(repo.git, ["a.alternate"]))).get("a.alternate"))).toEqual(["returned: format-specific bytes"])
+})

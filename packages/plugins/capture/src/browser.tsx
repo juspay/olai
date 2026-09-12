@@ -17,7 +17,8 @@ import { Inbox } from "./Inbox.tsx"
 import { capturePalette } from "./Palette.tsx"
 function Entry(props: SidebarRegionProps & {active:()=>string|undefined}) {
  const count=createInboxHeld(); const served = useServed(); const inbox = createMemo(() => inboxIn(servedDirectory()!.claims(), served()))
- return <Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={servedDirectory()?.broken().has(file()) === true} count={count().count}/>}</Show>
+ const off = () => { const files = servedDirectory(); return files?.outlineRow() !== undefined && !files!.claims().byKind.has(files!.outlineRow()!) }
+ return <Show when={!off()} fallback={<p class="px-2 py-1 text-sm text-muted">Inbox: the {servedDirectory()?.outlineRow()} row is off.</p>}><Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={servedDirectory()?.broken().has(file()) === true} count={count().count}/>}</Show></Show>
 }
 export const components={palette:capturePalette}
 export default definePlugin({name:"capture", needs:[Wired, Edits, rendererSlots, navigation, fileAccess], apply:Effect.gen(function*(){

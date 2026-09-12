@@ -20,17 +20,15 @@
  */
 
 import type { FileDiff } from "@olai/acp/wire"
-import { createEffect, createSignal, createMemo, For, Show, onCleanup } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "olai-plugin-outlines/changes"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
 import { isUnfolded, toggleFold } from "./folds.ts"
-import { Effect } from "effect"
-import type { OutlineDiff as Answer } from "olai-plugin-vault/surface"
 import { servedDirectory } from "../vault.ts"
-import { outlineDiffOf } from "./outline.ts"
+import { createOutlineDiff } from "./outline.ts"
 
 /** How many node rows a trimmed outline change shows. The text diff's number,
  *  because it is the same promise about the same panel. */
@@ -46,21 +44,7 @@ export function OutlineDiff(props: {
   readonly id: string
   readonly diff: FileDiff
 }) {
-  const [read, setRead] = createSignal<Answer | undefined>()
-  const [failed, setFailed] = createSignal(false)
-  createEffect(() => {
-    const vault = servedDirectory()
-    const diff = props.diff
-    setRead(undefined)
-    setFailed(false)
-    if (vault === undefined) { setFailed(true); return }
-    const controller = new AbortController()
-    onCleanup(() => controller.abort())
-    void Effect.runPromise(outlineDiffOf(vault, diff), { signal: controller.signal }).then(
-      answer => { if (!controller.signal.aborted) setRead(answer) },
-      () => { if (!controller.signal.aborted) setFailed(true) },
-    )
-  })
+  const { read, line } = createOutlineDiff(servedDirectory, () => props.diff)
   const changes = createMemo(() => {
     const answer = read()
     return answer?._tag === "Changes" ? answer.changes : []
@@ -92,7 +76,7 @@ export function OutlineDiff(props: {
 
       <Show when={read() !== undefined} fallback={
         <p class="px-2 py-1 text-xs text-muted" data-testid={TESTID.chatOutlineUnreadable}>
-          {failed() ? "the outline is unreadable, so what changed in it cannot be told" : "reading outline changes…"}
+          {line()}
         </p>
       }>
       <Show

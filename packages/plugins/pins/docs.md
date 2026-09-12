@@ -13,3 +13,8 @@ with no pins row mounted is a whole outline with no glyph.
 
 Disabling pins withdraws its browser integrations and releases its subscription;
 persisted pins remain in the vault.
+
+Pins uses the convention stem directly under `_olai/`, among node-holding
+claims. Its sidebar component declares vault file access to name the configured
+outline row when it is off. The Pins file remains an ordinary address and
+reports its unclaimed suffix; there is no separate Pins route.

@@ -8,16 +8,16 @@ A few words are used here in a particular way. A **door** is a named interface a
 
 ### The set, and the one entry point
 
-The *set* is the files under the served directory that olai treats as content. One table in `@olai/format` (`kinds.ts`) decides which ([format.md](../format.md)).
+The *set* is the files under the served directory that olai treats as content. Live rows register claims with the vault-owned `vault.file-kinds` registry to decide which ([format.md](../format.md)).
 
-| kind | suffix | how it travels |
+| claiming row | suffix | how it travels |
 |---|---|---|
-| outline | `.olai` | text, inside the snapshot |
-| document | `.md` | text, inside the snapshot |
+| olai | `.olai` | text, inside the snapshot |
+| markdown | `.md` | text, inside the snapshot |
 | hypertext | `.html` | path only |
-| table | `.csv` | path only |
-| picture | image suffixes | path only |
-| printed document | `.pdf` | path only |
+| csv | `.csv` | path only |
+| image | image suffixes | path only |
+| pdf | `.pdf` | path only |
 
 - Outlines and documents are content, so their text rides the snapshot. The other four are large files nothing in the set reads, so only paths travel; bytes are read when somebody opens one, or fetched by the reader's browser from `/media/`. Anything else under the directory (a `README`, a `.json`, a source file) is not in the set.
 - Viewers key their media URL to the file revision. A deleted file keeps its last URL until the missing-file page replaces it; a restored file gets a new revision and reloads. CSV bodies and HTML previews follow the same path.
@@ -209,7 +209,7 @@ Git is the only history: no sync protocol, no CRDT. Its one job is an audit trai
 
 - **A commit is something somebody asks for**: `commit: off`, `manual` or `auto` on the `git` node, defaulting to `manual` and shared by every consumer of the directory. Writes land on disk and wait; the header's Commit button and the `git_commit` tool are two callers of one `Ops.commit`. `auto` commits after the server's quiet window, including headless.
 - **What is waiting is derived and stored nowhere.** `git status --porcelain` names the dirty files, the current commit holds the committed side of a served outline, the store's last-good parse is the working side, and comparing two parsed sets is `format/src/changes.ts` with no git in it.
-- The committed side is remembered per commit rather than per revision (`plugins/git/src/ledger/committed.ts`): a commit's copy of a file is immutable, so it is keyed `<sha>:<path>` and HEAD moving is a different key rather than an invalidation. Both arms stay in the tree (`pending.equivalence.test.ts`, `pending.bench.ts`).
+- The committed side is remembered per commit rather than per revision (`plugins/git/src/ledger/committed.ts`): a commit's copy of a file is immutable, so it is keyed by commit, path and the Claims snapshot that selected its parser. HEAD or the format claim changing requires a new reading. Both arms stay in the tree (`pending.equivalence.test.ts`, `pending.bench.ts`).
 - **Never a text diff.** A `.olai` diff is one enormous line per node, so the unit is a node and what changed about it, classified once into one `Sort`.
 - Who wrote it cannot come from git. A per-writer counter in the ops layer is cleared on commit and may be empty after a restart; the permanent record is an `X-Olai-Writer: chat-agent | mcp | web | auto` trailer. A terminal has no word of its own, because `olai surface` is an `/mcp` client.
 - Messages are prefixed `olai`, so `git log --grep '^olai'` is the audit view and `--invert-grep` gives back real history. Per-op words: `capture:`, `done:`, `doing:`, `move:`, `trash:`, `create:`, `see:`, `date:`.
@@ -275,7 +275,7 @@ A Bun workspace over two globs, `packages/*` and `packages/plugins/*`, sharing `
 
 | package | depends on | what it is |
 |---|---|---|
-| `format` | — | The format core: parse per file, validate per set, the canonical writer, the refusal vocabulary, and every derivation both the validator and the view read. Depends on nothing, so every layer can read it. |
+| `format` | — | The format contracts, set validator, refusal vocabulary and derivations. Outline rows own parsing and canonical serialization. Depends on nothing, so every layer can read it. |
 | `store` | — | Files as a revision-tagged snapshot, plus the `commit` write gate. Generic over content, so it carries no outline types. |
 | `child` | — | One owner for a subprocess: spawn, the exec failure that arrives after spawn returns, drained stderr, kill with a grace period. A leaf on `node:child_process` alone. |
 | `plugins/git` | `child`, `format`, `ops`, `store`, `plugin-api` | Git as plumbing that decides nothing: one `open` socket and a handle of business verbs behind it. Knows nothing about olai, so the audit convention is an argument. |

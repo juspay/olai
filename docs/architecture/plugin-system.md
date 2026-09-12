@@ -1019,6 +1019,48 @@ compiled from that page by `olai-plugin-vault-plugins`' `worked.test.ts`.
 
 ---
 
+### File-kind ownership
+
+`vault.file-kinds` is minted in vault setup, before the store opens. A row
+registers one atomic claim; the registry stamps its fiber binding as `kind`.
+All suffix collisions are checked before publication. Failure installs nothing,
+and cleanup withdraws only the departing owner's claim. Revalidation brings
+new claims into the set and removes withdrawn claims; published readings retain
+the immutable Claims value used for validation.
+
+The browser consumes the vault's `file-kinds` cell, containing serializable
+claims and `outlineRow`. Reconnection resubscribes for a fresh snapshot.
+`files.kinds` and `navigation.pages` belong to their readers and accept scoped
+contributions keyed by row id or by `holds`, with the row id taking priority.
+Glyph and page are independent components. Outlines contributes both once for
+`holds: "nodes"`; a format row requires no browser half. A body page declares
+every live service its moved face reads. Their static helpers own no registry.
+
+
+The file-kind lifecycle is checked at these boundaries:
+
+| Guarantee | Enforcement | Evidence |
+|---|---|---|
+| The registry stamps the owner | vault `file-kinds.ts`, provision bound to the registering fiber | vault `file-kinds.test.ts`: forged kind ignored |
+| A refused claim installs nothing | synchronous construction before publication | same test: nine-suffix loser and winner cleanup |
+| Departed claims remove files and media access | registration finalizer and vault revalidation | `file_kinds.feature`: PDF off/on |
+| A later probe cannot keep a withdrawn claim | codec reads the table per call | ops `codec.test.ts`: withdrawal between probes |
+| A Reading retains its validating table | immutable Claims on Reading | ops `codec.test.ts`: old snapshot unchanged |
+| Formats cannot fetch their own registry | pure three-argument parse | bundle `fence.test.ts`: format has no FileKinds access |
+| Git and chat use the selected format | Ops parser door and vault outlineDiff | git `committed.test.ts`, bundle import fence |
+| An absent vault leaves an unreadable diff | scoped browser request and cancellation | chat `outline-diff.browsertest.ts` |
+| Reconnect takes fresh claims | file-kinds cell and directory memo | vault `directory.browsertest.ts`, offline scenario in `file_kinds.feature` |
+| Glyph and page degrade independently | separate row components | bundle `file-kind-component.test.ts`, Files/Navigation scenarios |
+| Withdrawing a location releases its acquisitions | scoped contributions | bundle `file-kind-locations.test.ts` |
+| An absent mint row writes nothing | planner refuses before staging | mint scenario in `file_kinds.feature` |
+| Callers receive no implicit Claims table | required codec argument, test-only empty table | typecheck and suffix sweep |
+| Two hosts own separate tables | table created inside vault setup | server `vault.test.ts`: two hosts, separate claims |
+| Only claiming rows spell suffix literals | census of server registrations | tests `kinds.test.ts` |
+
+The registry-driven generated-record round trip in server
+`file-kind-formats.test.ts` discovers every registering row; future formats
+inherit record identity and canonical-byte checks.
+
 ## Phase 18: shell and content capabilities
 
 The application shell itself is built from plugins. The permanent host only
