@@ -2171,12 +2171,12 @@ export class OlaiWorld extends World {
   set menuNode(node: string | null) { if (node === null) this.menuNodes.delete(this.page); else this.menuNodes.set(this.page, node); }
   chatSelector(control: string): string {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
-    return `${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
+    return `:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
   }
   chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
   chatRoot(): Locator {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
-    return this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(this.activeAgent))}`);
+    return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
   }
   readonly nodeNames = new Map<string, string>();
   nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }

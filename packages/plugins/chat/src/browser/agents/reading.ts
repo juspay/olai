@@ -5,8 +5,11 @@ import type { Conversing } from "../../sessions.ts"
 import { createConversationUI } from "../chat/ui.tsx"
 import type { Chat } from "../chat/state.ts"
 import type { Roster } from "./answered.tsx"
+import { createPageOwners } from "./page-owners.ts"
+import type { PageSession } from "./Page.tsx"
 
 export const createAgentReadings = (agents: Roster) => {
+  const page = createPageOwners<PageSession>()
   const previews = createPreviews()
   const reveals = new Set<string>()
   const cache = new Map<string, ReturnType<typeof createConversationUI>>()
@@ -22,7 +25,7 @@ export const createAgentReadings = (agents: Roster) => {
   }
   const [readings, setReadings] = createSignal<ReadonlyMap<string, ReadonlySet<Chat>>>(new Map())
   return {
-    agents, ui,
+    agents, ui, page,
     visiting: (node: string) => visits().get(node),
     visit: (node: string, to?: Conversing) => setVisits(before => {
       const next = new Map(before)

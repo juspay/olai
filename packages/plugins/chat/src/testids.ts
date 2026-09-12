@@ -73,6 +73,12 @@ export const TESTID = {
   agentEngineMenu: "agent-engine-menu",
   agentStanding: "agent-standing",
   agentFold: "agent-fold",
+  agentPageHead: "agent-page-head",
+  agentPageFoot: "agent-page-foot",
+  agentPlainComposer: "agent-plain-composer",
+  agentPlainInput: "agent-plain-input",
+  agentPlainEngine: "agent-plain-engine",
+  agentPlainSend: "agent-plain-send",
   // ── the sidebar's agents roster, and the door on an agent's row ───────
   /** The AGENTS section of the sidebar — the roster, which is the query
    *  `prop:agent-session`. Drawn only when the directory has a node agent, on the

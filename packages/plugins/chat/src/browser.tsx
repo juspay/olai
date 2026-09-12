@@ -27,6 +27,9 @@ import { AgentsProvider, createAgents } from "./browser/agents/answered.tsx"
 import { createAskCommand, rowVerbs } from "./browser/verbs.tsx"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Fold } from "./browser/agents/Fold.tsx"
+import { PageHead, PageFoot } from "./browser/agents/Page.tsx"
+import { browserState as outlineBrowser } from "olai-plugin-outlines/contract"
+import { holdPages } from "./browser/pages.ts"
 import { createAgentReadings, holdAgentReadings } from "./browser/agents/reading.ts"
 import { navigation as navigationService } from "olai-plugin-navigation/contract"
 import { holdNavigation } from "./browser/navigation.ts"
@@ -87,6 +90,11 @@ export default definePlugin({
     yield* slots.register("outline.row.fold", props => <AgentsProvider value={state.agents}><Fold {...props} /></AgentsProvider>, {
       children: [slotContracts["delivery.mark"], slotContracts["engine.install"]],
     })
+    yield* slots.register("outline.page.head", props => <AgentsProvider value={state.agents}><PageHead {...props} /></AgentsProvider>)
+    // The fold registration above owns the shared conversation locations for
+    // this activation. Page faces consume them too; claiming them twice would
+    // refuse the activation. Reverse cleanup removes the page before that owner.
+    yield* slots.register("outline.page.foot", props => <AgentsProvider value={state.agents}><PageFoot {...props} /></AgentsProvider>)
     // THE ROSTER SECTION, under the app's own sidebar regions.
     yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Agents /></AgentsProvider> })
     // The aside reads the activation roster once per row; only opening a fold
@@ -133,6 +141,10 @@ export const components = {
   references: definePlugin({ name: "references", needs: [outlineReferences], apply: Effect.gen(function*() {
     const value = yield* outlineReferences
     yield* Effect.acquireRelease(Effect.sync(() => holdReferences(value)), stop => Effect.sync(stop))
+  }) }),
+  pages: definePlugin({ name: "pages", needs: [outlineBrowser], apply: Effect.gen(function*() {
+    const value = yield* outlineBrowser
+    yield* Effect.acquireRelease(Effect.sync(() => holdPages(value.readings)), stop => Effect.sync(stop))
   }) }),
   attention: definePlugin({ name: "attention", needs: [alertsChannel, navigationService], apply: Effect.gen(function*() {
     const router = yield* navigationService

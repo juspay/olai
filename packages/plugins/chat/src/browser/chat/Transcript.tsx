@@ -119,6 +119,8 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
   const follow = useFollow()
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
+  let outer: HTMLElement | undefined
+  const scrollPane = () => props.unbounded ? outer : pane
   /** Should new text pull the view down with it? True until the reader scrolls
    *  away from the bottom, and true again the moment they come back. */
   let following = true
@@ -127,18 +129,38 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
    *  assignment returns, so a boolean around the write cannot see it. */
   let assignedTop = Number.NaN
 
-  const atBottom = (): boolean =>
-    pane !== undefined &&
-    pane.scrollHeight - pane.scrollTop - pane.clientHeight < NEAR
+  const atBottom = (): boolean => {
+    const host = scrollPane()
+    return host !== undefined && host.scrollHeight - host.scrollTop - host.clientHeight < NEAR
+  }
 
   const jump = (): void => {
-    if (pane === undefined) return
-    pane.scrollTop = pane.scrollHeight
-    assignedTop = pane.scrollTop
+    const host = scrollPane()
+    if (host === undefined) return
+    host.scrollTop = host.scrollHeight
+    assignedTop = host.scrollTop
+  }
+  const scrolled = () => {
+    const host = scrollPane()
+    if (host === undefined) return
+    if (Number.isFinite(assignedTop) && Math.abs(host.scrollTop - assignedTop) < 1) {
+      if (following && !atBottom()) jump()
+      return
+    }
+    following = atBottom()
   }
 
   onMount(() => {
     if (content === undefined || pane === undefined) return
+    if (props.unbounded) {
+      let parent = pane.parentElement
+      while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
+      outer = parent ?? document.documentElement
+      const target = outer === document.documentElement ? window : outer
+      target.addEventListener("scroll", scrolled, { passive: true })
+      onCleanup(() => target.removeEventListener("scroll", scrolled))
+      jump()
+    }
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
     // event for it. New text is followed from here. The jump's own `scroll`
     // arrives later and is recognised by `assignedTop`, not by a flag.
@@ -159,6 +181,12 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
     // that is owed is honoured whenever the geometry moves — and it was only
     // ever watching half the geometry.
     grown.observe(pane)
+    if (props.unbounded && outer !== undefined) {
+      grown.observe(outer)
+      const resized = () => { if (following) jump() }
+      window.addEventListener("resize", resized)
+      onCleanup(() => window.removeEventListener("resize", resized))
+    }
     onCleanup(() => grown.disconnect())
   })
 
@@ -334,44 +362,15 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
       // away with the rows. `overscroll-contain` stops a wheel at the end of
       // this pane from moving the page beside it.
       style={{ "max-height": props.unbounded ? undefined : "24rem" }}
-      class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-2 text-ink"
+      class="min-w-0 px-3 py-2 text-ink"
       classList={{
-        // A FLOOR, and ONLY WHILE A SHELF IS TAKING ROOM. What can squeeze this
-        // pane is above it — a preview of one agent's calls — and the promise
-        // that matters is that a question a subagent asked is drawn HERE, in
-        // the column, because a form behind a click is a turn that hangs
-        // forever. A pane squeezed to nothing is a click of a different kind.
-        //
-        // UNCONDITIONAL IT COSTS MORE THAN IT BUYS, which the phone measured:
-        // this pane's basis is `0` (`flex-1`), so flexbox never SHRINKS it — it
-        // simply gets no free space — and a floor turns that into the container
-        // OVERFLOWING instead, which pushes the composer off the bottom of a
-        // handset. That is the same failure one surface further along: a person
-        // who cannot reach the box cannot answer the form either, and it fired
-        // on every phone whether or not anything was open.
-        //
-        // So it is scoped to the one arrangement it was written for. The shelf
-        // is capped and yields first, and on the sheet opening one goes to the
-        // full snap, so by the time this applies there is room for both.
-        // Exclusive with `min-h-0`: both set the same property, and Tailwind
-        // will not promise which wins if they share the class list.
+        "olai-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain": !props.unbounded,
         "min-h-0": previewing() === null,
         "min-h-[7rem]": previewing() !== null,
       }}
       data-testid={TESTID.chatTranscript}
       ref={pane}
-      onScroll={() => {
-        if (pane === undefined) return
-        // Same top we assigned: our jump's late event, or growth that left
-        // the top alone. If a follow is still owed and we are no longer at
-        // the bottom, more content landed after the assignment — re-jump
-        // rather than decide the reader left.
-        if (Number.isFinite(assignedTop) && Math.abs(pane.scrollTop - assignedTop) < 1) {
-          if (following && !atBottom()) jump()
-          return
-        }
-        following = atBottom()
-      }}
+      onScroll={props.unbounded ? undefined : scrolled}
       // A press the chips decline is still a press on the agent's markdown, and
       // an anchor in there is an address in this vault: a `.md` link the
       // renderer resolved (`../markdown/rewrite.ts`) or an app path the agent

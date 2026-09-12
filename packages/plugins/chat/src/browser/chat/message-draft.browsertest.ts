@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
-import { createMessageDraft, createMessageMemory } from "./message-draft.ts"
+import { createMessageDraft, createMessageMemory, keepMessage } from "./message-draft.ts"
 
 test("two readers share words while other conversations stay independent, including after remount", () => {
   const memory = createMessageMemory()
@@ -40,6 +40,20 @@ test("a delayed refusal restores into its own conversation alongside newer words
     expect(draft.retry()).toBe(true)
     draft.setRetry(false)
     expect(draft.retry()).toBe(false)
+    dispose()
+  })
+})
+
+test("a page's opening gesture transfers newer words and recovers a refused first send", () => {
+  createRoot(dispose => {
+    const memory = createMessageMemory()
+    keepMessage(memory, "one", "words typed while opening")
+    const draft = createMessageDraft(() => "one", memory)
+    expect(draft.draft()).toBe("words typed while opening")
+    expect(draft.retry()).toBe(false)
+    keepMessage(memory, "one", "the refused first message", true)
+    expect(draft.draft()).toBe("the refused first message\nwords typed while opening")
+    expect(draft.retry()).toBe(true)
     dispose()
   })
 })

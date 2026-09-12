@@ -14,6 +14,18 @@ const empty = (): Draft => ({ retry: false, text: "", taken: new Set(), caret: 0
 const bin = () => createSignal<Draft>(empty())
 export const createMessageMemory = () => new Map<string, ReturnType<typeof bin>>()
 
+/** A plain page's opening gesture can outlive its plain composer. Transfer
+ * those words into the resulting conversation without mounting another Chat. */
+export const keepMessage = (memory: ReturnType<typeof createMessageMemory>, key: string, text: string, retry = false) => {
+  if (text === "") return
+  let value = memory.get(key)
+  if (value === undefined) { value = bin(); memory.set(key, value) }
+  value[1](before => {
+    const words = before.text === "" ? text : `${text}\n${before.text}`
+    return { ...before, text: words, caret: words.length, retry: before.retry || retry }
+  })
+}
+
 const restored = (failed: Draft, current: Draft): Draft => {
   if (current.text === "") return { ...failed, retry: true }
   const text = failed.text === "" ? current.text : `${failed.text}\n${current.text}`
