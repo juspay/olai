@@ -25,9 +25,10 @@ Feature: Typing @ in the chat completes a node of the directory
   scenario can read rather than assume.
 
   Background:
-    Given I open the app
+    Given I open the outline "house.olai"
     And I mark the page
-    And the agent panel is open
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
 
   @scratch:chat
   Scenario: An @ offers the nodes as well as the files, and says which is which
@@ -158,7 +159,7 @@ Feature: Typing @ in the chat completes a node of the directory
     Then the composer is armed with "hinges"
     When I rewrite "house.olai" as:
       """
-      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","custom":{"chat-agent-session":"claude:fake-session-1"}}
       {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
       """
     Then the node "hinges" is not shown

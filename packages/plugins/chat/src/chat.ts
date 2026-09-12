@@ -104,9 +104,10 @@ import type { Installed } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import * as Deliveries from "./deliveries.ts"
-import type { AgentEvent } from "./events.ts"
+import type { AgentEvent, Stored } from "./events.ts"
 import { lastSaid } from "./heard.ts"
 import * as Listings from "./listings.ts"
+import type { Models } from "./models.ts"
 import * as Memory from "./memory.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
@@ -132,6 +133,8 @@ export interface WakeScope {
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */
 export interface PanelOptions {
+  /** A scheduler may lend an already-running engine for a directory listing. */
+  readonly runningSessions?: (agent: string) => Effect.Effect<ReadonlyArray<Stored>, AcpAgent.AgentGone> | null
   /**
    * Which agents this machine has, already detected
    * ({@link ./agents/roster.ts}). Detecting them is the caller's move — it is
@@ -201,6 +204,7 @@ export interface PanelOptions {
   /** This directory's remembered conversation. The scheduler supplies one
    * shared instance so it can route boot before any panel starts; a standalone
    * panel builds the ordinary state-home implementation itself. */
+  readonly models?: Models
   readonly memory?: Memory.Memory
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
@@ -455,6 +459,7 @@ export interface Panel {
    *  refuses, because the answer is PARTIAL rather than absent when one agent
    *  is broken: its conversations are missing and it is named, and the other's
    *  are still on the screen. */
+  readonly liveSessions: (agent: string) => Effect.Effect<ReadonlyArray<Stored>, AcpAgent.AgentGone> | null
   readonly sessions: Effect.Effect<Listed>
   /** Answer the question `id`, or — with `null` — decline it. Both refuse if
    *  that question has stopped waiting, which is a thing two open tabs can
@@ -905,7 +910,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     // build with no engine rows is a note that resolves to nothing, which is a
     // chat that was never built.
     const memory = options.memory
-      ?? Memory.forLocalState(ephemeralLocalState(), options.engines()[0] ?? "")
+      ?? Memory.volatile()
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is
@@ -925,6 +930,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         probes: options.probes,
         advertised: options.advertised,
         memory,
+        models: options.models,
         onEvent,
       }).pipe(Effect.annotateLogs({ ...logContext, purpose }))
 
@@ -1055,7 +1061,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     let state: ChatState = {
       ...CHAT_OFF,
       uploadScope: files.scope(),
-      status: "booting",
+      status: "idle",
+      talking: { kind: "asking" },
       roster: options.roster().map(said),
     }
     /** The agent this panel is talking to and the row it came from, or `null`
@@ -2028,7 +2035,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       roster: options.roster,
       running: (row) => {
         const at = talking
-        return at !== null && at.row.id === row.id ? at.agent.sessions : null
+        return at !== null && at.row.id === row.id ? at.agent.sessions : options.runningSessions?.(row.id) ?? null
       },
       // UNDER {@link binding}, the permit that says one agent is bound at a
       // time — because this is the other place a subprocess is started, and a
@@ -2062,6 +2069,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // whose list this panel is changing.
             return { stored: yield* at.agent.sessions, keep: false }
           }
+          const borrowed = options.runningSessions?.(row.id)
+          if (borrowed != null) return { stored: yield* borrowed, keep: false }
           const probe = yield* spawn(row, () => {}, "session list")
           // STOPPED whichever way the question went, INTERRUPTION included. A
           // probe left running is the same stray process one line up, arrived
@@ -3109,7 +3118,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // ... AND WHOSE CONVERSATION IT WAS, which is the way OUT of this face
         // and used to be dropped exactly here. A node agent's *fresh session*
         // is drawn only where the header knows the node
-        // ({@link ./browser/chat/NodeSessions.tsx}), the node is `bound`, and
+        // ({@link ./browser/agents/History.tsx}), the node is `bound`, and
         // `bound` was written only where a conversation OPENED — so the one
         // face that needs the way out was the one face with no node on it. The
         // gesture is unchanged and so is its warning: what changes is that it
@@ -3243,6 +3252,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
     const stopWithReason = (reason: AcpAgent.StopReason) => Effect.gen(function*() {
       closing = true
+      // End the transport before joining work which may be waiting on it.
+      const at = talking
+      talking = null
+      if (at !== null) yield* at.agent.stopWithReason(reason)
       // EVERY turn, not the newest ({@link ./turns.ts}).
       const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
       for (const fiber of running) yield* Fiber.interrupt(fiber)
@@ -3256,9 +3269,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       const alongside = [...beside]
       beside.clear()
       for (const fiber of alongside) yield* Fiber.interrupt(fiber)
-      const at = talking
-      talking = null
-      if (at !== null) yield* at.agent.stopWithReason(reason)
       // Registered as a finalizer of the serve scope, so this is also what
       // takes the pasted pictures with the server when it shuts down. Behind
       // the same permit as everything else that touches the directory: a
@@ -3281,7 +3291,17 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // way everything else in this record is: behind a gesture that has
       // already been answered, logging what it could not write rather than
       // taking the gesture away from somebody ({@link ./sessions.ts}).
-      assigned: (to) => noting(options.overheard?.assign(to), assignLost),
+      assigned: (to) => Effect.gen(function*() {
+        if (options.overheard?.at(to)?.wakesCleared === true) return
+        // Filing gives a conversation a new, asleep home. Old manual wake
+        // picks are not authority to wake that new node (or its trash).
+        for (const row of options.scoping?.rows() ?? []) {
+          if (row.agent !== to.agent || row.session !== to.session) continue
+          const cleared = yield* Effect.result(options.scoping!.set(to, row.plugin, null))
+          if (cleared._tag === "Failure") { yield* Effect.logWarning(cleared.failure.message); return }
+        }
+        yield* noting(options.overheard?.assign(to, true), assignLost)
+      }),
       replaced: (to, by) => noting(options.overheard?.supersede(to, by), replaceLost),
       // THE SET'S ANSWER, ASKED AGAIN. `move` is what publishes, and it is
       // guarded on the value rather than called unconditionally: this runs per
@@ -3370,6 +3390,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // a listing comes through, so the migration list, the panel's *past
       // sessions* and the picker's own superseded line cannot come to disagree
       // about which conversations a node agent has had.
+      liveSessions: (agent) => talking !== null && talking.row.id === agent ? talking.agent.sessions : null,
       sessions: Effect.map(
         listings.all,
         (listed) => succeeded(listed, options.overheard?.rows() ?? []),

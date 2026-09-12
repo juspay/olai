@@ -6,7 +6,9 @@ Feature: Open file completions follow the served directory
       # Original file
       """
     And I open the app
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     And I mark the page
     When I type "read @orchid" into the chat
     Then the completion offers "orchid-original.md"

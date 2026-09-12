@@ -97,8 +97,9 @@ Feature: A stale Enter is claimed and spends nothing
     # taken off the list writes `@its-id ` into the message AND arms the node,
     # so a stale row put a handle the reader never chose under a message they
     # were still typing.
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I type "look at @mint" into the chat
     Then the completion offers "mint"
     When I retype the chat as "look at @heap" and press Enter at once

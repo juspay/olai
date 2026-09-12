@@ -42,7 +42,7 @@ import { name, browserState, datedRows, documentReferences, pageView, titles, pr
 import type { References } from "./contracts/references.ts"
 import { openOverlaySocket, overlayRoot } from "./browser/overlay.ts"
 import { createDeclared, declaringFailure, clearDeclared } from "./browser/declared.ts"
-import { useShowNode, clearFocus } from "./browser/focus.ts"
+import { useShowNode, clearFocus, focusedNode } from "./browser/focus.ts"
 import { createUndo, holdUndo } from "./browser/edit/undoing.ts"
 import { createReadings, holdReadings } from "./browser/reading.tsx"
 import { createAir, holdAir } from "./browser/drag/air.ts"
@@ -105,7 +105,7 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits, Slots], apply:
     yield* Effect.acquireRelease(Effect.sync(start), stop => Effect.sync(stop))
   }
   const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-    const references: References = { declare: createDeclared, showNode: useShowNode, failure: declaringFailure }
+    const references: References = { focused: focusedNode, declare: createDeclared, showNode: useShowNode, failure: declaringFailure }
     const undo = createUndo(edit => runAsync(writeEdit(edit)))
     const readings = createReadings()
     const fields = createFields()

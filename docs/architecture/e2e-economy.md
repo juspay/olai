@@ -43,8 +43,9 @@ These browser scenarios cover behavior that unit tests also cover, because the b
 
 | Unit coverage | What the browser workflow additionally observes |
 | --- | --- |
-| `chat/scoped.test.ts`: idle and capacity eviction, refused starts, scope state | The refusal being visible in the row menu, the panel opening by itself, roster status, clicking to resume, the rendered transcript, and prompts and questions after recovery |
-| `chat/succession.test.ts`: missing intermediate sessions, agent boundaries and cycles | Creating real distinct sessions, choosing fresh, historical or current, the header identity and navigation. The cycle permutations stay below the browser |
+| `chat/server/readings.test.ts` and `browser/agents/page-owners.test.ts`: shared reading and page lease lifetimes | Two tabs and several folds, plugin rebuild, server restart, shared head/foot on the page, and one reader leaving while another remains usable |
+| `chat/scoped.test.ts`: idle and capacity eviction, refused starts, scope state | The refusal being visible in the row menu, the fold opening after start, Needs you/Chats standings, clicking to resume, the rendered transcript, and prompts and questions after recovery |
+| `chat/succession.test.ts`: missing intermediate sessions, agent boundaries and cycles | Creating real distinct sessions, choosing fresh, historical or current, the agent-line identity and fold/page history navigation. The cycle permutations stay below the browser |
 | `chat/attachments.test.ts` and `browser/chat/attach.test.ts`: chunking, cumulative cap, ownership, concurrent writes | The real file picker and drop, asynchronous file reads, previews and drafts surviving, the filenames the server resolves, the RPC upload, and the agent reading the resulting bytes |
 | `chat/questions.test.ts`: unique registry IDs, rejecting foreign and late answers | Draft answers staying separate in the rendered forms across node selection, drawer remount and agent restart, followed by submitting them |
 | `outlines/browser/edit/undoing.test.ts`: pending undo entries, failed replay, older history | The real ordering of blur-save and key events, retained text, and Undo and Redo in the browser. The refusal permutations stay below the browser |

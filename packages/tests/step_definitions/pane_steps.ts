@@ -14,6 +14,7 @@ import { attr } from "../support/selectors.ts";
 import { pressed } from "../support/settling.ts";
 import {
   nodeSelector,
+  APP_HEADER,
   PANE,
   PANE_CLOSE,
   PANE_HEADER,
@@ -253,3 +254,27 @@ Then("there are {int} pane tabs", async function (this: OlaiWorld, n: number) {
     `${n} pane tabs`,
   );
 });
+
+When("I scroll pane {int} to its middle", async function(this: OlaiWorld, index: number) {
+  await this.pane(index).evaluate(root => {
+    let host = root.parentElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    if (!host || host.scrollHeight <= host.clientHeight) throw new Error("pane has no scrollable content")
+    host.scrollTop = (host.scrollHeight - host.clientHeight) / 2
+  })
+})
+
+Then("pane {int} keeps its title {string} above its scroller", async function(this: OlaiWorld, index: number, title: string) {
+  const heading = this.page.locator(`${PANE_HEADER}${attr("data-pane", String(index))}`)
+  assert.ok((await heading.innerText()).includes(title))
+  const bar = await this.page.locator(APP_HEADER).boundingBox()
+  const box = await heading.boundingBox()
+  const top = await this.pane(index).evaluate(root => {
+    let host = root.parentElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    return host?.getBoundingClientRect().top
+  })
+  assert.ok(bar && box && top !== undefined && Math.abs(box.y - bar.y - bar.height) <= 1
+    && Math.abs(box.y + box.height - top) <= 1,
+    `pane ${index} title scrolled away: ${JSON.stringify({ bar, box, top })}`)
+})

@@ -202,7 +202,6 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
     { name: "connection", sel: CONNECTION },
     { name: "padi pill", sel: PADI_PILL },
     { name: "commit pill", sel: COMMIT_PILL },
-    { name: "agent toggle", sel: CHAT_TOGGLE },
     { name: "preferences trigger", sel: PREFS_TRIGGER },
   ];
   for (const pill of pills) {
@@ -241,7 +240,6 @@ Then("the phone header is identity and search", async function (this: OlaiWorld)
     { name: "spaces pill", sel: SPACES_PILL },
     { name: "commit pill", sel: COMMIT_PILL },
     { name: "uptime", sel: UPTIME },
-    { name: "agent toggle", sel: CHAT_TOGGLE },
     { name: "preferences trigger", sel: PREFS_TRIGGER },
   ];
   for (const pill of pills) {
@@ -341,22 +339,21 @@ When("I open the app held at connecting", async function (this: OlaiWorld) {
 // ── the agent, from a thumb ────────────────────────────────────────────
 
 When("I tap the agent toggle", async function (this: OlaiWorld) {
-  const toggle = this.page.locator(CHAT_TOGGLE);
+  const toggle = this.chat(CHAT_TOGGLE);
   if (await toggle.isVisible()) {
     await this.press(toggle, "tap");
     return;
   }
-  await this.press(this.page.locator(CHAT_STRIP), "tap");
+  await this.press(this.chat(CHAT_STRIP), "tap");
 });
 
 Then("the agent panel is showing", async function (this: OlaiWorld) {
-  await this.page
-    .locator(CHAT_PANEL)
+  await this.chat(CHAT_PANEL)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then("I can type into the chat", async function (this: OlaiWorld) {
-  const input = this.page.locator(CHAT_INPUT);
+  const input = this.chat(CHAT_INPUT);
   await input.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.ok(
     await input.isEnabled(),

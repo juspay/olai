@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 /**
  * An outline the agent rewrote with its own tools — drawn as nodes, never as
  * lines.
@@ -26,8 +27,7 @@ import { GLYPH, SAID } from "olai-plugin-outlines/changes"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
-import { isUnfolded, toggleFold } from "./folds.ts"
-import { servedDirectory } from "../vault.ts"
+import { useConversationUI } from "./ui.tsx"
 import { createOutlineDiff } from "./outline.ts"
 
 /** How many node rows a trimmed outline change shows. The text diff's number,
@@ -44,6 +44,7 @@ export function OutlineDiff(props: {
   readonly id: string
   readonly diff: FileDiff
 }) {
+  const { isUnfolded, toggleFold } = useConversationUI().folds
   const { read, line } = createOutlineDiff(servedDirectory, () => props.diff)
   const changes = createMemo(() => {
     const answer = read()

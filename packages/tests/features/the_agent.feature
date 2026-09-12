@@ -1,27 +1,13 @@
-Feature: Talking to the agent
-  The panel is the second write surface, and the first one that exists. What it
-  has to be is one thing: a place where asking for something CHANGES the
-  outline in front of you, and where a change that was refused says why in
-  terms you can act on.
-
-  Every scenario here is `@scratch:chat` — the agent writes, so the directory
-  is a private copy with a server of its own — and the agent behind them is the
-  scripted one in `agent/fake-acp-agent.ts`. It calls the real internal MCP
-  server over the real HTTP route, so what is being tested is the whole path
-  minus the language model: panel, surface, ops, write gate, disk, store, and
-  back to the page.
-
+Feature: Talking to a node agent
   Background:
-    Given I open the app
-    # Nearly every turn these scenarios run ends by watching a row TAKE the
-    # mark — so this page keeps its finished rows drawn for them, or the row
-    # would go at exactly the moment the tree-follow is the claim.
+    Given I open the outline "house.olai"
     And I show the done nodes
     And I mark the page
-    And the agent panel is open
 
   @scratch:chat
   Scenario: The agent checks something off and the tree follows
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The claim the roadmap item is written against: ask, and watch the outline
     # update — no reload, no optimistic echo, the server's own snapshot.
     When I ask the agent "done order"
@@ -31,6 +17,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A parent is marked like any other node once the branch is finished
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The gate is about unfinished work and nothing else: `install the
     # cabinets` is the only task under the branch, so finishing it is what the
     # refusal above asks for — and the rollup's remark rides that write's own
@@ -48,6 +36,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A refused write shows its detail in chat
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A refusal is DATA, not a sentence: the panel draws what the refusal
     # carried, so a person watching sees why rather than the agent's summary
     # of why. Nothing in the set declares `nowhere`.
@@ -58,6 +48,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: What you said is not what the agent said
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The human's own words used to sit in a faint box that read as another
     # agent paragraph — a glance could not tell them apart. They sit on the
     # right now, in an accent-tinted bubble, so the two speakers are two shapes.
@@ -68,12 +60,16 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A tool call is one foldable line
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "done order"
     Then the chat shows a completed tool call
     And the tool call's detail is folded away
 
   @scratch:chat
   Scenario: A report that arrives twice is one report
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Nothing in ACP forbids an agent repeating itself and more than one does
     # it, byte for byte. A repeat is not a second report: the transcript is
     # keyed by the agent's own call id, so what a repeat can produce is exactly
@@ -88,6 +84,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The conversation is the main agent's, and a subagent's calls are behind a door
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The human, with a screenshot of the panel drowning: five survey agents
     # out, and the transcript a wall of other agents' `cd … && grep …` with the
     # main agent's own words pushed off the top of the screen. Being able to
@@ -104,6 +102,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Pressing that door opens the agent's own work, drawn as it always was
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The other half, and the claim that makes the first half honest rather than
     # merely quieter: nothing is thrown away. Behind the door are the very rows
     # that used to be in the column — the same frames, behind the same rail,
@@ -118,6 +118,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The strip is the other door, and it carries one entry per agent out
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A fan-out is watched WHILE it runs, and while it runs the spawning row is
     # already scrolling away — so the live door is above the scroll, where the
     # background tasks are and for the same reason. Five agents out is five
@@ -142,6 +144,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An agent sent MORE WORK is back on the strip, under the same door
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The bug, seen live (the human, 2026-08-28): an agent authored a PR and
     # reported — its strip entry went quiet, correctly — and was then RESUMED,
     # a follow-up instruction over the same transcript. It worked for twenty
@@ -180,6 +184,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An agent that has been sent out and reported nothing yet still has a face
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The human's screenshot: a fan-out running, and a panel drawing one
     # pending dot with an ordinary title on it, because every lane above is
     # hung off work a subagent has ALREADY done. A subagent's first act is to
@@ -205,6 +211,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A face does not outlive the agent that was wearing it
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The other way a live face goes wrong, and the one a row cannot catch on
     # its own: a status is sticky, an agent that dies mid-spawn reports no
     # completion for the call it was in the middle of, and the rows a dead
@@ -223,6 +231,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A call that keeps running says how long it has been
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The status mark is the only other thing on that line about time, and it
     # cannot answer this: `·` is what a call announced a quarter of a second ago
     # wears, and `·` is what one that has been grepping for four minutes wears.
@@ -240,6 +250,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A call one turn gave up on does not start ticking in the next
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The near-miss this feature had, and the reason the fact is on the ROW.
     # "Is a turn in flight" is a question about the CONVERSATION, and a dead or
     # abandoned call's row is deliberately left where it is — so the next thing
@@ -263,6 +275,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A stopwatch does not outlive the turn it was timing
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # `./spawn.ts`'s failure, arriving at a second face — and worse at this one,
     # because a word that is wrong stays the same size and a number that is
     # wrong grows. A status is sticky, the rows a dead agent left are
@@ -281,6 +295,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A file the agent rewrote shows what changed, trimmed
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The half of this feature that is NOT an outline. A direct edit to a `.md`
     # or a source file shows up in no tree, so until the panel drew the diff
     # the answer to "what did it change" was a terminal. Trimmed, because a
@@ -294,6 +310,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An edit that landed in three places draws all three, and the page survives it
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The commonest thing a coding agent does, and it took the client down. An
     # `Edit` is reported twice: the announcement's optimistic block, then the
     # adapter's PostToolUse report, which walks `structuredPatch` and sends one
@@ -314,6 +332,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An outline the agent rewrote by hand is still never a text diff
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The rule is about the FILE, not about the tool that wrote it: a `.olai`
     # is one line per node, so a text diff of one is a single enormous line.
     # olai's own writes cannot produce one — they go through the ops layer —
@@ -326,6 +346,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A long line in a file-edit diff wraps inside the box
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The 26rem drawer used to keep the line on one row and grow a horizontal
     # scrollbar. The content wraps; the line number and the +/- keep their
     # column — on the addition, the removal, and a wrapping context line.
@@ -342,6 +364,8 @@ Feature: Talking to the agent
 
   @scratch:chat @phone
   Scenario: A long line wraps on a phone too
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "edit long.md"
     Then the chat shows a diff of "long.md"
     And the diff does not scroll sideways
@@ -353,6 +377,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A rewrite too big to compare says so rather than looking like a hunk
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Past the comparison budget the two sides are reported as unrelated, so
     # every row is a change and the trimmed view shows the top of the OLD file
     # — which looks exactly like an ordinary diff and is not one.
@@ -362,6 +388,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An olai write tells its story instead of showing a diff
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The other vocabulary, and the rule behind it: a `.olai` diff is one
     # enormous line per node with everything on it changing at once, which is
     # the commit panel's own reason for never showing one. So a write through
@@ -373,6 +401,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A turn can be cancelled mid-stream
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "slow"
     Then the agent is working
     When I cancel the turn
@@ -381,6 +411,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A cancel that did not stop the turn says so
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The regression this exists for: the button was pressed, the turn went on
     # streaming, and nothing on screen said so. A cancel is a NOTIFICATION —
     # written, never answered — and a pipe reports nothing back to the writer
@@ -397,6 +429,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An agent still working towards the stop is not accused of ignoring it
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The other half, and the reason the panel watches SILENCE rather than a
     # clock: a cancel lands between a turn's own steps, so an adapter in the
     # middle of a long tool call honours it when that step returns. A window on
@@ -410,6 +444,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An answer this panel cannot draw leaves a mark, not a blank
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The panel renders text and nothing else, which is fair — doing it
     # SILENTLY was not. An agent answering with a picture, a sound or an
     # attached resource used to leave a gap in the transcript that reads
@@ -420,6 +456,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A link the agent wrote opens the page it names, in place
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # THE REGRESSION THIS EXISTS FOR. The panel is mounted BESIDE the panes, so
     # an anchor in a rendered answer had nothing above it to catch the click:
     # a `.md` path the renderer had resolved, and an address of this app the
@@ -432,9 +470,9 @@ Feature: Talking to the agent
     # The line that tells a navigation from a load. Without it a full reload
     # passes every other assertion here — it lands on this very document.
     And the page has not reloaded
-    # ...which is what the reader would have lost: the transcript is still the
-    # one they were reading.
-    And the chat shows my message "links"
+    And no agent fold is open
+    When I unfold node agent "kitchen"
+    Then the chat shows my message "links"
     # The other half, and a different path through the renderer: an app address
     # in an answer is written as-is and rewritten by nothing.
     When I follow the link "the order row" in the agent's answer
@@ -443,6 +481,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Alt+click on a link the agent wrote opens it to the right
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A written link inside a pane has given this for free since panes existed.
     # The panel asks the router the same question the pane does, so a link in a
     # drawer is not a second kind of link with a shorter list of gestures.
@@ -455,6 +495,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The input completes the agent's own slash commands
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The list is the AGENT'S — olai keeps none of its own — so what is offered
     # is whatever that agent reported over the session.
     When I type "/re" into the chat
@@ -464,6 +506,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: ...and it answers only the keys aimed at the box
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The list listens on the DOCUMENT, in the capture phase — it has to, so
     # the composer's own Enter cannot send the message somebody was only
     # completing — and that reach was the trouble: it saw every keystroke on
@@ -484,6 +528,8 @@ Feature: Talking to the agent
 
   @agent-stored @scratch:chat
   Scenario: A conversation comes back with what was said and what was done
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # WHAT A HISTORY IS, as against a turn. A `session/load` replays a
     # conversation that ended before this process started, so a person's own
     # words arrive as however many chunks the agent kept them in, and the tool
@@ -504,61 +550,20 @@ Feature: Talking to the agent
     And the chat shows a tool call named "read the notes"
 
   @agent-stored @scratch:chat
-  Scenario: A first boot has nothing to remember, so it takes the newest
-    # `session/list` for this directory answers with two, and nothing has ever
-    # written down which of them is the panel's — so the most recently updated
-    # one is the one it comes up in, replayed, before anybody types. That is a
-    # FALLBACK now rather than the rule (see the two scenarios below), and it
-    # is still the right answer to a directory this olai has never served.
-    Then the chat eventually shows "we decided to order the cabinets"
-    And the conversation is titled "the last conversation"
-
-  @agent-stored @scratch:chat
   Scenario: The conversation survives a restart of the server
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     Given the chat eventually shows "we decided to order the cabinets"
     When the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And the node agent's fold is ready
     Then the chat eventually shows "we decided to order the cabinets"
 
   @agent-stored @scratch:chat
-  Scenario: A restart comes back in the conversation the panel was in, not the newest
-    # The bug (`chat-restore-wrong`), as the human hit it: the panel was in one
-    # conversation, something else in the directory was written to more
-    # recently — a terminal `claude`, a `/clear` sibling, an adapter touching a
-    # timestamp — and a restart adopted THAT one. Newest-by-`updatedAt` is an
-    # answer to "what moved last" standing in for "which one is mine".
-    #
-    # `an older conversation` is the older of the two by a month, so nothing
-    # about a timestamp can bring the panel back to it. Only remembering can.
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation"
-    Then the conversation is titled "an older conversation"
-    When the server stops
-    And the server starts again on the same port
-    And I open the app
-    And the agent panel is open
-    Then the conversation is titled "an older conversation"
-
-  @agent-stored @scratch:chat
-  Scenario: A remembered conversation that is gone falls back to the newest
-    # The other half, and the reason the guess is kept rather than deleted: a
-    # session can be deleted, cleared out, or belong to an agent this server
-    # has been repointed away from. Something has to be opened, and the panel
-    # says which conversation it is in either way.
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation"
-    Then the conversation is titled "an older conversation"
-    When the conversation "fake-stored-old" is gone from the agent
-    And the server stops
-    And the server starts again on the same port
-    And I open the app
-    And the agent panel is open
-    Then the conversation is titled "the last conversation"
-
-  @agent-stored @scratch:chat
   Scenario: A message sent while a conversation is opening does not open a second one
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # THE WINDOW THE REFUSAL FIX OPENED. A conversation is not entered until the
     # agent has agreed to it — which is what stops a refused load leaving the
     # server pointing at one — so between a `session/load` going out and its
@@ -580,8 +585,9 @@ Feature: Talking to the agent
     # panel in whichever finished last.
     Given the chat eventually shows "we decided to order the cabinets"
     When the next conversation load will hang
-    And I open the unassigned chats
-    And I pick the conversation "an older conversation"
+    And I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the fold history
+    And I begin opening the past session "an older conversation"
     And I ask the agent "hello"
     And the agent is released
     # THE CLAIM: the message waited for the conversation and landed IN it.
@@ -591,30 +597,16 @@ Feature: Talking to the agent
     Then the agent's answer mentions "you said: hello"
     # ... and it is the conversation that was asked for, not one a second open
     # chose out of a note still naming the one being left.
-    And the conversation is titled "an older conversation"
+    And the opened conversation carries the title "an older conversation"
 
-  @scratch:chat
-  Scenario: An agent that will not open a conversation is not an agent that has gone
-    # The panel's THIRD body, and the distinction it exists for. `session/new`
-    # is a request like any other, so an agent can answer it with an error and
-    # go on running — and reading that as the agent having died left the header
-    # saying `not running` about a process that had just spoken, over an empty
-    # transcript with a live composer under it inviting a message that had
-    # nowhere to go.
-    When the agent refuses to new a conversation
-    And I start a new conversation
+  @agent-stored @scratch:chat
+  Scenario: An agent that refuses a stored conversation remains available for retry
+    When the agent refuses to load a conversation
+    And I open the filed conversation "the last conversation" as node "filed-chat"
     Then the panel says the conversation could not be opened
-    # The reason is the agent's own, because "the conversation could not be
-    # opened" is the sentence every one of these shares and the one that never
-    # helped anybody.
-    And the refusal is in the agent's own words, "will not start a conversation"
-    # THE CLAIM: the agent is still there. The header goes on naming the model
-    # rather than reporting a death, and the box is gone because there is
-    # nothing to send to — not because sending is switched off.
-    And the panel header names the model "Fake One"
+    And the refusal is in the agent's own words, "no such conversation"
     And there is nothing to type into
-    # ... and the one thing that can change it does, once the agent relents.
-    When the agent will new a conversation again
+    When the agent will load a conversation again
     And I try to open it again
     Then the panel shows no such refusal
     And the agent is idle
@@ -622,19 +614,24 @@ Feature: Talking to the agent
     Then the agent's answer mentions "you said: hello"
 
   @agent-stored @scratch:chat
-  Scenario: A boot whose conversation is refused says so, and can still be got out of
+  Scenario: A stored conversation refused after restart can be retried
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # THE OTHER PLACE a conversation is opened, and the one no click can reach:
     # a server starting. Boot adopts a stored conversation and asks for it, and
     # an agent that says no there used to leave the panel reporting a dead
     # process.
-    When I open the unassigned chats
-    And I pick the conversation "an older conversation"
-    Then the conversation is titled "an older conversation"
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the fold history
+    And I open the past session "an older conversation"
+    Then the opened conversation carries the title "an older conversation"
     When the agent refuses to load a conversation
     And the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the fold history
+    And I begin opening the past session "an older conversation"
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "no such conversation"
     And there is nothing to type into
@@ -658,48 +655,38 @@ Feature: Talking to the agent
     Then the chat says the click was refused, with "no conversation is waiting to be opened"
     When the agent is released
     Then the panel shows no such refusal
-    And the conversation is titled "an older conversation"
+    And the opened conversation carries the title "an older conversation"
     And the agent is idle
 
   @no-agent @scratch:chat
-  Scenario: With no agent, the panel says so rather than disappearing
-    # The one state a person should never reach by following a documented way
-    # of starting olai — `nix run`, the packaged binary and `just serve` all
-    # come with the pinned adapter. Reached here the way somebody would reach
-    # it with no executable inputs and an empty agent search path.
-    #
-    # The panel still DRAWS. A capability that is silently absent cannot be
-    # told apart from one that is broken, or from one you have not found yet.
-    Then the panel says there is no agent
-    And the panel explains how to configure one, naming "OLAI_ACP_AGENT"
-    And there is nothing to type into
-    # And the outlines are unaffected: serving a directory never depended on
-    # an agent being installed, and that is what "off" costs.
+  Scenario: Without an engine the outline remains usable
+    Then the agent start pill on "kitchen" is absent
+    And no agent fold is open
     And the outline list is shown
 
   @agent-stored @scratch:chat
-  Scenario: A list that could not ask says so, not "no conversations"
-    # "There are none" and "we could not find out" are different answers, and
-    # a refusal used to arrive as an empty list and be drawn as the first —
-    # a claim about the agent's disk standing in for never having read it.
-    When I ask the agent "lose"
-    And I open the unassigned chats
-    # NAMED, and named as ONE AGENT's trouble rather than as the list failing:
-    # the list spans every installed agent now, so "we could not find out" is a
-    # fact about a row of the roster. Here there is only one row, so it is the
-    # whole of what there was to say.
-    Then the list says "claude" could not be asked, with "the conversation store is unreadable"
-    And the unassigned list is empty
+  Scenario: A refused listing is reported without hiding the filed conversation
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I ask the agent "lose"
+    Then the filer log names "claude" with "the conversation store is unreadable"
+    And the Inbox has 1 filed conversations
 
   @agent-stored @scratch:chat
-  Scenario: The unassigned list switches conversations
-    When I open the unassigned chats
-    Then the unassigned list lists "an older conversation"
-    When I pick the conversation "an older conversation"
-    Then the conversation is titled "an older conversation"
+  Scenario: A filed node opens its stored history
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the fold history
+    Then the past sessions hold "an older conversation"
+    When I open the past session "an older conversation"
+    Then the opened conversation carries the title "an older conversation"
 
   @scratch:chat
   Scenario: The panel shows the turn happening, not only its result
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Racket's chat.feature had this and this branch did not, which is how a
     # rendering bug that only exists WHILE a turn runs got as far as it did.
     # `hold` stops the agent mid-turn, so the states a person actually watches
@@ -717,6 +704,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A running tool call says what it is doing, before it is done
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # ACP's tool_call_update carries incremental content and follow-along file
     # locations, and neither was read: an unfolded running call showed the
     # arguments it was given and then nothing at all until it completed, which
@@ -733,6 +722,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A running turn is visible in three places
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Ported back from racket, which had all three and this branch had none of
     # them: the only cue was the send button turning into cancel. One cue is not
     # enough because a person is not always looking at the one place it is —
@@ -748,9 +739,9 @@ Feature: Talking to the agent
     And the header says the agent is working
     # Close via the permanent header toggle (no × in the panel). The toggle
     # stays visible, unpressed, and still busy while the turn runs.
-    When I close the agent panel
-    Then the agent toggle says a turn is running
-    When I open the agent panel again
+    When I close the agent fold
+    Then the aside on "kitchen" stands "working"
+    When I open the agent fold again
     And the agent is released
     Then the agent is idle
     And the header has stopped saying the agent is working
@@ -758,6 +749,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A row that changes is the same row, not a new one
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The headline of the parity round. Rows are keyed by id and each row reads
     # its own value, so a status change patches the row in place. Handed the
     # entry OBJECTS instead — which the server re-mints on every upsert, every
@@ -780,6 +773,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A tool call I unfolded stays unfolded while the panel keeps moving
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Two things move under an unfolded line: the call's own status, and the
     # next turn arriving. A fold that shuts under either is a fold that shuts
     # exactly when somebody opened it to watch something.
@@ -796,6 +791,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The header says how full the context is, and follows it across turns
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # `chat-token-usage`. Nothing on screen used to say how much room was left,
     # so the way a person found out it was time to `/compact` was by watching
     # the agent start forgetting. The agent has been sending it all along —
@@ -812,6 +809,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The context window itself can move, and the header follows that too
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Both halves of the fraction are the agent's to revise. The real adapter
     # seeds the window from what it last learned for the model and corrects it
     # authoritatively at the end of a turn, so the first turn after a `/model`
@@ -838,17 +837,21 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A new conversation is not asked how full the last one was
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The number goes with the context it was about. Leaving it up across a
     # session change would be the panel answering "should I compact?" about a
     # conversation that no longer exists.
     When I ask the agent "hello"
     Then the panel header says the context is "13k/200k"
-    When I start a new conversation
+    When I start a fresh session
     Then the agent is idle
     And the panel header says nothing about the context
 
   @scratch:chat
   Scenario: The header follows the model the agent is actually running
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Two sources: the session's config option is what was PICKED, and the
     # CLI's own init message is what is RUNNING. A `/model` is handled inside
     # the wrapped CLI, so the picker never hears about it — a header reading
@@ -867,6 +870,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A running model is named the way the picker names it, not as a raw id
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The bug the header was filed for, and the half of it that was silent. The
     # adapter's picker offers ALIASES — `sonnet`, `haiku`, `opus[1m]` — while
     # the model the CLI reports running is a concrete API id. So the two never
@@ -880,6 +885,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A model the picker cannot name without inventing is named as its raw id
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The negative twin of the scenario above, and the case a review constructed
     # against the real adapter. A live id states no context lane, so a picker row
     # that states one may not answer for it: naming "Fake Opus (1M context)" over
@@ -901,6 +908,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The picker repeating itself does not undo a model the CLI reported
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A `config_option_update` carries the WHOLE set, so anything else moving in
     # it — a mode, an effort level — re-sends a model row still naming what the
     # session started on. That frame arriving after a `/model` must not walk the
@@ -915,6 +924,8 @@ Feature: Talking to the agent
 
   @agent-stored @scratch:chat
   Scenario: A model the conversation was switched to survives a restart
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # The bug (`chat-model-reverts-on-restart`), as the human hit it: switch the
     # chat to another model, redeploy olai, and the conversation comes back on
     # the one the container's `settings.json` pins. That pin is the agent's own
@@ -937,8 +948,8 @@ Feature: Talking to the agent
     When the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
-    Then the conversation is titled "the last conversation"
+    And the node agent's fold is ready
+    Then the opened conversation carries the title "the last conversation"
     And the panel header names the model "Fake Sonnet"
     # ... and it is the AGENT that is on it, not a label the panel drew from its
     # own note: the next turn's `init` says what the CLI is actually running, so
@@ -948,6 +959,8 @@ Feature: Talking to the agent
 
   @agent-stored @scratch:chat
   Scenario: A conversation nobody switched follows the machine's default, and is not pinned to it
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # The other side of the rule, and the one that keeps this feature from
     # becoming a pin on everything it touches: what a source says FIRST is what
     # the agent decided, not a choice somebody made, so it is never written
@@ -966,8 +979,8 @@ Feature: Talking to the agent
     And the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
-    Then the conversation is titled "the last conversation"
+    And the node agent's fold is ready
+    Then the opened conversation carries the title "the last conversation"
     And the panel header names the model "Fake Two"
     # ... and nothing was said back to the agent about it, because there was
     # nothing to say: no request, so no refusal either.
@@ -975,6 +988,8 @@ Feature: Talking to the agent
 
   @agent-stored @scratch:chat
   Scenario: A model that cannot be put back says so, and is still tried at the next restart
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # The refusal path, which the panel promises three things about: a row
     # where a person is looking, a header that goes on naming what the agent
     # actually said, and a memory left ALONE — so the next boot tries again
@@ -990,8 +1005,8 @@ Feature: Talking to the agent
     When the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
-    Then the conversation is titled "the last conversation"
+    And the node agent's fold is ready
+    Then the opened conversation carries the title "the last conversation"
     And the chat eventually shows "could not be put back"
     # The agent's own answer, still named — the conversation is open and usable
     # on the model the pin gave it, which is where it was before any of this.
@@ -1001,11 +1016,13 @@ Feature: Talking to the agent
     When the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And the node agent's fold is ready
     Then the chat eventually shows "could not be put back"
 
   @scratch:chat
   Scenario: A message sent mid-turn WAITS ITS TURN, and the row says so
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # FOUR arrangements, and this is the fourth. The box used to be turned OFF
     # while the agent worked; then a send was accepted and QUEUED HERE, which
     # held the message out of sight until the turn was over and dropped it on
@@ -1044,6 +1061,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The interrupting gesture puts a message INTO the running turn
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The other half, and the whole reason steering still exists: a person who
     # can see the agent is halfway through the wrong thing wants it to hear them
     # NOW, and "not that file, the other one" is worth saying at the moment you
@@ -1071,6 +1090,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Once this conversation has queued, the interruption is withdrawn
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A GUARD AROUND SOMEBODY ELSE'S DEFECT, and the one thing in this feature
     # that is not a rule of olai's own. The pinned adapter leaves a turn's
     # `session/prompt` unanswered forever if a steer is injected into any turn
@@ -1110,7 +1131,7 @@ Feature: Talking to the agent
     And the agent is idle
     # A NEW CONVERSATION is a new session, and the defect is per session — so
     # the gesture comes back rather than being lost for the life of the panel.
-    When I start a new conversation
+    When I start a fresh session
     Then the chat is empty
     When I ask the agent "hold"
     Then the agent is working
@@ -1120,6 +1141,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Alt+Enter is the same gesture as the button
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A chord nobody can see is a feature only its author knows about; a button
     # that did something the keyboard could not is the same complaint from the
     # other side. One gesture, two doors — the arrangement the `/` command list
@@ -1134,6 +1157,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An agent that advertises nothing is offered nothing, and still works
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The losing direction, chosen and walked. Whether a person is OFFERED an
     # interruption is read off what the agent said about itself at the
     # handshake — a control drawn for an extension nobody claimed is a control
@@ -1147,7 +1172,7 @@ Feature: Talking to the agent
     And the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And the node agent's fold is ready
     And I ask the agent "hold"
     Then the agent is working
     And the composer offers no interruption
@@ -1160,6 +1185,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An agent with NO queue refuses the busy send, and the words stay
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # THE THIRD LEG OF THE WORLD. Both agents olai ships against hold a
     # mid-turn prompt — one advertises it, one was verified — so "what does a
     # send while busy do on an agent that neither queues nor advertises" was
@@ -1194,6 +1221,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A queued message still says so in a tab that has just arrived
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The hint is a field on the row the SERVER wrote, not a note this tab
     # keeps — so a reload mid-queue is seeded from the same transcript, and a
     # second tab joining sees what the first one sees. Worth driving rather
@@ -1205,14 +1234,7 @@ Feature: Talking to the agent
     When I ask the agent "done order"
     Then the chat shows my message "done order" as waiting
     When I open the app
-    # ... and NOT `the agent panel is open`, which waits for the panel to
-    # SETTLE (idle, or off with no agent) — a turn held open is the whole point
-    # of this scenario, so that step would wait out the hold and photograph a
-    # conversation that had finished. The panel comes back open by itself: that
-    # is remembered per browser, and the row below is what proves it drew.
-    #
-    # THE CLAIM: the fresh tab's first frame carries the hint, and the turn in
-    # front is still running under it.
+    And I unfold node agent "kitchen"
     Then the chat shows my message "done order" as waiting
     And the agent is working
     # ... and the clearing arrives on the same wire the snapshot came from.
@@ -1223,6 +1245,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Cancel stops the turn, and the message waiting behind it still runs
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # #194's ruling, kept word for word: cancel means stop the agent and nothing
     # else. What changed under it is that there is something behind the turn
     # again — and it is the AGENT'S queue, not this panel's, so a cancel has no
@@ -1251,6 +1275,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A message the agent REFUSED stays on screen, and can be sent again
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The one way a send can still fail against a live agent: it was an
     # INTERRUPTION, and the agent that advertised one refuses it. The
     # advertisement is what drew the button; the request is what proves what it
@@ -1291,6 +1317,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A message the agent never ANSWERED says so, and offers no retry
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # THE SECOND FACE, and the whole reason the two are told apart. `swallow
     # steering` takes the message and never answers: the agent is alive,
     # reading, streaming its turn — and from this end there is no way to know
@@ -1322,6 +1350,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A turn that died having said NOTHING marks the message that started it
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The OTHER delivery lane, and the gate inside it. A prompt is a delivery
     # like a steer is: a turn that produced not one frame leaves this end unable
     # to tell a prompt that was read from one that never arrived, and the words
@@ -1337,6 +1367,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A turn that SPOKE before it died leaves the message alone
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The other side of that gate, and the regression it exists to stop: an
     # inverted reading would put "not sent" and a `send again` under a prompt
     # the agent demonstrably worked on, which is an offer to send it twice to
@@ -1351,6 +1383,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A turn the agent REFUSED ends the turn, not the conversation
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # `session/prompt` is a request like any other, so a JSON-RPC error is an
     # answer it can have — a mode the agent cannot prompt from, a session it has
     # lost track of, a model it could not reach. Nothing died and nothing is
@@ -1379,6 +1413,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Cancelling under a message in flight does not start the turn back up
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Both buttons are on screen at once, which is what this feature sells — so
     # saying the next thing and then deciding the whole turn was wrong is a
     # coherent pair of presses, and the second one has to win.
@@ -1407,6 +1443,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The transcript follows the newest line, unless I have scrolled away
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # It stopped following, and the reason is the shape of the two questions.
     # Whether a reader is following is a decision they make by SCROLLING, and it
     # was being re-derived from the scroll position after new content had
@@ -1424,6 +1462,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Opening a conversation with a transcript lands on the newest line
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A different question from the one above. Following is a decision the
     # reader makes by scrolling WHILE they are in a conversation. Opening one
     # — the panel coming back, a stored chat picked from the list — is always
@@ -1433,13 +1473,15 @@ Feature: Talking to the agent
     Then the agent is idle
     And the transcript is scrolled to the newest line
     When I scroll the transcript to the top
-    And I close the agent panel
-    And I open the agent panel again
+    And I close the agent fold
+    And I open the agent fold again
     Then the chat eventually shows "line 39"
     And the transcript is scrolled to the newest line
 
   @agent-stored @scratch:chat
   Scenario: Picking a stored conversation lands on the newest line
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # Same claim, other door: the panel stays mounted and the conversation
     # identity changes. A scroll-away in this one must not leave the next one
     # stuck at the top. `an older conversation` replays enough lines that the
@@ -1448,14 +1490,17 @@ Feature: Talking to the agent
     Then the agent is idle
     And the transcript is scrolled to the newest line
     When I scroll the transcript to the top
-    And I open the unassigned chats
-    And I pick the conversation "an older conversation"
-    Then the conversation is titled "an older conversation"
+    And I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the fold history
+    And I open the past session "an older conversation"
+    Then the opened conversation carries the title "an older conversation"
     And the chat eventually shows "line 39"
     And the transcript is scrolled to the newest line
 
   @agent-stored @scratch:chat
   Scenario: Growth after opening still lands on the newest line
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # The open-jump can pass while the pane is still growing — a restored
     # conversation's markdown lands after the first paint, and a late row is
     # the same shape. The first assertion is the open; the second is growth
@@ -1464,9 +1509,10 @@ Feature: Talking to the agent
     # line would leave the reader short of the newest. Armed and released
     # rather than slept, so the two moments are steps, not a race.
     When I arm late growth on the next stored conversation
-    And I open the unassigned chats
-    And I pick the conversation "an older conversation"
-    Then the conversation is titled "an older conversation"
+    And I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the fold history
+    And I open the past session "an older conversation"
+    Then the opened conversation carries the title "an older conversation"
     And the chat eventually shows "line 39"
     And the transcript is scrolled to the newest line
     And the chat does not yet show "late line"
@@ -1476,6 +1522,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The agent's question is a form in the conversation, and the answer goes back
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The panel advertises `elicitation.form`, so the agent may ask a
     # structured question at all — without it the adapter puts AskUserQuestion
     # in `disallowedTools` and the agent has to guess instead. The scripted
@@ -1498,6 +1546,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The free-text box beside a question is what travels
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The agent sends its "Other" box as a field of its own, marked with the
     # question it belongs to; drawn as a second question it would read as one.
     # A typed answer takes precedence over the chip, which is the agent's own
@@ -1511,6 +1561,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Dismissing a question tells the agent, rather than answering for me
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The one thing this must never be is a fabricated answer. A dismissal is a
     # decline on the wire — the agent is told a person would not say — and the
     # row afterwards says which of the two happened.
@@ -1523,6 +1575,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A cancelled turn takes its question back
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A question holds the ACP request open, and cancelling the turn aborts it —
     # so the form has to stop being a live control the moment the agent stops
     # waiting for it. A form left answerable on a turn that is over is a button
@@ -1536,6 +1590,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Leaving plan mode is asked, not assumed
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The hole this item closed. The adapter maps ExitPlanMode onto a permission
     # request whose FIRST allow-flavoured option switches the session to "auto"
     # — and the panel used to answer every permission request with the first
@@ -1550,6 +1606,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An answer the question refuses keeps what I typed
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The server refuses an answer that does not fit the schema that asked for
     # it and DELIBERATELY leaves the question waiting, so nothing is recorded
     # that the agent was never sent. The panel used to throw the draft away on
@@ -1575,6 +1633,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A tool nothing has named is asked about, not approved
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The other half of recognising our own tools POSITIVELY. Nothing announced
     # this call and its title is not an MCP tool id, so the panel cannot tell
     # what it is — and the rule is that what it cannot name, a person answers.
@@ -1589,6 +1649,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A permission a subagent asked for says which subagent is asking
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The form was drawn in the main column and read as the agent you are
     # talking to — anonymous at the one row where who is asking decides what
     # you press. And the row broke the RUN under it: a form in no lane between
@@ -1617,6 +1679,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A shelf open over a question says so, because the form is not in it
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # `docs/chat.md`'s promise, and the one place this feature could have broken
     # it: with the conversation in front of you, a form ARRIVING IS THE WHOLE OF
     # IT — it lands where you are already looking, the composer says so, and
@@ -1645,6 +1709,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A question a subagent asked is drawn in the subagent's lane too
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The OTHER shape, and it is not the one above with a different payload:
     # an `elicitation/create` carries no attribution at all. It names the tool
     # call it was asked from, and that call's own announcement is where the
@@ -1665,6 +1731,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An answered question is still there after a reload
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The form is a ROW, and a row is transcript — so it comes back the way
     # every other row does, on the first frame of a fresh subscription, with no
     # replay protocol. That is the whole reason a question is an entry rather
@@ -1676,12 +1744,14 @@ Feature: Talking to the agent
     And I answer the question
     Then the question has been answered
     When I reload the page
-    And the agent panel is open
+    And the node agent's fold is ready
     Then the question has been answered
     And the question shows "birch" as what I chose
 
   @scratch:chat
   Scenario: Permission for an ops tool needs nobody
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Bypass mode is the design and these are the tools it is for: mediated,
     # validated, and olai's own. A form here would be a click on every write.
     When I ask the agent "permit"
@@ -1690,18 +1760,9 @@ Feature: Talking to the agent
     And the chat shows no question
 
   @scratch:chat
-  Scenario: A new conversation empties the panel
-    # The panel shows ONE conversation. A break line under the old rows was
-    # tried and is not what "new conversation" means to the person who pressed
-    # it: the agent's context is gone, so nothing above could be followed up,
-    # and a transcript you cannot refer to is history kept for its own sake.
-    When I ask the agent "hello"
-    Then the agent's answer mentions "you said: hello"
-    When I start a new conversation
-    Then the chat is empty
-
-  @scratch:chat
   Scenario: A pasted picture reaches the agent as a file it can read
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The whole claim of the design, end to end: the bytes go from a Blob in
     # this tab into a tmp directory of the conversation's own, and what the
     # agent is handed is the PATH. So what is asserted is that the agent READ
@@ -1716,6 +1777,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A kind olai does not take is refused before it is uploaded
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # An SVG is a picture as far as the clipboard is concerned and a document
     # that can script as far as this app is concerned — so it is in neither of
     # the two lists the gate keeps, while a PDF and a text file are in one of
@@ -1728,6 +1791,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A picture dropped on the panel reaches the agent the same way
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Drop is the gesture for a file that is already on screen, and what it is
     # aimed at is the CONVERSATION — so the target is the panel's whole body
     # and not the two-line box at the bottom of it. The drag is dispatched at
@@ -1755,6 +1820,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A drag that ends without a drop takes the affordance with it
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The panel counts the drag in and out, and the counting is what survives a
     # transcript's worth of rows. What it must not do is keep count of a drag
     # that has gone: "drop to attach" left lit over a conversation, with
@@ -1773,6 +1840,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A drag carrying no files is none of the panel's business
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # Dragging a selection into the box is the browser's own gesture and it
     # goes on working: the panel reads what the drag is CARRYING before it
     # offers to take it, and takes nothing it was not offered.
@@ -1781,6 +1850,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Several files in one drop attach in the order they were dropped
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # A drop is one gesture over several files, so the order is the person's:
     # they selected them in that order and let go of them together. The chips
     # keep it, the prompt keeps it, and the agent reads them in it.
@@ -1791,6 +1862,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A dropped PDF and a dropped text file reach the agent as files it reads
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The human's ruling, end to end: what a person drags at a conversation is
     # not always a picture, and "not a picture" was a refusal for the commonest
     # thing there is to drag at an agent. The gate takes documents now — the
@@ -1819,6 +1892,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A picked file goes in the same way a dropped one does
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The third gesture, and the one a phone has instead of the other two. It
     # is here because the picker has an `accept` of its own: a dialog that will
     # not OFFER a PDF the gate would take is the one half-truth a person meets
@@ -1830,6 +1905,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The camera is offered only where a finger is the pointer
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The `+`'s second door is a phone's, and a desktop — which is what this
     # browser is — gets NO button for it: on a fine pointer the `capture`
     # attribute is ignored, so the same markup would answer with an ordinary
@@ -1842,6 +1919,8 @@ Feature: Talking to the agent
 
   @scratch:chat @phone
   Scenario: Photos shot straight into the chat all ride one message
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The human's ask, verbatim: outside with only the phone, wanting to take
     # photos into the chat. One invocation of a camera is ONE photo, so the
     # strip is what makes it several — shoot → chip → shoot again — and the
@@ -1866,6 +1945,8 @@ Feature: Talking to the agent
 
   @scratch:chat @phone
   Scenario: A dismissed capture touches nothing — not even somebody else's refusal
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The guard in the composer's `picked` exists for exactly this: the
     # camera answered with NOTHING — backed out of, permission refused; from
     # this side the empty FileList is one shape — and the box must be
@@ -1883,6 +1964,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A dropped file olai cannot take says so, by name
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The error rule, at the gesture where it is easiest to break: a file that
     # is dragged somewhere and then disappears has been swallowed, and the
     # person who dropped it has no way to tell that from a slow upload.
@@ -1893,6 +1976,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A drop that is half pictures takes them and names what it would not
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The mixed drop, which is the one a person actually makes: a folder's
     # worth of files selected together. The pictures attach and the rest is
     # refused BY NAME — and the refusal has to survive the uploads that follow
@@ -1906,6 +1991,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A background task the agent armed is visible from where the reader is, and so is its death
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The incident this is about: an orchestrator armed
     # `kolu watch --states waiting,awaiting --nag 10m` as a persistent Monitor
     # and supervised a whole dispatch off its events — and the panel showed
@@ -1948,6 +2035,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An async agent's report folds under the spawning row, never as a person speaking
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The verified leak (2026-09-01): an async Agent's completion injects a
     # user-role `<task-notification>` carrying the subagent's whole report,
     # stamped `origin.kind: "task-notification"` in the session stream. The
@@ -1968,6 +2057,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The shipped path files the report on the task stamp, not as a leftover chunk
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     # The notify scenario above stamps origin on a user_message_chunk no
     # adapter actually sends (`toAcpNotifications` carries messageId /
     # parentToolUseId only). The path every real user gets is a
@@ -1985,6 +2076,8 @@ Feature: Talking to the agent
 
   @agent-stored @scratch:chat
   Scenario: Choosing a model through ACP reaches the agent and survives a restart
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
     # The double advertises config options but no /model command, like Codex.
     Then the panel header names the model "Fake One"
     When I choose the chat model "Fake Two"
@@ -1994,14 +2087,16 @@ Feature: Talking to the agent
     When the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
-    Then the conversation is titled "the last conversation"
+    And the node agent's fold is ready
+    Then the opened conversation carries the title "the last conversation"
     And the panel header names the model "Fake Two"
     When I ask the agent "hello"
     Then the panel header names the model "Fake Two"
 
   @scratch:chat
   Scenario: A refused model selection leaves the current model usable
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     Given the agent refuses model changes
     When I choose the chat model "Fake Two"
     Then the chat shows a refusal
@@ -2011,6 +2106,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Model selection waits for the running turn to finish
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "hold"
     Then the agent is working
     And the model picker is disabled
@@ -2021,6 +2118,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: The model picker can undo a model changed through the CLI
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "model claude-sonnet-5"
     And I ask the agent "hello"
     Then the panel header names the model "Fake Sonnet"
@@ -2031,6 +2130,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Claude's olai write has its title, outline, clickable story and one reply
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
@@ -2044,6 +2145,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Claude's olai read has a title and outline with no write story
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I open the node menu of "order"
     And I choose "Ask agent" from the node menu
     And I ask the agent "context"
@@ -2054,6 +2157,8 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: Late MCP recognition relabels the call and preserves its first spelling
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "late-done order"
     Then the chat shows a completed tool call
     And the agent is idle

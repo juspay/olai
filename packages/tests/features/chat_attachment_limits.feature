@@ -1,8 +1,9 @@
 @scratch:chat
 Feature: Attachment size boundaries leave the composer usable
   Background:
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     And I mark the page
 
   Scenario: Rejecting an oversized drop preserves a ready attachment and the unsent message

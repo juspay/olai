@@ -1,8 +1,9 @@
 @scratch:chat
 Feature: A chat draft and its uploaded attachment survive reconnecting
   Scenario: A completed upload remains usable after the network returns
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     And I mark the page
     When I pick "Type 04-C.pdf" with the attach button
     Then the composer is holding "Type_04-C.pdf", showing how big it is

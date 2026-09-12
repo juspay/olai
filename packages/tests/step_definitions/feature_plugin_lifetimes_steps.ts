@@ -10,7 +10,7 @@ const contributions: Readonly<Record<string, string>> = {
   pins: selector(TESTID.pinShelf),
   capture: selector(TESTID.inboxLink),
   trash: selector(TESTID.trashLink),
-  chat: CHAT_TOGGLE,
+  chat: `${selector(TESTID.agentStart)}, ${selector(TESTID.agentStanding)}`,
 };
 
 Then("the directory feature {string} is {word} in this tab", async function(this: OlaiWorld, feature: string, state: string) {
@@ -18,7 +18,7 @@ Then("the directory feature {string} is {word} in this tab", async function(this
   assert.ok(selector, `unknown directory feature ${feature}`);
   assert.ok(state === "present" || state === "absent");
   await this.page.locator(selector).first().waitFor({
-    state: state === "present" ? "visible" : "detached",
+    state: state === "present" ? "attached" : "detached",
     timeout: HYDRATION_TIMEOUT,
   });
 });

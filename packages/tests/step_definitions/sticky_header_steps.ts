@@ -17,7 +17,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   APP_HEADER,
-  CHAT_TOGGLE,
+  CONNECTION,
   HEADINGS,
   POLL_TIMEOUT,
   PREFS_TRIGGER,
@@ -62,7 +62,7 @@ Then(
   "the header chrome takes the pointer where the page runs under it",
   async function (this: OlaiWorld) {
     for (const [selector, name] of [
-      [CHAT_TOGGLE, "chat-toggle"],
+      [CONNECTION, "connection"],
       [PREFS_TRIGGER, "prefs-trigger"],
     ] as const) {
       const found = await this.topmostTestidOver(this.page.locator(selector), name);

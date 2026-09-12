@@ -21,7 +21,8 @@
 
 import { expect, test } from "bun:test"
 
-import { closePreview, isPreviewing, previewing, togglePreview } from "./previewing.ts"
+import { createPreviewing } from "./previewing.ts"
+const { closePreview, isPreviewing, previewing, togglePreview } = createPreviewing()
 
 test("nothing is open until a door is pressed", () => {
   closePreview()

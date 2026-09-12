@@ -81,8 +81,10 @@ Feature: The day reminds you, and only once
   Scenario: A reminder press reaches the agenda while chat listens for its own kind
     Given every date is taken off "work.olai"
     And I open the app
-    And the agent panel is open
-    And I minimize the agent panel
+    And I open the outline "work.olai"
+    And I open the "claude" agent on node "deck"
+    And the node agent's fold is ready
+    And I close the agent fold
     And the notification worker is ready
     And I click the page
     When a task is due today
@@ -91,7 +93,7 @@ Feature: The day reminds you, and only once
     When the notification is pressed
     Then the agenda says it is today
     And the address is "/agenda"
-    And the agent panel is minimized
+    And no agent fold is open
     And there should be no page errors
 
   @scratch:journal @alerts

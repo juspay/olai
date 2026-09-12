@@ -24,9 +24,15 @@ When("I open the app", async function (this: OlaiWorld) {
 Then(
   "I save a screenshot as {string}",
   async function (this: OlaiWorld, name: string) {
-    const dir = process.env.OLAI_SHOTS
+    const evidence = process.env.OLAI_E2E_EVIDENCE
+    const attempt = process.env.OLAI_E2E_ATTEMPT
+    const dir = process.env.OLAI_SHOTS ?? (evidence && attempt ? join(evidence, attempt, "screenshots") : undefined)
     if (dir === undefined || dir === "") return
     mkdirSync(dir, { recursive: true })
+    // Full-page capture must start at the top, or Chromium places fixed chrome
+    // at the old viewport offset in the stitched image.
+    await this.page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }))
+    await this.waitForFrame()
     await this.page.screenshot({ path: join(dir, name), fullPage: true })
   },
 )

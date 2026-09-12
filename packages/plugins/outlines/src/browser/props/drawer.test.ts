@@ -131,3 +131,14 @@ test("a document's frontmatter is the same run, over the map", () => {
       listed: true,
     }])
 })
+
+test("row placement omits only the contributed kind; the page retains every property", () => {
+  const node = nodeOf('{"id":"n","ord":"a0","title":"node","custom":{"binding":"claude:session","plain":"visible"}}')
+  const placement = {
+    kind: (key: string) => key === "binding" ? "chat-agent-session" : "text",
+    at: (kind: string) => kind === "chat-agent-session" ? { inRows: false } : undefined,
+  }
+  expect(customEntries(customOf(node), placement).map(entry => entry.key)).toEqual(["plain"])
+  expect(customEntries(customOf(node)).map(entry => entry.key)).toEqual(["binding", "plain"])
+  expect(drawerEntries(node).filter(entry => !entry.system).map(entry => entry.key)).toEqual(["binding", "plain"])
+})

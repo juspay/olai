@@ -157,24 +157,11 @@ test("a token match escapes its value exactly as equality does", () => {
 const BUILT_BY_HAND =
   /\[(?:[a-zA-Z-]+|\$\{[^}]*\})[~^|*$]?=\s*(?:"\$\{[^}]*\}"|'\$\{[^}]*\}'|\$\{[^}]*\})\]/g;
 
-/**
- * Every selector still built by hand, and why each may be.
- *
- * All four sit inside a `page.evaluate` callback, which is serialised and run
- * in the browser where nothing importable exists to be called — and all four
- * interpolate a value from a CLOSED TABLE, a `PluginTestId` (the panel's ids
- * are `olai-plugin-chat`'s since chat became a row; they were `TestId`s while
- * the panel was `@olai/web`'s, and the property that matters here — a closed
- * union of kebab-case literals — is the same either side of that move) or a
- * diff line's `add`/`remove`/`same`, so there is no value with a quote in it
- * for them to meet. Listed by the TEXT they match rather than by line, so the list survives
- * an edit above them and still names exactly four things.
- */
+/** The remaining browser-only selector interpolates a closed entry-kind
+ * vocabulary. Other evaluated gestures receive the already-escaped selector
+ * for their conversation, including its fold owner. */
 const BY_HAND: ReadonlyArray<string> = [
   `step_definitions/chat_steps.ts: [data-kind="\${kind}"]`,
-  `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
-  `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
-  `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
 ];
 
 // The FENCE'S OWN EDGE, and the reason this test is here rather than trusted:
@@ -219,7 +206,7 @@ test("the pattern leaves alone what carries no interpolated value", () => {
   }
 });
 
-test("no step builds an attribute selector by hand, but the four that must", () => {
+test("no step builds an attribute selector by hand, but the browser entry-kind check", () => {
   // `tracked` leaves the caller out of its own listing, which is what excludes
   // this file — it quotes the shape it hunts, in an assertion above.
   const found = tracked(import.meta.filename)

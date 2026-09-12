@@ -23,7 +23,8 @@ Feature: The directory column sticks too
   Scenario Outline: The directory is still on screen at the bottom of a <kind>
     Given the window is shorter than the page
     And I open the <kind> "<name>"
-    When I scroll to the bottom of the page
+    When I bring the file tree into the directory viewport
+    And I scroll to the bottom of the page
     Then the app header is at the top of the viewport
     And the directory column is pinned under the header
     And the file tree is still on screen

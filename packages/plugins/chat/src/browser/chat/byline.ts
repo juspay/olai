@@ -39,8 +39,7 @@
  * captioning a plugin's words with a name the plugin did not put there, and the
  * one thing a byline must not do is claim an attribution nobody wrote.
  *
- * A MODULE rather than a slice inside the component, for {@link ./face.ts}'s
- * reason: it is a rule about text, every way of getting it wrong is a person
+ * A module rather than a slice inside the component: it is a rule about text, every way of getting it wrong is a person
  * reading the wrong half of a sentence as a label, and checking it should not
  * require a browser and a plugin ringing a real doorbell.
  */

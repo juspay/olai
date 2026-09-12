@@ -26,7 +26,7 @@ import { FilterBar } from "./filter/FilterBar.tsx"
 import { NarrowedProvider } from "./filter/narrowed.tsx"
 import { createNarrowing } from "./filter/narrowing.ts"
 import { tagPressed } from "./filter/tag.ts"
-import { desktop, panelOpen } from "./shell.ts"
+import { desktop } from "./shell.ts"
 import { only } from "@olai/web/client/narrow.ts"
 import { useToday } from "./clock.ts"
 import { NodePage } from "./NodePage.tsx"
@@ -231,7 +231,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   return (
     <main
       class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
-        !desktop() && !panelOpen() ? "pb-16" : ""
+        !desktop() ? "pb-16" : ""
       }`}
       data-testid={IDS_NAVIGATION.pane}
       data-pane={String(here())}

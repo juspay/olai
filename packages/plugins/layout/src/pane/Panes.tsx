@@ -122,16 +122,20 @@ function Column(props: {
   const focused = () => router.workspace().focus === props.index
   return (
     <div
-      class="flex min-h-0 min-w-0 flex-col overflow-y-auto"
+      class="flex min-h-0 min-w-0 flex-col"
       style={{ "flex-grow": String(props.grow), "flex-basis": "0" }}
       classList={{
         "ring-2 ring-inset ring-accent": focused(),
       }}
     >
       <Header index={props.index} pane={props.pane} />
-      <PaneProvider index={props.index}>
-        {(router as Navigation).page(()=>props.index)}
-      </PaneProvider>
+      {/* Pane chrome stays outside the reading's scroll owner. Node-page
+          headings and composers pin within this one content scroller. */}
+      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <PaneProvider index={props.index}>
+          {(router as Navigation).page(()=>props.index)}
+        </PaneProvider>
+      </div>
     </div>
   )
 }

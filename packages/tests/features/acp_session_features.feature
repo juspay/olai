@@ -1,8 +1,12 @@
 @acp-session-features @scratch:chat
 Feature: Agent session controls and progress
   Background:
-    Given I open the app
-    And the agent panel is open
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    And I follow the agent's open-page link
+    And the node page conversation is ready for "kitchen"
 
   Scenario: Advertised select and boolean settings reach the agent
     When I open the session settings
@@ -88,21 +92,24 @@ Feature: Agent session controls and progress
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When the agent is released
     Then the agent is idle
-    When I start a new conversation
+    When I start a fresh session
     Then there is no execution plan
 
   Scenario: A new conversation gets the agent's default settings
-    When I open the session settings
+    When I remember this conversation as "before fresh settings"
+    And I open the session settings
     And I set session setting "Reasoning" to "high"
     And I open the session settings
-    And I start a new conversation
-    And I open the session settings
+    And I start a fresh session
+    Then the panel is ready in a new conversation after "before fresh settings"
+    When I open the session settings
     Then session setting "Reasoning" is "medium"
 
   Scenario: Reopening the page retains the running plan and command output
     When I ask the agent "execution-plan"
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When I reload the page
+    And the node page conversation is ready for "kitchen"
     Then the agent is working
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When the agent is released
@@ -110,6 +117,7 @@ Feature: Agent session controls and progress
     When I ask the agent "terminal live"
     Then terminal output contains "stdout ready"
     When I reload the page
+    And the node page conversation is ready for "kitchen"
     Then the agent is working
     Then terminal output contains "stdout ready"
     When the agent is released

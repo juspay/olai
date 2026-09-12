@@ -173,7 +173,11 @@ export function CompletionMenu(props: {
   const cursor = createCursor(() => props.rows.length)
 
   // A NEW QUESTION STARTS AT THE TOP — see `asking`.
-  createEffect(on(() => props.asking, cursor.top))
+  // `asking` is a prop getter over the shared draft. A late select/focus
+  // notification can invalidate it without changing the query; `on` alone
+  // still runs its callback then, undoing the reader's last arrow press.
+  const asking = createMemo(() => props.asking)
+  createEffect(on(asking, cursor.top))
 
   /**
    * This list on the client's one dismissal stack (`../topmost.ts`).

@@ -5,14 +5,14 @@ Feature: Simultaneous node agents keep their question drafts separate
     And I open the outline "house.olai"
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
+    And the node agent's fold is ready
     And I remember this conversation as "cabinet"
     And I ask the agent "askstrict"
     Then the chat shows a question
     When I type "cabinet answer" into the question's "note" box
     And I open the node menu of "order"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
+    And the node agent's fold is ready
     And I remember this conversation as "order"
     And I ask the agent "askstrict"
     Then the chat shows a question
@@ -35,16 +35,17 @@ Feature: Simultaneous node agents keep their question drafts separate
     And there should be no page errors
 
   Scenario: A question draft survives a closed drawer and an unrelated plugin rebuild
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "askstrict"
     Then the chat shows a question
     When I type "retained answer" into the question's "note" box
-    And I close the agent panel
+    And I close the agent fold
     And I open the plugins panel
     And I switch the plugin "journal" off
     And I close the plugins panel
-    And I reopen the agent panel during a turn
+    And I reopen the agent fold during a turn
     Then the chat shows a question
     And the question's "note" box still reads "retained answer"
     When I type "4" into the question's "howMany" box
@@ -54,17 +55,18 @@ Feature: Simultaneous node agents keep their question drafts separate
     And there should be no page errors
 
   Scenario: A new harness instance does not inherit an abandoned answer draft
-    Given I open the app
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "askstrict"
     Then the chat shows a question
     When I type "abandoned answer" into the question's "note" box
-    And I close the agent panel
+    And I close the agent fold
     And I open the plugins panel
     And I switch the plugin "chat" off
     And I switch the plugin "chat" on
     And I close the plugins panel
-    And the agent panel is open
+    And the node agent's fold is ready
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the question's "note" box still reads ""

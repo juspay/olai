@@ -62,6 +62,7 @@
 import type { Conversing, LiveSession, Overheard } from "olai-plugin-chat"
 import {
   declarationsOf,
+  isRegular,
   type Derived,
   keysDeclaredAs,
   nearestAtOrAbove,
@@ -206,7 +207,11 @@ export const roster = (): Roster => {
     key: () => keys[0] ?? SESSION_TYPE,
     keys: () => keys,
     nearestAt: nearest,
-    rowsWith: (overheard, live) => joined(held, overheard, live),
+    rowsWith: (overheard, live) => joined(held, overheard, live).map(row => {
+      const located = reading?.byId.get(row.id)
+      const changed = located !== undefined && isRegular(located) ? located.node.changed : undefined
+      return changed === undefined ? row : { ...row, changed }
+    }),
   }
 }
 
@@ -238,6 +243,7 @@ export const joined = (
   return agents.map((agent) => ({
     ...agent,
     standing: standingOf(agent, live.get(agent.id)),
+    ...(live.get(agent.id)?.since === undefined ? {} : { since: live.get(agent.id)!.since }),
     waiting: live.get(agent.id)?.asking ?? 0,
     // The one fact olai writes back that a face draws, `null`-on-the-wire
     // where the record carries an absent key: the wire is a decoded value a

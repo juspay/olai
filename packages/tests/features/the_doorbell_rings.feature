@@ -32,7 +32,9 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   @scratch:lanes @padi:lanes
   Scenario Outline: The <chat> conversation hears its selected board without moving my draft
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
+    And I open the "<chat>" conversation for delivery
     # The default, and it is a ruling rather than an oversight: nobody is opted
     # in by a serve, so the control is drawn saying so.
     Then this conversation's "kolu" wake is on nothing
@@ -80,7 +82,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     @agent-stored
     Examples:
       | chat       |
-      | unassigned |
+      | filed      |
 
   @scratch:lanes @rows:vault,olai,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that composed no chat row says which door kolu is waiting behind
@@ -115,7 +117,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   @scratch:lanes
   Scenario: Node conversations control each doorbell and remember off across restart
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
     And this conversation's "kolu" wake is on nothing
     And this conversation's "odu" wake is on nothing
@@ -133,7 +136,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And the node agent's fold is ready
     Then this conversation's "kolu" wake is on nothing
     And this conversation's "odu" wake is on "backlog.olai"
     When I clear this conversation's "odu" wake
@@ -147,7 +150,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   @scratch:lanes
   Scenario: Wake choices survive a plugin leaving and returning through Cordis
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     When I point this conversation's "kolu" wake at "lanes.olai"
     And I point this conversation's "odu" wake at "backlog.olai"
     And I open the plugins panel
@@ -162,7 +166,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And this conversation's "odu" wake is on "backlog.olai"
     When I clear this conversation's "kolu" wake
     And I reload the page
-    And the agent panel is open
+    And the node agent's fold is ready
     Then this conversation's "kolu" wake is on nothing
     And this conversation's "odu" wake is on "backlog.olai"
     And there should be no page errors
@@ -174,26 +178,24 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And I open the outline "house.olai"
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
-    And the agent panel is open
+    And the node agent's fold is ready
     And I ask the agent "wake history"
     Then the agent has answered "wake history" exactly once
     When I remember this conversation as "first"
     And I point this conversation's "kolu" wake at "house.olai"
     And I point this conversation's "odu" wake at "yard.olai"
-    And I open the session picker
     And I start a fresh session
     Then the panel is ready in a new conversation after "first"
     And this conversation's "kolu" wake is on nothing
     And this conversation's "odu" wake is on nothing
     When I remember this conversation as "current"
     And I point this conversation's "kolu" wake at "yard.olai"
-    And I open the session picker
+    And I open the fold history
     And I open the past session "wake history"
     Then the panel is in the remembered conversation "first"
     And this conversation's "kolu" wake is on "house.olai"
     And this conversation's "odu" wake is on "yard.olai"
     When I clear this conversation's "odu" wake
-    And I open the session picker
     And I return to the node agent's current session
     Then the panel is in the remembered conversation "current"
     And this conversation's "kolu" wake is on "yard.olai"
@@ -204,7 +206,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   @scratch:lanes
   Scenario Outline: Clearing a node wake discards its queued missing-file warning
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     When I point this conversation's "<plugin>" wake at "backlog.olai"
     And I ask the agent "hold"
     Then the agent is working
@@ -225,7 +228,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   @scratch:lanes
   Scenario Outline: Repointing a node wake discards its queued missing-file warning
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     When I point this conversation's "<plugin>" wake at "backlog.olai"
     And I ask the agent "hold"
     Then the agent is working
@@ -246,7 +250,8 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   @scratch:lanes
   Scenario Outline: A plugin reload preserves the pick and revokes its queued warning
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     When I point this conversation's "<plugin>" wake at "backlog.olai"
     And I ask the agent "hold"
     Then the agent is working

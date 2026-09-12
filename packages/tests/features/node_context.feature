@@ -20,8 +20,10 @@ Feature: The outline and the chat point at each other
     # half (`@olai/web`'s `fold/landing.ts`) is its own ruling, not this
     # feature's. So the page is asked for the whole tree at the door.
     And I show the done nodes
+    And I open the outline "house.olai"
     And I mark the page
-    And the agent panel is open
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
 
   @scratch:chat
   Scenario: A row arms the composer, and the turn carries the node
@@ -95,7 +97,7 @@ Feature: The outline and the chat point at each other
     Then the composer is armed with "order"
     When I rewrite "house.olai" as:
       """
-      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","custom":{"chat-agent-session":"claude:fake-session-1"}}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
       {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
       """
@@ -114,12 +116,12 @@ Feature: The outline and the chat point at each other
     # file at the row — unfolded, selected, on screen — rather than zooming
     # away from the page they had (`/#id` still means zoom; the reference row
     # is not one).
-    When I collapse the node "kitchen"
-    And I ask the agent "done order"
-    And I press the node "order" in the write
-    Then the address is "/house.olai#order"
-    And the node "kitchen" is expanded
-    And the node "order" is focused
+    When I collapse the node "install"
+    And I ask the agent "done hinges"
+    And I press the node "hinges" in the write
+    Then the address is "/house.olai#hinges"
+    And the node "install" is expanded
+    And the node "hinges" is focused
 
   @scratch:chat
   Scenario: A node its own write hid lands the reader on it anyway — revealed, the pick untouched
@@ -196,7 +198,7 @@ Feature: The outline and the chat point at each other
     Then the agent's answer names the node "order"
     When I rewrite "house.olai" as:
       """
-      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","custom":{"chat-agent-session":"claude:fake-session-1"}}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
       {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
       """

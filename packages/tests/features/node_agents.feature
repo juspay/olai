@@ -38,47 +38,50 @@ Feature: A node with an `agent-session` property IS an agent
     And the agent "door-review" is named "review: grok"
 
   @corpus:lanes
-  Scenario: An agent nobody has started a session for says so, on both its faces
-    # The roster row and the door are two faces of one answer, addressed by the
-    # same node id — so this is also the assertion that they cannot disagree.
+  Scenario: An unbound agent wears a standing in the aside
     Given I open the outline "lanes.olai"
-    Then the agent "door-implement" stands "unbound"
-    And the door on "door-implement" stands "unbound"
-    And the door on "door-implement" reads "no session bound"
-    # ... and an agent olai has never been in a conversation with draws no line
-    # at all, which is not the same as drawing an empty one.
-    And the door on "door-implement" has no last message
+    Then the aside on "door-implement" stands "unbound"
+    And the aside on "door-implement" reads "no session bound"
+    And the standing on "door-implement" cannot be pressed
+
+  @scratch:lanes
+  Scenario: Hovering a plain row offers a single press to start its agent
+    Given I open the outline "lanes.olai"
+    When I hover the agent start pill on "lane-fresh"
+    Then the agent start pill on "lane-fresh" is visible
+    When I press the agent start pill on "lane-fresh"
+    Then the vault node "lane-fresh" has property "agent-session" holding "claude:fake-session-1"
+    And node agent "lane-fresh" is unfolded
+    And the agent start pill on "lane-fresh" is absent
+
+  @codex @scratch:lanes
+  Scenario: Several installed engines offer a choice at the row
+    Given I open the outline "lanes.olai"
+    When I hover the agent start pill on "lane-fresh"
+    And I press the agent start pill on "lane-fresh"
+    Then the agent engine menu offers "Claude Code"
+    And the agent engine menu offers "Codex"
 
   @corpus:lanes
-  Scenario: The door says what the agent is and how much it knows
-    # The memory count is the number this whole design turns on: the subtree is
-    # what a fresh session would read, so how big it is belongs on the row
-    # beside the state. A leaf lane step has nothing under it and says `0 rows`
-    # rather than nothing.
-    #
-    # What the door does NOT say is the node's own title, which is one line
-    # above it every time — the engine and the memory are what only the door
-    # can say, and they get the width.
+  Scenario: A bound row has a standing and no start pill
     Given I open the outline "lanes.olai"
-    Then the door on "door-implement" reads "claude"
-    And the door on "door-implement" reads "memory: this subtree (0 rows)"
+    Then the agent start pill on "door-live" is absent
 
-  @corpus:lanes
-  Scenario: A row with no `agent-session` property wears no door
-    # Nearly every row in every outline is this one, and what it costs is a
-    # lookup in a roster of nine.
+  @scratch:lanes
+  Scenario: A waiting agent agrees on the aside and sidebar faces
     Given I open the outline "lanes.olai"
-    Then there is no door on "lane-door"
-    And there is no door on "lanes"
+    When I press the agent "door-live"
+    And I ask the agent "ask"
+    Then the chat shows a question
+    And the agent "door-live" stands "needs-you"
+    And the aside on "door-live" stands "needs-you"
+    And the aside on "door-live" reads "needs you"
 
-  @corpus:good
-  Scenario: A directory with no node agent has no section at all
-    # Not an empty box, not a heading, not a hint — the shelf's own rule, and
-    # here it is also the column's budget: a section drawn on every serve would
-    # spend a line of a one-screen column on every directory to say nothing
-    # about most of them.
+  @scratch:good
+  Scenario: A directory with no node agent has no Needs you rows
     Given I open the outline "garden.olai"
-    Then the agents roster is not drawn
+    Then Needs you is absent
+    And the agents roster holds 0 agents
 
   # ── the gesture that binds one ────────────────────────────────────────
 
@@ -98,10 +101,10 @@ Feature: A node with an `agent-session` property IS an agent
     # One press, and the node IS one: the property carries both halves, and the
     # roster — which is that query — has a row it did not have, wearing a door
     # that says which engine.
-    Then the node "lane-fresh" shows the property "agent-session" holding "claude:fake-session-1"
+    Then the vault node "lane-fresh" has property "agent-session" holding "claude:fake-session-1"
     And the agents roster holds 10 agents
     And the agents roster lists "lane-fresh"
-    And the door on "lane-fresh" reads "claude"
+    And the header names the agent "claude"
     #
     # WHAT IS NOT ASSERTED HERE is the standing, and the reason is the scripted
     # agent rather than the panel: it answers every `session/new` with one id,
@@ -123,11 +126,11 @@ Feature: A node with an `agent-session` property IS an agent
     # The property now carries both halves, which is the durable half of the
     # answer: this survives the restart, because it is in the file — and its
     # engine is the one the node already named rather than one picked for it.
-    Then the node "door-implement" shows the property "agent-session" holding "claude:fake-session-1"
+    Then the vault node "door-implement" has property "agent-session" holding "claude:fake-session-1"
     # ... and the door says so without being told twice: it read `no session
     # bound` a moment ago, and the row is the query.
-    And the door on "door-implement" reads "claude"
-    And the door on "door-implement" does not read "no session bound"
+    And the header names the agent "claude"
+    And the node agent's fold is ready
 
   @scratch:lanes
   Scenario: ... and the conversation is opened in the node's own scope, not moved into it
@@ -150,13 +153,14 @@ Feature: A node with an `agent-session` property IS an agent
     # refusal is armed BEFORE the press, so it is the relocation's own load that
     # meets it and not some later verb's.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     When the agent refuses to load a conversation
     And I open the node menu of "lane-fresh"
     And I choose "Start an agent session" from the node menu
     # The two acts in their order, unchanged: the conversation, then the
     # property that names it.
-    Then the node "lane-fresh" shows the property "agent-session" holding "claude:fake-session-1"
+    Then the vault node "lane-fresh" has property "agent-session" holding "claude:fake-session-1"
     And the agent "lane-fresh" stands "idle"
     # THE CLAIM. Nothing was re-opened, so nothing was refused — and the panel
     # is in a conversation rather than on the third body explaining why it is
@@ -184,7 +188,8 @@ Feature: A node with an `agent-session` property IS an agent
     # answers `session/new` with every time, so this directory arrives at olai
     # already bound, which is the shape a person's is in when they open it.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     # The binding took: the roster says this agent is the conversation the
     # panel is in, which is the half `bound` answers.
     Then the agent "door-live" stands "idle"
@@ -201,7 +206,7 @@ Feature: A node with an `agent-session` property IS an agent
     # ... and the door has the line, on the frame the write published rather
     # than whenever something else next moves the panel. The scripted agent
     # says back what it was given, so the last thing olai heard is the question.
-    And the door on "door-live" last said "and now?"
+    And the agent's answer mentions "you said: and now?"
 
   # ── wake choices belong to the conversation; writes reach the vault ────────────────
 
@@ -212,7 +217,8 @@ Feature: A node with an `agent-session` property IS an agent
     # write would.
     Given I open the outline "lanes.olai"
     And I show the done nodes
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
     When I ask the agent "ready"
     And the agent is idle
@@ -228,7 +234,8 @@ Feature: A node with an `agent-session` property IS an agent
     # differs.
     Given I open the outline "lanes.olai"
     And I show the done nodes
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
     When I ask the agent "ready"
     And the agent is idle
@@ -243,18 +250,15 @@ Feature: A node with an `agent-session` property IS an agent
     # turn then stays alive while the panel moves to `door-live`, whose own
     # process loads its own conversation and answers independently.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
-    When I open the unassigned chats
-    And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
-    And I close the unassigned chats
+    When I open the filed conversation "the last conversation" as node "filed-chat"
     And I ask the agent "slow"
-    Then the agent "lane-fresh" stands "working"
+    Then the agent "filed-chat" stands "working"
     When I press the agent "door-live"
-    Then the agent "lane-fresh" stands "working"
+    Then the agent "filed-chat" stands "working"
     And the agent "door-live" stands "idle"
     When I ask the agent "the second conversation"
     Then the agent has answered "the second conversation" exactly once
-    And the agent "lane-fresh" stands "working"
+    And the agent "filed-chat" stands "working"
     When the agent is released
 
   @scratch:lanes
@@ -266,13 +270,14 @@ Feature: A node with an `agent-session` property IS an agent
     # do is bookkeeping, and a board written to on every turn is a board
     # committed on every turn.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     And I ask the agent "what is blocking the connector?"
     Then the agent was told its contract 1 time
     When the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And the node agent's fold is ready
     And I ask the agent "still there?"
     # The anchor first: the count means nothing until the round trip has
     # answered — 0 is where every count starts.
@@ -293,63 +298,58 @@ Feature: A node with an `agent-session` property IS an agent
   # chat that belongs to nobody.
 
   @agent-stored @scratch:lanes
-  Scenario: The roster ends with the conversations no node claims
-    # Two conversations are stored here and the nine node agents name neither,
-    # so both are waiting for a home. The COUNT is the news this row carries,
-    # which is why it is asserted rather than the row's presence alone.
+  Scenario: Stored conversation heads are filed and every agent starts asleep
     Given I open the outline "lanes.olai"
-    Then the agents roster holds 9 agents
-    And the roster offers 2 unassigned chats
+    Then the Inbox has 1 filed conversations
+    And the agents roster holds 10 agents
+    And all bound node agents are asleep
+    And the Unassigned row and list are absent
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Then the node "filed-chat" keeps the session "claude:fake-stored-new" in file "_olai/Inbox.olai"
+    When I ask the agent "where were we?"
+    Then the agent was told its contract 1 time
+    And the contract says the conversation was assigned
+    When I open the fold history
+    Then the past sessions hold "an older conversation"
 
   @agent-stored @scratch:good
-  Scenario: A directory with no node agent still draws the section, for the chats
-    # The other end of the shelf's rule, and the ruling this phase adds to it: a
-    # person migrating has no node agents yet, so a doorway that appeared only
-    # once they had made one by hand would be a doorway nobody finds. What the
-    # section holds here is the one row.
+  Scenario: Stored chats create node agents in a directory that had none
     Given I open the outline "garden.olai"
-    Then the agents roster holds 0 agents
-    And the roster offers 2 unassigned chats
+    Then the Inbox has 1 filed conversations
+    And the agents roster holds 1 agents
+    And all bound node agents are asleep
+    And the Unassigned row and list are absent
 
   @agent-stored @scratch:lanes
-  Scenario: Assigning a chat writes the one property, and claims its chain
-    # The whole gesture. `lane-fresh` carries nothing at all — so this is also
-    # how a node agent comes into being — and the conversation it takes is the
-    # newer of the stored pair, the one the older was superseded BY.
+  Scenario: Moving a filed conversation keeps its identity and history
     Given I open the outline "lanes.olai"
-    Then there is no door on "lane-fresh"
-    When I open the unassigned chats
-    Then the unassigned list holds "the last conversation"
-    And the unassigned list holds "an older conversation"
-    When I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
-    # ONE PROPERTY, carrying both halves — the engine off the chat itself, and
-    # the conversation it already was.
-    Then the node "lane-fresh" shows the property "agent-session" holding "claude:fake-stored-new"
-    And the agents roster holds 10 agents
-    And the door on "lane-fresh" reads "claude"
-    # ... AND THE CHAIN RIDES ALONG: the conversation this one replaced is that
-    # agent's history rather than a chat nobody claims, so the list empties on
-    # one press rather than two.
-    And the unassigned list does not hold "an older conversation"
-    And the roster offers no unassigned chats
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the node menu of "filed-chat"
+    And I choose "Move to…" from the node menu
+    And I search the move picker for "lane nobody"
+    And I choose "a lane nobody has put an agent on" from the move picker
+    Then the node "filed-chat" keeps the session "claude:fake-stored-new" in file "lanes.olai"
+    When I open the outline "backlog.olai"
+    And I press the agent "filed-chat"
+    Then the sidebar marks the outline "lanes.olai" as the one open
+    When I open the fold history
+    Then the past sessions hold "an older conversation"
+    And the Unassigned row and list are absent
 
   @agent-stored @scratch:lanes
-  Scenario: A node already talking through a conversation cannot take another
-    # One agent, one current session. `door-live`'s property names a
-    # conversation, so it is in the search and cannot be taken — dimmed where a
-    # reader scanning the list can see it, with the reason under the list rather
-    # than after a press that failed.
+  Scenario: Trashing a filed conversation does not resurrect it on the next boot
     Given I open the outline "lanes.olai"
-    When I open the unassigned chats
-    And I look for a node to give "the last conversation" to, with "watch the connector"
-    And I point the assign search at "watch the connector"
-    Then the assign search refuses it, saying "one agent, one current session"
-    # ... and the press writes nothing: the property still names the
-    # conversation it named before anybody pressed anything, and the chat is
-    # still waiting for a home.
-    When I take the node the assign search refused
-    Then the node "door-live" shows the property "agent-session" holding "claude:fake-session-1"
-    And the roster offers 2 unassigned chats
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the node menu of "filed-chat"
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
+    Then the node "filed-chat" keeps the session "claude:fake-stored-new" in file "_olai/Trash.olai"
+    When the server stops
+    And the server starts again on the same port
+    And I open the outline "lanes.olai"
+    Then the filer's boot run has settled
+    And the Inbox has 0 filed conversations
+    And the agents roster holds 9 agents
 
   @agent-stored @scratch:lanes
   Scenario: An assigned session is taught the MIGRATION contract, once
@@ -362,10 +362,7 @@ Feature: A node with an `agent-session` property IS an agent
     # stored conversations comes back to the most recent — which is the ordinary
     # way this happens: you are talking in a chat, and you give it a home.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
-    When I open the unassigned chats
-    And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
-    And I close the unassigned chats
+    When I open the filed conversation "the last conversation" as node "filed-chat"
     And I ask the agent "where were we?"
     Then the agent was told its contract 1 time
     And the contract says the conversation was assigned
@@ -384,10 +381,7 @@ Feature: A node with an `agent-session` property IS an agent
     # the one every contract keeps: once per session, and it is written down;
     # neither does a restart say it again.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
-    When I open the unassigned chats
-    And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
-    And I close the unassigned chats
+    When I open the filed conversation "the last conversation" as node "filed-chat"
     And I ask the agent "where were we?"
     Then the agent was told its contract 1 time
     And the contract says the conversation was assigned
@@ -396,7 +390,7 @@ Feature: A node with an `agent-session` property IS an agent
     When the server stops
     And the server starts again on the same port
     And I open the app
-    And the agent panel is open
+    And the node agent's fold is ready
     And I ask the agent "still there?"
     # The anchor first: the count means nothing until the round trip has
     # answered — 0 is where every count starts.
@@ -409,9 +403,10 @@ Feature: A node with an `agent-session` property IS an agent
     # happens to the transcript, because that sentence is the whole reason it is
     # safe to press: the memory is the subtree, and a fresh session reads it.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
+    And I press the agent "door-live"
+    And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
-    When I open the session picker
+    When I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
     And the panel offers a fresh session, saying "the transcript becomes history"
 
@@ -443,7 +438,6 @@ Feature: A node with an `agent-session` property IS an agent
     # open. That is also how a person arrives — a tab that was reading something
     # else, and an agent whose conversation is gone.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
     When the agent refuses to load a conversation
     And I press the agent "door-live"
     Then the panel says the conversation could not be opened
@@ -457,7 +451,7 @@ Feature: A node with an `agent-session` property IS an agent
     # own fresh session, unmoved: the memory is the subtree, so nothing a person
     # wrote is being thrown away, and *try again* is still there beside it for an
     # engine that had merely lost its store for a moment.
-    When I open the session picker
+    When I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
     # ...and pressing it moves. A fresh conversation is `session/new`, which this
     # agent never refused — it said no to the old one — so the node comes back to
@@ -465,7 +459,7 @@ Feature: A node with an `agent-session` property IS an agent
     When I start a fresh session
     Then the panel shows no such refusal
     And the agent "door-live" stands "idle"
-    And the node "door-live" shows the property "agent-session" holding "claude:fake-session-1"
+    And the vault node "door-live" has property "agent-session" holding "claude:fake-session-1"
 
   @agent-stored @scratch:lanes
   Scenario: ... and names the conversations this agent has had before this one
@@ -474,77 +468,48 @@ Feature: A node with an `agent-session` property IS an agent
     # clears. `lane-fresh` takes the newer conversation; the older one — the
     # conversation it superseded — is its history.
     Given I open the outline "lanes.olai"
-    And the agent panel is open
-    When I open the unassigned chats
-    And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
-    And I close the unassigned chats
-    And I open the session picker
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the fold history
     Then the panel says this agent has had 1 past session
     And the past sessions hold "an older conversation"
 
   @agent-stored @scratch:lanes
-  Scenario: A conversation no node claims has no sessions of its own
-    # The negative, and it is what keeps the header honest: *sessions* is a NODE
-    # AGENT's — its history, and the fresh one that ends it — so a chat that is
-    # nobody's has no such control at all, and the way to its siblings is the
-    # sidebar. Both halves in one scenario, because the claim is the difference
-    # between them: the panel comes up in a stored conversation no node names,
-    # and one press puts it in one that is named.
+  Scenario: A filed conversation has the node session controls immediately
     Given I open the outline "lanes.olai"
-    And the agent panel is open
-    Then the panel offers no sessions of its own
-    When I press the door on "door-live"
-    And I open the session picker
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
+    And the past sessions hold "an older conversation"
 
   @agent-stored @scratch:lanes
-  Scenario: An agent that could not be asked is named in the list, not drawn as nothing
-    # *We did not get to look* and *there is nothing here* are different
-    # answers, and this list is the only place either can be given now: an
-    # unread disk drawn as an empty list would be the whole app claiming there
-    # is nothing to migrate.
+  Scenario: A refused listing is named in the filer log and writes no rows
     Given I open the outline "lanes.olai"
-    And the agent panel is open
-    When I ask the agent "lose"
-    And I open the unassigned chats
-    # NAMED, in the agent's own words, as ONE agent's trouble — and this serve
-    # has one agent, so it is the whole of what there was to say.
-    Then the list says "claude" could not be asked, with "the conversation store is unreadable"
-    # ... and the claim that would be a lie is not made.
-    And the unassigned list does not hold "the last conversation"
-    And the list does not claim every conversation belongs to a node agent
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I ask the agent "lose"
+    Then the filer log names "claude" with "the conversation store is unreadable"
+    And the Inbox has 1 filed conversations
+    And the Unassigned row and list are absent
 
-  @scratch:chat
-  Scenario: A conversation started after the tab mounted draws the row, with no reload
-    # THE HOLE pi found driving panel-live's section 7 on a fresh vault
-    # (2026-09-02, ruled a chat bug by the human): the count was asked ONCE,
-    # at tab load — when a fresh vault's listing is empty — and the only
-    # re-ask was pressing the row, which the empty answer does not draw. A row
-    # that cannot be opened because it is not there makes its own refresh the
-    # unreachable half of the bargain. This serve has nothing stored, so the
-    # row starts absent; one conversation later the listing has something to
-    # say, and saying so must not take a tab reload.
-    Given the listing counter is armed
-    And I open the app
-    And the agent panel is open
-    And the roster offers no unassigned chats
-    When I ask the agent "hello"
+  @codex @scratch:chat
+  Scenario: A settled turn files a terminal conversation through its running engine
+    Given the harness keeps distinct sessions on disk
+    And the listing counter is armed
+    And I open the outline "house.olai"
+    And the filer's boot run has settled
+    When I open the node menu of "install"
+    And I choose "Start an agent session" from the node menu
+    And I ask the agent "cabinet conversation"
     And the agent is idle
-    Then the roster offers 1 unassigned chats
-    # ... and NAMED BY THE ANSWER is where asking stops: the next turn settles
-    # into a conversation the listing already says, so the gate pays for no
-    # probe at all. That, and not the row, is what keeps a worked-in directory
-    # from paying an ask per settled turn for the life of a tab. The PRESS,
-    # which is itself an ask, comes after the count is done with.
-    When the list-asks so far are counted
-    And I ask the agent "how are you"
+    And a terminal stores a conversation titled "terminal conversation"
+    And the agent starts so far are counted
+    And the list-asks so far are counted
+    And I ask the agent "check again"
     And the agent is idle
-    Then the roster offers 1 unassigned chats
-    And the list-asks have not grown
-    When I open the unassigned chats
-    Then the unassigned list holds "hello"
-
-  # ── the press's other face: the roster row itself ────────────────────
+    Then the list-asks have grown
+    And the Inbox has 1 filed conversations
+    And no further agent process has started
+    When I open the filed conversation "terminal conversation" as node "terminal-chat"
+    Then the chat shows my message "terminal conversation"
 
   @agent-stored @scratch:lanes
   Scenario: Pressing an agent in the sidebar does BOTH halves of what it means
@@ -567,82 +532,34 @@ Feature: A node with an `agent-session` property IS an agent
     # the panel having MOVED — not the panel happening to be showing the
     # conversation anyway.
     Given I open the outline "backlog.olai"
-    And the agent panel is open
-    Then the panel offers no sessions of its own
+    Then no agent fold is open
     When I press the agent "door-live"
     Then the sidebar marks the outline "lanes.olai" as the one open
-    When I open the session picker
+    When I open the fold history
     Then the panel offers a fresh session, saying "memory is the subtree"
 
-  @corpus:lanes
+  @scratch:lanes
   Scenario: An unbound agent's sidebar press navigates, and says nothing
-    # The half-press, which is the documented intent and not a degradation:
-    # `open()` returns early on a null session, so a row with nothing bound
-    # does the half it can — it takes the reader to the node — and refuses
-    # nothing, because nothing was asked of it that it could not do. The
-    # SILENCE is the assertable half of that: a refusal drawn here would be
-    # a press punishing the reader for a row that was always pressable, and
-    # the roster's refused line is where it would have to say so.
-    #
-    # The panel is first PUT in a provable somewhere — this serve boots into
-    # `door-live`'s own conversation — so "did not move" is a fact after the
-    # press rather than an absence of evidence: the standing stays `idle`,
-    # and the picker is still that conversation's.
     Given I open the outline "backlog.olai"
-    And the agent panel is open
-    Then the agent "door-live" stands "idle"
+    Then the agent "door-live" stands "asleep"
     When I press the agent "door-implement"
     Then the sidebar marks the outline "lanes.olai" as the one open
-    And the agent "door-live" stands "idle"
+    And the agent "door-live" stands "asleep"
     And the agents roster says nothing
-    When I open the session picker
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    And no agent fold is open
 
   # ── what the list must not swallow ────────────────────────────────────
 
   @agent-stored @scratch:lanes
-  Scenario: `+ new` pressed over the list opens a conversation, not one under it
-    # `+ new` opens a conversation, and every other door that does says so to
-    # the list on its way through — the roster row, a chat's own title, a past
-    # session. This one did not, so with one engine the fresh conversation
-    # opened UNDER the list still drawn over it, and with several the question
-    # of which agent could not draw at all until somebody pressed *done*.
+  Scenario: A filed agent's history can be read while its current turn keeps working
     Given I open the outline "lanes.olai"
-    And the agent panel is open
-    When I open the unassigned chats
-    And I start a new conversation
-    Then the chat input takes typing
-    And the unassigned list is not drawn
-
-  @agent-stored @scratch:lanes
-  Scenario: A conversation that cannot be opened mid-turn says so where the reader lands
-    # The list hides on the press, because a press means *take me there* and an
-    # open can hang — so the sentence about one that was REFUSED has to land
-    # where the person now is. A turn in flight is the case: switching
-    # conversations under it is refused, and a refusal drawn into the panel the
-    # press just dismissed is a press that looks like it did nothing.
-    Given I open the outline "lanes.olai"
-    And the agent panel is open
-    When I ask the agent "hold"
-    Then the agent is working
-    And I open the unassigned chats
-    And I pick the conversation "an older conversation"
-    Then the panel refuses, saying "a turn is running"
-    When the agent is released
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I ask the agent "hold"
+    Then the agent "filed-chat" stands "working"
+    When I open the fold history
+    And I open the past session "an older conversation"
+    Then the opened conversation carries the title "an older conversation"
+    And the agent "filed-chat" stands "working"
+    When I press the agent "filed-chat"
+    And the agent is released
     Then the agent is idle
-
-  @agent-stored @scratch:lanes
-  Scenario: Assignment keeps the composer closed until the session handoff replies
-    Given incoming updates to this browser tab can be held
-    And I open the outline "lanes.olai"
-    And the agent panel is open
-    When I open the unassigned chats
-    And I look for a node to give "the last conversation" to, with "lane nobody"
-    And I hold incoming updates to the original browser tab
-    And I give the conversation to the offered node titled "a lane nobody has put an agent on"
-    Then the unassigned list waits for the assignment to finish
-    When I release incoming updates to the original browser tab
-    And I close the unassigned chats
-    And I ask the agent "where were we?"
-    Then the agent was told its contract 1 time
-    And the contract says the conversation was assigned

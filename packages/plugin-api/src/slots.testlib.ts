@@ -4,7 +4,6 @@ export const TEST_SLOTS = [
   slotContract<unknown>("outline.row.chip","kind"),
   slotContract<unknown>("outline.row.pane","kind"),
   slotContract<unknown>("outline.row.block","kind"),
-  slotContract<unknown>("outline.row.door","nothing"),
   slotContract<unknown>("outline.row.action","nothing"),
   slotContract<unknown>("app.route","nothing"),
   slotContract<unknown>("sidebar.entry","nothing"),
@@ -26,7 +25,6 @@ declare module "./slots.ts" {
     "outline.row.chip": SlotDefinition<any,"kind">
     "outline.row.pane": SlotDefinition<any,"kind">
     "outline.row.block": SlotDefinition<any,"kind">
-    "outline.row.door": SlotDefinition<any,"nothing">
     "outline.row.action": SlotDefinition<any,"nothing">
     "app.route": SlotDefinition<any,"nothing">
     "sidebar.entry": SlotDefinition<any,"nothing">

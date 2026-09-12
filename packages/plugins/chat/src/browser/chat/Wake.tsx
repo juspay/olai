@@ -29,7 +29,7 @@
  * never carried away by it, drawn on every conversation and absent only where
  * there is no conversation to have one.
  *
- * ORDER, by the header essay's own argument (`./Panel.tsx`): the servers are
+ * ORDER, by the header essay's own argument (`../agents/Fold.tsx`): the servers are
  * what this conversation HAS, what is running is what it is DOING, and this is
  * what it is LISTENING for — the fact with the longest life last, because it is
  * the one that changes least often and a strip that moved under a reader would
@@ -74,7 +74,7 @@
  *
  * A `QUIET_PILL` trigger, a list hung from the strip's own box rather than from
  * the button (a narrow list `right-0` of a small pill runs off the left of a
- * phone sheet), `aria-expanded` — {@link ./NodeSessions.tsx} argues those in place.
+ * phone sheet), `aria-expanded` — {@link ../agents/History.tsx} argues those in place.
  * The state machine underneath is not argued twice: one union signal, the
  * client's one dismissal for a pointer outside and Escape, and the caret back on
  * the pill when a press is what shut it, all of them

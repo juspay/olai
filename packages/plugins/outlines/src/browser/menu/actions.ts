@@ -82,6 +82,7 @@ const copied = (what: "link" | "text"): Said => ({ tone: "aside", text: `${what}
 export const nodeMenuActions = (args: {
   /** The app's URL grammar, handed in — the shelf verb asks through it
    *  (`./verbs.ts`), and the caller has it off the router it is drawn inside. */
+  readonly placement?: Parameters<typeof writeVerbs>[4]
   readonly routes: Routing
   readonly row: Row
   /** The shelf as the server answered it, for the ONE verb that is about the
@@ -196,6 +197,7 @@ export const nodeMenuActions = (args: {
     subjectOfRow(args.row),
     args.row.under,
     args.pins,
+    args.placement,
   ).map(
     ({ does, ...verb }) => ({
       ...verb,

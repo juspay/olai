@@ -1,8 +1,10 @@
 # The conversation
 
-The chat panel is a plugin. Everything about talking to an agent inside olai — the panel on the right, the transcript, the composer, the wake strip, the agents section in the sidebar, the door on an agent's row, *Ask agent* on a row's `•••` and `>` in the command palette — arrives with one row in the build's plugin list, and a serve that does not name that row has none of it.
-
-What the panel *does* has its own page: [chat.md](../chat.md) is the feature, and nothing on it changed. This page is about the row.
+Chat contributes conversations to outline rows and zoomed node pages, plus the
+standing/start aside, Needs you and Chats, an Agents palette adapter, and the
+Ask agent and `>` gestures. These faces arrive with chat's plugin row and leave
+with it. [chat.md](../chat.md) describes the workflows; this page describes their
+ownership.
 
 ## What turns it on
 
@@ -10,7 +12,9 @@ Nothing. It is on by default, like the appliances and the engines. Two things ta
 
 Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in `⧉`. The switch writes that same property and the choice survives restart. Turning the row back on restores its services and browser contribution.
 
-**Either way you are left with an outliner**, and it is an absence rather than a disabled version of anything. There is no panel, no `surface/chat/` on the wire, no `>` in the palette, no agents section and no door on any row. Switched off at the panel, that absence arrives while you are watching: the members leave the wire, the tab redials, and the outliner is what is left.
+Disabling chat removes its wire members, folds, page faces, standings, sidebar
+regions, palette adapter and `>` command. Surviving outline and document editors
+retain their instances. Enabling it restores the scoped contributions.
 
 ## What waits on it
 
@@ -53,30 +57,66 @@ olai never writes that row for you, and it never reads an undeclared column as a
 
 Each seat is declared by the plugin that owns the place it is in, and chat brings the face. That split is worth knowing if you are reading the code rather than using it:
 
-| seat | who declares it, and what they keep | what chat brings |
+| Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `app.panel` | `layout` — the width the page reserves, the open/closed preference, the drag handle | the dock, the mobile sheet, the minimized strip, the wake strip |
-| `app.header` | `layout` — where in the bar cluster a readout sits | the toggle, and what it says about a waiting question |
-| `sidebar.section` | `sidebar` — the region and its place above the shelf | the agents roster |
-| `outline.row.door` | `outlines` — where under a property run a door is drawn | the agent's row, drawn only where there is one |
-| `outline.row.action` | `outlines` — the menu's order and its dividers | *Ask agent*, and one *Start an agent session* per installed engine |
-| `app.command` | `navigation` — the palette's box, its prefix strip, where a refusal is drawn | `>`, and what it sends |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; each Chats row puts its standing dot before its age |
+| `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
+| `outline.row.aside` | outlines, beside progress before the date | standing or hover/focus start pill |
+| `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
+| `outline.page.head` | outlines, under title above property drawer | agent line |
+| `outline.page.foot` | outlines, after the zoomed subtree | unbounded conversation and composer, or a plain-node composer |
+| `outline.row.action` | outlines' row menu | Ask agent and Start an agent session |
+| `app.command` | navigation's text-command grammar | `>` with nearest-ancestor targeting |
+| `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents and new chat, with engine choices |
 
-Two slots go the other way — chat is the *reader*. An engine plugin hangs its install sentence on `engine.install` and any plugin hangs the mark its delivered sentences wear on `delivery.mark`; the panel draws both, and composes no word of either.
+Chat no longer contributes `app.panel` or `app.header` and names no layout shell
+service. Its four node faces are registered under `AgentsProvider`, reading one
+activation-owned roster. Outlines owns rendering placement and row lifetimes;
+chat owns each conversation reading. A page's head and foot lease one owner
+keyed by pane and node. Last release disposes that owner; a different pane keeps
+its own. Conversation UI state is keyed by engine/session within the activation,
+so drafts, refusals, question state and dismissed completions do not leak across
+conversations.
+
+Chat also declares `engine.install` and `delivery.mark`. The fold registration
+owns these shared child locations once; page faces consume the same locations.
+Reverse withdrawal removes page consumers before the fold's location owner.
+An engine contributes its installation sentence and a delivering plugin its
+mark; chat renders these contributions without inventing either.
+
+Optional dependencies remain in separate scoped components. Navigation and its
+existing palette control supply route changes and choice reset on dismissal;
+outline references supply focused-row context; the search reading supplies
+completions. Ask agent's server lookup does not require search. Removing an
+optional provider releases its held service, and reconnection holds the new
+instance. Pending callbacks cannot navigate a later chat activation.
 
 ## On the wire
 
-Chat's members compose as a sibling, under its own key:
+Chat owns engine and agent-roster cells and a session revision for history
+invalidation. State, transcript deltas and streaming prose are conversation-keyed
+streams taking the exact engine/session pair. Sends, attachments, settings,
+questions and retries carry their conversation identity; stale scope tokens
+refuse rather than acting on another conversation. Multiple browser readers
+share the server's conversation scope. A server restart reopens each retained
+reading and replays its transcript.
 
-```
-surface/chat/state/get                 where the conversation stands
-surface/chat/agents/get                the node-agent roster
-surface/chat/transcript/deltas         the conversation
-surface/chat/saying/deltas             the row still being said
-surface/chat/conversation/send         …and the fourteen verbs
-```
+`conversation.newChat` ensures Chats, mints a child through Ops as `filer`, starts
+its node session, and returns the node id. The browser resolves its current
+location through the existing node lookup before navigating and unfolding.
+Free-floating new/choose/load procedures and the dock's global selection are
+retired. History changes the fold's local visiting pair without editing the
+node binding. `conversation.sessions` remains the stored-history listing.
 
-**The MCP face is unchanged.** Not one chat member was ever on it: an agent talking to this store reads the vault through `surface://` and the ops tools, and the conversation is the human's session at the other end of that. So no client's tool names or URIs moved, and turning chat off changes no agent tool name.
+The filer belongs to chat's server scope. Capture registers its Inbox path in
+the vault-owned registry; chat reads absence immediately and never names a
+capture service. Filing runs only at boot, session revisions, registry arrival,
+and settled node-agent turns (the latter ask only their already-running engine).
+Withdrawal interrupts its work and releases subscriptions.
+
+The MCP face remains the existing vault tools and surface resources; browser
+conversation controls do not become agent tools. Node credentials retain the
+reserved-key refusal and their session-owned cleanup.
 
 ## Turning it off is not the same as turning the agent off
 
@@ -87,17 +127,65 @@ Two switches, two meanings:
 
 The second is the one to reach for by habit. The first is a deployment's word, or a person deciding this serve should stop being a chat for a while.
 
-The browser activation owns one agent roster and conversation reading. Its panel, header, sidebar and row-door contributions provide that same roster only to their own children; row commands close over the scoped reading. Chat no longer wraps the application to provide state, so switching it off leaves surviving outline and document editor instances intact. Agent-list callbacks from a departed activation cannot trigger another lookup.
+Chat's browser activation owns the roster, fold state, visiting pairs and the
+conversation UI cache. Each rendered fold owns its subscriptions; each page
+shares one reading between head and foot. Releasing one leaves other readers
+and ongoing work alone. The new-chat action is shared by the sidebar and palette
+for one pending creation at a time and is disposed with the activation.
 
-Chat's `attention` component names `alerts.channel` and owns the conversation
-fold, watching listeners, cross-tab beat and question press subscription. It
-releases them and clears its badge claim when it leaves. The [alerts row](alerts.md)
-owns permission, notification listeners, preferences, audio and badge devices.
-With that row absent, attention waits; the conversation, forms and header toggle
-continue to work.
+Chat's attention component names `alerts.channel` and owns its scoped watching,
+cross-tab beat and question subscriptions. It clears its badge claim on release.
+Alerts owns notification, audio and badge devices; chat owns the Alerts and
+Alert sound preference controls and their storage observers. Without the alerts
+channel, attention waits while conversations and forms continue working. Reveal
+is identity-free and opens the first Needs you agent; no waiting agent means no
+new fold.
 
-Session settings close and remain disabled while a send is awaiting acceptance,
-including before the server's working-state update arrives. The pending count
-belongs to this browser activation and clears when each send settles. An idle
-panel with an unacknowledged send does not establish that its new turn finished;
-sequential browser workflows wait for both acceptance and idle.
+Session settings close while a send awaits acceptance, even before the server's
+working update. The pending count belongs to that conversation reading and
+clears as its sends settle. Sequential workflows wait for both acceptance and
+idle, rather than treating a stale idle frame as a completed turn.
+
+
+The zoomed agent page has one scroller per pane. Its breadcrumb, title and agent
+line stay at the top; the composer stays at the bottom with safe-area clearance.
+Memory and transcript share the pane scroll. Opening follows the newest line;
+new output follows only while the reader remains at the bottom. Row folds keep
+their own bounded transcript scroller.
+
+Filing clears a conversation's previous manual wake picks. Trashing a node or
+its parent releases its live agent scope. Agent cleanup closes the protocol and
+stops the whole child process group, escalating when it ignores termination,
+before joining pending requests. Opening a ninth held agent reports the capacity
+refusal in its conversation, with an explicit retry.
+
+
+Attention multiplexes watched-node identities over one activation-owned browser
+channel and one set of visibility listeners. Closing that activation releases
+all listeners and heartbeat claims. Fold openness is keyed by the outline
+record, so a mirror and its target open independently; their conversations
+still share the server reading keyed by engine and session.
+
+Filing and new-session binding share a server-owned permit. A live Chats
+container is reused wherever it was moved or renamed. A trashed or non-regular
+reserved record stays untouched; the next free `chats-N` id becomes the live
+container, reused by retries and new chat. Each completed filing write records
+assignment before cancellation can pass its completion boundary.
+
+Already-filed conversations from older builds have their inherited wake picks
+cleared once at startup. A marker in chat's existing local heard record prevents
+later restarts from clearing deliberate new wake choices. A failed cleanup is
+logged and retried, without starting an engine.
+
+
+The page and inline fold use the same owner-scoped `createNodeConversation`
+hook for history resolution, reading acquisition, and question tracking. Page
+opening drafts and fold visibility stay with their respective owners. The
+sidebar and palette compose their presentation with the same focus action;
+route selection cannot drift from returning to the current session and unfolding.
+The subagent shelf inherits page scroll mode, so it adds no scroller to a node
+page; inline shelves retain a bounded scroll.
+
+New-chat creation refreshes the roster from Ops’ committed reading before
+seating the new node: the revision notification used for display can still be
+queued after the write returns.

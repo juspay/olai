@@ -7,17 +7,18 @@ Feature: A pending fresh-session request is one node conversation replacement
     When I open the node menu of "install"
     And I choose "Start an agent session" from the node menu
     Then the panel header names the node agent "install the cabinets"
-    And the agent panel is open
+    And the node agent's fold is ready
     When I ask the agent "before pending fresh"
     Then the agent has answered "before pending fresh" exactly once
     When I remember this conversation as "original"
     And I mark the page
-    And I open the session picker
+    And I open the fold history
     And I hold incoming updates to the original browser tab
     And I start a fresh session
     And I open another browser tab
+    And I unfold node agent "install"
     Then the panel header names the node agent "install the cabinets"
-    And the agent panel is open
+    And the node agent's fold is ready
     And the panel has a different conversation from "original"
     When I remember this conversation as "replacement"
     And I use the original browser tab
@@ -27,7 +28,7 @@ Feature: A pending fresh-session request is one node conversation replacement
     Then the panel is in the remembered conversation "replacement"
     When I ask the agent "after pending fresh"
     Then the agent has answered "after pending fresh" exactly once
-    When I open the session picker
+    When I open the fold history
     Then the panel says this agent has had 1 past session
     And the past sessions hold "before pending fresh"
     When I start a fresh session

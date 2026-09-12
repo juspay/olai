@@ -53,8 +53,10 @@ Feature: An answer leaves the rows it did not change standing
     # at once, and the nodes are a debounce and a round trip behind. Drawn by
     # reference, the file rows a reader was already looking at were thrown away
     # and drawn again the moment the second half arrived.
-    Given I mark the page
-    And the agent panel is open
+    Given I open the outline "house.olai"
+    And I mark the page
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I type "read @fin" into the chat
     Then the name completion is open
     And the completion offers "finishes.md"

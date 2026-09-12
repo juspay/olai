@@ -32,6 +32,8 @@ import { chunkOf } from "../support/chunks.ts";
 import { pressed } from "../support/settling.ts";
 
 import {
+  attr,
+  HYDRATION_TIMEOUT,
   NODE_GUTTER,
   NODE_MENU,
   NODE_MENU_CONFIRM,
@@ -63,6 +65,7 @@ const entry = async (world: OlaiWorld, label: string) =>
  *  the row is hovered), then the press itself. `force` because opacity is not
  *  something Playwright's actionability check can see through. */
 const pressDots = async (world: OlaiWorld, id: string): Promise<void> => {
+  world.menuNode = id;
   await revealGutter(world, id);
   await world.within(id, NODE_MENU).click({ force: true });
   await world.waitForFrame();
@@ -94,6 +97,7 @@ When(
 When(
   "I open the node menu of {string} with the keyboard",
   async function (this: OlaiWorld, id: string) {
+    this.menuNode = id;
     await this.focusWithin(id, NODE_MENU);
     await pressed(this, "Enter");
     await panelOf(this);
@@ -116,6 +120,7 @@ When(
 When(
   "I hold a finger on the node {string}",
   async function (this: OlaiWorld, id: string) {
+    this.menuNode = id;
     await this.hold(this.within(id, NODE_GUTTER));
   },
 );
@@ -244,6 +249,15 @@ Then(
   async function (this: OlaiWorld, id: string) {
     const panel = await panelOf(this);
     const heading = this.within(id, NODE_GUTTER);
+    // Floating placement can flip after the menu first becomes visible. The
+    // layer assertion needs the settled overlap, not its initial coordinates.
+    await this.waitUntil(async () => {
+      const over = await panel.boundingBox();
+      const under = await heading.boundingBox();
+      return over !== null && under !== null &&
+        Math.min(over.x + over.width, under.x + under.width) > Math.max(over.x, under.x) &&
+        Math.min(over.y + over.height, under.y + under.height) > Math.max(over.y, under.y);
+    }, `the node menu to settle across the section heading "${id}"`);
     const over = await this.box(panel, "the node menu");
     const under = await this.box(heading, `the section heading "${id}"`);
     const left = Math.max(over.x, under.x);
@@ -340,11 +354,17 @@ When(
   "I choose {string} from the node menu",
   async function (this: OlaiWorld, label: string) {
     const item = await entry(this, label);
+    const startingNode = label.startsWith("Start an agent session") ? this.menuNode : null;
     // A tall menu scrolls independently of the outline. Reveal the item in
     // that scrollport before the page's sticky-cover check hit-tests it.
     await item.scrollIntoViewIfNeeded({ timeout: POLL_TIMEOUT });
     await this.waitForFrame();
     await this.press(item);
+    if (startingNode !== null) {
+      const owned = this.page.locator(`${selector(TESTID.agentFold)}${attr("data-agent", this.nodeId(startingNode))}`);
+      await this.waitUntil(async () => await owned.isVisible() || await this.page.locator(NODE_MENU_SAID).isVisible(), "the start action to finish", HYDRATION_TIMEOUT);
+      if (await owned.isVisible()) this.activeAgent = startingNode;
+    }
   },
 );
 

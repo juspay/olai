@@ -33,7 +33,7 @@ refusing in its own words.
 
 ## In the browser
 
-The desktop pill uses `app.header`. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable above the minimized chat strip.
+The desktop pill uses `app.header`. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable while an agent conversation is open.
 
 ## On the wire
 

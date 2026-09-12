@@ -3,7 +3,9 @@ Feature: A plugin command cannot close a newer palette interaction
   Scenario: A delayed chat command leaves a reopened search palette alone
     Given incoming updates to this browser tab can be held
     And I open the outline "house.olai"
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I press the palette shortcut
     And I type "> hello from the palette" into the palette
     And I hold incoming updates to the original browser tab

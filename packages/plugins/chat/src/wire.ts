@@ -37,15 +37,17 @@
  * closure and asserts it rather than trusting this paragraph.
  */
 
-import { defineSurface } from "@kolu/surface/define"
+import { collection } from "@kolu/surface"
+import { Conversing } from "./wire/session.ts"
+import { collectionDeltasSchema, defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
 import { Agents, NO_AGENT_ROSTER, sameAgentRoster } from "./wire/agents.ts"
 import {
   AskAnswer,
+  AgentChoice,
   AttachChunk,
   Attached,
-  CHAT_OFF,
   ChatEntry,
   ChatFailure,
   ChatState,
@@ -59,6 +61,8 @@ import {
  *  the file’s row selection takes. Spelled once, here — and because the sibling key IS the
  *  wire prefix, the name and every tag it appears in cannot drift apart. */
 export const name = "chat"
+export const transcriptRows = collection({ name: "transcript", keySchema: Schema.String, schema: ChatEntry })
+export const sayingRows = collection({ name: "saying", keySchema: Schema.String, schema: Saying })
 
 /**
  * THE FOUR MEMBERS AND THE FOURTEEN VERBS, as a surface of their own.
@@ -73,26 +77,7 @@ export const surface = defineSurface({
   cells: {
     /** Completed node-session replacements invalidate every tab's history. */
     sessionsRevision: { schema: Schema.Number, default: 0, verbs: ["get"] },
-    state: {
-      schema: ChatState,
-      default: CHAT_OFF,
-      verbs: ["get"],
-      /** A COMMAND AND A TOOL SERVER ARE EACH THEIR `name` — the two arrays
-       *  this cell carries, and both spell their identity the same way
-       *  (`./wire/members.ts`'s `Command.name` and `ChatServer.name`, required and
-       *  non-nullable).
-       *
-       *  This cell has no `equals`, and it moves for reasons that have nothing
-       *  to do with either list: a turn going `idle → thinking`, a `usage`
-       *  update per report, an `asking` count. Every one of those frames used
-       *  to replace every command and every server row — so
-       *  `chat/Roster.tsx`'s `<For each={servers()}>`, which is keyed by
-       *  reference, rebuilt the panel a reader was in the middle of reading,
-       *  mid-turn, on every token report. The roster is drawn on EVERY
-       *  conversation now rather than only on a broken one, so what that key
-       *  buys has gone from rare to permanent. */
-      arrayKey: "name",
-    },
+    engines: { schema: Schema.Array(AgentChoice), default: [], verbs: ["get"], arrayKey: "id" },
     agents: {
       schema: Agents,
       default: NO_AGENT_ROSTER,
@@ -108,42 +93,10 @@ export const surface = defineSurface({
       arrayKey: "id",
     },
   },
-  collections: {
-    /** The conversation. `deltas` is the whole point — see {@link ./wire/members.ts}:
-     *  one subscription carries both the history a late joiner needs and the
-     *  frames a live tab is watching. Read-only on the wire: a transcript is
-     *  something that HAPPENED, and the only way to add to it is to prompt. */
-    transcript: {
-      keySchema: Schema.String,
-      schema: ChatEntry,
-      verbs: ["keys", "get", "deltas"],
-    },
-    /**
-     * THE ROW THAT IS STILL BEING SAID, in pieces — the transcript's second
-     * member and the reason a streaming answer costs the wire the answer
-     * ({@link ./wire/members.ts}'s `Saying`, which argues the whole thing).
-     *
-     * A SECOND MEMBER rather than a second delivery of the first, and the
-     * argument is the one the header above makes about events: the two carry
-     * different facts. `transcript` carries ROWS, whole, and answers a late
-     * joiner with the conversation; this carries the PIECES of the one row
-     * still growing, which nobody needs a history of — a reader that missed
-     * them has the text in the row. So the expensive promise is kept once, by
-     * the member that has to keep it, and the cheap frames are cheap.
-     *
-     * `deltas` and nothing else. There is no key here anybody looks up: a
-     * piece is found by the row it names, off the frames as they arrive, and
-     * `keys`/`get` would be two verbs offered to nobody. Read-only on the
-     * wire for `transcript`'s reason, one step sharper — this is not even
-     * something that happened, it is how something that is happening is
-     * being delivered.
-     */
-    saying: {
-      keySchema: Schema.String,
-      schema: Saying,
-      verbs: ["deltas"],
-    },
-
+  streams: {
+    state: { inputSchema: Conversing, outputSchema: ChatState, arrayKey: "name" },
+    transcript: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
+    saying: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
   },
   procedures: {
     conversation: {
@@ -152,6 +105,7 @@ export const surface = defineSurface({
        *  open tab stays in step and a slow turn does not hold a call open. */
       send: {
         input: Schema.Struct({
+          conv: Conversing,
           scope: Schema.NullOr(Schema.String),
           text: Schema.String,
           /**
@@ -222,7 +176,7 @@ export const surface = defineSurface({
        * able to produce.
        */
       resend: {
-        input: Schema.Struct({ scope: Schema.NullOr(Schema.String), id: Schema.String }),
+        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String), id: Schema.String }),
         error: ChatFailure,
       },
       /** One chunk of a picture, into the conversation's tmp directory.
@@ -235,7 +189,7 @@ export const surface = defineSurface({
        *  questions — `attach` says where the bytes landed, `send` says a turn
        *  was accepted — and a file is N calls to one send. */
       attach: {
-        input: AttachChunk,
+        input: Schema.Struct({ ...AttachChunk.fields, conv: Conversing }),
         output: Attached,
         error: ChatFailure,
       },
@@ -243,7 +197,7 @@ export const surface = defineSurface({
        *  Legal while the agent is still booting — the cancel is remembered
        *  and sent with the prompt. An outdated tab cannot cancel another node. */
       cancel: {
-        input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       setSetting: {
@@ -255,48 +209,18 @@ export const surface = defineSurface({
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, value: Schema.String }),
         error: ChatFailure,
       },
-      /** Start a fresh conversation WITH the named agent — one of
-       *  {@link ChatState.roster}'s ids. The agent-side context goes away and
-       *  the transcript is emptied.
-       *
-       *  The agent is REQUIRED, and that is the ruling rather than an
-       *  ergonomic: every new chat asks which one, and no default is
-       *  remembered across conversations. A verb that could be called without
-       *  one would be the place a default grew back. Refuses an id this machine
-       *  does not have, which is what a tab open across a restart can send. */
-      newSession: {
+      /** Ensure an Inbox node, start its engine, then return the node id. */
+      newChat: {
         input: Schema.Struct({ agent: Schema.String }),
+        output: Schema.String,
         error: ChatFailure,
       },
-      /**
-       * START A NODE AGENT'S SESSION: open a fresh conversation with the engine
-       * that node's `agent-session` property already names, and write the
-       * session it opened back onto the property.
-       *
-       * The `•••` menu's verb, and the one gesture in olai that binds a node
-       * agent to a conversation. It is HERE — one procedure rather than a
-       * `newSession` the browser follows with an `edit.apply` — because a
-       * browser cannot learn which session was opened: {@link newSession}
-       * answers with nothing, and a tab watching the state cell for a session
-       * to appear would be racing every other tab's turn.
-       *
-       * SESSION FIRST, PROPERTY SECOND, and the order is the guarantee: the
-       * vault never names a conversation that does not exist. The other order
-       * fails the other way — a property pointing at a session that was never
-       * opened, on a row whose door refuses for ever.
-       *
-       * WHICH ENGINE is the browser's to say, for {@link newSession}'s reason
-       * word for word: there is no default anywhere in this app, and a verb
-       * that could be called without one would be where a default grew back.
-       * What the menu sends is the engine the node's own property names, which
-       * is the only reading of *that node's agent* — a node with no property is
-       * not a node agent, and the menu does not offer this on one.
-       *
-       * Refuses whatever either half refuses: an engine this machine does not
-       * have, an agent that would not start, and every reason the ops layer has
-       * for declining to write a property — a record that is gone, a file that
-       * would not take the write.
-       */
+      /** Resolve the focused row's nearest ancestor agent, including itself. */
+      agentAbove: {
+        input: Schema.Struct({ node: Schema.String }),
+        output: Schema.NullOr(Schema.Struct({ node: Schema.String, file: Schema.String, agent: Schema.String, session: Schema.NullOr(Schema.String) })),
+        error: ChatFailure,
+      },
       startAgentSession: {
         input: Schema.Struct({
           /** The node whose property is about to name the session — the id the
@@ -305,79 +229,7 @@ export const surface = defineSurface({
           /** ... and the engine to open it with, off that node's property. */
           agent: Schema.String,
         }),
-        error: ChatFailure,
-      },
-      /**
-       * ASSIGN AN EXISTING CONVERSATION TO A NODE: write `agent-session:
-       * <engine>:<session>` onto that node, for a chat that already exists.
-       *
-       * The migration gesture, and the mirror image of {@link
-       * startAgentSession}: there, the session is opened and the property
-       * follows; here BOTH ALREADY EXIST and what is missing is the sentence
-       * that joins them. Nothing moves on disk — the session file stays
-       * wherever its agent keeps it — and the conversation becomes that node
-       * agent's current session with its context intact.
-       *
-       * THE ENGINE IS THE CHAT'S OWN, and the value is written whole: a session
-       * id means nothing to the wrong agent, so the pair travels together and a
-       * node that named a DIFFERENT engine is re-pointed rather than half
-       * rewritten. A property naming one engine and another engine's
-       * conversation would be a node agent nobody could open.
-       *
-       * IT IS HERE rather than being an `edit.apply` from the browser, and the
-       * reason is not the write: it is that assigning has a SECOND half this
-       * machine keeps — that this session ARRIVED by assignment, which is what
-       * decides the contract it is taught on its next message (`olai-plugin-chat`'s
-       * `teaching.ts`). A browser writing the property alone would bind the
-       * conversation and lose the distillation order.
-       *
-       * REFUSES A NODE THAT IS ALREADY TALKING through a conversation, in a
-       * plain sentence: one agent, one current session. Replacing a live
-       * binding is the *fresh session* affordance, which is
-       * {@link startAgentSession} on a bound node and says what happens to the
-       * transcript. Refuses whatever the ops layer refuses besides — a record
-       * that is gone, a file that would not take the write.
-       */
-      assignSession: {
-        input: Schema.Struct({
-          /** The node that is about to claim the conversation — the id a
-           *  search hit or a roster row answers with. */
-          node: Schema.String,
-          /** WHOSE conversation it is: one of {@link ChatState.roster}'s ids,
-           *  off the row in the list ({@link SessionInfo}). */
-          agent: Schema.String,
-          /** ... and WHICH conversation, by the id that agent stores it
-           *  under. */
-          session: Schema.String,
-        }),
-        error: ChatFailure,
-      },
-      /** Answer the question the panel is asking ({@link ChatState.talking}'s
-       *  `asking` arm):
-       *  THIS agent, now open the conversation you would have opened.
-       *
-       *  Not {@link newSession} with the same argument. A boot that stopped to
-       *  ask has not asked for a new conversation — it was stopped before it
-       *  could come back to the one this directory was in — so this opens that
-       *  agent's remembered conversation, or its most recent, and only mints a
-       *  fresh one where it has none. `+ new` is the verb that always means
-       *  fresh. */
-      chooseAgent: {
-        input: Schema.Struct({ agent: Schema.String }),
-        error: ChatFailure,
-      },
-      /** Move to one of the stored conversations. The transcript is replaced by
-       *  the replay, because a transcript of a session you are not in is a lie.
-       *
-       *  WITH the agent whose conversation it is, which the row itself carries
-       *  ({@link SessionInfo}). The list spans every installed agent now, so a
-       *  row picked out of it may belong to the one this panel is NOT talking
-       *  to — and opening it is a change of agent as well as of conversation,
-       *  exactly the change {@link newSession} makes. A session id means
-       *  nothing to the wrong agent, so this is not a detail the server could
-       *  work out from the id. Refuses an agent this machine does not have. */
-      loadSession: {
-        input: Schema.Struct({ agent: Schema.String, id: Schema.String }),
+        output: Conversing,
         error: ChatFailure,
       },
       /** Try the OPEN that was refused again — the one the panel is holding a
@@ -388,7 +240,7 @@ export const surface = defineSurface({
        *  the way it keeps the prompt behind an undelivered message. Refuses
        *  when there is nothing waiting to be opened again. */
       reopen: {
-        input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       /** EVERY installed agent's stored conversations for this directory,
@@ -408,6 +260,7 @@ export const surface = defineSurface({
        *  which is why both are verbs rather than a write to the transcript. */
       answer: {
         input: Schema.Struct({
+          conv: Conversing,
           id: Schema.String,
           answers: Schema.Array(AskAnswer),
         }),
@@ -416,7 +269,7 @@ export const surface = defineSurface({
       /** Dismiss one, honestly: the agent is told a person declined to answer,
        *  and never handed an answer nobody gave. */
       decline: {
-        input: Schema.Struct({ id: Schema.String }),
+        input: Schema.Struct({ conv: Conversing, id: Schema.String }),
         error: ChatFailure,
       },
       /**
@@ -442,7 +295,7 @@ export const surface = defineSurface({
        */
       scope: {
         input: Schema.Struct({
-          /** WHICH conversation, as the exact pair {@link loadSession} takes.
+          /** WHICH conversation, as the exact pair a conversation reading takes.
            *  A session id means nothing to the wrong agent, and the panel's own
            *  session can move under a picker somebody left open — a boot opens
            *  one with no verb called at all — so a scope that meant "whichever
@@ -454,7 +307,7 @@ export const surface = defineSurface({
            *  file spells no plugin; the value came off `../plugins.ts`' rows,
            *  which came off the registry. Refused when this serve composed no
            *  such plugin, or when the one it names declares no wake — the same
-           *  refusal {@link chooseAgent} gives an id this machine does not have.
+           *  refusal an engine lookup gives an id this machine does not have.
            */
           plugin: Schema.String,
           /** The file to filter by — root-relative and `/`-spelled, the one
@@ -505,6 +358,7 @@ export const faces = {
   browser: {
     sessionsRevision: "resource",
     state: "resource",
+    engines: "resource",
     agents: "resource",
     transcript: "resource",
     saying: "resource",
@@ -514,11 +368,9 @@ export const faces = {
     "conversation.cancel": "tool",
     "conversation.setModel": "tool",
     "conversation.setSetting": "tool",
-    "conversation.newSession": "tool",
+    "conversation.newChat": "tool",
     "conversation.startAgentSession": "tool",
-    "conversation.assignSession": "tool",
-    "conversation.chooseAgent": "tool",
-    "conversation.loadSession": "tool",
+    "conversation.agentAbove": "tool",
     "conversation.reopen": "tool",
     "conversation.sessions": "tool",
     "conversation.answer": "tool",
