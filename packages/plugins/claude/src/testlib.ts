@@ -11,5 +11,6 @@ export const announced = (server: string, tool: string, args: unknown): Partial<
   return { title: spelling(server) + tool, kind: "other", rawInput: args, _meta: { claudeCode: { toolName: spelling(server) + tool } } }
 }
 export const wrapped = (result: CallToolResult): { rawOutput: unknown; content?: ToolCallContent[] } => {
-  return { rawOutput: result.content, content: result.content.map(content => ({ type: "content", content })) }
+  // Real Claude sessions flatten text-only MCP results to a JSON string.
+  return { rawOutput: result.content.map(part => part.text).join("\n"), content: result.content.map(content => ({ type: "content", content })) }
 }

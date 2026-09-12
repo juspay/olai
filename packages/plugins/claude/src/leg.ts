@@ -803,8 +803,11 @@ function record(value: unknown): Record<string, unknown> | undefined {
 }
 
 export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined {
-  if (!Array.isArray(rawOutput)) return undefined
-  const text = rawOutput.find(block => record(block)?.["type"] === "text")?.text
+  // The SDK emits tool_result.content as either a string or content blocks;
+  // the pinned ACP adapter forwards that value unchanged as rawOutput.
+  const text = typeof rawOutput === "string" ? rawOutput
+    : Array.isArray(rawOutput) ? rawOutput.find(block => record(block)?.["type"] === "text")?.text
+    : undefined
   if (typeof text !== "string") return undefined
   try { return record(JSON.parse(text)) } catch { return undefined }
 }

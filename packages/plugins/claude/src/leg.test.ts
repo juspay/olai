@@ -917,3 +917,16 @@ test("the first text block is the reply, and only a record is a reply", () => {
   expect(CLAUDE.replyIn({ structuredContent: { file: "one.olai" } })).toBeUndefined()
   expect(CLAUDE.mcpCall({ name: "bash", title: "mcp__olai__outlines_done" }, ["olai"])).toBeNull()
 })
+
+// Sanitized shape from the real Claude session reported on PR #583: the SDK
+// stored tool_result.content as a string, forwarded unchanged by ACP. This
+// literal is independent of the fake so a fixture mistake cannot hide it.
+test("real Claude JSON-string writes retain file and story facts", () => {
+  const raw = '{"id":"sample","title":"sample (edited)","file":"Inbox.olai","summary":"updated","rev":2,"sort":"done","did":"outlines_update","root":"/served"}'
+  const reply = JSON.parse(raw)
+  expect(CLAUDE.replyIn(raw)).toEqual(reply)
+  expect(CLAUDE.replyIn([{ type: "text", text: raw }])).toEqual(reply)
+  for (const raw of ["permission denied", "{broken", "[]", "null", "42", '"text"', "true", undefined]) {
+    expect(CLAUDE.replyIn(raw)).toBeUndefined()
+  }
+})
