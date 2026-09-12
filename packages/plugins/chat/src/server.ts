@@ -1,3 +1,4 @@
+import { newChat } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -510,12 +511,6 @@ export default definePlugin({
      *  the time either reader asks. */
     const rings = wakes.declared
 
-    const openedConversation = (open: Chat.Chat): Effect.Effect<Conversing, OpFailure> => {
-      const who = whoOf(open.state())
-      return who === null ? Effect.fail(new UsageFailure({ reason: "the agent opened no conversation" }))
-        : Effect.succeed({ agent: who.agent, session: who.session })
-    }
-
     const conversation = {
       // The ids the composer was armed with become NODES here, over the same
       // reading a keystroke's write is resolved against — so what the agent is
@@ -547,8 +542,17 @@ export default definePlugin({
         withChat((open) => open.inConversation(input, undefined, panel => panel.setSetting(input.agent, input.session, input.config, input.value))),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
         withChat((open) => open.inConversation(input, undefined, panel => panel.setModel(input.agent, input.session, input.value))),
-      newSession: ({ input }: { input: { agent: string } }) =>
-        withChat((open) => Effect.andThen(open.newSession(input.agent), () => openedConversation(open))),
+      newChat: ({ input }: { input: { agent: string } }) =>
+        withChat(open => {
+          const gate = ops.gate as WriteGate
+          return newChat({ current: vault.inbox.current, read: gate.read,
+            write: request => gate.run(request, "filer"),
+            start: (node, agent) => startAgentSession(open, binding, { node, agent }),
+          }, input.agent)
+        }).pipe(Effect.tap(() => Effect.gen(function*() {
+          mine?.cells.sessionsRevision.set(++sessionsRevision)
+          if (filer !== null) yield* filer.full
+        }))),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
       agentAbove: ({ input }: { input: { node: string } }) => Effect.sync(() => {
@@ -564,11 +568,6 @@ export default definePlugin({
             if (filer !== null) yield* filer.full
           })),
         ),
-      chooseAgent: ({ input }: { input: { agent: string } }) =>
-        withChat((open) => Effect.andThen(open.chooseAgent(input.agent), () => openedConversation(open))),
-      loadSession: ({ input }: { input: { agent: string; id: string } }) =>
-        withChat((open) => nodeAgents.agentAt({ agent: input.agent, session: input.id }) === null
-          ? open.loadSession(input.agent, input.id) : Effect.void),
       reopen: ({ input }: { input: { conv: Conversing; scope: string | null } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.reopen)),
       sessions: () => withChat((open) => open.sessions),

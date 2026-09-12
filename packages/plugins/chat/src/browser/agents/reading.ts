@@ -1,3 +1,4 @@
+import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
 import { createEffect, createRoot, createSignal, onCleanup } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
@@ -9,6 +10,7 @@ import { createPageOwners } from "./page-owners.ts"
 import type { PageSession } from "./Page.tsx"
 
 export const createAgentReadings = (agents: Roster) => {
+  const newChat = createNewChat()
   const page = createPageOwners<PageSession>()
   const previews = createPreviews()
   const reveals = new Set<string>()
@@ -25,7 +27,7 @@ export const createAgentReadings = (agents: Roster) => {
   }
   const [readings, setReadings] = createSignal<ReadonlyMap<string, ReadonlySet<Chat>>>(new Map())
   return {
-    agents, ui, page,
+    agents, ui, page, newChat,
     visiting: (node: string) => visits().get(node),
     visit: (node: string, to?: Conversing) => setVisits(before => {
       const next = new Map(before)

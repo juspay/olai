@@ -2353,7 +2353,8 @@ Then(
 );
 
 When("I start a new conversation", async function (this: OlaiWorld) {
-  await this.chat(CHAT_NEW).click();
+  await this.showSidebar();
+  await this.page.locator(CHAT_NEW).click();
 });
 
 Then("the chat is empty", async function (this: OlaiWorld) {

@@ -36,7 +36,7 @@ export const claimed = (reading: Reading, sessions: ReadonlyArray<SessionInfo>):
   return keys
 }
 
-export const ensureChats = (filing: Filing, file: string): Effect.Effect<void, OpFailure> => Effect.gen(function*() {
+export const ensureChats = (filing: Pick<Filing, "read" | "write">, file: string): Effect.Effect<void, OpFailure> => Effect.gen(function*() {
   const reading = yield* filing.read
   const existing = reading.derived.byId.get(CHATS)
   if (existing !== undefined && existing.file === file) return

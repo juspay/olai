@@ -544,6 +544,7 @@ test("every dynamic import() the client spells takes a literal the bundler can r
   expect(offenders).toEqual([])
   expect(filesSpelling(/\bimport\s*\(/)).toEqual([
     "markdown-ui/src/chunk.ts",
+    "plugins/chat/src/browser/agents/NewChat.tsx",
     "plugins/chat/src/browser/agents/Standing.tsx",
     "plugins/kolu/src/appliance/props/LivePane.tsx",
     "plugins/outlines/src/browser/menu/chunk.ts",

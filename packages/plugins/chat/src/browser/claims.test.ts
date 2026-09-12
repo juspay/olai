@@ -247,7 +247,7 @@ test("every dynamic import() this tree spells takes a literal the bundler can re
   // EMPTY for the reason above, and the OFFENDER check beside it is the half
   // that matters: a computed specifier in this tree cuts the bundle just as
   // surely as one in core's, and this is where that is asked of the panel.
-  expect(filesSpelling(/\bimport\s*\(/)).toEqual([path.join("agents", "Standing.tsx")])
+  expect(filesSpelling(/\bimport\s*\(/)).toEqual([path.join("agents", "NewChat.tsx"), path.join("agents", "Standing.tsx")])
 })
 
 // `dismiss.ts`'s stack, from the side that joins it without its gestures. The

@@ -209,49 +209,13 @@ export const surface = defineSurface({
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, value: Schema.String }),
         error: ChatFailure,
       },
-      /** Start a fresh conversation WITH the named agent — one of
-       *  {@link ChatState.roster}'s ids. The agent-side context goes away and
-       *  the transcript is emptied.
-       *
-       *  The agent is REQUIRED, and that is the ruling rather than an
-       *  ergonomic: every new chat asks which one, and no default is
-       *  remembered across conversations. A verb that could be called without
-       *  one would be the place a default grew back. Refuses an id this machine
-       *  does not have, which is what a tab open across a restart can send. */
-      newSession: {
+      /** Ensure an Inbox node, start its engine, then return the node id. */
+      newChat: {
         input: Schema.Struct({ agent: Schema.String }),
-        output: Conversing,
+        output: Schema.String,
         error: ChatFailure,
       },
-      /**
-       * START A NODE AGENT'S SESSION: open a fresh conversation with the engine
-       * that node's `agent-session` property already names, and write the
-       * session it opened back onto the property.
-       *
-       * The `•••` menu's verb, and the one gesture in olai that binds a node
-       * agent to a conversation. It is HERE — one procedure rather than a
-       * `newSession` the browser follows with an `edit.apply` — because a
-       * browser cannot learn which session was opened: {@link newSession}
-       * answers with nothing, and a tab watching the state cell for a session
-       * to appear would be racing every other tab's turn.
-       *
-       * SESSION FIRST, PROPERTY SECOND, and the order is the guarantee: the
-       * vault never names a conversation that does not exist. The other order
-       * fails the other way — a property pointing at a session that was never
-       * opened, on a row whose door refuses for ever.
-       *
-       * WHICH ENGINE is the browser's to say, for {@link newSession}'s reason
-       * word for word: there is no default anywhere in this app, and a verb
-       * that could be called without one would be where a default grew back.
-       * What the menu sends is the engine the node's own property names, which
-       * is the only reading of *that node's agent* — a node with no property is
-       * not a node agent, and the menu does not offer this on one.
-       *
-       * Refuses whatever either half refuses: an engine this machine does not
-       * have, an agent that would not start, and every reason the ops layer has
-       * for declining to write a property — a record that is gone, a file that
-       * would not take the write.
-       */
+      /** Resolve the focused row's nearest ancestor agent, including itself. */
       agentAbove: {
         input: Schema.Struct({ node: Schema.String }),
         output: Schema.NullOr(Schema.Struct({ node: Schema.String, file: Schema.String, agent: Schema.String, session: Schema.NullOr(Schema.String) })),
@@ -266,66 +230,6 @@ export const surface = defineSurface({
           agent: Schema.String,
         }),
         output: Conversing,
-        error: ChatFailure,
-      },
-      /**
-       * ASSIGN AN EXISTING CONVERSATION TO A NODE: write `agent-session:
-       * <engine>:<session>` onto that node, for a chat that already exists.
-       *
-       * The migration gesture, and the mirror image of {@link
-       * startAgentSession}: there, the session is opened and the property
-       * follows; here BOTH ALREADY EXIST and what is missing is the sentence
-       * that joins them. Nothing moves on disk — the session file stays
-       * wherever its agent keeps it — and the conversation becomes that node
-       * agent's current session with its context intact.
-       *
-       * THE ENGINE IS THE CHAT'S OWN, and the value is written whole: a session
-       * id means nothing to the wrong agent, so the pair travels together and a
-       * node that named a DIFFERENT engine is re-pointed rather than half
-       * rewritten. A property naming one engine and another engine's
-       * conversation would be a node agent nobody could open.
-       *
-       * IT IS HERE rather than being an `edit.apply` from the browser, and the
-       * reason is not the write: it is that assigning has a SECOND half this
-       * machine keeps — that this session ARRIVED by assignment, which is what
-       * decides the contract it is taught on its next message (`olai-plugin-chat`'s
-       * `teaching.ts`). A browser writing the property alone would bind the
-       * conversation and lose the distillation order.
-       *
-       * REFUSES A NODE THAT IS ALREADY TALKING through a conversation, in a
-       * plain sentence: one agent, one current session. Replacing a live
-       * binding is the *fresh session* affordance, which is
-       * {@link startAgentSession} on a bound node and says what happens to the
-       * transcript. Refuses whatever the ops layer refuses besides — a record
-       * that is gone, a file that would not take the write.
-       */
-      /** Answer the question the panel is asking ({@link ChatState.talking}'s
-       *  `asking` arm):
-       *  THIS agent, now open the conversation you would have opened.
-       *
-       *  Not {@link newSession} with the same argument. A boot that stopped to
-       *  ask has not asked for a new conversation — it was stopped before it
-       *  could come back to the one this directory was in — so this opens that
-       *  agent's remembered conversation, or its most recent, and only mints a
-       *  fresh one where it has none. `+ new` is the verb that always means
-       *  fresh. */
-      chooseAgent: {
-        input: Schema.Struct({ agent: Schema.String }),
-        output: Conversing,
-        error: ChatFailure,
-      },
-      /** Move to one of the stored conversations. The transcript is replaced by
-       *  the replay, because a transcript of a session you are not in is a lie.
-       *
-       *  WITH the agent whose conversation it is, which the row itself carries
-       *  ({@link SessionInfo}). The list spans every installed agent now, so a
-       *  row picked out of it may belong to the one this panel is NOT talking
-       *  to — and opening it is a change of agent as well as of conversation,
-       *  exactly the change {@link newSession} makes. A session id means
-       *  nothing to the wrong agent, so this is not a detail the server could
-       *  work out from the id. Refuses an agent this machine does not have. */
-      loadSession: {
-        input: Schema.Struct({ agent: Schema.String, id: Schema.String }),
         error: ChatFailure,
       },
       /** Try the OPEN that was refused again — the one the panel is holding a
@@ -391,7 +295,7 @@ export const surface = defineSurface({
        */
       scope: {
         input: Schema.Struct({
-          /** WHICH conversation, as the exact pair {@link loadSession} takes.
+          /** WHICH conversation, as the exact pair a conversation reading takes.
            *  A session id means nothing to the wrong agent, and the panel's own
            *  session can move under a picker somebody left open — a boot opens
            *  one with no verb called at all — so a scope that meant "whichever
@@ -403,7 +307,7 @@ export const surface = defineSurface({
            *  file spells no plugin; the value came off `../plugins.ts`' rows,
            *  which came off the registry. Refused when this serve composed no
            *  such plugin, or when the one it names declares no wake — the same
-           *  refusal {@link chooseAgent} gives an id this machine does not have.
+           *  refusal an engine lookup gives an id this machine does not have.
            */
           plugin: Schema.String,
           /** The file to filter by — root-relative and `/`-spelled, the one
@@ -464,11 +368,9 @@ export const faces = {
     "conversation.cancel": "tool",
     "conversation.setModel": "tool",
     "conversation.setSetting": "tool",
-    "conversation.newSession": "tool",
+    "conversation.newChat": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.agentAbove": "tool",
-    "conversation.chooseAgent": "tool",
-    "conversation.loadSession": "tool",
     "conversation.reopen": "tool",
     "conversation.sessions": "tool",
     "conversation.answer": "tool",

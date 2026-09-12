@@ -1997,6 +1997,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/capture/src/browser.tsx",
       "plugins/chat/src/browser.tsx",
       "plugins/chat/src/browser/agents/AgentPalette.ts", // the declared navigation reading and its unavailable sentence
+      "plugins/chat/src/browser/agents/new-chat.ts", // the same activation-held navigation service after node creation
       "plugins/chat/src/browser/navigation.ts",
       "plugins/chat/src/browser/verbs.tsx",
       "plugins/files/src/browser.tsx",

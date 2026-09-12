@@ -153,16 +153,6 @@ export interface Chat {
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean, done: () => void) => void
   readonly setModel: (agent: string, session: string, value: string, done: () => void) => void
   readonly cancel: () => void
-  /** Start a fresh conversation with one of {@link ChatState.roster}'s agents.
-   *  The id is REQUIRED because every new chat asks which one — see the
-   *  surface's declaration, and `./Choose.tsx`, which is what asks. */
-  readonly newSession: (agent: string) => void
-  /** Answer the panel's own question ({@link ChatState.talking}'s `asking`
-   *  arm): this agent,
-   *  now open the conversation you would have opened. Not the same verb as
-   *  {@link Chat.newSession} — a boot that stopped to ask has not asked for a
-   *  new conversation. */
-  readonly chooseAgent: (agent: string) => void
   /** Move to a stored conversation — WITH the agent whose it is, which the
    *  row carries. The list spans every installed agent, so this is a change of
    *  agent as often as it is a change of conversation. */
@@ -496,8 +486,6 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
     cancel: () => verb(chatWire().procedures.conversation.cancel({ conv, scope: state().uploadScope })),
     // The three doors that OPEN a conversation, and the fourth that reopens
     // a refused one. Each says so from the click ({@link opens}).
-    newSession: (agent) => run(chatWire().procedures.conversation.newSession({ agent }), setRefused, to => options.visit?.(to)),
-    chooseAgent: (agent) => run(chatWire().procedures.conversation.chooseAgent({ agent }), setRefused, to => options.visit?.(to)),
     loadSession: (agent, session) => options.visit?.({ agent, session }),
     // An ordinary verb, and deliberately not one of the four above: pointing a
     // doorbell at a file opens nothing, so the panel has nothing to say from

@@ -547,3 +547,15 @@ Then(
     assert.strictEqual(oneLine(await preview.innerText()), text);
   },
 );
+
+When("I move the palette cursor to {string}", async function(this: OlaiWorld, label: string) {
+  const rows = this.page.locator(PALETTE_ITEM);
+  const target = rows.filter({ hasText: label }).first();
+  await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const limit = await rows.count() + 1;
+  for (let i = 0; i < limit; i++) {
+    await pressed(this, "ArrowDown");
+    if (await target.getAttribute("data-active") === "true") return;
+  }
+  assert.fail(`the palette cursor did not reach ${label}`);
+});

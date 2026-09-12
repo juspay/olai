@@ -250,6 +250,15 @@ Then(
   async function (this: OlaiWorld, id: string) {
     const panel = await panelOf(this);
     const heading = this.within(id, NODE_GUTTER);
+    // Floating placement can flip after the menu first becomes visible. The
+    // layer assertion needs the settled overlap, not its initial coordinates.
+    await this.waitUntil(async () => {
+      const over = await panel.boundingBox();
+      const under = await heading.boundingBox();
+      return over !== null && under !== null &&
+        Math.min(over.x + over.width, under.x + under.width) > Math.max(over.x, under.x) &&
+        Math.min(over.y + over.height, under.y + under.height) > Math.max(over.y, under.y);
+    }, `the node menu to settle across the section heading "${id}"`);
     const over = await this.box(panel, "the node menu");
     const under = await this.box(heading, `the section heading "${id}"`);
     const left = Math.max(over.x, under.x);

@@ -8,15 +8,18 @@ import type { AgentChoice } from "../../wire.ts"
 import { TESTID } from "../../testids.ts"
 
 export default function EngineMenu(props: {
+  /** A sidebar menu must clear its chrome; row menus keep their row layer. */
+  readonly layer?: typeof LAYER.row | typeof LAYER.over
   readonly anchor: HTMLElement
   readonly engines: ReadonlyArray<AgentChoice>
   readonly pick: (engine: string) => void
   readonly close: () => void
 }) {
   // Kobalte restores focus after the enclosing Show has withdrawn the menu.
+  const layer = props.layer ?? LAYER.row
   const anchor = props.anchor
   const portal = document.createElement("div")
-  portal.className = `fixed left-0 top-0 ${LAYER.row}`
+  portal.className = `fixed left-0 top-0 ${layer}`
   document.body.append(portal)
   onCleanup(() => portal.remove())
   const topmost = topmostWhileOpen(() => true)
@@ -24,7 +27,7 @@ export default function EngineMenu(props: {
     getAnchorRect={() => anchor.getBoundingClientRect()}
     onOpenChange={open => { if (!open && topmost()) props.close() }}>
     <DropdownMenu.Portal mount={portal}>
-      <DropdownMenu.Content class={`${MENU_PANEL} ${LAYER.row}`} aria-label="choose an engine"
+      <DropdownMenu.Content class={`${MENU_PANEL} ${layer}`} aria-label="choose an engine"
         data-testid={TESTID.agentEngineMenu}
         ref={element => queueMicrotask(() => { if (element.isConnected) element.focus({ preventScroll: true }) })}
         onCloseAutoFocus={event => { event.preventDefault(); anchor.isConnected && anchor.focus({ preventScroll: true }) }}>

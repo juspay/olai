@@ -33,8 +33,8 @@ import { holdPages } from "./browser/pages.ts"
 import { createAgentReadings, holdAgentReadings } from "./browser/agents/reading.ts"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createAgentPalette } from "./browser/agents/AgentPalette.ts"
-import { navigation as navigationService, paletteAdapters } from "olai-plugin-navigation/contract"
-import { holdNavigation } from "./browser/navigation.ts"
+import { navigation as navigationService, paletteAdapters, paletteControl } from "olai-plugin-navigation/contract"
+import { holdNavigation, holdPalette } from "./browser/navigation.ts"
 import { holdFaces } from "./browser/faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
@@ -134,7 +134,9 @@ export const components = {
     const named = yield* appDeployment
     yield* Effect.acquireRelease(Effect.sync(() => holdDeployment(named)), stop => Effect.sync(stop))
   }) }),
-  navigation: definePlugin({ name: "navigation", needs: [navigationService, Slots], apply: Effect.gen(function*() {
+  navigation: definePlugin({ name: "navigation", needs: [navigationService, Slots, paletteControl], apply: Effect.gen(function*() {
+    const control = yield* paletteControl
+    yield* Effect.acquireRelease(Effect.sync(() => holdPalette(control)), stop => Effect.sync(stop))
     const router = yield* navigationService
     yield* Effect.acquireRelease(Effect.sync(() => holdNavigation(router)), stop => Effect.sync(stop))
     yield* (yield* Slots).register("app.command", createAskCommand())
