@@ -849,17 +849,40 @@ _fast-remote leaf $watch_timeout:
       "$watch_timeout" \
       nix run .#odu --accept-flake-config -- run {{ leaf }} --platform x86_64-linux --no-strict
 
-# Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
-# keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the
-# stable logical recipe contexts to GitHub. Shard workers and their duplicated
-# prerequisites remain visible in Odu without becoming GitHub contexts.
-[doc("Run full CI on the remote Linux fleet")]
-ci:
+# Full CI through this tree's pinned Odu. One `odu run`. Default is the
+# Linux fleet; `just ci macos` adds petit (`aarch64-darwin`) on the same
+# run. Strict defaults: snapshot clean pushed HEAD, post logical recipe
+# contexts to GitHub. Shard workers stay in Odu, not as GitHub contexts.
+[doc("Run full CI (Linux fleet; `just ci macos` also petit Darwin)")]
+ci extra="":
     #!/usr/bin/env bash
     set -euo pipefail
-    exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
-      "${ODU_CI_TIMEOUT:-15m}" \
-      nix run .#odu --accept-flake-config -- run --platform x86_64-linux
+    # `odu run` waits with its own short default (~3 min, `settled ·
+    # incomplete` with e2e still running). `--no-wait` starts it; `wait
+    # --settle --timeout-ms` is the blocking watch (`wait --settle` alone
+    # prints a snapshot and exits 2). just `env()` because nix develop
+    # drops `${ODU_CI_TIMEOUT}`.
+    watch_timeout="{{ env('ODU_CI_TIMEOUT', '15m') }}"
+    extra="{{ extra }}"
+    exec {{ nix_shell }} bash -c '
+      set -euo pipefail
+      case $1 in
+        *h) timeout_ms=$((${1%h} * 3600 * 1000)) ;;
+        *m) timeout_ms=$((${1%m} * 60 * 1000)) ;;
+        *s) timeout_ms=$((${1%s} * 1000)) ;;
+        *) timeout_ms=$1 ;;
+      esac
+      extra=$2
+      platforms=(--platform x86_64-linux)
+      if [[ "$extra" == macos ]]; then
+        platforms+=(--platform aarch64-darwin)
+      elif [[ -n "$extra" ]]; then
+        echo "just ci: unknown extra '$extra' (only macos)" >&2
+        exit 2
+      fi
+      nix run .#odu --accept-flake-config -- run "${platforms[@]}" --no-wait
+      exec nix run .#odu --accept-flake-config -- wait --settle --timeout-ms "$timeout_ms"
+    ' bash "$watch_timeout" "$extra"
 
 # Format the *.nix files
 [doc("Format repository Nix files")]
@@ -900,12 +923,13 @@ bun-nix-fresh:
       exit 1
     }
 
-# Update the kolu / nixpkgs pins. npins rewrites npins/default.nix in its
+# Update the kolu / ekapkgs pins. npins rewrites npins/default.nix in its
 # own formatter's style, so normalize it here — same rule as bun.nix, and
 # the reason fmt-check needs no exception list. `just check` then names
 # anything the new kolu revision expects that this repo has not moved with
-# it. bun 1.4.1 is overlaid from `nix/bun.nix`, not a pin; drop that overlay
-# when NixOS/nixpkgs#556047 reaches nixpkgs-unstable — bun-nixpkgs-catchup.
+# it. npins is on the caller's PATH, not the default shell (ekapkgs npins
+# currently rebuilds snix).
 [doc("Update npins dependencies and format the generated Nix file")]
 update-pins:
-    {{ nix_shell }} sh -c 'npins update && nixpkgs-fmt npins/default.nix'
+    npins update
+    {{ nix_shell }} nixpkgs-fmt npins/default.nix

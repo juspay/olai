@@ -20,7 +20,7 @@
  */
 
 import { describe, expect, it } from "bun:test"
-import { Effect, Fiber, Schedule, Stream } from "effect"
+import { Deferred, Effect, Fiber, Stream } from "effect"
 
 import type { FleetTerminal, KoluLink } from "./wire/index.ts"
 import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor/dial"
@@ -524,15 +524,29 @@ describe("the frame projection", () => {
  * each answering the other's resize is a war that would look, from either
  * screen, exactly like the bug this fixes.
  */
-const resizingFace = (id: string, grids: ReadonlyArray<{ cols: number; rows: number }>) => {
-  const attaches: Array<{ id: string; resizeTo?: { cols: number; rows: number } }> = []
+type Grid = { cols: number; rows: number }
+
+const term = (grid: Grid) => ({
+  state: "active" as const,
+  pr: { kind: "absent" as const },
+  agent: null,
+  cwd: "/tmp/t",
+  git: null,
+  lastActivityAt: null,
+  grid,
+})
+
+const resizingFace = (id: string, first: Grid) => {
+  const attaches: Array<{ id: string; resizeTo?: Grid }> = []
+  const moved = Effect.runSync(Deferred.make<Grid>())
   return {
     attaches,
+    move: (grid: Grid) => Effect.runPromise(Deferred.succeed(moved, grid)),
     face: {
       padi: {
         surface: {
           terminalAttach: {
-            get: (input: { id: string; resizeTo?: { cols: number; rows: number } }) => {
+            get: (input: { id: string; resizeTo?: Grid }) => {
               attaches.push(input)
               return Stream.concat(
                 Stream.make({
@@ -562,22 +576,17 @@ const resizingFace = (id: string, grids: ReadonlyArray<{ cols: number; rows: num
           terminals: {
             keys: () => Stream.concat(Stream.make([id]), Stream.never),
             // THE RESIZE, as padi delivers it: the same terminal, published
-            // again, with a different grid on it. A quarter second apart so the
-            // first attach is unambiguously open before the second record lands.
+            // again, with a different grid. The second record is held until
+            // `move` so the pane's attach is open before the grid moves —
+            // a 250ms `Schedule.spaced` raced the 400ms sleep and left CI
+            // with one attach (`Received: 1`).
             get: () =>
               Stream.concat(
-                Stream.fromIterable(
-                  grids.map((grid) => ({
-                    state: "active" as const,
-                    pr: { kind: "absent" as const },
-                    agent: null,
-                    cwd: "/tmp/t",
-                    git: null,
-                    lastActivityAt: null,
-                    grid,
-                  })),
-                ).pipe(Stream.schedule(Schedule.spaced("250 millis"))),
-                Stream.never,
+                Stream.make(term(first)),
+                Stream.concat(
+                  Stream.fromEffect(Deferred.await(moved)).pipe(Stream.map(term)),
+                  Stream.never,
+                ),
               ),
           },
           screen: { text: () => Effect.succeed("") },
@@ -592,7 +601,7 @@ describe("a foreign resize", () => {
 
   it("RE-ATTACHES when the record's grid moves, and does not re-assert its own", async () => {
     const seen = recorder()
-    const resizing = resizingFace(ID, [{ cols: 80, rows: 24 }, { cols: 203, rows: 51 }])
+    const resizing = resizingFace(ID, { cols: 80, rows: 24 })
     const mirror = makeMirror(seen.sink, {
       env: {},
       now: () => AT,
@@ -606,9 +615,9 @@ describe("a foreign resize", () => {
         } as never),
     })
     const fiber = Effect.runFork(Effect.scoped(mirror.run))
-    // The first record lands a beat in (the fixture spaces them), so the pane
-    // opens once there is a terminal to open on.
-    await Effect.runPromise(Effect.sleep("400 millis"))
+    // The first record is already on the stream; a short beat is enough for
+    // the mirror to take it so the pane has a terminal to open on.
+    await Effect.runPromise(Effect.sleep("50 millis"))
 
     // A pane opens, asking at ITS size — attaching is a write, and the ruled
     // semantic is that every client sees the same size.
@@ -619,7 +628,15 @@ describe("a foreign resize", () => {
           if (frame.kind === "snapshot") frames.push(frame.data)
         })),
     )
-    await Effect.runPromise(Effect.sleep("900 millis"))
+    const until = async (pred: () => boolean) => {
+      const start = Date.now()
+      while (!pred() && Date.now() - start < 2000) {
+        await Effect.runPromise(Effect.sleep("20 millis"))
+      }
+    }
+    await until(() => resizing.attaches.length >= 1)
+    await resizing.move({ cols: 203, rows: 51 })
+    await until(() => resizing.attaches.length >= 2)
     await Effect.runPromise(Fiber.interrupt(watching))
     await Effect.runPromise(Fiber.interrupt(fiber))
 

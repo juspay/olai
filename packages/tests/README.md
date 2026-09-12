@@ -117,7 +117,7 @@ Which server the suite drives is two decisions, not one — **who owns the proce
 | `CUCUMBER_RETRY` | Scenario retry budget. Default 0 — a local run should show a real failure the first time. |
 | `CUCUMBER_SHARD` | Cucumber's native one-based `<index>/<total>` scenario shard. The `e2e` recipe derives it from Odu's zero-based `ODU_SHARD_INDEX` and actual `ODU_SHARD_TOTAL`; ordinary `just e2e` runs leave it unset. |
 
-Playwright's browsers come from the Nix store via `PLAYWRIGHT_BROWSERS_PATH`, which `.#e2e` sets. The npm `playwright` version is pinned to the Nix `playwright-driver`'s (1.61.1) because the driver refuses a browser build it was not compiled against; the two move together or not at all.
+Playwright's browsers come from the Nix store via `PLAYWRIGHT_BROWSERS_PATH`, which `.#e2e` sets. The npm `playwright` version is pinned to the overlay's `playwright-driver` (1.61.1) because the driver refuses a browser build it was not compiled against; the two move together or not at all.
 
 ## Watching it happen
 

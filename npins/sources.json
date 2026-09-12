@@ -13,6 +13,19 @@
       "url": "https://github.com/cordiverse/cordis/archive/00278924a984fedfaffb4bc3d5eb7d8e76215643.tar.gz",
       "hash": "sha256-tCoHVKDAs8e3+BpHI0JV0x+hNPjrvwAHvACQsiZCkZA="
     },
+    "ekapkgs": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "ekala-project",
+        "repo": "ekapkgs"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "e1252ca5ae7d4d35fa3cd1d7d2a7d842298d59e2",
+      "url": "https://github.com/ekala-project/ekapkgs/archive/e1252ca5ae7d4d35fa3cd1d7d2a7d842298d59e2.tar.gz",
+      "hash": "sha256-AeH2edfOTISToIEr8n+18reILmmrvrbuWM43nibFmKY="
+    },
     "kolu": {
       "type": "Git",
       "repository": {
@@ -25,19 +38,6 @@
       "revision": "56152455be3d7e4e339d406d95eaa2e72152a2db",
       "url": "https://github.com/juspay/kolu/archive/56152455be3d7e4e339d406d95eaa2e72152a2db.tar.gz",
       "hash": "sha256-jnFozd13hWuCiikgVgh1MiPGAGnjzcHUiJR931QYpus="
-    },
-    "nixpkgs": {
-      "type": "Git",
-      "repository": {
-        "type": "GitHub",
-        "owner": "nixos",
-        "repo": "nixpkgs"
-      },
-      "branch": "nixpkgs-unstable",
-      "submodules": false,
-      "revision": "afb4584a80bbf779ce0f691509ff902d188c2b3d",
-      "url": "https://github.com/nixos/nixpkgs/archive/afb4584a80bbf779ce0f691509ff902d188c2b3d.tar.gz",
-      "hash": "sha256-shi1tjDhCGGd0kIgVPNY03V8NBWSTzhMSFDb7IqSoec="
     },
     "odu": {
       "type": "Git",
@@ -74,9 +74,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "3e03cf051b0e8f20079cbf37715d9d89ba854848",
-      "url": "https://github.com/juspay/oss.olai/archive/3e03cf051b0e8f20079cbf37715d9d89ba854848.tar.gz",
-      "hash": "sha256-DNxapKgFTBBxy61+sySDF8IchtvSgRcxh8ezy25hcQo="
+      "revision": "e58886fbea2e82d29e2ee0dee23896618a7ec4e6",
+      "url": "https://github.com/juspay/oss.olai/archive/e58886fbea2e82d29e2ee0dee23896618a7ec4e6.tar.gz",
+      "hash": "sha256-2y3+wXd/8ASA+hkUtUeppxXZN/edqiX0io7iNyiHA+Q="
     }
   },
   "version": 8

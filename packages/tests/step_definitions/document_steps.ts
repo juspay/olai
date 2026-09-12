@@ -122,6 +122,18 @@ Then(
       0,
       "a document page is on screen for a document the directory does not have",
     );
+    // A `.html` preview is an iframe `src`. Removing the file 404s that
+    // fetch, and Chrome for Testing logs it as console.error. The pane
+    // sentence above is the product assertion; the 404 is Chromium
+    // reporting the load this step just caused. Same filter as the 503
+    // in browser_loading_steps.ts.
+    if (kind === "page") {
+      this.errors = this.errors.filter(
+        (error) =>
+          error !==
+          "console.error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      );
+    }
   },
 );
 
