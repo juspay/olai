@@ -1,0 +1,64 @@
+@scratch:chat
+Feature: Enter preserves prose that happens to match a node's note
+  Background:
+    Given I rewrite "prose.olai" as:
+      """
+      {"id":"review-hinges","ord":"a0","title":"Review hinges","done":"2026-08-03","desc":"alex and we can look at the hinges and decide what to do about the doors and then"}
+      """
+    And I open the app
+    And the agent panel is open
+
+  Scenario Outline: A matching note does not turn Enter into replacement of literal prose
+    When I type "<message>" into the chat
+    Then the completion offers "review-hinges"
+    And no chat completion is selected
+    When I press "Enter" in the chat
+    Then the chat shows my message "<message>"
+    And the agent's answer mentions "you said: <message>"
+    And the composer is armed with nothing
+    And there should be no page errors
+
+    Examples:
+      | message                                                       |
+      | look at @review-hinges and decide what to do about the doors    |
+      | ask @alex and decide what to do about the doors                 |
+      | look at @is:done and then                                      |
+
+  Scenario: Returning to an accepted handle cannot swallow the following clause
+    When I type "look at @review-hinges" into the chat
+    Then the completion offers "review-hinges"
+    When I accept the completion
+    Then the chat input reads "look at @review-hinges "
+    When I type "and decide what to do about the doors" into the chat a letter at a time
+    And I put the caret after "look at " in the chat
+    And I put the caret after "look at @review-hinges and decide what to do about the doors" in the chat
+    Then the completion offers "review-hinges"
+    And no chat completion is selected
+    When I press "Enter" in the chat
+    Then the chat shows my message "look at @review-hinges and decide what to do about the doors"
+    And there should be no page errors
+
+  Scenario: Typing past an arrow selection restores Enter as Send
+    When I type "look at @Review hinges" into the chat
+    Then the completion offers "review-hinges"
+    When I press "ArrowUp" in the chat
+    Then the selected chat completion is "review-hinges"
+    When I type " and decide what to do about the doors" into the chat a letter at a time
+    Then the completion offers "review-hinges"
+    And no chat completion is selected
+    When I press "Enter" in the chat
+    Then the chat shows my message "look at @Review hinges and decide what to do about the doors"
+    And there should be no page errors
+
+  Scenario: Remounting an arrow-selected multi-word query restores Enter as Send
+    When I type "look at @Review hinges" into the chat
+    Then the completion offers "review-hinges"
+    When I press "ArrowDown" in the chat
+    Then the selected chat completion is "review-hinges"
+    When I close the agent panel
+    And the agent panel is open
+    Then the completion offers "review-hinges"
+    And no chat completion is selected
+    When I press "Enter" in the chat
+    Then the chat shows my message "look at @Review hinges"
+    And there should be no page errors

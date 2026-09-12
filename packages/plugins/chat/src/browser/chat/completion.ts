@@ -77,7 +77,9 @@ export type Completing =
    *  completes is a name for something ({@link ./naming.ts}). */
   | { readonly kind: "name"; readonly from: number; readonly query: string }
 
-/** Bound the work per keystroke even for a long pasted query. */
+/** Spaces no longer bound a query, so cap even a pasted sentence before it
+ *  reaches either matcher. This bounds work, not intent: the menu separately
+ *  requires a selection before Enter can replace a spaced query. */
 const NAME_CAP = 120
 
 export const completingIn = (text: string, caret: number): Completing | null =>

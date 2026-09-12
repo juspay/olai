@@ -284,8 +284,8 @@ export function Composer(props: {
 
   // A DISMISSAL LASTS AS LONG AS THE THING IT WAS ABOUT. Escape shuts the list
   // over the word being typed and keeps it shut while that word goes on being
-  // typed — but the moment nothing is armed at all (a newline typed, the `@`
-  // backspaced away, the caret moved out of the word) the memory goes with it.
+  // typed — but the moment nothing is armed (a newline or tab, the query cap
+  // exceeded, the `@` removed, or the caret moved outside the span), it clears.
   // Without this the token is only the KIND and the OFFSET, so a second `@`
   // typed where the first one was would come up already dismissed — a list
   // that never returns for the rest of the message, for a key pressed about
@@ -595,7 +595,8 @@ export function Composer(props: {
     }
     // Enter sends. It does NOT need a "unless the menu is open" guard: the menu
     // takes the key in the capture phase and stops it propagating, so this
-    // handler does not run while it is up (see ./CompletionMenu.tsx). One
+    // handler does not run when a row is selected (see ./CompletionMenu.tsx).
+    // A spaced name query starts unselected so Enter can send literal prose. One
     // mechanism for one rule — a second one here would be a guard nobody could
     // test.
     //
@@ -628,6 +629,7 @@ export function Composer(props: {
           // — the kind as well as the query, since `/` and `@` can both be
           // armed with nothing typed after them and those are two questions.
           asking={`${found()?.kind ?? ""}:${found()?.query ?? ""}`}
+          explicitSelection={found()?.kind === "name" && (found()?.query.includes(" ") ?? false)}
           asked={nodesNamed.answering() ?? undefined}
           within={() => input}
           onDismiss={dismiss}

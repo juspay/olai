@@ -18,6 +18,9 @@ Feature: Naming a node by its multi-word title in the composer
     When I type "watcher scope" into the chat a letter at a time
     Then the completion offers "odu-watch"
     And the completion does not offer "odu-build"
+    And no chat completion is selected
+    When I press "ArrowDown" in the chat
+    Then the selected chat completion is "odu-watch"
     When I accept the completion
     Then the chat input reads "context @odu-watch "
     And no completion is open
@@ -59,4 +62,12 @@ Feature: Naming a node by its multi-word title in the composer
     Then the completion offers "odu-watch"
     When I press "Shift+Enter" in the chat
     Then no completion is open
+    And there should be no page errors
+
+  Scenario: Running title words together does not invent a new search spelling
+    When I type "context @oduwa" into the chat
+    Then the completion does not offer "odu-watch"
+    And no completion is open
+    When I press "Enter" in the chat
+    Then the chat shows my message "context @oduwa"
     And there should be no page errors

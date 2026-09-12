@@ -22,7 +22,7 @@
 import { servedDirectory } from "../vault.ts"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
-import { createEffect, createMemo, Index, on, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, Index, on, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "@olai/web/client/keys.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
@@ -139,6 +139,8 @@ export function CompletionMenu(props: {
    *  walking the list does not reset it and a directory frame arriving does
    *  not either — `../complete/completing.tsx`'s rule, kept. */
   readonly asking: string
+  /** A spaced name query may also be prose. Enter needs an arrow selection. */
+  readonly explicitSelection: boolean
   /**
    * WHICH QUERY the NODE half answers, when this is a name list — the same
    * `data-asked` every other search door publishes. Absent while the files
@@ -173,7 +175,22 @@ export function CompletionMenu(props: {
   const cursor = createCursor(() => props.rows.length)
 
   // A NEW QUESTION STARTS AT THE TOP — see `asking`.
-  createEffect(on(() => props.asking, cursor.top))
+  const [selected, setSelected] = createSignal<{ asking: string; value: string } | null>(null)
+  const active = () => !props.explicitSelection || (
+    selected()?.asking === props.asking &&
+    selected()?.value === props.rows[cursor.at()]?.value
+  )
+  createEffect(on(() => props.asking, () => {
+    cursor.top()
+    setSelected(null)
+  }))
+
+  const walk = (by: 1 | -1) => {
+    if (active()) cursor.step(by)
+    else cursor.to(by === 1 ? 0 : props.rows.length - 1)
+    const row = props.rows[cursor.at()]
+    if (row !== undefined) setSelected({ asking: props.asking, value: row.value })
+  }
 
   /**
    * This list on the client's one dismissal stack (`../topmost.ts`).
@@ -242,13 +259,13 @@ export function CompletionMenu(props: {
     if (action === null) return
     if (action === "next") {
       take(event)
-      cursor.step(1)
+      walk(1)
     }
     if (action === "prev") {
       take(event)
-      cursor.step(-1)
+      walk(-1)
     }
-    if (action === "take") accept(event)
+    if (action === "take" && active()) accept(event)
     if (action === "dismiss") {
       take(event)
       props.onDismiss()
@@ -304,11 +321,11 @@ export function CompletionMenu(props: {
               <button
                 type="button"
                 class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
-                  index === cursor.at() ? "bg-rule" : ""
+                  active() && index === cursor.at() ? "bg-rule" : ""
                 }`}
                 data-testid={TESTID.chatCompletionRow}
                 data-value={row().value}
-                data-active={index === cursor.at()}
+                data-active={active() && index === cursor.at()}
                 // THE ROW, not its position: see {@link MenuRow.take}.
                 onClick={() => row().take()}
               >
@@ -323,6 +340,11 @@ export function CompletionMenu(props: {
           </>
         )}
       </Index>
+      <Show when={props.explicitSelection}>
+        <li class="px-2 py-1 text-xs text-muted">
+          {active() ? "Enter completes" : "↑/↓ select · Tab completes · Enter sends"}
+        </li>
+      </Show>
     </ul>
   )
 }

@@ -3983,3 +3983,16 @@ Then("the foreign tool reply remains ordinary detail", async function (this: Ola
   assert.equal(await tool.locator(CHAT_TOOL_REPLY).count(), 0);
   assert.match(await tool.locator(CHAT_TOOL_DETAIL).innerText(), /foreign write-shaped reply/);
 });
+
+
+Then("no chat completion is selected", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => await this.page.locator(`${CHAT_COMPLETION_ROW}[data-active="true"]`).count() === 0,
+    "the chat completion to have no selected row",
+  );
+});
+
+Then("the selected chat completion is {string}", async function (this: OlaiWorld, value: string) {
+  await this.page.locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}[data-active="true"]`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});

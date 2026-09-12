@@ -20,7 +20,7 @@
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md), so the round trip is what a
  * completion costs now, and the door it goes through is the one the ⌘K palette,
  * the header box, the `((` widget and the edge panel already share
- * (`../search/nodes.ts`, which owns the debounce and the staleness rule for all
+ * (`../search.ts`, which owns the debounce and the staleness rule for all
  * five). What is left HERE is the row: what a person reads to choose it, what
  * taking it writes, and the one thing it has to explain about itself.
  *
@@ -39,7 +39,8 @@
  *
  * An EMPTY query offers no node at all, and a query of one or two characters
  * offers none either — the floor every door onto the one search shares
- * (`../search/nodes.ts`'s `MIN_LENGTH`), because two characters match half an
+ * (the search plugin's `browser/kit/nodes.ts`, reached through `../search.ts`),
+ * because two characters match half an
  * outline by substring and a shortlist of eight of them is an answer to no
  * question. It is the one thing about this list that CHANGED when it stopped
  * matching locally: `@ca` used to offer node rows and now offers the files
@@ -120,7 +121,7 @@ export interface NodeMatch {
  *
  * Pure, and the whole of what this file still does: the order is the answer's
  * (`@olai/format`'s `ranked`, applied server-side), the cap was asked for on
- * the request (`../search/nodes.ts`), and where a node SITS is built out of
+ * the request (`../search.ts`), and where a node SITS is built out of
  * what the hit already carries — the file and the ancestor titles the ops layer
  * situates every hit with. Nothing is walked here and nothing is looked up.
  */
