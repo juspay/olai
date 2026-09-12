@@ -194,11 +194,6 @@
   section: Pages
   quiet: true
   profiles: [surface]
-- id: markdown
-  name: olai-plugin-markdown/server
-  section: Pages
-  quiet: true
-  profiles: [surface]
 - id: files
   name: olai-plugin-files/server
   section: Pages
@@ -240,4 +235,36 @@
   name: olai-plugin-vault-plugins/server
   section: Vault
   browser: olai-plugin-vault-plugins/browser
+  profiles: [surface]
+
+- id: olai
+  name: olai-plugin-olai/server
+  section: Files
+  quiet: true
+  profiles: [surface, test-minimal]
+  switchHint: Disabling this row unclaims outlines and prevents creating them; trash, inbox, pins and agenda become unavailable, and settings reading withdraws until it returns.
+- id: markdown
+  name: olai-plugin-markdown/server
+  section: Files
+  quiet: true
+  profiles: [surface]
+- id: hypertext
+  name: olai-plugin-hypertext/server
+  section: Files
+  quiet: true
+  profiles: [surface]
+- id: csv
+  name: olai-plugin-csv/server
+  section: Files
+  quiet: true
+  profiles: [surface]
+- id: image
+  name: olai-plugin-image/server
+  section: Files
+  quiet: true
+  profiles: [surface]
+- id: pdf
+  name: olai-plugin-pdf/server
+  section: Files
+  quiet: true
   profiles: [surface]

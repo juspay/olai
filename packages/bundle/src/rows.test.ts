@@ -125,7 +125,7 @@ test("profiles select only catalogue rows and preserve build defaults", () => {
     const patches = profilePatch(profile)
     expect(patches.every(patch => BUNDLE_NAMES.includes(patch.id))).toBe(true)
     const on = ROWS.filter(row => !(patches.find(patch => patch.id === row.id)?.disabled ?? row.disabled)).map(row => row.id)
-    expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "settings", "mcp", "outlines", "markdown", "files", "pins", "capture", "trash", "vault-plugins"] : ["vault", "settings"])
+    expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "settings", "mcp", "outlines", "files", "pins", "capture", "trash", "vault-plugins", "olai", "markdown", "hypertext", "csv", "image", "pdf"] : ["vault", "settings", "olai"])
   }
 })
 

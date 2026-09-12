@@ -1,0 +1,16 @@
+{
+  "name": "olai-plugin-image",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112"
+  }
+}

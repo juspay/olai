@@ -44,7 +44,7 @@
  * an MCP adapter gives a `surface://` address to (`documents`), which needs the
  * member's KIND and so cannot be read off a tag set.
  */
-import { definePlugin, Directory, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
+import { definePlugin, Directory, FileKinds, Ops, Surfaces, Vault } from "@olai/plugin-api/services"
 import type { Ops as Gate, Store } from "@olai/ops"
 import { Effect } from "effect"
 import { inMemoryChannel, type ImplementSurfaceDeps, type SurfaceRuntime } from "@kolu/surface/server"
@@ -67,8 +67,11 @@ import type { FiledPageReading } from "@olai/format"
 import * as Bodies from "./server/bodies.ts"
 
 export default definePlugin({
-  name, needs: [Directory, Ops, Vault, Surfaces],
+  name, needs: [Directory, Ops, Vault, Surfaces, FileKinds],
   apply: Effect.gen(function*() {
+    yield* (yield* FileKinds).register({
+      exts: [".md"], holds: "text", kept: true, fetched: false, noun: "document", article: "a",
+    })
     const store = (yield* Directory).store as Store
     const gate = (yield* Ops).gate as Gate
     const vault = yield* Vault

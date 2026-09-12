@@ -92,6 +92,13 @@ const SPELLED = new RegExp(
 const MAY_SPELL_IT: ReadonlyArray<string> = [
   "packages/plugins/chat/src/attachments.test.ts",
   "packages/format/src/kinds.ts",
+  "packages/plugins/olai/src/server.ts",
+  "packages/plugins/markdown/src/server.ts",
+  "packages/plugins/hypertext/src/server.ts",
+  "packages/plugins/csv/src/server.ts",
+  "packages/plugins/image/src/server.ts",
+  "packages/plugins/pdf/src/server.ts",
+
   "packages/surface/src/attach.test.ts",
   "packages/surface/src/attach.ts",
   "packages/tests/agent/fake-acp-agent.ts",

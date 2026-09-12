@@ -7636,9 +7636,12 @@
   "olai-plugin-chat" = copyPathToStore ./packages/plugins/chat;
   "olai-plugin-claude" = copyPathToStore ./packages/plugins/claude;
   "olai-plugin-codex" = copyPathToStore ./packages/plugins/codex;
+  "olai-plugin-csv" = copyPathToStore ./packages/plugins/csv;
   "olai-plugin-files" = copyPathToStore ./packages/plugins/files;
   "olai-plugin-git" = copyPathToStore ./packages/plugins/git;
+  "olai-plugin-hypertext" = copyPathToStore ./packages/plugins/hypertext;
   "olai-plugin-identity" = copyPathToStore ./packages/plugins/identity;
+  "olai-plugin-image" = copyPathToStore ./packages/plugins/image;
   "olai-plugin-journal" = copyPathToStore ./packages/plugins/journal;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
   "olai-plugin-layout" = copyPathToStore ./packages/plugins/layout;
@@ -7646,8 +7649,10 @@
   "olai-plugin-mcp" = copyPathToStore ./packages/plugins/mcp;
   "olai-plugin-navigation" = copyPathToStore ./packages/plugins/navigation;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
+  "olai-plugin-olai" = copyPathToStore ./packages/plugins/olai;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
   "olai-plugin-outlines" = copyPathToStore ./packages/plugins/outlines;
+  "olai-plugin-pdf" = copyPathToStore ./packages/plugins/pdf;
   "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;
   "olai-plugin-pins" = copyPathToStore ./packages/plugins/pins;
   "olai-plugin-plugin-inspector" = copyPathToStore ./packages/plugins/plugin-inspector;

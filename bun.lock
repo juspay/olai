@@ -67,9 +67,12 @@
         "olai-plugin-chat": "workspace:*",
         "olai-plugin-claude": "workspace:*",
         "olai-plugin-codex": "workspace:*",
+        "olai-plugin-csv": "workspace:*",
         "olai-plugin-files": "workspace:*",
         "olai-plugin-git": "workspace:*",
+        "olai-plugin-hypertext": "workspace:*",
         "olai-plugin-identity": "workspace:*",
+        "olai-plugin-image": "workspace:*",
         "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-layout": "workspace:*",
@@ -77,8 +80,10 @@
         "olai-plugin-mcp": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-odu": "workspace:*",
+        "olai-plugin-olai": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
+        "olai-plugin-pdf": "workspace:*",
         "olai-plugin-pi": "workspace:*",
         "olai-plugin-pins": "workspace:*",
         "olai-plugin-plugin-inspector": "workspace:*",
@@ -336,6 +341,14 @@
         "olai-plugin-chat": "workspace:*",
       },
     },
+    "packages/plugins/csv": {
+      "name": "olai-plugin-csv",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+      },
+    },
     "packages/plugins/files": {
       "name": "olai-plugin-files",
       "version": "0.1.0",
@@ -385,6 +398,14 @@
         "@types/node": "^22.0.0",
       },
     },
+    "packages/plugins/hypertext": {
+      "name": "olai-plugin-hypertext",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+      },
+    },
     "packages/plugins/identity": {
       "name": "olai-plugin-identity",
       "version": "0.1.0",
@@ -401,6 +422,14 @@
         "@olai/format": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-layout": "workspace:*",
+      },
+    },
+    "packages/plugins/image": {
+      "name": "olai-plugin-image",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
       },
     },
     "packages/plugins/journal": {
@@ -554,6 +583,15 @@
         "olai-plugin-outlines": "workspace:*",
       },
     },
+    "packages/plugins/olai": {
+      "name": "olai-plugin-olai",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+      },
+    },
     "packages/plugins/opencode": {
       "name": "olai-plugin-opencode",
       "version": "0.1.0",
@@ -598,6 +636,14 @@
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+    },
+    "packages/plugins/pdf": {
+      "name": "olai-plugin-pdf",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
       },
     },
     "packages/plugins/pi": {
@@ -1804,11 +1850,17 @@
 
     "olai-plugin-codex": ["olai-plugin-codex@workspace:packages/plugins/codex"],
 
+    "olai-plugin-csv": ["olai-plugin-csv@workspace:packages/plugins/csv"],
+
     "olai-plugin-files": ["olai-plugin-files@workspace:packages/plugins/files"],
 
     "olai-plugin-git": ["olai-plugin-git@workspace:packages/plugins/git"],
 
+    "olai-plugin-hypertext": ["olai-plugin-hypertext@workspace:packages/plugins/hypertext"],
+
     "olai-plugin-identity": ["olai-plugin-identity@workspace:packages/plugins/identity"],
+
+    "olai-plugin-image": ["olai-plugin-image@workspace:packages/plugins/image"],
 
     "olai-plugin-journal": ["olai-plugin-journal@workspace:packages/plugins/journal"],
 
@@ -1824,9 +1876,13 @@
 
     "olai-plugin-odu": ["olai-plugin-odu@workspace:packages/plugins/odu"],
 
+    "olai-plugin-olai": ["olai-plugin-olai@workspace:packages/plugins/olai"],
+
     "olai-plugin-opencode": ["olai-plugin-opencode@workspace:packages/plugins/opencode"],
 
     "olai-plugin-outlines": ["olai-plugin-outlines@workspace:packages/plugins/outlines"],
+
+    "olai-plugin-pdf": ["olai-plugin-pdf@workspace:packages/plugins/pdf"],
 
     "olai-plugin-pi": ["olai-plugin-pi@workspace:packages/plugins/pi"],
 
