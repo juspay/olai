@@ -79,7 +79,8 @@ Feature: A lane names its CI run by odu's run id
       """
     Then the chat shows a sentence no person typed
     And that sentence was rung by "odu"
-    And that sentence names "m1kb0e11-2c8d"
+    When I open that sentence
+    Then that sentence names "m1kb0e11-2c8d"
     And that sentence does not name "m1same00-bbbb"
     And there should be no page errors
 
