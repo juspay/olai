@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The move-to picker: search every outline for a new parent, and put this row
  * under the one you choose — with everything hanging off it.
@@ -53,7 +52,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * lands verbatim under the row (`./moving.tsx` owns the line, because it
  * outlives the panel a landed write closes).
  */
-
+import { servedDirectory } from "../vault.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Edit } from "@olai/surface"
 import type { Accessor, Signal } from "solid-js"
 
@@ -147,7 +147,7 @@ export function MovePicker(props: {
             address reads as written. */}
         <span class="text-ink">
           <TitleHtml
-            drawing={renderTitle(props.moved.title, props.moved.file, {
+            drawing={renderTitle(servedDirectory()?.claims(), props.moved.title, props.moved.file, {
               links: false,
             })}
           />
@@ -156,6 +156,7 @@ export function MovePicker(props: {
       </p>
 
       <Shortlist
+        claims={servedDirectory()?.claims()}
         nodes={createSearch}
         query={props.query}
         label="search every outline for a new parent"

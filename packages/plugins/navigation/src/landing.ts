@@ -42,7 +42,7 @@
  * than the address's — a face that goes on correcting where it put somebody
  * while its page is still settling stops the moment they have gone somewhere of
  * their own choosing — and it is measured in pixels by the face that performed
- * the act (`./document/Hypertext.tsx`, where the whole argument is). This
+ * the act (`olai-plugin-hypertext`’s `browser/Hypertext.tsx`, where the whole argument is). This
  * module keeps the word; the pixels are the surface's.
  *
  * Not `./drag/plan.ts`'s `Landing`, which is a different word for a different

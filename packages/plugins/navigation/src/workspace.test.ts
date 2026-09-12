@@ -8,7 +8,7 @@
  * package names a plugin, and the boot package spelled this one twice for a
  * claim it does not own.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import type { Route } from "./routes.ts"
@@ -45,7 +45,7 @@ const house: Route = atFile("house.olai")
 const kitchen: Route = atNode("kitchen")
 const garden: Route = atFile("garden.olai")
 const trash: Route = { kind: "trash" }
-const doc: Route = atElement("notes/finishes.md", "beds")
+const doc: Route = atElement(TEST_CLAIMS, "notes/finishes.md", "beds")
 const filtered: Route = { ...atFile("house.olai"), filter: "is:done" }
 
 test("a lone page is exactly the address it always was", () => {

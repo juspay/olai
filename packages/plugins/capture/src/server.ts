@@ -17,7 +17,7 @@ import { surface, faces } from "./surface.ts"
 import { tools } from "./tools.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
-import { INBOX, mintedInto, NO_INBOX, inboxHeldIn, conventionServed, inboxIn, type Convention } from "@olai/format"
+import { INBOX, mintedInto, mintExt, NO_INBOX, inboxHeldIn, conventionServed, inboxIn, type Convention } from "@olai/format"
 
 export default definePlugin({
   name, needs: [Directory, Ops, Vault, Surfaces],
@@ -31,9 +31,11 @@ export default definePlugin({
     const publishInbox = yield* vault.inbox.register(null)
     let file: Convention | undefined
     yield* vault.revision<Snapshot<Reading>>(snapshot => Effect.gen(function*() {
-      file = conventionServed(inboxIn, snapshot.value.set, snapshot, file)
+      file = conventionServed(snapshot.value.claims, inboxIn, snapshot.value.set, snapshot, file)
       publish(inboxHeldIn(snapshot.value.derived, file.file))
-      yield* publishInbox(file.file ?? mintedInto(INBOX))
+      const reading = yield* Effect.result(gate.read)
+      const ext = reading._tag === "Success" ? mintExt(snapshot.value.claims, reading.success.outlineRow) : null
+      yield* publishInbox(file.file ?? (ext === null ? null : mintedInto(`${INBOX}${ext}`)))
     }))
     yield* vault.unloaded(Effect.gen(function*() {
       publish(NO_INBOX)

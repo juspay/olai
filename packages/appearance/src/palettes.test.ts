@@ -1,3 +1,7 @@
+/** The table's own invariants. The TYPE already forces every row to name every
+ *  token — that is what `Record<PaletteToken, string>` is for — so what is left
+ *  here is the things a type cannot say: that no two rows answer to the same
+ *  name, that the values are colours, and that the default is one of them. */
 import { describe, expect, test } from "bun:test"
 
 import {
@@ -9,11 +13,6 @@ import {
   THEME_NAMES,
   THEME_STORAGE_KEY,
 } from "./palettes.ts"
-
-/** The table's own invariants. The TYPE already forces every row to name every
- *  token — that is what `Record<PaletteToken, string>` is for — so what is left
- *  here is the things a type cannot say: that no two rows answer to the same
- *  name, that the values are colours, and that the default is one of them. */
 describe("the palette table", () => {
   test("is the ten, lights then darks, reef leading", () => {
     expect(THEME_NAMES).toEqual([

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * Which node the reader was just pointed AT, and how the page answers.
  *
@@ -40,7 +39,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * fifth: it is the same "this is the row" one frame late, so its scroll is
  * this module's one statement, reached for directly ({@link bringOntoScreen}).
  */
-
+import { servedDirectory } from "./vault.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Result } from "effect"
 import { type Accessor, createSignal } from "solid-js"
 
@@ -186,7 +186,8 @@ const landOnRow = (go: (route: Route) => void, id: string, mine: number, before:
       setFocused(before)
       return
     }
-    go(atElement(home, id))
+    const claims = servedDirectory()?.claims()
+    if (claims !== undefined) go(atElement(claims, home, id))
   })
 }
 

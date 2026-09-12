@@ -14,7 +14,7 @@
  * deliberately asserted after a step that has already seen the preview draw —
  * an empty storage is trivially true of a page that never loaded.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
@@ -505,8 +505,8 @@ const SLOW_PICTURE_MS = 750;
  * have raced the measurement this step exists to lose.
  */
 const heldBack = (world: OlaiWorld) => (url: URL): boolean => {
-  const target = mediaTarget(url.pathname);
-  return `${url.origin}` === world.baseUrl && target !== null && isPicture(target);
+  const target = mediaTarget(TEST_CLAIMS, url.pathname);
+  return `${url.origin}` === world.baseUrl && target !== null && isPicture(TEST_CLAIMS, target);
 };
 
 When("the vault's pictures are slow to arrive", async function (this: OlaiWorld) {

@@ -28,5 +28,6 @@
     "contracts": [
       "./surface"
     ]
-  }
+  },
+  "devDependencies": {}
 }

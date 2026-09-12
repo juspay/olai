@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * THE KEY HALF OF A FACT — the one thing every property renderer draws the
  * same way, wherever it draws it.
@@ -11,6 +10,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * editor, open a pane — the key opens the editor, always, so there is one half
  * of every fact whose behaviour a reader never has to guess.
  */
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Show } from "solid-js"
 
 

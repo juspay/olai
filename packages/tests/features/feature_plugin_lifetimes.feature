@@ -4,11 +4,11 @@ Feature: Directory features have independent browser lifetimes
   Sidebar presentation can leave while content and navigation continue.
 
   Scenario Outline: A directory feature can leave and return without replacing a draft
-    Given I rewrite "Pins.olai" as:
+    Given I rewrite "_olai/Pins.olai" as:
       """
       {"id":"lifetime-pin","ord":"a0","title":"/house.olai"}
       """
-    And I rewrite "Inbox.olai" as:
+    And I rewrite "_olai/Inbox.olai" as:
       """
       {"id":"lifetime-inbox","ord":"a0","title":"a captured task"}
       """

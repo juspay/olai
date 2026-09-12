@@ -43,7 +43,7 @@
  * Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS, like the legs that
  * share `vaultOf`.
  */
-
+import { TEST_CLAIMS } from "@olai/ops/testlib"
 import {
   apart,
   assemble,
@@ -91,13 +91,13 @@ console.log(
 const listedPaths = (at: Reading): ReadonlyArray<string> =>
   Query.outlines(at.set, at.derived).map((row) => row.file)
 
-if (JSON.stringify(listedPaths(reading)) !== JSON.stringify(Query.paths(set).paths)) {
+if (JSON.stringify(listedPaths(reading)) !== JSON.stringify(Query.paths(TEST_CLAIMS, [...TEST_CLAIMS.byKind.values()].find(claim => claim.holds === "nodes")!.kind, set).paths)) {
   throw new Error("the listing and the paths question disagree about the directory")
 }
 
 const [listingMs, pathsMs] = alternating([
   () => listedPaths(reading),
-  () => Query.paths(set),
+  () => Query.paths(TEST_CLAIMS, [...TEST_CLAIMS.byKind.values()].find(claim => claim.holds === "nodes")!.kind, set),
 ])
 
 console.log(`capture's landing (perf-capture-paths)`)
@@ -123,7 +123,7 @@ const batched = (
   ops: ReadonlyArray<{ readonly op: "desc"; readonly id: string; readonly desc: string }>,
   fold: (from: Scope) => (made: never) => Result.Result<Scope, never>,
 ): Scope => {
-  let at = scoping(reading, steady(), NO_KINDS)
+  let at = scoping(reading, steady(), NO_KINDS, [...TEST_CLAIMS.byKind.values()].find(claim => claim.holds === "nodes")!.kind)
   const folding = fold(at)
   for (const op of ops) {
     const made = plan(at, op)
@@ -184,7 +184,7 @@ const [perOpAssembled, perOpSpliced] = alternating([
   () => {
     const decoded = apart(set)
     decoded.set((rewritten as { path: string }).path, Result.succeed(rewritten))
-    return assemble(decoded)
+    return assemble(TEST_CLAIMS, decoded)
   },
   () => withDocuments(set, [rewritten]),
 ])
@@ -203,7 +203,7 @@ const written = rewritten as unknown as {
   readonly nodes: ReadonlyArray<never>
 }
 const checkedDoor = (): Reading =>
-  formatReading(withDocuments(set, [rewritten]), {
+  formatReading(TEST_CLAIMS, withDocuments(set, [rewritten]), {
     read: reading,
     delta: { upserts: [[written.path, { nodes: written.nodes }]], removes: [] },
   })

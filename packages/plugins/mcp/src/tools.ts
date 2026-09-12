@@ -43,7 +43,7 @@
  *     2026-08-25 a running server answered `outlines_read` normally with week-old
  *     truth for half an hour; what was missing was not a tool, it was this.
  */
-
+import { claims } from "@olai/format"
 import {
   type CommitRequest,
   type CommitResult,
@@ -532,6 +532,8 @@ const planned = (
     resolvedWrite(
       Effect.map(door.paths, (listed): Planning => ({
         paths: listed.paths,
+        claims: claims(listed.claims),
+        outlineRow: listed.outlineRow,
         login,
         // Read PER CALL, so a process left running overnight still dates a
         // capture today — `asking`'s rule for `date:yesterday`, kept here.

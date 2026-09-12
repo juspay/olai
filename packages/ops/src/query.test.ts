@@ -8,7 +8,7 @@
  * through a real MCP client; this is where the shapes are pinned, because a
  * field dropped from a search hit would fail nothing over there.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import {
   bytesOf,
   type Derived,
@@ -1198,7 +1198,7 @@ describe("a document listing's sizes are a recompute from the body", () => {
     agree(set)
     const made = planned(set, { op: "doc", file: "note.md", text: next })
     const folded = succeeded(
-      folding(scoping(readingOf(set), steady(), NO_KINDS))(made),
+      folding(scoping(readingOf(set), steady(), NO_KINDS, "outline-olai"))(made),
       "`markdown_write` to apply",
     )
     agree(folded.set)
@@ -1220,7 +1220,7 @@ const suiteCorpus = (): OutlineSet => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const next = rel === "" ? entry.name : `${rel}/${entry.name}`
       if (entry.isDirectory()) walk(join(dir, entry.name), next)
-      else if (fileKind(next) === "document") {
+      else if (fileKind(TEST_CLAIMS, next) === "markdown") {
         files.push([next, readFileSync(join(dir, entry.name), "utf8")])
       }
     }

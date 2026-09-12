@@ -31,12 +31,12 @@
  * decision the code delegates. It is a walk, and a walk is measured by asking
  * the things it walks over.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { type Document, isOutline, type Outline, outlineDocument } from "./document.ts"
-import { parseOutline } from "./parse.ts"
+import { parseOutline } from "./fixtures.testlib.ts"
 import { assemble, type OutlineSet, withDocuments } from "./set.ts"
 import { following, type Reading, reading } from "./validate.ts"
 
@@ -72,24 +72,24 @@ const watched = (set: OutlineSet, tripwire: Tripwire): OutlineSet => ({
  *  vault has, at whatever size a case asks for. */
 const vault = (files: number): OutlineSet => {
   const decoded = new Map<string, Result.Result<Document, never>>()
-  decoded.set("_olai/Trash.olai", Result.succeed(outlineDocument("_olai/Trash.olai", [])))
+  decoded.set("_olai/Trash.olai", Result.succeed(outlineDocument(TEST_CLAIMS, "_olai/Trash.olai", [])))
   for (let which = 0; which < files; which++) {
     const path = `wing/room-${String(which).padStart(4, "0")}.olai`
     const text = [0, 1, 2]
       .map((row) => `{"id":"n${which}-${row}","ord":"a${row}","title":"row ${row}"}`)
       .join("\n")
-    const read = parseOutline(path, text)
+    const read = parseOutline(path, text, TEST_CLAIMS)
     if (Result.isFailure(read)) throw new Error(`fixture ${path} does not parse`)
     decoded.set(path, Result.succeed<Document>(read.success))
   }
-  return assemble(decoded)
+  return assemble(TEST_CLAIMS, decoded)
 }
 
 /** One file's worth of records, decoded — what a plan becomes on its way into
  *  the set, and the one document below that is NOT behind the tripwire. */
 const written = (path: string, title: string): Outline => {
   const id = path.replace(/[^A-Za-z0-9_-]/g, "-")
-  const read = parseOutline(path, `{"id":"${id}","ord":"a0","title":"${title}"}`)
+  const read = parseOutline(path, `{"id":"${id}","ord":"a0","title":"${title}"}`, TEST_CLAIMS)
   if (Result.isFailure(read)) throw new Error(`${path} does not parse`)
   return read.success
 }
@@ -97,7 +97,7 @@ const written = (path: string, title: string): Outline => {
 /** The door as it stood: the splice, and `reading` with the delta the caller
  *  built beside it — which is where the corpus check lives. */
 const checked = (read: Reading, one: Outline): Reading =>
-  reading(withDocuments(read.set, [one]), {
+  reading(TEST_CLAIMS, withDocuments(read.set, [one]), {
     read,
     delta: { upserts: [[one.path, { nodes: one.nodes }]], removes: [] },
   })
@@ -114,7 +114,7 @@ const bothWays = (
   readonly checked: Reading
 } => {
   const tripwire: Tripwire = { reads: 0 }
-  const read = reading(watched(vault(files), tripwire))
+  const read = reading(TEST_CLAIMS, watched(vault(files), tripwire))
   const one = written(path, "rewritten")
 
   tripwire.reads = 0
@@ -174,12 +174,12 @@ test("a write with nothing left to patch onto rebuilds, on either door", () => {
   // nothing of the old view is left to patch onto once its one file moves
   // (`./patch.ts`), which is a decline rather than a disagreement, and the fold
   // hits it on every op of a batch against a one-file vault.
-  const set = assemble(
+  const set = assemble(TEST_CLAIMS,
     new Map<string, Result.Result<Document, never>>([
       ["only.olai", Result.succeed<Document>(written("only.olai", "the one file"))],
     ]),
   )
-  const read = reading(set)
+  const read = reading(TEST_CLAIMS, set)
   const one = written("only.olai", "rewritten")
   const carried = following(read, [one])
   const asChecked = checked(read, one)

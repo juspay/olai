@@ -111,7 +111,8 @@ export { BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 // reaches past this package's own `client/`, `@olai/appearance` and
 // `@olai/plugin-api`:
 //
-//   - `ROW_TESTID` is `olai-plugin-files/kinds`' — which row one KIND of file
+//   - `ROW_TESTID` is local to the e2e world's `support/world.ts`, composed from
+//     each kind row's declared testids door — which row one KIND of file
 //     draws is that row's table;
 //   - `Making`, `MAKING_DOCUMENT` and `MAKING_OUTLINE` are
 //     `olai-plugin-files/making`'s — what a minting door is called is the

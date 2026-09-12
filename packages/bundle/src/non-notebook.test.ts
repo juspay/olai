@@ -1,6 +1,6 @@
-import { selectFixtureRows } from "./fixture.testlib.ts"
 /** Exercise the shipped fixture through the real row loader and host, with
  * an empty generic Surface root and no directory or presentation providers. */
+import { selectFixtureRows } from "./fixture.testlib.ts"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { defineSurface } from "@kolu/surface/define"

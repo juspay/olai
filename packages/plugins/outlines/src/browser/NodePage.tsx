@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * One node, as a page — the zoom.
  *
@@ -17,7 +16,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * (`day/DayNode.tsx`) — and repeating it here would put a second date beside a
  * heading that already has one, meaning something else.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { RowForms, useRowForms } from "./date/memory.tsx"
 import { isOverdue, type Row, type Zoomed } from "@olai/format"
 import { Show } from "solid-js"

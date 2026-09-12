@@ -1,11 +1,4 @@
 import { SESSION_KIND } from "./binding.ts"
-import type {} from "olai-plugin-layout/slots"
-import type {} from "olai-plugin-navigation/slots"
-import type {} from "olai-plugin-outlines/slots"
-import type {} from "olai-plugin-sidebar/slots"
-import { slotContracts } from "./slots.ts"
-import {Clocks} from "@olai/plugin-api"
-import {fileAccess} from "olai-plugin-vault/contract"
 /**
  * Chat owns the activation roster, per-conversation UI, and tab-local folds.
  * Outlines owns the row and page slots; sidebar and navigation own their
@@ -16,7 +9,13 @@ import {fileAccess} from "olai-plugin-vault/contract"
  * Cross-plugin live readings are declared services or scoped contributions;
  * naming an unused service would leave this component waiting for no reader.
  */
-
+import type {} from "olai-plugin-layout/slots"
+import type {} from "olai-plugin-navigation/slots"
+import type {} from "olai-plugin-outlines/slots"
+import type {} from "olai-plugin-sidebar/slots"
+import { slotContracts } from "./slots.ts"
+import {Clocks} from "@olai/plugin-api"
+import {fileAccess} from "olai-plugin-vault/contract"
 import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 

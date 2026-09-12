@@ -8,7 +8,7 @@ import { Deferred, Effect, Fiber, Result, Stream } from "effect"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { VaultSettings, VaultViews } from "@olai/plugin-api/services"
+import { FileKinds, VaultSettings, VaultViews } from "@olai/plugin-api/services"
 import { VaultBoot } from "olai-plugin-vault/boot"
 
 const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
@@ -17,7 +17,7 @@ const flip = (host: Parameters<typeof setRow>[0], id: string, on: boolean) =>
 const opening = (root: string, options: { readonly format?: string; readonly ledger?: Ledger } = {}) => Effect.gen(function*() {
   const plugins = yield* openPlugins({ vars: {}, now: () => "" })
   yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
-  yield* mountBundle(plugins.host, [...selectFixtureRows(["vault"]), ...(options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }])], "test-minimal")
+  yield* mountBundle(plugins.host, [...selectFixtureRows(["vault", "outline-olai"]), ...(options.format === undefined ? [] : [{ id: "vault", config: { format: options.format } }])], "test-minimal")
   /**
    * A LEDGER ARRIVES THE WAY GIT'S DOES — registered through `VaultViews` by a
    * row that named it — rather than provided over the host's head. The vault
@@ -50,7 +50,7 @@ test("headless vault reports its missing HTTP component while file access leaves
   const firstGate = offered(plugins.host, OpsDoor)?.gate as Ops
   const first = store()
   expect(first).toBeDefined()
-  expect(configsOf(plugins.host).get("vault")).toEqual({ format: "olai" })
+  expect(configsOf(plugins.host).get("vault")).toEqual({ format: "outline-olai" })
   const report = yield* reportBundle(plugins.host, ["vault", "ws", "mcp", "web-app"])
   expect(report.get("vault")).toEqual({ state: "waiting", missing: ["transport-surface"] })
   for (const name of ["ws", "mcp", "web-app"]) expect(report.get(name)?.state).toBe("off")
@@ -110,18 +110,14 @@ test("a non-directory root fails only its vault row", () => Effect.runPromise(Ef
   expect(store()).toBeUndefined()
 }))))
 
-test("an unsupported format fails the row before it acquires a directory or gate", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+test("an absent configured format leaves the vault readable and refuses only the mint", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const root = rootWithNote()
-  const invalid = yield* opening(root, { format: "org" })
-  const row = (yield* reportBundle(invalid.plugins.host, ["vault"])).get("vault")
-  expect(row?.state).toBe("failed")
-  expect(row?.state === "failed" ? row.fault : undefined).toContain("olai")
-  expect(invalid.store()).toBeUndefined()
-  expect(offered(invalid.plugins.host, OpsDoor)).toBeUndefined()
-  // A supported row can still acquire the same directory: schema refusal did
-  // not claim its lock, even briefly, or leave a store behind.
-  const valid = yield* opening(root)
-  expect(valid.store()).toBeDefined()
+  const opened = yield* opening(root, { format: "missing-format" })
+  expect(opened.store()).toBeDefined()
+  expect(offered(opened.plugins.host, OpsDoor)).toBeDefined()
+  const refusal = yield* Effect.flip(opened.ops.run({ op: "create", file: "New.olai" }, "web"))
+  expect(refusal._tag).toBe("UsageFailure")
+  expect(refusal.message).toContain("the missing-format row is off")
 }))))
 
 test("vault teardown drains an accepted write before releasing the directory lock", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
@@ -174,10 +170,18 @@ test("vault teardown drains an accepted write before releasing the directory loc
  * only question that distinguishes the two: with a ledger registered in EACH
  * host, does A still answer A's?
  */
-test("one process's two vaults do not share the ledger a row registered with either", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+test("one process's two vaults share neither ledgers nor file-kind claims", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {
   const named = (name: string): Ledger => ({ ...NO_LEDGER, whyWaiting: () => Effect.succeed(name) })
   const a = yield* opening(rootWithNote(), { ledger: named("host A") })
   const b = yield* opening(rootWithNote(), { ledger: named("host B") })
+  yield* mountPlugin(a.plugins.host, definePlugin({
+    name: "host-a-kind", needs: [FileKinds], apply: Effect.flatMap(FileKinds, kinds => kinds.register({
+      exts: [".host-a"], holds: "bytes", kept: false, fetched: true, noun: "file", article: "a",
+    })),
+  }))
+  yield* settled(a.plugins.host, ["host-a-kind"])
+  expect(offered(a.plugins.host, FileKinds)?.current().has("host-a-kind")).toBe(true)
+  expect(offered(b.plugins.host, FileKinds)?.current().has("host-a-kind")).toBe(false)
   // Through the SETTINGS rather than the table: what the finding was about is
   // which ledger a vault's store writes through, and the settings are what
   // carries it (`vault-setup` builds them over the views it minted).

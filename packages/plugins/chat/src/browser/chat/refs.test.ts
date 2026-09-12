@@ -16,7 +16,7 @@
  * (`features/node_context.feature`): a click is a page moving under a reader,
  * and that is not a thing a value can say.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, nodeNamed } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
@@ -42,7 +42,7 @@ const HOUSE = [
   `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
 ].join("\n")
 
-const indexes = derive(recordsOf(setOf({ "house.olai": HOUSE })))
+const indexes = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE })))
 
 /** What `./Entry.tsx` passes: what the set has answered about an id — which is
  *  the format's own rule for what an id names, run on the other side of the

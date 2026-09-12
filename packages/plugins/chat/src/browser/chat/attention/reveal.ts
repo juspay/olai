@@ -1,3 +1,4 @@
+import { servedDirectory } from "../../vault.ts"
 import type { Router } from "olai-plugin-navigation/routing"
 import { agentReadings } from "../../agents/reading.ts"
 import { needing } from "../../agents/attention-order.ts"
@@ -14,7 +15,9 @@ export const createReveal = (router: Router) => {
       return
     }
     held?.visit(first.id)
-    router.go(rowOf(first))
+    const claims = servedDirectory()?.claims()
+    if (claims === undefined) return
+    router.go(rowOf(claims, first))
     unfold(first.id)
     held?.reveal(first.id)
   }

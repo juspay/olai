@@ -1,4 +1,3 @@
-import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 /**
  * What it takes to stand a real server up in a test, spelled once.
  *
@@ -21,7 +20,7 @@ import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
  * the same number today and they are not the same question, so they stay where
  * the sentence explaining each of them is.
  */
-
+import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
 import { Effect, Layer } from "effect"

@@ -1,10 +1,9 @@
+/** A row, as a bulk verb sees one: the record it IS (what a move names) and the
+ *  node it SHOWS (what a mark names), which for a mirror are two ids. */
 import type { Row } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { archivable, bulkEdits } from "./bulk.ts"
-
-/** A row, as a bulk verb sees one: the record it IS (what a move names) and the
- *  node it SHOWS (what a mark names), which for a mirror are two ids. */
 const row = (id: string, shows: string = id, kind: "node" | "mirror" = "node"): Row =>
   ({
     kind,

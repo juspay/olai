@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/web/client/testids.ts"
 /**
  * THE APP, FROZEN — one overlay over everything, drawn exactly while a
  * question cannot reach the server.
@@ -70,7 +69,7 @@ import { TESTID } from "@olai/web/client/testids.ts"
  * `preventDefault`, so the reload button on this card still activates on
  * `Enter` while every listener under it hears nothing.
  */
-
+import { TESTID } from "@olai/web/client/testids.ts"
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 import { createEffect, createMemo, onCleanup, Show } from "solid-js"
 

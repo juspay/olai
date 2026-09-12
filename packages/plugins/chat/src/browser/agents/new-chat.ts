@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 import { createSignal, onCleanup } from "solid-js"
 import type { Said } from "@olai/web/client/saying.ts"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -29,11 +30,12 @@ export const createNewChat = () => {
       if (found._tag === "Failure") { const failure: Said = { tone: "alarm", text: found.failure.message, kind: found.failure._tag }; say(failure); return failure }
       const row = found.success
       const nav = routeReading()
-      if (row === null || row.node !== result.success || nav === undefined) {
+      const claims = servedDirectory()?.claims()
+      if (row === null || row.node !== result.success || nav === undefined || claims === undefined) {
         const failure: Said = { tone: "alarm", text: "the conversation was created, but its node is no longer available here" }
         say(failure); return failure
       }
-      nav.go(atElement(row.file, row.node))
+      nav.go(atElement(claims, row.file, row.node))
       unfold(row.node)
     } finally { setPending(false) }
   }

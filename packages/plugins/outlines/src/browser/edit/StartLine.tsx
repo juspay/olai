@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * Where a page with no rows offers one.
  *
@@ -13,7 +12,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * place the row will appear. So there is one new-row mechanism rather than a
  * special case for the first one.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { Anchor } from "@olai/surface"
 import { Show } from "solid-js"
 

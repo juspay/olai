@@ -1,6 +1,3 @@
-import { serviceTag } from "@olai/plugin-api/contracts"
-import type { Accessor } from "solid-js"
-
 /**
  * What a press asks this app for — the payload the worker relays back, from a
  * notification that may be older than the tab reading it.
@@ -14,6 +11,8 @@ import type { Accessor } from "solid-js"
  * is "take me to it", and what "it" is is a fact the app has when the press
  * lands and the notification did not necessarily have when it was raised.
  */
+import { serviceTag } from "@olai/plugin-api/contracts"
+import type { Accessor } from "solid-js"
 export type NotifyClick = { readonly kind: "ask" } | { readonly kind: "due" }
 
 /** A notification, as the seam takes it. */

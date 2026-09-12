@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Effect, Fiber, Deferred } from "effect"
-import { UsageFailure, serializeOutline, type WriteRequest } from "@olai/format"
-import { readingOf, setOf, planning } from "@olai/ops/testlib"
+import { UsageFailure, type WriteRequest } from "@olai/format"
+import { TEST_CLAIMS, readingOf, setOf, planning } from "@olai/ops/testlib"
 import type { SessionInfo, Listed } from "olai-plugin-chat/wire"
 import { vaultEvents } from "@olai/plugin-api/services"
 import { makeFiler, claimed, fileListed, noteOf, type Filing } from "./filer.ts"
@@ -26,7 +26,7 @@ const fixture = (files: Record<string, string> = {}) => {
       if (refuse(request)) return yield* new UsageFailure({ reason: "refused by this validator" })
       const plan = planning(setOf(texts), request)
       if (plan._tag === "Failure") return yield* plan.failure
-      for (const file of plan.success.files) texts[file.file] = serializeOutline(file.nodes)
+      for (const file of plan.success.files) texts[file.file] = TEST_CLAIMS.byKind.get("outline-olai")!.format!.serialize(file.nodes)
     }),
   }
   return { filing, writes, logs, assigned, texts, refuse: (f: typeof refuse) => { refuse = f } }

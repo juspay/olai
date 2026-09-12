@@ -24,7 +24,7 @@ const RINGER: BuiltPlugin = {
     subject: "wake on terminal activity",
     from: "terminals from",
     waiting: { one: "fleet event waiting", many: "fleet events waiting" },
-    kinds: ["outline"],
+    walks: "nodes",
   },
 }
 
@@ -154,7 +154,7 @@ describe("what the picker is allowed to offer", () => {
     // Core knows what a file IS (`@olai/format`'s registry) and never what a
     // wake file MEANS, so which kinds can carry a filter is the plugin's answer
     // arriving as data. {@link ./scopable.ts} is where it is spent.
-    expect(ringersOf([RINGER], [])[0]?.kinds).toEqual(["outline"])
+    expect(ringersOf([RINGER], [])[0]?.walks).toBe("nodes")
   })
 
   test("and a serve that declared none offers nothing, rather than everything", () => {
@@ -162,8 +162,8 @@ describe("what the picker is allowed to offer", () => {
     // that its absence cannot fail the roster's decode and take every plugin's
     // mount with it — and what absence MEANS here is the whole point: an empty
     // list matches no path, where a missing filter would match every one.
-    const { kinds: _declared, ...said } = RINGER.wake!
+    const { walks: _declared, ...said } = RINGER.wake!
     const older: BuiltPlugin = { ...RINGER, wake: said }
-    expect(ringersOf([older], [])[0]?.kinds).toEqual([])
+    expect(ringersOf([older], [])[0]?.walks).toBeUndefined()
   })
 })

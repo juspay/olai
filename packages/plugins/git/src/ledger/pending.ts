@@ -77,7 +77,7 @@ import {
   changesOf,
   composed,
   type Derived,
-  fileKind,
+  claims,
   type GitPolicy,
   type GitState,
   type How,
@@ -99,6 +99,7 @@ import {
   Writer,
   type Wrote,
 } from "@olai/format"
+import type { Ops } from "@olai/ops"
 import * as Git from "../git/git.ts"
 import { Duration, Effect, Stream, SubscriptionRef } from "effect"
 
@@ -337,6 +338,7 @@ export const commitDoor = (writer: Writer): string => {
 }
 
 export interface Options {
+  readonly ops: Pick<Ops, "parserFor">
   /** Absolute path of the directory being served — where git runs. */
   readonly root: string
   /**
@@ -374,7 +376,7 @@ export interface Options {
   readonly quiet?: Duration.Input
   /**
    * HEAD's side of the dirty outlines — {@link ./committed.ts}'s
-   * `remembering()` where nobody says otherwise, which is every composition
+   * `remembering(options.ops)` where nobody says otherwise, which is every composition
    * this program has.
    *
    * Handed in so the DIFFERENTIAL can run this whole layer against an arm that
@@ -593,7 +595,7 @@ export const make = (options: Options): Committing => {
   /** HEAD's side of the dirty outlines, remembered per commit — see
    *  {@link ./committed.ts}. One per served directory, which is one per
    *  {@link Committing}, so what it holds goes when the directory does. */
-  const committedSide = options.committed ?? remembering()
+  const committedSide = options.committed ?? remembering(options.ops)
 
   /** What this server DOES about commits, asked of the policy rather than
    *  derived once into a closed-over mode: the same accessor the loop already
@@ -733,7 +735,7 @@ export const make = (options: Options): Committing => {
     const outlines: Array<Served> = []
     const others: Array<Git.Dirty> = []
     for (const entry of dirt.files) {
-      if (entry.served !== null && fileKind(entry.served) === "outline") {
+      if (entry.served !== null && options.ops.parserFor(entry.served) !== null) {
         outlines.push({
           file: entry.served,
           path: entry.path,
@@ -842,7 +844,7 @@ export const make = (options: Options): Committing => {
           // — a `.md` becoming a `.olai`, which is the migration this was
           // filed during — has no committed outline to compare against, and
           // that is an absence rather than a fault to report.
-          if (fileKind(key) === "outline") unreadable.add(one.file)
+          if (options.ops.parserFor(key) !== null) unreadable.add(one.file)
           return
         }
         if (copy?._tag === "Nodes") before.set(key, copy.nodes)
@@ -853,7 +855,7 @@ export const make = (options: Options): Committing => {
         }
       })
 
-      return { changes: changesOf(before, after), unreadable: [...unreadable] }
+      return { changes: changesOf(at?.claims ?? claims([]), before, after), unreadable: [...unreadable] }
     })
 
   /**
@@ -898,7 +900,7 @@ export const make = (options: Options): Committing => {
         // The suggestion for EVERYTHING waiting, which is what the panel opens
         // with and what an agent that supplies no message gets. Unticking a row
         // recomposes it in the browser, from this same function.
-        message: composed(changes, others),
+        message: composed((yield* options.at)?.claims ?? claims([]), changes, others),
         last: looked.last,
       },
       git,
@@ -952,7 +954,7 @@ export const make = (options: Options): Committing => {
         paths: [...picked.outlines, ...picked.others].flatMap((one) =>
           one.from === null ? [one.at] : [one.from.at, one.at]
         ),
-        message: signed(request.message ?? composed(changes, others), writer),
+        message: signed(request.message ?? composed((yield* options.at)?.claims ?? claims([]), changes, others), writer),
       })
       if (done._tag === "Failed") {
         committed(done.said)

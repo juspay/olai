@@ -20,7 +20,7 @@
  * pending one can be taken back off, which is `onRemove`.
  */
 
-import { isPicture } from "@olai/format"
+import { isAttachmentPicture as isPicture } from "@olai/surface"
 import { createMemo, For, onCleanup, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"

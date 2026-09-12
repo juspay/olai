@@ -1,5 +1,5 @@
-import type {} from "./slots.ts"
 /** Layout owns the panel and viewer placements; contributors supply their faces. */
+import type {} from "./slots.ts"
 import { createMemo, Show } from "solid-js"
 
 import { only } from "./faces.ts"

@@ -18,7 +18,7 @@
  * node agents at all — a claimed key declared something else, and a column
  * nothing declares.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import type { Overheard } from "olai-plugin-chat"
@@ -128,7 +128,7 @@ test("the fact olai writes back travels as null rather than as an absent key", (
 /** One revision of a board with two node agents on it, one of them bound —
  *  under the key this kind CLAIMS, which is what a vault that has declared
  *  nothing at all carries. */
-const SEEN = derive(recordsOf(setOf({
+const SEEN = derive(TEST_CLAIMS, recordsOf(setOf({
   "lanes.olai": [
     `{"id":"spaces","ord":"a0","title":"Xyne Spaces","custom":{"chat-agent-session":"grok:sess-1"}}`,
     `{"id":"odu","ord":"a1","title":"Odu","custom":{"chat-agent-session":"opus"}}`,
@@ -154,7 +154,7 @@ test("a conversation no property names is nobody's, which is nearly every one", 
 })
 
 test("the nearest node agent at or above is named from the current vault reading", () => {
-  const nested = derive(recordsOf(setOf({
+  const nested = derive(TEST_CLAIMS, recordsOf(setOf({
     "lanes.olai": [
       `{"id":"root","ord":"a0","title":"Root","custom":{"chat-agent-session":"claude:r"}}`,
       `{"id":"child","parent":"root","ord":"a0","title":"Child","custom":{"chat-agent-session":"claude:c"}}`,
@@ -195,7 +195,7 @@ test("...and a vault keeping its bindings under a word of its own says so in ONE
   // ONE ROW IN `_olai/Properties.olai` puts this kind on any column a board
   // likes — here the bare `agent-session`, which is what a vault written before
   // chat was a plugin carries. The row is what says that key is this kind.
-  const migrated = derive(recordsOf(setOf({
+  const migrated = derive(TEST_CLAIMS, recordsOf(setOf({
     "_olai/Properties.olai":
       `{"id":"prop-agent-session","ord":"a0","title":"agent-session","custom":{"type":"chat-agent-session"}}`,
     "lanes.olai":
@@ -218,7 +218,7 @@ test("a board that declares the claimed key something else keeps no node agents"
   // The vault wins in both directions. A row saying the column is prose is a
   // person saying what they mean, and a default that argued back would be this
   // plugin overruling them.
-  const said = derive(recordsOf(setOf({
+  const said = derive(TEST_CLAIMS, recordsOf(setOf({
     "_olai/Properties.olai":
       `{"id":"prop-session","ord":"a0","title":"chat-agent-session","custom":{"type":"text"}}`,
     "lanes.olai":
@@ -234,7 +234,7 @@ test("a board whose bindings sit on a column nothing declares keeps no node agen
   // vault might be using for something of its own, so a plugin may only ever
   // declare the key carrying its own name — and a board that wants its bindings
   // in that column says so with the row above rather than being read anyway.
-  const bare = derive(recordsOf(setOf({
+  const bare = derive(TEST_CLAIMS, recordsOf(setOf({
     "lanes.olai": `{"id":"one","ord":"a0","title":"One","custom":{"agent-session":"claude:s-1"}}`,
   })))
   const carrier = roster()
@@ -245,7 +245,7 @@ test("a board whose bindings sit on a column nothing declares keeps no node agen
 
 test("the wire roster carries the current vault edit stamp for agents not yet heard", () => {
   const carrier = roster()
-  const seen = (changed: string) => derive(recordsOf(setOf({ "one.olai": JSON.stringify({ id: "one", ord: "a0", title: "One", changed, custom: { "chat-agent-session": "engine" } }) })))
+  const seen = (changed: string) => derive(TEST_CLAIMS, recordsOf(setOf({ "one.olai": JSON.stringify({ id: "one", ord: "a0", title: "One", changed, custom: { "chat-agent-session": "engine" } }) })))
   carrier.seen(seen("2026-01-01T00:00:00Z"))
   expect(carrier.rowsWith([])[0]?.changed).toBe("2026-01-01T00:00:00Z")
   carrier.seen(seen("2026-02-01T00:00:00Z"))

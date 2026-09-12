@@ -125,7 +125,7 @@ export const sortOfWrite = (
     ]),
   )
   const now = new Map(files.map((planned) => [planned.file, planned.nodes]))
-  const changes = changesOf(was, now)
+  const changes = changesOf(derived.claims, was, now)
   const change = changes.find((entry) => entry.id === about) ?? biggestOf(changes)
   if (change !== null && change !== undefined) return change.sort
   // No RECORD moved — and one write can still mean something, because a file is

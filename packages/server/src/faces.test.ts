@@ -1,4 +1,3 @@
-import { selectFixtureRows } from "@olai/bundle/testlib"
 /**
  * EACH ROW'S FACE, AS THAT ROW'S EXACT SET — and, over a real socket, the
  * property the whole arrangement exists for.
@@ -41,7 +40,7 @@ import { selectFixtureRows } from "@olai/bundle/testlib"
  * because it is a property of the adapter's verb choice. That fence lives where
  * a real server can be read: `./mcp/face.test.ts`.
  */
-
+import { selectFixtureRows } from "@olai/bundle/testlib"
 import { createSurfaceSocket } from "@kolu/surface-app/connect"
 import { composeSurfaceContracts, scopeSiblingTag, type Surface, type SurfaceSpec } from "@kolu/surface/define"
 import { exposeFace } from "@kolu/surface/expose"
@@ -220,12 +219,12 @@ const under = (
 
 // ── each row's face, as that row's exact set ────────────────────────────
 
-test("every row this build composes is standing, so the claims below are about something", async () => {
+test("every surface-bearing row this fixture composes is standing", async () => {
   await withRows(async ({ rows }) => {
-    // The list is the fixture's, and it is asserted because every case below is
+    // Claim-only rows have no wire surface. The surface list is asserted because every case below is
     // a `for` over what actually mounted: a row that quietly failed to settle
     // would make its own claims vacuous rather than red.
-    expect(rows.map((row) => row.name).sort()).toEqual([...ROWS].sort())
+    expect(rows.map((row) => row.name).sort()).toEqual(["vault", "vault-plugins", "search", "outlines", "markdown", "files", "pins", "capture", "trash"].sort())
   })
 })
 
@@ -498,8 +497,7 @@ test("nothing else is published, and the set is exact", () => {
     "surface://collections/markdown/documents/{id}",
     "surface://collections/outlines/outlines/{id}",
   ])
-  // No procedure is published as a resource: the call-shaped half of this face
-  // arrives separately, as the rows' own bespoke tools.
+  // Fresh body bytes are browser-only; the agent has no such tool.
   expect(tools).toEqual([])
   // `manifest` is the member the cost rule was written about, and it is not on
   // this contract at all. It used to be `NullOr({ documents: Array({file,

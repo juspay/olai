@@ -84,7 +84,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
       | chat       |
       | filed      |
 
-  @scratch:lanes @rows:vault,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @scratch:lanes @rows:vault,olai,kolu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A serve that composed no chat row says which door kolu is waiting behind
     # THE RULING'S ACCEPTED COST, and the sentence that makes it payable.
     #

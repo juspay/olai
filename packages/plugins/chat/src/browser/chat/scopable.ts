@@ -17,7 +17,7 @@
  *
  * **CAN this doorbell watch that file** is the plugin's, and it is answered
  * where the declaration it reads lives: `@olai/surface`'s `watchable`, over
- * `wake.kinds`. It is not re-spelled here, because the SERVE asks the same
+ * `wake.walks`. It is not re-spelled here, because the SERVE asks the same
  * question of a stored pick per revision (`olai-plugin-chat`'s `Chat.faults`) and the
  * day the two spellings drift is the day this picker offers a file the serve
  * faults on the moment somebody presses it.
@@ -44,7 +44,7 @@
  * anybody should have to check that a document is not on offer.
  */
 
-import { inOlaiDir, isPutAway } from "@olai/format"
+import { type Claims, inOlaiDir, isPutAway } from "@olai/format"
 import { watchable } from "@olai/surface"
 
 /**
@@ -89,7 +89,7 @@ import { watchable } from "@olai/surface"
  * a caller reaching for this alone would be a second opinion about what the
  * picker offers.
  */
-const readersOwn = (path: string): boolean => !isPutAway(path) && !inOlaiDir(path)
+const readersOwn = (claims: Claims, path: string): boolean => !isPutAway(claims, path) && !inOlaiDir(path)
 
 /**
  * ... and the two together: the files this doorbell could be pointed at.
@@ -105,5 +105,5 @@ const readersOwn = (path: string): boolean => !isPutAway(path) && !inOlaiDir(pat
  * `lanes.olai` on one machine and `work/today.olai` on the next, and a picker
  * that tried to rank them would be wrong in a way nobody could correct.
  */
-export const scopable = (kinds: ReadonlyArray<string>, path: string): boolean =>
-  watchable(kinds, path) && readersOwn(path)
+export const scopable = (claims: Claims, wake: { readonly walks?: string | undefined }, path: string): boolean =>
+  watchable(claims, wake, path) && readersOwn(claims, path)

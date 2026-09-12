@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-layout/testids"
 /**
  * The connection pill: is this page still talking to a server?
  *
@@ -44,7 +43,7 @@ import { TESTID } from "olai-plugin-layout/testids"
  * for the reason the git pill beside it is quiet when it is happy: one green
  * claim per page, or neither is scanned.
  */
-
+import { TESTID } from "olai-plugin-layout/testids"
 import { Show } from "solid-js"
 
 import { isDegraded, lookOf, type SurfaceReadout } from "@olai/web/client/connection/status.ts"

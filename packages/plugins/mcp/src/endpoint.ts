@@ -1,11 +1,11 @@
+/** MCP protocol acquisition belongs to the plugin's activation scope. Core
+ * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
 import type { SurfaceSpec } from "@kolu/surface/define"
 import type { AgentBinding } from "./binding.ts"
 import type { Tool } from "@olai/ops"
 import { siblingsOf, type Row } from "./bundle.ts"
 import { currentLogin, mcpTransport, mcpRoute } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
-/** MCP protocol acquisition belongs to the plugin's activation scope. Core
- * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
 import { type ClientOrConnection, type McpSibling, serveSurfaceAsMcp, type ServedSurfaceMcp } from "@kolu/surface-mcp"
 import { hostFaces, hostSurface } from "@olai/surface/host"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"

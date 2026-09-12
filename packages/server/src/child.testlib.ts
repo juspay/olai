@@ -1,4 +1,3 @@
-import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 /**
  * A real olai as a CHILD PROCESS: how to start one, how to read its address,
  * and how to ask whether it stopped.
@@ -17,7 +16,7 @@ import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
  * event, a clock that throws with what the child said — is the socket's
  * default, so these tests stop re-earning it.
  */
-
+import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 import { type Child, start } from "@olai/child"
 import { findLogfmt } from "@olai/log/testlib"
 import * as fs from "node:fs"

@@ -46,7 +46,7 @@
  * what counts as a ROW of a page is a fact about the page, so this reading is
  * handed them rather than walking the arms a second time.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import type { Derived, Row } from "./derive.ts"
@@ -181,7 +181,7 @@ export const narrowedIn = (
   filter: Filter,
 ): ReadonlyArray<MatchedNode> => {
   if (filter.kind !== "asking") return []
-  const putAway = showsPutAway(shows) || filter.speaksOfTrash
+  const putAway = showsPutAway(derived.claims, shows) || filter.speaksOfTrash
   // ONE ARRAY, which is what {@link selecting} being a generator is for: a
   // selection materialised and then mapped is two lists of the answer's size
   // where the second is what anybody reads.
@@ -237,14 +237,14 @@ export const narrowedIn = (
  * candidates are the page's own rows now, so all this says is whether the ones
  * that were put away are allowed to match.
  */
-export const showsPutAway = (shows: Shown): boolean => {
+export const showsPutAway = (claims: Claims, shows: Shown): boolean => {
   switch (shows.kind) {
     case "trash":
       return true
     case "outline":
-      return anyPutAway(shows.rows)
+      return anyPutAway(claims, shows.rows)
     case "node":
-      return shows.zoomed.kind === "node" && anyPutAway(shows.zoomed.children)
+      return shows.zoomed.kind === "node" && anyPutAway(claims, shows.zoomed.children)
     case "document":
     case "day":
     case "agenda":
@@ -257,8 +257,8 @@ export const showsPutAway = (shows: Shown): boolean => {
 /** The two tree arms' shared question, said once: does any ROOT of this tree
  *  show a record that was put away? `shownRecord`, because a mirror draws the
  *  file its target lives in and that is the file this is about. */
-const anyPutAway = (rows: ReadonlyArray<Row>): boolean =>
-  rows.some((row) => isTrashed(shownRecord(row).file))
+const anyPutAway = (claims: Claims, rows: ReadonlyArray<Row>): boolean =>
+  rows.some((row) => isTrashed(claims, shownRecord(row).file))
 
 /**
  * EVERY RECORD A FILTER CAN TAKE OFF THIS PAGE, once each.

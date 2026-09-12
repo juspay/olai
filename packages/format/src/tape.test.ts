@@ -19,7 +19,7 @@
  * The last case is the other one — a genuinely patched view, where the carrying
  * the whole feature rests on is what answers.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { Result } from "effect"
@@ -189,15 +189,15 @@ test("a PATCHED revision carries what it did not touch, and the tape spends it",
     [OTHER]: JSON.stringify({ id: "s", ord: "a0", title: "elsewhere", date: "2026-03-04" }),
   }
   const decoded = decodedOf(dated)
-  const was = readingOf(assemble(decoded))
+  const was = readingOf(assemble(TEST_CLAIMS, decoded))
   decoded.set(
     ONE,
     Result.succeed(outlineOf(files({ title: "typed into" })[ONE] as string, ONE)),
   )
-  const set = assemble(decoded)
+  const set = assemble(TEST_CLAIMS, decoded)
   // The delta the store's codec builds, one path at a time, out of the files a
   // probe re-decoded (`@olai/ops`' `codec.ts`).
-  const now = reading(set, {
+  const now = reading(TEST_CLAIMS, set, {
     read: was,
     delta: { upserts: [[ONE, { nodes: nodesIn(decoded.get(ONE)) }]], removes: [] },
   })

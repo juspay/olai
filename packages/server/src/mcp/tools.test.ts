@@ -1,4 +1,3 @@
-import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 /**
  * The tool surface, through a real MCP client.
  *
@@ -26,7 +25,8 @@ import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
  * harnesses in `packages/tests` read every tool answer that way too, and this is
  * the unit-level fence under them.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -63,7 +63,7 @@ import { bespokeFrom } from "olai-plugin-mcp/testlib"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -151,7 +151,7 @@ const withTools = <A>(
       settle: "10 millis",
     })
     const refusals: Array<string> = []
-    const ops = makeOps({
+    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
       // The ops layer's own fixture context — deterministic ids and one fixed
@@ -335,7 +335,8 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
 
     // The whole surface, spelled out — because what is NOT here is the design:
     // no shell, no grep, no directory walk, no read or write that names a
-    // byte. The four document tools are the closest thing to file access the
+    // byte range. The vault reads a whole unkept text body on request; it
+    // still refuses kept, byte-holding and unclaimed paths. The four document tools are the closest thing to file access the
     // surface has, and they are still the ops layer's: a whole `.md` at both
     // ends — out of the served snapshot, and back through the same validate →
     // stage → rename → commit gate — never a byte range, never a path the set
@@ -393,6 +394,8 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "vault-plugins_run",
       "vault-plugins_stop",
     ])
+
+    expect(tools.find(tool => tool.name === "file-access_bodies_get")).toBeUndefined()
 
     // The discriminator the tool NAME already decides is not a field the agent
     // has to fill in. Subtracted from the SCHEMA now rather than from the
@@ -1252,7 +1255,7 @@ test("files_delete refuses a kind the app only shows", async () => {
   await withTools(VAULT, async ({ client, read }) => {
     const refused = await call(client, "files_delete", { file: "saved/page.html" })
     expect(refused.isError).toBe(true)
-    expect(refused.structured["reason"]).toContain("hypertext")
+    expect(refused.structured["reason"]).toContain("a page")
     expect(read("saved/page.html")).toBe("<p>from the web</p>")
   })
 })
@@ -2897,15 +2900,15 @@ test("a capture lands in a minted inbox, dated and attributed", async () => {
   })
 })
 
-test("…and into the inbox the directory already keeps, wherever that is", async () => {
+test("…and into the inbox the directory already keeps, by stem under _olai", async () => {
   await withTools(
-    { "a.olai": HOUSE, "notes/inbox.olai": "" },
+    { "a.olai": HOUSE, "_olai/inbox.olai": "" },
     async ({ client, set }) => {
       const answered = await call(client, "capture_add", { title: "buy milk" })
       expect(answered.isError).toBe(false)
-      expect(answered.structured["file"]).toBe("notes/inbox.olai")
+      expect(answered.structured["file"]).toBe("_olai/inbox.olai")
       // Nothing was minted beside it.
-      expect([...outlinePaths(await set())].sort()).toEqual(["a.olai", "notes/inbox.olai"])
+      expect([...outlinePaths(await set())].sort()).toEqual(["_olai/inbox.olai", "a.olai"])
     },
   )
 })

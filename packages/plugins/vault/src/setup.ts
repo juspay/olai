@@ -25,7 +25,7 @@
  * which refuse in the vault's own words.
  */
 import { definePlugin, kindWordOf, type PropKind } from "@olai/plugin-api"
-import { BundleModules, Directory, Kinds, Offers, VaultSettings, VaultViews } from "@olai/plugin-api/services"
+import { BundleModules, Directory, FileKinds, Kinds, Offers, VaultSettings, VaultViews } from "@olai/plugin-api/services"
 import { type Directory as OpenDirectory, type VaultSettings as Settings } from "@olai/ops"
 import { Effect, Stream } from "effect"
 import { VaultBoot } from "./boot.ts"
@@ -53,6 +53,7 @@ export const setup = definePlugin({
     const ledger = views.ledger
     const search = views.search
     const settings: Settings = {
+      claims: { get current() { return views.fileKinds.current() } },
       root: boot.root,
       runtime: boot.runtime,
       kinds: { built, get enabled() { return registry.current() } },
@@ -67,20 +68,28 @@ export const setup = definePlugin({
     }
     yield* offers.offer(VaultSettings, () => settings)
     yield* offers.offer(VaultViews, () => views.door)
+    yield* offers.own("file-kinds", views.fileKinds.provision)
   }),
 })
 
 /** Snapshot publication also changes the host. Only a changed vocabulary is
  * a reason to revalidate; update the identity before publishing the result. */
 export const revalidation = definePlugin({
-  name: "vault-revalidation", needs: [Directory, Kinds],
+  name: "vault-revalidation", needs: [Directory, Kinds, FileKinds],
   apply: Effect.gen(function*() {
     const directory = (yield* Directory) as OpenDirectory
     const kinds = yield* Kinds
+    const fileKinds = yield* FileKinds
+    // A claim can arrive between the first store read and this component's
+    // activation. Compare the replayed pulse to the published reading, not
+    // to a newer table that the store may never have probed.
+    let previousFiles = (yield* directory.store.read("cheap")).snapshot?.value.claims.byKind
     let previous = kinds.current()
-    yield* Effect.forkScoped(Stream.runForEach(kinds.changes, () => Effect.suspend(() => {
+    yield* Effect.forkScoped(Stream.runForEach(Stream.merge(kinds.changes, fileKinds.changes), () => Effect.suspend(() => {
       const current = kinds.current()
-      if (current === previous) return Effect.void
+      const currentFiles = fileKinds.current()
+      if (current === previous && currentFiles === previousFiles) return Effect.void
+      previousFiles = currentFiles
       previous = current
       return Effect.ignore(directory.store.refresh("verified"))
     })))

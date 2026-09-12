@@ -42,7 +42,7 @@
  * answer with the fallback taken off — is what the property test calls, and a
  * decline is counted rather than tolerated.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import {
@@ -60,7 +60,7 @@ import { nearestId } from "./suggest.ts"
  *  The corpora themselves and the edits over them are `./corpora.testlib.ts`'s,
  *  shared with the differential that holds the incremental validator to the
  *  full one. */
-const viewOf = (corpus: Corpus): Derived => derive(recordsOf(setOf(corpus)))
+const viewOf = (corpus: Corpus): Derived => derive(TEST_CLAIMS, recordsOf(setOf(corpus)))
 
 /**
  * A whole view, in the shape the comparison is about.

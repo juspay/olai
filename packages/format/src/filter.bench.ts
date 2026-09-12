@@ -40,7 +40,7 @@
  * case — and all of them STAMPED, which is what gives the date arm something to
  * compare against.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
 import { median, timed } from "./fixtures.testlib.ts"
@@ -90,7 +90,7 @@ const typedOver = (set: Derived): void => {
   for (const query of TYPED) matching(set, parseFilter(query, TODAY))
 }
 
-const warm = derive(vault())
+const warm = derive(TEST_CLAIMS, vault())
 // Once through, so the arm below measures the fold being READ rather than
 // written — which is the whole distinction between the two.
 typedOver(warm)
@@ -101,7 +101,7 @@ typedOver(warm)
 // of the cost as if it were the whole of it. The sets are built outside the
 // timed window for the same reason `derive` is.
 const cold = Array.from({ length: 5 }, () => {
-  const fresh = TYPED.map(() => derive(vault()))
+  const fresh = TYPED.map(() => derive(TEST_CLAIMS, vault()))
   return timed(() => {
     TYPED.forEach((query, at) => {
       matching(fresh[at] as Derived, parseFilter(query, TODAY))

@@ -1,4 +1,3 @@
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE SERVICES' OWN BENCH — what a registration does to the table it writes
  * into, and what it does when the composition root refuses it.
@@ -15,7 +14,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * for a Cordis context: there is none to reach for, in this package or in any
  * other but one.
  */
-
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Fiber, Layer, Logger, type Scope } from "effect"
 
@@ -56,7 +55,7 @@ const WAKING = {
   subject: "terminal activity",
   from: "terminals from",
   waiting: { one: "line", many: "lines" },
-  kinds: ["outline"] as readonly [string, ...Array<string>],
+  walks: "nodes" as const,
   faults: { gone: "the file left", unwatchable: "not an outline" },
 }
 

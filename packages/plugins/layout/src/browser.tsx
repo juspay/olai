@@ -1,6 +1,3 @@
-import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
-import { slotContracts } from "./slots.ts"
-import { PanelHandle } from "./layout/Handle.tsx"
 /**
  * Layout occupies the renderer's root. Geometry observers are resources of that
  * entry's integration, so removing either the entry or renderer drains them.
@@ -10,6 +7,9 @@ import { PanelHandle } from "./layout/Handle.tsx"
  * The frame consumes navigation and content contributions. Each content
  * provider owns its own models and editor state.
  */
+import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
+import { slotContracts } from "./slots.ts"
+import { PanelHandle } from "./layout/Handle.tsx"
 import { definePlugin,Faces,Offers } from "@olai/plugin-api"
 import { holdFaces } from "./faces.ts"
 import { holdRouting } from "./routing.ts"

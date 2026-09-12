@@ -12,7 +12,8 @@ import { Effect } from "effect"
 import { regions } from "olai-plugin-sidebar/contract"
 import { navigation } from "olai-plugin-navigation/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
-import { createRoot } from "solid-js"
+import { createRoot, Show } from "solid-js"
+import { fileAccess } from "olai-plugin-vault/contract"
 import { holdPins, usePins } from "./browser/answered.tsx"
 import { holdPinUndo, usePinUndo } from "./browser/history.ts"
 import { paletteIntegration } from "./browser/Palette.tsx"
@@ -39,10 +40,11 @@ export default definePlugin({name:"pins", needs:[Wired, Offers, Edits], apply:Ef
  // declared door the outline read across the wall (`./contract.ts`).
  yield* (yield* Offers).own("state",()=>({ shelf: usePins() }))
 })})
-export const components={palette:paletteIntegration,sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinnedShelf,navigation], apply:Effect.gen(function*(){
+export const components={palette:paletteIntegration,sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinnedShelf,navigation,fileAccess], apply:Effect.gen(function*(){
  const nav = yield* navigation
+ const files = yield* fileAccess
  const undo = usePinUndo()
- yield* (yield* rendererSlots).contribute(regions, {at:"shelf" as const, Body: () => <Shelf record={nav.focused()?.history?.record ?? undo.record} />})
+ yield* (yield* rendererSlots).contribute(regions, {at:"shelf" as const, Body: () => <Show when={files.outlineRow() === undefined || files.claims().byKind.has(files.outlineRow()!)} fallback={<p class="px-2 py-1 text-sm text-muted">Pins: the {files.outlineRow()} row is off.</p>}><Shelf record={nav.focused()?.history?.record ?? undo.record} /></Show>})
 })})}
 
 export { surface } from "./surface.ts"

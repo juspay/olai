@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * Starting a FILE that does not exist yet — the sidebar's two path boxes.
  *
@@ -17,7 +16,7 @@ import { TESTID } from "@olai/bundle/testids"
  * contract between two packages that never otherwise meet, imported so that a
  * rename is a type error rather than a thirty-second timeout.
  */
-
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -41,8 +40,8 @@ import type { OlaiWorld } from "../support/world.ts";
  *  scenario naming a third kind of file is a scenario about something that
  *  does not exist. */
 const making = (kind: string): Making => {
-  if (kind === "outline") return MAKING_OUTLINE;
-  if (kind === "document") return MAKING_DOCUMENT;
+  if (kind === "outline") return MAKING_OUTLINE("outline-olai");
+  if (kind === "document") return MAKING_DOCUMENT("markdown");
   throw new Error(`there is no sidebar door for a new ${kind}`);
 };
 
@@ -104,7 +103,7 @@ Then("the new {word} box is ready", async function (this: OlaiWorld, kind: strin
 
 Then("the arriving document editor leaves the new document box focused", async function (this: OlaiWorld) {
   await this.page.locator(selector(TESTID.documentEditor)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  assert.strictEqual(await this.page.locator(selector(MAKING_DOCUMENT.testids.path)).evaluate(
+  assert.strictEqual(await this.page.locator(selector(MAKING_DOCUMENT("markdown").testids.path)).evaluate(
     (box) => document.activeElement === box,
   ), true, "a delayed document body must not take focus from the next filename");
 });

@@ -17,3 +17,8 @@ session. Capture's `+` text prefix remains quick capture; chat contributes its
 own selectable **new chat** row to the palette. Disabling capture removes the
 registry entry, stopping filing and refusing new-chat creation without making
 chat wait for an unavailable service. Existing node agents remain usable.
+
+Inbox is found by its convention stem directly under `_olai/`, among
+node-holding claims. When the configured outline row is off, the Inbox sidebar
+entry names it using the vault's live `outlineRow`; the Inbox file itself is
+an ordinary address and reports its unclaimed suffix.

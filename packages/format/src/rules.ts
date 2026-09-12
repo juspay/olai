@@ -31,8 +31,8 @@
  * insides, published to exactly one module above them and to the tests that
  * hold the two arms to one answer.
  */
-
-
+import type { Claims } from "./kinds.ts"
+import { conventionCalled, TRASH, INBOX, PINS } from "./node.ts"
 import { type Derived, drawnFrom } from "./derive.ts"
 import { resolveRelative } from "./documents.ts"
 import {
@@ -413,7 +413,7 @@ export const reportDeclarations = (
   kinds: KindVocabulary,
   errors: Array<OutlineError>,
 ): void => {
-  const file = propertiesIn(derived.byFile.keys())
+  const file = propertiesIn(derived.claims, derived.byFile.keys())
   if (file === undefined) return
   const declared = new Set<string>()
   // THE FILE'S RECORDS IN LINE ORDER, which is the order the READING walks too
@@ -625,3 +625,18 @@ const siteOf = ({ file, line }: Located): Site => ({ file, line })
  *  ask. Same offer, ties included. */
 const suggest = (id: string, derived: Derived): string =>
   didYouMeanDeclared(id, derived.byId)
+
+/** A convention has one source or none; never pick an arbitrary competing file. */
+export const reportConventions = (claims: Claims, set: OutlineSet): ReadonlyArray<OutlineError> => {
+  const errors: OutlineError[] = []
+  for (const stem of [TRASH, INBOX, PINS, PROPERTIES]) {
+    const files = set.documents.map(document => document.path).filter(file => conventionCalled(claims, file, stem))
+    if (files.length < 2) continue
+    for (const file of files) errors.push({
+      file, line: 0, code: "ambiguous-convention",
+      message: `${stem} is ambiguous: ${files.join(", ")}. Keep only one convention file.`,
+      related: files.filter(other => other !== file).map(file => ({ file, line: 0, note: "competing convention file" })),
+    })
+  }
+  return errors
+}

@@ -8,7 +8,7 @@
  * the boot package's list is empty now. The shared vocabulary it reads came
  * with it (`./routes.testlib.ts`).
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { atElement, atFile, atNode, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
@@ -37,7 +37,7 @@ test("the addresses are the documented ones", () => {
   expect(hrefOf(atFile("notes/finishes.md"))).toBe(
     "/notes/finishes.md",
   )
-  expect(hrefOf(atElement("garden.md", "beds"))).toBe(
+  expect(hrefOf(atElement(TEST_CLAIMS, "garden.md", "beds"))).toBe(
     "/garden.md#beds",
   )
   expect(hrefOf({ kind: "trash" })).toBe("/trash")
@@ -66,7 +66,7 @@ test("a node is a fragment and nothing else", () => {
 // half is now where the reader LANDS rather than a fact to discard before the
 // page can go stale.
 test("a node's row keeps its file", () => {
-  expect(routeOf("/house.olai#kitchen")).toEqual(atElement("house.olai", "kitchen"))
+  expect(routeOf("/house.olai#kitchen")).toEqual(atElement(TEST_CLAIMS, "house.olai", "kitchen"))
   expect(hrefOf(routeOf("/house.olai#kitchen"))).toBe("/house.olai#kitchen")
 })
 
@@ -93,7 +93,7 @@ test("a page with no filter wears no query at all", () => {
 test("a `?q=` typed onto a document address is dropped, not carried", () => {
   expect(routeOf("/finishes.md?q=hinges")).toEqual(atFile("finishes.md"))
   // ...including beside the one thing that address DOES carry.
-  expect(routeOf("/garden.md?q=hinges#beds")).toEqual(atElement("garden.md", "beds"))
+  expect(routeOf("/garden.md?q=hinges#beds")).toEqual(atElement(TEST_CLAIMS, "garden.md", "beds"))
   expect(filterOf(routeOf("/finishes.md?q=hinges"))).toBe("")
   expect(hrefOf(routeOf("/finishes.md?q=hinges"))).toBe("/finishes.md")
 })
@@ -211,10 +211,11 @@ test("an outline in a subdirectory keeps its slashes", () => {
 // Not a route the app writes — a reader typed it. The app they wanted is the
 // one at `/`, not a blank screen. A path with no suffix the registry claims
 // names no file this directory serves, so it names nothing at all.
-test("an unrecognised path is the default outline", () => {
+test("unclaimed files retain their path; non-file routes fall back to home", () => {
   expect(routeOf("/")).toEqual(HOME_ROUTE)
   expect(routeOf("/somewhere/else")).toEqual(HOME_ROUTE)
-  expect(routeOf("/notes.txt")).toEqual(HOME_ROUTE)
+  expect(routeOf("/dir.d/name")).toEqual(HOME_ROUTE)
+  expect(routeOf("/notes.txt")).toEqual(atFile("notes.txt"))
 })
 
 // A link inside rendered markdown gets the STRICT reading, and the difference
@@ -252,10 +253,10 @@ test("a link on the page is a route when it names a page of this app", () => {
 // written with one is claimed rather than left to the browser: `#install` after
 // a document is a heading it can land on, and `#a1b2c3` on its own is a node.
 test("a link into a section of a document is this app's", () => {
-  expect(routeIn("/garden.md#beds")).toEqual(atElement("garden.md", "beds"))
+  expect(routeIn("/garden.md#beds")).toEqual(atElement(TEST_CLAIMS, "garden.md", "beds"))
   // …including the qualified spelling of a node — the outline's landing,
   // which is the page that spelling draws since the outline arm gained one.
-  expect(routeIn("/house.olai#kitchen")).toEqual(atElement("house.olai", "kitchen"))
+  expect(routeIn("/house.olai#kitchen")).toEqual(atElement(TEST_CLAIMS, "house.olai", "kitchen"))
 })
 
 /**
@@ -298,12 +299,12 @@ test("a link that is not this app's address is left to the browser", () => {
 // a fragment on one address must not bleed into each other — read the wrong way
 // round, `?q=is:done#beds` narrows a page by a word nobody typed.
 test("a fragment and a filter are read as themselves", () => {
-  expect(routeOf("/garden.md#beds")).toEqual(atElement("garden.md", "beds"))
+  expect(routeOf("/garden.md#beds")).toEqual(atElement(TEST_CLAIMS, "garden.md", "beds"))
   // The fragment is the ELEMENT half of the address — here the row of an
   // outline — and the query is neither half. A row route is narrowable like
   // the outline it opens, so both halves ride.
   expect(routeOf("/house.olai?q=is:done#beds"))
-    .toEqual({ ...atElement("house.olai", "beds"), filter: "is:done" })
+    .toEqual({ ...atElement(TEST_CLAIMS, "house.olai", "beds"), filter: "is:done" })
   expect(routeOf("/house.olai?q=is:done")).toEqual({ ...atFile("house.olai"), filter: "is:done" })
   // An empty fragment names no place, and neither does one that cannot be
   // decoded — both are a page that draws fine without one.
@@ -365,7 +366,7 @@ test("an unavailable plugin page is distinct from home and replacement providers
 })
 
 test("a source-line document link preserves its query without making the page narrowable", () => {
-  const route = atFile("notes/a.md", lineFragment(140), "word #tag")
+  const route = { ...atElement(TEST_CLAIMS, "notes/a.md", lineFragment(140)), filter: "word #tag" }
   expect(hrefOf(route)).toBe("/notes/a.md?q=word+%23tag#L140")
   expect(routeOf(hrefOf(route))).toEqual(route)
   expect(narrowable(route)).toBe(false)

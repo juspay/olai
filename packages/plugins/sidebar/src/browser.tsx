@@ -1,4 +1,3 @@
-import { slotContracts } from "./slots.ts"
 /** The sidebar occupies a layout-owned location; it does not provide layout.
  * Only the renderer service is required to register: an absent layout leaves
  * this entry waiting while the plugin stays independent. The column and rail
@@ -8,6 +7,7 @@ import { slotContracts } from "./slots.ts"
  * subscriptions made while rendering; the renderer owns the integration scope.
  * The content pane is a sibling and keeps its identity when this row leaves.
  * Notebook readings inside Sidebar remain an explicit Phase 18 extraction. */
+import { slotContracts } from "./slots.ts"
 import { definePlugin, Faces } from "@olai/plugin-api"
 import { holdFaces } from "./faces.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"

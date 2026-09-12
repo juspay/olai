@@ -74,6 +74,11 @@
     "@olai/edit-history": "workspace:*",
     "@olai/store": "workspace:*",
     "olai-plugin-settings": "workspace:*",
-    "olai-plugin-alerts": "workspace:*"
+    "olai-plugin-alerts": "workspace:*",
+    "olai-plugin-outline-olai": "workspace:*",
+    "olai-plugin-hypertext": "workspace:*",
+    "olai-plugin-csv": "workspace:*",
+    "olai-plugin-image": "workspace:*",
+    "olai-plugin-pdf": "workspace:*"
   }
 }

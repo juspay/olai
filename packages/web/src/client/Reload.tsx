@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/web/client/testids.ts"
 /**
  * The button that ends a page that is over.
  *
@@ -22,8 +21,7 @@ import { TESTID } from "@olai/web/client/testids.ts"
  * still remembers — but which recovery a screen offers is that screen's
  * decision, made where the screen knows what went wrong.
  */
-
-
+import { TESTID } from "@olai/web/client/testids.ts"
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 export function Reload(props: { readonly onReload: () => void }) {

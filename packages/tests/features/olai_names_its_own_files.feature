@@ -28,9 +28,9 @@ Feature: The files olai names for itself, and the doors onto them
   and it wears Agenda's own count badge: how many rows in the inbox are
   marked `todo` or `doing` — any depth; an unmarked row is furniture —
   hidden at zero.
-  Only the MINT moved as to WHICH file — a directory that already keeps
-  its own `Inbox.olai` goes on capturing into the file it has, and this
-  entry opens whichever file that is.
+  Conventions now match stems directly under `_olai/`. A root-level
+  `Inbox.olai` is an ordinary outline; capture and the Inbox door agree on
+  the convention file instead.
 
   `@scratch:` because these write the directory they are served.
 
@@ -177,23 +177,19 @@ Feature: The files olai names for itself, and the doors onto them
     Then the Inbox door is marked unreadable
     And the Inbox wears no count
 
-  Scenario: An inbox the directory already keeps is the file the capture and the door both use
-    # ONLY THE MINT MOVED. A vault that already keeps `Inbox.olai` at its top
-    # level goes on capturing into it — the finding rule is unchanged, by NAME,
-    # shallowest first — and the entry is a door onto whichever file that is.
-    # Its own file, so the tree draws it as well; the vault group may not take
-    # a file the reader keeps at THEIR root.
+  Scenario: A root-level Inbox is an ordinary outline, not the capture convention
     When I create the outline "Inbox.olai" from the sidebar
-    And I press the palette shortcut
+    Then the sidebar offers no Inbox
+    When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "Inbox.olai" holds a node titled "buy the walnut stain"
-    And "_olai/Inbox.olai" holds exactly 0 nodes titled "buy the walnut stain"
+    Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
+    And "Inbox.olai" holds exactly 0 nodes titled "buy the walnut stain"
     When I close the palette
     Then the sidebar offers the Inbox
     And the outline list links to "Inbox.olai"
-    But the vault group does not link to "Inbox.olai"
+    And the vault group links to "_olai/Inbox.olai"
     When I open the Inbox from the sidebar
-    Then the address is "/Inbox.olai"
+    Then the address is "/_olai/Inbox.olai"
     And there should be no page errors
 
   # ── the door sits by Agenda and wears its count ───────────────────────
@@ -230,21 +226,19 @@ Feature: The files olai names for itself, and the doors onto them
   Scenario: An empty inbox wears no count
     # No chip at all rather than a nought: an inbox with nothing in it is a
     # door, not news — the same ruling Agenda's quiet face already keeps.
-    When I create the outline "Inbox.olai" from the sidebar
+    When I create the outline "_olai/Inbox.olai" from the sidebar
     Then the sidebar offers the Inbox
     And the Inbox wears no count
     And there should be no page errors
 
-  Scenario: A later root Inbox.olai is the file the door and the count both name
-    # THE DIVERGENCE. A capture mints `_olai/Inbox.olai` and the door wears 1.
-    # Creating `Inbox.olai` from the sidebar makes that the shallowest inbox —
-    # the file capture and the door both use. The count has to follow them,
-    # not stay on the deeper file that still holds the capture.
+  Scenario: A later root Inbox does not replace the convention or its count
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
     When I close the palette
     Then the Inbox wears a count of 1
     When I create the outline "Inbox.olai" from the sidebar
-    Then the Inbox wears no count
+    Then the Inbox wears a count of 1
     And the address is "/Inbox.olai"
+    When I open the Inbox from the sidebar
+    Then the address is "/_olai/Inbox.olai"
     And there should be no page errors

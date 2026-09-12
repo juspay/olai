@@ -1,4 +1,3 @@
-import { Terminals } from "./Terminals.tsx"
 /**
  * A tool call: one line, foldable.
  *
@@ -71,7 +70,8 @@ import { Terminals } from "./Terminals.tsx"
  * regardless — and a fold that shuts under the reader is exactly what somebody
  * unfolded it to avoid.
  */
-
+import { servedDirectory } from "../vault.ts"
+import { Terminals } from "./Terminals.tsx"
 import { fileKind } from "@olai/format"
 import type { ToolEntry, ToolStatus } from "olai-plugin-chat/wire"
 import { Key } from "@solid-primitives/keyed"
@@ -400,7 +400,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
              and it holds for an agent's own `Edit` as much as for an olai
              write. */
           <Show
-            when={fileKind(block().diff.path) === "outline"}
+            when={servedDirectory()?.claims().byKind.get(servedDirectory()?.kindOf(block().diff.path) ?? "")?.holds === "nodes"}
             fallback={<Diff id={block().key} diff={block().diff} />}
           >
             <OutlineDiff id={block().key} diff={block().diff} />
@@ -426,6 +426,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         <Show when={props.entry.armed?.report}>
           {(report) => (
             <Markdown
+            claims={servedDirectory()?.claims()}
               source={report()}
               from=""
               class="olai-md-compact border-t border-rule px-2 py-1 text-sm"

@@ -1,19 +1,23 @@
+/** Markdown owns body subscriptions, document drafts and edit history. Its
+ * provider is independent of outlines and of presentation; content and file
+ * creation integrations wait only for the actual locations they consume. */
+import { fileKindKey } from "@olai/plugin-api/file-kinds"
+import { fileKinds } from "olai-plugin-files/contract"
+import { pages } from "olai-plugin-navigation/contract"
+import { KindGlyph } from "./glyph.tsx"
+import { TESTID as KIND_IDS } from "./testids.ts"
 import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
 import { holdEdits, writeEdit } from "./browser/writes.ts"
-import { fileKind } from "@olai/format"
 import type {} from "olai-plugin-layout/slots"
 import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
 import {Clocks} from "@olai/plugin-api"
-/** Markdown owns body subscriptions, document drafts and edit history. Its
- * provider is independent of outlines and of presentation; content and file
- * creation integrations wait only for the actual locations they consume. */
 import { definePlugin, Offers, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { createRoot, createMemo, createEffect, on } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
-import { navigation, content, fileLinks } from "olai-plugin-navigation/contract"
+import { navigation, content } from "olai-plugin-navigation/contract"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { fileTypes, fileState } from "olai-plugin-files/contract"
 import { holdFileControls } from "./browser/files.tsx"
@@ -23,7 +27,6 @@ import { clearDocumentDrafts } from "./browser/document/drafts.ts"
 import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { holdServed } from "./browser/vault.ts"
-import { holdOpens } from "./browser/links.ts"
 import { holdClocks } from "./browser/clock.ts"
 import { holdRouting } from "./browser/routing.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
@@ -68,6 +71,10 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
   yield* offers.own("editing", () => state.value.editing)
 }) })
 export const components = {
+  glyph: definePlugin({ name: "glyph", needs: [rendererSlots], apply: Effect.gen(function*() {
+    const by = { kind: "markdown" } as const
+    yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: "document", article: "a", testid: KIND_IDS.documentLink }, { key: fileKindKey(by) })
+  }) }),
   /** The file controls this row draws, DECLARED — a component of its own so a
    *  page with no files row mounted is a whole page (`./browser/files.tsx`). */
   "file-controls": definePlugin({ name: "file-controls", needs: [fileState], apply: Effect.gen(function*() {
@@ -95,12 +102,13 @@ export const components = {
       return dispose
     })), dispose => Effect.sync(dispose))
   })}),
-  references: definePlugin({ name: "references", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
+  references: definePlugin({ name: "references", needs: [browserState, rendererSlots, fileAccess], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
-    yield* slots.contribute(documentReferences, DocRef)
-    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) !== "outline" ? atFile(meaning.file) : undefined)
+    const served = yield* fileAccess
+    yield* slots.contribute(documentReferences, props => <DocRef {...props} claims={served.claims()} />)
+    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && served.kindOf(meaning.file) !== null && served.claims().byKind.get(served.kindOf(meaning.file)!)?.holds !== "nodes" ? atFile(meaning.file) : undefined)
   }) }),
-  content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks, fileLinks], apply: Effect.gen(function*() {
+  content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
     const clocks = yield* Clocks
     yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clocks)), stop => Effect.sync(stop))
@@ -111,14 +119,11 @@ export const components = {
     // preview watches (`./browser/vault.ts`).
     const served = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
-    // ...and where a path inside a saved page opens (`./browser/links.ts`).
-    const opens = yield* fileLinks
-    yield* Effect.acquireRelease(Effect.sync(() => holdOpens(opens)), stop => Effect.sync(stop))
     // ...and the app's URL grammar, for the routes a property run prints
     // (`./browser/routing.ts`).
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
-    yield* slots.contribute(content, { matches: route => documentFile(route) !== undefined, Page: MarkdownPageView }, {children:[documentBodies, properties]})
+    yield* slots.contribute(pages, { by: { kind: "markdown" }, edits: true, page: () => <MarkdownPageView /> }, {key:fileKindKey({kind:"markdown"}),children:[documentBodies, properties]})
     yield* slots.contribute(documentBodies, EmbeddedDocument)
   }) }),
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {

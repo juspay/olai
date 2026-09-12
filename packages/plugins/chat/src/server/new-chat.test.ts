@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
-import { UsageFailure, serializeOutline, isRegular, type WriteRequest } from "@olai/format"
-import { readingOf, setOf, planning } from "@olai/ops/testlib"
+import { UsageFailure, isRegular, type WriteRequest } from "@olai/format"
+import { TEST_CLAIMS, readingOf, setOf, planning } from "@olai/ops/testlib"
 import { newChat, type NewChat } from "./new-chat.ts"
 
 const fixture = () => {
@@ -16,7 +16,7 @@ const fixture = () => {
       if (refuse === "write") return yield* new UsageFailure({ reason: "write refused" })
       const plan = planning(setOf(texts), request)
       if (plan._tag === "Failure") return yield* plan.failure
-      for (const file of plan.success.files) texts[file.file] = serializeOutline(file.nodes)
+      for (const file of plan.success.files) texts[file.file] = TEST_CLAIMS.byKind.get("outline-olai")!.format!.serialize(file.nodes)
       return { id: plan.success.id }
     }),
     start: (node, engine) => Effect.gen(function*() {

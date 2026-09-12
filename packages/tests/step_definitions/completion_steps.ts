@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The three input widgets: what a trigger character puts on screen, what
  * walking it does, and what taking a row writes.
@@ -14,7 +13,7 @@ import { TESTID } from "@olai/bundle/testids"
  * picker and the agent's tools send, and a second spelling of "the file says
  * so" would be a second answer to that.
  */
-
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 
 import { Then, When } from "@cucumber/cucumber";

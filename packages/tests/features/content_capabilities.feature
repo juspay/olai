@@ -24,7 +24,11 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     And there should be no page errors
 
   Scenario: An outline keeps editing and saving with Markdown removed
-    Given I open the outline "house.olai"
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"handles","ord":"a0","title":"choose the handles"}
+      """
+    And I open the outline "house.olai"
     And I mark the screen
     When I click the title of "handles"
     And I select all and type "outline without Markdown"
@@ -172,19 +176,9 @@ Feature: Outline and Markdown capabilities have independent lifetimes
   # takes a document's PAGE and not its ROW: the `.md` is still in the
   # directory, and the sidebar goes on drawing it beside the outlines.
   #
-  # That containment was one collection's business until phase 18 and is now a
-  # claim across three rows (`olai-plugin-vault`'s `heads`,
-  # `olai-plugin-outlines`, `olai-plugin-markdown`). `@olai/bundle`'s
-  # `published.test.ts` asserts it for ONE revision of a whole roster; nothing
-  # asserted it for a roster a row actually LEFT. The browser failure this
-  # catches is a tree built from the departed row's keys rather than the
-  # vault's — the document vanishes from the sidebar the moment its page
-  # provider is switched off, and a reader loses the file rather than the page.
-  #
-  # Why the existing cases do not catch it: `the_vault_is_a_row.feature` flips
-  # the OWNER of `heads` off and on twice and never looks at the tree, and
-  # `file_delete_concurrency.feature` has both halves in different scenarios.
-  Scenario: A document keeps its row in the file tree when Markdown leaves
+  # A kind owns membership as well as its face. Withdrawing markdown removes
+  # its files from heads; restoring it republishes them on the same page.
+  Scenario: Markdown files leave the tree with their row and return without reload
     Given I open the outline "house.olai"
     And I mark the page
     Then the outline list links to "house.olai"
@@ -192,11 +186,8 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     When I open the plugins panel
     And I switch the plugin "markdown" off
     And I close the plugins panel
-    # The file did not leave the directory; only its page did.
     Then the outline list links to "house.olai"
-    And the document link "finishes.md" is shown
-    # ...and the surviving rows are still being SERVED. A tree drawn off a
-    # roster frame draws whether or not the members under it are alive.
+    And the document link "finishes.md" is hidden
     And no member of this page has gone silent
     When I open the plugins panel
     And I switch the plugin "markdown" on
@@ -222,7 +213,7 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     Then the row being typed holds "choose the handles"
     And there should be no page errors
 
-  @rows:vault,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,markdown,files
+  @rows:vault,olai,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,markdown,files
   Scenario: A Markdown-only startup edits a document without ever activating outlines
     Given I open the document "finishes.md"
     When I start editing the document
@@ -238,9 +229,13 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     And the document shows the property "topic" holding "independent startup"
     And there should be no page errors
 
-  @rows:vault,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,files
+  @rows:vault,olai,ws,web-app,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,files
   Scenario: An outline-only startup edits rows without ever activating Markdown
-    Given I open the outline "house.olai"
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"handles","ord":"a0","title":"choose the handles"}
+      """
+    And I open the outline "house.olai"
     When I click the title of "handles"
     And I select all and type "only outlines at startup"
     And I press "Enter"

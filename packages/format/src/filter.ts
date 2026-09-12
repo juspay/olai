@@ -39,7 +39,7 @@
  * The design, with the alternatives that lost, is
  * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-in-place.md.
  */
-
+import { isMarkdown } from "./document.ts"
 import type { Outline } from "./document.ts"
 import { Schema } from "effect"
 
@@ -2171,7 +2171,7 @@ const sourceOffsets = (
 const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean => {
   switch (value) {
     case "trashed":
-      return isTrashed(at.file)
+      return isTrashed(derived.claims, at.file)
     // THE ONE DERIVED VALUE, and it is the index the views draw from rather
     // than a second reading of `after`: the same answer that puts the `blocked
     // by` line on a node's page and the dim on a row, so a query cannot find a
@@ -2800,7 +2800,7 @@ export function* selecting(
 ): Generator<Matched> {
   for (const at of candidates) {
     if (isLeftoverArchive(at.file)) continue
-    if (!putAway && isTrashed(at.file)) continue
+    if (!putAway && isTrashed(derived.claims, at.file)) continue
     const match = matchOf(derived, at, filter)
     if (match !== null) yield { at, match }
   }
@@ -3224,7 +3224,7 @@ const documentHay = (
     // `title`, and would say a word was found in a document's prose when what
     // held it was a property — two answers to "why is this here", from one
     // block, in one row.
-    body: document.kind === "document" ? [proseIn(document.body).toLowerCase()] : [],
+    body: isMarkdown(document) ? [proseIn(document.body).toLowerCase()] : [],
   }
   foldedDocuments.set(document, now)
   return now
@@ -3368,7 +3368,7 @@ const documentHolds = (props: Custom, clause: Clause): boolean =>
 /** A landing for a selected body hit, using the matcher's fold and scoring.
  * Called after capping; newline counts also survive length-changing case folds. */
 export const documentLineOf = (document: Bodied, filter: Filter, field: DocumentField | null): number | undefined => {
-  if (field !== "body" || document.kind !== "document") return undefined
+  if (field !== "body" || !isMarkdown(document)) return undefined
   const hay = documentHay(document).body[0] ?? ""
   let strongest = -1
   let offset: number | undefined

@@ -37,7 +37,7 @@
  * change is called, which is what keeps the panel's vocabulary and the commit
  * log's from being kept in step by hand.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { isReady } from "@olai/format"
 import { Show } from "solid-js"
 
@@ -76,7 +76,7 @@ export function Panel(props: {
 }) {
   const pending = () => props.commit.pending()
   const ready = () => isReady(pending().repo)
-  const selection = createSelection(pending, preparation.dropped)
+  const selection = createSelection(() => servedDirectory()?.claims(), pending, preparation.dropped)
 
   /**
    * The draft: the composed suggestion until somebody types, and theirs

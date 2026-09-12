@@ -1,13 +1,3 @@
-import { serviceTag, location } from "@olai/plugin-api/contracts"
-export { name } from "./name.ts"
-
-import type { Undo } from "@olai/edit-history/undoing.ts"
-import type { Client } from "./client.ts"
-import type { References } from "./contracts/references.ts"
-import type { Air } from "./browser/drag/air.ts"
-import type { Fields } from "./browser/drag/fields.ts"
-import type { Readings } from "./browser/reading.tsx"
-
 /**
  * WHAT THIS ROW OWNS IN A TAB — the state a consumer that names
  * {@link browserState} is handed.
@@ -24,6 +14,15 @@ import type { Readings } from "./browser/reading.tsx"
  * contract door actually EVALUATES (`scanImports` elides a type-only import),
  * which is the difference between naming a shape and reaching for a value.
  */
+import { serviceTag, location } from "@olai/plugin-api/contracts"
+export { name } from "./name.ts"
+
+import type { Undo } from "@olai/edit-history/undoing.ts"
+import type { Client } from "./client.ts"
+import type { References } from "./contracts/references.ts"
+import type { Air } from "./browser/drag/air.ts"
+import type { Fields } from "./browser/drag/fields.ts"
+import type { Readings } from "./browser/reading.tsx"
 export interface OutlinesBrowser {
   /** This row's sibling client, on whichever wire is current. */
   readonly client: () => Client

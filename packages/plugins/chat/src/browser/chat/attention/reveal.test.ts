@@ -1,3 +1,4 @@
+/** A conversation whose rows have landed, as `chat.entry` answers them. */
 import { expect, test } from "bun:test"
 
 import { wholeYet } from "./whole.ts"

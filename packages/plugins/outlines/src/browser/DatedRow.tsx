@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * One dated node, on a day's page — and on the agenda, which asks the same
  * question forward (../agenda/AgendaPage.tsx). One component, because they are
@@ -49,7 +48,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * is, so a third page that wants a trail under its rows says that rather than
  * saying it is the agenda.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { type DayEntry, isOverdue } from "@olai/format"
 import { Show } from "solid-js"
 

@@ -1,8 +1,7 @@
+/** A font in which every character is 10px, so an offset is a tenth of X. */
 import { expect, test } from "bun:test"
 
 import { offsetAt } from "./point.ts"
-
-/** A font in which every character is 10px, so an offset is a tenth of X. */
 const ten = (text: string): number => text.length * 10
 
 const box = { left: 100, width: 180 }

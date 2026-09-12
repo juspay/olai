@@ -1,7 +1,3 @@
-import { createRoot } from "solid-js"
-import type {} from "olai-plugin-chat/slots"
-import type {} from "olai-plugin-layout/slots"
-import type {} from "olai-plugin-outlines/slots"
 /**
  * KOLU'S BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -26,7 +22,10 @@ import type {} from "olai-plugin-outlines/slots"
  * face below can read anything: what the roster names, the tab fetches once and
  * both mounts and dials.
  */
-
+import { createRoot } from "solid-js"
+import type {} from "olai-plugin-chat/slots"
+import type {} from "olai-plugin-layout/slots"
+import type {} from "olai-plugin-outlines/slots"
 // THE APP'S DOOR — the tags this half names and the `definePlugin` that turns
 // an Effect into a plugin (`@olai/plugin-api`'s `browser.ts`). Its server half
 // opens exactly the one door over, and neither of them names `cordis`.

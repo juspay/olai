@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-vault/testids"
 /**
  * A list of errors, drawn.
  *
@@ -17,7 +16,7 @@ import { TESTID } from "olai-plugin-vault/testids"
  * case where the grouping is already on screen — one file's errors, shown where
  * that file's outline would have been.
  */
-
+import { TESTID } from "olai-plugin-vault/testids"
 import { hasLine, isCrossFile, type OutlineError, type Site } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 

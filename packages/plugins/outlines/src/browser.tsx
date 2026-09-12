@@ -1,3 +1,12 @@
+/** Outlines owns editor history, selection/drag registers, page readings and
+ * browser preferences. These resources live in the provider activation, before
+ * and independently of any layout. Content and settings are separate consumers. */
+import { fileKindKey } from "@olai/plugin-api/file-kinds"
+import { fileKinds } from "olai-plugin-files/contract"
+import { pages } from "olai-plugin-navigation/contract"
+import { KindGlyph } from "./glyph.tsx"
+import { TESTID as KIND_IDS } from "./testids.ts"
+import { holdServed } from "./browser/vault.ts"
 import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
@@ -5,9 +14,6 @@ import { holdEdits, writeEdit } from "./browser/writes.ts"
 import { slotContracts } from "./slots.ts"
 import { fileKind } from "@olai/format"
 import {Clocks} from "@olai/plugin-api"
-/** Outlines owns editor history, selection/drag registers, page readings and
- * browser preferences. These resources live in the provider activation, before
- * and independently of any layout. Content and settings are separate consumers. */
 import { definePlugin, Faces, Offers } from "@olai/plugin-api"
 import { holdFaces } from "./browser/faces.ts"
 import { holdLocations } from "./browser/locations.ts"
@@ -118,6 +124,10 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
 import { documentProperties } from "./browser/document-properties.tsx"
 import { palette, messages } from "./browser/palette/adapter.tsx"
 export const components = {
+  glyph: definePlugin({ name: "glyph", needs: [rendererSlots], apply: Effect.gen(function*() {
+    const by = { holds: "nodes" } as const
+    yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: "outline", article: "an", testid: KIND_IDS.outlineLink }, { key: fileKindKey(by) })
+  }) }),
   palette, messages, "document-properties": documentProperties,
   /** The shell's geometry, DECLARED — a component of its own because content
    *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
@@ -133,6 +143,8 @@ export const components = {
     yield* holdFaces(yield* Faces)
     // The app's URL grammar, for the routes this page prints and parses
     // (`./browser/routing.ts`).
+    const served = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     // ...and the clock a date badge is drawn against (`./browser/clock.ts`).
@@ -146,14 +158,16 @@ export const components = {
     // ...and the walks over the locations this page draws, from the same
     // renderer (`./browser/locations.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
+    const Page = () => <OutlinePageView />
+    yield* slots.contribute(pages, { by: { holds: "nodes" }, edits: true, page: Page }, { key: fileKindKey({ holds: "nodes" }) })
     yield* slots.contribute(content, {
-      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || fileKind(route.address.path) === "outline")),
-      Page: () => <OutlinePageView />,
+      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || (served.kindOf(route.address.path) === null || served.claims().byKind.get(served.kindOf(route.address.path)!)?.holds === "nodes"))),
+      Page,
     }, { children: [...Object.values(slotContracts), datedRows, documentReferences, pageView, titles, propertyRoutes] })
     yield* slots.contribute(datedRows, DatedRow)
     yield* slots.contribute(pageView, OutlinePageView)
     yield* slots.contribute(titles, NodeTitle)
-    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) === "outline" ? atFile(meaning.file) : undefined)
+    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && served.claims().byKind.get(served.kindOf(meaning.file) ?? "")?.holds === "nodes" ? atFile(meaning.file) : undefined)
   }) }),
   /** The file controls this row draws, DECLARED — a component of its own so a
    *  page with no files row mounted is a whole page (`./browser/files.tsx`). */

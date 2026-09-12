@@ -26,7 +26,7 @@ export function NewDocument() {
 
   return (
     <NewFile
-      making={MAKING_DOCUMENT}
+      making={MAKING_DOCUMENT("markdown")}
       create={(file) => mintAndOpen({ verb: "docNew", file }, undo.record, router)}
     />
   )

@@ -1,16 +1,15 @@
-/** The vault row selects the codec; directory acquisition knows no format.
- * Adding a supported format extends this catalogue and its codec table. There
- * is deliberately no Org value until an Org implementation can read and write
- * the same operations the rest of the application speaks. */
-import { codecFor } from "@olai/ops"
+/** The format setting names the active row used to mint new outlines. */
+import { serviceTag } from "@olai/plugin-api/services"
 import { Effect, Schema } from "effect"
 
-export const FORMATS = ["olai"] as const
 export const Config = Schema.Struct({
-  format: Schema.Literals(FORMATS).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed("olai" as const)),
-    Schema.annotate({ description: "the format used to read and write documents" }),
+  format: Schema.String.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("outline-olai" as const)),
+    Schema.annotate({ description: "the file-kind row used to create new outlines" }),
   ),
 })
 export type Config = typeof Config.Type
-export const codecs = { olai: codecFor } satisfies Record<Config["format"], typeof codecFor>
+
+/** The main component owns decoded row config; file access declares this
+ * dependency rather than reaching into another activation. */
+export const OutlineRow = serviceTag<string>("vault.outline-row")

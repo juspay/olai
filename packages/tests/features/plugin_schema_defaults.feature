@@ -6,7 +6,7 @@ Feature: Plugin schemas supply the panel's default policy
   Scenario: Defaults remain visible without a config block on a bundle row
     Given I open the app
     When I open the plugins panel
-    Then the plugins panel shows "vault" configured "format" as "olai"
+    Then the plugins panel shows "vault" configured "format" as "outline-olai"
     Then the plugins panel shows "git" configured "commit" as "manual"
     Then the plugins panel shows "git" configured "push" as "off"
     Then the plugins panel shows "identity" configured "login-header" as "Tailscale-User-Login"

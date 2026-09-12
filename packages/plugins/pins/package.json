@@ -32,7 +32,8 @@
     "@olai/edit-intents": "workspace:*",
     "@olai/edit-history": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
-    "olai-plugin-layout": "workspace:*"
+    "olai-plugin-layout": "workspace:*",
+    "olai-plugin-vault": "workspace:*"
   },
   "olai": {
     "contracts": [
@@ -40,5 +41,6 @@
       "./testids",
       "./surface"
     ]
-  }
+  },
+  "devDependencies": {}
 }

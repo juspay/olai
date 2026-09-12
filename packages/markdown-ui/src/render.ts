@@ -39,7 +39,7 @@
  * without waiting for anything, which is what keeps a tree of rows off this
  * path entirely.
  */
-
+import type { Claims } from "@olai/format"
 import { styleTags } from "./tags.ts"
 import type { Element } from "hast"
 import type { Root } from "hast"
@@ -73,7 +73,7 @@ interface Rendered {
  * cap is a whole-cache drop rather than an eviction policy — an LRU here would
  * be more machinery than the thing it manages.
  */
-const rendered = new Map<string, Rendered>()
+const renderings = new WeakMap<Claims, Map<string, Rendered>>()
 const CACHE_LIMIT = 512
 
 const keyFor = (
@@ -83,22 +83,29 @@ const keyFor = (
 ): string => `${shape}\n${from}\n${source}`
 
 const renderingOf = (
+  claims: Claims | undefined,
   source: string,
   from: string,
   shape: "block" | "inline",
 ): Rendered => {
+  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape)
+  let rendered = renderings.get(claims)
+  if (rendered === undefined) {
+    rendered = new Map()
+    renderings.set(claims, rendered)
+  }
   const key = keyFor(shape, from, source)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(source, from, key, shape)
+  const result = render(claims, source, from, key, shape)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
 }
 
-export const renderMarkdown = (source: string, from: string): string =>
-  renderingOf(source, from, "block").html
+export const renderMarkdown = (claims: Claims | undefined, source: string, from: string): string =>
+  renderingOf(claims, source, from, "block").html
 
 /**
  * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.
@@ -109,8 +116,8 @@ export const renderMarkdown = (source: string, from: string): string =>
  * inline `<code>`, a heading becomes its text — the boxes do not. See
  * ./inline.ts.
  */
-export const renderInlineMarkdown = (source: string, from: string): string =>
-  renderingOf(source, from, "inline").html
+export const renderInlineMarkdown = (claims: Claims | undefined, source: string, from: string): string =>
+  renderingOf(claims, source, from, "inline").html
 
 /**
  * The heading tree of the same rendering — what a table of contents is made of
@@ -121,8 +128,8 @@ export const renderInlineMarkdown = (source: string, from: string): string =>
  * questions and neither has to hold the other's answer. They still cost one
  * run between them: both go through the memo above, on the same key.
  */
-export const outlineOf = (source: string, from: string): readonly Heading[] =>
-  renderingOf(source, from, "block").headings
+export const outlineOf = (claims: Claims | undefined, source: string, from: string): readonly Heading[] =>
+  renderingOf(claims, source, from, "block").headings
 
 /**
  * The same rendering, for text that is still arriving — and deliberately not
@@ -137,11 +144,11 @@ export const outlineOf = (source: string, from: string): readonly Heading[] =>
  * throttles, because how often a paragraph may be re-rendered is a question
  * about the panel rather than about markdown.
  */
-export const renderStreaming = (source: string, from: string): string =>
+export const renderStreaming = (claims: Claims | undefined, source: string, from: string): string =>
   // Same key shape as {@link renderingOf} for "block": footnote ids are minted
   // from the key, so a streamed answer and its final render must agree or
   // every `href="#md-…-fn-1"` breaks the instant streaming ends.
-  render(source, from, keyFor("block", from, source), "block").html
+  render(claims, source, from, keyFor("block", from, source), "block").html
 
 /**
  * The sanitised HAST for a source, before stringify.
@@ -151,6 +158,7 @@ export const renderStreaming = (source: string, from: string): string =>
  * it themselves. Notes and documents stay on {@link renderMarkdown}.
  */
 export const renderToTree = (
+  claims: Claims | undefined,
   source: string,
   from: string,
   shape: "block" | "inline",
@@ -158,7 +166,7 @@ export const renderToTree = (
   const key = keyFor(shape, from, source)
   const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
-  rewrite(tree, { from, ids: idsFor(key) })
+  rewrite(tree, { claims, from, ids: idsFor(key) })
   return tree
 }
 
@@ -197,7 +205,7 @@ export const sourceText = (source: string): string =>
  * A STRING rather than a lookup, so it is honest about what it does not know:
  * whether the page has that heading at all is a question for the DOM, and the
  * caller that asks is the one that can also decide what to do when the answer
- * is no (`../document/faces.tsx` stays where it is, which is what a browser
+ * is no (the current kind row’s page stays mounted, which is what a browser
  * does with a fragment naming nothing).
  */
 export const landingId = (source: string, from: string, at: string): string =>
@@ -207,6 +215,7 @@ export const landingId = (source: string, from: string, at: string): string =>
 export const hastToHtml = (tree: Root): string => pipelineNow().htmlOf(tree)
 
 const render = (
+  claims: Claims | undefined,
   source: string,
   from: string,
   key: string,
@@ -215,7 +224,7 @@ const render = (
   const pipeline = pipelineNow()
   const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, { from, ids: idsFor(key) })
+  const headings = rewrite(tree, { claims, from, ids: idsFor(key) })
   return { html: pipeline.htmlOf(tree), headings }
 }
 
@@ -244,8 +253,8 @@ const idsFor = (key: string): string => {
 
 /** Render a source-line landing through the existing parsed tree and highlight walk.
  * No shared cache retains a page's query or highlights. */
-export const renderLineLanding = (source: string, from: string, line: number, needles: ReadonlyArray<string>): string => {
-  const tree = renderToTree(source, from, "block")
+export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>): string => {
+  const tree = renderToTree(claims, source, from, "block")
   if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
   const lines = source.split("\n")
   const blocks = new Set(["p", "pre", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "hr"])

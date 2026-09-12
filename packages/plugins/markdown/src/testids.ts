@@ -1,6 +1,8 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  documentLink: "document-link",
+
   documentPage: "document-page",
   docLink: "doc-link",
   docRef: "doc-ref",
@@ -9,12 +11,6 @@ export const TESTID = {
   documentReferrersSummary: "document-referrers-summary",
   documentReferrer: "document-referrer",
   documentBody: "document-body",
-  hypertextPreview: "hypertext-preview",
-  hypertextSaid: "hypertext-said",
-  csvTable: "csv-table",
-  csvClamp: "csv-clamp",
-  imageView: "image-view",
-  pdfEmbed: "pdf-embed",
   documentEdit: "document-edit",
   documentEditor: "document-editor",
   documentSave: "document-save",

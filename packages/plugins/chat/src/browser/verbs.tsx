@@ -1,3 +1,4 @@
+import { servedDirectory } from "./vault.ts"
 /** Row actions and the palette share one server-owned ancestor query. */
 import type { AppCommand } from "olai-plugin-navigation/slots"
 import type { RowAction } from "olai-plugin-outlines/slots"
@@ -22,7 +23,8 @@ const target = async (node: string | null) => {
 }
 const show = (agent: { node: string; file: string }) => {
   agentReadings()?.visit(agent.node)
-  navigation()?.go(atElement(agent.file, agent.node))
+  const claims = servedDirectory()?.claims()
+  if (claims !== undefined) navigation()?.go(atElement(claims, agent.file, agent.node))
   unfold(agent.node)
 }
 

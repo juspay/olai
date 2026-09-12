@@ -65,7 +65,7 @@
  * this or of the panel moving.
  */
 
-import { fileKind } from "@olai/format"
+import { type Claims, fileKind } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -234,8 +234,8 @@ export const BuiltPlugin = Schema.Struct({
      *  the count and supplies no word for what is being counted. */
     waiting: Schema.Struct({ one: Schema.String, many: Schema.String }),
     /**
-     * WHICH KINDS OF SERVED FILE THIS DOORBELL CAN BE POINTED AT —
-     * `@olai/format`'s own kind words (`kinds.ts`), travelling as data.
+     * WHICH CONTENT SHAPES OF SERVED FILE THIS DOORBELL CAN BE POINTED AT —
+     * the claim's `holds` value, travelling as data.
      *
      * The one member of this struct that is not prose, and the only thing on
      * the wire that narrows the picker. A plugin derives its watched set out of
@@ -245,11 +245,11 @@ export const BuiltPlugin = Schema.Struct({
      * set for ever while the heartbeat went on reporting a live watcher. The
      * picker offered it anyway, because core had nothing to filter by.
      *
-     * The browser compares these against `fileKind`'s answer for each served
-     * path (`@olai/web`'s `chat/scopable.ts`) — one table read at both ends,
+     * The browser compares this against each served file claim's `holds`
+     * value (`chat/scopable.ts`) — each end reads its own claims,
      * rather than a suffix spelled at the picker.
      *
-     * PLAIN STRINGS and not `FileKind` literals, though they are that: the
+     * A PLAIN STRING rather than a closed schema of content shapes: the
      * roster's decoded shape is what a browser's whole plugin mount hangs off,
      * so a serve carrying a word this build's registry does not know must
      * narrow a list rather than fail a decode. An unknown word matches no file,
@@ -259,13 +259,13 @@ export const BuiltPlugin = Schema.Struct({
      * AND OPTIONAL FOR THE SAME REASON `wake` ITSELF IS, which is the whole of
      * why it is not simply required inside a struct that is already optional. A
      * tab left open across a downgrade is talking to a serve that declared no
-     * kinds at all, and a missing key there is a DECODE failure of the roster —
+     * walks at all, and a missing key there is a DECODE failure of the roster —
      * which takes every plugin's mount down, not this picker's. Absent narrows
      * to nothing instead: the strip draws, the list opens, and it offers no
      * file, which says *this control cannot be used by this tab* and cannot
      * quietly hand somebody the scope that started all this.
      */
-    kinds: Schema.optionalKey(Schema.Array(Schema.String)),
+    walks: Schema.optionalKey(Schema.String),
   })),
   /**
    * THE ROW'S CONFIG, as data — what `olai.yml` and the CLI patch left on it.
@@ -476,39 +476,14 @@ export const PluginRoster = Schema.Struct({
 })
 export type PluginRoster = typeof PluginRoster.Type
 
-/**
- * WHETHER A DOORBELL DECLARING `kinds` CAN WATCH `file` — the one reading of
- * {@link BuiltPlugin}'s `wake.kinds`, and the whole of what either end does
- * with that member.
- *
- * ## Why it is one function and not two agreeing ones
- *
- * TWO ends ask it, about the same declaration, and they must agree or the
- * feature inverts: the browser asks it to decide what the picker OFFERS
- * (`@olai/web`'s `chat/scopable.ts`), and the serve asks it per revision to
- * decide whether a STORED pick is a fault (`@olai/server`'s `runtime.ts`, over
- * `olai-plugin-chat`'s `Chat.faults`). Spelled twice, the day they drift is the day
- * the picker offers a file the serve faults on the instant somebody presses it
- * — a control that hands out its own error. Neither of those packages can
- * import the other; this is the member they share, so the reading lives beside
- * the field it reads.
- *
- * ## What it does with a word it does not know
- *
- * Nothing, and that is the answer to both ways a word can be strange. The kinds
- * travel as plain strings, so a serve may name one this build's registry never
- * heard of, and a browser may be handed no list at all ({@link BuiltPlugin}
- * argues both). Either way `fileKind`'s answer is not in the list and no file
- * is watchable — a picker that offers nothing, which is visible and local,
- * rather than one that offers everything, which is the defect this whole
- * mechanism exists to close.
- *
- * A path no kind claims at all — a `README`, a `.ts` — takes the same arm
- * without one of its own: it is in no plugin's list because it is in no list.
- */
-export const watchable = (kinds: ReadonlyArray<string>, file: string): boolean => {
-  const kind = fileKind(file)
-  return kind !== null && kinds.includes(kind)
+/** Both ends judge the declaration against the claims carried by their reading. */
+export const watchable = (
+  claims: Claims,
+  wake: { readonly walks?: string | undefined },
+  file: string,
+): boolean => {
+  const kind = fileKind(claims, file)
+  return kind !== null && claims.byKind.get(kind)?.holds === wake.walks
 }
 
 /**

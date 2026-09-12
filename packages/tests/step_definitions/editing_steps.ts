@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The row editor: the caret, the keys, and what the file says afterwards.
  *
@@ -24,7 +23,7 @@ import { TESTID } from "@olai/bundle/testids"
  * the app shell publishes. What it promises and what it deliberately does not
  * is `support/settling.ts`.
  */
-
+import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 
 import { Then, When } from "@cucumber/cucumber";

@@ -208,7 +208,7 @@ Feature: Choosing a node agent's engine
     And no agent fold is open
     And the outline list is shown
 
-  @rows:vault,chat,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @scratch:chat
+  @rows:vault,olai,chat,odu,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins @scratch:chat
   Scenario: With no enabled engine, the outline remains usable without agent controls
     Then the agent start pill on "kitchen" is absent
     And no agent fold is open

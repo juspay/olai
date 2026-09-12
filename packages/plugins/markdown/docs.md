@@ -1,8 +1,8 @@
 # Markdown
 
-Markdown supplies pages for the vault's bodied files, including the existing Markdown editor and the read-only HTML, CSV, image and PDF views. It owns document body subscriptions, headings, document drafts, conflict handling, frontmatter display and its own undo history. Its server readings and writes run without browser code or outline UI.
+Markdown claims Markdown text files and supplies their document page, editor and glyph. HTML, CSV, image and PDF views belong to their own rows. It owns document body subscriptions, headings, document drafts, conflict handling, frontmatter display and its own undo history. Its server readings and writes run without browser code or outline UI.
 
-The browser provider owns a document reader and a fresh edit-history scope. Its content integration registers with `navigation.content`, and its creation control registers with `files.types`. A Markdown page reads frontmatter, referrers and missing-file transitions through its own `documentPage` stream and bodies through its own collection; it needs no outline page, outline filtering, selection or drag context. Disabling outlines leaves an existing Markdown editor mounted and able to save. File metadata comes from the vault, so disabling the Files sidebar also leaves open content intact. Frontmatter remains readable independently; when outlines is present, it contributes the existing rich property drawer through the document-owned properties location.
+The browser provider owns a document reader and a fresh edit-history scope. Its content integration registers with `navigation.pages`, and its creation control registers with `files.types`. A Markdown page reads frontmatter, referrers and missing-file transitions through its own `documentPage` stream and bodies through its own collection; it needs no outline page, outline filtering, selection or drag context. Disabling outlines leaves an existing Markdown editor mounted and able to save. File metadata comes from the vault, so disabling the Files sidebar also leaves open content intact. Frontmatter remains readable independently; when outlines is present, it contributes the existing rich property drawer through the document-owned properties location.
 
 Heading fragments remain in each pane's navigation route and scroll history. Metadata requests use only the document path, so opening a section still fetches the correct file, and two panes can land independently at headings in the same document. Moving between headings of that file reuses its metadata subscription.
 
@@ -30,3 +30,6 @@ can enhance it through contributed locations.
 Disabling Markdown removes document pages and procedures while leaving outline
 editing available. Re-enabling it reads the current files with fresh editor state.
 Existing browser history remains available for the returning content provider.
+
+Its body collection contains only its own claimed Markdown files. The four
+read-only body rows obtain their metadata through the vault’s file surface and `vault.files`; this row’s live state is used only by Markdown.

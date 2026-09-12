@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A document's table of contents: the headings it has, as links into itself.
  *
@@ -49,7 +48,7 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * (../preference.ts) would be a stored answer to a question nobody has asked
  * twice yet.
  */
-
+import { TESTID } from "olai-plugin-markdown/testids"
 import { createMemo, For, Show } from "solid-js"
 
 import type { Heading } from "@olai/markdown-ui/outline.ts"

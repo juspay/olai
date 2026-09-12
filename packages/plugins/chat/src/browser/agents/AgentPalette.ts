@@ -1,3 +1,4 @@
+import { servedDirectory } from "../vault.ts"
 import { createEffect, createSignal } from "solid-js"
 import type { PaletteAdapter, PaletteItem } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
@@ -37,7 +38,9 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       action: { kind: "run", run: async () => {
         const nav = navigation()
         if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "navigation is unavailable" } }
-        nav.go(rowOf(row))
+        const claims = servedDirectory()?.claims()
+        if (claims === undefined) return { keepOpen: true, said: { tone: "alarm", text: "the vault is unavailable" } }
+        nav.go(rowOf(claims, row))
         agentReadings()?.visit(row.id)
         if (row.session !== null) unfold(row.id)
         return {}

@@ -1,4 +1,3 @@
-import type {} from "olai-plugin-chat/slots"
 /**
  * THE CLAUDE CODE ENGINE'S BROWSER HALF — two faces, and both are a drawing ABOUT
  * this engine.
@@ -37,7 +36,7 @@ import type {} from "olai-plugin-chat/slots"
  * and never dialled, and `../../../web/src/client/wire.ts`'s `surfaceMapOf`
  * leaves it out of the map it redials with.
  */
-
+import type {} from "olai-plugin-chat/slots"
 import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 

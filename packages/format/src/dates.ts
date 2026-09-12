@@ -56,7 +56,8 @@
  * `2026-08-10` put through one comes back a datetime, and a calendar has no
  * business being the first place in the codebase that risks it.
  */
-
+import { mintExt } from "./kinds.ts"
+import type { Claims } from "./kinds.ts"
 import { Order, Schema } from "effect"
 
 import { dayAt, type Derived, Situated, situate } from "./derive.ts"
@@ -338,9 +339,11 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
  * on this file is the thing that knows how long it is, and it is one import
  * away.
  */
-export const noteDateOf = (file: string): string | null => {
-  if (fileKind(file) !== "document") return null
-  const stem = stemOf(file)
+export const noteDateOf = (claims: Claims, file: string): string | null => {
+  const kind = fileKind(claims, file)
+  const claim = kind === null ? undefined : claims.byKind.get(kind)
+  if (claim?.holds !== "text" || !claim.kept) return null
+  const stem = stemOf(claims, file)
   return ISO_DAY.test(stem) ? stem : null
 }
 
@@ -365,10 +368,11 @@ export const noteDateOf = (file: string): string | null => {
  * what both surfaces have in hand at the moment this question is asked.
  */
 export const dailyNotesOn = (
+  claims: Claims,
   documents: ReadonlyArray<string>,
   day: string,
 ): ReadonlyArray<string> =>
-  documents.filter((file) => noteDateOf(file) === day).sort(byPath)
+  documents.filter((file) => noteDateOf(claims, file) === day).sort(byPath)
 
 /**
  * The days of `month` (`YYYY-MM`) that a note is written for — the calendar's
@@ -379,12 +383,13 @@ export const dailyNotesOn = (
  * on it at a glance. A day in both is in both.
  */
 export const dailyNoteDays = (
+  claims: Claims,
   documents: ReadonlyArray<string>,
   month: string,
 ): ReadonlySet<string> => {
   const days = new Set<string>()
   for (const file of documents) {
-    const day = noteDateOf(file)
+    const day = noteDateOf(claims, file)
     if (day !== null && monthOf(day) === month) days.add(day)
   }
   return days
@@ -427,16 +432,19 @@ export const isDay = (value: string): boolean => ISO_DAY.test(value)
  * first note is what every later one reads its convention from.
  */
 export const dailyNotePathFor = (
+  claims: Claims,
   documents: ReadonlyArray<string>,
   day: string,
-): string => {
-  const name = `${day}.md`
+): string | null => {
+  const ext = mintExt(claims, "markdown")
+  if (ext === null) return null
+  const name = `${day}${ext}`
 
   /** The newest daily note, by its date — ties broken by path, so the answer
    *  is the same on every read. */
   let example: { readonly file: string; readonly date: string } | null = null
   for (const file of documents) {
-    const date = noteDateOf(file)
+    const date = noteDateOf(claims, file)
     if (date === null) continue
     if (
       example === null || date > example.date ||
