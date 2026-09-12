@@ -635,8 +635,10 @@ its conversation.
 running, newest activity first within each group. A row shows its question count
 or **not running**. The region disappears when empty. **Recent** lists every
 standing, capped at ten: last-heard activity first, then nodes without speech by
-their vault edit time. These rows show an engine mark, title and age, with no
-standing word or dot. An agent may appear in both regions.
+their vault edit time. These rows show an engine mark, title, and standing dot immediately before the
+age. The dot uses the same standing colors and working animation as the outline
+aside, so active chats remain visible here. No standing word is drawn; the dot
+names its standing for assistive technology. An agent may appear in both regions.
 
 Pressing either row navigates to the node in its outline and unfolds it; an
 unbound agent navigates only. The open row is marked current. Search **Agents**

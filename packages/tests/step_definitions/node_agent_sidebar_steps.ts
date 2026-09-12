@@ -21,8 +21,20 @@ Then("Needs you lists {string}", async function(this: OlaiWorld, ids: string) {
 });
 Then("Needs you is absent", async function(this: OlaiWorld) { await this.page.locator(needs).waitFor({ state: "detached", timeout: POLL_TIMEOUT }); });
 Then("the agent sidebar regions are absent", async function(this: OlaiWorld) { await this.waitUntil(async () => await this.page.locator(`${needs}, ${recent}`).count() === 0, "both agent regions to withdraw"); });
-Then("the Recent row {string} draws an age and no standing", async function(this: OlaiWorld, id: string) {
-  const words = await this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`).innerText();
+Then("the Recent row {string} draws the {string} dot before its age", async function(this: OlaiWorld, id: string, standing: string) {
+  await this.showSidebar();
+  const entry = this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`);
+  const dot = entry.getByRole("img", { name: standing, exact: true });
+  await dot.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const placement = await dot.evaluate(element => {
+    const age = element.nextElementSibling;
+    const mark = element.getBoundingClientRect();
+    const bounds = age?.getBoundingClientRect();
+    return { age: age?.textContent, before: bounds !== undefined && mark.width > 0 && mark.right <= bounds.left };
+  });
+  assert.match(placement.age ?? "", /(?:just now|\d+[mhd] ago)/);
+  assert.ok(placement.before, "the standing dot must be drawn before its age");
+  const words = await entry.innerText();
   assert.match(words, /(?:just now|\d+[mhd] ago)/);
   assert.ok(!/asleep|idle|working|needs you|not running|no session bound/.test(words));
 });

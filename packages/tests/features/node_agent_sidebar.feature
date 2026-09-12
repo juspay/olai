@@ -1,11 +1,12 @@
-@scratch:chat
+@node-agent-sidebar @scratch:chat
 Feature: Agent activity is reachable from Recent and the palette
   Scenario: Recent caps every standing by activity and the palette reaches the oldest asleep agent
     Given the sidebar has eleven agents with dated vault edits
     And I open the outline "recent.olai"
     Then Recent lists "recent-10 recent-9 recent-8 recent-7 recent-6 recent-5 recent-4 recent-3 recent-2 recent-1"
     And Needs you is absent
-    And the Recent row "recent-10" draws an age and no standing
+    And the Recent row "recent-10" draws the "asleep" dot before its age
+    And the Recent row "recent-1" draws the "no session bound" dot before its age
     When I press the palette shortcut
     And I type "Agents" into the palette
     Then the Agents palette lists 11 agents
@@ -15,6 +16,7 @@ Feature: Agent activity is reachable from Recent and the palette
     When I ask the agent "palette reached the oldest agent"
     Then the agent has answered "palette reached the oldest agent" exactly once
     And the Recent row "recent-0" is current
+    And the Recent row "recent-0" draws the "idle" dot before its age
     And there should be no page errors
 
   Scenario: An unbound palette row navigates without opening a conversation
@@ -36,13 +38,19 @@ Feature: Agent activity is reachable from Recent and the palette
     Then the chat shows a question
     When I open the "claude" agent on node "order"
     And the node agent's fold is ready
-    And I ask the agent "crash"
+    And I ask the agent "hold"
+    Then the agent "order" stands "working"
+    And the Recent row "order" draws the "working…" dot before its age
+    When the agent is released
+    Then the agent is idle
+    When I ask the agent "crash"
     Then the agent "order" stands "gone"
     And Needs you lists "install order"
     And the Needs you row "install" has waiting questions
     And the Needs you row "order" says "not running"
     And Recent lists "order install"
-    And the Recent row "install" draws an age and no standing
+    And the Recent row "install" draws the "needs you" dot before its age
+    And the Recent row "order" draws the "not running" dot before its age
     And there should be no page errors
 
   Scenario: Disabling chat withdraws both sidebar regions and its palette rows

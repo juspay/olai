@@ -55,7 +55,10 @@ export function Recent() {
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row()) ? "page" : undefined}
         title={row().title} onClick={() => focus.press(row())}>
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span><span class="min-w-0 flex-1 truncate">{row().title}</span>
-        <Show when={row().said?.at ?? row().changed}>{at => <span class="shrink-0 font-mono text-xs text-paper/55">{agoOf(at(), now())}</span>}</Show>
+        <span class="inline-flex shrink-0 items-center gap-2">
+          <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
+          <Show when={row().said?.at ?? row().changed}>{at => <span class="font-mono text-xs text-paper/55">{agoOf(at(), now())}</span>}</Show>
+        </span>
       </button>
     </li>}</Key></ul>
   </section>
