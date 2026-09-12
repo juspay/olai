@@ -1206,6 +1206,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           try: () =>
             startChild(options.command, [...options.args], {
               cwd: options.cwd,
+              processGroup: true,
               // The row's extra env OVER olai's own: the child wants
               // everything this process has PLUS what its adapter was told
               // (a `pi` the probe found on a search path this process's PATH
@@ -2271,16 +2272,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       stopped = true
       const alongside = [...beside]
       beside.clear()
-      await Promise.all(alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))))
       const at = live
       if (at !== null) requestedStops.set(at.child, { reason, session: activeSession })
       live = null
       leaving()
       activeSession = null
-      await terminalCleanup
-      if (at === null) return
-      at.connection.close()
-      await at.child.stop()
+      // Close the protocol and process before joining requests waiting on it.
+      if (at !== null) at.connection.close()
+      await Promise.all([
+        at?.child.stop(), terminalCleanup,
+        ...alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))),
+      ])
     })
 
     const setSetting = (session: string, config: string, value: string | boolean) =>

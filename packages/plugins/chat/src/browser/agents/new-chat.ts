@@ -21,12 +21,12 @@ export const createNewChat = () => {
     say(undefined)
     try {
       const result = await runAsync(chatWire().procedures.conversation.newChat({ agent }))
-      if (!alive) return
+      if (!alive) return { tone: "alarm", text: "chat is unavailable" }
       if (result._tag === "Failure") { const failure: Said = { tone: "alarm", text: result.failure.message, kind: result.failure._tag }; say(failure); return failure }
       // Ask the existing node lookup for its current file. This also reports a
       // concurrent removal instead of waiting indefinitely for a roster row.
       const found = await runAsync(chatWire().procedures.conversation.agentAbove({ node: result.success }))
-      if (!alive) return
+      if (!alive) return { tone: "alarm", text: "chat is unavailable" }
       if (found._tag === "Failure") { const failure: Said = { tone: "alarm", text: found.failure.message, kind: found.failure._tag }; say(failure); return failure }
       const row = found.success
       const nav = routeReading()

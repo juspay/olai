@@ -764,9 +764,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // is already set, so nothing new starts; what is still in flight finishes
       // its acquisition and its use, and is therefore in the map the last line
       // reads. See {@link working}.
-      yield* settled
       yield* root.stopWithReason(reason)
-      yield* Effect.forEach([...nodes.values()], (slot) => close(slot, reason), { discard: true })
+      yield* Effect.forEach([...nodes.values()], (slot) => close(slot, reason), { discard: true, concurrency: "unbounded" })
+      yield* settled
       yield* Effect.forEach([...closing.values()], Deferred.await, { discard: true })
     })
 
@@ -872,7 +872,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }),
       reread: () => {
         root.reread()
-        for (const slot of nodes.values()) slot.panel.reread()
+        for (const slot of [...nodes.values()]) {
+          if (!seatableAt(slot.node)) {
+            pending.delete(slot.node)
+            fork(close(slot, "scope released"))
+          } else slot.panel.reread()
+        }
         fork(Effect.catch(
           relocateRoot(),
           (failure) => relocationFailed("the newly bound session", failure),

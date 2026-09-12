@@ -116,7 +116,7 @@ export function DatedRow(props: {
       <Show when={over()}>{(trail) => <Breadcrumbs trail={trail()} />}</Show>
 
       <div
-        class={`flex items-baseline ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
+        class={`group/row flex items-baseline ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
           data-testid={TESTID.nodeGutter}
       >
         <Glyph

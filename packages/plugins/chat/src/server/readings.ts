@@ -43,7 +43,10 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
       yield* Effect.forkScoped(chat.reading(to, {
         state: (value) => { state = value; for (const send of states) send(value) },
         transcript: clock.publish,
-      }))
+      }).pipe(Effect.catch(failure => Effect.sync(() => {
+        state = { ...CHAT_OFF, status: "idle", unopened: { what: to.session, why: failure.message } }
+        for (const send of states) send(state)
+      }))))
       return { state: () => state, entries, clock, states, rows, pieces }
     }),
   })

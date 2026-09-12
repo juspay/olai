@@ -102,22 +102,23 @@ function Zoom(props: {
       // they start at this page's own roots (`./drag/fields.ts`).
       within={[...props.zoomed.trail.map((crumb) => crumb.node.id), props.zoomed.shows.node.id]}
     >
-      <header class="mb-8">
-        <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
+      <div class="contents">
 
         {/* The subject is a node too — same testid a row uses — so "the
             description of X" and "the node X" mean the same record on a
             zoomed page as they do in a tree. The heading still carries
             zoom-title: that is what a scenario waits on for the route. */}
         <div
-          class="mt-2"
+          class="contents"
           data-testid={TESTID.node}
           data-node-id={props.zoomed.shows.node.id}
           data-status={props.zoomed.status}
           data-blocked={blockedIds(props.zoomed.blocked)}
           data-kind="node"
         >
-          <div class="flex items-baseline gap-3">
+          <header class="sticky top-0 z-20 bg-paper pb-2">
+            <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
+          <div class="group/row mt-2 flex items-baseline gap-3">
             <h1
               class={`flex-1 ${PAGE_TITLE} italic ${toneOf(props.zoomed.status)}`}
               data-testid={TESTID.zoomTitle}
@@ -151,6 +152,7 @@ function Zoom(props: {
           </div>
 
           <PluginPageHead node={props.zoomed.shows.node.id} />
+          </header>
 
           {/* What the node is waiting on, named in full and above its note:
               a page whose subject cannot start yet should say so before it
@@ -197,7 +199,7 @@ function Zoom(props: {
               (./backlinks/Backlinks.tsx). */}
           <Backlinks id={props.zoomed.shows.node.id} />
         </div>
-      </header>
+      </div>
 
       {/* A FILTERED page says nothing here at all: the bar above it has just
           counted what it found, and a second sentence under the heading would

@@ -3246,6 +3246,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
     const stopWithReason = (reason: AcpAgent.StopReason) => Effect.gen(function*() {
       closing = true
+      // End the transport before joining work which may be waiting on it.
+      const at = talking
+      talking = null
+      if (at !== null) yield* at.agent.stopWithReason(reason)
       // EVERY turn, not the newest ({@link ./turns.ts}).
       const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
       for (const fiber of running) yield* Fiber.interrupt(fiber)
@@ -3259,9 +3263,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       const alongside = [...beside]
       beside.clear()
       for (const fiber of alongside) yield* Fiber.interrupt(fiber)
-      const at = talking
-      talking = null
-      if (at !== null) yield* at.agent.stopWithReason(reason)
       // Registered as a finalizer of the serve scope, so this is also what
       // takes the pasted pictures with the server when it shuts down. Behind
       // the same permit as everything else that touches the directory: a
@@ -3284,7 +3285,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // way everything else in this record is: behind a gesture that has
       // already been answered, logging what it could not write rather than
       // taking the gesture away from somebody ({@link ./sessions.ts}).
-      assigned: (to) => noting(options.overheard?.assign(to), assignLost),
+      assigned: (to) => Effect.gen(function*() {
+        // Filing gives a conversation a new, asleep home. Old manual wake
+        // picks are not authority to wake that new node (or its trash).
+        for (const row of options.scoping?.rows() ?? []) {
+          if (row.agent !== to.agent || row.session !== to.session) continue
+          yield* Effect.catch(options.scoping!.set(to, row.plugin, null), failure => Effect.logWarning(failure.message))
+        }
+        yield* noting(options.overheard?.assign(to), assignLost)
+      }),
       replaced: (to, by) => noting(options.overheard?.supersede(to, by), replaceLost),
       // THE SET'S ANSWER, ASKED AGAIN. `move` is what publishes, and it is
       // guarded on the value rather than called unconditionally: this runs per

@@ -1,3 +1,4 @@
+import { BusyFailure } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Deferred, Effect, Queue, Stream } from "effect"
 import { CHAT_OFF, type ChatState } from "../wire.ts"
@@ -32,4 +33,17 @@ test("a shared reader publishes opening state before load finishes and releases 
     do { state = yield* Queue.take(seen) } while (state.status !== "idle")
   })))
   expect(released).toBe(1)
+})
+
+
+test("a scheduler refusal is published into the requested reading", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const source = yield* readings(Effect.succeed({
+      reading: () => Effect.fail(new BusyFailure({ reason: "all agent slots are held" })),
+    }))
+    const state = yield* Stream.runHead(source.state.source({ agent: "test", session: "ninth" }).pipe(
+      Stream.filter(state => state.unopened !== null),
+    ))
+    expect(state).toMatchObject({ value: { unopened: { what: "ninth", why: "all agent slots are held" } } })
+  })))
 })

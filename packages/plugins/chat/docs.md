@@ -145,3 +145,16 @@ Session settings close while a send awaits acceptance, even before the server's
 working update. The pending count belongs to that conversation reading and
 clears as its sends settle. Sequential workflows wait for both acceptance and
 idle, rather than treating a stale idle frame as a completed turn.
+
+
+The zoomed agent page has one scroller per pane. Its breadcrumb, title and agent
+line stay at the top; the composer stays at the bottom with safe-area clearance.
+Memory and transcript share the pane scroll. Opening follows the newest line;
+new output follows only while the reader remains at the bottom. Row folds keep
+their own bounded transcript scroller.
+
+Filing clears a conversation's previous manual wake picks. Trashing a node or
+its parent releases its live agent scope. Agent cleanup closes the protocol and
+stops the whole child process group, escalating when it ignores termination,
+before joining pending requests. Opening a ninth held agent reports the capacity
+refusal in its conversation, with an explicit retry.

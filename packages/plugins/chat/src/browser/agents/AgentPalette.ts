@@ -12,11 +12,11 @@ import type { Roster } from "./answered.tsx"
 
 /** Listing reads the activation's roster; only selection opens a conversation. */
 export const createAgentPalette = (agents: Roster): PaletteAdapter => {
-  const creation = agentReadings()!.newChat
+  const creation = agentReadings()?.newChat
   const [choosing, choose] = createSignal(false)
   createEffect(() => { if (!palette()?.open()) choose(false) })
   const start = async (agent: string) => {
-    const said = await creation.start(agent)
+    const said = creation === undefined ? { tone: "alarm" as const, text: "chat is unavailable" } : await creation.start(agent)
     return said === undefined ? {} : { keepOpen: true, said }
   }
   return { items: (): ReadonlyArray<PaletteItem> => {

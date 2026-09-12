@@ -570,7 +570,7 @@ export default definePlugin({
           })),
         ),
       reopen: ({ input }: { input: { conv: Conversing; scope: string | null } }) =>
-        withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.reopen)),
+        withChat((open) => open.inConversation(input.conv, input.scope ?? undefined, (panel) => panel.reopen)),
       sessions: () => withChat((open) => open.sessions),
       answer: ({ input }: { input: { conv: Conversing; id: string; answers: Parameters<Chat.Chat["answer"]>[1] } }) =>
         withChat((open) => open.inConversation(input.conv, undefined, panel => panel.answer(input.id, input.answers))),

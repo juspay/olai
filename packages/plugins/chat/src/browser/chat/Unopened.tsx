@@ -38,8 +38,8 @@ export function Unopened(
       </p>
 
       <p class="m-0 mb-3">
-        The agent itself is running — it answered. The outlines are served
-        exactly as they would be otherwise; what is missing is the conversation.
+        The conversation could not be opened. You can keep using the outlines
+        and try again when the cause has cleared.
       </p>
 
       {/* The header's own quiet pill, at the header's own scale — this sits in

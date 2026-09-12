@@ -1,3 +1,4 @@
+import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { ConversationUIProvider } from "../chat/ui.tsx"
 import { createAsked } from "../chat/attention/asked.ts"
 import { createEffect, createMemo, Show } from "solid-js"
@@ -49,7 +50,9 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
       <History chat={props.chat} node={props.node} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget onFiles={files => void holding.take(files)}>
         <Preview chat={props.chat} /><Transcript chat={props.chat} unbounded={props.unbounded} />
-        <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} />
+        <div class={props.unbounded ? `sticky bottom-0 z-10 bg-paper ${CLEARANCE}` : "contents"}>
+          <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} />
+        </div>
       </DropTarget>}>{unopened => <Unopened chat={props.chat} unopened={unopened()} />}</Show>
     </ElapsedProvider>
   </div>
