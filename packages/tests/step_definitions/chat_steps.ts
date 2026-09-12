@@ -1302,19 +1302,19 @@ Then("the tool call's detail is shown", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** What the RESULT said, as the reader gets it. The detail block is the call's
- *  arguments and its answer as the agent reported them, so this is the one
+/** What the RESULT said, as the reader gets it. The reply block carries
+ *  the answer once, separate from the input, so this is the one
  *  assertion that follows a field of an op's reply all the way from the ops
  *  layer to a person's screen. */
 Then(
-  "the tool call's detail says {string}",
+  "the tool call's reply says {string}",
   async function (this: OlaiWorld, said: string) {
-    const detail = heldTool(this).locator(CHAT_TOOL_DETAIL);
+    const detail = heldTool(this).locator(CHAT_TOOL_REPLY);
     await detail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const shown = oneLine(await detail.innerText());
     assert.ok(
       shown.includes(said),
-      `the tool call's detail does not mention "${said}"; it says: ${shown}`,
+      `the tool call's reply does not mention "${said}"; it says: ${shown}`,
     );
   },
 );

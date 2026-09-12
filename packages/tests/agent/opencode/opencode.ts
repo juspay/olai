@@ -35,7 +35,7 @@
  * It is a SEPARATE FILE rather than a mode of the other agent, deliberately: a
  * fake whose shape is chosen by a flag is a fake that can agree with the client
  * by construction the day somebody makes the flag do less than it says. Two
- * files that share nothing but the protocol are two independent witnesses.
+ * adapters keep distinct fixtures, shared with each engine’s own leg tests.
  *
  * Like the other one, it calls the REAL internal MCP server over the real HTTP
  * route with the token `session/new` handed it — so a scenario drives the real
@@ -201,12 +201,14 @@ const runTool = async (
   call: () => Promise<Record<string, unknown>>,
 ): Promise<Record<string, unknown>> => {
   const toolCallId = callIdFor(tool);
+  const server = mcp?.name ?? "olai";
+  const isMcp = tool.startsWith(`${server}_`);
   notify("session/update", {
     sessionId,
     update: {
       sessionUpdate: "tool_call",
       toolCallId,
-      ...announced(mcp?.name ?? "olai", tool.slice((mcp?.name ?? "olai").length + 1), args),
+      ...(isMcp ? announced(server, tool.slice(server.length + 1), args) : { title: tool, rawInput: args }),
       status: "in_progress",
       rawInput: args,
     },
@@ -226,7 +228,7 @@ const runTool = async (
       sessionUpdate: "tool_call_update",
       toolCallId,
       status: result["isError"] === true ? "failed" : "completed",
-      ...wrapped(result as unknown as CallToolResult),
+      ...(isMcp ? wrapped(result as unknown as CallToolResult) : { rawOutput: result }),
     },
   });
   return result;

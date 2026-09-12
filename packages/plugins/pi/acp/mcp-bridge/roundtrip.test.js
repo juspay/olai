@@ -88,6 +88,7 @@ describe("the MCP round trip through pi's table", () => {
     // and the call round-trips — the model's call id passes through
     // untouched and the tool's whole content arrives as the result text:
     const result = await def.execute("tc-1", { node: "install" });
+    expect(result.structuredContent).toEqual(result.details);
     expect(result.details).toEqual({ title: "install", file: "house.olai" });
     expect(result.content).toEqual([{ type: "text", text: "# the node install answered the wire" }]);
 
@@ -108,6 +109,7 @@ describe("the MCP round trip through pi's table", () => {
     await registerServerTools(pi, Type, client, serverToClientPlan("kolu", { name: "kolu", command: "x" }));
     const result = await pi.registered.get("kolu_list_terminals").execute("tc-2", {});
     expect(result.details).toBeUndefined();
+    expect(result.structuredContent).toBeUndefined();
     expect(result.content[0].text).toContain("the tool answered an error");
     expect(result.content[0].text).toContain("no session here");
 

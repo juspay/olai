@@ -32,8 +32,9 @@ export const registerServerTools = async (pi, Type, client, plan) => {
         return {
           content: [{ type: "text", text: answerText(answer) }],
           // pi 0.84.2 AgentToolResult<T>.details is its structured UI half;
-          // pi-acp 0.0.33 forwards this object as rawOutput.
-          ...(answer?.structuredContent === undefined ? {} : { details: answer.structuredContent }),
+          // pi-acp 0.0.33 forwards this object as rawOutput. Pi’s extension
+          // wrapper and tool_execution_end also preserve unknown result keys.
+          ...(answer?.structuredContent === undefined ? {} : { details: answer.structuredContent, structuredContent: answer.structuredContent }),
         };
       },
     });

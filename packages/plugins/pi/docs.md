@@ -36,4 +36,4 @@ An adapter olai did not build — the `OLAI_ACP_PI` override lane — answers fo
 
 The agent: <https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent>, then make sure `pi` is on the PATH the olai **server** has. The adapter comes with olai.
 
-Its declared MCP prefix is `<server>_`, although the bridge labels the call `<server>: <tool>`. The leg uses the programmatic name for display and reads `rawOutput.details` (or `structuredContent`). The bridge forwards MCP structured content through pi 0.84.2’s `AgentToolResult<T>.details`; the shipped pi-acp forwards that result as raw output. Approval still belongs to pi’s settings.
+Its declared MCP prefix is `<server>_`, although the bridge labels the call `<server>: <tool>`. The leg uses the programmatic name for display and reads `rawOutput.details` (or `structuredContent`). The bridge forwards MCP structured content through pi 0.84.2’s `AgentToolResult<T>.details`; the shipped pi-acp forwards that result as raw output. Pi preserves unknown result keys, so the bridge also keeps `structuredContent`. Approval still belongs to pi’s settings.
