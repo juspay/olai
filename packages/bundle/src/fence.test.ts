@@ -742,6 +742,8 @@ describe("only the registry knows a plugin's name", () => {
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: [
+      "tests/agent/fake-acp-agent.ts: olai-plugin-claude/testlib",
+      "tests/agent/fake-acp-agent.ts: olai-plugin-codex/testlib",
       "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
       "tests/step_definitions/editing_steps.ts: olai-plugin-outlines/testlib",
       "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
@@ -1918,15 +1920,20 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "xyne-spaces": [],
     "ws": [],
     "mcp": [
+      "acp/src/leg.ts",
       "format/src/committing.ts",
       "plugins/chat/src/agent.ts",
       "plugins/chat/src/fixtures/lifecycle-agent.ts",
       "plugins/chat/src/server.ts",
       "plugins/claude/src/leg.ts",
+      "plugins/claude/src/testlib.ts",
       "plugins/codex/src/leg.ts",
+      "plugins/codex/src/testlib.ts",
       "plugins/git/src/browser/commit/said.ts",
       "plugins/git/src/ledger/pending.ts",
       "plugins/odu/src/probe.ts",
+      "plugins/opencode/src/leg.ts",
+      "plugins/pi/src/leg.ts",
       "server/src/dial.ts",
       "server/src/main.ts",
       "server/src/mcpClient.ts",

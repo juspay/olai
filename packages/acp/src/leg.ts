@@ -284,7 +284,33 @@ export interface Reported {
  * one over, `olai-plugin-chat`'s `agents/roster.ts` says which of them this machine
  * can start, and its `agent.ts` does the talking.
  */
+/** A tool frame as needed for display; programmatic names take precedence. */
+export interface MCPFrame {
+  readonly title?: string | null | undefined
+  readonly rawInput?: unknown
+  readonly _meta?: Meta
+  readonly name?: string | null | undefined
+}
+
+/** Display only; allowedWithoutAsking remains the approval rule. */
+export const mcpCallBy = (spelling: (server: string) => string): Leg["mcpCall"] =>
+  (frame, servers) => {
+    const name = frame.name ?? frame.title
+    if (name == null) return null
+    for (const server of servers) {
+      const prefix = spelling(server)
+      if (name.startsWith(prefix) && name.length > prefix.length) return { server, tool: name.slice(prefix.length) }
+    }
+    return null
+  }
+
 export interface Leg {
+  /** Adapter prefix before an MCP tool name, or null when carried structurally. */
+  readonly spelling: ((server: string) => string) | null
+  /** DISPLAY ONLY. Match a call against servers handed to this session. */
+  readonly mcpCall: (frame: MCPFrame, servers: ReadonlyArray<string>) => { server: string; tool: string } | null
+  /** The adapter's structured reply; absent for prose or another output shape. */
+  readonly replyIn: (rawOutput: unknown) => Record<string, unknown> | undefined
   /** Native child-session and AIR async-task lifecycle streams. Opt in only
    * where the adapter implements these versioned extensions. */
   readonly nativeActivity?: boolean

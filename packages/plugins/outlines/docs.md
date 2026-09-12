@@ -45,3 +45,7 @@ The public contracts expose page rendering and title locations for integrations
 such as trash. Integrations consume those locations instead of importing outline
 implementation modules. The browser owns its undo history, editor state and
 palette command adapter for the lifetime of its activation.
+
+## Tool reply story
+
+The browser activation registers its `tool.reply` face. Chat owns the frame, file span and fold; outlines reads a top-level file and decodes `WriteResult` to draw its change glyph, node title, classification and nudge. Reads and refusals have no story; an unchanged write says “nothing changed”. The node button uses the navigation callback supplied by the frame. Registration belongs to the outlines activation and withdraws with it; outlines imports no chat implementation.

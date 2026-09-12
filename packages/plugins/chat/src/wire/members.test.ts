@@ -27,7 +27,7 @@ import {
   Spawned,
   type ToolEntry,
   type UserEntry,
-  Wrote,
+  Json,
 } from "./members.ts"
 
 /**
@@ -49,7 +49,9 @@ const ChatEntryFlat = Schema.Struct({
   detail: Schema.optionalKey(Schema.String),
   progress: Schema.optionalKey(Schema.String),
   diffs: Schema.optionalKey(Schema.Array(FileDiff)),
-  wrote: Schema.optionalKey(Wrote),
+  called: Schema.optionalKey(Schema.String),
+  row: Schema.optionalKey(Schema.String),
+  reply: Schema.optionalKey(Json),
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
   parent: Schema.optionalKey(Schema.String),
   spawned: Schema.optionalKey(Spawned),
@@ -189,7 +191,9 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       detail: '{"pattern":"worktops"}',
       progress: "halfway",
       diffs: [{ path: "notes/cabinets.md", oldText: "pine", newText: "oak" }],
-      wrote: {
+      called: "engine_tool",
+      row: "owner",
+      reply: {
         sort: "edited",
         id: "order",
         title: "order the new cabinets",

@@ -1,4 +1,7 @@
 #!/usr/bin/env bun
+import * as claudeTool from "olai-plugin-claude/testlib"
+import * as codexTool from "olai-plugin-codex/testlib"
+const toolWire = process.env.OLAI_FAKE_CODEX === "yes" ? codexTool : claudeTool
 import { nativeActivity } from "./native-activity.ts"
 /**
  * A scripted ACP agent, for driving the chat loop without a language model.
@@ -994,7 +997,7 @@ const useTool = async (
     update: {
       sessionUpdate: "tool_call",
       toolCallId,
-      title: `${name}`,
+      ...toolWire.announced("olai", name, args),
       status: "in_progress",
       rawInput: args,
     },
@@ -1008,7 +1011,7 @@ const useTool = async (
       sessionUpdate: "tool_call_update",
       toolCallId,
       status: failed ? "failed" : "completed",
-      rawOutput: result,
+      ...toolWire.wrapped(result as unknown as claudeTool.CallToolResult),
     },
   })
   return result

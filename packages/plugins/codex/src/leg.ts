@@ -3,7 +3,7 @@
  *
  * The adapter exposes useful display titles for tool calls, but neither the
  * call id nor the `_meta` carried to olai exposes the stable programmatic tool
- * name/server pair. Those titles are not an approval boundary. Consequently a
+ * name/server pair. Display reads the MCP server/tool from rawInput. Those titles are not an approval boundary. Consequently a
  * Codex permission request is always left to the person: failing to recognise
  * a call may cost a click, while guessing could grant authority nobody gave.
  *
@@ -51,6 +51,14 @@ export const serversInUpdate = (update: unknown): ReadonlyArray<Reported> | null
 }
 
 export const CODEX: Leg = {
+  spelling: null,
+  mcpCall: (frame, servers) => {
+    const server = fieldIn(frame.rawInput, "server")
+    const tool = fieldIn(frame.rawInput, "tool")
+    return frame._meta?.["is_mcp_tool_call"] === true && typeof server === "string"
+      && typeof tool === "string" && tool !== "" && servers.includes(server) ? { server, tool } : null
+  },
+  replyIn,
   nativeActivity: true,
   serversInUpdate,
   toolNameIn: (_meta: Meta) => null,
@@ -78,4 +86,12 @@ export const CODEX: Leg = {
   rawMessages: null,
   terminalOutput: true,
   models: { config: "model", nameIn: namedExactly },
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
+
+export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined {
+  return record(record(record(rawOutput)?.["result"])?.["structuredContent"])
 }

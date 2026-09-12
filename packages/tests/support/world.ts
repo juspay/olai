@@ -1124,8 +1124,8 @@ export const CHAT_DIFF_EXPAND = selector(PLUGIN_TESTID.chatDiffExpand);
 export const CHAT_DIFF_WHOLESALE = selector(PLUGIN_TESTID.chatDiffWholesale);
 export const CHAT_OUTLINE_DIFF = selector(PLUGIN_TESTID.chatOutlineDiff);
 export const CHAT_OUTLINE_CHANGE = selector(PLUGIN_TESTID.chatOutlineChange);
-export const CHAT_WROTE = selector(PLUGIN_TESTID.chatWrote);
-export const CHAT_NUDGE = selector(PLUGIN_TESTID.chatNudge);
+export const CHAT_WROTE = selector(PLUGIN_TESTID.outlinesStory);
+export const CHAT_NUDGE = selector(PLUGIN_TESTID.outlinesNudge);
 export const CHAT_REFUSAL = selector(PLUGIN_TESTID.chatRefusal);
 export const CHAT_USAGE = selector(PLUGIN_TESTID.chatUsage);
 export const CHAT_TROUBLE = selector(PLUGIN_TESTID.chatTrouble);
@@ -3092,3 +3092,7 @@ export class OlaiWorld extends World {
 }
 
 setWorldConstructor(OlaiWorld);
+
+export const CHAT_TOOL_FILE = selector(PLUGIN_TESTID.chatToolFile);
+export const CHAT_TOOL_CALLED = selector(PLUGIN_TESTID.chatToolCalled);
+export const CHAT_TOOL_REPLY = selector(PLUGIN_TESTID.chatToolReply);

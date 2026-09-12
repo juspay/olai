@@ -425,3 +425,42 @@ test("actual MCP reports update the roster and warn once, fenced to this session
     } })
   } finally { await run(agent.stop) }
 })
+
+test("an absent catalogue leaves raw titles and never reads the reply", async () => {
+  const events: import("./events.ts").AgentEvent[] = []
+  let reads = 0
+  const agent = await Effect.runPromise(make({ ...options(),
+    leg: { ...QUEUES, mcpCall: () => ({ server: "ours", tool: "read" }), replyIn: () => { reads++; return {} } },
+    onEvent: event => events.push(event),
+  }))
+  try {
+    await Effect.runPromise(agent.boot)
+    await Effect.runPromise(agent.prompt("display-tool"))
+    const frames = events.filter(event => event._tag === "tool")
+    expect(frames.length).toBe(2)
+    expect(frames[0]?.title).toBe("engine_tool")
+    expect(frames.every(frame => frame.row === undefined && frame.reply === undefined)).toBe(true)
+    expect(reads).toBe(0)
+  } finally { await Effect.runPromise(agent.stop) }
+})
+
+test("completion uses remembered identity while the catalogue stays live", async () => {
+  const events: import("./events.ts").AgentEvent[] = []
+  let lookups = 0
+  const agent = await Effect.runPromise(make({ ...options(),
+    leg: { ...QUEUES, mcpCall: frame => frame.title === "engine_tool" && frame.rawInput !== undefined ? { server: "ours", tool: "read" } : null,
+      replyIn: raw => raw as Record<string, unknown> },
+    advertised: () => { lookups++; return { title: "Read a node", owner: "notes" } },
+    onEvent: event => events.push(event),
+  }))
+  try {
+    await Effect.runPromise(agent.boot)
+    await Effect.runPromise(agent.prompt("display-tool"))
+    const frames = events.filter(event => event._tag === "tool")
+    expect(lookups).toBe(2)
+    expect(frames[0]?.title).toBe("Read a node")
+    expect(frames[0]?.called).toBe("engine_tool")
+    expect(frames[1]?.reply).toEqual({ file: "one.olai", title: "one" })
+    expect(frames[1]?.detail).toBeUndefined()
+  } finally { await Effect.runPromise(agent.stop) }
+})

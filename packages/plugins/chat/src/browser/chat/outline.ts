@@ -6,7 +6,7 @@
  * tool that wrote it: a `.olai` is one line per node, so a text diff of it is
  * one enormous line with everything on it changing at once. Olai's own writes
  * never produce one — they go through the ops layer, which answers with a
- * node-level story ({@link ./Wrote.tsx}) — but an agent's OWN `Edit` can name
+ * node-level story (the owning plugin’s `tool.reply` face) — but an agent's OWN `Edit` can name
  * any file it likes, and one aimed at an outline arrived here as an ordinary
  * `diff` block and was drawn as ordinary lines. That made the rule true of the
  * tool and not of the file, which is not what the design says.

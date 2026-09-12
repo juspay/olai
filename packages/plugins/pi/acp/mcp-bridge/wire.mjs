@@ -29,7 +29,12 @@ export const registerServerTools = async (pi, Type, client, plan) => {
       parameters: schemaToTypebox(Type, tool.inputSchema),
       async execute(_id, args) {
         const answer = await client.callTool({ name: tool.name, arguments: args ?? {} });
-        return { content: [{ type: "text", text: answerText(answer) }] };
+        return {
+          content: [{ type: "text", text: answerText(answer) }],
+          // pi 0.84.2 AgentToolResult<T>.details is its structured UI half;
+          // pi-acp 0.0.33 forwards this object as rawOutput.
+          ...(answer?.structuredContent === undefined ? {} : { details: answer.structuredContent }),
+        };
       },
     });
   }

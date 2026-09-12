@@ -569,11 +569,12 @@ export const TESTID = {
   /** What an olai WRITE did, in the commit panel's own words — never a diff.
    *  `data-sort` is the format's classification (`done`, `noted`, `moved`, …),
    *  or `unchanged` for a write that moved no record. */
-  chatWrote: "chat-wrote",
+  chatToolFile: "chat-tool-file",
+  chatToolCalled: "chat-tool-called",
+  chatToolReply: "chat-tool-reply",
   /** What the rollup noticed about that write. Advice on a write that LANDED,
    *  never a reason anything failed — the transcript's own copy of the aside a
    *  keystroke already gets under its row. */
-  chatNudge: "chat-nudge",
   /** The composer PROMISING that what you send now waits its turn at the
    *  agent and is got to when the running turn is over — drawn while a turn is
    *  running, and only for an agent that advertised the queue it is a promise

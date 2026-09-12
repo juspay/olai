@@ -1241,3 +1241,5 @@ stable files through a generated catalog.
 - [slot-ownership.md](slot-ownership.md) — renderer location owners.
 - [live-properties.md](../live-properties.md) — the user-facing half of §8.
 - [running.md](../running.md) — row selection as an operator sees it.
+
+Chat also declares `tool.reply` beside `delivery.mark`: an owning plugin supplies a reply face while chat owns the row frame. Outlines registers its story without depending on chat's activation. The optional MCP catalogue is carried deliberately through the existing `Tools` broker, resolved per call; no cached provider survives withdrawal.

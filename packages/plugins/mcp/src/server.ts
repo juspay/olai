@@ -36,6 +36,7 @@ import { Effect } from "effect"
 import { name } from "./index.ts"
 export { name } from "./index.ts"
 import { bindAgent } from "./binding.ts"
+import { advertisedFrom } from "./catalogue.ts"
 import { endpoint } from "./endpoint.ts"
 import { currentTicket } from "./route.ts"
 
@@ -55,6 +56,7 @@ export default definePlugin({
     // Offers and routes belong to the same activation; unloading withdraws the
     // mint and carrier before any subsequent activation allocates a new table.
     yield* (yield* Offers).own("ticket-mint", () => policy.tickets)
+    yield* (yield* Offers).own("catalogue", () => ({ advertised: advertisedFrom(() => shared.agentRows()) }))
     yield* endpoint(shared, policy)
   }),
 })

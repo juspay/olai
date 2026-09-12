@@ -171,3 +171,7 @@ Permission-mode coverage sits below the browser: it drives the real chat session
 - `packages/plugins/codex/src/leg.test.ts` pins the mode the orchestrator selects.
 - The pinned adapter build runs `packages/plugins/codex/acp/permission-mode.test.ts.in` inside codex-acp's own test harness, checking the approval policy, reviewer and sandbox on the next `turn/start` for new and loaded sessions in all three presets.
 - Limits: no live model, no executable tool command and no user permission configuration are involved. These tests check the requests and the session integration, not a turn-context file written by a live Codex. Browser coverage and full CI remain separate checks.
+
+## Olai tool rows
+
+The four adapter fixtures share their announcement and result wrapping with their engine leg tests. `the_agent.feature`, `codex_steering.feature` and `choosing_an_agent.feature` cover each engine's write title, file, classification, clickable node, raw hover/fold name and single-copy reply, plus reads with no story. Refused writes retain the friendly title without a story. `an_external_agent.feature` checks a foreign call keeps its adapter title without a file or story. Existing nudge and node-reference scenarios use the outlines-owned selectors. The lifecycle unit test covers an omitted catalogue, because MCP-off sessions cannot execute olai tools. Catalogue tests cover live removal and replacement.

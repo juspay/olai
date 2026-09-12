@@ -1172,7 +1172,13 @@ export interface ToolServer {
  * becomes an Effect dependency that a reader can see rather than a comment
  * guarded by a loud throw.
  */
+/** Static display contract; the catalogue provider owns the live lookup. */
+export interface Advertised { readonly title: string; readonly owner: string }
 export interface Tools {
+  /** Deliberately carried by Tools rather than a second optional broker.
+   * Null means no catalogue is serving, or the server/tool is not ours.
+   * Resolve per call so withdrawal and replacement take effect immediately. */
+  readonly advertised: (server: string, tool: string) => Advertised | null
   readonly server: Effect.Effect<ToolServer>
   /**
    * ...AND A CREDENTIAL FOR ONE SESSION.
@@ -1439,6 +1445,7 @@ export interface PluginsConfig {
    * OPTIONAL, and absent means NO CREDENTIAL EVER — the headless faces and
    * every bench, which have no MCP face to mint against.
    */
+  readonly advertisedFor?: Tools["advertised"]
   readonly ticketFor?: (
     forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
@@ -1631,6 +1638,7 @@ export const openPlugins = (
       // asked per session and a caller has somewhere to put the absence: a root
       // with no MCP face seats a session with no remaining write rule, which is
       // the state it was already in ({@link PluginsConfig.ticketFor}).
+      advertised: (server, tool) => config.advertisedFor?.(server, tool) ?? null,
       ticket: (forbidden, writer) => config.ticketFor?.(forbidden, writer) ?? NO_TICKET,
     }))
 

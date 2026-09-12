@@ -130,3 +130,19 @@ describe("the one YES", () => {
     expect(PI.queues({ agentCapabilities: {} })).toBe(true)
   })
 })
+
+// The e2e agent emits these same adapter fixtures.
+import { announced, wrapped } from "./testlib.ts"
+
+test("MCP display reads this adapter's announcement and completion", () => {
+  const reply = { id: "order", title: "order cabinets", file: "house.olai", sort: "done" }
+  const result = { content: [{ type: "text" as const, text: JSON.stringify(reply) }], structuredContent: reply }
+  const frame = { ...announced("olai", "outlines_done", { id: "order" }), name: PI.toolNameOf("olai_outlines_done:1") }
+  expect(PI.mcpCall(frame, ["olai"])).toEqual({ server: "olai", tool: "outlines_done" })
+  expect(PI.mcpCall(frame, ["foreign"])).toBeNull()
+  expect(PI.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toBeNull()
+  expect(PI.replyIn(wrapped(result).rawOutput)).toEqual(reply)
+  expect(PI.replyIn("permission denied")).toBeUndefined()
+  expect(PI.replyIn({ stdout: "foreign tool" })).toBeUndefined()
+  expect(PI.replyIn(wrapped({ content: [{ type: "text", text: "permission denied" }], isError: true }).rawOutput)).toBeUndefined()
+})

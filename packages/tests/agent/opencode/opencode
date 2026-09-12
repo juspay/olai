@@ -94,6 +94,7 @@
  * real opencode installed still gets the same suite CI does.
  */
 
+import { announced, wrapped, type CallToolResult } from "olai-plugin-opencode/testlib";
 import { existsSync, rmSync } from "node:fs";
 
 import { readMessages } from "../../support/ndjson.ts";
@@ -205,7 +206,7 @@ const runTool = async (
     update: {
       sessionUpdate: "tool_call",
       toolCallId,
-      title: tool,
+      ...announced(mcp?.name ?? "olai", tool.slice((mcp?.name ?? "olai").length + 1), args),
       status: "in_progress",
       rawInput: args,
     },
@@ -225,7 +226,7 @@ const runTool = async (
       sessionUpdate: "tool_call_update",
       toolCallId,
       status: result["isError"] === true ? "failed" : "completed",
-      rawOutput: result,
+      ...wrapped(result as unknown as CallToolResult),
     },
   });
   return result;
@@ -258,6 +259,14 @@ const askPermission = async (toolCallId: string, title: string): Promise<unknown
 
 const turn = async (text: string): Promise<string> => {
   const said = text.trim();
+
+  if (said.startsWith("context ")) {
+    const node = said.slice("context ".length).trim();
+    const result = await runTool(`${mcp?.name ?? "olai"}_outlines_read`, { id: node },
+      () => callMcp("tools/call", { name: "outlines_read", arguments: { id: node } }));
+    say(JSON.stringify(result));
+    return "end_turn";
+  }
 
   if (said.startsWith("done ")) {
     const node = said.slice("done ".length).trim();

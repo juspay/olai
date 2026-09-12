@@ -34,6 +34,8 @@ What is left here is the reading, not the bets: this package is HANDED an array 
 | interrupting the running turn | advertised `_session/steering` | advertised `_session/steering` | none | none |
 | the agent's own messages | forwarded subscription | none | none | startup banner only |
 | which servers it attached | `init` status per server | nothing says | nothing says | nothing says |
+| Where olai’s reply lands | text-array JSON | `result.structuredContent` | `metadata.structuredContent` / output JSON | `details` |
+| How olai’s call is named for display | declared prefix | MCP marker and raw input | declared prefix | declared prefix in programmatic name |
 
 The rule survives the split, word for word: **nothing is ever approved by failing to recognise it.** A leg that answered a tool name it had not positively recognised, or an allow-option for a tool it could not name, would be approving somebody's permissions on their behalf — the one failure in this package that is not recoverable by pressing something. `_` is a weak separator, so opencode's rule is written as narrowly as it can be (the server names are olai's own, the prefix must be followed by something, and the match is a prefix rather than a contains) and pinned by the near misses that would widen it.
 

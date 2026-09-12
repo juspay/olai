@@ -1,3 +1,5 @@
+import { Json } from "../json.ts"
+export { Json } from "../json.ts"
 import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
 /**
  * Chat, on the wire.
@@ -64,7 +66,6 @@ import {
   isOpFailure,
   kindOf,
   OpFailure,
-  Sort,
   UsageFailure,
 } from "@olai/format"
 import { Schema } from "effect"
@@ -158,45 +159,6 @@ export const NodeContext = Schema.Struct({
   path: Found.fields.path,
 })
 export type NodeContext = typeof NodeContext.Type
-
-/**
- * What an olai WRITE did to a node, which is the other half of the same
- * feature and deliberately not a diff.
- *
- * A `.olai` diff is one enormous line per node with everything on it changing
- * at once — the commit panel's own rule, and the reason `@olai/format`
- * classifies a change into a {@link Sort} instead. So a tool call that went
- * through the ops layer carries the node-level story: the same word the commit
- * panel draws (*marked done*, *note rewritten*, *moved*), the node it is about,
- * and whatever the rollup had to say about it.
- *
- * The `sort` is the reply's own (`@olai/ops`' `Applied.sort`), derived there
- * from the two readings the write is made of — never re-derived here and never
- * read out of the summary's prose. It is `null` for a write that changed no
- * record, where there is no honest word for what happened.
- */
-export const Wrote = Schema.Struct({
-  sort: Schema.NullOr(Sort),
-  /** The node the write was about, by ID — the reply's own `Applied.id`, which
-   *  is the one thing in this row that names a node rather than describing one.
-   *
-   *  It is here so the row can be a REFERENCE: an olai write is the shape a
-   *  transcript actually contains most often, and until this crossed the wire
-   *  the panel could say *marked done · order the new cabinets* and still have
-   *  nothing to point at. `null` for a reply that carried no id, which is a
-   *  payload this layer reads defensively rather than a case olai produces. */
-  id: Schema.NullOr(Schema.String),
-  /** The node the write was about, by title — as the reply names it. */
-  title: Schema.String,
-  /** Which outline it lives in now, root-relative. `null` for a reply that
-   *  named none — one spelling of absent across the three fields that can be,
-   *  rather than a second empty for this one to mean it with. */
-  file: Schema.NullOr(Schema.String),
-  /** What the rollup noticed — advice on a write that LANDED, never a reason
-   *  anything failed. `null` when there was nothing to say. */
-  nudge: Schema.NullOr(Schema.String),
-})
-export type Wrote = typeof Wrote.Type
 
 /**
  * A call that SENT AN AGENT OUT, and what is known about the agent.
@@ -648,7 +610,7 @@ export type AgentEntry = typeof AgentEntry.Type
  *
  * Carries what it CHANGED in whichever of the two vocabularies applies: a
  * {@link FileDiff} per file it rewrote directly, or the node-level
- * {@link Wrote} story of a write that went through the ops layer — and, when
+ * owning plugin’s story of a write that went through the ops layer — and, when
  * a subagent made it, which `Agent` call it was made inside, or, when it
  * STARTED one, what is known about the agent it started ({@link Spawned}).
  */
@@ -663,6 +625,9 @@ export const ToolEntry = Schema.Struct({
   /** The arguments and the result, as the agent reported them. Folded away by
    *  default — it is detail, not conversation. */
   detail: Schema.optionalKey(Schema.String),
+  called: Schema.optionalKey(Schema.String),
+  row: Schema.optionalKey(Schema.String),
+  reply: Schema.optionalKey(Json),
   /** What the call is SAYING as it runs — the protocol's incremental content
    *  blocks. Separate from `detail` because it is the live half: a call that
    *  has been running for thirty seconds has something to show, and its
@@ -674,17 +639,6 @@ export const ToolEntry = Schema.Struct({
    *  call whose whole content is the change, and the outline is not where it
    *  shows up. See {@link FileDiff}. */
   diffs: Schema.optionalKey(Schema.Array(FileDiff)),
-  /** What this call WROTE through the ops layer, as a node-level story rather
-   *  than as a diff. See {@link Wrote}.
-   *
-   *  Independent of `diffs` rather than exclusive with it, because the two are
-   *  read off different halves of a report — the content blocks and the tool
-   *  result — and a report says nothing about the half it does not carry. In
-   *  practice a call is one or the other: a tool cannot both go through the ops
-   *  layer and rewrite a file, since the agent has no filesystem channel here
-   *  and olai's own tools take no bytes. A row that somehow carried both would
-   *  draw both, which is the honest thing to do about a call that did both. */
-  wrote: Schema.optionalKey(Wrote),
   /** The files the call is working in, as `path` or `path:line`. The protocol's
    *  follow-along locations, which is what lets a reader see WHERE an agent is
    *  without unfolding anything. */

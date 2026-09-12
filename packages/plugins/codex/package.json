@@ -11,7 +11,8 @@
     "./server": "./src/server.ts",
     "./browser": "./src/browser.tsx",
     "./testids": "./src/testids.ts",
-    "./all.css": "./src/browser/all.css"
+    "./all.css": "./src/browser/all.css",
+    "./testlib": "./src/testlib.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -25,7 +26,8 @@
     "@olai/ui-primitives": "workspace:*"
   },
   "devDependencies": {
-    "olai-plugin-chat": "workspace:*"
+    "olai-plugin-chat": "workspace:*",
+    "@agentclientprotocol/sdk": "^1.3.0"
   },
   "olai": {
     "contracts": [

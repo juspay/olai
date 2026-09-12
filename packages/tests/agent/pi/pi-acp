@@ -70,6 +70,7 @@
  *   anything    `pi says: <text>`
  */
 
+import { announced, wrapped, type CallToolResult } from "olai-plugin-pi/testlib";
 import { existsSync, realpathSync, rmSync } from "node:fs";
 
 import { readMessages } from "../../support/ndjson.ts";
@@ -98,6 +99,41 @@ const STORED = process.env.OLAI_FAKE_PI_STORED ?? "";
 const STORED_SESSION = "pi_stored_session";
 
 let sessionId = "";
+let mcp: { url: string; headers: Record<string, string>; name: string } | null = null;
+
+let nextCall = 0;
+
+// ── talking to olai's own MCP server ───────────────────────────────────
+
+const callMcp = async (
+  method: string,
+  params: unknown,
+): Promise<Record<string, unknown>> => {
+  if (mcp === null) throw new Error("no MCP server was configured");
+  const response = await fetch(mcp.url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      ...mcp.headers,
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++nextCall, method, params }),
+  });
+  if (response.status === 202) return {};
+  const body = (await response.json()) as { result?: Record<string, unknown> };
+  return body.result ?? {};
+};
+
+// ── the frames ─────────────────────────────────────────────────────────
+
+const say = (text: string): void => {
+  notify("session/update", {
+    sessionId,
+    update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } },
+  });
+};
+
+
 
 // ── the frames ─────────────────────────────────────────────────────────
 
@@ -185,41 +221,18 @@ const turn = async (text: string): Promise<string> => {
     return "end_turn";
   }
 
-  if (said.startsWith("mcp read title ")) {
-    // THE HANDED TOOL, the way the pin's bridge has pi call it: id is the
-    // panel's `${server}_${tool}` name with the call's ordinal — the shape
-    // the real adapter's own `olm_echo_mark:0` smoke answered — pending,
-    // running, then ANSWERED with the tool's text riding `content` the way
-    // the real one rides.
-    const node = said.slice("mcp read title ".length).trim();
-    const toolCallId = "olai_outlines_read:0";
-    notify("session/update", {
-      sessionId,
-      update: {
-        sessionUpdate: "tool_call",
-        toolCallId,
-        title: "olai: outlines_read",
-        kind: "other",
-        status: "pending",
-        rawInput: { node },
-      },
-    });
-    notify("session/update", {
-      sessionId,
-      update: { sessionUpdate: "tool_call_update", toolCallId, status: "in_progress" },
-    });
-    const answered = `the node's title is ${node}`;
-    notify("session/update", {
-      sessionId,
-      update: {
-        sessionUpdate: "tool_call_update",
-        toolCallId,
-        status: "completed",
-        content: [{ type: "content", content: { type: "text", text: answered } }],
-        rawOutput: { content: [{ type: "text", text: answered }] },
-      },
-    });
-    say(`the node's title is ${node}`);
+  if (said.startsWith("mcp read title ") || said.startsWith("mcp done ")) {
+    const read = said.startsWith("mcp read title ");
+    const node = said.slice(read ? "mcp read title ".length : "mcp done ".length).trim();
+    const tool = read ? "outlines_read" : "outlines_done";
+    const args = read ? { id: node } : { id: node };
+    const toolCallId = `olai_${tool}:${++nextCall}`;
+    notify("session/update", { sessionId, update: { sessionUpdate: "tool_call", toolCallId,
+      ...announced("olai", tool, args), status: "in_progress" } });
+    const result = await callMcp("tools/call", { name: tool, arguments: args });
+    notify("session/update", { sessionId, update: { sessionUpdate: "tool_call_update", toolCallId,
+      status: result["isError"] === true ? "failed" : "completed", ...wrapped(result as unknown as CallToolResult) } });
+    say(JSON.stringify(result));
     return "end_turn";
   }
 
@@ -328,6 +341,16 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return;
 
     case "session/new": {
+  const servers = (params["mcpServers"] ?? []) as ReadonlyArray<Record<string, unknown>>;
+  const http = servers.find((server) => server["type"] === "http");
+  if (http !== undefined) {
+    const headers = (http["headers"] ?? []) as ReadonlyArray<{ name: string; value: string }>;
+    mcp = {
+      url: String(http["url"]),
+      name: String(http["name"]),
+      headers: Object.fromEntries(headers.map((header) => [header.name, header.value])),
+    };
+  }
       sessionId = `pi_new_${++openCalls}`;
       respond(id, {
         sessionId,

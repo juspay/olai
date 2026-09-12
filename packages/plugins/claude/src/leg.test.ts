@@ -894,3 +894,19 @@ describe("what a listed conversation holds", () => {
     expect(listedIn({ claudeCode: { supersededBy: 4 } })).toBeNull()
   })
 })
+
+// The e2e agent emits these same adapter fixtures.
+import { announced, wrapped } from "./testlib.ts"
+
+test("MCP display reads this adapter's announcement and completion", () => {
+  const reply = { id: "order", title: "order cabinets", file: "house.olai", sort: "done" }
+  const result = { content: [{ type: "text" as const, text: JSON.stringify(reply) }], structuredContent: reply }
+  const frame = { ...announced("olai", "outlines_done", { id: "order" }), name: CLAUDE.toolNameOf("olai_outlines_done:1") }
+  expect(CLAUDE.mcpCall(frame, ["olai"])).toEqual({ server: "olai", tool: "outlines_done" })
+  expect(CLAUDE.mcpCall(frame, ["foreign"])).toBeNull()
+  expect(CLAUDE.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toBeNull()
+  expect(CLAUDE.replyIn(wrapped(result).rawOutput)).toEqual(reply)
+  expect(CLAUDE.replyIn("permission denied")).toBeUndefined()
+  expect(CLAUDE.replyIn({ stdout: "foreign tool" })).toBeUndefined()
+  expect(CLAUDE.replyIn(wrapped({ content: [{ type: "text", text: "permission denied" }], isError: true }).rawOutput)).toBeUndefined()
+})

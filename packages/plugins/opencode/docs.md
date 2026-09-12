@@ -29,3 +29,5 @@ Every reading was captured live against **opencode 1.17.9**. Each is safe to los
 ## Where to get it
 
 <https://opencode.ai>, then make sure it is on the PATH the olai **server** has.
+
+Its declared MCP prefix is `<server>_`; for display only, the leg reads `rawOutput.metadata.structuredContent`, falling back to the structured content in parsed `rawOutput.output`.

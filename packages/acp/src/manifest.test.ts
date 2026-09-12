@@ -214,7 +214,9 @@ describe("the manifest", () => {
       "acp",
       "plugins/chat",
       "plugins/claude",
+      "plugins/codex",
       "plugins/opencode",
+      "plugins/pi",
     ])
   })
 

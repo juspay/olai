@@ -26,7 +26,7 @@ import { hostnameReading } from "./hostname.ts";
 import { NOBODY, readingOf } from "./who.ts";
 import { type Profile } from "./profiles.ts";
 import { listener } from "./listener.ts";
-import { provideInputs, ticketsFor } from "@olai/bundle/inputs";
+import { advertisedFor, provideInputs, ticketsFor } from "@olai/bundle/inputs";
 import { WRITE_RESERVATIONS } from "@olai/bundle/policy";
 import { runtimePaths } from "./runtime-paths.ts"
 import { TransportSurface } from "@olai/plugin-api/transport";
@@ -115,6 +115,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
      * departed MCP provider leaves no old issuer installed (`@olai/bundle`'s
      * `inputs.ts`).
      */
+    let readAdvertised: ReturnType<typeof advertisedFor> | undefined;
     let issueTicket: ReturnType<typeof ticketsFor> | undefined;
     const served = resolve(options.root);
     yield* Effect.annotateLogsScoped({ root: served });
@@ -156,12 +157,14 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
         vars: options.vars ?? process.env,
         now: () => new Date().toISOString(),
         tools: toolsReady,
-        ticketFor: (...args) => issueTicket?.(...args) ?? null,
+        advertisedFor: (server, tool) => readAdvertised?.(server, tool) ?? null,
+      ticketFor: (...args) => issueTicket?.(...args) ?? null,
         rank: bundleRank,
         localStateFor: (plugin) => localStateFor(plugin, served, (line) => say(Effect.logWarning(line))),
         changed: () => onChange.run(),
     });
     issueTicket = ticketsFor(plugins.host);
+    readAdvertised = advertisedFor(plugins.host);
     yield* provideInputs(plugins.host, { root: served, runtime: runtimePaths });
     yield* mountBundle(plugins.host, [], profile, true);
     const loading = yield* openLoading(plugins.host, built, () => onChange.run(), { services: plugins.serviceKeys, browserServices: plugins.browserKeys });

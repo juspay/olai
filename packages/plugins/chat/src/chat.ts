@@ -1,3 +1,4 @@
+import type { Advertised } from "@olai/plugin-api/services"
 /**
  * One conversation, and the surface it is served through.
  *
@@ -211,6 +212,7 @@ export interface PanelOptions {
    *  whose integrations are fibers answers a different list per conversation, so
    *  this side holds no copy of one. Omitting it is a chat that asks this
    *  machine nothing. */
+  readonly advertised?: (server: string, tool: string) => Advertised | null
   readonly probes?: () => Effect.Effect<ReadonlyArray<Probe>>
   /**
    * WHERE THE DOORBELL PICKS ARE KEPT — which conversations somebody pointed a
@@ -920,6 +922,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         cwd: options.cwd,
         tools: options.tools,
         probes: options.probes,
+        advertised: options.advertised,
         memory,
         onEvent,
       }).pipe(Effect.annotateLogs({ ...logContext, purpose }))
@@ -1529,7 +1532,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             detail: event.detail,
             progress: event.progress,
             diffs: event.diffs,
-            wrote: event.wrote,
+            called: event.called,
+            row: event.row,
+            reply: event.reply,
             locations: event.locations,
             parent: event.parent,
             spawned: event.spawned,

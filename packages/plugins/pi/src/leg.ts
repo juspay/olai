@@ -15,12 +15,8 @@
  * the queueing are the protocol's own and are read where the protocol is read.
  * THESE ARE NOT, and they are this file:
  *
- *   - **olai's MCP servers never reach pi.** `session/new`'s `mcpServers` are
- *     accepted and stored and wired to NOTHING ("Pi doesn't support
- *     mcpServers, but we accept and store"): pi does its I/O with its own
- *     tools, and no `olai_*` tool ever exists on this wire. So nothing here is
- *     ever answered without asking — there is no spelling of "ours" to match
- *     — and the one permission path that exists is a person's every time.
+ *   - **olai's MCP servers reach pi through the bridge.** Its declared
+ *     spelling is for display; pi's own settings still answer approval.
  *   - **the programmatic tool name is the `toolCallId` PREFIX, exactly as on
  *     the opencode wire**: `bash:0`, `edit:1`. Nothing on any frame says it —
  *     a bash call's `_meta` corners are its terminal bookkeeping
@@ -104,7 +100,7 @@
  * inherits that the way it inherits opencode's `opencode.json`.
  */
 
-import { type Leg, namedExactly } from "@olai/acp/engine"
+import { mcpCallBy, type Leg, namedExactly } from "@olai/acp/engine"
 
 // ── which tool a call is ───────────────────────────────────────────────
 
@@ -135,25 +131,9 @@ export const toolNameOf = (toolCallId: string): string | null => {
 
 // ── which permissions are answered without asking ──────────────────────
 
-/**
- * NONE, and that is a wire fact rather than a rule this panel wrote.
- *
- * `allowedWithoutAsking` is the fail-safe's allow half: the tool is named, the
- * name begins with one of the MCP servers WE handed this session, the request
- * offers an allow-flavoured option. On this wire those can never be true,
- * because pi-acp DOES NOT WIRE the servers it is handed — the tools olai
- * mediates are unreachable for pi, and a request that positively names one of
- * ours is a shape this adapter has never sent. What remains is the fail-safe
- * read of what DOES arrive: pi's extension UI (`pi-ui-<n>` ids, so unnamed)
- * and nothing else, and all of it is a person's.
- *
- * A bare `null` and not a spelling that matches nothing: the spelling is the
- * variable that would have to be guessed — pi has no MCP tools today and
- * nobody knows which prefix it would mint the day it grows one, and an allow
- * keyed on a guessed prefix is the one failure this file exists to stop. The
- * day the adapter wires servers through, this line is re-answered in a diff
- * somebody reads, which is exactly where the rule's un-widening is kept.
- */
+/** The bridge spelling exists for display. Approval belongs to pi's settings,
+ * outside ACP, so no permission is answered by recognising this spelling. */
+export const spelling = (server: string) => `${server}_`
 export const allowedWithoutAsking: Leg["allowedWithoutAsking"] = () => null
 
 // ── the prologue ───────────────────────────────────────────────────────
@@ -191,6 +171,9 @@ export const prologueIn = (opened: unknown): string | null => {
  * is the wire-established queueing, not an advertisement.
  */
 export const PI: Leg = {
+  spelling,
+  mcpCall: mcpCallBy(spelling),
+  replyIn,
   // Nothing is read off a frame — the name corners this adapter writes are
   // its terminal bookkeeping, and `title` on this wire is display text — so
   // nothing about a call is remembered either: the name is in the key the
@@ -241,3 +224,12 @@ export const PI: Leg = {
   models: { config: "model", nameIn: namedExactly },
 }
   // is the conversation every leg has with its adapter.
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
+
+export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined {
+  const outer = record(rawOutput)
+  return record(outer?.["details"]) ?? record(outer?.["structuredContent"])
+}

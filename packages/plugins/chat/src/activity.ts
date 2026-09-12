@@ -9,7 +9,7 @@ const agentId = (session: string): string => `acp-agent:${JSON.stringify(session
 const taskKey = (session: string, task: string): string => JSON.stringify([session, task])
 const tool = (id: string, move: Partial<Omit<Tool, "_tag" | "id">>): Tool => ({
   _tag: "tool", id, title: undefined, status: undefined, detail: undefined,
-  progress: undefined, diffs: undefined, wrote: undefined, locations: undefined,
+  progress: undefined, diffs: undefined,  locations: undefined,
   parent: undefined, spawned: undefined, armed: undefined, ...move,
 })
 interface Child { readonly parent: string; report: string; ended: boolean }

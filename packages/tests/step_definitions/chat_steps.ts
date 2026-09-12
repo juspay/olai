@@ -140,6 +140,9 @@ import {
   CHAT_WAITING,
   CHAT_WORKING,
   CHAT_WROTE,
+  CHAT_TOOL_FILE,
+  CHAT_TOOL_CALLED,
+  CHAT_TOOL_REPLY,
   expectBefore,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
@@ -3947,3 +3950,29 @@ When("I return to the parent agent {string}", async function (this: OlaiWorld, n
 Then("the agent panel is already visible", async function(this: OlaiWorld) {
   await this.page.locator(CHAT_PANEL).waitFor({ state: "visible" })
 })
+
+Then("the tool call says which outline it touched", async function (this: OlaiWorld) {
+  const file = heldTool(this).locator(CHAT_TOOL_FILE);
+  await file.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(await file.innerText(), "house.olai");
+});
+Then("the tool call is called {string} underneath", async function (this: OlaiWorld, called: string) {
+  const tool = heldTool(this);
+  assert.equal(await tool.locator(CHAT_TOOL_CALLED).innerText(), called);
+  assert.equal(await tool.locator(CHAT_TOOL_FOLD).locator("span[title]").getAttribute("title"), called);
+});
+Then("the tool call's reply is shown once", async function (this: OlaiWorld) {
+  const tool = heldTool(this);
+  assert.equal(await tool.locator(CHAT_TOOL_REPLY).count(), 1);
+  assert.equal(await tool.locator(CHAT_TOOL_PROGRESS).count(), 0);
+  const reply = JSON.parse(await tool.locator(CHAT_TOOL_REPLY).innerText());
+  assert.equal(reply.file, "house.olai");
+  const input = await tool.locator(CHAT_TOOL_DETAIL).innerText();
+  assert.ok(!input.includes(reply.summary ?? reply.file), "reply leaked into the input detail");
+});
+Then("the chat shows no story under the call", async function (this: OlaiWorld) {
+  assert.equal(await heldTool(this).locator(CHAT_WROTE).count(), 0);
+});
+Then("the tool call shows no outline", async function (this: OlaiWorld) {
+  assert.equal(await heldTool(this).locator(CHAT_TOOL_FILE).count(), 0);
+});

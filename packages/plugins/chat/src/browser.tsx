@@ -134,7 +134,7 @@ export default definePlugin({
     // readout in this app's geometry and all of them are the panel positioning
     // itself in what it was given.
     yield* slots.register("app.panel", () => <AgentsProvider value={state.agents}><Panel /></AgentsProvider>, {
-      children: [slotContracts["delivery.mark"], slotContracts["engine.install"]],
+      children: [slotContracts["tool.reply"], slotContracts["delivery.mark"], slotContracts["engine.install"]],
       activate: Effect.acquireRelease(Effect.sync(trackCamera), (stop) => Effect.sync(stop)),
     })
     // ...and the control in the bar that opens and shuts it.

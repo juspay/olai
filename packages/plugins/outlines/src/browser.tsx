@@ -1,4 +1,5 @@
-import { Edits, Wired } from "@olai/plugin-api"
+import { fileOf, story } from "./browser/replyFace.tsx"
+import { Edits, Wired, Slots } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
 import { holdEdits, writeEdit } from "./browser/writes.ts"
@@ -81,7 +82,8 @@ import { reachable } from "@olai/web/client/connection/reaching.ts"
  * chat panel wants the naming of a node and must not be taken away when this
  * row stops (`./contracts/references.ts`).
  */
-export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect.gen(function*() {
+export default definePlugin({ name, needs: [Wired, Offers, Edits, Slots], apply: Effect.gen(function*() {
+  yield* (yield* Slots).register("tool.reply", { fileOf, story })
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
