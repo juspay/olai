@@ -88,7 +88,6 @@ import {
   markdownPaths,
   reportAfterCycles,
   reportDeclarations,
-  reportDocs,
   reportDuplicateIds,
   reportMirrorCycles,
   reportOf,
@@ -233,7 +232,6 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   reportUnknownTargets(danglingIn(view), view, errors)
   reportAfterCycles(all, view, errors)
   reportMirrorCycles(all, view, errors)
-  reportDocs(all, known, errors)
   reportDeclarations(view, NO_KINDS, errors)
   reportPropValues(all, typed, errors)
   return errors

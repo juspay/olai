@@ -17,8 +17,6 @@ import { BODY_REFUSED as REFUSED_SAID } from "@olai/surface";
 import {
   attr,
   BODY_REFUSED,
-  DOC_LINK,
-  DOC_REF,
   DOCUMENT_BODY,
   DOCUMENT_LINK,
   DOCUMENT_PAGE,
@@ -339,84 +337,14 @@ Then(
   },
 );
 
-// ── a node's own doc ───────────────────────────────────────────────────
-
-Then(
-  "the node {string} refers to the document {string}",
-  async function (this: OlaiWorld, id: string, file: string) {
-    const reference = this.docRef(id);
-    await reference.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(await reference.getAttribute("data-doc"), file);
-  },
-);
-
-Then(
-  "the reference on {string} shows {string}",
-  async function (this: OlaiWorld, id: string, text: string) {
-    const reference = this.docRef(id);
-    await reference.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The reference's path is available with the outline; its body preview
-    // arrives on an independent document subscription. Visibility alone does
-    // not mean that subscription has answered.
-    await this.waitUntil(
-      async () => oneLine(await reference.innerText()).includes(text),
-      `the reference on "${id}" to show ${JSON.stringify(text)}`,
-    );
-  },
-);
-
-Then(
-  "the reference on {string} says the file could not be read",
-  async function (this: OlaiWorld, id: string) {
-    const line = this.docRef(id).locator(BODY_REFUSED);
-    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const text = (await line.innerText()).trim();
-    assert.ok(
-      text.includes(REFUSED_SAID),
-      `the reference on "${id}" reads ${JSON.stringify(text)}`,
-    );
-    assert.strictEqual(await line.getAttribute("data-tone"), "alarm");
-  },
-);
-
-When(
-  "I follow the document link on {string}",
-  async function (this: OlaiWorld, id: string) {
-    const link = this.docRef(id).locator(DOC_LINK).first();
-    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await link.click();
-    await this.waitForFrame();
-  },
-);
-
-Then(
-  "the reference on {string} draws the document",
-  async function (this: OlaiWorld, id: string) {
-    await this.expectAttribute(
-      `${DOC_REF}[data-doc]`,
-      "data-inline",
-      "true",
-      `the doc reference on "${id}"`,
-    );
-    await this.page
-      .locator(DOCUMENT_BODY)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
-Then(
-  "the reference on {string} does not draw the document",
-  async function (this: OlaiWorld, id: string) {
-    const reference = this.docRef(id);
-    await reference.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(
-      await reference.locator(DOCUMENT_BODY).count(),
-      0,
-      `the reference on "${id}" draws the whole document on a page that is not its own`,
-    );
-  },
-);
+// Links in notes are the attachment and open the document's own page.
+When("I follow the document link on {string}", async function(this: OlaiWorld, id: string) {
+  await this.openNode(id);
+  const link = this.page.locator('[data-testid="desc"] a').first();
+  await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await link.click();
+  await this.waitForFrame();
+});
 
 // ── what points at a document, read backwards ──────────────────────────
 

@@ -14,7 +14,7 @@ day page names on a component of its own: with no document row mounted the
 journal's calendar, agenda and day pages are whole and the *+ day note* button
 is simply not drawn.
 
-Separate integrations contribute document previews and document-property navigation to outlines. Journal consumes Markdown's body location for daily notes and its creation handoff capability for opening newly created notes. Those integrations retract when Markdown leaves. Outline notes and chat messages continue rendering Markdown text through `@olai/markdown-ui`, which is a static renderer independent of this plugin.
+An integration contributes document-property navigation to outlines. Journal consumes Markdown's body location for daily notes and its creation handoff capability for opening newly created notes. Those integrations retract when Markdown leaves. Outline notes and chat messages continue rendering Markdown text through `@olai/markdown-ui`, which is a static renderer independent of this plugin.
 
 Drafts retain their original conflict baseline across unrelated shell changes. Removing Markdown withdraws its content and integrations and clears retained drafts and creation handoffs. Re-enabling starts a fresh activation; it does not resurrect unsaved text from the departed one.
 

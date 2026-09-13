@@ -23,7 +23,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Then, When } from "@cucumber/cucumber";
 
-import { retargetRelative } from "@olai/format";
 
 import { expectCodeIn, expectSiteIn, rowsIn } from "../support/errors.ts";
 import { askResync } from "../support/scratch.ts";
@@ -239,9 +238,6 @@ When(
         .map((node) => {
           const moved =
             node["id"] === id ? { ...node, parent: undefined } : { ...node }
-          if (typeof moved["doc"] === "string") {
-            moved["doc"] = retargetRelative(file, "_olai/Trash.olai", moved["doc"])
-          }
           return JSON.stringify(moved)
         })
         .join("\n"),

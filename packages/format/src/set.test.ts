@@ -117,7 +117,7 @@ test("an outline carries a face read off its records", () => {
     "home.olai": outline(
       "home.olai",
       [
-        `{"id":"kitchen","ord":"a","title":"kitchen #home","doc":"notes/cabinets.md"}`,
+        `{"id":"kitchen","ord":"a","title":"kitchen #home","desc":"[document](notes/cabinets.md)"}`,
         `{"id":"sink","ord":"b","title":"sink","see":["kitchen"],"desc":"see [the brief](brief.md)"}`,
         "",
       ].join("\n"),

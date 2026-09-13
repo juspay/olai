@@ -99,7 +99,7 @@ The *write gate* is the one function every edit goes through: `commit({baseRev, 
 
 Outlines, documents and heads are three collections of kolu's surface framework (pinned via npins), keyed by root-relative path.
 
-- `outlines` uses batched `deltas`, one entry per file, with the key declared in the protocol (`keySchema`). `documents` uses `keys` + `get` only, so bodies stay off the first paint (`snapshot-scale`); the server still validates every document, because a `doc` reference must be checkable.
+- `outlines` uses batched `deltas`, one entry per file, with the key declared in the protocol (`keySchema`). `documents` uses `keys` + `get` only, so bodies stay off the first paint (`snapshot-scale`); the server still validates every document, because a declared document property must be checkable.
 - `heads` is every served file with content left off — one revision, one face, one "did it parse" — with `deltas`. A reader learns the file list and every revision on one stream and asks for content only when it will draw it.
 - **A published revision costs what moved.** Each collection's map is carried from the previous revision, written into where a file moved (binary search over `assemble`'s path order) and rebuilt only where that collection's membership moved. A differential holds it against the walk it replaced (`bundle/src/published.testlib.ts`). Core's three standing reads — a page, its filter, the move picker — share one `@olai/ops` cache, answered once per question per revision.
 - The `manifest` cell carries no value: it is the `null` that says a directory never loaded, which an empty collection cannot say. Error state is a cell, and git state is another.

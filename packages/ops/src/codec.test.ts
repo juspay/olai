@@ -203,13 +203,13 @@ test("withdrawing a referenced body's kind reports the missing document and rein
   const table = { current: TEST_CLAIMS }
   const live = codecFor(NO_KINDS, table)
   const files = new Map([
-    ["Work.olai", live.decode("Work.olai", '{"id":"work","ord":"a0","title":"Work","doc":"notes.md"}')],
+    ["Work.olai", live.decode("Work.olai", '{"id":"work","ord":"a0","title":"Work","desc":"[document](notes.md)"}')],
     ["notes.md", live.decode("notes.md", "# Notes")],
   ])
   expect(Result.isSuccess(live.validate(files))).toBe(true)
   table.current = claims([...TEST_CLAIMS.byKind.values()].filter(claim => claim.kind !== "markdown"))
   const withdrawn = accepted(live.validate(files))
-  expect(withdrawn.set.broken.flatMap(entry => entry.errors)).toContainEqual(expect.objectContaining({ file: "Work.olai", code: "missing-doc" }))
+  expect(withdrawn.set.broken).toEqual([])
   table.current = TEST_CLAIMS
   expect(accepted(live.validate(files)).set.broken).toEqual([])
 })

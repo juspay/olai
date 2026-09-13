@@ -52,7 +52,7 @@
  *      `doc` rule spends. The store claims the delta names every path that
  *      moved; a `.md` it missed would leave the outlines matching, the patch
  *      taken, and the carried `.md` list quietly wrong — which since the flip
- *      is a missed `missing-doc` in the product and not a line in a log. So the
+ *      is a missed `bad-prop` in the product and not a line in a log. So the
  *      carry is held against the set it is about, every time, and a
  *      disagreement DECLINES rather than answering. It is the one class the
  *      shadow watched for that no comparison could have caught after the
@@ -108,7 +108,6 @@ import { claimsAreUnique, recordsIn, type SetDelta, touchedBy } from "./patch.ts
 import {
   reportAfterCycles,
   reportDeclarations,
-  reportDocs,
   reportMirrorCycles,
   reportParentCycles,
   reportParents,
@@ -298,14 +297,9 @@ export const incrementally = (
   // outlines matching and this list quietly wrong, and there is no other door
   // that could notice.
   if (!carriedDocuments(known, set)) return "documents"
-  // A `doc` that resolved before goes on resolving unless the file it named
-  // LEFT, so a directory that only gained documents re-asks nothing. When one
-  // did leave, every record's `doc` is back in question and the rule runs whole
-  // — there is no index from a resolved path back to the records that name it,
-  // and inventing one for a file deletion would be bookkeeping on every write
-  // to save a walk on almost none.
+  // A declared document property can stop resolving when a served file leaves.
+  // Keep the membership carry: walkingProps uses it below.
   const walking = lost.some((file) => !known.has(file))
-  reportDocs(walking ? derived.nodes : fresh, known, errors)
 
   // The DECLARATIONS themselves, whole and every time — one node per key a
   // vault actually types ({@link ./rules.ts}'s `reportDeclarations` argues why

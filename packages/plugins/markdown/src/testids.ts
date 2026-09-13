@@ -4,8 +4,6 @@ export const TESTID = {
   documentLink: "document-link",
 
   documentPage: "document-page",
-  docLink: "doc-link",
-  docRef: "doc-ref",
   bodyRefused: "body-refused",
   documentReferrers: "document-referrers",
   documentReferrersSummary: "document-referrers-summary",

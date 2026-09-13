@@ -2,7 +2,7 @@
  * WHICH DOCUMENTS POINT WHERE — every face's forward `links`, filed backwards
  * and kept that way.
  *
- * A `doc` attachment, a `see`, a link in a note and a link in a body all point
+ * A note link, a `see`, a link in a note and a link in a body all point
  * ONE WAY on disk ({@link ./document.ts}'s {@link Face} carries the addresses a
  * file names). "What is talking about this document?" is that reading run
  * backwards, and until this module it was a WALK: {@link ./backlinks.ts}'s

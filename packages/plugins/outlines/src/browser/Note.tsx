@@ -18,7 +18,7 @@
  *
  * The class is named for that POSITION and not for the note, because a note is
  * not the only body in it: an attached document under a zoomed node
- * (`olai-plugin-markdown`’s `document/DocRef.tsx`) and an agent's reply in the drawer (`chat/Entry.tsx`)
+ * an agent's reply in the drawer (`chat/Entry.tsx`)
  * say the same thing about themselves. A document on its OWN page is the one
  * that is a page, which is why the rule cannot live on `.olai-md`.
  */

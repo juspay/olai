@@ -300,7 +300,7 @@ Feature: Documents become writable
     And there should be no page errors
 
   @scratch:good
-  Scenario: A document still named by a `doc` is refused, naming the record that names it
+  Scenario: A document still named by a `link` is refused, naming the record that names it
     # `install` attaches finishes.md, so the file may not go — the refusal is
     # the planner's, under the control, exactly as an agent's `files_delete`
     # gets it.
@@ -308,7 +308,7 @@ Feature: Documents become writable
     And I mark the page
     When I press Delete file
     And I confirm deleting the file
-    Then the deletion is refused saying "`finishes.md` is still named by `install` (`doc`, house.olai:4) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming record first."
+    Then the deletion is refused saying "`finishes.md` is still named by `install` (`link`, house.olai:4) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming link or record first."
     And the document link "finishes.md" is shown
     And there should be no page errors
 

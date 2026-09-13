@@ -38,7 +38,7 @@ const CORPUS = {
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","repeat":"every week on monday","desc":"walnut or birch","after":["demo"],"see":["herbs"],"created":"2026-08-01T09:12:44-04:00","changed":"2026-08-13T10:02:00-04:00","custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
-    `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md","after":["order"],"created":"2026-08-13T08:00:00-04:00"}`,
+    `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","after":["order"],"created":"2026-08-13T08:00:00-04:00"}`,
     `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11","after":["order"],"created":"2026-07-20T14:30:00-04:00","changed":"2026-08-11T09:00:00-04:00"}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   ].join("\n"),
@@ -146,7 +146,6 @@ test("`is:` reads the mark the node STORES, never a derived one", () => {
 
 test("`has:` asks what the record carries, and an empty edge list is no edge", () => {
   expect(selects("has:desc")).toEqual(["order"])
-  expect(selects("has:doc")).toEqual(["install"])
   expect(selects("has:see")).toEqual(["order"])
   // The FIELD, which is a different question from what the node is waiting on
   // — see the blockedness section below, where these four part company.
@@ -949,7 +948,7 @@ test("`is:archived` is unknown — the operator is `is:trashed`", () => {
 
 test("each operator says what it takes", () => {
   expect(refusalsOf("has:tags")?.[0]?.reason).toContain(
-    "desc, date, created, changed, see, after, doc, repeat",
+    "desc, date, created, changed, see, after, repeat",
   )
   expect(refusalsOf("date:soon")?.[0]?.reason).toContain("2026-08-10")
   expect(refusalsOf("date:..")).toHaveLength(1)

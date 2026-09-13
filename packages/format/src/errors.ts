@@ -133,7 +133,6 @@ const CATALOGUE = {
    *  terminates. */
   "mirror-cycle": "set",
   /** `doc` does not name an `.md` file under the served directory. */
-  "missing-doc": "set",
   /**
    * A PROPERTY does not fit what its key declares — or a declaration in
    * `_olai/Properties.olai` does not say a type this format knows

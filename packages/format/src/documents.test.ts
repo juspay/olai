@@ -7,7 +7,6 @@ import { expect, test } from "bun:test"
 import { printAddress } from "./address.ts"
 import {
   bytesOf,
-  docOf,
   bodiedOf,
   bracketSpacedLinks,
   firstLine,
@@ -16,7 +15,6 @@ import {
   linksIn,
   pictureOf,
   resolveRelative,
-  retargetRelative,
 } from "./documents.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
 const nodeOf = (line: string, file: string) => {
@@ -39,37 +37,15 @@ test("a relative path resolves against the naming file's directory", () => {
 // climb out of it is dropped rather than escaping — every caller then matches
 // the answer against files that were actually found, and a path that clamped
 // simply resolves to nothing.
-test("retargetRelative keeps the same landing when the naming file moves", () => {
-  expect(retargetRelative("house.olai", "_olai/Trash.olai", "finishes.md"))
-    .toBe("../finishes.md")
-  expect(retargetRelative("_olai/Trash.olai", "house.olai", "../finishes.md"))
-    .toBe("finishes.md")
-  expect(retargetRelative("house.olai", "_olai/Trash.olai", "notes/palette.md"))
-    .toBe("../notes/palette.md")
-  expect(retargetRelative("notes/plan.olai", "_olai/Trash.olai", "cabinets.md"))
-    .toBe("../notes/cabinets.md")
-  expect(resolveRelative(
-    "_olai/Trash.olai",
-    retargetRelative("house.olai", "_olai/Trash.olai", "finishes.md"),
-  )).toBe("finishes.md")
-})
 
 test("a path climbing above the served directory clamps to it", () => {
   expect(resolveRelative("plan.olai", "../../etc/passwd.md")).toBe("etc/passwd.md")
   expect(resolveRelative("sub/plan.olai", "../../../a.md")).toBe("a.md")
 })
 
-test("docOf is where a node's doc lands, and nothing for a node without one", () => {
-  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a","doc":"../n/a.md"}`, "sub/p.olai")))
-    .toBe("n/a.md")
-  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a"}`, "p.olai"))).toBeUndefined()
-})
 
 // A mirror is a second PLACEMENT of a node, not a second copy of its fields:
 // the document belongs to the node it points at, and is drawn from there.
-test("a mirror attaches no document of its own", () => {
-  expect(docOf(nodeOf(`{"id":"m","ord":"a","mirror":"a"}`, "p.olai"))).toBeUndefined()
-})
 
 // A picture is a file beside the text that names it, resolved the same way a
 // `doc` is.
@@ -266,7 +242,7 @@ test("a page, a picture, a pdf and the parts a page draws with are assets", () =
 //
 // Moved here with the rule itself, from `@olai/web`'s `document/preview.ts`,
 // when the agent's `markdown_index` wanted the same answer the browser's
-// `DocRef` draws.
+// a document listing draws.
 
 test("the first line is the first line with anything on it", () => {
   expect(firstLine("\n\n  Brushed brass.\nAnd more.\n")).toBe("Brushed brass.")

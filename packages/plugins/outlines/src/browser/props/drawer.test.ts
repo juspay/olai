@@ -46,7 +46,7 @@ test("a date is a line; a note, a document and the edges are not", () => {
   // document line — repeating any of them here would put two spellings of one
   // fact on one screen.
   const node = nodeOf(
-    `{"id":"n","ord":"a0","title":"t","date":"2026-08-10","desc":"a note","doc":"x.md","see":["y"],"after":["z"]}`,
+    `{"id":"n","ord":"a0","title":"t","date":"2026-08-10","desc":"a note","see":["y"],"after":["z"]}`,
   )
   expect(systemEntries(node).map((entry) => entry.key)).toEqual(["id", "date"])
 })

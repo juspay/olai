@@ -379,7 +379,7 @@ const kindWords = (kinds: KindVocabulary): ReadonlyArray<string> =>
  *
  * THE MARKDOWN `doc` FIELD IS NOT TOUCHED and never will be — it keeps
  * beside-the-writer as its only premise, because a note has no key to declare
- * on ({@link ./documents.ts}'s `docOf`). This fact is about a PROPERTY, whose
+ * on ({@link ./documents.ts}'s `pathedOf`). This fact is about a PROPERTY, whose
  * key is a row somebody can write a second word on.
  */
 export type PathBase =

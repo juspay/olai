@@ -37,7 +37,7 @@ collections: {
      */
     documents: {
       /** Root-relative, `/`-spelled — the same spelling `outlines` uses, and
-       *  the same spelling `doc` resolves to (`docOf`) and every `file:line`
+       *  the same spelling `doc` resolves to (`pathedOf`) and every `file:line`
        *  names. */
       keySchema: Schema.String,
       schema: DocumentEntry,

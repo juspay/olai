@@ -97,7 +97,6 @@ import {
   markdownPaths,
   reportAfterCycles,
   reportDeclarations,
-  reportDocs,
   reportDuplicateIds,
   reportMirrorCycles,
   reportOf,
@@ -406,7 +405,6 @@ const wholly = (
   reportUnknownTargets(danglingIn(derived), derived, errors)
   reportAfterCycles(all, derived, errors)
   reportMirrorCycles(all, derived, errors)
-  reportDocs(all, known, errors)
   reportDeclarations(derived, kinds, errors)
   reportPropValues(all, typed, errors)
   return { errors, known, typing: declarations }

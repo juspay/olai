@@ -263,7 +263,7 @@ const outlineWritten = (
         title: random() < 0.3 ? `row ${id} ${linked(random, file, targets)}` : `row ${id}`,
       }
       if (random() < 0.25) {
-        record["doc"] = spelled(file, pick(random, targets).split("#")[0] as string)
+        record["desc"] = "[document](" + (spelled(file, pick(random, targets).split("#")[0] as string)) + ")"
       }
       if (random() < 0.2) record["see"] = [pick(random, ids)]
       if (random() < 0.25) record["desc"] = `a note ${linked(random, file, targets)}`
@@ -417,8 +417,8 @@ const editedRecord = (
     else delete record["desc"]
   } else if (roll < 0.82) {
     if (random() < 0.75) {
-      record["doc"] = spelled(file, pick(random, targets).split("#")[0] as string)
-    } else delete record["doc"]
+      record["desc"] = "[document](" + (spelled(file, pick(random, targets).split("#")[0] as string)) + ")"
+    } else delete record["desc"]
   } else {
     const ids = lines.map((line) => String((JSON.parse(line) as { id: string }).id))
     if (random() < 0.75) record["see"] = [pick(random, ids)]

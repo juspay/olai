@@ -274,7 +274,7 @@ Feature: Moving a row to a parent you search for
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters"}
-      {"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets","doc":"finishes.md"}
+      {"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets","desc":"[document](finishes.md)"}
       {"id":"knobs","parent":"kitchen","ord":"a2","title":"pick the knobs","todo":"2026-08-11"}
       {"id":"dust","parent":"kitchen","ord":"a3","title":"sweep up after"}
       """

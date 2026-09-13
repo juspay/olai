@@ -250,11 +250,10 @@ Feature: Documents
   # Same rule, the other shape: the whole document drawn under the node that
   # attaches it is still not that document's page.
   @corpus:good
-  Scenario: A document drawn under a node has no contents
+  Scenario: A linked document is reached on its own page
     Given I open the outline "house.olai"
-    When I zoom into the node "install"
-    Then the reference on "install" draws the document
-    And there is no contents on the page
+    When I follow the document link on "install"
+    Then the document open is "finishes.md"
 
   @corpus:good
   Scenario: A relative picture is served from the directory it lives in
@@ -287,40 +286,21 @@ Feature: Documents
     And requesting "/media/art/handle.png" answers 200 with type "image/png"
 
   @corpus:good
-  Scenario: A node's doc is a reference in the tree and the document itself when zoomed
+  Scenario: A node's note links its document
     Given I open the outline "house.olai"
-    Then the node "install" refers to the document "finishes.md"
-    And the reference on "install" shows "Finishes"
-    And the reference on "install" does not draw the document
     When I zoom into the node "install"
-    Then the reference on "install" draws the document
+    And I follow the document link on "install"
+    Then the document open is "finishes.md"
     And the document renders bold text "matte"
 
-  # A `doc` line used to go blank for a file that had something to say: the
-  # fold was `text ?? ""`, and a refusal looked like an empty preview. The
-  # sentence is the same one the unreadable `.html` page draws.
-
   @scratch:good @own-scratch
-  Scenario: An unreadable document says so on the node's line
-    Given I rewrite "note.md" as:
-      """
-      # Finishes
-
-      Brushed brass.
-      """
-    And I rewrite "house.olai" as:
-      """
-      {"id":"install","ord":"a0","title":"install the cabinets","doc":"note.md"}
-      """
-    And I open the outline "house.olai"
-    Then the node "install" refers to the document "note.md"
-    And the reference on "install" shows "Finishes"
-    When the served file "note.md" cannot be read
-    Then the reference on "install" says the file could not be read
-    # ...and it is a STATE of the key, not a verdict the line keeps once it has
-    # drawn it. A refusal reached and never left is half a claim.
-    When the served file "note.md" can be read again
-    Then the reference on "install" shows "Finishes"
+  Scenario: An unreadable linked document says so on its own page
+    Given I open the outline "house.olai"
+    When I follow the document link on "install"
+    And the served file "finishes.md" cannot be read
+    Then the page says the file could not be read
+    When the served file "finishes.md" can be read again
+    Then the document renders bold text "matte"
 
   # THE PAGE MARKDOWN OWNS, and the state that only reaches it. `DocumentEntry`
   # has three (a body, a body withheld, and a READ REFUSED) and phase 18 moved

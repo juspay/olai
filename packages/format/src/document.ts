@@ -125,7 +125,7 @@ export const Face = Schema.Struct({
    *  has nothing to say, so a title is never blank on screen. */
   title: Schema.String,
   /** Every address its content points at, in the order it writes them and never
-   *  twice — a `doc` attachment, a `see`, a link in a note, a link in a body.
+   *  twice — a `see`, a link in a note, a link in a body.
    *  This is the forward half of the graph; a page that shows who points AT
    *  something reads it backwards (`./backlinks.ts`). */
   links: Schema.Array(Address),
@@ -253,7 +253,7 @@ export type Markdown = typeof Markdown.Type
  * A FACE AND NOTHING ELSE, and the emptiness is `./kinds.ts`'s `kept: false`
  * showing through: nothing validates one, no op writes one, and a vault of
  * saved pages and pictures made their bodies the largest thing in the process.
- * So the set holds the path — which is all a `doc` reference was ever checked
+ * So the set holds the path — which is all a declared `doc` property is checked
  * against — and the content is read, or fetched, when a reader opens it and
  * kept by nobody (`@olai/server`'s `bodies.ts` for the ones this process can
  * read, the media route for the ones the browser fetches itself).
@@ -430,7 +430,7 @@ export const isBodied = (document: Document): document is Markdown | Unkept =>
   document.holds !== "nodes"
 
 /** ...and the NARROWER of the two body questions: a `.md`, never a `.html`.
- *  What a `doc` may point at, which is a different question from "has a body"
+ *  What a declared `doc` property may point at, which is a different question from "has a body"
  *  ({@link ./set.ts}'s `markdownIn` argues the difference and is one of the two
  *  askers). The other is the incremental validator's door, which holds the
  *  `.md` paths it carried against the ones the set actually holds

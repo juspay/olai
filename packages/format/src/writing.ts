@@ -936,7 +936,7 @@ export const CreateDocumentRequest = Schema.Struct({
  * empties one is nobody's verb to guess. A document still NAMED — a `doc`
  * field, or a value of a `doc`-declared property — is refused, naming the
  * records that name it: deleting under them would break THEIR files, which is
- * the `missing-doc` / `bad-prop` ruling the validator would reach anyway, said
+ * the reference guard and the declared-property fence, said
  * before any bytes are staged rather than after. And a file the SET holds no
  * contents for — an outline its lines did not parse, a document that would not
  * read — is refused with the validator's own rows: deleting from a set that is

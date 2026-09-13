@@ -502,7 +502,6 @@ const NOT_PROJECTABLE: Record<
 > = {
   id: "rides every row already",
   ord: "a fractional index is a sorting detail, not a fact a read reports",
-  doc: "the attachment is `markdown_read`'s subject",
   blocks: "`after` answers the same edge said from the waiting node",
   mirror: "a placement carries its target's id, not a life of its own",
 }

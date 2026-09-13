@@ -151,7 +151,7 @@ const run = (
 test("the shown kinds join the set as paths; a `.md` brings its text", () =>
   withOps(
     {
-      "house.olai": `${HOUSE}{"id":"quote","ord":"b0","title":"quote","doc":"notes.md"}\n`,
+      "house.olai": `${HOUSE}{"id":"quote","ord":"b0","title":"quote","desc":"[document](notes.md)"}\n`,
       "notes.md": "# cabinets\n",
       "report.html": "<h1>Cabinet quote</h1>\n",
       "sales.csv": "region,units\nnorth,12\n",

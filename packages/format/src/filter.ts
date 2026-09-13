@@ -325,7 +325,7 @@ const isDayReading = (field: HasField): field is DayReading =>
  *  field of the RECORD, the days are the JOURNAL's — and the field test is the
  *  honest reading of the rule. What the overlap means to somebody writing a
  *  query is docs/search.md's to say. */
-const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "doc", "repeat"] as const
+const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
 /** Is this word one of them? The guard {@link hasClause} reads, and the reason

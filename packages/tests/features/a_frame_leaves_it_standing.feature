@@ -110,8 +110,8 @@ Feature: A frame leaves the rest of the page standing
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
-      {"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets","doc":"finishes.md"}
-      {"id":"handles","parent":"kitchen","ord":"a1","title":"choose the handles","doc":"finishes.md"}
+      {"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets","desc":"[document](finishes.md)"}
+      {"id":"handles","parent":"kitchen","ord":"a1","title":"choose the handles","desc":"[document](finishes.md)"}
       """
     Then the document is pointed at by 2 things
     And what points at the document is "install the cabinets, choose the handles"

@@ -33,7 +33,7 @@ One matcher was never quite the whole of it, because the question and the answer
 | `is:blocked` | what is WAITING: something the node must come after is a task nobody has SETTLED. A `done` target clears the way, and so does a `cancelled` one. DERIVED — see below |
 | `is:mirrored` | the node is drawn somewhere else as well — some placement shows it. DERIVED, and the other one — see below |
 | `is:trashed` | what was put away — see below |
-| `has:desc` `has:see` `has:after` `has:doc` | a field the record carries (an empty edge list is no edge) |
+| `has:desc` `has:see` `has:after` | a field the record carries (an empty edge list is no edge) |
 | `has:date` `has:created` `has:changed` | on any day at all — each is its own operator unbounded, so the two cannot disagree |
 | `has:repeat` | what COMES BACK: the node carries a repeat rule — see below |
 | `date:2026-08-10` `date:2026-08` `date:2026` | a day, a month, a year |

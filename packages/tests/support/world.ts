@@ -374,9 +374,7 @@ export const TOC_LINK = selector(TESTID.tocLink);
  *  that reach for them. */
 export const HEADINGS = "h1, h2, h3, h4, h5, h6";
 /** A node's `doc`: the reference, carrying the RESOLVED path as `data-doc`. */
-export const DOC_REF = selector(TESTID.docRef);
 /** The link inside that reference, to the document's own page. */
-export const DOC_LINK = selector(TESTID.docLink);
 /** A node held up by an `after` edge: the mark column's waiting glyph on a row
  *  or a day entry, the named blockers on the node's own page. Absent entirely
  *  on a node with nothing in its way — WHETHER it is blocked, and by what, is
@@ -2132,9 +2130,6 @@ export class OlaiWorld extends World {
   }
 
   /** A node's `doc` reference — its own, not a descendant's. */
-  docRef(id: string): Locator {
-    return this.node(id).locator(DOC_REF).first();
-  }
 
   /** One day of the month in the sidebar. */
   calendarDay(date: string): Locator {

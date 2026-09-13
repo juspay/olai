@@ -262,8 +262,6 @@ export const RegularNode = Schema.Struct({
   repeat: Schema.optionalKey(Schema.String),
   /** The note: one string, embedded newlines, markdown, stored verbatim. */
   desc: Schema.optionalKey(Schema.String),
-  /** Relative path to an attached `.md`, resolved against this file. */
-  doc: Schema.optionalKey(Schema.String),
   after: Schema.optionalKey(Schema.Array(Schema.String)),
   blocks: Schema.optionalKey(Schema.Array(Schema.String)),
   see: Schema.optionalKey(Schema.Array(Schema.String)),
@@ -338,7 +336,6 @@ const DOORS = {
   date: "`outlines_date` writes it, and validates the day",
   repeat: "`outlines_repeat` writes the repeat rule, and completing the node hands it to the next occurrence",
   desc: "`outlines_desc` writes the note",
-  doc: "a node names its document when it is captured; `markdown_write` writes what is in it",
   after: "`outlines_after` writes it, and refuses a cycle",
   blocks: "`outlines_after` writes it, said from the waiting node — `a blocks b` is `b after a`",
   see: "`outlines_see` writes it, and resolves the target",

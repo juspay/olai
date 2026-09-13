@@ -513,7 +513,7 @@ export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined 
  * The other narrowing anybody asks for, and it is a different question from
  * "which files have a body": a `.html`, a `.csv`, a picture and a `.pdf` are
  * the files olai only SHOWS — nothing validates one, no op writes one, and the
- * set keeps the path without the bytes — so the validator deciding what a `doc`
+ * set keeps the path without the bytes — so the validator deciding what a declared `doc` property
  * may point at, the planner refusing a `markdown_write` and both document
  * reads all mean this list. Four callers asked it with four `.filter`s before
  * it had a name.
@@ -529,7 +529,7 @@ export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
  * meaning: a `.md`, a `.html`, a `.csv`, a picture and a `.pdf` are the files
  * a reader opens as a rendered page, they are published as one collection read
  * a key at a time (`@olai/server`), and the browser knows them as a key set.
- * {@link markdownIn} above is the narrower question — what a `doc` may point
+ * {@link markdownIn} above is the narrower question — what a declared `doc` property may point
  * at, what an op may write — and the two are not the same list, which is
  * exactly why both have a name.
  */

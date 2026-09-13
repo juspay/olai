@@ -645,7 +645,7 @@ const claimsIn = (files: Corpus): ReadonlyMap<string, Claim> => {
  * the very shape the narrowing has to get right.
  *
  * SO THE REFUSAL COUNT IS NOT A COVERAGE FIGURE, and nobody may quote it as
- * one. What this stream refuses is `unknown-target`, `missing-doc` and the
+ * one. What this stream refuses is `unknown-target`, `bad-record` and the
  * unreadable file, over and over and at size. What it CANNOT refuse is
  * everything the repair takes out: a parent loop, a foreign parent, a parent
  * that is a placement, a mirror inside its own subtree, an ordering loop in
@@ -689,7 +689,7 @@ const written = (
           else written[field] = held
         }
         if (spread(id) % 12 === 0) {
-          written["doc"] = DOC_TARGETS[spread(id) % DOC_TARGETS.length]
+          written["desc"] = "[document](" + (DOC_TARGETS[spread(id) % DOC_TARGETS.length]) + ")"
         }
       }
       const parent = written["parent"]

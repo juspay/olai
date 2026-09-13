@@ -35,7 +35,7 @@
  *   - GENERATED sequences, over the same corpora and the same edits the patcher
  *     is held to (`./corpora.testlib.ts`), with the documents beside them
  *     churning and a file breaking and mending — which is where the volume is,
- *     and what it drives is `unknown-target`, `missing-doc` and the unreadable
+ *     and what it drives is `unknown-target`, `bad-record` and the unreadable
  *     file, at size and in sequence;
  *   - THE REAL VAULT, the orchestrator's own at the revision this repository
  *     pins (`OSS_OLAI_VAULT`), edited: files people actually grew, in a
@@ -313,7 +313,6 @@ const CORNERS: ReadonlyArray<Corner> = [
   {
     why:
       "an edge target ARRIVES, so a finding that stood has to go away",
-    // The finding stood on the revision before — see `declines` above.
     declines: true,
     steps: [
       at({ "a.olai": `{"id":"one","ord":"a","title":"one"}` }),
@@ -453,27 +452,25 @@ const CORNERS: ReadonlyArray<Corner> = [
       "in a file the edit never touched",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","desc":"[document](notes.md)"}`,
         "b.olai": `{"id":"two","ord":"a","title":"two"}`,
         "notes.md": "# notes",
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","desc":"[document](notes.md)"}`,
         "b.olai": `{"id":"two","ord":"a","title":"two edited"}`,
       }),
     ],
   },
   {
     why:
-      "the `.md` ARRIVES, so a `missing-doc` that stood goes away without its " +
+      "the `.md` ARRIVES, and a note link resolves without its " +
       "record being edited",
-    // The finding stood on the revision before — see `declines` above.
-    declines: true,
     steps: [
       at({ "a.olai": `{"id":"one","ord":"a","title":"one"}` }),
-      at({ "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}` }),
+      at({ "a.olai": `{"id":"one","ord":"a","title":"one","desc":"[document](notes.md)"}` }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","desc":"[document](notes.md)"}`,
         "notes.md": "# notes",
       }),
     ],
@@ -484,11 +481,11 @@ const CORNERS: ReadonlyArray<Corner> = [
       "membership at all",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","desc":"[document](notes.md)"}`,
         "notes.md": "# notes",
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","desc":"[document](notes.md)"}`,
         "notes.md": "# notes, edited",
       }),
     ],
@@ -499,11 +496,11 @@ const CORNERS: ReadonlyArray<Corner> = [
       "both halves of the delta",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","desc":"[document](notes.md)"}`,
         "notes.md": "# notes",
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","desc":"[document](notes.md)"}`,
         "notes.md": "# notes again",
         "b.olai": `{"id":"two","ord":"a","title":"two"}`,
       }),
@@ -571,7 +568,6 @@ const CORNERS: ReadonlyArray<Corner> = [
     why:
       "a DECLARATION changes type, so every value of that key in the directory " +
       "is back in question and no index says which records carry it",
-    // The finding stood on the revision before — see `declines` above.
     declines: true,
     steps: [
       at({
@@ -592,7 +588,6 @@ const CORNERS: ReadonlyArray<Corner> = [
     why:
       "a VARIANT leaves the roster a `ref` points at, so an untouched record's " +
       "value goes stale the way a dangling edge does",
-    // The finding stood on the revision before — see `declines` above.
     declines: true,
     steps: [
       at({

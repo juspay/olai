@@ -10,11 +10,11 @@ Feature: File deletion rechecks the content and references that arrive while it 
     When I press Delete file
     And I rewrite "references.olai" as:
       """
-      {"id":"new-owner","ord":"a0","title":"new reference","doc":"removable.md"}
+      {"id":"new-owner","ord":"a0","title":"new reference","desc":"[document](removable.md)"}
       """
     Then the outline list links to "references.olai"
     When I confirm deleting the file
-    Then the deletion is refused saying "`removable.md` is still named by `new-owner` (`doc`, references.olai:1) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming record first."
+    Then the deletion is refused saying "`removable.md` is still named by `new-owner` (`link`, references.olai:1) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming link or record first."
     And the file "removable.md" has been created
     When I rewrite "references.olai" as:
       """
@@ -85,3 +85,26 @@ Feature: File deletion rechecks the content and references that arrive while it 
     Then the main pane says there is no document "a-very-long-document-filename-with-no-spaces-for-phone-deletion.md"
     And the file "a-very-long-document-filename-with-no-spaces-for-phone-deletion.md" has not been created
     And there should be no page errors
+
+  Scenario: A document body holds its linked file until the link is removed
+    Given I rewrite "body-source.md" as:
+      """
+      [target](body-target.md#scope)
+      """
+    And I rewrite "body-target.md" as:
+      """
+      # Scope
+      """
+    And I open the document "body-target.md"
+    When I press Delete file
+    And I confirm deleting the file
+    Then the deletion is refused saying "`body-target.md` is still named by `body-source.md` (`link`, body-source.md) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming link or record first."
+    When I rewrite "body-source.md" as:
+      """
+      Reference removed.
+      """
+    And I open the document "body-source.md"
+    And I open the document "body-target.md"
+    And I press Delete file
+    And I confirm deleting the file
+    Then the main pane says there is no document "body-target.md"

@@ -126,7 +126,6 @@ test("the stage is decided by the code alone", () => {
   expect(stageOf("bad-date")).toBe("line")
   expect(stageOf("duplicate-id")).toBe("set")
   expect(stageOf("mirror-cycle")).toBe("set")
-  expect(stageOf("missing-doc")).toBe("set")
 })
 
 // A whole report has a stage too, and it is the pessimistic one. A file is
@@ -186,7 +185,6 @@ test("the line/set split is exactly the two halves of the codec", () => {
     "unknown-target",
     "after-cycle",
     "mirror-cycle",
-    "missing-doc",
     // A property that does not fit what its key declares, and a declaration
     // that does not say a type this format knows — one code for the two ends
     // of one arrangement (`./typing.ts`).
@@ -260,7 +258,6 @@ test("every code says whether it can name a file it does not break", () => {
     "unknown-target",
     "after-cycle",
     "mirror-cycle",
-    "missing-doc",
     "unreadable-directory",
     "unreadable-file",
   ])

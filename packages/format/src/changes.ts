@@ -317,7 +317,7 @@ const sortOf = (claims: Claims, fields: ReadonlyArray<Field>, after: Placed): So
   if (changed.has("title")) return "renamed"
   if (
     changed.has("see") || changed.has("after") || changed.has("blocks") ||
-    changed.has("doc") || changed.has("mirror")
+    changed.has("mirror")
   ) {
     return "linked"
   }

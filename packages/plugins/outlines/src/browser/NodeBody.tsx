@@ -34,11 +34,7 @@ import { servedDirectory } from "./vault.ts"
  *      sight ("no need to wrap desc either. just take full width") and
  *      `./touch.ts` keeps the argument for why a measure was wrong here.
  *
- * `see` follows as the references it is. The node's DOC is the one thing here
- * that is not part of the open state: a document attached to a node is a second
- * surface rather than a fact about it, and a node with a `doc` and no note has
- * no pilcrow to open — so folding it away would put a whole document out of
- * reach from the tree.
+ * `see` follows the note. Links in the note open material on its own page.
  *
  * ## Closed, which is two shapes and not one
  *
@@ -75,12 +71,10 @@ import { servedDirectory } from "./vault.ts"
  * own — so this contributes its children to a container it does not own.
  */
 
-import { customOf, docOf, type LocatedRegular } from "@olai/format"
+import { customOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { PluginFolds } from "./Folds.tsx"
-import { documentReferences } from "../index.ts"
-import { readLocation } from "./locations.ts"
 import { For } from "solid-js"
 import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"
@@ -96,9 +90,9 @@ import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
 export function NodeBody(props: {
   readonly record?: string
   /** The record being shown — for a mirror, the node it stands for, which is
-   *  also the file its note's pictures and its `doc` are relative to. */
+   *  also the file its note's pictures and links are relative to. */
   readonly shows: LocatedRegular
-  /** This is the node's own page. Forces the note full and the document inline;
+  /** This is the node's own page. Forces the note full;
    *  row expansion does not apply to the subject. */
   readonly zoomed?: boolean
   /** Row is open. Ignored when zoomed. */
@@ -282,12 +276,6 @@ export function NodeBody(props: {
               <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
             </div>
           </Show>
-
-          {/* A doc reference is not part of the fold: it is always a line under
-              the node when the node carries one (see this file's header). */}
-          <Show when={docOf(props.shows)}>
-            {(doc) => <DocRef file={doc()} />}
-          </Show>
         </>
       }
     >
@@ -322,15 +310,8 @@ export function NodeBody(props: {
         )}
       </Show>
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
-      <Show when={docOf(props.shows)}>
-        {(doc) => <DocRef file={doc()} inline />}
-      </Show>
     </Show>
     <For each={dead()}>{link => <div data-testid="dead-link" class="text-xs text-alarm opacity-80">link resolves to nothing served: <code>{link.resolved}</code><Show when={link.suggest.length}> — did you mean <For each={link.suggest}>{(path, index) => <>{index() ? " or " : ""}<code>{path}</code></>}</For>?</Show></div>}</For>
     </>
   )
-}
-
-function DocRef(props: { readonly file: string; readonly inline?: boolean }) {
- return <For each={readLocation(documentReferences)}>{entry => entry.value(props)}</For>
 }
