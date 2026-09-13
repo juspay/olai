@@ -102,7 +102,7 @@ When(
 
 /** The palette command toggles the focused page. */
 const choosePin = async (world: OlaiWorld, kind: "page" | "layout") => {
-  await pressed(world, "ControlOrMeta+k");
+  if (!await world.page.locator(PALETTE_INPUT).isVisible()) await pressed(world, "ControlOrMeta+k");
   await world.page.locator(PALETTE_INPUT).fill("pin");
   await world.page.locator(PALETTE_ITEM).filter({ hasText: new RegExp(`(?:Pin|Unpin) this ${kind}`) }).first().click();
   // A pointer command is complete when the panel answers, not merely when
