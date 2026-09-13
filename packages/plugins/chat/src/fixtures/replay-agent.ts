@@ -23,6 +23,8 @@ const update = (sessionId: string, frame: unknown): void => {
 
 const tick = () => new Promise((done) => setTimeout(done, 5))
 
+export {}
+
 const replay = async (id: unknown, sessionId: string): Promise<void> => {
   update(sessionId, { sessionUpdate: "user_message_chunk", content: { type: "text", text: "what did we decide?" } })
   await tick()
