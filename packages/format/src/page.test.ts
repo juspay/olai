@@ -525,7 +525,6 @@ test("a filed page reading is what those requests are answered in, and a day is 
     .toBe(false)
 })
 
-
 test("an empty home names the configured outline row, even when another row claims nodes", () => {
   expect(pageOf({ ...readingAt(SET, []), outlineRow: "outline-org" }, HOME).shows)
     .toEqual({ kind: "nothing", sought: "outline-org", requested: null })
@@ -540,7 +539,6 @@ test("row warnings travel in the page reading and clear on a membership revision
   expect(present.deadLinks).toBeUndefined()
   expect(samePageReading(missing, present)).toBe(false)
 })
-
 
 test("warnings cover the zoomed subject and its rows, not its trail or backlinks", () => {
   const records = nodesOfFiles({ "house.olai": [

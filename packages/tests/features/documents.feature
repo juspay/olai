@@ -7,10 +7,9 @@ Feature: Documents
   The markdown is the same pipeline a note goes through, so what is proved here
   is proved for notes too: fenced code highlighted without a byte fetched from
   anywhere but this server, footnotes that link to their own note, and pictures
-  that are files in the served directory and nowhere else. Two of the three
-  scratch scenarios write disjoint files, so they share a copy per worker
-  (`@share-scratch`); the one that lists every document, and the spaced-name
-  outline whose examples all write the same two files, keep a private copy.
+  that are files in the served directory and nowhere else. Scratch scenarios
+  share a restored copy per worker (`@share-scratch`); scenarios marked
+  `@own-scratch` keep a private copy for their isolation requirements.
 
   @corpus:good
   Scenario: Every document found has a page, and the sidebar says so

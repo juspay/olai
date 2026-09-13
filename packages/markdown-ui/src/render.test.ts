@@ -644,7 +644,6 @@ test("a picture in a title falls back to the escaped source", () => {
   expect(html).not.toContain("<img")
 })
 
-
 test("a rendering cache belongs to its Claims snapshot, including withdrawal and return", () => {
   const source = "![shot](shot.png) [notes](notes.md)"
   const without = claims([...TEST_CLAIMS.byKind.values()].filter(claim => claim.kind !== "image" && claim.kind !== "markdown"))
@@ -687,7 +686,6 @@ test("membership revisions keep render caching and stable heading IDs", () => {
   expect(next).not.toContain("data-dead")
   expect(next.match(/id="([^"]+)"/)?.[1]).toBe(first.match(/id="([^"]+)"/)?.[1])
 })
-
 
 test("a stable membership predicate without a revision cannot return stale warnings", () => {
   const members = new Set<string>()

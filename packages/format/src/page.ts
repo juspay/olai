@@ -286,7 +286,7 @@ export type Shown = typeof Shown.Type
  */
 export const PageReading = Schema.Struct({
   shows: Shown,
-  /** Missing targets for drawn records, keyed once per page rather than scanned per row. */
+  /** Missing targets for rows and the zoomed subject, excluding other referenced records. */
   deadLinks: Schema.optional(Schema.Record(Schema.String, Schema.Array(DeadLink))),
   /** Every node id this page mentions that the set declares, once each — see
    *  the names paragraph at the top of this module. An id the set does not

@@ -29,4 +29,4 @@ Reference has a separate boolean preference from folder paths. The active file
 can reveal the section and its ancestry without persisting either decision.
 Both folds and their subscriptions belong to the Files browser activation.
 
-A header click folds the section even when its active file revealed it. That explicit choice writes the preference; suppression of selection-driven visibility lasts until navigation and is owned by the mounted Files contribution.
+A header click folds the section even when its active file revealed it. Opening explicitly stores `true`; collapsing removes that preference key. Collapsing an active reference file suppresses selection-driven visibility only until navigation or reload, under the mounted Files contribution. Reloading with a reference file open reveals the section again; reloading an outline keeps the default collapse.

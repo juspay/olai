@@ -406,8 +406,10 @@ Opening a document, including a newly created one, reveals its row under
 Reference and expands its folder ancestry. This visibility follows selection;
 it does not write the saved Reference preference. Returning to an outline
 restores the fold the reader chose. Clicking the Reference header can collapse
-it even while its file stays open; the next navigation to a reference file
-reveals the section again. New outline and New document remain below
+it even while its file stays open. This temporary collapse lasts until
+navigation or reload: reopening the page with a reference file selected
+reveals the section again. Collapsing clears the stored open preference,
+so an outline page still starts with Reference collapsed. New outline and New document remain below
 Outlines; new documents are listed in Reference.
 
 

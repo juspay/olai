@@ -107,7 +107,12 @@ Feature: Outlines are the map and Reference holds the material
     Then the reference section is collapsed
     And Reference has no stored fold preference
     And the document open is "finishes.md"
-    When I expand the reference section
+    When I reload the page
+    Then the reference section is expanded
+    And Reference has no stored fold preference
+    And the document open is "finishes.md"
+    When I collapse the reference section
+    And I expand the reference section
     Then the reference section is expanded
     And Reference has its own open preference
     When I collapse the reference section

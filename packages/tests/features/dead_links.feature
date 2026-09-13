@@ -101,3 +101,20 @@ Feature: Relative links say where nothing is served
       # Arrived
       """
     Then the page has no dead links
+
+  @scratch:good
+  Scenario: A list fence does not hide a missing link after its closing marker
+    Given I open the outline "house.olai"
+    And a terminal agent is connected to the served directory
+    When the terminal agent calls "markdown_create" with:
+      """
+      {"file":"list-fence.md","text":"123. Item\n     ```md\nunindented example\n     ```\n\n[after fence](after-fence.md)"}
+      """
+    Then the tool nudge says "link resolves to nothing served: after-fence.md."
+    When I open the document "list-fence.md"
+    Then the rendered link to "after fence" is marked dead
+    When I rewrite "after-fence.md" as:
+      """
+      # Arrived
+      """
+    Then the page has no dead links

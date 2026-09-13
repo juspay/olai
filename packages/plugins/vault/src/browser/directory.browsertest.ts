@@ -573,7 +573,6 @@ test("...and the error report is not lost, only held until this tab is holding n
   directory.stop()
 })
 
-
 test("retiring the wire and republishing claims replaces the directory's kind reading", () => {
   const directory = live()
   const claim = { kind: "first", exts: [".drawing"] as const, holds: "bytes" as const, kept: false, fetched: true, noun: "drawing", article: "a" as const }
@@ -611,7 +610,6 @@ test("an overlapping claims frame degrades to empty and a later frame reconnects
   expect(directory.kindOf("a.drawing")).toBe("first")
   directory.stop()
 })
-
 
 test("membership snapshots react independently and never mutate older readings", () => {
   const directory = twoFiles()

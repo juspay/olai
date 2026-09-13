@@ -29,10 +29,13 @@ const proseLinks = (text: string): ReadonlyArray<string> => {
   const lines = text.split("\n").map(line => {
     // List continuation indentation belongs to prose; four further spaces
     // introduce code within that item. Blank lines retain the list context.
-    const item = /^( *)(?:[-+*]|\d+[.)]) +/.exec(line)
     const indent = /^( *)/.exec(line)![1]!.length
-    if (item && indent < (listIndent ?? 0) + 4) listIndent = item[0].length
-    else if (line.trim() !== "" && listIndent !== undefined && indent < listIndent) listIndent = undefined
+    // Literal fence contents cannot change the list context of its closer.
+    if (fence === undefined) {
+      const item = /^( *)(?:[-+*]|\d+[.)]) +/.exec(line)
+      if (item && indent < (listIndent ?? 0) + 4) listIndent = item[0].length
+      else if (line.trim() !== "" && listIndent !== undefined && indent < listIndent) listIndent = undefined
+    }
     const content = listIndent === undefined ? line : line.slice(Math.min(indent, listIndent))
     const match = /^(?: {0,3}> ?)* {0,3}(`{3,}|~{3,})(.*)$/.exec(content)
     if (fence !== undefined) {

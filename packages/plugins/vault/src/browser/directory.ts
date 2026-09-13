@@ -267,7 +267,8 @@ export interface HeadEntries {
  * out — so they are REBUILT rather than written into, and a frame that moves
  * neither hands back the pair it was already holding. `members` is this fold's
  * own working memory and is MUTATED in place, never exposed. The service
- * snapshots it only when `paths` changes. Copying the set per frame would
+ * builds a membership snapshot from `paths` only when that array changes.
+ * Copying the set per frame would
  * reintroduce the corpus-wide walk this fold exists to retire.
  *
  * THE THREE ARE ONE VALUE and not three, because they move by one rule: what a
@@ -283,7 +284,6 @@ export interface HeadEntries {
  * directory's — so a suite over the fold alone would be a suite over the half
  * that cannot see them.
  */
-
 interface Held {
   readonly paths: ReadonlyArray<string>
   readonly broken: ReadonlyMap<string, BrokenFile>
@@ -434,12 +434,14 @@ const holdingNothing = (): Held => ({
  * able to disagree about which files there are. What it buys instead is charged
  * ONCE PER LINK FLAP — a sort, one array, and the `sameList` in `./served.tsx`
  * that absorbs it — against a walk of the vault on every frame. Two smaller
- * charges come with the same choice: `members` is a third copy of the key set
- * for the life of the tab (the framework's `order`, this, and the sorted list),
+ * charges come with the same choice: the key set has four current copies
+ * (the framework's `order`, the fold's `members`, the sorted `paths`, and the
+ * service's membership snapshot). The fold keeps its working set
  * because the `fold` socket hands over the frame and not the `added`/`removed`
  * it computed; and registering ANY fold on `heads` makes the framework rebuild
  * its full-set frame per snapshot, which it skips for a collection nobody folds.
- * Both are per-reconnect or per-tab, and neither is per-frame.
+ * The membership snapshot is rebuilt only when paths change; ordinary
+ * content frames copy neither the sorted list nor that snapshot.
  *
  * NOT `./chat/order.ts`'S FOLD WITH A COMPARATOR SWAPPED IN, and the two were
  * held side by side before this was written. The transcript's order is a fact

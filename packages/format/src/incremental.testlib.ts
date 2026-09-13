@@ -554,9 +554,10 @@ const DOCUMENTS = [
  * for byte identical every revision, or every revision would be a delta naming
  * every file and the narrowing would never be handed the case it exists for.
  *
- * TWO TARGETS resolve beside the writing outline. Membership changes make
- * these links appear and disappear from backlink readings without refusing
- * the records that contain them.
+ * TWO TARGETS exercise relative resolution. `notes.md` resolves beside every
+ * writing outline; `../notes.md` resolves only from a subdirectory, since it
+ * escapes the served root when written in a root-level outline. Membership
+ * changes move backlinks without refusing the records containing these links.
  */
 const LINK_TARGETS = ["notes.md", "../notes.md"] as const
 

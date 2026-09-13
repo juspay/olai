@@ -22,7 +22,8 @@
  * exports.
  *
  * WHAT THE CORPORA ARE FOR is the other half. `./corpora.testlib.ts` writes the
- * awkward sets the patcher is held to and writes no LINK at all — no `[…](…)` in a title or a note, no markdown body with anything in it — because
+ * awkward sets the patcher is held to and writes no LINK at all — no `[…](…)`
+ * in a title or a note, no markdown body with anything in it — because
  * the derivation it is about reads none of them. This index reads nothing else,
  * so it needs corpora of its own, and they are grown against the write shapes
  * that MOVE a link: a title that carries one, a note that carries one, a `see`,
