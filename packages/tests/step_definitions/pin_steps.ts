@@ -21,7 +21,7 @@ import { selector } from "@olai/web/testlib"
 
 import { attr } from "../support/selectors.ts";
 import { keysSettled, pressed } from "../support/settling.ts";
-import { PALETTE_INPUT, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
+import { PALETTE, PALETTE_INPUT, PALETTE_ITEM, PALETTE_SAID, PANE, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const PIN = selector(TESTID.pin);
@@ -100,10 +100,27 @@ When(
   },
 );
 
-/** The chord — the page's own door onto the shelf, and a TOGGLE over one
- *  address, so the same press takes it back off. */
+/** The palette command toggles the focused page. */
+const choosePin = async (world: OlaiWorld, kind: "page" | "layout") => {
+  if (!await world.page.locator(PALETTE_INPUT).isVisible()) await pressed(world, "ControlOrMeta+k");
+  await world.page.locator(PALETTE_INPUT).fill("pin");
+  await world.page.locator(PALETTE_ITEM).filter({ hasText: new RegExp(`(?:Pin|Unpin) this ${kind}`) }).first().click();
+  // A pointer command is complete when the panel answers, not merely when
+  // keyboard work is quiet. Navigating sooner can withdraw its pending write.
+  await world.waitUntil(async () =>
+    await world.page.locator(PALETTE).count() === 0
+    || await world.page.locator(PALETTE_SAID).count() > 0
+    || await world.page.locator(PALETTE_INPUT).inputValue().catch(() => null) !== "pin",
+    "the pin command to write or ask for a name");
+  await keysSettled(world);
+};
+
 When("I pin the page", async function (this: OlaiWorld) {
-  await pressed(this, "ControlOrMeta+Shift+p");
+  await choosePin(this, "page");
+});
+
+When("I pin the layout", async function (this: OlaiWorld) {
+  await choosePin(this, "layout");
 });
 
 When("I follow the pin {string}", async function (this: OlaiWorld, address: string) {
@@ -358,3 +375,62 @@ Then(
     );
   },
 );
+
+
+Then("the pin {string} has a split mark", async function (this: OlaiWorld, address: string) {
+  assert.strictEqual(await pinAt(this, address).getAttribute("data-kind"), "layout");
+  await pinAt(this, address).locator("svg[data-layout-mark]").waitFor({ state: "visible" });
+});
+
+Then("the pin {string} is current", async function (this: OlaiWorld, address: string) {
+  await this.waitUntil(async () => await pinAt(this, address).locator(PIN_LINK).getAttribute("aria-current") === "page", "the pin to be current");
+});
+
+When("I {word}-click the layout pin {string}", async function (this: OlaiWorld, modifier: string, address: string) {
+  await this.showSidebar();
+  assert.ok(modifier === "Alt" || modifier === "Shift" || modifier === "plain");
+  await pinAt(this, address).locator(PIN_LINK).click({ modifiers: modifier === "plain" ? [] : [modifier] });
+});
+
+Then("the layout panes have equal widths", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const panes = await this.page.locator(PANE).all();
+    const boxes = await Promise.all(panes.map(pane => pane.boundingBox()));
+    const first = boxes[0];
+    return boxes.length >= 2 && first != null
+      && boxes.every(box => box !== null && Math.abs(box.width - first.width) <= 2);
+  }, "equal pane widths");
+});
+
+
+
+Then("the pin {string} has tooltip {string}", async function (this: OlaiWorld, address: string, tooltip: string) {
+  assert.strictEqual(await pinAt(this, address).locator(PIN_LINK).getAttribute("title"), tooltip);
+});
+
+
+Then("the node {string} has a split mark", async function (this: OlaiWorld, id: string) {
+  await this.nodeTitle(id).locator("svg[data-layout-mark]").waitFor({ state: "visible" });
+});
+
+When("I open the {word} layout link {string} in a new tab with {string}",
+  async function (this: OlaiWorld, surface: string, target: string, gesture: string) {
+    assert.ok(surface === "shelf" || surface === "outline");
+    assert.ok(gesture === "ControlOrMeta" || gesture === "middle");
+    if (surface === "shelf") await this.showSidebar();
+    const link = surface === "shelf" ? pinAt(this, target).locator(PIN_LINK)
+      : this.within(target, selector(TESTID.addressName)).first();
+    const opened = this.page.context().waitForEvent("page");
+    await link.click(gesture === "middle" ? { button: "middle" } : { modifiers: ["ControlOrMeta"] });
+    const tab = await opened;
+    try {
+      await tab.waitForURL(url => url.pathname === "/s/house.olai/garden.olai");
+      for (const [index, href] of ["/house.olai", "/garden.olai"].entries()) {
+        const pane = tab.locator(`${PANE}${attr("data-pane", String(index))}`);
+        await pane.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+        assert.strictEqual(await pane.getAttribute("data-href"), href);
+      }
+    } finally {
+      await tab.close();
+    }
+  });

@@ -25,8 +25,14 @@
 
 import { addressWritten, basenameOf, linkedTitle } from "@olai/format"
 
+import { panesOf, type Workspace, type WorkspaceRouting } from "../workspace.ts"
 import type { Names } from "olai-plugin-outlines/names"
 import type { Route, Routing } from "olai-plugin-navigation/routes"
+
+/** A page and a workspace are distinct navigation targets. */
+export type AddressTarget =
+  | { readonly kind: "page"; readonly route: Route }
+  | { readonly kind: "layout"; readonly workspace: Workspace }
 
 /**
  * The address a title names, or `undefined`.
@@ -252,4 +258,34 @@ export const shownIn = (
   const address = route.kind === "at" ? route.address : null
   if (address === null || (address.kind !== "node" && address.kind !== "row")) return undefined
   return names(address.id)?.title
+}
+
+
+/** Titles can name a workspace or a page. Workspace recognition goes first:
+ * a workspace ending in a filename also fits the page grammar, which must
+ * continue to recognise real files under an s/ directory. */
+export const targetIn = (routes: WorkspaceRouting, title: string): AddressTarget | undefined => {
+  const text = title.trim()
+  if (!text.startsWith("/") && !text.startsWith("[")) return undefined
+  const address = addressWritten(text)
+  if (/\s/.test(address)) return undefined
+  const workspace = routes.layoutIn(address)
+  if (workspace !== null) return { kind: "layout", workspace }
+  const route = addressIn(routes, text)
+  return route === undefined ? undefined : { kind: "page", route }
+}
+
+export const layoutName = (routes: Routing, workspace: Workspace,
+  shows: (route: Route, index: number) => string | undefined = () => undefined): string =>
+  panesOf(workspace).map(({ route }, index) => nameOf(routes, route, shows(route, index))).join(" · ")
+
+export const targetName = (routes: Routing, target: AddressTarget,
+  shows: (route: Route) => string | undefined): string => target.kind === "page"
+    ? nameOf(routes, target.route, shows(target.route))
+    : layoutName(routes, target.workspace, shows)
+
+export const targetFace = (routes: Routing, title: string, target: AddressTarget,
+  shows: (route: Route) => string | undefined): Faced => {
+  const written = labelIn(title)
+  return { name: written ?? targetName(routes, target, shows), written: written !== undefined }
 }

@@ -8,6 +8,8 @@ export const name = "navigation"
 export interface PageInfo { readonly file?: string; readonly title?: string; readonly history?: Pick<import("@olai/edit-history/undoing.ts").Undo,"undo"|"redo"|"record"> }
 export interface Navigation extends Router {
   readonly page: (index: number | Accessor<number>) => JSX.Element
+  /** Live report of an open pane; withdrawn when its owner leaves. */
+  readonly info: (index: number) => PageInfo | undefined
   readonly focused: Accessor<PageInfo | undefined>
   readonly report: (index: Accessor<number>, info: Accessor<PageInfo>) => void
   /**
@@ -27,7 +29,7 @@ export interface Navigation extends Router {
    * another activation's live table with nothing declared — the audit's §2 and
    * §12 in the one module the whole tree spells an address with.
    */
-  readonly routes: import("./routes.ts").Routing
+  readonly routes: import("./workspace.ts").WorkspaceRouting
 }
 export const navigation = serviceTag<Navigation>("navigation.state")
 export interface ContentHandler {

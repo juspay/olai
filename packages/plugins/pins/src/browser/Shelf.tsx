@@ -51,7 +51,7 @@ import { useRouter } from "olai-plugin-navigation/routing"
 import { usePins } from "./answered.tsx"
 import { askName } from "./naming.ts"
 import { Pin } from "./Pin.tsx"
-import { sayPin } from "./pinning.ts"
+import { sayPin } from "./status.ts"
 import { type Pin as Pinned,pinsOf } from "./pins.ts"
 import { gapAt,placing } from "./reorder.ts"
 
@@ -216,6 +216,9 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
   // one that went out. Through the BIJECTION rather than `samePage`, because a
   // pinned filtered page and the same page unfiltered are two different doors.
   const isHere = createSelector(() => routes.href(router.route()))
+  const isCurrent = (pin: Pinned): boolean => pin.target.kind === "page"
+    ? isHere(routes.href(pin.target.route))
+    : routes.layoutHref(pin.target.workspace) === routes.layoutHref(router.workspace())
 
   return (
     <Show when={pins().length > 0}>
@@ -239,7 +242,7 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
             {(pin, at) => (
               <Pin
                 pin={pin()}
-                current={isHere(routes.href(pin().route))}
+                current={isCurrent(pin())}
                 lifted={carrying()?.from === at()}
                 onGrab={(event) => grab(at(), event)}
                 dragged={() => travelled}
