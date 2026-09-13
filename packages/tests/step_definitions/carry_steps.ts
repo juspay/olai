@@ -1,6 +1,7 @@
+import assert from "node:assert/strict";
 import { When, Then } from "@cucumber/cucumber";
 import type { OlaiWorld } from "../support/world.ts";
-import { CHAT_DIFF, NODE_TITLE, attr, CHAT_GRIP, CHAT_INPUT, CHAT_ENTRY, CHAT_DROP, POLL_TIMEOUT } from "../support/world.ts";
+import { CHAT_DIFF, NODE_TITLE, attr, CHAT_GRIP, CHAT_INPUT, CHAT_ENTRY, CHAT_DROP, SIDEBAR, POLL_TIMEOUT } from "../support/world.ts";
 import { aimAtVisible, carryPointer, titleOf, pressBullet } from "../support/dragging.ts";
 
 When("I carry row {string} over the conversation", async function(this: OlaiWorld, id: string) {
@@ -34,7 +35,7 @@ When("I quote the last {string} row into the conversation", async function(this:
   await this.page.mouse.up();
 });
 When("I drop sidebar file {string} into the conversation", async function(this: OlaiWorld, path: string) {
-  const source = await this.box(this.outlineLink(path), "file row");
+  const source = await this.box(this.page.locator(SIDEBAR).locator(`a${attr("data-file", path)}`), "file row");
   const target = await this.box(this.chat(CHAT_INPUT), "composer");
   await carryPointer(this, { x: source.x + source.width / 2, y: source.y + source.height / 2 }, { x: target.x + target.width / 2, y: target.y + target.height / 2 });
   await this.chat(CHAT_DROP).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -55,8 +56,8 @@ When("I hold the last {string} transcript row", async function(this: OlaiWorld, 
   await this.holdDown(row);
 });
 When("I hold sidebar file {string}", async function(this: OlaiWorld, path: string) {
-  await this.outlineLink(path).scrollIntoViewIfNeeded();
-  await this.holdDown(this.outlineLink(path));
+  await this.page.locator(SIDEBAR).locator(`a${attr("data-file", path)}`).scrollIntoViewIfNeeded();
+  await this.holdDown(this.page.locator(SIDEBAR).locator(`a${attr("data-file", path)}`));
 });
 When("I drop the last message above outline row {string}", async function(this: OlaiWorld, id: string) {
   const entry = this.chat(`${CHAT_ENTRY}${attr("data-kind", "user")}`).last();
@@ -126,7 +127,7 @@ Then("the streaming answer has no grip", async function(this: OlaiWorld) {
   await row.locator("..").locator(CHAT_GRIP).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
 When("I carry sidebar file {string} over the conversation", async function(this: OlaiWorld, path: string) {
-  const source = await this.box(this.outlineLink(path), "file row"), target = await this.box(this.chat(CHAT_INPUT), "composer");
+  const source = await this.box(this.page.locator(SIDEBAR).locator(`a${attr("data-file", path)}`), "file row"), target = await this.box(this.chat(CHAT_INPUT), "composer");
   await carryPointer(this, { x: source.x + source.width / 2, y: source.y + source.height / 2 }, { x: target.x + target.width / 2, y: target.y + target.height / 2 });
   await this.chat(CHAT_DROP).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
@@ -152,4 +153,46 @@ When("I quote the message from pane {int} into pane {int}", async function(this:
   await this.pane(targetPane).locator(CHAT_DROP).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.page.mouse.up();
   await this.waitUntil(async () => this.pane(targetPane).locator(CHAT_INPUT).evaluate(element => element === document.activeElement), "the receiving composer's focus");
+});
+
+When("I carry the last message above outline row {string}", async function(this: OlaiWorld, id: string) {
+  const entry = this.chat(`${CHAT_ENTRY}${attr("data-kind", "user")}`).last();
+  await entry.hover();
+  const source = await this.box(entry.locator("..").locator(CHAT_GRIP).first(), "grip"), target = await this.box(this.nodeTitle(id), "outline row");
+  await carryPointer(this, { x: source.x + source.width / 2, y: source.y + source.height / 2 }, { x: target.x + 4, y: target.y - 2 });
+});
+When("I aim the carry at pane {int}", async function(this: OlaiWorld, pane: number) {
+  const target = await this.box(this.pane(pane), "document pane");
+  await this.page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
+});
+When("I try carrying sidebar folder {string} into the conversation", async function(this: OlaiWorld, path: string) {
+  const source = await this.box(this.fileDir(path), "folder"), target = await this.box(this.chat(CHAT_INPUT), "composer");
+  await carryPointer(this, { x: source.x + source.width / 2, y: source.y + source.height / 2 }, { x: target.x + target.width / 2, y: target.y + target.height / 2 });
+  await this.page.mouse.up();
+});
+Then("the address still contains {string}", async function(this: OlaiWorld, path: string) {
+  await this.waitUntil(async () => decodeURIComponent(this.page.url()).includes(path), `address to contain ${path}`);
+});
+Then("the carry refusal names {string}", async function(this: OlaiWorld, words: string) {
+  const { SELECTION_SAID } = await import("../support/world.ts");
+  await this.waitUntil(async () => (await this.page.locator(SELECTION_SAID).textContent())?.includes(words) ?? false, "carry refusal");
+});
+
+Then("transcript grips leave the lane rail and words clear", async function(this: OlaiWorld) {
+  const { CHAT_LANE, CHAT_PREVIEW } = await import("../support/world.ts");
+  const lanes = this.page.locator(CHAT_PREVIEW).locator(CHAT_LANE);
+  assert.ok(await lanes.count() > 0, "the shelf draws lane rows");
+  for (const lane of await lanes.all()) {
+    const grip = lane.locator(CHAT_GRIP).first();
+    if (!await grip.count()) continue;
+    await lane.hover();
+    const handle = await this.box(grip, "lane grip"), rail = await this.box(lane, "lane rail");
+    assert.ok(handle.x + handle.width <= rail.x, "the grip is outside the rail");
+    const inset = await lane.evaluate(element => Number.parseFloat(getComputedStyle(element).paddingLeft));
+    assert.ok(inset >= 8, "the lane keeps its rail padding");
+  }
+});
+
+When("I click sidebar file {string}", async function(this: OlaiWorld, path: string) {
+  await this.page.locator(SIDEBAR).locator(`a${attr("data-file", path)}`).click();
 });

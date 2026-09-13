@@ -220,7 +220,8 @@ the row menu.
 
 A settled transcript row has a grip at its left edge on hover or focus. Drag it
 onto any conversation, including its own, to insert its source words at the
-caret as a Markdown quote: `> ` on each line, followed by a blank line. Agent
+caret as a Markdown quote: `> ` on each line, followed by a blank line. A drop
+inside a line starts the quote on a new line and keeps the surrounding draft. Agent
 answers and your messages carry their text. Tool rows carry the title followed
 by detail, or the reply JSON when detail is absent; terminal output and progress
 stay out. Diff boxes carry their path and changed `+`/`-` lines; outline diffs

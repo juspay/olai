@@ -12,10 +12,10 @@ export const textCarry = (text: () => string | null) => {
   return {
     ...carry,
     touch: (event: PointerEvent) => {
-      if (event.pointerType !== "touch" || text() === null) return
+      if (event.pointerType !== "touch") return
       if ((event.target as Element).closest("a, button, input, textarea, [data-grip]")) return
       event.stopPropagation()
-      carry.grab(event)
+      if (text() !== null) carry.grab(event)
     },
   }
 }

@@ -71,7 +71,7 @@ export function Row(props: {
   const work = createMemo(() => doorOf(props.entry, calls()))
   return (
     <div
-      class="group/row relative pl-4" onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
+      class="group/row relative ml-4" onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
       classList={{
         [RAIL]: props.lane !== null,
         // ... unless the rail below is carrying it instead, so that one line
@@ -107,7 +107,7 @@ export function Row(props: {
           </p>
         )}
       </Show>
-      <Grip text={words()} carry={carry} />
+      <div class="absolute -left-4 top-0"><Grip text={words()} carry={carry} /></div>
       <Entry entry={props.entry} chat={props.chat} />
       {/* THE LIVE RAIL, dropping out of the row the moment an agent is sent out
           or a task is armed, rather than one that appears whenever something

@@ -92,3 +92,15 @@ Feature: Rows land in the conversation chosen by the pointer
     Then the composer is armed with nothing
     When I drop row "order" into the conversation
     Then the composer is armed with "order"
+
+  Scenario: Arming leaves the outline in place and creates no undo entry
+    When I remember the served bytes of "house.olai"
+    And I drop row "order" into the conversation
+    Then the composer is armed with "order"
+    And no drop line is shown
+    And the node "order" is a child of "kitchen"
+    And the served bytes of "house.olai" are unchanged
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the undo says "nothing to undo"
+    And the served bytes of "house.olai" are unchanged

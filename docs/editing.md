@@ -192,7 +192,8 @@ Nothing here is a mode. What is open is decided by the text and where the caret 
 Let go over an open conversation to arm the row there without moving it, including
 across files and panes. Let go of a transcript row between outline rows to create
 a node at the drop line's depth: first line title, rest note; undo removes it.
-Cross-file move refusals apply to drops in outlines.
+The cross-file refusal applies to moving rows between outlines. A conversation
+is not an outline: a row from `lanes.olai` can land on an `orchestrator.olai` agent.
 
 **Drag a bullet and the row goes with everything under it.** The bullet is the handle, the way it is in Workflowy — press it and travel, and a line appears where the row would land. Press it without travelling and it is still the link it always was, into that node's own page.
 
@@ -210,7 +211,7 @@ Two panes showing **different files** cannot, and the pane says so before you le
 
 **Hold a row near the top or bottom of the window and the page comes to you.** An outline is longer than a screen nearly always, so a drag that could only reach what happened to be visible when you pressed would be most of the gesture missing. The nearer the edge, the faster it moves; move away and it stops. The line that says where the row would land is re-read as the page goes, so it is always about where the pointer is *on the page*. (This one is the *window* scrolling, so it is a lone page's; a split gives each pane its own scroller, and there the reach of a drag is what that column is showing.)
 
-**With a finger, hold the bullet first.** Press it, wait for the row to lift, and then it follows your thumb — the same drop line, the same landing. Until that moment nothing is claimed: a finger that moves before the row lifts is scrolling the page, exactly as it always was, and that is true whether it started on a bullet or anywhere else. The bullet is the handle on every device, which is why holding a finger *there* no longer opens the row's ••• menu — holding the row anywhere else still does.
+**With a finger, hold the bullet first.** Press it, wait for the row to lift, and then it follows your thumb — the same drop line, the same landing. Until that moment nothing is claimed: a finger that moves before the row lifts is scrolling the page, exactly as it always was, and that is true whether it started on a bullet or anywhere else. The bullet is the handle on every device, which is why holding a finger *there* no longer opens the row's ••• menu — holding the row elsewhere still does, except inside its conversation. Conversation text reserves the hold for carrying words; streaming rows also keep the outline menu closed, but cannot be carried until they settle.
 
 ## Picking several rows
 

@@ -158,7 +158,7 @@ export function Composer(props: {
   readonly chat: Chat
   /** The files attached and not yet sent. Made by the panel, because the
    *  panel is where a drop is caught and this row is where the chips go. */
-  readonly onInsert?: (insert: (text: string) => void) => () => void
+  readonly onInsert?: (insert: (text: string | ((before: string) => string)) => void) => () => void
   readonly holding: Holding
 }) {
   const { armedNodes, disarmNode, releaseArmed, restoreArmed } = useConversationUI().armed
@@ -538,7 +538,7 @@ export function Composer(props: {
     })
   }
 
-  const insertCarried = (text: string) => rewrite(written(draft(), { from: caret() }, text, caret()))
+  const insertCarried = (text: string | ((before: string) => string)) => rewrite(written(draft(), { from: caret() }, typeof text === "string" ? text : text(draft().slice(0, caret())), caret()))
   const releaseInsert = props.onInsert?.(insertCarried)
   onCleanup(() => releaseInsert?.())
 

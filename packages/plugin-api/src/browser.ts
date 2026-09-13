@@ -155,7 +155,7 @@ export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly 
  *
  * A FUNCTION OF NOTHING THAT ANSWERS A LIST, rather than one verb per
  * registration, and the shape is the whole of what this slot learned from its
- * first tenant. The chat panel offers *Start an agent session* always and *Start an agent
+ * first tenant. The chat panel offers *Start an agent
  * session* ONCE PER INSTALLED ENGINE — a count that is not knowable when the
  * plugin's `apply` runs, because the roster arrives over a wire the tab dials
  * after it. A plugin registering N faces would have had to know N at
@@ -190,8 +190,8 @@ export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly 
  * what this tab is looking at, everything below it changes the directory, and a
  * person reaching for *Collapse all* and hitting *Move to Trash* is a mistake
  * the ORDER prevents. Appending a plugin's verbs after both halves was the first
- * shape here and it broke exactly that: *Start an agent session* — which arms a composer and
- * writes nothing — landed under *Move to Trash*.
+ * shape here and it broke exactly that: the former *Ask agent* verb — which
+ * armed a composer and wrote nothing (`writes: false`) — landed under *Move to Trash*.
  *
  * Core cannot tell which a verb is, and a plugin cannot be trusted with the
  * POSITION. So {@link writes} is the one fact that crosses: the plugin says what

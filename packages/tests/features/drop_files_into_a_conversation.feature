@@ -52,3 +52,39 @@ Feature: A sidebar file becomes a path in the message
     Then the composer contains exactly:
       """
       """
+
+  Scenario: File carries preserve navigation and folder rows are not handles
+    Given I rewrite "carry-folder/note.md" as:
+      """
+      A carried file.
+      """
+    When I try carrying sidebar folder "carry-folder" into the conversation
+    Then no conversation is lit for a carry
+    And the composer contains exactly:
+      """
+      """
+    When I expand the folder "carry-folder"
+    And I drop sidebar file "carry-folder/note.md" into the conversation
+    Then the composer contains exactly:
+      """
+      @carry-folder/note.md
+      """
+    And the address still contains "/house.olai"
+    When I click sidebar file "carry-folder/note.md"
+    Then the address still contains "/carry-folder/note.md"
+
+  Scenario: A document page does not offer a landing for a sidebar file
+    Given I rewrite "carry-document.md" as:
+      """
+      A document.
+      """
+    When I open the address "/s/carry-document.md/%23kitchen?f=1"
+    Then the node page conversation is ready for "kitchen"
+    When I carry sidebar file "house.olai" over the conversation
+    And I aim the carry at pane 0
+    Then no conversation is lit for a carry
+    And no drop line is shown
+    When I release the carry
+    Then the composer contains exactly:
+      """
+      """

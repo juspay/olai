@@ -65,8 +65,8 @@ import type { CarriedNodes } from "../../carry.ts"
  * decision the touch half is: the bullet is already the handle for a mouse and
  * a pen, so it is one handle on three devices rather than a fourth thing to
  * learn. What it costs is that a phone no longer opens the `•••` menu by
- * holding the BULLET specifically — holding anywhere else on the row still
- * does, which is nearly all of it — and that is the trade taken, because two
+ * holding the BULLET specifically — holding the row outside its conversation
+ * still does — and that is the trade taken, because two
  * gestures cannot both own one press and the menu has a row to be reached from
  * while a handle has only itself.
  */

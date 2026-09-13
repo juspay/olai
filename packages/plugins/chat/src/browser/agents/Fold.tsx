@@ -45,7 +45,7 @@ export function Fold(props: { readonly node: string; readonly record?: string })
 
 export function Conversation(props: { readonly chat: Chat; readonly unbounded?: boolean; readonly node: string }) {
   let box: HTMLDivElement | undefined
-  let insert: ((text: string) => void) | undefined
+  let insert: ((text: string | ((before: string) => string)) => void) | undefined
   const [carrying, setCarrying] = createSignal<string | null>(null)
   createEffect(() => {
     const table = landings()
@@ -57,7 +57,7 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
       drop: async value => {
         if (props.chat.state().unopened || !documentBox(box)) return null
         if (carriedNodes(value)) for (const id of value.ids) props.chat.ui.armed.armNode(id)
-        else if (carriedText(value)) insert?.(quoted(value.text))
+        else if (carriedText(value)) insert?.(before => quoted(value.text, before))
         else if (carriedPath(value)) insert?.(inserted(value.path))
         return null
       },

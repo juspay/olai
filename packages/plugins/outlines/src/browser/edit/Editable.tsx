@@ -205,14 +205,19 @@ function EditablePage(props: EditableProps) {
   createEffect(() => {
     const table = landings()
     if (!table) return
-    const aim = (x: number, y: number) => surface === undefined ? null : planDrop(placeable(field, surface, props.file, new Set()), x, y)
+    // Row geometry belongs to this visit; scrolling preserves document coordinates.
+    // The registry still checks the live page box and membership on every move.
+    let placed: ReturnType<typeof placeable> | undefined
+    let landing: ReturnType<typeof planDrop> = null
+    const aim = (x: number, y: number) => surface === undefined ? null : planDrop(placed ??= placeable(field, surface, props.file, new Set()), x, y)
     onCleanup(table.register({
       lift: value => carriedText(value) ? documentBox(surface) : null,
-      aim: (_, x, y) => { const landing = aim(x, y); setForeign(landing ? { kind: "drop", landing } : null) },
-      leave: () => setForeign(null),
-      drop: async (value, x, y) => {
+      aim: (_, x, y) => { landing = aim(x, y); setForeign(landing ? { kind: "drop", landing } : null) },
+      leave: () => { placed = undefined; setForeign(null) },
+      drop: async value => {
         if (!carriedText(value)) return null
-        const landing = aim(x, y)
+        // end() leaves before delivering; use the last indicated anchor so a
+        // concurrent deletion is refused by the write, not silently retargeted.
         if (!landing) return null
         const said = await applying({ verb: "add", at: anchorFor(landing, props.file), ...nodeText(value.text) }, undo.record)
         selection.say(said ?? null)
