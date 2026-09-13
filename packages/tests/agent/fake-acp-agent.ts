@@ -2722,7 +2722,7 @@ const openSession = (params: Record<string, unknown>): void => {
  * That is what a history is, and it is the shape a client meets nowhere else —
  * every live turn announces before it reports.
  */
-const replay = (): void => {
+const replay = async (): Promise<void> => {
   notify("session/update", {
     sessionId,
     update: {
@@ -2760,8 +2760,15 @@ const replay = (): void => {
   // transcript by construction and says nothing. The two lines above stay so
   // every other stored-session claim still has the words it already asserts.
   if (sessionId === "fake-stored-old") {
+    // SPREAD OVER FRAMES when a scenario asked, so the panel meets the history
+    // the way a long one arrives: a line at a time, while it is still opening.
+    // Written all at once, the whole replay lands in a frame or two and a pane
+    // that followed every line of it would look exactly like one that did not.
+    const slow = existsSync(`${cwd}/${MARKER.slowReplay}`)
+    if (slow) rmSync(`${cwd}/${MARKER.slowReplay}`, { force: true })
     for (let line = 0; line < 40; line++) {
       say(`line ${line} — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
+      if (slow) await new Promise((done) => setTimeout(done, 25))
     }
     // AFTER the open-jump has landed, and only when a scenario asked: a
     // restored transcript's markdown (and any later row) grows the pane
@@ -2971,7 +2978,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       } else if (CODEX && sessionId === "fake-stored-old") {
         await nativeActivity("agents", sessionId, notify, request, released)
         await nativeActivity("watch stopped", sessionId, notify, request, released)
-      } else replay()
+      } else await replay()
       // THE PIN, ASSERTED OVER THE CONVERSATION'S OWN MODEL — which is the bug
       // `chat-model-reverts-on-restart` is about, and what the real adapter
       // does on every resume when `settings.json` names a model. Whatever this
