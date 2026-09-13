@@ -71,7 +71,8 @@
       "./slots",
       "./testids",
       "./surface",
-      "./wire"
+      "./wire",
+      "./carry"
     ]
   },
   "devDependencies": {}

@@ -234,7 +234,7 @@ A pane is a route: the same page (an outline, a zoom, a day, the agenda, the tra
 - Exactly one pane is focused, with a visible ring when there are two or more. Keyboard shortcuts, the palette and filter typing act on that pane.
 - A plain click navigates the pane the link was in. Alt+click opens the target in the pane to the right, reusing one already there; Alt+Shift+click forces a new one. No rule targets "leftmost".
 - Closing the second-to-last pane returns to a plain page. Below a minimum width a pane collapses to a labelled rail, and collapse and close are different verbs. On a narrow screen the list is a tab strip over one column.
-- Panes are sibling views over the one store. Dragging a node between panes would be the outline's own `place` and is not wired yet, because the drag measures one page's rows. Saved layouts are a follow-up.
+- Panes are sibling views over the one store. Row drags measure editable pages across panes and use the outline's `place`. The host's `Landings` table routes rows into conversations, transcript text into conversations or outline gaps, and file paths into composers. Saved layouts are a follow-up.
 
 ## Stack
 

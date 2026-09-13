@@ -1,3 +1,4 @@
+import { TESTID } from "../../testids.ts"
 import { Show } from "solid-js"
 import { createCarry } from "@olai/web/client/carry.ts"
 import { HOVER_REVEAL } from "@olai/ui-primitives/touch.ts"
@@ -19,7 +20,7 @@ export const textCarry = (text: () => string | null) => {
   }
 }
 export function Grip(props: { readonly text: string | null; readonly carry: ReturnType<typeof textCarry> }) {
-  return <Show when={props.text !== null}><button type="button" aria-label="carry these words" data-grip data-testid="chat-grip"
+  return <Show when={props.text !== null}><button type="button" aria-label="carry these words" data-grip data-testid={TESTID.chatGrip}
     class={`absolute left-0 top-0 cursor-grab text-muted ${HOVER_REVEAL}`}
     draggable={false} onDragStart={event => event.preventDefault()}
     onPointerDown={event => { event.stopPropagation(); props.carry.grab(event) }}

@@ -366,7 +366,7 @@ export const createDragging = (
       air.lift(new Set(carried.map((one) => one.at.node.id)))
       lifted = measure(carried)
       const table = landings()
-      if (table && lifted) receiver = carrySession({ kind: "outlines.nodes", ids: carried.map(one => one.at.node.id), file: lifted.from } satisfies CarriedNodes, table)
+      if (table && lifted) receiver = carrySession({ kind: "outlines.nodes", ids: [...picked].flatMap(key => carried.filter(one => one.key === key).map(one => one.at.node.id)).concat(picked.has(row.key) ? [] : [row.at.node.id]), file: lifted.from } satisfies CarriedNodes, table)
     }
 
     if (held) {

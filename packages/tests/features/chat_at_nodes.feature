@@ -4,7 +4,7 @@ Feature: Typing @ in the chat completes a node of the directory
   hoped, or you left the panel, found the row, and used its `•••` menu. So the
   same `@` offers the directory's NODES beside its files — one list, two blocks,
   files first — and taking a node writes `@its-id ` into the sentence AND arms
-  the node, which is the gesture "Ask agent" already had.
+  the node, which is the gesture a dropped row has.
 
   The two halves of that carry different facts. The WORD says where in the
   sentence the node is meant: `compare @a with @b` is unsayable by two chips.
@@ -60,7 +60,7 @@ Feature: Typing @ in the chat completes a node of the directory
   @scratch:chat
   Scenario: The node reaches the agent as a handle, under the words
     # The whole round trip, asserted by the AGENT rather than about a popup: a
-    # node taken off the list reaches the prompt as the line `•••` Ask agent
+    # node taken off the list reaches the prompt as the line a dropped row
     # already produced — the id in backticks, the title, the `file:line`, the
     # titles it hangs under — and the scripted agent reads that line, calls
     # `outlines_read` with the id it found, and says the title that came back. No

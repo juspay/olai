@@ -300,6 +300,7 @@
         "@solid-primitives/scheduled": "^1.5.3",
         "effect": "4.0.0-rc.112",
         "olai-plugin-alerts": "workspace:*",
+        "olai-plugin-files": "workspace:*",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-outlines": "workspace:*",

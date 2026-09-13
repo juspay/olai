@@ -189,6 +189,11 @@ Nothing here is a mode. What is open is decided by the text and where the caret 
 
 ## Dragging a row
 
+Let go over an open conversation to arm the row there without moving it, including
+across files and panes. Let go of a transcript row between outline rows to create
+a node at the drop line's depth: first line title, rest note; undo removes it.
+Cross-file move refusals apply to drops in outlines.
+
 **Drag a bullet and the row goes with everything under it.** The bullet is the handle, the way it is in Workflowy — press it and travel, and a line appears where the row would land. Press it without travelling and it is still the link it always was, into that node's own page.
 
 That line answers two questions at once, because the gesture asks two: **which gap** it sits in, and **how far in** it starts. Those are different placements that look the same on screen — the last child of the branch above and the next sibling of that branch's parent sit on the same line — so the line moves sideways as you do, and where it starts is the depth you are asking for. Let go and that is where the row is.

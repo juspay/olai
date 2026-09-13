@@ -85,6 +85,7 @@ Decide whose departure should end a resource, then build the shared helper aroun
 | Case | Rule | Example |
 | --- | --- | --- |
 | Reusable implementation | A factory may cross a package boundary if each caller gets its own independent state. | [heldWrites](../../packages/web/src/client/writes.ts), [heldFiles](../../packages/plugins/vault/src/browser/state.ts) |
+| Carry landings | The host supplies one `Landings` table per app; activation scopes release component-owned receiver registrations, and carries recheck snapshot membership before release. | [carry contracts](../../packages/plugin-api/src/carry.ts) |
 | Per-app state | Each browser app gets its own `Edits` registry. Two apps must not route edits through one module-level table. | [browser host](../../packages/plugin-api/src/browser.ts) |
 | Per-setup state | Each vault setup builds its own optional ledger and search tables with `openViews()`. A second host must not overwrite the first host's providers. | [VaultViews](../../packages/plugins/vault/src/views.ts) |
 

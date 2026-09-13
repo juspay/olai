@@ -13,3 +13,25 @@ Feature: A sidebar file becomes a path in the message
       """
     And the composer is armed with nothing
     And no conversation is lit for a carry
+
+  @phone
+  Scenario: A held file closes the drawer and lands in the visible conversation
+    When I tap the burger
+    And I hold sidebar file "house.olai"
+    Then the sidebar is put away
+    When I drag the held finger into the conversation
+    And I let the finger go
+    Then the composer contains exactly:
+      """
+      @house.olai
+      """
+
+  Scenario: A path is written at the caret and remains message text
+    When I prepare the draft "read carefully" with its caret at 5
+    And I drop sidebar file "house.olai" into the conversation
+    Then the composer contains exactly:
+      """
+      read @house.olai carefully
+      """
+    And the caret in the chat box is at 17
+    And the composer is armed with nothing
