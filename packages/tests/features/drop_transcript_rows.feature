@@ -75,12 +75,14 @@ Feature: A transcript row carries its source words
   Scenario: Another conversation receives the settled answer's source words
     When I ask the agent "hello"
     Then the agent is idle
+    When I ask the agent "hello again"
+    Then the agent is idle
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I quote the answer from node "kitchen" into this conversation
     Then the composer contains exactly:
       """
-      > you said: hello
+      > you said: hello again
       """
 
   Scenario: A tool row carries its title and a diff carries its changed lines
