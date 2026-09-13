@@ -53,6 +53,9 @@ const cell = (
   red: false,
   startedAt: null,
   ms: null,
+  attempt: 1,
+  host: null,
+  logKey: `log:${over.id}`,
   ...over,
 })
 
@@ -62,13 +65,14 @@ const many = (n: number, status: string): ReadonlyArray<RunCell> =>
   Array.from({ length: n }, (_, at) => cell({ id: `n${at}@p`, status }))
 
 const run = (over: Partial<CiRun> = {}): CiRun => ({
-  id: ".worktrees/a",
-  at: "/home/x/code/odu/.worktrees/a",
-  live: true,
+  id: "m1kb0e11-2c8d",
+  repoRoot: "/home/x/code/olai/.worktrees/a",
   name: "ci",
   sha7: "8f8fe56",
   dirty: false,
   seq: 2,
+  state: "running",
+  outcome: null,
   phase: "lanes",
   lanes: ["x86_64-linux=kolu-ci-9"],
   cells: [],
@@ -119,6 +123,12 @@ describe("a live run", () => {
     expect(said.tone).toBe("going")
   })
 
+  it("says waiting while live with no phase and no running node", () => {
+    const said = wordsFor(run({ phase: "", cells: [] }), 0)
+    expect(said.text).toBe("ci · waiting")
+    expect(said.tone).toBe("going")
+  })
+
   it("goes RED the moment a node is, before the run has finished deciding", () => {
     // The ink and the verdict are different questions: a reader needs to know
     // now, and the verdict keeps the stricter rule.
@@ -136,76 +146,59 @@ describe("a live run", () => {
     expect(said.text).toBe("ci · e2e 1:01 · 0/3 ok")
   })
 
-  it("takes the done ink the moment the run SETTLES, however long the socket outlives it", () => {
-    // A `--linger` coordinator holds the socket open past the settle on
-    // purpose: `live` stays true — and the run's own settlement, not the
-    // socket's death, is when a green run recedes into the done ink.
-    const said = wordsFor(run({ live: true, cells: many(10, "ok") }), 10_000)
-    expect(said.text).toBe("ci · ok · 10/10 ok")
+  it("takes the done ink the moment the cells settle, even while the run is still live", () => {
+    const said = wordsFor(run({ cells: many(10, "ok") }), 10_000)
+    expect(said.text).toBe("ci · lanes · 10/10 ok")
     expect(said.tone).toBe("ok")
-    // ...and the hover still says the truth: the coordinator IS up.
     expect(said.title).toContain("the run is up")
   })
 })
 
-describe("a run whose socket is gone", () => {
+describe("a run that is no longer live", () => {
   it("says the verdict, in the verdict's ink", () => {
-    const said = wordsFor(run({ live: false, cells: many(10, "ok") }), 10_000)
-    expect(said.text).toBe("ci · ok · 10/10 ok")
+    const said = wordsFor(run({ state: "settled", outcome: "passed", cells: many(10, "ok") }), 10_000)
+    expect(said.text).toBe("ci · passed · 10/10 ok")
     expect(said.tone).toBe("ok")
   })
 
-  it("says `ended` for a run that stopped without deciding, and recedes", () => {
-    // A coordinator that died mid-run decided nothing, and this is the chip
-    // saying so rather than picking a colour for it.
+  it("says `incomplete` for a run that stopped without deciding, and recedes", () => {
     const said = wordsFor(
       run({
-        live: false,
+        state: "settled",
+        outcome: "incomplete",
         cells: [cell({ id: "a@p", status: "ok" }), ...many(3, "pending")],
       }),
       10_000,
     )
-    expect(said.text).toBe("ci · ended · 1/4 ok")
+    expect(said.text).toBe("ci · incomplete · 1/4 ok")
     expect(said.tone).toBe("quiet")
   })
 
-  it("still says `ended` for a run killed with its first node RUNNING", () => {
-    // grok's SHOULD on #433: this used to draw NOTHING, so a chip on screen as
-    // `ci · e2e 2:10` vanished the moment the coordinator died. Running is
-    // progress — a node that got as far as starting is something to report.
-    const said = wordsFor(
-      run({
-        live: false,
-        cells: [cell({ id: "e2e@p", status: "running", startedAt: 0 }), ...many(3, "pending")],
-      }),
-      61_000,
-    )
-    expect(said.text).toBe("ci · ended · 0/4 ok")
-    expect(said.tone).toBe("quiet")
+  it("says `owner lost` as itself", () => {
+    const said = wordsFor(run({ state: "owner_lost", cells: many(2, "ok") }), 0)
+    expect(said.text).toContain("owner lost")
   })
 
-  it("says `ended` for a run that never started a node either — a ROW is always a word", () => {
-    // "Or nothing" is answered one layer up and always was: no row, no chip
-    // (`./CiChip.tsx`, over `runOf`). A row that EXISTS is a run this server
-    // watched, and what it saw is worth saying even when it saw nothing happen.
-    expect(wordsFor(run({ live: false, cells: many(4, "pending") }), 0).text)
-      .toBe("ci · ended · 0/4 ok")
+  it("says `unknown run` for a boarded id the service does not know", () => {
+    const said = wordsFor(run({ state: "unknown", repoRoot: "", cells: [] }), 0)
+    expect(said.text).toBe("ci · unknown run")
   })
 })
 
 describe("the hover", () => {
   it("names WHICH run and WHERE olai looked — the two facts the face has no room for", () => {
     const said = wordsFor(run({ dirty: true, cells: [cell({ id: "a@p", status: "ok" })] }), 0)
-    expect(said.title).toBe(
-      "ci 8f8fe56#2+dirty · x86_64-linux=kolu-ci-9 · the run is up · /home/x/code/odu/.worktrees/a",
-    )
+    expect(said.title).toContain("ci 8f8fe56#2+dirty")
+    expect(said.title).toContain("m1kb0e11-2c8d")
+    expect(said.title).toContain("/home/x/code/olai/.worktrees/a")
   })
 
-  it("says the socket is gone rather than pretending the last reading is current", () => {
+  it("names the checkout a settled run ran in", () => {
     const said = wordsFor(
-      run({ live: false, cells: [cell({ id: "a@p", status: "ok" })] }),
+      run({ state: "settled", outcome: "passed", cells: [cell({ id: "a@p", status: "ok" })] }),
       0,
     )
-    expect(said.title).toContain("the socket is gone; this is the last reading")
+    expect(said.title).toContain("settled")
+    expect(said.title).toContain("/home/x/code/olai/.worktrees/a")
   })
 })

@@ -8,7 +8,7 @@
     "test": "bun ./node_modules/@cucumber/cucumber/bin/cucumber.js --profile ui",
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "The e2e runner imports static contracts for the workflows it drives. @olai/web supplies its curated testlib (attributes, deadlines, theme and dates); @olai/bundle supplies the combined testids; @olai/fonts and @olai/appearance supply display policy; @olai/ui-primitives supplies shared UI names. @olai/format supplies MARKS and literal test claims, and @olai/surface supplies mediaHref and sealPolicy. The suite's own support/world.ts composes ROW_TESTID from the testids doors of outlines, markdown, hypertext, csv, image and pdf — the five body-row dependencies are names only, not plugin activations. Files supplies minting names, layout supplies its persisted width, outlines supplies record UI contracts, and chat and alerts supply their UI names. Identity supplies proxy-header and avatar contracts. Kolu supplies its fake appliance testlib. @olai/plugin-api supplies the host contracts used by test plugins, and @olai/log supplies the test log collector. These are explicit dependencies of the driver; the bundle's import fences check each allowed static door.",
+  "//dependencies": "The e2e runner imports static contracts for the workflows it drives. @olai/web supplies its curated testlib (attributes, deadlines, theme and dates); @olai/bundle supplies the combined testids; @olai/fonts and @olai/appearance supply display policy; @olai/ui-primitives supplies shared UI names. @olai/format supplies MARKS and literal test claims, and @olai/surface supplies mediaHref and sealPolicy. The suite's own support/world.ts composes ROW_TESTID from the testids doors of outlines, markdown, hypertext, csv, image and pdf — the five body-row dependencies are names only, not plugin activations. Files supplies minting names, layout supplies its persisted width, outlines supplies record UI contracts, and chat and alerts supply their UI names. Identity supplies proxy-header and avatar contracts. Kolu supplies its fake appliance testlib. Odu supplies its fake service testlib and chip testids. @olai/plugin-api supplies the host contracts used by test plugins, and @olai/log supplies the test log collector. These are explicit dependencies of the driver; the bundle's import fences check each allowed static door.",
   "dependencies": {
     "@olai/bundle": "workspace:*",
     "@olai/fonts": "workspace:*",
@@ -20,6 +20,7 @@
     "olai-plugin-files": "workspace:*",
     "olai-plugin-identity": "workspace:*",
     "olai-plugin-kolu": "workspace:*",
+    "olai-plugin-odu": "workspace:*",
     "olai-plugin-layout": "workspace:*",
     "olai-plugin-outlines": "workspace:*",
     "@olai/appearance": "workspace:*",

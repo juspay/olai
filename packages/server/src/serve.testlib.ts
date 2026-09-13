@@ -35,6 +35,11 @@ process.env.OLAI_ACP_AGENT = ""
 process.env.OLAI_ACP_CODEX = ""
 process.env.OLAI_ACP_PI = ""
 process.env.OLAI_AGENT_PATH = ""
+// Same isolation as PADI_SOCKET, one appliance over: odu's client defaults
+// to `127.0.0.1:18440`, which is this machine's real per-user service on
+// CI. An in-process serve that inherited that would open a websocket to
+// the host's odu on every unit test.
+process.env.ODU_WEB_ORIGIN = "http://127.0.0.1:1"
 
 /** The platform a real server needs: the CLI's own services (stdio, terminal,
  *  file system) and the static layer's (the file-response platform and ETags)

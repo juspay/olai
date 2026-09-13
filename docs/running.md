@@ -309,6 +309,7 @@ Environment readings follow the controls and stay read-only. Wrapper-provided ex
 | `OLAI_AGENT_PATH` | engine search path; empty searches nowhere |
 | `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI` | executable paths, normally wrapper-provided |
 | `OLAI_ODU_BIN` | directory prepended to the appliance's PATH |
+| `ODU_WEB_ORIGIN` | odu service origin this olai dials; default `http://127.0.0.1:18440` |
 | `PADI_SOCKET` | local Kolu socket path |
 | `OLAI_ALLOWED_ORIGINS` | comma-separated browser origins |
 | `OLAI_HOSTNAME` | machine label override |

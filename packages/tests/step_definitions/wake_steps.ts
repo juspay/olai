@@ -260,6 +260,15 @@ Then("the chat shows a sentence no person typed", async function (this: OlaiWorl
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+Then("the chat shows no sentence no person typed", async function (this: OlaiWorld) {
+  const since = Date.now()
+  await this.waitUntil(
+    async () =>
+      (await this.chat(CHAT_RANG).count()) === 0 && Date.now() - since >= 800,
+    "the chat to stay without a machine-sent sentence",
+  )
+});
+
 /** WHOSE doorbell it was, as data. The row carries the name core stamped off
  *  its own registry binding, never a word the plugin asserted about itself —
  *  which is what keeps one plugin from signing another's sentence. */

@@ -15,7 +15,8 @@
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css",
     "./appliance": "./src/appliance/index.ts",
-    "./appliance/wire": "./src/appliance/wire/index.ts"
+    "./appliance/wire": "./src/appliance/wire/index.ts",
+    "./appliance/testlib": "./src/appliance/testlib/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

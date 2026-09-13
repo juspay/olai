@@ -26,7 +26,7 @@ test("the ci cell's key reaches BOTH its arrays — the runs, and the nodes insi
     declared,
   )
   // One field name, every array at every depth: a run is identified by the
-  // board's own `worktree` value and a node by odu's `<namepath>@<platform>`,
+  // board's own run id and a node by odu's `<namepath>@<platform>`,
   // and both are spelled `id` precisely so one declaration governs both. A
   // coordinator republishes its whole pipeline on every node transition, and
   // an unkeyed inner array would wake every row of a lanes outline for each.
