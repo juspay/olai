@@ -17,7 +17,7 @@ import { fileAccess } from "olai-plugin-vault/contract"
 import { holdPins, usePins } from "./browser/answered.tsx"
 import { holdPinUndo, usePinUndo } from "./browser/history.ts"
 import { paletteIntegration } from "./browser/Palette.tsx"
-import { scopePinSaid } from "./browser/pinning.ts"
+import { scopePinSaid } from "./browser/status.ts"
 import { pinnedShelf } from "./contract.ts"
 export default definePlugin({name:"pins", needs:[Wired, Offers, Edits], apply:Effect.gen(function*(){
   const ownWire = yield* Wired

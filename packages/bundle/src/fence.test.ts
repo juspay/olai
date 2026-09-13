@@ -2254,7 +2254,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/outlines/src/tools.ts",
       "plugins/pins/src/browser/Palette.tsx",
       "plugins/pins/src/browser/Shelf.tsx",
-      "plugins/pins/src/browser/pinning.ts",
+      "plugins/pins/src/browser/writes.ts",
       "plugins/vault-plugins/src/tools.ts",
       "server/src/main.ts",
       "surface/src/edit.ts"

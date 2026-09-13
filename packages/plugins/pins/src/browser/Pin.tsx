@@ -27,7 +27,7 @@ import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
-import { useRouter } from "olai-plugin-navigation/routing"
+import { followLayout, useRouter } from "olai-plugin-navigation/routing"
 import { Link } from "olai-plugin-navigation/routing"
 import type { Pin } from "./pins.ts"
 
@@ -104,10 +104,8 @@ export function Pin(props: {
         <a href={href()} class={ROW} data-testid={TESTID.pinLink}
           aria-current={props.current ? "page" : undefined} title={props.pin.bare}
           onClick={(event) => {
-            if (event.metaKey || event.ctrlKey || event.button !== 0) return
-            event.preventDefault()
             const target = props.pin.target
-            if (target.kind === "layout") router.open(router.routes.layoutIn(href())!)
+            if (target.kind === "layout") followLayout(router, target.workspace, event)
           }}>
           <Face target={props.pin.target} name={props.pin.name} />
         </a>

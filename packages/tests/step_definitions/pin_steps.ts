@@ -394,8 +394,11 @@ When("I {word}-click the layout pin {string}", async function (this: OlaiWorld, 
 
 Then("the layout panes have equal widths", async function (this: OlaiWorld) {
   await this.waitUntil(async () => {
-    const left = await this.pane(0).boundingBox(), right = await this.pane(1).boundingBox();
-    return left !== null && right !== null && Math.abs(left.width - right.width) <= 2;
+    const panes = await this.page.locator(PANE).all();
+    const boxes = await Promise.all(panes.map(pane => pane.boundingBox()));
+    const first = boxes[0];
+    return boxes.length >= 2 && first != null
+      && boxes.every(box => box !== null && Math.abs(box.width - first.width) <= 2);
   }, "equal pane widths");
 });
 

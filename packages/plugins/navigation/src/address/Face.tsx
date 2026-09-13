@@ -67,7 +67,7 @@ import { TESTID } from "olai-plugin-navigation/testids"
 import { Show } from "solid-js"
 
 import type { AddressTarget } from "./address.ts"
-import { useRouter } from "olai-plugin-navigation/routing"
+import { followLayout, useRouter } from "olai-plugin-navigation/routing"
 
 
 export function Face(props: {
@@ -122,9 +122,7 @@ export function Face(props: {
           href={href()}
           onClick={(event) => {
             if (props.target.kind !== "layout") return
-            if (event.metaKey || event.ctrlKey || event.button !== 0) return
-            event.preventDefault()
-            router.open(routes.layoutIn(href())!)
+            followLayout(router, props.target.workspace, event)
           }}
           class="min-w-0 flex-1 truncate underline decoration-rule underline-offset-2 hover:decoration-accent"
           data-testid={TESTID.addressName}

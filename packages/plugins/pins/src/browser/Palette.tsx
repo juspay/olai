@@ -3,7 +3,7 @@ import { isLone } from "olai-plugin-navigation/workspace"
 import { definePlugin } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"
 import { layoutName,nameOf } from "olai-plugin-navigation/address/address.ts"
-import { applying } from "./writes.ts"
+import { applying, togglePin } from "./writes.ts"
 import { Effect } from "effect"
 import { navigation,paletteAdapters,paletteControl } from "olai-plugin-navigation/contract"
 import { holdPalette, paletteAsking } from "./box.ts"
@@ -13,7 +13,6 @@ import { usePins } from "./answered.tsx"
 import { usePinUndo } from "./history.ts"
 import { askName,namingFor } from "./naming.ts"
 import { layoutItem,pinItem } from "./palette.ts"
-import { togglePin } from "./pinning.ts"
 import { pinnedAt,pinnedLayout } from "./pins.ts"
 export const paletteIntegration=definePlugin({name:"palette",needs:[navigation,rendererSlots,pinnedShelf,paletteControl],apply:Effect.gen(function*(){
  const nav=yield* navigation
@@ -29,7 +28,7 @@ export const paletteIntegration=definePlugin({name:"palette",needs:[navigation,r
   if(paletteAsking()!==null)return {keepOpen:true}
   const already=pinnedAt(routes,pins(),nav.route()), naming=namingFor(routes,nav.route(),already,called())
   if(naming!==null){askName(naming);return {keepOpen:true}}
-  return {said:await togglePin(routes,nav.route(),already,nav.focused()?.history?.record??undo.record)}
+  return {said:await togglePin(routes.href(nav.route()),already,nav.focused()?.history?.record??undo.record)}
  }
  const panes=()=>layoutName(routes,nav.workspace(),(_route,index)=>nav.info(index)?.title)
  const runLayout=async()=>{

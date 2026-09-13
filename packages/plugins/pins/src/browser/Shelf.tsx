@@ -51,7 +51,7 @@ import { useRouter } from "olai-plugin-navigation/routing"
 import { usePins } from "./answered.tsx"
 import { askName } from "./naming.ts"
 import { Pin } from "./Pin.tsx"
-import { sayPin } from "./pinning.ts"
+import { sayPin } from "./status.ts"
 import { type Pin as Pinned,pinsOf } from "./pins.ts"
 import { gapAt,placing } from "./reorder.ts"
 

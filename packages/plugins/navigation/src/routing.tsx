@@ -6,6 +6,8 @@ import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route,type Routing } from "./routes.ts"
 import type { Workspace,WorkspaceRouting } from "./workspace.ts"
+export { followLayout } from "./layout-press.ts"
+
 export interface Router {
   /**
    * THE ROUTE OPERATIONS THAT READ THE MOUNTED ROSTER — printing a URL,

@@ -102,7 +102,7 @@ export const namedEdit = (
  * first.
  *
  * A page ALREADY ON THE SHELF is never asked, because that press is an UNPIN —
- * the toggle is one gesture over one address (`./pinning.ts`), and a question
+ * the toggle is one gesture over one address (`./writes.ts`), and a question
  * raised over a row that is about to be removed would be asking about the
  * wrong thing entirely.
  */

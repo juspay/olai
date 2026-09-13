@@ -229,3 +229,31 @@ Feature: Pinning layouts
     And the palette box holds "Planning"
     When I press "Escape"
     Then "_olai/Pins.olai" holds nothing
+
+  Scenario: A nested authored layout opens as equal ordered panes
+    Given the directory has the pins:
+      | [Nested](/s/house.olai/garden.olai/finishes.md?t=row(leaf,col(leaf,leaf))&w=30,(40,60)&f=2) |
+    When I follow the pin "/s/house.olai/garden.olai/finishes.md"
+    Then there are 3 panes
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/garden.olai"
+    And pane 2 is showing "/finishes.md"
+    And pane 0 is focused
+    And the layout panes have equal widths
+    And the address is exactly "/s/house.olai/garden.olai/finishes.md"
+    When I go back
+    Then the address is exactly "/house.olai"
+
+  Scenario: Reordering a layout pin consumes the click without opening its workspace
+    Given the directory has the pins:
+      | /finishes.md |
+      | [Planning](/s/house.olai/garden.olai) |
+    When I drag the pin "/s/house.olai/garden.olai" above "/finishes.md"
+    Then the pinned shelf reads "/s/house.olai/garden.olai /finishes.md"
+    And the address is exactly "/house.olai"
+    And there are 1 panes
+    When I press "ControlOrMeta+z"
+    Then the pinned shelf reads "/finishes.md /s/house.olai/garden.olai"
+    When I follow the pin "/s/house.olai/garden.olai"
+    Then there are 2 panes
+    And there should be no page errors

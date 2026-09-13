@@ -36,6 +36,7 @@ import {
   panesOf,
   reorder,
   resizeTo,
+  savedLayout,
   splitOf,
   workspaceOf,
   WORKSPACE_PREFIX,
@@ -315,7 +316,10 @@ test("layout addresses round trip pages, stripping widths, focus, axis and nesti
     const parsed = routes.layoutIn(address)!
     const href = routes.layoutHref(parsed)
     expect(href).not.toContain("?")
+    const normalized = savedLayout(parsed)
+    expect(savedLayout(normalized)).toEqual(normalized)
     const saved = routes.layoutIn(href)!
+    expect(saved).toEqual(normalized)
     expect(panesOf(saved).map(({route}) => route)).toEqual(panesOf(parsed).map(({route}) => route))
     expect(saved.focus).toBe(0)
     expect(panesOf(saved).every(({width}) => width === undefined)).toBe(true)

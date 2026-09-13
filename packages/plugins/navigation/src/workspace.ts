@@ -180,14 +180,18 @@ export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
   layoutHref: (workspace) => layoutHref(routes, workspace),
 })
 
-/** Saved layouts keep only the ordered pages, opening equally with first focus. */
+/** The saved-layout policy is a value transformation, independent of URLs.
+ * Keep ordered routes; discard the current geometry and focus. */
+export const savedLayout = (workspace: Workspace): Workspace => ({
+  layout: { kind: "split", axis: "row", children: panesOf(workspace).map(({ route }) => ({
+    layout: { kind: "leaf", route },
+  })) },
+  focus: 0,
+})
+
+/** Serialize the same value an in-place layout navigation opens. */
 export const layoutHref = (routing: Routing, workspace: Workspace): string =>
-  hrefOfWorkspace(routing, {
-    layout: { kind: "split", axis: "row", children: panesOf(workspace).map(({ route }) => ({
-      layout: { kind: "leaf", route },
-    })) },
-    focus: 0,
-  })
+  hrefOfWorkspace(routing, savedLayout(workspace))
 
 /** Workspace addresses belong to navigation, never to a page claim. */
 export const layoutIn = (routing: Routing, href: string): Workspace | null =>
