@@ -297,21 +297,6 @@ export const createDragging = (
   }
 
   /**
-   * One page's rows, as places a drop may land beside. The reading above,
-   * applied to one field — separate because the walk is per page and the facts
-   * it is filtered against are per gesture.
-   *
-   * THE CHEAP QUESTIONS FIRST, and the order is not arbitrary: measuring is the
-   * only thing here that costs anything (a `querySelectorAll` plus a forced
-   * layout per drawn row), and two of the three ways a page can have NO landing
-   * are answerable without touching the DOM at all. A page drawn inside what
-   * the hand is holding has none by construction; a page with no row of the
-   * carried file has none by the format. Both are ordinary — the second is the
-   * cross-file drop this whole feature is about — and both used to pay for a
-   * full sweep of a page whose every row was about to be thrown away.
-   */
-
-  /**
    * The page STOPS SCROLLING under a finger that has been held, and starts
    * again the moment the row is put down.
    *
@@ -366,7 +351,13 @@ export const createDragging = (
       air.lift(new Set(carried.map((one) => one.at.node.id)))
       lifted = measure(carried)
       const table = landings()
-      if (table && lifted) receiver = carrySession({ kind: "outlines.nodes", ids: [...picked].flatMap(key => carried.filter(one => one.key === key).map(one => one.at.node.id)).concat(picked.has(row.key) ? [] : [row.at.node.id]), file: lifted.from } satisfies CarriedNodes, table)
+      if (table && lifted) {
+        // Moving retains outline order. Context chips retain the order picked.
+        const ids = [...picked]
+          .flatMap(key => carried.filter(one => one.key === key).map(one => one.at.node.id))
+          .concat(picked.has(row.key) ? [] : [row.at.node.id])
+        receiver = carrySession({ kind: "outlines.nodes", ids, file: lifted.from } satisfies CarriedNodes, table)
+      }
     }
 
     if (held) {
@@ -472,6 +463,20 @@ export const createDragging = (
   }
 }
 
+/**
+ * One page's rows, as places a drop may land beside. The reading above,
+ * applied to one field — separate because the walk is per page and the facts
+ * it is filtered against are per gesture.
+ *
+ * THE CHEAP QUESTIONS FIRST, and the order is not arbitrary: measuring is the
+ * only thing here that costs anything (a `querySelectorAll` plus a forced
+ * layout per drawn row), and two of the three ways a page can have NO landing
+ * are answerable without touching the DOM at all. A page drawn inside what
+ * the hand is holding has none by construction; a page with no row of the
+ * carried file has none by the format. Both are ordinary — the second is the
+ * cross-file drop this whole feature is about — and both used to pay for a
+ * full sweep of a page whose every row was about to be thrown away.
+ */
 export const placeable = (
     field: Field,
     page: Element,

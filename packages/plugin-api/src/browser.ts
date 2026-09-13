@@ -534,9 +534,10 @@ export interface EditWriters {
   /** ...and the dispatch, refusing in words for a verb whose row is not here. */
   readonly write: (edit: { readonly verb: string }) => Effect.Effect<unknown, unknown>
 }
-export const Landings = serviceTag<LandingTable>("landings")
-
 export const Edits = serviceTag<EditWriters>("edit-writers")
+
+/** One host-owned landing table per app; consumers scope their registrations. */
+export const Landings = serviceTag<LandingTable>("landings")
 
 /**
  * A TABLE FOR AN APP THAT IS NOT STANDING — what a package's own holder answers

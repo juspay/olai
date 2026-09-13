@@ -1,7 +1,7 @@
 import { When, Then } from "@cucumber/cucumber";
 import type { OlaiWorld } from "../support/world.ts";
 import { CHAT_DIFF, NODE_TITLE, attr, CHAT_GRIP, CHAT_INPUT, CHAT_ENTRY, CHAT_DROP, POLL_TIMEOUT } from "../support/world.ts";
-import { carryPointer, titleOf, pressBullet } from "../support/dragging.ts";
+import { aimAtVisible, carryPointer, titleOf, pressBullet } from "../support/dragging.ts";
 
 When("I carry row {string} over the conversation", async function(this: OlaiWorld, id: string) {
   const box = await this.box(this.chat(CHAT_INPUT), "composer");
@@ -102,8 +102,10 @@ When("I quote the answer from node {string} into this conversation", async funct
   const entry = this.chat(`${CHAT_ENTRY}${attr("data-kind", "agent")}`).last();
   this.activeAgent = destination;
   await entry.hover();
-  const source = await this.box(entry.locator("..").locator(CHAT_GRIP).first(), "source answer grip"), target = await this.box(this.chat(CHAT_INPUT), "destination composer");
-  await carryPointer(this, { x: source.x + source.width / 2, y: source.y + source.height / 2 }, { x: target.x + target.width / 2, y: target.y + target.height / 2 });
+  const source = await this.box(entry.locator("..").locator(CHAT_GRIP).first(), "source answer grip");
+  await this.page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await this.page.mouse.down();
+  await aimAtVisible(this, this.chat(CHAT_INPUT));
   await this.chat(CHAT_DROP).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.page.mouse.up();
 });
