@@ -145,8 +145,8 @@ Feature: Pinning layouts
     Then the pane tabs are shown
     And there are 2 pane tabs
     And pane 0 is showing "/house.olai"
-    And pane 1 is showing "/garden.olai"
     And pane 0 is focused
     When I tap pane tab 1
     Then pane 1 is focused
+    And pane 1 is showing "/garden.olai"
     And there should be no page errors
