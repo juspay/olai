@@ -43,6 +43,11 @@ serve:
         AGENT="$(cat "$HOME/olai-acp-agent")"
     fi
     export OLAI_ACP_AGENT="${AGENT:-}"
+    # THE CALL ANSWERS: ODU_WEB_ORIGIN from the environment, else a seed
+    # file in HOME. Empty leaves the plugin's own default origin.
+    if [[ -z "${ODU_WEB_ORIGIN:-}" && -f "$HOME/odu-web-origin" ]]; then
+        export ODU_WEB_ORIGIN="$(cat "$HOME/odu-web-origin")"
+    fi
     export OLAI_ACP_PI="${PI_AGENT:-}"
     export OLAI_AGENT_PATH="${OLAI_AGENT_PATH:-}"
     # A PATH prefix for binaries under evidence — odu under a pin, or any
