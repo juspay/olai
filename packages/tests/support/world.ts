@@ -343,7 +343,7 @@ export const BODY_REFUSED = selector(TESTID.bodyRefused);
 /** One document, as a page: `/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
- *  node that attaches it. */
+ *  node that links to it. */
 export const DOCUMENT_BODY = selector(TESTID.documentBody);
 /** The way into a document's editor, on its page header. */
 export const DOCUMENT_EDIT = selector(TESTID.documentEdit);
@@ -399,7 +399,7 @@ export const BACKLINKS = selector(TESTID.backlinks);
 export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
 /** The same question one kind of thing over: the `<details>` under a
  *  DOCUMENT's body, absent on a document nothing points at. `data-count` is
- *  how many things do — a record that attaches or links it, or another
+ *  how many things do — a record that links to it, or another
  *  document whose body links it. */
 export const DOCUMENT_REFERRERS = selector(TESTID.documentReferrers);
 /** Its summary — the count in words, and what a pointer presses to open it. */

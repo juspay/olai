@@ -97,3 +97,22 @@ Feature: Outlines are the map and Reference holds the material
       """
     Then the reference section lists 12 files
     And the reference section is collapsed
+
+  @scratch:good
+  Scenario: Reference can be collapsed while its selected file stays open
+    Given I open the outline "house.olai"
+    When I follow the document link on "install"
+    Then the reference section is expanded
+    When I collapse the reference section
+    Then the reference section is collapsed
+    And Reference has no stored fold preference
+    And the document open is "finishes.md"
+    When I expand the reference section
+    Then the reference section is expanded
+    And Reference has its own open preference
+    When I collapse the reference section
+    And I click the outline "house.olai"
+    Then the reference section is collapsed
+    When I follow the document link on "install"
+    Then the reference section is expanded
+    And Reference has no stored fold preference

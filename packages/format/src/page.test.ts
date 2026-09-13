@@ -377,7 +377,7 @@ test("a zoomed MIRROR resolves to the node it stands for, as `zoom` does", () =>
   expect(readAt(node("herbs-here"))).toEqual({
     kind: "node",
     zoomed: zoom(SET, "herbs-here"),
-    backlinks: backlinksOf(SET, "herbs"), deadLinks: [],
+    backlinks: backlinksOf(SET, "herbs"),
   })
 })
 
@@ -539,4 +539,20 @@ test("row warnings travel in the page reading and clear on a membership revision
   const present = pageOf(readingAt(derived, facesOf(["house.olai", "target.md"])), at("house.olai"))
   expect(present.deadLinks).toBeUndefined()
   expect(samePageReading(missing, present)).toBe(false)
+})
+
+
+test("warnings cover the zoomed subject and its rows, not its trail or backlinks", () => {
+  const records = nodesOfFiles({ "house.olai": [
+    { id: "parent", ord: "a0", title: "Parent [x](parent.md)" },
+    { id: "subject", parent: "parent", ord: "a0", title: "Subject [x](subject.md)" },
+    { id: "child", parent: "subject", ord: "a0", title: "Child [x](child.md)" },
+    { id: "referrer", ord: "a1", title: "Referrer [x](referrer.md)", see: ["subject"] },
+  ].map(record => JSON.stringify(record)).join("\n") })
+  const derived = derive(TEST_CLAIMS, records)
+  const reading = pageOf(readingAt(derived, facesOf(["house.olai"])), node("subject"))
+  expect(Object.keys(reading.deadLinks ?? {}).sort()).toEqual(["child", "subject"])
+  expect(reading.shows).not.toHaveProperty("deadLinks")
+  const changed = pageOf(readingAt(derived, facesOf(["house.olai", "parent.md", "referrer.md"])), node("subject"))
+  expect(samePageReading(reading, changed)).toBe(true)
 })

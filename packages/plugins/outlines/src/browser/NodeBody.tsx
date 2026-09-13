@@ -312,7 +312,7 @@ export function NodeBody(props: {
       </Show>
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
     </Show>
-    <For each={dead()}>{link => <div data-testid={TESTID.deadLink} class="text-xs text-alarm opacity-80"><code>{deadLinkSaid(link)}</code></div>}</For>
+    <For each={dead()}>{link => <div data-testid={TESTID.deadLink} class="text-xs text-alarm opacity-80">{deadLinkSaid(link)}</div>}</For>
     </>
   )
 }

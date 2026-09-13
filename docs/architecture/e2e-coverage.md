@@ -202,6 +202,8 @@ and process-group termination with escalation.
 
 ## Outline-first navigation (#593)
 
+Re-review coverage exercises collapsing Reference while its selected document stays open and repairing a list-continuation link while its anchor stays visible. The unreadable-document case first verifies the rendered content before breaking and restoring it.
+
 `dead_links.feature` covers an agent's note write, detail and subtree reads,
 row and zoomed-page warnings, relative basename suggestions across folders,
 and live clearing when a file appears. Document Save and `markdown_read` cover

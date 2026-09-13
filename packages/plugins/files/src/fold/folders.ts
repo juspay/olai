@@ -76,7 +76,7 @@ const reference = createPreference(REFERENCE_KEY, {
   print: (open: boolean) => open ? "true" : null,
 })
 export const referenceOpen = reference.value
-export const toggleReference = (): void => reference.set(!reference.value())
+export const setReferenceOpen = (open: boolean): void => reference.set(open)
 
 /** Follow both preferences for this activation; withdraw in reverse order. */
 export const followFolders = (): (()=>void) => {

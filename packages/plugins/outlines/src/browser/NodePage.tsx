@@ -174,8 +174,7 @@ function Zoom(props: {
             onRemove={(target) => edges.drop("after", target)}
           />
 
-          {/* Zoomed, a node's note and document ARE the page under it: the node
-              said the rest was here, and the subject is never densified. */}
+          {/* The zoomed subject's full note is never densified. */}
           <NodeBody
             shows={props.zoomed.shows}
             zoomed

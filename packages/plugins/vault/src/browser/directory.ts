@@ -194,7 +194,7 @@ export interface Directory {
    *  compare all the same — a reconnect re-seeds the fold, and a fresh list of
    *  the same files is exactly what that compare is for. */
   readonly paths: Accessor<ReadonlyArray<string>>
-  /** Constant-time membership; read paths for its revision identity. Never mutate. */
+  /** Reactive membership snapshot, replaced only when paths change. Never mutate. */
   readonly members: Accessor<ReadonlySet<string>>
   /** The files that did not parse, by path — the sidebar marks them and a pane
    *  opened on one draws its errors instead of a tree.
@@ -266,11 +266,9 @@ export interface HeadEntries {
  * `paths` and `broken` are what LEAVE — the values the two members above hand
  * out — so they are REBUILT rather than written into, and a frame that moves
  * neither hands back the pair it was already holding. `members` is this fold's
- * own working memory and is MUTATED in place: its readonly membership view is exposed through the directory service,
- * while only this fold may mutate it, and
- * copying a set of the whole directory per frame would be the corpus-wide walk
- * this fold exists to retire, reintroduced one line down from where it was
- * removed.
+ * own working memory and is MUTATED in place, never exposed. The service
+ * snapshots it only when `paths` changes. Copying the set per frame would
+ * reintroduce the corpus-wide walk this fold exists to retire.
  *
  * THE THREE ARE ONE VALUE and not three, because they move by one rule: what a
  * frame named. Split into three folds they would be three registrations walking
@@ -285,7 +283,6 @@ export interface HeadEntries {
  * directory's — so a suite over the fold alone would be a suite over the half
  * that cannot see them.
  */
-const EMPTY_MEMBERS: ReadonlySet<string> = new Set()
 
 interface Held {
   readonly paths: ReadonlyArray<string>
@@ -485,6 +482,7 @@ export const createDirectory = (
       return makeClaims([])
     }
   })
+  const heldPaths = createMemo(() => held()?.paths ?? NO_PATHS)
   return {
     claims,
     outlineRow: () => fileKinds()?.outlineRow,
@@ -526,8 +524,8 @@ export const createDirectory = (
       // state).
       return said !== undefined && holding !== undefined ? "loaded" : "reading"
     }),
-    paths: createMemo(() => held()?.paths ?? NO_PATHS),
-    members: () => held()?.members ?? EMPTY_MEMBERS,
+    paths: heldPaths,
+    members: createMemo(() => new Set(heldPaths())),
     // SEEDED with the empty map, which the `equals` requires: a comparator is
     // asked about the FIRST value too, and `sameMap` reads a size off both
     // sides. The ERRORS are compared as well as the keys, and by IDENTITY —

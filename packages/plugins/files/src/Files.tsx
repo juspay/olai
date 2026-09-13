@@ -12,6 +12,9 @@ import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
+createSignal,
+createEffect,
+on,
 createSelector,
 For,
 type JSX,
@@ -26,7 +29,7 @@ import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Glyph } from "./glyphs.tsx"
 import { drawingOf } from "./drawings.ts"
 import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
-import { openFolders,toggleFolder,referenceOpen,toggleReference } from "olai-plugin-files/fold/folders.ts"
+import { openFolders,toggleFolder,referenceOpen,setReferenceOpen } from "olai-plugin-files/fold/folders.ts"
 
 import { ENTRY_SHAPE,REGION,ROW_GAP } from "olai-plugin-layout/entry"
 import { atFile,type Route } from "olai-plugin-navigation/routes"
@@ -108,7 +111,14 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   })
   // Selection reveals its region without changing the reader's stored fold.
   const activeIsReference = () => props.active !== undefined && references().includes(props.active)
-  const referenceShown = () => referenceOpen() || activeIsReference()
+  const [referenceCollapsed, setReferenceCollapsed] = createSignal(false)
+  createEffect(on(() => props.active, () => setReferenceCollapsed(false)))
+  const referenceShown = () => !referenceCollapsed() && (referenceOpen() || activeIsReference())
+  const toggleReferenceShown = () => {
+    const open = !referenceShown()
+    setReferenceCollapsed(!open)
+    setReferenceOpen(open)
+  }
 
   // THE VAULT'S OWN FILES — the `_olai/` outlines, every one the directory
   // holds except the archive (which the `isTrashed` rule above already
@@ -188,7 +198,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
 
           <Show when={references().length > 0}>
             <section class={REGION} data-testid={TESTID.reference} data-count={references().length}>
-              <button type="button" class={`${ENTRY} w-full text-paper/65`} data-testid={TESTID.referenceToggle} aria-expanded={referenceShown()} onClick={toggleReference}>
+              <button type="button" class={`${ENTRY} w-full text-paper/65`} data-testid={TESTID.referenceToggle} aria-expanded={referenceShown()} onClick={toggleReferenceShown}>
                 <span class={`${CONTROL} text-paper/55`} aria-hidden="true"><svg class="size-2.5 shrink-0 transition-transform duration-100" classList={{ "-rotate-90": !referenceShown() }} viewBox="0 0 10 10" fill="currentColor"><path d="M2 3.25 L8 3.25 L5 7.25 Z" /></svg></span>
                 <Glyph of="folder" />
                 <span>Reference</span><span class="ml-auto font-mono text-xs">{references().length}</span>

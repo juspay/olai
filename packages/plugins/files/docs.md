@@ -28,3 +28,5 @@ Reference counts files, excluding `_olai/`, and is absent when empty. Opening a 
 Reference has a separate boolean preference from folder paths. The active file
 can reveal the section and its ancestry without persisting either decision.
 Both folds and their subscriptions belong to the Files browser activation.
+
+A header click folds the section even when its active file revealed it. That explicit choice writes the preference; suppression of selection-driven visibility lasts until navigation and is owned by the mounted Files contribution.

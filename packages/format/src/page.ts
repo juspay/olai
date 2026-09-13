@@ -196,7 +196,6 @@ export const Shown = Schema.Union([
     /** What refers to this node, in corpus order — empty for an id nothing
      *  points at, and for the three arms of {@link Zoomed} that show no node. */
     backlinks: Schema.Array(Backlink),
-    deadLinks: Schema.Array(DeadLink),
   }),
   /**
    * One document, drawn whole. It carries the PATH and never the body: a body
@@ -419,7 +418,7 @@ export const pageOf = (
   kinds: KindVocabulary = NO_KINDS,
 ): PageReading => {
   const served = new Set(at.set.documents.map(face => face.path))
-  const shows = shownOf(at, request, served)
+  const shows = shownOf(at, request)
   // THE DOORS FIRST, because the names table spends them: a value that turned
   // out to name a node is an id this page points at, and the chip drawing it
   // wants what that node is CALLED. Derived rather than asked for twice — a
@@ -428,7 +427,9 @@ export const pageOf = (
   // chip that fell back to its id for no reason a reader could see.
   const { doors, licences } = answersFor(at, shows, kinds, served)
   const deadLinks: Record<string, ReadonlyArray<DeadLink>> = {}
-  for (const located of drawnIn(shows)) {
+  const warningRows = [...narrowableIn(shows)]
+  if (shows.kind === "node" && shows.zoomed.kind === "node") warningRows.push(shows.zoomed.shows)
+  for (const located of warningRows) {
     const links = deadLinksOf(located, served)
     if (links.length > 0) deadLinks[located.node.id] = links
   }
@@ -492,12 +493,8 @@ const answersFor = (
   kinds: KindVocabulary,
   served: ReadonlySet<string>,
 ): { readonly doors: ReadonlyArray<Door>; readonly licences: ReadonlyArray<Licence> } => {
-  // ...AND THE `.md` HALF OF IT, which is a second set and has to be: a `doc`
-  // value promises to name a served DOCUMENT, and the gate holds it to exactly
-  // this list ({@link ./typing.ts}'s `Typed.documents`). Built by the same
-  // function the validator builds its own with rather than by filtering the
-  // paths above, which would be a second answer to "which of these is a
-  // document" — the very shape this module exists to have one of.
+  // Declared `doc` properties require a Markdown document, not merely a
+  // served path. Use the validator's classification for the same answer.
   const documents = markdownPaths(at.set)
   const vault: Vault = {
     // THE DECLARATIONS FILE FOUND IN THE SET, and not by walking the
@@ -561,7 +558,7 @@ const outlinesAmong = (claims: Claims, faces: ReadonlyArray<Face>): ReadonlyArra
  *  {@link pageOf} minus its second half. Exported for the one caller that wants
  *  the rows and nothing else: the page's NARROWING (`./narrowing.ts`), which
  *  matches over the records this page draws and resolves no id at all. */
-export const shownOf = (at: Reading & { readonly outlineRow?: string }, request: PageRequest, served: ReadonlySet<string> = new Set(at.set.documents.map(face => face.path))): Shown => {
+export const shownOf = (at: Reading & { readonly outlineRow?: string }, request: PageRequest): Shown => {
   const { derived } = at
   const faces = at.set.documents
   // THE PAGES THE APP CLAIMED BY NAME FIRST, and then the address — the same
@@ -598,7 +595,6 @@ export const shownOf = (at: Reading & { readonly outlineRow?: string }, request:
       kind: "node",
       zoomed,
       backlinks: zoomed.kind === "node" ? backlinksOf(derived, zoomed.shows.node.id) : [],
-      deadLinks: zoomed.kind === "node" ? deadLinksOf(zoomed.shows, served) : [],
     }
   }
 

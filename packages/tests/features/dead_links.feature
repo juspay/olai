@@ -82,4 +82,22 @@ Feature: Relative links say where nothing is served
       """
     Then the tool answer omits "deadLinks"
     When I open the document "examples.md"
-    Then the rendered link to "live target" has no dead mark
+    Then the document link "finishes.md" is shown
+    And the rendered link to "live target" has no dead mark
+
+  @scratch:good
+  Scenario: A link on a list continuation warns and remains drawn when repaired
+    Given I open the outline "house.olai"
+    And a terminal agent is connected to the served directory
+    When the terminal agent calls "markdown_create" with:
+      """
+      {"file":"continuation.md","text":"- Item\n    [continued](later.md)"}
+      """
+    Then the tool nudge says "link resolves to nothing served: later.md."
+    When I open the document "continuation.md"
+    Then the rendered link to "continued" is marked dead
+    When I rewrite "later.md" as:
+      """
+      # Arrived
+      """
+    Then the page has no dead links

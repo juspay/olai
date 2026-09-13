@@ -3130,13 +3130,13 @@ describe("move across outlines", () => {
         "`_olai/finishes.md`, and no such `.md` file is served",
       ])
 
-    // The FIELD, on the same journey, is retargeted and lands clean — which is
-    // what makes the pair above a boundary rather than an oversight.
-    const withField = setOf({
+    // A prose link stays authored when the node moves; missing targets warn
+    // rather than refusing the move, unlike the declared property above.
+    const withLink = setOf({
       "house.olai": `{"id":"install","ord":"a0","title":"install","desc":"[document](finishes.md)"}`,
       "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
     }, ["finishes.md"])
-    expect(Result.isSuccess(validate(TEST_CLAIMS, after(withField, { op: "move", id: "install", parent: "garden" }))))
+    expect(Result.isSuccess(validate(TEST_CLAIMS, after(withLink, { op: "move", id: "install", parent: "garden" }))))
       .toBe(true)
   })
 
@@ -3673,7 +3673,7 @@ describe("merge", () => {
 
   test("a mark, a date or an edge goes with the record — and is said out loud", () => {
     // Every field a node carries ONE of, so the survivor's own answer stands
-    // and this one leaves the live outline. None of them may go quietly —
+    // and this one leaves the live outline. The notice must name each loss.
     const set = setOf({
       "house.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
@@ -4983,7 +4983,7 @@ describe("documents", () => {
 describe("delete", () => {
   // The verb's two units — a document carries any text; an outline carries
   // none — and the three ways it has to say no. `docsRef` is the corpus for
-  // the named-document half: `polish` ATTACHES `notes/instructions.md`, so it
+  // the named-document half: `renovate` links to `notes/instructions.md`, so it
   // may not go, and `flat.md` may.
   const DOCS_REFS = [
     `{"id":"renovate","ord":"a0","title":"Renovate the kitchen","desc":"[document](notes/instructions.md)"}`,

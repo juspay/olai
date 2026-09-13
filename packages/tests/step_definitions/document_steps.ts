@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * Documents: the page, the reference on a node, and the two things a rendered
  * document reaches for that a note never had to — a picture, and a highlighter.
@@ -10,6 +9,7 @@ import { TESTID } from "@olai/bundle/testids"
  * what it does with a URL a page would never write — the traversal attempts.
  */
 
+import { TESTID } from "@olai/bundle/testids";
 import * as assert from "node:assert";
 import { defineParameterType, Then, When } from "@cucumber/cucumber";
 
@@ -19,7 +19,7 @@ import {
   ZOOM_TITLE,
   DESC,
   NOTE_MARK,
-  DOCUMENT_BODY,
+  NODE,
   DOCUMENT_LINK,
   DOCUMENT_PAGE,
   DOCUMENT_REFERRER,
@@ -340,12 +340,12 @@ Then(
   },
 );
 
-// Links in notes are the attachment and open the document's own page.
+// Follow the selected occurrence's own note, excluding nested rows.
 When("I follow the document link on {string}", async function(this: OlaiWorld, id: string) {
   const zoomed = await this.page.locator(`${ZOOM_TITLE}${attr("data-node-id", id)}`).count() > 0;
-  const row = this.node(id);
-  if (!zoomed && await row.getAttribute("data-note-open") !== "true") await this.clickWithin(id, NOTE_MARK);
-  const link = (zoomed ? this.page.locator(DESC) : row.locator(DESC)).locator("a").first();
+  const row = this.visibleNode(id).first();
+  if (!zoomed && await row.getAttribute("data-note-open") !== "true") await row.locator(NOTE_MARK).first().click();
+  const link = row.locator(`${DESC}:not(:scope ${NODE} ${DESC})`).locator("a").first();
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await link.click();
   await this.waitForFrame();

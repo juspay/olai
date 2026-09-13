@@ -90,14 +90,15 @@ const renderingOf = (
   serves?: (path: string) => boolean,
   revision?: object,
 ): Rendered => {
-  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape, serves)
+  if (claims === undefined || (serves !== undefined && revision === undefined)) return render(claims, source, from, keyFor(shape, from, source), shape, serves)
   let revisions = renderings.get(claims)
   if (revisions === undefined) {
     revisions = new WeakMap()
     renderings.set(claims, revisions)
   }
+  // Predicates without a revision render afresh: their answers may have changed.
   // Membership identity scopes the cache; it must not move heading IDs.
-  const namespace = revision ?? serves ?? claims
+  const namespace = revision ?? claims
   let rendered = revisions.get(namespace)
   if (rendered === undefined) {
     rendered = new Map()

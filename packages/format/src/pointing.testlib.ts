@@ -22,12 +22,11 @@
  * exports.
  *
  * WHAT THE CORPORA ARE FOR is the other half. `./corpora.testlib.ts` writes the
- * awkward sets the patcher is held to and writes no LINK at all — no `doc`, no
- * `[…](…)` in a title or a note, no markdown body with anything in it — because
+ * awkward sets the patcher is held to and writes no LINK at all — no `[…](…)` in a title or a note, no markdown body with anything in it — because
  * the derivation it is about reads none of them. This index reads nothing else,
  * so it needs corpora of its own, and they are grown against the write shapes
  * that MOVE a link: a title that carries one, a note that carries one, a `see`,
- * a `doc` attachment, a document body rewritten, a file RENAMED that other
+ * a document body rewritten, a file RENAMED that other
  * files' links name, and a file deleted.
  *
  * Nothing here has tests of its own — it is a helper module, not a suite, and
@@ -238,11 +237,8 @@ const linked = (
   targets: ReadonlyArray<string>,
 ): string => `[see](${spelled(from, pick(random, targets))})`
 
-/** One outline, written with links in every field that can hold one: the `doc`
- *  attachment, the `see` edge, a link inside the TITLE, and a link inside the
- *  NOTE. Those four are the whole of `recordLinks`, which is what makes a
- *  corpus that writes all four a corpus the record half of the answer is really
- *  exercised over. */
+/** One outline with `see` edges, title links and note links: all three
+ *  sources read by `recordLinks`, including document links without fragments. */
 const outlineWritten = (
   random: () => number,
   file: string,
@@ -348,8 +344,7 @@ export const linkyVault = (
  *     does to a row somebody wrote a `[…](…)` into;
  *   - a NOTE rewritten, which is `outlines_desc` and is the edit a reference somebody
  *     adds in prose actually is;
- *   - a `doc` ATTACHED, re-pointed or taken away, which is the one field of a
- *     record that names a file;
+ *   - a document link added to a title, re-pointed or taken away;
  *   - a `see` EDGE moved, which is the format's own free cross-reference;
  *   - a DOCUMENT BODY written, which moves links this index holds and which the
  *     delta the wire carries names no records for at all;

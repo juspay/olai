@@ -402,7 +402,9 @@ Reference remembers its fold state in this browser. Opening a document or other 
 Opening a document, including a newly created one, reveals its row under
 Reference and expands its folder ancestry. This visibility follows selection;
 it does not write the saved Reference preference. Returning to an outline
-restores the fold the reader chose. New outline and New document remain below
+restores the fold the reader chose. Clicking the Reference header can collapse
+it even while its file stays open; the next navigation to a reference file
+reveals the section again. New outline and New document remain below
 Outlines; new documents are listed in Reference.
 
 

@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The three kinds olai draws by SHOWING them: a `.csv` as a table, a picture in
  * an `<img>`, a `.pdf` in the browser's own viewer.
@@ -25,6 +24,7 @@ import { TESTID } from "@olai/bundle/testids"
  *     `frameLocator` into a PDF viewer at all.
  */
 
+import { TESTID } from "@olai/bundle/testids";
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 

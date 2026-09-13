@@ -42,3 +42,9 @@ test("directory targets are not missing files and URL suffixes do not change mem
   expect(deadLinksIn("a.olai", "[x](the%20brief.md?v=1#heading)", served)).toEqual([])
   expect(deadLinksIn("a.olai", "[x](missing.md?v=1#heading)", served)[0]?.resolved).toBe("missing.md")
 })
+
+
+test("list continuation links are prose while code within the list remains literal", () => {
+  const text = "- Item\n    [continued](continued.md)\n\n      [code](code.md)\n\nOutside [link](outside.md)"
+  expect(deadLinksIn("a.md", text, served).map(link => link.resolved)).toEqual(["continued.md", "outside.md"])
+})

@@ -1,6 +1,6 @@
-import { TESTID } from "@olai/bundle/testids"
 /** The watch wrench opens schema controls; the advanced link opens the file.
  * The sidebar assertions also serve the vault's own-file scenarios. */
+import { TESTID } from "@olai/bundle/testids";
 import { Then, When } from "@cucumber/cucumber"
 import { strict as assert } from "assert"
 import { attr } from "../support/selectors.ts"

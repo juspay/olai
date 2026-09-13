@@ -64,7 +64,7 @@ of each thing the view has to draw:
 | a note link | `install` links to `finishes.md` |
 | a document no node links | `notes/palette.md` — still a page, still in the sidebar |
 | a document with YAML frontmatter | `notes/palette.md` again — the `---` block is off the page, off the title, out of the tag index, and its keys answer `prop:`. It carries a `date:` and a `#`-looking value on purpose: a property named `date` is not a day, and `#swatches` in the block is not a tag somebody wrote |
-| a nested outline | `Daily/2026-08.olai` — the sidebar's file tree, not a path string |
+| a nested outline | `Daily/2026-08.olai` — the sidebar's Outlines tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |
 | every mark the markdown pipeline draws, once each | `kitchen-sink.md` |
 | a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../`. The same file is a set member with a page of its own, which is the distinction those two rules keep: an `![](…)` is an embed off `/media/`, a `[…](…)` is a link to the picture's page |

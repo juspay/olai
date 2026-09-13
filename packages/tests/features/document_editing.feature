@@ -303,7 +303,7 @@ Feature: Documents become writable
 
   @scratch:good
   Scenario: A document still named by a `link` is refused, naming the record that names it
-    # `install` attaches finishes.md, so the file may not go — the refusal is
+    # `install` links to finishes.md, so the file may not go — the refusal is
     # the planner's, under the control, exactly as an agent's `files_delete`
     # gets it.
     Given I open the document "finishes.md"

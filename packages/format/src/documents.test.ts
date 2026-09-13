@@ -77,7 +77,7 @@ test("only a relative picture is drawn at all", () => {
 
 // A link between two `.md` files is the way a vault of Markdown points at
 // itself, and it lands beside the file that WROTE it — the same arithmetic a
-// a picture already uses, which is why they are one resolver.
+// picture already uses, which is why they are one resolver.
 test("a relative link to a document resolves beside the file that names it", () => {
   expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
     .toBe("projects/deck.md")

@@ -295,7 +295,8 @@ Feature: Documents
   Scenario: An unreadable linked document says so on its own page
     Given I open the outline "house.olai"
     When I follow the document link on "install"
-    And the served file "finishes.md" cannot be read
+    Then the document renders bold text "matte"
+    When the served file "finishes.md" cannot be read
     Then the page says the file could not be read
     And the outline list links to "house.olai"
     When the served file "finishes.md" can be read again
@@ -442,4 +443,19 @@ Feature: Documents
     Then the header search lists the document "finishes.md"
     When I press the header search result "Finishes"
     Then the document open is "finishes.md"
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: A repeated row follows its own note rather than a descendant's
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"parent","ord":"a0","title":"Parent"}
+      {"id":"linked","parent":"parent","ord":"a0","title":"Linked","desc":"[own](finishes.md)"}
+      {"id":"nested","parent":"linked","ord":"a0","title":"Nested","desc":"[other](notes/palette.md)"}
+      {"id":"copy","ord":"a1","mirror":"parent"}
+      """
+    And I open the outline "house.olai"
+    When I follow the document link on "linked"
+    Then the document open is "finishes.md"
+    And the document renders bold text "matte"
     And there should be no page errors

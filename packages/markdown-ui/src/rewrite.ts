@@ -51,7 +51,7 @@ import {
   type Claims,
   addressOf,
   printAddress,
-  bodiedOf,
+  bodyKind,
   pictureOf,
 } from "@olai/format"
 
@@ -180,9 +180,9 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
   if (claims === undefined) return
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
-  // ONE index, so the two halves cannot be cut at two places: an href with no
-  // `#` ends at its own end, which makes the fragment the empty tail.
-  const cut = (written.split(/[?#]/, 1)[0] ?? "").length
+  // Keep the authored query and fragment after resolving the file once.
+  const suffix = written.search(/[?#]/)
+  const cut = suffix === -1 ? written.length : suffix
   const resolved = deadLinkTarget(from, written)
   if (resolved !== null && serves !== undefined && !serves(resolved)) {
     const warning = deadLinkSaid({ written, resolved, suggest: [] })
@@ -191,9 +191,8 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
     element.properties = { ...element.properties, "data-dead": true,
       title: typeof authored === "string" ? `${authored} — ${warning}` : warning,
       className: [...(Array.isArray(classes) ? classes : []), "olai-dead-link"] }
-
   }
-  const document = bodiedOf(claims, from, written.slice(0, cut))
+  const document = resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
   if (document === null) return
   const address = addressOf(claims, document, null)
   if (address === null) return

@@ -1,8 +1,8 @@
-import { TESTID } from "@olai/bundle/testids"
 /**
  * The sidebar's file tree: what the served directory turned out to contain.
  */
 
+import { TESTID } from "@olai/bundle/testids";
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
@@ -51,6 +51,7 @@ Then("no outline list is shown", async function (this: OlaiWorld) {
 Then(
   "the outline list has {int} entries",
   async function (this: OlaiWorld, expected: number) {
+    await this.showSidebar();
     const links = this.page.locator(`${OUTLINE_LIST} ${OUTLINE_LINK}`);
     await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // An empty ul has no visible box, but must be mounted before counting.

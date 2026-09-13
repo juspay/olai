@@ -24,9 +24,17 @@ export const relativeFrom = (from: string, path: string): string => {
 /** Code is displayed literally, so it cannot introduce a link warning. */
 const proseLinks = (text: string): ReadonlyArray<string> => {
   if (!text.includes("](")) return []
+  let listIndent: number | undefined
   let fence: { marker: string; length: number } | undefined
   const lines = text.split("\n").map(line => {
-    const match = /^(?: {0,3}> ?)* {0,3}(`{3,}|~{3,})(.*)$/.exec(line)
+    // List continuation indentation belongs to prose; four further spaces
+    // introduce code within that item. Blank lines retain the list context.
+    const item = /^( *)(?:[-+*]|\d+[.)]) +(.*)$/.exec(line)
+    const indent = /^( *)/.exec(line)![1]!.length
+    if (item) listIndent = line.length - item[2]!.length
+    else if (line.trim() !== "" && listIndent !== undefined && indent < listIndent) listIndent = undefined
+    const content = listIndent === undefined ? line : line.slice(Math.min(indent, listIndent))
+    const match = /^(?: {0,3}> ?)* {0,3}(`{3,}|~{3,})(.*)$/.exec(content)
     if (fence !== undefined) {
       if (match && match[1]![0] === fence.marker && match[1]!.length >= fence.length && match[2]!.trim() === "") fence = undefined
       return ""
@@ -35,7 +43,7 @@ const proseLinks = (text: string): ReadonlyArray<string> => {
       fence = { marker: match[1]![0]!, length: match[1]!.length }
       return ""
     }
-    return /^( {4}|\t)/.test(line) ? "" : line
+    return /^( {4}|\t)/.test(content) ? "" : content
   }).join("\n")
   let prose = ""
   for (let i = 0; i < lines.length;) {

@@ -687,3 +687,12 @@ test("membership revisions keep render caching and stable heading IDs", () => {
   expect(next).not.toContain("data-dead")
   expect(next.match(/id="([^"]+)"/)?.[1]).toBe(first.match(/id="([^"]+)"/)?.[1])
 })
+
+
+test("a stable membership predicate without a revision cannot return stale warnings", () => {
+  const members = new Set<string>()
+  const serves = (path: string) => members.has(path)
+  expect(renderMarkdown(TEST_CLAIMS, "[x](fresh.md)", "a.md", serves)).toContain("data-dead")
+  members.add("fresh.md")
+  expect(renderMarkdown(TEST_CLAIMS, "[x](fresh.md)", "a.md", serves)).not.toContain("data-dead")
+})
