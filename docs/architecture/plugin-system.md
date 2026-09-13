@@ -85,8 +85,8 @@ export default definePlugin({
   needs: [Slots, Clocks, Wired],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
-    yield* slots.register("outline.row.chip", WORKTREE_KIND, CiChip)
-    yield* slots.register("outline.row.pane", WORKTREE_KIND, RunMatrix)
+    yield* slots.register("outline.row.chip", RUN_KIND, CiChip)
+    yield* slots.register("outline.row.pane", RUN_KIND, RunMatrix)
     yield* slots.register("delivery.mark", OduMark)
     // Outlines similarly registers tool.reply: { fileOf, story }, owned by chat.
     yield* slots.register("app.mount", (props) => /* one subscription per tab */)
@@ -296,11 +296,11 @@ word, and the registry prefixes it with the plugin's name:
 
 ```ts
 export const kinds = [{
-  kind: "worktree",                      // BARE — the registry prefixes it
-  takes: `\`${WORKTREE_TYPE}\` (a path to a checkout, no whitespace)`,
-  admits: isPathShaped,                  // does this value fit
+  kind: "run",                           // BARE — the registry prefixes it
+  takes: `\`${RUN_TYPE}\` (an odu run id)`,
+  admits: isRunIdShaped,                 // does this value fit
 }] as const
-// kolu: terminal → kolu-terminal        odu: worktree → odu-worktree
+// kolu: terminal → kolu-terminal        odu: run → odu-run
 ```
 
 - The prefix stops two plugins colliding on a word, and limits a plugin's
@@ -345,7 +345,7 @@ editable.
 | Dressing | When it draws |
 | --- | --- |
 | **block** | always owns a row: a terminal somebody wrote down is worth a row when nothing is happening |
-| **chip** | only while there is something to say: a worktree with no CI running looks unchanged |
+| **chip** | only while there is something to say: a run id the service does not know reads `unknown run`; a row with no `odu-run` looks unchanged |
 | **pane** | opens below the row when a chip is pressed |
 
 ### row actions

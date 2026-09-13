@@ -143,6 +143,7 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
   try {
     // The HOST's padi, as a developer running kolu really has it.
     process.env.PADI_SOCKET = "/run/user/1000/padi.sock";
+    process.env.ODU_WEB_ORIGIN = "127.0.0.1:18440";
     const env = isolateEnv(root, {
       GIT_DIR: "/home/someone/notes/.git",
       GIT_WORK_TREE: "/home/someone/notes",
@@ -160,6 +161,12 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     expect(
       isolateEnv(root, { PADI_SOCKET: "/tmp/scenario/padi.sock" }).PADI_SOCKET,
     ).toBe("/tmp/scenario/padi.sock");
+    // odu's client defaults to :18440 when the env is merely absent, so the
+    // host's origin is replaced with a port nobody is answering on.
+    expect(env.ODU_WEB_ORIGIN).toBe("http://127.0.0.1:1");
+    expect(
+      isolateEnv(root, { ODU_WEB_ORIGIN: "http://127.0.0.1:9999" }).ODU_WEB_ORIGIN,
+    ).toBe("http://127.0.0.1:9999");
     expect(env.GIT_DIR).toBeUndefined();
     expect(env.GIT_WORK_TREE).toBeUndefined();
     expect(env.XDG_CACHE_HOME).toBe(path.join(root, "cache"));
@@ -181,6 +188,7 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     expect(env.HOME).toBe(process.env.HOME);
   } finally {
     delete process.env.PADI_SOCKET;
+    delete process.env.ODU_WEB_ORIGIN;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

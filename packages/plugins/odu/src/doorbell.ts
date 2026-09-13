@@ -2,7 +2,7 @@
  * THE ODU DOORBELL — which runs a scoped conversation is woken for, and the
  * whole sentence each wake arrives as.
  *
- * `@olai/odu-client`'s watch says a transition happened ({@link RunNotice}):
+ * The board says a transition happened ({@link RunNotice}):
  * a run first went red, or a run settled. That is the run's fact. Whether
  * anybody in THIS conversation should hear about it is a fact about the VAULT
  * — and joining the two is this module, exactly the judgement-about-odu this
@@ -19,16 +19,16 @@
  * dispatch, 2026-09-01 — first-red, once per hold; and settle), and a
  * *claimed* run going red is owed a wake whatever the lane is doing. So the
  * join has one question in it: does this file's claimed set name this run's
- * worktree? Everything else is the sentence.
+ * id? Everything else is the sentence.
  *
  * ## THE CLAIMABLE SET IS THE CHIP'S OWN LICENCE
  *
- * The values are the `odu-worktree`s of the file's UN-DONE nodes, mirrors
+ * The values are the `odu-run`s of the file's UN-DONE nodes, mirrors
  * resolving to their targets — the same derivation the chip already licenses
- * ({@link ./worktrees.ts} runs the whole-vault sibling walk for the probe):
+ * ({@link ./boarded.ts} runs the whole-vault sibling walk):
  * the DECLARATION is found by kind and never by a key's spelling, so a board
- * whose column is `checkout` is heard where it declared the kind, and a
- * column somebody has been calling `worktree` for years without declaring it
+ * whose column is `run` is heard where it declared the kind, and a
+ * column somebody has been calling `odu-run` for years without declaring it
  * is not. What the doorbell does per file that the probe does not: `byFile`
  * to read one file, `follow` to see through a mirror, and `unfinished` to
  * end the claim the day the lane ends — a lane you finish stops ringing
@@ -60,9 +60,8 @@
  * and the later account — rung later, carrying the hold's whole red record —
  * is the same run's newer truth, so the replacement is the wake saying the
  * newest thing rather than a swallow. What the displaced account took with
- * it is its failed recipes' log paths — and those are already stale: the
- * path is `logPathFor(sha7, node)`, per run and node and not per attempt,
- * so the rerun overwrote the very files it would have pointed at. A RED
+ * it is its failed recipes' log keys — and those are already stale: a
+ * rerun's later attempt is a different key. A RED
  * spell and then another on the same run cannot double up by construction:
  * first-red is once per hold.
  *
@@ -99,23 +98,23 @@ import {
   textDeclaredAs,
   unfinished,
 } from "@olai/format"
-import { durableLogPath, type RunNotice } from "olai-plugin-odu/appliance"
+import { type RunNotice } from "olai-plugin-odu/appliance"
 import { type CiRun, identityOf, type RunTally, tallyOf, verdictOf } from "olai-plugin-odu/appliance/wire"
 import { nodeRef } from "@olai/plugin-kit/ref"
 
-import { WORKTREE_TYPE } from "./kinds.ts"
+import { RUN_TYPE } from "./kinds.ts"
 import { name } from "./wire.ts"
 
 /**
  * ONE CLAIM a filter file makes on a run, as the vault wrote it.
  *
- * `value` is VERBATIM — the `worktree` string exactly as written, which is
- * the very id a run's row is keyed by (`@olai/odu-client`'s `CiRun.id`): the
+ * `value` is VERBATIM — the `odu-run` string exactly as written, which is
+ * the very id a run's row is keyed by (`CiRun.id`): the
  * join the doorbell runs is value to value, and unlike a terminal prefix
  * there is nothing left to resolve against a live roster.
  */
 export interface Claim {
-  /** The `odu-worktree` value, verbatim. */
+  /** The `odu-run` value, verbatim. */
   readonly value: string
   /** The OWNING NODE's title — the word a person calls the lane by. Blank
    *  where the node has none, which the sentence draws around. */
@@ -132,7 +131,7 @@ export interface Claim {
 }
 
 /**
- * EVERY CLAIM ONE FILTER FILE MAKES — the `odu-worktree` values reachable
+ * EVERY CLAIM ONE FILTER FILE MAKES — the `odu-run` values reachable
  * from its un-done records.
  *
  * Mirrors resolve to their targets with `follow`, and the walk descends from
@@ -153,19 +152,19 @@ export const claimedIn = (
   derived: Derived,
   file: string,
 ): ReadonlyArray<Claim> => {
-  if (!declaresKind(declarations, WORKTREE_TYPE)) return []
+  if (!declaresKind(declarations, RUN_TYPE)) return []
   const inside = derived.byFile.get(file)
   if (inside === undefined) return []
   const claims: Array<Claim> = []
   const reached = new Set<string>()
-  /** A worktree value written TWICE claims once — two rows on one checkout
-   *  is one run, and the second claim is the mistake the watcher's own
+  /** A run id written TWICE claims once — two rows on one run
+   *  is one chip, and the second claim is the mistake the walker's own
    *  first-writer-wins rule already names. */
   const seen = new Set<string>()
   const descend = (at: LocatedRegular): void => {
     if (reached.has(at.node.id)) return
     reached.add(at.node.id)
-    const said = textDeclaredAs(declarations, at.node, WORKTREE_TYPE)
+    const said = textDeclaredAs(declarations, at.node, RUN_TYPE)
     if (said !== undefined && said.trim() !== "" && !seen.has(said) && unfinished(derived.status.get(at.node.id))) {
       seen.add(said)
       claims.push({ value: said, node: at.node.id, title: at.node.title, file: at.file })
@@ -183,7 +182,7 @@ export const claimedIn = (
 
 /**
  * THE CLAIMS, KEYED FOR THE JOIN — by the value itself, first writer wins in
- * the file's own line order. Two records naming one checkout is somebody
+ * the file's own line order. Two records naming one run is somebody
  * copying a property, not an error, and a sentence has room for one lane per
  * line.
  */
@@ -245,11 +244,15 @@ const essenceOf = (
     }.`
   }
   const tally = tallyOf(notice.run.cells)
-  const verdict = verdictOf(tally)
+  const verdict = verdictOf(notice.run)
   const tail = countsOf(tally, false)
-  if (verdict === "ok") return `${cap(laneOf(claim))}'s CI came out green ${on}${tail}.`
-  if (verdict === "red") return `${cap(laneOf(claim))}'s CI came out red ${on}${tail}.`
-  return `${cap(laneOf(claim))}'s CI ended without deciding ${on}${tail}.`
+  if (notice.run.state === "owner_lost") {
+    return `${cap(laneOf(claim))}'s CI owner lost ${on}${tail}.`
+  }
+  if (verdict === "passed") return `${cap(laneOf(claim))}'s CI came out passed ${on}${tail}.`
+  if (verdict === "failed") return `${cap(laneOf(claim))}'s CI came out failed ${on}${tail}.`
+  if (verdict === "incomplete") return `${cap(laneOf(claim))}'s CI came out incomplete ${on}${tail}.`
+  return `${cap(laneOf(claim))}'s CI came out incomplete ${on}${tail}.`
 }
 
 const cap = (sentence: string): string => sentence.slice(0, 1).toUpperCase() + sentence.slice(1)
@@ -258,16 +261,14 @@ const cap = (sentence: string): string => sentence.slice(0, 1).toUpperCase() + s
  * THE FAILED RECIPES, one line each with where each one's log lives — the
  * settle kind's payload for a red verdict: the recipes are the cells still
  * red on the last frame, with odu's own status word kept beside them, and
- * the path is {@link durableLogPath}'s — a sentence never names a file that
- * could not exist, so a cell with no honest path omits it rather than
- * inventing one.
+ * the log is the cell's `logKey` and `odu logs --run <id> <node>`.
  */
 const failedLines = (run: CiRun): ReadonlyArray<string> =>
   run.cells.filter((cell) => cell.red).map((cell) => {
-    const path = durableLogPath(run, cell)
-    return path === null
-      ? `— \`${cell.id}\`: ${cell.status}.`
-      : `— \`${cell.id}\`: ${cell.status} — the log is at ${path}.`
+    const log = cell.logKey === ""
+      ? `odu logs --run ${run.id} ${cell.id}`
+      : `log \`${cell.logKey}\`; odu logs --run ${run.id} ${cell.id}`
+    return `— \`${cell.id}\`: ${cell.status} — ${log}.`
   })
 
 /**
@@ -328,22 +329,22 @@ export function bodyFor(
   if (notice.kind === "first-red") {
     lines.push(
       "",
-      `The run is \`${which}\`, live in ${run.at}. ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names its checkout — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
+      `The run is \`${which}\` (\`${run.id}\`), live in ${run.repoRoot === "" ? "an unknown checkout" : run.repoRoot}. ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names this run — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
       "",
-      `This lands once per hold. Each settlement of the run — a lingering rerun's included — follows with its own account: the verdict, the final counts, and the log path of every failed recipe. Clearing the file on this conversation's wake control stops both.`,
+      `This lands once per hold. Each settlement of the run — a lingering rerun's included — follows with its own account: the verdict, the final counts, and each failed recipe with its log key. A run first seen already settled rings nothing. Clearing the file on this conversation's wake control stops both.`,
     )
     return lines.join("\n")
   }
   lines.push(
     "",
-    `The run is \`${which}\`, settled in ${run.at}.${claimLine(claim)}`,
+    `The run is \`${which}\` (\`${run.id}\`), settled in ${run.repoRoot === "" ? "an unknown checkout" : run.repoRoot}.${claimLine(claim)}`,
   )
   if (printed.red > 0) lines.push("", ...failedLines(run))
   const reran = reranLines(notice)
   if (reran.length > 0) lines.push("", ...reran)
   lines.push(
     "",
-    "These land once per settlement, per hold — a lingering rerun settles again and rings again, and an olai restart is a new hold: a run still settled when it re-dials says so once more. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
+    "These land once per settlement observed by this subscription. A lingering rerun settles again and rings again. A run first seen already settled rings nothing — what a restart misses as a wake is on the chip. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
   )
   return lines.join("\n")
 }
@@ -352,20 +353,14 @@ export function bodyFor(
  *  body carries inside its own second paragraph, broken out so both say it
  *  once. */
 const claimLine = (claim: Claim): string =>
-  ` ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names its checkout.`
+  ` ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names this run.`
 
 /** The slot an undelivered body is filed under — per KIND AND PER RUN, so two
  *  sequential settles of one lane through one busy turn are two subjects.
  *  Two settlements of ONE run share it by design — see the header.
  *  `identityOf` degenerates to the bare name only for a run odu never stamped. */
 export const coalesceOf = (notice: RunNotice): string =>
-  `${name}:${notice.kind}:${identityOf(notice.run)}`
-
-/** What a delivery-time re-derivation asks of the row list, and nothing
- *  else — kept as its own tiny type so `server.ts`'s thunk reads as what it
- *  is. Deprecatable the day `CiRun` grows an epoch of its own. */
-export const sameRun = (a: CiRun, b: CiRun): boolean =>
-  a.name === b.name && a.sha7 === b.sha7 && a.seq === b.seq
+  `${name}:${notice.kind}:${notice.run.id}`
 
 /** The counts a first-red body should say NOW: the live row's own where the
  *  row is still this run's, else the notice's snapshot — an account of the
@@ -375,6 +370,6 @@ export const countsFor = (
   notice: Extract<RunNotice, { kind: "first-red" }>,
 ): RunTally => {
   const now = rows.find((row) => row.id === notice.run.id)
-  return tallyOf(now !== undefined && sameRun(now, notice.run) ? now.cells : notice.run.cells)
+  return tallyOf((now ?? notice.run).cells)
 }
 

@@ -731,12 +731,12 @@ test("a plugin that offers a door core keeps is refused, and only that plugin fa
         name: "odu",
         needs: [Kinds],
         apply: Effect.gen(function*() {
-          yield* (yield* Kinds).register({ kind: "worktree", takes: "a checkout", admits: () => true })
+          yield* (yield* Kinds).register({ kind: "run", takes: "a run id", admits: () => true })
         }),
       }),
     )
     expect((yield* teaching.report).state).toBe("running")
-    expect([...plugins.kinds().keys()]).toEqual(["odu-worktree"])
+    expect([...plugins.kinds().keys()]).toEqual(["odu-run"])
   })))
 })
 

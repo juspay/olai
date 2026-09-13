@@ -78,14 +78,14 @@ const taught = async (
 }
 
 const KOLU = { name: "kolu", kinds: [kind("terminal")] }
-const ODU = { name: "odu", kinds: [kind("worktree")] }
+const ODU = { name: "odu", kinds: [kind("run")] }
 
 test("the word a vault declares is the plugin's own, PREFIXED with the plugin", async () => {
   // What a person writes in `_olai/Properties.olai`, and what a page's licence
   // carries. The bare word is the plugin's contribution and never reaches a
   // vault by itself.
   const { table } = await taught([KOLU, ODU])
-  expect([...table().keys()].sort()).toEqual(["kolu-terminal", "odu-worktree"])
+  expect([...table().keys()].sort()).toEqual(["kolu-terminal", "odu-run"])
   // ...and the entry says the composed word too, so a reader that took the
   // ENTRY rather than the key gets one answer rather than the bare one.
   expect(table().get("kolu-terminal")?.kind).toBe("kolu-terminal")
@@ -109,8 +109,8 @@ test("the prefix is the FIBER's name and not anything the plugin passed in", asy
   //
   // The runtime binds the fiber under `odu`, and the row the plugin hands over
   // says nothing about a prefix at all.
-  const { table } = await taught([{ name: "odu", kinds: [kind("worktree")] }])
-  expect([...table().keys()]).toEqual(["odu-worktree"])
+  const { table } = await taught([{ name: "odu", kinds: [kind("run")] }])
+  expect([...table().keys()]).toEqual(["odu-run"])
 })
 
 test("a word leaves the vocabulary when its plugin unloads", async () => {
@@ -255,7 +255,7 @@ test("the built vocabulary carries every row's words, regardless of runtime enab
  * THE TWO SPELLINGS OF ONE COMPOSITION, held equal.
  *
  * A plugin spells its own composed word from its own `name` for its own vault
- * walk (`plugin-kolu`'s `TERMINAL_TYPE`, `plugin-odu`'s `WORKTREE_TYPE`) — it
+ * walk (`plugin-kolu`'s `TERMINAL_TYPE`, `plugin-odu`'s `RUN_TYPE`) — it
  * could import the composition now that `@olai/plugin-api` names no plugin, and
  * it does not, because that walk runs where core's table is not. This is where
  * the two are held to one answer.
@@ -281,7 +281,7 @@ test("a plugin's own composed word is the one the bundle composes", async () => 
   })
   expect([...built.keys()].sort()).toEqual([...expected].sort())
   // Not vacuous: three plugins teach a word — kolu's `terminal`, odu's
-  // `worktree` and chat's `agent-session` — so the walk above compared
+  // `run` and chat's `agent-session` — so the walk above compared
   // something. A COUNT and not a floor, for this file's usual reason: a
   // derivation that came back short would satisfy the equality by comparing
   // less, and the number is one line to move when a fourth word arrives.

@@ -3,19 +3,19 @@
  * the judgement about them lives.
  *
  * It is `olai-plugin-kolu`'s `server.ts` one appliance over, deliberately the
- * same shape and deliberately smaller: one cell, one vault walk, one sweep, and
- * the two notices the sweep turns into deliveries ({@link ring}). That this
- * module and kolu's are the same block with the nouns changed was the phase's
- * own complaint about `runtime.ts`, and the answer is not to make the two files
+ * same shape and deliberately smaller: two cells, one vault walk, and the two
+ * notices the board turns into deliveries ({@link ring}). That this module and
+ * kolu's are the same block with the nouns changed was the phase's own
+ * complaint about `runtime.ts`, and the answer is not to make the two files
  * different — it is that neither of them is in a general package any more, and a
  * THIRD tenant writes its own without core growing a line.
  *
  * WHAT THE DOORBELL HERE DELIBERATELY LACKS is a heartbeat: kolu's rides its
- * watcher's own beat, and odu's sweep is a poll for ABSENCES — a checkout with
- * no socket is the ordinary state, not evidence of life. There is no third timer
- * and no third knob because there is nothing honest for one to say; the floor
- * under this doorbell's silence is the two fault sentences ({@link ./wake.ts})
- * and the picker's clear. Everything else is the kolu shape verbatim: same scope
+ * watcher's own beat, and odu's board is a hold per boarded id — a miss is
+ * `unknown run`, not evidence of life. There is no third timer and no third
+ * knob because there is nothing honest for one to say; the floor under this
+ * doorbell's silence is the two fault sentences ({@link ./wake.ts}) and the
+ * picker's clear. Everything else is the kolu shape verbatim: same scope
  * mechanism, same thunk rules (a claim gone by delivery is no message; counts
  * read at delivery), same silence for unclaimed subjects.
  *
@@ -34,12 +34,12 @@
  * ## What did NOT move
  *
  * `oduHalf` stays in this package's `./appliance` door, which is still the only
- * place that names `@odu/*`: the socket resolution, the run projection and the
- * sweep are its. What moved is the CALL, and with it {@link ./worktrees.ts} —
- * the walk that asks which nodes name a worktree and whether the vault DECLARED
- * that key a path at all. That walk reads outline records, so it must not be in
- * the appliance; and it decides whether olai dials a socket in somebody's
- * checkout, so it has no business being in core either. Between those two is
+ * place that names `@odu/*`: the service link, the board holds and the
+ * projection are its. What moved is the CALL, and with it {@link ./boarded.ts} —
+ * the walk that asks which nodes name a run id and whether the vault DECLARED
+ * that key this kind. That walk reads outline records, so it must not be in
+ * the appliance; and it decides which ids olai asks the service about, so it
+ * has no business being in core either. Between those two is
  * what this package is.
  */
 
@@ -63,14 +63,14 @@ import {
   type PropDeclarations,
 } from "@olai/format"
 import { Effect } from "effect"
-import { type DialRun, oduHalf, type RunNotice } from "olai-plugin-odu/appliance"
+import { type DialService, oduHalf, type RunNotice } from "olai-plugin-odu/appliance"
 
+import { boardedIn } from "./boarded.ts"
 import { bodyFor, claimedIn, claimingIn, coalesceOf, countsFor } from "./doorbell.ts"
 import { probing } from "./probe.ts"
 import { wake } from "./wake.ts"
 import { kinds as ours, ownKinds } from "./kinds.ts"
 import { faces, name, surface } from "./wire.ts"
-import { worktreesIn } from "./worktrees.ts"
 
 /** The kinds this plugin teaches a vault, reached on this door — see
  *  {@link ./kinds.ts} for the word, and `@olai/plugin-api`'s `services.ts` for why
@@ -108,7 +108,7 @@ export { wake } from "./wake.ts"
  * plugin takes what it needs" is what this file ASSERTS about odu, and the
  * assertion is worth making where a reader can check it by eye. The walk it feeds
  * asks TWO things of that one reading — the records, and what the vault DECLARES
- * about the key ({@link ./worktrees.ts} argues why the declaration is what
+ * about the key ({@link ./boarded.ts} argues why the declaration is what
  * LICENCES a probe) — and both are answered off a memo the validator has already
  * paid for.
  */
@@ -119,7 +119,7 @@ export interface VaultRevision {
 }
 
 /**
- * THE ODU HALF, INSTALLED — the worktrees it watches and the runs it finds, as
+ * THE ODU HALF, INSTALLED — the run ids it watches and the runs it finds, as
  * finalizers on this plugin's scope.
  *
  * ## What `apply` is, and what it is not
@@ -140,9 +140,8 @@ export interface VaultRevision {
  * what replaced a hand-written `Services` subset — and before that, a
  * seven-field blob every plugin received whole.
  *
- * `env` and `vault` are what the repos root is decided from — a relative
- * `worktree` resolves against the served directory unless `$OLAI_REPOS_DIR` says
- * otherwise. `env` also carries the test seam: `env.dial` is THIS plugin's own
+ * `env` is the origin this olai dials (`ODU_WEB_ORIGIN`) and the test seam:
+ * `env.dial` is THIS plugin's own
  * injectable, resolved from the word the registry bound the fiber under rather
  * than from anything this file supplies. `clock` stamps a wake's attribution at
  * the moment the words go in. `kinds`, `surfaces` and `wakes` are the three
@@ -157,13 +156,15 @@ export interface VaultRevision {
  *
  * Made eagerly and started lazily, exactly as it was: making the half gives the
  * `ci` cell something to answer with before anything has been probed, and
- * STARTING it is the cell's connector, which the framework runs when the surface
- * BINDS — so one server sweeps for CI runs however many tabs are open, and a
- * page that loads mid-sweep reads the rows the watcher already has.
+ * STARTING the dial is the `service` cell's connector, which the framework runs
+ * when the surface BINDS — so one server holds the boarded ids however many
+ * tabs are open, and a page that loads mid-hold reads the rows the board
+ * already has.
  */
 export default definePlugin({
   environment: [
     {"key": "OLAI_ODU_BIN", "secret": false, "says": "the directory placed first on PATH for Odu"},
+    {"key": "ODU_WEB_ORIGIN", "secret": false, "says": "the odu service origin this olai dials"},
   ],
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
@@ -183,7 +184,7 @@ export default definePlugin({
      * THE ONE SEAM ACROSS THE BOUNDARY — see `@olai/effect-cordis`'s `detached`.
      *
      * `oduHalf` is the appliance, and the appliance is not written in Effect:
-     * its sweep fires a callback and its two log channels are plain functions.
+     * its board fires a callback and its two log channels are plain functions.
      * Everything below that hands one of those an Effect hands it through here,
      * which forks it under THIS plugin's services (so a line carries the level
      * the operator asked for) and onto THIS plugin's scope (so work still in
@@ -195,9 +196,9 @@ export default definePlugin({
      *
      *  `undefined` BEFORE THE FIRST ONE is the truth about it and the doorbell's
      *  own first gate: nothing has been read, so no file claims anything, so a
-     *  notice arriving before the vault rings nobody. The sweep runs on seconds;
-     *  the first revision lands in the boot, which is before any run a person
-     *  would start can settle. */
+     *  notice arriving before the vault rings nobody. The board holds while
+     *  connected; the first revision lands in the boot, which is before any run
+     *  a person would start can settle. */
     let derived: Derived | undefined
 
     /** ...AND WHAT THAT REVISION DECLARES, for {@link ./doorbell.ts}'s licence —
@@ -249,7 +250,7 @@ export default definePlugin({
      * ONE RUN NOTICE, RUNG THROUGH — the doorbell's whole drive loop.
      *
      * Per notice, per conversation, joined by VALUE: a run's id IS the
-     * `worktree` value the board wrote (`./appliance`'s `CiRun`), so the join
+     * `odu-run` value the board wrote (`./appliance`'s `CiRun`), so the join
      * needs no roster resolution — the asymmetry with kolu's half one appliance
      * over, which resolves eight-character prefixes against a live fleet. One
      * claims walk per FILE per notice, memoised for the length of this call and
@@ -258,9 +259,9 @@ export default definePlugin({
      * SILENCE IS NO CALL AT ALL: a run no scoped file's un-done nodes name rings
      * nobody, not even a quieter body.
      *
-     * AND IT CANNOT FAIL INTO A WATCHER'S SINK: this is forked from the sweep's
+     * AND IT CANNOT FAIL INTO A BOARD'S SINK: this is forked from the board's
      * own callback, so a defect escaping here would ride out into somebody
-     * else's timer. The whole walk is caught once, at this package's edge, and
+     * else's hold. The whole walk is caught once, at this package's edge, and
      * said on the owner's channel: a doorbell that failed is worth a line, and
      * it is worth exactly one.
      */
@@ -277,6 +278,16 @@ export default definePlugin({
           return fresh
         }
         const scopes = deliveries.scopes()
+        const ringing = scopes.flatMap((scope) => {
+          const claim = claimingFor(scope.file).get(notice.run.id)
+          return claim === undefined ? [] : [`${notice.run.id}@${claim.node}`]
+        })
+        const claimed = [...new Set(scopes.flatMap((scope) => [...claimingFor(scope.file).keys()]))]
+        yield* Effect.logDebug(
+          `odu doorbell derived kind=${notice.kind} run=${notice.run.id} claims=${claimed.length} ringing=${
+            ringing.length === 0 ? "none" : ringing.join(",")
+          } unmatched=${claimed.includes(notice.run.id) ? "none" : notice.run.id}`,
+        )
         for (const scope of scopes) {
           const claim = claimingFor(scope.file).get(notice.run.id)
           if (
@@ -296,24 +307,18 @@ export default definePlugin({
         ),
       )
 
-    const half = oduHalf<Derived>({
+    const half = oduHalf({
       options: {
         env: env.vars,
-        served: vault.served,
         // The one narrowing in this package, and kolu's `dial` line one appliance
-        // over: a fake coordinator on a real unix socket is how the watch is
+        // over: a fake service over a real websocket is how the watch is
         // exercised without a CI run on the machine running the suite, and core
         // carries it opaque because typing it would mean knowing what odu is.
-        dial: env.dial as DialRun | undefined,
+        dial: env.dial as DialService | undefined,
       },
-      // THE VAULT WALK, passed in, and this package is now where both sides of it
-      // live: which keys this vault DECLARES a `worktree`, and which nodes carry
-      // one, are readings of outline records — things the package that dials odu
-      // must not learn. What crosses is the worktree's strings per node.
-      worktrees: worktreesIn,
       // THE DOORBELL'S TAP, and the same boundary kolu's `rang` keeps one
       // appliance over: what crosses is the watch's own frozen notice, and what
-      // this side does with it — join it against the `worktree` values a scoped
+      // this side does with it — join it against the `odu-run` values a scoped
       // file's un-done nodes claim — is a walk over outline records that the
       // appliance must not be able to spell.
       rang: (notice) => run(ring(notice)),
@@ -371,8 +376,8 @@ export default definePlugin({
 
     /** A VAULT REVISION LANDED — the hook a `PluginServer.revision` used to be.
      *
-     *  Holding the answer is all it does: dialing is the sweep's, on its own
-     *  clock, so a keystroke costs one walk and no sockets. Two `let`s ride
+     *  Holding the answer is all it does: dialing is the service cell's, on
+     *  its own connector, so a keystroke costs one walk and no sockets. Two `let`s ride
      *  along, and they are the DOORBELL's ammunition: the derivation itself, for
      *  the claims walk, and its declarations, for the licence ({@link ring} runs
      *  on the watcher's clock, not on this listener's — a notice arrives between
@@ -389,15 +394,15 @@ export default definePlugin({
       Effect.sync(() => {
         declaring = declarationsOf(revision.value.derived, ownKinds)
         derived = revision.value.derived
-        half.revision(revision.value.derived)
+        half.revision(boardedIn(revision.value.derived))
       })
     )
 
     /** THE STORE HAS NEVER PUBLISHED — and this is NOT teardown.
      *
      *  A set of CI runs derived from a vault the server can no longer see is
-     *  yesterday's reading, so the worktrees reset to none and the sockets follow
-     *  on the next sweep. The doorbell's two `let`s go with it: {@link ring} runs
+     *  yesterday's reading, so the boarded ids reset to none and the holds
+     *  follow. The doorbell's two `let`s go with it: {@link ring} runs
      *  on the watcher's clock rather than on a revision, so a notice arriving
      *  after a disown must find the vault gate shut rather than joining against a
      *  disowned reading.
@@ -434,15 +439,14 @@ export default definePlugin({
      *
      * kolu's half arms a `setInterval` inside `koluHalf`, at APPLY time, so its
      * plugin owes the scope a `stop`: an interval nothing unwinds outlives the
-     * fiber that armed it. `oduHalf` arms nothing. `makeWatch` returns three
-     * maps and an Effect; every socket, every hold's fiber and the sweep's own
-     * cadence are acquired INSIDE `watch.run`, which is `Effect.scoped` over a
-     * repeat and which the framework starts at the `ci` cell's `connect`. A half
-     * that was built and never bound holds a `wanted` map and nothing else, and
-     * a half that WAS bound holds its sockets on the connector's fiber — which
-     * this scope has no handle on and could not stop if it had one, because
-     * unloading this plugin drops the sibling and the composition root re-serves
-     * without it, taking that fiber with the runtime it ran under.
+     * fiber that armed it. `oduHalf` arms nothing. `makeBoard` holds ids; the
+     * websocket and every hold's fiber are acquired INSIDE the `service` cell's
+     * `connect`, which is `Effect.scoped` over `runLink`. A half that was built
+     * and never bound holds an empty board and nothing else, and a half that
+     * WAS bound holds its socket on the connector's fiber — which this scope
+     * has no handle on and could not stop if it had one, because unloading this
+     * plugin drops the sibling and the composition root re-serves without it,
+     * taking that fiber with the runtime it ran under.
      *
      * So there is nothing here for a finalizer to undo, and a `stop` on the half
      * that closed over nothing would be worse than no door at all: it would read

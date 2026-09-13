@@ -111,7 +111,7 @@ export default definePlugin({
   name,
   needs: [Slots, Clocks, Wired],
   apply: Effect.gen(function*() {
-    yield* (yield* Slots).register("outline.row.chip", WORKTREE_KIND, CiChip)
+    yield* (yield* Slots).register("outline.row.chip", RUN_KIND, CiChip)
   }),
 })
 ```
@@ -192,7 +192,7 @@ A plugin's face used to follow a hardcoded property KEY — a value was a termin
 
 **BUILT and ENABLED are two questions.** A DECLARATION is refused against every kind this binary was built with, so `{"type":"kolu-terminal"}` is a clean row on a serve running a policy selecting only odu and `{"type":"banana"}` is a broken file either way — a file's verdict may not depend on a flag it cannot see. A VALUE is held to the kinds this serve is RUNNING, because `admits` is a promise only a plugin that is here can make. A kind whose plugin is off validates as plain text, wears no face, and leaves the vault in the state it was in before it ever heard of the plugin.
 
-**What it costs a vault is NOTHING.** Each kind claims the key of its own composed word, so an enabled plugin declares `kolu-terminal` / `odu-worktree` for a vault that has said nothing about them — and olai never writes anybody's vault to do it. Precedence lives in one function (`@olai/format`'s `withClaims`): **the vault always wins**, so a row moves a kind onto a short key and a row can take a face away. The claim rides the ENABLED table, so a disabled plugin's claims vanish with its kinds and a policy selecting only odu serve is byte-identical to a vault that never heard of kolu. There is still deliberately no fallback to the key's NAME: a fallback is the defect kept alive under a second name, and prefixing is what makes a built-in claim safe instead — a plugin can only ever auto-declare a key carrying its own name.
+**What it costs a vault is NOTHING.** Each kind claims the key of its own composed word, so an enabled plugin declares `kolu-terminal` / `odu-run` for a vault that has said nothing about them — and olai never writes anybody's vault to do it. Precedence lives in one function (`@olai/format`'s `withClaims`): **the vault always wins**, so a row moves a kind onto a short key and a row can take a face away. The claim rides the ENABLED table, so a disabled plugin's claims vanish with its kinds and a policy selecting only odu serve is byte-identical to a vault that never heard of kolu. There is still deliberately no fallback to the key's NAME: a fallback is the defect kept alive under a second name, and prefixing is what makes a built-in claim safe instead — a plugin can only ever auto-declare a key carrying its own name.
 
 ## What the app hands a plugin
 

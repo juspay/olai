@@ -31,7 +31,7 @@
 
 import { For, Show } from "solid-js"
 
-import { type CiRun, identityOf, type RunCell } from "olai-plugin-odu/appliance/wire"
+import { type CiRun, identityOf, liveOf, type RunCell } from "olai-plugin-odu/appliance/wire"
 
 import type { BlockContext, OduClocks } from "./app.ts"
 import { useClocks } from "./clocks.tsx"
@@ -81,14 +81,14 @@ function Matrix(props: { readonly run: CiRun }) {
   const now = clocks.createTicking(clocks.SECOND)
   const head = () => {
     const which = identityOf(props.run)
-    return props.run.live ? which : `${which} · the socket is gone`
+    return liveOf(props.run.state) ? which : `${which} · ${props.run.state}`
   }
   return (
     <div
       class="mb-1 overflow-x-auto rounded border border-rule bg-panel px-2 py-1 font-mono text-xs"
       data-testid={TESTID.ciMatrix}
-      data-worktree={props.run.id}
-      data-live={props.run.live ? "yes" : "no"}
+      data-run={props.run.id}
+      data-live={liveOf(props.run.state) ? "yes" : "no"}
     >
       {/* THE RUN'S OWN IDENTITY FIRST, because a verdict that does not say
           which run it describes is the ambiguity odu's `<sha7>#<seq>` spelling
@@ -123,7 +123,10 @@ function Matrix(props: { readonly run: CiRun }) {
                   draws and the word is what the wire says, so a status this
                   build has never heard of still prints its own name. */}
               <span class={`w-3 shrink-0 ${inkOf(cell.hue)}`}>{cell.glyph}</span>
-              <span class="min-w-0 grow truncate">{cell.name}</span>
+              <span class="min-w-0 grow truncate">
+                {cell.name}
+                {cell.attempt > 1 ? ` #${cell.attempt}` : ""}
+              </span>
               <span class="shrink-0 text-muted">{cell.platform}</span>
               <span class={`shrink-0 ${inkOf(cell.hue)}`}>{cell.status}</span>
               <span

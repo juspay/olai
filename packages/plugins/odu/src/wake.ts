@@ -10,7 +10,7 @@
  * the doorbell IS. The counter is a count of held bodies, and each body is
  * `CI event`: the honest name for what one of them is ABOUT.
  *
- * `walks: "nodes"` is the non-prose member: odu filters by `odu-worktree`
+ * `walks: "nodes"` is the non-prose member: odu filters by `odu-run`
  * values on unfinished nodes. Both the serve and the picker compare that
  * predicate with their own current claims. Row ids do not decide whether a
  * file holds records, and a missing claim offers no watched file.
@@ -22,9 +22,10 @@
  * the path two inches away), and they deny the heartbeat reading outright:
  * "quiet and fine" and "watching nothing" must never be confusable, on any
  * channel. The odu half has NO heartbeat of its own — nothing drives one:
- * kolu's rides its watcher's own beat, and odu's sweep is a poll for
- * absences; the two silence floors a conversation has here are the fault
- * sentences and the picker's clear, and a third would say nothing.
+ * kolu's rides its watcher's own beat, and odu's board is a hold per boarded
+ * id, not a poll for absences; the two silence floors a conversation has here
+ * are the fault sentences and the picker's clear, and a third would say
+ * nothing.
  */
 
 
@@ -64,7 +65,7 @@ export const wake = {
     ].join("\n"),
     /**
      * ... and THE FILE IS THERE AND HAS NOTHING ODU CAN READ: it holds no
-     * nodes, and the claimed set is the un-done NODES' `odu-worktree` values,
+     * nodes, and the claimed set is the un-done NODES' `odu-run` values,
      * so nothing in it can ever claim a run. Reachable only from a pick made
      * before the picker filtered, a tab left open from an older serve, or a
      * record edited by hand — so it is nobody's mistake to be scolded for,

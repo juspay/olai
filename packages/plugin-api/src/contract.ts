@@ -148,7 +148,7 @@ export interface Probed {
  * claims the key equal to its own composed word ({@link ./services.ts}'s
  * `Kinds.register`, which sets `claims` to the word it just composed out of the
  * registering fiber's name), so an enabled plugin declares `kolu-terminal` /
- * `odu-worktree` for
+ * `odu-run` for
  * a vault that has said nothing about them — and olai never writes anybody's
  * vault to do it. A row of the vault's own always wins, which is how a kind
  * moves onto a short key and how a face is taken away again.
@@ -219,7 +219,7 @@ export interface PropKind {
    * plugin's own name is: inside the service, minted from the word the registry
    * bound it under, never off an argument a caller supplied. What each plugin
    * does spell for itself is a copy of that composition for its own vault walk —
-   * a constant beside the bare word (`olai-plugin-odu`'s `WORKTREE_TYPE`), which
+   * a constant beside the bare word (`olai-plugin-odu`'s `RUN_TYPE`), which
    * it wrote when it could not import this package at all and still writes now
    * that it can, because the walk wants the composed word at module scope and a
    * registration has not happened yet there. `@olai/bundle`'s `kinds.test.ts`

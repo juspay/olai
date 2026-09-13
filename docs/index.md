@@ -51,7 +51,7 @@ The four ACP agents the chat panel can run. What a conversation is, for all of t
 | --- | --- |
 | [plugins/chat.md](plugins/chat.md) | The conversation as a row, the `chat-agent-session` kind, and the seats it reserves. |
 | [plugins/kolu.md](plugins/kolu.md) | Terminals from kolu: the Dock row, the live pane, the events feed, and the doorbell. |
-| [plugins/odu.md](plugins/odu.md) | CI from odu: the worktree chip, the run matrix, and the doorbell. |
+| [plugins/odu.md](plugins/odu.md) | CI from odu: the run chip, the run matrix, and the doorbell. |
 | [plugins/xyne-spaces.md](plugins/xyne-spaces.md) | Mirroring doorbell digests into a Xyne Spaces channel. |
 | [plugins/journal.md](plugins/journal.md) | The calendar, the day page, and the agenda of dated tasks. |
 
