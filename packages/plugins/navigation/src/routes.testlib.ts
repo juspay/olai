@@ -24,6 +24,7 @@
  * STATIC door. Undeclared, the same import would be red in that file's
  * "plugins consume other plugins only through static contract doors".
  */
+import { workspaceRoutingOver, type WorkspaceRouting } from "./workspace.ts"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   atElement,
@@ -32,7 +33,6 @@ import {
   HOME_ROUTE,
   type MountedPages,
   type Route,
-  type Routing,
   routingOver,
 } from "./routes.ts"
 
@@ -46,7 +46,7 @@ import {
  * plugin claims a URL*, which is what nearly every bench means and what the
  * app itself answers before a renderer has contributed anything.
  */
-export const routingIn = (pages: MountedPages = []): Routing => routingOver(() => TEST_CLAIMS, () => pages)
+export const routingIn = (pages: MountedPages = []): WorkspaceRouting => workspaceRoutingOver(routingOver(() => TEST_CLAIMS, () => pages))
 
 export const ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,

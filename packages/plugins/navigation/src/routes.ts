@@ -126,7 +126,6 @@
  * cannot be read names nothing, and the address means what an unrecognised one
  * means.
  */
-import { layoutHref, layoutIn, WORKSPACE_PREFIX, type Workspace } from "./workspace.ts"
 import { Schema } from "effect"
 import type { AppPage } from "olai-plugin-navigation/slots"
 import type { AppRoute } from "olai-plugin-navigation/slots"
@@ -680,9 +679,6 @@ export const routeOfIn = (table: Claims | undefined, pages: MountedPages, addres
  */
 const routeNamedIn = (table: Claims | undefined, pages: MountedPages, parts: Split): Route | null => {
   const { pathname, search, fragment } = parts
-  // A workspace ending in a filename must not be mistaken for that file.
-  // Workspace grammar belongs above page routes, including plugin claims.
-  if (pathname.startsWith(WORKSPACE_PREFIX)) return null
   const narrowed = narrowedBy(search)
 
   const tenant = pages.find((one) => claims(one.page.route, pathname))?.page
@@ -810,10 +806,6 @@ export const samePageIn = (table: Claims | undefined, pages: MountedPages, a: Ro
  * that brokers it, and every consumer names that row.
  */
 export interface Routing {
-  /** Read a workspace address without claiming it as a page. */
-  readonly layoutIn: (href: string) => Workspace | null
-  /** Save ordered pages only, with equal widths and first focus on restore. */
-  readonly layoutHref: (workspace: Workspace) => string
   /** The mounted tenant for a plugin route, or `null` after it left. */
   readonly face: (route: Route) => MountedAppPage | null
   /** Whether a page takes a filter at all — the tenant's own declaration where
@@ -835,18 +827,13 @@ export interface Routing {
   readonly samePage: (a: Route, b: Route) => boolean
 }
 
-export const routingOver = (claims: () => Claims | undefined, pages: () => MountedPages): Routing => {
-  const routing: Routing = {
-    layoutIn: (href) => layoutIn(routing, href),
-    layoutHref: (workspace) => layoutHref(routing, workspace),
-    face: (route) => routeFaceIn(pages(), route),
-    narrowable: (route) => narrowableIn(claims(), pages(), route),
-    narrowedTo: (route, filter) => narrowedToIn(claims(), pages(), route, filter),
-    filterOf: (route) => filterOfIn(claims(), pages(), route),
-    href: (route) => hrefOfIn(claims(), pages(), route),
-    routeIn: (href) => routeInIn(claims(), pages(), href),
-    routeOf: (address) => routeOfIn(claims(), pages(), address),
-    samePage: (a, b) => samePageIn(claims(), pages(), a, b),
-  }
-  return routing
-}
+export const routingOver = (claims: () => Claims | undefined, pages: () => MountedPages): Routing => ({
+  face: (route) => routeFaceIn(pages(), route),
+  narrowable: (route) => narrowableIn(claims(), pages(), route),
+  narrowedTo: (route, filter) => narrowedToIn(claims(), pages(), route, filter),
+  filterOf: (route) => filterOfIn(claims(), pages(), route),
+  href: (route) => hrefOfIn(claims(), pages(), route),
+  routeIn: (href) => routeInIn(claims(), pages(), href),
+  routeOf: (address) => routeOfIn(claims(), pages(), address),
+  samePage: (a, b) => samePageIn(claims(), pages(), a, b),
+})

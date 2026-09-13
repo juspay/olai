@@ -3,7 +3,8 @@ import type { Shelf } from "@olai/format"
 
 import type { PaletteItem } from "olai-plugin-navigation/palette-model"
 import { atOnce } from "@olai/web/client/settled.ts"
-import type { Route, Routing } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
+import type { WorkspaceRouting as Routing } from "olai-plugin-navigation/workspace"
 import { namingFor } from "./naming.ts"
 import { pinnedAt } from "./pins.ts"
 

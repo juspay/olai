@@ -29,7 +29,7 @@ export interface Navigation extends Router {
    * another activation's live table with nothing declared — the audit's §2 and
    * §12 in the one module the whole tree spells an address with.
    */
-  readonly routes: import("./routes.ts").Routing
+  readonly routes: import("./workspace.ts").WorkspaceRouting
 }
 export const navigation = serviceTag<Navigation>("navigation.state")
 export interface ContentHandler {

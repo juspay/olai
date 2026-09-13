@@ -422,7 +422,7 @@ A **shelf of doors** in the directory column, between the calendar and the file 
 - **Enter with words pins it named**, as one write: the row's title becomes `[What is late](/agenda?q=is%3Atodo)`, which is the markdown link you would have typed into `Pins.olai` yourself.
 - **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture. Backing out is not a mode, either: the palette command works again.
 
-**A question owns the modal while it is up.** Choosing a pin command again preserves the name being typed. Answer the question or press Escape to back out.
+**A question owns the modal while it is up.** The command list is replaced by the naming question. Answer it or press Escape to back out.
 
 **And a pin already on the shelf is renamed from the shelf.** Hovering a row shows a `✎` beside its `×`; pressing it asks the same question, holding the name it has now, and **Enter with nothing takes the name off** — the row goes back to a bare address, drawn by whatever it points at. Renaming is an ordinary title edit on that row (`outlines_title`, the op an agent sends), so `⌘Z` takes it back like anything else.
 
@@ -444,7 +444,7 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 
 With multiple panes open, `⌘K` also offers **Pin this layout…**, with the pane names underneath. It always asks for a name; empty Enter says **a layout needs a name** and keeps the question open. Escape writes nothing.
 
-A layout pin has a split mark and a tooltip listing its pages. Clicking it replaces the whole workspace in one history push, including with Alt or Shift held. Back restores the previous workspace. Only pages are saved: the layout reopens with equal widths and the first pane focused.
+A layout pin has a split mark and a tooltip listing its pages. Clicking it replaces the whole workspace in one history push, including with Alt or Shift held. ⌘/Ctrl-click and middle-click open its address in a new tab. Back restores the previous workspace. Only pages are saved: the layout reopens with equal widths and the first pane focused.
 
 The command becomes **Unpin this layout** when those pages are already pinned, regardless of widths or focus. Shelf rename and remove work as for page pins, including undo; layout renames also require a name. Handwritten bare layout addresses are accepted and display the pane names, falling back to an unresolved node's address.
 

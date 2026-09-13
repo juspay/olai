@@ -5,7 +5,7 @@ import { type Accessor,createContext,createMemo,type JSX,useContext } from "soli
 import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route,type Routing } from "./routes.ts"
-import type { Workspace } from "./workspace.ts"
+import type { Workspace,WorkspaceRouting } from "./workspace.ts"
 export interface Router {
   /**
    * THE ROUTE OPERATIONS THAT READ THE MOUNTED ROSTER — printing a URL,
@@ -24,7 +24,7 @@ export interface Router {
    * the door is the pure grammar: the constructors, the address reading, and
    * `hrefOfPlain` for a route this app's own grammar spells whole.
    */
-  readonly routes: Routing
+  readonly routes: WorkspaceRouting
   readonly workspace: () => Workspace
   /** The focused pane's route — what the palette, the filter chord and
    *  anything that does not name a pane act on. */

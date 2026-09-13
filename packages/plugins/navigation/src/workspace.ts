@@ -167,6 +167,19 @@ export const workspaceOf = (routing: Routing, address: string): Workspace => {
   return { layout: { kind: "split", axis, children }, focus }
 }
 
+/** Workspace grammar composes above page routing; page parsers remain unaware
+ * of the workspace prefix. Bound by the navigation owner over its live roster. */
+export interface WorkspaceRouting extends Routing {
+  readonly layoutIn: (href: string) => Workspace | null
+  readonly layoutHref: (workspace: Workspace) => string
+}
+
+export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
+  ...routes,
+  layoutIn: (href) => layoutIn(routes, href),
+  layoutHref: (workspace) => layoutHref(routes, workspace),
+})
+
 /** Saved layouts keep only the ordered pages, opening equally with first focus. */
 export const layoutHref = (routing: Routing, workspace: Workspace): string =>
   hrefOfWorkspace(routing, {

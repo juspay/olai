@@ -403,9 +403,6 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 ## Pins
 
-A pin title may also be a workspace address: `/s/` followed by percent-encoded page addresses, one per pane (without each page's leading slash). For example, `[Orchestrating](/s/%23abc/orchestrator%2Flanes.olai)`. The app always writes layout pins with a supplied name and saves pages only, with no `?w=` widths or `?f=` focus. Readers tolerate those parameters and the workspace codec's `?a=` and `?t=` extensions; following a pin restores equal widths and first-pane focus. Bare workspace titles written by hand remain pins, deriving pane names and using an unresolved node's address when necessary.
-
-
 **A pin is an ordinary node, in an ordinary outline, whose title is an ADDRESS.** The sidebar draws a shelf of them above the file tree — one click back to a node, a document, or a page with the query it was narrowed by ([editing.md](editing.md#pinning-a-page-to-the-sidebar)). Nothing in this format is new for it: no field, no record shape, no op.
 
 **The file matches the `Pins` stem directly under `_olai/`**, case-insensitively, with any node-holding suffix. Two matching files are ambiguous. A directory without one has an empty shelf; when the configured outline row is off, the sidebar explains that instead.
@@ -415,6 +412,8 @@ A pin title may also be a workspace address: `/s/` followed by percent-encoded p
 **The top level of that file is the shelf, in `ord` order.** One node per pin. What is nested under a pin is that pin's own business — notes about it, a checklist — and is not a second row in the sidebar.
 
 **The title is the address this app would spell for that page.** An address is `[document]#[element]`, the format's own grammar (`@olai/format`'s `address.ts`), with a slash in front of it: `/#<id>` a node, `/<path>` a document — a `.md`, a `.html` or an outline, the suffix says which page it opens — and `/<path>#<slug>` a heading inside one, or — after an `.olai` — a ROW: the node landed at its place in its own file rather than alone, which is the one address whose file half can go stale the way a renamed heading does (the node moves; the id is durable and the file is not). The row's id may name a PLACEMENT, and that lands too: a fragment spelling a mirror's own id — what `outlines_read` reports in `mirrors`, the spelling an agent citing a board row naturally writes — lands on the mirror's own row when the file draws it, and when it does not, the landing resolves the id to the node the placement stands for (the chat panel's answer to a backticked one, [chat.md](chat.md)) and lands by the same rule. Beside them are the pages that name nothing on disk, which are the app's own ([architecture.md](architecture/overview.md)): `/d/<ISO>` a day, `/today`, `/agenda`, `/trash`. Each may carry `?q=<filter>`, which is how a **saved query** is a pin at all ([search.md](search.md)).
+
+A pin title may also be a workspace address: `/s/` followed by percent-encoded page addresses, one per pane (without each page's leading slash). For example, `[Orchestrating](/s/%23abc/orchestrator%2Flanes.olai)`. The app always writes layout pins with a supplied name and saves pages only, with no `?w=` widths or `?f=` focus. Readers tolerate those parameters and the workspace codec's `?a=` and `?t=` extensions; following a pin restores equal widths and first-pane focus. Bare workspace titles written by hand remain pins, deriving pane names and using an unresolved node's address when necessary.
 
 ```jsonl
 {"id":"p-herbs","ord":"a0","title":"/#herbs"}

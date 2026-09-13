@@ -104,6 +104,7 @@ export function Pin(props: {
         <a href={href()} class={ROW} data-testid={TESTID.pinLink}
           aria-current={props.current ? "page" : undefined} title={props.pin.bare}
           onClick={(event) => {
+            if (event.metaKey || event.ctrlKey || event.button !== 0) return
             event.preventDefault()
             const target = props.pin.target
             if (target.kind === "layout") router.open(router.routes.layoutIn(href())!)

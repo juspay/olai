@@ -21,7 +21,7 @@ import { selector } from "@olai/web/testlib"
 
 import { attr } from "../support/selectors.ts";
 import { keysSettled, pressed } from "../support/settling.ts";
-import { PALETTE, PALETTE_INPUT, PALETTE_ITEM, PALETTE_SAID, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
+import { PALETTE, PALETTE_INPUT, PALETTE_ITEM, PALETTE_SAID, PANE, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const PIN = selector(TESTID.pin);
@@ -404,3 +404,30 @@ Then("the layout panes have equal widths", async function (this: OlaiWorld) {
 Then("the pin {string} has tooltip {string}", async function (this: OlaiWorld, address: string, tooltip: string) {
   assert.strictEqual(await pinAt(this, address).locator(PIN_LINK).getAttribute("title"), tooltip);
 });
+
+
+Then("the node {string} has a split mark", async function (this: OlaiWorld, id: string) {
+  await this.nodeTitle(id).locator("svg[data-layout-mark]").waitFor({ state: "visible" });
+});
+
+When("I open the {word} layout link {string} in a new tab with {string}",
+  async function (this: OlaiWorld, surface: string, target: string, gesture: string) {
+    assert.ok(surface === "shelf" || surface === "outline");
+    assert.ok(gesture === "ControlOrMeta" || gesture === "middle");
+    if (surface === "shelf") await this.showSidebar();
+    const link = surface === "shelf" ? pinAt(this, target).locator(PIN_LINK)
+      : this.within(target, selector(TESTID.addressName)).first();
+    const opened = this.page.context().waitForEvent("page");
+    await link.click(gesture === "middle" ? { button: "middle" } : { modifiers: ["ControlOrMeta"] });
+    const tab = await opened;
+    try {
+      await tab.waitForURL(url => url.pathname === "/s/house.olai/garden.olai");
+      for (const [index, href] of ["/house.olai", "/garden.olai"].entries()) {
+        const pane = tab.locator(`${PANE}${attr("data-pane", String(index))}`);
+        await pane.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+        assert.strictEqual(await pane.getAttribute("data-href"), href);
+      }
+    } finally {
+      await tab.close();
+    }
+  });

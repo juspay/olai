@@ -29,3 +29,10 @@ test("layout titles remain safe to follow with malformed or empty segments", () 
     expect(routes.layoutIn(routes.layoutHref(pin.target.workspace))).not.toBeNull()
   }
 })
+
+
+test("workspace recognition precedes the unchanged page parser", () => {
+  const title = "/s/house.olai/garden.olai"
+  expect(routes.routeIn(title)).toEqual(atFile("s/house.olai/garden.olai"))
+  expect(pinsOf(routes, [{id: "p", title}])[0]?.target.kind).toBe("layout")
+})

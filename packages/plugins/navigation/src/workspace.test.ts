@@ -320,9 +320,18 @@ test("layout addresses round trip pages, stripping widths, focus, axis and nesti
     expect(saved.focus).toBe(0)
     expect(panesOf(saved).every(({width}) => width === undefined)).toBe(true)
     expect(routes.layoutHref(saved)).toBe(href)
-    expect(routes.routeIn(href)).toBeNull()
   }
   expect(routes.layoutIn("/house.olai")).toBeNull()
   expect(routes.layoutIn("/#kitchen")).toBeNull()
   expect(routes.layoutIn(routes.layoutHref(lone(house)))).not.toBeNull()
+})
+
+
+test("page routing and workspace segments still resolve files in s/", () => {
+  const file = atFile("s/notes.olai")
+  expect(routes.routeIn("/s/notes.olai")).toEqual(file)
+  expect(routes.routeOf("/s/notes.olai")).toEqual(file)
+  const workspace = routes.layoutIn("/s/s%2Fnotes.olai/house.olai")!
+  expect(panesOf(workspace).map(pane => pane.route)).toEqual([file, house])
+  expect(routes.layoutHref(workspace)).toBe("/s/s%2Fnotes.olai/house.olai")
 })

@@ -1968,7 +1968,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     // Saved-layout vocabulary names a workspace target, not the layout plugin.
     "layout": [
       "plugins/navigation/src/address/Face.tsx",
-      "plugins/navigation/src/routes.ts",
+      "plugins/navigation/src/address/address.ts",
       "plugins/navigation/src/workspace.ts",
       "plugins/pins/src/browser/Palette.tsx",
       "plugins/pins/src/browser/Pin.tsx",

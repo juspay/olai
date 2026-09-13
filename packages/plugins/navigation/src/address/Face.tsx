@@ -122,6 +122,7 @@ export function Face(props: {
           href={href()}
           onClick={(event) => {
             if (props.target.kind !== "layout") return
+            if (event.metaKey || event.ctrlKey || event.button !== 0) return
             event.preventDefault()
             router.open(routes.layoutIn(href())!)
           }}

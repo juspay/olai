@@ -67,7 +67,10 @@ Feature: Pinning layouts
     And I pin the layout
     And I name the pin "Planning"
     Then the pinned shelf holds "/s/house.olai/garden.olai"
-    When I pin the layout
+    When I press "ControlOrMeta+k"
+    And I type "pin" into the palette
+    Then the palette offers "Unpin this layout"
+    When I choose "Unpin this layout" from the palette
     Then the pinned shelf is not drawn
     When I press "ControlOrMeta+z"
     Then the pinned shelf holds "/s/house.olai/garden.olai"
@@ -150,3 +153,79 @@ Feature: Pinning layouts
     Then pane 1 is focused
     And pane 1 is showing "/garden.olai"
     And there should be no page errors
+
+
+  Scenario: Width and focus changes leave a layout current and offer Unpin
+    Given the directory has the pins:
+      | [Planning](/s/house.olai/garden.olai) |
+    When I open the address "/s/house.olai/garden.olai?w=30,70&f=1"
+    Then the pin "/s/house.olai/garden.olai" is current
+    When I press "ControlOrMeta+k"
+    And I type "pin" into the palette
+    Then the palette offers "Unpin this layout"
+    And the palette does not offer "Pin this layout…"
+
+  Scenario: Layout titles on the Pins outline share the face and navigate without reloading
+    Given the directory has the pins:
+      | /s/house.olai/%23missing |
+      | [Planning](/s/house.olai/garden.olai?w=20,80&f=1) |
+    When I open "_olai/Pins.olai" from the vault group
+    Then the node "p0" reads "house.olai · /#missing"
+    And the node "p0" has a split mark
+    And the node "p1" reads "Planning"
+    And the node "p1" has a split mark
+    When I click the title of "p0"
+    Then the editor holds "/s/house.olai/%23missing"
+    When I press "Escape"
+    And I mark the page
+    And I press the name of "p1"
+    Then there are 2 panes
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/garden.olai"
+    And pane 0 is focused
+    And the layout panes have equal widths
+    And the page has not reloaded
+    When I go back
+    Then the address is exactly "/_olai/Pins.olai"
+    And there should be no page errors
+
+  Scenario Outline: Browser gestures open layout links in a new tab
+    Given the directory has the pins:
+      | [Planning](/s/house.olai/garden.olai) |
+    When I open "_olai/Pins.olai" from the vault group
+    And I mark the page
+    And I open the <surface> layout link "<target>" in a new tab with "<gesture>"
+    Then the address is exactly "/_olai/Pins.olai"
+    And there are 1 panes
+    And the page has not reloaded
+    And there should be no page errors
+
+    Examples:
+      | surface | target                       | gesture       |
+      | shelf   | /s/house.olai/garden.olai      | ControlOrMeta |
+      | shelf   | /s/house.olai/garden.olai      | middle        |
+      | outline | p0                           | ControlOrMeta |
+      | outline | p0                           | middle        |
+
+  Scenario: A saved pane can name a real file under the s directory
+    When I rewrite "s/notes.olai" as:
+      """
+      {"id":"under-s","ord":"a0","title":"A real file under s"}
+      """
+    And the directory grows a pin to "[Notes](/s/s%2Fnotes.olai/house.olai)"
+    And I follow the pin "/s/s%2Fnotes.olai/house.olai"
+    Then pane 0 is showing "/s/notes.olai"
+    And pane 1 is showing "/house.olai"
+    And the node "under-s" reads "A real file under s"
+    And there should be no page errors
+
+  Scenario: The naming question replaces the command list until cancelled
+    When I open the address "/s/house.olai/garden.olai"
+    And I pin the layout
+    And I type "Planning" into the palette
+    Then the palette asks "a name for this layout — Escape backs out"
+    And the palette does not offer "Pin this layout…"
+    And the palette does not offer "Pin this page"
+    And the palette box holds "Planning"
+    When I press "Escape"
+    Then "_olai/Pins.olai" holds nothing
