@@ -153,3 +153,40 @@ Feature: Inline markdown in titles
     And the palette item for node "demo" is a button with no nested link
     And the palette item for node "bold" lights "check  before"
     And there should be no page errors
+
+  # ── a long title wraps ───────────────────────────────────────────────
+  #
+  # A row's title used to ellipsize: a row was one line, and whatever did not
+  # fit was a hover away. The human reversed that on sight of a list of long
+  # quotations cut to half a sentence each — a title runs onto more lines, and
+  # the bullet stays beside its FIRST line rather than drifting to the middle
+  # of the paragraph. `order` carries a date, so the line has a fact beside the
+  # words too.
+  Scenario: A long title wraps onto more lines instead of being cut off
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"order","parent":"kitchen","ord":"a0","title":"order the new cabinets, after measuring every wall twice, checking the corner by the window for square, confirming the door swing against the fridge, asking the supplier which hinges the carcasses take, and writing all of it down in one place so nobody has to ask again","doing":"2026-08-05","date":"2026-08-10"}
+      {"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets","after":["order"]}
+      """
+    Then the node "order" has the title "order the new cabinets, after measuring every wall twice, checking the corner by the window for square, confirming the door swing against the fridge, asking the supplier which hinges the carcasses take, and writing all of it down in one place so nobody has to ask again"
+    And the title of "order" wraps onto more than one line, cut off nowhere
+    And the bullet of "order" sits beside the first line of its title
+    And the title of "install" is one line
+    And the bullet of "install" sits beside the first line of its title
+    And there should be no page errors
+
+  # A phone draws the hover-only facts all the time, and beside the words they
+  # left a title a word or nothing at all. Below md they wrap under the title,
+  # so the words keep the width of the line.
+  @phone
+  Scenario: A phone gives a long title the width of its line
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"order","parent":"kitchen","ord":"a0","title":"order the new cabinets, after measuring every wall twice and checking the corner by the window for square","doing":"2026-08-05","date":"2026-08-10"}
+      """
+    Then the title of "order" wraps onto more than one line, cut off nowhere
+    And the title of "order" takes most of the width of its row
+    And the bullet of "order" sits beside the first line of its title
+    And there should be no page errors

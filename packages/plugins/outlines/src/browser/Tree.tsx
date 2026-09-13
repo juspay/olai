@@ -542,7 +542,12 @@ function Branch(props: {
         // its triangle (./touch.ts's arithmetic). `HELD` is the other half of
         // what the long press below does about the browser's own gesture, for
         // the platform that raises it without an event to prevent.
-        class={`group/row relative flex items-center py-1 ${HELD} ${GUTTER_GAP} ${
+        //
+        // `items-baseline`, not `items-center`: a long title WRAPS
+        // (./NodeLine.tsx), and centring would set the bullet and the fold
+        // triangle beside the middle of the paragraph rather than its first
+        // line. A day page's row was already aligned this way (./DatedRow.tsx).
+        class={`group/row relative flex items-baseline py-1 ${HELD} ${GUTTER_GAP} ${
           WAITING_DIM(props.row.blocked)
         } ${CONTEXT_DIM(narrowed, shownId())}`}
         // The phone's door to the `•••` menu: hold a finger on the row. Touch
