@@ -19,7 +19,7 @@ test("an enabled odu claims odu-run with nothing declared", () => {
   const derived = vault({
     "board.olai": rec("node-a", "the seam", { "odu-run": "m1kb0e11-2c8d" }),
   })
-  expect([...boardedIn(derived)].map((one) => one.id)).toEqual(["m1kb0e11-2c8d"])
+  expect([...boardedIn(derived)]).toEqual(["m1kb0e11-2c8d"])
 })
 
 test("first writer wins among two nodes naming one run", () => {
@@ -30,7 +30,7 @@ test("first writer wins among two nodes naming one run", () => {
       rec("node-b", "second", { run: "m1kb0e11-2c8d" }),
     ].join("\n"),
   })
-  expect([...boardedIn(derived)].map((one) => one.node)).toEqual(["node-a"])
+  expect([...boardedIn(derived)]).toEqual(["m1kb0e11-2c8d"])
 })
 
 test("a vault that declared odu-run as text boards nothing", () => {

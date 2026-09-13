@@ -2,7 +2,7 @@
  * THE ODU DOORBELL — which runs a scoped conversation is woken for, and the
  * whole sentence each wake arrives as.
  *
- * `@olai/odu-client`'s watch says a transition happened ({@link RunNotice}):
+ * The board says a transition happened ({@link RunNotice}):
  * a run first went red, or a run settled. That is the run's fact. Whether
  * anybody in THIS conversation should hear about it is a fact about the VAULT
  * — and joining the two is this module, exactly the judgement-about-odu this

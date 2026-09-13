@@ -3,19 +3,19 @@
  * the judgement about them lives.
  *
  * It is `olai-plugin-kolu`'s `server.ts` one appliance over, deliberately the
- * same shape and deliberately smaller: one cell, one vault walk, one sweep, and
- * the two notices the sweep turns into deliveries ({@link ring}). That this
- * module and kolu's are the same block with the nouns changed was the phase's
- * own complaint about `runtime.ts`, and the answer is not to make the two files
+ * same shape and deliberately smaller: two cells, one vault walk, and the two
+ * notices the board turns into deliveries ({@link ring}). That this module and
+ * kolu's are the same block with the nouns changed was the phase's own
+ * complaint about `runtime.ts`, and the answer is not to make the two files
  * different — it is that neither of them is in a general package any more, and a
  * THIRD tenant writes its own without core growing a line.
  *
  * WHAT THE DOORBELL HERE DELIBERATELY LACKS is a heartbeat: kolu's rides its
- * watcher's own beat, and odu's sweep is a poll for ABSENCES — a checkout with
- * no socket is the ordinary state, not evidence of life. There is no third timer
- * and no third knob because there is nothing honest for one to say; the floor
- * under this doorbell's silence is the two fault sentences ({@link ./wake.ts})
- * and the picker's clear. Everything else is the kolu shape verbatim: same scope
+ * watcher's own beat, and odu's board is a hold per boarded id — a miss is
+ * `unknown run`, not evidence of life. There is no third timer and no third
+ * knob because there is nothing honest for one to say; the floor under this
+ * doorbell's silence is the two fault sentences ({@link ./wake.ts}) and the
+ * picker's clear. Everything else is the kolu shape verbatim: same scope
  * mechanism, same thunk rules (a claim gone by delivery is no message; counts
  * read at delivery), same silence for unclaimed subjects.
  *
@@ -156,9 +156,10 @@ export interface VaultRevision {
  *
  * Made eagerly and started lazily, exactly as it was: making the half gives the
  * `ci` cell something to answer with before anything has been probed, and
- * STARTING it is the cell's connector, which the framework runs when the surface
- * BINDS — so one server sweeps for CI runs however many tabs are open, and a
- * page that loads mid-sweep reads the rows the watcher already has.
+ * STARTING the dial is the `service` cell's connector, which the framework runs
+ * when the surface BINDS — so one server holds the boarded ids however many
+ * tabs are open, and a page that loads mid-hold reads the rows the board
+ * already has.
  */
 export default definePlugin({
   environment: [
@@ -183,7 +184,7 @@ export default definePlugin({
      * THE ONE SEAM ACROSS THE BOUNDARY — see `@olai/effect-cordis`'s `detached`.
      *
      * `oduHalf` is the appliance, and the appliance is not written in Effect:
-     * its sweep fires a callback and its two log channels are plain functions.
+     * its board fires a callback and its two log channels are plain functions.
      * Everything below that hands one of those an Effect hands it through here,
      * which forks it under THIS plugin's services (so a line carries the level
      * the operator asked for) and onto THIS plugin's scope (so work still in
@@ -195,9 +196,9 @@ export default definePlugin({
      *
      *  `undefined` BEFORE THE FIRST ONE is the truth about it and the doorbell's
      *  own first gate: nothing has been read, so no file claims anything, so a
-     *  notice arriving before the vault rings nobody. The sweep runs on seconds;
-     *  the first revision lands in the boot, which is before any run a person
-     *  would start can settle. */
+     *  notice arriving before the vault rings nobody. The board holds while
+     *  connected; the first revision lands in the boot, which is before any run
+     *  a person would start can settle. */
     let derived: Derived | undefined
 
     /** ...AND WHAT THAT REVISION DECLARES, for {@link ./doorbell.ts}'s licence —
@@ -258,9 +259,9 @@ export default definePlugin({
      * SILENCE IS NO CALL AT ALL: a run no scoped file's un-done nodes name rings
      * nobody, not even a quieter body.
      *
-     * AND IT CANNOT FAIL INTO A WATCHER'S SINK: this is forked from the sweep's
+     * AND IT CANNOT FAIL INTO A BOARD'S SINK: this is forked from the board's
      * own callback, so a defect escaping here would ride out into somebody
-     * else's timer. The whole walk is caught once, at this package's edge, and
+     * else's hold. The whole walk is caught once, at this package's edge, and
      * said on the owner's channel: a doorbell that failed is worth a line, and
      * it is worth exactly one.
      */
@@ -376,8 +377,8 @@ export default definePlugin({
 
     /** A VAULT REVISION LANDED — the hook a `PluginServer.revision` used to be.
      *
-     *  Holding the answer is all it does: dialing is the sweep's, on its own
-     *  clock, so a keystroke costs one walk and no sockets. Two `let`s ride
+     *  Holding the answer is all it does: dialing is the service cell's, on
+     *  its own connector, so a keystroke costs one walk and no sockets. Two `let`s ride
      *  along, and they are the DOORBELL's ammunition: the derivation itself, for
      *  the claims walk, and its declarations, for the licence ({@link ring} runs
      *  on the watcher's clock, not on this listener's — a notice arrives between
@@ -439,15 +440,14 @@ export default definePlugin({
      *
      * kolu's half arms a `setInterval` inside `koluHalf`, at APPLY time, so its
      * plugin owes the scope a `stop`: an interval nothing unwinds outlives the
-     * fiber that armed it. `oduHalf` arms nothing. `makeWatch` returns three
-     * maps and an Effect; every socket, every hold's fiber and the sweep's own
-     * cadence are acquired INSIDE `watch.run`, which is `Effect.scoped` over a
-     * repeat and which the framework starts at the `ci` cell's `connect`. A half
-     * that was built and never bound holds a `wanted` map and nothing else, and
-     * a half that WAS bound holds its sockets on the connector's fiber — which
-     * this scope has no handle on and could not stop if it had one, because
-     * unloading this plugin drops the sibling and the composition root re-serves
-     * without it, taking that fiber with the runtime it ran under.
+     * fiber that armed it. `oduHalf` arms nothing. `makeBoard` holds ids; the
+     * websocket and every hold's fiber are acquired INSIDE the `service` cell's
+     * `connect`, which is `Effect.scoped` over `runLink`. A half that was built
+     * and never bound holds an empty board and nothing else, and a half that
+     * WAS bound holds its socket on the connector's fiber — which this scope
+     * has no handle on and could not stop if it had one, because unloading this
+     * plugin drops the sibling and the composition root re-serves without it,
+     * taking that fiber with the runtime it ran under.
      *
      * So there is nothing here for a finalizer to undo, and a `stop` on the half
      * that closed over nothing would be worse than no door at all: it would read

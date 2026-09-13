@@ -23,12 +23,10 @@
  *
  * ## A missing run is not a missing anything
  *
- * `runOf` answers `undefined` for a boarded id with no row, and every face here
- * draws nothing for it. That is the ORDINARY answer — a checkout with no live
- * run is the steady state of every checkout on the machine — so there is no
- * hollow state, no "looked where?" line and no amber: those belong to padi,
- * whose socket is a daemon's and whose absence IS news. This one's absence is
- * the weather.
+ * `runOf` answers `undefined` when the `ci` cell has no row for that value —
+ * a property with no boarded id, or the redial gap. A boarded miss is a row
+ * (`unknown run`). Padi's absence is news; a row with no `odu-run` is the
+ * weather.
  */
 
 import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"

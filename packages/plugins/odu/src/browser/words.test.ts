@@ -124,6 +124,12 @@ describe("a live run", () => {
     expect(said.tone).toBe("going")
   })
 
+  it("says waiting while live with no phase and no running node", () => {
+    const said = wordsFor(run({ phase: "", cells: [] }), 0)
+    expect(said.text).toBe("ci · waiting")
+    expect(said.tone).toBe("going")
+  })
+
   it("goes RED the moment a node is, before the run has finished deciding", () => {
     // The ink and the verdict are different questions: a reader needs to know
     // now, and the verdict keeps the stricter rule.
@@ -141,12 +147,9 @@ describe("a live run", () => {
     expect(said.text).toBe("ci · e2e 1:01 · 0/3 ok")
   })
 
-  it("takes the done ink the moment the run SETTLES, however long the socket outlives it", () => {
-    // A `--linger` coordinator holds the socket open past the settle on
-    // purpose: `live` stays true — and the run's own settlement, not the
-    // socket's death, is when a green run recedes into the done ink.
+  it("takes the done ink the moment the cells settle, even while the run is still live", () => {
     const said = wordsFor(run({ live: true, cells: many(10, "ok") }), 10_000)
-    expect(said.text).toBe("ci · passed · 10/10 ok")
+    expect(said.text).toBe("ci · lanes · 10/10 ok")
     expect(said.tone).toBe("ok")
     expect(said.title).toContain("the run is up")
   })

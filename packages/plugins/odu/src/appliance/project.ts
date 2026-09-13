@@ -10,7 +10,7 @@ import type { NodesFrame, RunLane, RunNode, RunRow } from "@odu/service-client/s
 import { STATUS_META } from "@odu/service-client/surface"
 import { splitFanId } from "@odu/run-client/nodeId"
 
-import type { CiRun, RunCell } from "./wire/index.ts"
+import { type CiRun, liveOf, type RunCell } from "./wire/index.ts"
 
 const sha7Of = (sha: string): string => sha.slice(0, 7)
 
@@ -48,8 +48,6 @@ const cellsOf = (frame: NodesFrame): ReadonlyArray<RunCell> => {
   return cells
 }
 
-const liveOf = (state: string): boolean => state === "provisioning" || state === "running"
-
 /** A boarded id the service does not know. */
 export const unknownOf = (id: string): CiRun => ({
   id,
@@ -77,7 +75,7 @@ export const runOf = (row: RunRow, frame: NodesFrame | undefined): CiRun => ({
   seq: row.seq,
   state: row.state,
   outcome: row.outcome,
-  phase: frame?.env.phase ?? (liveOf(row.state) ? "provisioning" : "lanes"),
+  phase: frame?.env.phase ?? "",
   lanes: frame?.env.lanes.map(laneOf) ?? [],
   cells: frame === undefined ? [] : cellsOf(frame),
 })

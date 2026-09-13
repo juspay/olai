@@ -22,9 +22,10 @@
  * the path two inches away), and they deny the heartbeat reading outright:
  * "quiet and fine" and "watching nothing" must never be confusable, on any
  * channel. The odu half has NO heartbeat of its own — nothing drives one:
- * kolu's rides its watcher's own beat, and odu's sweep is a poll for
- * absences; the two silence floors a conversation has here are the fault
- * sentences and the picker's clear, and a third would say nothing.
+ * kolu's rides its watcher's own beat, and odu's board is a hold per boarded
+ * id, not a poll for absences; the two silence floors a conversation has here
+ * are the fault sentences and the picker's clear, and a third would say
+ * nothing.
  */
 
 

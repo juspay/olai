@@ -8,19 +8,20 @@ olai's own judgement **about odu**, in the one place that is neither odu nor cor
 
 That is worth stating plainly because this package's `solid-js` dependency invites the opposite guess. It is here because this package OWNS its browser faces: odu has no separate face directory the way kolu has [`src/appliance/`](../kolu/src/appliance/), and it needs none — nothing it draws reaches odu's product tier, so there is no second wall for a second package to be. One package, three code doors, and the appliance still confined a floor below.
 
-## One cell, and one cell is a whole surface
+## Two cells, and two cells are a whole surface
 
-[`src/wire.ts`](src/wire.ts) declares a surface with a single member on it:
+[`src/wire.ts`](src/wire.ts) declares a surface with two members on it:
 
 | declared here | on the wire, composed |
 | --- | --- |
-| cell `ci` | `surface/odu/ci/get` — every run this server is watching, `verbs: ["get"]`, seeded at `NO_RUNS` |
+| cell `ci` | `surface/odu/ci/get` — every boarded run this server is watching, `verbs: ["get"]`, seeded at `NO_RUNS` |
+| cell `service` | `surface/odu/service/get` — whether the per-user odu is speaking, the same three-state contract kolu's `link` keeps |
 
-kolu declares seven behind the same door. **A plugin is not a size**, and the interface says so before this package tests it: everything but `name`, `surface` and `faces` is optional, and the absent arm of each hook is the state a machine without the tool already shows. One cell is all odu's reading needs, because a run is a reading of somebody else's work — there is nothing a browser can write back, which is why the cell declares `get` and no more, and why the whole of *which boarded runs the vault named, what each node is doing, what the row comes to* arrives as one value rather than as a collection with a stream beside it.
+kolu declares seven behind the same door. **A plugin is not a size**, and the interface says so before this package tests it: everything but `name`, `surface` and `faces` is optional, and the absent arm of each hook is the state a machine without the tool already shows. Two cells is all odu's reading needs, because a run is a reading of somebody else's work — there is nothing a browser can write back, which is why both cells declare `get` and no more.
 
-The member keeps its word, and gets it twice over: the framework composes each plugin's surface as a **sibling** under the plugin's own name, so `ci` reads `surface/odu/ci/get` — whose it is and what it holds, in one address that no line of olai computed. Kolu's link cell had to be renamed for the same rule to be kind to it: named `kolu`, it would have composed to `surface/kolu/kolu/get`.
+Each member keeps its word, and gets it twice over: the framework composes each plugin's surface as a **sibling** under the plugin's own name, so `ci` reads `surface/odu/ci/get` — whose it is and what it holds, in one address that no line of olai computed. Kolu's link cell had to be renamed for the same rule to be kind to it: named `kolu`, it would have composed to `surface/kolu/kolu/get`.
 
-The vocabulary under the cell does not move here either. It stays in `@olai/odu-client/wire`, where the argument for each shape lives beside its schema — and a face reads a `CiRun` from the package that declares it, with no package of odu's on its graph. [`src/wire.ts`](src/wire.ts) also carries this plugin's own `ExposeMap`: the cell is the **browser's alone**, because an agent that wants a run's state has odu's own MCP face and `odu status` besides.
+The vocabulary under the cells does not move here either. It stays in `@olai/odu-client/wire`, where the argument for each shape lives beside its schema — and a face reads a `CiRun` from the package that declares it, with no package of odu's on its graph. [`src/wire.ts`](src/wire.ts) also carries this plugin's own `ExposeMap`: both cells are the **browser's alone**, because an agent that wants a run's state has odu's own MCP face and `odu status` besides.
 
 ## The name is spelled once
 
@@ -28,7 +29,7 @@ The vocabulary under the cell does not move here either. It stays in `@olai/odu-
 
 What is already settled is what "off" composes to, and it is **absence** rather than a parked cell. A plugin left out of the composition is left out of the record `implementSurfaces` is handed, so there is no `surface/odu/` on the wire at all — no tag, no handler, no expose row. That reverses an earlier reading here, which had the member staying declared because `@olai/server` built its expose map at module scope; the map is built per composition now, from the same list the runtime composed from, and `restrictHandlers` refuses at boot if the two ever disagree.
 
-It costs this tenant less than most to be absent: [`olai-plugin-odu/appliance`](src/appliance/README.md) makes the point that sock-absent is the ordinary answer on nearly every tick, so a browser that never sees the cell sees what a running one shows most of the time anyway. **Disabled is a state the framework's own composition already expresses** — see [`@olai/plugin-api`](../../plugin-api/README.md).
+It costs this tenant less than most to be absent: [`olai-plugin-odu/appliance`](src/appliance/README.md) makes the point that a refused origin is the ordinary answer, so a browser that never sees the cells sees what a running one shows most of the time anyway. **Disabled is a state the framework's own composition already expresses** — see [`@olai/plugin-api`](../../plugin-api/README.md).
 
 ## The reversal this package performs
 

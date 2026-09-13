@@ -14,13 +14,6 @@
 
 import { Schema } from "effect"
 
-/** The BROWSER'S dressing key — which chip a tab hangs on a property. The
- *  server follows the declared KIND (`olai-plugin-odu`'s `run`), so which
- *  nodes are watched is decided by what the vault DECLARED. What is left here
- *  is what a TAB keys its dressing table on, for `TERMINAL_KEY`'s reason:
- *  vault declarations do not travel (juspay/olai#395). */
-export const RUN_KEY = "run"
-
 // ── The service readout ───────────────────────────────────────────────────
 
 /**
@@ -104,6 +97,10 @@ export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
 
 export const settledOf = (tally: RunTally): boolean =>
   tally.total > 0 && tally.settled === tally.total
+
+/** Work still in flight on the board: `provisioning` or `running`. */
+export const liveOf = (state: string): boolean =>
+  state === "provisioning" || state === "running"
 
 /**
  * WHAT THE RUN CAME TO, in odu's own three words, or `null` while it has not.

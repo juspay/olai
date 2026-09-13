@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { type CiRun, type CiRuns, NO_RUNS, sameCi, settledOf, tallyOf, verdictOf } from "./index.ts"
+import { type CiRun, type CiRuns, liveOf, NO_RUNS, sameCi, settledOf, tallyOf, verdictOf } from "./index.ts"
 
 const cell = (over: Partial<CiRun["cells"][number]> = {}) => ({
   id: "e2e@p",
@@ -52,4 +52,11 @@ test("verdictOf prefers the catalog outcome and otherwise folds cells", () => {
   expect(verdictOf(run({ outcome: "passed", live: false, state: "settled" }))).toBe("passed")
   expect(verdictOf(run({ cells: [cell({ status: "failed", red: true })] }))).toBe("failed")
   expect(settledOf(tallyOf([]))).toBe(false)
+})
+
+test("liveOf is provisioning or running", () => {
+  expect(liveOf("provisioning")).toBe(true)
+  expect(liveOf("running")).toBe(true)
+  expect(liveOf("settled")).toBe(false)
+  expect(liveOf("unknown")).toBe(false)
 })

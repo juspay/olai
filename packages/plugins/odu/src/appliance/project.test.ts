@@ -92,6 +92,7 @@ test("a boarded id the service does not know is unknown", () => {
 test("a settled row without a frame still carries the catalog's outcome", () => {
   const run = runOf(row({ state: "settled", settled: true, passed: true, outcome: "passed" }), undefined)
   expect(run.live).toBe(false)
+  expect(run.phase).toBe("")
   expect(run.cells).toEqual([])
   expect(verdictOf(run)).toBe("passed")
 })

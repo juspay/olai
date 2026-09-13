@@ -6,7 +6,7 @@
  * on first contact. A conversation holding odu's tools has already brought it
  * up. What this module does is dial the origin `ODU_WEB_ORIGIN` names (default
  * `127.0.0.1:18440`), read the service cell, compare major.minor against the
- * hydrated `SERVICE_CONTRACT_VERSION`, and hand the live client to the watch.
+ * hydrated `SERVICE_CONTRACT_VERSION`, and hand the live client to the board.
  */
 
 import {

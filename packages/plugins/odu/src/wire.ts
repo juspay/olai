@@ -1,11 +1,11 @@
 /**
- * ODU'S OWN SURFACE — one cell, and one cell is a whole surface.
+ * ODU'S OWN SURFACE — two cells, and two cells are a whole surface.
  *
  * The appliance's entire reading of the service — which boarded runs the
- * vault named, what each node of a run is doing, and what the row comes to —
- * arrives as ONE cell whose value is the runs, because a run is a reading of
- * somebody else's work and there is nothing a browser can write back. A plugin
- * is not a size.
+ * vault named, what each node of a run is doing, and whether the per-user
+ * service is speaking — arrives as the `ci` cell and the `service` cell,
+ * because a run is a reading of somebody else's work and there is nothing a
+ * browser can write back. A plugin is not a size.
  *
  * `olai-plugin-kolu`'s module one appliance over argues the shape in full:
  * the framework's `composeSurfaceContracts` takes standalone surfaces and
@@ -30,9 +30,9 @@ import { oduMembers } from "olai-plugin-odu/appliance/wire"
  *  the file’s row selection takes. Spelled once, here. */
 export const name = "odu"
 
-/** The one. `ci` keeps its word: what the cell holds is every CI run this
- *  server is watching, and composed it reads `surface/odu/ci/get`, which says
- *  both halves of that in one address. */
+/** The two. `ci` is every boarded run this server is watching;
+ *  `service` is whether the per-user odu is speaking. Composed they read
+ *  `surface/odu/ci/get` and `surface/odu/service/get`. */
 export const surface = defineSurface({
   cells: {
     ci: oduMembers.cells.ci,

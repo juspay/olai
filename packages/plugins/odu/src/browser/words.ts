@@ -24,8 +24,7 @@
  *   - **`<what>`** is the RUNNING NODE while there is one (`e2e 2:10`, the
  *     name and how long it has been going), the run's PHASE while the run is
  *     still claiming a machine (`provisioning`), and the VERDICT once the
- *     socket is gone (`ok`, `red`, or `ended` for a run that stopped without
- *     deciding).
+ *     run is no longer live (`passed`, `failed`, or `incomplete`).
  *   - **`<count>`** is `8/10 ok` — how many nodes came out green over how many
  *     there are — dropped entirely for a run with no nodes yet, because
  *     `0/0 ok` is a sentence about nothing.
@@ -113,20 +112,17 @@ const whatOf = (
       ? running.name
       : `${running.name} ${ticking(now - running.startedAt)}`
   }
-  // Nothing running and the run is up: either it has not got a machine yet —
-  // odu's own phase word, verbatim, because "what is this run waiting for" is
-  // odu's question to answer — or every node has settled and the socket has
-  // simply not gone yet.
-  if (run.phase !== "lanes") return run.phase
+  // Nothing running and the run is up: odu's own phase word, verbatim, because
+  // "what is this run waiting for" is odu's question to answer. A missing
+  // frame has no phase — that is waiting, not an invented word.
+  if (run.phase !== "") return run.phase
   return verdict ?? "waiting"
 }
 
 /** ...and the ink it is said in. The verdict's ink belongs to the RUN's own
- *  settlement, not to the socket's: a `--linger` coordinator keeps serving
- *  past it on purpose, and a green run receding into the done ink must not
- *  wait on however long the coordinator stays up after. Red ink stays the
- *  tally's own question (it goes red EARLY, on the first red node); ok ink
- *  is the verdict's own answer, not a second folding of it. */
+ *  settlement, not to whether the catalog still lists it as live. Red ink
+ *  stays the tally's own question (it goes red EARLY, on the first red node);
+ *  ok ink is the verdict's own answer, not a second folding of it. */
 const toneOf = (run: CiRun, tally: RunTally, verdict: string | null): CiTone => {
   if (tally.red > 0 || verdict === "failed") return "red"
   if (verdict === "passed") return "ok"

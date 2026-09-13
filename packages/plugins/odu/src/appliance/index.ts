@@ -15,11 +15,11 @@
 import { inMemoryStore } from "@kolu/surface/server"
 import { Effect } from "effect"
 
-import { type DialService, SPEAKS } from "./link.ts"
-import { makeWatch, type BoardedRun, type RunNotice, type Watch } from "./runs.ts"
+import { type DialService, originIn, runLink, SPEAKS } from "./link.ts"
+import { makeBoard, type RunNotice } from "./runs.ts"
 import { type CiRun, type CiRuns, type OduLink, NO_RUNS, ODU_UNDIALED } from "./wire/index.ts"
 
-export { type DialService, type RunNotice, type BoardedRun }
+export { type DialService, type RunNotice }
 export { SPEAKS }
 
 export interface OduDeps<N> {
@@ -27,7 +27,7 @@ export interface OduDeps<N> {
     readonly env: Record<string, string | undefined>
     readonly dial?: DialService
   } | null
-  readonly boarded: (vault: N) => Iterable<BoardedRun>
+  readonly boarded: (vault: N) => Iterable<string>
   readonly rang: (notice: RunNotice) => void
   readonly say: (line: string) => void
   readonly warn: (line: string) => void
@@ -59,7 +59,6 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
   const store = inMemoryStore<CiRuns>(NO_RUNS)
   const serviceStore = inMemoryStore<OduLink>(ODU_UNDIALED)
   let cell: { set: (value: CiRuns) => void } | undefined
-  let serviceCell: { set: (value: OduLink) => void } | undefined
 
   if (deps.options === null) {
     return {
@@ -82,20 +81,17 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
   }
 
   const { env, dial } = deps.options
-  const watch: Watch = makeWatch({
+  const now = (): string => new Date().toISOString()
+  const board = makeBoard({
     publish: (runs) => cell?.set({ runs }),
-    service: (state) => serviceCell?.set(state),
     rang: deps.rang,
     say: deps.say,
-    warn: deps.warn,
-    env,
-    dial,
   })
 
   return {
-    revision: (vault) => watch.reclaim(deps.boarded(vault)),
-    unloaded: () => watch.reclaim([]),
-    rows: watch.rows,
+    revision: (vault) => board.reclaim(deps.boarded(vault)),
+    unloaded: () => board.reclaim([]),
+    rows: board.rows,
     handlers: {
       cells: {
         ci: {
@@ -103,17 +99,37 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
           connect: (handle) =>
             Effect.suspend(() => {
               cell = handle
-              handle.set({ runs: watch.rows() })
-              return watch.run
+              handle.set({ runs: board.rows() })
+              return Effect.never
             }),
         },
         service: {
           store: serviceStore,
           connect: (handle) =>
             Effect.suspend(() => {
-              serviceCell = handle
-              handle.set(serviceStore.get())
-              return Effect.never
+              handle.set({
+                ...ODU_UNDIALED,
+                origin: originIn(env),
+                speaks: SPEAKS,
+                since: now(),
+              })
+              return Effect.scoped(Effect.gen(function*() {
+                board.bind(yield* Effect.scope)
+                yield* runLink(
+                  {
+                    link: (state) => handle.set(state),
+                    face: (face) => {
+                      if (face === null) board.detach()
+                      else board.attach(face)
+                    },
+                    say: deps.say,
+                    warn: deps.warn,
+                  },
+                  env,
+                  now,
+                  dial,
+                )
+              })) as Effect.Effect<never>
             }),
         },
       },
