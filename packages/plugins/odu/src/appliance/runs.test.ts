@@ -90,13 +90,16 @@ test("a run first seen settled rings nothing and still has cells", async () => {
   const it = await bench("settled")
   try {
     it.board.reclaim([...BOARD])
+    // Catalog `get` can publish the settled row before `nodes` has a frame.
+    // The matrix's cells are the frame; wait for both, not the row alone.
     await waitUntil(
-      () => it.board.rows().some((one) => one.id === "m1kb0e11-2c8d" && one.state === "settled"),
-      "the settled row to land",
+      () =>
+        it.board.rows().some((one) =>
+          one.id === "m1kb0e11-2c8d" && one.state === "settled" && one.cells.length > 0
+        ),
+      "the settled row with cells to land",
     )
     expect(it.rang).toEqual([])
-    expect(it.board.rows().find((one) => one.id === "m1kb0e11-2c8d")?.cells.length ?? 0)
-      .toBeGreaterThan(0)
   } finally {
     await it.stop()
   }
