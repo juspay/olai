@@ -150,6 +150,7 @@ Feature: The ••• menu writes
     Then the clipboard holds:
       """
       install the cabinets
+      	[finishes](finishes.md)
       	choose the handles
       	pick the hinges
       	pick the knobs
