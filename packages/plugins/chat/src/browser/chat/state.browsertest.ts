@@ -86,9 +86,9 @@ test("a send waits for its keyed opening, and disposal settles a queued gesture 
 })
 
 test("a paragraph opening wakes the row that grows and the row that stopped, not every row", async () => {
-  // THE OPEN, from the reader's end: a replay opens a paragraph per message,
-  // and every row asking "am I the one growing" of the shared memo was woken
-  // by each of them — a whole transcript re-read per message it replayed.
+  // Every row asks "am I the one growing" of one shared memo, and each message
+  // that opens a paragraph moves it: read directly, that woke every row in the
+  // conversation per message.
   const queues = new Map<string, Queue.Enqueue<unknown>>()
   const keys = Array.from({ length: 20 }, (_, at) => `agent:${at}`)
   const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {

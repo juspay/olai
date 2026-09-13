@@ -2,9 +2,9 @@
  * WHICH ROW IS ABOVE WHICH, and how many rows asking it costs when one arrives.
  *
  * The answers are the easy half. The claim `./previous.ts` exists for is a
- * count: a conversation being opened arrives a few rows at a time, and a row
- * arriving must wake the row next to it rather than every row already drawn —
- * which, over a replay, is the difference between linear and quadratic.
+ * count: a turn adds its rows a few at a time, and a row arriving must wake the
+ * row next to it rather than every row already drawn — which, over a long
+ * conversation, is the difference between linear and quadratic.
  *
  * UNDER THE BROWSER CONDITION, for `../settled.browsertest.ts`'s reason: the
  * server build never re-runs a memo, so a suite about which memos re-run would
@@ -80,8 +80,8 @@ test("each row is told the row above it, and the first is told nothing", () => {
 })
 
 test("a row arriving at the foot wakes only that row", () => {
-  // THE OPEN: a replay is rows appended one frame after another, and every
-  // row already drawn used to re-decide its neighbour on each of them.
+  // A TURN is rows appended one tick after another, and every row already
+  // drawn used to re-decide its neighbour on each of them.
   const keys = Array.from({ length: 50 }, (_, at) => `r${at}`)
   const list = rows(keys)
   const woken = list.woken(() => list.set([...keys, "new"]))

@@ -327,11 +327,11 @@ When("I record where the transcript scrolls", async function (this: OlaiWorld) {
   }, [CHAT_TRANSCRIPT, CHAT_PANEL] as const);
 });
 
-/** How many places the pane may stop at while a replay arrives: the open's own
- *  jump, and a landing where a loaded runner stalled the replay for longer than
- *  the transcript waits for quiet. A pane following the replay stops at nearly
- *  every one of its forty lines. */
-const REPLAY_STOPS = 3;
+/** How many places the pane may stop at while a replay is opening: the jump
+ *  that lands the conversation, and the correction when its rendered text
+ *  settles the height. A pane that was handed the replay as it came stops at
+ *  nearly every one of its forty lines. */
+const REPLAY_STOPS = 2;
 
 /** An open is a PLACE, not a motion: while the conversation was still being
  *  replayed into the pane, the pane jumped to where it was going and did not

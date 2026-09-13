@@ -73,19 +73,6 @@
  * stuck at the top. The jump is instant — assigning `scrollTop`, no animation
  * — because an open is a place, not a motion.
  *
- * AND A HISTORY ARRIVING IS NOT FOLLOWED FRAME BY FRAME. An open is usually a
- * replay: the agent re-sends the whole conversation, and it reaches this pane a
- * few rows a frame — while the panel is `booting`, and for a long chat well
- * after it has gone `idle`, because the socket hands over megabytes at once and
- * the rows are drawn as they are read. Following each of those frames was the
- * motion the jump exists to refuse, stretched over the length of the history: a
- * long chat scrolled past its reader for seconds. So growth is followed AT ONCE
- * only while somebody is being answered — a turn in flight, or a message on
- * its way — which is when a person is watching words appear. Any other growth
- * is landed on once it has gone quiet for a moment: one jump, however many
- * frames the history took. The pane's OWN size changing is not arrival and is
- * still followed at once.
- *
  * The jump is not a reader scroll, but the event it schedules cannot be
  * ignored with a flag around the assignment: Chromium (149, and the suite's
  * Playwright) dispatches `scroll` asynchronously, at a rendering update, so
@@ -125,12 +112,6 @@ import type { Chat } from "./state.ts"
  *  for, spelled off the panel's own declared handles rather than off a class. */
 const WAITING_ASK = `${selector(TESTID.chatAsk)}[data-asking="true"]`
 
-/** How long growth nobody is being answered with must go quiet before the pane
- *  lands on it. Longer than the gap between two frames of a history arriving,
- *  short enough that a row landing on its own is followed without a visible
- *  wait. */
-const QUIET_MS = 150
-
 export function Transcript(props: { readonly chat: Chat; readonly unbounded?: boolean }) {
   const [revealing, setRevealing] = props.chat.ui.reveal
   const revealed = () => setRevealing(false)
@@ -148,10 +129,6 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
    *  here is our jump, not the reader — the event is dispatched after the
    *  assignment returns, so a boolean around the write cannot see it. */
   let assignedTop = Number.NaN
-  /** The landing still waiting for growth to go quiet, if one is. Owned by
-   *  this pane: cleared when it is disposed. */
-  let landing: ReturnType<typeof setTimeout> | undefined
-  onCleanup(() => clearTimeout(landing))
 
   const atBottom = (): boolean => {
     const host = scrollPane()
@@ -164,24 +141,6 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
     host.scrollTop = host.scrollHeight
     assignedTop = host.scrollTop
   }
-  /** A follow owed now: the bottom, at once. */
-  const land = (): void => {
-    clearTimeout(landing)
-    landing = undefined
-    if (following) jump()
-  }
-  /** Is somebody being answered — the one time arriving words are watched as
-   *  they arrive? */
-  const answering = (): boolean =>
-    props.chat.state().status === "thinking" || props.chat.pendingSends() > 0
-  /** The content grew: followed at once while somebody is being answered, and
-   *  otherwise landed on once it stops growing. */
-  const grew = (): void => {
-    if (!following) return
-    if (answering()) return land()
-    clearTimeout(landing)
-    landing = setTimeout(land, QUIET_MS)
-  }
   const scrolled = () => {
     const host = scrollPane()
     if (host === undefined) return
@@ -190,7 +149,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
     // scrolling away. An upward move still releases following immediately.
     if (Number.isFinite(assignedTop) && (Math.abs(host.scrollTop - assignedTop) < 1
       || (following && host.scrollTop > assignedTop))) {
-      if (!atBottom()) grew()
+      if (following && !atBottom()) jump()
       return
     }
     following = atBottom()
@@ -210,9 +169,8 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
     // event for it. New text is followed from here. The jump's own `scroll`
     // arrives later and is recognised by `assignedTop`, not by a flag.
-    const grown = new ResizeObserver((entries) => {
-      if (entries.every((entry) => entry.target === content)) grew()
-      else land()
+    const grown = new ResizeObserver(() => {
+      if (following) jump()
     })
     grown.observe(content)
     // ... AND THE PANE ITSELF, which is the same fact from the other end and was
@@ -230,7 +188,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
     grown.observe(pane)
     if (props.unbounded && outer !== undefined) {
       grown.observe(outer)
-      const resized = () => land()
+      const resized = () => { if (following) jump() }
       window.addEventListener("resize", resized)
       onCleanup(() => window.removeEventListener("resize", resized))
     }
@@ -332,9 +290,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
    * wakes.
    *
    * And when it does walk, it wakes only the rows whose neighbour moved
-   * ({@link ./previous.ts}) — one per appended row, not every row on screen,
-   * which is the difference between opening a long conversation in a moment
-   * and watching it scroll by.
+   * ({@link ./previous.ts}) — one per appended row, not every row on screen.
    */
   const previousOf = createPrevious(() => props.chat.rows())
 

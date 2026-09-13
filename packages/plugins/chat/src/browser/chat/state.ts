@@ -282,9 +282,8 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
    * WHICH row is growing is asked of a memo that moves once a paragraph, and
    * through a SELECTOR over it, so a paragraph opening wakes the row that stops
    * growing and the row that starts — not every row on screen. Reading the memo
-   * itself put every row on it, and a conversation being OPENED is a replay
-   * whose every message opens a paragraph: a long chat woke its whole
-   * transcript once per message, quadratically, while the pane followed it down.
+   * itself put every row on it, so every message that opened a paragraph in a
+   * long conversation woke its whole transcript: quadratic over a turn.
    */
   const growing = createSelector(said.of)
   const entry = (key: string): Accessor<ChatEntry | undefined> => () =>

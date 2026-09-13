@@ -7,11 +7,11 @@
  * answers for it ({@link ./Transcript.tsx}). It used to answer with ONE memo
  * over a map of the whole list that every row read. That is correct and it is
  * quadratic: the map is a fresh object on every tick the order moves on, so each
- * arriving row re-ran every row's lookup — and a conversation OPENED is its
- * whole history arriving a few rows a frame. A long chat's open was minutes of
- * main thread spent re-deciding, a thousand times over, that nothing above
- * anything had changed, while the pane followed the rows down the screen one
- * frame at a time.
+ * arriving row re-ran every row's lookup. A turn in a long conversation adds
+ * its rows one tick at a time — a tool call, its result, the next paragraph —
+ * and each of them re-decided, for every row already on screen, that nothing
+ * above it had changed. Measured with 1,600 rows delivered a few a frame, it
+ * was minutes of main thread.
  *
  * So each row holds its OWN signal, and the walk over the order writes all of
  * them. A write that says what the signal already holds notifies nobody, which
