@@ -5894,7 +5894,7 @@ export const plan = (scope: Scope, request: Request): Planned => {
   const next = planned.success
   const served = new Set([...scope.set.documents.map(one => one.path), ...next.files.map(one => one.file), ...(next.documents ?? []).map(one => one.file)])
   const nudges: string[] = []
-  const compare = (file: string, text: string, before: string) => {
+  const compare = (file: string, text: string | ReadonlyArray<string>, before: string | ReadonlyArray<string>) => {
     const previous = new Set(deadLinksIn(file, before, served).map(one => one.written))
     nudges.push(...deadLinksIn(file, text, served).filter(one => !previous.has(one.written)).map(deadLinkSaid))
   }
@@ -5902,7 +5902,7 @@ export const plan = (scope: Scope, request: Request): Planned => {
     for (const node of file.nodes) {
       if (isMirror(node)) continue
       const before = scope.derived.byId.get(node.id)?.node
-      compare(file.file, `${node.title}\n${node.desc ?? ""}`, before === undefined || isMirror(before) ? "" : `${before.title}\n${before.desc ?? ""}`)
+      compare(file.file, [node.title, node.desc ?? ""], before === undefined || isMirror(before) ? "" : [before.title, before.desc ?? ""])
     }
   }
   for (const document of next.documents ?? []) compare(document.file, document.text, markdownAt(scope.set, document.file)?.body ?? "")

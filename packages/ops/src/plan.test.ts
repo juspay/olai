@@ -6220,6 +6220,10 @@ describe("dead-link nudges", () => {
     expect(planned(set(), { op: "doc", file: "projects/readme.md", text: "[x](nix-flakes.md)" }).nudge).toContain("../notes/nix-flakes.md")
     expect(planned(set(), { op: "create-doc", file: "projects/new.md", text: "[x](nix-flakes.md)" }).nudge).toContain("../notes/nix-flakes.md")
   })
+  test("a note cannot finish an incomplete link in the title", () => {
+    const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"[unfinished"}' })
+    expect(planned(existing, { op: "desc", id: "a", desc: "](missing.md)" }).nudge).toBeUndefined()
+  })
   test("an unchanged dead link is not nudged again", () => {
     const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"A","desc":"[x](missing.md)"}' })
     expect(planned(existing, { op: "desc", id: "a", desc: "[x](missing.md) again" }).nudge).toBeUndefined()

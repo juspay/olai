@@ -24,3 +24,9 @@ test("an edit-distance suggestion is relative too, and repeated links appear onc
     { written: "nix-flaks.md", resolved: "notes/nix-flaks.md", suggest: ["nix-flakes.md"] },
   ])
 })
+
+test("title and note are separate Markdown sources, with shared deduplication", () => {
+  const split = nodesOf('{"id":"a","ord":"a0","title":"[unfinished","desc":"](missing.md)"}', "a.olai")[0]!
+  expect(deadLinksOf(split, served)).toEqual([])
+  expect(deadLinksIn("a.olai", ["[x](missing.md)", "[again](missing.md)"], served)).toHaveLength(1)
+})

@@ -21,10 +21,11 @@ export const relativeFrom = (from: string, path: string): string => {
   return [...directory.slice(same).map(() => ".."), ...target.slice(same)].join("/")
 }
 
-export const deadLinksIn = (from: string, text: string, served: ReadonlySet<string>): ReadonlyArray<DeadLink> => {
+/** Scan fields independently: a title and note cannot complete each other's Markdown. */
+export const deadLinksIn = (from: string, text: string | ReadonlyArray<string>, served: ReadonlySet<string>): ReadonlyArray<DeadLink> => {
   const found: DeadLink[] = []
   const seen = new Set<string>()
-  for (const written of writtenLinks(text)) {
+  for (const written of (typeof text === "string" ? writtenLinks(text) : text.flatMap(writtenLinks))) {
     const cut = written.indexOf("#")
     const resolved = pathedOf(from, cut === -1 ? written : written.slice(0, cut))
     if (resolved === null || served.has(resolved) || seen.has(written)) continue
@@ -38,7 +39,7 @@ export const deadLinksIn = (from: string, text: string, served: ReadonlySet<stri
 }
 
 export const deadLinksOf = (at: Located, served: ReadonlySet<string>): ReadonlyArray<DeadLink> =>
-  isMirror(at.node) ? [] : deadLinksIn(at.file, `${at.node.title}\n${at.node.desc ?? ""}`, served)
+  isMirror(at.node) ? [] : deadLinksIn(at.file, [at.node.title, at.node.desc ?? ""], served)
 
 export const deadLinkSaid = (link: DeadLink): string =>
   `link resolves to nothing served: ${link.resolved}` +
