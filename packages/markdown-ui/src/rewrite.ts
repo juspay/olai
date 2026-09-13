@@ -181,8 +181,7 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
   // Keep the authored query and fragment after resolving the file once.
-  const suffix = written.search(/[?#]/)
-  const cut = suffix === -1 ? written.length : suffix
+  const cut = /[?#]/.exec(written)?.index ?? written.length
   const resolved = deadLinkTarget(from, written)
   if (resolved !== null && serves !== undefined && !serves(resolved)) {
     const warning = deadLinkSaid({ written, resolved, suggest: [] })

@@ -172,7 +172,7 @@ test("an outline is about its own file", () => {
 
 test("a zoom is about the outline its node is canonical in — the same page", () => {
   expect(
-    pageFileOf({ kind: "node", zoomed: zoom(derived, "kitchen"), backlinks: [], deadLinks: [] }),
+    pageFileOf({ kind: "node", zoomed: zoom(derived, "kitchen"), backlinks: [] }),
   ).toBe("house.olai")
 })
 
