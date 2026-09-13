@@ -42,7 +42,8 @@ import type { Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
 import { hung } from "../faces.ts"
-import { atNode, hrefOfPlain, type Route, type Routing } from "olai-plugin-navigation/routes"
+import { atNode, hrefOfPlain, type Route } from "olai-plugin-navigation/routes"
+import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./action.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
@@ -83,7 +84,7 @@ export const nodeMenuActions = (args: {
   /** The app's URL grammar, handed in — the shelf verb asks through it
    *  (`./verbs.ts`), and the caller has it off the router it is drawn inside. */
   readonly placement?: Parameters<typeof writeVerbs>[4]
-  readonly routes: Routing
+  readonly routes: WorkspaceRouting
   readonly row: Row
   /** The shelf as the server answered it, for the ONE verb that is about the
    *  sidebar rather than about the row: whether this node is already a door on
