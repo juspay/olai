@@ -7,8 +7,8 @@ import type { CarriedNodes } from "../../carry.ts"
  *
  * **THE GESTURE ITSELF IS NOT HERE.** Window listeners, the teardown, the
  * text-selection guard and the threshold that tells a drag from a click are one
- * mechanism shared with the panel edges (`../pointer.ts`, which also holds the
- * argument for pointer events over HTML5 drag-and-drop). What is left in this
+ * mechanism in `@olai/web/client/lifting.ts`, built on the same `pointer.ts`
+ * primitive as panel edges. What is left in this
  * file is the only part that is about an OUTLINE: what a gesture is carrying,
  * where the rows are, and the write a release makes.
  *
@@ -341,4 +341,3 @@ export const createDragging = (
     dragged: gesture.dragged,
   }
 }
-
