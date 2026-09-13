@@ -159,7 +159,7 @@ When(
     assert.strictEqual(
       claimed,
       false,
-      "Alt+Right was preventDefaulted on a lone page",
+      "the page claimed Alt+Right",
     );
     await this.waitForFrame();
   },

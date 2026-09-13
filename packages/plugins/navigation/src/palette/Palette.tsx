@@ -793,7 +793,7 @@ export function Palette(props: {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
-      const pane = paneKey(event)
+      const pane = paneKey(event, isEditingTarget(event.target))
       if (pane !== null && !isLone(router.workspace())) {
         event.preventDefault()
         router.stepFocus(pane === "focusLeft" ? -1 : 1)
