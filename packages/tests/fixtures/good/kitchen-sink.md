@@ -112,7 +112,6 @@ just serve /some/directory/of/outlines --port 7714 --host 127.0.0.1 && echo "tha
 | `id` | yes | unique across the loaded set | survives renames and moves |
 | `ord` | yes | fractional index, base62 | an insert, never a renumbering |
 | `desc` | no | the note, as markdown | interpreted only at view time |
-| `doc` | no | a relative `.md` beside the outline | validated on load |
 | `after` | no | edges, acyclic | counting normalized `blocks` |
 
 A table with a long cell, which is the case that decides whether a table may
@@ -120,7 +119,7 @@ overflow its column:
 
 | what | where |
 |---|---|
-| a rule that only exists so the view and the validator cannot disagree about what a relative picture resolves against, spelled once as `docOf` | `packages/format/src/documents.ts` |
+| a rule that only exists so the view and the validator cannot disagree about what a relative picture resolves against, spelled once as `pathedOf` | `packages/format/src/documents.ts` |
 | short | `here.ts` |
 
 ## Lists

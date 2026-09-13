@@ -274,7 +274,7 @@ const REFUSED = "olai:page-refused"
 
 /**
  * What both faces say when a body would not open — the `.html` page, and a
- * `doc` reference's preview line.
+ * document refusal line.
  *
  * ONE sentence, because the two producers (`bodies.ts`, `media.ts`) tell one
  * story and the two faces must not invent a second. It does not name the

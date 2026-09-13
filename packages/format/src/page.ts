@@ -88,6 +88,9 @@
  * rules that decided either, so nothing up there can re-derive an answer and
  * disagree.
  */
+
+import { DeadLink, deadLinksOf } from "./dead-links.ts"
+
 import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
@@ -283,6 +286,8 @@ export type Shown = typeof Shown.Type
  */
 export const PageReading = Schema.Struct({
   shows: Shown,
+  /** Missing targets for rows and the zoomed subject, excluding other referenced records. */
+  deadLinks: Schema.optional(Schema.Record(Schema.String, Schema.Array(DeadLink))),
   /** Every node id this page mentions that the set declares, once each — see
    *  the names paragraph at the top of this module. An id the set does not
    *  declare is simply absent, which is the honest dead link: the drawing side
@@ -412,6 +417,7 @@ export const pageOf = (
   request: PageRequest,
   kinds: KindVocabulary = NO_KINDS,
 ): PageReading => {
+  const served = new Set(at.set.documents.map(face => face.path))
   const shows = shownOf(at, request)
   // THE DOORS FIRST, because the names table spends them: a value that turned
   // out to name a node is an id this page points at, and the chip drawing it
@@ -419,9 +425,17 @@ export const pageOf = (
   // second walk deciding which ids to resolve could disagree with the one that
   // decided which values are doors, and the disagreement would read as a ref
   // chip that fell back to its id for no reason a reader could see.
-  const { doors, licences } = answersFor(at, shows, kinds)
+  const { doors, licences } = answersFor(at, shows, kinds, served)
+  const deadLinks: Record<string, ReadonlyArray<DeadLink>> = {}
+  const warningRows = [...narrowableIn(shows)]
+  if (shows.kind === "node" && shows.zoomed.kind === "node") warningRows.push(shows.zoomed.shows)
+  for (const located of warningRows) {
+    const links = deadLinksOf(located, served)
+    if (links.length > 0) deadLinks[located.node.id] = links
+  }
   return {
     shows,
+    ...(Object.keys(deadLinks).length === 0 ? {} : { deadLinks }),
     names: namesFor(
       at.derived,
       shows,
@@ -477,14 +491,10 @@ const answersFor = (
   at: Reading,
   shows: Shown,
   kinds: KindVocabulary,
+  served: ReadonlySet<string>,
 ): { readonly doors: ReadonlyArray<Door>; readonly licences: ReadonlyArray<Licence> } => {
-  const served = new Set<string>(at.set.documents.map((face) => face.path))
-  // ...AND THE `.md` HALF OF IT, which is a second set and has to be: a `doc`
-  // value promises to name a served DOCUMENT, and the gate holds it to exactly
-  // this list ({@link ./typing.ts}'s `Typed.documents`). Built by the same
-  // function the validator builds its own with rather than by filtering the
-  // paths above, which would be a second answer to "which of these is a
-  // document" — the very shape this module exists to have one of.
+  // Declared `doc` properties require a Markdown document, not merely a
+  // served path. Use the validator's classification for the same answer.
   const documents = markdownPaths(at.set)
   const vault: Vault = {
     // THE DECLARATIONS FILE FOUND IN THE SET, and not by walking the

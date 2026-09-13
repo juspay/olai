@@ -227,7 +227,7 @@ function Branch(props: {
   const folded = createFoldReading()
   const collapsed = createMemo(() => folded().has(foldIdOf(props.row)))
   // The RECORD a row shows, file and all — the file is what a note's relative
-  // picture and a `doc` are relative to, and for a mirror that is the file the
+  // picture and a link are relative to, and for a mirror that is the file the
   // node is DEFINED in rather than the one being read.
   const shown = () => (props.row.kind === "node" || props.row.kind === "mirror")
     ? props.row.shows
@@ -854,7 +854,7 @@ function Branch(props: {
       </Show>
 
       {/* Indented past the gutter controls — which are wider where a finger is
-          what taps them, so the note and the document under it line up with the
+          what taps them, so the note and its asides line up with the
           title on either. The note control root is what "click away" uses. */}
       <Show when={!collapsed() && shown()}>
         {(shows) => (

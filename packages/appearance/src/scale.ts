@@ -27,7 +27,7 @@
  * headings that carry their own weight. This is the base, `.olai-md`.
  *
  * Everything else is markdown drawn INSIDE the app's furniture — a note under
- * a node's title, the document an open node attaches, an agent's reply in a
+ * a node's title, an embedded document, an agent's reply in a
  * 26rem drawer. Those are `.olai-md-compact`: the same proportions one notch
  * tighter, plus a ceiling on the heading sizes, because all three hang under a
  * title the page owns and a body that out-shouts its own title is a body
@@ -259,7 +259,7 @@ export const HEAD_BORDER_PX = {
  * compact means" living half here and half in a grep.
  *
  * A reading page is a page a section can be linked to. A compact block is a
- * note under a title the page owns, an attached document, an agent's reply —
+ * note under a title the page owns, an embedded document, an agent's reply —
  * none of them a page anybody jumps around inside, and a control on a heading
  * that is not a section of anything is furniture on furniture. The ids are
  * still minted either way; it is the MARK that is dropped.
@@ -280,7 +280,7 @@ export const property = (name: string): string => `--olai-md-${name}`
 export const BLOCK_CLASS = "olai-md"
 
 /** The class it carries as well when it is drawn inside the app's furniture
- *  rather than as a page: `Note.tsx`, `olai-plugin-markdown`’s `document/DocRef.tsx`'s inline shape,
+ *  rather than as a page: `Note.tsx`, embedded document bodies,
  *  and `chat/Entry.tsx`. */
 export const COMPACT_CLASS = "olai-md-compact"
 

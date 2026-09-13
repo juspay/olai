@@ -36,9 +36,8 @@ import { openCreated, clearMinted } from "./browser/document/minted.ts"
 import { MarkdownPageView } from "./browser/PageView.tsx"
 import { documentFile } from "./browser/document-route.ts"
 import { NewDocument } from "./browser/document/NewDocument.tsx"
-import { documentReferences, propertyRoutes } from "olai-plugin-outlines/contract"
+import { propertyRoutes } from "olai-plugin-outlines/contract"
 import { atFile } from "olai-plugin-navigation/routes"
-import { DocRef } from "./browser/document/DocRef.tsx"
 import { name, browserState, documentBodies, properties, type MarkdownBrowser } from "./index.ts"
 import { client } from "./client.ts"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -105,7 +104,6 @@ export const components = {
   references: definePlugin({ name: "references", needs: [browserState, rendererSlots, fileAccess], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots
     const served = yield* fileAccess
-    yield* slots.contribute(documentReferences, props => <DocRef {...props} claims={served.claims()} />)
     yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && served.kindOf(meaning.file) !== null && served.claims().byKind.get(served.kindOf(meaning.file)!)?.holds !== "nodes" ? atFile(meaning.file) : undefined)
   }) }),
   content: definePlugin({ name: "content", needs: [browserState, rendererSlots, navigation, fileAccess, Clocks], apply: Effect.gen(function*() {

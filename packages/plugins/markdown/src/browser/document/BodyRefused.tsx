@@ -3,7 +3,7 @@
  * drawn.
  *
  * One element, because it is one sentence (`BODY_REFUSED`) and one mood
- * (`alarm`). A document page, a `doc` line, a day's note and a saved page
+ * (`alarm`). A document page, an embedded document, a day's note and a saved page
  * all have this to say, and four copies of the markup were four answers to
  * whether a refusal is italic, muted, or a span, while the testid and the
  * tone already said they were the same fact.

@@ -1,25 +1,22 @@
 @share-scratch
 Feature: Documents
-  Some notes are not a line. A `.md` under the served directory is a document:
-  it gets a page of its own, it is listed in the sidebar's file tree whether
-  or not any outline names it (under the folders it lives in, beside any
-  outlines in the same folder), and a node that attaches one with `doc` shows
-  it — the whole document when you are zoomed on that node, one line of it
-  anywhere else.
+  A `.md` under the served directory is a document with a page of its own.
+  Reference lists it under its folders whether or not an outline names it.
+  A relative link in a node's note opens the document on its own page.
 
   The markdown is the same pipeline a note goes through, so what is proved here
   is proved for notes too: fenced code highlighted without a byte fetched from
   anywhere but this server, footnotes that link to their own note, and pictures
-  that are files in the served directory and nowhere else. Two of the three
-  scratch scenarios write disjoint files, so they share a copy per worker
-  (`@share-scratch`); the one that lists every document, and the spaced-name
-  outline whose examples all write the same two files, keep a private copy.
+  that are files in the served directory and nowhere else. Scratch scenarios
+  share a restored copy per worker (`@share-scratch`); scenarios marked
+  `@own-scratch` keep a private copy for their isolation requirements.
 
   @corpus:good
   Scenario: Every document found has a page, and the sidebar says so
     When I open the app
     # Folders start collapsed; open `notes` so the nested document is listed.
-    When I expand the folder "notes"
+    When I expand the reference section
+    And I expand the folder "notes"
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md"
     Given I mark the page
     When I click the document "notes/palette.md"
@@ -139,6 +136,7 @@ Feature: Documents
 
       One more, on its own breaker.
       """
+    When I expand the reference section
     When I expand the folder "notes"
     And I click the document "notes/wiring.md"
     Then the document open is "notes/wiring.md"
@@ -247,14 +245,12 @@ Feature: Documents
     And there is no contents on the page
     And there should be no page errors
 
-  # Same rule, the other shape: the whole document drawn under the node that
-  # attaches it is still not that document's page.
+  # A node links to a document on its own page.
   @corpus:good
-  Scenario: A document drawn under a node has no contents
+  Scenario: A linked document is reached on its own page
     Given I open the outline "house.olai"
-    When I zoom into the node "install"
-    Then the reference on "install" draws the document
-    And there is no contents on the page
+    When I follow the document link on "install"
+    Then the document open is "finishes.md"
 
   @corpus:good
   Scenario: A relative picture is served from the directory it lives in
@@ -287,55 +283,17 @@ Feature: Documents
     And requesting "/media/art/handle.png" answers 200 with type "image/png"
 
   @corpus:good
-  Scenario: A node's doc is a reference in the tree and the document itself when zoomed
+  Scenario: A node's note links its document
     Given I open the outline "house.olai"
-    Then the node "install" refers to the document "finishes.md"
-    And the reference on "install" shows "Finishes"
-    And the reference on "install" does not draw the document
     When I zoom into the node "install"
-    Then the reference on "install" draws the document
+    And I follow the document link on "install"
+    Then the document open is "finishes.md"
     And the document renders bold text "matte"
 
-  # A `doc` line used to go blank for a file that had something to say: the
-  # fold was `text ?? ""`, and a refusal looked like an empty preview. The
-  # sentence is the same one the unreadable `.html` page draws.
-
   @scratch:good @own-scratch
-  Scenario: An unreadable document says so on the node's line
-    Given I rewrite "note.md" as:
-      """
-      # Finishes
-
-      Brushed brass.
-      """
-    And I rewrite "house.olai" as:
-      """
-      {"id":"install","ord":"a0","title":"install the cabinets","doc":"note.md"}
-      """
-    And I open the outline "house.olai"
-    Then the node "install" refers to the document "note.md"
-    And the reference on "install" shows "Finishes"
-    When the served file "note.md" cannot be read
-    Then the reference on "install" says the file could not be read
-    # ...and it is a STATE of the key, not a verdict the line keeps once it has
-    # drawn it. A refusal reached and never left is half a claim.
-    When the served file "note.md" can be read again
-    Then the reference on "install" shows "Finishes"
-
-  # THE PAGE MARKDOWN OWNS, and the state that only reaches it. `DocumentEntry`
-  # has three (a body, a body withheld, and a READ REFUSED) and phase 18 moved
-  # that schema, with `documentProjection`, into `olai-plugin-markdown`. The
-  # refusal is proved on a `.html`'s page (`html_previews.feature`) and on the
-  # `doc` line above — never on `documentPage`, which is the member the move
-  # re-declared. So a page that folded `refused` back into an empty rendering,
-  # the exact bug the `doc` line was fixed for, would have been green here.
-  #
-  # ONE KEY IS THE WHOLE BLAST RADIUS, which is why `refused` is a field on the
-  # entry rather than a failure of the probe: the outline beside it is still
-  # served, and the tree still draws it.
-  @scratch:good @own-scratch
-  Scenario: An unreadable document says so on its own page, and comes back
-    Given I open the document "finishes.md"
+  Scenario: An unreadable linked document says so on its own page
+    Given I open the outline "house.olai"
+    When I follow the document link on "install"
     Then the document renders bold text "matte"
     When the served file "finishes.md" cannot be read
     Then the page says the file could not be read
@@ -382,6 +340,7 @@ Feature: Documents
   @scratch:good @own-scratch
   Scenario: A document dropped into the directory joins the sidebar
     Given I open the app
+    When I expand the reference section
     And I expand the folder "notes"
     And I mark the page
     When I rewrite "notes/wiring.md" as:
@@ -390,6 +349,7 @@ Feature: Documents
 
       Two circuits.
       """
+    When I expand the reference section
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And the page has not reloaded
 
@@ -447,7 +407,7 @@ Feature: Documents
     Then what points at the document is "install the cabinets"
     And there should be no page errors
 
-  # A `[…](…)` in a body is a reference the same way a `doc` field is, which is
+  # A `[…](…)` in a body is a reference the same way a link in a note is, which is
   # what makes one rule for both worth having: `finishes.md` links the saved
   # quote, so the quote's page knows who sent a reader to it.
   @corpus:good
@@ -482,4 +442,19 @@ Feature: Documents
     Then the header search lists the document "finishes.md"
     When I press the header search result "Finishes"
     Then the document open is "finishes.md"
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: A repeated row follows its own note rather than a descendant's
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"parent","ord":"a0","title":"Parent"}
+      {"id":"linked","parent":"parent","ord":"a0","title":"Linked","desc":"[own](finishes.md)"}
+      {"id":"nested","parent":"linked","ord":"a0","title":"Nested","desc":"[other](notes/palette.md)"}
+      {"id":"copy","ord":"a1","mirror":"parent"}
+      """
+    And I open the outline "house.olai"
+    When I follow the document link on "linked"
+    Then the document open is "finishes.md"
+    And the document renders bold text "matte"
     And there should be no page errors

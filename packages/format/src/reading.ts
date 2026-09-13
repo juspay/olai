@@ -70,6 +70,9 @@
  * what it must not become is a licence to read the sentence above loosely for
  * the next field somebody proposes.
  */
+
+import { DeadLink } from "./dead-links.ts"
+
 import { ClaimData } from "./kinds.ts"
 import { Schema } from "effect"
 
@@ -304,7 +307,7 @@ export type PathsAnswer = typeof PathsAnswer.Type
  * map.
  *
  * `title` is a DERIVATION and not a field — `firstLine` (`./documents.ts`),
- * the same rule the web draws under a `doc`-carrying row — because a document
+ * the same rule the web draws on a document's page — because a document
  * has no record for a name to be written on. That is the whole of the
  * `md-second-class` asymmetry in one field, and it is answered here rather
  * than left out: a listing of twenty paths says which directory an agent is
@@ -392,6 +395,7 @@ export type DocumentRequest = typeof DocumentRequest.Type
  * is, and the caller's own argument is the only spelling that can.
  */
 export const DocumentBody = Schema.Struct({
+  deadLinks: Schema.optionalKey(Schema.Array(DeadLink)),
   file: Schema.String,
   /** Verbatim, exactly as on disk. Markdown, interpreted only at view time —
    *  never `null` here, unlike the set's own `Document`: what the set does not
@@ -452,9 +456,7 @@ export type DocumentBody = typeof DocumentBody.Type
  * What is NOT nameable, and why. `id` rides every row already; `children`,
  * `truncated`, `placed` and `path` are the walk's or the derivation's, not
  * the record's;
- * `doc` and `blocks` are record fields the read vocabulary has never answered
- * — `blocks` is sugar that `after` answers for, and a capture-time document
- * attachment is `markdown_read`'s subject. And `file`/`line` were always a
+ * `blocks` is sugar that `after` answers for. And `file`/`line` were always a
  * row's PLACE rather than one of its facts: a caller shaping a lean read drops
  * the place first, which is the whole point of the dial.
  */
@@ -480,8 +482,7 @@ export type Projectable = (typeof PROJECTABLE)[number]
 /**
  * THE PARTITION'S other half: every record field NOT in {@link PROJECTABLE},
  * keyed by its reason — `id` because it rides every row already, `ord`
- * because a fractional index is a sorting detail no read reports, `doc`
- * because the attachment is `markdown_read`'s subject, `blocks` because
+ * because a fractional index is a sorting detail no read reports, `blocks` because
  * `after` answers the same edge said from the waiting node, `mirror`
  * because a placement's own mark is the node it shows.
  *
@@ -500,7 +501,6 @@ const NOT_PROJECTABLE: Record<
 > = {
   id: "rides every row already",
   ord: "a fractional index is a sorting detail, not a fact a read reports",
-  doc: "the attachment is `markdown_read`'s subject",
   blocks: "`after` answers the same edge said from the waiting node",
   mirror: "a placement carries its target's id, not a life of its own",
 }
@@ -707,6 +707,7 @@ export type Reference = typeof Reference.Type
  * declaration each, in the module that says what a record holds.
  */
 export const Detail = Schema.Struct({
+  deadLinks: Schema.optionalKey(Schema.Array(DeadLink)),
   ...Found.fields,
   ...STAMPED,
   /** When the CURRENT round of work started — the record's own `started`,
@@ -967,6 +968,7 @@ export type SubtreeRequest = typeof SubtreeRequest.Type
  * can be honest.
  */
 export interface Subtree extends Found {
+  readonly deadLinks?: ReadonlyArray<DeadLink>
   readonly date?: string | undefined
   readonly desc?: string | undefined
   readonly children: ReadonlyArray<Subtree>
@@ -983,6 +985,7 @@ export interface Subtree extends Found {
 }
 
 export const Subtree = Schema.Struct({
+  deadLinks: Schema.optionalKey(Schema.Array(DeadLink)),
   ...Found.fields,
   date: RegularNode.fields.date,
   desc: RegularNode.fields.desc,
@@ -999,6 +1002,7 @@ export const Subtree = Schema.Struct({
  * this is an answer, advertised to nobody, so the recursion is honest.
  */
 export interface ProjectedSubtree extends Projected {
+  readonly deadLinks?: ReadonlyArray<DeadLink>
   readonly children: ReadonlyArray<ProjectedSubtree>
   /** The placements under this node — the KEY is structure, so the dial
    *  cannot drop the naming; `shows` is the same projection this row is. */
@@ -1011,6 +1015,7 @@ export interface ProjectedSubtree extends Projected {
 }
 
 export const ProjectedSubtree = Schema.Struct({
+  deadLinks: Schema.optionalKey(Schema.Array(DeadLink)),
   ...Projected.fields,
   children: Schema.Array(
     Schema.suspend((): Schema.Codec<ProjectedSubtree> => ProjectedSubtree),

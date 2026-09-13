@@ -65,7 +65,7 @@ export const codecFor = (kinds: KindVocabulary, table: { readonly current: Claim
    *  `unkept`, which every layer that asks this asks). What a reader who
    *  OPENS one gets is a body read then and there and kept by nobody
    *  (`@olai/server`'s `bodies.ts`); what the SET gets is the path, which is
-   *  all a `doc` reference was ever checked against. */
+   *  the served set a declared `doc` property is checked against. */
   byName: (path) => {
     const claims = table.current
     return unkept(claims, path) ? Result.succeed(bodiedDocument(claims, path, null)) : null

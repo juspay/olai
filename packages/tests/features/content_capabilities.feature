@@ -171,15 +171,11 @@ Feature: Outline and Markdown capabilities have independent lifetimes
     And the document renders bold text "updated independently"
     And there should be no page errors
 
-  # THE FILE TREE IS THE VAULT'S, NOT THE PAGE PROVIDER'S. `heads` is every
-  # served file and `documents` is a SUBSET OF ITS KEYS, so Markdown leaving
-  # takes a document's PAGE and not its ROW: the `.md` is still in the
-  # directory, and the sidebar goes on drawing it beside the outlines.
-  #
   # A kind owns membership as well as its face. Withdrawing markdown removes
-  # its files from heads; restoring it republishes them on the same page.
+  # its files from Reference; restoring it republishes them on the same page.
   Scenario: Markdown files leave the tree with their row and return without reload
     Given I open the outline "house.olai"
+    And I expand the reference section
     And I mark the page
     Then the outline list links to "house.olai"
     And the document link "finishes.md" is shown

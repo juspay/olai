@@ -153,6 +153,7 @@ const live = () => {
       reads: () => reads,
       standing: directory.standing,
       paths: directory.paths,
+      members: directory.members,
       broken: directory.broken,
       head: directory.head,
       /** THE FULL-SET FRAME THE FRAMEWORK WOULD REBUILD — the store's own
@@ -572,7 +573,6 @@ test("...and the error report is not lost, only held until this tab is holding n
   directory.stop()
 })
 
-
 test("retiring the wire and republishing claims replaces the directory's kind reading", () => {
   const directory = live()
   const claim = { kind: "first", exts: [".drawing"] as const, holds: "bytes" as const, kept: false, fetched: true, noun: "drawing", article: "a" as const }
@@ -608,5 +608,21 @@ test("an overlapping claims frame degrades to empty and a later frame reconnects
   expect(directory.kindOf("a.drawing")).toBeNull()
   directory.publishClaims({ claims: [first], outlineRow: "configured" })
   expect(directory.kindOf("a.drawing")).toBe("first")
+  directory.stop()
+})
+
+test("membership snapshots react independently and never mutate older readings", () => {
+  const directory = twoFiles()
+  const before = directory.members()
+  directory.delta([["house.olai", directory.wrote(2)]])
+  expect(directory.members()).toBe(before)
+  directory.delta([["attic.olai", directory.wrote(3)]])
+  expect(directory.members()).not.toBe(before)
+  expect(directory.members().has("attic.olai")).toBe(true)
+  expect(before.has("attic.olai")).toBe(false)
+  const added = directory.members()
+  directory.delta([], ["attic.olai"])
+  expect(directory.members().has("attic.olai")).toBe(false)
+  expect(added.has("attic.olai")).toBe(true)
   directory.stop()
 })

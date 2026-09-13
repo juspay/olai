@@ -343,7 +343,7 @@ export const BODY_REFUSED = selector(TESTID.bodyRefused);
 /** One document, as a page: `/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
- *  node that attaches it. */
+ *  node that links to it. */
 export const DOCUMENT_BODY = selector(TESTID.documentBody);
 /** The way into a document's editor, on its page header. */
 export const DOCUMENT_EDIT = selector(TESTID.documentEdit);
@@ -373,10 +373,6 @@ export const TOC_LINK = selector(TESTID.tocLink);
  *  selector, spelled once here like every other one rather than in the steps
  *  that reach for them. */
 export const HEADINGS = "h1, h2, h3, h4, h5, h6";
-/** A node's `doc`: the reference, carrying the RESOLVED path as `data-doc`. */
-export const DOC_REF = selector(TESTID.docRef);
-/** The link inside that reference, to the document's own page. */
-export const DOC_LINK = selector(TESTID.docLink);
 /** A node held up by an `after` edge: the mark column's waiting glyph on a row
  *  or a day entry, the named blockers on the node's own page. Absent entirely
  *  on a node with nothing in its way — WHETHER it is blocked, and by what, is
@@ -403,7 +399,7 @@ export const BACKLINKS = selector(TESTID.backlinks);
 export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
 /** The same question one kind of thing over: the `<details>` under a
  *  DOCUMENT's body, absent on a document nothing points at. `data-count` is
- *  how many things do — a record that attaches or links it, or another
+ *  how many things do — a record that links to it, or another
  *  document whose body links it. */
 export const DOCUMENT_REFERRERS = selector(TESTID.documentReferrers);
 /** Its summary — the count in words, and what a pointer presses to open it. */
@@ -2036,14 +2032,21 @@ export class OlaiWorld extends World {
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
 
+  async expandReference(): Promise<void> {
+    await this.showSidebar();
+    const toggle = this.page.getByTestId(TESTID.referenceToggle);
+    await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  }
+
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
-    return this.fileLink(DOCUMENT_LINK, file);
+    return this.fileLink(`${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}`, file);
   }
 
   /** One sidebar `.html` entry, on the same terms. */
   hypertextLink(file: string): Locator {
-    return this.fileLink(HYPERTEXT_LINK, file);
+    return this.fileLink(`${attr("data-testid", TESTID.referenceList)} ${HYPERTEXT_LINK}`, file);
   }
 
   /** One sidebar row of ANY registered kind, by the kind's own name — the
@@ -2130,13 +2133,9 @@ export class OlaiWorld extends World {
 
   /** One folder in the sidebar's file tree, by its root-relative path. */
   fileDir(path: string): Locator {
-    return this.page.locator(`${FILE_DIR}${attr("data-path", path)}`);
+    return this.page.locator(`${FILE_DIR}${attr("data-path", path)}`).first();
   }
 
-  /** A node's `doc` reference — its own, not a descendant's. */
-  docRef(id: string): Locator {
-    return this.node(id).locator(DOC_REF).first();
-  }
 
   /** One day of the month in the sidebar. */
   calendarDay(date: string): Locator {

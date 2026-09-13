@@ -169,7 +169,7 @@ Feature: Moving a row to a parent you search for
   Scenario: A destination in ANOTHER OUTLINE carries the row there, subtree and all
     # The gesture this scenario exists for is the one that used to be dimmed:
     # `compost` lives in `garden.olai` and the row lives in `house.olai`.
-    # `install` holds three rows and an attached document, and what lands is one
+    # `install` holds three rows and a document link, and what lands is one
     # `outlines_move` naming a parent in another file — the op an agent sends.
     When I click the title of "install"
     And I press "ControlOrMeta+Shift+m"
@@ -274,7 +274,7 @@ Feature: Moving a row to a parent you search for
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters"}
-      {"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets","doc":"finishes.md"}
+      {"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets","desc":"[document](finishes.md)"}
       {"id":"knobs","parent":"kitchen","ord":"a2","title":"pick the knobs","todo":"2026-08-11"}
       {"id":"dust","parent":"kitchen","ord":"a3","title":"sweep up after"}
       """

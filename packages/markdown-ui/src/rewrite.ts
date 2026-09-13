@@ -44,8 +44,18 @@
  * A second walk to collect them would be a second walk over the same tree
  * asking a question this one already has the answer to.
  */
+
+import {
+  deadLinkTarget,
+  deadLinkSaid,
+  type Claims,
+  addressOf,
+  printAddress,
+  bodyKind,
+  pictureOf,
+} from "@olai/format"
+
 import { TESTID } from "@olai/markdown-ui/testids.ts"
-import { type Claims, addressOf, printAddress, bodiedOf, pictureOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
@@ -56,8 +66,10 @@ export interface Rewrite {
   readonly claims: Claims | undefined
   /** The file the markdown was written in — an outline, for a note; the
    *  document itself, for a document. A relative picture is resolved beside
-   *  it, exactly as a `doc` is. */
+   *  it, exactly as a relative prose link is. */
   readonly from: string
+  /** Immutable membership snapshot, supplied by the owning directory. */
+  readonly members?: ReadonlySet<string>
   /** This block's id namespace. */
   readonly ids: string
 }
@@ -77,7 +89,7 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
     if (child.tagName === "a") {
       // Document first: a relative `.md` becomes a page address and must not then
       // be treated as something that leaves the app.
-      resolveDocument(child, options.claims, options.from)
+      resolveDocument(child, options.claims, options.from, options.members)
       openExternal(child)
     }
     mint(child, options.ids)
@@ -164,14 +176,22 @@ const resolvePicture = (element: Element, claims: Claims | undefined, from: stri
  * a screen that names a document it does not have, and a link quietly left
  * relative would send the reader somewhere with nothing to say at all.
  */
-const resolveDocument = (element: Element, claims: Claims | undefined, from: string): void => {
+const resolveDocument = (element: Element, claims: Claims | undefined, from: string, members?: ReadonlySet<string>): void => {
   if (claims === undefined) return
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
-  // ONE index, so the two halves cannot be cut at two places: an href with no
-  // `#` ends at its own end, which makes the fragment the empty tail.
-  const cut = written.includes("#") ? written.indexOf("#") : written.length
-  const document = bodiedOf(claims, from, written.slice(0, cut))
+  // Keep the authored query and fragment after resolving the file once.
+  const cut = /[?#]/.exec(written)?.index ?? written.length
+  const resolved = deadLinkTarget(from, written)
+  if (resolved !== null && members !== undefined && !members.has(resolved)) {
+    const warning = deadLinkSaid({ written, resolved, suggest: [] })
+    const authored = element.properties["title"]
+    const classes = element.properties["className"]
+    element.properties = { ...element.properties, "data-dead": true,
+      title: typeof authored === "string" ? `${authored} — ${warning}` : warning,
+      className: [...(Array.isArray(classes) ? classes : []), "olai-dead-link"] }
+  }
+  const document = resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
   if (document === null) return
   const address = addressOf(claims, document, null)
   if (address === null) return

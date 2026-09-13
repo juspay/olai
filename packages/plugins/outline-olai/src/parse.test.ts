@@ -443,3 +443,10 @@ test("several record-level rules can fail on one line", () => {
   expect(errors.every((error) => error.line === 1)).toBe(true)
   expect(errors.every((error) => error.file === "a.olai")).toBe(true)
 })
+
+test("top-level doc is an unknown key; custom doc remains ordinary text", () => {
+  const errors = errorsOf(`{"id":"a","ord":"a","title":"t","doc":"notes.md"}`)
+  expect(codes(errors)).toEqual(["bad-record"])
+  expect(first(errors).message).toContain("`doc`")
+  expect(Result.isSuccess(parseOutline("a.olai", `{"id":"a","ord":"a","title":"t","custom":{"doc":"notes.md"}}`, TEST_CLAIMS))).toBe(true)
+})

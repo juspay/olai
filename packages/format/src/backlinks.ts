@@ -192,9 +192,9 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
  * The two arms are the two kinds of thing that can hold a link, and the
  * difference is real rather than a convenience: a `.md` writes a link in its
  * prose and has no record to attribute it to, while an outline's link is
- * always SOME record's — the node that attached the document, wrote the `see`,
+ * always SOME record's — the node that wrote the `see`,
  * or put the link in its note. Saying "house.olai points here" where the honest
- * answer is "the node `kitchen` attaches it" would be the coarser answer
+ * answer is "the node `kitchen` links to it" would be the coarser answer
  * offered because it was the easier one.
  */
 export const Referrer = Schema.Struct({
@@ -211,7 +211,7 @@ export type Referrer = typeof Referrer.Type
  * WHO POINTS AT AN ADDRESS — every document's forward `links`, read backwards.
  *
  * This is the half of the design that made a document's page possible to write
- * at all. A `doc` attachment, a `see`, a link in a note and a link in a body
+ * at all. A `see`, a link in a note and a link in a body
  * all point ONE WAY on disk, so "what is talking about this document?" was a
  * question nothing could answer without walking the whole directory, and
  * nothing asked it. The faces answer it now, because every document carries the

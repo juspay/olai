@@ -99,7 +99,7 @@ The *write gate* is the one function every edit goes through: `commit({baseRev, 
 
 Outlines, documents and heads are three collections of kolu's surface framework (pinned via npins), keyed by root-relative path.
 
-- `outlines` uses batched `deltas`, one entry per file, with the key declared in the protocol (`keySchema`). `documents` uses `keys` + `get` only, so bodies stay off the first paint (`snapshot-scale`); the server still validates every document, because a `doc` reference must be checkable.
+- `outlines` uses batched `deltas`, one entry per file, with the key declared in the protocol (`keySchema`). `documents` uses `keys` + `get` only, so bodies stay off the first paint (`snapshot-scale`); the server still validates every document, because a declared document property must be checkable.
 - `heads` is every served file with content left off — one revision, one face, one "did it parse" — with `deltas`. A reader learns the file list and every revision on one stream and asks for content only when it will draw it.
 - **A published revision costs what moved.** Each collection's map is carried from the previous revision, written into where a file moved (binary search over `assemble`'s path order) and rebuilt only where that collection's membership moved. A differential holds it against the walk it replaced (`bundle/src/published.testlib.ts`). Core's three standing reads — a page, its filter, the move picker — share one `@olai/ops` cache, answered once per question per revision.
 - The `manifest` cell carries no value: it is the `null` that says a directory never loaded, which an empty collection cannot say. Error state is a cell, and git state is another.
@@ -343,3 +343,13 @@ Error kinds are `Schema.TaggedErrorClass`es: schemas that travel the wire and de
 **The staging forbids guesses**, and the catalogue is where each code answers for itself: `set-across-files` for a code whose every instance resolves a bare id, and `set-per-finding` for one whose instances differ. `isGuessWhileUnreadable` reads that, asked of the finding, since `bad-prop` judges seven kinds and only two resolve an id.
 
 "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is the one that failed to parse. So while any outline is unreadable, an unresolved `mirror`, `after`, `blocks` or `see` target is withheld rather than reported, and a withheld finding breaks nothing: the edge dangles honestly on a page that is otherwise live. Everything else is reported alongside the parse errors, because one pass should be enough to fix a directory. A report containing a per-line error says so (`reportStage`), and a second round is expected after those are fixed.
+
+PR #593 keeps Markdown grammar (`format/src/prose-links.ts`) independent of
+missing-target diagnosis (`dead-links.ts`). Block and inline code exclusions
+compose before link discovery; membership and suggestion policy do not enter
+the syntax scan. Renderers consume the vault service's immutable membership
+snapshot as both data and cache identity. Reference visibility belongs to the
+Files section controller, separately from folder-path preferences; its storage
+listeners stay under the Files activation and its transient state under the
+mounted sidebar. These boundaries preserve the existing withdrawal order and
+optional service reconnection.

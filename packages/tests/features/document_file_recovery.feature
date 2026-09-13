@@ -40,6 +40,7 @@ Feature: An open document recovers when an externally removed file returns
       """
       **restored while reading the garden**
       """
+    When I expand the reference section
     And I expand the folder "notes"
     Then the document link "notes/palette.md" is shown
     And the node "herbs" is shown

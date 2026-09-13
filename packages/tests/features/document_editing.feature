@@ -120,7 +120,8 @@ Feature: Documents become writable
       """
     And I save the document
     Then the document renders bold text "circuits"
-    When I expand the folder "notes"
+    When I expand the reference section
+    And I expand the folder "notes"
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
 
   @scratch:good
@@ -144,7 +145,8 @@ Feature: Documents become writable
     # The sidebar lists the completed name, the way the outline door's twin
     # asserts its row: what was minted is a file of this directory, not just a
     # page that opened.
-    When I expand the folder "notes"
+    When I expand the reference section
+    And I expand the folder "notes"
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And there should be no page errors
 
@@ -300,15 +302,15 @@ Feature: Documents become writable
     And there should be no page errors
 
   @scratch:good
-  Scenario: A document still named by a `doc` is refused, naming the record that names it
-    # `install` attaches finishes.md, so the file may not go — the refusal is
+  Scenario: A document still named by a `link` is refused, naming the record that names it
+    # `install` links to finishes.md, so the file may not go — the refusal is
     # the planner's, under the control, exactly as an agent's `files_delete`
     # gets it.
     Given I open the document "finishes.md"
     And I mark the page
     When I press Delete file
     And I confirm deleting the file
-    Then the deletion is refused saying "`finishes.md` is still named by `install` (`doc`, house.olai:4) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming record first."
+    Then the deletion is refused saying "`finishes.md` is still named by `install` (`link`, house.olai:4) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming link or record first."
     And the document link "finishes.md" is shown
     And there should be no page errors
 

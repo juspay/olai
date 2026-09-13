@@ -1,6 +1,7 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  deadLink: "dead-link",
   outlineLink: "outline-link",
 
 

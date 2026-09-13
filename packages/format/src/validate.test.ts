@@ -114,7 +114,7 @@ test("a set using every relation loads clean", () => {
     {
       "home.olai": `{"id":"kitchen","ord":"a","title":"kitchen #reno"}\n` +
         `{"id":"demo","parent":"kitchen","ord":"a","title":"demolition","done":"2026-08-01"}\n` +
-        `{"id":"order","parent":"kitchen","ord":"b","title":"order cabinets","after":["demo"],"see":["budget"],"doc":"notes/cabinets.md"}\n`,
+        `{"id":"order","parent":"kitchen","ord":"b","title":"order cabinets","after":["demo"],"see":["budget"],"desc":"[document](notes/cabinets.md)"}\n`,
       "work.olai": `{"id":"budget","ord":"a","title":"the budget","blocks":["order"]}\n` +
         `{"id":"m","ord":"b","mirror":"order"}\n`,
     },
@@ -549,42 +549,9 @@ test("a pure parent cycle is not also reported as a mirror-cycle", () => {
   expect(codes(errors)).toEqual(["parent-cycle"])
 })
 
-// `doc` is a reference like any other, so it is checked like any other — and
-// against the files actually served, since a path that resolves nowhere is a
-// note nobody will ever see again.
-test("a doc naming no served file is refused, and says what it resolved to", () => {
-  const error = only(
-    errorsOf({ "a.olai": `{"id":"a","ord":"a","title":"a","doc":"notes/a.md"}` }, []),
-  )
-  expect(error.code).toBe("missing-doc")
-  expect(error.message).toContain("resolves to `notes/a.md`")
-})
 
-// A `doc` names a DOCUMENT, and the set's bodied list is wider than that: a
-// `.html` is read by the same probe and carried in the same field, so a
-// membership test alone would have let a node attach one. It may not — the two
-// surfaces that draw an attachment are one line of markdown under a row and the
-// whole document under a zoomed node, and neither of them is the sealed frame a
-// `.html` is shown in. The refusal is the one a path resolving nowhere gets,
-// because from a reader's side it is the same thing: no such document.
-test("a doc naming a served `.html` is refused, like any other non-document", () => {
-  const error = only(
-    errorsOf({ "a.olai": `{"id":"a","ord":"a","title":"a","doc":"report.html"}` }, [
-      "report.html",
-    ]),
-  )
-  expect(error.code).toBe("missing-doc")
-  expect(error.message).toContain("resolves to `report.html`")
-})
-
-// "Attached" means relative to the outline that names it, so a doc beside the
-// outline's directory — the `../` case — is a normal, valid attachment.
-test("a doc reached through ../ resolves against the outline's directory", () => {
-  expectValid(
-    { "sub/plan.olai": `{"id":"a","ord":"a","title":"a","doc":"../notes/a.md"}` },
-    ["notes/a.md"],
-  )
-  // The arithmetic behind it is `documents.ts`'s, and it is tested there.
+test("a relative note link to a missing file never invalidates its outline", () => {
+  expectValid({ "sub/plan.olai": `{"id":"a","ord":"a","title":"a","desc":"[note](../missing.md)"}` })
 })
 
 // A mark is a stored fact about the node that carries it, and there is no rule
@@ -793,7 +760,7 @@ test("a ref value whose target is deleted is flagged like a dangling edge", () =
 })
 
 // A `doc` value is resolved against the naming outline's own directory, which
-// is the `doc` FIELD's arithmetic and not a second copy of it.
+// uses the relative-link arithmetic and not a second copy of it.
 test("a doc value resolves relative to the outline that names it", () => {
   const declaring = {
     "_olai/Properties.olai": `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,

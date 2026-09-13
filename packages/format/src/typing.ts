@@ -112,7 +112,7 @@
  * `capture` — and again by the VALIDATOR over what is on disk. A live write is
  * REFUSED, with the allowed values named; a hand edit that lands a bad value
  * makes the file broken, naming the key. Exactly the arrangement `after`
- * cycles, unknown targets and `doc` already have, and for the same reason: a
+ * cycles and unknown targets already have, and for the same reason: a
  * person moving between a refusal in a tool result and an error on a page must
  * read one sentence, so the sentence is written once, here
  * ({@link wrongValue}), and both callers wrap it.
@@ -126,8 +126,8 @@
  * ## What it costs
  *
  * One node's props against one small map. `ref` and `node` read indexes the
- * validator already builds (`byId`, `children`); `doc` reads the `.md` set the
- * `doc` FIELD's rule already carries. Nothing here walks the corpus, which is
+ * validator already builds (`byId`, `children`); `doc` reads the served `.md` set
+ * carried by the validator. Nothing here walks the corpus, which is
  * what lets the check ride every write rather than joining the whole-set sweep.
  *
  * ONE READER ABOVE DOES WALK, and it is named here so the sentence above stays
@@ -363,7 +363,7 @@ const kindWords = (kinds: KindVocabulary): ReadonlyArray<string> =>
  * THE AMENDMENT THIS FACT IS, said plainly, because it settles a fight that ran
  * in code for a month. Two premises about one value were both true and neither
  * was written down: the validator resolved a `doc` BESIDE THE WRITING FILE (a
- * node names a file beside itself, which is what `doc` the FIELD means), and
+ * node names a file beside itself), and
  * the board wrote every `brief` VAULT-ROOT-RELATIVE (`brief briefs/tp.md` on a
  * record of `roadmap/features.olai`, ~101 of them). So the display drew a door
  * onto `roadmap/briefs/tp.md`, which the directory does not serve, and every
@@ -377,9 +377,9 @@ const kindWords = (kinds: KindVocabulary): ReadonlyArray<string> =>
  * it did, so no value in any directory changes meaning because this field
  * arrived; a vault whose convention is the root says so, once, in one row.
  *
- * THE MARKDOWN `doc` FIELD IS NOT TOUCHED and never will be — it keeps
+ * RELATIVE PROSE LINKS keep
  * beside-the-writer as its only premise, because a note has no key to declare
- * on ({@link ./documents.ts}'s `docOf`). This fact is about a PROPERTY, whose
+ * on ({@link ./documents.ts}'s `pathedOf`). This fact is about a PROPERTY, whose
  * key is a row somebody can write a second word on.
  */
 export type PathBase =
@@ -1291,7 +1291,7 @@ export interface Typed {
    *  deciding for itself what a `terminal` is. */
   readonly kinds: KindVocabulary
   /** The `.md` paths a `doc` may point at — {@link ./rules.ts}'s
-   *  `markdownPaths`, the same set the `doc` FIELD's rule is asked about, so a
+   *  `markdownPaths`, the served markdown set, so a
    *  property and a field cannot disagree about what is served. */
   readonly documents: ReadonlySet<string>
 }
@@ -1321,7 +1321,7 @@ export interface Typed {
  *
  * `from` is the outline the record lives in, which only `doc` reads — and what
  * it is resolved AGAINST is the key's own declared basis ({@link basedAt}): the
- * naming outline's directory by default, exactly as the `doc` FIELD is, or the
+ * naming outline's directory by default, as relative prose links are, or the
  * served root for a key whose row says `base: root`. The arithmetic itself is
  * one place either way ({@link ./documents.ts}).
  */
@@ -1419,8 +1419,7 @@ const wrongContributed = (
 /**
  * `doc`: path-shaped first, then RESOLVED — two sentences, because "that is not
  * a path" and "no such document is served" are two different things to go and
- * do, and the second names what the path resolved to the way the `doc` field's
- * own error does.
+ * do, and the second names the resolved path.
  *
  * THE RESOLUTION IS SHARED WHOLE ({@link resolvedDoc}) and so is the corpus it
  * is asked of, which is the gate half of the pair the whole amendment is about.

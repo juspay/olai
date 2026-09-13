@@ -107,7 +107,7 @@ test("a finding implicates every file it names as related, once each", () => {
 test("the implicated files come out in path order, whatever order the rows are in", () => {
   const verdict = verdictOf([
     rowOf("wing/room.olai", "duplicate-id"),
-    rowOf("a.olai", "missing-doc"),
+    rowOf("a.olai", "unknown-target"),
     rowOf("wing.olai", "unknown-target"),
   ])
   // `byPath` and not a string sort: the order is the WALK's, so a directory

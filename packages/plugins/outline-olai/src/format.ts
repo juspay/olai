@@ -346,7 +346,6 @@ const ORDER = [
   "date",
   "repeat",
   "desc",
-  "doc",
   "after",
   "blocks",
   "see",

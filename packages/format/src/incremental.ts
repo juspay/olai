@@ -49,10 +49,10 @@
  *      DOCUMENTS, checked here ({@link carriedDocuments}). That split is not
  *      tidiness: `isSet` compares a view against a set and a view holds no
  *      documents, so it is structurally unable to witness the half this file's
- *      `doc` rule spends. The store claims the delta names every path that
+ *      declared-document rule spends. The store claims the delta names every path that
  *      moved; a `.md` it missed would leave the outlines matching, the patch
  *      taken, and the carried `.md` list quietly wrong — which since the flip
- *      is a missed `missing-doc` in the product and not a line in a log. So the
+ *      is a missed `bad-prop` in the product and not a line in a log. So the
  *      carry is held against the set it is about, every time, and a
  *      disagreement DECLINES rather than answering. It is the one class the
  *      shadow watched for that no comparison could have caught after the
@@ -88,7 +88,7 @@
  *   - **documents** — {@link Ledger.known}, the set of `.md` paths, carried
  *     from the last validation and kept current from the delta's own file names
  *     ({@link ./rules.ts}'s `markdownPaths` argues why a path decides it). A
- *     record's `doc` resolves against files, so only a `.md` that WENT AWAY can
+ *     record's declared `doc` property resolves against files, so only a `.md` that WENT AWAY can
  *     break a record nobody edited.
  *
  * ## What it costs
@@ -108,7 +108,6 @@ import { claimsAreUnique, recordsIn, type SetDelta, touchedBy } from "./patch.ts
 import {
   reportAfterCycles,
   reportDeclarations,
-  reportDocs,
   reportMirrorCycles,
   reportParentCycles,
   reportParents,
@@ -167,7 +166,7 @@ export interface Ledger {
  * word about what this run COST.
  *
  * `walked` is the honest half. Two of the six rules can decline to narrow and
- * fall back to the corpus — the cycle walks when the graph moved, and the `doc`
+ * fall back to the corpus — the cycle walks when the graph moved, and the property
  * rule when a `.md` went away — so a run that says `true` did the very
  * whole-corpus work this whole file exists to avoid. It is published on the one
  * channel the validator has out ({@link ./validate.ts}'s `Reached`); what
@@ -298,14 +297,9 @@ export const incrementally = (
   // outlines matching and this list quietly wrong, and there is no other door
   // that could notice.
   if (!carriedDocuments(known, set)) return "documents"
-  // A `doc` that resolved before goes on resolving unless the file it named
-  // LEFT, so a directory that only gained documents re-asks nothing. When one
-  // did leave, every record's `doc` is back in question and the rule runs whole
-  // — there is no index from a resolved path back to the records that name it,
-  // and inventing one for a file deletion would be bookkeeping on every write
-  // to save a walk on almost none.
+  // A declared document property can stop resolving when a served file leaves.
+  // Keep the membership carry: walkingProps uses it below.
   const walking = lost.some((file) => !known.has(file))
-  reportDocs(walking ? derived.nodes : fresh, known, errors)
 
   // The DECLARATIONS themselves, whole and every time — one node per key a
   // vault actually types ({@link ./rules.ts}'s `reportDeclarations` argues why
@@ -365,7 +359,7 @@ const shrank = (gone: ReadonlyArray<Located>, derived: Derived): boolean =>
  * property test gets there.
  *
  * WHAT IS NOT IN THE PROJECTION is as load-bearing as what is: a title, a note,
- * a mark, a date, a `doc`, a `see`, an `ord`, a `custom` key. None of them is
+ * a mark, a date, a `see`, an `ord`, a `custom` key. None of them is
  * an edge and none of them is a place, so the overwhelmingly common edits — a
  * keystroke, a checkbox, a scheduling, a drag between siblings — leave this
  * false and pay no cycle walk at all. `see` is in `targetsOf` and NOT here on
@@ -430,7 +424,7 @@ const byNaming = (derived: Derived, one: string, other: string): number => {
 }
 
 /**
- * Whether a path is one of the `.md` files a `doc` may point at — the kind
+ * Whether a path is one of the `.md` files a declared `doc` property may point at — the kind
  * registry's answer about a NAME.
  *
  * A DELTA NAMES PATHS and the set holds DOCUMENTS, so the two halves of the

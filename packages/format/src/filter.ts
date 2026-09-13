@@ -325,7 +325,7 @@ const isDayReading = (field: HasField): field is DayReading =>
  *  field of the RECORD, the days are the JOURNAL's — and the field test is the
  *  honest reading of the rule. What the overlap means to somebody writing a
  *  query is docs/search.md's to say. */
-const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "doc", "repeat"] as const
+const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
 /** Is this word one of them? The guard {@link hasClause} reads, and the reason
@@ -2273,7 +2273,7 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
  * check the access at the site that performs it, which is what a `satisfies`
  * on the list was standing in for: that one constrained `date` to be a key of
  * the record, a coincidence of spelling this reading does not depend on since
- * it goes through `datesOf`, and left `doc` and `desc` free to be read as
+ * it goes through `datesOf`, and left `desc` free to be read as
  * stamps.
  *
  * `date` is ./dates.ts's `datesOf`, which is the same two the JOURNAL reads:

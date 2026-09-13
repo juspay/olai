@@ -23,10 +23,18 @@
  * — an id nobody declares, an undo of a mark that is not there — and lets the
  * validator speak for everything else, in its own words, with `file:line`.
  */
-import { outlineCalled, TRASH } from "@olai/format"
-import { claimedOf, outlineAt as admitOutline } from "@olai/format"
-import { unclaimedPath } from "./refusals.ts"
+
 import {
+  proseIn,
+  addressOf,
+  referrersTo,
+  deadLinksIn,
+  deadLinkSaid,
+  markdownAt,
+  outlineCalled,
+  TRASH,
+  claimedOf,
+  outlineAt as admitOutline,
   ancestorsOf,
   BATCH_AT_MOST,
   type BatchedRequest,
@@ -43,7 +51,6 @@ import {
   type KindVocabulary,
   derive,
   type Derived,
-  docOf,
   mintExt,
   type Claims,
   didYouMean,
@@ -66,14 +73,12 @@ import {
   nothing,
   type OpFailure,
   ordBetween,
-
   pinsIn,
   propertiesIn,
   type Reading,
   type RegularNode,
   REPEAT_GRAMMAR,
   resolvedDoc,
-  retargetRelative,
   type Settled,
   settles,
   shadowFor,
@@ -96,6 +101,8 @@ import {
   wrongDeclaration,
   type WriteRequest as Request,
 } from "@olai/format"
+
+import { unclaimedPath } from "./refusals.ts"
 import { Result } from "effect"
 
 import { type Asked, askedOf } from "./asked.ts"
@@ -1642,8 +1649,7 @@ interface Recurrence {
  * something particular to the occurrence that just ended: the edges (`after`
  * naming tasks that are already done would be a new task born blocked on
  * history), the children (a subtree is where that occurrence's work was
- * recorded), the document (`doc` is a path, and two nodes naming one file would
- * both be editing the same text), and the properties (a `pr` or a `stage` is a
+ * recorded), and the properties (a `pr` or a `stage` is a
  * fact about the occurrence that carried it). A person who wants any of them
  * forward puts it there; nothing here guesses.
  *
@@ -2387,7 +2393,7 @@ const propKey = (key: string): OpFailure | undefined => {
  *
  * `file` is the outline the properties LAND IN, and exactly one of the seven
  * kinds reads it: a `doc` value is a path relative to the outline that names
- * it, the same arithmetic the `doc` FIELD is resolved with. An edit resolves
+ * it, using the same arithmetic as a relative prose link. An edit resolves
  * the node to get it; a capture already knows, because where it lands is what
  * the capture ops decided before they built anything.
  *
@@ -2876,9 +2882,8 @@ const stale = (
  * Everything down to the placement is one path, because every rule up to there
  * is about the SET rather than about a file. The plan is where they part, and
  * the cross-file arm is {@link planTrash}'s machinery reused rather than
- * re-derived — {@link liftSubtree} for what the source keeps and what travels,
- * {@link carryingDoc} for the `doc` a record names, which is relative to the
- * outline that names it. Both arms are ONE plan over the files they touch, so
+ * re-derived — {@link liftSubtree} for what the source keeps and what travels.
+ * Both arms are ONE plan over the files they touch, so
  * the whole set is valid after or nothing moved.
  *
  * NOTHING IS RE-STAMPED beyond what a same-file move already stamps: the record
@@ -3095,14 +3100,12 @@ const notThroughTheTrash = (
  * point of the shape those two helpers were split into. {@link liftSubtree}
  * answers "what does the source keep, and what travels" once for every op that
  * moves a subtree between files, so `archive`, `unarchive` and this cannot come
- * to disagree about what a subtree IS. {@link carryingDoc} rewrites the one
- * FIELD that is relative to the outline naming it: a `doc` is a path from the
- * `.olai` that carries it, so a record that changes file has to re-aim it or the
- * write gate sees an attachment that is not there.
+ * to disagree about what a subtree IS. Prose travels verbatim, including its
+ * relative links; a new directory may change where they resolve.
  *
  * A `doc`-TYPED PROPERTY is the same arithmetic and is deliberately NOT rewritten
  * here (raised adjacent on review, grok). Its value is resolved against the
- * naming outline exactly as the field is (`@olai/format`'s `wrongDoc`), so a
+ * declared basis (`@olai/format`'s `wrongDoc`), so a
  * record changing directory changes what it points at — and the write gate
  * refuses that with `bad-prop`, naming the key and what the path resolved to,
  * rather than writing a dangling one. Teaching a mover to rewrite it means
@@ -3130,7 +3133,6 @@ const crossing = (
   ords: ReadonlyArray<{ id: string; ord: string }>,
 ): ReadonlyArray<FilePlan> => {
   const { keeps, descendants } = liftSubtree(scope, at.file, at.node.id)
-  const retarget = (record: Node) => carryingDoc(record, at.file, landing.file)
   return [
     { file: at.file, nodes: keeps },
     {
@@ -3138,8 +3140,8 @@ const crossing = (
       nodes: withOrds(
         [
           ...recordsOf(scope, landing.file),
-          retarget(moved),
-          ...descendants.map(retarget),
+          moved,
+          ...descendants,
         ],
         ords,
       ),
@@ -3529,11 +3531,6 @@ const carriedOff = (scope: Scope, node: RegularNode): string | undefined => {
   const mark = scope.derived.status.get(node.id)
   if (mark !== undefined) kept.push(`its \`${mark}\` mark`)
   if (node.date !== undefined) kept.push("its date")
-  // The ATTACHED DOCUMENT is the same class as the mark and was quiet for one
-  // review: a node carries one `doc`, so the survivor's own answer stands and
-  // this one leaves the live outline with the record. A reader who put a file
-  // on that row is owed the sentence exactly as much as one who ticked it off.
-  if (node.doc !== undefined) kept.push(`its document \`${node.doc}\``)
   if (targetsOf(node).length > 0) kept.push("its edges")
   if (kept.length === 0) return undefined
   const said = kept.length === 1
@@ -3750,7 +3747,7 @@ const planTrash = (
   // The root is re-parented onto the scaffold; everything under it keeps the
   // `parent` it had, so the subtree arrives shaped exactly as it left.
   const { existing, scaffold, buried } = buriedIn(scope, archive, node, file)
-  const moved = descendants.map((record) => carryingDoc(record, file, archive))
+  const moved = descendants
 
   return Result.succeed({
     files: [
@@ -3805,21 +3802,8 @@ const buriedIn = (
   return {
     existing,
     scaffold,
-    buried: carryingDoc(
-      { ...withParent(node, parent), ord: appendedOrd([existing, scaffold], parent) },
-      source,
-      archive,
-    ),
+    buried: { ...withParent(node, parent), ord: appendedOrd([existing, scaffold], parent) },
   }
-}
-
-/** A `doc` is relative to the outline that names it, so a node that changes
- *  file has to rewrite the field or the write gate sees a missing attachment.
- *  Mirrors carry none. */
-const carryingDoc = (node: Node, from: string, to: string): Node => {
-  if (isMirror(node) || node.doc === undefined) return node
-  const doc = retargetRelative(from, to, node.doc)
-  return doc === node.doc ? node : { ...node, doc }
 }
 
 /**
@@ -4070,15 +4054,14 @@ const planUntrash = (
   }
 
   const already = recordsOf(scope, destination)
-  const retarget = (record: Node) => carryingDoc(record, file, destination)
-  const reparented: Node = retarget({
+  const reparented: Node = {
     ...withParent(node, parent),
     ord: appendedOrd([already], parent),
-  })
+  }
 
   const landingNodes: ReadonlyArray<Node> = [
     reparented,
-    ...descendants.map(retarget),
+    ...descendants,
   ]
   // A ROOT landing in Properties is a declaration — the same fence a
   // capture or a move asks, so an untrash cannot mint a vocabulary the
@@ -4315,8 +4298,8 @@ const bareScaffold = (node: Node): boolean => {
  *   - and it destroys no more than it says. The records leave through the same
  *     gate every other write goes through and are committed by whichever door
  *     commits everything else, so what git holds afterwards is exactly what git
- *     had already recorded — no more, and no less. A `doc` an archived node
- *     named is a FILE and stays: a document is not a node, nothing in this
+ *     had already recorded — no more, and no less. A document an archived node
+ *     linked is a FILE and stays: a document is not a node, nothing in this
  *     vocabulary names bytes, and a `.md` nobody points at is a thing a person
  *     can see.
  *
@@ -4457,8 +4440,8 @@ const planEmpty = (
  *   - **the two STAMPS are the copy's own**, exactly as they are on a captured
  *     node ({@link capturedNode}): `created` is now, and there is no `changed`
  *     on a record nobody has written to yet. Every other field — the mark and
- *     its instant, the date, the rule, the note, the properties, the attached
- *     `doc` — comes across verbatim.
+ *     its instant, the date, the rule, the note and the properties — comes
+ *     across verbatim.
  *
  * THE ORDS BELOW THE ROOT ARE COPIED VERBATIM, and that falls out of the ids
  * being fresh: each copied child sits among copied siblings only, so the keys
@@ -5545,43 +5528,28 @@ const planCreateDocument = (
   })
 }
 
-/**
- * WHO KEEPS THIS DOCUMENT'S NAME — the records a delete of it would strand.
- *
- * TWO DOORS IN, because two things in the format resolve a value to a served
- * `.md`: a record's `doc` FIELD ({@link docOf}, relative to the record's own
- * outline) and a value of a key DECLARED `doc` ({@link resolvedDoc}, relative
- * to wherever the key's `base` says). Both are the validator's own
- * resolutions, asked of the same derivation it derived, so the gate that
- * would refuse the RECORDS' files on the next load is the gate refusing HERE,
- * moved earlier — before any bytes are staged rather than after, with the
- * question still answering WHO rather than WHAT BROKE.
- *
- * The walk is {@link namingByProp}'s shape, deliberately: one sweep of the
- * nodes, one row per naming record per means, in the `id (key, file:line)`
- * spelling the reader already meets in `outlines_unmirror`'s and `trash_empty`'s
- * refusals. What is NOT here is every other way a path can be named. A
- * `path`-declared value promised its SHAPE only; a markdown link going dead
- * is markdown being markdown (format.md's addressing says so); a pin landing
- * a dead row is format.md's Pins, quoted in the refusal itself. Only a `doc`
- * — either door — promised that its value names something that exists, and
- * the refusal is exactly that promise, held.
+/** Live prose links and declared document properties that hold a file.
+ * The reverse index names referring documents; the format attributes outline
+ * references to their records and leaves trashed records out.
  */
 const namingDocument = (
   scope: Scope,
   file: string,
-): ReadonlyArray<{ at: Located; via: string }> => {
-  // The second door is paid for only where a vault declares a `doc` key —
-  // most vaults declare none, and for those the field walk below is the whole
-  // price. Field first because it is the one every vault can have.
-  const found: Array<{ at: Located; via: string }> = []
+): ReadonlyArray<{ name: string; site: string; via: string }> => {
+  // The link reading and the property fence are independent references.
+  const address = addressOf(scope.claims, file, null)
+  const found: Array<{ name: string; site: string; via: string }> = address === null ? [] :
+    referrersTo(address, scope.pointing, scope.derived).map(ref => ({
+      name: ref.at?.node.id ?? ref.face.path,
+      site: ref.at === undefined ? ref.face.path : `${ref.at.file}:${ref.at.line}`,
+      via: "link",
+    }))
   let keyed: Set<string> | undefined
   for (const [key, declared] of scope.typed.declarations) {
     if (declared.type.kind === "doc") (keyed ??= new Set()).add(key)
   }
   for (const at of scope.derived.nodes) {
     if (isMirror(at.node)) continue
-    if (docOf(at) === file) found.push({ at, via: "doc" })
     if (keyed === undefined || at.node.custom === undefined) continue
     const custom: Record<string, string | ReadonlyArray<string>> = at.node.custom
     for (const [key, value] of Object.entries(custom)) {
@@ -5593,7 +5561,7 @@ const namingDocument = (
           // The bare KEY — "agent", not `` `agent` `` — so the refusal can
           // decide what to spell around it, as {@link namingByProp}'s `fields`
           // already hands its caller the same shape.
-          found.push({ at, via: key })
+          found.push({ name: at.node.id, site: `${at.file}:${at.line}`, via: key })
           break
         }
       }
@@ -5627,10 +5595,9 @@ const namingDocument = (
  *   - an outline still carrying RECORDS. This is a delete, not a move:
  *     `outlines_trash` is how a record leaves an outline, and what empties one
  *     entirely is nobody's verb to guess;
- *   - a document still NAMED — a `doc` field, or a `doc`-declared value,
- *     naming it ({@link namingDocument}). Deleting under them would break
- *     THEIR files' `doc-resolves` row, which is the same row the gate would
- *     print on the next load, said about the same edges;
+ *   - a document still NAMED by a live prose link or a declared `doc`
+ *     property ({@link namingDocument}). Deleting would strand the link or
+ *     violate the property fence;
  *   - a file the SET holds no contents for — an outline whose lines did not
  *     parse, a document that would not read. Overwriting bytes nobody has
  *     seen is {@link writable}'s own refusal, and a delete is the
@@ -5717,10 +5684,10 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
       return Result.fail(
         new UsageFailure({
           reason:
-            `\`${request.file}\` is still named by ${capped(outgoing, ({ at, via }) =>
-              `\`${at.node.id}\` (\`${via}\`, ${at.file}:${at.line})`)} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
+            `\`${request.file}\` is still named by ${capped(outgoing, ({ name, site, via }) =>
+              `\`${name}\` (\`${via}\`${site === name ? "" : `, ${site}`})`)} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
             `pointing at nothing. Re-point ${outgoing.length === 1 ? "it" : "them"}, or delete the ` +
-            `naming record first.`,
+            `naming link or record first.`,
         }),
       )
     }
@@ -5929,5 +5896,23 @@ export const VERBS: ReadonlyArray<Request["op"]> = Object.keys(PLANNERS) as Read
 export const plan = (scope: Scope, request: Request): Planned => {
   if (request.op !== "create" && request.op !== "create-doc" && "file" in request && typeof request.file === "string"
     && claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
-  return (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)
+  const planned = (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)
+  if (Result.isFailure(planned) || !["title", "desc", "add", "create", "doc", "create-doc"].includes(request.op)) return planned
+  const next = planned.success
+  const served = new Set([...scope.set.documents.map(one => one.path), ...next.files.map(one => one.file), ...(next.documents ?? []).map(one => one.file)])
+  const nudges: string[] = []
+  const compare = (file: string, text: string | ReadonlyArray<string>, before: string | ReadonlyArray<string>) => {
+    const previous = new Set(deadLinksIn(file, before, served).map(one => one.written))
+    nudges.push(...deadLinksIn(file, text, served).filter(one => !previous.has(one.written)).map(deadLinkSaid))
+  }
+  for (const file of next.files) {
+    for (const node of file.nodes) {
+      if (isMirror(node)) continue
+      const before = scope.derived.byId.get(node.id)?.node
+      if (before !== undefined && !isMirror(before) && before.title === node.title && before.desc === node.desc) continue
+      compare(file.file, [node.title, node.desc ?? ""], before === undefined || isMirror(before) ? "" : [before.title, before.desc ?? ""])
+    }
+  }
+  for (const document of next.documents ?? []) compare(document.file, proseIn(document.text), proseIn(markdownAt(scope.set, document.file)?.body ?? ""))
+  return nudges.length === 0 ? planned : Result.succeed({ ...next, nudge: [next.nudge, ...new Set(nudges)].filter(Boolean).join(" ") })
 }

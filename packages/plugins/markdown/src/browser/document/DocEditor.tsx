@@ -47,6 +47,7 @@ export function DocEditor(props: {
   readonly served: string
   /** Leave the editor, whichever door: a commit that landed, or a Cancel. */
   readonly onDone: (draft: DocumentDraft) => void
+  readonly onNudge: (text: string | null) => void
   readonly draft: DocumentDraft
 }) {
   const undo = useHistory()
@@ -83,8 +84,7 @@ export function DocEditor(props: {
         setSaid(outcome.text)
         return
       }
-      // Landed. A document write has no rollup to remark, so there is nothing
-      // an `aside` would say that leaving does not show.
+      props.onNudge(outcome?.tone === "aside" ? outcome.text : null)
       props.onDone(draft)
     } finally {
       setBusy(false)

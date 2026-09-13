@@ -63,7 +63,7 @@ const judged = (set: OutlineSet): OutlineSet => {
 /** The set a plan's FILES make of a set: every file re-serialized through
  *  the format's own writer and re-parsed, which is the path a real write
  *  takes. THE DOCUMENTS COME ACROSS TOO, and that is not decoration: a
- *  `doc` field and a `doc`-typed property are both PATHS the validator
+ *  `doc`-typed property is a PATH the validator
  *  resolves against the files the set actually serves, so a rebuilt set
  *  that dropped them would report every such path as missing — and a test
  *  about retargeting one would pass because nothing was served rather than
@@ -2293,7 +2293,6 @@ describe("prop", () => {
       "status",
       "date",
       "desc",
-      "doc",
       "after",
       "blocks",
       "see",
@@ -3035,20 +3034,17 @@ describe("move across outlines", () => {
     expect(ids(standingBefore(derived(now), "beds"))).toEqual(["knobs"])
   })
 
-  test("a `doc` is re-aimed at the outline it arrived in", () => {
-    // The one field that is RELATIVE to the file naming it, which is why this
-    // is the archive's own `carryingDoc` rather than a second answer: the path
-    // is rewritten so it still names the same document, and the document is not
-    // touched at all.
+  test("a note link keeps its written spelling when its record moves", () => {
+    // Prose travels verbatim. The next revision reads any newly missing target.
     const set = setOf({
-      "house.olai": `{"id":"install","ord":"a0","title":"install the cabinets","doc":"finishes.md"}`,
+      "house.olai": `{"id":"install","ord":"a0","title":"install the cabinets","desc":"[document](finishes.md)"}`,
       "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
     }, ["finishes.md"])
     const arrived = fileOf(
       planned(set, { op: "move", id: "install", parent: "garden" }),
       "notes/garden.olai",
     )
-    expect(record(arrived, "install").doc).toBe("../finishes.md")
+    expect(record(arrived, "install").desc).toBe("[document](finishes.md)")
   })
 
   test("nothing is re-stamped but the record that moved", () => {
@@ -3089,17 +3085,8 @@ describe("move across outlines", () => {
 
 
   /**
-   * THE `doc` FIELD is retargeted; a `doc`-typed PROPERTY is not — and that
-   * boundary is the door family's rather than this verb's.
-   *
-   * Both are paths resolved against the outline that names them
-   * (`@olai/format`'s `wrongDoc` calls `resolveRelative(from, value)`, exactly
-   * as the field's own rule does), so a record that changes DIRECTORY changes
-   * what either one points at. {@link carryingDoc} rewrites the field, because
-   * the field is the format's and every mover already shared one answer about
-   * it; it does not rewrite a custom value, because knowing WHICH keys hold
-   * paths means reading the vault's declarations — the typed-properties seam,
-   * not the mover's.
+   * Movers keep custom property values verbatim. A file-relative `doc`
+   * property therefore changes its target when its record changes directory.
    *
    * WHAT HAPPENS IS A REFUSAL, not a dangling path: the write gate validates
    * the whole set, so the move is refused `bad-prop` naming the key and what
@@ -3143,13 +3130,13 @@ describe("move across outlines", () => {
         "`_olai/finishes.md`, and no such `.md` file is served",
       ])
 
-    // The FIELD, on the same journey, is retargeted and lands clean — which is
-    // what makes the pair above a boundary rather than an oversight.
-    const withField = setOf({
-      "house.olai": `{"id":"install","ord":"a0","title":"install","doc":"finishes.md"}`,
+    // A prose link stays authored when the node moves; missing targets warn
+    // rather than refusing the move, unlike the declared property above.
+    const withLink = setOf({
+      "house.olai": `{"id":"install","ord":"a0","title":"install","desc":"[document](finishes.md)"}`,
       "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
     }, ["finishes.md"])
-    expect(Result.isSuccess(validate(TEST_CLAIMS, after(withField, { op: "move", id: "install", parent: "garden" }))))
+    expect(Result.isSuccess(validate(TEST_CLAIMS, after(withLink, { op: "move", id: "install", parent: "garden" }))))
       .toBe(true)
   })
 
@@ -3684,43 +3671,28 @@ describe("merge", () => {
       .toBe("the second")
   })
 
-  test("a mark, a date, a document or an edge goes with the record — and is said out loud", () => {
+  test("a mark, a date or an edge goes with the record — and is said out loud", () => {
     // Every field a node carries ONE of, so the survivor's own answer stands
-    // and this one leaves the live outline. None of them may go quietly —
-    // `doc` was the one that did, for a review (2026-08-14).
+    // and this one leaves the live outline. The notice must name each loss.
     const set = setOf({
       "house.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","done":"2026-08-01","date":"2026-09-01","doc":"finishes.md","see":["a"]}`,
+        `{"id":"b","ord":"a1","title":"b","done":"2026-08-01","date":"2026-09-01","desc":"[document](finishes.md)","see":["a"]}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "merge", id: "b" })
     expect(record(fileOf(result, "_olai/Trash.olai"), "b")).toMatchObject({
       done: "2026-08-01",
       date: "2026-09-01",
-      doc: "../finishes.md",
+      desc: "[document](finishes.md)",
       see: ["a"],
     })
     expect(record(fileOf(result, "house.olai"), "a").done).toBeUndefined()
     expect(result.nudge).toContain("`done` mark")
     expect(result.nudge).toContain("its date")
-    expect(result.nudge).toContain("its document `finishes.md`")
     expect(result.nudge).toContain("its edges")
   })
 
-  test("a node carrying only a document still says so", () => {
-    // The list is assembled per field, so the one that was silent has to be
-    // pinned ALONE as well — a nudge that only appears beside a mark would be
-    // the same hole one field over.
-    const set = setOf({
-      "house.olai": [
-        `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","doc":"finishes.md"}`,
-      ].join("\n"),
-    })
-    expect(planned(set, { op: "merge", id: "b" }).nudge)
-      .toContain("kept its document `finishes.md`")
-  })
 
   test("the first of its siblings joins into the row ON the page above it — its parent", () => {
     // Backspace at offset zero of a first child: the head is right there,
@@ -3811,20 +3783,20 @@ describe("archive", () => {
     expect(result.summary).toBe("trash: order the cabinets")
   })
 
-  test("a `doc` is rewritten so it still names the same file from the trash", () => {
+  test("a note link stays verbatim through trash and restore", () => {
     const set = setOf({
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"install","parent":"kitchen","ord":"a0","title":"install them","doc":"finishes.md"}`,
+        `{"id":"install","parent":"kitchen","ord":"a0","title":"install them","desc":"[document](finishes.md)"}`,
       ].join("\n"),
     }, [["finishes.md", "# Finishes\n"]])
     const { archive } = archived(set, "install")
-    expect(record(archive, "install").doc).toBe("../finishes.md")
+    expect(record(archive, "install").desc).toBe("[document](finishes.md)")
     const back = fileOf(
       planned(after(set, { op: "trash", id: "install" }), { op: "untrash", id: "install" }),
       "house.olai",
     )
-    expect(record(back, "install").doc).toBe("finishes.md")
+    expect(record(back, "install").desc).toBe("[document](finishes.md)")
   })
 
   test("descendants come along, shaped as they were", () => {
@@ -5011,10 +4983,10 @@ describe("documents", () => {
 describe("delete", () => {
   // The verb's two units — a document carries any text; an outline carries
   // none — and the three ways it has to say no. `docsRef` is the corpus for
-  // the named-document half: `polish` ATTACHES `notes/instructions.md`, so it
+  // the named-document half: `renovate` links to `notes/instructions.md`, so it
   // may not go, and `flat.md` may.
   const DOCS_REFS = [
-    `{"id":"renovate","ord":"a0","title":"Renovate the kitchen","doc":"notes/instructions.md"}`,
+    `{"id":"renovate","ord":"a0","title":"Renovate the kitchen","desc":"[document](notes/instructions.md)"}`,
     `{"id":"polish","parent":"renovate","ord":"a0","title":"polish the cabinets"}`,
   ].join("\n")
   const docsVault = (): OutlineSet =>
@@ -5053,12 +5025,12 @@ describe("delete", () => {
     expect(failure.message).toContain("outlines_trash")
   })
 
-  test("a document a `doc` FIELD still names is refused, naming the record that names it", () => {
+  test("a document a note still links to is refused, naming the record that names it", () => {
     const failure = refused(docsVault(), { op: "delete", file: "notes/instructions.md" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("still named by")
     expect(failure.message).toContain("`renovate`")
-    expect(failure.message).toContain("`doc`")
+    expect(failure.message).toContain("`link`")
     expect(failure.message).toContain("house.olai:1")
     // …and MANY namers name the first five and count the rest, like every
     // refusal this layer holds a walk under: the plural is still the whole
@@ -5067,7 +5039,7 @@ describe("delete", () => {
       {
         "house.olai":
           [0, 1, 2, 3, 4, 5, 6].map((i) =>
-            `{"id":"task${i}","ord":"${i >= 9 ? "" : "a0"}${i === 0 ? "" : i}","title":"task ${i}","doc":"notes/instructions.md"}`
+            `{"id":"task${i}","ord":"${i >= 9 ? "" : "a0"}${i === 0 ? "" : i}","title":"task ${i}","desc":"[document](notes/instructions.md)"}`
           ).join("\n"),
       },
       ["notes/instructions.md"],
@@ -6232,4 +6204,61 @@ test("a pin rename precondition is rechecked when the row leaves the active shel
   for (const files of moved) {
     expect(refused(setOf(files), request).message).toContain("no longer pinned")
   }
+})
+
+describe("dead-link nudges", () => {
+  const set = () => setOf({ "projects/olai.olai": '{"id":"a","ord":"a0","title":"A"}' }, [["notes/nix-flakes.md", "# Nix"], ["projects/readme.md", "before"]])
+  for (const op of ["title", "desc"] as const) {
+    test(`${op} names a new dead link without refusing the write`, () => {
+      const request = op === "title" ? { op, id: "a", title: "[x](nix-flakes.md)" } : { op, id: "a", desc: "[x](nix-flakes.md)" }
+      expect(planned(set(), request).nudge).toContain("did you mean `../notes/nix-flakes.md`?")
+    })
+  }
+  test("capture and document writes carry the same nudge", () => {
+    expect(planned(set(), { op: "add", file: "projects/olai.olai", title: "[x](nix-flakes.md)" }).nudge).toContain("projects/nix-flakes.md")
+    expect(planned(set(), { op: "doc", file: "projects/readme.md", text: "[x](nix-flakes.md)" }).nudge).toContain("../notes/nix-flakes.md")
+    expect(planned(set(), { op: "create-doc", file: "projects/new.md", text: "[x](nix-flakes.md)" }).nudge).toContain("../notes/nix-flakes.md")
+  })
+  test("a note cannot finish an incomplete link in the title", () => {
+    const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"[unfinished"}' })
+    expect(planned(existing, { op: "desc", id: "a", desc: "](missing.md)" }).nudge).toBeUndefined()
+  })
+  test("creating an outline with a seed warns, including the first Inbox capture", () => {
+    expect(planned(setOf({}), { op: "create", file: "_olai/Inbox.olai", seed: { title: "[missing](../missing.md)" } }).nudge).toContain("missing.md")
+  })
+  test("document frontmatter and code do not warn", () => {
+    const text = '---\nexample: "[x](yaml.md)"\n---\n`[x](code.md)`'
+    expect(planned(set(), { op: "doc", file: "projects/readme.md", text }).nudge).toBeUndefined()
+  })
+  test("an unchanged dead link is not nudged again", () => {
+    const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"A","desc":"[x](missing.md)"}' })
+    expect(planned(existing, { op: "desc", id: "a", desc: "[x](missing.md) again" }).nudge).toBeUndefined()
+  })
+})
+
+describe("files held by prose links", () => {
+  test("a live title, note and document body each hold the named file", () => {
+    for (const field of ["title", "desc"] as const) {
+      const set = setOf({ "projects/a.olai": JSON.stringify({ id: "a", ord: "a0", title: "A", [field]: "[target](../target.md#scope)" }) }, ["target.md"])
+      const failure = refused(set, { op: "delete", file: "target.md" })
+      expect(failure.message).toContain("`a` (`link`, projects/a.olai:1)")
+    }
+    const set = setOf({}, [["notes/source.md", "[target](../target.md#scope)"], "target.md"])
+    expect(refused(set, { op: "delete", file: "target.md" }).message).toContain("`notes/source.md` (`link`)")
+  })
+  test("trashed records and a document's self-link do not hold it", () => {
+    const set = setOf({ "_olai/Trash.olai": '{"id":"old","ord":"a0","title":"[target](../target.md)"}' }, [["target.md", "[self](target.md)"]])
+    expect(planned(set, { op: "delete", file: "target.md" }).removed).toEqual(["target.md"])
+  })
+  test("declared document properties keep their fence in trash", () => {
+    const set = setOf({
+      "_olai/Properties.olai": '{"id":"brief","ord":"a0","title":"brief","custom":{"type":"doc"}}',
+      "_olai/Trash.olai": '{"id":"old","ord":"a0","title":"Old","custom":{"brief":"../target.md"}}',
+    }, ["target.md"])
+    expect(refused(set, { op: "delete", file: "target.md" }).message).toContain("`old` (`brief`, _olai/Trash.olai:1)")
+  })
+  test("doc is now an ordinary custom key", () => {
+    const result = planned(house(), { op: "prop", id: "order", key: "doc", value: "missing.md" })
+    expect(record(fileOf(result, "house.olai"), "order").custom).toEqual({ doc: "missing.md" })
+  })
 })

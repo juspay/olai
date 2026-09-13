@@ -27,7 +27,7 @@
  * ## What is NOT in the system half
  *
  * `see` and `after` are drawn as reference rows under the note, `desc` is the
- * note, `doc` is the document line, `title` is the row. Repeating any of them
+ * note and `title` is the row. Repeating any of them
  * here would put two spellings of one fact on one screen, and the second one
  * would be the dumb one. What is in the system half is exactly the facts that
  * have nowhere else to show.

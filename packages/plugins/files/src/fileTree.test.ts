@@ -1,249 +1,46 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
-
 import { ancestorDirs, dirsIn, fileTree } from "./fileTree.ts"
 
-test("a flat directory is one list of files, outlines and documents mixed", () => {
-  expect(fileTree(TEST_CLAIMS, ["garden.olai", "house.olai", "finishes.md"])).toEqual([
-    {
-      kind: "file",
-      key: "file:finishes.md",
-      name: "finishes",
-      file: "finishes.md",
-      of: "markdown",
-    },
-    {
-      kind: "file",
-      key: "file:garden.olai",
-      name: "garden",
-      file: "garden.olai",
-      of: "outline-olai",
-    },
-    {
-      kind: "file",
-      key: "file:house.olai",
-      name: "house",
-      file: "house.olai",
-      of: "outline-olai",
-    },
-  ])
+const files = ["garden.olai", "house.olai", "notes/map.olai", "notes/palette.md", "art/a.png", "b.md", "README", "empty/code.js"]
+test("Outlines contains only node claims and drops reference-only and unclaimed folders", () => {
+  const rows = fileTree(TEST_CLAIMS, files, "nodes")
+  expect(rows.map(row => row.name)).toEqual(["garden", "house", "notes"])
+  expect(dirsIn(rows)).toEqual(new Set(["notes"]))
 })
-
-// WHAT KIND each row is comes off the name, not off which list the caller had
-// it in — one list goes in, and `@olai/format`'s registry answers for every
-// path in it. A path no kind claims is dropped rather than drawn: the wire
-// cannot produce one (every collection it comes from is built from that same
-// registry), and a row with no kind would have no glyph and nowhere to link.
-test("a row's kind is read off its name, and an unclaimed path is not a row", () => {
-  expect(fileTree(TEST_CLAIMS, ["b.md", "a.olai", "README", "notes/rows.tsv"])).toEqual([
-    {
-      kind: "file",
-      key: "file:a.olai",
-      name: "a",
-      file: "a.olai",
-      of: "outline-olai",
-    },
-    {
-      kind: "file",
-      key: "file:b.md",
-      name: "b",
-      file: "b.md",
-      of: "markdown",
-    },
-  ])
+test("Reference contains other claimed files and no outline-only folders", () => {
+  const rows = fileTree(TEST_CLAIMS, [...files, "work/task.olai"], "reference")
+  expect(rows.map(row => row.name)).toEqual(["art", "b", "notes"])
+  expect(dirsIn(rows)).toEqual(new Set(["art", "notes"]))
+  expect(rows[1]).toEqual({ kind: "file", key: "file:b.md", name: "b", file: "b.md", of: "markdown" })
 })
-
-test("a nested path becomes a directory node with the stem as the leaf", () => {
-  expect(fileTree(TEST_CLAIMS, ["house.olai", "notes/palette.md", "finishes.md"])).toEqual([
-    {
-      kind: "file",
-      key: "file:finishes.md",
-      name: "finishes",
-      file: "finishes.md",
-      of: "markdown",
-    },
-    {
-      kind: "file",
-      key: "file:house.olai",
-      name: "house",
-      file: "house.olai",
-      of: "outline-olai",
-    },
-    {
-      kind: "dir",
-      key: "dir:notes",
-      name: "notes",
-      path: "notes",
-      children: [
-        {
-          kind: "file",
-          key: "file:notes/palette.md",
-          name: "palette",
-          file: "notes/palette.md",
-          of: "markdown",
-        },
-      ],
-    },
-  ])
+test("a mixed folder belongs to both trees, with separate leaves and one fold path", () => {
+  for (const [mode, file] of [["nodes", "notes/map.olai"], ["reference", "notes/palette.md"]] as const) {
+    const rows = fileTree(TEST_CLAIMS, ["notes/map.olai", "notes/palette.md"], mode)
+    expect(rows).toEqual([{ kind: "dir", key: "dir:notes", name: "notes", path: "notes", children: [{ kind: "file", key: `file:${file}`, name: mode === "nodes" ? "map" : "palette", file, of: mode === "nodes" ? "outline-olai" : "markdown" }] }])
+  }
 })
-
-// The whole reason this is a tree: one folder holds BOTH kinds, the way a
-// reader of the directory sees it — not an outlines section and a documents
-// section that each re-spell the path.
-test("a directory mixes outlines and documents under one node", () => {
-  expect(
-    fileTree(TEST_CLAIMS, [
-      "Daily/2026-08.olai",
-      "house.olai",
-      "Daily/notes.md",
-      "finishes.md",
-    ]),
-  ).toEqual([
-    {
-      kind: "dir",
-      key: "dir:Daily",
-      name: "Daily",
-      path: "Daily",
-      children: [
-        {
-          kind: "file",
-          key: "file:Daily/2026-08.olai",
-          name: "2026-08",
-          file: "Daily/2026-08.olai",
-          of: "outline-olai",
-        },
-        {
-          kind: "file",
-          key: "file:Daily/notes.md",
-          name: "notes",
-          file: "Daily/notes.md",
-          of: "markdown",
-        },
-      ],
-    },
-    {
-      kind: "file",
-      key: "file:finishes.md",
-      name: "finishes",
-      file: "finishes.md",
-      of: "markdown",
-    },
-    {
-      kind: "file",
-      key: "file:house.olai",
-      name: "house",
-      file: "house.olai",
-      of: "outline-olai",
-    },
-  ])
+test("empty regions have no folders or files", () => {
+  expect(fileTree(TEST_CLAIMS, [], "nodes")).toEqual([])
+  expect(fileTree(TEST_CLAIMS, ["only.md"], "nodes")).toEqual([])
+  expect(fileTree(TEST_CLAIMS, ["only.olai"], "reference")).toEqual([])
 })
-
-test("depth is preserved: a chain of directories is a chain of dir nodes", () => {
-  expect(fileTree(TEST_CLAIMS, ["a/b/c.olai"])).toEqual([
-    {
-      kind: "dir",
-      key: "dir:a",
-      name: "a",
-      path: "a",
-      children: [
-        {
-          kind: "dir",
-          key: "dir:a/b",
-          name: "b",
-          path: "a/b",
-          children: [
-            {
-              kind: "file",
-              key: "file:a/b/c.olai",
-              name: "c",
-              file: "a/b/c.olai",
-              of: "outline-olai",
-            },
-          ],
-        },
-      ],
-    },
-  ])
+test("stems determine file order, directories share the alphabetical order", () => {
+  const rows = fileTree(TEST_CLAIMS, ["z.md", "beta/a.md", "a.md", "b.md"], "reference")
+  expect(rows.map(row => row.name)).toEqual(["a", "b", "beta", "z"])
 })
-
-test("children sort by name, dirs and files together", () => {
-  // `notes` (dir) sorts after `house.olai` and before `zebra.md` by name.
-  expect(
-    fileTree(TEST_CLAIMS, ["house.olai", "notes/inner.olai", "zebra.md", "alpha.md"]),
-  ).toEqual([
-    {
-      kind: "file",
-      key: "file:alpha.md",
-      name: "alpha",
-      file: "alpha.md",
-      of: "markdown",
-    },
-    {
-      kind: "file",
-      key: "file:house.olai",
-      name: "house",
-      file: "house.olai",
-      of: "outline-olai",
-    },
-    {
-      kind: "dir",
-      key: "dir:notes",
-      name: "notes",
-      path: "notes",
-      children: [
-        {
-          kind: "file",
-          key: "file:notes/inner.olai",
-          name: "inner",
-          file: "notes/inner.olai",
-          of: "outline-olai",
-        },
-      ],
-    },
-    {
-      kind: "file",
-      key: "file:zebra.md",
-      name: "zebra",
-      file: "zebra.md",
-      of: "markdown",
-    },
-  ])
+test("input ordering and duplicate paths do not change either tree", () => {
+  for (const mode of ["nodes", "reference"] as const) expect(fileTree(TEST_CLAIMS, [...files].reverse().concat(files), mode)).toEqual(fileTree(TEST_CLAIMS, files, mode))
 })
-
-test("empty inputs are an empty tree", () => {
-  expect(fileTree(TEST_CLAIMS, [])).toEqual([])
+test("deep directory chains retain their paths and stable keys", () => {
+  const rows = fileTree(TEST_CLAIMS, ["a/b/c.olai"], "nodes")
+  expect(dirsIn(rows)).toEqual(new Set(["a", "a/b"]))
+  expect(rows[0]?.key).toBe("dir:a")
+  const root = rows[0]!
+  if (root.kind === "dir") expect(root.children[0]?.key).toBe("dir:a/b")
 })
-
-// Keys are unique across dirs and files, and stable for a path — the drawer
-// keys rows by them so a membership change does not rebuild untouched places.
-test("every row's key names its place", () => {
-  const tree = fileTree(TEST_CLAIMS, ["Daily/2026-08.olai", "notes/palette.md"])
-  const keys = (rows: ReturnType<typeof fileTree>): string[] =>
-    rows.flatMap((row) =>
-      row.kind === "dir" ? [row.key, ...keys(row.children)] : [row.key],
-    )
-  expect(keys(tree)).toEqual([
-    "dir:Daily",
-    "file:Daily/2026-08.olai",
-    "dir:notes",
-    "file:notes/palette.md",
-  ])
-})
-
-// The open file's parent chain — what the sidebar force-opens so a
-// collapsed-by-default tree never hides the selection.
-test("ancestorDirs is the directory chain above a nested file", () => {
+test("ancestry is empty at the root and ordered outside-in", () => {
   expect(ancestorDirs("house.olai")).toEqual([])
   expect(ancestorDirs("notes/palette.md")).toEqual(["notes"])
   expect(ancestorDirs("a/b/c.olai")).toEqual(["a", "a/b"])
-})
-
-// Which folders EXIST, read off the tree the sidebar draws — what the memory of
-// open folders is pruned against (`fold/folders.ts`). Off the rows rather than
-// off the paths, so there is one answer rather than two that could disagree.
-test("dirsIn is every folder the tree draws, nested ones included", () => {
-  expect(dirsIn(fileTree(TEST_CLAIMS, ["house.olai"]))).toEqual(new Set())
-  expect(
-    dirsIn(fileTree(TEST_CLAIMS, ["Daily/2026/08.olai", "house.olai", "notes/palette.md"])),
-  ).toEqual(new Set(["Daily", "Daily/2026", "notes"]))
 })

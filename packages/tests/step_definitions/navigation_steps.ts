@@ -279,7 +279,7 @@ const toTheBottom = async (world: OlaiWorld): Promise<void> => {
   // Literata's, and a bottom recorded before they swap is a position the
   // page cannot hold once they have. Wait for them — and for the page to
   // actually overflow, which is the event, not fonts.ready. A zoomed node
-  // whose attached document has not arrived yet is shorter than the
+  // whose embedded document has not arrived yet is shorter than the
   // window; scrolling it then is a no-op that reads as "the page does not
   // scroll in this window".
   await world.page.evaluate(() => document.fonts.ready);

@@ -47,7 +47,7 @@ test("every registered outline format preserves generated records and canonical 
           date: "2026-09-12",
           ...(([{ done: true }, { cancelled: true }, { doing: true }, { todo: true }, {}] as const)[sample % 5]!),
           started: "2026-09-12T08:00:00Z", worked: sample,
-          repeat: "every day", doc: "notes.md", after: ["record-0"], blocks: ["record-0"], see: ["record-0"],
+          repeat: "every day", after: ["record-0"], blocks: ["record-0"], see: ["record-0"],
           created: "2026-09-12T08:00:00Z", changed: "2026-09-12T09:00:00Z",
           ...(next() % 2 ? { custom: { sample: String(sample) } } : {}),
         })
@@ -60,6 +60,6 @@ test("every registered outline format preserves generated records and canonical 
       expect(decoded.success.nodes.map(located => located.node)).toEqual(nodes)
       expect(format.serialize(decoded.success.nodes.map(located => located.node))).toBe(bytes)
     }
-    expect([...covered].sort()).toEqual(["id", "parent", "ord", "title", "mirror", "done", "cancelled", "doing", "todo", "started", "worked", "date", "repeat", "desc", "doc", "after", "blocks", "see", "created", "changed", "custom"].sort())
+    expect([...covered].sort()).toEqual(["id", "parent", "ord", "title", "mirror", "done", "cancelled", "doing", "todo", "started", "worked", "date", "repeat", "desc", "after", "blocks", "see", "created", "changed", "custom"].sort())
   }
 }))), 30000)

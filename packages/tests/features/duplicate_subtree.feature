@@ -22,7 +22,7 @@ Feature: Duplicating a subtree
     And I mark the page
 
   Scenario: The menu copies the row and everything under it
-    # `install the cabinets` has three children, a `doc`, two marked rows and
+    # `install the cabinets` has three children, a document link, two marked rows and
     # an `after` edge pointing out of the subtree — which is most of what the
     # format can put on a record, and all of it is asserted below rather than
     # sampled.

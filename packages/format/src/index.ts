@@ -18,7 +18,7 @@
  *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone`, the
  *     date derivations (`datedDays`, `datedOn`, and the daily-note pair
  *     `dailyNoteDays` / `dailyNotesOn`), the forward reading of those same
- *     dates (`isOverdue`, `agendaOf`) and the document rules (`docOf`,
+ *     dates (`isOverdue`, `agendaOf`) and the document rules (`pathedOf`,
  *     `isPicture`, `isAsset`, `bodiedOf`) — so a reader and the validator agree on
  *     sibling order, mirror expansion, one node's ancestry, what is standing in
  *     its way, what is on a day, what is overdue on it, which document that
@@ -267,7 +267,6 @@ export {
   bodiedOf,
   bracketSpacedLinks,
   bytesOf,
-  docOf,
   firstLine,
   isAsset,
   isPicture,
@@ -278,7 +277,6 @@ export {
    *  itself whether it serves the answer. */
   pathedOf,
   pictureOf,
-  retargetRelative,
 } from "./documents.ts"
 export {
   INBOX,
@@ -1241,3 +1239,5 @@ export { ClaimData, FileKind } from "./kinds.ts"
 export { outlineCalled } from "./node.ts"
 
 export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
+
+export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields, deadLinkTarget } from "./dead-links.ts"

@@ -1,37 +1,6 @@
-/**
- * Documents: the `.md` files a served directory holds, what a node's `doc`
- * points at, and what a document is allowed to point at in turn.
- *
- * A document is CONTENT, not structure. Its text is carried in the set beside
- * the nodes (see {@link ./set.ts}) for the same reason a note's `desc` is
- * carried on the record: it is markdown stored verbatim and interpreted only
- * at view time, so the reader that draws it and the validator that checks the
- * reference to it are looking at one snapshot of the directory rather than at
- * two reads that could disagree.
- *
- * Three rules live here and nowhere else:
- *
- *   - {@link docOf} — where a node's `doc` lands. Relative to the DEFINING
- *     outline's own directory, which is what "attached" means: a node names a
- *     file beside itself, not beside whoever is reading it.
- *   - {@link resolveRelative} — the path arithmetic that answers it, with no
- *     filesystem access at all. Both sides are already paths relative to the
- *     served directory, and a rule that touched the disk would be a second
- *     reader of it.
- *   - {@link pictureOf} and {@link isPicture} — what a relative `![](…)` may
- *     name. Two layers ask it (the renderer that rewrites a relative `src` into
- *     a URL, and the route that answers that URL), they are in packages that
- *     cannot import each other, and two allowlists that drifted apart would
- *     mean either a broken image or a served file nobody meant to serve.
- *   - {@link isAsset} — what the ROUTE may answer at all, which is the same
- *     question asked once more and one step wider: the files whose page is
- *     drawn by POINTING at them are fetched by URL — a previewed `.html`, a
- *     picture, a `.pdf` — so those and the parts a saved page draws itself
- *     with are addresses too. Markdown's rule is untouched by that; a relative
- *     `![](…)` still names a picture or nothing.
- *   - {@link bodiedOf} — where a relative `[…](…)` lands. The same arithmetic
- *     as a `doc` and as a picture, asked about the third thing markdown can
- *     point at: another file of this directory that has a page.
+/** Relative links, pictures and the forward references of a record or body.
+ * Resolution is beside the writing file and independent of served membership;
+ * dead-links.ts asks that separate question against a revision's paths.
  */
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { proseIn } from "./frontmatter.ts"
@@ -49,7 +18,7 @@ import { headingText } from "./slug.ts"
  * (`./set.ts`).
  *
  * What stays in this module is WHERE A REFERENCE LANDS, and it is one subject
- * read at three grains: the arithmetic (where a `doc`, a relative `![](…)` and
+ * read at three grains: the arithmetic (where a relative `![](…)` and
  * a relative `[…](…)` resolve to), the refusals (what a page may fetch at all),
  * and the two readings built out of those — {@link linksIn}, every address a
  * piece of PROSE points at, and {@link recordLinks}, every address one RECORD
@@ -62,15 +31,6 @@ import { headingText } from "./slug.ts"
  * say who points at a document (`./backlinks.ts`). Split across the two
  * modules they would have been two answers to one question.
  */
-
-/** The document this node attaches, as a path relative to the served
- *  directory — or `undefined` for a node that attaches none. A mirror never
- *  does: it is a second placement of a node, and the node itself is where every
- *  field describing it lives. */
-export const docOf = (located: Located): string | undefined =>
-  isMirror(located.node) || located.node.doc === undefined
-    ? undefined
-    : resolveRelative(located.file, located.node.doc)
 
 /** Join `to` onto the directory of `from`, collapsing `.` and `..`. A `..` that
  *  would climb above the served directory is dropped rather than escaping it:
@@ -87,36 +47,12 @@ export const resolveRelative = (from: string, to: string): string => {
 }
 
 /**
- * The same attachment, said from a different outline. `rel` is a `doc` as
- * stored on a node in `fromFile`; the answer is the spelling that still
- * resolves to the same served path once the node lives in `toFile`.
- *
- * Needed because `doc` is relative to the NAMING outline's directory, so a
- * node that leaves `house.olai` for `_olai/Trash.olai` would otherwise look
- * for `finishes.md` under `_olai/` and the write gate would refuse the trash.
- */
-export const retargetRelative = (fromFile: string, toFile: string, rel: string): string => {
-  const resolved = resolveRelative(fromFile, rel)
-  const fromDir = toFile.split("/").slice(0, -1)
-  const dest = resolved.split("/").filter((segment) => segment !== "")
-  let same = 0
-  while (same < fromDir.length && same < dest.length && fromDir[same] === dest[same]) {
-    same++
-  }
-  const parts = [
-    ...Array.from({ length: fromDir.length - same }, () => ".."),
-    ...dest.slice(same),
-  ]
-  return parts.join("/")
-}
-
-/**
  * The picture a markdown `![](…)` names, as a path relative to the served
  * directory — or `null` for a source this app does not draw at all.
  *
  * `from` is the file the markdown was written in: the outline, for a note; the
  * document itself, for a document. So a picture is resolved beside the text
- * that names it, exactly as `doc` is.
+ * that names it, just like a note link.
  *
  * Only a RELATIVE path to a picture survives: the address rule is
  * {@link relativeTo}'s, and the extension allowlist is this one's. A page that
@@ -191,8 +127,7 @@ const decodedSegment = (segment: string): string | null => {
  * renderer that left those alone would hand the browser an address relative to
  * whatever ROUTE the page happens to be at — which is the document's own
  * directory by luck, and the wrong place everywhere else. Resolved
- * here instead, beside the file the link was WRITTEN in, exactly as a `doc`
- * field and a relative picture already are.
+ * here instead, beside the file the link was WRITTEN in, exactly as a relative picture is.
  *
  * The same address rule as {@link pictureOf} — one {@link relativeTo} between
  * them — and a different question at the end of it: a file whose content is a
@@ -372,8 +307,7 @@ export const isAsset = (claims: Claims, path: string): boolean =>
  * markup rather than the name.
  *
  * PLAIN TEXT, never rendered markdown, because both callers put it in a space
- * one line high: the web draws it in a row beside a `doc`-carrying node's
- * title, and `markdown_index` puts it in a listing beside the path. A heading,
+ * one line high: the web draws it in a row in a document listing, and `markdown_index` puts it in a listing beside the path. A heading,
  * a list or a fenced block drawn there would be a document pretending to be a
  * row.
  *
@@ -387,14 +321,14 @@ export const isAsset = (claims: Claims, path: string): boolean =>
 export const firstLine = (text: string): string => {
   // FRONTMATTER IS NOT THE FIRST LINE, and asking {@link ./frontmatter.ts} is
   // how this knows: a `.md` that opens with a `---` block was called `---` in
-  // the sidebar, in the palette and beside every `doc`-carrying row, because
+  // the sidebar, in the palette and in every document listing, because
   // the literal first line with anything on it was the fence. The record on
   // top of a document is not what the document is CALLED — its first real line
   // is, exactly as it is for one with no record at all.
   const body = proseIn(text)
   // Scanned rather than split: a preview reads the top of a document, and
   // `split("\n")` would allocate every line of one to throw all but the first
-  // away — on a page that draws this beside every `doc`-carrying row, and in a
+  // away — on a page that draws this in every document listing, and in a
   // listing that draws it once per served document.
   let at = 0
   while (at < body.length) {
@@ -462,8 +396,7 @@ export const bytesOf = (text: string): number => UTF8.encode(text).length
  *
  * `from` is the file the markdown was WRITTEN in — a document for its own
  * body, the defining outline for a node's note — because that is what a
- * relative link is relative to, exactly as {@link docOf} and {@link pictureOf}
- * already are. One rule for both, which is the point: a `[…](…)` in a note and
+ * relative link is relative to, exactly as {@link pictureOf} already is. One rule for both, which is the point: a `[…](…)` in a note and
  * a `[…](…)` in a document mean the same thing, and a face that read one of
  * them differently would be the parity hole this round exists to close.
  *
@@ -526,7 +459,7 @@ export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArr
  * space that opens `"…"` / `'…'` / `(…)` is markdown's title, not part of
  * the path.
  */
-const writtenLinks = (text: string): ReadonlyArray<string> => {
+export const writtenLinks = (text: string): ReadonlyArray<string> => {
   const found: Array<string> = []
   eachTarget(text, (target) => {
     found.push(destinationOf(target))
@@ -621,11 +554,8 @@ const NO_LINKS: ReadonlyArray<Address> = []
  * two answers to "does this node point there", and the page would draw one of
  * them while the face claimed the other.
  *
- * Four things a record can point at, and one it deliberately cannot:
+ * Three things a record can point at, and one it deliberately cannot:
  *
- *   - a `doc` ATTACHMENT, which is a link a record MADE rather than one it
- *     wrote — the node says which file hangs off it, and where that lands is
- *     the format's own arithmetic ({@link resolveRelative}).
  *   - a `see`, the format's free cross-reference and the one edge no
  *     derivation reads, so the forward half of it belongs in a list of what
  *     this record points at.
@@ -643,9 +573,8 @@ const NO_LINKS: ReadonlyArray<Address> = []
  * node is where the reference is written.
  */
 export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Address> => {
-  const attached = pathAddress(claims, docOf(located))
-  if (isMirror(located.node)) return attached === null ? NO_LINKS : [attached]
-  const found: Array<Address> = attached === null ? [] : [attached]
+  if (isMirror(located.node)) return NO_LINKS
+  const found: Array<Address> = []
   for (const id of located.node.see ?? []) {
     const address = addressOf(claims, null, id)
     if (address !== null) found.push(address)
@@ -656,11 +585,6 @@ export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Add
   }
   return found
 }
-
-/** A whole-document address, for a path that may be absent — `doc` is the one
- *  field of a record that names a file, and most records name none. */
-const pathAddress = (claims: Claims, path: string | undefined): Address | null =>
-  path === undefined ? null : addressOf(claims, path, null)
 
 /** What one written link names, or `null` — the grammar's three arms, told
  *  apart by where the `#` is. */

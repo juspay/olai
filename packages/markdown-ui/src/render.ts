@@ -73,7 +73,7 @@ interface Rendered {
  * cap is a whole-cache drop rather than an eviction policy — an LRU here would
  * be more machinery than the thing it manages.
  */
-const renderings = new WeakMap<Claims, Map<string, Rendered>>()
+const renderings = new WeakMap<Claims, WeakMap<object, Map<string, Rendered>>>()
 const CACHE_LIMIT = 512
 
 const keyFor = (
@@ -87,25 +87,33 @@ const renderingOf = (
   source: string,
   from: string,
   shape: "block" | "inline",
+  members?: ReadonlySet<string>,
 ): Rendered => {
-  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape)
-  let rendered = renderings.get(claims)
+  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape, members)
+  let revisions = renderings.get(claims)
+  if (revisions === undefined) {
+    revisions = new WeakMap()
+    renderings.set(claims, revisions)
+  }
+  // Membership identity scopes the cache; it must not move heading IDs.
+  const namespace = members ?? claims
+  let rendered = revisions.get(namespace)
   if (rendered === undefined) {
     rendered = new Map()
-    renderings.set(claims, rendered)
+    revisions.set(namespace, rendered)
   }
   const key = keyFor(shape, from, source)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(claims, source, from, key, shape)
+  const result = render(claims, source, from, key, shape, members)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
 }
 
-export const renderMarkdown = (claims: Claims | undefined, source: string, from: string): string =>
-  renderingOf(claims, source, from, "block").html
+export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, members?: ReadonlySet<string>): string =>
+  renderingOf(claims, source, from, "block", members).html
 
 /**
  * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.
@@ -162,11 +170,12 @@ export const renderToTree = (
   source: string,
   from: string,
   shape: "block" | "inline",
+  members?: ReadonlySet<string>,
 ): Root => {
   const key = keyFor(shape, from, source)
   const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
-  rewrite(tree, { claims, from, ids: idsFor(key) })
+  rewrite(tree, { claims, from, ids: idsFor(key), ...(members === undefined ? {} : { members }) })
   return tree
 }
 
@@ -220,11 +229,12 @@ const render = (
   from: string,
   key: string,
   shape: "block" | "inline",
+  members?: ReadonlySet<string>,
 ): Rendered => {
   const pipeline = pipelineNow()
   const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, { claims, from, ids: idsFor(key) })
+  const headings = rewrite(tree, { claims, from, ids: idsFor(key), ...(members === undefined ? {} : { members }) })
   return { html: pipeline.htmlOf(tree), headings }
 }
 
@@ -253,8 +263,8 @@ const idsFor = (key: string): string => {
 
 /** Render a source-line landing through the existing parsed tree and highlight walk.
  * No shared cache retains a page's query or highlights. */
-export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>): string => {
-  const tree = renderToTree(claims, source, from, "block")
+export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, members?: ReadonlySet<string>): string => {
+  const tree = renderToTree(claims, source, from, "block", members)
   if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
   const lines = source.split("\n")
   const blocks = new Set(["p", "pre", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "hr"])

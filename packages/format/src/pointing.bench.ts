@@ -39,7 +39,7 @@
  *
  * THE VAULT IS GENERATED (`./pointing.testlib.ts`'s `linkyVault`) rather than
  * read, so the figure is reproducible and is about a stated shape: outlines
- * whose records carry `doc` attachments, `see` edges and links in titles and
+ * whose records carry `see` edges and links in titles and
  * notes, and `.md` bodies with links and headings in their prose. Size it with
  * OLAI_BENCH_OUTLINES / OLAI_BENCH_BODIES / OLAI_BENCH_RECORDS /
  * OLAI_BENCH_PAGES / OLAI_BENCH_EDITS.

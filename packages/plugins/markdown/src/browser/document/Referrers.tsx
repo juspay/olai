@@ -2,8 +2,7 @@
  * WHAT POINTS AT THIS DOCUMENT, under its heading — the reverse reading a
  * `.md` could not have.
  *
- * Every reference points ONE WAY on disk: a node writes `doc: notes/plan.md`,
- * a note writes `[the plan](notes/plan.md)`, another document links it in its
+ * Every reference points ONE WAY on disk: a note writes `[the plan](notes/plan.md)`, another document links it in its
  * prose — and the plan's own file says nothing about any of them. A node's page
  * has had the reverse since `../backlinks/Backlinks.tsx`; a document's could
  * not, because a document had no identity below the file and nothing carried
@@ -16,11 +15,11 @@
  * way.
  *
  * TWO KINDS OF ROW, because there are two kinds of referrer and they are not
- * the same claim (`@olai/format`'s `referrersTo`): a RECORD that attached this
- * document or linked it in its prose, drawn as the node it is and opening its
+ * the same claim (`@olai/format`'s `referrersTo`): a RECORD that linked this
+ * document in its title or note, drawn as the node it is and opening its
  * page; and a DOCUMENT whose body links here, drawn as the file it is. Saying
  * "house.olai points here" where the honest answer is "the node `kitchen`
- * attaches it" would be the coarser answer offered because it was the easier
+ * links it" would be the coarser answer offered because it was the easier
  * one.
  *
  * THE WHOLE FILE is what it asks about, never one heading of it: what points

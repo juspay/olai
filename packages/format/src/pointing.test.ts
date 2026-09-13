@@ -295,7 +295,7 @@ test("a face writing a document and one of its headings is one referrer", () => 
 test("a path that starts with a `#` is filed apart from the node arm", () => {
   const at = readingOfVault({
     "a.olai": [
-      `{"id":"points","ord":"a0","title":"at the file","doc":"#odd.md"}`,
+      `{"id":"points","ord":"a0","title":"at the file","desc":"[document](./%23odd.md)"}`,
       `{"id":"odd","ord":"a1","title":"a node called odd"}`,
       `{"id":"names","ord":"a2","title":"at the node","see":["odd"]}`,
     ].join("\n"),
@@ -336,12 +336,12 @@ test("the referrers come back in path order, whichever way the index got there",
 // UNTOUCHED, which is what keeps the page that read it from being redrawn.
 test("a body write that leaves the face alone carries the index by reference", () => {
   const before = readingOfVault({
-    "a.olai": `{"id":"n","ord":"a0","title":"n","doc":"brief.md"}`,
+    "a.olai": `{"id":"n","ord":"a0","title":"n","desc":"[document](brief.md)"}`,
     "brief.md": "# Brief\n\nthe first draft\n",
   })
   const files = decodedVault(
     new Map([
-      ["a.olai", `{"id":"n","ord":"a0","title":"n","doc":"brief.md"}`],
+      ["a.olai", `{"id":"n","ord":"a0","title":"n","desc":"[document](brief.md)"}`],
       ["brief.md", "# Brief\n\nthe second draft\n"],
     ]),
   )

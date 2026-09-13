@@ -1987,6 +1987,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/files/src/Files.tsx",
       "plugins/files/src/browser.tsx",
       "plugins/files/src/fold/folders.ts",
+      "plugins/files/src/fold/reference.ts",
       "plugins/files/src/testids.ts",
       "plugins/files/src/tools.ts",
       "plugins/journal/src/browser.tsx",
@@ -2081,6 +2082,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/chat/src/adapter.ts",
       "plugins/chat/src/browser/chat/NoAgent.tsx",
       "plugins/chat/src/browser/chat/Unopened.tsx",
+      "plugins/files/src/Files.tsx", // The visible Outlines region label.
       "plugins/files/src/Rail.tsx",
       "plugins/files/src/testids.ts",
       "plugins/files/src/tools.ts",
@@ -2274,7 +2276,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "format/src/document.ts",
       "format/src/incremental.ts",
       "format/src/index.ts",
-      "format/src/node.ts",
       "format/src/page.ts",
       "format/src/reading.ts",
       "format/src/rules.ts",

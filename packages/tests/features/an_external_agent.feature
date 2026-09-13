@@ -286,6 +286,7 @@ Feature: An agent olai did not start
     # here, because folders start collapsed (`client/fold/folders.ts`) and a
     # row nobody has opened is not drawn.
     When the terminal agent creates the document "plan.md" holding "# Plan"
+    When I expand the reference section
     Then the documents listed are "finishes.md, plan.md"
     When I click the document "plan.md"
     And the terminal agent rewrites "plan.md" expecting "# Plan", as "# Plan Dig **here** first."

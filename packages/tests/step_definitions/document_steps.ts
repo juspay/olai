@@ -9,17 +9,17 @@
  * what it does with a URL a page would never write — the traversal attempts.
  */
 
+import { TESTID } from "@olai/bundle/testids";
 import * as assert from "node:assert";
 import { defineParameterType, Then, When } from "@cucumber/cucumber";
 
-import { BODY_REFUSED as REFUSED_SAID } from "@olai/surface";
 
 import {
   attr,
-  BODY_REFUSED,
-  DOC_LINK,
-  DOC_REF,
-  DOCUMENT_BODY,
+  ZOOM_TITLE,
+  DESC,
+  NOTE_MARK,
+  NODE,
   DOCUMENT_LINK,
   DOCUMENT_PAGE,
   DOCUMENT_REFERRER,
@@ -44,7 +44,7 @@ Then(
   "the documents listed are {string}",
   async function (this: OlaiWorld, expected: string) {
     await this.expectListed(
-      DOCUMENT_LINK,
+      `${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}`,
       expected.split(",").map((file) => file.trim()),
       "document(s)",
     );
@@ -55,6 +55,7 @@ When(
   "I click the document {string}",
   async function (this: OlaiWorld, file: string) {
     await this.showSidebar();
+    await this.expandReference();
     const link = this.documentLink(file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();
@@ -339,84 +340,16 @@ Then(
   },
 );
 
-// ── a node's own doc ───────────────────────────────────────────────────
-
-Then(
-  "the node {string} refers to the document {string}",
-  async function (this: OlaiWorld, id: string, file: string) {
-    const reference = this.docRef(id);
-    await reference.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(await reference.getAttribute("data-doc"), file);
-  },
-);
-
-Then(
-  "the reference on {string} shows {string}",
-  async function (this: OlaiWorld, id: string, text: string) {
-    const reference = this.docRef(id);
-    await reference.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The reference's path is available with the outline; its body preview
-    // arrives on an independent document subscription. Visibility alone does
-    // not mean that subscription has answered.
-    await this.waitUntil(
-      async () => oneLine(await reference.innerText()).includes(text),
-      `the reference on "${id}" to show ${JSON.stringify(text)}`,
-    );
-  },
-);
-
-Then(
-  "the reference on {string} says the file could not be read",
-  async function (this: OlaiWorld, id: string) {
-    const line = this.docRef(id).locator(BODY_REFUSED);
-    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const text = (await line.innerText()).trim();
-    assert.ok(
-      text.includes(REFUSED_SAID),
-      `the reference on "${id}" reads ${JSON.stringify(text)}`,
-    );
-    assert.strictEqual(await line.getAttribute("data-tone"), "alarm");
-  },
-);
-
-When(
-  "I follow the document link on {string}",
-  async function (this: OlaiWorld, id: string) {
-    const link = this.docRef(id).locator(DOC_LINK).first();
-    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await link.click();
-    await this.waitForFrame();
-  },
-);
-
-Then(
-  "the reference on {string} draws the document",
-  async function (this: OlaiWorld, id: string) {
-    await this.expectAttribute(
-      `${DOC_REF}[data-doc]`,
-      "data-inline",
-      "true",
-      `the doc reference on "${id}"`,
-    );
-    await this.page
-      .locator(DOCUMENT_BODY)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
-Then(
-  "the reference on {string} does not draw the document",
-  async function (this: OlaiWorld, id: string) {
-    const reference = this.docRef(id);
-    await reference.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(
-      await reference.locator(DOCUMENT_BODY).count(),
-      0,
-      `the reference on "${id}" draws the whole document on a page that is not its own`,
-    );
-  },
-);
+// Follow the selected occurrence's own note, excluding nested rows.
+When("I follow the document link on {string}", async function(this: OlaiWorld, id: string) {
+  const zoomed = await this.page.locator(`${ZOOM_TITLE}${attr("data-node-id", id)}`).count() > 0;
+  const row = this.visibleNode(id).first();
+  if (!zoomed && await row.getAttribute("data-note-open") !== "true") await row.locator(NOTE_MARK).first().click();
+  const link = row.locator(`${DESC}:not(:scope ${NODE} ${DESC})`).locator("a").first();
+  await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await link.click();
+  await this.waitForFrame();
+});
 
 // ── what points at a document, read backwards ──────────────────────────
 

@@ -27,7 +27,7 @@ const VAULT = (): OutlineSet =>
   setOf(
     {
       "house.olai": [
-        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doc":"notes/plan.md"}`,
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","desc":"[document](notes/plan.md)"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","done":"2026-08-10T09:00:00+05:30",` +
         `"desc":"quoted in [the brief](../brief.md)"}`,
         "",
@@ -242,7 +242,7 @@ test("both kinds come back in one ranked order", () => {
   )
   expect(
     ranked.map((one) => (one.kind === "node" ? one.at.node.id : String(one.at.path))),
-  ).toEqual(["notes/plan.md"])
+  ).toEqual(["notes/plan.md", "kitchen"])
 })
 
 // ── what points at an address ──────────────────────────────────────────
@@ -258,10 +258,10 @@ const referringTo = (set: OutlineSet, path: string): ReadonlyArray<string> => {
   )
 }
 
-// A `doc` field is a link a record MADE, and the answer names the RECORD rather
+// A note link is a link a record MADE, and the answer names the RECORD rather
 // than the outline it sits in: a link is always some record's, and naming the
 // file would be the coarser answer offered because it was the easier one.
-test("a `doc` attachment is a reference from the record that wrote it", () => {
+test("a note link is a reference from the record that wrote it", () => {
   expect(referringTo(VAULT(), "notes/plan.md")).toEqual(["kitchen remodel #home"])
 })
 
@@ -300,7 +300,7 @@ test("a document linking its own heading is not its own referrer", () => {
 // standing rule, read once more over the other kind of referrer.
 test("a referrer written in an archive is left out", () => {
   const set = setOf(
-    { "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"was here","doc":"brief.md"}\n` },
+    { "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"was here","desc":"[document](brief.md)"}\n` },
     [["brief.md", "# Brief\n"]],
   )
   expect(referringTo(set, "brief.md")).toEqual([])

@@ -160,7 +160,7 @@ Phase 18 covers two things: shell entry points that fail to load, and handing a 
 
 - `content_capabilities.feature` opens an outline, switches markdown off, and checks the document keeps its entry in the sidebar tree. `heads` lists every served file and `documents` lists only a subset of those keys, so a page provider going away removes a document's page but not its place in the directory. The case then checks no wire member has stopped answering, switches markdown back on, and ends with no reload and no browser errors.
 - `the_vault_is_a_row.feature` changes which plugin owns `heads` and never reads the tree. `file_delete_concurrency.feature` keeps the two halves in separate scenarios.
-- `documents.feature` adds markdown's own `documentPage` refusal, which had only ever been proved on an `.html` page and on a node's `doc` line. An unreadable `.md` says so on its own page while the outline beside it stays listed. A new step, `the served file {string} can be read again`, restores mode 0644 and asks the same read check the refusal used, so both markdown refusals are now shown to end as well as start. The existing `doc`-line case ends the same way.
+- `documents.feature` adds markdown's own `documentPage` refusal, including a document opened from a note link. An unreadable `.md` says so on its own page while the outline beside it stays listed. A new step, `the served file {string} can be read again`, restores mode 0644 and asks the same read check the refusal used, so markdown refusals are now shown to end as well as start. The note-link scenario also verifies recovery on the document's own page.
 - Open: the unreadable `.html` page case in `html_previews.feature` has no recovery half.
 
 ## Orchestrator permission mode (#563)
@@ -199,3 +199,31 @@ send control, memory revealed by scrolling up, and continued streaming without
 moving that reading position. Scheduler tests cover capacity refusals, fresh
 binding versus filing serialization, clearing inherited wakes, trash cleanup,
 and process-group termination with escalation.
+
+## Outline-first navigation (#593)
+
+The boundary refactor also exercises Files withdrawal and return with both Reference and a nested folder open, verifying that each preference is restored and Reference can still be collapsed independently.
+
+Third-review cases pin the temporary Reference collapse across reload and missing-link detection after an indented list fence containing column-zero text.
+
+Re-review coverage exercises collapsing Reference while its selected document stays open and repairing a list-continuation link while its anchor stays visible. The unreadable-document case first verifies the rendered content before breaking and restoring it.
+
+`dead_links.feature` covers an agent's note write, detail and subtree reads,
+row and zoomed-page warnings, relative basename suggestions across folders,
+and live clearing when a file appears. Document Save and `markdown_read` cover
+a clamped, percent-encoded target with a heading fragment.
+
+`file_delete_concurrency.feature` covers live note links acquired during delete
+confirmation and document-body links with heading fragments. Both protect the
+target until the reference is removed. `documents.feature` follows note links
+to document pages and verifies unreadable targets recover there.
+
+`outline_first.feature` covers default and persisted Reference folding, file
+counts, folders containing both kinds, document navigation from a node note,
+selection in Reference, no user outlines, and no reference files. Existing
+creation and folder scenarios read the two sidebar regions separately.
+
+Review coverage includes membership-aware Markdown caching, server-supplied row
+warnings, literal code examples and frontmatter, URL suffixes and directory
+targets, a first Inbox seed's write nudge, row-level note navigation, unreadable
+document isolation, and Reference visibility without preference writes.

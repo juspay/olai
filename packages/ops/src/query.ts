@@ -27,8 +27,14 @@
  * reason: they are the part worth testing, and neither a disk nor a protocol
  * has any bearing on the answer.
  */
-import { type Claims, claimedOf } from "@olai/format"
+
 import {
+  proseIn,
+  deadLinksIn,
+  deadLinksOf,
+  deadLinkFields,
+  type Claims,
+  claimedOf,
   ancestorTitles,
   backlinksOf,
   blockersOf,
@@ -113,6 +119,7 @@ import {
   titleParts,
   UsageFailure,
 } from "@olai/format"
+
 import { Result } from "effect"
 
 import { askedOf } from "./asked.ts"
@@ -710,6 +717,7 @@ export const detail = (
   derived: Derived,
   id: string,
   fields?: ReadonlyArray<string> | undefined,
+  served?: ReadonlySet<string>,
 ): Result.Result<Detail | null, OpFailure> => {
   let wants: Wants | undefined
   if (fields !== undefined) {
@@ -743,6 +751,7 @@ export const detail = (
   const blockedBy = waitingFor(derived, id)
   return Result.succeed({
     ...foundOf(derived, located),
+    ...(served === undefined ? {} : deadLinkFields(deadLinksOf(located, served))),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `outlines_repeat`.
@@ -1067,11 +1076,13 @@ export const subtree = (
     }
   }
 
+  const served = new Set(at.set.documents.map(one => one.path))
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
     const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
+      ...deadLinkFields(deadLinksOf(located, served)),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
       ...(wantsNotes && located.node.desc !== undefined
         ? { desc: located.node.desc }
@@ -1096,6 +1107,7 @@ export const subtree = (
     const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
+      ...deadLinkFields(deadLinksOf(located, served)),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
       ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
@@ -1246,7 +1258,7 @@ export const paths = (claims: Claims, outlineRow: string, set: OutlineSet): Path
  * over the other kind of file.
  *
  * WHAT COUNTS AS A DOCUMENT is not decided here: `markdownIn` is the floor's
- * one answer, shared with the validator that checks a `doc` reference and the
+ * one answer, shared with the validator that checks a declared `doc` property and the
  * planner that refuses a `markdown_write`, so what this lists and what those
  * two accept cannot come apart. A `.html` is out of all three — the set keeps
  * its path and not its bytes — and a listing that named one would be offering
@@ -1313,5 +1325,5 @@ export const document = (
   }
   const broken = brokenIn(set, file)
   if (broken !== undefined) return Result.fail(notLoaded(claims, file, broken))
-  return Result.succeed({ file, text: entry.body })
+  return Result.succeed({ file, text: entry.body, ...deadLinkFields(deadLinksIn(file, proseIn(entry.body), new Set(set.documents.map(one => one.path)))) })
 }

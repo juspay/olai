@@ -398,7 +398,22 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 ## What the sidebar leaves out, and the one door under it
 
-**The file tree does not draw `_olai/`** — the outlines olai names for itself — and they are not hidden either: they have a home of their own at the foot of the column, nested under one special parent named for the house itself — **olai** — beside the Trash door that also lives there (ruled 2026-08-31: one mechanism, one parent, one door for the vault's own furniture; the Trash's top-level entry was absorbed into it). The parent is no page and no fold — the rows under it are the doors — and each opens the ordinary outline it is. The pinned shelf above the tree already IS `Pins.olai`, **Inbox** sits beside Agenda at the top of the column (human, 2026-08-20) — the group keeps the last mile: the inspectable remainder, a click each, without rows in the tree stacked on top of your own outlines. The rule replaced a **Prefs** switch — Hidden outlines, on this panel for the same files — with the group, because inspectability you have to set is inspectability you have to know to ask for.
+The outline is the map; files are the territory it points at. **Outlines** lists only node-holding files and their folders; **Reference** holds every other served file, grouped by folder and collapsed by default, with a count of files beside its name.
+
+Reference remembers its fold state in this browser. Opening a document or other reference file opens the section and its folder chain and marks the file's row. A mixed folder appears in both trees and shares one folder preference. Empty folders are omitted; a directory with only outlines has no Reference header. The new-file doors remain under Outlines, and a new document appears in Reference immediately.
+
+Opening a document, including a newly created one, reveals its row under
+Reference and expands its folder ancestry. This visibility follows selection;
+it does not write the saved Reference preference. Returning to an outline
+restores the fold the reader chose. Clicking the Reference header can collapse
+it even while its file stays open. This temporary collapse lasts until
+navigation or reload: reopening the page with a reference file selected
+reveals the section again. Collapsing clears the stored open preference,
+so an outline page still starts with Reference collapsed. New outline and New document remain below
+Outlines; new documents are listed in Reference.
+
+
+**Neither Outlines nor Reference draws `_olai/`** — the outlines olai names for itself — and they are not hidden either: they have a home of their own at the foot of the column, nested under one special parent named for the house itself — **olai** — beside the Trash door that also lives there (ruled 2026-08-31: one mechanism, one parent, one door for the vault's own furniture; the Trash's top-level entry was absorbed into it). The parent is no page and no fold — the rows under it are the doors — and each opens the ordinary outline it is. The pinned shelf above the tree already IS `Pins.olai`, **Inbox** sits beside Agenda at the top of the column (human, 2026-08-20) — the group keeps the last mile: the inspectable remainder, a click each, without rows in the tree stacked on top of your own outlines. The rule replaced a **Prefs** switch — Hidden outlines, on this panel for the same files — with the group, because inspectability you have to set is inspectability you have to know to ask for.
 
 **It is a drawing rule and nothing else.** Those files are in the directory either way: search finds them, an agent's `outlines_index` lists them, the Trash page and the shelf read them, and git records them like anything else. What changes is one list of rows in the directory column.
 
@@ -410,7 +425,7 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 ## Pinning a page to the sidebar
 
-A **shelf of doors** in the directory column, between the calendar and the file tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
+A **shelf of doors** in the directory column, between the calendar and the outline tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
 
 **Two ways on, with one gesture over one address.** A row's `•••` offers **Pin to sidebar**, or **Unpin from sidebar** if it is already pinned. `⌘K`'s **Pin this page** acts on the focused pane's page, including its filter.
 
@@ -498,7 +513,7 @@ Either way the row is **born `todo`**: the badge reads marks and nothing else, s
 
 ## Starting an outline
 
-**The sidebar's `+ New outline`** asks for a path — relative, under the served directory — and mints the file there. Enter creates it, Escape puts the box away, and the page it lands on is the new outline's, with the same *write the first line* the empty-outline page has always offered.
+**`+ New outline` below the Outlines tree** asks for a path — relative, under the served directory — and mints the file there. Enter creates it, Escape puts the box away, and the page it lands on is the new outline's, with the same *write the first line* the empty-outline page has always offered.
 
 Both new-file boxes show **Creating…** while their write is pending. You can type the next filename, but Enter does not submit another write until the first finishes. Its response cannot clear the newer name or put an old refusal under it. Escape dismisses the box without undoing an already submitted creation; reopening it starts a new draft. Plugin changes preserve each box’s filename, refusal and pending state independently, including changes made in another tab.
 
@@ -532,7 +547,7 @@ A save is ONE op at the same gate as everything else: validated, published on it
 
 **The file can move underneath you, and nothing is clobbered either way.** Edit the same document in vim while the editor is open and the editor says so the moment the disk moves; a Save after that is refused, in the ops layer's own words, with your text kept exactly where you typed it. The refusal has two doors out and both are yours: take what you need and Cancel, or press **Overwrite what is there**, which is the same write minus the guard and means exactly what it says. An agent gets the identical story — its `markdown_write` takes a `was`, and the refusal is the same sentence.
 
-**Two ways to a document that does not exist.** The sidebar's **+ New document** asks for a path — relative, with the `.md` optional the way `+ New outline`'s `.olai` is ([above](#starting-an-outline)), and otherwise judged by the same rules an agent's `markdown_create` is judged by — and the day page's **+ day note** mints that day's note, filed where your vault already keeps them: the convention is read off the newest existing daily note's own path (`Daily/2026/08/2026-08-12.md` puts September's first note at `Daily/2026/09/2026-09-01.md`), never configured. The button is shown on any day without a note, whether or not that day has dated entries, and is gone once the note exists. Clicking a calendar day never writes: every cell navigates to `/d/<date>`, and an empty day is the page that says so. Either door lands in the new document's editor, and the sidebar lists the file on the same frame.
+**Two ways to a document that does not exist.** The sidebar's **+ New document** asks for a path — relative, with the `.md` optional the way `+ New outline`'s `.olai` is ([above](#starting-an-outline)), and otherwise judged by the same rules an agent's `markdown_create` is judged by — and the day page's **+ day note** mints that day's note, filed where your vault already keeps them: the convention is read off the newest existing daily note's own path (`Daily/2026/08/2026-08-12.md` puts September's first note at `Daily/2026/09/2026-09-01.md`), never configured. The button is shown on any day without a note, whether or not that day has dated entries, and is gone once the note exists. Clicking a calendar day never writes: every cell navigates to `/d/<date>`, and an empty day is the page that says so. Either door lands in the new document's editor, and Reference lists and reveals the file on the same frame.
 
 ## Deleting a file
 
@@ -542,7 +557,7 @@ Beside **Edit** on a document page's header, and beside the *write the first lin
 
 **There is no file-level trash, and that is the sentence the question says.** A record's undo story is the Trash's — a `Put back` puts the subtree back with its ids. A file's undo story is git's: the delete rides the same gate and the same commit door as every other write ([git.md](git.md)), so the bytes are recoverable to exactly the extent git had already recorded them. A directory served `commit: off`, or one whose file was never committed, keeps nothing. ⌘Z does not take a delete back either — what would take it back is a git command, and this app does not shell one for you.
 
-**The verb is guarded, and each refusal says what to settle first.** An outline that still holds records is refused, naming them — this is a delete, not a move: [the Trash](#the-trash) is how a record leaves an outline, and nobody's verb guesses at emptying. A document a `doc` field (or a property declared `doc` in `_olai/Properties.olai`) still names is refused, naming the records that name it — deleting under them would break THEIR files too, which is the finding the validator would show you next. A file olai only shows — a `.html`, a `.csv`, a picture, a `.pdf` — is never offered the control, and an agent's `files_delete` is refused the same way: those files belong to whatever put them there. And a broken file nobody could read is refused too: dropping bytes that never made it into the set is not a delete, it is a loss.
+**The verb is guarded, and each refusal says what to settle first.** An outline that still holds records is refused, naming them — this is a delete, not a move: [the Trash](#the-trash) is how a record leaves an outline, and nobody's verb guesses at emptying. A document named by a live title or note link, another document’s body, or a property declared `doc` in `_olai/Properties.olai` is refused, naming its referrers — deleting under them would strand links or violate a declared property fence. A file olai only shows — a `.html`, a `.csv`, a picture, a `.pdf` — is never offered the control, and an agent's `files_delete` is refused the same way: those files belong to whatever put them there. And a broken file nobody could read is refused too: dropping bytes that never made it into the set is not a delete, it is a loss.
 
 An agent's `files_delete` is the same op at the same gate — minted paths and refusals alike — which is the consistency rule doing what it always does: nothing this face can reach is out of an agent's reach.
 

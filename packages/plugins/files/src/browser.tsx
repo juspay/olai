@@ -23,6 +23,7 @@ import { Files } from "./Files.tsx"
 import { FileRail } from "./Rail.tsx"
 import { fileState,fileTypes,fileKinds } from "./contract.ts"
 import { followFolders } from "./fold/folders.ts"
+import { followReference } from "./fold/reference.ts"
 export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
     const landingTable = yield* Landings
     yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
@@ -44,6 +45,7 @@ export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edit
  // travel on `files.state` below rather than in a signal on a declared door.
  yield* Effect.acquireRelease(Effect.void,()=>Effect.sync(clearNewFileMemory))
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
+ yield* Effect.acquireRelease(Effect.sync(followReference), stop => Effect.sync(stop))
  yield* (yield* Offers).own("state",()=>({Delete:DeleteFile,New:NewFile}))
 })})
 export const components = {

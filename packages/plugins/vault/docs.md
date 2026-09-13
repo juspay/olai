@@ -83,3 +83,5 @@ Non-Markdown pages subscribe to the vault's `bodyPage` stream through
 separate `.md` page stream, so disabling it leaves the other body pages usable.
 `vault.files.body` is a browser-only fresh read for unkept text that is not
 fetched; saved HTML stays on the sealed media route and is not an agent tool.
+
+Directory membership is a reactive readonly snapshot, replaced only when the path list changes. Consumers can subscribe to `members()` directly; retained snapshots never receive later fold mutations. The fold and its memos remain under the vault service owner.

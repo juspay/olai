@@ -53,7 +53,6 @@ describe("serializeNode", () => {
         // `null` is not in the schema's type, but it is exactly what a writer
         // reaching for "clear this" produces, and it must not reach a file.
         date: null as unknown as string,
-        doc: undefined,
       }),
     )
     expect(empty).toBe(`{"id":"n","ord":"a0","title":"a node"}`)
@@ -255,7 +254,6 @@ const EVERY_REGULAR_FIELD: RegularNode = {
   date: "2026-08-11",
   repeat: "every week on monday",
   desc: "a note",
-  doc: "notes.md",
   after: ["x"],
   blocks: ["y"],
   see: ["z"],

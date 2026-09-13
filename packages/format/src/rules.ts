@@ -34,7 +34,6 @@
 import type { Claims } from "./kinds.ts"
 import { conventionCalled, TRASH, INBOX, PINS } from "./node.ts"
 import { type Derived, drawnFrom } from "./derive.ts"
-import { resolveRelative } from "./documents.ts"
 import {
   chainOf,
   compareErrors,
@@ -105,7 +104,7 @@ export const reportOf = (
 /**
  * The paths a `doc` may point at: the set's `.md` files, as a membership test.
  *
- * Lifted out of {@link reportDocs} so that the ledger one validation leaves the
+ * Shared so that the ledger one validation leaves the
  * next can carry it ({@link ./incremental.ts}): building this is a walk of
  * every document in the directory, which is a whole-corpus cost the write gate
  * paid per write for a set whose documents nearly never move.
@@ -350,40 +349,6 @@ export const reportMirrorCycles = (
   )
 }
 
-// ── documents ──────────────────────────────────────────────────────────
-
-/** `doc` is relative to the outline that names it — that is what "attached"
- *  means — so it is resolved against the outline's own directory ({@link
- *  ./documents.ts}, the one place that arithmetic lives) and matched against
- *  the `.md` files actually found.
- *
- *  DOCUMENTS, not every bodied file. The set's `documents` list carries each
- *  `.html` too since they are read the same way, and a membership test alone
- *  would therefore have quietly widened what `doc` may point at — to a file the
- *  surfaces that draw an attachment cannot draw (a reference under a row is one
- *  line of markdown, and a zoomed node draws the whole document through the
- *  markdown pipeline; neither is a sealed frame). So the kind is asked —
- *  through {@link markdownPaths}, which narrows through `markdownIn`, the one
- *  narrowing that answers it for the validator, the planner and both document
- *  reads alike — and the message below stays true. */
-export const reportDocs = (
-  records: Iterable<Located>,
-  known: ReadonlySet<string>,
-  errors: Array<OutlineError>,
-): void => {
-  for (const located of records) {
-    const { file, node } = located
-    if (isMirror(node) || node.doc === undefined) continue
-    const resolved = resolveRelative(file, node.doc)
-    if (known.has(resolved)) continue
-    errors.push({
-      code: "missing-doc",
-      ...siteOf(located),
-      message: `\`doc\` is \`${node.doc}\`, which resolves to \`${resolved}\` — no such \`.md\` file is served`,
-    })
-  }
-}
-
 // ── typed properties ───────────────────────────────────────────────────
 
 /**
@@ -456,7 +421,7 @@ export const reportDeclarations = (
  * does not refuse cannot happen.
  *
  * A MIRROR CARRIES NO PROPERTIES — the format's own shape — so a placement is
- * stepped over rather than asked, exactly as `reportDocs` steps over one.
+ * stepped over rather than asked: mirrors carry no properties.
  *
  * The finding is about TWO places, and says so: the record that holds the
  * value and the declaration that judged it ({@link judgedFrom}). The second
@@ -469,7 +434,7 @@ export const reportDeclarations = (
  * NOTHING WALKS. The declarations are one small map built once per validation,
  * `ref` and `node` read `byId` and `children`, the declaring site is one
  * `byId` lookup through the id `Declared.at` pins, and `doc` reads the `.md`
- * set the `doc` field's own rule already carries — which is what lets this
+ * set carried by the validator — which is what lets this
  * rule ride every write rather than joining the whole-corpus sweep.
  */
 export const reportPropValues = (

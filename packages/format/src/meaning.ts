@@ -281,7 +281,7 @@ export interface Vault {
    * bug family this module exists to close, recreated inside the socket.
    *
    * It is `./rules.ts`'s `markdownPaths`, which is the very set {@link Typed}'s
-   * `documents` is and the very set the `doc` FIELD's rule is asked about. One
+   * `documents` is and the very set the declared document property rule is asked about. One
    * set, three readers, no room to disagree.
    */
   readonly documents: (file: string) => boolean

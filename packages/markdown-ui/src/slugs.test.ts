@@ -94,7 +94,7 @@ test("a heading inside a fenced block is neither drawn nor promised", () => {
  * promised existed.
  *
  * A DOCUMENT IS DRAWN FROM ITS PROSE now (`proseIn`, spent by the three faces
- * that hold a whole file — the Markdown page, the Markdown row’s `browser/document/DocRef.tsx`,
+ * that hold a whole file — the Markdown page,
  * the journal row’s `browser/day/DayNote.tsx`), so the two readings cannot disagree: they are the same
  * function. What this pins is that the pipeline, handed that prose, draws
  * exactly the headings the face promises — and that the pipeline itself is

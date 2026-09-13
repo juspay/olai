@@ -2,6 +2,7 @@
  * The sidebar's file tree: what the served directory turned out to contain.
  */
 
+import { TESTID } from "@olai/bundle/testids";
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
@@ -50,13 +51,11 @@ Then("no outline list is shown", async function (this: OlaiWorld) {
 Then(
   "the outline list has {int} entries",
   async function (this: OlaiWorld, expected: number) {
+    await this.showSidebar();
     const links = this.page.locator(`${OUTLINE_LIST} ${OUTLINE_LINK}`);
-    // Wait for the expected count rather than reading it once: the list is
-    // painted from the first snapshot, and reading during the frame that adds
-    // the second entry would see one.
-    await links
-      .nth(expected - 1)
-      .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // An empty ul has no visible box, but must be mounted before counting.
+    await this.page.locator(OUTLINE_LIST).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     const files = await links.evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("data-file")),
     );
@@ -286,6 +285,7 @@ When(
   async function (this: OlaiWorld, path: string) {
     await this.showSidebar();
     const folder = this.fileDir(path);
+    if (await folder.count() === 0) await this.expandReference();
     await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await folder.getAttribute("data-collapsed")) === "true") return;
     await folderToggle(this, path).click();
@@ -303,6 +303,7 @@ When(
   async function (this: OlaiWorld, path: string) {
     await this.showSidebar();
     const folder = this.fileDir(path);
+    if (await folder.count() === 0) await this.expandReference();
     await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await folder.getAttribute("data-collapsed")) === "false") return;
     await folderToggle(this, path).click();
@@ -425,3 +426,40 @@ const drawnAs = async (
     HYDRATION_TIMEOUT,
   );
 };
+
+When("I expand the reference section", async function(this: OlaiWorld) {
+  await this.expandReference();
+});
+When("I collapse the reference section", async function(this: OlaiWorld) {
+  const toggle = this.page.getByTestId(TESTID.referenceToggle);
+  if (await toggle.getAttribute("aria-expanded") === "true") await toggle.click();
+});
+Then("the reference section is {word}", async function(this: OlaiWorld, state: string) {
+  assert.ok(state === "expanded" || state === "collapsed");
+  await this.expectAttribute(attr("data-testid", TESTID.referenceToggle), "aria-expanded", String(state === "expanded"), "Reference");
+});
+Then("the reference section lists {int} files", async function(this: OlaiWorld, count: number) {
+  await this.expectAttribute(attr("data-testid", TESTID.reference), "data-count", String(count), "Reference file count");
+});
+Then("there is no reference section", async function(this: OlaiWorld) {
+  await this.page.getByTestId(TESTID.reference).waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT });
+});
+Then("the outline tree omits the folder {string}", async function(this: OlaiWorld, folder: string) {
+  assert.equal(await this.page.locator(`${OUTLINE_LIST} ${FILE_DIR}${attr("data-path", folder)}`).count(), 0);
+});
+Then("the folder {string} appears in both sidebar trees", async function(this: OlaiWorld, path: string) {
+  for (const list of [OUTLINE_LIST, attr("data-testid", TESTID.referenceList)]) {
+    await this.page.locator(`${list} ${FILE_DIR}${attr("data-path", path)}`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  }
+});
+Then("Reference marks {string} as the open file", async function(this: OlaiWorld, file: string) {
+  await this.expectAttribute(`${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}${attr("data-file", file)}`, "aria-current", "page", "the selected Reference row");
+});
+
+Then("Reference has no stored fold preference", async function(this: OlaiWorld) {
+  assert.equal(await this.stored("olai.sidebar.reference"), null);
+});
+Then("Reference has its own open preference", async function(this: OlaiWorld) {
+  assert.equal(await this.stored("olai.sidebar.reference"), "true");
+  assert.notEqual(await this.stored("olai.sidebar.folders"), "true");
+});

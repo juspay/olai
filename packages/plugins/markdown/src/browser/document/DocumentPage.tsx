@@ -5,7 +5,7 @@ import { useDocumentReading } from "../reading.tsx"
 import { servedDirectory } from "../vault.ts"
 import { TESTID } from "olai-plugin-markdown/testids"
 import { bodyKind, type Custom } from "@olai/format"
-import { createMemo, onCleanup, Show } from "solid-js"
+import { createMemo, createSignal, onCleanup, Show } from "solid-js"
 
 import { DeleteFile } from "../files.tsx"
 import { Properties } from "../Properties.tsx"
@@ -62,6 +62,7 @@ export function DocumentPage(props: {
 }
 
 function OneDocument(props: { readonly file: string; readonly custom: Custom }) {
+  const [nudge, setNudge] = createSignal<string | null>(null)
   const reading = useDocumentReading()
   // The body is the editor's baseline and the reading face's text.
   const served = useDocument(() => props.file)
@@ -135,6 +136,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
             served={body().text ?? ""}
             draft={editor.draft(body().text ?? "")}
             onDone={editor.close}
+            onNudge={setNudge}
           />
         )}
       </Show>
@@ -145,6 +147,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           hand from the first frame, and a section that waited on a body would
           be blank on exactly the saved page whose bytes never cross the
           wire. */}
+      <Show when={nudge()}>{text => <div data-testid={TESTID.documentNudge} class="text-xs text-alarm">{text()}</div>}</Show>
       <Referrers file={props.file} reading={reading} claims={servedDirectory()?.claims()} href={router.routes.href} />
     </section>
   )

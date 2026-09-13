@@ -47,7 +47,6 @@ import type { DayEntry } from "@olai/format"
 import type { JSX } from "solid-js"
 export interface DatedRowProps { readonly dated: DayEntry; readonly trail: "over" | "under"; readonly pill?: string }
 export const datedRows = location<(props: DatedRowProps) => JSX.Element>("outlines.dated-row", "one")
-export const documentReferences = location<(props: {readonly file: string; readonly inline?: boolean}) => JSX.Element>("outlines.document-reference", "one")
 import type { Shown } from "@olai/format"
 import type { Drawn } from "./contracts/page.ts"
 export interface PageBodyProps { readonly page: Shown; readonly drawn: Drawn; readonly held: Drawn; readonly today: string }

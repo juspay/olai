@@ -30,7 +30,10 @@ test("PROPERTIES are not a body — the run is drawn on the row, open or not", (
 })
 
 test("...nor is anything else the row already draws for itself", () => {
-  // A date is the badge, a mark is the glyph, a `doc` is its own line under
-  // the title whether the row is open or not.
-  expect(hasBody(node({ date: "2026-08-10", todo: true, doc: "notes/x.md" }))).toBe(false)
+  // A date is the badge and a mark is the glyph.
+  expect(hasBody(node({ date: "2026-08-10", todo: true }))).toBe(false)
+})
+
+test("a document link in the note has a pilcrow", () => {
+  expect(hasBody(node({ desc: "[document](notes/x.md)" }))).toBe(true)
 })

@@ -65,6 +65,7 @@ Then(
 
 When("I click the page {string}", async function (this: OlaiWorld, file: string) {
   await this.showSidebar();
+  await this.expandReference();
   const link = this.hypertextLink(file);
   await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await link.click();

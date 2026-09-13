@@ -23,7 +23,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Then, When } from "@cucumber/cucumber";
 
-import { retargetRelative } from "@olai/format";
 
 import { expectCodeIn, expectSiteIn, rowsIn } from "../support/errors.ts";
 import { askResync } from "../support/scratch.ts";
@@ -100,7 +99,7 @@ When(
  * the page can come back from it: a face that latched its refusal, or a store
  * that never looks at a file it has already given up on, is green in a suite
  * whose only chmod goes one way. Every reader of a refusal that this suite
- * asserts (a document's page, a node's `doc` line, a saved page) is therefore
+ * asserts (a document's page, an embedded document, a saved page) is therefore
  * owed the other direction from the same door.
  *
  * 0644 rather than whatever the file wore before, for the reason the step above
@@ -239,9 +238,6 @@ When(
         .map((node) => {
           const moved =
             node["id"] === id ? { ...node, parent: undefined } : { ...node }
-          if (typeof moved["doc"] === "string") {
-            moved["doc"] = retargetRelative(file, "_olai/Trash.olai", moved["doc"])
-          }
           return JSON.stringify(moved)
         })
         .join("\n"),
