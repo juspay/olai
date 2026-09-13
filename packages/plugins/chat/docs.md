@@ -2,7 +2,7 @@
 
 Chat contributes conversations to outline rows and zoomed node pages, plus the
 standing/start aside, Needs you and Chats, an Agents palette adapter, and the
-Ask agent and `>` gestures. These faces arrive with chat's plugin row and leave
+carry and `>` gestures. These faces arrive with chat's plugin row and leave
 with it. [chat.md](../chat.md) describes the workflows; this page describes their
 ownership.
 
@@ -65,7 +65,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
 | `outline.page.head` | outlines, under title above property drawer | agent line |
 | `outline.page.foot` | outlines, after the zoomed subtree | unbounded conversation and composer, or a plain-node composer |
-| `outline.row.action` | outlines' row menu | Ask agent and Start an agent session |
+| `outline.row.action` | outlines' row menu | Start an agent session |
 | `app.command` | navigation's text-command grammar | `>` with nearest-ancestor targeting |
 | `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents and new chat, with engine choices |
 
@@ -87,7 +87,7 @@ mark; chat renders these contributions without inventing either.
 Optional dependencies remain in separate scoped components. Navigation and its
 existing palette control supply route changes and choice reset on dismissal;
 outline references supply focused-row context; the search reading supplies
-completions. Ask agent's server lookup does not require search. Removing an
+completions. The `>` ancestor lookup does not require search. Removing an
 optional provider releases its held service, and reconnection holds the new
 instance. Pending callbacks cannot navigate a later chat activation.
 
@@ -189,3 +189,15 @@ page; inline shelves retain a bounded scroll.
 New-chat creation refreshes the roster from Ops’ committed reading before
 seating the new node: the revision notification used for display can still be
 queued after the write returns.
+
+The host supplies `Landings` once per app. Chat holds an activation scope and each
+conversation registers its own receiver for its component lifetime. Transcript
+rows carry the chat-owned static `/carry` text contract. Receivers arm their own
+nodes or use their mounted composer's rewrite function to insert a quote or path.
+Withdrawing the activation releases its receivers and cancels component gestures.
+
+Transcript source extraction (`chat/carried.ts`) is independent of the receiving
+composer's formatting and caret policy (`chat/insertion.ts`). Each mounted
+composer owns its insertion callback; shared conversation state does not choose
+which pane receives focus. Pointer and hold mechanics use the same component-owned
+`@olai/web/client/lifting.ts` primitive as outline rows and sidebar files.

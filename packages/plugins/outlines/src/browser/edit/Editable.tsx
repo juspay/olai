@@ -1,3 +1,13 @@
+import { createEffect, createSignal } from "solid-js"
+import { carriedText } from "olai-plugin-chat/carry"
+import { documentBox } from "@olai/web/client/carry.ts"
+import { landings } from "../landings.ts"
+import { placeable } from "../drag/places.ts"
+import { planDrop } from "../drag/plan.ts"
+import type { Landing } from "../drag/plan.ts"
+import { anchorFor, nodeText } from "../drag/landing.ts"
+import { applying } from "../writes.ts"
+import { useUndo } from "./undoing.ts"
 /**
  * A page whose rows can be typed in, picked and moved.
  *
@@ -178,7 +188,7 @@ function EditablePage(props: EditableProps) {
   // reading of what is on screen rather than a history of it: a drag begun in
   // any pane measures the pages that are drawn NOW, off the accessors below
   // rather than off a snapshot taken at mount.
-  useFields().join({
+  const field = {
     get file() {
       return props.file
     },
@@ -188,6 +198,32 @@ function EditablePage(props: EditableProps) {
     rows: page.rows,
     collapsed: page.collapsed,
     element: () => surface,
+  }
+  useFields().join(field)
+  const undo = useUndo()
+  const [foreign, setForeign] = createSignal<{ readonly kind: "drop"; readonly landing: Landing } | null>(null)
+  createEffect(() => {
+    const table = landings()
+    if (!table) return
+    // Row geometry belongs to this visit; scrolling preserves document coordinates.
+    // The registry still checks the live page box and membership on every move.
+    let placed: ReturnType<typeof placeable> | undefined
+    const aim = (x: number, y: number) => surface === undefined ? null : planDrop(placed ??= placeable(field, surface, props.file, new Set()), x, y)
+    onCleanup(table.register({
+      lift: value => carriedText(value) ? documentBox(surface) : null,
+      aim: (_, x, y) => { const landing = aim(x, y); setForeign(landing && { kind: "drop", landing }) },
+      leave: () => { placed = undefined; setForeign(null) },
+      drop: async value => {
+        if (!carriedText(value)) return null
+        // Capture the indicated anchor before leave clears the visit. The write
+        // resolves it against current data and names a concurrent deletion.
+        const landing = foreign()?.landing
+        if (!landing) return null
+        const said = await applying({ verb: "add", at: anchorFor(landing, props.file), ...nodeText(value.text) }, undo.record)
+        selection.say(said ?? null)
+        return null
+      },
+    }))
   })
 
   onMount(() => {
@@ -249,7 +285,7 @@ function EditablePage(props: EditableProps) {
             <div ref={surface} class="grow" data-sweep="" onPointerDown={sweeping.begin}>
               {props.children}
             </div>
-            <Aiming aim={dragging.aim()} />
+            <Aiming aim={dragging.aim() ?? foreign()} />
             <SweepBand sweep={sweeping.band()} />
             <SelectionBar />
           </EditorProvider>

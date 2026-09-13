@@ -1,3 +1,5 @@
+import { onCleanup } from "solid-js"
+import { insertAt, type Insertion } from "./insertion.ts"
 /**
  * The input row: type, send, cancel.
  *
@@ -156,6 +158,7 @@ export function Composer(props: {
   readonly chat: Chat
   /** The files attached and not yet sent. Made by the panel, because the
    *  panel is where a drop is caught and this row is where the chips go. */
+  readonly onInsert?: (insert: (text: Insertion) => void) => () => void
   readonly holding: Holding
 }) {
   const { armedNodes, disarmNode, releaseArmed, restoreArmed } = useConversationUI().armed
@@ -534,6 +537,10 @@ export function Composer(props: {
       setCaret(next.caret)
     })
   }
+
+  const insertCarried = (text: Insertion) => rewrite(insertAt(draft(), caret(), text))
+  const releaseInsert = props.onInsert?.(insertCarried)
+  onCleanup(() => releaseInsert?.())
 
   /**
    * The `×` on a chip: this message is not about that node.

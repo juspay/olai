@@ -37,7 +37,7 @@ import { holdClient, type Client } from "../client.ts"
 /** A call the fake wire has taken and not yet answered. */
 interface Outstanding {
   readonly ids: ReadonlyArray<string>
-  readonly ok: (named: { named: ReadonlyArray<{ asked: string; id: string }> }) => void
+  readonly ok: (named: { named: ReadonlyArray<{ asked: string; id: string; title: string }> }) => void
   readonly no: (cause: unknown) => void
 }
 
@@ -52,7 +52,7 @@ const fake = {
           // reader would see (`./run.ts`'s `asFailure`).
           Effect.tryPromise({
             try: () =>
-              new Promise<{ named: ReadonlyArray<{ asked: string; id: string }> }>(
+              new Promise<{ named: ReadonlyArray<{ asked: string; id: string; title: string }> }>(
                 (ok, no) => {
                   calls.push({ ids: request.ids, ok, no })
                 },
@@ -102,7 +102,7 @@ test("an older batch's refusal does not take back a newer batch's clear", async 
   expect(first).not.toBe(second)
 
   // The NEWER one answers, and the slot says there is nothing wrong.
-  second.ok({ named: [{ asked: "mint", id: "mint" }] })
+  second.ok({ named: [{ asked: "mint", id: "mint", title: "Mint" }] })
   await tick()
   expect(declaringFailure()).toBeNull()
 
@@ -124,7 +124,7 @@ test("...and an older batch's success does not clear a newer batch's refusal", a
   await tick()
   expect(declaringFailure()).toContain("the wire went")
 
-  first.ok({ named: [{ asked: "compost", id: "compost" }] })
+  first.ok({ named: [{ asked: "compost", id: "compost", title: "Compost" }] })
   await tick()
   expect(declaringFailure()).toContain("the wire went")
 })
@@ -143,4 +143,27 @@ test("the newest batch is still what the slot says", async () => {
   second.ok({ named: [] })
   await tick()
   expect(declaringFailure()).toBeNull()
+})
+
+
+test("a declaration retains titles without replacing resolved identities or missing states", async () => {
+  let dispose!: () => void
+  const reader = createRoot(stop => { dispose = stop; return createDeclared() })
+  try {
+    const before = calls.length
+    reader.want(["placement", "missing"])
+    expect(reader.told("placement")).toBeUndefined()
+    expect(reader.title("placement")).toBeNull()
+    await tick()
+    calls[before]!.ok({ named: [{ asked: "placement", id: "target", title: "The node title" }] })
+    await tick()
+    expect(reader.named("placement")).toBe("target")
+    expect(reader.told("placement")).toBe("target")
+    expect(reader.title("placement")).toBe("The node title")
+    expect(reader.told("missing")).toBeNull()
+    expect(reader.title("missing")).toBeNull()
+    reader.want(["placement"])
+    await tick()
+    expect(calls.length).toBe(before + 1)
+  } finally { dispose() }
 })

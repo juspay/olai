@@ -58,6 +58,8 @@ export function DropTarget(props: {
    *  that carried no files, because such a drag was never this component's to
    *  take. */
   readonly onFiles: (files: ReadonlyArray<File>) => void
+  readonly carrying?: string | null
+  readonly ref?: (element: HTMLDivElement) => void
   readonly children: JSX.Element
 }) {
   /** How many nested elements the drag is currently inside — see the header:
@@ -69,6 +71,7 @@ export function DropTarget(props: {
 
   return (
     <div
+      ref={props.ref}
       // Only the transcript scrolls inside a fold. The composer and its
       // completion must be able to extend over the strips above it.
       class="relative flex min-h-0 min-w-0 flex-1 flex-col"
@@ -106,13 +109,14 @@ export function DropTarget(props: {
     >
       {props.children}
 
-      <Show when={depth() > 0}>
+      <Show when={depth() > 0 || props.carrying}>
         <div
           class={`pointer-events-none absolute inset-0 ${WITHIN.cover} flex items-center justify-center rounded border-2 border-dashed border-accent bg-paper/85`}
           data-testid={TESTID.chatDrop}
+          data-carrying={props.carrying ?? undefined}
         >
           <span class="rounded border border-accent px-2 py-1 font-mono text-xs text-accent">
-            drop to attach
+            {props.carrying ?? "drop to attach"}
           </span>
         </div>
       </Show>

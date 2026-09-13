@@ -2147,8 +2147,7 @@ Feature: Talking to a node agent
   Scenario: Claude's olai read has a title and outline with no write story
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    When I open the node menu of "order"
-    And I choose "Ask agent" from the node menu
+    When I drop row "order" into the conversation
     And I ask the agent "context"
     Then the chat shows a completed tool call
     And the chat shows a tool call named "Read a node"

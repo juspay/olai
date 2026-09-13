@@ -1,3 +1,4 @@
+import { Grip, textCarry } from "./Grip.tsx"
 import { servedDirectory } from "../vault.ts"
 /**
  * An outline the agent rewrote with its own tools — drawn as nodes, never as
@@ -59,15 +60,20 @@ export function OutlineDiff(props: {
   const more = () => Math.max(0, changes().length - TRIMMED)
   const shown = createMemo(() => (open() ? changes() : changes().slice(0, TRIMMED)))
 
+  const words = () => changes().length ? [props.diff.path, ...changes().map(change => `${change.title} ${SAID[change.sort]}`)].join("\n") : null
+  const carry = textCarry(words)
+
   return (
     <div
+      onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
       class="mt-1 overflow-hidden rounded border border-rule"
       data-testid={TESTID.chatOutlineDiff}
       data-path={props.diff.path}
       data-expanded={open()}
     >
-      <p class="flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
-        <span class="min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
+      <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
+        <Grip text={words()} carry={carry} />
+        <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
         </span>
         <Show when={props.diff.oldText === null}>

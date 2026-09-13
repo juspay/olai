@@ -21,6 +21,7 @@ Feature: Codex subagents and background terminals are visible
     When I open the agent's work from the transcript
     Then the agent's work is open, and it is "explore the outline"
     And the agent's work shows 2 calls
+    And transcript grips leave the lane rail and words clear
     And the open agent's work contains "child command output" but not "root command output"
     And I can close the agent's work
 

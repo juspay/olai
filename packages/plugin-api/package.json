@@ -18,7 +18,8 @@
     "./authority": "./src/authority.ts",
     "./slots": "./src/slots.ts",
     "./configuration": "./src/configuration.ts",
-    "./file-kinds": "./src/file-kinds.ts"
+    "./file-kinds": "./src/file-kinds.ts",
+    "./carry": "./src/carry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

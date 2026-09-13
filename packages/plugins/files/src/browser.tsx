@@ -1,3 +1,5 @@
+import { Landings } from "@olai/plugin-api"
+import { holdLandings } from "./landings.ts"
 /** Directory membership and folder preferences belong to files, independently
  * of sidebar presentation. Content providers register creation controls. */
 import { holdKindDrawings } from "./drawings.ts"
@@ -21,7 +23,9 @@ import { Files } from "./Files.tsx"
 import { FileRail } from "./Rail.tsx"
 import { fileState,fileTypes,fileKinds } from "./contract.ts"
 import { followFolders } from "./fold/folders.ts"
-export default definePlugin({name:"files", needs:[Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
+export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
+    const landingTable = yield* Landings
+    yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
  // The served directory the tree is drawn from, held for this activation
  // (`./vault.ts`).
  const served = yield* fileAccess

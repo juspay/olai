@@ -5,6 +5,8 @@ the vault's file-access service and keeps browser-local folder preferences under
 its own scope. The sidebar receives its tree through a contribution; disabling
 files removes browsing UI without withdrawing an open content editor.
 
+Sidebar file rows carry their served path through the host-supplied `Landings` table. A press still opens the file; a travelled carry suppresses navigation. Holding a file on a phone closes the drawer through the sidebar region’s existing owner-supplied `onClose` callback, without unmounting the carrier.
+
 `files.state` carries the two controls this row draws for another row's page —
 the box that names a new file and the guarded verb that deletes one. The
 outline and the document each name it on a component of their own, so a page

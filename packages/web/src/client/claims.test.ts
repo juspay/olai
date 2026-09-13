@@ -604,3 +604,7 @@ test("comment stripping preserves MIME strings and the code following them", () 
   expect(code).toContain('"data-row-key"')
   expect(code).not.toContain("a real comment")
 })
+
+test("transcript grips belong to chat", () => {
+  expect(filesSpelling(/data-grip/)).toEqual(["plugins/chat/src/browser/chat/Grip.tsx"])
+})

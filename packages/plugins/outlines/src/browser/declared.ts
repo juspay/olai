@@ -100,7 +100,7 @@
 import { Result } from "effect"
 import { type Accessor, createEffect, createSignal, onCleanup, untrack } from "solid-js"
 
-import type { OpFailure } from "@olai/format"
+import type { NamedAnswer, OpFailure } from "@olai/format"
 import { reachable } from "@olai/web/client/connection/reaching.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { connectionReadout } from "@olai/web/client/wire.ts"
@@ -124,7 +124,8 @@ const GATHER_MS = 0
  *  per call rather than per asker — the answer is every message's, and eighty
  *  askers each scanning the whole list to find their own rows is the batch paid
  *  for eighty times. */
-type Told = ReadonlyMap<string, string>
+type Named = NamedAnswer["named"][number]
+type Told = ReadonlyMap<string, Named>
 
 /** One question on the wire: which ids it is about, what it answers with, and
  *  WHICH question it is — see {@link said} for what the last of those is for. */
@@ -175,7 +176,7 @@ const askAll = (ids: ReadonlyArray<string>): Batch => {
               ? Result.fail(outcome.failure)
               : Result.succeed<Told>(
 
-                new Map(outcome.success.named.map((one) => [one.asked, one.id])),
+                new Map(outcome.success.named.map((one) => [one.asked, one])),
               )
           ),
         )
@@ -246,6 +247,8 @@ const said = (seq: number, message: string | null): void => {
 
 /** What one message has been told about the ids in it. */
 export interface Declared {
+  /** The returned title; identity resolution below remains an ID lookup. */
+  readonly title: (id: string) => string | null
   /**
    * The node an id names, or `null` — which is the answer for an id the set
    * does not declare AND for one nothing has answered about yet, because they
@@ -301,14 +304,14 @@ export const createDeclared = (
    * fact with three states and splitting the no's off would be a rule nothing
    * enforces — an id must be in at most one of them. The three are told apart
    * without a third value: ABSENT is "nothing asked yet", `null` is "asked, and
-   * the set does not declare it", and a string is the node. Which is why
-   * {@link Declared.named} can be `get(id) ?? null` — the two that draw the
+   * the set does not declare it", and a named record holds the resolved ID and title. Which is why
+   * {@link Declared.named} can collapse an unanswered or missing record to `null` — the two that draw the
    * same span answer the same thing.
    *
    * A fresh map per answer, because it is what the marking pass reads and a
    * mutation in place is a change nothing hears about.
    */
-  const [known, setKnown] = createSignal<ReadonlyMap<string, string | null>>(new Map())
+  const [known, setKnown] = createSignal<ReadonlyMap<string, Named | null>>(new Map())
   /** Ids in a call that has not come back — a fact about a CALL rather than
    *  about what an id means, which is why it is beside the map and not in it.
    *  A plain set: nothing on screen changes when a question leaves. */
@@ -366,11 +369,12 @@ export const createDeclared = (
   })
 
   return {
-    named: (id) => known().get(id) ?? null,
+    title: (id) => known().get(id)?.title ?? null,
+    named: (id) => known().get(id)?.id ?? null,
     want: (ids) => {
       setWanted(ids)
     },
-    told: (id) => known().get(id),
+    told: (id) => { const node = known().get(id); return node === undefined ? undefined : node?.id ?? null },
   }
 }
 

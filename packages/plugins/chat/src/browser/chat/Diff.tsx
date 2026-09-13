@@ -1,3 +1,5 @@
+import { textOfDiff } from "./carried.ts"
+import { Grip, textCarry } from "./Grip.tsx"
 /**
  * A file the agent rewrote, in the transcript: trimmed, and expanded in place
  * on a click.
@@ -83,15 +85,20 @@ export function Diff(props: {
   const more = () => Math.max(0, lines().length - TRIMMED)
   const shown = createMemo(() => (open() ? lines() : lines().slice(0, TRIMMED)))
 
+  const words = () => textOfDiff(props.diff.path, props.diff.oldText, props.diff.newText)
+  const carry = textCarry(words)
+
   return (
     <div
+      onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
       class="mt-1 min-w-0 overflow-hidden rounded border border-rule"
       data-testid={TESTID.chatDiff}
       data-path={props.diff.path}
       data-expanded={open()}
     >
-      <p class="flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
-        <span class="min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
+      <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
+        <Grip text={words()} carry={carry} />
+        <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
         </span>
         {/* A file that did not exist before is different news from one that was

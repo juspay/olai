@@ -379,7 +379,7 @@ const addRequest = (
 ): Resolved => {
   const landing = landingFor(at, edit.at)
   if (Result.isFailure(landing)) return Result.fail(landing.failure)
-  return Result.succeed({ op: "add", ...landing.success, title: edit.title })
+  return Result.succeed({ op: "add", ...landing.success, title: edit.title, ...(edit.desc === undefined ? {} : { desc: edit.desc }) })
 }
 
 /** A second placement of a node that already exists, where the anchor says —

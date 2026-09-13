@@ -12,7 +12,7 @@
  * ## Asked when the ARMING moves, and not when the vault does
  *
  * The composer is not a page, so there is no page reading for these ids to ride
- * on — the ids come from the `•••` menu of whatever was on screen and from the
+ * on — the ids come from dropping whatever row was on screen and from the
  * `@` words in the draft, which is a set that changes when a person does
  * something rather than when a file does. So this asks on the set of ids and on
  * nothing else, and a retitle elsewhere reaches a chip on the next thing that
@@ -46,7 +46,7 @@ export const createChipTitles = (
   const references = createDeclared()
   createEffect(() => references.want(ids()))
   return createMemo(() => new Map(ids().flatMap(id => {
-    const title = references.named(id)
+    const title = references.title(id)
     return title === null ? [] : [[id, title] as const]
   })))
 }

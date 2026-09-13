@@ -69,6 +69,7 @@
  */
 
 export const TESTID = {
+  chatGrip: "chat-grip",
   agentStart: "agent-start",
   agentEngineMenu: "agent-engine-menu",
   agentStanding: "agent-standing",
