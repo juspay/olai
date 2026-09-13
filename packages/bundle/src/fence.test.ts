@@ -2201,6 +2201,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "ops/src/plan.ts",
       "ops/src/walks.bench.ts",
       "plugins/chat/src/browser/chat/Composer.tsx",
+      "plugins/files/src/Files.tsx", // DOM capture-phase click suppression after a carry.
       "plugins/files/src/tools.ts",
       "plugins/outlines/src/browser/drag/Handle.tsx",
       "plugins/outlines/src/browser/palette/adapter.tsx",

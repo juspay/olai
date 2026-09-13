@@ -85,6 +85,7 @@ Decide whose departure should end a resource, then build the shared helper aroun
 | Case | Rule | Example |
 | --- | --- | --- |
 | Reusable implementation | A factory may cross a package boundary if each caller gets its own independent state. | [heldWrites](../../packages/web/src/client/writes.ts), [heldFiles](../../packages/plugins/vault/src/browser/state.ts) |
+| Carry landings | The host supplies one `Landings` table per app; activation scopes release component-owned receiver registrations, and carries recheck snapshot membership before release. A receiver captures the indicated work before `leave` clears the visit; cleanup does not wait for its asynchronous write. | [carry contracts](../../packages/plugin-api/src/carry.ts) |
 | Per-app state | Each browser app gets its own `Edits` registry. Two apps must not route edits through one module-level table. | [browser host](../../packages/plugin-api/src/browser.ts) |
 | Per-setup state | Each vault setup builds its own optional ledger and search tables with `openViews()`. A second host must not overwrite the first host's providers. | [VaultViews](../../packages/plugins/vault/src/views.ts) |
 
@@ -247,3 +248,11 @@ Assumptions pinned to the current Cordis version:
 - The bridge relies on specific pinned behavior, including how the provision disposer hands over and the exact wording of the duplicate-owner error.
 - The [assumption inventory](../../packages/effect-cordis/README.md#where-the-pins-instability-lives) and [pin configuration](../../nix/cordis.nix) record these dependencies and their limits.
 - Update the inventory when the bridge or upstream pin changes, and keep these private runtime assumptions out of feature plugins.
+
+Pointer carries share the component-owned gesture in
+[`lifting.ts`](../../packages/web/src/client/lifting.ts): travel/hold recognition,
+scroll claims, cancellation, and click suppression have one lifetime. Carriers
+supply the work begun at lift; receiver routing remains in `carry.ts`, and outline
+placement rules remain in outlines. Each plugin still declares `Landings` and
+holds its own activation scope. This shares static mechanics, not live plugin
+state or a new global gesture owner.

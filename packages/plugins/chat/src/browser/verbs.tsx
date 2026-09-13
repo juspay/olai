@@ -32,15 +32,7 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
   const bound = roster.at(node)
   const engines = bound?.session != null ? [] : bound?.engine != null
     ? roster.engines().filter(engine => engine.id === bound.engine) : roster.engines()
-  return [{
-    id: "ask-agent", label: "Ask agent", writes: false,
-    run: async node => {
-      const agent = await target(node)
-      if (typeof agent === "string") return agent
-      agentReadings()?.ui(agent).armed.armNode(node)
-      show(agent)
-    },
-  }, ...engines.map(engine => ({
+  return engines.map(engine => ({
     id: `start-agent-${engine.id}`, writes: true,
     label: engines.length === 1 ? "Start an agent session" : `Start an agent session — ${engine.name}`,
     run: async (node: string) => {
@@ -49,7 +41,7 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
       agentReadings()?.visit(node)
       unfold(node)
     },
-  }))]
+  }))
 }
 
 export const createAskCommand = (): AppCommand => ({

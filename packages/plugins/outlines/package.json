@@ -23,7 +23,8 @@
     "./slots": "./src/slots.ts",
     "./testids": "./src/testids.ts",
     "./wire": "./src/wire.ts",
-    "./projection": "./src/projection.ts"
+    "./projection": "./src/projection.ts",
+    "./carry": "./src/carry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -70,7 +71,8 @@
       "./slots",
       "./testids",
       "./surface",
-      "./wire"
+      "./wire",
+      "./carry"
     ]
   },
   "devDependencies": {}

@@ -1,3 +1,6 @@
+import { createCarry } from "@olai/web/client/carry.ts"
+import { landings } from "./landings.ts"
+import type { CarriedPath } from "./carry.ts"
 /** A DOOR at the foot of the column: Trash. It is not a row of the tree above
  *  it — it opens a file that tree does not draw — and the quiet ink is what
  *  says so, since a door drawn in the list's own ink would read as one more
@@ -47,6 +50,7 @@ const DIR = `${ENTRY_SHAPE} ${ROW_GAP}`
 const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
 
 interface TreeView {
+  readonly closeDrawer: () => void
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
   /** Directories the reader has unfolded, and this browser remembers. Absent =
@@ -131,6 +135,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   const toggle = (path: string) => toggleFolder(path, dirsIn(tree()))
 
   const view: TreeView = {
+    closeDrawer: () => props.onClose(),
     isActive,
     get broken() {
       return (servedDirectory()?.broken() ?? NO_BROKEN)
@@ -440,13 +445,14 @@ function File(props: {
   readonly row: Extract<FileRow, { kind: "file" }>
   readonly view: TreeView
 }) {
+  const carry = createCarry(() => ({ kind: "files.path", path: props.row.file } satisfies CarriedPath), landings, { onLift: props.view.closeDrawer })
   // Only the ⚠ is asked of the kind here, and it is not one of `./file/kinds.ts`
   // answers: a file that could not be READ is a fact about this row's file, and
   // only an outline's unreadability costs the reader a tree.
   const outline = () => servedDirectory()?.claims().byKind.get(props.row.of)?.holds === "nodes"
 
   return (
-    <li class="mb-0.5">
+    <li class="mb-0.5" onPointerDown={carry.grab} onContextMenu={carry.heldMenu} draggable={false} onDragStart={event => event.preventDefault()} on:click={{ capture: true, handleEvent: carry.click }}>
       <Link
         route={atFile(props.row.file)}
         class={ENTRY}

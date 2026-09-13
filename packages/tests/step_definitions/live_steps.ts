@@ -612,3 +612,9 @@ Then("the stale banner enumerates nothing", async function (this: OlaiWorld) {
     "the banner is enumerating error rows over somebody else's page",
   );
 });
+
+Then("the served bytes of {string} are unchanged", function(this: OlaiWorld, file: string) {
+  const bytes = rememberedFiles.get(this)?.get(file);
+  assert.notEqual(bytes, undefined, `no remembered bytes for ${file}`);
+  assert.equal(fs.readFileSync(path.join(this.scratch(), file), "utf8"), bytes);
+});

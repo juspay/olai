@@ -1,3 +1,5 @@
+import { Landings } from "@olai/plugin-api"
+import { holdLandings } from "./browser/landings.ts"
 import { SESSION_KIND } from "./binding.ts"
 /**
  * Chat owns the activation roster, per-conversation UI, and tab-local folds.
@@ -62,8 +64,10 @@ const SECTION = "Chats"
 
 export default definePlugin({
   name,
-  needs: [Faces, Slots, Wired, Offers, fileAccess, Clocks, rendererSlots],
+  needs: [Landings, Faces, Slots, Wired, Offers, fileAccess, Clocks, rendererSlots],
   apply: Effect.gen(function*() {
+    const landingTable = yield* Landings
+    yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
     const slots = yield* Slots
     const faces = yield* Faces
     const wired = yield* Wired

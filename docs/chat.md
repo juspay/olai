@@ -210,10 +210,37 @@ Errors from web actions stay where you made the action. For example, if moving a
 
 It can ask you back: when it needs to know which of two things you meant, the question arrives as a form in the conversation, and nothing times out. Dismissing one is an answer too — the agent is told you would not say, never handed a choice you did not make.
 
-## Asking about one node
+## Handing things to a conversation
 
-**Ask agent** on a row targets its nearest ancestor agent, including the row
-itself, unfolds that conversation, and arms the selected node for the composer.
+Drag a bullet onto an open conversation's panel to arm that node as a chip.
+A selection carries all its rows in pick order. The target can be another file
+or pane: the rows stay where they were. Remove a chip with its × before sending.
+The keyboard equivalent is `@` completion; **Start an agent session** stays in
+the row menu.
+
+A settled transcript row has a grip at its left edge on hover or focus. Drag it
+onto any conversation, including its own, to insert its source words at the
+caret as a Markdown quote: `> ` on each line, followed by a blank line. A drop
+inside a line starts the quote on a new line and keeps the surrounding draft. Agent
+answers and your messages carry their text. Tool rows carry the title followed
+by detail, or the reply JSON when detail is absent; terminal output and progress
+stay out. Diff boxes carry their path and changed `+`/`-` lines; outline diffs
+carry their change sentences. Streaming answers and rows without words have no grip.
+
+Drag a sidebar file onto a conversation to insert its served path, such as
+`@notes/cabinets.md `, at the caret. This names a file in the message. Dropping
+prepares the message; it does not send it.
+
+With a finger, hold the bullet, transcript row or file first, then carry it.
+Moving before the hold scrolls normally. Lifting a sidebar file closes the phone
+drawer so the conversation is visible. Escape cancels a carry. A target or source
+that disappears during a carry cannot receive a stale drop.
+
+The dashed composer on a plain node is not a landing. File rows do not land in
+outlines, and document pages do not take these carries. A transcript row dropped
+between outline rows becomes a node: first line title, remaining lines note,
+with one undo entry.
+
 The palette's `>` sends to the focused row's same nearest ancestor after
 unfolding it. This lookup uses the outlines reading and works with search off.
 No focused row or no ancestor refuses with **no agent above this row — start one**.
@@ -247,9 +274,9 @@ A node row reads its **title**, and beside it the **id it writes** and where it 
 
 **Why the id, and not the title.** The sentence has to name something that stays true. A title is prose — not unique, edited by anybody, with no end inside a sentence — so a message carrying one would be a copy going stale between typing it and reading it back next month. The id is the handle every one of olai's tools takes, and it does not change. You never have to read it: the chip above the box says the node's title, live, and the message you send carries the same chip.
 
-**And the chip is not decoration.** Taking a node arms it, exactly as **Ask agent** on a row does — so the agent gets one line under your message naming the node's id, title, `file:line` and the titles it hangs under, resolved by the server against the set as it is at the moment you send. The word says *where in the sentence* you meant it (`compare @a with @b` is unsayable by two chips); the line says *what it is*. Neither is a copy of the other.
+**And the chip is not decoration.** Taking a node arms it, exactly as a dropped row does — so the agent gets one line under your message naming the node's id, title, `file:line` and the titles it hangs under, resolved by the server against the set as it is at the moment you send. The word says *where in the sentence* you meant it (`compare @a with @b` is unsayable by two chips); the line says *what it is*. Neither is a copy of the other.
 
-**The words are the last word.** What a message is about is the nodes you took off the list that the message still names — so deleting `@hinges` takes the chip away too, and typing the word back brings it back. The `×` on a chip works the same way from the other end: it takes the word out of the sentence. There is nothing to remember and nothing to keep in step. (An **Ask agent** chip is not read back that way — that gesture put a node there *instead* of a sentence, so there are no words for it to be contradicted by.)
+**The words are the last word.** What a message is about is the nodes you took off the list that the message still names — so deleting `@hinges` takes the chip away too, and typing the word back brings it back. The `×` on a chip works the same way from the other end: it takes the word out of the sentence. There is nothing to remember and nothing to keep in step. (A dropped row’s chip is not read back that way — that gesture put a node there *instead* of a sentence, so there are no words for it to be contradicted by.)
 
 **⌘Z does not take a completion back**, and this used to say it did. Taking a row writes into the box the way a program writes rather than the way a finger does, which is what empties the browser's own undo history for that box — so the keystroke that would undo it has nothing to undo. Delete the word instead, and the chip goes with it. (Undo still works on what you typed *before* a completion, in the ordinary way; it is the completion itself that is not on the stack.)
 
@@ -486,6 +513,8 @@ The notification is the one part that needs the browser's permission. olai asks 
 **The honest limit: olai has to be running.** The alerts ride the same live connection everything else in this app does, so they reach you with the window in the background, on another desktop, or behind everything — but a completely closed olai is not listening, and nothing wakes it. There is no push server, and adding one is its own decision rather than a detail of this.
 
 ## Attachments
+
+The same panel also takes outline rows as context, transcript rows as quotes, and sidebar files as paths.
 
 You can paste a file into the box — a screenshot, a photo of a whiteboard — or drag one onto the panel, or pick one with the **+** button — one of the two doors a phone has; the other is the camera, next paragraph. All of those take the same kinds:
 

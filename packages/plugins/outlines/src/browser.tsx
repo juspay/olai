@@ -1,3 +1,5 @@
+import { Landings } from "@olai/plugin-api"
+import { holdLandings } from "./browser/landings.ts"
 /** Outlines owns editor history, selection/drag registers, page readings and
  * browser preferences. These resources live in the provider activation, before
  * and independently of any layout. Content and settings are separate consumers. */
@@ -90,7 +92,9 @@ import { reachable } from "@olai/web/client/connection/reaching.ts"
  * chat panel wants the naming of a node and must not be taken away when this
  * row stops (`./contracts/references.ts`).
  */
-export default definePlugin({ name, needs: [Wired, Offers, Edits, Slots], apply: Effect.gen(function*() {
+export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slots], apply: Effect.gen(function*() {
+    const landingTable = yield* Landings
+    yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through

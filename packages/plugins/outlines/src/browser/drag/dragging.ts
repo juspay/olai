@@ -1,11 +1,14 @@
+import { carrySession } from "@olai/web/client/carry.ts"
+import { landings } from "../landings.ts"
+import type { CarriedNodes } from "../../carry.ts"
 /**
  * Dragging a row, as a gesture: what is being carried, where it would land, and
  * the one write that puts it there.
  *
  * **THE GESTURE ITSELF IS NOT HERE.** Window listeners, the teardown, the
  * text-selection guard and the threshold that tells a drag from a click are one
- * mechanism shared with the panel edges (`../pointer.ts`, which also holds the
- * argument for pointer events over HTML5 drag-and-drop). What is left in this
+ * mechanism in `@olai/web/client/lifting.ts`, built on the same `pointer.ts`
+ * primitive as panel edges. What is left in this
  * file is the only part that is about an OUTLINE: what a gesture is carrying,
  * where the rows are, and the write a release makes.
  *
@@ -62,28 +65,26 @@
  * decision the touch half is: the bullet is already the handle for a mouse and
  * a pen, so it is one handle on three devices rather than a fourth thing to
  * learn. What it costs is that a phone no longer opens the `•••` menu by
- * holding the BULLET specifically — holding anywhere else on the row still
- * does, which is nearly all of it — and that is the trade taken, because two
+ * holding the BULLET specifically — holding the row outside its conversation
+ * still does — and that is the trade taken, because two
  * gestures cannot both own one press and the menu has a row to be reached from
  * while a handle has only itself.
  */
 
 import type { Row } from "@olai/format"
 import type { Edit } from "@olai/surface"
-import { type Accessor, createContext, createSignal, onCleanup, useContext } from "solid-js"
+import { type Accessor, createContext, createSignal, useContext } from "solid-js"
 
-import { flatten } from "../edit/order.ts"
+import { placeable } from "./places.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 import { useUndo } from "../edit/undoing.ts"
-import { longPressOn } from "@olai/web/client/longPress.ts"
-import { createDrags, TRAVEL_PX } from "@olai/web/client/pointer.ts"
-import { depthOf } from "../select/range.ts"
+import { createLifting } from "@olai/web/client/lifting.ts"
 import { applyingAll } from "../writes.ts"
 import { airborne, useAir } from "./air.ts"
 import { type Aim, type Aimed, aimAt } from "./aim.ts"
-import { type Field, useFields } from "./fields.ts"
-import { measureBox, measureLines, paneOf } from "./lines.ts"
-import type { Landing, Placed } from "./plan.ts"
+import { useFields } from "./fields.ts"
+import { measureBox, paneOf } from "./lines.ts"
+import type { Landing } from "./plan.ts"
 
 /**
  * The attribute the row's HANDLE wears — the bullet, as something to pick a row
@@ -193,20 +194,6 @@ export const createDragging = (
   const [aim, setAim] = createSignal<Aim | null>(null)
   const fields = useFields()
   const undo = useUndo()
-  /**
-   * Did the gesture that ended most recently TRAVEL? Not a signal: nothing
-   * draws it, and its one reader is a click handler.
-   *
-   * Cleared by the next PRESS rather than by the read, which is the only
-   * spelling that is true for both the click that follows a drag and the one
-   * that does not. A `click` fires on the nearest common ancestor of the press
-   * and the release, so a row dragged and dropped somewhere else produces no
-   * click on the bullet at all — and a flag cleared on read would still be set
-   * when the reader next pressed a bullet, swallowing the navigation of a
-   * gesture that never travelled. Every click on a handle is preceded by a
-   * press on that handle, so clearing there covers it exactly.
-   */
-  let travelled = false
 
   /**
    * EVERY PAGE ON SCREEN, measured — and in each of them, every row a drop may
@@ -293,180 +280,37 @@ export const createDragging = (
     return { rows, from, pages }
   }
 
-  /**
-   * One page's rows, as places a drop may land beside. The reading above,
-   * applied to one field — separate because the walk is per page and the facts
-   * it is filtered against are per gesture.
-   *
-   * THE CHEAP QUESTIONS FIRST, and the order is not arbitrary: measuring is the
-   * only thing here that costs anything (a `querySelectorAll` plus a forced
-   * layout per drawn row), and two of the three ways a page can have NO landing
-   * are answerable without touching the DOM at all. A page drawn inside what
-   * the hand is holding has none by construction; a page with no row of the
-   * carried file has none by the format. Both are ordinary — the second is the
-   * cross-file drop this whole feature is about — and both used to pay for a
-   * full sweep of a page whose every row was about to be thrown away.
-   */
-  const placeable = (
-    field: Field,
-    page: Element,
-    file: string,
-    held: ReadonlySet<string>,
-  ): ReadonlyArray<Placed> => {
-    // A page ZOOMED INTO something in the air offers nothing, and says so once
-    // rather than per row: every row it draws is under that node, so the walk
-    // below would reject all of them one at a time.
-    if (field.within.some((id) => held.has(id))) return []
-    // `airborne` and not a second reading of the same rule: what a row is
-    // EXCLUDED for is exactly what makes it fade, so the affordance and the
-    // candidate list cannot come from two opinions about one gesture.
-    const candidates = flatten(field.rows(), field.collapsed()).filter((row) =>
-      row.at.file === file && !airborne(held, row.key)
-    )
-    if (candidates.length === 0) return []
-    const lines = new Map(measureLines(page).map((line) => [line.key, line]))
-    return candidates.flatMap((row): ReadonlyArray<Placed> => {
-      const line = lines.get(row.key)
-      if (line === undefined) return []
-      const shows = row.kind === "node" || row.kind === "mirror" ? row.shows : undefined
-      return [{
-        ...line,
-        id: row.at.node.id,
-        parent: row.at.node.parent ?? null,
-        // A placement is not a parent; the node it SHOWS is, and only when that
-        // node is in this file and is not itself in the air. Same rule, same
-        // reason, as `move in`'s — with the loop the second pane can draw
-        // (a mirror of what the hand is holding) closed by the same field.
-        into: shows !== undefined && shows.file === file && !held.has(shows.node.id)
-          ? shows.node.id
-          : null,
-        depth: depthOf(row.key),
-      }]
-    })
-  }
-
-  /**
-   * The page STOPS SCROLLING under a finger that has been held, and starts
-   * again the moment the row is put down.
-   *
-   * Claimed here rather than as `touch-action: none` on the handle, and the
-   * difference is the whole of what makes this honest: a style is in force from
-   * the instant a finger lands, so a thumb that happened to start its flick on
-   * a bullet could not scroll the page at all — a 28px-wide dead strip running
-   * down the left of every outline. A non-passive `touchmove` listener is in
-   * force from the DEADLINE, which is a moment the browser has already agreed
-   * is not a scroll (a finger that had drifted would have taken the deadline
-   * with it, and one the browser took to scroll with would have cancelled the
-   * pointer). So the page keeps every gesture it had, and this claims exactly
-   * the one that is left.
-   */
-  const stopScrolling = (event: TouchEvent): void => event.preventDefault()
-  const claimScroll = (): void =>
-    window.addEventListener("touchmove", stopScrolling, { passive: false })
-  const freeScroll = (): void => window.removeEventListener("touchmove", stopScrolling)
-  // A row dragged off the page mid-gesture would otherwise leave the whole
-  // document unable to scroll, which is the one failure here nobody could
-  // recover from without a reload.
-  onCleanup(freeScroll)
-
-  /** This page's gestures: one at a time, and whatever is in flight is ended
-   *  with the page that made it (`../pointer.ts`). */
-  const drags = createDrags()
-
-  /**
-   * The gesture proper, once something has decided it IS one.
-   *
-   * `held` is WHICH of the two decided — a finger's DEADLINE (the row is
-   * already lifted, and the page has stopped moving under it) rather than a
-   * pointer's THRESHOLD (the row lifts on the fourth pixel, and a press that
-   * never travels was the bullet's own link all along). Everything after that
-   * moment is identical, which is why this is one function rather than two that
-   * would drift.
-   */
-  const gesture = (from: PointerEvent, row: Row, held: boolean) => {
-    /** What this gesture is carrying and where it may put it — decided when it
-     *  becomes a drag rather than at the press, because a press that turns out
-     *  to be a click must not have cleared the selection on its way past, and
-     *  `null` until then. */
-    let lifted: Lifted | null = null
-
-    const lift = () => {
-      travelled = true
-      const picked = page.selection.keys()
-      const carried = picked.has(row.key) ? page.selection.rows() : [row]
-      if (!picked.has(row.key)) page.selection.clear()
-      air.lift(new Set(carried.map((one) => one.at.node.id)))
-      lifted = measure(carried)
-    }
-
-    if (held) {
-      lift()
-      claimScroll()
-    }
-    drags.start(from, {
-      // No threshold at all once a finger has been HELD: the deadline it met is
-      // what told the two gestures apart, so the first pixel after it is
-      // already the drag. Asking for four more would be asking a person who has
-      // just felt the row lift to prove they meant it.
-      threshold: held ? 0 : TRAVEL_PX,
-      onStart: held ? undefined : lift,
-      // ON THE PAGE, which is where the rows were measured — and which moves
-      // under a pointer held near an edge of the window, with no `pointermove`
-      // behind it (`../pointer.ts`, `../autoscroll.ts`). Without that the reach
-      // of a drag is whatever was visible when the press landed, which on an
-      // outline is most of the gesture missing.
-      onPage: (x, y) => setAim(lifted === null ? null : aimAt(lifted.pages, lifted.from, x, y)),
-      onEnd: (up) => {
-        if (held) freeScroll()
-        // A CANCELLED gesture is not a drop, and the difference is the whole
-        // reason the primitive answers with `null` rather than with the last
-        // move: a pointer taken away mid-drag has not chosen anything.
+  const gesture = createLifting((row: Row) => {
+    const picked = page.selection.keys()
+    const carried = picked.has(row.key) ? page.selection.rows() : [row]
+    if (!picked.has(row.key)) page.selection.clear()
+    const lifted = measure(carried)
+    if (lifted === null) return null
+    air.lift(new Set(carried.map(one => one.at.node.id)))
+    // Moving retains outline order. Context chips retain the order picked.
+    const ids = [...picked]
+      .flatMap(key => carried.filter(one => one.key === key).map(one => one.at.node.id))
+      .concat(picked.has(row.key) ? [] : [row.at.node.id])
+    const table = landings()
+    const receiver = table && carrySession({ kind: "outlines.nodes", ids, file: lifted.from } satisfies CarriedNodes, table)
+    return {
+      onPage: (x: number, y: number) => {
+        setAim(receiver?.aim(x, y) ? null : aimAt(lifted.pages, lifted.from, x, y))
+      },
+      onEnd: (up: PointerEvent | null) => {
+        void receiver?.end(up !== null).then(why => { if (why) page.selection.say({ tone: "alarm", text: why }) })
         const target = up === null ? null : aim()
-        const carrying = lifted
         air.lift(new Set<string>())
         setAim(null)
-        if (target === null || carrying === null) return
-        // A REFUSAL IS SAID RATHER THAN SWALLOWED, and it is said in the place
-        // every other refused gesture over these rows says its piece: the bar
-        // (`../select/SelectionBar.tsx`), which draws for a sentence with no
-        // pick behind it and does not fade. The words are the ones the face
-        // over the pane was already showing — one spelling, so the answer
-        // cannot change at the moment the hand lets go.
+        if (target === null) return
         if (target.kind === "refused") {
           page.selection.say({ tone: "alarm", text: target.refusal.why })
           return
         }
-        void drop(target.landing, carrying.rows)
+        void drop(target.landing, lifted.rows)
       },
-    })
-  }
-
-  /**
-   * The finger's deadline, and the row it is being held over.
-   *
-   * ONE watcher for the page rather than one per row: what it is watching is
-   * whatever was pressed last, and two fingers on two bullets is a pinch the
-   * gesture already refuses (`../longPress.ts`). The PRESS comes back with the
-   * deadline — neither the timer nor the platform's own `contextmenu` carries
-   * one — so the only thing kept beside the watcher is which row it was on.
-   */
-  let over: Row | undefined
-  const watcher = longPressOn((from) => {
-    if (over !== undefined) gesture(from, over, true)
-  })
-
-  const grab = (event: PointerEvent, row: Row) => {
-    // The secondary button opens a context menu; a drag is the primary one's.
-    if (event.button !== 0) return
-    // Every press clears it, and nothing else does — see the field's own note.
-    travelled = false
-    if (event.pointerType === "touch") {
-      over = row
-      watcher.onPointerDown(event)
-      return
     }
-    gesture(event, row, false)
-  }
+  })
 
   /**
    * The write: one `place` per row, each after the one before it, so a run of
@@ -492,8 +336,8 @@ export const createDragging = (
     // is still first, for the reason it always was (`./air.ts`).
     carrying: (key) => airborne(air.held(), key),
     aim,
-    grab,
-    heldMenu: watcher.onContextMenu,
-    dragged: () => travelled,
+    grab: gesture.grab,
+    heldMenu: gesture.heldMenu,
+    dragged: gesture.dragged,
   }
 }

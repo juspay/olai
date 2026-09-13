@@ -1150,6 +1150,7 @@ export const CHAT_ASK_TEXT = selector(PLUGIN_TESTID.chatAskText);
 export const CHAT_ASK_SUBMIT = selector(PLUGIN_TESTID.chatAskSubmit);
 export const CHAT_ASK_DISMISS = selector(PLUGIN_TESTID.chatAskDismiss);
 export const CHAT_ASK_OUTCOME = selector(PLUGIN_TESTID.chatAskOutcome);
+export const CHAT_GRIP = selector(PLUGIN_TESTID.chatGrip);
 export const CHAT_INPUT = selector(PLUGIN_TESTID.chatInput);
 /** The strip on a `user` row that did not land, saying WHICH way in
  *  `data-delivery`, and the button that tries again — which only one of the two
