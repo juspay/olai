@@ -264,7 +264,7 @@ export const asking = (
   node: (request) =>
     Effect.map(
       Effect.flatMap(read, (at) =>
-        Effect.fromResult(Query.detail(at.derived, request.id, request.fields))),
+        Effect.fromResult(Query.detail(at.derived, request.id, request.fields, new Set(at.set.documents.map(one => one.path))))),
       (found) => found ?? { missing: request.id },
     ),
   // ONE OF THE TWO READS THAT CAN REFUSE FROM THE WALK ITSELF — see the note

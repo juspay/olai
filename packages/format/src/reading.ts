@@ -1,3 +1,4 @@
+import { DeadLink } from "./dead-links.ts"
 /**
  * What a READ of the set asks, and what it says back.
  *
@@ -392,6 +393,7 @@ export type DocumentRequest = typeof DocumentRequest.Type
  * is, and the caller's own argument is the only spelling that can.
  */
 export const DocumentBody = Schema.Struct({
+  deadLinks: Schema.optionalKey(Schema.Array(DeadLink)),
   file: Schema.String,
   /** Verbatim, exactly as on disk. Markdown, interpreted only at view time —
    *  never `null` here, unlike the set's own `Document`: what the set does not
@@ -707,6 +709,7 @@ export type Reference = typeof Reference.Type
  * declaration each, in the module that says what a record holds.
  */
 export const Detail = Schema.Struct({
+  deadLinks: Schema.optionalKey(Schema.Array(DeadLink)),
   ...Found.fields,
   ...STAMPED,
   /** When the CURRENT round of work started — the record's own `started`,
@@ -967,6 +970,7 @@ export type SubtreeRequest = typeof SubtreeRequest.Type
  * can be honest.
  */
 export interface Subtree extends Found {
+  readonly deadLinks?: ReadonlyArray<DeadLink>
   readonly date?: string | undefined
   readonly desc?: string | undefined
   readonly children: ReadonlyArray<Subtree>
@@ -983,6 +987,7 @@ export interface Subtree extends Found {
 }
 
 export const Subtree = Schema.Struct({
+  deadLinks: Schema.optionalKey(Schema.Array(DeadLink)),
   ...Found.fields,
   date: RegularNode.fields.date,
   desc: RegularNode.fields.desc,
@@ -999,6 +1004,7 @@ export const Subtree = Schema.Struct({
  * this is an answer, advertised to nobody, so the recursion is honest.
  */
 export interface ProjectedSubtree extends Projected {
+  readonly deadLinks?: ReadonlyArray<DeadLink>
   readonly children: ReadonlyArray<ProjectedSubtree>
   /** The placements under this node — the KEY is structure, so the dial
    *  cannot drop the naming; `shows` is the same projection this row is. */
@@ -1011,6 +1017,7 @@ export interface ProjectedSubtree extends Projected {
 }
 
 export const ProjectedSubtree = Schema.Struct({
+  deadLinks: Schema.optionalKey(Schema.Array(DeadLink)),
   ...Projected.fields,
   children: Schema.Array(
     Schema.suspend((): Schema.Codec<ProjectedSubtree> => ProjectedSubtree),

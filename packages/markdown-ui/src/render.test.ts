@@ -657,3 +657,13 @@ test("a rendering cache belongs to its Claims snapshot, including withdrawal and
   expect(renderMarkdown(undefined, source, "Work.olai")).toBe(off)
   expect(renderMarkdown(TEST_CLAIMS, source, "Work.olai")).toBe(before)
 })
+
+test("served membership marks missing links and clears independently of the source cache", () => {
+  const source = "[x](../gone%20away.md#scope)"
+  const missing = renderMarkdown(TEST_CLAIMS, source, "notes/a.md", () => false)
+  expect(missing).toContain("data-dead")
+  expect(missing).toContain("link resolves to nothing served: gone away.md")
+  expect(missing).toContain('href="/gone%20away.md#scope"')
+  expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md", () => true)).not.toContain("data-dead")
+  expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md")).not.toContain("data-dead")
+})

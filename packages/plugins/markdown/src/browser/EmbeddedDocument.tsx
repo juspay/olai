@@ -11,7 +11,7 @@ export function EmbeddedDocument(props: {readonly file: string}) {
   const document = useDocument(() => props.file)
   const served = createMemo(() => { const entry = document(); return isServed(entry) ? entry : undefined })
   return <>
-    <Show when={served()}>{entry => <Markdown claims={servedDirectory()?.claims()} source={proseIn(entry().text)} from={props.file} class="olai-md-compact" testid={TESTID.documentBody} />}</Show>
+    <Show when={served()}>{entry => <Markdown serves={path => servedDirectory()?.paths().includes(path) ?? true} claims={servedDirectory()?.claims()} source={proseIn(entry().text)} from={props.file} class="olai-md-compact" testid={TESTID.documentBody} />}</Show>
     <Show when={document()?.refused}><BodyRefused /></Show>
   </>
 }

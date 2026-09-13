@@ -43,7 +43,7 @@ const Id = Schema.String.annotate({
 
 const Title = Schema.String.annotate({
   description:
-    "The node's title, verbatim. Inline tags live here — `#topic` and `@person`, two namespaces over the same alphabet.",
+    "The node's title, verbatim. Inline tags live here — `#topic` and `@person`, two namespaces over the same alphabet. A relative link resolves beside the file this node lives in, not beside the reader; the answer names any link that lands on nothing served.",
 })
 
 /**
@@ -88,7 +88,7 @@ const Anchor = {
 const CAPTURE = {
   title: Title,
   desc: Schema.optionalKey(
-    Schema.String.annotate({ description: "The note. Markdown, stored verbatim." }),
+    Schema.String.annotate({ description: "The note. Markdown, stored verbatim. A relative link resolves beside the file this node lives in (or this document), not beside the reader; the answer names any link that lands on nothing served." }),
   ),
   date: Schema.optionalKey(
     Schema.String.annotate({
@@ -1129,7 +1129,7 @@ export const UpdateRequest = Schema.Struct({
   title: Schema.optionalKey(Title),
   desc: Schema.optionalKey(
     Schema.NullOr(Schema.String).annotate({
-      description: "The note, replaced whole. Markdown, stored verbatim; `null` removes it.",
+      description: "The note, replaced whole. Markdown, stored verbatim; `null` removes it. A relative link resolves beside the file this node lives in (or this document), not beside the reader; the answer names any link that lands on nothing served.",
     }),
   ),
   date: Schema.optionalKey(

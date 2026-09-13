@@ -199,3 +199,7 @@ send control, memory revealed by scrolling up, and continued streaming without
 moving that reading position. Scheduler tests cover capacity refusals, fresh
 binding versus filing serialization, clearing inherited wakes, trash cleanup,
 and process-group termination with escalation.
+
+`dead_links.feature` covers an agent's note write and read, relative basename
+suggestions across folders, live clearing when a file appears, and document
+Save with a clamped, percent-encoded target and heading fragment.

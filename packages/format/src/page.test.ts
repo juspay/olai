@@ -377,7 +377,7 @@ test("a zoomed MIRROR resolves to the node it stands for, as `zoom` does", () =>
   expect(readAt(node("herbs-here"))).toEqual({
     kind: "node",
     zoomed: zoom(SET, "herbs-here"),
-    backlinks: backlinksOf(SET, "herbs"),
+    backlinks: backlinksOf(SET, "herbs"), deadLinks: [],
   })
 })
 

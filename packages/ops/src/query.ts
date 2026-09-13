@@ -1,3 +1,4 @@
+import { deadLinksIn, deadLinksOf, deadLinkFields } from "@olai/format"
 /**
  * Reading the set, as an agent is allowed to read it.
  *
@@ -710,6 +711,7 @@ export const detail = (
   derived: Derived,
   id: string,
   fields?: ReadonlyArray<string> | undefined,
+  served?: ReadonlySet<string>,
 ): Result.Result<Detail | null, OpFailure> => {
   let wants: Wants | undefined
   if (fields !== undefined) {
@@ -743,6 +745,7 @@ export const detail = (
   const blockedBy = waitingFor(derived, id)
   return Result.succeed({
     ...foundOf(derived, located),
+    ...(served === undefined ? {} : deadLinkFields(deadLinksOf(located, served))),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `outlines_repeat`.
@@ -1072,6 +1075,7 @@ export const subtree = (
     const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
+      ...deadLinkFields(deadLinksOf(located, new Set(at.set.documents.map(one => one.path)))),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
       ...(wantsNotes && located.node.desc !== undefined
         ? { desc: located.node.desc }
@@ -1096,6 +1100,7 @@ export const subtree = (
     const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
+      ...deadLinkFields(deadLinksOf(located, new Set(at.set.documents.map(one => one.path)))),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
       ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
@@ -1313,5 +1318,5 @@ export const document = (
   }
   const broken = brokenIn(set, file)
   if (broken !== undefined) return Result.fail(notLoaded(claims, file, broken))
-  return Result.succeed({ file, text: entry.body })
+  return Result.succeed({ file, text: entry.body, ...deadLinkFields(deadLinksIn(file, entry.body, new Set(set.documents.map(one => one.path)))) })
 }

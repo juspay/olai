@@ -45,7 +45,7 @@
  * asking a question this one already has the answer to.
  */
 import { TESTID } from "@olai/markdown-ui/testids.ts"
-import { type Claims, addressOf, printAddress, bodiedOf, pictureOf } from "@olai/format"
+import { type Claims, addressOf, printAddress, bodiedOf, pictureOf, pathedOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
@@ -57,6 +57,7 @@ export interface Rewrite {
   /** The file the markdown was written in — an outline, for a note; the
    *  document itself, for a document. A relative picture is resolved beside
    *  it, exactly as a `doc` is. */
+  readonly serves?: (path: string) => boolean
   readonly from: string
   /** This block's id namespace. */
   readonly ids: string
@@ -77,7 +78,7 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
     if (child.tagName === "a") {
       // Document first: a relative `.md` becomes a page address and must not then
       // be treated as something that leaves the app.
-      resolveDocument(child, options.claims, options.from)
+      resolveDocument(child, options.claims, options.from, options.serves)
       openExternal(child)
     }
     mint(child, options.ids)
@@ -164,13 +165,18 @@ const resolvePicture = (element: Element, claims: Claims | undefined, from: stri
  * a screen that names a document it does not have, and a link quietly left
  * relative would send the reader somewhere with nothing to say at all.
  */
-const resolveDocument = (element: Element, claims: Claims | undefined, from: string): void => {
+const resolveDocument = (element: Element, claims: Claims | undefined, from: string, serves?: (path: string) => boolean): void => {
   if (claims === undefined) return
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
   // ONE index, so the two halves cannot be cut at two places: an href with no
   // `#` ends at its own end, which makes the fragment the empty tail.
   const cut = written.includes("#") ? written.indexOf("#") : written.length
+  const resolved = pathedOf(from, written.slice(0, cut))
+  if (resolved !== null && serves !== undefined && !serves(resolved)) {
+    element.properties = { ...element.properties, "data-dead": true, title: `link resolves to nothing served: ${resolved}`,
+      style: "text-decoration: underline wavy var(--color-alarm); text-underline-offset: 3px" }
+  }
   const document = bodiedOf(claims, from, written.slice(0, cut))
   if (document === null) return
   const address = addressOf(claims, document, null)

@@ -40,7 +40,7 @@ export function Note(props: {
       data-preview={props.open === true ? "false" : undefined}
       data-open={props.open === true ? "true" : undefined}
     >
-      <Markdown
+      <Markdown serves={path => servedDirectory()?.paths().includes(path) ?? true}
             claims={servedDirectory()?.claims()}
         source={props.desc}
         from={props.from}

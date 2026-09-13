@@ -1,3 +1,6 @@
+import { useReading } from "./reading.tsx"
+import { deadLinksOf } from "@olai/format"
+import { servedDirectory } from "./vault.ts"
 /**
  * What hangs under a node's title: the facts it carries, which are always
  * drawn, and the open state under them.
@@ -142,6 +145,11 @@ export function NodeBody(props: {
   readonly addingProp?: boolean
   readonly onAddingPropEnd?: () => void
 }) {
+  const reading = useReading()
+  const dead = createMemo(() => {
+    const shown = reading()?.shows
+    return props.zoomed && shown?.kind === "node" ? shown.deadLinks : deadLinksOf(props.shows, new Set(servedDirectory()?.paths() ?? []))
+  })
   const licences = useLicences()
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
@@ -175,6 +183,7 @@ export function NodeBody(props: {
   })
 
   return (
+    <>
     <Show
       when={zoomed()}
       fallback={
@@ -317,6 +326,8 @@ export function NodeBody(props: {
         {(doc) => <DocRef file={doc()} inline />}
       </Show>
     </Show>
+    <For each={dead()}>{link => <div data-testid="dead-link" class="text-xs text-alarm opacity-80">link resolves to nothing served: <code>{link.resolved}</code><Show when={link.suggest.length}> — did you mean <For each={link.suggest}>{(path, index) => <>{index() ? " or " : ""}<code>{path}</code></>}</For>?</Show></div>}</For>
+    </>
   )
 }
 

@@ -566,3 +566,10 @@ An outline address keeps the `kind: "document"` address discriminator;
 consults the registry itself.
 
 A root-level `Pins.olai` is no longer the shelf. Move convention files directly into `_olai/`; only that directory participates in Inbox, Pins, Trash and Properties resolution. Each outline format states its own serialization and merge guarantees; the JSONL guarantees above belong to `outline-olai`.
+
+Relative links in titles, notes and document bodies resolve beside the file
+that contains them. A missing served target is a derived reading, never a
+validation error: the file remains readable and writable. Node and document
+reads name dead links and suggest matching basenames relative to the writer;
+write answers nudge about newly introduced dead links. Creating the target
+clears the reading on the next revision without rewriting the referring text.

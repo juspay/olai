@@ -1,3 +1,4 @@
+import { DeadLink, deadLinksOf } from "./dead-links.ts"
 /**
  * WHAT ONE PAGE SHOWS — the reading a browser is handed, in place of the vault
  * it used to walk.
@@ -193,6 +194,7 @@ export const Shown = Schema.Union([
     /** What refers to this node, in corpus order — empty for an id nothing
      *  points at, and for the three arms of {@link Zoomed} that show no node. */
     backlinks: Schema.Array(Backlink),
+    deadLinks: Schema.Array(DeadLink),
   }),
   /**
    * One document, drawn whole. It carries the PATH and never the body: a body
@@ -585,6 +587,7 @@ export const shownOf = (at: Reading & { readonly outlineRow?: string }, request:
       kind: "node",
       zoomed,
       backlinks: zoomed.kind === "node" ? backlinksOf(derived, zoomed.shows.node.id) : [],
+      deadLinks: zoomed.kind === "node" ? deadLinksOf(zoomed.shows, new Set(faces.map(face => face.path))) : [],
     }
   }
 

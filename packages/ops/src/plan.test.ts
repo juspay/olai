@@ -6233,3 +6233,22 @@ test("a pin rename precondition is rechecked when the row leaves the active shel
     expect(refused(setOf(files), request).message).toContain("no longer pinned")
   }
 })
+
+describe("dead-link nudges", () => {
+  const set = () => setOf({ "projects/olai.olai": '{"id":"a","ord":"a0","title":"A"}' }, [["notes/nix-flakes.md", "# Nix"], ["projects/readme.md", "before"]])
+  for (const op of ["title", "desc"] as const) {
+    test(`${op} names a new dead link without refusing the write`, () => {
+      const request = op === "title" ? { op, id: "a", title: "[x](nix-flakes.md)" } : { op, id: "a", desc: "[x](nix-flakes.md)" }
+      expect(planned(set(), request).nudge).toContain("did you mean `../notes/nix-flakes.md`?")
+    })
+  }
+  test("capture and document writes carry the same nudge", () => {
+    expect(planned(set(), { op: "add", file: "projects/olai.olai", title: "[x](nix-flakes.md)" }).nudge).toContain("projects/nix-flakes.md")
+    expect(planned(set(), { op: "doc", file: "projects/readme.md", text: "[x](nix-flakes.md)" }).nudge).toContain("../notes/nix-flakes.md")
+    expect(planned(set(), { op: "create-doc", file: "projects/new.md", text: "[x](nix-flakes.md)" }).nudge).toContain("../notes/nix-flakes.md")
+  })
+  test("an unchanged dead link is not nudged again", () => {
+    const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"A","desc":"[x](missing.md)"}' })
+    expect(planned(existing, { op: "desc", id: "a", desc: "[x](missing.md) again" }).nudge).toBeUndefined()
+  })
+})

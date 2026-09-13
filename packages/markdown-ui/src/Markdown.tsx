@@ -50,6 +50,7 @@ import { busyMark, waitingMark } from "./waiting.ts"
 export function Markdown(props: {
   readonly claims: Claims | undefined
   readonly source: string
+  readonly serves?: (path: string) => boolean
   readonly from: string
   readonly class?: string
   readonly testid?: string
@@ -66,8 +67,8 @@ export function Markdown(props: {
       ? props.live === true
         ? renderStreaming(props.claims, props.source, props.from)
         : props.landing !== undefined
-          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles)
-          : renderMarkdown(props.claims, props.source, props.from)
+          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles, props.serves)
+          : renderMarkdown(props.claims, props.source, props.from, props.serves)
       : undefined
   )
   /** Is this block still WAITING on the renderer — the arrival's own answer

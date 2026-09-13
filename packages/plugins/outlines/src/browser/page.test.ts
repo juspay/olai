@@ -83,7 +83,7 @@ test("the open outline is the one the page is of", () => {
 test("a zoomed node lights up the file its CANONICAL record is in", () => {
   expect(fileOf({
     kind: "node",
-    backlinks: [],
+    backlinks: [], deadLinks: [],
     zoomed: {
       kind: "node",
       shows: ROW.at as never,
@@ -111,7 +111,7 @@ test("an outline and a zoomed node are one shape: the tree they draw", () => {
   // walked, rather than the walk run a second time beside it.
   expect(drawnBy({
     kind: "node",
-    backlinks: [],
+    backlinks: [], deadLinks: [],
     zoomed: {
       kind: "node",
       shows: ROW.at as never,

@@ -87,7 +87,9 @@ const renderingOf = (
   source: string,
   from: string,
   shape: "block" | "inline",
+  serves?: (path: string) => boolean,
 ): Rendered => {
+  if (serves !== undefined) return render(claims, source, from, keyFor(shape, from, source), shape, serves)
   if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape)
   let rendered = renderings.get(claims)
   if (rendered === undefined) {
@@ -104,8 +106,8 @@ const renderingOf = (
   return result
 }
 
-export const renderMarkdown = (claims: Claims | undefined, source: string, from: string): string =>
-  renderingOf(claims, source, from, "block").html
+export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, serves?: (path: string) => boolean): string =>
+  renderingOf(claims, source, from, "block", serves).html
 
 /**
  * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.
@@ -162,11 +164,12 @@ export const renderToTree = (
   source: string,
   from: string,
   shape: "block" | "inline",
+  serves?: (path: string) => boolean,
 ): Root => {
   const key = keyFor(shape, from, source)
   const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
-  rewrite(tree, { claims, from, ids: idsFor(key) })
+  rewrite(tree, { claims, from, ids: idsFor(key), ...(serves === undefined ? {} : { serves }) })
   return tree
 }
 
@@ -220,11 +223,12 @@ const render = (
   from: string,
   key: string,
   shape: "block" | "inline",
+  serves?: (path: string) => boolean,
 ): Rendered => {
   const pipeline = pipelineNow()
   const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
-  const headings = rewrite(tree, { claims, from, ids: idsFor(key) })
+  const headings = rewrite(tree, { claims, from, ids: idsFor(key), ...(serves === undefined ? {} : { serves }) })
   return { html: pipeline.htmlOf(tree), headings }
 }
 
@@ -253,8 +257,8 @@ const idsFor = (key: string): string => {
 
 /** Render a source-line landing through the existing parsed tree and highlight walk.
  * No shared cache retains a page's query or highlights. */
-export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>): string => {
-  const tree = renderToTree(claims, source, from, "block")
+export const renderLineLanding = (claims: Claims | undefined, source: string, from: string, line: number, needles: ReadonlyArray<string>, serves?: (path: string) => boolean): string => {
+  const tree = renderToTree(claims, source, from, "block", serves)
   if (line < 1 || line > source.split("\n").length) return hastToHtml(tree)
   const lines = source.split("\n")
   const blocks = new Set(["p", "pre", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "table", "tr", "hr"])

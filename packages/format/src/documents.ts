@@ -526,7 +526,7 @@ export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArr
  * space that opens `"…"` / `'…'` / `(…)` is markdown's title, not part of
  * the path.
  */
-const writtenLinks = (text: string): ReadonlyArray<string> => {
+export const writtenLinks = (text: string): ReadonlyArray<string> => {
   const found: Array<string> = []
   eachTarget(text, (target) => {
     found.push(destinationOf(target))
