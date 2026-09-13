@@ -22,7 +22,6 @@ import { Show } from "solid-js"
  * face would draw.
  */
 import { TESTID } from "olai-plugin-pins/testids"
-import { TESTID as NAV_TESTID } from "olai-plugin-navigation/testids"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
@@ -109,16 +108,12 @@ export function Pin(props: {
             const target = props.pin.target
             if (target.kind === "layout") router.open(router.routes.layoutIn(href())!)
           }}>
-          <svg class="shrink-0" data-layout-mark aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-            <rect x="1" y="2" width="6" height="12" rx="1" />
-            <rect x="9" y="2" width="6" height="12" rx="1" />
-          </svg>
-          <span class="truncate" data-testid={NAV_TESTID.addressName}>{props.pin.name}</span>
+          <Face target={props.pin.target} name={props.pin.name} />
         </a>
       }>{(route) =>
         <Link route={route()} class={ROW} testid={TESTID.pinLink}
           current={props.current} title={props.pin.name}>
-          <Face route={route()} name={props.pin.name} />
+          <Face target={props.pin.target} name={props.pin.name} />
         </Link>
       }</Show>
       {/* OUTSIDE the link, because a control inside an anchor is a control

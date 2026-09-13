@@ -109,7 +109,7 @@ export function NodeTitle(props: {
           // row (`./filter/why.ts`).
           <span class="flex min-w-0 flex-1 items-center gap-1.5">
             <Face
-              route={route()}
+              target={{ kind: "page", route: route() }}
               name={face().name}
               // A WRITTEN name is what may be pressed, and whether this caller
               // may hold an anchor at all is its own half of that answer.

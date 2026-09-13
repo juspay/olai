@@ -98,7 +98,7 @@ import { panesOf, type Workspace } from "olai-plugin-navigation/workspace"
 import { addressWritten } from "@olai/format"
 import type { Pinned, Shelf } from "@olai/format"
 
-import { addressIn,labelIn,nameOf,titleFace } from "olai-plugin-navigation/address/address.ts"
+import { addressIn,labelIn,nameOf,titleFace,type AddressTarget } from "olai-plugin-navigation/address/address.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import type { Routing } from "olai-plugin-navigation/routes"
 
@@ -114,7 +114,7 @@ export interface Pin {
   readonly title: string
   /** Where it goes. Parsed once, here, so nothing downstream re-reads a
    *  title. */
-  readonly target: { readonly kind: "page"; readonly route: Route } | { readonly kind: "layout"; readonly workspace: Workspace }
+  readonly target: AddressTarget
   /**
    * What this door is CALLED, as it is drawn — the name somebody WROTE on it,
    * or what its address is called: for a node, what the server says that node's

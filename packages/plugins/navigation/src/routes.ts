@@ -126,7 +126,7 @@
  * cannot be read names nothing, and the address means what an unrecognised one
  * means.
  */
-import { layoutHref, layoutIn, type Workspace } from "./workspace.ts"
+import { layoutHref, layoutIn, WORKSPACE_PREFIX, type Workspace } from "./workspace.ts"
 import { Schema } from "effect"
 import type { AppPage } from "olai-plugin-navigation/slots"
 import type { AppRoute } from "olai-plugin-navigation/slots"
@@ -680,6 +680,9 @@ export const routeOfIn = (table: Claims | undefined, pages: MountedPages, addres
  */
 const routeNamedIn = (table: Claims | undefined, pages: MountedPages, parts: Split): Route | null => {
   const { pathname, search, fragment } = parts
+  // A workspace ending in a filename must not be mistaken for that file.
+  // Workspace grammar belongs above page routes, including plugin claims.
+  if (pathname.startsWith(WORKSPACE_PREFIX)) return null
   const narrowed = narrowedBy(search)
 
   const tenant = pages.find((one) => claims(one.page.route, pathname))?.page

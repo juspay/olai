@@ -394,14 +394,12 @@ When("I {word}-click the layout pin {string}", async function (this: OlaiWorld, 
 
 Then("the layout panes have equal widths", async function (this: OlaiWorld) {
   await this.waitUntil(async () => {
-    const left = await this.pane(1).boundingBox(), right = await this.pane(2).boundingBox();
+    const left = await this.pane(0).boundingBox(), right = await this.pane(1).boundingBox();
     return left !== null && right !== null && Math.abs(left.width - right.width) <= 2;
   }, "equal pane widths");
 });
 
-Then("the palette does not offer {string}", async function (this: OlaiWorld, label: string) {
-  assert.strictEqual(await this.page.locator(PALETTE_ITEM).filter({ hasText: label }).count(), 0);
-});
+
 
 Then("the pin {string} has tooltip {string}", async function (this: OlaiWorld, address: string, tooltip: string) {
   assert.strictEqual(await pinAt(this, address).locator(PIN_LINK).getAttribute("title"), tooltip);

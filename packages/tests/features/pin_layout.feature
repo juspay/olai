@@ -20,9 +20,9 @@ Feature: Pinning layouts
     When I open the document "finishes.md"
     And I follow the pin "/s/house.olai/garden.olai"
     Then there are 2 panes
-    And pane 1 is showing "/house.olai"
-    And pane 2 is showing "/garden.olai"
-    And pane 1 is focused
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/garden.olai"
+    And pane 0 is focused
     And the layout panes have equal widths
     And the address is exactly "/s/house.olai/garden.olai"
     When I go back
@@ -36,13 +36,13 @@ Feature: Pinning layouts
     When I open the address "/s/%23order/finishes.md"
     And I <modifier>-click the layout pin "/s/house.olai/garden.olai"
     Then there are 2 panes
-    And pane 1 is showing "/house.olai"
-    And pane 2 is showing "/garden.olai"
-    And pane 1 is focused
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/garden.olai"
+    And pane 0 is focused
     And the layout panes have equal widths
     When I go back
-    Then pane 1 is showing "/#order"
-    And pane 2 is showing "/finishes.md"
+    Then pane 0 is showing "/#order"
+    And pane 1 is showing "/finishes.md"
 
     Examples:
       | modifier |
@@ -99,10 +99,10 @@ Feature: Pinning layouts
     And the page has not reloaded
     When I follow the pin "/s/house.olai/%23missing"
     Then there are 2 panes
-    And pane 2 is showing "/#missing"
+    And pane 1 is showing "/#missing"
     When I follow the pin "/s/house.olai/garden.olai"
     Then there are 2 panes
-    And pane 2 is showing "/garden.olai"
+    And pane 1 is showing "/garden.olai"
     And there should be no page errors
 
   Scenario: A layout containing a trashed node still opens both panes
@@ -112,8 +112,8 @@ Feature: Pinning layouts
     And I choose "Move to Trash" from the node menu
     And I follow the pin "/s/house.olai/%23order"
     Then there are 2 panes
-    And pane 1 is showing "/house.olai"
-    And pane 2 is showing "/#order"
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/#order"
     And there should be no page errors
 
   Scenario: A lone page has only the page command
@@ -144,9 +144,9 @@ Feature: Pinning layouts
     And I follow the pin "/s/house.olai/garden.olai"
     Then the pane tabs are shown
     And there are 2 pane tabs
-    And pane 1 is showing "/house.olai"
-    And pane 2 is showing "/garden.olai"
-    And pane 1 is focused
-    When I tap pane tab 2
-    Then pane 2 is focused
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/garden.olai"
+    And pane 0 is focused
+    When I tap pane tab 1
+    Then pane 1 is focused
     And there should be no page errors

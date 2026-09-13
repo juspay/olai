@@ -25,8 +25,14 @@
 
 import { addressWritten, basenameOf, linkedTitle } from "@olai/format"
 
+import type { Workspace } from "../workspace.ts"
 import type { Names } from "olai-plugin-outlines/names"
 import type { Route, Routing } from "olai-plugin-navigation/routes"
+
+/** A page and a workspace are distinct navigation targets. */
+export type AddressTarget =
+  | { readonly kind: "page"; readonly route: Route }
+  | { readonly kind: "layout"; readonly workspace: Workspace }
 
 /**
  * The address a title names, or `undefined`.
