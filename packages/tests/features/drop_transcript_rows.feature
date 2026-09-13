@@ -19,12 +19,14 @@ Feature: A transcript row carries its source words
   Scenario: Holding a message lifts its words on a phone
     When I ask the agent "hello"
     Then the agent is idle
+    When I ask the agent "hello again"
+    Then the agent is idle
     When I hold the last "agent" transcript row
     And I drag the held finger into the conversation
     And I let the finger go
     Then the composer contains exactly:
       """
-      > you said: hello
+      > you said: hello again
       """
 
   Scenario: A message dropped into an outline is one undoable node
@@ -107,7 +109,7 @@ Feature: A transcript row carries its source words
     And I quote the last "user" row into the conversation
     Then the composer contains exactly:
       """
-      > hello
+      > what did we decide?
       """
 
   Scenario: An answer offers its grip only after it stops streaming
@@ -131,3 +133,20 @@ Feature: A transcript row carries its source words
     And the carried node has the note "A carried note"
     When I press "ControlOrMeta+z"
     Then the outline does not contain "A carried title"
+
+  Scenario: A transcript can create a node in the other pane's outline
+    When I ask the agent "A sentence across panes"
+    Then the agent is idle
+    When I open the address "/s/house.olai/%23kitchen?f=1"
+    Then the node page conversation is ready for "kitchen"
+    When I drop the message from pane 1 above row "order" in pane 0
+    Then the outline contains "A sentence across panes"
+    When I press "ControlOrMeta+z"
+    Then the outline does not contain "A sentence across panes"
+
+  Scenario: Two views of one conversation focus the receiving composer
+    When I ask the agent "hello"
+    Then the agent is idle
+    When I open the address "/s/%23kitchen/%23kitchen?f=0"
+    When I quote the message from pane 1 into pane 0
+    Then no conversation is lit for a carry

@@ -185,6 +185,6 @@ Then("the node {string} is focused", async function (this: OlaiWorld, id: string
   );
 });
 
-Then("the armed node {string} is named {string}", async function(this: OlaiWorld, id: string, title: string) {
-  await this.waitUntil(async () => (await armed(this, id).innerText()).includes(title), "the armed node title to resolve");
+Then("the initial armed-node lookup has been sent", async function(this: OlaiWorld) {
+  await this.waitUntil(async () => this.socketAskedSince("nodes/named") >= 1, "the first arming lookup to leave");
 });

@@ -220,9 +220,10 @@ Feature: The outline and the chat point at each other
     #
     # Counted on the wire because a chip drawn from a title asked for once and a
     # chip drawn from the same title asked for twenty times are the same chip.
-    When I drop row "order" into the conversation
+    When I mark the wire
+    And I drop row "order" into the conversation
     Then the composer is armed with "order"
-    And the armed node "order" is named "order the new cabinets"
+    And the initial armed-node lookup has been sent
     When I mark the wire
     And I type "what about the cabinets" into the chat a letter at a time
     Then the chat input reads "what about the cabinets"

@@ -76,3 +76,19 @@ Feature: Rows land in the conversation chosen by the pointer
     Then the node page conversation is ready for "kitchen"
     And I drop row "carried-source" from pane 0 into the conversation
     Then the composer is armed with "carried-source"
+
+  Scenario: Withdrawing the destination makes the held release harmless
+    When I carry row "order" over the conversation
+    And I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "chat" off
+    And I switch the plugin "chat" on
+    And I close the plugins panel
+    And I use the original browser tab
+    And I release the carry
+    Then no conversation is lit for a carry
+    When I unfold node agent "kitchen"
+    And I use the fold on node "kitchen"
+    Then the composer is armed with nothing
+    When I drop row "order" into the conversation
+    Then the composer is armed with "order"

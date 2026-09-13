@@ -2,6 +2,8 @@
 
 Outlines supplies pages for every claim holding nodes, node addresses and the tree editor. It owns node readings and writes, selection, drag and drop, undo, row forms, folding, property editing and the Notes and Done preferences. Its server capability runs without a browser, renderer or layout.
 
+Outline row carries consult the host-supplied `Landings` table before planning a move. Each editable page registers a text receiver, owns its drop line, and submits a single undoable add with title and optional note. Registrations end with the component or activation.
+
 The browser provider starts before its presentation. It acquires its reading, drag and undo registers and storage observers in its activation scope. Content integrates through `navigation.content`; file creation contributes to `files.types`; settings contribute to `preferences.sections`. File metadata belongs to the vault, so the Files sidebar is optional. Removing preferences removes only its controls. Removing Markdown removes document previews and document destinations while ordinary outline notes keep their shared Markdown text renderer.
 
 `outlines.browser-state` carries what this row owns in a tab — its sibling
@@ -51,5 +53,3 @@ Outlines draws every claimed file whose `holds` value is `nodes`, through one gl
 ## Tool reply story
 
 The browser activation registers its `tool.reply` face. Chat owns the frame, file span and fold; outlines reads a top-level file and projects the write reply’s story fields to draw its change glyph, node title, classification and nudge. Reads and refusals have no story; an unchanged write says “nothing changed”. The face owns node navigation through outlines’ existing focus helper; the generic slot receives only the reply. Registration belongs to the outlines activation and withdraws with it; outlines imports no chat implementation.
-
-Outline row carries consult the host-supplied `Landings` table before planning a move. Each editable page registers a text receiver, owns its drop line, and submits a single undoable add with title and optional note. Registrations end with the component or activation.

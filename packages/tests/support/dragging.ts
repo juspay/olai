@@ -128,3 +128,10 @@ export const carry = async (
     .locator(awaiting)
     .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
 };
+
+/** A transcript grip or sidebar row uses the same pointer travel as a bullet. */
+export const carryPointer = async (world: OlaiWorld, from: At, to: At): Promise<void> => {
+  await world.page.mouse.move(from.x, from.y);
+  await world.page.mouse.down();
+  await world.page.mouse.move(to.x, to.y, { steps: 12 });
+};
