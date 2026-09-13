@@ -34,7 +34,6 @@ Feature: Serve a directory
     And the folder "notes" is collapsed
     And the document link "notes/palette.md" is hidden
     Given I mark the page
-    When I expand the reference section
     When I expand the folder "notes"
     Then the folder "notes" is expanded
     And the document link "notes/palette.md" is shown
@@ -55,5 +54,7 @@ Feature: Serve a directory
     And the document link "notes/palette.md" is shown
     And the folder "Daily" is collapsed
     When I open the outline "house.olai"
+    Then the reference section is collapsed
+    When I expand the reference section
     Then the folder "notes" is collapsed
     And the document link "notes/palette.md" is hidden

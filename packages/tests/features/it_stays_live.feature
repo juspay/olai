@@ -52,7 +52,8 @@ Feature: It stays live
       """
     # Folders start collapsed, so Daily/ is shut and the three root outlines
     # (garden, house, and the new shed) are what the list shows.
-    Then the outline list has 3 entries
+    Then the outline list links to "shed.olai"
+    And the outline list has 3 entries
     And the node "compost" is shown
     And the page has not reloaded
     And there should be no page errors
@@ -326,7 +327,8 @@ Feature: It stays live
       {"id":"rake","parent":"shed","ord":"a0","title":"hang up the rake"}
       """
     # Root outlines only: Daily/ stays collapsed. garden + house + shed.
-    Then the outline list has 3 entries
+    Then the outline list links to "shed.olai"
+    And the outline list has 3 entries
     And the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, frames, glazing, sowing, slugs, compost, turned, straw"
     And the node "basil" has the title "sow the basil"
     And the page has not reloaded
@@ -352,8 +354,8 @@ Feature: It stays live
       {"id":"quoted","ord":"a0","title":"an outline nobody could grip"}
       """
     # Root outlines only, Daily/ still collapsed: garden + house + this one.
-    Then the outline list has 3 entries
-    And the outline list links to "say \"hi\".olai"
+    Then the outline list links to "say \"hi\".olai"
+    And the outline list has 3 entries
     And the page has not reloaded
     And there should be no page errors
 

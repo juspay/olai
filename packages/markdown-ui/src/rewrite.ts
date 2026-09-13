@@ -53,7 +53,6 @@ import {
   printAddress,
   bodiedOf,
   pictureOf,
-  pathedOf,
 } from "@olai/format"
 
 import { TESTID } from "@olai/markdown-ui/testids.ts"
