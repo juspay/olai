@@ -1799,7 +1799,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/kolu/src/server.ts",
       "plugins/markdown/src/server.ts",
       "plugins/markdown/src/tools.ts",
-      "plugins/odu/src/appliance/index.ts",
       "plugins/odu/src/server.ts",
       "plugins/outlines/src/server.ts",
       "plugins/outlines/src/tools.ts",
