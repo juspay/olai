@@ -599,10 +599,19 @@ export type ListAction = "next" | "prev" | "take" | "dismiss"
 /**
  * Focus among panes. Alt+Left / Alt+Right, and nothing else — Alt+Shift
  * is already the row's move, so a shifted arrow is not a focus step.
+ *
+ * Never while `editing`: the listener is the window's, and ⌥←/→ is a Mac text
+ * field's word jump — taking it moved the caret to another pane in the middle
+ * of a sentence. Dead in a field on every platform, so the chord means one
+ * thing everywhere; Escape puts the caret away and the chord is back.
  */
 export type PaneAction = "focusLeft" | "focusRight"
 
-export const paneKey = (event: KeyboardEvent): PaneAction | null => {
+export const paneKey = (
+  event: KeyboardEvent,
+  editing: boolean,
+): PaneAction | null => {
+  if (editing) return null
   if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) {
     return null
   }
@@ -674,7 +683,10 @@ export const SHORTCUTS: ReadonlyArray<{
   {
     group: "Among panes",
     keys: [
-      { keys: "Alt+← / Alt+→", what: "move focus to the pane on that side" },
+      {
+        keys: "Alt+← / Alt+→",
+        what: "move focus to the pane on that side, when you are not typing",
+      },
       { keys: "Alt+click", what: "open a link in the pane to the right" },
       { keys: "Alt+Shift+click", what: "open it in a new pane to the right" },
     ],
