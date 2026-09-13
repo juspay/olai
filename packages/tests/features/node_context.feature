@@ -222,6 +222,7 @@ Feature: The outline and the chat point at each other
     # chip drawn from the same title asked for twenty times are the same chip.
     When I drop row "order" into the conversation
     Then the composer is armed with "order"
+    And the armed node "order" is named "order the new cabinets"
     When I mark the wire
     And I type "what about the cabinets" into the chat a letter at a time
     Then the chat input reads "what about the cabinets"

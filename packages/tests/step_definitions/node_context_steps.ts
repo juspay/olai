@@ -184,3 +184,7 @@ Then("the node {string} is focused", async function (this: OlaiWorld, id: string
     `"${id}" to be on the screen, not merely lit up`,
   );
 });
+
+Then("the armed node {string} is named {string}", async function(this: OlaiWorld, id: string, title: string) {
+  await this.waitUntil(async () => (await armed(this, id).innerText()).includes(title), "the armed node title to resolve");
+});

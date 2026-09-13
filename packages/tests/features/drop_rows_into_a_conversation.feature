@@ -23,13 +23,13 @@ Feature: Rows land in the conversation chosen by the pointer
     And no conversation is lit for a carry
 
   Scenario: Picked rows keep their order and a chip can be removed
-    When I pick the title of "handles"
-    And I pick the title of "knobs"
-    And I drop row "handles" into the conversation
-    Then the composer is armed with "handles"
-    And the composer is armed with "knobs"
-    When I take the armed node "handles" off
-    Then the composer is armed with "knobs"
+    When I pick the title of "install"
+    And I pick the title of "order"
+    And I drop row "install" into the conversation
+    Then the composer is armed with "install"
+    And the composer is armed with "order"
+    When I take the armed node "install" off
+    Then the composer is armed with "order"
 
   @phone
   Scenario: A held bullet lands as context on a phone
@@ -63,7 +63,7 @@ Feature: Rows land in the conversation chosen by the pointer
     When I carry row "order" over the conversation
     And I carry the row away from the conversation above "install"
     Then no conversation is lit for a carry
-    And the drop line would put it under "kitchen"
+    And the drop line would put it under "demo"
     When I cancel the carry
     Then the composer is armed with nothing
 
@@ -72,7 +72,7 @@ Feature: Rows land in the conversation chosen by the pointer
       """
       {"id":"carried-source","ord":"a0","title":"a node from another file"}
       """
-    When I open the address "/s/carried.olai/#kitchen"
-    And I use the page conversation on node "kitchen"
+    When I open the address "/s/carried.olai/%23kitchen?f=1"
+    Then the node page conversation is ready for "kitchen"
     And I drop row "carried-source" from pane 0 into the conversation
     Then the composer is armed with "carried-source"

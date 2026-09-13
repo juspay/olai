@@ -158,9 +158,9 @@ export function Composer(props: {
   readonly chat: Chat
   /** The files attached and not yet sent. Made by the panel, because the
    *  panel is where a drop is caught and this row is where the chips go. */
+  readonly onInsert?: (insert: (text: string) => void) => () => void
   readonly holding: Holding
 }) {
-  const ui = useConversationUI()
   const { armedNodes, disarmNode, releaseArmed, restoreArmed } = useConversationUI().armed
   // Keep words, caret, chosen @ handles and the dismissed token together across remounts.
   // `taken` grants node context only while its word remains in the draft.
@@ -539,8 +539,8 @@ export function Composer(props: {
   }
 
   const insertCarried = (text: string) => rewrite(written(draft(), { from: caret() }, text, caret()))
-  ui.insert[1](() => insertCarried)
-  onCleanup(() => { if (ui.insert[0]() === insertCarried) ui.insert[1](undefined) })
+  const releaseInsert = props.onInsert?.(insertCarried)
+  onCleanup(() => releaseInsert?.())
 
   /**
    * The `×` on a chip: this message is not about that node.

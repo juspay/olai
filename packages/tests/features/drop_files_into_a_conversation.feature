@@ -27,7 +27,8 @@ Feature: A sidebar file becomes a path in the message
       """
 
   Scenario: A path is written at the caret and remains message text
-    When I prepare the draft "read carefully" with its caret at 5
+    When I type "read carefully" into the chat
+    And I put the caret after "read " in the chat
     And I drop sidebar file "house.olai" into the conversation
     Then the composer contains exactly:
       """
@@ -35,3 +36,19 @@ Feature: A sidebar file becomes a path in the message
       """
     And the caret in the chat box is at 17
     And the composer is armed with nothing
+
+  Scenario: Escape cancels a path and an outline gap refuses it without a drop line
+    When I carry sidebar file "house.olai" over the conversation
+    And I cancel the carry
+    Then no conversation is lit for a carry
+    And the composer contains exactly:
+      """
+      """
+    When I carry sidebar file "house.olai" over the conversation
+    And I carry the row away from the conversation above "install"
+    Then no conversation is lit for a carry
+    And no drop line is shown
+    When I release the carry
+    Then the composer contains exactly:
+      """
+      """

@@ -10,7 +10,6 @@ import { createFolds } from "./folds.ts"
 import { createPreviewing } from "./previewing.ts"
 
 export const createConversationUI = (previews = createPreviews()) => ({
-  insert: createSignal<((text: string) => void) | undefined>(),
   previews, uploadScope: createSignal<string | null>(null),
   refused: createSignal<OpFailure | null>(null), starting: createSignal(0), pendingSends: createSignal(0),
   messages: createMessageMemory(), holding: createHoldingMemory(), armed: createArmed(), drafts: createDrafts(), folds: createFolds(), previewing: createPreviewing(), reveal: createSignal(false), question: createSignal<Asked>(),

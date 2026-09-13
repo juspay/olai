@@ -45,6 +45,7 @@ export function Fold(props: { readonly node: string; readonly record?: string })
 
 export function Conversation(props: { readonly chat: Chat; readonly unbounded?: boolean; readonly node: string }) {
   let box: HTMLDivElement | undefined
+  let insert: ((text: string) => void) | undefined
   const [carrying, setCarrying] = createSignal<string | null>(null)
   createEffect(() => {
     const table = landings()
@@ -56,8 +57,8 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
       drop: async value => {
         if (props.chat.state().unopened || !documentBox(box)) return null
         if (carriedNodes(value)) for (const id of value.ids) props.chat.ui.armed.armNode(id)
-        else if (carriedText(value)) props.chat.ui.insert[0]()?.(quoted(value.text))
-        else if (carriedPath(value)) props.chat.ui.insert[0]()?.(inserted(value.path))
+        else if (carriedText(value)) insert?.(quoted(value.text))
+        else if (carriedPath(value)) insert?.(inserted(value.path))
         return null
       },
     }))
@@ -72,7 +73,7 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
       <Show when={props.chat.state().unopened} fallback={<DropTarget ref={element => { box = element }} carrying={carrying()} onFiles={files => void holding.take(files)}>
         <Preview chat={props.chat} unbounded={props.unbounded} /><Transcript chat={props.chat} unbounded={props.unbounded} />
         <div class={props.unbounded ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
-          <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} />
+          <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} onInsert={write => { insert = write; return () => { if (insert === write) insert = undefined } }} />
         </div>
       </DropTarget>}>{unopened => <Unopened chat={props.chat} unopened={unopened()} />}</Show>
     </ElapsedProvider>
