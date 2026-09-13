@@ -32,7 +32,7 @@ While an input method is composing text, its keys select and confirm candidates.
 | **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again |
 | **Alt+click** | open a link in the pane to the right |
 | **Alt+Shift+click** | open it in a new pane to the right |
-| **Alt+←** / **Alt+→** | move focus to the neighbouring pane |
+| **Alt+←** / **Alt+→** | move focus to the neighbouring pane — not while typing, where it stays the text field's word jump; Escape first |
 | **⌘⇧W** / **Ctrl+⇧W** | close the focused pane |
 
 Nothing has a mode: the title becomes an input in the same place, at the same size, and the row you are in is toned so you can see where the caret went. What you type is the SOURCE — `**bold**` and `#tags` as they are written — and the rendering comes back the moment you leave. A note is the same trade one line down.
