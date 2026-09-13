@@ -58,12 +58,13 @@ Feature: The header sticks
   # looking at it through the back of the pinned heading (measured: the row
   # would stop at y=71.5px, ON the pinned `kitchen` row's span, versus ≥134px
   # after the fix). The reserve therefore accounts for whatever is actually
-  # pinned: the bar alone on non-tree pages, bar + section row on tree pages
-  # (`styles.css`'s `scroll-padding-top`), and the row height it accounts for
-  # is the taller of the two faces the sticky line has.
+  # pinned: the bar alone on non-tree pages (the document's
+  # `scroll-padding-top`), and bar + the section row's MEASURED height inside a
+  # section's branch (`--olai-pinned-band`, outlines' `all.css`) — measured
+  # because a wrapped title makes a heading as tall as its words need.
   #
-  # THE REVERT CHECK: with the extra reserve removed (the sole
-  # `--height-pinned-section` override gone), BOTH this scenario and its phone
+  # THE REVERT CHECK: with the extra reserve removed (the
+  # `.olai-section` scroll margin gone), BOTH this scenario and its phone
   # twin below turn deterministically red — the row stops at the bar's bottom
   # edge and `elementFromPoint` at its top names `/kitchen`, the pinned row
   # itself: 0/10 luck involved. The window must be short like the Outline's
@@ -96,4 +97,28 @@ Feature: The header sticks
     And a jump lands the row "install" at the top of the window
     Then the app header is at the top of the viewport
     And the row "install" is clear of the pinned section "kitchen"
+    And there should be no page errors
+
+  # ...and the face wrapping added: a title runs onto as many lines as its
+  # words need (`title_markdown.feature`), so a pinned heading is no longer one
+  # line tall and a constant reserve stops short of its second. The reserve is
+  # the heading's measured height, so a jump clears a heading of any length —
+  # asserted on a phone, where the narrow column wraps it the most.
+  @scratch:good @phone
+  Scenario: A jump clears a pinned section whose title wraps
+    When I open the outline "house.olai"
+    And I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel, all of it: counters out, cabinets ordered and hung, handles and hinges picked, and the herbs on the sill #home","doing":"2026-08-01"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10","desc":"Two ways to go:\n\n- **walnut** — six week lead time\n- *birch* — in stock today\n\nMeasure the alcove before ordering.","after":["demo"]}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","after":["order"]}
+      {"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}
+      {"id":"hinges","parent":"install","ord":"a1","title":"pick the hinges","todo":"2026-08-11","after":["handles","order"]}
+      {"id":"knobs","parent":"install","ord":"a2","title":"pick the knobs","todo":"2026-08-11"}
+      """
+    Then the title of "kitchen" wraps onto more than one line, cut off nowhere
+    And the window is shorter than the page
+    And a jump lands the row "install" at the top of the window
+    Then the row "install" is clear of the pinned section "kitchen"
     And there should be no page errors

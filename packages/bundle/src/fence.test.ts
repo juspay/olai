@@ -1965,8 +1965,17 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/theme/src/chrome.ts"
     ],
     "ui-renderer": [],
+    // Saved-layout vocabulary names a workspace target, not the layout plugin.
     "layout": [
+      "plugins/navigation/src/address/Face.tsx",
+      "plugins/navigation/src/address/address.ts",
       "plugins/navigation/src/workspace.ts",
+      "plugins/pins/src/browser/Palette.tsx",
+      "plugins/pins/src/browser/Pin.tsx",
+      "plugins/pins/src/browser/Shelf.tsx",
+      "plugins/pins/src/browser/naming.ts",
+      "plugins/pins/src/browser/palette.ts",
+      "plugins/pins/src/browser/pins.ts",
       "plugins/test-layout/src/browser.tsx",
       "plugins/test-layout/src/index.ts",
       "plugins/vault-plugins/src/server.ts",
@@ -2244,8 +2253,9 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/outlines/src/surface.ts",
       "plugins/outlines/src/testids.ts",
       "plugins/outlines/src/tools.ts",
+      "plugins/pins/src/browser/Palette.tsx",
       "plugins/pins/src/browser/Shelf.tsx",
-      "plugins/pins/src/browser/pinning.ts",
+      "plugins/pins/src/browser/writes.ts",
       "plugins/vault-plugins/src/tools.ts",
       "server/src/main.ts",
       "surface/src/edit.ts"

@@ -28,11 +28,10 @@ While an input method is composing text, its keys select and confirm candidates.
 | **Escape** | drop what you were typing |
 | **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
 | **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
-| **⌘⇧P** / **Ctrl+⇧P** | pin this page to the sidebar, or unpin it |
 | **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again |
 | **Alt+click** | open a link in the pane to the right |
 | **Alt+Shift+click** | open it in a new pane to the right |
-| **Alt+←** / **Alt+→** | move focus to the neighbouring pane |
+| **Alt+←** / **Alt+→** | move focus to the neighbouring pane — not while typing, where it stays the text field's word jump; Escape first |
 | **⌘⇧W** / **Ctrl+⇧W** | close the focused pane |
 
 Nothing has a mode: the title becomes an input in the same place, at the same size, and the row you are in is toned so you can see where the caret went. What you type is the SOURCE — `**bold**` and `#tags` as they are written — and the rendering comes back the moment you leave. A note is the same trade one line down.
@@ -257,7 +256,9 @@ A node's `date` is what it is scheduled for ([format.md](format.md)), and it is 
 
 **A dated row's own pill is the control.** Press the date beside the title and the picker opens on it. A row with no date has no pill to press, so its way in is the ••• menu: **Set date…** on a row with none, **Change date…** on one that has one. From the keyboard it is `!` and a day in words (above), which sends the same edit.
 
-What you get is your browser's own date picker, and what is written is the day you picked, exactly as it is written — `2026-09-01`, ten characters, never a timestamp this app invented on the way. **Enter** sets it, **Escape** and **Cancel** leave without writing, and ⌘Z takes a pick back like any other edit. Empty the box and the button becomes **Clear date**, which is the ••• menu's own verb and the same write: one way to say "no date", whichever door you came through.
+What you get is your browser's own date picker, and what is written is the day you picked, exactly as it is written — `2026-09-01`, ten characters, never a timestamp this app invented on the way. **Enter** sets it, **Escape** and **Cancel** leave without writing, and ⌘Z takes a pick back like any other edit. Empty the box and the button becomes **Clear date**, which is the ••• menu's own verb and the same write: one way to say "no date", whichever door you came through — a time still in the time box goes with it, since a time on no day is not a date.
+
+**The time of day is optional, and beside the day.** Leave the time box empty and the node is scheduled for the day. Fill it and what is written is one instant, spelled the way a mark stamps one: the day, the time you typed, `:00` seconds and your browser's offset *at that moment* — `2026-09-01T09:30:00-04:00`, and `2026-12-01T09:30:00-05:00` in December, because a zone that moves its clocks keeps two offsets a year. The zone is the browser's — where you are sitting as you choose the time — which is not always the clock a mark's instant is stamped by: a `done` is stamped by the machine serving the directory. A node already scheduled for a time opens with both boxes filled; change either and press **Set date**. **No time** empties the time box, and the button then reads **Clear time**: pressing it keeps the day and takes the time off.
 
 An unsubmitted date or repeat choice stays with its row and pane when plugins rebuild the page or you switch phone pane tabs. Filtering that same outline does not change its ownership. Leaving the page, cancelling, or collapsing the parent discards the draft; opening the picker again starts from the stored value. Two panes of the same outline keep independent choices.
 
@@ -265,7 +266,9 @@ A pending submission stays disabled across pane switches, and a refused choice k
 
 On a phone, picker labels wrap and controls fit the space left by the row's indentation, including nested rows and long repeat options.
 
-A node scheduled for a time of day rather than a bare day keeps whatever it says on disk until you pick — the box shows the day that time falls on, and the panel says what picking one would replace, because a picker picks days.
+The boxes show the day and time the file says, not that instant converted into your zone, and a value you have not changed is not rewritten — pressing over the same day and time writes nothing, so seconds a hand wrote survive a look. A time written in another zone, or with no zone at all, looks like any other in the boxes, so the panel says so — and once you change the day or time, it quotes exactly what pressing will write, with the offset of the moment you chose.
+
+**The panel says so before it writes something other than what the boxes show.** A time your zone skips — half past two on the morning the clocks go forward — is written as the moment it becomes (`03:30`, with the new offset), and the sentence under the boxes quotes that value first. A box left half-typed — an hour with no minutes, from the arrow keys or a Backspace — is not read as "no time": the button stays dead, the panel says the time is not finished, and **No time** is still there to empty it.
 
 The row moves the moment the file says so: a task given a day that has gone is above now on the agenda’s spine and on that day's page, without a reload and without this page deciding anything for itself.
 
@@ -422,21 +425,21 @@ Outlines; new documents are listed in Reference.
 
 A **shelf of doors** in the directory column, between the calendar and the outline tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
 
-**Three ways on, and they are one gesture over one address.** A row's `•••` offers **Pin to sidebar**, and offers **Unpin from sidebar** on a row already up there — one entry with two labels, because the shelf already knows which way this node's answer goes. `⌘⇧P` / `Ctrl+⇧P` does the same for the PAGE you are on, and it is live while you are typing a filter, which is exactly when "pin this, narrowed like this" is the thing you mean. `⌘K`'s **Pin this page** row is that chord for a hand on the mouse.
+**Two ways on, with one gesture over one address.** A row's `•••` offers **Pin to sidebar**, or **Unpin from sidebar** if it is already pinned. `⌘K`'s **Pin this page** acts on the focused pane's page, including its filter.
 
 **A pinned page keeps its query.** `/agenda` filtered to `is:todo` is pinned as that whole address, drawn with the query beside its name, and clicking it lands on the agenda WITH the filter in the box — which is what makes a pin the way a saved search is spelled here ([search.md](search.md)).
 
 ### Naming one, where the thought arrives
 
-**A NARROWED page is asked what to call it, and nothing else is.** Every other address already has a name that is read live — a node's own title, a file's filename, the word *Agenda* — and a copy of one stored beside the pin is exactly the stale second answer this convention exists to avoid. A QUERY is the part nothing in the directory can name: three saved searches on the agenda are three rows called *Agenda* until somebody says otherwise. So `⌘⇧P` on a page you have narrowed, and the `⌘K` row that says **Pin this page…**, ask for a name first; a page with no query, and every unpin, still writes in one press.
+**A narrowed page is asked what to call it.** Every other address already has a name that is read live — a node's own title, a file's filename, the word *Agenda* — and a copy of one stored beside the pin is exactly the stale second answer this convention exists to avoid. A QUERY is the part nothing in the directory can name: three saved searches on the agenda are three rows called *Agenda* until somebody says otherwise. So the `⌘K` row that says **Pin this page…** asks for a name first; a page with no query, and every unpin, still writes in one press.
 
 **It is asked in the palette's own box**, the way `+ a line` already asks for a line: the words you type are the name, the box wears the name it would take otherwise (*Agenda*) where a placeholder goes, and **Enter** writes it. Three keys, and each of them is worth knowing:
 
 - **Enter with nothing pins it unnamed** — the bare address this app has always written, one keystroke from where your hand already is. Nothing derived is ever stored, so *Agenda* on the shelf goes on being read live.
 - **Enter with words pins it named**, as one write: the row's title becomes `[What is late](/agenda?q=is%3Atodo)`, which is the markdown link you would have typed into `Pins.olai` yourself.
-- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture. Backing out is not a mode, either: the chord works again on the next press.
+- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture. Backing out is not a mode, either: the palette command works again.
 
-**A question owns the modal while it is up.** `⌘⇧P` pressed again over its own question does nothing at all — the question that press would ask is already on screen, and asking it a second time would hand the box back its opening words over the name you are half-way through typing. It is the same rule the caret, Tab and Escape already keep there: a question is answered or backed out of, and nothing pressed elsewhere becomes its answer or writes past it.
+**A question owns the modal while it is up.** The command list is replaced by the naming question. Answer it or press Escape to back out.
 
 **And a pin already on the shelf is renamed from the shelf.** Hovering a row shows a `✎` beside its `×`; pressing it asks the same question, holding the name it has now, and **Enter with nothing takes the name off** — the row goes back to a bare address, drawn by whatever it points at. Renaming is an ordinary title edit on that row (`outlines_title`, the op an agent sends), so `⌘Z` takes it back like anything else.
 
@@ -453,6 +456,14 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 **And the file reads like an outline.** Open `Pins.olai` and its rows are the same faces the shelf draws — the pin mark, the name, the query — because a title that names a place is drawn as that place wherever it appears, not just in the sidebar. On a named pin the label is the link; click anywhere else on the line and the editor shows the title as it really is, which is the same thing every markdown title does.
 
 **It is a file, and that is the feature.** The shelf is a `Pins.olai` in the served directory — wherever you keep one; olai mints `_olai/Pins.olai` the first time you pin something and never moves a shelf you already have. One ordinary node per pin, whose title is the address ([format.md](format.md#pins)). Open it like any outline and edit it; a name is a markdown link around the address (`[What is late](/agenda?q=is%3Atodo)`), which is exactly the row the app writes when you type one; commit it with everything else. An agent adds, reorders, renames and removes pins with `outlines_add`, `outlines_move`, `outlines_title` and `outlines_trash` — the same four ops the gestures above resolve to — so what you keep on that shelf is something you can hand to one.
+
+### Pinning a layout
+
+With multiple panes open, `⌘K` also offers **Pin this layout…**, with the pane names underneath. It always asks for a name; empty Enter says **a layout needs a name** and keeps the question open. Escape writes nothing.
+
+A layout pin has a split mark and a tooltip listing its pages. Clicking it replaces the whole workspace in one history push, including with Alt or Shift held. ⌘/Ctrl-click and middle-click open its address in a new tab. Back restores the previous workspace. Only pages are saved: the layout reopens with equal widths and the first pane focused.
+
+The command becomes **Unpin this layout** when those pages are already pinned, regardless of widths or focus. Shelf rename and remove work as for page pins, including undo; layout renames also require a name. Handwritten bare layout addresses are accepted and display the pane names, falling back to an unresolved node's address.
 
 ## From the ⌘K palette
 

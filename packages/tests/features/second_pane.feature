@@ -145,6 +145,19 @@ Feature: The second pane
     And pane 1 is focused
     And no pane rail is shown
 
+  Scenario: Beside another pane, Alt+Right while typing stays in the text
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    And I click the title of "order"
+    Then pane 0 is focused
+    When I press Alt+Right without the page claiming it
+    Then pane 0 is focused
+    And the row "order" holds the caret
+    When I press "Escape"
+    And I press Alt+Right
+    Then pane 1 is focused
+    And there should be no page errors
+
   Scenario: On a lone page Alt+Right reaches the editor
     Given I open the outline "house.olai"
     When I click the title of "install"

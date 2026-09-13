@@ -11,7 +11,7 @@
  *
  * A CONTEXT rather than a prop, for `../reading.tsx`'s reason: the readers are
  * scattered and none of them is near the sidebar. The shelf itself draws it,
- * the ⌘K row and the ⌘⇧P chord ask whether this page is on it
+ * the ⌘K rows ask whether this page is on it
  * (`../palette/Palette.tsx`), and the `•••` of every row in a thousand-row tree
  * asks the same about the node it names (`../menu/verbs.ts`) — threading one
  * accessor through all of that would make every component's signature a

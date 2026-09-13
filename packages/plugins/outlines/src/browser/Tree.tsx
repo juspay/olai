@@ -75,7 +75,7 @@ import { dressed } from "./faces.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import { isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
 
 import { Aside } from "./Aside.tsx"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
@@ -311,6 +311,25 @@ function Branch(props: {
    *  row's own owner, so a press in flight is disposed with the row. */
   const menu = createMenuDoor()
 
+  /**
+   * How tall this SECTION's pinned line is, as it is drawn now — the band a
+   * jump into its branch has to stop below (`../all.css`).
+   *
+   * MEASURED, not a constant. A title wraps (./NodeLine.tsx), so a heading is
+   * as many lines as its words need, and a reserve sized to one line put a
+   * jump behind the second. The observer is the row's own: it is started only
+   * while the row is a section and disconnected with it, whether the row stops
+   * being one or is disposed.
+   */
+  const [band, setBand] = createSignal<number>()
+  createEffect(() => {
+    const line = menu.at()
+    if (!section() || line === undefined) return
+    const seen = new ResizeObserver(() => setBand(line.getBoundingClientRect().height))
+    seen.observe(line)
+    onCleanup(() => seen.disconnect())
+  })
+
   /** Is this row's date picker open? Local to the ROW rather than to either of
    *  the two things that open it — the pill on the line, and the `•••` menu's
    *  `Set date…` — because it is one picker and the menu panel is closed by the
@@ -318,7 +337,7 @@ function Branch(props: {
   const forms = useRowForms(props.row.key)
   /** ...and one opener for both of them, so the two triggers cannot drift. */
   const openPicker = (): void => {
-    forms.setDay(dateStartsAt(shown()?.node.date))
+    forms.setDate(dateStartsAt(shown()?.node.date))
   }
 
   /** Is this row's REPEAT picker open? The date picker's arrangement one field
@@ -483,6 +502,10 @@ function Branch(props: {
   return (
     <li
       class="my-0.5"
+      // A section's branch carries its heading's measured height, which every
+      // jump target inside it reads as its scroll margin (`../all.css`).
+      classList={{ "olai-section": section() }}
+      style={section() && band() !== undefined ? { "--olai-pinned-band": `${band()}px` } : undefined}
       // The item's own box is scaffolding too — the indent strip beside a
       // child list, the margin left of a note — so a press there is a sweep
       // (./drag/sweeping.ts). Everything WITH words in it is a descendant and
@@ -542,7 +565,12 @@ function Branch(props: {
         // its triangle (./touch.ts's arithmetic). `HELD` is the other half of
         // what the long press below does about the browser's own gesture, for
         // the platform that raises it without an event to prevent.
-        class={`group/row relative flex items-center py-1 ${HELD} ${GUTTER_GAP} ${
+        //
+        // `items-baseline`, not `items-center`: a long title WRAPS
+        // (./NodeLine.tsx), and centring would set the bullet and the fold
+        // triangle beside the middle of the paragraph rather than its first
+        // line. A day page's row was already aligned this way (./DatedRow.tsx).
+        class={`group/row relative flex items-baseline py-1 ${HELD} ${GUTTER_GAP} ${
           WAITING_DIM(props.row.blocked)
         } ${CONTEXT_DIM(narrowed, shownId())}`}
         // The phone's door to the `•••` menu: hold a finger on the row. Touch
@@ -756,16 +784,16 @@ function Branch(props: {
           the row is collapsed or not: it is about THIS node, not about what is
           under it. The id it names is the node the row SHOWS, so a pick at a
           mirror lands on its target, exactly as the mark verbs do. */}
-      <Show when={forms.day() !== null ? shown() : undefined}>
+      <Show when={forms.date() !== null ? shown() : undefined}>
         {(shows) => (
           <div class={PAST_CONTROLS}>
             <DatePicker
               submission={forms.dateSubmission}
               date={shows().node.date}
-              day={forms.day() ?? ""}
-              onChange={forms.setDay}
-              onPick={(day) => applying(datePick(shows().node.id, day), undo.record)}
-              onClose={() => forms.setDay(null)}
+              chosen={forms.date() ?? { day: "", time: "" }}
+              onChange={forms.setDate}
+              onPick={(value) => applying(datePick(shows().node.id, value), undo.record)}
+              onClose={() => forms.setDate(null)}
             />
           </div>
         )}

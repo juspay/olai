@@ -9,7 +9,8 @@ Feature: Setting a date from the web
   What it sends is one `date` edit at the same write gate the keys and the
   agent's tools go through, so nothing is echoed — the badge changes when the
   file says it changed. And the day it writes is TEXT: the ten characters that
-  were picked, verbatim, never a value that has been through an instant.
+  were picked, verbatim, never a value that has been through an instant. A time
+  of day is optional beside it, and is written the way a mark stamps one.
 
   `@scratch:` because these write the directory they are served. They share
   one copy per worker (`@share-scratch`); the corpus is restored between
@@ -93,12 +94,75 @@ Feature: Setting a date from the web
     # a scenario that only asked about deadness would have kept that green.
     And the date picker offers to "Set date"
 
-  Scenario: A node scheduled for an INSTANT starts on its day, and says so
-    # The format lets `date` carry a datetime, and a day box can only hold a
-    # day — so it holds the day that instant falls on (`@olai/format`'s own
-    # first-ten-characters reading) and the panel says what picking one would
-    # do to the rest. Written by another hand, which is also how a set arrives
-    # from a `git pull`.
+  @zone:America/New_York
+  Scenario: A day and a time write one instant, in the offset of that moment
+    # The format's second width of `date`, reached from the web: the day is the
+    # ten characters picked, the time the face typed, and the offset the one
+    # this browser keeps AT THAT MOMENT — stamped the way a mark is, so the
+    # value names one instant wherever it is read.
+    When I open the date picker on "order"
+    Then the date picker holds "2026-08-10" at ""
+    When I pick the date "2026-09-01" at "09:30"
+    Then "house.olai" holds the node "order" dated "2026-09-01T09:30:00-04:00"
+    And the node "order" shows the date "2026-09-01"
+    And the date picker is closed
+    # Reopened, it starts on both halves, and saying them again is no write.
+    When I open the date picker on "order"
+    Then the date picker holds "2026-09-01" at "09:30"
+    And the date picker's button is dead
+    # December is not written with September's offset: the zone moved its
+    # clocks in between, and the offset is the moment's, not today's.
+    When I pick the date "2026-12-01" at "09:30"
+    Then "house.olai" holds the node "order" dated "2026-12-01T09:30:00-05:00"
+    And the page has not reloaded
+    And there should be no page errors
+
+  @zone:America/New_York
+  Scenario: A timed node opens on its day and time, and a changed time is written
+    # Written by another hand, which is also how a set arrives from a `git
+    # pull` — with seconds, which the boxes have no room for.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10T14:30:44-04:00"}
+      """
+    Then the node "install" is not shown
+    When I open the date picker on "order"
+    Then the date picker holds "2026-08-10" at "14:30"
+    And the date picker says nothing
+    # The face is unchanged, so pressing would rewrite the seconds for nothing.
+    And the date picker's button is dead
+    When I draft the time "16:05"
+    Then the date picker offers to "Set date"
+    When I press the date picker's button
+    Then "house.olai" holds the node "order" dated "2026-08-10T16:05:00-04:00"
+    And the date picker is closed
+    And there should be no page errors
+
+  @zone:America/New_York
+  Scenario: Taking the time off keeps the day, and ⌘Z puts the time back
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10T14:30:44-04:00"}
+      """
+    Then the node "install" is not shown
+    When I open the date picker on "order"
+    And I take the time off in the date picker
+    Then the date picker holds "2026-08-10" at ""
+    # Named for the only thing pressing does — which is also what a time box a
+    # browser has half emptied says before anything is written.
+    And the date picker offers to "Clear time"
+    When I press the date picker's button
+    Then "house.olai" holds the node "order" dated "2026-08-10"
+    And the date picker is closed
+    When I press "ControlOrMeta+z"
+    Then "house.olai" holds the node "order" dated "2026-08-10T14:30:44-04:00"
+    And there should be no page errors
+
+  Scenario: Emptying the day clears a timed date whole
+    # A time of day on no day is not a value the format has, so the day box is
+    # the clear, whatever the time box still holds.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
@@ -106,10 +170,114 @@ Feature: Setting a date from the web
       """
     Then the node "install" is not shown
     When I open the date picker on "order"
-    Then the date picker holds "2026-08-10"
-    And the date picker says "Scheduled for 2026-08-10T14:30:00-04:00. Picking a day writes that day, and the time goes with it."
-    When I pick the date "2026-08-10"
+    And I empty the date picker
+    Then the date picker holds "" at "14:30"
+    And the date picker offers to "Clear date"
+    When I press the date picker's button
+    Then "house.olai" holds the node "order" with no date
+    And the node "order" shows no date
+    And there should be no page errors
+
+  Scenario: A time is not a date on its own
+    When I open the node menu of "knobs"
+    And I choose "Set date…" from the node menu
+    And I draft the time "09:00"
+    Then the date picker's button is dead
+    And the date picker offers to "Set date"
+    When I draft the date "2026-09-01"
+    Then the date picker offers to "Set date"
+    When I press the date picker's button
+    Then the date picker is closed
+    And the node "knobs" shows the date "2026-09-01"
+
+  @zone:America/New_York
+  Scenario: A time written in another zone says so, and quotes what a change writes
+    # The boxes show the face the file says, not that instant converted — so a
+    # value from another zone looks like any other, and the panel says what a
+    # changed pick would write. An unchanged face still writes nothing, and the
+    # offset quoted is the DRAFT's moment's: December is not August.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10T14:30:00-07:00"}
+      """
+    Then the node "install" is not shown
+    When I open the date picker on "order"
+    Then the date picker holds "2026-08-10" at "14:30"
+    And the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. A changed day or time is written in this browser's time zone."
+    And the date picker's button is dead
+    When I draft the date "2026-12-01"
+    Then the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. Pressing writes 2026-12-01T14:30:00-05:00, in this browser's time zone."
+    When I press the date picker's button
+    Then "house.olai" holds the node "order" dated "2026-12-01T14:30:00-05:00"
+    And there should be no page errors
+
+  Scenario: A time written with a space opens with its time, and Enter does not take it off
+    # The format accepts `2026-08-10 14:30` in a `date` on disk. A picker that
+    # read only `T` opened it on the day alone, offered `Set date`, and a press
+    # over the unchanged panel wrote the day — the time gone without a word.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10 14:30"}
+      """
+    Then the node "install" is not shown
+    When I open the date picker on "order"
+    Then the date picker holds "2026-08-10" at "14:30"
+    And the date picker's button is dead
+    And the date picker says "Scheduled for 2026-08-10 14:30. A changed day or time is written in this browser's time zone."
+    And there should be no page errors
+
+  @zone:America/New_York
+  Scenario: A time the clock skips is written as the moment it becomes, and says so first
+    # 02:30 does not exist in New York on the morning the clocks go forward.
+    # What is written is the instant the zone makes of it — the face AND the
+    # offset from one reading — never the typed face with the new offset
+    # stapled on, which would be 01:30 EST.
+    When I open the node menu of "knobs"
+    And I choose "Set date…" from the node menu
+    And I draft the date "2026-03-08"
+    And I draft the time "02:30"
+    Then the date picker says "There is no 02:30 on 2026-03-08 in this browser's time zone, so pressing writes 2026-03-08T03:30:00-04:00."
+    When I press the date picker's button
+    Then "house.olai" holds the node "knobs" dated "2026-03-08T03:30:00-04:00"
+    And there should be no page errors
+
+  Scenario: A half-typed time from the keyboard writes nothing until it is finished or taken off
+    # One arrow key fills the hour alone, and the platform reports that box as
+    # holding no value — which would read as "no time" while showing one, and
+    # which its own form validation refuses to submit without a word.
+    When I open the date picker on "order"
+    And I draft the date "2026-09-01"
+    And I press "ArrowUp" in the date picker's time box
+    Then the date picker's button is dead
+    And the date picker offers to "Set date"
+    And the date picker says "The time is not finished. Finish it, or press No time."
+    # `No time` is offered for it, and empties the box on screen, not only the
+    # draft that already said nothing.
+    When I take the time off in the date picker
+    Then the date picker holds "2026-09-01" at ""
+    And the date picker says nothing
+    When I press the date picker's button
+    Then "house.olai" holds the node "order" dated "2026-09-01"
+    And there should be no page errors
+
+  Scenario: Emptying one segment of a stored time is not taking the time off
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10T14:30:00-04:00"}
+      """
+    Then the node "install" is not shown
+    When I open the date picker on "order"
+    And I press "Backspace" in the date picker's time box
+    Then the date picker's button is dead
+    And the date picker says "The time is not finished. Finish it, or press No time."
+    When I take the time off in the date picker
+    Then the date picker offers to "Clear time"
+    When I press the date picker's button
     Then "house.olai" holds the node "order" dated "2026-08-10"
+    And there should be no page errors
 
   Scenario: A date set here moves the node onto that day's page
     # `knobs` carries no date, so the menu is its door — there is no pill to

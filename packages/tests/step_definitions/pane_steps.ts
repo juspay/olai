@@ -159,7 +159,7 @@ When(
     assert.strictEqual(
       claimed,
       false,
-      "Alt+Right was preventDefaulted on a lone page",
+      "the page claimed Alt+Right",
     );
     await this.waitForFrame();
   },
@@ -278,3 +278,16 @@ Then("pane {int} keeps its title {string} above its scroller", async function(th
     && Math.abs(box.y + box.height - top) <= 1,
     `pane ${index} title scrolled away: ${JSON.stringify({ bar, box, top })}`)
 })
+
+When("I widen the first pane by dragging its divider", async function (this: OlaiWorld) {
+  const handle = this.page.locator(PANE_RESIZE).first();
+  const box = await handle.boundingBox();
+  assert.ok(box !== null, "the divider has no box");
+  const before = new URL(this.page.url()).searchParams.get("w");
+  await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await this.page.mouse.down();
+  await this.page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 8 });
+  await this.page.mouse.up();
+  await this.waitUntil(async () => new URL(this.page.url()).searchParams.get("w") !== before,
+    "the resize to change the workspace widths");
+});

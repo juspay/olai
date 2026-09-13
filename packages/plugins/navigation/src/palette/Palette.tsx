@@ -573,24 +573,6 @@ export function Palette(props: {
    */
   const flipDone = (): void => { for(const adapter of adapters()) adapter.key?.("done") }
 
-  /**
-   * THE PAGE, PINNED OR UNPINNED — the one gesture behind two doors: the ⌘⇧P
-   * chord below, and the palette row that names it.
-   *
-   * It is about `router.route()` — the FOCUSED pane's address, filter and all
-   * — because that is what "this page" means in a workspace that may be split,
-   * and it is the same reading the sidebar lights an entry from (`../App.tsx`).
-   * Which of the two writes it is is the shelf's answer rather than a state
-   * here (`../pins/pinning.ts`), and WHETHER it writes at all before asking
-   * what to call it is `../pins/naming.ts`'s.
-   *
-   * ONE FUNCTION for both doors, because that second decision is one rule and
-   * a rule spelled at two call sites is a rule that eventually differs — the
-   * chord would go on asking after the row stopped, or the other way round.
-   * What genuinely differs between them is only WHERE THE ANSWER GOES, which
-   * is why that is the parameter: a chord has nothing on screen but the line
-   * under the header, and a row chosen in this palette has this box.
-   */
 
 
   /**
@@ -793,7 +775,7 @@ export function Palette(props: {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
-      const pane = paneKey(event)
+      const pane = paneKey(event, isEditingTarget(event.target))
       if (pane !== null && !isLone(router.workspace())) {
         event.preventDefault()
         router.stepFocus(pane === "focusLeft" ? -1 : 1)
@@ -837,18 +819,6 @@ export function Palette(props: {
       if (match.action === "redo") (router as Navigation).focused()?.history?.redo()
       if (match.action === "closePane") router.close()
       if (match.action === "done") flipDone()
-      // The shelf, from wherever the reader is standing. Its answer goes to
-      // the line under the header rather than to this component's, which is
-      // the one this palette can draw and is not on screen when the chord is
-      // pressed with the modal shut (`../pins/pinning.ts`).
-      //
-      // A NARROWED page is the one press that asks first: the chord is live in
-      // the filter box, which is exactly where "keep this, narrowed like this"
-      // is meant — and it is the one address nothing in the set can name
-      // (`../pins/naming.ts`). Asking opens this palette with the box holding
-      // the question, so Enter alone still writes the bare pin the chord always
-      // wrote.
-      if (match.action === "pin") for(const adapter of adapters()) adapter.key?.("pin")
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))

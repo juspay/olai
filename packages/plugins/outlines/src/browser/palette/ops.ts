@@ -49,7 +49,7 @@
 import type { Situated } from "@olai/format"
 import { NO_PINS } from "@olai/format"
 
-import type { Routing } from "olai-plugin-navigation/routes"
+import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import { subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
 import type { PaletteItem } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
@@ -63,7 +63,7 @@ import { atOnce } from "@olai/web/client/settled.ts"
 export const opItems = (
   /** The app's URL grammar, handed in — `writeVerbs` asks the shelf through it
    *  (`../menu/verbs.ts`). */
-  routes: Routing,
+  routes: WorkspaceRouting,
   zoomed: Situated | undefined,
   /** How many records hang under the zoomed node, in the set — the number the
    *  archive's confirm names, carried on the page's own reading

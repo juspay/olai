@@ -469,10 +469,15 @@ test("the reference names the same chords the matcher answers", () => {
 })
 
 test("Alt+Left and Alt+Right move pane focus, and Shift keeps them the row's", () => {
-  expect(paneKey(key("ArrowLeft", { alt: true }))).toBe("focusLeft")
-  expect(paneKey(key("ArrowRight", { alt: true }))).toBe("focusRight")
-  expect(paneKey(key("ArrowLeft", { alt: true, shift: true }))).toBeNull()
-  expect(paneKey(key("ArrowLeft"))).toBeNull()
+  expect(paneKey(key("ArrowLeft", { alt: true }), false)).toBe("focusLeft")
+  expect(paneKey(key("ArrowRight", { alt: true }), false)).toBe("focusRight")
+  expect(paneKey(key("ArrowLeft", { alt: true, shift: true }), false)).toBeNull()
+  expect(paneKey(key("ArrowLeft"), false)).toBeNull()
+})
+
+test("Alt+Left and Alt+Right are the text field's while typing", () => {
+  expect(paneKey(key("ArrowLeft", { alt: true }), true)).toBeNull()
+  expect(paneKey(key("ArrowRight", { alt: true }), true)).toBeNull()
 })
 
 // ── the list layer ─────────────────────────────────────────────────────

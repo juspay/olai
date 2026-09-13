@@ -167,6 +167,36 @@ export const workspaceOf = (routing: Routing, address: string): Workspace => {
   return { layout: { kind: "split", axis, children }, focus }
 }
 
+/** Workspace grammar composes above page routing; page parsers remain unaware
+ * of the workspace prefix. Bound by the navigation owner over its live roster. */
+export interface WorkspaceRouting extends Routing {
+  readonly layoutIn: (href: string) => Workspace | null
+  readonly layoutHref: (workspace: Workspace) => string
+}
+
+export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
+  ...routes,
+  layoutIn: (href) => layoutIn(routes, href),
+  layoutHref: (workspace) => layoutHref(routes, workspace),
+})
+
+/** The saved-layout policy is a value transformation, independent of URLs.
+ * Keep ordered routes; discard the current geometry and focus. */
+export const savedLayout = (workspace: Workspace): Workspace => ({
+  layout: { kind: "split", axis: "row", children: panesOf(workspace).map(({ route }) => ({
+    layout: { kind: "leaf", route },
+  })) },
+  focus: 0,
+})
+
+/** Serialize the same value an in-place layout navigation opens. */
+export const layoutHref = (routing: Routing, workspace: Workspace): string =>
+  hrefOfWorkspace(routing, savedLayout(workspace))
+
+/** Workspace addresses belong to navigation, never to a page claim. */
+export const layoutIn = (routing: Routing, href: string): Workspace | null =>
+  splitAddress(href).pathname.startsWith(WORKSPACE_PREFIX) ? workspaceOf(routing, href) : null
+
 const encodePane = (routing: Routing, route: Route): string => {
   const href = routing.href(route)
   return encodeURIComponent(href.startsWith("/") ? href.slice(1) : href)

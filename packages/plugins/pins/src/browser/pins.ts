@@ -1,3 +1,4 @@
+import type { Workspace } from "olai-plugin-navigation/workspace"
 /**
  * WHAT IS ON THE SHELF, read off the SERVER'S ANSWER.
  *
@@ -97,9 +98,9 @@
 import { addressWritten } from "@olai/format"
 import type { Pinned, Shelf } from "@olai/format"
 
-import { addressIn,nameOf,titleFace } from "olai-plugin-navigation/address/address.ts"
+import { targetIn,targetName,targetFace,type AddressTarget } from "olai-plugin-navigation/address/address.ts"
 import type { Route } from "olai-plugin-navigation/routes"
-import type { Routing } from "olai-plugin-navigation/routes"
+import type { WorkspaceRouting as Routing } from "olai-plugin-navigation/workspace"
 
 /** One door on the shelf: the node that IS the pin, where it goes, and what it
  *  is called. */
@@ -113,7 +114,7 @@ export interface Pin {
   readonly title: string
   /** Where it goes. Parsed once, here, so nothing downstream re-reads a
    *  title. */
-  readonly route: Route
+  readonly target: AddressTarget
   /**
    * What this door is CALLED, as it is drawn — the name somebody WROTE on it,
    * or what its address is called: for a node, what the server says that node's
@@ -164,27 +165,14 @@ export interface Pin {
  *  it is a thing somebody may write. (A MIRROR never reaches here: it carries
  *  no title to address with, and the reading leaves it out.) */
 const pinOf = (routes: Routing, row: Pinned): Pin | undefined => {
-  const route = addressIn(routes, row.title)
-  if (route === undefined) return undefined
-  const shows = showing(route, row)
-  // THE PAIR IS `titleFace`'s ANSWER, taken whole rather than assembled here:
-  // which of the two names is drawn, and whether the words are somebody's own,
-  // is one rule with one home (`../address/address.ts`) — the same one an
-  // ordinary outline row is drawn by. So `name` and `written` cannot say two
-  // different things about one title, because nothing here decides either.
-  const { name, written } = titleFace(routes, row.title, route, shows)
+  const target = targetIn(routes, row.title)
+  if (target === undefined) return undefined
+  const shows = (route: Route) => showing(route, row)
+  const face = targetFace(routes, row.title, target, shows)
   return {
-    id: row.id,
-    title: row.title,
-    route,
-    at: addressWritten(row.title),
-    name,
-    // …and `bare` is the OTHER arm of that same rule, which is why it is only
-    // asked when a written name displaced it: with nothing written, the drawn
-    // name IS what the address answers, and asking twice would be two calls
-    // that have to agree rather than one that cannot disagree.
-    bare: written ? nameOf(routes, route, shows) : name,
-    written,
+    id: row.id, title: row.title, target, at: addressWritten(row.title),
+    ...face,
+    bare: face.written ? targetName(routes, target, shows) : face.name,
   }
 }
 
@@ -245,7 +233,7 @@ export const pinsOf = (
  * reading one answer.
  *
  * OVER THE ANSWER rather than over a list of pins, because that is what every
- * caller has: the `•••` menu, the ⌘K row and the chord each hold the shelf the
+ * caller has: the `•••` menu and the ⌘K row each hold the shelf the
  * server sent and nothing else, and a version taking the parsed list had
  * exactly one consumer — a wrapper, one module over, that read the shelf and
  * handed it straight back. Two names for one question is one too many.
@@ -256,5 +244,10 @@ export const pinsOf = (
  */
 export const pinnedAt = (routes: Routing, shelf: Shelf, route: Route): Pin | undefined => {
   const address = routes.href(route)
-  return pinsOf(routes, shelf).find((pin) => routes.href(pin.route) === address)
+  return pinsOf(routes, shelf).find((pin) => pin.target.kind === "page" && routes.href(pin.target.route) === address)
 }
+
+
+export const pinnedLayout = (routes: Routing, shelf: Shelf, workspace: Workspace): Pin | undefined =>
+  pinsOf(routes, shelf).find((pin) => pin.target.kind === "layout"
+    && routes.layoutHref(pin.target.workspace) === routes.layoutHref(workspace))

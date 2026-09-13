@@ -43,7 +43,6 @@ export type KeyAction =
   | "undo"
   | "redo"
   | "closePane"
-  | "pin"
   | "done"
 
 export interface KeyMatch {
@@ -73,8 +72,6 @@ const onApple = (platform?: string): boolean =>
  *   ⌘J / Ctrl+J   — toggle chat
  *   ⌘Z / Ctrl+Z   — undo the last edit this tab made
  *   ⌘⇧Z / Ctrl+⇧Z — redo it
- *   ⌘⇧P / Ctrl+⇧P — pin the page to the sidebar, or unpin it (a NARROWED page
- *     is asked what to call it first — `pins/naming.ts`)
  *
  * ⌘J / Ctrl+J and Ctrl+K shadow browser chrome defaults (downloads / search
  * bar) — deliberate, so keyboard editing could not claim those combos later,
@@ -109,17 +106,6 @@ export const CHORDS: ReadonlyArray<
   { key: "j", action: "panel", whileEditing: false },
   { key: "z", action: "undo", whileEditing: false },
   { key: "z", action: "redo", whileEditing: false, shift: true },
-  // ⌘⇧P / Ctrl+⇧P — put the page on the shelf, or take it off (`pins/`). With
-  // Shift rather than bare, because bare ⌘P is Print and always will be.
-  //
-  // `whileEditing: true`, and the FILTER BOX is the whole argument: "pin this
-  // page, narrowed like this" is a thing a reader means the moment they have
-  // finished typing the query, and a chord that went dead in the box would be
-  // dead at exactly the moment the gesture is wanted. It claims nothing a text
-  // field means — unlike ⌘Z, which a draft has its own answer for — and what
-  // it writes is about the PAGE rather than about whatever the caret is in, so
-  // a row being typed is left where it is.
-  { key: "p", action: "pin", whileEditing: true, shift: true },
   // The browser owns bare ⌘W / Ctrl+W (close the tab). This is the
   // equivalent we can actually receive: the same letter, with Shift, so
   // a pane is not a tab. The close button and the palette row are the
@@ -599,10 +585,19 @@ export type ListAction = "next" | "prev" | "take" | "dismiss"
 /**
  * Focus among panes. Alt+Left / Alt+Right, and nothing else — Alt+Shift
  * is already the row's move, so a shifted arrow is not a focus step.
+ *
+ * Never while `editing`: the listener is the window's, and ⌥←/→ is a Mac text
+ * field's word jump — taking it moved the caret to another pane in the middle
+ * of a sentence. Dead in a field on every platform, so the chord means one
+ * thing everywhere; Escape puts the caret away and the chord is back.
  */
 export type PaneAction = "focusLeft" | "focusRight"
 
-export const paneKey = (event: KeyboardEvent): PaneAction | null => {
+export const paneKey = (
+  event: KeyboardEvent,
+  editing: boolean,
+): PaneAction | null => {
+  if (editing) return null
   if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) {
     return null
   }
@@ -660,10 +655,6 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "⌘J / Ctrl+J", what: "show or hide the agent" },
       { keys: "⌘Z / Ctrl+Z", what: "take back your last edit on this outline" },
       { keys: "⌘⇧Z / Ctrl+⇧Z", what: "put it back" },
-      {
-        keys: "⌘⇧P / Ctrl+⇧P",
-        what: "pin this page to the sidebar, or unpin it — a narrowed one asks what to call it",
-      },
       { keys: "⌘⇧W / Ctrl+⇧W", what: "close the focused pane" },
       {
         keys: "⌘O / Ctrl+O",
@@ -674,7 +665,10 @@ export const SHORTCUTS: ReadonlyArray<{
   {
     group: "Among panes",
     keys: [
-      { keys: "Alt+← / Alt+→", what: "move focus to the pane on that side" },
+      {
+        keys: "Alt+← / Alt+→",
+        what: "move focus to the pane on that side, when you are not typing",
+      },
       { keys: "Alt+click", what: "open a link in the pane to the right" },
       { keys: "Alt+Shift+click", what: "open it in a new pane to the right" },
     ],

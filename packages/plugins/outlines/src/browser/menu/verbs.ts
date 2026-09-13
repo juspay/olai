@@ -53,7 +53,8 @@ import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
 import { pinnedAt } from "olai-plugin-pins/values"
 import { customEntries } from "olai-plugin-outlines/property-values"
-import { atNode, hrefOfPlain, type Routing } from "olai-plugin-navigation/routes"
+import { atNode, hrefOfPlain } from "olai-plugin-navigation/routes"
+import type { WorkspaceRouting as Routing } from "olai-plugin-navigation/workspace"
 import { trashQuestion } from "olai-plugin-trash/questions"
 
 /**
