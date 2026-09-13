@@ -403,6 +403,9 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 ## Pins
 
+A pin title may also be a workspace address: `/s/` followed by percent-encoded page addresses, one per pane (without each page's leading slash). For example, `[Orchestrating](/s/%23abc/orchestrator%2Flanes.olai)`. The app always writes layout pins with a supplied name and saves pages only, with no `?w=` widths or `?f=` focus. Readers tolerate those parameters and the workspace codec's `?a=` and `?t=` extensions; following a pin restores equal widths and first-pane focus. Bare workspace titles written by hand remain pins, deriving pane names and using an unresolved node's address when necessary.
+
+
 **A pin is an ordinary node, in an ordinary outline, whose title is an ADDRESS.** The sidebar draws a shelf of them above the file tree — one click back to a node, a document, or a page with the query it was narrowed by ([editing.md](editing.md#pinning-a-page-to-the-sidebar)). Nothing in this format is new for it: no field, no record shape, no op.
 
 **The file matches the `Pins` stem directly under `_olai/`**, case-insensitively, with any node-holding suffix. Two matching files are ambiguous. A directory without one has an empty shelf; when the configured outline row is off, the sidebar explains that instead.
@@ -432,7 +435,7 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 **What a pin promises, and what it does not.** It promises the ADDRESS is what somebody kept, and that a node's name is read live. It does not promise the target is still there, and the three ways that shows are worth knowing: a pin to an id nothing declares draws its own address (`/#gone`) — an honest dead row rather than a blank; a pin to a node that was TRASHED goes on drawing that node's title and opening its page, because the record is still in the set, and the shelf does not say it was put away; and a pin to a DOCUMENT is a path, so a renamed or deleted `.md` leaves a row named for a file that is no longer there. That is the cost of path identity, which ids do not have — an unpin is one click, and re-pinning is the fix.
 
-**A row that is not an address is not a pin.** `Pins.olai` is an ordinary outline: a heading in it, a note, a title that merely begins with a slash — none of them is a door, and the shelf simply does not draw them. The test is whether the app's own parser recognises a page rather than a list of prefixes, so `/etc/passwd` reads as text — and so does an address no escape could have written (`/%`), which is refused rather than thrown at: this file is one a hand and an agent are invited to edit, and a parse that threw would take the sidebar down instead of skipping a row.
+**A row that is not an address is not a pin.** `Pins.olai` is an ordinary outline: a heading in it, a note, a title that merely begins with a slash — none of them is a door, and the shelf simply does not draw them. The test is whether the app's own parser recognises a page or workspace address, so `/etc/passwd` reads as text — and so does an address no escape could have written (`/%`), which is refused rather than thrown at: this file is one a hand and an agent are invited to edit, and a parse that threw would take the sidebar down instead of skipping a row.
 
 **A mirror in there is not a pin either.** A placement means *draw it here too*, so a shelf built out of mirrors would pull every pinned node's whole subtree into `Pins.olai`. A pin says *go there*, which is a different thing, and the difference is why this convention is titles rather than placements.
 

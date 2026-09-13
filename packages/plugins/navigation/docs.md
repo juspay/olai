@@ -63,3 +63,5 @@ the claiming row whose browser page is unavailable. Addresses do not remember
 a departed suffix-to-row mapping. Trash and Agenda can name the configured
 outline row when it is off; Inbox and Pins explain that state in their sidebar
 entries while their files remain ordinary addresses.
+
+Saved layouts use `Routing.layoutIn(href)` to read workspace addresses and `Routing.layoutHref(workspace)` to print only ordered pages, without widths or focus. Page route claims remain unchanged. `Router.open(workspace)` replaces the entire workspace in one history push without landings. These operations are supplied through `navigation.state`. Its `info(index)` exposes the existing live pane report, withdrawn with the reporting owner, for consumers that need pane names.

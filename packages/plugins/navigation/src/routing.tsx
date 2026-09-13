@@ -71,6 +71,8 @@ export interface Router {
   /** The same pane, at a different address — history replaced, scroll left. */
   readonly replace: (route: Route) => void
   readonly replaceIn: (index: number, route: Route) => void
+  /** Replace the whole workspace in one history push, without landings. */
+  readonly open: (workspace: Workspace) => void
   readonly openRight: (from: number, route: Route, forceNew?: boolean) => void
   readonly close: (index?: number) => void
   readonly focus: (index: number) => void

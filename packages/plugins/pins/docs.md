@@ -18,3 +18,7 @@ Pins uses the convention stem directly under `_olai/`, among node-holding
 claims. Its sidebar component declares vault file access to name the configured
 outline row when it is off. The Pins file remains an ordinary address and
 reports its unclaimed suffix; there is no separate Pins route.
+
+Pins have a page or layout target. The palette offers the focused page command and, in a split, a layout command that always asks for a name. A saved layout compares only ordered pages, ignoring width and focus; renaming it refuses an empty name. Layout shelf links have a split mark and replace the workspace through `navigation.state.open`, with Back restoring the previous workspace. Page links retain pane navigation.
+
+Navigation supplies `routes.layoutIn` and `routes.layoutHref`; pins never parses the workspace prefix. Pane labels use navigation's lifetime-bound `info(index)` reports when available. The pin status line remains owned by the pins activation for shelf removal and reorder refusals. Pinning is available through the palette and row menu.

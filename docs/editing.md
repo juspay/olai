@@ -28,7 +28,6 @@ While an input method is composing text, its keys select and confirm candidates.
 | **Escape** | drop what you were typing |
 | **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
 | **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
-| **⌘⇧P** / **Ctrl+⇧P** | pin this page to the sidebar, or unpin it |
 | **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again |
 | **Alt+click** | open a link in the pane to the right |
 | **Alt+Shift+click** | open it in a new pane to the right |
@@ -409,21 +408,21 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 A **shelf of doors** in the directory column, between the calendar and the file tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
 
-**Three ways on, and they are one gesture over one address.** A row's `•••` offers **Pin to sidebar**, and offers **Unpin from sidebar** on a row already up there — one entry with two labels, because the shelf already knows which way this node's answer goes. `⌘⇧P` / `Ctrl+⇧P` does the same for the PAGE you are on, and it is live while you are typing a filter, which is exactly when "pin this, narrowed like this" is the thing you mean. `⌘K`'s **Pin this page** row is that chord for a hand on the mouse.
+**Two ways on, with one gesture over one address.** A row's `•••` offers **Pin to sidebar**, or **Unpin from sidebar** if it is already pinned. `⌘K`'s **Pin this page** acts on the focused pane's page, including its filter.
 
 **A pinned page keeps its query.** `/agenda` filtered to `is:todo` is pinned as that whole address, drawn with the query beside its name, and clicking it lands on the agenda WITH the filter in the box — which is what makes a pin the way a saved search is spelled here ([search.md](search.md)).
 
 ### Naming one, where the thought arrives
 
-**A NARROWED page is asked what to call it, and nothing else is.** Every other address already has a name that is read live — a node's own title, a file's filename, the word *Agenda* — and a copy of one stored beside the pin is exactly the stale second answer this convention exists to avoid. A QUERY is the part nothing in the directory can name: three saved searches on the agenda are three rows called *Agenda* until somebody says otherwise. So `⌘⇧P` on a page you have narrowed, and the `⌘K` row that says **Pin this page…**, ask for a name first; a page with no query, and every unpin, still writes in one press.
+**A narrowed page is asked what to call it.** Every other address already has a name that is read live — a node's own title, a file's filename, the word *Agenda* — and a copy of one stored beside the pin is exactly the stale second answer this convention exists to avoid. A QUERY is the part nothing in the directory can name: three saved searches on the agenda are three rows called *Agenda* until somebody says otherwise. So the `⌘K` row that says **Pin this page…** asks for a name first; a page with no query, and every unpin, still writes in one press.
 
 **It is asked in the palette's own box**, the way `+ a line` already asks for a line: the words you type are the name, the box wears the name it would take otherwise (*Agenda*) where a placeholder goes, and **Enter** writes it. Three keys, and each of them is worth knowing:
 
 - **Enter with nothing pins it unnamed** — the bare address this app has always written, one keystroke from where your hand already is. Nothing derived is ever stored, so *Agenda* on the shelf goes on being read live.
 - **Enter with words pins it named**, as one write: the row's title becomes `[What is late](/agenda?q=is%3Atodo)`, which is the markdown link you would have typed into `Pins.olai` yourself.
-- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture. Backing out is not a mode, either: the chord works again on the next press.
+- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture. Backing out is not a mode, either: the palette command works again.
 
-**A question owns the modal while it is up.** `⌘⇧P` pressed again over its own question does nothing at all — the question that press would ask is already on screen, and asking it a second time would hand the box back its opening words over the name you are half-way through typing. It is the same rule the caret, Tab and Escape already keep there: a question is answered or backed out of, and nothing pressed elsewhere becomes its answer or writes past it.
+**A question owns the modal while it is up.** Choosing a pin command again preserves the name being typed. Answer the question or press Escape to back out.
 
 **And a pin already on the shelf is renamed from the shelf.** Hovering a row shows a `✎` beside its `×`; pressing it asks the same question, holding the name it has now, and **Enter with nothing takes the name off** — the row goes back to a bare address, drawn by whatever it points at. Renaming is an ordinary title edit on that row (`outlines_title`, the op an agent sends), so `⌘Z` takes it back like anything else.
 
@@ -440,6 +439,14 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 **And the file reads like an outline.** Open `Pins.olai` and its rows are the same faces the shelf draws — the pin mark, the name, the query — because a title that names a place is drawn as that place wherever it appears, not just in the sidebar. On a named pin the label is the link; click anywhere else on the line and the editor shows the title as it really is, which is the same thing every markdown title does.
 
 **It is a file, and that is the feature.** The shelf is a `Pins.olai` in the served directory — wherever you keep one; olai mints `_olai/Pins.olai` the first time you pin something and never moves a shelf you already have. One ordinary node per pin, whose title is the address ([format.md](format.md#pins)). Open it like any outline and edit it; a name is a markdown link around the address (`[What is late](/agenda?q=is%3Atodo)`), which is exactly the row the app writes when you type one; commit it with everything else. An agent adds, reorders, renames and removes pins with `outlines_add`, `outlines_move`, `outlines_title` and `outlines_trash` — the same four ops the gestures above resolve to — so what you keep on that shelf is something you can hand to one.
+
+### Pinning a layout
+
+With multiple panes open, `⌘K` also offers **Pin this layout…**, with the pane names underneath. It always asks for a name; empty Enter says **a layout needs a name** and keeps the question open. Escape writes nothing.
+
+A layout pin has a split mark and a tooltip listing its pages. Clicking it replaces the whole workspace in one history push, including with Alt or Shift held. Back restores the previous workspace. Only pages are saved: the layout reopens with equal widths and the first pane focused.
+
+The command becomes **Unpin this layout** when those pages are already pinned, regardless of widths or focus. Shelf rename and remove work as for page pins, including undo; layout renames also require a name. Handwritten bare layout addresses are accepted and display the pane names, falling back to an unresolved node's address.
 
 ## From the ⌘K palette
 

@@ -21,7 +21,7 @@ import { selector } from "@olai/web/testlib"
 
 import { attr } from "../support/selectors.ts";
 import { keysSettled, pressed } from "../support/settling.ts";
-import { PALETTE_INPUT, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
+import { PALETTE_INPUT, PALETTE_ITEM, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const PIN = selector(TESTID.pin);
@@ -100,10 +100,20 @@ When(
   },
 );
 
-/** The chord — the page's own door onto the shelf, and a TOGGLE over one
- *  address, so the same press takes it back off. */
+/** The palette command toggles the focused page. */
+const choosePin = async (world: OlaiWorld, kind: "page" | "layout") => {
+  await pressed(world, "ControlOrMeta+k");
+  await world.page.locator(PALETTE_INPUT).fill("pin");
+  await world.page.locator(PALETTE_ITEM).filter({ hasText: new RegExp(`(?:Pin|Unpin) this ${kind}`) }).first().click();
+  await keysSettled(world);
+};
+
 When("I pin the page", async function (this: OlaiWorld) {
-  await pressed(this, "ControlOrMeta+Shift+p");
+  await choosePin(this, "page");
+});
+
+When("I pin the layout", async function (this: OlaiWorld) {
+  await choosePin(this, "layout");
 });
 
 When("I follow the pin {string}", async function (this: OlaiWorld, address: string) {
@@ -358,3 +368,34 @@ Then(
     );
   },
 );
+
+
+Then("the pin {string} has a split mark", async function (this: OlaiWorld, address: string) {
+  assert.strictEqual(await pinAt(this, address).getAttribute("data-kind"), "layout");
+  await pinAt(this, address).locator("svg[data-layout-mark]").waitFor({ state: "visible" });
+});
+
+Then("the pin {string} is current", async function (this: OlaiWorld, address: string) {
+  await this.waitUntil(async () => await pinAt(this, address).locator(PIN_LINK).getAttribute("aria-current") === "page", "the pin to be current");
+});
+
+When("I {word}-click the layout pin {string}", async function (this: OlaiWorld, modifier: string, address: string) {
+  await this.showSidebar();
+  assert.ok(modifier === "Alt" || modifier === "Shift" || modifier === "plain");
+  await pinAt(this, address).locator(PIN_LINK).click({ modifiers: modifier === "plain" ? [] : [modifier] });
+});
+
+Then("the layout panes have equal widths", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const left = await this.pane(1).boundingBox(), right = await this.pane(2).boundingBox();
+    return left !== null && right !== null && Math.abs(left.width - right.width) <= 2;
+  }, "equal pane widths");
+});
+
+Then("the palette does not offer {string}", async function (this: OlaiWorld, label: string) {
+  assert.strictEqual(await this.page.locator(PALETTE_ITEM).filter({ hasText: label }).count(), 0);
+});
+
+Then("the pin {string} has tooltip {string}", async function (this: OlaiWorld, address: string, tooltip: string) {
+  assert.strictEqual(await pinAt(this, address).locator(PIN_LINK).getAttribute("title"), tooltip);
+});

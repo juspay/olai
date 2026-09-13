@@ -245,6 +245,7 @@ export const createRouter = (): Router => {
     goIn,
     replace: (next) => replaceIn(workspace().focus, next),
     replaceIn,
+    open: (next) => commit(next, "push", () => NOWHERE),
     openRight: (from, next, forceNew) => {
       const after = openRight(workspace(), from, next, forceNew === true)
       // A PANE IS BORN, so every index at or after it means a different pane

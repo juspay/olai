@@ -6,6 +6,7 @@ export function createNavigation(): Omit<Navigation,"page"> {
   const [pages, setPages] = createSignal<ReadonlyArray<{ index: () => number; info: () => PageInfo }>>([])
   return {
     ...router,
+    info: (index) => pages().find((page) => page.index() === index)?.info(),
     focused: createMemo(() => pages().find((page) => page.index() === router.workspace().focus)?.info()),
     report(index, info) {
       const page = { index, info }

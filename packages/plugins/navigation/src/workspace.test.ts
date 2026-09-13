@@ -302,3 +302,27 @@ test("a one-level column is a=col, not a tree", () => {
   expect(back.layout.kind).toBe("split")
   if (back.layout.kind === "split") expect(back.layout.axis).toBe("col")
 })
+
+
+test("layout addresses round trip pages, stripping widths, focus, axis and nesting", () => {
+  for (const address of [
+    "/s/house.olai/%23kitchen",
+    "/s/house.olai/%23kitchen?w=20,80&f=1",
+    "/s/house.olai/%23kitchen?a=col&w=0,100&f=1",
+    "/s/house.olai/%23kitchen?t=row(leaf,col(leaf))&w=30,(70)&f=1",
+    "/s/house.olai%3Fq%3Dis%253Atodo/%23missing",
+  ]) {
+    const parsed = routes.layoutIn(address)!
+    const href = routes.layoutHref(parsed)
+    expect(href).not.toContain("?")
+    const saved = routes.layoutIn(href)!
+    expect(panesOf(saved).map(({route}) => route)).toEqual(panesOf(parsed).map(({route}) => route))
+    expect(saved.focus).toBe(0)
+    expect(panesOf(saved).every(({width}) => width === undefined)).toBe(true)
+    expect(routes.layoutHref(saved)).toBe(href)
+    expect(routes.routeIn(href)).toBeNull()
+  }
+  expect(routes.layoutIn("/house.olai")).toBeNull()
+  expect(routes.layoutIn("/#kitchen")).toBeNull()
+  expect(routes.layoutIn(routes.layoutHref(lone(house)))).not.toBeNull()
+})

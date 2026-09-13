@@ -167,6 +167,19 @@ export const workspaceOf = (routing: Routing, address: string): Workspace => {
   return { layout: { kind: "split", axis, children }, focus }
 }
 
+/** Saved layouts keep only the ordered pages, opening equally with first focus. */
+export const layoutHref = (routing: Routing, workspace: Workspace): string =>
+  hrefOfWorkspace(routing, {
+    layout: { kind: "split", axis: "row", children: panesOf(workspace).map(({ route }) => ({
+      layout: { kind: "leaf", route },
+    })) },
+    focus: 0,
+  })
+
+/** Workspace addresses belong to navigation, never to a page claim. */
+export const layoutIn = (routing: Routing, href: string): Workspace | null =>
+  splitAddress(href).pathname.startsWith(WORKSPACE_PREFIX) ? workspaceOf(routing, href) : null
+
 const encodePane = (routing: Routing, route: Route): string => {
   const href = routing.href(route)
   return encodeURIComponent(href.startsWith("/") ? href.slice(1) : href)

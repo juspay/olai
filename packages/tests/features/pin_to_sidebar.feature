@@ -50,7 +50,7 @@ Feature: Pinning a page to the sidebar
     When I filter the page by "is:todo"
     And I pin the page
     # A narrowed page is the one address nothing in the set can name, so the
-    # chord asks what to call it — and ENTER WITH NOTHING is the bare pin this
+    # palette asks what to call it — and ENTER WITH NOTHING is the bare pin this
     # app has always written, one keystroke from where the caret already is.
     Then the palette asks "a name for this pin — Enter with nothing pins it unnamed"
     When I name the pin ""
@@ -115,27 +115,10 @@ Feature: Pinning a page to the sidebar
     # that no write went out — and a minted-but-empty one would be the file
     # this resolver's ONE op exists to prevent.
     And "_olai/Pins.olai" holds nothing
-    # …and backing out is not a mode: the chord still works after it.
+    # …and backing out is not a mode: the palette row still works after it.
     When I pin the page
     And I name the pin ""
     Then the pinned shelf holds "/house.olai?q=is%3Atodo"
-    And there should be no page errors
-
-  Scenario: The question owns the modal, so a second press does not wipe the name
-    # ⌘⇧P is live while the caret is in the filter box, which is also where a
-    # hand is while it is typing a name — and pressing it again used to raise
-    # the same question a second time, handing the box back its opening words
-    # (opencode, on #282). A question is answered or backed out of; nothing
-    # pressed elsewhere becomes its answer or writes past it.
-    When I filter the page by "is:todo"
-    And I pin the page
-    And I type "What is late" into the palette
-    And I pin the page
-    Then the palette box holds "What is late"
-    And the palette asks "a name for this pin — Enter with nothing pins it unnamed"
-    # …and the words that survived are the ones that land.
-    When I name the pin "What is late"
-    Then the pin "/house.olai?q=is%3Atodo" is named "What is late"
     And there should be no page errors
 
   Scenario: A pin is renamed from the shelf, and ⌘Z takes the name back
@@ -160,7 +143,7 @@ Feature: Pinning a page to the sidebar
     Then the pinned shelf holds "/finishes.md"
     And the pin "/finishes.md" is named "finishes.md"
 
-  Scenario: The chord is a toggle over one address, and mints the shelf under _olai/
+  Scenario: The palette row is a toggle over one address, and mints the shelf under _olai/
     When I pin the page
     Then the pinned shelf holds "/house.olai"
     # WHERE a shelf is minted: a file olai made because somebody pressed

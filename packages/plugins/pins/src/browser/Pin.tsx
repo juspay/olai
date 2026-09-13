@@ -1,10 +1,10 @@
+import { Show } from "solid-js"
 /**
  * ONE PIN, drawn: a door, what it is called right now, what it is narrowed by,
  * and the way to take it off the shelf.
  *
- * The row is a `<Link>` like every other entry in this column, so a click is a
- * navigation and a ⌘-click is the split this app already offers — the pin does
- * not reimplement either. What it adds is the press that TRAVELS, which the
+ * Page pins use `<Link>` for pane navigation. Layout pins ask navigation to
+ * open the normalized workspace, including on modifier clicks. What it adds is the press that TRAVELS, which the
  * shelf turns into a reorder (`./Shelf.tsx`); the click that follows one is
  * swallowed on the way down, exactly as a bullet swallows the click after a
  * drag (`../drag/Handle.tsx`), because by the time it bubbled the browser
@@ -22,6 +22,7 @@
  * face would draw.
  */
 import { TESTID } from "olai-plugin-pins/testids"
+import { TESTID as NAV_TESTID } from "olai-plugin-navigation/testids"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
@@ -61,12 +62,16 @@ export function Pin(props: {
    *  question over this pin (`./naming.ts`). */
   readonly onRename: () => void
 }) {
+  const router = useRouter()
+  const page = () => { const target = props.pin.target; return target.kind === "page" ? target.route : undefined }
+  const href = () => { const target = props.pin.target; return target.kind === "page" ? router.routes.href(target.route) : router.routes.layoutHref(target.workspace) }
   return (
     <li
       class="group/pin relative mb-0.5"
       data-testid={TESTID.pin}
       data-pin={props.pin.id}
-      data-at={useRouter().routes.href(props.pin.route)}
+      data-at={href()}
+      data-kind={props.pin.target.kind}
       data-lifted={props.lifted ? "true" : undefined}
       classList={{ "opacity-40": props.lifted }}
       // THE WHOLE ROW IS THE HANDLE, which is what a shelf of five doors wants
@@ -96,19 +101,26 @@ export function Pin(props: {
         },
       }}
     >
-      <Link
-        route={props.pin.route}
-        class={ROW}
-        testid={TESTID.pinLink}
-        current={props.current}
-        title={props.pin.name}
-      >
-        {/* The address, drawn as the page it names — the SAME face an outline
-            row draws when its title is one (`../address/Face.tsx`). The shelf
-            resolving its rows while the file's own page drew the raw address
-            was one title with two answers (maintainer, 2026-08-18). */}
-        <Face route={props.pin.route} name={props.pin.name} />
-      </Link>
+      <Show when={page()} fallback={
+        <a href={href()} class={ROW} data-testid={TESTID.pinLink}
+          aria-current={props.current ? "page" : undefined} title={props.pin.bare}
+          onClick={(event) => {
+            event.preventDefault()
+            const target = props.pin.target
+            if (target.kind === "layout") router.open(router.routes.layoutIn(href())!)
+          }}>
+          <svg class="shrink-0" data-layout-mark aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+            <rect x="1" y="2" width="6" height="12" rx="1" />
+            <rect x="9" y="2" width="6" height="12" rx="1" />
+          </svg>
+          <span class="truncate" data-testid={NAV_TESTID.addressName}>{props.pin.name}</span>
+        </a>
+      }>{(route) =>
+        <Link route={route()} class={ROW} testid={TESTID.pinLink}
+          current={props.current} title={props.pin.name}>
+          <Face route={route()} name={props.pin.name} />
+        </Link>
+      }</Show>
       {/* OUTSIDE the link, because a control inside an anchor is a control
           whose activation is also a navigation. They sit on top of the row's
           right edge and appear on hover or focus, the way the tree's own

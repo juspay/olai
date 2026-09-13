@@ -1,3 +1,4 @@
+import { panesOf, type Workspace } from "olai-plugin-navigation/workspace"
 /**
  * WHAT IS ON THE SHELF, read off the SERVER'S ANSWER.
  *
@@ -97,7 +98,7 @@
 import { addressWritten } from "@olai/format"
 import type { Pinned, Shelf } from "@olai/format"
 
-import { addressIn,nameOf,titleFace } from "olai-plugin-navigation/address/address.ts"
+import { addressIn,labelIn,nameOf,titleFace } from "olai-plugin-navigation/address/address.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import type { Routing } from "olai-plugin-navigation/routes"
 
@@ -113,7 +114,7 @@ export interface Pin {
   readonly title: string
   /** Where it goes. Parsed once, here, so nothing downstream re-reads a
    *  title. */
-  readonly route: Route
+  readonly target: { readonly kind: "page"; readonly route: Route } | { readonly kind: "layout"; readonly workspace: Workspace }
   /**
    * What this door is CALLED, as it is drawn — the name somebody WROTE on it,
    * or what its address is called: for a node, what the server says that node's
@@ -165,7 +166,15 @@ export interface Pin {
  *  no title to address with, and the reading leaves it out.) */
 const pinOf = (routes: Routing, row: Pinned): Pin | undefined => {
   const route = addressIn(routes, row.title)
-  if (route === undefined) return undefined
+  if (route === undefined) {
+    const at = addressWritten(row.title)
+    const workspace = routes.layoutIn(at)
+    if (workspace === null) return undefined
+    const bare = layoutName(routes, workspace)
+    const written = labelIn(row.title)
+    return { id: row.id, title: row.title, at, target: { kind: "layout", workspace },
+      name: written ?? bare, bare, written: written !== undefined }
+  }
   const shows = showing(route, row)
   // THE PAIR IS `titleFace`'s ANSWER, taken whole rather than assembled here:
   // which of the two names is drawn, and whether the words are somebody's own,
@@ -176,7 +185,7 @@ const pinOf = (routes: Routing, row: Pinned): Pin | undefined => {
   return {
     id: row.id,
     title: row.title,
-    route,
+    target: { kind: "page", route },
     at: addressWritten(row.title),
     name,
     // …and `bare` is the OTHER arm of that same rule, which is why it is only
@@ -245,7 +254,7 @@ export const pinsOf = (
  * reading one answer.
  *
  * OVER THE ANSWER rather than over a list of pins, because that is what every
- * caller has: the `•••` menu, the ⌘K row and the chord each hold the shelf the
+ * caller has: the `•••` menu and the ⌘K row each hold the shelf the
  * server sent and nothing else, and a version taking the parsed list had
  * exactly one consumer — a wrapper, one module over, that read the shelf and
  * handed it straight back. Two names for one question is one too many.
@@ -256,5 +265,14 @@ export const pinsOf = (
  */
 export const pinnedAt = (routes: Routing, shelf: Shelf, route: Route): Pin | undefined => {
   const address = routes.href(route)
-  return pinsOf(routes, shelf).find((pin) => routes.href(pin.route) === address)
+  return pinsOf(routes, shelf).find((pin) => pin.target.kind === "page" && routes.href(pin.target.route) === address)
 }
+
+
+export const layoutName = (routes: Routing, workspace: Workspace,
+  shows: (route: Route, index: number) => string | undefined = () => undefined): string =>
+  panesOf(workspace).map(({ route }, index) => nameOf(routes, route, shows(route, index))).join(" · ")
+
+export const pinnedLayout = (routes: Routing, shelf: Shelf, workspace: Workspace): Pin | undefined =>
+  pinsOf(routes, shelf).find((pin) => pin.target.kind === "layout"
+    && routes.layoutHref(pin.target.workspace) === routes.layoutHref(workspace))
