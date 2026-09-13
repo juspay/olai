@@ -318,9 +318,7 @@ function Branch(props: {
   const forms = useRowForms(props.row.key)
   /** ...and one opener for both of them, so the two triggers cannot drift. */
   const openPicker = (): void => {
-    const starts = dateStartsAt(shown()?.node.date)
-    forms.setTime(starts.time)
-    forms.setDay(starts.day)
+    forms.setDate(dateStartsAt(shown()?.node.date))
   }
 
   /** Is this row's REPEAT picker open? The date picker's arrangement one field
@@ -758,18 +756,16 @@ function Branch(props: {
           the row is collapsed or not: it is about THIS node, not about what is
           under it. The id it names is the node the row SHOWS, so a pick at a
           mirror lands on its target, exactly as the mark verbs do. */}
-      <Show when={forms.day() !== null ? shown() : undefined}>
+      <Show when={forms.date() !== null ? shown() : undefined}>
         {(shows) => (
           <div class={PAST_CONTROLS}>
             <DatePicker
               submission={forms.dateSubmission}
               date={shows().node.date}
-              day={forms.day() ?? ""}
-              time={forms.time()}
-              onChange={forms.setDay}
-              onTime={forms.setTime}
+              chosen={forms.date() ?? { day: "", time: "" }}
+              onChange={forms.setDate}
               onPick={(value) => applying(datePick(shows().node.id, value), undo.record)}
-              onClose={() => forms.setDay(null)}
+              onClose={() => forms.setDate(null)}
             />
           </div>
         )}

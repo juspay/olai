@@ -7,14 +7,14 @@ import { useHere, useRouter } from "olai-plugin-navigation/routing"
 import type { Route } from "olai-plugin-navigation/routes"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { createSubmission } from "../edit/submission.ts"
+import type { Chosen } from "./pick.ts"
 
 const form = () => {
-  const [day, setDay] = createSignal<string | null>(null)
-  // The time box's draft, beside the day's: meaningful only while `day` says
-  // the picker is open, which is why it needs no `null` of its own.
-  const [time, setTime] = createSignal("")
+  // The date picker's draft — its day and time together, and `null` while the
+  // picker is closed: one value, so opening and closing cannot leave half of it.
+  const [date, setDate] = createSignal<Chosen | null>(null)
   const [rule, setRule] = createSignal<string | null>(null)
-  return { edges: edgeMemory(), day, setDay, time, setTime, rule, setRule, dateSubmission: createSubmission(), repeatSubmission: createSubmission() }
+  return { edges: edgeMemory(), date, setDate, rule, setRule, dateSubmission: createSubmission(), repeatSubmission: createSubmission() }
 }
 type Form = ReturnType<typeof form>
 type Rows = Map<string, Form>
@@ -38,7 +38,7 @@ export function RowForms(props: { readonly children: JSX.Element; readonly names
     if (route?.kind !== "at" || now?.kind !== "at"
       || (now.address === null ? null : printAddress(now.address))
         !== (route.address === null ? null : printAddress(route.address))) return
-    const open = new Map([...rows].filter(([, value]) => value.day() !== null || value.rule() !== null || value.edges.open[0]() !== null))
+    const open = new Map([...rows].filter(([, value]) => value.date() !== null || value.rule() !== null || value.edges.open[0]() !== null))
     if (open.size === 0) return
     const entries = saved.get(now) ?? new Map<string, Rows>()
     entries.set(key, open)

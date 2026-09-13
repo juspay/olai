@@ -18,8 +18,10 @@
  * picked `YYYY-MM-DD` travels to the wire as those ten characters, a picked
  * time is joined to it the way a mark's stamp is spelled (`T`, seconds, the
  * offset written out — `@olai/format`'s `stampOf`), and the only readings taken
- * of a stored value are `@olai/format`'s own {@link dayOf} and {@link timeOf} —
- * slices, the rule spelled once for the calendar, the agenda and the picker.
+ * of a stored value are `@olai/format`'s own — {@link dayOf} and {@link timeOf},
+ * slices, the rule spelled once for the calendar, the agenda and the picker;
+ * and, for the one question about its zone, `canonicalDate` and `offsetIn`,
+ * which already know that `Z` and `+00:00` are one offset.
  *
  * The controls are `<input type="date">` and `<input type="time">` for the same
  * reason ({@link ./DatePicker.tsx}): neither can mint an instant. Their values
@@ -34,7 +36,7 @@
  * what may be written ({@link pressOf}).
  */
 
-import { dayOf, stampOf, timeOf } from "@olai/format"
+import { canonicalDate, dayOf, offsetIn, stampOf, timeOf } from "@olai/format"
 
 import { type Press, pressOf as panelPress } from "../edit/panel.ts"
 import type { Edit } from "@olai/surface"
@@ -159,14 +161,14 @@ export const datePick = (id: string, value: string): Edit => ({
  * day already stored, so the only thing pressing does is take the time off,
  * and the button says that.
  *
- * **An unfinished box writes nothing.** A box the browser holds half-typed
- * reports no value, which would otherwise read as "no time" (or "no date") —
- * a write of something other than what the box shows, and one the browser's
- * own form validation refuses to submit anyway. So the button is dead, under
- * the verb the person came for, and {@link noticeOf} says why.
+ * **`null` is a value nobody can read** — a box the browser holds half-typed
+ * ({@link ./DatePicker.tsx}, where that platform fact is kept). It writes
+ * nothing, under the verb the person came for: a half-typed box reports no
+ * value, and reading that as "no time" would write something other than what
+ * the box shows.
  */
-export const pressOf = (stored: string | undefined, value: string, incomplete = false): Press =>
-  incomplete
+export const pressOf = (stored: string | undefined, value: string | null): Press =>
+  value === null
     ? { label: "Set date", writes: false }
     : stored !== undefined && timeOf(stored) !== undefined && value === dayOf(stored)
     ? { label: "Clear time", writes: true }
@@ -175,15 +177,9 @@ export const pressOf = (stored: string | undefined, value: string, incomplete = 
 /**
  * What the panel says about the boxes, when they do not say the whole of what
  * pressing would write — and nothing at all for the ordinary case. Asked of the
- * DRAFT, every frame, because every one of these is about the value the boxes
- * have come to rather than about the record alone.
+ * DRAFT and of the `value` the button would send ({@link valueOf}), handed in
+ * rather than worked out again, so the sentence and the button read one value.
  *
- *   - **A box that is not finished.** A time box with only its hour filled — a
- *     person reaching it with the arrow keys — reports no value at all, so it
- *     would read as "no time" while showing one half-typed, and the browser's
- *     own form validation would refuse the submit without a word. The panel
- *     draws the button dead ({@link ./DatePicker.tsx}) and says why, and how
- *     out. The day box can be left the same way.
  *   - **A face the zone skips.** The value written is the moment the zone
  *     moves it to ({@link InstantAt}), which is not what the box says — so the
  *     sentence quotes the value, before it is written.
@@ -193,22 +189,22 @@ export const pressOf = (stored: string | undefined, value: string, incomplete = 
  *     writes — whose offset is the draft's moment's, not the stored one's; with
  *     it unchanged, it says a change would be written here and names no offset,
  *     since which one depends on the day and time that are not chosen yet.
+ *
+ * A half-typed box has a sentence too, and it is not here: it is about the
+ * element rather than about any value ({@link ./DatePicker.tsx}).
  */
 export const noticeOf = (
   stored: string | undefined,
-  chosen: Chosen & { readonly incomplete: "day" | "time" | null },
+  chosen: Chosen,
+  value: string,
   instantAt: InstantAt,
 ): string | undefined => {
-  if (chosen.incomplete !== null) {
-    return chosen.incomplete === "time"
-      ? "The time is not finished. Finish it, or press No time."
-      : "The day is not finished. Finish it, or empty it."
-  }
-  const value = valueOf(stored, chosen, instantAt)
   const written = value !== stored && timeOf(value) !== undefined ? value : undefined
   const storedTime = stored === undefined ? undefined : timeOf(stored)
+  // Compared as OFFSETS, read by the format's own readers: a zone-less value
+  // has none and is always foreign, and a stored `Z` is `+00:00`.
   const foreign = stored !== undefined && storedTime !== undefined &&
-    !stored.endsWith(instantAt(dayOf(stored), storedTime).slice(-"+00:00".length))
+    offsetIn(canonicalDate(stored, null) ?? "") !== offsetIn(instantAt(dayOf(stored), storedTime))
   const quoted = foreign ? `Scheduled for ${stored}. ` : ""
   if (written !== undefined && (dayOf(written) !== chosen.day || timeOf(written) !== chosen.time)) {
     return `${quoted}There is no ${chosen.time} on ${chosen.day} in this browser's time zone, so pressing writes ${written}.`

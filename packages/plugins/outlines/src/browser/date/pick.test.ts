@@ -39,7 +39,9 @@ const newYork: InstantAt = (day, time) => {
 const skipping: InstantAt = (day, time) =>
   day === "2026-03-08" && time === "02:30" ? "2026-03-08T03:30:00-04:00" : newYork(day, time)
 
-const finished = (chosen: Chosen) => ({ ...chosen, incomplete: null })
+/** The notice, asked of the value the button would send — as the panel asks. */
+const notice = (stored: string | undefined, chosen: Chosen, instantAt: InstantAt = newYork) =>
+  noticeOf(stored, chosen, valueOf(stored, chosen, instantAt), instantAt)
 
 // ── what the boxes start with ──────────────────────────────────────────
 
@@ -55,6 +57,15 @@ test("a stored datetime starts on its day and the time its face says", () => {
   // `@olai/format`'s own readings — slices, never a conversion into this
   // browser's zone: the boxes say what the file says.
   expect(startsAt("2026-08-11T15:40:03-07:00")).toEqual({ day: "2026-08-11", time: "15:40" })
+})
+
+test("a datetime written with a space starts on its time too", () => {
+  // The format accepts that spelling on disk; a picker that read only `T` would
+  // open it with no time, and Enter would take the time off without a word.
+  expect(startsAt("2026-08-13 14:00")).toEqual({ day: "2026-08-13", time: "14:00" })
+  expect(valueOf("2026-08-13 14:00", { day: "2026-08-13", time: "14:00" }, newYork))
+    .toBe("2026-08-13 14:00")
+  expect(pressOf("2026-08-13 14:00", "2026-08-13 14:00")).toEqual({ label: "Set date", writes: false })
 })
 
 // ── the value the boxes come to ────────────────────────────────────────
@@ -184,11 +195,10 @@ test("setting and changing both write, under one name", () => {
     .toEqual({ label: "Set date", writes: true })
 })
 
-test("an unfinished box writes nothing, under the verb the person came for", () => {
-  // A half-typed box reports no value, which would otherwise read as a clear.
-  expect(pressOf("2026-08-10T14:30:00-04:00", "2026-08-10", true))
-    .toEqual({ label: "Set date", writes: false })
-  expect(pressOf("2026-08-10", "", true)).toEqual({ label: "Set date", writes: false })
+test("a value nobody can read writes nothing, under the verb the person came for", () => {
+  // `null` is a half-typed box, which reports no value — never read as a clear.
+  expect(pressOf("2026-08-10T14:30:00-04:00", null)).toEqual({ label: "Set date", writes: false })
+  expect(pressOf(undefined, null)).toEqual({ label: "Set date", writes: false })
 })
 
 test("taking the time off a datetime's own day says so", () => {
@@ -202,50 +212,42 @@ test("taking the time off a datetime's own day says so", () => {
 // ── what it says about the boxes ───────────────────────────────────────
 
 test("a day, or a datetime in this browser's zone, needs no notice", () => {
-  expect(noticeOf(undefined, finished({ day: "", time: "" }), newYork)).toBeUndefined()
-  expect(noticeOf("2026-08-10", finished({ day: "2026-08-10", time: "" }), newYork))
-    .toBeUndefined()
-  expect(noticeOf("2026-08-10T14:30:00-04:00", finished({ day: "2026-08-10", time: "14:30" }), newYork))
-    .toBeUndefined()
+  expect(notice(undefined, { day: "", time: "" })).toBeUndefined()
+  expect(notice("2026-08-10", { day: "2026-08-10", time: "" })).toBeUndefined()
+  expect(notice("2026-08-10T14:30:00-04:00", { day: "2026-08-10", time: "14:30" })).toBeUndefined()
   // ...and changing one across the seasons is still an ordinary write.
-  expect(noticeOf("2026-08-10T14:30:00-04:00", finished({ day: "2026-12-10", time: "14:30" }), newYork))
-    .toBeUndefined()
+  expect(notice("2026-08-10T14:30:00-04:00", { day: "2026-12-10", time: "14:30" })).toBeUndefined()
+})
+
+test("`Z` is the same offset as `+00:00`, not another zone", () => {
+  const utc: InstantAt = (day, time) => `${day}T${time}:00+00:00`
+  expect(notice("2026-08-10T14:30:00Z", { day: "2026-08-10", time: "14:30" }, utc)).toBeUndefined()
 })
 
 test("a datetime from another zone is quoted verbatim, naming no offset until one is chosen", () => {
-  expect(noticeOf("2026-08-11T15:40:03-07:00", finished({ day: "2026-08-11", time: "15:40" }), newYork))
-    .toBe(
-      "Scheduled for 2026-08-11T15:40:03-07:00. A changed day or time is written " +
-        "in this browser's time zone.",
-    )
+  expect(notice("2026-08-11T15:40:03-07:00", { day: "2026-08-11", time: "15:40" })).toBe(
+    "Scheduled for 2026-08-11T15:40:03-07:00. A changed day or time is written " +
+      "in this browser's time zone.",
+  )
   // A hand that wrote no zone at all is the same news.
-  expect(noticeOf("2026-08-11T15:40", finished({ day: "2026-08-11", time: "15:40" }), newYork))
-    .toContain("Scheduled for 2026-08-11T15:40.")
+  expect(notice("2026-08-11 15:40", { day: "2026-08-11", time: "15:40" }))
+    .toContain("Scheduled for 2026-08-11 15:40.")
 })
 
 test("with the draft changed, it quotes exactly what pressing writes", () => {
   // The offset is the DRAFT's moment's: December is -05:00 even though the
   // stored value and today are both in summer.
-  expect(noticeOf("2026-08-11T15:40:03-07:00", finished({ day: "2026-12-01", time: "15:40" }), newYork))
-    .toBe(
-      "Scheduled for 2026-08-11T15:40:03-07:00. Pressing writes " +
-        "2026-12-01T15:40:00-05:00, in this browser's time zone.",
-    )
+  expect(notice("2026-08-11T15:40:03-07:00", { day: "2026-12-01", time: "15:40" })).toBe(
+    "Scheduled for 2026-08-11T15:40:03-07:00. Pressing writes " +
+      "2026-12-01T15:40:00-05:00, in this browser's time zone.",
+  )
   // Taking the time off writes no offset, so there is none to warn about.
-  expect(noticeOf("2026-08-11T15:40:03-07:00", finished({ day: "2026-08-11", time: "" }), newYork))
-    .toBeUndefined()
+  expect(notice("2026-08-11T15:40:03-07:00", { day: "2026-08-11", time: "" })).toBeUndefined()
 })
 
 test("a face the zone skips is quoted as the value it becomes, before it is written", () => {
-  expect(noticeOf(undefined, finished({ day: "2026-03-08", time: "02:30" }), skipping)).toBe(
+  expect(notice(undefined, { day: "2026-03-08", time: "02:30" }, skipping)).toBe(
     "There is no 02:30 on 2026-03-08 in this browser's time zone, so pressing " +
       "writes 2026-03-08T03:30:00-04:00.",
   )
-})
-
-test("an unfinished box says so, and how out", () => {
-  expect(noticeOf(undefined, { day: "2026-09-01", time: "", incomplete: "time" }, newYork))
-    .toBe("The time is not finished. Finish it, or press No time.")
-  expect(noticeOf("2026-08-10", { day: "", time: "", incomplete: "day" }, newYork))
-    .toBe("The day is not finished. Finish it, or empty it.")
 })

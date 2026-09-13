@@ -212,6 +212,22 @@ Feature: Setting a date from the web
     Then "house.olai" holds the node "order" dated "2026-12-01T14:30:00-05:00"
     And there should be no page errors
 
+  Scenario: A time written with a space opens with its time, and Enter does not take it off
+    # The format accepts `2026-08-10 14:30` in a `date` on disk. A picker that
+    # read only `T` opened it on the day alone, offered `Set date`, and a press
+    # over the unchanged panel wrote the day — the time gone without a word.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10 14:30"}
+      """
+    Then the node "install" is not shown
+    When I open the date picker on "order"
+    Then the date picker holds "2026-08-10" at "14:30"
+    And the date picker's button is dead
+    And the date picker says "Scheduled for 2026-08-10 14:30. A changed day or time is written in this browser's time zone."
+    And there should be no page errors
+
   @zone:America/New_York
   Scenario: A time the clock skips is written as the moment it becomes, and says so first
     # 02:30 does not exist in New York on the morning the clocks go forward.

@@ -80,6 +80,7 @@ import {
   walkedDays,
   walkedOn,
 } from "./fixtures.testlib.ts"
+import { timeOf } from "./occasion.ts"
 import { patch, type SetDelta } from "./patch.ts"
 
 // ── the corpora ────────────────────────────────────────────────────────
@@ -301,3 +302,11 @@ const agendaSaid = (agenda: Agenda): string => {
   return `late:\n${line(agenda.overdue)}\ntoday:\n${drawn(agenda.today)}\n` +
     `ahead:\n${line(agenda.upcoming)}\nowed: ${owed.overdue} late, ${owed.today} today`
 }
+
+test("a time is the five characters after either separator a date may be written with", () => {
+  // `T` is what olai writes; a space is what the format also accepts on disk,
+  // and a reader that knew only the first would say a hand-written time is none.
+  expect(timeOf("2026-09-08T14:00:00-04:00")).toBe("14:00")
+  expect(timeOf("2026-09-08 14:00")).toBe("14:00")
+  expect(timeOf("2026-09-08")).toBeUndefined()
+})

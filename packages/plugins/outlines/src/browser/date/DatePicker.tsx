@@ -57,7 +57,20 @@ import type { Said } from "@olai/web/client/saying.ts"
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { PANEL_OUT } from "@olai/web/client/pill.ts"
 import { createSignal, Show } from "solid-js"
-import { browserInstantAt, noticeOf, pressOf, valueOf } from "./pick.ts"
+import { browserInstantAt, type Chosen, noticeOf, pressOf, valueOf } from "./pick.ts"
+
+/** The one button that empties the time box — named once, because the sentence
+ *  for a half-typed box tells a person to press it. */
+const NO_TIME = "No time"
+
+/** What the panel says about a box the browser holds half-typed. Here, beside
+ *  the element it is about and the button it names, rather than with the write
+ *  rules in `./pick.ts`: it is a fact about the platform's control, and no value
+ *  is involved. */
+const UNFINISHED = {
+  day: "The day is not finished. Finish it, or empty it.",
+  time: `The time is not finished. Finish it, or press ${NO_TIME}.`,
+} as const
 
 /** This panel's identity, off the one table that declares it. */
 const IDS = {
@@ -72,10 +85,9 @@ export function DatePicker(props: {
   /** The date the node stores, or nothing — what the boxes start on, and what
    *  decides whether pressing the button would ask for anything. */
   readonly date: string | undefined
-  readonly day: string
-  readonly time: string
-  readonly onChange: (day: string) => void
-  readonly onTime: (time: string) => void
+  /** The day and time the boxes hold — the row's draft (`./memory.tsx`). */
+  readonly chosen: Chosen
+  readonly onChange: (chosen: Chosen) => void
   readonly submission: Submission
   /** Send it. The host is what knows the write gate and the undo stack
    *  ({@link ../writes.ts}); this is what knows the day. Answering with a
@@ -85,16 +97,6 @@ export function DatePicker(props: {
   readonly onPick: (value: string) => Promise<Said | undefined>
   readonly onClose: () => void
 }) {
-  /** The day and time in the boxes: seeded from the record ONCE, and the person's from
-   *  then on. That is the same trade the row editor's draft takes — what is
-   *  typed is not a claim about the file, and a live frame that rewrote the box
-   *  under somebody would be a page taking a day out of their hands. What the
-   *  file says meanwhile is still read, on every frame, by the two questions
-   *  that are about the RECORD rather than about the box: whether pressing
-   *  would write anything, and what the button is called. */
-  const value = (): string =>
-    valueOf(props.date, { day: props.day, time: props.time }, browserInstantAt)
-
   /**
    * Which box, if either, the browser holds HALF-TYPED — an hour with no
    * minutes, a month with no year.
@@ -110,7 +112,7 @@ export function DatePicker(props: {
    */
   const [unfinishedDay, setUnfinishedDay] = createSignal(false)
   const [unfinishedTime, setUnfinishedTime] = createSignal(false)
-  const incomplete = (): "day" | "time" | null =>
+  const incomplete = (): keyof typeof UNFINISHED | null =>
     unfinishedDay() ? "day" : unfinishedTime() ? "time" : null
   let timeBox: HTMLInputElement | undefined
   /** A half-typed box leaves the DRAFT where it was. Its value reads as
@@ -122,33 +124,47 @@ export function DatePicker(props: {
   const readDay = (element: HTMLInputElement): void => {
     const partial = element.validity.badInput
     setUnfinishedDay(partial)
-    if (!partial) props.onChange(element.value)
+    if (!partial) props.onChange({ ...props.chosen, day: element.value })
   }
   const readTime = (element: HTMLInputElement): void => {
     const partial = element.validity.badInput
     setUnfinishedTime(partial)
-    if (!partial) props.onTime(element.value)
+    if (!partial) props.onChange({ ...props.chosen, time: element.value })
   }
 
+  /** What pressing would store ({@link valueOf}), or `null` while a box is
+   *  half-typed and there is nothing to read. The button, the notice and the
+   *  send all read THIS, so none of them can quote a value another would not.
+   *
+   *  The draft it reads was seeded from the record ONCE, and is the person's
+   *  from then on — the row editor's trade: a live frame that rewrote the boxes
+   *  under somebody would take a day out of their hands. What the file says
+   *  meanwhile is still read here on every frame. */
+  const value = (): string | null =>
+    incomplete() === null ? valueOf(props.date, props.chosen, browserInstantAt) : null
   /** The button, in the one state it has — what it says and whether it does
    *  anything, derived together ({@link ./pick.ts}) so they cannot disagree. */
-  const press = (): Press => pressOf(props.date, value(), incomplete() !== null)
+  const press = (): Press => pressOf(props.date, value())
+  const notice = (): string | undefined => {
+    const which = incomplete()
+    const pressing = value()
+    if (which !== null) return UNFINISHED[which]
+    return pressing === null ? undefined : noticeOf(props.date, props.chosen, pressing, browserInstantAt)
+  }
 
   return (
     <RowPanel
       submission={props.submission}
       ids={IDS}
       press={press}
-      send={() => props.onPick(value())}
+      // RowPanel sends only when `press` writes, which `null` never does — so
+      // the `null` arm is unreachable, and is still not the empty value (a clear).
+      send={async () => { const pressing = value(); return pressing === null ? undefined : props.onPick(pressing) }}
       onClose={props.onClose}
       // What the boxes do not say whole — a half-typed box, a time the zone
       // skips, a stored value from another zone — asked of the DRAFT, so it
-      // quotes what pressing would write now. See `./pick.ts`.
-      notice={noticeOf(
-        props.date,
-        { day: props.day, time: props.time, incomplete: incomplete() },
-        browserInstantAt,
-      )}
+      // quotes what pressing would write now.
+      notice={notice()}
     >
       {/* The label WRAPS the box rather than naming it by id: a row owns its
           own picker, so two of them can be open at once and a fixed id would
@@ -159,7 +175,7 @@ export function DatePicker(props: {
           type="date"
           class={`${TARGET} min-w-0 max-w-full md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
           data-testid={TESTID.datePickerDay}
-          value={props.day}
+          value={props.chosen.day}
           // The caret goes here as the panel attaches: it was opened to be
           // typed in, and a picker that needed a second click to accept a
           // keyboard would be a control the keyboard cannot reach.
@@ -180,7 +196,7 @@ export function DatePicker(props: {
           type="time"
           class={`${TARGET} min-w-0 max-w-full md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
           data-testid={TESTID.datePickerTime}
-          value={props.time}
+          value={props.chosen.time}
           ref={(element) => { timeBox = element }}
           onInput={(event) => readTime(event.currentTarget)}
           onKeyUp={(event) => readTime(event.currentTarget)}
@@ -193,20 +209,20 @@ export function DatePicker(props: {
           button, which then says `Clear time`, is still what writes.
 
           Offered for a HALF-TYPED box too, and it empties the ELEMENT as well
-          as the draft: the draft already says nothing there, so setting it to
-          nothing would leave the half-typed segments on screen. */}
-      <Show when={props.time !== "" || unfinishedTime()}>
+          as the draft: a draft that already says nothing would not be pushed
+          back into the box, and the half-typed segments would stay on screen. */}
+      <Show when={props.chosen.time !== "" || unfinishedTime()}>
         <button
           type="button"
           class={PANEL_OUT}
           data-testid={TESTID.datePickerNoTime}
           onClick={() => {
             if (timeBox !== undefined) timeBox.value = ""
-            props.onTime("")
+            props.onChange({ ...props.chosen, time: "" })
             setUnfinishedTime(false)
           }}
         >
-          No time
+          {NO_TIME}
         </button>
       </Show>
     </RowPanel>
