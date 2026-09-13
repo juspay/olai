@@ -1,3 +1,5 @@
+import { Grip, textCarry } from "./Grip.tsx"
+import { textOf } from "./carried.ts"
 /**
  * ONE ROW, WHEREVER IT IS DRAWN — the transcript's column, or the shelf that
  * previews one agent's work.
@@ -59,6 +61,8 @@ export function Row(props: {
    *  is a fact about the LIST, and a row cannot see one. */
   readonly speaker: Faced | null
 }) {
+  const words = () => textOf(props.chat.entry(props.entry.id)() ?? props.entry)
+  const carry = textCarry(words)
   const { isPreviewing, togglePreview } = useConversationUI().previewing
   // An agent's work door belongs to its row wherever that row is drawn.
   // Only spawned-agent rows subscribe to the child list; ordinary rows never
@@ -67,6 +71,7 @@ export function Row(props: {
   const work = createMemo(() => doorOf(props.entry, calls()))
   return (
     <div
+      class="group/row relative pl-4" onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
       classList={{
         [RAIL]: props.lane !== null,
         // ... unless the rail below is carrying it instead, so that one line
@@ -102,6 +107,7 @@ export function Row(props: {
           </p>
         )}
       </Show>
+      <Grip text={words()} carry={carry} />
       <Entry entry={props.entry} chat={props.chat} />
       {/* THE LIVE RAIL, dropping out of the row the moment an agent is sent out
           or a task is armed, rather than one that appears whenever something

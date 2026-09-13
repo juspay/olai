@@ -1,3 +1,11 @@
+import { createEffect, createSignal, onCleanup } from "solid-js"
+import { documentBox } from "@olai/web/client/carry.ts"
+import { carriedNodes } from "olai-plugin-outlines/carry"
+import { carriedText } from "../../carry.ts"
+import { carriedPath } from "olai-plugin-files/carry"
+import { landings } from "../landings.ts"
+import { quoted } from "../chat/carried.ts"
+import { inserted } from "../chat/completion.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { ConversationUIProvider } from "../chat/ui.tsx"
@@ -36,6 +44,24 @@ export function Fold(props: { readonly node: string; readonly record?: string })
 }
 
 export function Conversation(props: { readonly chat: Chat; readonly unbounded?: boolean; readonly node: string }) {
+  let box: HTMLDivElement | undefined
+  const [carrying, setCarrying] = createSignal<string | null>(null)
+  createEffect(() => {
+    const table = landings()
+    if (!table) return
+    onCleanup(table.register({
+      lift: value => props.chat.state().unopened || !(carriedNodes(value) || carriedText(value) || carriedPath(value)) ? null : documentBox(box),
+      aim: value => setCarrying(carriedNodes(value) ? `drop to ask about ${value.ids.length === 1 ? "it" : "them"}` : carriedText(value) ? "drop to quote it" : "drop to name it"),
+      leave: () => setCarrying(null),
+      drop: async value => {
+        if (props.chat.state().unopened || !documentBox(box)) return null
+        if (carriedNodes(value)) for (const id of value.ids) props.chat.ui.armed.armNode(id)
+        else if (carriedText(value)) props.chat.ui.insert[0]()?.(quoted(value.text))
+        else if (carriedPath(value)) props.chat.ui.insert[0]()?.(inserted(value.path))
+        return null
+      },
+    }))
+  })
   const holding = createHolding(props.chat)
   const live = () => props.chat.state().status === "thinking" || props.chat.state().watching.length > 0
   return <div class="flex min-h-0 flex-col" data-testid={TESTID.chatPanel}
@@ -43,7 +69,7 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
     <ElapsedProvider live={live()}>
       <Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} /><Wake chat={props.chat} />
       <History chat={props.chat} node={props.node} />
-      <Show when={props.chat.state().unopened} fallback={<DropTarget onFiles={files => void holding.take(files)}>
+      <Show when={props.chat.state().unopened} fallback={<DropTarget ref={element => { box = element }} carrying={carrying()} onFiles={files => void holding.take(files)}>
         <Preview chat={props.chat} unbounded={props.unbounded} /><Transcript chat={props.chat} unbounded={props.unbounded} />
         <div class={props.unbounded ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
           <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} />

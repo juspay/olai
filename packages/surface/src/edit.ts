@@ -245,6 +245,7 @@ export const Edit = Schema.Union([
      *  needs a title — which is why the editor holds a new row as a DRAFT
      *  until it has one rather than writing a blank and filling it in. */
     title: Schema.String,
+    desc: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({
     verb: Schema.Literal("move"),

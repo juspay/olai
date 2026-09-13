@@ -1,3 +1,5 @@
+import { onCleanup } from "solid-js"
+import { written } from "@olai/markdown-ui/insert.ts"
 /**
  * The input row: type, send, cancel.
  *
@@ -158,6 +160,7 @@ export function Composer(props: {
    *  panel is where a drop is caught and this row is where the chips go. */
   readonly holding: Holding
 }) {
+  const ui = useConversationUI()
   const { armedNodes, disarmNode, releaseArmed, restoreArmed } = useConversationUI().armed
   // Keep words, caret, chosen @ handles and the dismissed token together across remounts.
   // `taken` grants node context only while its word remains in the draft.
@@ -534,6 +537,10 @@ export function Composer(props: {
       setCaret(next.caret)
     })
   }
+
+  const insertCarried = (text: string) => rewrite(written(draft(), { from: caret() }, text, caret()))
+  ui.insert[1](() => insertCarried)
+  onCleanup(() => { if (ui.insert[0]() === insertCarried) ui.insert[1](undefined) })
 
   /**
    * The `×` on a chip: this message is not about that node.

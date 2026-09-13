@@ -27,8 +27,7 @@ Feature: The outline and the chat point at each other
 
   @scratch:chat
   Scenario: A row arms the composer, and the turn carries the node
-    When I open the node menu of "order"
-    And I choose "Ask agent" from the node menu
+    When I drop row "order" into the conversation
     Then the composer is armed with "order"
     # The agent's own assertion: it was handed `order`, and `outlines_read` under
     # that id answers with the title the file holds. Asserted on the ANSWER and
@@ -46,8 +45,7 @@ Feature: The outline and the chat point at each other
 
   @scratch:chat
   Scenario: An armed node can be taken off before the message goes
-    When I open the node menu of "order"
-    And I choose "Ask agent" from the node menu
+    When I drop row "order" into the conversation
     Then the composer is armed with "order"
     When I take the armed node "order" off
     Then the composer is armed with nothing
@@ -92,8 +90,7 @@ Feature: The outline and the chat point at each other
     # The join the units cannot make: a runtime that swallowed the resolver's
     # refusal and sent anyway would keep every one of them green, and the agent
     # would get a question with no subject in it.
-    When I open the node menu of "order"
-    And I choose "Ask agent" from the node menu
+    When I drop row "order" into the conversation
     Then the composer is armed with "order"
     When I rewrite "house.olai" as:
       """
@@ -223,8 +220,7 @@ Feature: The outline and the chat point at each other
     #
     # Counted on the wire because a chip drawn from a title asked for once and a
     # chip drawn from the same title asked for twenty times are the same chip.
-    When I open the node menu of "order"
-    And I choose "Ask agent" from the node menu
+    When I drop row "order" into the conversation
     Then the composer is armed with "order"
     When I mark the wire
     And I type "what about the cabinets" into the chat a letter at a time

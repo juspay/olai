@@ -9,7 +9,7 @@ export const documentBox = (element: Element | undefined) => {
   return { left: b.left + window.scrollX, right: b.right + window.scrollX, top: b.top + window.scrollY, bottom: b.bottom + window.scrollY }
 }
 /** A snapshot chooses eligible receivers; live membership and geometry govern aiming. */
-export const carrySession = (carried: Carried, table: Landings) => {
+export const carrySession = <C extends Carried>(carried: C, table: Landings) => {
   const snapshot = table.lift(carried)
   let aimed: Lifted | null = null
   let point = { x: 0, y: 0 }

@@ -57,16 +57,6 @@ Feature: A node agent's conversation unfolds in the outline
     Then the agent is idle
     And the agent's answer mentions "oak"
 
-  Scenario: Ask agent on a child arms the nearest ancestor and unfolds it
-    When I open the "claude" agent on node "install"
-    And the node agent's fold is ready
-    And I fold node agent "install"
-    And I open the node menu of "hinges"
-    And I choose "Ask agent" from the node menu
-    Then node agent "install" is unfolded
-    When I use the fold on node "install"
-    Then the composer is armed with "hinges"
-
   Scenario: The palette targets the focused child's ancestor with another fold open
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
@@ -103,17 +93,13 @@ Feature: A node agent's conversation unfolds in the outline
     And I reload the page
     Then no agent fold is open
 
-  Scenario: An unbound ancestor refuses Ask agent and the palette without starting anything
+  Scenario: An unbound ancestor refuses the palette without starting anything
     Given I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen","custom":{"chat-agent-session":"claude"}}
       {"id":"hinges","parent":"kitchen","ord":"a0","title":"hinges"}
       """
     And I open the outline "house.olai"
-    When I open the node menu of "hinges"
-    And I choose "Ask agent" from the node menu
-    Then the node menu of "hinges" says "this agent has no session — start one"
-    And no agent fold is open
     When I point at row "hinges" in outline "house.olai"
     And I press the palette shortcut
     And I ask the palette "> keep the unbound question"
@@ -164,18 +150,19 @@ Feature: A node agent's conversation unfolds in the outline
     And the notification is pressed
     Then no agent fold is open
 
-  Scenario: Ask agent finds the ancestor while search is unavailable
+  Scenario: The palette finds the ancestor while search is unavailable
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I close the agent fold
     And I open the plugins panel
     And I switch the plugin "search" off
     And I close the plugins panel
-    And I open the node menu of "hinges"
-    And I choose "Ask agent" from the node menu
+    And I point at row "hinges" in outline "house.olai"
+    And I press the palette shortcut
+    And I ask the palette "> hinges question"
     Then node agent "install" is unfolded
     When I use the fold on node "install"
-    Then the composer is armed with "hinges"
+    Then the agent's answer says "hinges question"
 
 
   @review-menu

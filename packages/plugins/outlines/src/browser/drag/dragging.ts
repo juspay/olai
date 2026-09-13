@@ -1,3 +1,6 @@
+import { carrySession } from "@olai/web/client/carry.ts"
+import { landings } from "../landings.ts"
+import type { CarriedNodes } from "../../carry.ts"
 /**
  * Dragging a row, as a gesture: what is being carried, where it would land, and
  * the one write that puts it there.
@@ -307,43 +310,6 @@ export const createDragging = (
    * cross-file drop this whole feature is about — and both used to pay for a
    * full sweep of a page whose every row was about to be thrown away.
    */
-  const placeable = (
-    field: Field,
-    page: Element,
-    file: string,
-    held: ReadonlySet<string>,
-  ): ReadonlyArray<Placed> => {
-    // A page ZOOMED INTO something in the air offers nothing, and says so once
-    // rather than per row: every row it draws is under that node, so the walk
-    // below would reject all of them one at a time.
-    if (field.within.some((id) => held.has(id))) return []
-    // `airborne` and not a second reading of the same rule: what a row is
-    // EXCLUDED for is exactly what makes it fade, so the affordance and the
-    // candidate list cannot come from two opinions about one gesture.
-    const candidates = flatten(field.rows(), field.collapsed()).filter((row) =>
-      row.at.file === file && !airborne(held, row.key)
-    )
-    if (candidates.length === 0) return []
-    const lines = new Map(measureLines(page).map((line) => [line.key, line]))
-    return candidates.flatMap((row): ReadonlyArray<Placed> => {
-      const line = lines.get(row.key)
-      if (line === undefined) return []
-      const shows = row.kind === "node" || row.kind === "mirror" ? row.shows : undefined
-      return [{
-        ...line,
-        id: row.at.node.id,
-        parent: row.at.node.parent ?? null,
-        // A placement is not a parent; the node it SHOWS is, and only when that
-        // node is in this file and is not itself in the air. Same rule, same
-        // reason, as `move in`'s — with the loop the second pane can draw
-        // (a mirror of what the hand is holding) closed by the same field.
-        into: shows !== undefined && shows.file === file && !held.has(shows.node.id)
-          ? shows.node.id
-          : null,
-        depth: depthOf(row.key),
-      }]
-    })
-  }
 
   /**
    * The page STOPS SCROLLING under a finger that has been held, and starts
@@ -389,6 +355,8 @@ export const createDragging = (
      *  to be a click must not have cleared the selection on its way past, and
      *  `null` until then. */
     let lifted: Lifted | null = null
+    let receiver: ReturnType<typeof carrySession> | undefined
+    let overReceiver = false
 
     const lift = () => {
       travelled = true
@@ -397,6 +365,8 @@ export const createDragging = (
       if (!picked.has(row.key)) page.selection.clear()
       air.lift(new Set(carried.map((one) => one.at.node.id)))
       lifted = measure(carried)
+      const table = landings()
+      if (table && lifted) receiver = carrySession({ kind: "outlines.nodes", ids: carried.map(one => one.at.node.id), file: lifted.from } satisfies CarriedNodes, table)
     }
 
     if (held) {
@@ -415,9 +385,13 @@ export const createDragging = (
       // behind it (`../pointer.ts`, `../autoscroll.ts`). Without that the reach
       // of a drag is whatever was visible when the press landed, which on an
       // outline is most of the gesture missing.
-      onPage: (x, y) => setAim(lifted === null ? null : aimAt(lifted.pages, lifted.from, x, y)),
+      onPage: (x, y) => {
+        overReceiver = receiver?.aim(x, y) ?? false
+        setAim(overReceiver || lifted === null ? null : aimAt(lifted.pages, lifted.from, x, y))
+      },
       onEnd: (up) => {
         if (held) freeScroll()
+        void receiver?.end(up !== null).then(why => { if (why) page.selection.say({ tone: "alarm", text: why }) })
         // A CANCELLED gesture is not a drop, and the difference is the whole
         // reason the primitive answers with `null` rather than with the last
         // move: a pointer taken away mid-drag has not chosen anything.
@@ -497,3 +471,42 @@ export const createDragging = (
     dragged: () => travelled,
   }
 }
+
+export const placeable = (
+    field: Field,
+    page: Element,
+    file: string,
+    held: ReadonlySet<string>,
+  ): ReadonlyArray<Placed> => {
+    // A page ZOOMED INTO something in the air offers nothing, and says so once
+    // rather than per row: every row it draws is under that node, so the walk
+    // below would reject all of them one at a time.
+    if (field.within.some((id) => held.has(id))) return []
+    // `airborne` and not a second reading of the same rule: what a row is
+    // EXCLUDED for is exactly what makes it fade, so the affordance and the
+    // candidate list cannot come from two opinions about one gesture.
+    const candidates = flatten(field.rows(), field.collapsed()).filter((row) =>
+      row.at.file === file && !airborne(held, row.key)
+    )
+    if (candidates.length === 0) return []
+    const lines = new Map(measureLines(page).map((line) => [line.key, line]))
+    return candidates.flatMap((row): ReadonlyArray<Placed> => {
+      const line = lines.get(row.key)
+      if (line === undefined) return []
+      const shows = row.kind === "node" || row.kind === "mirror" ? row.shows : undefined
+      return [{
+        ...line,
+        id: row.at.node.id,
+        parent: row.at.node.parent ?? null,
+        // A placement is not a parent; the node it SHOWS is, and only when that
+        // node is in this file and is not itself in the air. Same rule, same
+        // reason, as `move in`'s — with the loop the second pane can draw
+        // (a mirror of what the hand is holding) closed by the same field.
+        into: shows !== undefined && shows.file === file && !held.has(shows.node.id)
+          ? shows.node.id
+          : null,
+        depth: depthOf(row.key),
+      }]
+    })
+  }
+
