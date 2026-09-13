@@ -191,10 +191,11 @@ Feature: Setting a date from the web
     And the node "knobs" shows the date "2026-09-01"
 
   @zone:America/New_York
-  Scenario: A time written in another zone says so, and a change is written in this one
+  Scenario: A time written in another zone says so, and quotes what a change writes
     # The boxes show the face the file says, not that instant converted — so a
     # value from another zone looks like any other, and the panel says what a
-    # changed pick would write. An unchanged face still writes nothing.
+    # changed pick would write. An unchanged face still writes nothing, and the
+    # offset quoted is the DRAFT's moment's: December is not August.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
@@ -203,10 +204,64 @@ Feature: Setting a date from the web
     Then the node "install" is not shown
     When I open the date picker on "order"
     Then the date picker holds "2026-08-10" at "14:30"
-    And the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. A changed day or time is written in this browser's time zone (-04:00)."
+    And the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. A changed day or time is written in this browser's time zone."
     And the date picker's button is dead
-    When I pick the date "2026-08-10" at "15:00"
-    Then "house.olai" holds the node "order" dated "2026-08-10T15:00:00-04:00"
+    When I draft the date "2026-12-01"
+    Then the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. Pressing writes 2026-12-01T14:30:00-05:00, in this browser's time zone."
+    When I press the date picker's button
+    Then "house.olai" holds the node "order" dated "2026-12-01T14:30:00-05:00"
+    And there should be no page errors
+
+  @zone:America/New_York
+  Scenario: A time the clock skips is written as the moment it becomes, and says so first
+    # 02:30 does not exist in New York on the morning the clocks go forward.
+    # What is written is the instant the zone makes of it — the face AND the
+    # offset from one reading — never the typed face with the new offset
+    # stapled on, which would be 01:30 EST.
+    When I open the node menu of "knobs"
+    And I choose "Set date…" from the node menu
+    And I draft the date "2026-03-08"
+    And I draft the time "02:30"
+    Then the date picker says "There is no 02:30 on 2026-03-08 in this browser's time zone, so pressing writes 2026-03-08T03:30:00-04:00."
+    When I press the date picker's button
+    Then "house.olai" holds the node "knobs" dated "2026-03-08T03:30:00-04:00"
+    And there should be no page errors
+
+  Scenario: A half-typed time from the keyboard writes nothing until it is finished or taken off
+    # One arrow key fills the hour alone, and the platform reports that box as
+    # holding no value — which would read as "no time" while showing one, and
+    # which its own form validation refuses to submit without a word.
+    When I open the date picker on "order"
+    And I draft the date "2026-09-01"
+    And I press "ArrowUp" in the date picker's time box
+    Then the date picker's button is dead
+    And the date picker offers to "Set date"
+    And the date picker says "The time is not finished. Finish it, or press No time."
+    # `No time` is offered for it, and empties the box on screen, not only the
+    # draft that already said nothing.
+    When I take the time off in the date picker
+    Then the date picker holds "2026-09-01" at ""
+    And the date picker says nothing
+    When I press the date picker's button
+    Then "house.olai" holds the node "order" dated "2026-09-01"
+    And there should be no page errors
+
+  Scenario: Emptying one segment of a stored time is not taking the time off
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10T14:30:00-04:00"}
+      """
+    Then the node "install" is not shown
+    When I open the date picker on "order"
+    And I press "Backspace" in the date picker's time box
+    Then the date picker's button is dead
+    And the date picker says "The time is not finished. Finish it, or press No time."
+    When I take the time off in the date picker
+    Then the date picker offers to "Clear time"
+    When I press the date picker's button
+    Then "house.olai" holds the node "order" dated "2026-08-10"
+    And there should be no page errors
 
   Scenario: A date set here moves the node onto that day's page
     # `knobs` carries no date, so the menu is its door — there is no pill to

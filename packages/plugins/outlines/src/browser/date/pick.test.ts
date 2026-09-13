@@ -11,14 +11,35 @@
 
 import { expect, test } from "bun:test"
 
-import { datePick, noticeOf, type OffsetAt, pressOf, startsAt, valueOf } from "./pick.ts"
+import { inZone } from "@olai/format/testlib"
+
+import {
+  browserInstantAt,
+  type Chosen,
+  datePick,
+  type InstantAt,
+  noticeOf,
+  pressOf,
+  startsAt,
+  valueOf,
+} from "./pick.ts"
 
 /** New York's two offsets, by month — a zone that moves its clocks, so the
- *  offset a pick is written with is visibly the moment's and not today's. */
-const newYork: OffsetAt = (day) => {
+ *  offset a pick is written with is visibly the moment's and not today's. A
+ *  STUB, with no gap in it: what a real zone does on the morning it skips an
+ *  hour is asked of {@link browserInstantAt} itself, further down. */
+const newYork: InstantAt = (day, time) => {
   const month = Number(day.slice(5, 7))
-  return month >= 4 && month <= 10 ? "-04:00" : "-05:00"
+  return `${day}T${time}:00${month >= 4 && month <= 10 ? "-04:00" : "-05:00"}`
 }
+
+/** The same stub with one skipped face in it — 02:30 on the morning the clocks
+ *  go forward is written as the 03:30 it becomes — for the rules that read what
+ *  a resolver answered, without asking this runner's `Date` anything. */
+const skipping: InstantAt = (day, time) =>
+  day === "2026-03-08" && time === "02:30" ? "2026-03-08T03:30:00-04:00" : newYork(day, time)
+
+const finished = (chosen: Chosen) => ({ ...chosen, incomplete: null })
 
 // ── what the boxes start with ──────────────────────────────────────────
 
@@ -68,6 +89,44 @@ test("a changed face is written in this browser's zone", () => {
 test("no day is no date, whatever the time box holds", () => {
   expect(valueOf("2026-08-10T14:30:00-04:00", { day: "", time: "14:30" }, newYork)).toBe("")
   expect(valueOf(undefined, { day: "", time: "09:00" }, newYork)).toBe("")
+})
+
+test("a face the zone skips is written as the instant it becomes, whole", () => {
+  expect(valueOf(undefined, { day: "2026-03-08", time: "02:30" }, skipping))
+    .toBe("2026-03-08T03:30:00-04:00")
+})
+
+// ── what this browser's zone makes of a moment ────────────────────────
+
+test("the browser's resolver writes the moment's own offset", () => {
+  inZone("America/New_York", () => {
+    expect(browserInstantAt("2026-09-01", "09:30")).toBe("2026-09-01T09:30:00-04:00")
+    expect(browserInstantAt("2026-12-01", "09:30")).toBe("2026-12-01T09:30:00-05:00")
+  })
+})
+
+test("a time the clock skips is moved forward whole, never an hour back", () => {
+  // 02:30 does not exist in New York on 2026-03-08. Stapling the offset `Date`
+  // lands on (-04:00) to the typed face would write 01:30 EST; the face and the
+  // offset come from one reading instead.
+  inZone("America/New_York", () => {
+    const written = browserInstantAt("2026-03-08", "02:30")
+    expect(written).toBe("2026-03-08T03:30:00-04:00")
+    expect(Date.parse(written)).toBeGreaterThan(Date.parse("2026-03-08T01:59:00-05:00"))
+  })
+})
+
+test("a time the clock repeats is written as one of its two instants, consistently", () => {
+  inZone("America/New_York", () => {
+    const written = browserInstantAt("2026-11-01", "01:30")
+    expect(written).toMatch(/^2026-11-01T01:30:00-0[45]:00$/)
+  })
+})
+
+test("a year under a hundred is that year", () => {
+  inZone("America/New_York", () => {
+    expect(browserInstantAt("0050-06-01", "12:00").slice(0, 16)).toBe("0050-06-01T12:00")
+  })
 })
 
 // ── the edit ───────────────────────────────────────────────────────────
@@ -125,6 +184,13 @@ test("setting and changing both write, under one name", () => {
     .toEqual({ label: "Set date", writes: true })
 })
 
+test("an unfinished box writes nothing, under the verb the person came for", () => {
+  // A half-typed box reports no value, which would otherwise read as a clear.
+  expect(pressOf("2026-08-10T14:30:00-04:00", "2026-08-10", true))
+    .toEqual({ label: "Set date", writes: false })
+  expect(pressOf("2026-08-10", "", true)).toEqual({ label: "Set date", writes: false })
+})
+
 test("taking the time off a datetime's own day says so", () => {
   expect(pressOf("2026-08-11T15:40:03-04:00", "2026-08-11"))
     .toEqual({ label: "Clear time", writes: true })
@@ -133,20 +199,53 @@ test("taking the time off a datetime's own day says so", () => {
     .toEqual({ label: "Set date", writes: true })
 })
 
-// ── what it says about a value the boxes cannot say whole ──────────────
+// ── what it says about the boxes ───────────────────────────────────────
 
 test("a day, or a datetime in this browser's zone, needs no notice", () => {
-  expect(noticeOf(undefined, newYork)).toBeUndefined()
-  expect(noticeOf("2026-08-10", newYork)).toBeUndefined()
-  expect(noticeOf("2026-08-10T14:30:00-04:00", newYork)).toBeUndefined()
-  expect(noticeOf("2026-12-10T14:30:00-05:00", newYork)).toBeUndefined()
+  expect(noticeOf(undefined, finished({ day: "", time: "" }), newYork)).toBeUndefined()
+  expect(noticeOf("2026-08-10", finished({ day: "2026-08-10", time: "" }), newYork))
+    .toBeUndefined()
+  expect(noticeOf("2026-08-10T14:30:00-04:00", finished({ day: "2026-08-10", time: "14:30" }), newYork))
+    .toBeUndefined()
+  // ...and changing one across the seasons is still an ordinary write.
+  expect(noticeOf("2026-08-10T14:30:00-04:00", finished({ day: "2026-12-10", time: "14:30" }), newYork))
+    .toBeUndefined()
 })
 
-test("a datetime from another zone is quoted verbatim, with what a change writes", () => {
-  expect(noticeOf("2026-08-11T15:40:03-07:00", newYork)).toBe(
-    "Scheduled for 2026-08-11T15:40:03-07:00. A changed day or time is written " +
-      "in this browser's time zone (-04:00).",
-  )
+test("a datetime from another zone is quoted verbatim, naming no offset until one is chosen", () => {
+  expect(noticeOf("2026-08-11T15:40:03-07:00", finished({ day: "2026-08-11", time: "15:40" }), newYork))
+    .toBe(
+      "Scheduled for 2026-08-11T15:40:03-07:00. A changed day or time is written " +
+        "in this browser's time zone.",
+    )
   // A hand that wrote no zone at all is the same news.
-  expect(noticeOf("2026-08-11T15:40", newYork)).toContain("(-04:00)")
+  expect(noticeOf("2026-08-11T15:40", finished({ day: "2026-08-11", time: "15:40" }), newYork))
+    .toContain("Scheduled for 2026-08-11T15:40.")
+})
+
+test("with the draft changed, it quotes exactly what pressing writes", () => {
+  // The offset is the DRAFT's moment's: December is -05:00 even though the
+  // stored value and today are both in summer.
+  expect(noticeOf("2026-08-11T15:40:03-07:00", finished({ day: "2026-12-01", time: "15:40" }), newYork))
+    .toBe(
+      "Scheduled for 2026-08-11T15:40:03-07:00. Pressing writes " +
+        "2026-12-01T15:40:00-05:00, in this browser's time zone.",
+    )
+  // Taking the time off writes no offset, so there is none to warn about.
+  expect(noticeOf("2026-08-11T15:40:03-07:00", finished({ day: "2026-08-11", time: "" }), newYork))
+    .toBeUndefined()
+})
+
+test("a face the zone skips is quoted as the value it becomes, before it is written", () => {
+  expect(noticeOf(undefined, finished({ day: "2026-03-08", time: "02:30" }), skipping)).toBe(
+    "There is no 02:30 on 2026-03-08 in this browser's time zone, so pressing " +
+      "writes 2026-03-08T03:30:00-04:00.",
+  )
+})
+
+test("an unfinished box says so, and how out", () => {
+  expect(noticeOf(undefined, { day: "2026-09-01", time: "", incomplete: "time" }, newYork))
+    .toBe("The time is not finished. Finish it, or press No time.")
+  expect(noticeOf("2026-08-10", { day: "", time: "", incomplete: "day" }, newYork))
+    .toBe("The day is not finished. Finish it, or empty it.")
 })

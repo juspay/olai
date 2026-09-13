@@ -84,6 +84,13 @@ Then(
     await box(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(await box(this).inputValue(), day);
     assert.strictEqual(await time(this).inputValue(), face);
+    // An empty VALUE is also what a half-typed box reports, so "empty" is
+    // asserted as nothing on screen either.
+    assert.strictEqual(
+      await time(this).evaluate((element) => (element as HTMLInputElement).validity.badInput),
+      false,
+      "the time box still holds half-typed segments",
+    );
   },
 );
 
@@ -174,6 +181,19 @@ When("I draft the time {string}", async function (this: OlaiWorld, face: string)
   await time(this).fill(face);
   await this.waitForFrame();
 });
+
+/** A person reaching the time box from the keyboard: focus lands on its first
+ *  segment and one key fills or empties that segment alone. `fill` cannot get
+ *  here — it sets a whole value or none — and this is the state the platform
+ *  reports as NO value while the box shows half of one. */
+When(
+  "I press {string} in the date picker's time box",
+  async function (this: OlaiWorld, key: string) {
+    await time(this).focus();
+    await this.page.keyboard.press(key);
+    await this.waitForFrame();
+  },
+);
 
 /** The panel's own `No time`, which empties the time box and writes nothing —
  *  the button, which then names the gesture, is still what writes. */

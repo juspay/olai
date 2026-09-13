@@ -56,8 +56,8 @@ import type { Said } from "@olai/web/client/saying.ts"
 
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { PANEL_OUT } from "@olai/web/client/pill.ts"
-import { Show } from "solid-js"
-import { browserOffsetAt, noticeOf, pressOf, valueOf } from "./pick.ts"
+import { createSignal, Show } from "solid-js"
+import { browserInstantAt, noticeOf, pressOf, valueOf } from "./pick.ts"
 
 /** This panel's identity, off the one table that declares it. */
 const IDS = {
@@ -93,10 +93,46 @@ export function DatePicker(props: {
    *  that are about the RECORD rather than about the box: whether pressing
    *  would write anything, and what the button is called. */
   const value = (): string =>
-    valueOf(props.date, { day: props.day, time: props.time }, browserOffsetAt)
+    valueOf(props.date, { day: props.day, time: props.time }, browserInstantAt)
+
+  /**
+   * Which box, if either, the browser holds HALF-TYPED — an hour with no
+   * minutes, a month with no year.
+   *
+   * The platform reports such a box as having no value at all
+   * (`validity.badInput`), so the signals above cannot tell it from an empty
+   * one, and an empty signal set to empty again is no change to anything. It is
+   * read off the element instead, on every event a half-typed segment can
+   * arrive by: `input` where the engine sends one, and `keyup` for the arrow
+   * and digit keys that fill one segment without changing the value. Local to
+   * this panel rather than kept with the draft (`./memory.tsx`), because it is
+   * a fact about the element: a remounted box starts empty, not half-typed.
+   */
+  const [unfinishedDay, setUnfinishedDay] = createSignal(false)
+  const [unfinishedTime, setUnfinishedTime] = createSignal(false)
+  const incomplete = (): "day" | "time" | null =>
+    unfinishedDay() ? "day" : unfinishedTime() ? "time" : null
+  let timeBox: HTMLInputElement | undefined
+  /** A half-typed box leaves the DRAFT where it was. Its value reads as
+   *  nothing, and a draft set to nothing is pushed back into the box by its
+   *  `value` binding — which would wipe the segments still on screen, turning
+   *  one Backspace on `14:30` into a whole time taken off. The badness is read
+   *  first for the same reason: after that write there is nothing left to
+   *  read it off. */
+  const readDay = (element: HTMLInputElement): void => {
+    const partial = element.validity.badInput
+    setUnfinishedDay(partial)
+    if (!partial) props.onChange(element.value)
+  }
+  const readTime = (element: HTMLInputElement): void => {
+    const partial = element.validity.badInput
+    setUnfinishedTime(partial)
+    if (!partial) props.onTime(element.value)
+  }
+
   /** The button, in the one state it has — what it says and whether it does
    *  anything, derived together ({@link ./pick.ts}) so they cannot disagree. */
-  const press = (): Press => pressOf(props.date, value())
+  const press = (): Press => pressOf(props.date, value(), incomplete() !== null)
 
   return (
     <RowPanel
@@ -105,9 +141,14 @@ export function DatePicker(props: {
       press={press}
       send={() => props.onPick(value())}
       onClose={props.onClose}
-      // A stored value the boxes cannot say whole, said out loud with what a
-      // changed pick would do to it — see `./pick.ts`.
-      notice={noticeOf(props.date, browserOffsetAt)}
+      // What the boxes do not say whole — a half-typed box, a time the zone
+      // skips, a stored value from another zone — asked of the DRAFT, so it
+      // quotes what pressing would write now. See `./pick.ts`.
+      notice={noticeOf(
+        props.date,
+        { day: props.day, time: props.time, incomplete: incomplete() },
+        browserInstantAt,
+      )}
     >
       {/* The label WRAPS the box rather than naming it by id: a row owns its
           own picker, so two of them can be open at once and a fixed id would
@@ -126,7 +167,8 @@ export function DatePicker(props: {
           // the element is not in the document at the instant the signal
           // flips.
           ref={(element) => queueMicrotask(() => element.focus())}
-          onInput={(event) => props.onChange(event.currentTarget.value)}
+          onInput={(event) => readDay(event.currentTarget)}
+          onKeyUp={(event) => readDay(event.currentTarget)}
         />
       </label>
       {/* The time, optional: empty is a bare day. Its own label for the reason
@@ -139,20 +181,30 @@ export function DatePicker(props: {
           class={`${TARGET} min-w-0 max-w-full md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
           data-testid={TESTID.datePickerTime}
           value={props.time}
-          onInput={(event) => props.onTime(event.currentTarget.value)}
+          ref={(element) => { timeBox = element }}
+          onInput={(event) => readTime(event.currentTarget)}
+          onKeyUp={(event) => readTime(event.currentTarget)}
         />
       </label>
       {/* A way to empty the time box that every browser draws the same. The
           platform's own time control has none on most engines — its fields are
           emptied one at a time with Backspace — and taking a time off is one
           of the three things this panel is for. It edits the draft only; the
-          button, which then says `Clear time`, is still what writes. */}
-      <Show when={props.time !== ""}>
+          button, which then says `Clear time`, is still what writes.
+
+          Offered for a HALF-TYPED box too, and it empties the ELEMENT as well
+          as the draft: the draft already says nothing there, so setting it to
+          nothing would leave the half-typed segments on screen. */}
+      <Show when={props.time !== "" || unfinishedTime()}>
         <button
           type="button"
           class={PANEL_OUT}
           data-testid={TESTID.datePickerNoTime}
-          onClick={() => props.onTime("")}
+          onClick={() => {
+            if (timeBox !== undefined) timeBox.value = ""
+            props.onTime("")
+            setUnfinishedTime(false)
+          }}
         >
           No time
         </button>

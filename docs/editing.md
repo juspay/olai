@@ -267,7 +267,9 @@ A pending submission stays disabled across pane switches, and a refused choice k
 
 On a phone, picker labels wrap and controls fit the space left by the row's indentation, including nested rows and long repeat options.
 
-The boxes show the day and time the file says, not that instant converted into your zone, and a value you have not changed is not rewritten — pressing over the same day and time writes nothing, so seconds a hand wrote survive a look. A time written in another zone, or with no zone at all, looks like any other in the boxes, so the panel says so and names the offset a changed day or time would be written with.
+The boxes show the day and time the file says, not that instant converted into your zone, and a value you have not changed is not rewritten — pressing over the same day and time writes nothing, so seconds a hand wrote survive a look. A time written in another zone, or with no zone at all, looks like any other in the boxes, so the panel says so — and once you change the day or time, it quotes exactly what pressing will write, with the offset of the moment you chose.
+
+**The panel says so before it writes something other than what the boxes show.** A time your zone skips — half past two on the morning the clocks go forward — is written as the moment it becomes (`03:30`, with the new offset), and the sentence under the boxes quotes that value first. A box left half-typed — an hour with no minutes, from the arrow keys or a Backspace — is not read as "no time": the button stays dead, the panel says the time is not finished, and **No time** is still there to empty it.
 
 The row moves the moment the file says so: a task given a day that has gone is above now on the agenda’s spine and on that day's page, without a reload and without this page deciding anything for itself.
 

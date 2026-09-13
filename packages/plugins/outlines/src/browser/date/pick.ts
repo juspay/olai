@@ -5,8 +5,8 @@
  *
  * The picker's whole decision surface, pure over the strings it has — the date
  * the node stores, the day and the time the boxes hold — and the one question
- * that is not a string, which zone offset this browser keeps at a wall-clock
- * moment, arrives as an argument ({@link OffsetAt}). So the rules that matter
+ * that is not a string, which instant this browser's zone makes of a wall-clock
+ * moment, arrives as an argument ({@link InstantAt}). So the rules that matter
  * are answerable in a unit test rather than only by clicking a control
  * (`../edit/undo.ts` and `../menu/verbs.ts` are the same split).
  *
@@ -34,7 +34,7 @@
  * what may be written ({@link pressOf}).
  */
 
-import { dayOf, offsetOf, timeOf } from "@olai/format"
+import { dayOf, stampOf, timeOf } from "@olai/format"
 
 import { type Press, pressOf as panelPress } from "../edit/panel.ts"
 import type { Edit } from "@olai/surface"
@@ -46,26 +46,40 @@ export interface Chosen {
 }
 
 /**
- * The zone offset, as ISO spells it, that this browser keeps at a wall-clock
- * moment on a day. A FUNCTION OF THE MOMENT rather than of now, because a zone
- * that moves its clocks keeps two offsets a year: ten in the morning in
- * December is not written with September's.
+ * The instant this browser's zone makes of a wall-clock moment on a day,
+ * written as a stamp is (`2026-09-01T09:30:00-04:00`). A FUNCTION OF THE MOMENT
+ * rather than of now, because a zone that moves its clocks keeps two offsets a
+ * year: ten in the morning in December is not written with September's.
+ *
+ * It answers with the WHOLE instant, not an offset to staple onto the face,
+ * because the face is not always one the zone has. Half past two on the
+ * morning New York goes forward does not exist there; a resolver that took
+ * only the offset `Date` landed on (`-04:00`, for the 03:30 it moved to) and
+ * joined it to the 02:30 that was typed would write 01:30 EST — an hour
+ * earlier than anything anybody chose. So the face and the offset come from
+ * one reading, and the value can differ from the boxes, which
+ * {@link noticeOf} says out loud before anything is written.
  */
-export type OffsetAt = (day: string, time: string) => string
+export type InstantAt = (day: string, time: string) => string
 
 /**
- * {@link OffsetAt} for the zone this browser runs in — the one place `Date` is
- * asked anything, and asked only for the offset, never for the text: what is
- * written is still the day and the time the boxes hold.
+ * {@link InstantAt} for the zone this browser runs in — the one place `Date` is
+ * asked anything.
  *
- * A time a clock skips (half past two on the morning it goes forward) is read
- * with the offset `Date` lands on for it, which is what the platform does with
- * that moment everywhere else in the tab.
+ * A time the clock SKIPS is moved forward by the length of the gap, which is
+ * what every engine's `Date` does with it; a time the clock REPEATS (half past
+ * one on the morning it goes back) is the one the engine picks. Either way the
+ * face and the offset written are one instant, read together off the same
+ * `Date` by `@olai/format`'s `stampOf`. The year is set with `setFullYear`
+ * because the constructor reads `0050` as 1950.
  */
-export const browserOffsetAt: OffsetAt = (day, time) => {
+export const browserInstantAt: InstantAt = (day, time) => {
   const [year, month, date] = day.split("-").map(Number) as [number, number, number]
   const [hours, minutes] = time.split(":").map(Number) as [number, number]
-  return offsetOf(new Date(year, month - 1, date, hours, minutes).getTimezoneOffset())
+  const at = new Date(2000, 0, 1)
+  at.setFullYear(year, month - 1, date)
+  at.setHours(hours, minutes, 0, 0)
+  return stampOf(at)
 }
 
 /**
@@ -95,20 +109,20 @@ export const startsAt = (stored: string | undefined): Chosen =>
  *     record it did not change.
  *   - **Anything else is a new instant**, spelled the way a stamp is: the day,
  *     `T`, the time with `:00` seconds, and the offset this browser keeps at
- *     that moment ({@link OffsetAt}) — "stamped where the person is standing",
+ *     that moment ({@link InstantAt}) — "stamped where the person is standing",
  *     which is also what the format does with a datetime written with no zone.
  */
 export const valueOf = (
   stored: string | undefined,
   chosen: Chosen,
-  offsetAt: OffsetAt,
+  instantAt: InstantAt,
 ): string => {
   if (chosen.day === "") return ""
   if (chosen.time === "") return chosen.day
   if (stored !== undefined && dayOf(stored) === chosen.day && timeOf(stored) === chosen.time) {
     return stored
   }
-  return `${chosen.day}T${chosen.time}:00${offsetAt(chosen.day, chosen.time)}`
+  return instantAt(chosen.day, chosen.time)
 }
 
 /**
@@ -143,34 +157,65 @@ export const datePick = (id: string, value: string): Edit => ({
  *
  * **`Clear time` is the same gesture one box along**: the day it keeps is the
  * day already stored, so the only thing pressing does is take the time off,
- * and the button says that. It is also how a time box a browser has half
- * emptied — whose value is then nothing — says so before anything is written.
+ * and the button says that.
+ *
+ * **An unfinished box writes nothing.** A box the browser holds half-typed
+ * reports no value, which would otherwise read as "no time" (or "no date") —
+ * a write of something other than what the box shows, and one the browser's
+ * own form validation refuses to submit anyway. So the button is dead, under
+ * the verb the person came for, and {@link noticeOf} says why.
  */
-export const pressOf = (stored: string | undefined, value: string): Press =>
-  stored !== undefined && timeOf(stored) !== undefined && value === dayOf(stored)
+export const pressOf = (stored: string | undefined, value: string, incomplete = false): Press =>
+  incomplete
+    ? { label: "Set date", writes: false }
+    : stored !== undefined && timeOf(stored) !== undefined && value === dayOf(stored)
     ? { label: "Clear time", writes: true }
     : panelPress(stored, value, { set: "Set date", clear: "Clear date" })
 
 /**
- * What the panel says about a stored value the boxes cannot say whole — and
- * nothing at all for the ordinary case.
+ * What the panel says about the boxes, when they do not say the whole of what
+ * pressing would write — and nothing at all for the ordinary case. Asked of the
+ * DRAFT, every frame, because every one of these is about the value the boxes
+ * have come to rather than about the record alone.
  *
- * The boxes show a face, a day and a time, and a stored datetime also carries
- * an offset. When that offset is the one this browser keeps at that moment the
- * face is the whole story; when it is not — written in another zone, or by a
- * hand that wrote none — changing either box writes the new face in THIS zone,
- * and the boxes would look exactly the same either way. So it is said,
- * verbatim, with the value it is about. Nothing rewrites the record until the
- * button is pressed, and pressing it over an unchanged face writes nothing.
+ *   - **A box that is not finished.** A time box with only its hour filled — a
+ *     person reaching it with the arrow keys — reports no value at all, so it
+ *     would read as "no time" while showing one half-typed, and the browser's
+ *     own form validation would refuse the submit without a word. The panel
+ *     draws the button dead ({@link ./DatePicker.tsx}) and says why, and how
+ *     out. The day box can be left the same way.
+ *   - **A face the zone skips.** The value written is the moment the zone
+ *     moves it to ({@link InstantAt}), which is not what the box says — so the
+ *     sentence quotes the value, before it is written.
+ *   - **A stored datetime from another zone** (or written with none). The
+ *     boxes show its face like any other, and a change is written in THIS
+ *     zone: with the draft changed, the sentence quotes exactly what pressing
+ *     writes — whose offset is the draft's moment's, not the stored one's; with
+ *     it unchanged, it says a change would be written here and names no offset,
+ *     since which one depends on the day and time that are not chosen yet.
  */
 export const noticeOf = (
   stored: string | undefined,
-  offsetAt: OffsetAt,
+  chosen: Chosen & { readonly incomplete: "day" | "time" | null },
+  instantAt: InstantAt,
 ): string | undefined => {
-  const time = stored === undefined ? undefined : timeOf(stored)
-  if (stored === undefined || time === undefined) return undefined
-  const here = offsetAt(dayOf(stored), time)
-  return stored.endsWith(here)
-    ? undefined
-    : `Scheduled for ${stored}. A changed day or time is written in this browser's time zone (${here}).`
+  if (chosen.incomplete !== null) {
+    return chosen.incomplete === "time"
+      ? "The time is not finished. Finish it, or press No time."
+      : "The day is not finished. Finish it, or empty it."
+  }
+  const value = valueOf(stored, chosen, instantAt)
+  const written = value !== stored && timeOf(value) !== undefined ? value : undefined
+  const storedTime = stored === undefined ? undefined : timeOf(stored)
+  const foreign = stored !== undefined && storedTime !== undefined &&
+    !stored.endsWith(instantAt(dayOf(stored), storedTime).slice(-"+00:00".length))
+  const quoted = foreign ? `Scheduled for ${stored}. ` : ""
+  if (written !== undefined && (dayOf(written) !== chosen.day || timeOf(written) !== chosen.time)) {
+    return `${quoted}There is no ${chosen.time} on ${chosen.day} in this browser's time zone, so pressing writes ${written}.`
+  }
+  if (!foreign) return undefined
+  if (written !== undefined) return `${quoted}Pressing writes ${written}, in this browser's time zone.`
+  return value === stored
+    ? `${quoted}A changed day or time is written in this browser's time zone.`
+    : undefined
 }

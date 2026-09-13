@@ -761,10 +761,7 @@ export type {
  * is an invitation to a second reading of it.
  */
 export { canonicalRepeat, nextOccurrence, REPEAT_GRAMMAR, REPEAT_RULES } from "./repeat.ts"
-/** `offsetOf` beside it because the date picker writes a person's chosen time
- *  the way a stamp writes an instant — local, with the offset spelled out — and
- *  the sign inversion is the part worth having once. */
-export { offsetOf, stampOf } from "./stamp.ts"
+export { stampOf } from "./stamp.ts"
 
 /** THE QUIET WINDOW, as the rule alone: how long a directory must be quiet
  *  before what is waiting records itself, and whether it would record at all
