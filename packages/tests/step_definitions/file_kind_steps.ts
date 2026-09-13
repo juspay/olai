@@ -53,6 +53,13 @@ Then("the configured outline row refuses a mint without writing", async function
 Then("the settings report the format reader's ignored durable switch", async function(this: OlaiWorld) {
   await this.waitUntil(async () => this.serverLog.text.includes("outline-olai.on is ignored") && this.serverLog.text.includes("session-only"), "reader-owner warning")
 })
+When("the outline tool retitles {string} to {string}", async function(this: OlaiWorld, id: string, title: string) {
+  const result = await tool(this, "outlines_update", { id, title })
+  assert.notEqual(result.isError, true, JSON.stringify(result))
+})
+Then("the served file {string} contains {string}", async function(this: OlaiWorld, file: string, text: string) {
+  await this.waitUntil(async () => readFileSync(join(this.scratch(), file), "utf8").includes(text), `${file} to contain ${JSON.stringify(text)}`)
+})
 Then("the unclaimed file {string} is absent and refused by the outline tool", async function(this: OlaiWorld, file: string) {
   const result = await tool(this, "outlines_subtree", { file })
   assert.equal(result.isError, true)

@@ -76,6 +76,7 @@
     "olai-plugin-settings": "workspace:*",
     "olai-plugin-alerts": "workspace:*",
     "olai-plugin-outline-olai": "workspace:*",
+    "olai-plugin-outline-org": "workspace:*",
     "olai-plugin-hypertext": "workspace:*",
     "olai-plugin-csv": "workspace:*",
     "olai-plugin-image": "workspace:*",

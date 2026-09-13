@@ -2269,6 +2269,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     "outline-olai": [
       "plugins/vault/src/format.ts"
     ],
+    "outline-org": [],
     "markdown": [
       "appearance/src/scale.ts",
       "edit-intents/src/index.ts",

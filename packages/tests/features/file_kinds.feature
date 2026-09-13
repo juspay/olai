@@ -103,14 +103,56 @@ Feature: File kinds follow their claiming rows
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: An org outline renders, writes round-trip in its own spelling and a broken one is refused
+    # Same records, second spelling: the `outline-org` row claims `.org` and
+    # stores one heading per record, its fields in a property drawer.
+    Given I rewrite "estate.org" as:
+      """
+      * the estate
+      :PROPERTIES:
+      :ID: estate
+      :OLAI_KIND: regular
+      :OLAI_ORD: "a0"
+      :OLAI_TITLE: "the estate"
+      :END:
+
+      ** mow the lawns
+      :PROPERTIES:
+      :ID: mow
+      :OLAI_KIND: regular
+      :OLAI_ORD: "a0"
+      :OLAI_TITLE: "mow the lawns"
+      :END:
+      """
+    And I open the outline "estate.org"
+    Then the tree is shown
+    And the node "estate" is shown
+    And the node "mow" is a child of "estate"
+    And there should be no page errors
+    # An edit through the real ops write gate comes back in the format's own
+    # bytes on disk, and the drawn tree moves with it.
+    When the outline tool retitles "mow" to "mow the meadow"
+    Then the node titled "mow the meadow" is shown
+    And the served file "estate.org" contains ":OLAI_TITLE: \"mow the meadow\""
+    When I rewrite "estate.org" as:
+      """
+      * the estate
+      :PROPERTIES:
+      :ID: estate
+      :OLAI_KIND: regular
+      :END:
+      """
+    Then the stale banner names "estate.org" as "unparsed"
+    And there should be no page errors
+
   Scenario: An unclaimed file is neither listed nor admitted by a tool
-    Given I rewrite "notes.org" as:
+    Given I rewrite "notes.adoc" as:
       """
-      * Not a registered format
+      = Not a registered format
       """
-    And I open the address "/notes.org"
-    Then the file-kind page says "No row claims `.org`"
-    And the unclaimed file "notes.org" is absent and refused by the outline tool
+    And I open the address "/notes.adoc"
+    Then the file-kind page says "No row claims `.adoc`"
+    And the unclaimed file "notes.adoc" is absent and refused by the outline tool
     And there should be no page errors
 
   Scenario: Two convention files with the same stem are ambiguous
