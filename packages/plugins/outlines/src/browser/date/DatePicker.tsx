@@ -1,5 +1,6 @@
 /**
- * The date picker: a day, chosen on a row that already exists.
+ * The date picker: a day, and optionally a time of day, chosen on a row that
+ * already exists.
  *
  * MCP could set or clear a node's `date` and a person could only clear one
  * (#124's `•••` verb) — a standing consistency deviation rather than a missing
@@ -10,30 +11,36 @@
  * refused in the same words. Nothing is echoed — the badge changes when the
  * file says it changed.
  *
- * ## `<input type="date">`, and why the platform's own control is the right one
+ * The format's `date` has two widths, a day and an instant (docs/format.md),
+ * and the picker offered only the first: a node an agent had scheduled for ten
+ * in the morning could be moved by a person only by throwing the time away.
+ * So there are two boxes, and the second is optional — empty is a bare day.
  *
- * Because it CANNOT MINT AN INSTANT. Its value is a `YYYY-MM-DD` string or the
- * empty string, which is exactly the vocabulary the format stores: a date is
- * text, verbatim, and a date-only value round-tripped through a `Date` comes
- * back a datetime (docs/format.md). So the day a person picks is the ten
- * characters the record will hold, with nothing parsing or formatting it on
- * the way — and the calendar, the locale and the keyboard entry are the
- * browser's, on every platform olai is read on, rather than a widget this app
- * would own and have to make work with a screen reader.
+ * ## `<input type="date">` and `type="time"`, and why the platform's own controls
  *
- * The pure half of it — what the box starts with, what the button says, and
- * the edit it sends — is {@link ./pick.ts}, so those rules are answerable
- * without a browser.
+ * Because they CANNOT MINT AN INSTANT. Their values are a `YYYY-MM-DD` string,
+ * an `HH:MM` string or the empty string, which is exactly the vocabulary the
+ * format stores: a date is text, verbatim, and a date-only value round-tripped
+ * through a `Date` comes back a datetime (docs/format.md). So the day a person
+ * picks is the ten characters the record will hold and the time is the face it
+ * will say, with nothing parsing or formatting either on the way — and the
+ * calendar, the locale and the keyboard entry are the browser's, on every
+ * platform olai is read on, rather than widgets this app would own and have to
+ * make work with a screen reader.
+ *
+ * The pure half of it — what the boxes start with, the value they come to, what
+ * the button says, and the edit it sends — is {@link ./pick.ts}, so those rules
+ * are answerable without a browser.
  *
  * ## What this file is, and what it is not
  *
- * A CONTROL and the two rules about that control, inside the shell every panel
+ * TWO CONTROLS and the rules about them, inside the shell every panel
  * a row opens shares ({@link ../edit/RowPanel.tsx}): drawn in place under the
  * line rather than floating, Escape and Cancel as the ways out, one press at a
  * time, a dead button where the gesture would write nothing, and the ops
  * layer's own words kept on screen when a write does not happen. Each of those
  * used to be written out here; the reasons for all of them are that file's now,
- * and what is left in this one is the box.
+ * and what is left in this one is the boxes.
  *
  * The one thing worth keeping HERE about the ways out: a click OUTSIDE is
  * deliberately not one. The browser's own calendar popup is chrome outside the
@@ -48,7 +55,9 @@ import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 
 import { TARGET } from "@olai/ui-primitives/touch.ts"
-import { noticeOf, pressOf } from "./pick.ts"
+import { PANEL_OUT } from "@olai/web/client/pill.ts"
+import { Show } from "solid-js"
+import { browserOffsetAt, noticeOf, pressOf, valueOf } from "./pick.ts"
 
 /** This panel's identity, off the one table that declares it. */
 const IDS = {
@@ -60,41 +69,45 @@ const IDS = {
 } as const
 
 export function DatePicker(props: {
-  /** The date the node stores, or nothing — what the box starts on, and what
+  /** The date the node stores, or nothing — what the boxes start on, and what
    *  decides whether pressing the button would ask for anything. */
   readonly date: string | undefined
   readonly day: string
-  readonly onChange: (value: string) => void
+  readonly time: string
+  readonly onChange: (day: string) => void
+  readonly onTime: (time: string) => void
   readonly submission: Submission
   /** Send it. The host is what knows the write gate and the undo stack
    *  ({@link ../writes.ts}); this is what knows the day. Answering with a
    *  {@link Said} keeps the panel open saying it; answering with nothing is the
-   *  ordinary success, and the panel goes. */
-  readonly onPick: (day: string) => Promise<Said | undefined>
+   *  ordinary success, and the panel goes. What it is handed is the VALUE the
+   *  boxes come to ({@link valueOf}) — `""` for no date. */
+  readonly onPick: (value: string) => Promise<Said | undefined>
   readonly onClose: () => void
 }) {
-  /** The day in the box: seeded from the record ONCE, and the person's from
+  /** The day and time in the boxes: seeded from the record ONCE, and the person's from
    *  then on. That is the same trade the row editor's draft takes — what is
    *  typed is not a claim about the file, and a live frame that rewrote the box
    *  under somebody would be a page taking a day out of their hands. What the
    *  file says meanwhile is still read, on every frame, by the two questions
    *  that are about the RECORD rather than about the box: whether pressing
    *  would write anything, and what the button is called. */
-  const day = () => props.day
+  const value = (): string =>
+    valueOf(props.date, { day: props.day, time: props.time }, browserOffsetAt)
   /** The button, in the one state it has — what it says and whether it does
    *  anything, derived together ({@link ./pick.ts}) so they cannot disagree. */
-  const press = (): Press => pressOf(props.date, day())
+  const press = (): Press => pressOf(props.date, value())
 
   return (
     <RowPanel
       submission={props.submission}
       ids={IDS}
       press={press}
-      send={() => props.onPick(day())}
+      send={() => props.onPick(value())}
       onClose={props.onClose}
-      // A stored value the box cannot hold, said out loud with what a pick
-      // would do to it — see `./pick.ts`.
-      notice={noticeOf(props.date)}
+      // A stored value the boxes cannot say whole, said out loud with what a
+      // changed pick would do to it — see `./pick.ts`.
+      notice={noticeOf(props.date, browserOffsetAt)}
     >
       {/* The label WRAPS the box rather than naming it by id: a row owns its
           own picker, so two of them can be open at once and a fixed id would
@@ -105,7 +118,7 @@ export function DatePicker(props: {
           type="date"
           class={`${TARGET} min-w-0 max-w-full md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
           data-testid={TESTID.datePickerDay}
-          value={day()}
+          value={props.day}
           // The caret goes here as the panel attaches: it was opened to be
           // typed in, and a picker that needed a second click to accept a
           // keyboard would be a control the keyboard cannot reach.
@@ -116,6 +129,34 @@ export function DatePicker(props: {
           onInput={(event) => props.onChange(event.currentTarget.value)}
         />
       </label>
+      {/* The time, optional: empty is a bare day. Its own label for the reason
+          the day's wraps its box, and a word rather than a second "Scheduled
+          for", because it reads on from the day. */}
+      <label class="flex max-w-full flex-wrap items-center gap-2 text-xs text-muted">
+        at
+        <input
+          type="time"
+          class={`${TARGET} min-w-0 max-w-full md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
+          data-testid={TESTID.datePickerTime}
+          value={props.time}
+          onInput={(event) => props.onTime(event.currentTarget.value)}
+        />
+      </label>
+      {/* A way to empty the time box that every browser draws the same. The
+          platform's own time control has none on most engines — its fields are
+          emptied one at a time with Backspace — and taking a time off is one
+          of the three things this panel is for. It edits the draft only; the
+          button, which then says `Clear time`, is still what writes. */}
+      <Show when={props.time !== ""}>
+        <button
+          type="button"
+          class={PANEL_OUT}
+          data-testid={TESTID.datePickerNoTime}
+          onClick={() => props.onTime("")}
+        >
+          No time
+        </button>
+      </Show>
     </RowPanel>
   )
 }

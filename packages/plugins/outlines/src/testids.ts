@@ -14,6 +14,8 @@ export const TESTID = {
   date: "date",
   datePicker: "date-picker",
   datePickerDay: "date-picker-day",
+  datePickerTime: "date-picker-time",
+  datePickerNoTime: "date-picker-no-time",
   datePickerSet: "date-picker-set",
   datePickerCancel: "date-picker-cancel",
   datePickerNotice: "date-picker-notice",

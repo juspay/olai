@@ -20,8 +20,10 @@ import {
   DATE_PICKER,
   DATE_PICKER_CANCEL,
   DATE_PICKER_DAY,
+  DATE_PICKER_NO_TIME,
   DATE_PICKER_NOTICE,
   DATE_PICKER_SET,
+  DATE_PICKER_TIME,
   nodeSelector,
   oneLine,
   POLL_TIMEOUT,
@@ -45,6 +47,8 @@ When(
 const panel = (world: OlaiWorld) => world.page.locator(DATE_PICKER);
 
 const box = (world: OlaiWorld) => world.page.locator(DATE_PICKER_DAY);
+
+const time = (world: OlaiWorld) => world.page.locator(DATE_PICKER_TIME);
 
 const button = (world: OlaiWorld) => world.page.locator(DATE_PICKER_SET);
 
@@ -71,6 +75,18 @@ Then(
   },
 );
 
+/** The day AND the time — `""` for an empty time box, which is a bare day. The
+ *  time is the face the stored value says, never converted into the browser's
+ *  zone. */
+Then(
+  "the date picker holds {string} at {string}",
+  async function (this: OlaiWorld, day: string, face: string) {
+    await box(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await box(this).inputValue(), day);
+    assert.strictEqual(await time(this).inputValue(), face);
+  },
+);
+
 /** The button's LABEL, which is the whole of how clearing is spelled here: an
  *  emptied box takes the `•••` menu's own words for the same edit. */
 Then(
@@ -92,6 +108,14 @@ Then(
     assert.strictEqual(oneLine(await said.innerText()), notice);
   },
 );
+
+/** The ordinary case: a stored value the boxes say whole. Asked after the box
+ *  is up, so "no notice yet" cannot pass for "no notice". */
+Then("the date picker says nothing", async function (this: OlaiWorld) {
+  await box(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitForFrame();
+  assert.strictEqual(await this.page.locator(DATE_PICKER_NOTICE).count(), 0);
+});
 
 /** Nothing to write is nothing to press — the same rule the menu's catalog
  *  follows for an entry whose only outcome would be "it already says that". */
@@ -129,8 +153,33 @@ When("I pick the date {string}", async function (this: OlaiWorld, day: string) {
   await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
+/** A day and a time of day, sent together — the time box is what a person
+ *  fills after the day, and `fill` is the `HH:MM` the browser's own control
+ *  produces. */
+When(
+  "I pick the date {string} at {string}",
+  async function (this: OlaiWorld, day: string, face: string) {
+    await box(this).fill(day);
+    await time(this).fill(face);
+    await this.press(button(this));
+    await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  },
+);
+
 When("I draft the date {string}", async function (this: OlaiWorld, day: string) {
   await box(this).fill(day);
+});
+
+When("I draft the time {string}", async function (this: OlaiWorld, face: string) {
+  await time(this).fill(face);
+  await this.waitForFrame();
+});
+
+/** The panel's own `No time`, which empties the time box and writes nothing —
+ *  the button, which then names the gesture, is still what writes. */
+When("I take the time off in the date picker", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(DATE_PICKER_NO_TIME));
+  await this.page.locator(DATE_PICKER_NO_TIME).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
 When("I submit the date while updates are delayed", async function (this: OlaiWorld) {

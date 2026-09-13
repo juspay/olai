@@ -257,7 +257,9 @@ A node's `date` is what it is scheduled for ([format.md](format.md)), and it is 
 
 **A dated row's own pill is the control.** Press the date beside the title and the picker opens on it. A row with no date has no pill to press, so its way in is the ••• menu: **Set date…** on a row with none, **Change date…** on one that has one. From the keyboard it is `!` and a day in words (above), which sends the same edit.
 
-What you get is your browser's own date picker, and what is written is the day you picked, exactly as it is written — `2026-09-01`, ten characters, never a timestamp this app invented on the way. **Enter** sets it, **Escape** and **Cancel** leave without writing, and ⌘Z takes a pick back like any other edit. Empty the box and the button becomes **Clear date**, which is the ••• menu's own verb and the same write: one way to say "no date", whichever door you came through.
+What you get is your browser's own date picker, and what is written is the day you picked, exactly as it is written — `2026-09-01`, ten characters, never a timestamp this app invented on the way. **Enter** sets it, **Escape** and **Cancel** leave without writing, and ⌘Z takes a pick back like any other edit. Empty the box and the button becomes **Clear date**, which is the ••• menu's own verb and the same write: one way to say "no date", whichever door you came through — a time still in the time box goes with it, since a time on no day is not a date.
+
+**The time of day is optional, and beside the day.** Leave the time box empty and the node is scheduled for the day. Fill it and what is written is one instant, spelled the way a mark stamps one: the day, the time you typed, `:00` seconds and your browser's offset *at that moment* — `2026-09-01T09:30:00-04:00`, and `2026-12-01T09:30:00-05:00` in December, because a zone that moves its clocks keeps two offsets a year. A node already scheduled for a time opens with both boxes filled; change either and press **Set date**. **No time** empties the time box, and the button then reads **Clear time**: pressing it keeps the day and takes the time off.
 
 An unsubmitted date or repeat choice stays with its row and pane when plugins rebuild the page or you switch phone pane tabs. Filtering that same outline does not change its ownership. Leaving the page, cancelling, or collapsing the parent discards the draft; opening the picker again starts from the stored value. Two panes of the same outline keep independent choices.
 
@@ -265,7 +267,7 @@ A pending submission stays disabled across pane switches, and a refused choice k
 
 On a phone, picker labels wrap and controls fit the space left by the row's indentation, including nested rows and long repeat options.
 
-A node scheduled for a time of day rather than a bare day keeps whatever it says on disk until you pick — the box shows the day that time falls on, and the panel says what picking one would replace, because a picker picks days.
+The boxes show the day and time the file says, not that instant converted into your zone, and a value you have not changed is not rewritten — pressing over the same day and time writes nothing, so seconds a hand wrote survive a look. A time written in another zone, or with no zone at all, looks like any other in the boxes, so the panel says so and names the offset a changed day or time would be written with.
 
 The row moves the moment the file says so: a task given a day that has gone is above now on the agenda’s spine and on that day's page, without a reload and without this page deciding anything for itself.
 

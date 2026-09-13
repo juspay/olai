@@ -318,7 +318,9 @@ function Branch(props: {
   const forms = useRowForms(props.row.key)
   /** ...and one opener for both of them, so the two triggers cannot drift. */
   const openPicker = (): void => {
-    forms.setDay(dateStartsAt(shown()?.node.date))
+    const starts = dateStartsAt(shown()?.node.date)
+    forms.setTime(starts.time)
+    forms.setDay(starts.day)
   }
 
   /** Is this row's REPEAT picker open? The date picker's arrangement one field
@@ -763,8 +765,10 @@ function Branch(props: {
               submission={forms.dateSubmission}
               date={shows().node.date}
               day={forms.day() ?? ""}
+              time={forms.time()}
               onChange={forms.setDay}
-              onPick={(day) => applying(datePick(shows().node.id, day), undo.record)}
+              onTime={forms.setTime}
+              onPick={(value) => applying(datePick(shows().node.id, value), undo.record)}
               onClose={() => forms.setDay(null)}
             />
           </div>

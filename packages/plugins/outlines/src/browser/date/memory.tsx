@@ -10,8 +10,11 @@ import { createSubmission } from "../edit/submission.ts"
 
 const form = () => {
   const [day, setDay] = createSignal<string | null>(null)
+  // The time box's draft, beside the day's: meaningful only while `day` says
+  // the picker is open, which is why it needs no `null` of its own.
+  const [time, setTime] = createSignal("")
   const [rule, setRule] = createSignal<string | null>(null)
-  return { edges: edgeMemory(), day, setDay, rule, setRule, dateSubmission: createSubmission(), repeatSubmission: createSubmission() }
+  return { edges: edgeMemory(), day, setDay, time, setTime, rule, setRule, dateSubmission: createSubmission(), repeatSubmission: createSubmission() }
 }
 type Form = ReturnType<typeof form>
 type Rows = Map<string, Form>

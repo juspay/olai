@@ -657,11 +657,11 @@ export type { DayEntry, DayGroup } from "./dates.ts"
  *  that put a node on a day are read and the derivation's day index is folded).
  *  Public because a browser compares days it was handed against the one its own
  *  clock says, and a date somebody typed is a datetime as often as not — one
- *  slicing rule, or two that disagree about half past two. Its neighbours
- *  `monthOf` and `timeOf` stay inside: what asks about a month asks
- *  `datedAnswer`, and the only reader of a TIME is the pill `owedFact` already
- *  prints. */
-export { dayOf } from "./occasion.ts"
+ *  slicing rule, or two that disagree about half past two. `timeOf` is the
+ *  same slice five characters on, and public for the date picker's time box,
+ *  which starts on the `HH:MM` a stored datetime says. `monthOf` stays inside:
+ *  what asks about a month asks `datedAnswer`. */
+export { dayOf, timeOf } from "./occasion.ts"
 export type { Occasion } from "./occasion.ts"
 /** The one place a date is COUNTED rather than compared (./calendar.ts): which
  *  weekday a day falls on, the day before or after one, the days a month holds.
@@ -761,7 +761,10 @@ export type {
  * is an invitation to a second reading of it.
  */
 export { canonicalRepeat, nextOccurrence, REPEAT_GRAMMAR, REPEAT_RULES } from "./repeat.ts"
-export { stampOf } from "./stamp.ts"
+/** `offsetOf` beside it because the date picker writes a person's chosen time
+ *  the way a stamp writes an instant — local, with the offset spelled out — and
+ *  the sign inversion is the part worth having once. */
+export { offsetOf, stampOf } from "./stamp.ts"
 
 /** THE QUIET WINDOW, as the rule alone: how long a directory must be quiet
  *  before what is waiting records itself, and whether it would record at all

@@ -82,20 +82,22 @@ Feature: Row forms retain drafts and submission state across page changes
     And "house.olai" holds the node "order" dated "2026-10-14"
     And there should be no page errors
 
+  @zone:America/New_York
   Scenario: A date draft survives a plugin change in another browser tab
     Given I open the outline "house.olai"
     When I filter the page by "order"
     And I open the date picker on "order"
     And I draft the date "2026-10-14"
+    And I draft the time "08:15"
     And I open another browser tab
     And I open the plugins panel
     And I switch the plugin "identity" off
     And I close the plugins panel
     And I use the original browser tab
     Then the date picker is open
-    And the date picker holds "2026-10-14"
+    And the date picker holds "2026-10-14" at "08:15"
     When I press the date picker's button
-    Then "house.olai" holds the node "order" dated "2026-10-14"
+    Then "house.olai" holds the node "order" dated "2026-10-14T08:15:00-04:00"
     And the date picker is closed
     And there should be no page errors
 
