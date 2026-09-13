@@ -21,7 +21,7 @@ import { selector } from "@olai/web/testlib"
 
 import { attr } from "../support/selectors.ts";
 import { keysSettled, pressed } from "../support/settling.ts";
-import { PALETTE_INPUT, PALETTE_ITEM, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
+import { PALETTE, PALETTE_INPUT, PALETTE_ITEM, PALETTE_SAID, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const PIN = selector(TESTID.pin);
@@ -105,6 +105,13 @@ const choosePin = async (world: OlaiWorld, kind: "page" | "layout") => {
   await pressed(world, "ControlOrMeta+k");
   await world.page.locator(PALETTE_INPUT).fill("pin");
   await world.page.locator(PALETTE_ITEM).filter({ hasText: new RegExp(`(?:Pin|Unpin) this ${kind}`) }).first().click();
+  // A pointer command is complete when the panel answers, not merely when
+  // keyboard work is quiet. Navigating sooner can withdraw its pending write.
+  await world.waitUntil(async () =>
+    await world.page.locator(PALETTE).count() === 0
+    || await world.page.locator(PALETTE_SAID).count() > 0
+    || await world.page.locator(PALETTE_INPUT).inputValue().catch(() => null) !== "pin",
+    "the pin command to write or ask for a name");
   await keysSettled(world);
 };
 
