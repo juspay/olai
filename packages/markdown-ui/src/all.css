@@ -97,7 +97,7 @@ mark.olai-hit {
  *
  * TWO CONTEXTS, one design. A document is a reading page and is set like one.
  * `.olai-md-compact` is markdown inside the app's furniture — a note under a
- * node's title, an attached document, an agent's reply in the drawer — and
+ * node's title, an embedded document, an agent's reply in the drawer — and
  * re-answers the same properties one notch tighter, with a ceiling on the
  * heading sizes. Every rule below is written once and serves both. */
 
@@ -640,3 +640,8 @@ code[data-node-ref]:hover {
   font-weight: var(--olai-md-weight-major);
 }
 
+
+.olai-md a.olai-dead-link {
+  text-decoration: underline wavy var(--color-alarm);
+  text-underline-offset: 3px;
+}

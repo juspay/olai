@@ -373,8 +373,6 @@ export const TOC_LINK = selector(TESTID.tocLink);
  *  selector, spelled once here like every other one rather than in the steps
  *  that reach for them. */
 export const HEADINGS = "h1, h2, h3, h4, h5, h6";
-/** A node's `doc`: the reference, carrying the RESOLVED path as `data-doc`. */
-/** The link inside that reference, to the document's own page. */
 /** A node held up by an `after` edge: the mark column's waiting glyph on a row
  *  or a day entry, the named blockers on the node's own page. Absent entirely
  *  on a node with nothing in its way — WHETHER it is blocked, and by what, is
@@ -2034,19 +2032,19 @@ export class OlaiWorld extends World {
 
   async expandReference(): Promise<void> {
     await this.showSidebar();
-    const toggle = this.page.getByTestId("reference-toggle");
+    const toggle = this.page.getByTestId(TESTID.referenceToggle);
     await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
   }
 
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
-    return this.fileLink(`[data-testid="reference-list"] ${DOCUMENT_LINK}`, file);
+    return this.fileLink(`${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}`, file);
   }
 
   /** One sidebar `.html` entry, on the same terms. */
   hypertextLink(file: string): Locator {
-    return this.fileLink(`[data-testid="reference-list"] ${HYPERTEXT_LINK}`, file);
+    return this.fileLink(`${attr("data-testid", TESTID.referenceList)} ${HYPERTEXT_LINK}`, file);
   }
 
   /** One sidebar row of ANY registered kind, by the kind's own name — the

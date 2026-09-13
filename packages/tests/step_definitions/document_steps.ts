@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * Documents: the page, the reference on a node, and the two things a rendered
  * document reaches for that a note never had to — a picture, and a highlighter.
@@ -12,13 +13,12 @@
 import * as assert from "node:assert";
 import { defineParameterType, Then, When } from "@cucumber/cucumber";
 
-import { BODY_REFUSED as REFUSED_SAID } from "@olai/surface";
 
 import {
   attr,
-  ZOOM,
   ZOOM_TITLE,
-  BODY_REFUSED,
+  DESC,
+  NOTE_MARK,
   DOCUMENT_BODY,
   DOCUMENT_LINK,
   DOCUMENT_PAGE,
@@ -44,7 +44,7 @@ Then(
   "the documents listed are {string}",
   async function (this: OlaiWorld, expected: string) {
     await this.expectListed(
-      `[data-testid="reference-list"] ${DOCUMENT_LINK}`,
+      `${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}`,
       expected.split(",").map((file) => file.trim()),
       "document(s)",
     );
@@ -342,11 +342,10 @@ Then(
 
 // Links in notes are the attachment and open the document's own page.
 When("I follow the document link on {string}", async function(this: OlaiWorld, id: string) {
-  if (await this.page.locator(`${ZOOM_TITLE}${attr("data-node-id", id)}`).count() === 0) {
-    await this.clickWithin(id, ZOOM);
-  }
-  await this.expectAttribute(ZOOM_TITLE, "data-node-id", id, "the linked node page");
-  const link = this.page.locator('[data-testid="desc"] a').first();
+  const zoomed = await this.page.locator(`${ZOOM_TITLE}${attr("data-node-id", id)}`).count() > 0;
+  const row = this.node(id);
+  if (!zoomed && await row.getAttribute("data-note-open") !== "true") await this.clickWithin(id, NOTE_MARK);
+  const link = (zoomed ? this.page.locator(DESC) : row.locator(DESC)).locator("a").first();
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await link.click();
   await this.waitForFrame();

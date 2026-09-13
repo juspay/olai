@@ -530,3 +530,13 @@ test("an empty home names the configured outline row, even when another row clai
   expect(pageOf({ ...readingAt(SET, []), outlineRow: "outline-org" }, HOME).shows)
     .toEqual({ kind: "nothing", sought: "outline-org", requested: null })
 })
+
+test("row warnings travel in the page reading and clear on a membership revision", () => {
+  const records = nodesOfFiles({ "house.olai": '{"id":"a","ord":"a0","title":"[missing](target.md)"}' })
+  const derived = derive(TEST_CLAIMS, records)
+  const missing = pageOf(readingAt(derived, facesOf(["house.olai"])), at("house.olai"))
+  expect(missing.deadLinks?.["a"]?.[0]?.resolved).toBe("target.md")
+  const present = pageOf(readingAt(derived, facesOf(["house.olai", "target.md"])), at("house.olai"))
+  expect(present.deadLinks).toBeUndefined()
+  expect(samePageReading(missing, present)).toBe(false)
+})

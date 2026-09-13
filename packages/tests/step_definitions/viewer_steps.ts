@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /**
  * The three kinds olai draws by SHOWING them: a `.csv` as a table, a picture in
  * an `<img>`, a `.pdf` in the browser's own viewer.
@@ -52,7 +53,7 @@ Then(
       // The world's own lookup, which THROWS for a kind the registry does not
       // claim: a misspelled step fails as a sentence rather than as a timeout
       // on a selector nobody writes.
-      kind === "outline-olai" ? rowsOfKind(kind) : `[data-testid="reference-list"] ${rowsOfKind(kind)}`,
+      kind === "outline-olai" ? rowsOfKind(kind) : `${attr("data-testid", TESTID.referenceList)} ${rowsOfKind(kind)}`,
       expected.split(",").map((file) => file.trim()),
       `${kind} row(s)`,
     );

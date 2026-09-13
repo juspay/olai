@@ -30,3 +30,15 @@ test("title and note are separate Markdown sources, with shared deduplication", 
   expect(deadLinksOf(split, served)).toEqual([])
   expect(deadLinksIn("a.olai", ["[x](missing.md)", "[again](missing.md)"], served)).toHaveLength(1)
 })
+
+test("code examples do not warn but adjacent prose does", () => {
+  const code = ["`[x](inline.md)`", "``[x](back`tick.md)``", "```md\n[x](fenced.md)\n```", "~~~\n[x](tilde.md)\n~~~", "    [x](indented.md)"].join("\n")
+  expect(deadLinksIn("a.olai", code, served)).toEqual([])
+  expect(deadLinksIn("a.olai", `${code}\n[real](real.md)`, served).map(link => link.resolved)).toEqual(["real.md"])
+  expect(deadLinksIn("a.olai", "`unclosed [real](real.md)", served)).toHaveLength(1)
+})
+test("directory targets are not missing files and URL suffixes do not change membership", () => {
+  expect(deadLinksIn("a.olai", "[x](.) [x](..) [x](notes/) [x](?v=1) [x](%2E%2E) [x](notes%2F)", served)).toEqual([])
+  expect(deadLinksIn("a.olai", "[x](the%20brief.md?v=1#heading)", served)).toEqual([])
+  expect(deadLinksIn("a.olai", "[x](missing.md?v=1#heading)", served)[0]?.resolved).toBe("missing.md")
+})

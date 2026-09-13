@@ -1,6 +1,3 @@
-import { useReading } from "./reading.tsx"
-import { deadLinksOf } from "@olai/format"
-import { servedDirectory } from "./vault.ts"
 /**
  * What hangs under a node's title: the facts it carries, which are always
  * drawn, and the open state under them.
@@ -70,8 +67,13 @@ import { servedDirectory } from "./vault.ts"
  * caller's layout — a tree row indents past its toggle, a day entry past its
  * own — so this contributes its children to a container it does not own.
  */
-
-import { customOf, type LocatedRegular } from "@olai/format"
+import {
+  deadLinkSaid,
+  customOf,
+  type LocatedRegular,
+} from "@olai/format"
+import { useReading } from "./reading.tsx"
+import { TESTID } from "olai-plugin-outlines/testids"
 import { createMemo, Show } from "solid-js"
 
 import { PluginFolds } from "./Folds.tsx"
@@ -140,10 +142,7 @@ export function NodeBody(props: {
   readonly onAddingPropEnd?: () => void
 }) {
   const reading = useReading()
-  const dead = createMemo(() => {
-    const shown = reading()?.shows
-    return props.zoomed && shown?.kind === "node" ? shown.deadLinks : deadLinksOf(props.shows, new Set(servedDirectory()?.paths() ?? []))
-  })
+  const dead = () => reading()?.deadLinks?.[props.shows.node.id] ?? []
   const licences = useLicences()
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
@@ -252,6 +251,7 @@ export function NodeBody(props: {
                     tabindex={0}
                     title="write in this note"
                     onClick={(event) => {
+                      if (event.target instanceof Element && event.target.closest("a")) return
                       event.stopPropagation()
                       // Already open: the click is the caret's. Folding back is
                       // what the pilcrow does, and what clicking AWAY does
@@ -259,6 +259,7 @@ export function NodeBody(props: {
                       props.onEdit?.()
                     }}
                     onKeyDown={(event) => {
+                      if (event.target instanceof Element && event.target.closest("a")) return
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault()
                         props.onEdit?.()
@@ -311,7 +312,7 @@ export function NodeBody(props: {
       </Show>
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
     </Show>
-    <For each={dead()}>{link => <div data-testid="dead-link" class="text-xs text-alarm opacity-80">link resolves to nothing served: <code>{link.resolved}</code><Show when={link.suggest.length}> — did you mean <For each={link.suggest}>{(path, index) => <>{index() ? " or " : ""}<code>{path}</code></>}</For>?</Show></div>}</For>
+    <For each={dead()}>{link => <div data-testid={TESTID.deadLink} class="text-xs text-alarm opacity-80"><code>{deadLinkSaid(link)}</code></div>}</For>
     </>
   )
 }

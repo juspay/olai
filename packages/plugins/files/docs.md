@@ -24,3 +24,7 @@ A claimed file whose browser contribution is absent gets the plain-file glyph
 and its server claim's noun. A withdrawn server claim leaves no tree row.
 
 Reference counts files, excluding `_olai/`, and is absent when empty. Opening a reference file expands the section and its ancestry; its row marks the selection. The Reference preference follows storage for the same activation lifetime as the folder preference and withdraws first.
+
+Reference has a separate boolean preference from folder paths. The active file
+can reveal the section and its ancestry without persisting either decision.
+Both folds and their subscriptions belong to the Files browser activation.

@@ -114,8 +114,7 @@ const sortKey = (row: FileRow): string =>
  * caller — is what this replaces, and the reason is not tidiness: the caller's
  * tag would be a second answer to a question `@olai/format` already settles,
  * free to disagree with the glyph, the route and the page that read the
- * registry directly. It also means a new kind of served file is not a third
- * argument here.
+ * registry directly. A kind's claim decides which of the two trees receives it.
  *
  * Order of the input does not matter, and a path repeated is still one row: the
  * files of a level are a map keyed by name. A path no kind claims is dropped —
@@ -123,11 +122,14 @@ const sortKey = (row: FileRow): string =>
  * from the same registry, and a tree row with no kind would have no glyph and
  * nowhere to link.
  */
-export const fileTree = (claims: Claims, files: Iterable<string>, holds?: "nodes" | "reference"): ReadonlyArray<FileRow> => {
+export const fileTree = (claims: Claims, files: Iterable<string>, holds: "nodes" | "reference"): ReadonlyArray<FileRow> => {
   const root = empty()
   for (const file of files) {
     const of = fileKind(claims, file)
-    if (of !== null && (holds === undefined || (claims.byKind.get(of)?.holds === "nodes") === (holds === "nodes"))) put(root, file, of)
+    if (of === null) continue
+    const isOutline = claims.byKind.get(of)?.holds === "nodes"
+    const keep = holds === "nodes" ? isOutline : !isOutline
+    if (keep) put(root, file, of)
   }
   return freeze(claims, root, "")
 }

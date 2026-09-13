@@ -61,8 +61,8 @@ of each thing the view has to draw:
 | two `todo` leaves, one blocked and one not | `hinges` and `knobs` under `install` — the whole difference the mark column draws |
 | an `after` edge that is clear | `order` after `demo`, which is done — nothing left to wait for |
 | an `after` edge that must NOT block | `hinges` after `handles`, a bullet nobody marked: not work, so nothing to wait for |
-| a `doc` | `install` attaches `finishes.md` |
-| a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
+| a note link | `install` links to `finishes.md` |
+| a document no node links | `notes/palette.md` — still a page, still in the sidebar |
 | a document with YAML frontmatter | `notes/palette.md` again — the `---` block is off the page, off the title, out of the tag index, and its keys answer `prop:`. It carries a `date:` and a `#`-looking value on purpose: a property named `date` is not a day, and `#swatches` in the block is not a tag somebody wrote |
 | a nested outline | `Daily/2026-08.olai` — the sidebar's file tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |

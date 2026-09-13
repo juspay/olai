@@ -147,7 +147,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           hand from the first frame, and a section that waited on a body would
           be blank on exactly the saved page whose bytes never cross the
           wire. */}
-      <Show when={nudge()}>{text => <div data-testid="document-nudge" class="text-xs text-alarm">{text()}</div>}</Show>
+      <Show when={nudge()}>{text => <div data-testid={TESTID.documentNudge} class="text-xs text-alarm">{text()}</div>}</Show>
       <Referrers file={props.file} reading={reading} claims={servedDirectory()?.claims()} href={router.routes.href} />
     </section>
   )

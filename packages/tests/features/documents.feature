@@ -297,21 +297,6 @@ Feature: Documents
     When I follow the document link on "install"
     And the served file "finishes.md" cannot be read
     Then the page says the file could not be read
-    When the served file "finishes.md" can be read again
-    Then the document renders bold text "matte"
-
-  # A markdown read refusal must remain visible on the document's own page,
-  # just as it is on a saved HTML page. It must never become an empty body.
-  #
-  # ONE KEY IS THE WHOLE BLAST RADIUS, which is why `refused` is a field on the
-  # entry rather than a failure of the probe: the outline beside it is still
-  # served, and the tree still draws it.
-  @scratch:good @own-scratch
-  Scenario: An unreadable document says so on its own page, and comes back
-    Given I open the document "finishes.md"
-    Then the document renders bold text "matte"
-    When the served file "finishes.md" cannot be read
-    Then the page says the file could not be read
     And the outline list links to "house.olai"
     When the served file "finishes.md" can be read again
     Then the document renders bold text "matte"

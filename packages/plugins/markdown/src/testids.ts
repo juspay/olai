@@ -1,6 +1,7 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  documentNudge: "document-nudge",
   documentLink: "document-link",
 
   documentPage: "document-page",

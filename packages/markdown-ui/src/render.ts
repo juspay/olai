@@ -73,7 +73,7 @@ interface Rendered {
  * cap is a whole-cache drop rather than an eviction policy — an LRU here would
  * be more machinery than the thing it manages.
  */
-const renderings = new WeakMap<Claims, Map<string, Rendered>>()
+const renderings = new WeakMap<Claims, WeakMap<object, Map<string, Rendered>>>()
 const CACHE_LIMIT = 512
 
 const keyFor = (
@@ -88,26 +88,33 @@ const renderingOf = (
   from: string,
   shape: "block" | "inline",
   serves?: (path: string) => boolean,
+  revision?: object,
 ): Rendered => {
-  if (serves !== undefined) return render(claims, source, from, keyFor(shape, from, source), shape, serves)
-  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape)
-  let rendered = renderings.get(claims)
+  if (claims === undefined) return render(claims, source, from, keyFor(shape, from, source), shape, serves)
+  let revisions = renderings.get(claims)
+  if (revisions === undefined) {
+    revisions = new WeakMap()
+    renderings.set(claims, revisions)
+  }
+  // Membership identity scopes the cache; it must not move heading IDs.
+  const namespace = revision ?? serves ?? claims
+  let rendered = revisions.get(namespace)
   if (rendered === undefined) {
     rendered = new Map()
-    renderings.set(claims, rendered)
+    revisions.set(namespace, rendered)
   }
   const key = keyFor(shape, from, source)
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
-  const result = render(claims, source, from, key, shape)
+  const result = render(claims, source, from, key, shape, serves)
   if (rendered.size >= CACHE_LIMIT) rendered.clear()
   rendered.set(key, result)
   return result
 }
 
-export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, serves?: (path: string) => boolean): string =>
-  renderingOf(claims, source, from, "block", serves).html
+export const renderMarkdown = (claims: Claims | undefined, source: string, from: string, serves?: (path: string) => boolean, revision?: object): string =>
+  renderingOf(claims, source, from, "block", serves, revision).html
 
 /**
  * The same pipeline as {@link renderMarkdown}, forced down to phrasing content.

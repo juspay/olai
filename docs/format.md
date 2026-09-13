@@ -24,6 +24,7 @@ To keep former field values as ordinary custom properties, run from the vault:
 
 ```bash
 git ls-files -z '*.olai' | while IFS= read -r -d '' file; do
+  rg -q '"doc"\s*:' "$file" || continue
   jq -c 'if .doc then .custom = ((.custom // {}) + {doc: .doc}) | del(.doc) else . end' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
 done
 ```
@@ -133,6 +134,7 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 | `date` | an ISO day (`2026-08-25`) or an instant written as a mark records one (`2026-08-25T10:06:00-04:00`). Nothing else. |
 | `int` | a digit run: no sign, no leading zeros, no separators, nothing after them. |
 | `path` | one run of characters with no whitespace in it. May point anywhere, and promises nothing but the shape. |
+| `doc` | A path naming a served Markdown document. Resolves beside the writing file by default; `base: root` resolves from the vault root. This declared fence is validated. |
 | `ref` | the **id** of one of a parent's children. `under` names the parent; absent, it is the declaration's own children. |
 | `node` | the id of any node in the set. A mirror is not one. |
 
@@ -418,7 +420,7 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 ## Pins
 
-**A pin is an ordinary node, in an ordinary outline, whose title is an ADDRESS.** The sidebar draws a shelf of them above the file tree — one click back to a node, a document, or a page with the query it was narrowed by ([editing.md](editing.md#pinning-a-page-to-the-sidebar)). Nothing in this format is new for it: no field, no record shape, no op.
+**A pin is an ordinary node, in an ordinary outline, whose title is an ADDRESS.** The sidebar draws a shelf of them above Outlines and Reference — one click back to a node, a document, or a page with the query it was narrowed by ([editing.md](editing.md#pinning-a-page-to-the-sidebar)). Nothing in this format is new for it: no field, no record shape, no op.
 
 **The file matches the `Pins` stem directly under `_olai/`**, case-insensitively, with any node-holding suffix. Two matching files are ambiguous. A directory without one has an empty shelf; when the configured outline row is off, the sidebar explains that instead.
 

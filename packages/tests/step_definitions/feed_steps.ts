@@ -1,3 +1,4 @@
+import { TESTID } from "@olai/bundle/testids"
 /** The watch wrench opens schema controls; the advanced link opens the file.
  * The sidebar assertions also serve the vault's own-file scenarios. */
 import { Then, When } from "@cucumber/cucumber"
@@ -136,7 +137,7 @@ Then("the vault group sits below the file tree", async function(this: OlaiWorld)
   await visible(this, VAULT_LINK)
   // Document order, not pixels: the column scrolls, and a row BELOW the fold
   // is still a row below the tree.
-  const reference = this.page.getByTestId("sidebar-reference")
+  const reference = this.page.getByTestId(TESTID.reference)
   const tree = await reference.count() ? reference : this.page.locator(OUTLINE_LIST).first()
   const group = await this.page.locator(VAULT_LINK).first().elementHandle()
   assert.ok(group, "the vault group was not drawn at all")

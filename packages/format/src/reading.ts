@@ -1,4 +1,3 @@
-import { DeadLink } from "./dead-links.ts"
 /**
  * What a READ of the set asks, and what it says back.
  *
@@ -71,6 +70,9 @@ import { DeadLink } from "./dead-links.ts"
  * what it must not become is a licence to read the sentence above loosely for
  * the next field somebody proposes.
  */
+
+import { DeadLink } from "./dead-links.ts"
+
 import { ClaimData } from "./kinds.ts"
 import { Schema } from "effect"
 
@@ -305,7 +307,7 @@ export type PathsAnswer = typeof PathsAnswer.Type
  * map.
  *
  * `title` is a DERIVATION and not a field — `firstLine` (`./documents.ts`),
- * the same rule the web draws under a `doc`-carrying row — because a document
+ * the same rule the web draws on a document's page — because a document
  * has no record for a name to be written on. That is the whole of the
  * `md-second-class` asymmetry in one field, and it is answered here rather
  * than left out: a listing of twenty paths says which directory an agent is
@@ -454,9 +456,7 @@ export type DocumentBody = typeof DocumentBody.Type
  * What is NOT nameable, and why. `id` rides every row already; `children`,
  * `truncated`, `placed` and `path` are the walk's or the derivation's, not
  * the record's;
- * `doc` and `blocks` are record fields the read vocabulary has never answered
- * — `blocks` is sugar that `after` answers for, and a capture-time document
- * attachment is `markdown_read`'s subject. And `file`/`line` were always a
+ * `blocks` is sugar that `after` answers for. And `file`/`line` were always a
  * row's PLACE rather than one of its facts: a caller shaping a lean read drops
  * the place first, which is the whole point of the dial.
  */
@@ -482,8 +482,7 @@ export type Projectable = (typeof PROJECTABLE)[number]
 /**
  * THE PARTITION'S other half: every record field NOT in {@link PROJECTABLE},
  * keyed by its reason — `id` because it rides every row already, `ord`
- * because a fractional index is a sorting detail no read reports, `doc`
- * because the attachment is `markdown_read`'s subject, `blocks` because
+ * because a fractional index is a sorting detail no read reports, `blocks` because
  * `after` answers the same edge said from the waiting node, `mirror`
  * because a placement's own mark is the node it shows.
  *

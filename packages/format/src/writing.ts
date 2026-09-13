@@ -410,7 +410,7 @@ export const DescRequest = Schema.Struct({
   op: Schema.Literal("desc"),
   id: Id,
   /** `null` removes the note. */
-  desc: Schema.NullOr(Schema.String),
+  desc: Schema.NullOr(Schema.String).annotate({ description: "A relative link resolves beside the file this node lives in, not beside the reader; the answer names any link that lands on nothing served." }),
   /** `null` is a real answer here — "expects no note at all" — which is why
    *  the CHECK is on the field being present rather than on its content. */
   was: Schema.optionalKey(

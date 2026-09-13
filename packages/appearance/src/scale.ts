@@ -27,7 +27,7 @@
  * headings that carry their own weight. This is the base, `.olai-md`.
  *
  * Everything else is markdown drawn INSIDE the app's furniture — a note under
- * a node's title, the document an open node attaches, an agent's reply in a
+ * a node's title, an embedded document, an agent's reply in a
  * 26rem drawer. Those are `.olai-md-compact`: the same proportions one notch
  * tighter, plus a ceiling on the heading sizes, because all three hang under a
  * title the page owns and a body that out-shouts its own title is a body

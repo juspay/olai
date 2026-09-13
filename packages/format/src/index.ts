@@ -1240,4 +1240,4 @@ export { outlineCalled } from "./node.ts"
 
 export { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
 
-export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields, relativeFrom } from "./dead-links.ts"
+export { DeadLink, deadLinksIn, deadLinksOf, deadLinkSaid, deadLinkFields, deadLinkTarget } from "./dead-links.ts"

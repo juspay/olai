@@ -1,4 +1,3 @@
-import { deadLinksIn, deadLinksOf, deadLinkFields } from "@olai/format"
 /**
  * Reading the set, as an agent is allowed to read it.
  *
@@ -28,8 +27,14 @@ import { deadLinksIn, deadLinksOf, deadLinkFields } from "@olai/format"
  * reason: they are the part worth testing, and neither a disk nor a protocol
  * has any bearing on the answer.
  */
-import { type Claims, claimedOf } from "@olai/format"
+
 import {
+  proseIn,
+  deadLinksIn,
+  deadLinksOf,
+  deadLinkFields,
+  type Claims,
+  claimedOf,
   ancestorTitles,
   backlinksOf,
   blockersOf,
@@ -114,6 +119,7 @@ import {
   titleParts,
   UsageFailure,
 } from "@olai/format"
+
 import { Result } from "effect"
 
 import { askedOf } from "./asked.ts"
@@ -1070,12 +1076,13 @@ export const subtree = (
     }
   }
 
+  const served = new Set(at.set.documents.map(one => one.path))
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
     const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
-      ...deadLinkFields(deadLinksOf(located, new Set(at.set.documents.map(one => one.path)))),
+      ...deadLinkFields(deadLinksOf(located, served)),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
       ...(wantsNotes && located.node.desc !== undefined
         ? { desc: located.node.desc }
@@ -1100,7 +1107,7 @@ export const subtree = (
     const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
-      ...deadLinkFields(deadLinksOf(located, new Set(at.set.documents.map(one => one.path)))),
+      ...deadLinkFields(deadLinksOf(located, served)),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
       ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
@@ -1318,5 +1325,5 @@ export const document = (
   }
   const broken = brokenIn(set, file)
   if (broken !== undefined) return Result.fail(notLoaded(claims, file, broken))
-  return Result.succeed({ file, text: entry.body, ...deadLinkFields(deadLinksIn(file, entry.body, new Set(set.documents.map(one => one.path)))) })
+  return Result.succeed({ file, text: entry.body, ...deadLinkFields(deadLinksIn(file, proseIn(entry.body), new Set(set.documents.map(one => one.path)))) })
 }

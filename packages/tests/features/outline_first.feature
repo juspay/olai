@@ -8,6 +8,7 @@ Feature: Outlines are the map and Reference holds the material
     And the outline tree omits the folder "notes"
     When I expand the reference section
     Then the reference section is expanded
+    And Reference has its own open preference
     When I reload the page
     Then the reference section is expanded
     When I collapse the reference section
@@ -42,7 +43,10 @@ Feature: Outlines are the map and Reference holds the material
     When I remove the served file "house.olai"
     And I remove the served file "garden.olai"
     And I remove the served file "Daily/2026-08.olai"
-    Then the outline list has 0 entries
+    Then the outline list does not link to "house.olai"
+    And the outline list does not link to "garden.olai"
+    And the outline list does not link to "Daily/2026-08.olai"
+    And the outline list has 0 entries
     And the reference section lists 10 files
 
   @scratch:good
@@ -70,3 +74,26 @@ Feature: Outlines are the map and Reference holds the material
     And the reference section is expanded
     And the document link "new/brief.md" is shown
     And Reference marks "new/brief.md" as the open file
+
+  @scratch:good
+  Scenario: Selection reveals Reference without persisting its fold
+    Given I open the outline "house.olai"
+    Then Reference has no stored fold preference
+    When I follow the document link on "install"
+    Then the reference section is expanded
+    And Reference has no stored fold preference
+    When I rewrite "arrived.md" as:
+      """
+      # Arrived
+      """
+    And I reload the page
+    Then the reference section is expanded
+    And Reference has no stored fold preference
+    When I click the outline "house.olai"
+    Then the reference section is collapsed
+    When I rewrite "another.md" as:
+      """
+      # Another
+      """
+    Then the reference section lists 12 files
+    And the reference section is collapsed

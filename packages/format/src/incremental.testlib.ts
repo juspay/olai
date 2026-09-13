@@ -689,7 +689,7 @@ const written = (
           else written[field] = held
         }
         if (spread(id) % 12 === 0) {
-          written["desc"] = "[document](" + (DOC_TARGETS[spread(id) % DOC_TARGETS.length]) + ")"
+          written["title"] = String(written["title"]) + " [document](" + (DOC_TARGETS[spread(id) % DOC_TARGETS.length]) + ")"
         }
       }
       const parent = written["parent"]

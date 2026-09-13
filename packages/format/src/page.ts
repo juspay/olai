@@ -1,4 +1,3 @@
-import { DeadLink, deadLinksOf } from "./dead-links.ts"
 /**
  * WHAT ONE PAGE SHOWS — the reading a browser is handed, in place of the vault
  * it used to walk.
@@ -89,6 +88,9 @@ import { DeadLink, deadLinksOf } from "./dead-links.ts"
  * rules that decided either, so nothing up there can re-derive an answer and
  * disagree.
  */
+
+import { DeadLink, deadLinksOf } from "./dead-links.ts"
+
 import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
@@ -285,6 +287,8 @@ export type Shown = typeof Shown.Type
  */
 export const PageReading = Schema.Struct({
   shows: Shown,
+  /** Missing targets for drawn records, keyed once per page rather than scanned per row. */
+  deadLinks: Schema.optional(Schema.Record(Schema.String, Schema.Array(DeadLink))),
   /** Every node id this page mentions that the set declares, once each — see
    *  the names paragraph at the top of this module. An id the set does not
    *  declare is simply absent, which is the honest dead link: the drawing side
@@ -414,16 +418,23 @@ export const pageOf = (
   request: PageRequest,
   kinds: KindVocabulary = NO_KINDS,
 ): PageReading => {
-  const shows = shownOf(at, request)
+  const served = new Set(at.set.documents.map(face => face.path))
+  const shows = shownOf(at, request, served)
   // THE DOORS FIRST, because the names table spends them: a value that turned
   // out to name a node is an id this page points at, and the chip drawing it
   // wants what that node is CALLED. Derived rather than asked for twice — a
   // second walk deciding which ids to resolve could disagree with the one that
   // decided which values are doors, and the disagreement would read as a ref
   // chip that fell back to its id for no reason a reader could see.
-  const { doors, licences } = answersFor(at, shows, kinds)
+  const { doors, licences } = answersFor(at, shows, kinds, served)
+  const deadLinks: Record<string, ReadonlyArray<DeadLink>> = {}
+  for (const located of drawnIn(shows)) {
+    const links = deadLinksOf(located, served)
+    if (links.length > 0) deadLinks[located.node.id] = links
+  }
   return {
     shows,
+    ...(Object.keys(deadLinks).length === 0 ? {} : { deadLinks }),
     names: namesFor(
       at.derived,
       shows,
@@ -479,8 +490,8 @@ const answersFor = (
   at: Reading,
   shows: Shown,
   kinds: KindVocabulary,
+  served: ReadonlySet<string>,
 ): { readonly doors: ReadonlyArray<Door>; readonly licences: ReadonlyArray<Licence> } => {
-  const served = new Set<string>(at.set.documents.map((face) => face.path))
   // ...AND THE `.md` HALF OF IT, which is a second set and has to be: a `doc`
   // value promises to name a served DOCUMENT, and the gate holds it to exactly
   // this list ({@link ./typing.ts}'s `Typed.documents`). Built by the same
@@ -550,7 +561,7 @@ const outlinesAmong = (claims: Claims, faces: ReadonlyArray<Face>): ReadonlyArra
  *  {@link pageOf} minus its second half. Exported for the one caller that wants
  *  the rows and nothing else: the page's NARROWING (`./narrowing.ts`), which
  *  matches over the records this page draws and resolves no id at all. */
-export const shownOf = (at: Reading & { readonly outlineRow?: string }, request: PageRequest): Shown => {
+export const shownOf = (at: Reading & { readonly outlineRow?: string }, request: PageRequest, served: ReadonlySet<string> = new Set(at.set.documents.map(face => face.path))): Shown => {
   const { derived } = at
   const faces = at.set.documents
   // THE PAGES THE APP CLAIMED BY NAME FIRST, and then the address — the same
@@ -587,7 +598,7 @@ export const shownOf = (at: Reading & { readonly outlineRow?: string }, request:
       kind: "node",
       zoomed,
       backlinks: zoomed.kind === "node" ? backlinksOf(derived, zoomed.shows.node.id) : [],
-      deadLinks: zoomed.kind === "node" ? deadLinksOf(zoomed.shows, new Set(faces.map(face => face.path))) : [],
+      deadLinks: zoomed.kind === "node" ? deadLinksOf(zoomed.shows, served) : [],
     }
   }
 

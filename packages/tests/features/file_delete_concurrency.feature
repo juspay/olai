@@ -98,7 +98,7 @@ Feature: File deletion rechecks the content and references that arrive while it 
     And I open the document "body-target.md"
     When I press Delete file
     And I confirm deleting the file
-    Then the deletion is refused saying "`body-target.md` is still named by `body-source.md` (`link`, body-source.md) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming link or record first."
+    Then the deletion is refused saying "`body-target.md` is still named by `body-source.md` (`link`) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming link or record first."
     When I rewrite "body-source.md" as:
       """
       Reference removed.

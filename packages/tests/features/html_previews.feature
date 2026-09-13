@@ -1413,7 +1413,6 @@ Feature: A `.html` in the vault
     When I expand the reference section
     # It is not in the directory the app draws — the pages listed are the ones
     # the store walked, and the pruned one is not among them…
-    When I expand the reference section
     And the pages listed are "quarter.html, report.html, vendor.html"
     # …and the route serves it all the same, which is the half that makes this a
     # seam rather than a missing file.

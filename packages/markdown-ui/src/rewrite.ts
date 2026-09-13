@@ -44,8 +44,19 @@
  * A second walk to collect them would be a second walk over the same tree
  * asking a question this one already has the answer to.
  */
+
+import {
+  deadLinkTarget,
+  deadLinkSaid,
+  type Claims,
+  addressOf,
+  printAddress,
+  bodiedOf,
+  pictureOf,
+  pathedOf,
+} from "@olai/format"
+
 import { TESTID } from "@olai/markdown-ui/testids.ts"
-import { type Claims, addressOf, printAddress, bodiedOf, pictureOf, pathedOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
@@ -56,9 +67,10 @@ export interface Rewrite {
   readonly claims: Claims | undefined
   /** The file the markdown was written in — an outline, for a note; the
    *  document itself, for a document. A relative picture is resolved beside
-   *  it, exactly as a `doc` is. */
-  readonly serves?: (path: string) => boolean
+   *  it, exactly as a relative prose link is. */
   readonly from: string
+  /** Optional live membership predicate, supplied by the owning directory. */
+  readonly serves?: (path: string) => boolean
   /** This block's id namespace. */
   readonly ids: string
 }
@@ -171,11 +183,16 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
   if (typeof written !== "string") return
   // ONE index, so the two halves cannot be cut at two places: an href with no
   // `#` ends at its own end, which makes the fragment the empty tail.
-  const cut = written.includes("#") ? written.indexOf("#") : written.length
-  const resolved = pathedOf(from, written.slice(0, cut))
+  const cut = (written.split(/[?#]/, 1)[0] ?? "").length
+  const resolved = deadLinkTarget(from, written)
   if (resolved !== null && serves !== undefined && !serves(resolved)) {
-    element.properties = { ...element.properties, "data-dead": true, title: `link resolves to nothing served: ${resolved}`,
-      style: "text-decoration: underline wavy var(--color-alarm); text-underline-offset: 3px" }
+    const warning = deadLinkSaid({ written, resolved, suggest: [] })
+    const authored = element.properties["title"]
+    const classes = element.properties["className"]
+    element.properties = { ...element.properties, "data-dead": true,
+      title: typeof authored === "string" ? `${authored} — ${warning}` : warning,
+      className: [...(Array.isArray(classes) ? classes : []), "olai-dead-link"] }
+
   }
   const document = bodiedOf(claims, from, written.slice(0, cut))
   if (document === null) return

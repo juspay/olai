@@ -194,6 +194,8 @@ export interface Directory {
    *  compare all the same — a reconnect re-seeds the fold, and a fresh list of
    *  the same files is exactly what that compare is for. */
   readonly paths: Accessor<ReadonlyArray<string>>
+  /** Constant-time membership; read paths for its revision identity. Never mutate. */
+  readonly members: Accessor<ReadonlySet<string>>
   /** The files that did not parse, by path — the sidebar marks them and a pane
    *  opened on one draws its errors instead of a tree.
    *
@@ -264,8 +266,8 @@ export interface HeadEntries {
  * `paths` and `broken` are what LEAVE — the values the two members above hand
  * out — so they are REBUILT rather than written into, and a frame that moves
  * neither hands back the pair it was already holding. `members` is this fold's
- * own working memory and is MUTATED in place: it is reachable from nowhere else
- * (the framework hands the accumulator back to `step` and to nobody), and
+ * own working memory and is MUTATED in place: its readonly membership view is exposed through the directory service,
+ * while only this fold may mutate it, and
  * copying a set of the whole directory per frame would be the corpus-wide walk
  * this fold exists to retire, reintroduced one line down from where it was
  * removed.
@@ -283,6 +285,8 @@ export interface HeadEntries {
  * directory's — so a suite over the fold alone would be a suite over the half
  * that cannot see them.
  */
+const EMPTY_MEMBERS: ReadonlySet<string> = new Set()
+
 interface Held {
   readonly paths: ReadonlyArray<string>
   readonly broken: ReadonlyMap<string, BrokenFile>
@@ -523,6 +527,7 @@ export const createDirectory = (
       return said !== undefined && holding !== undefined ? "loaded" : "reading"
     }),
     paths: createMemo(() => held()?.paths ?? NO_PATHS),
+    members: () => held()?.members ?? EMPTY_MEMBERS,
     // SEEDED with the empty map, which the `equals` requires: a comparator is
     // asked about the FIRST value too, and `sameMap` reads a size off both
     // sides. The ERRORS are compared as well as the keys, and by IDENTITY —

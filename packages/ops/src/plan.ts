@@ -1,5 +1,3 @@
-import { addressOf, referrersTo } from "@olai/format"
-import { deadLinksIn, deadLinkSaid, markdownAt } from "@olai/format"
 /**
  * A request plus a snapshot, into the whole files that write would produce.
  *
@@ -25,10 +23,18 @@ import { deadLinksIn, deadLinkSaid, markdownAt } from "@olai/format"
  * — an id nobody declares, an undo of a mark that is not there — and lets the
  * validator speak for everything else, in its own words, with `file:line`.
  */
-import { outlineCalled, TRASH } from "@olai/format"
-import { claimedOf, outlineAt as admitOutline } from "@olai/format"
-import { unclaimedPath } from "./refusals.ts"
+
 import {
+  proseIn,
+  addressOf,
+  referrersTo,
+  deadLinksIn,
+  deadLinkSaid,
+  markdownAt,
+  outlineCalled,
+  TRASH,
+  claimedOf,
+  outlineAt as admitOutline,
   ancestorsOf,
   BATCH_AT_MOST,
   type BatchedRequest,
@@ -67,7 +73,6 @@ import {
   nothing,
   type OpFailure,
   ordBetween,
-
   pinsIn,
   propertiesIn,
   type Reading,
@@ -96,6 +101,8 @@ import {
   wrongDeclaration,
   type WriteRequest as Request,
 } from "@olai/format"
+
+import { unclaimedPath } from "./refusals.ts"
 import { Result } from "effect"
 
 import { type Asked, askedOf } from "./asked.ts"
@@ -5678,7 +5685,7 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
         new UsageFailure({
           reason:
             `\`${request.file}\` is still named by ${capped(outgoing, ({ name, site, via }) =>
-              `\`${name}\` (\`${via}\`, ${site})`)} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
+              `\`${name}\` (\`${via}\`${site === name ? "" : `, ${site}`})`)} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
             `pointing at nothing. Re-point ${outgoing.length === 1 ? "it" : "them"}, or delete the ` +
             `naming link or record first.`,
         }),
@@ -5890,7 +5897,7 @@ export const plan = (scope: Scope, request: Request): Planned => {
   if (request.op !== "create" && request.op !== "create-doc" && "file" in request && typeof request.file === "string"
     && claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
   const planned = (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)
-  if (Result.isFailure(planned) || !["title", "desc", "add", "doc", "create-doc"].includes(request.op)) return planned
+  if (Result.isFailure(planned) || !["title", "desc", "add", "create", "doc", "create-doc"].includes(request.op)) return planned
   const next = planned.success
   const served = new Set([...scope.set.documents.map(one => one.path), ...next.files.map(one => one.file), ...(next.documents ?? []).map(one => one.file)])
   const nudges: string[] = []
@@ -5902,9 +5909,10 @@ export const plan = (scope: Scope, request: Request): Planned => {
     for (const node of file.nodes) {
       if (isMirror(node)) continue
       const before = scope.derived.byId.get(node.id)?.node
+      if (before !== undefined && !isMirror(before) && before.title === node.title && before.desc === node.desc) continue
       compare(file.file, [node.title, node.desc ?? ""], before === undefined || isMirror(before) ? "" : [before.title, before.desc ?? ""])
     }
   }
-  for (const document of next.documents ?? []) compare(document.file, document.text, markdownAt(scope.set, document.file)?.body ?? "")
+  for (const document of next.documents ?? []) compare(document.file, proseIn(document.text), proseIn(markdownAt(scope.set, document.file)?.body ?? ""))
   return nudges.length === 0 ? planned : Result.succeed({ ...next, nudge: [next.nudge, ...new Set(nudges)].filter(Boolean).join(" ") })
 }

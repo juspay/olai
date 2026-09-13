@@ -1,5 +1,5 @@
 /**
- * Which folders of the directory this browser is keeping OPEN.
+ * Which folders and the Reference section this browser is keeping OPEN.
  *
  * The same memory as the outline tree's (./memory.ts) and the same doctrine —
  * a preference of this browser, never a byte on disk — with the set INVERTED,
@@ -13,6 +13,10 @@
  * the same argument — a path no file lives under any more is a folder that is
  * gone, and dropping it on the next write keeps the entry the size of the
  * directory rather than the size of its history.
+ *
+ * Reference uses its own boolean key: opening a folder says nothing about
+ * keeping that whole section open. Navigation reveals Reference transiently
+ * and never writes this preference.
  *
  * Its own key rather than a corner of the folds entry: they are two trees, and
  * a reader who has opened three folders has said nothing about any node.
@@ -65,17 +69,16 @@ export const toggleFolder = (path: string, live: ReadonlySet<string>): void => {
   pref.set(prunedFolders(next, live))
 }
 
-/** Follow it for as long as this document lives — a folder opened in another
- *  tab lands here, exactly as a fold does. */
+/** The section fold is independent of folder paths and defaults closed. */
 export const REFERENCE_KEY = "olai.sidebar.reference"
 const reference = createPreference(REFERENCE_KEY, {
   parse: (raw: string | null) => raw === "true",
   print: (open: boolean) => open ? "true" : null,
 })
 export const referenceOpen = reference.value
-export const openReference = (): void => reference.set(true)
 export const toggleReference = (): void => reference.set(!reference.value())
 
+/** Follow both preferences for this activation; withdraw in reverse order. */
 export const followFolders = (): (()=>void) => {
   const folders = pref.follow()
   const refs = reference.follow()

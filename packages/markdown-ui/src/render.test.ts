@@ -667,3 +667,23 @@ test("served membership marks missing links and clears independently of the sour
   expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md", () => true)).not.toContain("data-dead")
   expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md")).not.toContain("data-dead")
 })
+
+test("membership revisions keep render caching and stable heading IDs", () => {
+  const members = new Set<string>()
+  let calls = 0
+  const serves = (path: string) => { calls++; return members.has(path) }
+  const firstRevision = {}
+  const source = '# Cache revision\n[x](cached-target.md "authored title")'
+  const first = renderMarkdown(TEST_CLAIMS, source, "a.md", serves, firstRevision)
+  const initial = calls
+  expect(initial).toBeGreaterThan(0)
+  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", serves, firstRevision)).toBe(first)
+  expect(calls).toBe(initial)
+  expect(first).toContain("authored title — link resolves to nothing served")
+  expect(first).toContain("olai-dead-link")
+  expect(first).not.toContain('style="text-decoration')
+  members.add("cached-target.md")
+  const next = renderMarkdown(TEST_CLAIMS, source, "a.md", serves, {})
+  expect(next).not.toContain("data-dead")
+  expect(next.match(/id="([^"]+)"/)?.[1]).toBe(first.match(/id="([^"]+)"/)?.[1])
+})

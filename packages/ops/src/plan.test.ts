@@ -3671,10 +3671,9 @@ describe("merge", () => {
       .toBe("the second")
   })
 
-  test("a mark, a date, a document or an edge goes with the record — and is said out loud", () => {
+  test("a mark, a date or an edge goes with the record — and is said out loud", () => {
     // Every field a node carries ONE of, so the survivor's own answer stands
     // and this one leaves the live outline. None of them may go quietly —
-    // `doc` was the one that did, for a review (2026-08-14).
     const set = setOf({
       "house.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
@@ -3784,7 +3783,7 @@ describe("archive", () => {
     expect(result.summary).toBe("trash: order the cabinets")
   })
 
-  test("a `doc` is rewritten so it still names the same file from the trash", () => {
+  test("a note link stays verbatim through trash and restore", () => {
     const set = setOf({
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -6224,6 +6223,13 @@ describe("dead-link nudges", () => {
     const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"[unfinished"}' })
     expect(planned(existing, { op: "desc", id: "a", desc: "](missing.md)" }).nudge).toBeUndefined()
   })
+  test("creating an outline with a seed warns, including the first Inbox capture", () => {
+    expect(planned(setOf({}), { op: "create", file: "_olai/Inbox.olai", seed: { title: "[missing](../missing.md)" } }).nudge).toContain("missing.md")
+  })
+  test("document frontmatter and code do not warn", () => {
+    const text = '---\nexample: "[x](yaml.md)"\n---\n`[x](code.md)`'
+    expect(planned(set(), { op: "doc", file: "projects/readme.md", text }).nudge).toBeUndefined()
+  })
   test("an unchanged dead link is not nudged again", () => {
     const existing = setOf({ "a.olai": '{"id":"a","ord":"a0","title":"A","desc":"[x](missing.md)"}' })
     expect(planned(existing, { op: "desc", id: "a", desc: "[x](missing.md) again" }).nudge).toBeUndefined()
@@ -6238,7 +6244,7 @@ describe("files held by prose links", () => {
       expect(failure.message).toContain("`a` (`link`, projects/a.olai:1)")
     }
     const set = setOf({}, [["notes/source.md", "[target](../target.md#scope)"], "target.md"])
-    expect(refused(set, { op: "delete", file: "target.md" }).message).toContain("`notes/source.md` (`link`, notes/source.md)")
+    expect(refused(set, { op: "delete", file: "target.md" }).message).toContain("`notes/source.md` (`link`)")
   })
   test("trashed records and a document's self-link do not hold it", () => {
     const set = setOf({ "_olai/Trash.olai": '{"id":"old","ord":"a0","title":"[target](../target.md)"}' }, [["target.md", "[self](target.md)"]])

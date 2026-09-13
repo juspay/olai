@@ -44,11 +44,8 @@ test("a path climbing above the served directory clamps to it", () => {
 })
 
 
-// A mirror is a second PLACEMENT of a node, not a second copy of its fields:
-// the document belongs to the node it points at, and is drawn from there.
-
 // A picture is a file beside the text that names it, resolved the same way a
-// `doc` is.
+// relative prose link is.
 test("a relative picture resolves beside the file that names it", () => {
   expect(pictureOf(TEST_CLAIMS, "docs/notes.md", "art/shot.png")).toBe("docs/art/shot.png")
   expect(pictureOf(TEST_CLAIMS, "docs/notes.md", "./shot.png")).toBe("docs/shot.png")
@@ -80,7 +77,7 @@ test("only a relative picture is drawn at all", () => {
 
 // A link between two `.md` files is the way a vault of Markdown points at
 // itself, and it lands beside the file that WROTE it — the same arithmetic a
-// `doc` and a picture already use, which is why they are one resolver.
+// a picture already uses, which is why they are one resolver.
 test("a relative link to a document resolves beside the file that names it", () => {
   expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
     .toBe("projects/deck.md")
@@ -263,7 +260,7 @@ test("nothing else is interpreted", () => {
 })
 
 // A `.md` that opens with a `---` block was called `---` — in the sidebar, in
-// the palette and beside every `doc`-carrying row — because the fence was the
+// the palette and on every document page — because the fence was the
 // first line with anything on it. The record on top of a document is not what
 // the document is CALLED.
 test("frontmatter is not the first line", () => {
