@@ -232,7 +232,7 @@ Feature: Pinning layouts
 
   Scenario: A nested authored layout opens as equal ordered panes
     Given the directory has the pins:
-      | [Nested](/s/house.olai/garden.olai/finishes.md?t=row(leaf,col(leaf,leaf))&w=30,(40,60)&f=2) |
+      | [Nested](/s/house.olai/garden.olai/finishes.md?t=row%28leaf%2Ccol%28leaf%2Cleaf%29%29&w=30%2C%2840%2C60%29&f=2) |
     When I follow the pin "/s/house.olai/garden.olai/finishes.md"
     Then there are 3 panes
     And pane 0 is showing "/house.olai"
