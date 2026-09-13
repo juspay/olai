@@ -1,6 +1,6 @@
 # Live properties
 
-Most of what a board records is inert: a title, a date, a URL, a path. Some of it is not. A property whose value is a **name somebody decided on** — a terminal's id, a checkout's path — names a thing that is still going on somewhere, and a value like that can be given a face that **updates on its own**.
+Most of what a board records is inert: a title, a date, a URL, a path. Some of it is not. A property whose value is a **name somebody decided on** — a terminal's id, a CI run's id — names a thing that is still going on somewhere, and a value like that can be given a face that **updates on its own**.
 
 The board goes on storing the name. The display goes and finds out what that name currently is.
 
@@ -11,7 +11,7 @@ This page is the seam itself, and it is generic: what a live property is, what t
 | the kind, and the key it claims | what it wears | whose page |
 | --- | --- | --- |
 | `kolu-terminal` | kolu's own Dock row, and the live read-only pane it opens | [plugins/kolu.md](plugins/kolu.md) |
-| `odu-worktree` | a CI chip while a run is going in that checkout, and the run matrix it opens | [plugins/odu.md](plugins/odu.md) |
+| `odu-run` | a CI chip for the named run, and the run matrix it opens | [plugins/odu.md](plugins/odu.md) |
 
 They are the same mechanism wearing different clothes, and a third kind of living thing later is a third set of clothes rather than a third mechanism.
 
@@ -26,7 +26,7 @@ convention — the kind's own word, which carries the plugin's name:
 | plugin | kind, and the key it claims | wears |
 | --- | --- | --- |
 | kolu | `kolu-terminal` | the terminal door |
-| odu | `odu-worktree` | the CI chip |
+| odu | `odu-run` | the CI chip |
 
 So a lane row carrying `kolu-terminal 303dc985` gets the door with nothing
 declared anywhere. That is the default, and it is the whole of the default.
@@ -42,7 +42,7 @@ wins:
 
 ```jsonl
 {"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
-{"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"odu-worktree"}}
+{"id":"prop-run","ord":"aC","title":"run","custom":{"type":"odu-run"}}
 ```
 
 That is the short-key version: your key, the plugin's kind, your file. A column
@@ -64,7 +64,7 @@ above, and neither of them reads a key's spelling.
 
 **A block OWNS ITS ROW.** A `terminal` somebody wrote down is worth a row whether or not anything is going on in it — there is always something to say, including *this terminal is no longer in the fleet*.
 
-**A chip sits BESIDE THE VALUE** and appears only while there is something to say. A `worktree` is a path on a lane row, quiet by default; its CI chip is there while a run is going and gone the rest of the time. A board with no CI running looks exactly as it did.
+**A chip sits BESIDE THE VALUE** and appears only while there is something to say. An `odu-run` is a run id on a lane row; once the vault names it and the service cell is connected, the chip is there — a miss reads `unknown run`. A row with no `odu-run` looks unchanged.
 
 The chip's press opens a **pane** beneath the property run — one at a time per node, mounted only while it is open, so a page of twelve lanes with one live run has one clock ticking on it.
 

@@ -39,18 +39,20 @@ import type {} from "olai-plugin-outlines/slots"
 // THE APP'S DOOR — the tags this half names and the `definePlugin` that turns
 // an Effect into a plugin (`@olai/plugin-api`'s `browser.ts`). Its server half
 // opens exactly the one door over, and neither of them names `cordis`.
-import { Clocks, definePlugin, Slots, Wired } from "@olai/plugin-api"
+import { Bar, Clocks, definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { Effect } from "effect"
 import type { Accessor } from "solid-js"
 
-import type { CiRuns } from "olai-plugin-odu/appliance/wire"
+import type { CiRuns, OduLink } from "olai-plugin-odu/appliance/wire"
+import { ODU_UNDIALED } from "olai-plugin-odu/appliance/wire"
 
 import { CiChip } from "./browser/CiChip.tsx"
 import { ClocksProvider } from "./browser/clocks.tsx"
 import { OduMark } from "./browser/Mark.tsx"
 import { RunsProvider, createRuns } from "./browser/runs.tsx"
 import { RunMatrix } from "./browser/RunMatrix.tsx"
-import { WORKTREE_KIND } from "./kinds.ts"
+import { OduReadout } from "./browser/Odu.tsx"
+import { RUN_KIND } from "./kinds.ts"
 
 import { name, surface } from "./wire.ts"
 
@@ -70,6 +72,9 @@ interface CiClient {
   readonly cells: {
     readonly ci: {
       use: () => { readonly value: Accessor<CiRuns | undefined> }
+    }
+    readonly service: {
+      use: () => { readonly value: Accessor<OduLink | undefined> }
     }
   }
 }
@@ -92,18 +97,24 @@ interface CiClient {
  */
 export default definePlugin({
   name,
-  needs: [Slots, Clocks, Wired],
+  needs: [Slots, Bar, Clocks, Wired],
   apply: Effect.gen(function*() {
+    const bar = yield* Bar
     const clocks = yield* Clocks
     const slots = yield* Slots
     const wired = yield* Wired
-    const owned = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({dispose, runs:createRuns((wired.client() as CiClient).cells.ci.use().value)}))), owned => Effect.sync(owned.dispose))
+    const client = wired.client() as CiClient
+    const owned = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({
+      dispose,
+      runs: createRuns(client.cells.ci.use().value),
+      link: () => client.cells.service.use().value() ?? ODU_UNDIALED,
+    }))), owned => Effect.sync(owned.dispose))
 
     // THE CHIP AND WHAT ITS PRESS OPENS — this plugin's one dressing.
     //
-    // A `worktree` is a path on a row and is worth exactly nothing until
-    // something is happening in it, so its face is an ADDITION to the line that
-    // appears only while there is a run — where the terminal door one appliance
+    // An `odu-run` is an id on a row and is worth exactly nothing until
+    // the service knows that run, so its face is an ADDITION to the line that
+    // appears only while there is a reading — where the terminal door one appliance
     // over owns a row always. The matrix is a grid and a chip is an inline box in
     // a wrapping line, so what the press opens hangs under the run as the pane
     // rather than inside the chip.
@@ -114,8 +125,9 @@ export default definePlugin({
     // cannot be two spellings. It is the same constant the probe walk follows and
     // the value gate holds a declaration to — one spelling, one authority, and
     // the chip and the dial cannot come apart.
-    yield* slots.register("outline.row.chip", WORKTREE_KIND, props => <ClocksProvider clocks={clocks}><RunsProvider value={owned.runs}><CiChip {...props} /></RunsProvider></ClocksProvider>)
-    yield* slots.register("outline.row.pane", WORKTREE_KIND, props => <ClocksProvider clocks={clocks}><RunsProvider value={owned.runs}><RunMatrix {...props} /></RunsProvider></ClocksProvider>)
+    yield* slots.register("outline.row.chip", RUN_KIND, props => <ClocksProvider clocks={clocks}><RunsProvider value={owned.runs}><CiChip {...props} /></RunsProvider></ClocksProvider>)
+    yield* slots.register("outline.row.pane", RUN_KIND, props => <ClocksProvider clocks={clocks}><RunsProvider value={owned.runs}><RunMatrix {...props} /></RunsProvider></ClocksProvider>)
+    yield* slots.register("app.header", { place: "cluster", body: () => <OduReadout app={bar} link={owned.link} /> })
     // ODU'S FACE IN A TRANSCRIPT — the mark over a sentence the doorbell
     // delivered into somebody's conversation. It is contributed from the tenant
     // that owns it because core may know this plugin's NAME as data and nothing

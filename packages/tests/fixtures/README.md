@@ -310,8 +310,8 @@ a key changes the whole namespace" looks like from a test suite.
 | an `int` | `records` — 189, 193, 200, and a 1000 that a string comparison would put inside `190..200`. NOT `pr`, deliberately: olai's own vault declares `pr-url` as text (the human, 2026-08-25), and a fixture teaching the opposite about the same word would be the one place in this repository that disagrees with the board it ships beside. |
 | a `date`, both stored widths | `dispatched` — an instant on `props`, a bare day on `chips` |
 | a `doc` | `brief` on `props`, naming `briefs/tp.md` |
-| a `path` | none — `brief` is the `doc` beside it, and the `path` this fixture used to carry became the kind below |
-| a kind a PLUGIN contributed | `worktree` on `props`, declared `{"type":"worktree"}` — `olai-plugin-odu`'s word, which is what licences the CI probe and the chip. Declared `path` it would be indistinguishable from `brief`, which is the defect the kind exists to end |
+| a `path` | `worktree` on `props` — a checkout path, one of the format's own kinds, not a live face |
+| a kind a PLUGIN contributed | `run` on `board-lane`, declared `{"type":"odu-run"}` — `olai-plugin-odu`'s word, which is what licences the CI chip. A path it is not: the value is a run id, and a chip that offered to open it would be offering a page that does not exist |
 | an UNDECLARED key on a typed board | `terminal` on `far` — prose, legal, untouched. Deliberately NOT declared here: `terminal` is `olai-plugin-kolu`'s kind, and this corpus is about the format's own vocabulary |
 
 The set validates as it stands, which is the point: a declaration never lands on

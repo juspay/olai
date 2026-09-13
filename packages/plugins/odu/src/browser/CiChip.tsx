@@ -1,10 +1,10 @@
 /**
- * THE CI CHIP — a `worktree` property's living face, drawn beside the path it
+ * THE CI CHIP — an `odu-run` property's living face, drawn beside the id it
  * is about.
  *
  * The live-properties seam's SECOND tenant (`@olai/web`'s live seam), and
  * deliberately the quieter shape of the two. The terminal door takes a row,
- * because a terminal somebody named is worth one; a `worktree` is a path on a
+ * because a terminal somebody named is worth one; an `odu-run` is an id on a
  * row and is worth exactly nothing until something is happening in it —
  * so this draws NOTHING most of the time and one chip when there is a run,
  * and the line a reader sees is otherwise the line they have always seen.
@@ -49,7 +49,7 @@
 
 import { createEffect, Show } from "solid-js"
 
-import type { CiRun } from "olai-plugin-odu/appliance/wire"
+import { type CiRun, liveOf } from "olai-plugin-odu/appliance/wire"
 
 import { TESTID } from "../testids.ts"
 import { useClocks } from "./clocks.tsx"
@@ -77,7 +77,7 @@ export function CiChip(context: ChipContext) {
   const runs = useRuns()
   /** The run for THIS property's value — a lookup by the board's own word,
    *  never a resolution: the server keyed the row by the value it read
-   *  precisely so a browser never has to know where a worktree is. */
+   *  precisely so a browser never has to know where the run ran. */
   const run = () => runs.runOf(context.entry.value)
   /**
    * THE TICK, armed off the running node's start and disarmed by everything
@@ -92,7 +92,7 @@ export function CiChip(context: ChipContext) {
    */
   const started = (): number | null => {
     const held = run()
-    if (held === undefined || !held.live) return null
+    if (held === undefined || !liveOf(held.state)) return null
     return runningIn(held)?.startedAt ?? null
   }
   const clocks = useClocks()
@@ -114,7 +114,7 @@ export function CiChip(context: ChipContext) {
               class={`${CHIP} ${TONE[said().tone]}`}
               data-testid={TESTID.ciChip}
               data-state={said().tone}
-              data-worktree={context.entry.value}
+              data-run={context.entry.value}
               title={said().title}
             >
               {said().text}
@@ -127,7 +127,7 @@ export function CiChip(context: ChipContext) {
               class={`${CHIP} ${TONE[said().tone]} cursor-pointer`}
               data-testid={TESTID.ciChip}
               data-state={said().tone}
-              data-worktree={context.entry.value}
+              data-run={context.entry.value}
               data-open={context.opened ? "yes" : "no"}
               title={`${said().title} — press for the run matrix`}
               onClick={(event) => {
