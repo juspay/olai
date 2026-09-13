@@ -400,7 +400,10 @@ The names are not written down twice. `support/world.ts` imports the complete `T
 | selector | what it marks |
 |---|---|
 | `#root` | the mount point |
-| `[data-testid="outline-list"]` | the sidebar's file tree (outlines and documents under folders) |
+| `[data-testid="outline-list"]` | the outline-only sidebar tree; reference files use their own region |
+| `[data-testid="sidebar-reference"][data-count]` | Reference region and total file count, absent when empty |
+| `[data-testid="reference-toggle"][aria-expanded]` | persisted Reference fold button |
+| `[data-testid="reference-list"]` | reference file tree, mounted only while expanded |
 | `[data-testid="outline-link"][data-file]` | one outline entry in that tree |
 | `[data-testid="outline-tree"]` | the outline tree pane (nodes of one file) |
 | `[data-testid="node"][data-node-id]` | one node; also `data-status`, `data-collapsed`, `data-mirror` |
@@ -419,13 +422,11 @@ The names are not written down twice. `support/world.ts` imports the complete `T
 | `[data-testid="file-dir-toggle"]` | the fold control on that folder |
 | `[data-testid="document-link"][data-file]` | one document entry in the file tree |
 | `[data-testid="document-page"][data-file]` | one document, as a page |
-| `[data-testid="document-body"]` | a document's rendered markdown, on its page, inline under a node, or as a day's note |
+| `[data-testid="document-body"]` | a document's rendered markdown, on its page or as a day's note |
 | `[data-testid="day-note"][data-file]` | THE day's note on a day page: the document named for that date, drawn above the dated nodes |
 | `[data-testid="day-note-link"]` | its heading — the way from the day to that document's own page |
 | `[data-testid="toc"]` | a document's table of contents, above its body — a `<details>`, so whether it is open is the element's own state; ABSENT on anything that is not a document's own page, and on a document with fewer than two headings |
 | `[data-testid="toc-link"]` | one line of it: a link to a heading in the same page, its `href` naming the id that heading carries |
-| `[data-testid="doc-ref"][data-doc]` | a node's `doc`, at its RESOLVED path; `data-inline` when the document is drawn whole |
-| `[data-testid="doc-link"]` | the link inside that reference |
 | `[data-testid="node-gutter"]` | one row's own line — its controls and title, and nothing from the rows nested under it |
 | `[data-testid="zoom"]` | a row's bullet: the link to that node's own page; `data-halo="true"` when the row is collapsed with children |
 | `[data-testid="checkbox"][data-status][data-face]` | the status box beside that bullet: `data-face` is `checked` / `doing` / `empty` (CSS squares, not Unicode glyphs) — and NOT PRESENT on a node carrying none of them, which is how a bullet is told from an unstarted task |

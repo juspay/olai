@@ -16,6 +16,7 @@ import { BODY_REFUSED as REFUSED_SAID } from "@olai/surface";
 
 import {
   attr,
+  ZOOM,
   BODY_REFUSED,
   DOCUMENT_BODY,
   DOCUMENT_LINK,
@@ -42,7 +43,7 @@ Then(
   "the documents listed are {string}",
   async function (this: OlaiWorld, expected: string) {
     await this.expectListed(
-      DOCUMENT_LINK,
+      `[data-testid="reference-list"] ${DOCUMENT_LINK}`,
       expected.split(",").map((file) => file.trim()),
       "document(s)",
     );
@@ -53,6 +54,7 @@ When(
   "I click the document {string}",
   async function (this: OlaiWorld, file: string) {
     await this.showSidebar();
+    await this.expandReference();
     const link = this.documentLink(file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();
@@ -339,7 +341,7 @@ Then(
 
 // Links in notes are the attachment and open the document's own page.
 When("I follow the document link on {string}", async function(this: OlaiWorld, id: string) {
-  await this.openNode(id);
+  if (await this.node(id).count() > 0) await this.clickWithin(id, ZOOM);
   const link = this.page.locator('[data-testid="desc"] a').first();
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await link.click();

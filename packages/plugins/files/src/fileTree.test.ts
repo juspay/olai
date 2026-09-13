@@ -247,3 +247,18 @@ test("dirsIn is every folder the tree draws, nested ones included", () => {
     dirsIn(fileTree(TEST_CLAIMS, ["Daily/2026/08.olai", "house.olai", "notes/palette.md"])),
   ).toEqual(new Set(["Daily", "Daily/2026", "notes"]))
 })
+
+test("outline and reference walks prune folders independently and share fold paths", () => {
+  const files = ["mixed/a.olai", "mixed/b.md", "notes/a.md", "empty/no-kind.xyz", "root.olai", "picture.png"]
+  const outlines = fileTree(TEST_CLAIMS, files, "nodes")
+  const reference = fileTree(TEST_CLAIMS, files, "reference")
+  expect(dirsIn(outlines)).toEqual(new Set(["mixed"]))
+  expect(dirsIn(reference)).toEqual(new Set(["mixed", "notes"]))
+  expect(dirsIn([...outlines, ...reference])).toEqual(new Set(["mixed", "notes"]))
+  const paths = (rows: ReturnType<typeof fileTree>): string[] => rows.flatMap(row => row.kind === "file" ? [row.file] : paths(row.children))
+  expect(paths(outlines)).toEqual(["mixed/a.olai", "root.olai"])
+  expect(paths(reference)).toEqual(["mixed/b.md", "notes/a.md", "picture.png"])
+  expect(paths(reference)).toHaveLength(3)
+  expect(fileTree(TEST_CLAIMS, ["only.md"], "nodes")).toEqual([])
+  expect(fileTree(TEST_CLAIMS, ["only.olai"], "reference")).toEqual([])
+})

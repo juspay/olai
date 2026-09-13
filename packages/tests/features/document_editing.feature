@@ -120,7 +120,8 @@ Feature: Documents become writable
       """
     And I save the document
     Then the document renders bold text "circuits"
-    When I expand the folder "notes"
+    When I expand the reference section
+    And I expand the folder "notes"
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
 
   @scratch:good
@@ -144,7 +145,8 @@ Feature: Documents become writable
     # The sidebar lists the completed name, the way the outline door's twin
     # asserts its row: what was minted is a file of this directory, not just a
     # page that opened.
-    When I expand the folder "notes"
+    When I expand the reference section
+    And I expand the folder "notes"
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And there should be no page errors
 

@@ -52,7 +52,7 @@ Then(
       // The world's own lookup, which THROWS for a kind the registry does not
       // claim: a misspelled step fails as a sentence rather than as a timeout
       // on a selector nobody writes.
-      rowsOfKind(kind),
+      kind === "outline-olai" ? rowsOfKind(kind) : `[data-testid="reference-list"] ${rowsOfKind(kind)}`,
       expected.split(",").map((file) => file.trim()),
       `${kind} row(s)`,
     );
@@ -63,6 +63,7 @@ When(
   "I click the {string} row {string}",
   async function (this: OlaiWorld, kind: string, file: string) {
     await this.showSidebar();
+    if (kind !== "outline-olai") await this.expandReference();
     const link = this.kindLink(kind, file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();

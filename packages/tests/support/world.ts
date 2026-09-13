@@ -2032,14 +2032,21 @@ export class OlaiWorld extends World {
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
 
+  async expandReference(): Promise<void> {
+    await this.showSidebar();
+    const toggle = this.page.getByTestId("reference-toggle");
+    await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  }
+
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
-    return this.fileLink(DOCUMENT_LINK, file);
+    return this.fileLink(`[data-testid="reference-list"] ${DOCUMENT_LINK}`, file);
   }
 
   /** One sidebar `.html` entry, on the same terms. */
   hypertextLink(file: string): Locator {
-    return this.fileLink(HYPERTEXT_LINK, file);
+    return this.fileLink(`[data-testid="reference-list"] ${HYPERTEXT_LINK}`, file);
   }
 
   /** One sidebar row of ANY registered kind, by the kind's own name — the
@@ -2126,10 +2133,9 @@ export class OlaiWorld extends World {
 
   /** One folder in the sidebar's file tree, by its root-relative path. */
   fileDir(path: string): Locator {
-    return this.page.locator(`${FILE_DIR}${attr("data-path", path)}`);
+    return this.page.locator(`${FILE_DIR}${attr("data-path", path)}`).first();
   }
 
-  /** A node's `doc` reference — its own, not a descendant's. */
 
   /** One day of the month in the sidebar. */
   calendarDay(date: string): Locator {

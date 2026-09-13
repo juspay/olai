@@ -395,6 +395,11 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 ## What the sidebar leaves out, and the one door under it
 
+The outline is the map; files are the territory it points at. **Outlines** lists only node-holding files and their folders; **Reference** holds every other served file, grouped by folder and collapsed by default, with a count of files beside its name.
+
+Reference remembers its fold state in this browser. Opening a document or other reference file opens the section and its folder chain and marks the file's row. A mixed folder appears in both trees and shares one folder preference. Empty folders are omitted; a directory with only outlines has no Reference header. The new-file doors remain under Outlines, and a new document appears in Reference immediately.
+
+
 **The file tree does not draw `_olai/`** — the outlines olai names for itself — and they are not hidden either: they have a home of their own at the foot of the column, nested under one special parent named for the house itself — **olai** — beside the Trash door that also lives there (ruled 2026-08-31: one mechanism, one parent, one door for the vault's own furniture; the Trash's top-level entry was absorbed into it). The parent is no page and no fold — the rows under it are the doors — and each opens the ordinary outline it is. The pinned shelf above the tree already IS `Pins.olai`, **Inbox** sits beside Agenda at the top of the column (human, 2026-08-20) — the group keeps the last mile: the inspectable remainder, a click each, without rows in the tree stacked on top of your own outlines. The rule replaced a **Prefs** switch — Hidden outlines, on this panel for the same files — with the group, because inspectability you have to set is inspectability you have to know to ask for.
 
 **It is a drawing rule and nothing else.** Those files are in the directory either way: search finds them, an agent's `outlines_index` lists them, the Trash page and the shelf read them, and git records them like anything else. What changes is one list of rows in the directory column.
@@ -407,7 +412,7 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 ## Pinning a page to the sidebar
 
-A **shelf of doors** in the directory column, between the calendar and the file tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
+A **shelf of doors** in the directory column, between the calendar and the outline tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
 
 **Three ways on, and they are one gesture over one address.** A row's `•••` offers **Pin to sidebar**, and offers **Unpin from sidebar** on a row already up there — one entry with two labels, because the shelf already knows which way this node's answer goes. `⌘⇧P` / `Ctrl+⇧P` does the same for the PAGE you are on, and it is live while you are typing a filter, which is exactly when "pin this, narrowed like this" is the thing you mean. `⌘K`'s **Pin this page** row is that chord for a hand on the mouse.
 

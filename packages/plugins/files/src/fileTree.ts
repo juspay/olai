@@ -1,12 +1,9 @@
 /**
  * The served directory as a TREE rather than flat lists.
  *
- * Every kind of served file shares one walk: a folder shows everything it
- * holds, the way a reader of the same directory sees it, and the way the racket
- * original's sidebar did. The alternative — a section per kind, each
- * re-spelling every nested path as a string — is what this replaces: once a
- * corpus has depth (`Daily/2026-08.olai`, `brainstorming/*.md`), the path
- * string wraps and the folder is nowhere to click.
+ * Each walk selects outlines or reference files by its claim, before creating
+ * folders. A folder with no selected file beneath it therefore never appears.
+ * Both trees retain directory paths as fold keys.
  *
  * Pure: paths in, rows out. Collapse, active marking and the link each file
  * is are the drawer's business, not this one's. Order is by name at each
@@ -97,19 +94,17 @@ const freeze = (claims: Claims, node: Building, prefix: string): ReadonlyArray<F
       of: entry.of,
     })
   }
-  // Sorted by the on-disk basename, not the stem: `a.md` and `a.olai` are two
-  // files and the glyph is what tells them apart, so the order still has to
-  // see the suffix. Folders sort as their own name, among those basenames.
+  // Stems and folder names share the same ordering in each tree.
   rows.sort((left, right) => {
     const a = sortKey(left)
     const b = sortKey(right)
-    return a < b ? -1 : a > b ? 1 : 0
+    return a < b ? -1 : a > b ? 1 : left.key < right.key ? -1 : left.key > right.key ? 1 : 0
   })
   return rows
 }
 
 const sortKey = (row: FileRow): string =>
-  row.kind === "dir" ? row.name : row.file.slice(row.file.lastIndexOf("/") + 1)
+  row.name
 
 /**
  * Build the tree from the paths the wire hands the client.
@@ -128,11 +123,11 @@ const sortKey = (row: FileRow): string =>
  * from the same registry, and a tree row with no kind would have no glyph and
  * nowhere to link.
  */
-export const fileTree = (claims: Claims, files: Iterable<string>): ReadonlyArray<FileRow> => {
+export const fileTree = (claims: Claims, files: Iterable<string>, holds?: "nodes" | "reference"): ReadonlyArray<FileRow> => {
   const root = empty()
   for (const file of files) {
     const of = fileKind(claims, file)
-    if (of !== null) put(root, file, of)
+    if (of !== null && (holds === undefined || (claims.byKind.get(of)?.holds === "nodes") === (holds === "nodes"))) put(root, file, of)
   }
   return freeze(claims, root, "")
 }

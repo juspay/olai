@@ -67,4 +67,17 @@ export const toggleFolder = (path: string, live: ReadonlySet<string>): void => {
 
 /** Follow it for as long as this document lives — a folder opened in another
  *  tab lands here, exactly as a fold does. */
-export const followFolders = (): (()=>void) => pref.follow()
+export const REFERENCE_KEY = "olai.sidebar.reference"
+const reference = createPreference(REFERENCE_KEY, {
+  parse: (raw: string | null) => raw === "true",
+  print: (open: boolean) => open ? "true" : null,
+})
+export const referenceOpen = reference.value
+export const openReference = (): void => reference.set(true)
+export const toggleReference = (): void => reference.set(!reference.value())
+
+export const followFolders = (): (()=>void) => {
+  const folders = pref.follow()
+  const refs = reference.follow()
+  return () => { refs(); folders() }
+}

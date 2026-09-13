@@ -12,6 +12,8 @@ import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
+createEffect,
+on,
 createSelector,
 For,
 type JSX,
@@ -26,7 +28,7 @@ import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { Glyph } from "./glyphs.tsx"
 import { drawingOf } from "./drawings.ts"
 import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
-import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
+import { openFolders,toggleFolder,referenceOpen,toggleReference,openReference } from "olai-plugin-files/fold/folders.ts"
 
 import { ENTRY_SHAPE,REGION,ROW_GAP } from "olai-plugin-layout/entry"
 import { atFile,type Route } from "olai-plugin-navigation/routes"
@@ -92,8 +94,24 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // the way the Trash has always had its own there.
   const tree = createMemo(() => {
     const claims = servedDirectory()?.claims()
-    return claims === undefined ? [] : fileTree(claims, served().filter(file => !isTrashed(claims, file) && !inOlaiDir(file)))
+    return claims === undefined ? [] : fileTree(claims, served().filter(file => !isTrashed(claims, file) && !inOlaiDir(file)), "nodes")
   })
+
+  const references = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : served().filter(file => {
+      const kind = fileKind(claims, file)
+      return !inOlaiDir(file) && kind !== null && claims.byKind.get(kind)?.holds !== "nodes"
+    })
+  })
+  const referenceTree = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : fileTree(claims, references(), "reference")
+  })
+  createEffect(on(() => [props.active, references()] as const, ([file, files]) => {
+    if (file !== undefined && files.includes(file)) openReference()
+  }))
+  const referenceShown = referenceOpen
 
   // THE VAULT'S OWN FILES — the `_olai/` outlines, every one the directory
   // holds except the archive (which the `isTrashed` rule above already
@@ -132,7 +150,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // TREE — one answer to "what folders are there", the walk that decides what is
   // on screen — and asked on the click rather than memoised, because that is the
   // only moment anybody wants it.
-  const toggle = (path: string) => toggleFolder(path, dirsIn(tree()))
+  const toggle = (path: string) => toggleFolder(path, dirsIn([...tree(), ...referenceTree()]))
 
   const view: TreeView = {
     closeDrawer: () => props.onClose(),
@@ -147,6 +165,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
 
   return <>
           <section class={REGION} data-testid={TESTID.sidebarFiles}>
+            <div class="mb-1 px-2 text-xs text-paper/65">Outlines</div>
             <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
               <Key each={tree()} by="key">
                 {(row) => <Entry row={row()} view={view} />}
@@ -169,6 +188,20 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
               <For each={props.slots.read(fileTypes)}>{({ value: kind }) => <kind.Create />}</For>
             </div>
           </section>
+
+          <Show when={references().length > 0}>
+            <section class={REGION} data-testid={TESTID.reference} data-count={references().length}>
+              <button type="button" class={`${ENTRY} w-full text-paper/65`} data-testid={TESTID.referenceToggle} aria-expanded={referenceShown()} onClick={toggleReference}>
+                <span aria-hidden="true">{referenceShown() ? "▾" : "▸"}</span>
+                <span>Reference</span><span class="ml-auto font-mono text-xs">{references().length}</span>
+              </button>
+              <Show when={referenceShown()}>
+                <ul class="m-0 list-none p-0" data-testid={TESTID.referenceList}>
+                  <Key each={referenceTree()} by="key">{row => <Entry row={row()} view={view} />}</Key>
+                </ul>
+              </Show>
+            </section>
+          </Show>
 
           {/* THE COLUMN'S FOOT — the vault's own furniture, under ONE
               special parent named after the house itself: the `_olai/`

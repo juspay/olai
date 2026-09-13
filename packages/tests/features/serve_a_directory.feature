@@ -28,11 +28,13 @@ Feature: Serve a directory
     # folders are open (`folds_are_remembered.feature`).
     Given I open the outline "house.olai"
     Then the file tree shows the folder "Daily"
+    When I expand the reference section
     And the file tree shows the folder "notes"
     And the folder "Daily" is collapsed
     And the folder "notes" is collapsed
     And the document link "notes/palette.md" is hidden
     Given I mark the page
+    When I expand the reference section
     When I expand the folder "notes"
     Then the folder "notes" is expanded
     And the document link "notes/palette.md" is shown

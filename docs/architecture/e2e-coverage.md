@@ -208,3 +208,8 @@ Save with a clamped, percent-encoded target and heading fragment.
 confirmation and document-body links with heading fragments. Both protect the
 target until the reference is removed. `documents.feature` follows note links
 to document pages and verifies unreadable targets recover there.
+
+`outline_first.feature` covers default and persisted Reference folding, file
+counts, folders containing both kinds, document navigation from a node note,
+selection in Reference, no user outlines, and no reference files. Existing
+creation and folder scenarios read the two sidebar regions separately.

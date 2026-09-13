@@ -1,6 +1,9 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  reference: "sidebar-reference",
+  referenceToggle: "reference-toggle",
+  referenceList: "reference-list",
   fileLink: "file-link",
   railOutlines: "rail-outlines",
   railDocs: "rail-docs",
