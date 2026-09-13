@@ -318,7 +318,7 @@ export default definePlugin({
       boarded: boardedIn,
       // THE DOORBELL'S TAP, and the same boundary kolu's `rang` keeps one
       // appliance over: what crosses is the watch's own frozen notice, and what
-      // this side does with it — join it against the `worktree` values a scoped
+      // this side does with it — join it against the `odu-run` values a scoped
       // file's un-done nodes claim — is a walk over outline records that the
       // appliance must not be able to spell.
       rang: (notice) => run(ring(notice)),
@@ -401,8 +401,8 @@ export default definePlugin({
     /** THE STORE HAS NEVER PUBLISHED — and this is NOT teardown.
      *
      *  A set of CI runs derived from a vault the server can no longer see is
-     *  yesterday's reading, so the worktrees reset to none and the sockets follow
-     *  on the next sweep. The doorbell's two `let`s go with it: {@link ring} runs
+     *  yesterday's reading, so the boarded ids reset to none and the holds
+     *  follow. The doorbell's two `let`s go with it: {@link ring} runs
      *  on the watcher's clock rather than on a revision, so a notice arriving
      *  after a disown must find the vault gate shut rather than joining against a
      *  disowned reading.

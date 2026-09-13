@@ -77,7 +77,7 @@ export function CiChip(context: ChipContext) {
   const runs = useRuns()
   /** The run for THIS property's value — a lookup by the board's own word,
    *  never a resolution: the server keyed the row by the value it read
-   *  precisely so a browser never has to know where a worktree is. */
+   *  precisely so a browser never has to know where the run ran. */
   const run = () => runs.runOf(context.entry.value)
   /**
    * THE TICK, armed off the running node's start and disarmed by everything

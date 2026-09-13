@@ -1,9 +1,9 @@
 /**
  * THE VAULT HALF of board-driven CI discovery — which nodes name a run id.
  *
- * The walk is today's worktree walk with the kind swapped: mirrors skipped
- * (the whole-vault sibling), first writer wins per run id. There is no
- * fallback, no path resolution, no `pr-url`.
+ * The walk is the board-driven claim walk: mirrors skipped (the whole-vault
+ * sibling), first writer wins per run id. There is no fallback, no path
+ * resolution, no `pr-url`.
  */
 
 import {

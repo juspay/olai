@@ -65,12 +65,12 @@ export function createRuns(runs: Accessor<CiRuns | undefined>): Runs {
    *  twelve map READS per frame rather than twelve walks of the array. The
    *  memo re-runs only when the cell publishes, which the member's `equals`
    *  has already narrowed to frames that moved something. */
-  const byWorktree = createMemo(() => {
+  const byId = createMemo(() => {
     const held = new Map<string, CiRun>()
     for (const run of (runs() ?? NO_RUNS).runs) held.set(run.id, run)
     return held
   })
-  return { runOf: (runId) => byWorktree().get(runId) }
+  return { runOf: (runId) => byId().get(runId) }
 }
 
 export function RunsProvider(props: {readonly value: Runs;readonly children: JSX.Element}): JSX.Element {

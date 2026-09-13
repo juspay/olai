@@ -42,6 +42,9 @@ export interface LinkSink {
 export const speaksCompatible = (speaks: string, theirs: string): boolean =>
   isContractVersionCompatible(theirs, speaks)
 
+/** A heuristic over the error's own words: the client does not tag absence,
+ *  and a refused loopback is the ordinary case. A skew or an unexpected
+ *  refusal must not hide behind this. */
 const absenceOf = (cause: unknown): boolean => {
   const text = cause instanceof Error ? `${cause.name} ${cause.message}` : String(cause)
   return /ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ECONNRESET|connection refused|nothing serving/i.test(
@@ -97,6 +100,30 @@ const readService = (connection: ServiceConnection): Effect.Effect<ServiceCell, 
     "odu: the service cell yielded no snapshot frame",
   )
 
+/** Interruptible: `dialService` waits up to 3s for the first open, and a
+ *  plugin unload must not sit on that. `acquireRelease`'s acquire is
+ *  uninterruptible, so the dial is a callback; a connection that lands after
+ *  interrupt is disposed rather than leaked. */
+const openConnection = (
+  origin: string,
+  dial: DialService,
+): Effect.Effect<ServiceConnection, unknown> =>
+  Effect.callback<ServiceConnection, unknown>((resume, signal) => {
+    void dial(origin).then(
+      (conn) => {
+        if (signal.aborted) {
+          void conn.dispose()
+          return
+        }
+        resume(Effect.succeed(conn))
+      },
+      (err) => {
+        if (signal.aborted) return
+        resume(Effect.fail(err))
+      },
+    )
+  })
+
 const dialOnce = (
   sink: LinkSink,
   origin: string,
@@ -104,10 +131,8 @@ const dialOnce = (
   dial: DialService,
 ): Effect.Effect<void> =>
   Effect.gen(function*() {
-    const connection = yield* Effect.acquireRelease(
-      Effect.tryPromise(() => dial(origin)),
-      (held) => Effect.promise(() => held.dispose()),
-    )
+    const connection = yield* openConnection(origin, dial)
+    yield* Effect.addFinalizer(() => Effect.promise(() => connection.dispose()))
     const cell = yield* readService(connection)
     const theirs = cell.identity.protocolVersion
     if (!speaksCompatible(SPEAKS, theirs)) {

@@ -108,7 +108,9 @@ export const advanceSub = (
 
 const nowIso = (): string => new Date().toISOString()
 
-/** Collection members are on the runtime face and not on `SurfaceReadFace`. */
+/** Collection members are on the runtime face. `SurfaceReadFace` types
+ *  cells, streams and procedures only, so `runs.get` is reached by a cast
+ *  rather than by a typed field. */
 const runsGet = (
   client: ServiceConnection["client"],
 ): ((input: { readonly key: string }) => Stream.Stream<RunRow, unknown>) =>
