@@ -32,21 +32,21 @@ test("aiming leaves on exit and cancellation; withdrawn receivers cannot receive
 test("drop captures the indicated target before leave, without retaining it during the write", async () => {
   const table = createLandings()
   let indicated: string | null = null
-  let captured: string | null = null
+  const captured: Array<string | null> = []
   let finish!: (why: string | null) => void
   table.register({
     lift: () => ({ left: 0, top: 0, right: 10, bottom: 10 }),
     aim: () => { indicated = "original anchor" },
     leave: () => { indicated = null },
     drop: () => {
-      captured = indicated
+      captured.push(indicated)
       return new Promise(resolve => { finish = resolve })
     },
   })
   const session = carrySession({ kind: "test" }, table)
   session.aim(2, 2)
   const pending = session.end(true)
-  expect(captured).toBe("original anchor")
+  expect(captured).toEqual(["original anchor"])
   expect(indicated).toBeNull()
   finish("the anchor was deleted")
   expect(await pending).toBe("the anchor was deleted")
