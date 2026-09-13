@@ -258,7 +258,7 @@ const referringTo = (set: OutlineSet, path: string): ReadonlyArray<string> => {
   )
 }
 
-// A `doc` field is a link a record MADE, and the answer names the RECORD rather
+// A note link is a link a record MADE, and the answer names the RECORD rather
 // than the outline it sits in: a link is always some record's, and naming the
 // file would be the coarser answer offered because it was the easier one.
 test("a note link is a reference from the record that wrote it", () => {

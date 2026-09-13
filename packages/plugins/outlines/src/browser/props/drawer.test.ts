@@ -40,10 +40,9 @@ test("the mark is one line, with its instant when it has one", () => {
     })
 })
 
-test("a date is a line; a note, a document and the edges are not", () => {
+test("a date is a line; a note and the edges are not", () => {
   // What is in the system half is exactly the facts with nowhere else to show.
-  // `see` is a reference row under the note, `desc` is the note, `doc` is the
-  // document line — repeating any of them here would put two spellings of one
+  // `see` is a reference row under the note, `desc` is the note — repeating any of them here would put two spellings of one
   // fact on one screen.
   const node = nodeOf(
     `{"id":"n","ord":"a0","title":"t","date":"2026-08-10","desc":"a note","see":["y"],"after":["z"]}`,

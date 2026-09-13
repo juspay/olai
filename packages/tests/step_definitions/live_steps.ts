@@ -99,7 +99,7 @@ When(
  * the page can come back from it: a face that latched its refusal, or a store
  * that never looks at a file it has already given up on, is green in a suite
  * whose only chmod goes one way. Every reader of a refusal that this suite
- * asserts (a document's page, a node's `doc` line, a saved page) is therefore
+ * asserts (a document's page, an embedded document, a saved page) is therefore
  * owed the other direction from the same door.
  *
  * 0644 rather than whatever the file wore before, for the reason the step above

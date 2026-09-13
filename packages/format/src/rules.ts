@@ -434,7 +434,7 @@ export const reportDeclarations = (
  * NOTHING WALKS. The declarations are one small map built once per validation,
  * `ref` and `node` read `byId` and `children`, the declaring site is one
  * `byId` lookup through the id `Declared.at` pins, and `doc` reads the `.md`
- * set the `doc` field's own rule already carries — which is what lets this
+ * set carried by the validator — which is what lets this
  * rule ride every write rather than joining the whole-corpus sweep.
  */
 export const reportPropValues = (

@@ -1251,7 +1251,7 @@ export const paths = (claims: Claims, outlineRow: string, set: OutlineSet): Path
  * over the other kind of file.
  *
  * WHAT COUNTS AS A DOCUMENT is not decided here: `markdownIn` is the floor's
- * one answer, shared with the validator that checks a `doc` reference and the
+ * one answer, shared with the validator that checks a declared `doc` property and the
  * planner that refuses a `markdown_write`, so what this lists and what those
  * two accept cannot come apart. A `.html` is out of all three — the set keeps
  * its path and not its bytes — and a listing that named one would be offering

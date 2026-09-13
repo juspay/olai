@@ -760,7 +760,7 @@ test("a ref value whose target is deleted is flagged like a dangling edge", () =
 })
 
 // A `doc` value is resolved against the naming outline's own directory, which
-// is the `doc` FIELD's arithmetic and not a second copy of it.
+// uses the relative-link arithmetic and not a second copy of it.
 test("a doc value resolves relative to the outline that names it", () => {
   const declaring = {
     "_olai/Properties.olai": `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,

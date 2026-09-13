@@ -59,7 +59,7 @@ Then("the unclaimed file {string} is absent and refused by the outline tool", as
   assert.ok(JSON.stringify(result).includes(`\`${file}\` is not a file this directory serves: no row claims \`${file.slice(file.lastIndexOf("."))}\``), JSON.stringify(result))
   const index = await tool(this, "outlines_index", {})
   assert.equal(JSON.stringify(index).includes(file), false)
-  assert.equal(await this.page.locator(`[data-testid="${TESTID.sidebarFiles}"], [data-testid="sidebar-reference"]`).locator(attr("data-file", file)).count(), 0)
+  assert.equal(await this.page.getByTestId(TESTID.sidebarFiles).or(this.page.getByTestId(TESTID.reference)).locator(attr("data-file", file)).count(), 0)
 })
 Then("the directory reports both ambiguous Trash convention files", async function(this: OlaiWorld) {
   await this.waitUntil(async () => {

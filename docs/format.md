@@ -31,7 +31,7 @@ done
 An undeclared custom `doc` property is an ordinary property: the file-value
 reading draws a door when it resolves to a served path. A file cannot be deleted
 while a live node's title or note, a served document's body, or a declared
-`doc` property names it. Trashed records do not hold files.
+`doc` property names it. Links from trashed records do not hold files; declared property fences still apply.
 
 
 ## Two record shapes
@@ -409,7 +409,7 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 - A document's text is **content, like `desc`**: stored verbatim, interpreted as markdown only at view time. Nothing about it is validated; a `.md` cannot make a set invalid.
 - A document is **written the way everything else is** ([Writing](#writing)): whole, through the one write gate, never as a byte range. The three writes are create (a relative `.md` path judged segment by segment, refused if it exists), write (the whole new text, refused if the path does not exist — so a typo cannot mint a file) and delete (the file gone, refused while anything still names it — below). A write may carry `was`, the text the caller read, and is refused if the file has moved since — checked on every retry, which is the conflict story for a document edited in vim under an open editor.
-- **A referenced document may not go.** Deletion names live title and note links, document-body links, and properties declared `doc` in `_olai/Properties.olai`. Trashed records do not hold files. An outline may be deleted only when empty.
+- **A referenced document may not go.** Deletion names live title and note links, document-body links, and properties declared `doc` in `_olai/Properties.olai`. Links from trashed records do not hold files; declared property fences still apply. An outline may be deleted only when empty.
 
 - **The whole set loads; a body travels when it is read.** Those are two rules, and only the first one is about this format: every document is decoded, cached and revised with the rest of the directory, whatever a reader asks for. What crosses a wire is the transport's business — olai's serves the paths to everyone and one document's text to whoever opens it, because a directory of thousands of `.md` files cannot put every body in a first frame. It is still ONE read of the disk: the body comes off the same live set at a named revision, not from a second reader that could disagree with it. That is a `.md`'s story and it is deliberately not a `.html`'s, whose body the set does not keep at all ([Hypertext](#hypertext)) — a document's text is what a conditional write is judged against and what a writer must reproduce, so the set has to be holding it.
 - A link in a node’s note attaches material, resolved beside the defining outline; following it opens the file’s own page.

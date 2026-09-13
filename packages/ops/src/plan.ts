@@ -1,4 +1,4 @@
-import { addressOf, referrersTo, isPutAway } from "@olai/format"
+import { addressOf, referrersTo } from "@olai/format"
 import { deadLinksIn, deadLinkSaid, markdownAt } from "@olai/format"
 /**
  * A request plus a snapshot, into the whole files that write would produce.
@@ -2386,7 +2386,7 @@ const propKey = (key: string): OpFailure | undefined => {
  *
  * `file` is the outline the properties LAND IN, and exactly one of the seven
  * kinds reads it: a `doc` value is a path relative to the outline that names
- * it, the same arithmetic the `doc` FIELD is resolved with. An edit resolves
+ * it, using the same arithmetic as a relative prose link. An edit resolves
  * the node to get it; a capture already knows, because where it lands is what
  * the capture ops decided before they built anything.
  *
@@ -4291,8 +4291,8 @@ const bareScaffold = (node: Node): boolean => {
  *   - and it destroys no more than it says. The records leave through the same
  *     gate every other write goes through and are committed by whichever door
  *     commits everything else, so what git holds afterwards is exactly what git
- *     had already recorded — no more, and no less. A `doc` an archived node
- *     named is a FILE and stays: a document is not a node, nothing in this
+ *     had already recorded — no more, and no less. A document an archived node
+ *     linked is a FILE and stays: a document is not a node, nothing in this
  *     vocabulary names bytes, and a `.md` nobody points at is a thing a person
  *     can see.
  *
@@ -4433,8 +4433,8 @@ const planEmpty = (
  *   - **the two STAMPS are the copy's own**, exactly as they are on a captured
  *     node ({@link capturedNode}): `created` is now, and there is no `changed`
  *     on a record nobody has written to yet. Every other field — the mark and
- *     its instant, the date, the rule, the note, the properties, the attached
- *     `doc` — comes across verbatim.
+ *     its instant, the date, the rule, the note and the properties — comes
+ *     across verbatim.
  *
  * THE ORDS BELOW THE ROOT ARE COPIED VERBATIM, and that falls out of the ids
  * being fresh: each copied child sits among copied siblings only, so the keys
@@ -5542,7 +5542,7 @@ const namingDocument = (
     if (declared.type.kind === "doc") (keyed ??= new Set()).add(key)
   }
   for (const at of scope.derived.nodes) {
-    if (isMirror(at.node) || isPutAway(scope.claims, at.file)) continue
+    if (isMirror(at.node)) continue
     if (keyed === undefined || at.node.custom === undefined) continue
     const custom: Record<string, string | ReadonlyArray<string>> = at.node.custom
     for (const [key, value] of Object.entries(custom)) {
@@ -5588,10 +5588,9 @@ const namingDocument = (
  *   - an outline still carrying RECORDS. This is a delete, not a move:
  *     `outlines_trash` is how a record leaves an outline, and what empties one
  *     entirely is nobody's verb to guess;
- *   - a document still NAMED — a `doc` field, or a `doc`-declared value,
- *     naming it ({@link namingDocument}). Deleting under them would break
- *     THEIR files' `doc-resolves` row, which is the same row the gate would
- *     print on the next load, said about the same edges;
+ *   - a document still NAMED by a live prose link or a declared `doc`
+ *     property ({@link namingDocument}). Deleting would strand the link or
+ *     violate the property fence;
  *   - a file the SET holds no contents for — an outline whose lines did not
  *     parse, a document that would not read. Overwriting bytes nobody has
  *     seen is {@link writable}'s own refusal, and a delete is the

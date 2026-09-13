@@ -41,14 +41,14 @@
  *     and buys the corpus back: all three cycle walks run, exactly as the full
  *     validator runs them. The row that says what this did NOT buy;
  *   - a DOCUMENT DELETED — one `.md` leaving, which is the other fallback: a
- *     `doc` that resolved may not any more and there is no index from a
+ *     declared `doc` property that resolved may not any more and there is no index from a
  *     resolved path back to the records that name it.
  *
  * THE LAST COLUMN says how many of the row's edits made the narrowing walk the
  * corpus for SOME rule, and it conflates two fallbacks that cost nothing like
  * each other — which the rows themselves then tell apart. An edge added walks
  * the three cycle graphs and buys back the whole of what the narrowing saved;
- * a document deleted walks the records asking each one whether it has a `doc`,
+ * a document deleted walks the records asking each one whether it has a declared `doc` property,
  * which is a tenth of a millisecond over twenty thousand of them. Both are
  * `walked: true`; only one of them is a row that says "this did not help".
  *
@@ -117,7 +117,7 @@ const paths = [...corpus.keys()].sort(byPath)
 
 /** The `.md` files beside the outlines. Nothing points at them and that is the
  *  point: `markdownPaths` walks every document in the directory whether or not
- *  a single `doc` names one, which is the corpus-sized reading the full arm
+ *  a single declared `doc` property names one, which is the corpus-sized reading the full arm
  *  makes that has nothing to do with records. */
 const documents = Array.from({ length: DOCS }, (_, at) => `doc/note${at}.md`)
 

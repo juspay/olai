@@ -62,7 +62,7 @@ Feature: Splitting and merging a row
     And "_olai/Trash.olai" holds a node titled " the cabinets"
 
   Scenario: The half that comes off is a bare bullet, and everything else stays
-    # `install` carries an attached document, an `after` edge and three
+    # `install` carries a document link, an `after` edge and three
     # children. All of them describe THAT node, so all of them stay with the
     # half that is still it — and the new row is a node nobody has said
     # anything about yet, which in this format means no mark at all.

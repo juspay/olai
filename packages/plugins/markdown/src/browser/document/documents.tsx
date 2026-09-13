@@ -27,26 +27,12 @@
  * server read the file to send them; asking the head instead costs a number.
  * That was PR #206's standing deferral, and the head is where it landed.
  *
- * ONE subscription per PATH, however many components ask: `askers` is what
- * decides membership, so two rows attached to the same document share the
- * stream and neither one's unmount cancels the other's. A narrowed `.use()` is
- * honestly its own subscription with no dedup of its own, so a per-consumer
- * `.use()` here would be one socket stream per doc-carrying ROW.
- *
- * The bound is worth naming: what this costs is the documents ON SCREEN, and a
- * `doc` reference draws a one-line preview out of a whole body. An outline that
- * attaches hundreds of documents at once therefore pays for hundreds of them.
- * That is the shape the design agreed (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-viewing.md`):
- * if a preview for many nodes at once is needed, the answer is a small member
- * on the wire carrying what a row draws rather than what a page does — the head
- * beside this one is that idea's first instance, and a one-line preview would
- * be its second. Measured first, not guessed at here.
- *
- * A node's `doc` is drawn on every page there is — a tree row, a zoomed
- * heading, a day — so the reader is a CONTEXT rather than a prop: threading it
- * through every row of a thousand-row tree would make every component's
- * signature a function of what one of its descendants happens to need, which is
- * the same reason the router is a context.
+ * ONE subscription per PATH, however many components ask: `askers` decides
+ * membership, so several rows can link one document and readers share its
+ * stream. Unmounting one reader leaves the others subscribed. Each interest
+ * belongs to the component that reads it and is withdrawn with that owner.
+ * The context lets document pages and embedded readers share this lifetime
+ * without threading a reader through unrelated row components.
  */
 
 import type { DocumentEntry } from "../../wire.ts"
@@ -101,10 +87,9 @@ export interface Documents {
    *
    *  `undefined` comes back while a body is still on the way — the normal first
    *  state, and the one a body being read from disk shares with it ({@link
-   *  Served}) — and also for a `doc` naming a file that is no longer there (a
-   *  valid set cannot produce that: `doc` is validated against the documents
-   *  found). A refusal is {@link Ready}, not `undefined`: folding it into a
-   *  missing body is how a `doc` line went blank. */
+   *  Served}) — and also for a link naming a file that is no longer there.
+   *  A refusal is {@link Ready}, not `undefined`: folding it into a missing
+   *  body would hide why the document cannot be read. */
   readonly read: (
     file: Accessor<string | undefined>,
   ) => Accessor<Ready | undefined>
@@ -153,7 +138,7 @@ export const createDocuments = (): Documents => {
   return {
     read: (file) => {
       // An EFFECT, so the interest follows a component whose `file` moves (a
-      // doc reference re-keyed onto another node) and is dropped when the
+      // document reader following another link) and is dropped when the
       // component that wanted it goes away — the cleanup runs on both. A caller
       // that names no file wants no body, so nothing is held for it: that is
       // the whole of how a preview costs the wire nothing.

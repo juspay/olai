@@ -961,7 +961,7 @@ export const DeleteRequest = Schema.Struct({
       "Path of the file to delete, exactly as the served set lists it — a `.md` document " +
       "(any content) or an `.olai` outline holding NO records. Refused, naming what to " +
       "settle first, for a path the set does not hold, an outline still carrying records, " +
-      "a document a `doc` field or a `doc`-declared property still names, a file the set " +
+      "a document a link or a `doc`-declared property still names, a file the set " +
       "could not load, and any of the kinds olai only shows (`.html`, `.csv`, pictures, " +
       "`.pdf`). The delete is not undoable in olai: what survives is whatever git had " +
       "already recorded.",

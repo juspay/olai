@@ -1073,7 +1073,7 @@ export const inverseOf = (
     // exists. An un-create would be the one delete nobody ever MEANT: a ⌘Z
     // must undo what a person just did, and a person who just minted a file
     // meant the MINT — its inverse would delete a file this tab never
-    // showed them, `doc` fields and all, the very shape the delete arm
+    // showed them, document links and all, the very shape the delete arm
     // refuses for anything else. So the entry answers nothing rather than
     // leaving a ⌘Z that quietly reaches around the planner's own guards.
     case "docNew":

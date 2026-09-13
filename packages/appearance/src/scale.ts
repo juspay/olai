@@ -259,7 +259,7 @@ export const HEAD_BORDER_PX = {
  * compact means" living half here and half in a grep.
  *
  * A reading page is a page a section can be linked to. A compact block is a
- * note under a title the page owns, an attached document, an agent's reply —
+ * note under a title the page owns, an embedded document, an agent's reply —
  * none of them a page anybody jumps around inside, and a control on a heading
  * that is not a section of anything is furniture on furniture. The ids are
  * still minted either way; it is the MARK that is dropped.

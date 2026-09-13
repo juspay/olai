@@ -14,6 +14,7 @@ Feature: Relative links say where nothing is served
       """
       # Nix flakes
       """
+    And I expand the folder "projects"
     And I open the outline "projects/olai.olai"
     And the terminal agent calls "outlines_desc" with:
       """

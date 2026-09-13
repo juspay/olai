@@ -2273,7 +2273,7 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
  * check the access at the site that performs it, which is what a `satisfies`
  * on the list was standing in for: that one constrained `date` to be a key of
  * the record, a coincidence of spelling this reading does not depend on since
- * it goes through `datesOf`, and left `doc` and `desc` free to be read as
+ * it goes through `datesOf`, and left `desc` free to be read as
  * stamps.
  *
  * `date` is ./dates.ts's `datesOf`, which is the same two the JOURNAL reads:

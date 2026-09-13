@@ -169,7 +169,7 @@ Feature: Moving a row to a parent you search for
   Scenario: A destination in ANOTHER OUTLINE carries the row there, subtree and all
     # The gesture this scenario exists for is the one that used to be dimmed:
     # `compost` lives in `garden.olai` and the row lives in `house.olai`.
-    # `install` holds three rows and an attached document, and what lands is one
+    # `install` holds three rows and a document link, and what lands is one
     # `outlines_move` naming a parent in another file — the op an agent sends.
     When I click the title of "install"
     And I press "ControlOrMeta+Shift+m"

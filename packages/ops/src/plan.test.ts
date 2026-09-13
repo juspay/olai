@@ -63,7 +63,7 @@ const judged = (set: OutlineSet): OutlineSet => {
 /** The set a plan's FILES make of a set: every file re-serialized through
  *  the format's own writer and re-parsed, which is the path a real write
  *  takes. THE DOCUMENTS COME ACROSS TOO, and that is not decoration: a
- *  `doc` field and a `doc`-typed property are both PATHS the validator
+ *  `doc`-typed property is a PATH the validator
  *  resolves against the files the set actually serves, so a rebuilt set
  *  that dropped them would report every such path as missing — and a test
  *  about retargeting one would pass because nothing was served rather than
@@ -3034,11 +3034,8 @@ describe("move across outlines", () => {
     expect(ids(standingBefore(derived(now), "beds"))).toEqual(["knobs"])
   })
 
-  test("a `doc` is re-aimed at the outline it arrived in", () => {
-    // The one field that is RELATIVE to the file naming it, which is why this
-    // is the archive's own `carryingDoc` rather than a second answer: the path
-    // is rewritten so it still names the same document, and the document is not
-    // touched at all.
+  test("a note link keeps its written spelling when its record moves", () => {
+    // Prose travels verbatim. The next revision reads any newly missing target.
     const set = setOf({
       "house.olai": `{"id":"install","ord":"a0","title":"install the cabinets","desc":"[document](finishes.md)"}`,
       "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
@@ -3088,17 +3085,8 @@ describe("move across outlines", () => {
 
 
   /**
-   * THE `doc` FIELD is retargeted; a `doc`-typed PROPERTY is not — and that
-   * boundary is the door family's rather than this verb's.
-   *
-   * Both are paths resolved against the outline that names them
-   * (`@olai/format`'s `wrongDoc` calls `resolveRelative(from, value)`, exactly
-   * as the field's own rule does), so a record that changes DIRECTORY changes
-   * what either one points at. {@link carryingDoc} rewrites the field, because
-   * the field is the format's and every mover already shared one answer about
-   * it; it does not rewrite a custom value, because knowing WHICH keys hold
-   * paths means reading the vault's declarations — the typed-properties seam,
-   * not the mover's.
+   * Movers keep custom property values verbatim. A file-relative `doc`
+   * property therefore changes its target when its record changes directory.
    *
    * WHAT HAPPENS IS A REFUSAL, not a dangling path: the write gate validates
    * the whole set, so the move is refused `bad-prop` naming the key and what
@@ -5038,7 +5026,7 @@ describe("delete", () => {
     expect(failure.message).toContain("outlines_trash")
   })
 
-  test("a document a `doc` FIELD still names is refused, naming the record that names it", () => {
+  test("a document a note still links to is refused, naming the record that names it", () => {
     const failure = refused(docsVault(), { op: "delete", file: "notes/instructions.md" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("still named by")
@@ -6251,6 +6239,13 @@ describe("files held by prose links", () => {
   test("trashed records and a document's self-link do not hold it", () => {
     const set = setOf({ "_olai/Trash.olai": '{"id":"old","ord":"a0","title":"[target](../target.md)"}' }, [["target.md", "[self](target.md)"]])
     expect(planned(set, { op: "delete", file: "target.md" }).removed).toEqual(["target.md"])
+  })
+  test("declared document properties keep their fence in trash", () => {
+    const set = setOf({
+      "_olai/Properties.olai": '{"id":"brief","ord":"a0","title":"brief","custom":{"type":"doc"}}',
+      "_olai/Trash.olai": '{"id":"old","ord":"a0","title":"Old","custom":{"brief":"../target.md"}}',
+    }, ["target.md"])
+    expect(refused(set, { op: "delete", file: "target.md" }).message).toContain("`old` (`brief`, _olai/Trash.olai:1)")
   })
   test("doc is now an ordinary custom key", () => {
     const result = planned(house(), { op: "prop", id: "order", key: "doc", value: "missing.md" })

@@ -137,7 +137,7 @@ Then(
 
 Then("there is no contents on the page", async function (this: OlaiWorld) {
   // The BODY first: an absence read off a page that has not drawn its
-  // answer yet is an absence of everything. A note or an attached document
+  // answer yet is an absence of everything. A note or an embedded document
   // is what these scenarios have instead of a contents; wait for one, then
   // HOLD that the contents is not there.
   await this.waitUntil(

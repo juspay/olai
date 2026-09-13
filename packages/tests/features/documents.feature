@@ -304,13 +304,8 @@ Feature: Documents
     When the served file "finishes.md" can be read again
     Then the document renders bold text "matte"
 
-  # THE PAGE MARKDOWN OWNS, and the state that only reaches it. `DocumentEntry`
-  # has three (a body, a body withheld, and a READ REFUSED) and phase 18 moved
-  # that schema, with `documentProjection`, into `olai-plugin-markdown`. The
-  # refusal is proved on a `.html`'s page (`html_previews.feature`) and on the
-  # `doc` line above — never on `documentPage`, which is the member the move
-  # re-declared. So a page that folded `refused` back into an empty rendering,
-  # the exact bug the `doc` line was fixed for, would have been green here.
+  # A markdown read refusal must remain visible on the document's own page,
+  # just as it is on a saved HTML page. It must never become an empty body.
   #
   # ONE KEY IS THE WHOLE BLAST RADIUS, which is why `refused` is a field on the
   # entry rather than a failure of the probe: the outline beside it is still
@@ -431,7 +426,7 @@ Feature: Documents
     Then what points at the document is "install the cabinets"
     And there should be no page errors
 
-  # A `[…](…)` in a body is a reference the same way a `doc` field is, which is
+  # A `[…](…)` in a body is a reference the same way a link in a note is, which is
   # what makes one rule for both worth having: `finishes.md` links the saved
   # quote, so the quote's page knows who sent a reader to it.
   @corpus:good
