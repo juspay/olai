@@ -478,6 +478,16 @@ export const SHORT_PHONE_HEIGHT = 400;
 /** Everything else: a laptop, with a pointer. */
 export const DESKTOP = { viewport: { width: 1440, height: 900 } } as const;
 
+/** The time zone a scenario's browser runs in — `@zone:America/New_York`.
+ *
+ *  Absent, the browser keeps whatever zone the machine running the suite has,
+ *  which is right for everything that asks a day of the local clock and wrong
+ *  for a scenario that asserts the OFFSET a write is stamped with: a CI box
+ *  in UTC and a laptop in New York would read two different files. A zone
+ *  that moves its clocks is the useful one to name, because it is where an
+ *  offset taken from today rather than from the moment shows. */
+const ZONE_TAG = "@zone:";
+
 let browser: Browser | undefined;
 
 interface RunningServer {
@@ -1545,9 +1555,13 @@ Before(
     }
 
     const handheld = scenario.pickle.tags.some((tag) => tag.name === PHONE_TAG);
+    const zone = scenario.pickle.tags
+      .find((tag) => tag.name.startsWith(ZONE_TAG))
+      ?.name.slice(ZONE_TAG.length);
     this.context = await browser.newContext({
       ...(handheld ? PHONE : DESKTOP),
       baseURL: this.baseUrl,
+      ...(zone === undefined ? {} : { timezoneId: zone }),
     });
     // BEFORE the first page, because an init script only reaches documents
     // that have not been created yet — and the recorder has to be in place
