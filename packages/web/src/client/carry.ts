@@ -1,6 +1,5 @@
 import { innermost, type Carried, type Landings, type Lifted } from "@olai/plugin-api/carry"
-import { createDrags, TRAVEL_PX } from "./pointer.ts"
-import { longPressOn } from "./longPress.ts"
+import { createLifting } from "./lifting.ts"
 
 export const documentBox = (element: Element | undefined) => {
   if (!element?.isConnected) return null
@@ -28,48 +27,28 @@ export const carrySession = <C extends Carried>(carried: C, table: Landings) => 
       return aimed !== null
     },
     end: async (drop: boolean) => {
-      const target = aimed
-      leave()
-      return drop && target !== null && table.standing(target.receiver)
-        ? target.receiver.drop(carried, point.x, point.y) : null
+      try {
+        // Capture the destination's indicated work before clearing its visit.
+        // Do not await here: indicators and pointer resources leave immediately.
+        return drop && aimed !== null && table.standing(aimed.receiver)
+          ? aimed.receiver.drop(carried, point.x, point.y) : null
+      } finally { leave() }
     },
   }
 }
 /** Component-owned pointer and long-press carries; click suppression is read by the carrier. */
 export const createCarry = (payload: () => Carried | null, table: () => Landings | undefined, options: { readonly onLift?: () => void; readonly refused?: (why: string) => void } = {}) => {
-  const drags = createDrags()
-  let travelled = false
-  const start = (from: PointerEvent, held: boolean) => {
-    let session: ReturnType<typeof carrySession> | undefined
-    const stopScroll = (event: TouchEvent) => event.preventDefault()
-    const lift = () => {
-      const value = payload(), landings = table()
-      if (value === null || landings === undefined) return
-      travelled = true
-      session = carrySession(value, landings)
-      if (held) window.addEventListener("touchmove", stopScroll, { passive: false })
-      options.onLift?.()
-    }
-    if (held) lift()
-    drags.start(from, {
-      threshold: held ? 0 : TRAVEL_PX,
-      onStart: held ? undefined : lift,
-      onPage: (x, y) => { session?.aim(x, y) },
-      onEnd: up => {
-        window.removeEventListener("touchmove", stopScroll)
-        void session?.end(up !== null).then(why => { if (why) options.refused?.(why) })
+  const gesture = createLifting(() => {
+    const value = payload(), landings = table()
+    if (value === null || landings === undefined) return null
+    const session = carrySession(value, landings)
+    options.onLift?.()
+    return {
+      onPage: session.aim,
+      onEnd: (up: PointerEvent | null) => {
+        void session.end(up !== null).then(why => { if (why) options.refused?.(why) })
       },
-    })
-  }
-  const watcher = longPressOn(from => start(from, true))
-  return {
-    grab: (event: PointerEvent) => {
-      if (event.button !== 0) return
-      travelled = false
-      if (event.pointerType === "touch") watcher.onPointerDown(event)
-      else start(event, false)
-    },
-    heldMenu: watcher.onContextMenu,
-    click: (event: MouseEvent) => { if (travelled) { event.preventDefault(); event.stopPropagation() } },
-  }
+    }
+  })
+  return { ...gesture, grab: (event: PointerEvent) => gesture.grab(event, undefined) }
 }

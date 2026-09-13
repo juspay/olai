@@ -195,3 +195,9 @@ conversation registers its own receiver for its component lifetime. Transcript
 rows carry the chat-owned static `/carry` text contract. Receivers arm their own
 nodes or use their mounted composer's rewrite function to insert a quote or path.
 Withdrawing the activation releases its receivers and cancels component gestures.
+
+Transcript source extraction (`chat/carried.ts`) is independent of the receiving
+composer's formatting and caret policy (`chat/insertion.ts`). Each mounted
+composer owns its insertion callback; shared conversation state does not choose
+which pane receives focus. Pointer and hold mechanics use the same component-owned
+`@olai/web/client/lifting.ts` primitive as outline rows and sidebar files.

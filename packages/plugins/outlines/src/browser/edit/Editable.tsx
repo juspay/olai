@@ -2,9 +2,9 @@ import { createEffect, createSignal } from "solid-js"
 import { carriedText } from "olai-plugin-chat/carry"
 import { documentBox } from "@olai/web/client/carry.ts"
 import { landings } from "../landings.ts"
-import { placeable } from "../drag/dragging.ts"
+import { placeable } from "../drag/places.ts"
 import { planDrop } from "../drag/plan.ts"
-import type { Aim } from "../drag/aim.ts"
+import type { Landing } from "../drag/plan.ts"
 import { anchorFor, nodeText } from "../drag/landing.ts"
 import { applying } from "../writes.ts"
 import { useUndo } from "./undoing.ts"
@@ -201,23 +201,23 @@ function EditablePage(props: EditableProps) {
   }
   useFields().join(field)
   const undo = useUndo()
-  const [foreign, setForeign] = createSignal<Aim | null>(null)
+  const [foreign, setForeign] = createSignal<{ readonly kind: "drop"; readonly landing: Landing } | null>(null)
   createEffect(() => {
     const table = landings()
     if (!table) return
     // Row geometry belongs to this visit; scrolling preserves document coordinates.
     // The registry still checks the live page box and membership on every move.
     let placed: ReturnType<typeof placeable> | undefined
-    let landing: ReturnType<typeof planDrop> = null
     const aim = (x: number, y: number) => surface === undefined ? null : planDrop(placed ??= placeable(field, surface, props.file, new Set()), x, y)
     onCleanup(table.register({
       lift: value => carriedText(value) ? documentBox(surface) : null,
-      aim: (_, x, y) => { landing = aim(x, y); setForeign(landing ? { kind: "drop", landing } : null) },
+      aim: (_, x, y) => { const landing = aim(x, y); setForeign(landing && { kind: "drop", landing }) },
       leave: () => { placed = undefined; setForeign(null) },
       drop: async value => {
         if (!carriedText(value)) return null
-        // end() leaves before delivering; use the last indicated anchor so a
-        // concurrent deletion is refused by the write, not silently retargeted.
+        // Capture the indicated anchor before leave clears the visit. The write
+        // resolves it against current data and names a concurrent deletion.
+        const landing = foreign()?.landing
         if (!landing) return null
         const said = await applying({ verb: "add", at: anchorFor(landing, props.file), ...nodeText(value.text) }, undo.record)
         selection.say(said ?? null)

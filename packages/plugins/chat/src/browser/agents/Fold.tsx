@@ -4,7 +4,7 @@ import { carriedNodes } from "olai-plugin-outlines/carry"
 import { carriedText } from "../../carry.ts"
 import { carriedPath } from "olai-plugin-files/carry"
 import { landings } from "../landings.ts"
-import { quoted } from "../chat/carried.ts"
+import { quoted, type Insertion } from "../chat/insertion.ts"
 import { inserted } from "../chat/completion.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
@@ -45,7 +45,7 @@ export function Fold(props: { readonly node: string; readonly record?: string })
 
 export function Conversation(props: { readonly chat: Chat; readonly unbounded?: boolean; readonly node: string }) {
   let box: HTMLDivElement | undefined
-  let insert: ((text: string | ((before: string) => string)) => void) | undefined
+  let insert: ((text: Insertion) => void) | undefined
   const [carrying, setCarrying] = createSignal<string | null>(null)
   createEffect(() => {
     const table = landings()

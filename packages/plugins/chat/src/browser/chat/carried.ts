@@ -13,4 +13,3 @@ export const textOf = (entry: ChatEntry): string | null => {
 }
 export const textOfDiff = (path: string, before: string | null, after: string): string =>
   [path, ...diffOf(before, after).lines.filter(line => line.kind === "add" || line.kind === "remove").map(line => `${line.kind === "add" ? "+" : "-"}${line.text}`)].join("\n")
-export const quoted = (text: string, before = ""): string => (before && !before.endsWith("\n") ? "\n" : "") + text.replace(/\r\n/g, "\n").replace(/\n$/, "").split("\n").map(line => `> ${line}`).join("\n") + "\n\n"

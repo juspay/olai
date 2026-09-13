@@ -2,7 +2,7 @@
 
 Outlines supplies pages for every claim holding nodes, node addresses and the tree editor. It owns node readings and writes, selection, drag and drop, undo, row forms, folding, property editing and the Notes and Done preferences. Its server capability runs without a browser, renderer or layout.
 
-Outline row carries consult the host-supplied `Landings` table before planning a move. Each editable page registers a text receiver, owns its drop line, and submits a single undoable add with title and optional note. Registrations end with the component or activation.
+Outline row carries consult the host-supplied `Landings` table before planning a move. Each editable page registers a text receiver, owns its drop line, and submits a single undoable add with title and optional note. Registrations end with the component or activation. Row moving and text receiving share `drag/places.ts` for measurable placements, independent of gesture handling. The text receiver caches geometry for one visit and uses its displayed landing as the write target; leaving clears both.
 
 The browser provider starts before its presentation. It acquires its reading, drag and undo registers and storage observers in its activation scope. Content integrates through `navigation.content`; file creation contributes to `files.types`; settings contribute to `preferences.sections`. File metadata belongs to the vault, so the Files sidebar is optional. Removing preferences removes only its controls. Removing Markdown removes document previews and document destinations while ordinary outline notes keep their shared Markdown text renderer.
 

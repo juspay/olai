@@ -6,6 +6,7 @@ export interface Receiver {
   readonly lift: (carried: Carried) => Box | null
   readonly aim: (carried: Carried, x: number, y: number) => void
   readonly leave: () => void
+  /** Capture the indicated work synchronously; leave follows before it settles. */
   readonly drop: (carried: Carried, x: number, y: number) => Promise<string | null>
 }
 export interface Lifted { readonly receiver: Receiver; readonly box: Box }

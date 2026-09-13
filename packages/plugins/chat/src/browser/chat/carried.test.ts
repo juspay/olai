@@ -1,12 +1,5 @@
 import { expect, test } from "bun:test"
-import { quoted, textOf, textOfDiff } from "./carried.ts"
-import { written } from "@olai/markdown-ui/insert.ts"
-test("quotes preserve internal empty lines and end with one blank line", () => {
-  expect(quoted("one")).toBe("> one\n\n")
-  expect(quoted("one\n\ntwo\n")).toBe("> one\n> \n> two\n\n")
-  expect(quoted("")).toBe("> \n\n")
-  expect(written("before after", { from: 7 }, quoted("one", "before "), 7)).toEqual({ text: "before \n> one\n\nafter", caret: 15 })
-})
+import { textOf, textOfDiff } from "./carried.ts"
 test("only settled source words ride a transcript carry", () => {
   expect(textOf({ id: "a", since: "2026-09-12", seq: 1, kind: "agent", text: "hello", streaming: true })).toBeNull()
   expect(textOf({ id: "a", since: "2026-09-12", seq: 1, kind: "agent", text: "hello" })).toBe("hello")
@@ -16,9 +9,4 @@ test("only settled source words ride a transcript carry", () => {
 })
 test("a diff carries its path and changed lines", () => {
   expect(textOfDiff("a.md", "old\n", "new\n")).toBe("a.md\n-old\n+new")
-})
-
-test("quotes start on a line without adding a redundant newline", () => {
-  expect(quoted("one", "before\n")).toBe("> one\n\n")
-  expect(quoted("one", "before")).toBe("\n> one\n\n")
 })
