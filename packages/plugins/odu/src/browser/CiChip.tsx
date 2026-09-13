@@ -49,7 +49,7 @@
 
 import { createEffect, Show } from "solid-js"
 
-import type { CiRun } from "olai-plugin-odu/appliance/wire"
+import { type CiRun, liveOf } from "olai-plugin-odu/appliance/wire"
 
 import { TESTID } from "../testids.ts"
 import { useClocks } from "./clocks.tsx"
@@ -92,7 +92,7 @@ export function CiChip(context: ChipContext) {
    */
   const started = (): number | null => {
     const held = run()
-    if (held === undefined || !held.live) return null
+    if (held === undefined || !liveOf(held.state)) return null
     return runningIn(held)?.startedAt ?? null
   }
   const clocks = useClocks()

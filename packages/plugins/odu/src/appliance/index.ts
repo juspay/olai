@@ -22,20 +22,19 @@ import { type CiRun, type CiRuns, type OduLink, NO_RUNS, ODU_UNDIALED } from "./
 export { type DialService, type RunNotice }
 export { SPEAKS }
 
-export interface OduDeps<N> {
+export interface OduDeps {
   readonly options: {
     readonly env: Record<string, string | undefined>
     readonly dial?: DialService
   } | null
-  readonly boarded: (vault: N) => Iterable<string>
   readonly rang: (notice: RunNotice) => void
   readonly say: (line: string) => void
   readonly warn: (line: string) => void
 }
 
-export interface OduHalf<N> {
+export interface OduHalf {
   readonly handlers: OduHandlers
-  readonly revision: (vault: N) => void
+  readonly revision: (ids: Iterable<string>) => void
   readonly unloaded: () => void
   readonly rows: () => ReadonlyArray<CiRun>
 }
@@ -53,9 +52,7 @@ export interface OduHandlers {
   }
 }
 
-export type VaultNode = unknown
-
-export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
+export const oduHalf = (deps: OduDeps): OduHalf => {
   const store = inMemoryStore<CiRuns>(NO_RUNS)
   const serviceStore = inMemoryStore<OduLink>(ODU_UNDIALED)
   let cell: { set: (value: CiRuns) => void } | undefined
@@ -89,7 +86,7 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
   })
 
   return {
-    revision: (vault) => board.reclaim(deps.boarded(vault)),
+    revision: (ids) => board.reclaim(ids),
     unloaded: () => board.reclaim([]),
     rows: board.rows,
     handlers: {

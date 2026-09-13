@@ -10,7 +10,7 @@ import type { NodesFrame, RunLane, RunNode, RunRow } from "@odu/service-client/s
 import { STATUS_META } from "@odu/service-client/surface"
 import { splitFanId } from "@odu/run-client/nodeId"
 
-import { type CiRun, liveOf, type RunCell } from "./wire/index.ts"
+import type { CiRun, RunCell } from "./wire/index.ts"
 
 const sha7Of = (sha: string): string => sha.slice(0, 7)
 
@@ -52,7 +52,6 @@ const cellsOf = (frame: NodesFrame): ReadonlyArray<RunCell> => {
 export const unknownOf = (id: string): CiRun => ({
   id,
   repoRoot: "",
-  live: false,
   name: "",
   sha7: "",
   dirty: false,
@@ -68,7 +67,6 @@ export const unknownOf = (id: string): CiRun => ({
 export const runOf = (row: RunRow, frame: NodesFrame | undefined): CiRun => ({
   id: row.runId,
   repoRoot: row.repoRoot,
-  live: liveOf(row.state),
   name: row.pipeline,
   sha7: sha7Of(row.sha),
   dirty: row.dirty,

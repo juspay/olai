@@ -307,7 +307,7 @@ export default definePlugin({
         ),
       )
 
-    const half = oduHalf<Derived>({
+    const half = oduHalf({
       options: {
         env: env.vars,
         // The one narrowing in this package, and kolu's `dial` line one appliance
@@ -316,7 +316,6 @@ export default definePlugin({
         // carries it opaque because typing it would mean knowing what odu is.
         dial: env.dial as DialService | undefined,
       },
-      boarded: boardedIn,
       // THE DOORBELL'S TAP, and the same boundary kolu's `rang` keeps one
       // appliance over: what crosses is the watch's own frozen notice, and what
       // this side does with it — join it against the `odu-run` values a scoped
@@ -395,7 +394,7 @@ export default definePlugin({
       Effect.sync(() => {
         declaring = declarationsOf(revision.value.derived, ownKinds)
         derived = revision.value.derived
-        half.revision(revision.value.derived)
+        half.revision(boardedIn(revision.value.derived))
       })
     )
 

@@ -2,7 +2,7 @@ import type { NodesFrame, RunNode, RunRow } from "@odu/service-client/surface"
 import { expect, test } from "bun:test"
 
 import { runOf, unknownOf } from "./project.ts"
-import { tallyOf, verdictOf } from "./wire/index.ts"
+import { liveOf, tallyOf, verdictOf } from "./wire/index.ts"
 
 const node = (over: Partial<RunNode> & { readonly id: string }): RunNode => ({
   status: "pending",
@@ -85,13 +85,13 @@ test("`cancelled` is not red", () => {
 test("a boarded id the service does not know is unknown", () => {
   const run = unknownOf("nope-xxxx")
   expect(run.state).toBe("unknown")
-  expect(run.live).toBe(false)
+  expect(liveOf(run.state)).toBe(false)
   expect(verdictOf(run)).toBeNull()
 })
 
 test("a settled row without a frame still carries the catalog's outcome", () => {
   const run = runOf(row({ state: "settled", settled: true, passed: true, outcome: "passed" }), undefined)
-  expect(run.live).toBe(false)
+  expect(liveOf(run.state)).toBe(false)
   expect(run.phase).toBe("")
   expect(run.cells).toEqual([])
   expect(verdictOf(run)).toBe("passed")

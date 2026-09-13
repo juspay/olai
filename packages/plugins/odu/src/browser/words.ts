@@ -57,6 +57,7 @@
 import {
   type CiRun,
   identityOf,
+  liveOf,
   type RunCell,
   type RunTally,
   tallyOf,
@@ -101,7 +102,7 @@ const whatOf = (
 ): string => {
   if (run.state === "unknown") return "unknown run"
   if (run.state === "owner_lost") return "owner lost"
-  if (!run.live) return verdict ?? "incomplete"
+  if (!liveOf(run.state)) return verdict ?? "incomplete"
   const running = runningIn(run)
   if (running !== undefined) {
     // A node marked running with no `startedAt` is a frame that arrived
@@ -126,7 +127,7 @@ const whatOf = (
 const toneOf = (run: CiRun, tally: RunTally, verdict: string | null): CiTone => {
   if (tally.red > 0 || verdict === "failed") return "red"
   if (verdict === "passed") return "ok"
-  if (!run.live) return "quiet"
+  if (!liveOf(run.state)) return "quiet"
   return "going"
 }
 
@@ -144,7 +145,7 @@ const titleOf = (run: CiRun): string => {
   const where = run.repoRoot === "" ? "checkout unknown" : run.repoRoot
   const state = run.state === "unknown"
     ? "unknown run"
-    : run.live
+    : liveOf(run.state)
     ? "the run is up"
     : run.state === "owner_lost"
     ? "owner lost"

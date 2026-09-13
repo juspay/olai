@@ -362,11 +362,6 @@ const claimLine = (claim: Claim): string =>
 export const coalesceOf = (notice: RunNotice): string =>
   `${name}:${notice.kind}:${notice.run.id}`
 
-/** What a delivery-time re-derivation asks of the row list, and nothing
- *  else — kept as its own tiny type so `server.ts`'s thunk reads as what it
- *  is. Deprecatable the day `CiRun` grows an epoch of its own. */
-export const sameRun = (a: CiRun, b: CiRun): boolean => a.id === b.id
-
 /** The counts a first-red body should say NOW: the live row's own where the
  *  row is still this run's, else the notice's snapshot — an account of the
  *  frame that fired, never of the next run's start. */
@@ -375,6 +370,6 @@ export const countsFor = (
   notice: Extract<RunNotice, { kind: "first-red" }>,
 ): RunTally => {
   const now = rows.find((row) => row.id === notice.run.id)
-  return tallyOf(now !== undefined && sameRun(now, notice.run) ? now.cells : notice.run.cells)
+  return tallyOf((now ?? notice.run).cells)
 }
 

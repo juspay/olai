@@ -13,7 +13,7 @@ import { dialService } from "@odu/service-client/dial"
 
 import { advanceSub, makeBoard, type RunNotice } from "./runs.ts"
 import { startOduService } from "./testlib/odu.ts"
-import { ODU_UNDIALED, type CiRun } from "./wire/index.ts"
+import { liveOf, ODU_UNDIALED, type CiRun } from "./wire/index.ts"
 
 const BOARD = ["m1kb0e11-2c8d"] as const
 
@@ -79,7 +79,7 @@ test("a live run first seen red rings first-red", async () => {
     )
     expect(it.rang.filter((one) => one.kind === "settled")).toEqual([])
     const row = it.board.rows().find((one) => one.id === "m1kb0e11-2c8d")
-    expect(row?.live).toBe(true)
+    expect(row !== undefined && liveOf(row.state)).toBe(true)
     expect(row?.cells.length ?? 0).toBeGreaterThan(0)
   } finally {
     await it.stop()
@@ -106,7 +106,6 @@ test("provisioning to settled without running still rings settle", () => {
   const row = (over: Partial<CiRun>): CiRun => ({
     id: "m1kb0e11-2c8d",
     repoRoot: "/tmp/a",
-    live: false,
     name: "ci",
     sha7: "8f8fe56",
     dirty: false,
@@ -118,9 +117,9 @@ test("provisioning to settled without running still rings settle", () => {
     cells: [],
     ...over,
   })
-  const first = advanceSub(undefined, row({ live: true, state: "provisioning" }))
+  const first = advanceSub(undefined, row({ state: "provisioning" }))
   expect(first.notices).toEqual([])
-  const next = advanceSub(first.sub, row({ live: false, state: "settled" }))
+  const next = advanceSub(first.sub, row({ state: "settled" }))
   expect(next.notices.map((one) => one.kind)).toEqual(["settled"])
 })
 
@@ -144,7 +143,7 @@ test("reclaim while connected drops a boarded id and picks up another", async ()
   try {
     it.board.reclaim([...BOARD])
     await waitUntil(
-      () => it.board.rows().some((one) => one.id === "m1kb0e11-2c8d" && one.live),
+      () => it.board.rows().some((one) => one.id === "m1kb0e11-2c8d" && liveOf(one.state)),
       "the boarded live row to land",
     )
     it.board.reclaim(["m1same00-bbbb"])

@@ -67,7 +67,6 @@ const many = (n: number, status: string): ReadonlyArray<RunCell> =>
 const run = (over: Partial<CiRun> = {}): CiRun => ({
   id: "m1kb0e11-2c8d",
   repoRoot: "/home/x/code/olai/.worktrees/a",
-  live: true,
   name: "ci",
   sha7: "8f8fe56",
   dirty: false,
@@ -148,7 +147,7 @@ describe("a live run", () => {
   })
 
   it("takes the done ink the moment the cells settle, even while the run is still live", () => {
-    const said = wordsFor(run({ live: true, cells: many(10, "ok") }), 10_000)
+    const said = wordsFor(run({ cells: many(10, "ok") }), 10_000)
     expect(said.text).toBe("ci · lanes · 10/10 ok")
     expect(said.tone).toBe("ok")
     expect(said.title).toContain("the run is up")
@@ -157,7 +156,7 @@ describe("a live run", () => {
 
 describe("a run that is no longer live", () => {
   it("says the verdict, in the verdict's ink", () => {
-    const said = wordsFor(run({ live: false, state: "settled", outcome: "passed", cells: many(10, "ok") }), 10_000)
+    const said = wordsFor(run({ state: "settled", outcome: "passed", cells: many(10, "ok") }), 10_000)
     expect(said.text).toBe("ci · passed · 10/10 ok")
     expect(said.tone).toBe("ok")
   })
@@ -165,7 +164,6 @@ describe("a run that is no longer live", () => {
   it("says `incomplete` for a run that stopped without deciding, and recedes", () => {
     const said = wordsFor(
       run({
-        live: false,
         state: "settled",
         outcome: "incomplete",
         cells: [cell({ id: "a@p", status: "ok" }), ...many(3, "pending")],
@@ -177,12 +175,12 @@ describe("a run that is no longer live", () => {
   })
 
   it("says `owner lost` as itself", () => {
-    const said = wordsFor(run({ live: false, state: "owner_lost", cells: many(2, "ok") }), 0)
+    const said = wordsFor(run({ state: "owner_lost", cells: many(2, "ok") }), 0)
     expect(said.text).toContain("owner lost")
   })
 
   it("says `unknown run` for a boarded id the service does not know", () => {
-    const said = wordsFor(run({ live: false, state: "unknown", repoRoot: "", cells: [] }), 0)
+    const said = wordsFor(run({ state: "unknown", repoRoot: "", cells: [] }), 0)
     expect(said.text).toBe("ci · unknown run")
   })
 })
@@ -197,7 +195,7 @@ describe("the hover", () => {
 
   it("names the checkout a settled run ran in", () => {
     const said = wordsFor(
-      run({ live: false, state: "settled", outcome: "passed", cells: [cell({ id: "a@p", status: "ok" })] }),
+      run({ state: "settled", outcome: "passed", cells: [cell({ id: "a@p", status: "ok" })] }),
       0,
     )
     expect(said.title).toContain("settled")

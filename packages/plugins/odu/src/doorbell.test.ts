@@ -101,7 +101,6 @@ const BOARD = {
 const row = (over: Partial<CiRun> = {}): CiRun => ({
   id: "m1kb0e11-2c8d",
   repoRoot: "/home/x/code/olai/.worktrees/a",
-  live: true,
   name: "ci",
   sha7: "8f8fe56",
   dirty: false,
@@ -150,7 +149,7 @@ const settled = (
   reddened: ReadonlyArray<string> = [],
 ): Extract<RunNotice, { kind: "settled" }> => ({
   kind: "settled",
-  run: row({ live: false, cells: RED_CELLS.map((cell) => repainted(cell, "ok")), ...over }),
+  run: row({ cells: RED_CELLS.map((cell) => repainted(cell, "ok")), ...over }),
   reddened,
 })
 

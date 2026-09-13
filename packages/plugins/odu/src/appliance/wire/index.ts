@@ -130,8 +130,8 @@ export const verdictOf = (run: CiRun): string | null => {
  * board's.
  *
  * A ROW SURVIVES ITS SETTLE. The catalog remembers a finished run, so a run
- * that settled while olai was not running still draws its verdict. `live` is
- * whether the board still has work in flight (`provisioning` / `running`).
+ * that settled while olai was not running still draws its verdict. In-flight
+ * is `liveOf(state)` (`provisioning` / `running`), not a second field.
  *
  * A boarded id the service does not know is still a row, with `state` `unknown`.
  */
@@ -140,7 +140,6 @@ export const CiRun = Schema.Struct({
    *  `arrayKey` at this depth (cells use `id` for the node). */
   id: Schema.String,
   repoRoot: Schema.String,
-  live: Schema.Boolean,
   name: Schema.String,
   sha7: Schema.String,
   dirty: Schema.Boolean,
