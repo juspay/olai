@@ -247,6 +247,8 @@ No focused row or no ancestor refuses with **no agent above this row — start o
 An unbound ancestor refuses with **this agent has no session — start one**.
 Both refusals preserve the palette text and start nothing.
 
+An armed chip displays the node title returned by the outline reference service;
+it falls back to the ID while unresolved or while that service is unavailable.
 An armed node travels as its id. At send time the server resolves its current
 title, file/line and ancestor titles from the same reading a write uses; it does
 not paste a stale copy of the subtree into the prompt. The agent can read the

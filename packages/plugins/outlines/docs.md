@@ -53,3 +53,7 @@ Outlines draws every claimed file whose `holds` value is `nodes`, through one gl
 ## Tool reply story
 
 The browser activation registers its `tool.reply` face. Chat owns the frame, file span and fold; outlines reads a top-level file and projects the write reply’s story fields to draw its change glyph, node title, classification and nudge. Reads and refusals have no story; an unchanged write says “nothing changed”. The face owns node navigation through outlines’ existing focus helper; the generic slot receives only the reply. Registration belongs to the outlines activation and withdraws with it; outlines imports no chat implementation.
+
+The reference service preserves both the resolved node ID and its title from
+`nodes.named`. Navigation reads the ID; chat context chips read the title. Both
+share the same scoped, batched lookup and withdraw with the provider.

@@ -24,7 +24,7 @@ test("the panel's references retract on departure and acquire fresh scoped reade
       scopes++
       onCleanup(() => released++)
       const [ids, setIds] = createSignal<ReadonlyArray<string>>([])
-      return { named: (id: string) => ids().includes(id) ? id : null, told: (id: string) => ids().includes(id) ? id : undefined, want: setIds }
+      return { title: (id: string) => ids().includes(id) ? `Title of ${id}` : null, named: (id: string) => ids().includes(id) ? id : null, told: (id: string) => ids().includes(id) ? id : undefined, want: setIds }
     },
     showNode: () => (_id: string) => {},
     failure: () => null,
@@ -35,19 +35,24 @@ test("the panel's references retract on departure and acquire fresh scoped reade
     const consumer = createDeclared()
     consumer.want(["first"])
     expect(consumer.named("first")).toBe("first")
+    expect(consumer.title("first")).toBe("Title of first")
     expect(scopes).toBe(1)
     first()
     expect(consumer.named("first")).toBeNull()
+    expect(consumer.title("first")).toBeNull()
     expect(released).toBe(1)
     const second = holdReferences(implementation())
     expect(consumer.named("first")).toBeNull()
+    expect(consumer.title("first")).toBeNull()
     expect(scopes).toBe(2)
     consumer.want(["next"])
     expect(consumer.named("next")).toBe("next")
+    expect(consumer.title("next")).toBe("Title of next")
     // AN OBSOLETE RELEASE CANNOT WITHDRAW THE REPLACEMENT — the identity rule
     // `@olai/ui-primitives`' `heldService` keeps, spent by a real consumer.
     first()
     expect(consumer.named("next")).toBe("next")
+    expect(consumer.title("next")).toBe("Title of next")
     second()
     expect(released).toBe(2)
     dispose()

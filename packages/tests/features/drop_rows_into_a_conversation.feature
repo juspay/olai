@@ -11,6 +11,7 @@ Feature: Rows land in the conversation chosen by the pointer
     Then the conversation offers "drop to ask about it"
     When I release the carry
     Then the composer is armed with "order"
+    And the armed node "order" is labelled "order the new cabinets"
     And no conversation is lit for a carry
     When I ask the agent "context"
     Then the agent's answer says "order is the node titled order the new cabinets"
@@ -30,6 +31,7 @@ Feature: Rows land in the conversation chosen by the pointer
     And the composer is armed with "order"
     When I take the armed node "install" off
     Then the composer is armed with "order"
+    And the armed node "order" is labelled "order the new cabinets"
 
   @phone
   Scenario: A held bullet lands as context on a phone
@@ -37,6 +39,7 @@ Feature: Rows land in the conversation chosen by the pointer
     And I drag the held finger into the conversation
     And I let the finger go
     Then the composer is armed with "order"
+    And the armed node "order" is labelled "order the new cabinets"
     And no conversation is lit for a carry
 
   Scenario: Rebuilding the carrier cancels the old gesture
@@ -53,6 +56,7 @@ Feature: Rows land in the conversation chosen by the pointer
     Then the composer is armed with nothing
     When I drop row "order" into the conversation
     Then the composer is armed with "order"
+    And the armed node "order" is labelled "order the new cabinets"
 
   Scenario: The row menu offers starting a conversation and context uses the drop
     When I open the node menu of "order"
@@ -76,6 +80,7 @@ Feature: Rows land in the conversation chosen by the pointer
     Then the node page conversation is ready for "kitchen"
     And I drop row "carried-source" from pane 0 into the conversation
     Then the composer is armed with "carried-source"
+    And the armed node "carried-source" is labelled "a node from another file"
 
   Scenario: Withdrawing the destination makes the held release harmless
     When I carry row "order" over the conversation
@@ -92,11 +97,13 @@ Feature: Rows land in the conversation chosen by the pointer
     Then the composer is armed with nothing
     When I drop row "order" into the conversation
     Then the composer is armed with "order"
+    And the armed node "order" is labelled "order the new cabinets"
 
   Scenario: Arming leaves the outline in place and creates no undo entry
     When I remember the served bytes of "house.olai"
     And I drop row "order" into the conversation
     Then the composer is armed with "order"
+    And the armed node "order" is labelled "order the new cabinets"
     And no drop line is shown
     And the node "order" is a child of "kitchen"
     And the served bytes of "house.olai" are unchanged
