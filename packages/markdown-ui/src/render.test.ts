@@ -20,7 +20,7 @@
 import { claims } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { TESTID } from "@olai/markdown-ui/testids.ts"
-import { expect, test } from "bun:test"
+import { expect, test, spyOn } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"
 import * as pipeline from "./pipeline.ts"
@@ -659,38 +659,36 @@ test("a rendering cache belongs to its Claims snapshot, including withdrawal and
 
 test("served membership marks missing links and clears independently of the source cache", () => {
   const source = "[x](../gone%20away.md#scope)"
-  const missing = renderMarkdown(TEST_CLAIMS, source, "notes/a.md", () => false)
+  const missing = renderMarkdown(TEST_CLAIMS, source, "notes/a.md", new Set())
   expect(missing).toContain("data-dead")
   expect(missing).toContain("link resolves to nothing served: gone away.md")
   expect(missing).toContain('href="/gone%20away.md#scope"')
-  expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md", () => true)).not.toContain("data-dead")
+  expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md", new Set(["gone away.md"]))).not.toContain("data-dead")
   expect(renderMarkdown(TEST_CLAIMS, source, "notes/a.md")).not.toContain("data-dead")
 })
 
 test("membership revisions keep render caching and stable heading IDs", () => {
   const members = new Set<string>()
-  let calls = 0
-  const serves = (path: string) => { calls++; return members.has(path) }
-  const firstRevision = {}
+  const membership = spyOn(members, "has")
   const source = '# Cache revision\n[x](cached-target.md "authored title")'
-  const first = renderMarkdown(TEST_CLAIMS, source, "a.md", serves, firstRevision)
-  const initial = calls
+  const first = renderMarkdown(TEST_CLAIMS, source, "a.md", members)
+  const initial = membership.mock.calls.length
   expect(initial).toBeGreaterThan(0)
-  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", serves, firstRevision)).toBe(first)
-  expect(calls).toBe(initial)
+  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", members)).toBe(first)
+  expect(membership.mock.calls.length).toBe(initial)
   expect(first).toContain("authored title — link resolves to nothing served")
   expect(first).toContain("olai-dead-link")
   expect(first).not.toContain('style="text-decoration')
-  members.add("cached-target.md")
-  const next = renderMarkdown(TEST_CLAIMS, source, "a.md", serves, {})
+  const next = renderMarkdown(TEST_CLAIMS, source, "a.md", new Set(["cached-target.md"]))
   expect(next).not.toContain("data-dead")
   expect(next.match(/id="([^"]+)"/)?.[1]).toBe(first.match(/id="([^"]+)"/)?.[1])
 })
 
-test("a stable membership predicate without a revision cannot return stale warnings", () => {
-  const members = new Set<string>()
-  const serves = (path: string) => members.has(path)
-  expect(renderMarkdown(TEST_CLAIMS, "[x](fresh.md)", "a.md", serves)).toContain("data-dead")
-  members.add("fresh.md")
-  expect(renderMarkdown(TEST_CLAIMS, "[x](fresh.md)", "a.md", serves)).not.toContain("data-dead")
+test("membership withdrawal and reconnection cannot reuse a stale warning", () => {
+  const source = "[x](fresh.md)"
+  const missing = new Set<string>()
+  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", missing)).toContain("data-dead")
+  expect(renderMarkdown(TEST_CLAIMS, source, "a.md")).not.toContain("data-dead")
+  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", new Set(["fresh.md"]))).not.toContain("data-dead")
+  expect(renderMarkdown(TEST_CLAIMS, source, "a.md", missing)).toContain("data-dead")
 })

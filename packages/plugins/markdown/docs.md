@@ -35,7 +35,8 @@ Its body collection contains only its own claimed Markdown files. The four
 read-only body rows obtain their metadata through the vault’s file surface and `vault.files`; this row’s live state is used only by Markdown.
 
 Rendered prose is cached by claims, source, writing file, and directory
-membership revision. Membership lookups use the vault's shared snapshot. A rendering predicate without a revision bypasses the cache to avoid stale answers. Code spans,
+membership snapshot. The snapshot supplies both membership lookup and cache
+identity, so callers cannot pair a changing predicate with a stale revision. Code spans,
 code fences and frontmatter cannot introduce missing-link warnings; queries
 and fragments are excluded from membership checks. Authored link titles are
 preserved alongside the warning.

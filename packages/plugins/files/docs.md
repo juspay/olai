@@ -30,3 +30,11 @@ can reveal the section and its ancestry without persisting either decision.
 Both folds and their subscriptions belong to the Files browser activation.
 
 A header click folds the section even when its active file revealed it. Opening explicitly stores `true`; collapsing removes that preference key. Collapsing an active reference file suppresses selection-driven visibility only until navigation or reload, under the mounted Files contribution. Reloading with a reference file open reveals the section again; reloading an outline keeps the default collapse.
+
+Folder paths (`fold/folders.ts`) and Reference visibility (`fold/reference.ts`)
+are separate decisions. The Files activation acquires their storage listeners
+separately and releases Reference before folders. Reference's stored default
+and temporary selection override compose inside its controller; the sidebar
+only renders its `open` value and sends `toggle` gestures. The controller's
+reactive work belongs to the mounted sidebar, while preference subscriptions
+retain the Files activation lifetime.

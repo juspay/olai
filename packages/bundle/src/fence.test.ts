@@ -1987,6 +1987,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/files/src/Files.tsx",
       "plugins/files/src/browser.tsx",
       "plugins/files/src/fold/folders.ts",
+      "plugins/files/src/fold/reference.ts",
       "plugins/files/src/testids.ts",
       "plugins/files/src/tools.ts",
       "plugins/journal/src/browser.tsx",

@@ -1,9 +1,10 @@
 /** Missing relative targets are a reading of a revision, never a verdict. */
 import { Schema } from "effect"
-import { pathedOf, writtenLinks } from "./documents.ts"
+import { pathedOf } from "./documents.ts"
 import { isMirror, type Located } from "./node.ts"
 import { basenameOf } from "./paths.ts"
 import { nearestId } from "./suggest.ts"
+import { proseLinks } from "./prose-links.ts"
 
 export const DeadLink = Schema.Struct({
   written: Schema.String,
@@ -19,48 +20,6 @@ export const relativeFrom = (from: string, path: string): string => {
   let same = 0
   while (same < directory.length && same < target.length && directory[same] === target[same]) same++
   return [...directory.slice(same).map(() => ".."), ...target.slice(same)].join("/")
-}
-
-/** Code is displayed literally, so it cannot introduce a link warning. */
-const proseLinks = (text: string): ReadonlyArray<string> => {
-  if (!text.includes("](")) return []
-  let listIndent: number | undefined
-  let fence: { marker: string; length: number } | undefined
-  const lines = text.split("\n").map(line => {
-    // List continuation indentation belongs to prose; four further spaces
-    // introduce code within that item. Blank lines retain the list context.
-    const indent = /^( *)/.exec(line)![1]!.length
-    // Literal fence contents cannot change the list context of its closer.
-    if (fence === undefined) {
-      const item = /^( *)(?:[-+*]|\d+[.)]) +/.exec(line)
-      if (item && indent < (listIndent ?? 0) + 4) listIndent = item[0].length
-      else if (line.trim() !== "" && listIndent !== undefined && indent < listIndent) listIndent = undefined
-    }
-    const content = listIndent === undefined ? line : line.slice(Math.min(indent, listIndent))
-    const match = /^(?: {0,3}> ?)* {0,3}(`{3,}|~{3,})(.*)$/.exec(content)
-    if (fence !== undefined) {
-      if (match && match[1]![0] === fence.marker && match[1]!.length >= fence.length && match[2]!.trim() === "") fence = undefined
-      return ""
-    }
-    if (match && (match[1]![0] !== "`" || !match[2]!.includes("`"))) {
-      fence = { marker: match[1]![0]!, length: match[1]!.length }
-      return ""
-    }
-    return /^( {4}|\t)/.test(content) ? "" : content
-  }).join("\n")
-  let prose = ""
-  for (let i = 0; i < lines.length;) {
-    if (lines[i] === "\\") { prose += lines.slice(i, i + 2); i += 2; continue }
-    if (lines[i] !== "`") { prose += lines[i++]; continue }
-    let end = i
-    while (lines[end] === "`") end++
-    const marker = lines.slice(i, end)
-    let close = lines.indexOf(marker, end)
-    while (close !== -1 && (lines[close - 1] === "`" || lines[close + marker.length] === "`")) close = lines.indexOf(marker, close + marker.length)
-    if (close === -1) { prose += marker; i = end }
-    else { prose += " "; i = close + marker.length }
-  }
-  return writtenLinks(prose)
 }
 
 /** File targets only. Queries and fragments belong to navigation, not membership. */

@@ -202,6 +202,8 @@ and process-group termination with escalation.
 
 ## Outline-first navigation (#593)
 
+The boundary refactor also exercises Files withdrawal and return with both Reference and a nested folder open, verifying that each preference is restored and Reference can still be collapsed independently.
+
 Third-review cases pin the temporary Reference collapse across reload and missing-link detection after an indented list fence containing column-zero text.
 
 Re-review coverage exercises collapsing Reference while its selected document stays open and repairing a list-continuation link while its anchor stays visible. The unreadable-document case first verifies the rendered content before breaking and restoring it.
