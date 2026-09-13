@@ -13,8 +13,11 @@
  * later becomes jumpable — rather than a `scroll-margin` per thing that can be
  * jumped to, which is a list that would go stale silently.
  *
+ * A tree page's pinned section heading is the one band this does not cover: it
+ * is only over the branch it heads, so the outlines plugin reserves it as a
+ * scroll margin inside that branch (its own `all.css`).
+ *
  * Not inside `@theme`: that block declares TOKENS, and this is a rule. */
 :root {
-  --height-pinned-section: 0px;
-  scroll-padding-top: calc(var(--height-header) + var(--height-pinned-section));
+  scroll-padding-top: var(--height-header);
 }

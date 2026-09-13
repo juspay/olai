@@ -151,6 +151,90 @@ Then(
   },
 );
 
+/** A title's box, in the units a claim about its LINES is made in: how tall
+ *  one line is, and whether anything was clipped off its end. */
+const titleBox = async (world: OlaiWorld, id: string) => {
+  const title = world.nodeTitle(id);
+  await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return await title.evaluate((node) => {
+    const style = getComputedStyle(node);
+    const box = node.getBoundingClientRect();
+    return {
+      top: box.top,
+      width: box.width,
+      height: box.height,
+      line: Number.parseFloat(style.lineHeight),
+      clipped: node.scrollWidth > node.clientWidth + 1 || style.textOverflow === "ellipsis" ||
+        style.whiteSpace === "nowrap",
+    };
+  });
+};
+
+Then(
+  "the title of {string} wraps onto more than one line, cut off nowhere",
+  async function (this: OlaiWorld, id: string) {
+    const says = async () => {
+      const box = await titleBox(this, id);
+      return { lines: Math.round(box.height / box.line), clipped: box.clipped };
+    };
+    await this.waitUntil(
+      async () => {
+        const now = await says();
+        return now.lines > 1 && !now.clipped;
+      },
+      `the title of "${id}" to run onto a second line, whole`,
+    ).catch(async () => {
+      const now = await says();
+      assert.ok(
+        now.lines > 1 && !now.clipped,
+        `the title of "${id}" is ${now.lines} line(s)${now.clipped ? " and clipped" : ""} — a long title wraps rather than being cut off`,
+      );
+    });
+  },
+);
+
+Then(
+  "the title of {string} is one line",
+  async function (this: OlaiWorld, id: string) {
+    const box = await titleBox(this, id);
+    assert.strictEqual(Math.round(box.height / box.line), 1, `the title of "${id}" is ${box.height}px tall`);
+  },
+);
+
+Then(
+  "the bullet of {string} sits beside the first line of its title",
+  async function (this: OlaiWorld, id: string) {
+    // The bullet's MIDDLE inside the first line's box. Centring the row would
+    // put it beside the middle of a wrapped title, which is the paragraph's
+    // middle rather than where the words start.
+    const bullet = this.within(id, ZOOM);
+    await bullet.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const at = await bullet.boundingBox();
+    assert.ok(at !== null, `the bullet of "${id}" has no box`);
+    const middle = at.y + at.height / 2;
+    const title = await titleBox(this, id);
+    assert.ok(
+      middle >= title.top && middle <= title.top + title.line,
+      `the bullet of "${id}" is centred at y=${middle}, and the first line of its title runs ${title.top}–${title.top + title.line}`,
+    );
+  },
+);
+
+Then(
+  "the title of {string} takes most of the width of its row",
+  async function (this: OlaiWorld, id: string) {
+    const row = this.within(id, NODE_GUTTER);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const line = await row.boundingBox();
+    assert.ok(line !== null, `the row of "${id}" has no box`);
+    const title = await titleBox(this, id);
+    assert.ok(
+      title.width >= line.width * 0.6,
+      `the title of "${id}" is ${title.width}px of a ${line.width}px row — the facts beside it are squeezing the words`,
+    );
+  },
+);
+
 Then(
   "the node {string} has no status",
   async function (this: OlaiWorld, id: string) {

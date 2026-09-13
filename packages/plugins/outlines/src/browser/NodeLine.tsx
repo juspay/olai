@@ -11,13 +11,21 @@
  *
  * ## The line, left to right
  *
- *   title (ellipsized) · the note's pilcrow · the aside · the date · the repeat rule · ⏱ AT THE FAR HAND
+ *   title (wrapping) · the note's pilcrow · the aside · the date · the repeat rule · ⏱ AT THE FAR HAND
  *
- * THE TITLE ELLIPSIZES rather than wrapping (the quiet outline, human): a row is
- * a line, and a title that wrapped to three of them turned the column into
- * paragraphs with bullets in front. What is cut off is on the element's own
- * `title`, so nothing is unreadable — it is one hover, or one click into the
- * editor, away.
+ * THE TITLE WRAPS rather than ellipsizing (human, reversing the earlier ruling
+ * that a row is one line): an ellipsis hid most of a long title, and a hover or
+ * a click into the editor to read your own words was worse than a row that runs
+ * to a second line. The row that holds this aligns on BASELINES
+ * (`./Tree.tsx`, `./DatedRow.tsx`), so the glyph and the fold triangle sit
+ * against the title's FIRST line, not the middle of the block.
+ *
+ * BELOW md THE FACTS WRAP TOO, under the title. That is where the hover-only
+ * facts are always drawn (`HOVER_REVEAL` in `@olai/ui-primitives/touch.ts`),
+ * and on a phone they took so much of the line that a title got a word or
+ * nothing at all. Above md the line does NOT wrap: a hover-only fact still takes
+ * its space while invisible, and wrapping it would leave an empty line under
+ * some rows.
  *
  * EVERYTHING AFTER IT SITS AGAINST IT, and nothing floats to the far right.
  * They are `shrink-0` and they follow the words immediately, which is what makes
@@ -133,23 +141,22 @@ export function NodeLine(props: {
 }) {
   return (
     <>
-      {/* `items-baseline` rather than the row's own `items-center`: the aside
-          and the pilcrow are TEXT beside text, and centring two different type
-          sizes against each other is what makes a fraction look pasted on. */}
+      {/* `items-baseline`, as the row is: the aside and the pilcrow are TEXT
+          beside text, and centring two different type sizes against each
+          other is what makes a fraction look pasted on. Against a wrapped
+          title, a baseline is also the first line's, which is where a fact
+          about the title belongs. */}
       <span
-        class="flex min-w-0 flex-1 items-baseline gap-1.5"
+        class="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 md:flex-nowrap"
         classList={{ "cursor-text": props.onEdit !== undefined }}
         onClick={(event) => props.onEdit?.(event)}
       >
         <span
-          class={`min-w-0 truncate ${props.section === true ? SECTION_TITLE : ROW_TITLE} ${toneOf(props.status)}`}
+          class={`min-w-0 break-words ${props.section === true ? SECTION_TITLE : ROW_TITLE} ${toneOf(props.status)}`}
           classList={{
             [TITLE_OPEN]: props.open === true,
           }}
           data-testid={TESTID.nodeTitle}
-          // What the ellipsis took, for a pointer. The stored title, verbatim
-          // — the same string the editor would open on, never the rendering.
-          title={props.title}
         >
           {props.children}
           <NodeTitle title={props.title} from={props.from} needles={props.needles} />
