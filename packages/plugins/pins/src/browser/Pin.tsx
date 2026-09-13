@@ -27,7 +27,8 @@ import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
-import { followLayout, useRouter } from "olai-plugin-navigation/routing"
+import { followLayout } from "olai-plugin-navigation/layout-press"
+import { useRouter } from "olai-plugin-navigation/routing"
 import { Link } from "olai-plugin-navigation/routing"
 import type { Pin } from "./pins.ts"
 
