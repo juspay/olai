@@ -561,6 +561,8 @@ export const SEARCH_COUNT = selector(TESTID.searchCount);
  *  own words for the same edit once the box has been emptied. */
 export const DATE_PICKER = selector(TESTID.datePicker);
 export const DATE_PICKER_DAY = selector(TESTID.datePickerDay);
+export const DATE_PICKER_TIME = selector(TESTID.datePickerTime);
+export const DATE_PICKER_NO_TIME = selector(TESTID.datePickerNoTime);
 export const DATE_PICKER_SET = selector(TESTID.datePickerSet);
 export const DATE_PICKER_CANCEL = selector(TESTID.datePickerCancel);
 /** Said when the node stores a value a day box cannot hold — a datetime,
