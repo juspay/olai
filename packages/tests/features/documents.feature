@@ -1,11 +1,8 @@
 @share-scratch
 Feature: Documents
-  Some notes are not a line. A `.md` under the served directory is a document:
-  it gets a page of its own, it is listed in the sidebar's file tree whether
-  or not any outline names it (under the folders it lives in, beside any
-  outlines in the same folder), and a node that attaches one with `doc` shows
-  it — the whole document when you are zoomed on that node, one line of it
-  anywhere else.
+  A `.md` under the served directory is a document with a page of its own.
+  Reference lists it under its folders whether or not an outline names it.
+  A relative link in a node's note opens the document on its own page.
 
   The markdown is the same pipeline a note goes through, so what is proved here
   is proved for notes too: fenced code highlighted without a byte fetched from
@@ -249,8 +246,7 @@ Feature: Documents
     And there is no contents on the page
     And there should be no page errors
 
-  # Same rule, the other shape: the whole document drawn under the node that
-  # attaches it is still not that document's page.
+  # A node links to a document on its own page.
   @corpus:good
   Scenario: A linked document is reached on its own page
     Given I open the outline "house.olai"

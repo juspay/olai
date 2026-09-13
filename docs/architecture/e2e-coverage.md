@@ -200,9 +200,10 @@ moving that reading position. Scheduler tests cover capacity refusals, fresh
 binding versus filing serialization, clearing inherited wakes, trash cleanup,
 and process-group termination with escalation.
 
-`dead_links.feature` covers an agent's note write and read, relative basename
-suggestions across folders, live clearing when a file appears, and document
-Save with a clamped, percent-encoded target and heading fragment.
+`dead_links.feature` covers an agent's note write, detail and subtree reads,
+row and zoomed-page warnings, relative basename suggestions across folders,
+and live clearing when a file appears. Document Save and `markdown_read` cover
+a clamped, percent-encoded target with a heading fragment.
 
 `file_delete_concurrency.feature` covers live note links acquired during delete
 confirmation and document-body links with heading fragments. Both protect the

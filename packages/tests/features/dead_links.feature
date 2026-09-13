@@ -28,6 +28,14 @@ Feature: Relative links say where nothing is served
       """
     Then the tool answer contains "deadLinks"
     And the tool answer contains "../notes/nix-flakes.md"
+    When the terminal agent calls "outlines_subtree" with:
+      """
+      {"file":"projects/olai.olai"}
+      """
+    Then the tool answer contains "deadLinks"
+    When I zoom into the node "link-test"
+    Then the page reports a dead link to "projects/nix-flakes.md"
+    And the rendered link to "x" is marked dead
     When I rewrite "projects/nix-flakes.md" as:
       """
       # Now served
@@ -37,6 +45,7 @@ Feature: Relative links say where nothing is served
   @scratch:good
   Scenario: Document Save reports a clamped percent-encoded target and clears live
     Given I open the document "finishes.md"
+    And a terminal agent is connected to the served directory
     When I start editing the document
     And I retype the document as:
       """
@@ -45,6 +54,12 @@ Feature: Relative links say where nothing is served
     And I save the document
     Then the document nudge names "gone away.md"
     And the rendered link to "missing" is marked dead
+    When the terminal agent calls "markdown_read" with:
+      """
+      {"file":"finishes.md"}
+      """
+    Then the tool answer contains "deadLinks"
+    And the tool answer contains "gone away.md"
     When I rewrite "gone away.md" as:
       """
       # Scope

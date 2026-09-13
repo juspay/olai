@@ -25,7 +25,7 @@ import type { OlaiWorld } from "../support/world.ts";
 
 /** One folder in the file tree, as a selector string `expectAttribute` takes. */
 const folderSelector = (path: string): string =>
-  `${FILE_DIR}${attr("data-path", path)} >> nth=0`;
+  `${FILE_DIR}${attr("data-path", path)}`;
 
 /** The fold button of ONE folder — a direct child of its `<li>`, not a
  *  descendant's. Nested folders nest their `li`s, so an unscoped

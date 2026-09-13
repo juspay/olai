@@ -1956,7 +1956,7 @@ Feature: A `.html` in the vault
   @corpus:good
   Scenario: A markdown link to a `.html` beside it opens the page
     # A vault links between its own files with plain relative paths, and the
-    # rule that resolves one is the same arithmetic a `doc` and a picture go
+    # rule that resolves one is the same arithmetic relative pictures go
     # through — beside the file the link was WRITTEN in. Before there was a page
     # to open, such a link was a full browser navigation to whatever the address
     # bar happened to resolve it against.

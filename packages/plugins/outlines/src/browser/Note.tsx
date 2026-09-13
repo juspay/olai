@@ -18,7 +18,7 @@
  *
  * The class is named for that POSITION and not for the note, because a note is
  * not the only body in it: an agent's reply in the drawer (`chat/Entry.tsx`)
- * says the same thing about themselves. A document on its OWN page is the one
+ * uses the same spacing. A document on its OWN page is the one
  * that is a page, which is why the rule cannot live on `.olai-md`.
  */
 import { servedDirectory } from "./vault.ts"

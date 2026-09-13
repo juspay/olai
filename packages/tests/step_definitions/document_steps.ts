@@ -17,6 +17,7 @@ import { BODY_REFUSED as REFUSED_SAID } from "@olai/surface";
 import {
   attr,
   ZOOM,
+  ZOOM_TITLE,
   BODY_REFUSED,
   DOCUMENT_BODY,
   DOCUMENT_LINK,
@@ -341,7 +342,10 @@ Then(
 
 // Links in notes are the attachment and open the document's own page.
 When("I follow the document link on {string}", async function(this: OlaiWorld, id: string) {
-  if (await this.node(id).count() > 0) await this.clickWithin(id, ZOOM);
+  if (await this.page.locator(`${ZOOM_TITLE}${attr("data-node-id", id)}`).count() === 0) {
+    await this.clickWithin(id, ZOOM);
+  }
+  await this.expectAttribute(ZOOM_TITLE, "data-node-id", id, "the linked node page");
   const link = this.page.locator('[data-testid="desc"] a').first();
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await link.click();
