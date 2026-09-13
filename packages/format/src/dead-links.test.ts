@@ -32,7 +32,7 @@ test("title and note are separate Markdown sources, with shared deduplication", 
 })
 
 test("code examples do not warn but adjacent prose does", () => {
-  const code = ["`[x](inline.md)`", "``[x](back`tick.md)``", "```md\n[x](fenced.md)\n```", "~~~\n[x](tilde.md)\n~~~", "    [x](indented.md)"].join("\n")
+  const code = ["`[x](inline.md)`", "``[x](back`tick.md)``", "```md\n[x](fenced.md)\n```", "~~~\n[x](tilde.md)\n~~~", "    [x](indented.md)", "    - [x](indented-list.md)"].join("\n")
   expect(deadLinksIn("a.olai", code, served)).toEqual([])
   expect(deadLinksIn("a.olai", `${code}\n[real](real.md)`, served).map(link => link.resolved)).toEqual(["real.md"])
   expect(deadLinksIn("a.olai", "`unclosed [real](real.md)", served)).toHaveLength(1)
