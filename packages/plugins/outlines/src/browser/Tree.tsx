@@ -75,7 +75,7 @@ import { dressed } from "./faces.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import { isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
 
 import { Aside } from "./Aside.tsx"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
@@ -311,6 +311,25 @@ function Branch(props: {
    *  row's own owner, so a press in flight is disposed with the row. */
   const menu = createMenuDoor()
 
+  /**
+   * How tall this SECTION's pinned line is, as it is drawn now — the band a
+   * jump into its branch has to stop below (`../all.css`).
+   *
+   * MEASURED, not a constant. A title wraps (./NodeLine.tsx), so a heading is
+   * as many lines as its words need, and a reserve sized to one line put a
+   * jump behind the second. The observer is the row's own: it is started only
+   * while the row is a section and disconnected with it, whether the row stops
+   * being one or is disposed.
+   */
+  const [band, setBand] = createSignal<number>()
+  createEffect(() => {
+    const line = menu.at()
+    if (!section() || line === undefined) return
+    const seen = new ResizeObserver(() => setBand(line.getBoundingClientRect().height))
+    seen.observe(line)
+    onCleanup(() => seen.disconnect())
+  })
+
   /** Is this row's date picker open? Local to the ROW rather than to either of
    *  the two things that open it — the pill on the line, and the `•••` menu's
    *  `Set date…` — because it is one picker and the menu panel is closed by the
@@ -483,6 +502,10 @@ function Branch(props: {
   return (
     <li
       class="my-0.5"
+      // A section's branch carries its heading's measured height, which every
+      // jump target inside it reads as its scroll margin (`../all.css`).
+      classList={{ "olai-section": section() }}
+      style={section() && band() !== undefined ? { "--olai-pinned-band": `${band()}px` } : undefined}
       // The item's own box is scaffolding too — the indent strip beside a
       // child list, the margin left of a note — so a press there is a sweep
       // (./drag/sweeping.ts). Everything WITH words in it is a descendant and

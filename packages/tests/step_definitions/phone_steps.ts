@@ -83,7 +83,13 @@ When("I flick the bullet of {string} up the screen", async function (this: OlaiW
 When(
   "I hold a finger on the bullet of {string} and keep it there",
   async function (this: OlaiWorld, id: string) {
-    await this.holdDown(this.within(id, ZOOM));
+    // A finger presses what is ON the screen. A row can sit below the fold
+    // on a handset (a title that wraps makes rows as tall as their words), and
+    // a touch at a point past the viewport's edge reaches nothing — so the
+    // bullet is brought into view first, as a thumb would scroll to it.
+    const bullet = this.within(id, ZOOM);
+    await bullet.scrollIntoViewIfNeeded();
+    await this.holdDown(bullet);
   },
 );
 
