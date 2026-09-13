@@ -13,7 +13,8 @@
     "./tools": "./src/tools.ts",
     "./making": "./src/file/making.ts",
     "./testids": "./src/testids.ts",
-    "./completing": "./src/contracts/completing.ts"
+    "./completing": "./src/contracts/completing.ts",
+    "./carry": "./src/carry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

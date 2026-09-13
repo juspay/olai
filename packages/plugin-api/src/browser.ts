@@ -1,3 +1,4 @@
+import { createLandings, type Landings as LandingTable } from "./carry.ts"
 /** Browser capabilities and notebook compatibility contracts.
  *
  * The renderer owns the sole location registry. Slots and Faces retain the
@@ -533,6 +534,8 @@ export interface EditWriters {
   /** ...and the dispatch, refusing in words for a verb whose row is not here. */
   readonly write: (edit: { readonly verb: string }) => Effect.Effect<unknown, unknown>
 }
+export const Landings = serviceTag<LandingTable>("landings")
+
 export const Edits = serviceTag<EditWriters>("edit-writers")
 
 /**
@@ -805,6 +808,8 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
     })))
     // ONE EDIT TABLE PER APP, supplied rather than offered for {@link Edits}'
     // own reason: no row stands behind it, so naming it costs no wait.
+    const landings = createLandings()
+    yield* provide(host, Landings, () => landings)
     const edits = editWriters()
     yield* provide(host, Edits, () => edits)
 
