@@ -23,7 +23,7 @@ Then("the page has no dead links", async function(this: OlaiWorld) {
   assert.ok(labels?.size, "clearing must follow a visibly marked link");
   for (const label of labels) {
     await this.waitUntil(async () => {
-      const link = this.page.locator("a").filter({ hasText: label }).first();
+      const link = this.page.getByRole("link", { name: label, exact: true }).first();
       return await link.isVisible() && await link.getAttribute("data-dead") === null;
     }, `the link ${label} remains visible without a dead mark`);
   }
@@ -52,7 +52,7 @@ Then("the tool answer omits {string}", function(this: OlaiWorld, field: string) 
   assert.equal(Object.hasOwn(answer, field), false);
 });
 Then("the rendered link to {string} has no dead mark", async function(this: OlaiWorld, label: string) {
-  const link = this.page.locator("a").filter({ hasText: label }).first();
+  const link = this.page.getByRole("link", { name: label, exact: true }).first();
   await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitUntil(async () => await link.isVisible() && await link.getAttribute("data-dead") === null, "the visible link to have no dead mark");
 });
