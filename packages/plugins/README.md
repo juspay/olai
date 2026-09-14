@@ -28,10 +28,10 @@ same the file’s row selection word:
   [the Cordis plan](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/cordis-for-olai.md),
   and the point of each is the same: what a serve HAS is a row list.
 - **ENGINES** — an ACP agent the chat panel can seat: `claude`, `codex`,
-  `opencode`, `pi`. Each hands over a `Leg` (how to read that agent's wire), a probe that
-  finds it on this host, and the channel its standing prompt rides — and, on its
-  browser half, the mark it wears and the whole sentence for a machine that has
-  not installed it. It composes NO surface: what it
+  `opencode`, `pi`, `omp`. Each hands over a `Leg` (how to read that agent's
+  wire), a probe that finds it on this host, and the channel its standing prompt
+  rides — and, on its browser half, the mark it wears and the whole sentence for
+  a machine that has not installed it. It composes NO surface: what it
   contributes to a tab already travels on the chat cell, which is core's. One
   directory each because they share no release clock — the Claude adapter's pin
   moved five times in a month and opencode's has never moved — and because

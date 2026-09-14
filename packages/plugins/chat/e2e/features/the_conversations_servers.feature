@@ -164,3 +164,23 @@ Feature: The panel says which MCP servers a conversation has
     And the panel says this conversation has "kolu"
     And the panel does not claim the agent attached "olai"
     And the panel says the list is not the whole of it
+
+  @omp @scratch:chat @kolu
+  Scenario: An agent that reports nothing per server still gets its servers named
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The same floor on the third leg, and one step further down: omp reports
+    # nothing per server over ACP EITHER, and it does not even come up half
+    # connected — a session whose handed server will not connect fails
+    # `session/new` outright rather than arriving with one row marked broken
+    # (`packages/plugins/omp/docs.md`). So there is never a tick to withdraw and
+    # never a failure to report, and the whole of what this panel can honestly
+    # say is the roster olai composed plus the sentence saying the list is not
+    # all of it. Drawing nothing would leave a person asking the agent a
+    # question the agent is the worst thing in the room to ask.
+    And I ask the agent "hello"
+    Then the chat eventually shows "omp says: hello"
+    And the panel says this conversation has "olai"
+    And the panel says this conversation has "kolu"
+    And the panel does not claim the agent attached "olai"
+    And the panel says the list is not the whole of it

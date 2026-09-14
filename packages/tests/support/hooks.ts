@@ -328,6 +328,19 @@ const FAKE_KOLU_DIR = path.resolve(import.meta.dirname, "..", "agent", "kolu");
 const FAKE_OPENCODE_DIR = path.resolve(import.meta.dirname, "..", "agent", "opencode");
 
 /**
+ * The directory holding a fake `omp`, put on a spawned server's
+ * `OLAI_AGENT_PATH` when — and only when — a scenario asks for one.
+ *
+ * ONE DIRECTORY AND ONE FILE, unlike the pi pair next door: `omp` ships its own
+ * ACP server and its own MCP client, so there is no adapter half for olai to
+ * name and nothing for a second variable to point at. Same argument as
+ * {@link FAKE_OPENCODE_DIR} for the rest: which agents a server finds decides
+ * whether its panel asks, and that has to be the scenario's business rather
+ * than the laptop's.
+ */
+const FAKE_OMP_DIR = path.resolve(import.meta.dirname, "..", "agent", "omp");
+
+/**
  * The directory holding the fake `pi` and the scripted `pi-acp` beside it —
  * the pair the roster's pi row is made of.
  *
@@ -377,6 +390,9 @@ const OPENCODE_TAG = "@opencode";
 
 /** `@pi`: this scenario's machine HAS pi — see {@link FAKE_PI_DIR}. */
 const PI_TAG = "@pi";
+
+/** `@omp`: this scenario's machine HAS Oh My Pi — see {@link FAKE_OMP_DIR}. */
+const OMP_TAG = "@omp";
 
 /** `@wire`: this scenario asks what the SERVER SENT rather than what the page
  *  drew, so every websocket frame the tab is delivered is kept for it
@@ -744,6 +760,10 @@ interface Spawn {
    *  scripted adapter named by `OLAI_ACP_PI` — the two halves of the row.
    *  See {@link FAKE_PI_DIR}. */
   readonly pi?: boolean;
+  /** `true` puts a fake `omp` on the agent search path, so this server's
+   *  roster has an Oh My Pi in it. Otherwise that path is empty — see
+   *  {@link FAKE_OMP_DIR}. */
+  readonly omp?: boolean;
   readonly codex?: boolean;
   /** Repository condition, independent of the default manual commit policy. */
   readonly git?: GitMode;
@@ -818,9 +838,17 @@ const startServerChild = async (
         OLAI_AGENT_PATH: [
           ...(spawnOptions.opencode === true ? [FAKE_OPENCODE_DIR] : []),
           ...(spawnOptions.pi === true ? [FAKE_PI_DIR] : []),
+          ...(spawnOptions.omp === true ? [FAKE_OMP_DIR] : []),
         ].join(path.delimiter),
         ...(spawnOptions.opencode === true && spawnOptions.stored === true
           ? { OLAI_FAKE_OPENCODE_STORED: "yes" }
+          : {}),
+        // The third PATH-found fake's stored sessions, set on the same rule:
+        // the variable being PRESENT at all is what tells it to answer
+        // `session/list` and replay a load, so a scenario that did not ask for
+        // a conversation on disk gets none.
+        ...(spawnOptions.omp === true && spawnOptions.stored === true
+          ? { OLAI_FAKE_OMP_STORED: "yes" }
           : {}),
         // THE ADAPTER, named the way a wrapper bakes it — and the empty
         // string when the scenario is not about pi, which is the row's off
@@ -1019,6 +1047,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       fastNodeIdle: world.fastNodeIdle,
       agent: world.hasAgent,
       opencode: world.hasOpencode,
+      omp: world.hasOmp,
       pi: world.hasPi,
       codex: world.hasCodex,
       kolu: world.hasKolu,
@@ -1392,6 +1421,7 @@ Before(
       (tag) => tag.name === OPENCODE_TAG,
     );
     this.hasPi = scenario.pickle.tags.some((tag) => tag.name === PI_TAG);
+    this.hasOmp = scenario.pickle.tags.some((tag) => tag.name === OMP_TAG);
     this.hasCodex = scenario.pickle.tags.some((tag) => tag.name === "@codex");
 
     // On the world rather than in a local, because a restart mid-scenario has
@@ -1485,7 +1515,7 @@ Before(
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
-    if ((this.hasPi || this.hasCodex) && !writes) {
+    if ((this.hasPi || this.hasCodex || this.hasOmp) && !writes) {
       throw new Error(
         `The agent tag decides which agents its server finds, so the scenario must own ` +
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
@@ -1533,6 +1563,7 @@ Before(
         fastNodeIdle: this.fastNodeIdle,
         agent: this.hasAgent,
         opencode: this.hasOpencode,
+        omp: this.hasOmp,
         pi: this.hasPi,
         codex: this.hasCodex,
         kolu: this.hasKolu,

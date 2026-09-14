@@ -1448,6 +1448,11 @@ export class OlaiWorld extends World {
    *  Same reasoning as the row above: which agents a server finds decides
    *  whether its panel asks, so it is a property of the scenario. */
   hasPi = false;
+  /** `@omp`: this scenario's machine HAS Oh My Pi — a runnable `omp` on the
+   *  agent search path, which is the whole row (it ships its own ACP server and
+   *  MCP client, so there is no adapter half). Same reasoning as the two rows
+   *  above. */
+  hasOmp = false;
   /** The Codex roster row, using the scripted ACP transport. */
   hasCodex = false;
   /** Repository condition, reproduced when the scenario restarts its server. */

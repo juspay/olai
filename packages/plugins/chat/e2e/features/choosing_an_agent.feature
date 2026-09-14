@@ -312,12 +312,21 @@ Feature: Choosing a node agent's engine
     Then the agent has answered "opencode says: hello" exactly once
     And the chat shows no refusal
 
-  @opencode @agent-stored @scratch:chat
+  @opencode @omp @agent-stored @scratch:chat
   Scenario: Every engine's stored conversations are filed with their engine identity
     Then the filer's boot run has settled
-    And the Inbox has 2 filed conversations
+    # THREE, and the count is the claim rather than bookkeeping: each engine's
+    # filed rows have to carry their OWN identity, so three engines with a stored
+    # conversation file three rows — not one engine's rows landing under another
+    # engine's name, and not one row standing in for two. It read 2 while this
+    # suite had two engines that stored anything; omp is the third, and it is the
+    # one that is FOUND on the search path rather than shipped, so its row is
+    # also the one no pin could have filed for it.
+    And the Inbox has 3 filed conversations
     When I open the filed "opencode" conversation "an opencode conversation" as node "opencode-chat"
     Then the header names the agent "opencode"
+    When I open the filed "omp" conversation "an Oh My Pi conversation" as node "omp-chat"
+    Then the header names the agent "omp"
     When I open the filed conversation "the last conversation" as node "claude-chat"
     Then the header names the agent "claude"
     When I open the fold history
@@ -549,3 +558,345 @@ Feature: Choosing a node agent's engine
     And the chat shows a tool call named "Read a node"
     And the tool call says which outline it touched
     And the chat shows no story under the call
+
+  @omp @scratch:chat
+  Scenario: The node menu offers claude and Oh My Pi
+    When I open the node menu of "kitchen"
+    # The NAME and not the id, which is worth a scenario rather than a
+    # formality because this row is a PROBE: a runnable `omp` on the agent
+    # search path is the machine saying it has one, and the sentence a person
+    # reads is the plugin's own `NAME` ("Oh My Pi", `src/install.ts`). The two
+    # words a menu is built out of are a trap here — the id is `omp`, and the
+    # row next along in `olai.yml` is called `pi` outright, which this name ENDS
+    # in. `not-a-plugin.json` exists to say out loud that neither branding is
+    # that row's; a menu that matched on the id, or read this name as that one,
+    # offers the wrong agent exactly where a person cannot tell.
+    Then the node menu offers "Start an agent session — Claude Code"
+    And the node menu offers "Start an agent session — Oh My Pi"
+
+  @omp @scratch:chat
+  Scenario: The header says who the conversation is with
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # TWO WORDS FOR ONE ROW, from two different places, and the header is the
+    # half that has to agree with the machine rather than with the menu: the row
+    # a person pressed said "Oh My Pi", and what the header names is the id the
+    # fiber is bound under (`omp`) — which is also the string every other step
+    # in this suite compares, and the key the mark is hung under. A mark table
+    # that still held a closed union of three engines would draw somebody
+    # else's glyph beside this name.
+    Then the header names the agent "omp"
+    And the header draws that agent's own mark
+    And the chat input takes typing
+
+  @omp @scratch:chat
+  Scenario: A turn with omp, from the box to the answer — and its thinking left out
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # THE FIRST ENGINE HERE THAT SENDS `agent_thought_chunk`, which is what makes
+    # this a claim: omp narrates its deliberation on the same feed as its prose.
+    # `packages/plugins/chat/src/agent.ts` has no case for that update kind, and
+    # its default arm drops a whole kind this panel has no view for — on purpose,
+    # and it says why there. Two things then follow, and this asserts both ends
+    # of them: the scratchpad must not be drawn as speech (a transcript is a
+    # conversation, and a model talking to itself is not one), and it must not
+    # COUNT as speech either, because the silence arm is fed by the same door —
+    # which is how a turn that only thought would come out looking like a turn
+    # that had something to say.
+    And I ask the agent "hello"
+    Then the chat eventually shows "omp says: hello"
+    And the chat does not yet show "weighing up hello"
+    And the page has not reloaded
+    And there should be no page errors
+
+  @omp @scratch:chat
+  Scenario: A command row reads the command the first frame minted, and never moves
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # THE OTHER HALF of opencode's scenario: where that agent announces a bare
+    # tool name and then rewrites the title under the call (which is why the
+    # shape of that row is "picked once"), this mapper's title for a command
+    # tool is its `$ <command>` start text from the FIRST frame and it does
+    # not move (`acp-event-mapper.ts`'s `buildToolTitle`). With no `_meta`
+    # anywhere to read a name off, the row a person reads IS that first title —
+    # which is why the id's head is what a permission rule must ask about
+    # (the `nameless` scenario below): on this wire the row can say what the
+    # call did without ever saying which tool did it.
+    And I ask the agent "bash"
+    Then the chat shows a tool call named "$ ls"
+    And the chat shows a completed tool call
+
+  @omp @scratch:chat
+  Scenario: The write through omp's own dispatch door reaches the outline
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # THE DOOR THIS WIRE HAS AND NO OTHER DOES, and the reason "asks nobody" is
+    # true here in a stronger sense than on opencode: with omp's default
+    # `tools.xdev`, one of olai's tools is never announced as itself. The call is
+    # omp's own `write`, and the tool is named only inside `rawInput.path` —
+    # `xd://mcp__olai_outlines_done`. Nothing about that path decides a
+    # permission (the leg says so where it reads it: display only), and nothing
+    # needs to: `--approval-mode yolo` skips omp's ACP gate for everything but
+    # bash, edit, delete and move, none of which are olai's tools, so no
+    # `session/request_permission` is ever issued for this call at all. What the
+    # path DOES buy is the row — and the write still goes through the real ops
+    # layer, which is the checkbox in front of a person moving.
+    And I ask the agent "done order"
+    Then the chat eventually shows "marked order done"
+    And node "order" is done
+    And the chat shows no question
+    And the page has not reloaded
+
+  @omp @scratch:chat
+  Scenario: omp's olai write has its title, outline, clickable story and one reply
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # WHAT THE PATH BUYS, walked as one row: because the leg recognises the
+    # `xd://mcp__olai_outlines_done` the `write` was dispatched through, this
+    # call is drawn as olai's own tool rather than as a file write — the
+    # friendly title in place of the model's intent sentence, the outline it
+    # touched, a story whose node can be pressed through, and the tool's answer
+    # read out of the nesting the `write` wrapped it in
+    # (`details.xdev.inner.rawContent`). Nothing else on this wire says the
+    # tool's name at all, so the row is the reading.
+    When I ask the agent "done order"
+    Then the chat shows a tool call named "Mark done"
+    And the tool call says which outline it touched
+    And the chat says the write "marked done"
+    When I press the node "order" in the write
+    Then the node "order" is focused
+    When I unfold the tool call
+    # ... and the reply is asserted ONCE, with no progress line under it: the
+    # inner text is parsed and drawn as the tool's own answer, and a row that
+    # also showed the wrapping `write`'s raw output would be saying the same
+    # thing twice.
+    #
+    # NOT asserted: the name the call is "called" underneath. On the other legs
+    # that name is a tool's programmatic name arriving in a `_meta`; here there
+    # is no `_meta` on any frame, and what omp puts in `title` is the intent
+    # sentence its model wrote — so a scenario pinning a string there would be
+    # pinning another engine's shape onto this wire.
+    And the tool call's reply is shown once
+
+  @omp @scratch:chat
+  Scenario: omp's olai read has a title and outline with no write story
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The other half of the reading, and the half that would be wrong if the two
+    # tools were read the same way: `outlines_read` changes nothing, so there is
+    # no story under the call and nothing for a person to press. The title and
+    # the outline are still read — the recognition is about which tool this is,
+    # not about what that tool did.
+    When I ask the agent "context order"
+    Then the chat shows a completed tool call
+    And the chat shows a tool call named "Read a node"
+    And the tool call says which outline it touched
+    And the chat shows no story under the call
+
+  @omp @scratch:chat
+  Scenario: A call olai recognises by its path is still a person's question here
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # THE TRAP IN THE DOOR, and the one ruling that is this wire's own rather
+    # than every wire's. Olai answers a permission request for one of ITS tools
+    # without asking anybody — `allowedWithoutAsking` matches the name the wire
+    # gives the call against the servers this session was handed. On this wire
+    # the name is `write`: the request's `toolCallId` is `write:0`, and that the
+    # call is really `mcp__olai_outlines_add` lives in the `rawInput.path` and
+    # nowhere the approval rule looks. So the rule cannot fire, and the request
+    # lands on a person — which is the losing direction and the right one: a
+    # path is minted by the agent and may be believed for DISPLAY, but an
+    # approval read off one would be approving in the model's name. The
+    # `tools.xdev: false` shape, whose id head IS the minted `mcp__<server>_…`
+    # name, is where this leg's auto-allow is actually reachable; the default
+    # shape is here. One honesty note about the witness: the REAL omp never
+    # sends this request at all for `write` — its gate's list is
+    # `bash`/`edit`/`delete`/`move` — so what is being witnessed on this wire
+    # is olai's rule and the person it puts in front of one, not a frame omp
+    # was captured sending.
+    And I ask the agent "permit"
+    Then the chat shows a question
+    And the question offers "allow_once"
+    When I choose "Allow once"
+    And I answer the question
+    Then the chat eventually shows "allow_once"
+
+  @omp @scratch:chat
+  Scenario: A tool nothing named is never approved by failing to recognise it
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The fail-safe rule at the one place it can be walked end to end. The call
+    # id is `:<n>` — no name half at all — and `toolNameOf` answers `null` for
+    # exactly that shape (`at <= 0`), so nothing can say which tool this is. A
+    # tool olai cannot name is one a PERSON is asked about; a rule that widened
+    # here would be approving somebody's permissions on their behalf, and the
+    # branch that answers `null` is all that stands between them.
+    And I ask the agent "nameless"
+    Then the chat shows a question
+
+  @omp @scratch:chat
+  Scenario: The composer promises nothing about a mid-turn message, because a send ends the turn
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # THE ONE ENGINE OLAI TALKS TO WHERE A SEND IS NOT A QUEUE. omp advertises
+    # no `promptQueueing`, and it does not need to: a `session/prompt` arriving
+    # while a turn streams CANCELS that turn and runs what was just typed. So
+    # the composer has nothing true to promise about a message sent mid-turn —
+    # nowhere to say "queued behind this one", and no interruption to offer
+    # either, because a send already IS one (`_session/steering` is -32603).
+    # Both absences are asserted, and then the wire's own answer is: the held
+    # turn ends `cancelled` — the same stop reason a person gets from the
+    # button, with the notice that goes with it — and the second turn answers.
+    And I ask the agent "slow"
+    Then the chat shows a running tool call
+    And the composer says nothing about queueing
+    And the composer offers no interruption
+    When I type "hello" into the chat
+    And I send the chat message
+    Then the chat shows my message "hello"
+    And the chat says the turn was cancelled
+    And the chat eventually shows "omp says: hello"
+    And the agent is idle
+
+  @omp @scratch:chat
+  Scenario: Cancel is about the turn in flight, and says so once
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The scope of the button on a wire that never has two turns to reach. On
+    # opencode a cancel is about everything in flight, because a message sent
+    # mid-turn is sitting behind the running one; here a send has already
+    # replaced the running turn, so the press has exactly one thing to stop and
+    # exactly one thing to report. `the chat says it once` is the half that
+    # would catch a panel reporting the conversation's history rather than the
+    # press — a notice for every turn that ever ended would be a transcript of
+    # cancellations.
+    And I ask the agent "slow"
+    Then the chat shows a running tool call
+    When I cancel the turn
+    Then the agent is idle
+    And the chat says the turn was cancelled
+    And the chat says it once
+
+  @omp @scratch:chat
+  Scenario: A turn that ends having said nothing says so
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The same arm the other engines are held to, walked on this wire because the
+    # silence arm is generic and this is where a naive renderer would have
+    # broken it: omp sends a `usage_update` and then a SUCCESSFUL `end_turn`
+    # having produced nothing at all. A lone usage frame is a frame, and it used
+    # to be enough to convince the panel the agent had worked on the message —
+    # so what a person got back was an empty space under their words and a panel
+    # back at ready. The words are the point, and the environment is the trap.
+    And I ask the agent "silent"
+    Then the chat eventually shows "ended the turn without saying anything"
+    And the chat eventually shows "provider key"
+    And the panel says something went wrong
+    And the agent is idle
+
+  @omp @scratch:chat
+  Scenario: An ordinary turn is not accused of silence
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The other half, without which the arm above is worse than useless: a turn
+    # that said anything at all costs nothing to recognise, and the thought
+    # chunks are the new hazard on THIS wire — a panel that counted them would
+    # have no reason to complain here, and a panel that drew them would. What is
+    # asserted is the good answer and the absence of the complaint.
+    And I ask the agent "hello"
+    Then the agent's answer mentions "omp says: hello"
+    And the chat does not yet show "ended the turn without saying anything"
+    And the chat says nothing went wrong
+
+  @omp @scratch:chat
+  Scenario: The picker offers the ids it reports, under the names it gives them
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # No alias arithmetic on this wire, and that is a claim about both halves of
+    # the picker. A model's VALUE is the `provider/id` omp reports, and its
+    # display name is the option's own `name` — so the row a person presses says
+    # "Claude Sonnet 5" while the string that travels is
+    # `anthropic/claude-sonnet-5`, and the header has to name the row rather
+    # than the string. The session came up on `litellm/kimi-k3`, so the first
+    # assertion is that a `provider/id` this panel has never been told the name
+    # of is already on screen as the name its picker gave it.
+    Then the panel header names the model "Kimi K3"
+    # ...and picking by the DISPLAY name is what proves the list is drawn that
+    # way: an exact-name press finds no row at all if the row carries the raw id.
+    When I choose the chat model "Claude Sonnet 5"
+    # ...and a change comes back as a `config_option_update` carrying the whole
+    # set, which is what the header reads — so naming the new label beside the
+    # old one is a reading of the update rather than of this tab's optimism.
+    Then the panel header names the model "Claude Sonnet 5"
+
+  @omp @scratch:chat
+  Scenario: A message the agent is too busy with its own work to take keeps its words
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The refusal that is NOT a silence, and the words that must survive it: a
+    # prompt arriving while omp is busy with a turn of its OWN (one no client
+    # prompt owns) is answered `-32000 session_busy` with a hint naming what to
+    # do about it, and nothing else at all arrives — no chunk, no usage frame.
+    # A refusal is a certainty, so the row keeps the prompt and says so; a panel
+    # that dropped the words here would be taking somebody's message away with
+    # the one thing they could do about it.
+    And I ask the agent "busy"
+    Then the chat shows my message "busy" as "refused"
+    And the strip under my message "busy" reads "not sent"
+    And the agent is idle
+    # ... and the conversation is not wedged: the refusal is about that one
+    # message, and the next thing somebody does is type.
+    And the chat input takes typing
+
+  @omp @scratch:chat @acp-session-features
+  Scenario: Client-owned terminal output streams into a retained row
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The same REGION the pi corner feeds, fed the other way on this wire: no
+    # `terminal_output` `_meta` ever arrives, because the process being watched
+    # is olai's own — spawned by the agent through `terminal/create` (olai
+    # advertised `terminal: true`), named on the call's `{type: "terminal"}`
+    # block, and drained through `terminal/output` at the end. Two of the lines
+    # asserted here are olai's own rendering ("Running", "Exit 0") and two are
+    # the command's real bytes — the point being that the first pair can only
+    # be true of a process olai is RUNNING, rather than of a transcript an
+    # adapter happened to carry.
+    And I ask the agent "slow"
+    Then terminal output contains "omp command started"
+    And terminal output contains "Running"
+    When the agent is released
+    Then the agent is idle
+    And terminal output contains "Exit 0"
+    And terminal output contains "omp command started"
+    And terminal output contains "omp command done"
+
+  @omp @agent-stored @scratch:chat
+  Scenario: Reopening the conversation talks to the agent that has it
+    When I open the filed "omp" conversation "an Oh My Pi conversation" as node "filed-engine"
+    And the node agent's fold is ready
+    # A session id means nothing to the wrong agent — asking one to load it gets a
+    # refusal — so the boot has to know which engine this conversation belongs to
+    # before it has one to ask. It comes back without asking again, in the same
+    # conversation and on the same agent, and the restart is the half that says
+    # the note beside the save is what carried it rather than this tab.
+    Then the chat eventually shows "omp remembers this conversation"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the node agent's fold is ready
+    And the header names the agent "omp"
+    And the chat eventually shows "omp remembers this conversation"
+
+  @omp @agent-stored @scratch:chat
+  Scenario: A filed omp conversation carries the count its listing reported
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    Then the filer's boot run has settled
+    When I open the filed "omp" conversation "an Oh My Pi conversation" as node "omp-chat"
+    # This wire is the one that answers the question the picker's note asks:
+    # omp stamps a real `messageCount` on each `session/list` entry, so the filed
+    # row can say how long a stored conversation is without opening it — and
+    # because it is a count the agent reported rather than one this side
+    # inferred, the note can be asserted to the number.
+    Then the filed node "omp-chat" has a note containing "21 messages"
+    And the header names the agent "omp"
