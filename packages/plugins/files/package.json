@@ -48,6 +48,7 @@
     ]
   },
   "devDependencies": {
-    "@olai/tests": "workspace:*"
+    "@olai/tests": "workspace:*",
+    "olai-plugin-outline-org": "workspace:*"
   }
 }

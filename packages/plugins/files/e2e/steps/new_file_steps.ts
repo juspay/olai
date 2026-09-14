@@ -33,7 +33,7 @@ import { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "../../src/file/mak
 
 import { saysThat } from "@olai/tests/harness/said.ts";
 import { keysSettled } from "@olai/tests/harness/settling.ts";
-import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** Which door a scenario means. A throw rather than a default, because a
@@ -160,6 +160,56 @@ Then(
     await this.waitUntil(
       async () => (await this.page.locator(path).count()) === 0,
       `the new ${kind} box to be put away`,
+    );
+  },
+);
+
+// THE SPELLING CHOICE — one chips row when the keeping mints more than one
+// spelling (`file/NewFile.tsx`'s `spellingsOf`). Scoped by `data-door`
+// rather than by order: both doors may stand open at once, and "the org
+// chip" is only askable of one box.
+const chipsOf = (kind: string): string =>
+  `${selector(TESTID.newFileFormat)}${attr("data-door", making(kind).of)}`;
+
+Then(
+  "the new {word} box offers the spellings {string}",
+  async function (this: OlaiWorld, kind: string, spellings: string) {
+    const group = this.page.locator(chipsOf(kind));
+    await group.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.deepStrictEqual(
+      await group.locator("button").evaluateAll((chips) => chips.map((chip) => chip.textContent?.trim())),
+      spellings.split(", "),
+      `the new ${kind} box's spellings`,
+    );
+  },
+);
+
+Then(
+  "the {string} spelling is chosen for the new {word}",
+  async function (this: OlaiWorld, spelling: string, kind: string) {
+    const chip = this.page.locator(chipsOf(kind)).locator("button", { hasText: spelling });
+    await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(await chip.getAttribute("aria-pressed"), "true", `the new ${kind} box's chosen spelling`);
+  },
+);
+
+When(
+  "I choose the {string} spelling for the new {word}",
+  async function (this: OlaiWorld, spelling: string, kind: string) {
+    const chip = this.page.locator(chipsOf(kind)).locator("button", { hasText: spelling });
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await chip.click();
+  },
+);
+
+/** ...and its absence: one spelling is a fact, not a choice — the chips row
+ *  is WITHDRAWN, not one wide, when the second format row is off. */
+Then(
+  "the new {word} box asks for no spelling",
+  async function (this: OlaiWorld, kind: string) {
+    await this.waitUntil(
+      async () => (await this.page.locator(chipsOf(kind)).count()) === 0,
+      `the new ${kind} box to ask for one spelling only`,
     );
   },
 );

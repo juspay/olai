@@ -15,6 +15,7 @@ export const TESTID = {
   newDocument: "new-document",
   newDocumentPath: "new-document-path",
   newDocumentSaid: "new-document-said",
+  newFileFormat: "new-file-format",
   newOutline: "new-outline",
   newOutlinePath: "new-outline-path",
   newOutlineSaid: "new-outline-said",

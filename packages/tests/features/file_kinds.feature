@@ -128,6 +128,7 @@ Feature: File kinds follow their claiming rows
     Then the tree is shown
     And the node "estate" is shown
     And the node "mow" is a child of "estate"
+    And the sidebar draws "estate.org" in the org spelling
     And there should be no page errors
     # An edit through the real ops write gate comes back in the format's own
     # bytes on disk, and the drawn tree moves with it.

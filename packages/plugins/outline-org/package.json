@@ -7,6 +7,8 @@
     "./server": "./src/server.ts",
     "./format": "./src/format.ts",
     "./claim": "./src/claim.ts",
+    "./browser": "./src/browser.tsx",
+    "./testids": "./src/testids.ts",
     "./testlib": "./src/claims.testlib.ts"
   },
   "scripts": {
@@ -16,12 +18,17 @@
     "@aviaviavi/org2": "0.7.0",
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "@olai/format": "workspace:*"
+    "@olai/format": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "olai-plugin-files": "workspace:*",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "solid-js": "^1.9.0"
   },
   "olai": {
     "contracts": [
       "./format",
       "./claim",
+      "./testids",
       "./testlib"
     ]
   }

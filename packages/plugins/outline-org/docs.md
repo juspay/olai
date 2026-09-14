@@ -1,6 +1,6 @@
 # Outline Org
 
-The `outline-org` row claims the `.org` outline format: one Org heading per record, its fields in a property drawer. It owns the pure parser (the packaged Org2) and the canonical writer. It draws nothing: Outlines contributes one glyph and tree page for every claim holding nodes.
+The `outline-org` row claims the `.org` outline format: one Org heading per record, its fields in a property drawer. It owns the pure parser (the packaged Org2), the canonical writer, and its own sidebar glyph: the outline tree drawn with Org's stars instead of bullets, so a sidebar keeping one outline in both spellings tells them apart at a glance. Outlines contributes the tree page and every other face for any claim holding nodes.
 
 ## Representation
 
@@ -14,4 +14,4 @@ Org2 0.7 ships its parser as JavaScript with no TypeScript declarations, so the 
 
 Merge guarantee: unlike the line-based `.olai` spelling, one record spans a heading and its drawer, so a plain line-based Git merge conflicts over a whole record's region rather than one field.
 
-Its switch is ordinary: turning it off withdraws all its files and their outline pages until it returns. The mint `format` setting stays `outline-olai` by default; point it at this row to create new outlines as `.org`.
+Its switch is ordinary: turning it off withdraws all its files and their outline pages until it returns. The mint `format` setting stays `outline-olai` by default; while both outline rows are on, the `+ New outline` box asks which spelling to mint — the configured row chosen first — and a typed `notes.org` names its format in the name itself, with the door's refusal saved for suffixes it cannot mint (`notes.md`).

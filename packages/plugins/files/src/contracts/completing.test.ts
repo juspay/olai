@@ -9,11 +9,18 @@
  * spells a name the same way an implementation does.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
+import { claim as ORG_CLAIM, name as ORG } from "olai-plugin-outline-org/claim"
+import { claims } from "@olai/format"
 import { expect, test } from "bun:test"
 
 const DOCUMENT_EXT = TEST_CLAIMS.byKind.get("markdown")!.exts[0]
 
-import { meantAt } from "./completing.ts"
+// BOTH OUTLINE SPELLINGS AT ONCE: `@olai/format`'s fixtures are literal leaf
+// membership with one node row; the org row's registration is the real claim
+// (a suffix belongs to its claiming row — `@olai/tests`' `kinds.test.ts`).
+const BOTH = claims([...TEST_CLAIMS.byKind.values(), { ...ORG_CLAIM, kind: ORG }])
+
+import { meantAt, spellingsOf } from "./completing.ts"
 
 // THE BUG THIS IS WRITTEN AGAINST: a person typed `Foo` into `+ New outline`
 // and got the wire's paragraph about relative `.olai` paths back. A door knows
@@ -134,4 +141,44 @@ test("a name that begins with a dot is a file, and takes the suffix", () => {
 test("an empty box, or one holding only spaces, has asked for nothing", () => {
   expect(meantAt(TEST_CLAIMS, "outline-olai", "")).toBeNull()
   expect(meantAt(TEST_CLAIMS, "markdown", "   ")).toBeNull()
+})
+
+// A SIBLING SPELLING IS THE FORMAT, CHOSEN BY THE NAME ITSELF — the sentence
+// "an outline, not an outline" is the refusal that cannot be said, and the
+// mint that adds a second suffix to `notes.org` is the file nobody asked for.
+// Either door, either spelling: the chosen row is which SPELLING, not which
+// one the box happened to be offering.
+test("a name carrying a sibling spelling's suffix names that format", () => {
+  expect(meantAt(BOTH, "outline-olai", "notes.org")).toEqual({ file: "notes.org" })
+  expect(meantAt(BOTH, "outline-org", "notes.olai")).toEqual({ file: "notes.olai" })
+  expect(meantAt(BOTH, "outline-olai", "plans/nest.org")).toEqual({ file: "plans/nest.org" })
+})
+
+// ...while a suffix outside the door's keeping is refused as it always was —
+// the `.md` at an outline door reads the same with a second spelling claimed,
+// and a `.html` at the document door: `kept` is what makes org an honest
+// choice where the served-only page is not.
+test("a sibling spelling changes nothing about a foreign suffix's refusal", () => {
+  expect(meantAt(BOTH, "outline-olai", "notes.md")).toEqual({
+    refused: "`notes.md` is a document, not an outline — type `notes` to make `notes.olai`.",
+  })
+  expect(meantAt(BOTH, "markdown", "report.html")).toEqual({
+    refused: "`report.html` is a page, not a document — type `report` to make `report.md`.",
+  })
+})
+
+// THE CHOICE ITSELF — which boxes have one at all. Both outline spellings, in
+// the registry's order; the document door's one entry never asks; a kind that
+// keeps nothing mintable has no spelling to offer.
+test("a door's spellings are the kept claims holding what the door holds", () => {
+  expect(spellingsOf(BOTH, "outline-olai")).toEqual([
+    { kind: "outline-olai", ext: TEST_CLAIMS.byKind.get("outline-olai")!.exts[0] },
+    { kind: ORG, ext: ORG_CLAIM.exts[0] },
+  ])
+  expect(spellingsOf(BOTH, "markdown")).toEqual([{ kind: "markdown", ext: DOCUMENT_EXT }])
+  expect(spellingsOf(TEST_CLAIMS, "outline-olai")).toEqual([{ kind: "outline-olai", ext: TEST_CLAIMS.byKind.get("outline-olai")!.exts[0] }])
+  expect(spellingsOf(BOTH, "hypertext")).toEqual([{ kind: "markdown", ext: DOCUMENT_EXT }])
+  expect(spellingsOf(BOTH, "csv")).toEqual([{ kind: "markdown", ext: DOCUMENT_EXT }])
+  expect(spellingsOf(BOTH, "image")).toEqual([])
+  expect(spellingsOf(BOTH, "unknown")).toEqual([])
 })

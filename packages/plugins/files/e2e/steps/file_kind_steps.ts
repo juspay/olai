@@ -40,6 +40,16 @@ Then("the PDF row has its contributed glyph", async function(this: OlaiWorld) {
   await this.showSidebar()
   await this.kindLink("pdf", "reports/q3.pdf").getByTestId(TESTID.fileGlyph).waitFor({ state: "visible" })
 })
+Then("the sidebar draws {string} in the org spelling", async function(this: OlaiWorld, file: string) {
+  await this.showSidebar()
+  const glyph = this.kindLink("outline-org", file).getByTestId(TESTID.fileGlyph)
+  await glyph.waitFor({ state: "visible" })
+  // BOTH HALVES of the drawing: the wrapper says the row is the org row's,
+  // and the drawing inside says "org" as the shape — the format is told
+  // apart from `outline-olai`'s bullets by the ink, not by the attachment.
+  assert.equal(await glyph.getAttribute("data-glyph"), "outline-org")
+  await glyph.locator(`[data-spelling="org"]`).waitFor({ state: "visible" })
+})
 Then("the directory tree and rail are absent", async function(this: OlaiWorld) {
   await this.waitUntil(async () => await this.page.getByTestId(TESTID.sidebarFiles).count() === 0 && await this.page.getByTestId(TESTID.railOutlines).count() === 0, "navigation withdraws tree and rail")
 })

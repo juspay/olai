@@ -15,6 +15,7 @@ import {
   HYPERTEXT_LINK,
   oneLine,
   OUTLINE_LINK,
+  OUTLINE_ORG_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
   PANE,
@@ -52,7 +53,9 @@ Then(
   "the outline list has {int} entries",
   async function (this: OlaiWorld, expected: number) {
     await this.showSidebar();
-    const links = this.page.locator(`${OUTLINE_LIST} ${OUTLINE_LINK}`);
+    // `:is(...)` and not the pair glued together: `.a,.b` under a scope would
+    // count every `.b` on the page, the commas splitting the list's own arm.
+    const links = this.page.locator(`${OUTLINE_LIST} :is(${OUTLINE_LINK},${OUTLINE_ORG_LINK})`);
     await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // An empty ul has no visible box, but must be mounted before counting.
     await this.page.locator(OUTLINE_LIST).waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });

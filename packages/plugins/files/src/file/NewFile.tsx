@@ -26,6 +26,14 @@
  * the ops layer's). Every other verdict is still the ops layer's, over the path
  * this hands it.
  *
+ * Two spellings of one keeping make the kind a CHOICE rather than a fact: the
+ * directory keeps outlines as `.olai` and `.org` alike, so the box offers one
+ * chip per spelling the door can mint (`./completing.ts`'s `spellingsOf`) and
+ * completes with the chosen one — the configured row first, and one chip only
+ * ever means the choice draws nothing. A typed sibling suffix is the same
+ * answer arrived at the other way: `notes.org` at a `.olai`-chosen door still
+ * mints `notes.org`, the chips simply moving to spell what was typed.
+ *
  * ## The two halves that differ
  *
  * {@link Making} is the WORDS — a value, so the two doors cannot end up called
@@ -36,20 +44,24 @@
  * the same way: the refusal to draw, or `null` for a write that landed.
  */
 import { servedDirectory } from "../vault.ts"
-import { createSignal,Show } from "solid-js"
+import { createSignal,For,Show } from "solid-js"
 
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { meantAt } from "olai-plugin-files/completing"
+import { meantAt, spellingsOf } from "olai-plugin-files/completing"
 import { Glyph } from "../glyphs.tsx"
 import { Refused } from "@olai/web/client/Refused.tsx"
 import type { Making } from "olai-plugin-files/making"
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
+import { TESTID } from "../testids.ts"
 
 const newDraft = () => ({
   open: createSignal(false),
   path: createSignal(""),
   said: createSignal<string | null>(null),
   sending: createSignal(false),
+  /** Which spelling completes a bare name — `null` until a chip says, so the
+   *  configured row decides a door nobody touched. */
+  format: createSignal<string | null>(null),
   revision: 0,
 })
 
@@ -72,12 +84,28 @@ export function NewFile(props: {
   const [path, setPath] = draft.path
   const [said, setSaid] = draft.said
   const [sending, setSending] = draft.sending
+  const [format, setFormat] = draft.format
 
   const close = (): void => {
     draft.revision++
     setOpen(false)
     setPath("")
     setSaid(null)
+    setFormat(null)
+  }
+
+  /** The spellings this door can mint — one chip each, or NO choice when the
+   *  keeping has one spelling, which is also the answer while the directory
+   *  is still arriving. */
+  const spellings = () => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : spellingsOf(claims, props.making.of)
+  }
+  /** The chip the box completes with: what a chip said, until a claim
+   *  withdrawal takes that spelling — then the row's, as if untouched. */
+  const chosen = () => {
+    const picked = format()
+    return picked !== null && spellings().some(spelling => spelling.kind === picked) ? picked : props.making.of
   }
 
   const send = async (): Promise<void> => {
@@ -87,7 +115,7 @@ export function NewFile(props: {
     // is not a refusal to draw — nobody has asked for anything yet.
     const claims = servedDirectory()?.claims()
     if (claims === undefined) return
-    const meant = meantAt(claims, props.making.of, path())
+    const meant = meantAt(claims, chosen(), path())
     if (meant === null) return
     // ONE LINE draws both sentences, and that is the point of drawing the box's
     // own one here rather than beside it: which layer refused a path is not a
@@ -129,11 +157,32 @@ export function NewFile(props: {
             {/* The fold-control's box, empty, so this glyph sits in the tree's
                 column rather than where a folder's triangle sits. */}
             <span class={CONTROL} aria-hidden="true" />
-            <Glyph of={props.making.of} />
+            <Glyph of={chosen()} />
             {props.making.label}
           </button>
         }
       >
+        {/* WHICH SPELLING, when the keeping has two — the row's spelling
+            preselected, and a typed sibling suffix spells the format itself
+            without asking (`./completing.ts` owns that rule). The glyph is
+            the fact's face: a chosen `.org` chip draws what the minted row
+            will. */}
+        <Show when={spellings().length > 1}>
+          <div class="mb-1 flex gap-1" role="group" aria-label="spelling of the new file" data-testid={TESTID.newFileFormat} data-door={props.making.of}>
+            <For each={spellings()}>{spelling =>
+              <button
+                type="button"
+                class={`flex cursor-pointer items-center gap-1 rounded border px-1.5 py-0.5 text-[0.8125rem] ${chosen() === spelling.kind ? "border-accent text-ink" : "border-rule text-muted"}`}
+                data-kind={spelling.kind}
+                aria-pressed={chosen() === spelling.kind}
+                onClick={(event) => { event.stopPropagation(); setFormat(spelling.kind) }}
+              >
+                <Glyph of={spelling.kind} />
+                {spelling.ext}
+              </button>
+            }</For>
+          </div>
+        </Show>
         <input
           type="text"
           class="w-full rounded border border-rule bg-panel px-2 py-1 font-mono text-[0.8125rem] text-ink outline-none focus:border-accent"
