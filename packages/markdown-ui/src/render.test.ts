@@ -15,7 +15,7 @@
  * browser ends up with and installs it, which is what keeps these tests tests
  * of the thing that ships. What the page does BEFORE it arrives is a question
  * about a page, and is answered in the browser suite
- * (`packages/tests/features/markdown_arrives.feature`).
+ * (`packages/plugins/markdown/e2e/features/markdown_arrives.feature`).
  */
 import { claims } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
@@ -453,7 +453,7 @@ test("streaming and final share a footnote id namespace", () => {
  * every case below has the pipeline installed at the top of this file — so
  * every one of them is a FINISHED answer and the rung is not what they are
  * about. What the page does with the third rung is a question about a page:
- * `packages/tests/features/markdown_arrives.feature`. */
+ * `packages/plugins/markdown/e2e/features/markdown_arrives.feature`. */
 const titleHtml = (title: string, from: string, options?: TitleRender): string =>
   renderTitle(TEST_CLAIMS, title, from, options).html
 

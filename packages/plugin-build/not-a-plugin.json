@@ -1,0 +1,9 @@
+{
+  "search": [
+    "src/bind.ts"
+  ],
+  "vault": [
+    "src/bind.ts",
+    "src/imports.ts"
+  ]
+}

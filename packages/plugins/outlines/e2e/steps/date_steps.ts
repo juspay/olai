@@ -1,0 +1,237 @@
+/**
+ * The date picker: opening it, what it holds, what its button says, and what
+ * the file says afterwards.
+ *
+ * Its own file for the reason `menu_steps.ts` is one: the picker is a surface
+ * with a state of its own — a box, a button whose LABEL is the verb, and two
+ * ways out that write nothing — and the rest of the tree's steps are about
+ * rows.
+ *
+ * What the DIRECTORY says afterwards is not here: the two assertions about a
+ * node's `date` field on disk are a pair — dated, and not dated — and they live
+ * together with every other disk assertion in `editing_steps.ts`.
+ */
+
+import * as assert from "node:assert";
+import { Then, When } from "@olai/tests/harness/runner.ts";
+
+import {
+  DATE,
+  nodeSelector,
+  oneLine,
+  POLL_TIMEOUT,
+} from "@olai/tests/harness/world.ts";
+import {
+  DATE_PICKER,
+  DATE_PICKER_CANCEL,
+  DATE_PICKER_DAY,
+  DATE_PICKER_NO_TIME,
+  DATE_PICKER_NOTICE,
+  DATE_PICKER_SET,
+  DATE_PICKER_TIME,
+} from "../selectors.ts";
+import type { OlaiWorld } from "@olai/tests/harness/world.ts";
+
+// ── opening it ─────────────────────────────────────────────────────────
+
+/** From the PILL on the row, which is the affordance a dated node has: the
+ *  date is already there, so the date is the control. */
+When(
+  "I open the date picker on {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.clickWithin(id, DATE);
+    await panel(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** The panel, the box, and the button — one spelling each, so the steps below
+ *  cannot wait on them four slightly different ways. */
+const panel = (world: OlaiWorld) => world.page.locator(DATE_PICKER);
+
+const box = (world: OlaiWorld) => world.page.locator(DATE_PICKER_DAY);
+
+const time = (world: OlaiWorld) => world.page.locator(DATE_PICKER_TIME);
+
+const button = (world: OlaiWorld) => world.page.locator(DATE_PICKER_SET);
+
+Then("the date picker is open", async function (this: OlaiWorld) {
+  await panel(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the date picker is closed", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await panel(this).count()) === 0,
+    "the date picker to be gone from the page",
+  );
+});
+
+// ── what it holds, and what it says ────────────────────────────────────
+
+/** The DAY in the box — `""` for a node with none, and the day of a stored
+ *  datetime, which is `@olai/format`'s own reading of one. */
+Then(
+  "the date picker holds {string}",
+  async function (this: OlaiWorld, day: string) {
+    await box(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await box(this).inputValue(), day);
+  },
+);
+
+/** The day AND the time — `""` for an empty time box, which is a bare day. The
+ *  time is the face the stored value says, never converted into the browser's
+ *  zone. */
+Then(
+  "the date picker holds {string} at {string}",
+  async function (this: OlaiWorld, day: string, face: string) {
+    await box(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await box(this).inputValue(), day);
+    assert.strictEqual(await time(this).inputValue(), face);
+    // An empty VALUE is also what a half-typed box reports, so "empty" is
+    // asserted as nothing on screen either.
+    assert.strictEqual(
+      await time(this).evaluate((element) => (element as HTMLInputElement).validity.badInput),
+      false,
+      "the time box still holds half-typed segments",
+    );
+  },
+);
+
+/** The button's LABEL, which is the whole of how clearing is spelled here: an
+ *  emptied box takes the `•••` menu's own words for the same edit. */
+Then(
+  "the date picker offers to {string}",
+  async function (this: OlaiWorld, label: string) {
+    await button(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await button(this).innerText()), label);
+  },
+);
+
+/** What it says about a stored value the box cannot hold. VERBATIM, because
+ *  the point of the sentence is the value it quotes: the record holds an
+ *  instant, a day box shows a day, and picking one replaces the whole of it. */
+Then(
+  "the date picker says {string}",
+  async function (this: OlaiWorld, notice: string) {
+    const said = this.page.locator(DATE_PICKER_NOTICE);
+    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await said.innerText()), notice);
+  },
+);
+
+/** The ordinary case: a stored value the boxes say whole. Asked after the box
+ *  is up, so "no notice yet" cannot pass for "no notice". */
+Then("the date picker says nothing", async function (this: OlaiWorld) {
+  await box(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitForFrame();
+  assert.strictEqual(await this.page.locator(DATE_PICKER_NOTICE).count(), 0);
+});
+
+/** Nothing to write is nothing to press — the same rule the menu's catalog
+ *  follows for an entry whose only outcome would be "it already says that". */
+Then("the date picker's button is dead", async function (this: OlaiWorld) {
+  await button(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(
+    await button(this).isDisabled(),
+    true,
+    "the picker offers to write something that would change nothing",
+  );
+});
+
+Then("the date controls fit the phone width", async function (this: OlaiWorld) {
+  const bounds = await panel(this).locator("input, button").evaluateAll((controls) =>
+    controls.map((control) => {
+      const rect = control.getBoundingClientRect();
+      return { label: control.getAttribute("data-testid"), left: rect.left, right: rect.right, width: innerWidth };
+    }),
+  );
+  assert.ok(bounds.length >= 3);
+  for (const bound of bounds) assert.ok(bound.left >= 0 && bound.right <= bound.width, JSON.stringify(bound));
+});
+
+// ── using it ───────────────────────────────────────────────────────────
+
+/** Type a day and send it. `fill` on an `<input type="date">` is the same
+ *  `YYYY-MM-DD` a person picking from the browser's own calendar produces —
+ *  the control has no other vocabulary, which is half of why it is the
+ *  control. */
+When("I pick the date {string}", async function (this: OlaiWorld, day: string) {
+  await box(this).fill(day);
+  await this.press(button(this));
+  // The write is done when the picker is gone. ⌘Z after this is the app's
+  // undo, not a keystroke into a date input that is still focused.
+  await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+/** A day and a time of day, sent together — the time box is what a person
+ *  fills after the day, and `fill` is the `HH:MM` the browser's own control
+ *  produces. */
+When(
+  "I pick the date {string} at {string}",
+  async function (this: OlaiWorld, day: string, face: string) {
+    await box(this).fill(day);
+    await time(this).fill(face);
+    await this.press(button(this));
+    await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  },
+);
+
+When("I draft the date {string}", async function (this: OlaiWorld, day: string) {
+  await box(this).fill(day);
+});
+
+When("I draft the time {string}", async function (this: OlaiWorld, face: string) {
+  await time(this).fill(face);
+  await this.waitForFrame();
+});
+
+/** A person reaching the time box from the keyboard: focus lands on its first
+ *  segment and one key fills or empties that segment alone. `fill` cannot get
+ *  here — it sets a whole value or none — and this is the state the platform
+ *  reports as NO value while the box shows half of one. */
+When(
+  "I press {string} in the date picker's time box",
+  async function (this: OlaiWorld, key: string) {
+    await time(this).focus();
+    await this.page.keyboard.press(key);
+    await this.waitForFrame();
+  },
+);
+
+/** The panel's own `No time`, which empties the time box and writes nothing —
+ *  the button, which then names the gesture, is still what writes. */
+When("I take the time off in the date picker", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(DATE_PICKER_NO_TIME));
+  await this.page.locator(DATE_PICKER_NO_TIME).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+When("I submit the date while updates are delayed", async function (this: OlaiWorld) {
+  // Deliberately leave the response pending so the scenario can change panes.
+  await button(this).click();
+});
+
+When("I empty the date picker", async function (this: OlaiWorld) {
+  await box(this).fill("");
+  await this.waitForFrame();
+});
+
+When("I press the date picker's button", async function (this: OlaiWorld) {
+  await this.press(button(this));
+});
+
+// ── what the page does not offer ───────────────────────────────────────
+
+/** A pill that says something rather than doing something — the day page and
+ *  the agenda, which are a query over the whole set drawn read-only. Asked as
+ *  the badge's own `data-picks`, because "the click did nothing" is not
+ *  something a scenario can tell from a click. */
+Then(
+  "the date on {string} does not open the picker",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectAttribute(
+      `${nodeSelector(id)} ${DATE}`,
+      "data-picks",
+      "false",
+      `the date badge on "${id}"`,
+    );
+  },
+);

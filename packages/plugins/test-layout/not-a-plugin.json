@@ -1,0 +1,12 @@
+{
+  "layout": [
+    "src/browser.tsx",
+    "src/index.ts"
+  ],
+  "markdown": [
+    "src/browser.tsx"
+  ],
+  "navigation": [
+    "src/browser.tsx"
+  ]
+}

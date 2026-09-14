@@ -5,7 +5,7 @@
  *
  * `docs/dynamic-plugins.md`'s worked example is a morning agenda; the corpus at
  * `fixtures/morning-agenda/` holds the same source as the note of a node, and
- * `features/the_morning_agenda.feature` runs it. Three places then said, in
+ * `packages/plugins/vault-plugins/e2e/features/the_morning_agenda.feature` runs it. Three places then said, in
  * prose, that the two are one file apart from two clock constants — the
  * feature's own header, the fixtures README, and a comment inside the fixture.
  *

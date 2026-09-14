@@ -72,7 +72,7 @@ export const REGION = "mt-2 border-t border-paper/15 pt-2"
 /**
  * WHAT IT MAY NOT COST is the tree's place on a short screen, and that is a
  * promise with a test behind it: the column is sticky and exactly one screen
- * tall, and `features/the_sidebar_sticks.feature` holds that the FILE TREE
+ * tall, and `packages/plugins/sidebar/e2e/features/the_sidebar_sticks.feature` holds that the FILE TREE
  * still reaches the visible strip at the bottom of a long page — it is what a
  * reader came back to the column for. The month above it is ~240px of the
  * 328px the column has on a 400px window, so everything between the two is a

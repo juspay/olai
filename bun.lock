@@ -256,6 +256,9 @@
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/capture": {
       "name": "olai-plugin-capture",
@@ -278,6 +281,9 @@
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/chat": {
@@ -312,6 +318,7 @@
         "zod": "^4.0.0",
       },
       "devDependencies": {
+        "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-sidebar": "workspace:*",
       },
@@ -362,6 +369,10 @@
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/surface": "workspace:*",
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/files": {
       "name": "olai-plugin-files",
@@ -384,6 +395,9 @@
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/git": {
@@ -410,6 +424,7 @@
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/ops": "workspace:*",
         "@olai/surface": "workspace:*",
+        "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
       },
     },
@@ -429,6 +444,10 @@
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/identity": {
       "name": "olai-plugin-identity",
@@ -444,6 +463,7 @@
       },
       "devDependencies": {
         "@olai/format": "workspace:*",
+        "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-layout": "workspace:*",
       },
@@ -492,6 +512,7 @@
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/ops": "workspace:*",
         "@olai/store": "workspace:*",
+        "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-outline-olai": "workspace:*",
         "olai-plugin-sidebar": "workspace:*",
@@ -513,6 +534,7 @@
         "solid-js": "^1.9.0",
       },
       "devDependencies": {
+        "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-chat": "workspace:*",
         "olai-plugin-layout": "workspace:*",
@@ -532,6 +554,9 @@
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/markdown": {
@@ -560,6 +585,9 @@
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/mcp": {
       "name": "olai-plugin-mcp",
@@ -574,6 +602,7 @@
         "effect": "4.0.0-rc.112",
       },
       "devDependencies": {
+        "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
       },
     },
@@ -596,6 +625,9 @@
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/odu": {
       "name": "olai-plugin-odu",
@@ -611,6 +643,7 @@
       },
       "devDependencies": {
         "@olai/surface": "workspace:*",
+        "@olai/tests": "workspace:*",
         "olai-plugin-chat": "workspace:*",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
@@ -681,6 +714,9 @@
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/pdf": {
       "name": "olai-plugin-pdf",
@@ -735,6 +771,9 @@
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/plugin-inspector": {
       "name": "olai-plugin-plugin-inspector",
@@ -751,6 +790,9 @@
         "olai-plugin-vault-plugins": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/preferences": {
       "name": "olai-plugin-preferences",
@@ -763,6 +805,11 @@
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/fonts": "workspace:*",
+        "@olai/format": "workspace:*",
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/search": {
@@ -787,6 +834,7 @@
       "devDependencies": {
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/store": "workspace:*",
+        "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-outline-olai": "workspace:*",
@@ -799,6 +847,9 @@
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "effect": "4.0.0-rc.112",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/sidebar": {
@@ -816,6 +867,9 @@
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/test-counter": {
       "name": "olai-plugin-test-counter",
@@ -825,6 +879,9 @@
         "effect": "4.0.0-rc.112",
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/test-layout": {
@@ -837,6 +894,9 @@
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/theme": {
@@ -853,6 +913,9 @@
         "olai-plugin-preferences": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/trash": {
@@ -877,6 +940,9 @@
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/ui-renderer": {
@@ -910,6 +976,7 @@
         "solid-js": "^1.9.0",
       },
       "devDependencies": {
+        "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
       },
     },
@@ -924,6 +991,10 @@
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
         "effect": "4.0.0-rc.112",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+        "@olai/web": "workspace:*",
       },
     },
     "packages/plugins/web-app": {

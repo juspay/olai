@@ -31,7 +31,7 @@ import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
  * `onCloseAutoFocus`). Close-focus is refused here and replaced by
  * {@link handBack}, because the primitive restores the trigger on every close
  * and a pointer that landed somewhere else must not be pulled back. Open-focus
- * is the content's `ref`. `features/menu_panel.feature` holds both ends so a
+ * is the content's `ref`. `packages/plugins/outlines/e2e/features/menu_panel.feature` holds both ends so a
  * Kobalte bump that changes them shows up as a passing suite rather than as a
  * surprise.
  *

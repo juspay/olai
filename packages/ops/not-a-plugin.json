@@ -1,0 +1,56 @@
+{
+  "capture": [
+    "src/plan.ts",
+    "src/walks.bench.ts"
+  ],
+  "files": [
+    "src/codec.ts",
+    "src/door.ts",
+    "src/following.ts",
+    "src/ops.ts",
+    "src/plan.ts",
+    "src/query.ts",
+    "src/sorted.ts",
+    "src/standing.bench.ts",
+    "src/walks.bench.ts"
+  ],
+  "markdown": [
+    "src/asked.ts",
+    "src/documents.bench.ts",
+    "src/ops.ts",
+    "src/plan.ts",
+    "src/query.ts",
+    "src/refusals.ts",
+    "src/sorted.ts"
+  ],
+  "outlines": [
+    "src/asked.ts",
+    "src/live.ts",
+    "src/ops.ts",
+    "src/plan.ts",
+    "src/query.ts",
+    "src/refusals.ts",
+    "src/standing.bench.ts",
+    "src/tools.ts",
+    "src/walks.bench.ts"
+  ],
+  "pins": [
+    "src/plan.ts"
+  ],
+  "search": [
+    "src/live.ts",
+    "src/ops.ts",
+    "src/query.ts",
+    "src/refusals.ts",
+    "src/tools.ts"
+  ],
+  "trash": [
+    "src/plan.ts"
+  ],
+  "vault": [
+    "src/documents.bench.ts",
+    "src/plan.ts",
+    "src/standing.bench.ts",
+    "src/walks.bench.ts"
+  ]
+}

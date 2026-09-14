@@ -1,0 +1,30 @@
+{
+  "files": [
+    "src/PageView.tsx",
+    "src/browser.tsx",
+    "src/pages.ts"
+  ],
+  "//layout": "Saved-layout vocabulary names a workspace target, not the layout plugin.",
+  "layout": [
+    "src/address/Face.tsx",
+    "src/address/address.ts",
+    "src/workspace.ts"
+  ],
+  "search": [
+    "src/palette/Palette.tsx",
+    "src/palette/items.ts",
+    "src/router.tsx",
+    "src/routes.ts",
+    "src/testids.ts",
+    "src/workspace.ts"
+  ],
+  "sidebar": [
+    "src/palette/Palette.tsx",
+    "src/palette/items.ts"
+  ],
+  "trash": [
+    "src/address/address.ts",
+    "src/palette/items.ts",
+    "src/routes.ts"
+  ]
+}

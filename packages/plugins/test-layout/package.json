@@ -18,5 +18,8 @@
     "solid-js": "^1.9.0",
     "olai-plugin-ui-renderer": "workspace:*",
     "olai-plugin-navigation": "workspace:*"
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
   }
 }

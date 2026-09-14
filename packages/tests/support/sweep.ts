@@ -85,7 +85,7 @@ export const tracked = (self: string): ReadonlyArray<string> => {
  *   - **blocks first** honours a block OPENER written inside a LINE comment. A
  *     MIME type with a star in it (`// the accepted type is image/*`) opens a
  *     block that runs to the next closer, typically sixty lines further down and
- *     all of it code. `step_definitions/chat_steps.ts` and `@olai/server`'s
+ *     all of it code. `olai-plugin-chat`’s `e2e/steps/chat_steps.ts` and `@olai/server`'s
  *     `listener.ts` both write such a comment today, and ../selectors.test.ts'
  *     fence is what caught it, reporting three hand-built selectors in a file
  *     that plainly has four;

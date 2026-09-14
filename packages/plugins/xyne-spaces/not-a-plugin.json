@@ -1,0 +1,17 @@
+{
+  "chat": [
+    "src/client.ts",
+    "src/testlib/fake-spaces.ts"
+  ],
+  "markdown": [
+    "src/client.ts",
+    "src/mirror.ts",
+    "src/testlib/fake-spaces.ts"
+  ],
+  "settings": [
+    "src/server.ts"
+  ],
+  "vault": [
+    "src/server.ts"
+  ]
+}
