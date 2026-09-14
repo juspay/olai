@@ -6,7 +6,7 @@ import { isoDayOf } from "@olai/web/testlib";
 import { alertsOn, type Alerts } from "../support/alerts.ts";
 import { AGENDA_LINK, PREFS_ROW, PREFS_CHOICE, POLL_TIMEOUT, attr } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
-import { showPreferences, pickChoice, hintOf } from "./preferences_steps.ts";
+import { showPreferences, pickChoice, hintOf } from "../support/preferences.ts";
 
 const remembered = new WeakMap<OlaiWorld, Alerts>();
 const coldPresses = new WeakMap<OlaiWorld, string>();

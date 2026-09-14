@@ -20,7 +20,7 @@ import * as assert from "node:assert";
 import { Then } from "@cucumber/cucumber";
 import { appName } from "@olai/surface";
 
-import { manifestOf } from "./install_steps.ts";
+import { manifestOf } from "../support/manifest.ts";
 import { BOX_NAME } from "../support/hooks.ts";
 import { POLL_TIMEOUT, WORDMARK } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";

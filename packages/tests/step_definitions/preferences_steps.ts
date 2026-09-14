@@ -10,8 +10,13 @@
  * then a type error at `bun run typecheck` rather than a scenario that times
  * out thirty seconds later saying nothing about why.
  *
- * `showPreferences` is exported because the theme steps need it too — the chips
- * are a row of this panel now, so every theming scenario opens this first.
+ * OPENING it, reading one row's hint and pressing one segment are the
+ * harness's (`support/preferences.ts`) rather than this file's, and the reason
+ * is that three other plugins do all three: the theme chips are a row of this
+ * panel, the reminder switches are two more, and the face picker is a fourth.
+ * A step file that exported them was a plugin reaching past another plugin's
+ * doors for a gesture it does not own. Every CLAIM about the panel is still
+ * here; what left is the way in.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { TESTID } from "@olai/bundle/testids"
@@ -35,6 +40,7 @@ import { ALERT_SOUND_KEY, ALERTS_KEY } from "olai-plugin-alerts/keys"
 import { DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "olai-plugin-outlines/testlib"
 
 import { focusedOn } from "../support/caret.ts";
+import { hintOf, pickChoice, prefRow as row, showPreferences } from "../support/preferences.ts";
 import { pressed } from "../support/settling.ts";
 import {
   APP_HEADER,
@@ -79,42 +85,6 @@ Given("this browser refuses local storage", async function (this: OlaiWorld) {
     }
   });
 });
-
-/** Open the panel unless it is already open. Idempotent, because a scenario
- *  that opened it to pick a theme should not have to know whether the step
- *  after it needs opening again. */
-export const showPreferences = async (page: Page): Promise<void> => {
-  const panel = page.locator(PREFS_PANEL);
-  if (await panel.isVisible().catch(() => false)) return;
-  const trigger = page.locator(PREFS_TRIGGER);
-  if (!(await trigger.isVisible().catch(() => false))) {
-    // Phone: the trigger is a row in the directory drawer.
-    const burger = page.locator(SIDEBAR_TOGGLE);
-    await burger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await burger.click();
-    await page.locator(SIDEBAR_BODY).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  }
-  await trigger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await trigger.click();
-  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-};
-
-/** One row of it, by the preference it sets rather than by its position: rows
- *  are a list somebody will reorder. */
-const row = (world: OlaiWorld, pref: string) =>
-  world.page.locator(`${PREFS_ROW}${attr("data-pref", pref)}`);
-
-/** What that row says the choice in force MEANS. Exported for the theme steps,
- *  which read it for the promise the retired header pill used to keep. */
-export const hintOf = async (
-  world: OlaiWorld,
-  pref: string,
-): Promise<string> => {
-  await showPreferences(world.page);
-  const hint = row(world, pref).locator(PREFS_HINT);
-  await hint.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  return await hint.innerText();
-};
 
 // ── opening it ─────────────────────────────────────────────────────────
 
@@ -266,33 +236,6 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
 });
 
 // ── picking a segment, whichever row it is on ──────────────────────────
-
-/**
- * Press one segment of one row, and wait for the panel to say it took.
- *
- * ONE spelling for every segmented row there is — Done, Notes, Size, Git —
- * because they are one control (`client/settings/Segmented.tsx`) and the wait
- * is the subtle half: pressing and carrying on races the render, and each row
- * having its own copy of that wait is how the third one gets it slightly wrong.
- */
-export const pickChoice = async (
-  page: Page,
-  pref: string,
-  value: string,
-): Promise<void> => {
-  await showPreferences(page);
-  const choice = page.locator(
-    `${PREFS_ROW}${attr("data-pref", pref)} ${PREFS_CHOICE}${attr("data-value", value)}`,
-  );
-  await choice.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await choice.click();
-  await choice
-    .and(page.locator('[aria-pressed="true"]'))
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-    .catch(() => {
-      throw new Error(`the ${pref} row never took "${value}"`);
-    });
-};
 
 // ── the Done preference ────────────────────────────────────────────────
 

@@ -28,8 +28,8 @@ import {
   THEME_STORAGE_KEY,
 } from "@olai/web/testlib";
 
-import { manifestOf } from "./install_steps.ts";
-import { hintOf, showPreferences } from "./preferences_steps.ts";
+import { manifestOf } from "../support/manifest.ts";
+import { hintOf, showPreferences } from "../support/preferences.ts";
 import { attr, POLL_TIMEOUT, THEME_CHIP } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 

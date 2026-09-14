@@ -815,6 +815,9 @@
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/test-layout": {
       "name": "olai-plugin-test-layout",
@@ -1047,6 +1050,7 @@
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
+        "olai-plugin-odu": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
         "olai-plugin-pdf": "workspace:*",

@@ -9,7 +9,7 @@ import type { Page } from "playwright";
 
 import { FONT_ATTRIBUTE } from "@olai/fonts";
 
-import { showPreferences } from "./preferences_steps.ts";
+import { showPreferences } from "../support/preferences.ts";
 import { FONT_SELECT, POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 

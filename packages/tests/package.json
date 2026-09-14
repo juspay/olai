@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "//exports": "THE HARNESS IS A DOOR NOW, because the step definitions left. Each plugin owns the features it promises and the steps that drive its own surface (`packages/plugins/<name>/e2e/`), and those files are loaded by the same cucumber run as this package's own — so they need the same world, the same waits and the same runner, and they resolve their imports from THEIR package rather than from this one. `./harness/*` is that door: `support/world.ts` is `@olai/tests/harness/world.ts`, and a plugin declares `@olai/tests` in its devDependencies and nothing else. `support/runner.ts` and `support/playwright.ts` are re-exports for exactly that reason — one copy of cucumber registers every step, and playwright's Nix-pinned version stays in ONE manifest. `./agent/*` is the second door: the scripted ACP agents and their session store, which chat's steps drive. What is NOT a door is `features/` or `fixtures/` — a plugin's features are its own, and a fixture corpus is read by path off the served directory, never imported.",
+  "exports": {
+    "./harness/*": "./support/*",
+    "./agent/*": "./agent/*"
+  },
   "//scripts": "Bun hosts the runner, and `test` NAMES cucumber's entry file so that it does — never the `cucumber-js` bin, whose `#!/usr/bin/env node` shebang is resolved against PATH and hands the suite to whatever node the host has. README.md tells that story; runner.test.ts pins the spelling. Keep it a path: this one is stable because the isolated linker (bunfig.toml) gives every package its own direct dependencies.",
   "scripts": {
     "test": "bun ./node_modules/@cucumber/cucumber/bin/cucumber.js --profile ui",
