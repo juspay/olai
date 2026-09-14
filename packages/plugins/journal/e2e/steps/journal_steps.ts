@@ -193,7 +193,7 @@ Then(
 /** Unmarked is NEITHER of the first two marks, and both halves are asked: a
  *  day bearing a note has nothing dated it either, and a step that only
  *  counted the nodes would call it unmarked while it sat there wearing a
- *  fold (`features/daily_notes.feature`). Every unmarked cell is still a
+ *  fold (`packages/plugins/journal/e2e/features/daily_notes.feature`). Every unmarked cell is still a
  *  link — quiet, not inert. */
 Then("the day {string} is unmarked", async function (this: OlaiWorld, date: string) {
   await this.expectDayMark(date, "data-dated", false);

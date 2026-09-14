@@ -15,22 +15,96 @@ Do not add:
 
 This suite **is** for what only a real browser shows: stacking and overlap via `elementFromPoint`, real drag and touch sequencing, live-wire behaviour (watcher edits, reconnects, server death), multi-tab races, CSP and iframe sealing.
 
+## Where a scenario lives, which is not this package
+
+**A row owns the features it promises and the steps that drive its own surface.** They live in `packages/plugins/<name>/e2e/features/` and `packages/plugins/<name>/e2e/steps/`, beside the code they are about, and `cucumber.js` globs them alongside this package's own. One cucumber process runs the whole suite — one browser per worker, one server per corpus — so the split costs nothing at run time and buys the thing that was missing: a change to the pins row is a diff inside `packages/plugins/pins/`.
+
+**The rule for a FEATURE is the promise.** It belongs to the row that would have to change if the promise changed. The row that merely happens to draw the page a scenario opens is not the owner; the row whose behaviour the scenario is claiming something about is.
+
+**The rule for a STEP FILE is the surface.** A step is a global vocabulary entry — `see_the_outline.feature` says "the node is shown" whoever owns the row that drew the page — so a step file being used by fifty features says nothing about who owns it. `outlines` owns the tree steps every other row's features also speak.
+
+**What stays here is what no row owns**: the app shell, the wire and its freeze, the plugin system and its lifetimes, the file-kind registry (a claim about six rows at once), the IME scenarios whose subject is the browser's own composition handling, and the cross-plugin door scenarios. Sixteen features and nine step files, which is the honest size of "the app itself".
+
+**A TAG is not a step, and tags stayed.** `@git:repo`, `@rows:…`, `@phone`, `@zone:`, `@alerts`, `@paints`, `@wire` are all read in `support/hooks.ts`, in a package the tagged row does not own, and that is deliberate: every one of them shapes a resource this harness CREATES — how the server is spawned, how the browser context is made, what init script is in place before the app's first paint. A `Before` hook registered by a row's step file runs after this one (hooks fire in registration order, which is import order), so a row that owned its tag there could only mutate what the harness had already decided. The owner of a resource reads the arguments that shape it; `hooks.ts` says this again at length.
+
+**And the same rule one level down.** A SELECTOR a row's steps alone read is that row's — `packages/plugins/<name>/e2e/selectors.ts`, built from that row's own `src/testids.ts`. A selector more than one row's steps read is the harness's (`support/world.ts`). A HELPER two rows' steps stand on is the harness's too: opening the preferences panel, fetching the install manifest. What that rule refuses is a row importing another row's step file, which is a package reaching past another package's doors for a private module.
+
+**One file per feature is not the rule and never quite was.** The rule is one step file per SURFACE: `chat_steps.ts` drives the conversation panel for fifty features, and splitting it by feature would put the same locator in five files. What a new feature needs is a step file for the surface it drives — in the row that owns that surface — and a new file only when the surface is new.
+
+```
+packages/plugins/<name>/
+├── src/                      # the row
+└── e2e/
+    ├── features/*.feature    # what this row promises
+    ├── steps/*_steps.ts      # the steps that drive this row's surface
+    └── selectors.ts          # this row's ids, from its own src/testids.ts
+```
+
+A row that owns e2e steps declares `@olai/tests` in its `devDependencies`, and that is the only line it adds: `@cucumber/cucumber` and `playwright` are re-exported by the harness (`@olai/tests/harness/runner.ts`, `@olai/tests/harness/playwright.ts`), so one copy of the runner registers every step and playwright's Nix-pinned version stays in one manifest. `packages/tests/tsconfig.json` is what `tsc` reads the plugin `e2e/` trees from; each row's own `tsconfig.json` still compiles `src` alone, which is what that package ships.
+
 ## What a step definition may import
+
+Three doors, and nothing else.
+
+**The harness** is `@olai/tests/harness/…` — `world.ts`, `said.ts`, `settling.ts`, the rest of `support/`, and `@olai/tests/agent/…` for the scripted ACP agents. Never a relative climb out of the row into `packages/tests/`: it would resolve (two directories in one repository) and would say nothing true — no door, no dependency, and a module-resolution error in a lane the day either one moves. `imports.test.ts` holds that.
+
+**Its own row** is a relative path into `../src/`. A row's steps read its own testids, its own testlib, its own minting names. They may NOT read the registry: `@olai/bundle` imports every plugin, so a plugin importing it back is a cycle whichever directory it is spelled in, and `@olai/bundle`'s `fence.test.ts` holds it over the sources as well as the manifests. The combined table, when a step legitimately needs it, comes through `@olai/tests/harness/testids.ts`.
+
+**Another row** only through a declared static contract (`olai.contracts` in that row's manifest). A `./testlib` is not one — it is a bench door — so the four preference storage keys the panel's steps assert on arrive through `@olai/tests/harness/storage_keys.ts` instead, because the harness is the package the fence records as allowed to reach a row's testlib.
 
 The suite shares names with `@olai/web` rather than retyping them — a constant typed twice eventually disagrees with the app it asserts about — and it reaches them through **one door**: the client's `./testlib` subpath (`packages/web/src/suite.testlib.ts`, the curated list, whose header says what goes in and why). What it may not import is anything past that door — a path into the client's own modules — and above all a client **component**: a `.tsx` drags its whole import graph into a process with no browser in it, and that graph reaches `wire.ts`, which dials at module scope and throws without a `location`. One such import once stopped the whole suite from booting, with an error naming `connectSurface` and nothing that looked like a test. `imports.test.ts` fences both ends — a file here spells `@olai/web` as the door or not at all, and the door re-exports no component.
 
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario. `@share-scratch` at the top of a feature is that opt-in: one copy and one server per worker, and After restores the fixture under the still-running server so overlapping writers can share too. `@own-scratch` on a scenario inside it keeps a private copy, for the things restore cannot make true (a server restart, conversation state, git). A restore that does not put the tree back fails naming the scenario and the files.
 
-This suite is 80 features, 1034 scenarios (1024 Gherkin `Scenario`/`Scenario Outline` entries; five outlines expand to fifteen examples). The census reads TAGS the Gherkin way: a tag line is a line carrying nothing but tags — a mention mid-comment or mid-prose (this paragraph's own, for instance) is no tag — the tag-block above `Feature:` inherits onto every scenario of the file, the block above a scenario is its own, and the counts speak in ENTRIES: an outline's three examples count once — the two TAGGED outlines (`daily_notes.feature`'s `@scratch:journal`, `documents.feature`'s own) expand only on the runs side of the ledger, where the same claim would answer 735: the answer this frame gives is entries. 731 of the 1024 entries run under a scratch copy. 31 features carry `@share-scratch`: their 463 entries split 440 sharing the feature's one copy and 23 with an `@own-scratch` of their own inside. A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, a preview's height after a late picture) are back. The second doorbell (2026-08-31) is the latest movement in both directions, and it moved a whole FILE as well as its scenarios. `the_feed_shows_its_mutes.feature` is `the_feed_opens_its_config.feature` now and lost half of itself: four of its eight scenarios went with the mute list the drawer's foot used to name, and a fifth — the one pinning what a config that muted nobody said — is a knobs scenario under a new title, since the `kolu` node in `_olai/Settings.olai` keeps the watch knobs and a conversation's wake FILTER FILE is the silence control. What the renamed file still holds is the WRENCH and its four states, which is the whole of what the foot is about once the mutes line is gone. Coming the other way, `the_doorbell_rings.feature` arrived carrying ONE scenario, which is all the doorbell earns here: what a filter file claims, what a wake MEANS and what the sentence says are pure functions over a parsed vault (`olai-plugin-kolu`'s `doorbell.test.ts`) and the three delivery arms run through a real chat against a real subprocess agent (`olai-plugin-chat`'s `deliveries.test.ts`), so what is left for a browser is the mechanics alone — a sentence nobody typed landing in the transcript, wearing a face that is not the person's, without the composer they were half way through typing in moving under them. Net: one feature more than before, and the census above counts both.
+This suite is 224 features and 1688 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as 1742 scenarios: 40 of the entries are outlines, and their examples expand to 94. It is 92 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 208 of the 224 and 83 of the 92, with 16 features and 9 step files left here as the app's own:
+
+| row | features | entries | | row | features | entries |
+|---|---:|---:|---|---|---:|---:|
+| `outlines` | 59 | 529 | | `settings` | 4 | 18 |
+| `chat` | 50 | 439 | | `codex` | 2 | 15 |
+| `markdown` | 11 | 95 | | `plugin-inspector` | 2 | 13 |
+| *the app itself* | 16 | 71 | | `capture` | 3 | 11 |
+| `journal` | 6 | 66 | | `theme` | 3 | 11 |
+| `navigation` | 10 | 61 | | `vault-plugins` | 3 | 11 |
+| `files` | 8 | 56 | | `odu` | 1 | 10 |
+| `hypertext` | 1 | 50 | | `sidebar` | 2 | 10 |
+| `pins` | 6 | 44 | | `layout` | 4 | 10 |
+| `search` | 8 | 36 | | `identity` | 2 | 9 |
+| `vault` | 5 | 31 | | `test-layout` | 1 | 1 |
+| `git` | 8 | 30 | | | | |
+| `kolu` | 3 | 23 | | | | |
+| `preferences` | 3 | 20 | | | | |
+| `trash` | 3 | 18 | | | | |
+
+Two rows carry two thirds of it, and that is the app rather than a mistake in the split: the outline tree and the conversation are what olai IS. What the table is for is the other direction — a row with three features and one step file is a row whose whole browser promise fits on a page, and that is now visible from its own directory.
+
+1377 of the 1688 entries run under a scratch copy. 37 features carry `@share-scratch`: their 572 entries split 549 sharing the feature's one copy and 23 with an `@own-scratch` of their own inside. The census reads TAGS the Gherkin way: a tag line is a line carrying nothing but tags — a mention mid-comment or mid-prose (this paragraph’s own, for instance) is no tag — the tag-block above `Feature:` inherits onto every scenario of the file, the block above a scenario is its own, and the counts above speak in ENTRIES: an outline’s three examples count once.
+
+A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, a preview's height after a late picture) are back. The second doorbell (2026-08-31) is the latest movement in both directions, and it moved a whole FILE as well as its scenarios. `the_feed_shows_its_mutes.feature` is `the_feed_opens_its_config.feature` now and lost half of itself: four of its eight scenarios went with the mute list the drawer's foot used to name, and a fifth — the one pinning what a config that muted nobody said — is a knobs scenario under a new title, since the `kolu` node in `_olai/Settings.olai` keeps the watch knobs and a conversation's wake FILTER FILE is the silence control. What the renamed file still holds is the WRENCH and its four states, which is the whole of what the foot is about once the mutes line is gone. Coming the other way, `the_doorbell_rings.feature` arrived carrying ONE scenario, which is all the doorbell earns here: what a filter file claims, what a wake MEANS and what the sentence says are pure functions over a parsed vault (`olai-plugin-kolu`'s `doorbell.test.ts`) and the three delivery arms run through a real chat against a real subprocess agent (`olai-plugin-chat`'s `deliveries.test.ts`), so what is left for a browser is the mechanics alone — a sentence nobody typed landing in the transcript, wearing a face that is not the person's, without the composer they were half way through typing in moving under them. Net: one feature more than before, and the census above counts both.
 
 ```
 packages/tests/
-├── cucumber.js              # the `ui` profile, and its env knobs
-├── features/                # Gherkin — what the app promises
-├── step_definitions/        # one file per feature
+├── cucumber.js              # the `ui` profile, its env knobs, and the two
+│                           #   globs: this package's features and steps, and
+│                           #   `../plugins/*/e2e/`
+├── features/                # Gherkin — what the APP promises, where no one
+│                           #   row does (a row's own are in the row)
+├── step_definitions/        # ... and the steps that drive the app itself: the
+│                           #   tab, the wire, the plugin roster, the probes
 ├── support/
-│   ├── world.ts             # OlaiWorld: page, locators, the UI contract
+│   ├── world.ts             # OlaiWorld: page, the SHARED locators, the waits
+│   ├── runner.ts            # the cucumber door — one copy registers every
+│                           #   step, wherever the step file lives
+│   ├── playwright.ts        # ... and the browser's, types only, so the Nix
+│                           #   pin stays in one manifest
+│   ├── testids.ts           # the registry's combined table, handed on because
+│                           #   a plugin may not import the registry
+│   ├── storage_keys.ts      # two rows' preference keys, for the panel that
+│                           #   sets them and does not own them
+│   ├── preferences.ts       # opening that panel, and reading one row of it —
+│                           #   three rows' steps do all three
+│   ├── manifest.ts          # the install manifest, parsed — two rows' steps
 │   ├── hooks.ts             # browser + a server per corpus copy (and per scratch copy)
 │   ├── reaper.ts            # process-group kill; SIGINT/SIGTERM of cucumber takes the servers with it
 │   ├── scratch.ts           # @share-scratch / @own-scratch, restore, the leftover refusal
@@ -83,8 +157,8 @@ nix develop .#e2e -c bash
 cd packages/tests
 
 bun run test                                     # everything
-bun run test features/see_the_outline.feature    # one feature
-bun run test features/see_the_outline.feature:45 # one scenario
+bun run test ../plugins/outlines/e2e/features/see_the_outline.feature     # one feature
+bun run test ../plugins/outlines/e2e/features/see_the_outline.feature:45  # one scenario
 ```
 
 While changing the server or the client, point `OLAI_BIN` at a small generated script that runs the working tree instead of rebuilding with Nix each time:
@@ -124,7 +198,7 @@ Playwright's browsers come from the Nix store via `PLAYWRIGHT_BROWSERS_PATH`, wh
 ```bash
 nix develop .#e2e -c bash
 cd packages/tests
-HEADLESS=false bun run test features/see_the_outline.feature:45
+HEADLESS=false bun run test ../plugins/outlines/e2e/features/see_the_outline.feature:45
 ```
 
 `HEADLESS=false` shows the browser; a `:<line>` suffix on the feature path runs the one scenario starting at that line, so the window is not a blur of forty others. For a step-through, add `PWDEBUG=1` — Playwright's inspector pauses before every action.
@@ -169,7 +243,7 @@ KIND=agent bash tasks.sh       # an async Agent; a forwarded task-notification p
 
 It exists because `chat-background-tasks-visible` rests on two claims about somebody else's process, and both are the kind a later reader re-decides by assuming. The first is that the adapter as released completes such a call at LAUNCH, which is why olai patches its pin (`packages/plugins/claude/acp/patches/README.md`) and which stops being true the day upstream lands its own fix — the timeline is where that shows up. The second is that the task's own EVENTS are on no wire underneath: a monitor's every line reaches the model and the task's output file and no SDK message carries one, so the panel draws the task's life rather than its events. The driver CHECKS that rather than asserting it — a harness frame carrying the monitor's output prints a line saying so, and the day one does, that line is how anybody finds out. The model's own frames are excluded from that check on purpose: the agent is woken per event and says *tick-1 received*, which is the agent's prose and not the task's stream.
 
-It needs a real, authenticated `claude`, so it is a thing a person runs and never a lane — the promises live in `features/the_agent.feature` and in the unit tests, driven by the scripted agent's `watch` verb.
+It needs a real, authenticated `claude`, so it is a thing a person runs and never a lane — the promises live in `packages/plugins/chat/e2e/features/the_agent.feature` and in the unit tests, driven by the scripted agent's `watch` verb.
 
 ## Driving the panel against the agent olai actually ships
 
@@ -278,7 +352,7 @@ RUNS=6  SUITES=5 sh underload.sh    # five suites at once, as a shared box is
 **The two knobs are two different questions, and mixing them answers neither.** `BUSY` pins the cores and leaves this the only suite on the box, so whatever fails under it failed on LOAD. `SUITES` starts several at once, which is what a box shared between worktrees actually looks like, and is the only way to reach the failures that need a STRANGER on the machine rather than a slow one — the shared-port collisions this suite used to have were found that way and nothing else would have found them.
 
 ```bash
-OLAI_TEST_SLOW=20 bun run test features/zoom_and_navigate.feature:113
+OLAI_TEST_SLOW=20 bun run test packages/plugins/outlines/e2e/features/zoom_and_navigate.feature:113
 ```
 
 **And a third question, which neither of those can ask: what does the PAGE lose when the page is slow?** `OLAI_TEST_SLOW` is Chromium's own CPU throttle, and it slows the renderer alone — the server, the harness and the wire keep full speed. That is what makes it a load *simulator* rather than a load test, and it is exactly the right instrument for a race between what the page does and what the page is asked about, because it widens that window and nothing else. It is also the only one of the three a REVIEWER can re-run: `BUSY=48` needs a box to spare and thirty runs to say anything, while the scroll-restore race this arrived with went 1/30 green at `=20` and 30/30 green after the fix, on the same laptop, in a quarter of an hour each way. A number a reviewer can reproduce is worth more than a number they have to believe.
@@ -320,7 +394,7 @@ A `@scratch:` scenario may also RESTART its server, which nothing else in the su
 
 `@git:<repo|none|broken>` selects a real repository, no repository, or a git
 executable that refuses requests with its own words. All use manual commit
-policy unless the scenario authors another value. `features/git_state.feature`
+policy unless the scenario authors another value. `packages/plugins/git/e2e/features/git_state.feature`
 checks these states and the one Commit indicator that reports them.
 
 Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server commits to is decided when it is started, and a `@corpus:` server is running for every other scenario in the run. The `Before` hook says so by name.
@@ -353,13 +427,13 @@ The install surface — the manifest, the icons, the viewport, and WHICH of the 
 
 ## The one client that is not a browser
 
-`features/an_external_agent.feature` is about the tool surface a coding agent in a terminal reaches, so its steps are not a browser at all: `support/mcp.ts` POSTs JSON-RPC at that server's `/mcp` — the same URL a `.mcp.json` names. The client is hand-rolled and tiny on purpose; an MCP SDK here would be testing that SDK's framing against ours rather than ours.
+`packages/plugins/chat/e2e/features/an_external_agent.feature` is about the tool surface a coding agent in a terminal reaches, so its steps are not a browser at all: `support/mcp.ts` POSTs JSON-RPC at that server's `/mcp` — the same URL a `.mcp.json` names. The client is hand-rolled and tiny on purpose; an MCP SDK here would be testing that SDK's framing against ours rather than ours.
 
 The assertions afterward DO go through the browser, and that is the whole point of putting these scenarios in this suite instead of a unit test: the claim is not "the write happened" but "the page a person is looking at followed a write made by a client it has never heard of". They are `@scratch:` for the usual reason — the agent writes.
 
 ## The claim only the AGENT can make
 
-`features/node_context.feature` is about a row handing the agent a node, and what has to be proved is not that a chip appeared — it is that the node reached the AGENT, in a form it can act on. No browser can say that. So the scripted agent says it: its `context` verb reads the id out of its own prompt, calls the real `outlines_read` with it over the real MCP route, and reports the title that came back. A sentence like *`order` is the node titled order the new cabinets* cannot be produced by a build where the id never left the browser.
+`packages/plugins/chat/e2e/features/node_context.feature` is about a row handing the agent a node, and what has to be proved is not that a chip appeared — it is that the node reached the AGENT, in a form it can act on. No browser can say that. So the scripted agent says it: its `context` verb reads the id out of its own prompt, calls the real `outlines_read` with it over the real MCP route, and reports the title that came back. A sentence like *`order` is the node titled order the new cabinets* cannot be produced by a build where the id never left the browser.
 
 The sentence had to be picked carefully, and a sabotage run is what said so: the chip on the sent message carries the node's TITLE too, so a step matching the bare title anywhere in the panel passed with the context stripped out of the prompt entirely. What it asserts on now is the agent's own phrasing, scoped to the answer. The same run caught an absence asserted before the thing it was about had arrived. Both are the ordinary failure of an e2e assertion — passing for a reason that is not the feature — and both are cheap to find by breaking the code on purpose and expensive to find any other way.
 
@@ -367,15 +441,15 @@ Two more of that shape were found by review, and both are pinned here now. A pre
 
 ## Colour, which is the one thing a step may not write down
 
-`features/theming.feature` is about the named palettes, and not one of its steps names a colour. The paper is compared against ITSELF (before a pick, after a pick), against the browser chrome — the status-bar colour and the tab's own mark, both from the same table — and against what the manifest says — never against a hex, which would make the suite the place a design decision has to be changed. The default theme, the attribute, the storage key and the custom-property name are IMPORTED from the client that owns them — the same argument as `TESTID`, one level up: renaming any of them is a type error rather than a timeout, and markup added so a test can read a constant back is markup every reader ships. The only strings the feature spells are the two or three themes a scenario asks for by name, which is the scenario saying what it wants.
+`packages/plugins/theme/e2e/features/theming.feature` is about the named palettes, and not one of its steps names a colour. The paper is compared against ITSELF (before a pick, after a pick), against the browser chrome — the status-bar colour and the tab's own mark, both from the same table — and against what the manifest says — never against a hex, which would make the suite the place a design decision has to be changed. The default theme, the attribute, the storage key and the custom-property name are IMPORTED from the client that owns them — the same argument as `TESTID`, one level up: renaming any of them is a type error rather than a timeout, and markup added so a test can read a constant back is markup every reader ships. The only strings the feature spells are the two or three themes a scenario asks for by name, which is the scenario saying what it wants.
 
 Two of its scenarios are about what does NOT happen. One records every request the page makes (`world.watchRequests`) and asserts a pick made none: "it works" and "it works without asking anybody" look identical on screen. The other installs a `MutationObserver` before any page script and reads `document.readyState` at the moment `data-theme` appears — `loading` is the parser still going, and it is the only evidence that a stored theme beat the first paint rather than flashing the default at everybody on every load.
 
 Its last scenario opens a SECOND page in the same context, which is what makes it a second tab of the same browser rather than a second browser: one origin, one `localStorage`, and a `storage` event fired in every document of it except the one that wrote. The second tab is left open on purpose — a preference that only crossed once the other tab was gone would pass a scenario that closed it.
 
-The chips themselves are a ROW of the preferences panel (`features/preferences.feature`), so every scenario here opens that panel to reach one — `showPreferences` in `preferences_steps.ts` is shared for exactly that. What the retired header pill promised, and what the theming feature still asserts under a new name, is that something NAMES the theme in force: it is the Theme row's hint now. Mutation-tested both times — hard-coding the name to "chalk" passed every theming scenario until a step asked.
+The chips themselves are a ROW of the preferences panel (`packages/plugins/preferences/e2e/features/preferences.feature`), so every scenario here opens that panel to reach one — `showPreferences` in `preferences_steps.ts` is shared for exactly that. What the retired header pill promised, and what the theming feature still asserts under a new name, is that something NAMES the theme in force: it is the Theme row's hint now. Mutation-tested both times — hard-coding the name to "chalk" passed every theming scenario until a step asked.
 
-`features/preferences.feature` carries the same second-tab scenario for the OTHER preference, and it is worth its own sentence because a reload cannot ask the question: deleting `followDonePrefs()` outright passes every other Done scenario in the file, and fails this one. Done is the setting with TWO homes — the panel row stores the reader's default (`olai.done.hidden`), and each outline's flip beside its own filter stores its out-vote (`olai.done.overrides`) — and the scenarios fence both: the default's stored row, the map holding BOTH words (a page can out-vote a shown default), each page keeping its own pick (two and a split, both fences — the same node answered differently by which pane's file its row stands in), the release (the mark's door, not a second press of the strip), the reload fence of the boot read, and the zoom fence of the inheritance — a zoomed view is the same page, minting nothing of its own. It also holds the two ends of the panel's TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first control — which is the promise a portalled panel cannot get from document order.
+`packages/plugins/preferences/e2e/features/preferences.feature` carries the same second-tab scenario for the OTHER preference, and it is worth its own sentence because a reload cannot ask the question: deleting `followDonePrefs()` outright passes every other Done scenario in the file, and fails this one. Done is the setting with TWO homes — the panel row stores the reader's default (`olai.done.hidden`), and each outline's flip beside its own filter stores its out-vote (`olai.done.overrides`) — and the scenarios fence both: the default's stored row, the map holding BOTH words (a page can out-vote a shown default), each page keeping its own pick (two and a split, both fences — the same node answered differently by which pane's file its row stands in), the release (the mark's door, not a second press of the strip), the reload fence of the boot read, and the zoom fence of the inheritance — a zoomed view is the same page, minting nothing of its own. It also holds the two ends of the panel's TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first control — which is the promise a portalled panel cannot get from document order.
 
 ## The one thing this suite's browser cannot draw
 
@@ -387,15 +461,15 @@ What the viewer itself looks like is evidence rather than a scenario: the PR's o
 
 ## Breaking the client on purpose
 
-`features/the_client_breaks.feature` is the one scenario whose subject is a bug in olai rather than in an outline, and it is the only place in this suite that reaches past the app's own surface. Every other error here is DATA — a fixture that does not validate — while a fault in a render is not data, and the app deliberately offers no way to ask for one: a fault switch shipped is a fault switch in production.
+`packages/plugins/layout/e2e/features/the_client_breaks.feature` is the one scenario whose subject is a bug in olai rather than in an outline, and it is the only place in this suite that reaches past the app's own surface. Every other error here is DATA — a fixture that does not validate — while a fault in a render is not data, and the app deliberately offers no way to ask for one: a fault switch shipped is a fault switch in production.
 
 So it is injected with `addInitScript`, into `String.prototype.padStart` and only for the exact call the date arithmetic under the client makes (`@olai/format`'s `calendar.ts`), which every page runs through before it can draw. Narrow because a builtin broken for everybody would take out a dependency's module initialisation or the fault card itself, and the scenario would be proving something else. The coupling is answered rather than hidden: if that call stops happening the app draws itself perfectly, and the step fails in a second saying exactly that instead of timing out with nothing to say.
 
 ## The UI contract
 
-Steps address the app through `data-testid` and `data-*` attributes, never a CSS class — a class is a styling decision a refactor is entitled to change; a `data-testid` is a promise. Every selector is a named constant at the top of `support/world.ts`.
+Steps address the app through `data-testid` and `data-*` attributes, never a CSS class — a class is a styling decision a refactor is entitled to change; a `data-testid` is a promise. Every selector is a named constant, never a string in a step — in the ROW's own `e2e/selectors.ts` when that row's steps are the only readers, and in `support/world.ts` when more than one row reads it.
 
-The names are not written down twice. `support/world.ts` imports the complete `TESTID` record through `@olai/bundle/testids` and the generic `selector()` helper from `@olai/ui-primitives/testids.ts`. Each plugin owns its own pure identifier table; the bundle combines those tables with boot and shared-widget identifiers, and checks that keys and values never collide. No feature catalogue lives in the permanent web host. The same rule covers the handful of other constants a step would otherwise re-spell — the day arithmetic, the theme table's attribute, storage key and default — but never MACHINERY: these tests drive the client through a browser, and nothing one imports here may need one. The furthest an import goes is a PURE READ of the client — the door's own two such reads are named in its header as the exception to names-only, one rule and one class. A renamed testid is therefore a type error at `bun run typecheck`, not a thirty-second timeout in a scenario that no longer says why it failed. `#root` stays spelled out locally: it is `index.html`'s mount point, which the client does not own.
+The names are not written down twice. A row's `e2e/selectors.ts` imports that row's own `src/testids.ts` — one package, no door — and `support/world.ts` imports the complete `TESTID` record through `@olai/bundle/testids` for the shared half. Each plugin owns its own pure identifier table; the bundle combines those tables with boot and shared-widget identifiers, and checks that keys and values never collide. The combined table is the harness's to hand on (`support/testids.ts`): a plugin may not import the registry, because `@olai/bundle` imports every plugin and the edge back is a cycle. No feature catalogue lives in the permanent web host. The same rule covers the handful of other constants a step would otherwise re-spell — the day arithmetic, the theme table's attribute, storage key and default — but never MACHINERY: these tests drive the client through a browser, and nothing one imports here may need one. The furthest an import goes is a PURE READ of the client — the door's own two such reads are named in its header as the exception to names-only, one rule and one class. A renamed testid is therefore a type error at `bun run typecheck`, not a thirty-second timeout in a scenario that no longer says why it failed. `#root` stays spelled out locally: it is `index.html`'s mount point, which the client does not own.
 
 **Narrowing a selector by an attribute value goes through one helper.** `support/selectors.ts`' `attr(name, value, match?)` — re-exported by `support/world.ts`, so a step imports it beside every other selector name — builds `[data-file="…"]` with the value QUOTED SAFELY. `match` is the CSS matcher and defaults to `=`; `~=` is the other one that exists, for the step asking whether a blocker is among the several `data-blocked` lists. Sixty steps across seventeen files used to paste the value straight between two quotes, and what that is one value away from is not a missed row: a `"` ends the CSS string early, Playwright refuses the whole selector, and the step dies naming a parse error rather than the thing it could not find. Nothing in the app was ever at risk — Solid writes dynamic attributes through `setAttribute`, so the DOM is escaped by construction — which is why this is a rule about test selectors and lives here. `selectors.test.ts` holds the grammar (the quote and the backslash are escaped, a newline becomes `\a `, and *nothing else* is, because escaping more than the grammar asks for is how a selector quietly stops matching); `it_stays_live.feature`'s scenario about an outline whose file name carries a quote is a real Chromium agreeing with it. Four selectors are built inline instead, and each says why where it is: they sit inside a `page.evaluate` callback, which runs in the browser where `attr` does not exist, and all four interpolate a value from a closed table. **The rule is a sweep, not a sentence** — `selectors.test.ts` reads every step and support file and requires the hand-built set to be exactly those four, because `data-from` was the *fourth* spelling of this idiom when #182 met it and a suite where some steps are careful and some are not teaches the next step to be careless. **And the sweep's own pattern is tested**, which is not belt-and-braces: its first draft read `[` + a literal name + `="${…}"` and was blind to five real call sites — a matcher other than `=` (`[data-blocked~="${blocker}"]`), and four with an interpolated *name*, among them `expectAttribute`'s `[${attribute}="${expected}"]`, which is how most steps reach the DOM at all. None was safe by design; they were safe because no scenario had yet typed a quote. All five go through `attr` now, the pattern reads the shape rather than one spelling of it, and a test spells out both what it must catch and what it must leave alone.
 
@@ -472,9 +546,9 @@ The names are not written down twice. `support/world.ts` imports the complete `T
 
 ## Adding a test
 
-1. Write the scenario in a `.feature` file, in the language of the promise rather than of the DOM. Check it against **What earns a scenario** first.
+1. Write the scenario in a `.feature` file under the row that PROMISES it (`packages/plugins/<name>/e2e/features/`), in the language of the promise rather than of the DOM. Check it against **What earns a scenario** first, and **Where a scenario lives** for which row. A scenario no single row promises stays in `packages/tests/features/`.
 2. Run it. Cucumber prints a snippet for every step it does not recognise.
-3. Implement the step in the `step_definitions/` file for that feature, as `function (this: OlaiWorld)` — never an arrow function, which would not get a `this`. Assertions are `node:assert`; there is no `expect`.
+3. Implement the step in the step file for the SURFACE it drives, inside the row that owns that surface (`packages/plugins/<name>/e2e/steps/`), as `function (this: OlaiWorld)` — never an arrow function, which would not get a `this`. Assertions are `node:assert`; there is no `expect`.
 4. If it needs an outline no corpus has, add it to `fixtures/good` rather than inventing a corpus — the fixtures are documentation too, and three small readable directories beat thirty single-purpose ones.
 5. If it needs to CHANGE a file, tag it `@scratch:<corpus>` and write through `world.writeServed`. Put `@share-scratch` at the top of the feature rather than paying a process spawn per scenario — overlapping writers share too, because After restores the fixture. Tag `@own-scratch` only when restore cannot make the next scenario's baseline true (a server restart, conversation state, git). The assertions that follow such a write usually need to wait for something to change or disappear, which a Playwright selector cannot state — `world.waitUntil` is what those steps are built on.
 6. If the edit changes WHICH records exist — an insert, a delete, a reorder — assert the id multiset (`the outline "x.olai" shows exactly the nodes "…"`), not that some title eventually reads a certain way. A tree that has lost one node and drawn another twice still has all the right titles in it, which is how a broken live view stayed green through a whole feature file.

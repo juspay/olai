@@ -9,7 +9,7 @@
  * features exist at all: a server that has loaded a broken set cannot also be
  * serving a good one, and starting a server per SCENARIO would pay a process
  * spawn for every step file in the suite. Lazy plus cached gives one spawn per
- * corpus actually exercised — a run of `features/see_the_outline.feature`
+ * corpus actually exercised — a run of `packages/plugins/outlines/e2e/features/see_the_outline.feature`
  * never boots the broken servers.
  *
  * A `@scratch:<name>` tag is the other half, and the reason it exists is the
@@ -38,6 +38,41 @@
  * its own, which is what the lock is asking for and what a parallel harness
  * should have been doing anyway — before this, a scenario that wrote where it
  * should not have was writing into the repository's tracked fixtures.
+ *
+ * ## WHY EVERY TAG IS READ HERE, in the package the tag's row does not own
+ *
+ * The suite is split by owner: a row keeps the features it promises and the
+ * steps that drive its own surface. So a reader who sees `@git:repo` read in
+ * this file, and `@kolu`, and `@alerts`, and `@zone:`, is entitled to ask why
+ * git's tag is not read in `packages/plugins/git/e2e/`. The answer is the one
+ * rule this file exists to keep, and it is about LIFETIME rather than about
+ * subject matter.
+ *
+ * EVERY ONE OF THESE TAGS SHAPES A RESOURCE THIS MODULE CREATES, and it has to
+ * be read before the creation. `@git:…` and `@rows:…` decide how the server is
+ * SPAWNED — the repository it is pointed at, the plugins it composes — which is
+ * decided once, in `serverFor`/`ownCopy`, before any step runs. `@phone`,
+ * `@zone:`, `@alerts` and `@paints` decide how the browser CONTEXT is made and
+ * what init script is in place before the app's first paint; `@wire` arms a
+ * listener on the page before the first socket opens. A cucumber `Before` hook
+ * registered by a plugin's step file runs AFTER this one — hooks fire in
+ * registration order, which is import order, which is the profile's glob order
+ * — so by the time a row's hook could speak, the server is up, the context is
+ * made and the boot has painted. A row that "owned" its tag there could only
+ * mutate what this file had already decided, and the two would disagree the
+ * first time a scenario carried both.
+ *
+ * That is a Cordis reading rather than a convenience: THE OWNER OF A RESOURCE
+ * READS THE ARGUMENTS THAT SHAPE IT. This module owns the run's browser, the
+ * per-corpus servers and the per-scenario context, with an explicit
+ * `BeforeAll`/`Before`/`After`/`AfterAll` lifetime around each; a tag is an
+ * argument to those constructors. What a ROW owns is what a row creates — its
+ * selectors, its steps, its features — and none of those exist before the
+ * page does.
+ *
+ * The one thing that did move is the part with no lifetime in it: the NAMES.
+ * `support/storage_keys.ts` carries the two rows' preference keys the panel's
+ * steps assert on, because a name is not a resource.
  */
 import { writeFixturePolicy } from "@olai/bundle/testlib"
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";

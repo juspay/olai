@@ -9,7 +9,7 @@
  * lines as a value and a fixture nobody would maintain as a scenario.
  *
  * The e2e suite drives the whole thing through a real panel
- * (`packages/tests/features/the_conversations_servers.feature`) and stays the
+ * (`packages/plugins/chat/e2e/features/the_conversations_servers.feature`) and stays the
  * regression net for the wiring.
  */
 

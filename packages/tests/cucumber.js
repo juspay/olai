@@ -16,8 +16,8 @@ const parallel = workerCount();
 
 // Only set default paths when no feature file was passed on the CLI. A profile
 // that hardcodes `paths` silently wins over the positional argument, so
-// `cucumber-js features/error_view.feature` would run the whole suite. Matches
-// the line-targeted form (`foo.feature:42:56`) too — missing that would broaden
+// `cucumber-js ../plugins/vault/e2e/features/error_view.feature` would run the
+// whole suite. Matches the line-targeted form (`foo.feature:42:56`) too — missing that would broaden
 // the run back to everything in exactly the case where a person is narrowing it.
 const cliHasFeatureArgs = process.argv
   .slice(2)

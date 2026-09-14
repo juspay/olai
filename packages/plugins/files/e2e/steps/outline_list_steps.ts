@@ -164,7 +164,7 @@ const treeOf = (world: OlaiWorld, file: string) =>
  *  tree, pressed from wherever the reader already is. Its sibling below opens
  *  the app first, which is what makes it a `Given`; this one is a gesture on a
  *  page that is already up, and the difference is the whole subject of
- *  `features/the_chrome_holds_still.feature`. The wait after the click is the
+ *  `packages/plugins/navigation/e2e/features/the_chrome_holds_still.feature`. The wait after the click is the
  *  swap, same as the Given — not a rAF. */
 When(
   "I click the outline {string}",

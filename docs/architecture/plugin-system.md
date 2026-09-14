@@ -552,7 +552,7 @@ names as a property of the pin rather than a revision that goes stale.
 ### What a browser client promises across a reconnect
 
 Established by reading the pinned sources and proved by
-`packages/tests/features/filter_live_recovery.feature` and
+`packages/plugins/outlines/e2e/features/filter_live_recovery.feature` and
 `content_capabilities.feature`.
 
 - **Object identity holds.** `redial` returns the same connection object, and

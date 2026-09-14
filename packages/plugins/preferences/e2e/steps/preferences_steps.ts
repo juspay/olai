@@ -504,7 +504,7 @@ Then("this page offers no Done flip", async function (this: OlaiWorld) {
 
 // ── the two Alert preferences ──────────────────────────────────────────
 //
-// What they DO is `features/the_agent_waits_on_you.feature`; what is here is
+// What they DO is `packages/plugins/chat/e2e/features/the_agent_waits_on_you.feature`; what is here is
 // that they are preferences like the others — a pick that moves this browser,
 // is stored under one key, and says what it means.
 

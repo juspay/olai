@@ -27,7 +27,7 @@
  *
  * The proof that the whole thing actually works in a BROWSER is not here and
  * cannot be: `bun test` has no DOM. It is
- * `features/it_stays_live.feature`'s scenario about an outline whose file name
+ * `packages/plugins/vault/e2e/features/it_stays_live.feature`'s scenario about an outline whose file name
  * carries a quote, which grips that file through this very helper — a real
  * Chromium parsing a real selector against a real attribute. This file is the
  * grammar; that scenario is the engine agreeing with it.

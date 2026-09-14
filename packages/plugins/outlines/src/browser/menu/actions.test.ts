@@ -18,7 +18,7 @@
  * round: they are the entries that must NOT answer with nothing, since their
  * destination is outside the app and a copy leaves no trace on the page. What
  * they say is a fact about `run`, so it is held here rather than only in the
- * browser — `features/menu_verbs.feature` walks the same two verbs end to end.
+ * browser — `packages/plugins/outlines/e2e/features/menu_verbs.feature` walks the same two verbs end to end.
  *
  * The WRITE arm is stubbed at `applying`, not fire-and-forget on the live
  * wire: a real `edit.apply` never settles here (`wire.ts` dials

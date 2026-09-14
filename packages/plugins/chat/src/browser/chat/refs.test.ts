@@ -13,7 +13,7 @@
  * than the copy of the set it used to come out of.
  *
  * What a marked span then DOES is the browser suite's
- * (`features/node_context.feature`): a click is a page moving under a reader,
+ * (`packages/plugins/chat/e2e/features/node_context.feature`): a click is a page moving under a reader,
  * and that is not a thing a value can say.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"

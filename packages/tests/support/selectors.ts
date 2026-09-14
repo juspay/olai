@@ -44,7 +44,7 @@
  * invalid-installation error for its trouble. A rule with an edge in it that
  * can only be checked by driving a browser is a rule nobody checks, so the edge
  * is held next door in `../selectors.test.ts` and the browser's agreement is
- * held by a scenario (`features/it_stays_live.feature`, the outline whose file
+ * held by a scenario (`packages/plugins/vault/e2e/features/it_stays_live.feature`, the outline whose file
  * name carries a quote).
  *
  * FOUR SELECTORS IN THIS SUITE ARE NOT BUILT HERE, and each says so where it

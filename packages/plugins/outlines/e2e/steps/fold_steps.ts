@@ -1,6 +1,6 @@
 /**
  * What this BROWSER remembers about folding — the storage behind
- * `features/folds_are_remembered.feature`.
+ * `packages/plugins/outlines/e2e/features/folds_are_remembered.feature`.
  *
  * The folds themselves are pressed with the tree's own steps
  * (`outline_tree_steps.ts`) and the directory's (`outline_list_steps.ts`);
