@@ -83,6 +83,13 @@ export const subjectOfRow = (row: Row): Subject => ({
   status: row.status,
 })
 
+/** The node a subject SHOWS, by id — or the record itself, for a placement
+ *  that draws nothing. `@olai/format`'s `shownRecord` asked of a subject rather
+ *  than a row, so what a plugin's press is handed is one rule wherever the menu
+ *  hangs. */
+export const shownIdOf = (subject: Subject): string =>
+  subject.shows?.node.id ?? subject.record.id
+
 /**
  * The subject a SITUATED node is — a ZOOMED PAGE, which the palette asks
  * about, and a DATED ROW on a day page or the agenda, whose `•••` asks about it.

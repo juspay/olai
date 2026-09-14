@@ -650,11 +650,15 @@ function Branch(props: {
               foldable: foldable(),
               go,
               record: undo.record,
-              pickDate: dates.openDate,
-              pickRepeat: dates.openRepeat,
-              pickEdge: edges.open,
-              addProp: () => setAdding(true),
-              pickMove: () => moving.open({ record: props.row.at.node.id, place: props.row.key }),
+              panels: {
+                pickDate: dates.openDate,
+                pickRepeat: dates.openRepeat,
+                pickEdge: edges.open,
+                addProp: () => {
+                  setAdding(true)
+                },
+                pickMove: () => moving.open({ record: props.row.at.node.id, place: props.row.key }),
+              },
             })}
           />
           <Show

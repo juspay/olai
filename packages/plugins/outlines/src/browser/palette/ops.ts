@@ -67,7 +67,7 @@ export const opItems = (
   zoomed: Situated | undefined,
   /** How many records hang under the zoomed node, in the set — the number the
    *  archive's confirm names, carried on the page's own reading
-   *  (`@olai/format`'s `Zoomed.under`) rather than walked here. */
+   *  (`@olai/format`'s `Situated.under`) rather than walked here. */
   under: number | undefined,
 ): ReadonlyArray<PaletteItem> => {
   if (zoomed === undefined) return []

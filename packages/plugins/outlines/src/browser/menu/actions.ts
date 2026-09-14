@@ -56,7 +56,7 @@ import { atNode, hrefOfPlain, type Route } from "olai-plugin-navigation/routes"
 import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./action.ts"
-import { type Does, type Subject, subjectOfRow, writeVerbs } from "./verbs.ts"
+import { type Does, shownIdOf, type Subject, subjectOfRow, writeVerbs } from "./verbs.ts"
 import { applying } from "../writes.ts"
 
 /**
@@ -168,10 +168,11 @@ const running = (
  * decision, so it is made in one place — the walk at the end of this function,
  * which is where the reasoning is.
  *
- * A SURFACE'S OWN VERBS ride in `reads` and `writes`, each at the end of core's
- * own in its half and before the plugins': the one decision about where a
- * surface's verb goes is made here, for every surface, rather than by each of
- * them splicing into a list it did not build.
+ * A SURFACE'S OWN VERBS ride in `afterZoom` and `afterWrites`, named for WHERE
+ * they go rather than what they are — `Copy as text` is a read that belongs
+ * among the writes — and before the plugins' either way: the one decision about
+ * where a surface's verb goes is made here, for every surface, rather than by
+ * each of them splicing into a list it did not build.
  */
 export const subjectMenuActions = (args: {
   /** The app's URL grammar, handed in — the shelf verb asks through it
@@ -182,7 +183,7 @@ export const subjectMenuActions = (args: {
   readonly subject: Subject
   /** How many records hang under the node, IN THE SET — the number the
    *  archive's confirm names. Counted where the set is and carried on the
-   *  reading (`@olai/format`'s `Row.under`, `DayEntry.under`); `undefined`
+   *  reading (`@olai/format`'s `Row.under`, `Situated.under`); `undefined`
    *  while no reading has arrived, and the archive is then not offered. */
   readonly under: number | undefined
   /** The shelf as the server answered it, for the ONE verb that is about the
@@ -201,22 +202,21 @@ export const subjectMenuActions = (args: {
   /** The panels this surface draws; a verb that would open one it does not is
    *  not offered ({@link Panels}). */
   readonly panels: Panels
-  /** This surface's own reads, after `Zoom in` and before the link. */
-  readonly reads?: ReadonlyArray<MenuAction>
-  /** This surface's own writes, after core's. */
-  readonly writes?: ReadonlyArray<MenuAction>
+  /** This surface's own verbs placed after `Zoom in`, before the link. */
+  readonly afterZoom?: ReadonlyArray<MenuAction>
+  /** This surface's own verbs placed after core's writes. */
+  readonly afterWrites?: ReadonlyArray<MenuAction>
 }): ReadonlyArray<MenuAction> => {
   const id = args.subject.record.id
-  /** The node the record SHOWS — what a plugin's press is handed. A placement
-   *  that draws nothing shows only itself (`@olai/format`'s `shownRecord`). */
-  const shown = args.subject.shows?.node.id ?? id
+  /** The node the record SHOWS — what a plugin's press is handed. */
+  const shown = shownIdOf(args.subject)
   const items: MenuAction[] = [
     {
       id: "zoom",
       label: "Zoom in",
       run: () => args.go(atNode(id)),
     },
-    ...(args.reads ?? []),
+    ...(args.afterZoom ?? []),
   ]
   // `Ask agent` STOOD HERE, second among the reads, and it is gone with the
   // rest of chat: arming a composer is a thing a conversation has, and this
@@ -259,7 +259,7 @@ export const subjectMenuActions = (args: {
     const run = running(does, args.panels, args.record)
     return run === undefined ? [] : [{ ...verb, run }]
   })
-  writes.push(...(args.writes ?? []))
+  writes.push(...(args.afterWrites ?? []))
 
   /**
    * ...AND WHAT THE PLUGINS HANG ON A ROW — `outline.row.action`, placed into
@@ -356,11 +356,7 @@ export const nodeMenuActions = (args: {
   readonly record: Undo["record"]
   /** The five panels a tree row draws, each REQUIRED here: a tree row that
    *  forgot one would quietly lose the verb ({@link Panels}). */
-  readonly pickDate: () => void
-  readonly pickRepeat: () => void
-  readonly pickEdge: (relation: Relation) => void
-  readonly addProp: () => void
-  readonly pickMove: () => void
+  readonly panels: Required<Panels>
 }): ReadonlyArray<MenuAction> => {
   const folds: MenuAction[] = []
   if (args.row.children.length > 0) {
@@ -413,14 +409,8 @@ export const nodeMenuActions = (args: {
     placement: args.placement,
     go: args.go,
     record: args.record,
-    panels: {
-      pickDate: args.pickDate,
-      pickRepeat: args.pickRepeat,
-      pickEdge: args.pickEdge,
-      addProp: args.addProp,
-      pickMove: args.pickMove,
-    },
-    reads: folds,
-    writes: text,
+    panels: args.panels,
+    afterZoom: folds,
+    afterWrites: text,
   })
 }

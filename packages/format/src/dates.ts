@@ -60,7 +60,7 @@ import { mintExt } from "./kinds.ts"
 import type { Claims } from "./kinds.ts"
 import { Order, Schema } from "effect"
 
-import { dayAt, type Derived, Situated, situate, under } from "./derive.ts"
+import { dayAt, type Derived, Situated, situate } from "./derive.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import type { LocatedRegular } from "./node.ts"
 import { type Dated, monthOf, Occasioned } from "./occasion.ts"
@@ -172,18 +172,8 @@ export const datedAnswer = (derived: Derived, month: string): DatedAnswer => ({
  * Situated} that page is built from, because a day collects nodes from all
  * over the set and a title torn out of its outline says nothing — plus which
  * of its dates put it here.
- *
- * `under` rides with it for the reason it rides on a tree row
- * ({@link Row.under}): the entry wears a `•••` menu now, and that menu's Move to
- * Trash has to name how much goes with the node. It is a count over the SET,
- * which changes when the set does, so it is counted here where the set is
- * rather than in every tab that draws the row.
  */
-export const DayEntry = Schema.Struct({
-  ...Situated.fields,
-  ...Occasioned.fields,
-  under: Schema.Int,
-})
+export const DayEntry = Schema.Struct({ ...Situated.fields, ...Occasioned.fields })
 export type DayEntry = typeof DayEntry.Type
 
 /** The nodes of one outline on the same day.
@@ -241,21 +231,28 @@ export const groupedOn = (
   // a reader still has to be shown.
   const placed = new Set<LocatedRegular>()
   const entries: Array<DayEntry> = []
+  // ONE count memo for the walk: every entry situates its node with how much
+  // hangs under it, and a day of nodes under one branch is that branch counted
+  // once rather than once per entry (`./derive.ts`'s `under`).
+  const counted = new Map<string, number>()
   for (const one of dated) {
     if (placed.has(one.at)) continue
     placed.add(one.at)
-    entries.push(entryOf(derived, one))
+    entries.push(entryOf(derived, one, counted))
   }
   return byOutline(entries)
 }
 
 /** The node, situated, wearing the date that put it here — the shape every
  *  reading of the set's dates hands its view, minted in one place. */
-export const entryOf = (derived: Derived, dated: Dated): DayEntry => ({
-  ...situate(derived, dated.at),
+export const entryOf = (
+  derived: Derived,
+  dated: Dated,
+  counted?: Map<string, number>,
+): DayEntry => ({
+  ...situate(derived, dated.at, counted),
   occasion: dated.occasion,
   date: dated.date,
-  under: under(derived, dated.at.node.id),
 })
 
 /**
