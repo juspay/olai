@@ -41,6 +41,7 @@
     "olai-plugin-journal": "workspace:*",
     "olai-plugin-odu": "workspace:*",
     "olai-plugin-opencode": "workspace:*",
+    "olai-plugin-omp": "workspace:*",
     "olai-plugin-pi": "workspace:*",
     "olai-plugin-search": "workspace:*",
     "olai-plugin-xyne-spaces": "workspace:*",

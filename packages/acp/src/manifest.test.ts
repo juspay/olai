@@ -215,6 +215,7 @@ describe("the manifest", () => {
       "plugins/chat",
       "plugins/claude",
       "plugins/codex",
+      "plugins/omp",
       "plugins/opencode",
       "plugins/pi",
     ])
@@ -283,6 +284,7 @@ describe("the manifest", () => {
     server: ["@olai/acp/engine"],
     "plugins/claude": ["@olai/acp/engine"],
     "plugins/codex": ["@olai/acp/engine"],
+    "plugins/omp": ["@olai/acp/engine"],
     "plugins/opencode": ["@olai/acp/engine"],
     "plugins/pi": ["@olai/acp/engine"],
   }

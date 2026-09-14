@@ -156,7 +156,7 @@ curl -s http://127.0.0.1:7714/mcp \
 
 ## The agents
 
-Which agents this machine has, how a conversation is bound to one, and what a turn does are `olai-plugin-chat`'s and the engine rows' — one row per ACP agent olai can seat (`claude`, `codex`, `opencode`, `pi` in `packages/bundle/olai.yml`, in the order the picker draws them). A serve that names none of them serves the outlines exactly as it does with one, and the panel says there is no agent rather than hiding.
+Which agents this machine has, how a conversation is bound to one, and what a turn does are `olai-plugin-chat`'s and the engine rows' — one row per ACP agent olai can seat (`claude`, `codex`, `opencode`, `pi`, `omp` in `packages/bundle/olai.yml`, in the order the picker draws them). A serve that names none of them serves the outlines exactly as it does with one, and the panel says there is no agent rather than hiding.
 
 What is still this package's is the ENVIRONMENT those rows are read against, because a chat agent is a child of THIS process and its environment is this process's — not your login shell's. An agent that resolves a provider key out of the environment finds nothing unless the server was started with it. `docs/running.md` has the `environmentFile` for a user service.
 

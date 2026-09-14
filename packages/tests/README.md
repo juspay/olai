@@ -124,11 +124,11 @@ packages/tests/
 │                           #   by that client and every fake below
 │   └── scripted.ts          # ... and the write half: the JSON-RPC envelope, the
 │                           #   requests a fake is waiting on, and the hold
-│                           #   protocol — shared by the two scripted agents
-├── agent/                   # the two scripted ACP agents the chat scenarios
+│                           #   protocol — shared by the three scripted agents
+├── agent/                   # the three scripted ACP agents the chat scenarios
 │                           #   drive — one shaped like the Claude Code adapter,
-│                           #   one like opencode — and the fake `kolu` every
-│                           #   server finds on PATH
+│                           #   one like opencode, one like Oh My Pi — and the
+│                           #   fake `kolu` every server finds on PATH
 ├── bin/broken-git/git       # a `git` that is found and fails, for @git:broken
 ├── tasks.ts                 # what the PINNED ADAPTER says about a background
 │                            #   task — a driver, not a lane: it needs a real
@@ -669,14 +669,14 @@ A later Darwin-only miss of the same scenario (221px asked, 77px held, retry gre
 
 ## The scripted agents
 
-There are TWO, and that is the point rather than an accident of history: one is
-shaped like the Claude Code adapter and one like opencode, and what they share
-is the transport (`support/scripted.ts`, `support/ndjson.ts`) and nothing else.
-Every frame shape each of them sends — where a tool's name is said, how an MCP
-server's tools are spelled, which methods are refused, the order of a
-permission's options — is its own file's, so the two are independent witnesses
-to the same protocol. A fake whose shape is chosen by a flag is one that can
-agree with the client by construction.
+There are THREE, and that is the point rather than an accident of history: one
+is shaped like the Claude Code adapter, one like opencode, and one like Oh My
+Pi, and what they share is the transport (`support/scripted.ts`,
+`support/ndjson.ts`) and nothing else. Every frame shape each of them sends —
+where a tool's name is said, how an MCP server's tools are spelled, which
+methods are refused, the order of a permission's options — is its own file's, so
+the three are independent witnesses to the same protocol. A fake whose shape is
+chosen by a flag is one that can agree with the client by construction.
 
 ### The Claude-shaped one
 
@@ -743,6 +743,54 @@ sit on the wire until `the agent is released`, which is how a scenario reaches
 the seconds between picking an agent and having a conversation: on a laptop that
 window is too short to aim at, and it is the window a message typed into it used
 to be lost in.
+
+### The Oh My Pi-shaped one
+
+`agent/omp/omp` is an executable named exactly that, and its directory goes on
+`OLAI_AGENT_PATH` for a scenario tagged `@omp` — the same variable, and the same
+empty-string default everywhere else, that the opencode-shaped one uses. The
+fake `kolu` next door is the third PATH-found executable in this directory, and
+the reason all three are found rather than handed in is the same: what a server
+finds on its PATH decides what its panel offers, so a machine with a real `omp`
+installed must not run a different suite than a CI lane does.
+
+Its differences from the two files above are omp 18.1.21's own, captured live:
+no `_meta` on any frame, so a tool's name is the head of the `toolCallId`
+(`write:0`, `bash:3`) and the `title` moves under a running call; MCP tools
+spelled `mcp__<server>_<tool>`; permission options that lead with an ALLOW;
+`session/set_mode` and `_session/steering` refused; the model, mode and thinking
+level in `configOptions`, a change answered in the method response AND pushed
+back as a `config_option_update`. Three of its behaviours are not that shape at
+all, and they are why a third file is worth having:
+
+- **an olai tool is dispatched through omp's own `write`.** With omp's default
+  `tools.xdev` on, `mcp__olai_outlines_read` is not announced as itself: the
+  frame is a `write` whose `rawInput.path` is `xd://mcp__olai_outlines_read`, and
+  the tool's result comes back nested under `details.xdev.inner`. The fake stages
+  both halves through the engine's own fixtures (`plugins/omp/src/testlib.ts`'s
+  `announced` and `wrapped`), which is what keeps the panel's reading of the path
+  — rather than a hand-written shape that agrees with it — the thing under test.
+- **a mid-turn send CANCELS the running turn.** omp advertises no prompt queue:
+  a `session/prompt` arriving while a turn streams makes omp cancel that turn and
+  run the new one, and the cancelled prompt request answers `stopReason:
+  "cancelled"`. The scenario that says a mid-turn message ends the running turn
+  is a property of this wire and of no other. A prompt arriving during an
+  AUTONOMOUS turn refuses instead — `-32000` `session_busy` with `data.hint =
+  "steer|followUp|wait"` — which is the `busy` verb, and the row that keeps the
+  words.
+- **its terminals come with `_meta` corners.** A `bash` call carries a
+  `{ type: "terminal", terminalId }` content block and the same `terminal_info` /
+  `terminal_output` / `terminal_exit` extension pi's adapter uses, so the output
+  streams under the row and is still readable once the call has ended.
+
+Behaviour is keyed on the prompt text (`hello`, `bash`, `context <id>`,
+`done <id>`, `permit`, `nameless`, `slow`, `hush`, `silent`, `error-silent`,
+`busy`), it honours the shared `MARKER.holdOpen`, `MARKER.holdLoad` and
+`MARKER.release` markers exactly as the opencode-shaped one does, and with
+`OLAI_FAKE_OMP_STORED` set it stores one conversation — `an Oh My Pi
+conversation` — whose `session/list` entry carries a real `{ messageCount: 21,
+size: 8192 }` and whose `session/load` replay says `omp remembers this
+conversation`.
 
 ## The fake kolu
 

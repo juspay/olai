@@ -747,6 +747,7 @@ describe("only the registry knows a plugin's name", () => {
     tests: [
       "tests/agent/fake-acp-agent.ts: olai-plugin-claude/testlib",
       "tests/agent/fake-acp-agent.ts: olai-plugin-codex/testlib",
+      "tests/agent/omp/omp.ts: olai-plugin-omp/testlib",
       "tests/agent/opencode/opencode.ts: olai-plugin-opencode/testlib",
       "tests/agent/pi/pi-acp.ts: olai-plugin-pi/testlib",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
@@ -804,7 +805,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
+    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-omp", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 

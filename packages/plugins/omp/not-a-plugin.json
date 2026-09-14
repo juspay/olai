@@ -1,0 +1,9 @@
+{
+  "//pi": "Oh My Pi's own NAME ends in `pi` — `Oh My Pi` and `oh-my-pi` are this engine's branding, in the install sentence a person reads and the URL they are sent to, and neither is the pi row's.",
+  "mcp": [
+    "src/leg.ts"
+  ],
+  "pi": [
+    "src/install.ts"
+  ]
+}
