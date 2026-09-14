@@ -35,9 +35,11 @@ import {
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
+} from "@olai/tests/harness/world.ts";
+import {
   TOC,
   TOC_LINK,
-} from "@olai/tests/harness/world.ts";
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const contents = (world: OlaiWorld) => world.page.locator(TOC);

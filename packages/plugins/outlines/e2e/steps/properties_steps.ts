@@ -25,15 +25,17 @@ import {
   oneLine,
   POLL_TIMEOUT,
   PROP,
-  PROP_ADD,
   PROP_EDIT,
   PROP_EDIT_KEY,
-  PROP_FOLD,
-  PROP_KEY,
-  PROP_SAID,
   PROP_VALUE,
   PROPS,
 } from "@olai/tests/harness/world.ts";
+import {
+  PROP_ADD,
+  PROP_FOLD,
+  PROP_KEY,
+  PROP_SAID,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── the drawer ─────────────────────────────────────────────────────────

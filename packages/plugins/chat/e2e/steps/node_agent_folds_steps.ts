@@ -2,7 +2,19 @@ import assert from "node:assert/strict";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { selector } from "@olai/web/testlib";
-import { attr, NODE_MENU, NODE_MENU_ITEM, NODE_MENU_PANEL, POLL_TIMEOUT, HYDRATION_TIMEOUT, CHAT_PANEL, CHAT_INPUT, CHAT_TRANSCRIPT } from "@olai/tests/harness/world.ts";
+import {
+  attr,
+  NODE_MENU,
+  NODE_MENU_ITEM,
+  NODE_MENU_PANEL,
+  POLL_TIMEOUT,
+  HYDRATION_TIMEOUT,
+  CHAT_PANEL,
+  CHAT_INPUT,
+} from "@olai/tests/harness/world.ts";
+import {
+  CHAT_TRANSCRIPT,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const fold = (world: OlaiWorld, node: string) => world.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}`);

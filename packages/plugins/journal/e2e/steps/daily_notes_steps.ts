@@ -22,8 +22,6 @@ import { isoDayOf } from "@olai/web/testlib";
 import {
   DAY_EMPTY,
   DAY_GROUP,
-  DAY_NOTE,
-  DAY_NOTE_LINK,
   DAY_PAGE,
   daySelector,
   expectAbsent,
@@ -31,6 +29,10 @@ import {
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
 } from "@olai/tests/harness/world.ts";
+import {
+  DAY_NOTE,
+  DAY_NOTE_LINK,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** Where a scenario's own note goes: the layout the human's vault keeps, so

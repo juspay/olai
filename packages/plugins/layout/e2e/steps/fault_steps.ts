@@ -22,11 +22,13 @@ import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import {
   FAULT,
   FAULT_DETAIL,
-  FAULT_HOME,
   oneLine,
   POLL_TIMEOUT,
   RELOAD,
 } from "@olai/tests/harness/world.ts";
+import {
+  FAULT_HOME,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** What the injected fault says. Asserted on later, so a card that drew SOME

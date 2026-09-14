@@ -20,9 +20,6 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import {
   attr,
-  CHAT_CONTEXT_CHIP,
-  CHAT_CONTEXT_REMOVE,
-  CHAT_ENTRY,
   CHAT_SAID,
   OUTLINES_STORY,
   chatNodeRef,
@@ -30,6 +27,11 @@ import {
   nodeSelector,
   POLL_TIMEOUT,
 } from "@olai/tests/harness/world.ts";
+import {
+  CHAT_CONTEXT_CHIP,
+  CHAT_CONTEXT_REMOVE,
+  CHAT_ENTRY,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** The chips that are still ARMED, which is the ones that can still be taken

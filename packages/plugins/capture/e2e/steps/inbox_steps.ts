@@ -15,14 +15,16 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 import {
   AGENDA_LINK,
   HYDRATION_TIMEOUT,
-  INBOX_COUNT,
-  INBOX_HELD,
-  INBOX_LINK,
   OUTLINE_TREE,
   POLL_TIMEOUT,
   SIDEBAR_BODY,
   TRASH_LINK,
 } from "@olai/tests/harness/world.ts";
+import {
+  INBOX_COUNT,
+  INBOX_HELD,
+  INBOX_LINK,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 Then("the sidebar offers the Inbox", async function (this: OlaiWorld) {

@@ -24,7 +24,13 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 import { aboveTitle, carry, titleOf } from "@olai/tests/harness/dragging.ts";
 import { childOf, notChildOf } from "@olai/tests/harness/nesting.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
-import { DROP_LINE, DROP_REFUSED, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import {
+  DROP_LINE,
+  POLL_TIMEOUT,
+} from "@olai/tests/harness/world.ts";
+import {
+  DROP_REFUSED,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── carrying a row across ──────────────────────────────────────────────

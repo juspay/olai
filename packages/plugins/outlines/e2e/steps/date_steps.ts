@@ -17,6 +17,11 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import {
   DATE,
+  nodeSelector,
+  oneLine,
+  POLL_TIMEOUT,
+} from "@olai/tests/harness/world.ts";
+import {
   DATE_PICKER,
   DATE_PICKER_CANCEL,
   DATE_PICKER_DAY,
@@ -24,10 +29,7 @@ import {
   DATE_PICKER_NOTICE,
   DATE_PICKER_SET,
   DATE_PICKER_TIME,
-  nodeSelector,
-  oneLine,
-  POLL_TIMEOUT,
-} from "@olai/tests/harness/world.ts";
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── opening it ─────────────────────────────────────────────────────────

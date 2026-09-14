@@ -36,14 +36,16 @@ import {
   HYDRATION_TIMEOUT,
   NODE_GUTTER,
   NODE_MENU,
-  NODE_MENU_CONFIRM,
   NODE_MENU_ITEM,
   NODE_MENU_PANEL,
-  NODE_MENU_SAID,
   oneLine,
   POLL_TIMEOUT,
   ZOOM,
 } from "@olai/tests/harness/world.ts";
+import {
+  NODE_MENU_CONFIRM,
+  NODE_MENU_SAID,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { revealGutter } from "./outline_tree_steps.ts";
 

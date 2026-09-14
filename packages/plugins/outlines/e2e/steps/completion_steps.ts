@@ -22,12 +22,14 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import {
   COMPLETION_ITEM,
-  COMPLETION_ITEM_PLACE,
   COMPLETIONS,
   NODE_GUTTER,
   oneLine,
   POLL_TIMEOUT,
 } from "@olai/tests/harness/world.ts";
+import {
+  COMPLETION_ITEM_PLACE,
+} from "../selectors.ts";
 import { theListIsGone } from "@olai/tests/harness/caret.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 

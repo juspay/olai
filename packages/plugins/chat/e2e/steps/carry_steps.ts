@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
 import { When, Then } from "@olai/tests/harness/runner.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
-import { CHAT_DIFF, NODE_TITLE, attr, CHAT_GRIP, CHAT_INPUT, CHAT_ENTRY, CHAT_DROP, SIDEBAR, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import {
+  CHAT_DIFF,
+  NODE_TITLE,
+  attr,
+  CHAT_GRIP,
+  CHAT_INPUT,
+  SIDEBAR,
+  POLL_TIMEOUT,
+} from "@olai/tests/harness/world.ts";
+import {
+  CHAT_ENTRY,
+  CHAT_DROP,
+} from "../selectors.ts";
 import { aimAtVisible, carryPointer, titleOf, pressBullet } from "@olai/tests/harness/dragging.ts";
 
 When("I carry row {string} over the conversation", async function(this: OlaiWorld, id: string) {
@@ -179,7 +191,7 @@ Then("the carry refusal names {string}", async function(this: OlaiWorld, words: 
 });
 
 Then("transcript grips leave the lane rail and words clear", async function(this: OlaiWorld) {
-  const { CHAT_LANE, CHAT_PREVIEW } = await import("@olai/tests/harness/world.ts");
+  const { CHAT_LANE, CHAT_PREVIEW } = await import("../selectors.ts");
   const lanes = this.page.locator(CHAT_PREVIEW).locator(CHAT_LANE);
   assert.ok(await lanes.count() > 0, "the shelf draws lane rows");
   for (const lane of await lanes.all()) {

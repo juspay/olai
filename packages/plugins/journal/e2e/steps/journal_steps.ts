@@ -21,8 +21,6 @@ import { isoDayOf } from "@olai/web/testlib";
 
 import {
   AGENDA_LINK,
-  AGENDA_OWED,
-  AGENDA_PAGE,
   CALENDAR,
   CALENDAR_NEXT,
   CALENDAR_PREV,
@@ -41,6 +39,10 @@ import {
   readable,
   SIDEBAR_BODY,
 } from "@olai/tests/harness/world.ts";
+import {
+  AGENDA_OWED,
+  AGENDA_PAGE,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── opening a day ──────────────────────────────────────────────────────

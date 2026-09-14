@@ -26,21 +26,23 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 
 import {
-  AFTER_REFS,
   attr,
-  EDGE_DROP,
   EDGE_HELD,
+  POLL_TIMEOUT,
+  rowReads,
+  SEE_REFS,
+  TAG,
+} from "@olai/tests/harness/world.ts";
+import {
+  AFTER_REFS,
+  EDGE_DROP,
   EDGE_HIT,
   EDGE_PANEL,
   EDGE_SAID,
   EDGE_SEARCH,
   EDGE_VERB,
-  POLL_TIMEOUT,
   REF_DROP,
-  rowReads,
-  SEE_REFS,
-  TAG,
-} from "@olai/tests/harness/world.ts";
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { focusedOn } from "@olai/tests/harness/caret.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";

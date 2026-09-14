@@ -14,6 +14,22 @@
  * renaming an attribute over there would still compile over here and fail
  * thirty seconds later as a bare timeout. Imported, the same rename is a
  * type error before the browser ever starts.
+ *
+ * ## WHICH selectors live here, which is the line this file used to not draw
+ *
+ * Every one of them did, and that was the defect: one table three thousand
+ * lines long that a change to ANY row appended to, in a package that row does
+ * not own. A row keeps its own now — `packages/plugins/<name>/e2e/selectors.ts`,
+ * built from that row's own `src/testids.ts` — and a step imports them beside
+ * these, from `../selectors.ts`.
+ *
+ * WHAT STAYS is what more than one row's steps read: the shell (header,
+ * sidebar, panes, the connection), the OUTLINE ROWS every page draws whatever
+ * row drew the page, the waits and deadlines, and the handful whose id belongs
+ * to one row while the only steps that read it belong to another — the plugins
+ * panel's switches, read by the preferences steps; the padi feed, read by the
+ * files steps. Those are the harness's by the same rule the shared helpers
+ * follow, and moving one into a row would only move the reaching-sideways.
  */
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "@olai/bundle/testids"
@@ -300,9 +316,6 @@ export const SIDEBAR_SCRIM = selector(TESTID.sidebarScrim);
 export const SIDEBAR_COLLAPSE = selector(TESTID.sidebarCollapse);
 export const SIDEBAR_EXPAND = selector(TESTID.sidebarExpand);
 export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
-/** The rail's way to the agenda — the collapsed column's face of the entry,
- *  carrying the same `data-owed` as a dot. */
-export const RAIL_AGENDA = selector(PLUGIN_TESTID.railAgenda);
 /** The rail's two ways INTO the directory — the collapsed column's outlines
  *  and documents buttons, which draw the tree's own glyphs. */
 export const RAIL_OUTLINES = selector(TESTID.railOutlines);
@@ -324,14 +337,6 @@ export const DOCUMENT_LINK = selector(TESTID.documentLink);
  *  for the same reason, and a step reaches them through the registry rather
  *  than through three more constants ({@link ROW_TESTID}). */
 export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
-/** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
- *  only element of that page this app owns. */
-export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
-export const HYPERTEXT_SAID = selector(TESTID.hypertextSaid);
-/** A `.csv` file's page: the table its rows are drawn as, and the line that
- *  says which rows a page this size left out. */
-export const CSV_TABLE = selector(TESTID.csvTable);
-export const CSV_CLAMP = selector(TESTID.csvClamp);
 /** A picture's page: the `<img>`, which is the element that will not run an
  *  SVG. */
 export const IMAGE_VIEW = selector(TESTID.imageView);
@@ -347,27 +352,6 @@ export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 export const DOCUMENT_BODY = selector(TESTID.documentBody);
 /** The way into a document's editor, on its page header. */
 export const DOCUMENT_EDIT = selector(TESTID.documentEdit);
-/** The editor itself — a textarea holding the document's SOURCE, verbatim.
- *  Present exactly while the page is in its edit mode. */
-export const DOCUMENT_EDITOR = selector(TESTID.documentEditor);
-export const DOCUMENT_SAVE = selector(TESTID.documentSave);
-export const DOCUMENT_CANCEL = selector(TESTID.documentCancel);
-/** What the last document write had to say; `data-tone` is which mood. */
-export const DOCUMENT_SAID = selector(TESTID.documentSaid);
-/** The explicit "overwrite anyway" after a conflict refusal. */
-export const DOCUMENT_OVERWRITE = selector(TESTID.documentOverwrite);
-/** The notice, while the editor is open, that the file moved on disk. */
-export const DOCUMENT_DRIFTED = selector(TESTID.documentDrifted);
-/** The two sidebar path boxes — a new outline's and a new document's — are
- *  reached through the client's own table (`file/making.ts`) rather than
- *  through constants here: the steps that drive them are one pair over the
- *  KIND (`step_definitions/new_file_steps.ts`), so a selector per kind spelled
- *  in this file would be the copy that pair exists to delete. */
-/** A document's table of contents, above its body. A `<details>`: whether it is
- *  open is the element's own state. */
-export const TOC = selector(TESTID.toc);
-/** One line of it — a link to a heading in the same page. */
-export const TOC_LINK = selector(TESTID.tocLink);
 /** Every heading of a rendered block. Rendered markdown carries no testid —
  *  its tags come out of a file on disk — so the tags themselves are the
  *  selector, spelled once here like every other one rather than in the steps
@@ -383,29 +367,12 @@ export const BLOCKED = selector(TESTID.blocked);
 export const TIP = selector(TESTID.tip);
 /** A node's free cross-references (`see`). */
 export const SEE_REFS = selector(TESTID.seeRefs);
-/** What a node itself says it comes AFTER — its own field, drawn on its page
- *  beside the DERIVED `blocked by` row above it. The two are different claims:
- *  this one is what `outlines_after` writes, and only this one carries an `×`. */
-export const AFTER_REFS = selector(TESTID.afterRefs);
-/** The `×` on one drawn reference — drop that target. `data-ref` is which. */
-export const REF_DROP = selector(TESTID.refDrop);
 
-// ── what refers to a node, read backwards ──────────────────────────────
-/** The `<details>` under a zoomed node's heading. `data-count` is how many
- *  RECORDS refer to it; the element's own `open` says whether it is unfolded.
- *  Absent on a node nothing refers to. */
-export const BACKLINKS = selector(TESTID.backlinks);
-/** Its summary — the count in words, and what a pointer presses to open it. */
-export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
 /** The same question one kind of thing over: the `<details>` under a
  *  DOCUMENT's body, absent on a document nothing points at. `data-count` is
  *  how many things do — a record that links to it, or another
  *  document whose body links it. */
 export const DOCUMENT_REFERRERS = selector(TESTID.documentReferrers);
-/** Its summary — the count in words, and what a pointer presses to open it. */
-export const DOCUMENT_REFERRERS_SUMMARY = selector(TESTID.documentReferrersSummary);
-/** One row of that list. */
-export const DOCUMENT_REFERRER = selector(TESTID.documentReferrer);
 /**
  * One row inside it, found by the label a READER sees on it — the referrers
  * whose `see` lands here, or the ones whose title or note writes this node's
@@ -466,46 +433,9 @@ export const backlinkRow = (label: string): string => {
   return selector(drawn.refs);
 };
 
-// ── writing a node's edges ─────────────────────────────────────────────
-/** The panel that writes one relation of one node, in place under the row or
- *  under a zoomed node's heading. `data-relation` says which of `see` /
- *  `after`; present only while it is open. */
-export const EDGE_PANEL = selector(TESTID.edgePanel);
 /** What the node says right now, inside that panel — one chip per target. */
 export const EDGE_HELD = selector(TESTID.edgeHeld);
-/** The `×` on one of those chips; `data-ref` is the target it drops. */
-export const EDGE_DROP = selector(TESTID.edgeDrop);
-/** Its search box — the server's own node search, the same one ⌘K, the header
- *  box and the `((` widget call. */
-export const EDGE_SEARCH = selector(TESTID.edgeSearch);
-/** One hit in it; `data-id` is the node it would name. */
-export const EDGE_HIT = selector(TESTID.edgeHit);
-/** What the last edge WRITE said — a refusal verbatim (the loop an `after`
- *  would close), or a nudge. `data-tone` is which mood. Never the same line as
- *  a refused SEARCH. */
-export const EDGE_SAID = selector(TESTID.edgeSaid);
-/** One of the two edge verbs on a zoomed node's page, where a heading has no
- *  `•••` to put them in. `data-relation` says which. */
-export const EDGE_VERB = selector(TESTID.edgeVerb);
 
-// ── carrying a row to a new parent ─────────────────────────────────────
-/** The move-to picker, in place under the row it was opened on. `data-row` is
- *  the RECORD being moved, `data-asked` the query its hits answer. */
-export const MOVE_PICKER = selector(TESTID.movePicker);
-/** Its search box — the server's own node search again, over the whole set. */
-export const MOVE_SEARCH = selector(TESTID.moveSearch);
-/** One destination in it; `data-id` is the node it would go under. */
-export const MOVE_HIT = selector(TESTID.moveHit);
-/** WHY the destination under the cursor cannot take the row — drawn at the
- *  aim, before `Enter`, and absent whenever the aim is a legal one. */
-export const MOVE_REFUSED = selector(TESTID.moveRefused);
-/** What the last MOVE said: the ops layer's refusal, or a nudge from one that
- *  landed. Never the same line as the aim's refusal above. */
-export const MOVE_SAID = selector(TESTID.moveSaid);
-/** The picker's way out for a pointer — and the one place in the panel that is
- *  not the search box, which is what makes it the position Escape has to be
- *  answered from as well. */
-export const MOVE_CLOSE = selector(TESTID.movePickerClose);
 /** One link from a node to another node, in either of those rows. The target
  *  id rides `data-ref`, which is what a scenario picks one by. */
 export const NODE_REF = selector(TESTID.nodeRef);
@@ -550,20 +480,6 @@ export const SEARCH_REFUSAL = selector(TESTID.searchRefusal);
  *  element at all when the door drew everything it found. Scoped by the step
  *  to the door it means, since one name serves both. */
 export const SEARCH_COUNT = selector(TESTID.searchCount);
-/** The date picker, in place under the row it was opened on — from the pill
- *  above, or from the `•••` menu's `Set date…`. Its box is a native
- *  `<input type="date">`, so what it holds is the ten characters the record
- *  will hold; its button's LABEL is the verb, and `Clear date` is the menu's
- *  own words for the same edit once the box has been emptied. */
-export const DATE_PICKER = selector(TESTID.datePicker);
-export const DATE_PICKER_DAY = selector(TESTID.datePickerDay);
-export const DATE_PICKER_TIME = selector(TESTID.datePickerTime);
-export const DATE_PICKER_NO_TIME = selector(TESTID.datePickerNoTime);
-export const DATE_PICKER_SET = selector(TESTID.datePickerSet);
-export const DATE_PICKER_CANCEL = selector(TESTID.datePickerCancel);
-/** Said when the node stores a value a day box cannot hold — a datetime,
- *  quoted verbatim, with what picking a day would do to it. */
-export const DATE_PICKER_NOTICE = selector(TESTID.datePickerNotice);
 /** The `↻` pill beside a date, saying how the node COMES BACK in the format's
  *  own words — and, where the row is editable, the way into the picker below.
  *  `data-picks` carries which of the two it is, exactly as the date pill's
@@ -588,24 +504,12 @@ export const REPEAT_PICKER_CANCEL = selector(TESTID.repeatPickerCancel);
 export const PROPS = selector(TESTID.props);
 export const PROP = selector(TESTID.prop);
 export const PROP_VALUE = selector(TESTID.propValue);
-/** ...and the disclosure a value too long to be a fact is drawn behind. */
-export const PROP_FOLD = selector(TESTID.propFold);
-/** The KEY half of a chip, which is the handle: pressing it opens the value for
- *  editing whatever the value is. A button only where the surface offers
- *  writing. */
-export const PROP_KEY = selector(TESTID.propKey);
 /** The box a value is typed in, in place of the chip's value — and, only while
  *  a NEW property is being named, the box its key is typed in. There is no
  *  panel and no Save button: Enter commits, Escape cancels, leaving commits
  *  what changed. */
 export const PROP_EDIT = selector(TESTID.propEdit);
 export const PROP_EDIT_KEY = selector(TESTID.propEditKey);
-/** The `+` at the end of the run — the door onto adding one, drawn wherever
- *  there is a run to put it at the end of. */
-export const PROP_ADD = selector(TESTID.propAdd);
-/** What the last commit had to say, under the run — a refusal quoted verbatim,
- *  or a nudge that rode back on a write that landed. */
-export const PROP_SAID = selector(TESTID.propSaid);
 /** The rollup badge beside a title: how many of the tasks under this node are
  *  done. An annotation — the node's OWN mark is the checkbox. */
 export const PROGRESS = selector(TESTID.progress);
@@ -615,10 +519,6 @@ export const DESC = selector(TESTID.desc);
  *  a node that HAS one — a note, or a property somebody added — so its absence
  *  is the assertion that a row has nothing under it. */
 export const NOTE_MARK = selector(TESTID.noteMark);
-/** The one FACT a folded row may show beside its title (`client/hot.ts`) —
- *  `pr` on shipped work. The rollup is the other arm of that slot and keeps
- *  `PROGRESS` above. */
-export const HOT_FACT = selector(TESTID.hotFact);
 /** On a collapsed row: how much finished work the fold is holding back. */
 export const FOLDED_DONE = selector(TESTID.foldedDone);
 export const TOGGLE = selector(TESTID.toggle);
@@ -626,21 +526,12 @@ export const TOGGLE = selector(TESTID.toggle);
 export const NODE_MENU = selector(TESTID.nodeMenu);
 export const NODE_MENU_PANEL = selector(TESTID.nodeMenuPanel);
 export const NODE_MENU_ITEM = selector(TESTID.nodeMenuItem);
-/** The question that panel asks before the one verb that takes a branch away.
- *  Present only while it is asking. */
-export const NODE_MENU_CONFIRM = selector(TESTID.nodeMenuConfirm);
-/** What the last verb had to say, beside the `•••`. `data-tone` is which of
- *  the two moods it is in — `alarm` for a refusal, `aside` for a nudge. */
-export const NODE_MENU_SAID = selector(TESTID.nodeMenuSaid);
 /** A row's own line — its gutter controls and title, and nothing from the
  *  rows nested under it. What makes "this node has no checkbox" askable
  *  without reaching into markup shape. */
 export const NODE_GUTTER = selector(TESTID.nodeGutter);
 /** The bullet on every row: the link to that node's own page. */
 export const ZOOM = selector(TESTID.zoom);
-/** The status box beside that bullet: checked for done, half for doing, empty
- *  for todo — and absent entirely on a node with no mark. */
-export const CHECKBOX = selector(TESTID.checkbox);
 /** The caret in a row: an input where the title span was, present only while
  *  that row is being typed in. A page with none of these has no editor open,
  *  which is how "nothing is being edited" is asked. */
@@ -659,18 +550,11 @@ export const NEW_ROW = selector(TESTID.newRow);
  *  the widget rather than inferring it from the rows. */
 export const COMPLETIONS = selector(TESTID.completions);
 export const COMPLETION_ITEM = selector(TESTID.completionItem);
-/** Where a `((` hit sits — the second line of its row. */
-export const COMPLETION_ITEM_PLACE = selector(TESTID.completionItemPlace);
-/** What a write that LANDED had to say — the rollup's nudge, in the same
- *  place and the opposite mood. */
-export const EDIT_NUDGE = selector(TESTID.editNudge);
 /** What the last commit was refused with, under the row it was typed in. */
 export const EDIT_REFUSAL = selector(TESTID.editRefusal);
 /** What ⌘Z / ⌘⇧Z had to say — over the page rather than under a row, because
  *  an undo is pressed with no draft open. `data-tone` is which mood it is. */
 export const UNDO_SAID = selector(TESTID.undoSaid);
-/** The way in on a page with no rows at all. */
-export const START_LINE = selector(TESTID.startLine);
 /** The bullet, as something to pick a row up by. Present on every editable
  *  row; a press that never travels is still the bullet's own link. */
 export const DRAG_HANDLE = selector(TESTID.dragHandle);
@@ -678,22 +562,6 @@ export const DRAG_HANDLE = selector(TESTID.dragHandle);
  *  being dragged. `data-parent`, `data-after` and `data-depth` are what it
  *  PROMISES, which is a prediction right up until the pointer is released. */
 export const DROP_LINE = selector(TESTID.dropLine);
-/** The face a PANE wears while a row is held over it that cannot land there —
- *  the drag's other answer, and never drawn beside the line. `data-file` is the
- *  file that said no, and the sentence inside is the one the selection bar says
- *  once the pointer is released. */
-export const DROP_REFUSED = selector(TESTID.dropRefused);
-/** The band a drag-across pulls — present only while one is being pulled.
- *  `data-rows` is how many rows it is crossing, which is the half of the
- *  gesture that is still a prediction while the pointer is down. */
-export const SWEEP_BAND = selector(TESTID.sweepBand);
-/** The bar a multi-selection draws. `data-rows` is the count the bulk verbs
- *  are asked of — the picked rows nothing else picked contains. */
-export const SELECTION_BAR = selector(TESTID.selectionBar);
-export const SELECTION_TRASH = selector(TESTID.selectionTrash);
-export const SELECTION_CONFIRM = selector(TESTID.selectionConfirm);
-/** Said in the Trash button's place when the pick holds a placement. */
-export const SELECTION_NOTE = selector(TESTID.selectionNote);
 /** What the last bulk gesture — a key over the pick, or a drop — had to say.
  *  `data-tone` is which of the two moods it is in. */
 export const SELECTION_SAID = selector(TESTID.selectionSaid);
@@ -719,20 +587,6 @@ export const DAY_MINT = selector(PLUGIN_TESTID.dayMint);
 export const DAY_MINT_SAID = selector(PLUGIN_TESTID.dayMintSaid);
 export const DAY_GROUP = selector(PLUGIN_TESTID.dayGroup);
 export const DAY_EMPTY = selector(PLUGIN_TESTID.dayEmpty);
-/** The agenda: the same dates read forward. `data-date` is the day it was
- *  answered for, which `/agenda` does not spell. */
-export const AGENDA_PAGE = selector(PLUGIN_TESTID.agendaPage);
-/** THE LINE, drawn exactly when something is owed — so its absence is a claim
- *  the page makes and not a layout accident. */
-export const AGENDA_SPINE = selector(PLUGIN_TESTID.agendaSpine);
-/** One day ON that line. `data-date` is which day, `data-when` is which side of
- *  now it sits on, and its heading is the link to that day's own page. */
-export const AGENDA_DAY = selector(PLUGIN_TESTID.agendaDay);
-/** A silence worth naming beside the line; `data-days` is how long the wait
- *  was. Absent wherever a gap is too short to be worth a word. */
-export const AGENDA_QUIET = selector(PLUGIN_TESTID.agendaQuiet);
-/** Said in place of the line when nothing is due. */
-export const AGENDA_EMPTY = selector(PLUGIN_TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(PLUGIN_TESTID.agendaLink);
 /** The padi chrome readout — desktop, between connection and the Commit pill. */
@@ -744,57 +598,8 @@ export const SPACES_PILL = selector(PLUGIN_TESTID.spaces);
 export const PADI_FEED = selector(PLUGIN_TESTID.padiFeed);
 export const PADI_FEED_FOOT = selector(PLUGIN_TESTID.padiFeedFoot);
 export const PADI_FEED_WRENCH = selector(PLUGIN_TESTID.padiFeedWrench);
-/** What that entry REPORTS, wrapped round the link: `data-owed` is the face it
- *  wears (`overdue` / `today` / `quiet`) and `data-overdue` / `data-today` are
- *  the two counts, whichever of them is on screen. */
-export const AGENDA_OWED = selector(PLUGIN_TESTID.agendaOwed);
-/** The number on it. Absent when nothing is owed — a quiet entry wears no chip
- *  rather than a zero. */
-export const AGENDA_COUNT = selector(PLUGIN_TESTID.agendaCount);
-/** The trash: the one `_olai/Trash.olai` the directory holds, read-only, one verb. */
-export const TRASH_PAGE = selector(TESTID.trashPage);
-/** One row of it — a trashed node; `data-node-id` is which. */
-export const TRASH_ROW = selector(TESTID.trashRow);
-/** The one verb a trash row offers. */
-export const TRASH_PUT_BACK = selector(TESTID.trashPutBack);
-/** What the last put-back had to say, under its row; `data-tone` is the mood. */
-export const TRASH_SAID = selector(TESTID.trashSaid);
-/** Said in the rows' place when nothing is in the trash. */
-export const TRASH_EMPTY = selector(TESTID.trashEmpty);
-/** The page's OWN verb: empty the Trash for good. Drawn only when the
- *  trash holds something, and never taken away by a filter. One id for its
- *  three states, so a step reaches the control rather than a state of it. */
-export const TRASH_EMPTY_VERB = selector(TESTID.trashEmptyVerb);
-/** The question that replaces it before anything is written. */
-export const TRASH_EMPTY_CONFIRM = selector(TESTID.trashEmptyConfirm);
-/** The way out of that question, which writes nothing. */
-export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
-/** What the emptying said — the PAGE's line, since the write is about the
- *  one trash and there is no row to put it under. */
-export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
-/** THE VAULT'S OWN FILES — the `_olai/` outlines' rows nested under the
- *  foot's `olai` parent; `data-file` is which. */
-export const VAULT_LINK = selector(TESTID.vaultLink);
-/** THE FURNITURE'S PARENT — the one row the `_olai/` outlines and the
- *  Trash nest under, at the foot of the directory column. It is no
- *  page: its children are the doors. */
-export const VAULT_GROUP = selector(TESTID.vaultGroup);
-/** And the way to the INBOX, beside Agenda — drawn only when the directory
- *  has one, which is what the scenarios about a never-captured vault read. */
-export const INBOX_LINK = selector(TESTID.inboxLink);
-/** What that entry REPORTS, wrapped round the link: `data-count` is how many
- *  rows of the inbox are marked `todo` or `doing`, at any depth. */
-export const INBOX_HELD = selector(TESTID.inboxHeld);
-/** The number on it. Absent when the inbox is empty — a quiet door wears no
- *  chip rather than a zero. */
-export const INBOX_COUNT = selector(TESTID.inboxCount);
-/** THE day's note, above those groups: a document named for the date itself.
- *  `data-file` is which. */
-export const DAY_NOTE = selector(PLUGIN_TESTID.dayNote);
-/** Its heading — the way from the day to the document's own page. */
-export const DAY_NOTE_LINK = selector(PLUGIN_TESTID.dayNoteLink);
 /** Shown when the address names no file the directory holds. The sidebar stays.
  *  Distinct from {@link NOT_FOUND}, which is a `/#id` that names no node. */
 export const NOTHING = selector(TESTID.nothing);
@@ -807,17 +612,6 @@ export const NOT_FOUND = selector(TESTID.notFound);
  *  was replaced. */
 export const ERROR_VIEW = selector(TESTID.errorView);
 export const ERROR_ROW = selector(TESTID.error);
-/** Shown OVER pages that are LIVE: which files of the directory are broken. It
- *  keeps the name it had when it meant "showing the last good version", which
- *  is now only what it says for a directory that could not be READ at all. */
-export const STALE_BANNER = selector(TESTID.staleBanner);
-/** ONE broken file's line inside that banner — its path, its state and a row
- *  COUNT, and never the rows themselves: the banner is drawn over somebody
- *  else's page (`last-good-banner-flood`, and `@olai/format`'s `summaryOf`,
- *  which has no way to hand a surface a row). */
-export const BROKEN_FILE_LINE = selector(TESTID.brokenFileLine);
-/** …and the door on that line, to the broken file's own page. */
-export const BROKEN_FILE_LINK = selector(TESTID.brokenFileLink);
 /** Shown IN ONE outline's place: that file is broken, the rest are live. */
 export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is
@@ -899,8 +693,6 @@ export const RELOAD = selector(TESTID.reload);
  *  around the shell caught it. Its `fault-detail` is what threw, verbatim. */
 export const FAULT = selector(TESTID.fault);
 export const FAULT_DETAIL = selector(TESTID.faultDetail);
-/** The card's second way out, off the page that faulted. */
-export const FAULT_HOME = selector(TESTID.faultHome);
 
 /**
  * The preferences: the header's one trigger, the panel behind it, and what is
@@ -962,38 +754,6 @@ export const COMMIT_PILL = selector(PLUGIN_TESTID.commitPill);
 export const UPTIME = selector(TESTID.uptime);
 export const GIT_NEWS = selector(PLUGIN_TESTID.gitNews);
 export const COMMIT_PANEL = selector(PLUGIN_TESTID.commitPanel);
-/** What olai last recorded here, in the panel — or the words that say it never
- *  has, which is a fact no count of what is pending can express. */
-export const COMMIT_LAST = selector(PLUGIN_TESTID.commitLast);
-/** One node that changed. `data-sort` is WHAT changed about it — never the
- *  words it is rendered as, which the view is entitled to reword. */
-export const COMMIT_CHANGE = selector(PLUGIN_TESTID.commitChange);
-export const COMMIT_MESSAGE = selector(PLUGIN_TESTID.commitMessage);
-export const COMMIT_NOW = selector(PLUGIN_TESTID.commitNow);
-export const COMMIT_BLOCKED = selector(PLUGIN_TESTID.commitBlocked);
-/** One dirty file that is NOT a served outline — a document a person edited, a
- *  source file, an outline outside the served root. `data-path` is which and
- *  `data-how` what happened to it, never the chip's own words. */
-export const COMMIT_OTHER = selector(PLUGIN_TESTID.commitOther);
-/** The box that says whether a file is going into this commit; `data-path` is
- *  which file. Everything is ticked until somebody says otherwise. */
-export const COMMIT_TICK = selector(PLUGIN_TESTID.commitTick);
-/** What the panel is a list OF — the whole repository, and the part of it olai
- *  serves. */
-export const COMMIT_SCOPE = selector(PLUGIN_TESTID.commitScope);
-/** What is committed here and nowhere else; `data-commits` is how many. */
-export const COMMIT_UNPUSHED = selector(PLUGIN_TESTID.commitUnpushed);
-export const COMMIT_PUSH = selector(PLUGIN_TESTID.commitPush);
-/** What git said when it last refused a push, verbatim. Off the git cell, so
- *  it is there for whoever opens the panel rather than only for the tab that
- *  made the request. */
-export const COMMIT_PUSH_REFUSED = selector(PLUGIN_TESTID.commitPushRefused);
-/** Why the quiet-window loop stopped, in git's own words. Absent while the loop
- *  is running, which is what makes its PRESENCE the fact a scenario asserts. */
-export const COMMIT_AUTO_PAUSED = selector(PLUGIN_TESTID.commitAutoPaused);
-/** What Auto-commit is about to do with what the panel is listing. Drawn only
- *  while it really is going to happen. */
-export const COMMIT_AUTO_ARMED = selector(PLUGIN_TESTID.commitAutoArmed);
 
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the
@@ -1024,107 +784,10 @@ export const HEADER_SEARCH_OPEN = selector(PLUGIN_TESTID.headerSearchOpen);
 export const HEADER_SEARCH_RESULTS = selector(PLUGIN_TESTID.headerSearchResults);
 export const PIN_SHELF = selector(TESTID.pinShelf);
 
-export const CHAT_TITLE = selector(PLUGIN_TESTID.chatTitle);
-export const CHAT_WORKING = selector(PLUGIN_TESTID.chatWorking);
-export const CHAT_MODEL = selector(PLUGIN_TESTID.chatModel);
-/** WHO the conversation is with, beside the model. `data-agent` is the roster's
- *  own id, so a scenario names an agent rather than reading a brand name. */
-export const CHAT_AGENT = selector(PLUGIN_TESTID.chatAgent);
-/** The mark in front of that name — its own selector because "icon and name"
- *  is the ruling, and a name with no mark passes an assertion about the name. */
-export const CHAT_AGENT_MARK = selector(PLUGIN_TESTID.chatAgentMark);
-/** The picker: which agent this conversation is with. */
-export const CHAT_CHOOSE = selector(PLUGIN_TESTID.chatChoose);
-/** One agent in it. */
-export const CHAT_CHOOSE_AGENT = selector(PLUGIN_TESTID.chatChooseAgent);
-/** The way out of the picker `+ new` raised — absent when the panel is asking
- *  because it HAS no conversation. */
-export const CHAT_CHOOSE_CANCEL = selector(PLUGIN_TESTID.chatChooseCancel);
-/** One agent the no-agent face tells you how to install. */
-export const CHAT_INSTALL = selector(PLUGIN_TESTID.chatInstall);
-/** The composer PROMISING that a message sent now waits its turn at the agent
- *  and is got to when the running turn is over — drawn while a turn runs, for
- *  an agent whose queue is a fact olai has rather than a guess. */
-export const CHAT_QUEUES = selector(PLUGIN_TESTID.chatQueues);
-/** The strip between the transcript and the box while the panel is busy —
- *  what a person sees when a turn or a boot is in flight and nothing has
- *  arrived to look at yet. */
-export const CHAT_BUSY = selector(PLUGIN_TESTID.chatBusy);
-export const CHAT_SESSIONS = selector(PLUGIN_TESTID.chatSessions);
-export const CHAT_SESSION_LIST = selector(PLUGIN_TESTID.chatSessionList);
-export const CHAT_SESSIONS_REFUSED = selector(PLUGIN_TESTID.chatSessionsRefused);
-export const CHAT_SESSION = selector(PLUGIN_TESTID.chatSession);
-/** The heading over one agent's rows in the unassigned list. Drawn only where more
- *  than one agent has conversations here. */
-export const CHAT_SESSION_AGENT = selector(PLUGIN_TESTID.chatSessionAgent);
-/** One agent in that list that could not be asked what it has stored. Its own
- *  selector and not the whole call's refusal, because the two are two states:
- *  this one leaves every other agent's conversations on the screen. */
-export const CHAT_SESSION_UNREACHABLE = selector(PLUGIN_TESTID.chatSessionUnreachable);
-/** The line under one row saying WHICH conversation replaced this one — it
- *  carries `data-successor`, because the successor need not be on the screen
- *  and the sentence alone could not pick it out of two sharing a title. */
-export const CHAT_SESSION_SUPERSEDED = selector(PLUGIN_TESTID.chatSessionSuperseded);
-export const CHAT_TRANSCRIPT = selector(PLUGIN_TESTID.chatTranscript);
-/** The strip under the chat header: which MCP servers this conversation has.
- *  Drawn on every conversation, so its absence means there is none. */
-export const CHAT_ROSTER = selector(PLUGIN_TESTID.chatRoster);
-/** One server on it. `data-server` is its name and `data-standing` is how it
- *  stands — the state as data, because which glyph says "connected" is a
- *  decision about pixels. */
-export const CHAT_SERVER = selector(PLUGIN_TESTID.chatServer);
-/** The line saying the list is not the whole of what the agent can reach. */
-export const CHAT_ROSTER_OWN = selector(PLUGIN_TESTID.chatRosterOwn);
-export const CHAT_MISSING = selector(PLUGIN_TESTID.chatMissing);
-export const CHAT_MISSING_SERVER = selector(PLUGIN_TESTID.chatMissingServer);
-export const CHAT_MISSING_WHY = selector(PLUGIN_TESTID.chatMissingWhy);
-export const CHAT_NO_AGENT = selector(PLUGIN_TESTID.chatNoAgent);
-export const CHAT_UNOPENED = selector(PLUGIN_TESTID.chatUnopened);
-export const CHAT_UNOPENED_WHY = selector(PLUGIN_TESTID.chatUnopenedWhy);
-export const CHAT_REOPEN = selector(PLUGIN_TESTID.chatReopen);
-export const CHAT_ENTRY = selector(PLUGIN_TESTID.chatEntry);
-export const CHAT_NEW = selector(PLUGIN_TESTID.chatNew);
 export const CHAT_ENTRY_STREAMING =
   `${selector(PLUGIN_TESTID.chatEntry)}[data-kind="agent"][data-streaming="true"]`;
-export const CHAT_TOOL = selector(PLUGIN_TESTID.chatTool);
 
-export const CHAT_TOOL_FILE = selector(PLUGIN_TESTID.chatToolFile);
-export const CHAT_TOOL_CALLED = selector(PLUGIN_TESTID.chatToolCalled);
-export const CHAT_TOOL_REPLY = selector(PLUGIN_TESTID.chatToolReply);
 
-export const CHAT_TOOL_TEXT = selector(PLUGIN_TESTID.chatToolText);
-export const CHAT_TOOL_FOLD = selector(PLUGIN_TESTID.chatToolFold);
-export const CHAT_TOOL_DETAIL = selector(PLUGIN_TESTID.chatToolDetail);
-export const CHAT_TOOL_PROGRESS = selector(PLUGIN_TESTID.chatToolProgress);
-export const CHAT_TOOL_REPORT = selector(PLUGIN_TESTID.chatToolReport);
-export const CHAT_TOOL_LOCATIONS = selector(PLUGIN_TESTID.chatToolLocations);
-export const CHAT_TOOL_ELAPSED = selector(PLUGIN_TESTID.chatToolElapsed);
-export const CHAT_LANE = selector(PLUGIN_TESTID.chatLane);
-export const CHAT_LANE_LABEL = selector(PLUGIN_TESTID.chatLaneLabel);
-export const CHAT_LANE_DOOR = selector(PLUGIN_TESTID.chatLaneDoor);
-export const CHAT_PREVIEW = selector(PLUGIN_TESTID.chatPreview);
-export const CHAT_PREVIEW_OF = selector(PLUGIN_TESTID.chatPreviewOf);
-export const CHAT_PREVIEW_ASKED = selector(PLUGIN_TESTID.chatPreviewAsked);
-export const CHAT_PREVIEW_NOTHING = selector(PLUGIN_TESTID.chatPreviewNothing);
-export const CHAT_SPAWN = selector(PLUGIN_TESTID.chatSpawn);
-export const CHAT_SPAWN_WORKING = selector(PLUGIN_TESTID.chatSpawnWorking);
-export const CHAT_ARMED = selector(PLUGIN_TESTID.chatArmed);
-export const CHAT_WATCHING = selector(PLUGIN_TESTID.chatWatching);
-export const CHAT_WATCHING_TASK = selector(PLUGIN_TESTID.chatWatchingTask);
-export const CHAT_WATCHING_FOR = selector(PLUGIN_TESTID.chatWatchingFor);
-export const CHAT_ARMED_ENDED = selector(PLUGIN_TESTID.chatArmedEnded);
-export const CHAT_ARMED_STILL = selector(PLUGIN_TESTID.chatArmedStill);
-/** THE STRIP UNDER THOSE: what this conversation WAKES ON. One line per
- *  running plugin that declares a doorbell, and the file a person pointed it
- *  at. Absent where there is no conversation to be scoped. */
-export const CHAT_WAKE_FAULT = selector(PLUGIN_TESTID.chatWakeFault);
-export const CHAT_WAKE_WAITING = selector(PLUGIN_TESTID.chatWakeWaiting);
-export const CHAT_WAKE = selector(PLUGIN_TESTID.chatWake);
-/** One plugin's control on it. `data-plugin` is whose doorbell and `data-file`
- *  is the path or the word `off` — the STATE AS DATA, because the words around
- *  it are the plugin's own sentence and a scenario asserting those would be
- *  asserting somebody else's vocabulary. */
-export const CHAT_WAKE_PICKER = selector(PLUGIN_TESTID.chatWakePicker);
 /** In the file list it opens: the box that narrows it, and one offered file
  *  (`data-file` is the path a press scopes this conversation to). */
 export const CHAT_WAKE_QUERY = selector(PLUGIN_TESTID.chatWakeQuery);
@@ -1151,22 +814,6 @@ export const CHAT_ASK_DISMISS = selector(PLUGIN_TESTID.chatAskDismiss);
 export const CHAT_ASK_OUTCOME = selector(PLUGIN_TESTID.chatAskOutcome);
 export const CHAT_GRIP = selector(PLUGIN_TESTID.chatGrip);
 export const CHAT_INPUT = selector(PLUGIN_TESTID.chatInput);
-/** The strip on a `user` row that did not land, saying WHICH way in
- *  `data-delivery`, and the button that tries again — which only one of the two
- *  faces has. The words stay in the bubble above both. */
-export const CHAT_DELIVERY = selector(PLUGIN_TESTID.chatDelivery);
-/** The strip on a `user` row the agent has not started on: it went out while a
- *  turn was running and is waiting its turn there. Not a delivery — nothing has
- *  failed — and it goes away when the agent takes the message up. */
-export const CHAT_QUEUED = selector(PLUGIN_TESTID.chatQueued);
-export const CHAT_RESEND = selector(PLUGIN_TESTID.chatResend);
-export const CHAT_WAITING = selector(PLUGIN_TESTID.chatWaiting);
-export const CHAT_SEND = selector(PLUGIN_TESTID.chatSend);
-/** The other send: put these words INTO the turn the agent is running. Drawn
- *  only while there is a turn to interrupt and only for an agent that said it
- *  takes one — the visible door onto Alt+Enter, which is the same gesture. */
-export const CHAT_INTERRUPT = selector(PLUGIN_TESTID.chatInterrupt);
-export const CHAT_CANCEL = selector(PLUGIN_TESTID.chatCancel);
 /** The shortlist over the message box, and one row of it. Both lists the
  *  composer completes draw the same box — the agent's commands under a `/`,
  *  what the directory holds under an `@` — so the row is named by its
@@ -1177,29 +824,6 @@ export const CHAT_CANCEL = selector(PLUGIN_TESTID.chatCancel);
 export const CHAT_COMPLETION = selector(PLUGIN_TESTID.chatCompletion);
 export const CHAT_COMPLETION_ROW = selector(PLUGIN_TESTID.chatCompletionRow);
 export const CHAT_COMPLETION_SECTION = selector(PLUGIN_TESTID.chatCompletionSection);
-/** A picture on a message — pending in the composer, or sent, on the row. Its
- *  `data-name` is the file name, which is the only thing about it every tab
- *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */
-export const CHAT_ATTACHMENT = selector(PLUGIN_TESTID.chatAttachment);
-export const CHAT_ATTACHMENT_PREVIEW = selector(PLUGIN_TESTID.chatAttachmentPreview);
-/** How big a NON-picture attachment is, beside its name — what a document
- *  chip says where a picture shows itself. */
-export const CHAT_ATTACHMENT_SIZE = selector(PLUGIN_TESTID.chatAttachmentSize);
-/** The `+` beside the box: the file picker, and one of the two way-ins on a
- *  phone. */
-export const CHAT_ATTACH_BUTTON = selector(PLUGIN_TESTID.chatAttachButton);
-/** The camera beside the `+` — drawn only where the primary pointer is
- *  coarse (`web/src/client/chat/camera.ts`): on a desktop it is absent by
- *  design, which is the fact a desktop scenario asserts. */
-export const CHAT_CAMERA_BUTTON = selector(PLUGIN_TESTID.chatCameraButton);
-/** The panel saying a dragged file would land HERE. Present only while a drag
- *  carrying files is over the panel's body. */
-export const CHAT_DROP = selector(PLUGIN_TESTID.chatDrop);
-/** A node a message is ABOUT — armed in the composer, or sent, on the row.
- *  `data-node` is the id, which is what was armed and what was sent. */
-export const CHAT_CONTEXT = selector(PLUGIN_TESTID.chatContext);
-export const CHAT_CONTEXT_CHIP = selector(PLUGIN_TESTID.chatContextChip);
-export const CHAT_CONTEXT_REMOVE = selector(PLUGIN_TESTID.chatContextRemove);
 /** What the agent said, rendered. Reached by the scenarios that ask whether an
  *  id INSIDE it became a reference — everything else about an answer is read
  *  off the transcript as text. */
@@ -1208,30 +832,6 @@ export const CHAT_SAID = selector(PLUGIN_TESTID.chatSaid);
  *  asks whether the human's words sat apart from the agent's finds them here,
  *  never by filtering the transcript for a string both speakers might use. */
 export const CHAT_MINE = selector(PLUGIN_TESTID.chatMine);
-/** ... and the third speaker in that lane: a sentence a PLUGIN put there
- *  through the doorbell somebody scoped this conversation to. It is a `user`
- *  row like `CHAT_MINE` and deliberately not drawn as one — the full column, on
- *  the left, never the accent bubble that means *you said this* — so a scenario
- *  asking "did I say this" is never handed a machine's words. `data-rang-by` is
- *  which plugin rang. */
-export const CHAT_RANG = selector(PLUGIN_TESTID.chatRang);
-/** ... FOLDED to one line, and the control that opens it. A machine's row draws
- *  its essence line and nothing else until somebody asks — the discipline a
- *  tool row already keeps, and the reason a delivery is not a paragraph wall in
- *  the middle of a conversation. The AGENT is handed the whole body either way;
- *  the fold is a fact about a reader's eye. */
-/** The MARK over a machine's row — whose face is talking. `data-mark` is the
- *  plugin's own name where the plugin contributed one, and `generic` where it
- *  did not. */
-export const CHAT_PLUGIN_MARK = selector(PLUGIN_TESTID.chatPluginMark);
-/** The head a machine's row is folded TO — the plain sentence a glance reads,
- *  and where the one pressable reference lives. */
-export const CHAT_RANG_BYLINE = selector(PLUGIN_TESTID.chatRangByline);
-export const CHAT_RANG_FOLD = selector(PLUGIN_TESTID.chatRangFold);
-/** What the fold holds back — the ids, the marks, the derivation. NOT IN THE
- *  PAGE until the row is open, which is what lets a scenario assert the fold
- *  without asserting a word the plugin wrote. */
-export const CHAT_RANG_BODY = selector(PLUGIN_TESTID.chatRangBody);
 /** A node named in the panel and pressable, by the id it points at. One
  *  selector for all three shapes — a chip, the node an olai write was about,
  *  and an id the agent wrote in its own prose — because they are one

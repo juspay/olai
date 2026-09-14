@@ -16,12 +16,10 @@ import {
   APP_HEADER,
   attr,
   BLOCKED,
-  CHECKBOX,
   DATE,
   DESC,
   expectGone,
   FOLDED_DONE,
-  HOT_FACT,
   NODE,
   NODE_GUTTER,
   NODE_MENU,
@@ -39,6 +37,10 @@ import {
   TOOK,
   ZOOM,
 } from "@olai/tests/harness/world.ts";
+import {
+  CHECKBOX,
+  HOT_FACT,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 Then("the tree is shown", async function (this: OlaiWorld) {

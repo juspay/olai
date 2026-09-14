@@ -41,13 +41,15 @@ import {
   nodeSelector,
   OUTLINE_TREE,
   POLL_TIMEOUT,
+  SELECTION_SAID,
+} from "@olai/tests/harness/world.ts";
+import {
   SELECTION_BAR,
   SELECTION_CONFIRM,
   SELECTION_NOTE,
-  SELECTION_SAID,
   SELECTION_TRASH,
   SWEEP_BAND,
-} from "@olai/tests/harness/world.ts";
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── dragging ───────────────────────────────────────────────────────────

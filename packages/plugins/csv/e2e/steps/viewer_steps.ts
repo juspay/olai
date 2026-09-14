@@ -32,8 +32,6 @@ import { mediaHref } from "@olai/surface";
 
 import { attr } from "@olai/tests/harness/selectors.ts";
 import {
-  CSV_CLAMP,
-  CSV_TABLE,
   DOCUMENT_EDIT,
   DOCUMENT_PAGE,
   FILE_GLYPH,
@@ -42,6 +40,10 @@ import {
   PDF_EMBED,
   rowsOfKind,
 } from "@olai/tests/harness/world.ts";
+import {
+  CSV_CLAMP,
+  CSV_TABLE,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── the rows in the tree ───────────────────────────────────────────────

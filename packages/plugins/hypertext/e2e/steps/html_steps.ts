@@ -42,10 +42,12 @@ import {
   HEADINGS,
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
-  HYPERTEXT_PREVIEW,
-  HYPERTEXT_SAID,
   POLL_TIMEOUT,
 } from "@olai/tests/harness/world.ts";
+import {
+  HYPERTEXT_PREVIEW,
+  HYPERTEXT_SAID,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── the row in the tree ────────────────────────────────────────────────

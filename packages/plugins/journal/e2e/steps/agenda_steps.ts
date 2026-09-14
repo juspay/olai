@@ -30,14 +30,7 @@ import { shiftDay } from "@olai/format";
 import { isoDayOf } from "@olai/web/testlib";
 
 import {
-  AGENDA_COUNT,
-  AGENDA_DAY,
-  AGENDA_EMPTY,
   AGENDA_LINK,
-  AGENDA_OWED,
-  AGENDA_PAGE,
-  AGENDA_QUIET,
-  AGENDA_SPINE,
   attr,
   DATE,
   DAY_GROUP,
@@ -48,8 +41,17 @@ import {
   NODE,
   nodeSelector,
   POLL_TIMEOUT,
-  RAIL_AGENDA,
 } from "@olai/tests/harness/world.ts";
+import {
+  AGENDA_COUNT,
+  AGENDA_DAY,
+  AGENDA_EMPTY,
+  AGENDA_OWED,
+  AGENDA_PAGE,
+  AGENDA_QUIET,
+  AGENDA_SPINE,
+  RAIL_AGENDA,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** A day counted from today, in the reader's own zone: the browser's own day

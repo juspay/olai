@@ -22,9 +22,7 @@ import {
   NODE,
   DOCUMENT_LINK,
   DOCUMENT_PAGE,
-  DOCUMENT_REFERRER,
   DOCUMENT_REFERRERS,
-  DOCUMENT_REFERRERS_SUMMARY,
   HYDRATION_TIMEOUT,
   NOTHING,
   oneLine,
@@ -33,6 +31,10 @@ import {
   PROP_VALUE,
   PROPS,
 } from "@olai/tests/harness/world.ts";
+import {
+  DOCUMENT_REFERRER,
+  DOCUMENT_REFERRERS_SUMMARY,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── documents in the file tree ─────────────────────────────────────────

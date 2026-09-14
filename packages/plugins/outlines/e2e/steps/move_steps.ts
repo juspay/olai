@@ -22,15 +22,17 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import {
   attr,
+  POLL_TIMEOUT,
+  TAG,
+} from "@olai/tests/harness/world.ts";
+import {
   MOVE_CLOSE,
   MOVE_HIT,
   MOVE_PICKER,
   MOVE_REFUSED,
   MOVE_SAID,
   MOVE_SEARCH,
-  POLL_TIMEOUT,
-  TAG,
-} from "@olai/tests/harness/world.ts";
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
 import { answering } from "@olai/tests/harness/shortlist.ts";

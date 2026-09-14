@@ -30,15 +30,17 @@ import {
   attr,
   BACKSTOP_STEP_TIMEOUT,
   BACKSTOP_TIMEOUT,
-  BROKEN_FILE_LINE,
-  BROKEN_FILE_LINK,
   ERROR_ROW,
   NODE,
   OUTLINE_FAILURE,
   OUTLINE_LINK,
   POLL_TIMEOUT,
-  STALE_BANNER,
 } from "@olai/tests/harness/world.ts";
+import {
+  BROKEN_FILE_LINE,
+  BROKEN_FILE_LINK,
+  STALE_BANNER,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── writing ────────────────────────────────────────────────────────────

@@ -27,15 +27,17 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import {
   attr,
-  BACKLINKS,
   backlinkRow,
-  BACKLINKS_SUMMARY,
   detailsOpen,
   NODE_REF,
   POLL_TIMEOUT,
   rowReads,
   ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
+import {
+  BACKLINKS,
+  BACKLINKS_SUMMARY,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 Then(

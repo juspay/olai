@@ -47,7 +47,6 @@ import { retypedAndTaken } from "@olai/tests/harness/atonce.ts";
 import { announcedAs, saysNothing, saysThat } from "@olai/tests/harness/said.ts";
 import {
   DESC_EDITOR,
-  EDIT_NUDGE,
   EDIT_REFUSAL,
   expectBefore,
   NEW_ROW,
@@ -55,10 +54,13 @@ import {
   NODE_TITLE,
   nodeSelector,
   POLL_TIMEOUT,
-  START_LINE,
   TAG,
   TITLE_EDITOR,
 } from "@olai/tests/harness/world.ts";
+import {
+  EDIT_NUDGE,
+  START_LINE,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── opening an editor ──────────────────────────────────────────────────

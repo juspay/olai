@@ -19,19 +19,21 @@ import {
   DAY_MINT_SAID,
   DAY_PAGE,
   DOCUMENT_BODY,
-  DOCUMENT_CANCEL,
-  DOCUMENT_DRIFTED,
   DOCUMENT_EDIT,
-  DOCUMENT_EDITOR,
-  DOCUMENT_OVERWRITE,
   DOCUMENT_PAGE,
-  DOCUMENT_SAID,
-  DOCUMENT_SAVE,
   expectAbsent,
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
 } from "@olai/tests/harness/world.ts";
+import {
+  DOCUMENT_CANCEL,
+  DOCUMENT_DRIFTED,
+  DOCUMENT_EDITOR,
+  DOCUMENT_OVERWRITE,
+  DOCUMENT_SAID,
+  DOCUMENT_SAVE,
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── the editor ─────────────────────────────────────────────────────────

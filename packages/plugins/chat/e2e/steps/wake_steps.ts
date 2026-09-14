@@ -31,24 +31,26 @@ import type { Locator } from "@olai/tests/harness/playwright.ts";
 
 import {
   attr,
-  CHAT_ENTRY,
   CHAT_MINE,
+  CHAT_INPUT,
+  CHAT_WAKE_FILE,
+  CHAT_WAKE_QUERY,
+  NODE_REF_ANY,
+  POLL_TIMEOUT,
+} from "@olai/tests/harness/world.ts";
+import {
+  CHAT_ENTRY,
   CHAT_PLUGIN_MARK,
   CHAT_RANG,
   CHAT_RANG_BODY,
   CHAT_RANG_BYLINE,
   CHAT_RANG_FOLD,
   CHAT_RESEND,
-  CHAT_INPUT,
   CHAT_WAKE,
-  CHAT_WAKE_FILE,
   CHAT_WAKE_FAULT,
   CHAT_WAKE_WAITING,
   CHAT_WAKE_PICKER,
-  CHAT_WAKE_QUERY,
-  NODE_REF_ANY,
-  POLL_TIMEOUT,
-} from "@olai/tests/harness/world.ts";
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 // ── the control ────────────────────────────────────────────────────────

@@ -13,10 +13,12 @@ import {
   PADI_FEED_WRENCH,
   POLL_TIMEOUT,
   TRASH_LINK,
+  type OlaiWorld,
+} from "@olai/tests/harness/world.ts";
+import {
   VAULT_GROUP,
   VAULT_LINK,
-  type OlaiWorld,
-} from "@olai/tests/harness/world.ts"
+} from "../selectors.ts";
 
 /** The pill, spelled once: the readout's stepping stone is the same link
  *  `terminal_door_steps.ts` asserts its faces on. */

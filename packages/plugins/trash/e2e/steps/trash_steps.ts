@@ -19,17 +19,19 @@ import {
   expectGone,
   oneLine,
   POLL_TIMEOUT,
+  TRASH_LINK,
+} from "@olai/tests/harness/world.ts";
+import {
   TRASH_EMPTY,
   TRASH_EMPTY_CANCEL,
   TRASH_EMPTY_CONFIRM,
   TRASH_EMPTY_VERB,
-  TRASH_LINK,
   TRASH_PAGE,
   TRASH_PAGE_SAID,
   TRASH_PUT_BACK,
   TRASH_ROW,
   TRASH_SAID,
-} from "@olai/tests/harness/world.ts";
+} from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** One trash row, by the archived node it draws. A selector string for the
