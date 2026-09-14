@@ -34,6 +34,8 @@ Every reading was captured live against **omp 18.1.21**. Each is safe to lose in
 - **a server that will not connect fails the conversation open.** omp reports nothing per server over ACP, so a session whose MCP server is unreachable fails `session/new` outright rather than coming up with one row marked broken; the servers strip stays at *handed* for every row, always.
 - **its fan-outs draw flat.** Nothing on an omp frame says which call spawned an agent, so every call is drawn in one column rather than in lanes. That is the direction this is safe to be wrong in.
 
+Screenshots, both from a real conversation against **omp 18.1.21** through this panel: [a read drawn as olai's own tool](../images/omp/omp-olai-read.png) — `outlines_read`'s friendly title, the outline it touched, and the reply read out of the `write` it was dispatched through — and [a mid-turn send replacing the turn](../images/omp/omp-busy-send.png) — the first row *cancelled*, the second answered, and the panel idle rather than wedged.
+
 ## Where to get it
 
 <https://github.com/can1357/oh-my-pi>, then make sure `omp` is on the PATH the olai **server** has.
