@@ -842,7 +842,26 @@ Feature: Choosing a node agent's engine
     Then the model picker offers only "Claude Sonnet 5"
     When I pick the model under the cursor
     Then the panel header names the model "Claude Sonnet 5"
+    And the caret is back on the model picker
     And the model picker is shut
+
+  @omp @scratch:chat
+  Scenario: Arrows scroll a long model list to keep the row under the cursor on screen
+    # 32 offered models, and the picker's frame clips at `max-h-80`: the DOWN
+    # walks must drag the list so the row they would take stays visible, which
+    # is the case the box exists for (omp's real list is 84). The DOWN arm of
+    # the wrap is this walk; the UP arm is the second press at the top.
+    When I open the "Oh My Pi" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I open the session settings
+    And I press "ArrowDown" 20 times in the model filter
+    Then the model list has scrolled to the row under the cursor
+    When I press "ArrowUp" 20 times in the model filter
+    Then the model list is back at the top
+    # ...and UP from the top row wraps to the BOTTOM of the list, which is the
+    # same rule one row over: the cursor moves, the pane follows.
+    When I press "ArrowUp" in the model filter
+    Then the model list has scrolled to the row under the cursor
 
   @omp @scratch:chat
   Scenario: A message the agent is too busy with its own work to take keeps its words

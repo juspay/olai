@@ -113,6 +113,17 @@ export interface InlinePicker<T> {
    *  is `./dismiss.ts`'s own division: it hands the caret back for the key and
    *  leaves it alone for a press. */
   readonly shut: () => void
+  /**
+   * The caret onto the control that opens the list, and nothing else.
+   *
+   * The dismissal's own answer to Escape and to a trigger press is the
+   * trigger; a TAKE is neither of those gestures but a keyboard can make it
+   * just as well (an `Enter` on a row), and a shut keyed that way would
+   * otherwise leave the caret on `<body>` — the element it was on is gone.
+   * The element is this module's (`setTrigger` is where it was told), so
+   * the only door for it is this one.
+   */
+  readonly focusTrigger: () => void
   /** The trigger's press: up over {@link Opening.opening}'s value, or away and
    *  the caret back where it came from. */
   readonly toggle: () => void
@@ -167,6 +178,7 @@ export const createInlinePicker = <T>(on: Opening<T>): InlinePicker<T> => {
     showing,
     show,
     shut,
+    focusTrigger: () => trigger?.focus(),
     toggle: () => {
       if (!open()) return show(on.opening())
       shut()

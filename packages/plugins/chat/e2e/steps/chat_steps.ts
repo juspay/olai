@@ -3885,6 +3885,11 @@ Then("the model picker offers nothing for {string}", async function (this: OlaiW
   );
 });
 
+When("I press {string} {int} times in the model filter", async function (this: OlaiWorld, key: string, count: number) {
+  const filter = this.chat(CHAT_MODEL_FILTER);
+  for (let i = 0; i < count; i++) await filter.press(key);
+});
+
 When("I pick the model under the cursor", async function (this: OlaiWorld) {
   await this.chat(CHAT_MODEL_FILTER).press("Enter");
 });
@@ -3893,6 +3898,44 @@ Then("the model picker is shut", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.chat(CHAT_MODEL_FILTER).count()) === 0,
     "the model picker to be shut",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the caret is back on the model picker", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => {
+      const label = await this.page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? null);
+      return label === "Change model";
+    },
+    "the caret to be back on the model picker",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the model list has scrolled to the row under the cursor", async function (this: OlaiWorld) {
+  const list = this.chatLine().getByRole("list", { name: "Models", exact: true });
+  await this.waitUntil(
+    async () => {
+      const read = await list.evaluate((ul) => {
+        const active = ul.querySelector('[aria-selected="true"]');
+        if (active === null) return null;
+        const box = ul.getBoundingClientRect();
+        const row = active.getBoundingClientRect();
+        return { scrolled: ul.scrollTop, inside: row.top >= box.top && row.bottom <= box.bottom + 1 };
+      });
+      return read !== null && read.scrolled > 0 && read.inside;
+    },
+    "the list to scroll the row under the cursor into view",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the model list is back at the top", async function (this: OlaiWorld) {
+  const list = this.chatLine().getByRole("list", { name: "Models", exact: true });
+  await this.waitUntil(
+    async () => (await list.evaluate((ul) => ul.scrollTop)) <= 1,
+    "the model list to be scrolled back to its first rows",
     HYDRATION_TIMEOUT,
   );
 });

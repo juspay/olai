@@ -16,6 +16,11 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
   const picker = createInlinePicker({
     opening: () => ({ agent: agentIn(state())?.id, session: state().session?.id }),
   })
+  /** The LIST's element, beside the picker's own keeping of it: the scroll
+   *  effect below walks its rows and the picker exposes no handle to them.
+   *  Set from the SAME ref callback, never alive a tick longer than the list
+   *  itself (the `<Show>` drops both together). */
+  let list: HTMLUListElement | undefined
   const disabled = () => pending() || props.chat.pendingSends() > 0 || state().status !== "idle" || state().session === null
   createEffect(() => {
     const at = picker.showing()
@@ -33,6 +38,18 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
     const [query, setQuery] = createSignal("")
     const visible = createMemo(() => visibleModels(state().models, query()))
     const cursor = createCursor(() => visible().length)
+
+    // Keep the row under the cursor ON THE SCREEN: the keys below prevent the
+    // browser's own scrolling and the caret lives in the filter box, so an
+    // arrow-walked row is invisible unless the row itself asks for the pane —
+    // which is the whole story of an 84-model menu otherwise (review of
+    // #600). `nearest`, so a move between already-visible rows moves nothing.
+    // `list` is the UL the trigger hands out below; the +1 is the filter's
+    // own row, which the cursor counts out.
+    createEffect(() => {
+      if (visible().length === 0) return
+      list?.children[1 + cursor.at()]?.scrollIntoView({ block: "nearest" })
+    })
 
     const key = (event: KeyboardEvent): void => {
       switch (listKey(event)) {
@@ -52,7 +69,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
           // the caret back on the trigger.
           if (visible().length > 0) {
             event.preventDefault()
-            pick(visible()[cursor.at()])
+            pick(visible()[cursor.at()], { back: true })
           }
           return
         default:
@@ -61,14 +78,23 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
     }
 
     /** TAKE a row — the one thing a click and Enter both do, in one function
-     *  so the two cannot drift: same guard, same shut, same send. */
-    const pick = (model: Offered | undefined): void => {
+     *  so the two cannot drift: same guard, same shut, same send.
+     *
+     *  `back` is the GESTURE's, not the row's: the caret goes back to the
+     *  trigger only for the key it can reach, by the dismissal's own rule
+     *  (`@olai/web`'s `dismiss.ts`). It goes at CONFIRMATION rather than at
+     *  the press: while the send is in flight the trigger is `disabled()` and
+     *  a focus placed then would be thrown off it again at once. */
+    const pick = (model: Offered | undefined, opts?: { back?: boolean }): void => {
       if (model === undefined) return
       const at = picker.showing()
       if (at?.agent === undefined || at.session === undefined) return
       picker.shut()
       setPending(true)
-      props.chat.setModel(at.agent, at.session, model.value, () => setPending(false))
+      props.chat.setModel(at.agent, at.session, model.value, () => {
+        setPending(false)
+        if (opts?.back) picker.focusTrigger()
+      })
     }
 
     return (
@@ -131,7 +157,10 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
         <span aria-hidden="true"> ▾</span>
       </button>
       <Show when={picker.open()}>
-        <ul ref={picker.setList} aria-label="Models"
+        <ul ref={(el) => {
+          picker.setList(el)
+          list = el
+        }} aria-label="Models"
           class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}>
           <Show when={state().models.length > 0}>
             <ModelFilter />

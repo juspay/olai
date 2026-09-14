@@ -2157,6 +2157,7 @@ Feature: Talking to a node agent
     When I pick the model under the cursor
     Then the model picker is shut
     And the panel header names the model "Fake Haiku"
+    And the caret is back on the model picker
     And the agent is idle
 
   @scratch:chat
