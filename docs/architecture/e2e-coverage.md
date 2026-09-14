@@ -228,3 +228,7 @@ Review coverage includes membership-aware Markdown caching, server-supplied row
 warnings, literal code examples and frontmatter, URL suffixes and directory
 targets, a first Inbox seed's write nudge, row-level note navigation, unreadable
 document isolation, and Reference visibility without preference writes.
+
+## Model picker filter (#600)
+
+The model menu's filter box is exercised in `the_agent.feature` against the scripted ACP double: typing narrows the list by name, a query matching the choice's `fake-model-*` *value* narrows rows whose names never say the word (standing in for omp's `provider/id` values until the omp fixture lands in #599), a query with no match draws one untakeable row naming it and leaves the sent-in model alone, the arrows walk the *visible* rows only, and the query is forgotten between openings. The shared case-insensitive match rule itself is pinned over plain values in `model-filter.test.ts`.
