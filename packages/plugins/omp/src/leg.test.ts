@@ -272,8 +272,14 @@ describe("what omp does not do", () => {
     expect(OMP.prologueIn({ _meta: { piAcp: { startupInfo: "omp v18.1.21" } } })).toBeNull()
   })
 
-  test("streams commands through client terminals", () => {
-    expect(OMP.terminalOutput).toBe(true)
+  test("advertises no terminal-output extension the wire does not write", () => {
+    // The corner this field names (`_meta.terminal_info` / `terminal_output` /
+    // `terminal_exit`) is an extension pi's adapter writes; nothing in omp's
+    // ACP mapper stamps it. Declaring it would make `olai-plugin-chat`'s
+    // `agent.ts` promise `_meta.terminal_output: true` to an agent that will
+    // never answer it. The commands ARE drawn — through the client-owned
+    // terminals `terminal: true` buys, which needs no leg saying anything.
+    expect(OMP.terminalOutput).toBeUndefined()
   })
 
   test("reads the model picker exactly, because its values ARE the ids", () => {

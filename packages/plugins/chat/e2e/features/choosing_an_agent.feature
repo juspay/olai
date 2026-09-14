@@ -610,18 +610,20 @@ Feature: Choosing a node agent's engine
     And there should be no page errors
 
   @omp @scratch:chat
-  Scenario: A call is named from its id, and keeps that name while the title moves
+  Scenario: A command row reads the command the first frame minted, and never moves
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # Not one `_meta` on any frame this agent sends, so the head of the call id
-    # (`bash:0`) is the only place a tool's programmatic name is said — and the
-    # `title` is only ever what a frame happened to say at the time: a `write`
-    # carries the intent sentence its model wrote, and this `bash` is announced
-    # as "bash" and then renamed to the command it runs. A panel that named the
-    # row from the title would rename it while somebody was looking at it, and
-    # the name it settled on would describe the work rather than name the tool.
+    # THE OTHER HALF of opencode's scenario: where that agent announces a bare
+    # tool name and then rewrites the title under the call (which is why the
+    # shape of that row is "picked once"), this mapper's title for a command
+    # tool is its `$ <command>` start text from the FIRST frame and it does
+    # not move (`acp-event-mapper.ts`'s `buildToolTitle`). With no `_meta`
+    # anywhere to read a name off, the row a person reads IS that first title —
+    # which is why the id's head is what a permission rule must ask about
+    # (the `nameless` scenario below): on this wire the row can say what the
+    # call did without ever saying which tool did it.
     And I ask the agent "bash"
-    Then the chat shows a tool call named "bash"
+    Then the chat shows a tool call named "$ ls"
     And the chat shows a completed tool call
 
   @omp @scratch:chat
@@ -707,7 +709,11 @@ Feature: Choosing a node agent's engine
     # approval read off one would be approving in the model's name. The
     # `tools.xdev: false` shape, whose id head IS the minted `mcp__<server>_…`
     # name, is where this leg's auto-allow is actually reachable; the default
-    # shape is here.
+    # shape is here. One honesty note about the witness: the REAL omp never
+    # sends this request at all for `write` — its gate's list is
+    # `bash`/`edit`/`delete`/`move` — so what is being witnessed on this wire
+    # is olai's rule and the person it puts in front of one, not a frame omp
+    # was captured sending.
     And I ask the agent "permit"
     Then the chat shows a question
     And the question offers "allow_once"
@@ -843,16 +849,18 @@ Feature: Choosing a node agent's engine
     And the chat input takes typing
 
   @omp @scratch:chat @acp-session-features
-  Scenario: Adapter-owned terminal metadata streams into a retained tool output
+  Scenario: Client-owned terminal output streams into a retained row
     When I open the "Oh My Pi" agent on node "kitchen"
     And the node agent's fold is ready
-    # The same corner pi's adapter writes, read on an engine that declares it by
-    # capability rather than by patch: `terminal_output` on the frame's `_meta`,
-    # a `{type: "terminal"}` block on the call, and a `terminal_exit` at the end.
-    # Two of the four lines asserted here are olai's own rendering ("Running",
-    # "Exit 0") and two are the agent's bytes — the point being that the bytes
-    # arrive while the call is still out, which is what makes this a live
-    # terminal rather than a result that happened to carry a transcript.
+    # The same REGION the pi corner feeds, fed the other way on this wire: no
+    # `terminal_output` `_meta` ever arrives, because the process being watched
+    # is olai's own — spawned by the agent through `terminal/create` (olai
+    # advertised `terminal: true`), named on the call's `{type: "terminal"}`
+    # block, and drained through `terminal/output` at the end. Two of the lines
+    # asserted here are olai's own rendering ("Running", "Exit 0") and two are
+    # the command's real bytes — the point being that the first pair can only
+    # be true of a process olai is RUNNING, rather than of a transcript an
+    # adapter happened to carry.
     And I ask the agent "slow"
     Then terminal output contains "omp command started"
     And terminal output contains "Running"
@@ -860,7 +868,7 @@ Feature: Choosing a node agent's engine
     Then the agent is idle
     And terminal output contains "Exit 0"
     And terminal output contains "omp command started"
-    And terminal output contains "(no output)"
+    And terminal output contains "omp command done"
 
   @omp @agent-stored @scratch:chat
   Scenario: Reopening the conversation talks to the agent that has it

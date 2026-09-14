@@ -778,10 +778,13 @@ all, and they are why a third file is worth having:
   AUTONOMOUS turn refuses instead — `-32000` `session_busy` with `data.hint =
   "steer|followUp|wait"` — which is the `busy` verb, and the row that keeps the
   words.
-- **its terminals come with `_meta` corners.** A `bash` call carries a
-  `{ type: "terminal", terminalId }` content block and the same `terminal_info` /
-  `terminal_output` / `terminal_exit` extension pi's adapter uses, so the output
-  streams under the row and is still readable once the call has ended.
+- **its terminals are olai's own processes.** With olai's `terminal: true` on
+  the handshake, a `bash` command is spawned by the CLIENT — the fake asks with
+  `terminal/create`, names it on the call's `{ type: "terminal", terminalId }`
+  content block, and waits, drains and releases it the way the real one does.
+  There is no `terminal_info` / `terminal_output` / `terminal_exit` `_meta` to
+  read, because nothing in omp's ACP mapper writes one: the output a scenario
+  watches stream under the row is the real child's real bytes.
 
 Behaviour is keyed on the prompt text (`hello`, `bash`, `context <id>`,
 `done <id>`, `permit`, `nameless`, `slow`, `hush`, `silent`, `error-silent`,

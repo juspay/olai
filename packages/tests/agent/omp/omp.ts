@@ -13,15 +13,19 @@
  * flag do less than it says; a third is here for the same reason, and the
  * differences are the reason this file exists at all:
  *
- *   - **no `_meta` on any frame ABOUT A CALL, ever**, so a tool's name is
+ *   - **no `_meta` on any frame ABOUT A CALL, ever** — the only `_meta` omp's
+ *     ACP mapper stamps anywhere is the `{ messageCount, size }` on a stored
+ *     conversation's listing row (`leg.ts`'s `listedIn`). So a tool's name is
  *     reachable only at the head of the call id — `write:0`, `bash:3` — which
  *     is why nothing about a call is remembered off a frame either, and why a
- *     call nobody named is a call a person is asked about. The two places omp
- *     does stamp `_meta` are neither of them a name: a command's terminal
- *     bookkeeping (`terminal_info`, `terminal_output`, `terminal_exit`), which
- *     is the protocol's own extension and the same three corners pi-acp writes,
- *     and the `{ messageCount, size }` a stored conversation's listing row
- *     carries (`leg.ts`'s `listedIn`).
+ *     call nobody named is a call a person is asked about. In particular the
+ *     terminal corners pi's adapter writes (`terminal_info`,
+ *     `terminal_output`, `terminal_exit`) are NOT here: with olai's
+ *     `terminal: true` on the handshake, the command olai watches is a
+ *     process of olai's own — asked for with `terminal/create` and read back
+ *     out of it — and the call that names it carries a
+ *     `{ type: "terminal", terminalId }` content block rather than any
+ *     metadata.
  *   - **olai's MCP tools are called through omp's own `write`.** With omp's
  *     default `tools.xdev`, `mcp__olai_outlines_read` is not announced as
  *     itself: the call is a `write` whose `rawInput.path` is the pseudo-path
@@ -66,9 +70,10 @@
  *                 here because the real one thinks before it speaks, and a
  *                 panel must not draw a thought as the agent's words
  *   bash          an ordinary command's row: a `bash:<n>` call, kind `execute`,
- *                 a terminal content block and the terminal corners, completed
- *                 with its exit under it — and its title rewritten under it
- *                 while the name it was announced with holds
+ *                 a `{type: "terminal"}` block naming a CLIENT-OWNED process
+ *                 asked for on olai, completed with its exit under it — and
+ *                 its title the `$ ls` command from the first frame, while
+ *                 the name it was announced with holds
  *   context <id>  one of olai's own reads, through the `write` door above and
  *                 really called over HTTP, so the write reaches the ops layer —
  *                 and the tool's answer said back as prose
@@ -150,6 +155,14 @@ class Refused extends Error {}
  *  PRESENT at all is the signal; `hooks.ts` sets it only for a `@omp`
  *  scenario that also asked for stored sessions. */
 const STORED = process.env.OLAI_FAKE_OMP_STORED ?? "";
+
+/** The hold's own tick, kept here so the loop it paces reads as what it is —
+ *  a poll rather than a promise somebody else resolves. */
+const sleep = (millis: number): Promise<void> => {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  setTimeout(resolve, millis);
+  return promise;
+};
 
 /** The one stored conversation, when a scenario asked for one. omp's own ids
  *  look like this; nothing reads the shape, but a scenario that accidentally
@@ -239,70 +252,88 @@ const think = (text: string): void => {
 const callIdFor = (tool: string): string => `${tool}:${nextCall++}`;
 
 /**
- * A command's row, the way this agent announces one: a `bash:<n>` call of kind
- * `execute` with a terminal content block, the handle that names it, and then
- * the output that arrives under the same handle.
+ * A command's row, the way this agent actually runs one — and the one thing
+ * here that is NOT bytes on a wire: olai advertises `terminal: true`, so the
+ * command is a CLIENT-OWNED process. The turn asks olai to spawn it
+ * (`terminal/create`, which is a request TO the client), the call that names
+ * it carries a `{ type: "terminal", terminalId }` block in its content, and
+ * whatever the command prints is olai's own process showing itself while it
+ * runs — the row a person watches is drawn from the client's side of the
+ * connection, not from anything this file sends. That is also what a cancel
+ * stops: the process belongs to the client's lifecycle rather than to the
+ * turn's, so a cancelled turn leaves the kill to olai.
  *
- * THE TITLE MOVES, and that is the one thing a row's name must not follow: the
- * call is announced as the TOOL this agent is using and the next frame rewrites
- * that title into what the command is doing, so a scenario can watch a row keep
- * the name it was given while the words under it change. Which name a panel
- * settles on is its own rule, and the id — `bash:<n>` — is the only stable one
- * this wire has.
+ * THE TITLE IS THE COMMAND, minted with the first frame — the real mapper's
+ * title for a command tool is its `$ <command>` start text, and it does not
+ * move — so the stable name a row keeps is still read off the id's head
+ * (`bash:0`), which is the whole of `leg.ts`'s `toolNameOf`.
  *
- * The three corners are the protocol's own terminal extension, spelled exactly
- * as `agent/pi/pi-acp.ts` spells them — which is not a copy for its own sake:
- * olai reads them through one reader (`@olai/acp`'s `terminalMetaIn`) for every
- * engine that declares `terminalOutput`, and a wire whose handle did not match
- * the call would draw a second, empty terminal.
+ * NO `announceTerminal`/`finishTerminal` of the pi kind is possible on this
+ * wire: the corners that pair writes on a frame's `_meta` are an extension
+ * nothing in omp's ACP mapper stamps. What the pair below models is the four
+ * client requests instead — create, announce; wait, drain, release, complete —
+ * spelled the way `agent/fake-acp-agent.ts`'s terminal path spells them,
+ * because that is the way the real one does.
  */
-const announceTerminal = (toolCallId: string, command: string): void => {
+const announceCommand = async (
+  toolCallId: string,
+  command: string,
+  script: string,
+): Promise<{ terminalId: string }> => {
+  const created = (await request("terminal/create", {
+    sessionId,
+    command: "node",
+    args: ["-e", script],
+    cwd,
+    outputByteLimit: 65536,
+  })) as { terminalId: string };
   notify("session/update", {
     sessionId,
     update: {
       sessionUpdate: "tool_call",
       toolCallId,
-      title: "bash",
+      title: `$ ${command}`,
       kind: "execute",
-      status: "pending",
-      content: [{ type: "terminal", terminalId: toolCallId }],
-      _meta: { terminal_info: { terminal_id: toolCallId, cwd } },
-    },
-  });
-  notify("session/update", {
-    sessionId,
-    update: {
-      sessionUpdate: "tool_call_update",
-      toolCallId,
-      title: command,
       status: "in_progress",
+      content: [{ type: "terminal", terminalId: created.terminalId }],
     },
   });
+  return created;
+};
+
+/** ... and its completion, asked of the client in the same order the real one
+ *  asks: the exit is waited on, the bytes are drained, the handle is released,
+ *  and only then does the row settle. What is NOT here is a kill: a turn
+ *  cancelled mid-command throws `Cancelled` past this and leaves the process
+ *  to olai, whose client-owned terminals die with their turn. */
+const finishCommand = async (toolCallId: string, terminalId: string): Promise<void> => {
+  const params = { sessionId, terminalId };
+  await request("terminal/wait_for_exit", params);
+  await request("terminal/output", params);
+  await request("terminal/release", params);
   notify("session/update", {
     sessionId,
-    update: {
-      sessionUpdate: "tool_call_update",
-      toolCallId,
-      _meta: { terminal_output: { terminal_id: toolCallId, data: "omp command started\n" } },
-    },
+    update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
   });
 };
 
-/** ... and the other end of it: whatever the command left behind, and its exit
- *  status, under the same handle. */
-const finishTerminal = (toolCallId: string, output: string): void => {
-  notify("session/update", {
-    sessionId,
-    update: {
-      sessionUpdate: "tool_call_update",
-      toolCallId,
-      status: "completed",
-      _meta: {
-        terminal_output: { terminal_id: toolCallId, data: output },
-        terminal_exit: { terminal_id: toolCallId, exit_code: 0, signal: null },
-      },
-    },
-  });
+/** A command that is done when it starts: one line and an exit, for a row the
+ *  only interesting fact about is what it is called. */
+const DONE_CMD = 'process.stdout.write("omp ran ls\\n")';
+
+/** A command that runs until the scenario says when, and reports both ends of
+ *  that: it prints the first line at once, watches the release marker the way
+ *  this file's own hold does, and prints the second as it goes. The bytes are
+ *  olai's process's bytes now — a region that says "Running" and then "Exit 0"
+ *  is the CLIENT's reading of its own child, which is exactly the difference
+ *  this verb's scenario is about. */
+const heldCommand = (): string => {
+  const marker = JSON.stringify(`${cwd}/${MARKER.release}`);
+  return (
+    `process.stdout.write("omp command started\\n");` +
+    `const t = setInterval(() => { if (require("fs").existsSync(${marker}))` +
+    ` { process.stdout.write("omp command done\\n"); process.exit(0) } }, 25);`
+  );
 };
 
 /**
@@ -463,20 +494,28 @@ const turn = async (text: string, mine: Turn): Promise<string> => {
 
   if (said === "bash") {
     const toolCallId = callIdFor("bash");
-    announceTerminal(toolCallId, "ls");
-    finishTerminal(toolCallId, "(no output)");
+    const created = await announceCommand(toolCallId, "ls", DONE_CMD);
+    await finishCommand(toolCallId, created.terminalId);
     say("ran it");
     return "end_turn";
   }
 
   if (said === "slow") {
-    // A command ANNOUNCED and left running while the hold lasts, which is what
-    // makes a mid-turn message observable: there is something on screen saying
-    // this turn is working.
+    // A command LEFT RUNNING while the hold lasts, which is what makes a
+    // mid-turn message observable: there is something on screen saying this
+    // turn is working. The hold here watches the marker WITHOUT `released` —
+    // that helper removes what it sees, and the CLIENT-OWNED child polls the
+    // same file: the two of them must both see it, so the removal is this
+    // verb's own, after the child has finished on it.
     const toolCallId = callIdFor("bash");
-    announceTerminal(toolCallId, "sleep 30");
-    await released(cwd, give);
-    finishTerminal(toolCallId, "(no output)");
+    const created = await announceCommand(toolCallId, "sleep 30", heldCommand());
+    const marker = `${cwd}/${MARKER.release}`;
+    while (!existsSync(marker)) {
+      give();
+      await sleep(100);
+    }
+    await finishCommand(toolCallId, created.terminalId);
+    rmSync(marker, { force: true });
     say("done dawdling");
     return "end_turn";
   }
@@ -652,11 +691,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       respond(id, {
         protocolVersion: 1,
         agentInfo: { name: "oh-my-pi", version: "18.1.21" },
-        // The one method the capture records, named the way the real one names
-        // it. A person is never sent here by this fake — nothing in the suite
-        // signs in — but a handshake that promised nothing an editor can act on
-        // would be a different agent.
-        authMethods: [{ id: "agent", name: "Sign in to Oh My Pi" }],
+        // The one method the capture records, named the way the real one
+        // names it — the credentials already on this machine, described in
+        // the real one's own sentence. The `terminal` method alongside it is
+        // what a client advertising `auth.terminal` is offered, and olai is
+        // not one. A person is never sent here by this fake — nothing in the
+        // suite signs in — but a handshake that promised nothing an editor
+        // can act on would be a different agent.
+        authMethods: [{ id: "agent", name: "Use existing local credentials", description: "Authenticate via the provider keys/OAuth state already configured under ~/.omp." }],
         agentCapabilities: {
           loadSession: true,
           mcpCapabilities: { http: true, sse: true },

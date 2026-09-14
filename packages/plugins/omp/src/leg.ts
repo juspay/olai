@@ -6,9 +6,16 @@
  * `omp --approval-mode yolo acp` (the spike, 2026-09-14: the handshake,
  * `session/new`, `session/list`, `session/set_mode`, `_session/steering`, and
  * one real turn through a stub `olai` MCP server). It is plain ACP over stdio
- * and most of it needs nothing said: the sessions, the permission round trip,
- * the terminals and the model picker are the protocol's own and are read where
- * the protocol is read.
+ * and most of it needs nothing said: the sessions, the permission round trip
+ * and the model picker are the protocol's own and are read where the protocol
+ * is read — and the terminals are the protocol's too, on the CLIENT'S side of
+ * it: because olai advertises `terminal: true`, a `bash` call is announced with
+ * a `{ type: "terminal", terminalId }` block naming a handle omp asked the
+ * client for (`terminal/create`), so a command's output is olai's own process
+ * drawing itself. What this wire does NOT do is write the `_meta.terminal_*`
+ * corner pi's adapter writes, so this leg declares no `terminalOutput` — with
+ * it, `olai-plugin-chat`'s `agent.ts` would advertise
+ * `_meta.terminal_output: true` for an extension nobody answers.
  *
  * THREE THINGS ARE NOT, and they are this file:
  *
@@ -350,10 +357,6 @@ export const OMP: Leg = {
   // `session/new` OUTRIGHT, which is a different and louder answer than a
   // per-server report: the servers strip stays at *handed* for every row.
   rawMessages: null,
-  // omp creates client terminals when the client advertises the capability and
-  // puts `{ type: "terminal", terminalId }` in a call's content, so a command's
-  // output streams under its row.
-  terminalOutput: true,
   // THE PICKER, READ EXACTLY. omp puts the model in the entry every agent olai
   // talks to puts it in, its values ARE the `provider/id` strings it reports,
   // and the row's display name is the picker's own label — so the alias
