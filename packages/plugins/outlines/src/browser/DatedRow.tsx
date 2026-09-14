@@ -47,9 +47,37 @@
  * Two props rather than one `surface` flag: what differs is named by what it
  * is, so a third page that wants a trail under its rows says that rather than
  * saying it is the agenda.
+ *
+ * ## The `•••`, and what a row collected from all over the set can host
+ *
+ * A dated row wears the tree row's menu, through the same two doors — the `•••`
+ * on a pointer device, a held finger on a phone (`./menu/door.ts`) — and the
+ * same catalog (`./menu/actions.ts`'s `subjectMenuActions`), asked of the node
+ * this row situates. So `Complete`, `Change date…` and `Move to Trash` mean on
+ * the agenda exactly what they mean in the outline the node lives in: one op
+ * through the same gate, nothing echoed, and the row moves when the file says
+ * it moved — to another day, or off the page.
+ *
+ * The `•••` HANGS left of the glyph (`@olai/ui-primitives/touch.ts`'s
+ * `HANGING_MENU`) rather than taking a cell before it, so the glyph, the trail
+ * and the note stay on the column a day's heading and the spine line up with.
+ *
+ * WHAT IS LEFT OUT is what a place in an outline has and a collected node does
+ * not, and it is left out by the catalog's own rule — a verb whose panel this
+ * row does not draw is not offered — rather than by a list here:
+ *
+ *   - no folds and no `Copy as text`: nothing is drawn under this row;
+ *   - no `Move to…`: that picker is the editable outline's (`./move/moving.tsx`),
+ *     and it follows a PLACE in a tree, which this row is not;
+ *   - no `Add property…`: this row's run of chips is read-only.
+ *
+ * The pills stay read-only, as the note beside the line says: the date pill
+ * here is often not the date at all ("3 days late"), so a press on it would be
+ * a press on a sentence. `Change date…` is the door.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { type DayEntry, isOverdue } from "@olai/format"
+import { useGo, useRouter } from "olai-plugin-navigation/routing"
 import { Show } from "solid-js"
 
 import { Aside } from "./Aside.tsx"
@@ -69,7 +97,16 @@ import { density, showsPreview, startsOpen } from "./settings/density.ts"
 
 import { useToday } from "./clock.ts"
 import { TookChip } from "./live/duration/index.ts"
-import { GUTTER_GAP, PAST_BULLET } from "@olai/ui-primitives/touch.ts"
+import { GUTTER_GAP, HANGING_MENU, HELD, PAST_BULLET } from "@olai/ui-primitives/touch.ts"
+import { createRowForm } from "./date/memory.tsx"
+import { createDatePicking } from "./date/picking.tsx"
+import { createEdgeEditing } from "./edges/editing.tsx"
+import { useUndo } from "./edit/undoing.ts"
+import { subjectMenuActions } from "./menu/actions.ts"
+import { createMenuDoor } from "./menu/door.ts"
+import { NodeMenu } from "./menu/NodeMenu.tsx"
+import { subjectOfSituated } from "./menu/verbs.ts"
+import { usePins } from "./pins.ts"
 
 export function DatedRow(props: {
   readonly dated: DayEntry
@@ -95,6 +132,28 @@ export function DatedRow(props: {
   const over = () => (props.trail === "over" ? ancestry() : undefined)
   const under = () => (props.trail === "under" ? ancestry() : undefined)
 
+  /** Both doors to this row's `•••`, and whether it is open — called in the
+   *  row's own owner, so a press in flight is disposed with the row
+   *  (./menu/door.ts). */
+  const menu = createMenuDoor()
+  /** The drafts of this row's panels, OWNED BY THE ROW: a day and the agenda
+   *  draw no pane-held tree to keep them across a rebuild (./date/memory.tsx),
+   *  and a row rescheduled off this day takes its closed picker with it. */
+  const forms = createRowForm()
+  /** The date and repeat pickers the `•••` opens, about this node
+   *  (./date/picking.tsx). */
+  const dates = createDatePicking(node, forms)
+  /** The edge panel the `•••`'s two edge verbs open, and the line that says
+   *  what its writes came to (./edges/editing.tsx). */
+  const edges = createEdgeEditing(node, forms.edges)
+  // Read at setup, in the row's owner, for the reasons the tree row reads them
+  // there (./Tree.tsx): a context is resolved against the owner a component
+  // was created under, and a press is not one.
+  const go = useGo()
+  const routes = useRouter().routes
+  const pins = usePins()
+  const undo = useUndo()
+
   return (
     <li
       class="mb-3"
@@ -116,9 +175,36 @@ export function DatedRow(props: {
       <Show when={over()}>{(trail) => <Breadcrumbs trail={trail()} />}</Show>
 
       <div
-        class={`group/row flex items-baseline ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
-          data-testid={TESTID.nodeGutter}
+        ref={menu.line}
+        // `relative` for the phone's menu root, a zero-width absolute box at
+        // this line's left edge; `HELD` and the two handlers are the phone's
+        // door — a finger held on the row (./menu/door.ts).
+        class={`group/row relative flex items-baseline ${HELD} ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
+        data-testid={TESTID.nodeGutter}
+        onPointerDown={menu.hold.onPointerDown}
+        onContextMenu={menu.hold.onContextMenu}
       >
+        <div class={HANGING_MENU}>
+          {/* Built where it is READ, inside the open panel — Solid compiles a
+              component prop to a getter, so no row nobody has opened a menu on
+              walks the catalog (./Tree.tsx makes the same argument). */}
+          <NodeMenu
+            door={menu}
+            actions={subjectMenuActions({
+              routes,
+              subject: subjectOfSituated(props.dated),
+              under: props.dated.under,
+              pins: pins(),
+              go,
+              record: undo.record,
+              panels: {
+                pickDate: dates.openDate,
+                pickRepeat: dates.openRepeat,
+                pickEdge: edges.open,
+              },
+            })}
+          />
+        </div>
         <Glyph
           id={node().id}
           status={props.dated.status}
@@ -132,7 +218,8 @@ export function DatedRow(props: {
             is a row about a node, and a rule is a fact about the node. BOTH
             are read-only here — a day and the agenda are a QUERY over the
             whole set, so each pill says something rather than doing something
-            (`../RepeatBadge.tsx`'s `data-picks`, `../DateBadge.tsx`'s). */}
+            (`../RepeatBadge.tsx`'s `data-picks`, `../DateBadge.tsx`'s). The
+            writes are in the `•••` hanging beside the glyph. */}
         <NodeLine
           node={node().id}
           title={node().title}
@@ -171,6 +258,16 @@ export function DatedRow(props: {
             <Breadcrumbs trail={trail()} />
           </div>
         )}
+      </Show>
+
+      {/* The panels the `•••` opens, under the row and its trail and past the
+          bullet like the note is: the date picker, the repeat picker, and the
+          edge panel with whatever its writes said. */}
+      <dates.Panels class={PAST_BULLET} />
+      <Show when={edges.showing()}>
+        <div class={PAST_BULLET}>
+          <edges.Panel />
+        </div>
       </Show>
 
       {/* Past the bullet and the checkbox — ../touch.ts, so this indent and

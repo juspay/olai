@@ -90,6 +90,8 @@ first claim and drops a later conflicting page with a diagnostic naming both. Jo
 typed route definitions also mint the sidebar, calendar and palette destinations,
 so those affordances cannot drift from the parser that owns their URLs.
 
+Rows on a day's page and the agenda are the outlines plugin's dated row, reached through its `outlines.dated-row` location, so they carry that row's `•••` menu ([editing.md](../editing.md)): the journal supplies the dates, and the verbs, their panels and their writes stay the outlines plugin's. Each entry also carries how many records hang under its node (`under`), counted on the server with the reading, for the menu's **Move to Trash** question.
+
 The Agenda entry and its owed badge sit beside Inbox. The month calendar sits below the app's own sidebar entries. When the full sidebar is collapsed, the journal contributes its compact Today and Agenda doors to the rail. The command palette gets *Go to today* and *Go to agenda* from the same row.
 
 An empty day may mint its daily note. The browser sends only the date through `journal`'s `note.mint` procedure; the server derives the path from the vault's existing daily-note convention and returns the file it created. That write never travels through core's general `edit.apply` vocabulary.
