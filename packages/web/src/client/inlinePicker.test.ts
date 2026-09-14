@@ -199,6 +199,19 @@ test("a picker with no trigger yet still opens and shuts", () => {
   })
 })
 
+test("the list's element is the picker's own to hand out, while it is on the page", () => {
+  // A caller that must act on the LIST ITSELF — scrolling one of its rows
+  // back on view — reads the element through the picker: the picker's is the
+  // only keeping of it, which it needs for its THE dismissal's root in the
+  // first place.
+  withPicker(() => "", (picker) => {
+    expect(picker.list()).toBeUndefined()
+    const el = box()
+    picker.setList(el)
+    expect(picker.list()).toBe(el)
+  })
+})
+
 test("BOTH ROOTS go to the dismissal: the list, and the trigger that is not in it", () => {
   // The bug this half exists against: the list is a sibling of the button rather
   // than a child of it, so a click-away told only about the list reads a press

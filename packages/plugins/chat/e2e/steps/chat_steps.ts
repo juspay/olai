@@ -3943,8 +3943,10 @@ Then("the model list is back at the top", async function (this: OlaiWorld) {
       // row is the one under the cursor, and it is fully on view below the
       // filter with the list wound back to its first rows.
       const read = await list.evaluate((ul) => {
-        // `aria-selected` rides the BUTTON inside the row's `li`: the index and
-        // the rect are the LI's, the button's inner-pressable is a hair smaller.
+        // `aria-selected` rides the BUTTON inside the row's `li`: its rect is
+        // a hair inside the row's own, so the rect taken is the LI's. "First"
+        // is also asked geometrically — flush under the filter — because an
+        // index among children would be the layout re-derived, not checked.
         const active = ul.querySelector('[aria-selected="true"]')?.closest("li");
         const filter = ul.children[0];
         if (active === undefined || active === null || filter === undefined) return null;
@@ -3952,12 +3954,11 @@ Then("the model list is back at the top", async function (this: OlaiWorld) {
         const box = ul.getBoundingClientRect();
         return {
           scrolled: ul.scrollTop,
-          first: Array.prototype.indexOf.call(ul.children, active) === 1,
-          belowFilter: row.top >= filter.getBoundingClientRect().bottom - 1,
+          first: Math.abs(row.top - filter.getBoundingClientRect().bottom) <= 2,
           inside: row.top >= box.top && row.bottom <= box.bottom + 1,
         };
       });
-      return read !== null && read.first && read.belowFilter && read.inside && read.scrolled <= 1;
+      return read !== null && read.first && read.inside && read.scrolled <= 1;
     },
     "the model list to be back on its first row, in view below the filter",
     HYDRATION_TIMEOUT,

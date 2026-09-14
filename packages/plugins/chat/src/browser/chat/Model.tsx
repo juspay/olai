@@ -16,11 +16,6 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
   const picker = createInlinePicker({
     opening: () => ({ agent: agentIn(state())?.id, session: state().session?.id }),
   })
-  /** The LIST's element, beside the picker's own keeping of it: the scroll
-   *  effect below walks its rows and the picker exposes no handle to them.
-   *  Set from the SAME ref callback, never alive a tick longer than the list
-   *  itself (the `<Show>` drops both together). */
-  let list: HTMLUListElement | undefined
   const disabled = () => pending() || props.chat.pendingSends() > 0 || state().status !== "idle" || state().session === null
   createEffect(() => {
     const at = picker.showing()
@@ -32,7 +27,13 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
   // THE FILTER IS THE OPENING'S OWN: created inside the `<Show>` that draws
   // the list, so shutting throws it away with the DOM and the next opening
   // starts empty — a query that outlived its list would narrow a menu the
-  // person can no longer see it in (see `@olai/web`'s `inlinePicker.ts`).
+  // person can no longer see it in (see `@olai/web`'s `inlinePicker.ts`). It
+  // is NOT the open-arm payload the way `./Wake.tsx`'s is: the arm here is
+  // the pick's address (`{agent, session}`), the rows are the agent's own
+  // static config, and the query is a thing SAID to the box while it is up —
+  // presentational, nothing to recompute — so a local signal that dies with
+  // the list is the load-bearing lifetime, exactly the invariant the wake
+  // strip's `opening: () => ""` encodes in its shape.
   /** What the open list is narrowed BY, and the cursor over what it offers. */
   const ModelFilter = () => {
     const [query, setQuery] = createSignal("")
@@ -44,11 +45,15 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
     // arrow-walked row is invisible unless the row itself asks for the pane —
     // which is the whole story of an 84-model menu otherwise (review of
     // #600). `nearest`, so a move between already-visible rows moves nothing.
-    // `list` is the UL the trigger hands out below; the +1 is the filter's
-    // own row, which the cursor counts out.
+    // The row is FOUND the same way the DOM names it — the rows below are
+    // the only things carrying `aria-selected` at all — so the effect knows
+    // nothing about where the filter row sits: children arithmetic here was
+    // the first re-review's target, and it went with the caret's keepers in
+    // `@olai/web`'s `inlinePicker.ts`.
     createEffect(() => {
+      cursor.at()
       if (visible().length === 0) return
-      list?.children[1 + cursor.at()]?.scrollIntoView({ block: "nearest" })
+      picker.list()?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" })
     })
 
     const key = (event: KeyboardEvent): void => {
@@ -157,10 +162,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
         <span aria-hidden="true"> ▾</span>
       </button>
       <Show when={picker.open()}>
-        <ul ref={(el) => {
-          picker.setList(el)
-          list = el
-        }} aria-label="Models"
+        <ul ref={picker.setList} aria-label="Models"
           class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}>
           <Show when={state().models.length > 0}>
             <ModelFilter />

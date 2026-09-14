@@ -17,11 +17,11 @@
  * DOM in it.
  */
 
-/** One row the agent offers: what a choice SENDS, and what it says. */
-export interface Offered {
-  readonly value: string
-  readonly name: string
-}
+/** One row the agent offers: what a choice SENDS, and what it says — the
+ *  wire's own model-row shape, named here rather than redeclared (`chat/wire`
+ *  is where the `value`/`name` pair is already what every agent hands over). */
+import type { ChatState } from "olai-plugin-chat/wire"
+export type Offered = ChatState["models"][number]
 
 /**
  * The models the picker may draw for `query`, in the agent's own order.
