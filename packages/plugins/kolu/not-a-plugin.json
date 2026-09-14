@@ -1,0 +1,32 @@
+{
+  "files": [
+    "src/server.ts"
+  ],
+  "git": [
+    "src/client/fleet.ts"
+  ],
+  "identity": [
+    "src/client/detect.ts",
+    "src/client/fleet.ts",
+    "src/client/link.ts"
+  ],
+  "image": [
+    "src/client/testlib/fake-padi.ts"
+  ],
+  "markdown": [
+    "src/appliance/props/EventsFeed.tsx",
+    "src/appliance/props/TerminalDoor.tsx"
+  ],
+  "settings": [
+    "src/doorbell.ts"
+  ],
+  "theme": [
+    "src/appliance/props/LivePane.tsx",
+    "src/appliance/props/TerminalDoor.tsx",
+    "src/client/fleet.ts",
+    "src/client/wire/kolu.ts"
+  ],
+  "vault": [
+    "src/server.ts"
+  ]
+}

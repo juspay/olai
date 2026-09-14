@@ -1,0 +1,20 @@
+{
+  "layout": [
+    "src/server.ts",
+    "src/surface.ts",
+    "src/tools.ts"
+  ],
+  "outlines": [
+    "src/tools.ts"
+  ],
+  "trash": [
+    "src/tools.ts"
+  ],
+  "vault": [
+    "src/client.ts",
+    "src/index.ts",
+    "src/server.ts",
+    "src/source.ts",
+    "src/tools.ts"
+  ]
+}

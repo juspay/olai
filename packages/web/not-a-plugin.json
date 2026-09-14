@@ -1,0 +1,16 @@
+{
+  "capture": [
+    "src/client/Tip.tsx"
+  ],
+  "files": [
+    "src/client/connection/status.ts",
+    "src/client/file/matching.ts"
+  ],
+  "search": [
+    "src/client/keys.ts",
+    "src/host/loading.ts"
+  ],
+  "sidebar": [
+    "src/client/keys.ts"
+  ]
+}

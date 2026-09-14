@@ -1,0 +1,16 @@
+{
+  "files": [
+    "src/endpoint.ts"
+  ],
+  "outlines": [
+    "src/endpoint.ts",
+    "src/tools.ts"
+  ],
+  "search": [
+    "src/endpoint.ts",
+    "src/tools.ts"
+  ],
+  "trash": [
+    "src/endpoint.ts"
+  ]
+}

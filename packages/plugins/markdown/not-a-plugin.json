@@ -1,0 +1,33 @@
+{
+  "files": [
+    "src/browser.tsx",
+    "src/projection.ts",
+    "src/tools.ts"
+  ],
+  "git": [
+    "src/tools.ts"
+  ],
+  "identity": [
+    "src/browser/document/DocumentPage.tsx"
+  ],
+  "journal": [
+    "src/tools.ts"
+  ],
+  "navigation": [
+    "src/browser.tsx",
+    "src/browser/BodyPage.tsx"
+  ],
+  "outlines": [
+    "src/tools.ts"
+  ],
+  "search": [
+    "src/browser/document/Rendered.tsx"
+  ],
+  "sidebar": [
+    "src/tools.ts"
+  ],
+  "vault": [
+    "src/server.ts",
+    "src/tools.ts"
+  ]
+}

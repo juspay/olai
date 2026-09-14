@@ -1,0 +1,9 @@
+{
+  "files": [
+    "src/Sidebar.tsx"
+  ],
+  "vault": [
+    "src/browser.tsx",
+    "src/contract.ts"
+  ]
+}

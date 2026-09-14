@@ -1,0 +1,16 @@
+{
+  "identity": [
+    "src/services.ts"
+  ],
+  "search": [
+    "src/services.ts"
+  ],
+  "settings": [
+    "src/configuration.ts",
+    "src/services.ts"
+  ],
+  "vault": [
+    "src/configuration.ts",
+    "src/services.ts"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "capture": [
+    "src/browser/Pin.tsx"
+  ],
+  "files": [
+    "src/browser.tsx"
+  ],
+  "//layout": "Saved-layout vocabulary names a workspace target, not the layout plugin.",
+  "layout": [
+    "src/browser/Palette.tsx",
+    "src/browser/Pin.tsx",
+    "src/browser/Shelf.tsx",
+    "src/browser/naming.ts",
+    "src/browser/palette.ts",
+    "src/browser/pins.ts"
+  ],
+  "navigation": [
+    "src/browser.tsx",
+    "src/browser/Palette.tsx"
+  ],
+  "search": [
+    "src/browser/palette.ts"
+  ],
+  "sidebar": [
+    "src/browser.tsx",
+    "src/browser/palette.ts"
+  ],
+  "trash": [
+    "src/browser/Palette.tsx",
+    "src/browser/Shelf.tsx",
+    "src/browser/writes.ts"
+  ],
+  "vault": [
+    "src/server.ts"
+  ]
+}
