@@ -1177,7 +1177,37 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  whole, when the turn ended. */
     const publish = (change: Change) => {
       if (!says(change)) return
+      if (replaying) return
       options.onTranscript(change)
+    }
+
+    /**
+     * WHETHER A REPLAY IS BEING HELD — and a replay is published ONCE, when it
+     * has arrived, rather than as it arrives.
+     *
+     * A `session/load` re-sends the whole conversation before it answers
+     * ({@link ./agent.ts}), and published as it came, every tab drew that
+     * history a few rows a frame: a long conversation typed itself out again
+     * and the pane followed it down the screen for seconds. Nobody is reading a
+     * conversation that has not finished opening, so the rows are built here
+     * and handed over whole at `replayEnded`, which is one frame for every
+     * reader — the shape a tab that joins afterwards already gets from its
+     * snapshot.
+     *
+     * The CLEAR that starts a replay is not held: the conversation being left
+     * goes at once, and what is held is only what replaces it. So the change
+     * that ends the hold is every row there is and no removes — nothing was
+     * published since the transcript was empty. Whatever else lands in
+     * between (a `gone` and its notice, a settle) is in the transcript by then
+     * and goes out with it.
+     *
+     * `replayEnded` is emitted on EVERY way out of a load — answered, refused,
+     * or the agent dying mid-replay — so a hold cannot outlive its load.
+     */
+    let replaying = false
+    const landed = (): void => {
+      replaying = false
+      publish({ upserts: [...transcript.entries()], removes: [], appends: [] })
     }
 
     const move = (next: Partial<ChatState>) => {
@@ -1724,6 +1754,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           return
         case "replayStarted":
           publish(transcript.clear())
+          replaying = true
           watched()
           // Emptying the rows is one of the three things that can change how
           // many questions are open, so it is one of the three that recounts.
@@ -1734,7 +1765,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           move({ asking: asking() })
           return
         case "replayEnded":
-          publish(transcript.settle())
+          transcript.settle()
+          landed()
           // ... and the strip with it, for the reason the two turn boundaries
           // below recount: settling STRANDS, an agent is strandable where a
           // background task is not, and a replayed conversation whose last turn

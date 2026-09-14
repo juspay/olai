@@ -98,6 +98,7 @@ import { laneOf } from "./lanes.ts"
 import { NEAR } from "./near.ts"
 import { useConversationUI } from "./ui.tsx"
 import { railOf, sameRail } from "./rail.ts"
+import { createPrevious } from "./previous.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { Row } from "./Row.tsx"
@@ -281,23 +282,17 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
    * into the list by position. That is the cheaper shape as well as the
    * honester one: `<For>` only keeps a signal per row for the index when the
    * mapper asks for one, and every conversation would pay for that whether or
-   * not an agent was ever spawned. This rebuilds on exactly the ticks the
+   * not an agent was ever spawned. This walks on exactly the ticks the
    * ORDER moves on — a row arriving or leaving — and on none of the frames
    * that merely grow a row, which is a fact about {@link ./order.ts}'s fold
-   * rather than a hope about this memo: the list it hands back on a frame that
+   * rather than a hope about this walk: the list it hands back on a frame that
    * moved nothing is the very array it handed back last time, so nothing here
    * wakes.
+   *
+   * And when it does walk, it wakes only the rows whose neighbour moved
+   * ({@link ./previous.ts}) — one per appended row, not every row on screen.
    */
-  const previousOf = createMemo(() => {
-    const order = props.chat.rows()
-    const previous = new Map<string, string>()
-    for (let at = 1; at < order.length; at++) {
-      const key = order[at]
-      const before = order[at - 1]
-      if (key !== undefined && before !== undefined) previous.set(key, before)
-    }
-    return previous
-  })
+  const previousOf = createPrevious(() => props.chat.rows())
 
   /**
    * What the transcript calls the row under a key — which for the one lane this
@@ -416,8 +411,9 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
              *  lane to the list instead — and a lane is a fresh object every
              *  time it is computed, so one row arriving would re-run the
              *  attribute effects of every row already on screen. */
+            const previousKey = previousOf(key)
             const above = createMemo(() => {
-              const previous = previousOf().get(key)
+              const previous = previousKey()
               return previous === undefined
                 ? undefined
                 : props.chat.entry(previous)()

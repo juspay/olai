@@ -307,6 +307,53 @@ When("I arm late growth on the next stored conversation", function (this: OlaiWo
   fs.writeFileSync(path.join(this.scratch(), ".agent-want-late"), "");
 });
 
+/** Ask the next `session/load` of `an older conversation` to replay a line at a
+ *  time, so its history reaches the panel over many frames while it opens. */
+When("I arm a slow replay on the next stored conversation", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), MARKER.slowReplay), "");
+});
+
+/** Start writing down every position the transcript scrolls to, with what the
+ *  panel said it was doing at that moment. On the document and in the capture
+ *  phase, because a `scroll` does not bubble and the pane is whichever one is
+ *  drawn when the event fires. */
+When("I record where the transcript scrolls", async function (this: OlaiWorld) {
+  await this.chat(CHAT_TRANSCRIPT).evaluate((pane, [transcript, panel]) => {
+    const tape: Array<{ top: number; status: string | null }> = [];
+    (window as unknown as { __transcriptScrolls: typeof tape }).__transcriptScrolls = tape;
+    pane.ownerDocument.addEventListener("scroll", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.matches(transcript)) return;
+      tape.push({ top: target.scrollTop, status: target.closest(panel)?.getAttribute("data-status") ?? null });
+    }, { capture: true, passive: true });
+  }, [CHAT_TRANSCRIPT, CHAT_PANEL] as const);
+});
+
+/** How many places the pane may stop at while a replay is opening: the jump
+ *  that lands the conversation, and the correction when its rendered text
+ *  settles the height. A pane that was handed the replay as it came stops at
+ *  nearly every one of its forty lines. */
+const REPLAY_STOPS = 2;
+
+/** An open is a PLACE, not a motion: while the conversation was still being
+ *  replayed into the pane, the pane jumped to where it was going and did not
+ *  travel through the history on the way. */
+Then(
+  "the transcript did not scroll through the conversation while it was replayed",
+  async function (this: OlaiWorld) {
+    const tape = await this.chat(CHAT_TRANSCRIPT).evaluate(() =>
+      (window as unknown as { __transcriptScrolls?: Array<{ top: number; status: string | null }> })
+        .__transcriptScrolls ?? []
+    );
+    const during = [...new Set(tape.filter((at) => at.status === "booting" && at.top > 0).map((at) => at.top))];
+    assert.ok(
+      during.length <= REPLAY_STOPS,
+      `the transcript followed the replay down the screen — it stopped at ${during.length} ` +
+        `positions while the conversation was still opening: ${JSON.stringify(during)}`,
+    );
+  },
+);
+
 /** Take a stored conversation out of the agent's store, the way a deleted
  *  session or a cleaned-out store would. The next boot's `session/list` no
  *  longer offers it, so a panel that remembers being in it has to fall back.

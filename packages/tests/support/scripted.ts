@@ -112,6 +112,10 @@ export const MARKER = {
   release: ".agent-release",
   /** Make the next `session/load` sit on the wire. */
   holdLoad: ".agent-hold-load",
+  /** Make the next replay of `an older conversation` arrive a line at a
+   *  time, the way a long history reaches the panel: over many frames, while
+   *  the panel is still opening it. */
+  slowReplay: ".agent-slow-replay",
   /** ... and the next session OPEN, whichever verb asked for it: the window
    *  between picking an agent and having a conversation. */
   holdOpen: ".agent-hold-open",
