@@ -127,6 +127,9 @@
 - id: pi
   name: olai-plugin-pi/server
   section: Conversation
+- id: omp
+  name: olai-plugin-omp/server
+  section: Conversation
 # ...AND THE TENANTS: olai's judgement about somebody else's appliance.
 - id: kolu
   name: olai-plugin-kolu/server

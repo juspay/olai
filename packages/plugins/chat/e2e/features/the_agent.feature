@@ -2160,19 +2160,6 @@ Feature: Talking to a node agent
     And the agent is idle
 
   @scratch:chat
-  Scenario: The filter reads the id the agent uses, not only the label
-    # Stands in for the omp `provider/id` case (type "litellm", only Kimi K3
-    # is offered) while the omp fake rides in juspay/olai#599: the double's
-    # two pin rows have `fake-model-*` VALUES, and neither name says "model".
-    When I open the "claude" agent on node "kitchen"
-    And the node agent's fold is ready
-    When I open the session settings
-    And I filter the chat models by "model"
-    Then the model picker offers only "Fake One, Fake Two"
-    When I pick the model under the cursor
-    Then the panel header names the model "Fake One"
-
-  @scratch:chat
   Scenario: A filter nothing matches offers nothing
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready

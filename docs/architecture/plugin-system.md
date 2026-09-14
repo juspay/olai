@@ -194,7 +194,7 @@ terms that need an example.
 
 | Word | What it means |
 | --- | --- |
-| **plugin** | one integration: two halves, one shape, each a `definePlugin` over an Effect. Two kinds exist — a **tenant** (olai's judgement about an outside appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP coding agent the chat panel can seat: claude, codex, opencode, pi). The system does not distinguish them |
+| **plugin** | one integration: two halves, one shape, each a `definePlugin` over an Effect. Two kinds exist — a **tenant** (olai's judgement about an outside appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP coding agent the chat panel can seat: claude, codex, opencode, pi, omp). The system does not distinguish them |
 | **name** | the plugin's one word, e.g. `"kolu"`. Also its row id, wire prefix, fiber name, settings namespace and docs address |
 | **row** | one entry in `packages/bundle/olai.yml`: an `id` and the module the loader mounts. Profiles apply `disabled` patches over that catalogue |
 | **fiber** | one mounted plugin. Callers see four words — `running`, `waiting`, `failed`, `off`; the engine's six internal states stay inside `@olai/effect-cordis` |

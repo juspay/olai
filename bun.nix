@@ -7649,6 +7649,7 @@
   "olai-plugin-mcp" = copyPathToStore ./packages/plugins/mcp;
   "olai-plugin-navigation" = copyPathToStore ./packages/plugins/navigation;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
+  "olai-plugin-omp" = copyPathToStore ./packages/plugins/omp;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
   "olai-plugin-outline-olai" = copyPathToStore ./packages/plugins/outline-olai;
   "olai-plugin-outlines" = copyPathToStore ./packages/plugins/outlines;

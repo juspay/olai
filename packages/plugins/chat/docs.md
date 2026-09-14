@@ -22,7 +22,7 @@ Every plugin that could reach a conversation names one of the five doors this ro
 
 | door | what it is | who names it |
 | --- | --- | --- |
-| `agents` | which ACP engines this build can seat | [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md) |
+| `agents` | which ACP engines this build can seat | [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md), [omp](omp.md) |
 | `deliveries` | where a doorbell may ring | [kolu](kolu.md), [odu](odu.md) |
 | `session-start` | what to ask this host when a conversation opens | kolu, odu |
 | `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces |

@@ -32,6 +32,7 @@
     "olai-plugin-claude": "workspace:*",
     "olai-plugin-codex": "workspace:*",
     "olai-plugin-opencode": "workspace:*",
+    "olai-plugin-omp": "workspace:*",
     "olai-plugin-pi": "workspace:*",
     "olai-plugin-markdown": "workspace:*",
     "olai-plugin-hypertext": "workspace:*",
