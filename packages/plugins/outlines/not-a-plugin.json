@@ -34,6 +34,7 @@
     "src/browser/palette/adapter.tsx"
   ],
   "pins": [
+    "src/browser/DatedRow.tsx",
     "src/browser/Tree.tsx",
     "src/browser/menu/actions.ts",
     "src/tools.ts"
