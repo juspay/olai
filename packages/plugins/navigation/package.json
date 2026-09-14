@@ -61,5 +61,7 @@
       "./routes.testlib.ts"
     ]
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
+  }
 }

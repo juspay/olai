@@ -75,5 +75,7 @@
       "./carry"
     ]
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
+  }
 }

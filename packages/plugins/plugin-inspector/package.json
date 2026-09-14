@@ -29,5 +29,8 @@
     "contracts": [
       "./testids"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
   }
 }
