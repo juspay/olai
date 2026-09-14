@@ -37,7 +37,7 @@ export const DOCUMENT_DRIFTED = selector(TESTID.documentDrifted);
 /** The two sidebar path boxes — a new outline's and a new document's — are
  *  reached through the client's own table (`file/making.ts`) rather than
  *  through constants here: the steps that drive them are one pair over the
- *  KIND (`step_definitions/new_file_steps.ts`), so a selector per kind spelled
+ *  KIND (`olai-plugin-files`’ `e2e/steps/new_file_steps.ts`), so a selector per kind spelled
  *  in this file would be the copy that pair exists to delete. */
 /** A document's table of contents, above its body. A `<details>`: whether it is
  *  open is the element's own state. */

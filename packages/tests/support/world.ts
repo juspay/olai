@@ -1200,7 +1200,7 @@ export class OlaiWorld extends World {
    *  may happen — so `report.html`'s remote picture is in `requests` and never
    *  reached the network at all. The two together are what let a step say which
    *  of those it was ("the preview reached nothing off this server",
-   *  `step_definitions/html_steps.ts`); the reason is kept because "blocked by
+   *  `olai-plugin-hypertext`’s `e2e/steps/html_steps.ts`); the reason is kept because "blocked by
    *  the policy" and "that host does not exist" are the same silence otherwise,
    *  and a fixture pointing at an unresolvable host would prove the policy
    *  works by never testing it. */
@@ -1543,7 +1543,7 @@ export class OlaiWorld extends World {
    *  came through here wanted it — so it is reported HERE, with the card's own
    *  text, rather than left to fail as a timeout on whatever element the next
    *  step was looking for. The one feature that does want it opens the page
-   *  itself (`step_definitions/fault_steps.ts`). */
+   *  itself (`olai-plugin-layout`’s `e2e/steps/fault_steps.ts`). */
   async open(path = "/"): Promise<void> {
     await this.settle(path);
     const fault = this.page.locator(FAULT_DETAIL);
@@ -1566,7 +1566,7 @@ export class OlaiWorld extends World {
   /** Go to a path and wait for the app to commit to one of its shapes — the
    *  whole of the opening protocol except the verdict on which shape it is.
    *  Its own method because the ONE feature that wants a fault card
-   *  (`step_definitions/fault_steps.ts`) needs everything here and none of the
+   *  (`olai-plugin-layout`’s `e2e/steps/fault_steps.ts`) needs everything here and none of the
    *  rejection above; a second copy of this over there is how the burger
    *  regression that `SETTLED_SELECTOR` documents would be re-learnt. */
   async settle(path = "/"): Promise<void> {
@@ -2690,7 +2690,7 @@ export class OlaiWorld extends World {
   /** A box taken BEFORE something replaced what was inside it, for the
    *  scenarios that claim the swap changed nothing about it — the markdown
    *  renderer landing under a note, and under a tree row's title
-   *  (`step_definitions/markdown_steps.ts`). Compared against itself, like the
+   *  (`olai-plugin-markdown`’s `e2e/steps/markdown_steps.ts`). Compared against itself, like the
    *  paper above: WHICH of its numbers is the claim belongs to the step that
    *  reads it, and no number in it is a fact about this app anybody wrote
    *  down. */

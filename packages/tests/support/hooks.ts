@@ -291,7 +291,7 @@ const FAKE_AGENT = path.resolve(
  * names itself after its box, and a tab's title asserting the harness's own
  * word for the box is the one check that the name crossed rather than
  * agreeing with whatever container the run happened in. Exported for
- * `step_definitions/named_steps.ts`, which spells the expected word.
+ * `olai-plugin-layout`’s `e2e/steps/named_steps.ts`, which spells the expected word.
  */
 export const BOX_NAME = "cucumber";
 
