@@ -40,7 +40,7 @@ packages/plugins/<name>/
     └── selectors.ts          # this row's ids, from its own src/testids.ts
 ```
 
-A row that owns e2e steps declares `@olai/tests` in its `devDependencies`, and that is the only line it adds: `@cucumber/cucumber` and `playwright` are re-exported by the harness (`@olai/tests/harness/runner.ts`, `@olai/tests/harness/playwright.ts`), so one copy of the runner registers every step and playwright's Nix-pinned version stays in one manifest. `packages/tests/tsconfig.json` is what `tsc` reads the plugin `e2e/` trees from; each row's own `tsconfig.json` still compiles `src` alone, which is what that package ships.
+A row that owns e2e steps declares `@olai/tests` in its `devDependencies` — plus whatever general package its steps genuinely name (four rows needed one: `@olai/surface`, `@olai/format`, `@olai/fonts`, `@olai/web`). It never declares the runner: `@cucumber/cucumber` and `playwright` are re-exported by the harness (`@olai/tests/harness/runner.ts`, `@olai/tests/harness/playwright.ts`), so one copy of the runner registers every step and playwright's Nix-pinned version stays in one manifest. `packages/tests/tsconfig.json` is what `tsc` reads the plugin `e2e/` trees from; each row's own `tsconfig.json` still compiles `src` alone, which is what that package ships.
 
 ## What a step definition may import
 
