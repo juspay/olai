@@ -47,7 +47,7 @@
 import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
-import { type Accessor, createEffect, createMemo, createSignal, on, onCleanup } from "solid-js"
+import { type Accessor, createEffect, createMemo, createSelector, createSignal, on, onCleanup } from "solid-js"
 import { chatWire } from "../wire.ts"
 
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
@@ -279,12 +279,15 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
    * last message — reads one complete row and no consumer has to know the wire
    * delivers a growing one in two halves ({@link ./growing.ts}).
    *
-   * WHICH row is growing is asked of a memo that moves once a paragraph, so
-   * every other row on screen is woken when a paragraph opens rather than on
-   * every frame of one.
+   * WHICH row is growing is asked of a memo that moves once a paragraph, and
+   * through a SELECTOR over it, so a paragraph opening wakes the row that stops
+   * growing and the row that starts — not every row on screen. Reading the memo
+   * itself put every row on it, so every message that opened a paragraph in a
+   * long conversation woke its whole transcript: quadratic over a turn.
    */
+  const growing = createSelector(said.of)
   const entry = (key: string): Accessor<ChatEntry | undefined> => () =>
-    said.of() === key ? grown() : transcript.byKey(key)?.()
+    growing(key) ? grown() : transcript.byKey(key)?.()
 
   // THE ORDER, FOLDED — the wire's own frames accumulated into a key list
   // instead of the whole transcript being re-read and re-sorted per frame.

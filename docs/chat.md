@@ -95,7 +95,8 @@ dates its engine supplies. An unreachable engine is named with its reason;
 absence of an answer is not presented as an empty history.
 
 Answers stream incrementally, with browser updates batched several times per
-second. A conversation opens at its newest line. New text follows only while
+second. A conversation opens at its newest line — once, when its history has
+arrived, rather than scrolling through that history as it loads. New text follows only while
 you are at the bottom; scrolling up keeps your place. A fold bounds its
 transcript, while a zoomed page scrolls the containing pane with the conversation.
 

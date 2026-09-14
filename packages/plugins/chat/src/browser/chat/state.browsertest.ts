@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { buildSurfaceClient } from "@kolu/surface/solid"
 import { Effect, Exit, Queue, Scope, Stream } from "effect"
-import { createRoot } from "solid-js"
+import { createMemo, createRoot } from "solid-js"
 import { CHAT_OFF, surface, type Conversing } from "../../wire.ts"
 import { holdChatWire } from "../wire.ts"
 import { createChat } from "./state.ts"
@@ -81,6 +81,61 @@ test("a send waits for its keyed opening, and disposal settles a queued gesture 
     expect(sent).toEqual([{ conv: { agent: "alpha", session: "opening" }, scope: "opened-lifetime", text: "queued words", attachments: [], context: [] }])
   } finally {
     first.dispose(); second.dispose(); wire.dispose()
+    await Effect.runPromise(Scope.close(activation, Exit.void))
+  }
+})
+
+test("a paragraph opening wakes the row that grows and the row that stopped, not every row", async () => {
+  // Every row asks "am I the one growing" of one shared memo, and each message
+  // that opens a paragraph moves it: read directly, that woke every row in the
+  // conversation per message.
+  const queues = new Map<string, Queue.Enqueue<unknown>>()
+  const keys = Array.from({ length: 20 }, (_, at) => `agent:${at}`)
+  const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
+    unary: () => Effect.void,
+    stream: (tag, input) => Stream.callback<unknown>(queue => Effect.sync(() => {
+      const to = input as Conversing
+      const member = tag.split("/").at(-2) ?? ""
+      queues.set(member, queue)
+      Queue.offerUnsafe(queue, member === "state" ? {
+        ...CHAT_OFF, status: "idle", uploadScope: `scope-${to.session}`,
+        session: { id: to.session, title: null, updatedAt: null },
+      } : { kind: "snapshot", entries: member === "transcript" ? keys.map((key, seq) => [key, {
+        kind: "agent", id: key, seq, since: "2026-09-11T00:00:00Z", text: `said ${seq}`,
+      }]) : [] })
+    })),
+  }, () => true) }))
+  const activation = Scope.makeUnsafe()
+  await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
+  const opened = createRoot(dispose => ({ dispose, chat: createChat({ agent: "alpha", session: "long" }) }))
+  const runs = new Map<string, number>()
+  const readers = createRoot(dispose => {
+    for (const key of keys) {
+      createMemo(() => {
+        runs.set(key, (runs.get(key) ?? 0) + 1)
+        return opened.chat.entry(key)()
+      })
+    }
+    return dispose
+  })
+  const woken = async (frame: unknown): Promise<ReadonlyArray<string>> => {
+    const before = new Map(runs)
+    Queue.offerUnsafe(queues.get("saying")!, frame)
+    await settle()
+    return [...runs].filter(([key, count]) => count !== before.get(key)).map(([key]) => key).sort()
+  }
+  try {
+    await settle()
+    expect(opened.chat.entry("agent:5")()?.text).toBe("said 5")
+    expect(await woken({ kind: "delta", upserts: [["agent:5#6", { of: "agent:5", at: 6, text: " more" }]], removes: [] }))
+      .toEqual(["agent:5"])
+    expect(opened.chat.entry("agent:5")()?.text).toBe("said 5 more")
+    expect(await woken({ kind: "delta", upserts: [["agent:9#6", { of: "agent:9", at: 6, text: " next" }]], removes: ["agent:5#6"] }))
+      .toEqual(["agent:5", "agent:9"])
+    expect(opened.chat.entry("agent:9")()?.text).toBe("said 9 next")
+    expect(opened.chat.entry("agent:5")()?.text).toBe("said 5")
+  } finally {
+    readers(); opened.dispose(); wire.dispose()
     await Effect.runPromise(Scope.close(activation, Exit.void))
   }
 })

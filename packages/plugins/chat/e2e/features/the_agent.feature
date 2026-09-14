@@ -1498,6 +1498,25 @@ Feature: Talking to a node agent
     And the transcript is scrolled to the newest line
 
   @agent-stored @scratch:chat
+  Scenario: Opening a long conversation does not scroll through its history
+    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And the node agent's fold is ready
+    # An open is a replay: the agent re-sends the whole history before it
+    # answers, and a long one reaches the panel a few lines a frame while the
+    # panel is still opening it. Following each of those frames scrolled the
+    # pane past its reader for as long as the history took to arrive — seconds,
+    # for a long chat. The pane lands on the newest line once, when the
+    # conversation has arrived, and does not travel there line by line.
+    When I arm a slow replay on the next stored conversation
+    And I record where the transcript scrolls
+    And I open the fold history
+    And I open the past session "an older conversation"
+    Then the opened conversation carries the title "an older conversation"
+    And the chat eventually shows "line 39"
+    And the transcript is scrolled to the newest line
+    And the transcript did not scroll through the conversation while it was replayed
+
+  @agent-stored @scratch:chat
   Scenario: Growth after opening still lands on the newest line
     When I open the filed conversation "the last conversation" as node "filed-chat"
     And the node agent's fold is ready
