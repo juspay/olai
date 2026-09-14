@@ -3934,8 +3934,32 @@ Then("the model list has scrolled to the row under the cursor", async function (
 Then("the model list is back at the top", async function (this: OlaiWorld) {
   const list = this.chatLine().getByRole("list", { name: "Models", exact: true });
   await this.waitUntil(
-    async () => (await list.evaluate((ul) => ul.scrollTop)) <= 1,
-    "the model list to be scrolled back to its first rows",
+    async () => {
+      // "Top" is NOT a bare scrollTop number: the filter is a STICKY child an
+      // arrow-walked row must end up BELOW, and Chromium's nearest-scroll makes
+      // exactly that land scrollTop at zero (a sticky-naive mount instead stops
+      // at the row's own top and leaves it painted over by the filter). What is
+      // pinned here is the thing a pair of eyes would check: the FIRST model
+      // row is the one under the cursor, and it is fully on view below the
+      // filter with the list wound back to its first rows.
+      const read = await list.evaluate((ul) => {
+        // `aria-selected` rides the BUTTON inside the row's `li`: the index and
+        // the rect are the LI's, the button's inner-pressable is a hair smaller.
+        const active = ul.querySelector('[aria-selected="true"]')?.closest("li");
+        const filter = ul.children[0];
+        if (active === undefined || active === null || filter === undefined) return null;
+        const row = active.getBoundingClientRect();
+        const box = ul.getBoundingClientRect();
+        return {
+          scrolled: ul.scrollTop,
+          first: Array.prototype.indexOf.call(ul.children, active) === 1,
+          belowFilter: row.top >= filter.getBoundingClientRect().bottom - 1,
+          inside: row.top >= box.top && row.bottom <= box.bottom + 1,
+        };
+      });
+      return read !== null && read.first && read.belowFilter && read.inside && read.scrolled <= 1;
+    },
+    "the model list to be back on its first row, in view below the filter",
     HYDRATION_TIMEOUT,
   );
 });
