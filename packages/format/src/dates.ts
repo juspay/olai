@@ -60,7 +60,7 @@ import { mintExt } from "./kinds.ts"
 import type { Claims } from "./kinds.ts"
 import { Order, Schema } from "effect"
 
-import { dayAt, type Derived, Situated, situate } from "./derive.ts"
+import { dayAt, type Derived, Situated, situate, under } from "./derive.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import type { LocatedRegular } from "./node.ts"
 import { type Dated, monthOf, Occasioned } from "./occasion.ts"
@@ -172,8 +172,18 @@ export const datedAnswer = (derived: Derived, month: string): DatedAnswer => ({
  * Situated} that page is built from, because a day collects nodes from all
  * over the set and a title torn out of its outline says nothing — plus which
  * of its dates put it here.
+ *
+ * `under` rides with it for the reason it rides on a tree row
+ * ({@link Row.under}): the entry wears a `•••` menu now, and that menu's Move to
+ * Trash has to name how much goes with the node. It is a count over the SET,
+ * which changes when the set does, so it is counted here where the set is
+ * rather than in every tab that draws the row.
  */
-export const DayEntry = Schema.Struct({ ...Situated.fields, ...Occasioned.fields })
+export const DayEntry = Schema.Struct({
+  ...Situated.fields,
+  ...Occasioned.fields,
+  under: Schema.Int,
+})
 export type DayEntry = typeof DayEntry.Type
 
 /** The nodes of one outline on the same day.
@@ -245,6 +255,7 @@ export const entryOf = (derived: Derived, dated: Dated): DayEntry => ({
   ...situate(derived, dated.at),
   occasion: dated.occasion,
   date: dated.date,
+  under: under(derived, dated.at.node.id),
 })
 
 /**

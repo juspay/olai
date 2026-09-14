@@ -84,17 +84,19 @@ export const subjectOfRow = (row: Row): Subject => ({
 })
 
 /**
- * The subject a ZOOMED PAGE is — what the palette asks about.
+ * The subject a SITUATED node is — a ZOOMED PAGE, which the palette asks
+ * about, and a DATED ROW on a day page or the agenda, whose `•••` asks about it.
  *
- * A zoom always lands on a regular node however it was addressed
- * (`@olai/format`'s `zoom` follows the chain), so the record and what it shows
- * are the same node here, and the placement verb is correctly never offered:
- * the reader is looking at the node, not at a line standing for it.
+ * Both land on a regular node however it was reached (`@olai/format`'s `zoom`
+ * follows the chain, and a day collects records rather than placements), so the
+ * record and what it shows are the same node here, and the placement verb is
+ * correctly never offered: the reader is looking at the node, not at a line
+ * standing for it.
  */
-export const subjectOfZoom = (zoomed: Situated): Subject => ({
-  record: zoomed.shows.node,
-  shows: zoomed.shows,
-  status: zoomed.status,
+export const subjectOfSituated = (situated: Situated): Subject => ({
+  record: situated.shows.node,
+  shows: situated.shows,
+  status: situated.status,
 })
 
 /**

@@ -50,7 +50,7 @@ import type { Situated } from "@olai/format"
 import { NO_PINS } from "@olai/format"
 
 import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
-import { subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
+import { subjectOfSituated, writeVerbs } from "../menu/verbs.ts"
 import type { PaletteItem } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
 
@@ -83,7 +83,7 @@ export const opItems = (
   // changed is why a palette would not have offered it anyway: it is a gesture
   // whose whole point is being on the ROW, and the node it would bind here is
   // the page.
-  return writeVerbs(routes, subjectOfZoom(zoomed), under, NO_PINS).flatMap((verb) =>
+  return writeVerbs(routes, subjectOfSituated(zoomed), under, NO_PINS).flatMap((verb) =>
     // AND THE SHELF'S VERB IS LEFT OUT, which is the one exclusion by NAME in
     // this file and needs its own sentence because of that. The palette
     // already carries a pin row, and that one is about the PAGE

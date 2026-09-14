@@ -39,8 +39,11 @@ import {
   expectDrawn,
   HYDRATION_TIMEOUT,
   NODE,
+  NODE_GUTTER,
+  NODE_MENU,
   nodeSelector,
   POLL_TIMEOUT,
+  ZOOM,
 } from "@olai/tests/harness/world.ts";
 import {
   AGENDA_COUNT,
@@ -557,6 +560,33 @@ When(
       todo: true,
       date: daysFromToday(days),
     });
+  },
+);
+
+/**
+ * Where a dated row's `•••` is LAID OUT — beside the bullet, outside the row —
+ * and that the bullet is still on the row's own left edge.
+ *
+ * Geometry rather than a class, because the promise is about what moved: a
+ * `•••` given a cell of its own would push the glyph, the ancestry line and the
+ * note off the column the day's heading lines up with, and every other step on
+ * this page would still pass. Asked while the `•••` is transparent, which is
+ * still a laid-out box.
+ */
+Then(
+  "the ••• of {string} hangs left of its bullet",
+  async function (this: OlaiWorld, id: string) {
+    const dots = await this.box(this.within(id, NODE_MENU), `the ••• of "${id}"`);
+    const bullet = await this.box(this.within(id, ZOOM), `the bullet of "${id}"`);
+    const line = await this.box(this.within(id, NODE_GUTTER), `the line of "${id}"`);
+    assert.ok(
+      dots.x + dots.width <= bullet.x + 0.5,
+      `the ••• of "${id}" (right edge ${dots.x + dots.width}) overlaps its bullet (left edge ${bullet.x})`,
+    );
+    assert.ok(
+      Math.abs(bullet.x - line.x) <= 0.5,
+      `the bullet of "${id}" sits at ${bullet.x}, off its line's left edge at ${line.x} — the ••• took a cell`,
+    );
   },
 );
 
