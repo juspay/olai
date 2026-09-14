@@ -1,0 +1,12 @@
+{
+  "markdown": [
+    "src/scale.ts"
+  ],
+  "pi": [
+    "src/tagInk.ts"
+  ],
+  "theme": [
+    "src/css.ts",
+    "src/palettes.ts"
+  ]
+}

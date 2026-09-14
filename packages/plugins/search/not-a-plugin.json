@@ -1,0 +1,24 @@
+{
+  "claude": [
+    "src/tools.ts"
+  ],
+  "files": [
+    "src/browser.tsx",
+    "src/browser/KindSelector.tsx",
+    "src/table.bench.ts",
+    "src/table.ts"
+  ],
+  "markdown": [
+    "src/tools.ts"
+  ],
+  "outlines": [
+    "src/matcher.ts",
+    "src/table.bench.ts",
+    "src/tools.ts"
+  ],
+  "vault": [
+    "src/server.ts",
+    "src/table.bench.ts",
+    "src/tools.ts"
+  ]
+}

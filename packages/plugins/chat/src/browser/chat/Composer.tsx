@@ -504,7 +504,7 @@ export function Composer(props: {
    * `value` to the same string leaves the selection alone, and engines have
    * not always agreed. Neither claim is one to rest a caret on by reading, so
    * the caret is asserted where it can be — in a browser, after a completion
-   * taken mid-sentence (`features/chat_at_completion.feature`, which reads
+   * taken mid-sentence (`packages/plugins/chat/e2e/features/chat_at_completion.feature`, which reads
    * `selectionStart` back rather than believing this paragraph).
    *
    * IT TAKES THE CARET BACK, which matters for the row that was CLICKED: the

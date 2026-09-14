@@ -1,0 +1,24 @@
+{
+  "capture": [
+    "src/edit.ts"
+  ],
+  "csv": [
+    "src/attach.ts"
+  ],
+  "files": [
+    "src/projection.ts"
+  ],
+  "pdf": [
+    "src/attach.ts"
+  ],
+  "search": [
+    "src/media.ts"
+  ],
+  "trash": [
+    "src/edit.ts"
+  ],
+  "vault": [
+    "src/plugins.ts",
+    "src/seal.ts"
+  ]
+}

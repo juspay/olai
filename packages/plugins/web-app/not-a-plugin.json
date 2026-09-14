@@ -1,0 +1,11 @@
+{
+  "files": [
+    "src/manifest.ts"
+  ],
+  "image": [
+    "src/manifest.ts"
+  ],
+  "theme": [
+    "src/manifest.ts"
+  ]
+}

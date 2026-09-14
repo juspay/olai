@@ -1,0 +1,128 @@
+{
+  "capture": [
+    "src/conventions.bench.ts",
+    "src/inbox.ts",
+    "src/index.ts",
+    "src/message.ts",
+    "src/writing.ts"
+  ],
+  "chat": [
+    "src/committing.ts"
+  ],
+  "claude": [
+    "src/filter.ts",
+    "src/searching.ts"
+  ],
+  "csv": [
+    "src/csv.ts",
+    "src/index.ts",
+    "src/writing.ts"
+  ],
+  "files": [
+    "src/conventions.bench.ts",
+    "src/dates.bench.ts",
+    "src/errors.ts",
+    "src/filter.bench.ts",
+    "src/message.ts",
+    "src/node.ts",
+    "src/page.ts",
+    "src/patch.bench.ts",
+    "src/patch.ts",
+    "src/pointing.bench.ts",
+    "src/reading.ts",
+    "src/rules.ts",
+    "src/scope.bench.ts",
+    "src/searching.ts",
+    "src/set.ts",
+    "src/validate.bench.ts",
+    "src/verdict.ts",
+    "src/vocabulary.bench.ts"
+  ],
+  "git": [
+    "src/committing.ts",
+    "src/index.ts",
+    "src/searching.ts",
+    "src/writing.ts"
+  ],
+  "journal": [
+    "src/patch.ts",
+    "src/searching.ts"
+  ],
+  "markdown": [
+    "src/dates.ts",
+    "src/document.ts",
+    "src/incremental.ts",
+    "src/index.ts",
+    "src/page.ts",
+    "src/reading.ts",
+    "src/rules.ts",
+    "src/searching.ts",
+    "src/set.ts",
+    "src/validate.bench.ts",
+    "src/validate.ts",
+    "src/writing.ts"
+  ],
+  "mcp": [
+    "src/committing.ts"
+  ],
+  "outlines": [
+    "src/committing.ts",
+    "src/filter.ts",
+    "src/inbox.ts",
+    "src/index.ts",
+    "src/message.ts",
+    "src/node.ts",
+    "src/page.ts",
+    "src/pointing.bench.ts",
+    "src/reading.ts",
+    "src/searching.ts",
+    "src/set.ts",
+    "src/validate.bench.ts",
+    "src/validate.ts",
+    "src/window.ts",
+    "src/writing.ts"
+  ],
+  "pdf": [
+    "src/writing.ts"
+  ],
+  "pins": [
+    "src/conventions.bench.ts",
+    "src/index.ts",
+    "src/node.ts",
+    "src/rules.ts",
+    "src/shelf.ts"
+  ],
+  "search": [
+    "src/address.ts",
+    "src/documents.ts",
+    "src/filter.ts",
+    "src/index.ts",
+    "src/searching.ts"
+  ],
+  "trash": [
+    "src/index.ts",
+    "src/message.ts",
+    "src/moving.ts",
+    "src/narrowing.ts",
+    "src/node.ts",
+    "src/page.ts",
+    "src/rules.ts",
+    "src/searching.ts",
+    "src/writing.ts"
+  ],
+  "vault": [
+    "src/conventions.bench.ts",
+    "src/dates.bench.ts",
+    "src/filter.bench.ts",
+    "src/meaning.ts",
+    "src/page.ts",
+    "src/patch.bench.ts",
+    "src/pointing.bench.ts",
+    "src/scope.bench.ts",
+    "src/searching.ts",
+    "src/typing.ts",
+    "src/validate.bench.ts",
+    "src/vocabulary.bench.ts",
+    "src/writing.ts"
+  ]
+}

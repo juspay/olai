@@ -47,5 +47,8 @@
       "./bar-door",
       "./clearance"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
   }
 }

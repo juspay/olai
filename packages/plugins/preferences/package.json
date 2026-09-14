@@ -26,5 +26,10 @@
     "contracts": [
       "./testids"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*",
+    "@olai/fonts": "workspace:*",
+    "@olai/format": "workspace:*"
   }
 }

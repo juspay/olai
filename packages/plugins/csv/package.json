@@ -30,5 +30,9 @@
       "./claim",
       "./testids"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*",
+    "@olai/surface": "workspace:*"
   }
 }

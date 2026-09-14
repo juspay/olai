@@ -10,7 +10,7 @@
  * `Vault.revision` like any other. Everything is acquired on THIS provider's
  * scope, so withdrawing the row drops the projection and the collection's
  * entries together — which is what makes outlines genuinely absent rather than
- * quiet (`packages/tests/features/content_capabilities.feature`).
+ * quiet (`packages/plugins/markdown/e2e/features/content_capabilities.feature`).
  *
  * THIS ROW REGISTERED `root: true` UNTIL #546, and so did markdown, pins,
  * files, trash, capture, search, vault and vault-plugins. A root mount kept

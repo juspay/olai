@@ -9,7 +9,7 @@
  * `Vault.revision` like any other. Everything is acquired on THIS provider's
  * scope, so withdrawing the row drops the projection, the body reader and the
  * collection's entries together — which is what makes markdown genuinely
- * absent rather than quiet (`packages/tests/features/content_capabilities.feature`).
+ * absent rather than quiet (`packages/plugins/markdown/e2e/features/content_capabilities.feature`).
  *
  * THIS ROW REGISTERED `root: true` UNTIL #546, and so did outlines and seven
  * others. A root mount kept every member answering under a BARE tag as well as

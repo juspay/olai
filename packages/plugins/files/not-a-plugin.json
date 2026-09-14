@@ -1,0 +1,46 @@
+{
+  "capture": [
+    "src/Files.tsx",
+    "src/tools.ts"
+  ],
+  "csv": [
+    "src/tools.ts"
+  ],
+  "git": [
+    "src/file/delete.ts",
+    "src/tools.ts"
+  ],
+  "markdown": [
+    "src/tools.ts"
+  ],
+  "navigation": [
+    "src/browser.tsx"
+  ],
+  "outlines": [
+    "src/Files.tsx",
+    "src/Rail.tsx",
+    "src/testids.ts",
+    "src/tools.ts"
+  ],
+  "pdf": [
+    "src/tools.ts"
+  ],
+  "pins": [
+    "src/tools.ts"
+  ],
+  "sidebar": [
+    "src/Files.tsx",
+    "src/browser.tsx",
+    "src/fold/folders.ts",
+    "src/fold/reference.ts",
+    "src/testids.ts",
+    "src/tools.ts"
+  ],
+  "trash": [
+    "src/tools.ts"
+  ],
+  "vault": [
+    "src/Files.tsx",
+    "src/testids.ts"
+  ]
+}

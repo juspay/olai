@@ -1,0 +1,22 @@
+{
+  "files": [
+    "src/browser.tsx"
+  ],
+  "identity": [
+    "src/tools.ts"
+  ],
+  "journal": [
+    "src/tools.ts"
+  ],
+  "navigation": [
+    "src/Palette.tsx",
+    "src/browser.tsx"
+  ],
+  "search": [
+    "src/Palette.tsx"
+  ],
+  "vault": [
+    "src/server.ts",
+    "src/tools.ts"
+  ]
+}

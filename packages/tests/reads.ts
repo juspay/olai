@@ -10,7 +10,7 @@
  * request and every answer.
  *
  * NOT PART OF THE SUITE — nothing imports it and `just e2e` never runs it. The
- * promises live in `features/an_external_agent.feature` and in the unit tests
+ * promises live in `packages/plugins/chat/e2e/features/an_external_agent.feature` and in the unit tests
  * under `@olai/ops` and `@olai/server`; this is what a person reads.
  *
  * The CLIENT is the suite's own (`support/mcp.ts`), deliberately: a second

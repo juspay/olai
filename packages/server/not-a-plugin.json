@@ -1,0 +1,42 @@
+{
+  "capture": [
+    "src/main.ts"
+  ],
+  "files": [
+    "src/main.ts"
+  ],
+  "git": [
+    "src/main.ts"
+  ],
+  "identity": [
+    "src/serve.ts"
+  ],
+  "markdown": [
+    "src/main.ts"
+  ],
+  "mcp": [
+    "src/dial.ts",
+    "src/main.ts",
+    "src/mcpClient.ts",
+    "src/serve.ts"
+  ],
+  "outlines": [
+    "src/main.ts"
+  ],
+  "search": [
+    "src/main.ts"
+  ],
+  "settings": [
+    "src/configuration.ts"
+  ],
+  "trash": [
+    "src/main.ts"
+  ],
+  "vault": [
+    "src/main.ts",
+    "src/serve.ts"
+  ],
+  "vault-plugins": [
+    "src/main.ts"
+  ]
+}

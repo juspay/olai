@@ -42,5 +42,7 @@
       "./surface"
     ]
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
+  }
 }

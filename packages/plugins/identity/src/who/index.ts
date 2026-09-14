@@ -13,7 +13,7 @@
  * Because two processes that are not a serve read it. The e2e suite states
  * a deployment's header names and hashes the gravatar it expects to see
  * drawn, and it must read those from the code rather than re-typing them
- * (`packages/tests/step_definitions/identity_steps.ts`); a door onto the
+ * (`packages/plugins/identity/e2e/steps/identity_steps.ts`); a door onto the
  * row's `apply` would drag the plugin runtime into a cucumber process for
  * two constants. This door decodes configuration synchronously; it neither imports the
  * plugin API's runtime nor touches `process.env`.

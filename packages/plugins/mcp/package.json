@@ -26,7 +26,8 @@
     "@olai/ui-primitives": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "@olai/tests": "workspace:*"
   },
   "olai": {
     "contracts": [

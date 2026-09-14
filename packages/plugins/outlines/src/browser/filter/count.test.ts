@@ -4,7 +4,7 @@
  * A sentence rather than a layout, which is why this is a `bun test` and not a
  * scenario: what a browser adds is that the numbers are the page's own
  * (`./narrowing.test.ts` pins that) and that the line is drawn where a reader
- * looks (`packages/tests/features/filter_in_place.feature` pins that). What is
+ * looks (`packages/plugins/outlines/e2e/features/filter_in_place.feature` pins that). What is
  * pinned HERE is the English — the plural, the dropped word, and the parts that
  * go unsaid.
  */
