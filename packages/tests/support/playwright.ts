@@ -16,6 +16,7 @@ export type {
   BrowserContext,
   CDPSession,
   ConsoleMessage,
+  ElementHandle,
   Frame,
   JSHandle,
   Locator,

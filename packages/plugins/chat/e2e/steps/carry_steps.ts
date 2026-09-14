@@ -174,12 +174,12 @@ Then("the address still contains {string}", async function(this: OlaiWorld, path
   await this.waitUntil(async () => decodeURIComponent(this.page.url()).includes(path), `address to contain ${path}`);
 });
 Then("the carry refusal names {string}", async function(this: OlaiWorld, words: string) {
-  const { SELECTION_SAID } = await import("../support/world.ts");
+  const { SELECTION_SAID } = await import("@olai/tests/harness/world.ts");
   await this.waitUntil(async () => (await this.page.locator(SELECTION_SAID).textContent())?.includes(words) ?? false, "carry refusal");
 });
 
 Then("transcript grips leave the lane rail and words clear", async function(this: OlaiWorld) {
-  const { CHAT_LANE, CHAT_PREVIEW } = await import("../support/world.ts");
+  const { CHAT_LANE, CHAT_PREVIEW } = await import("@olai/tests/harness/world.ts");
   const lanes = this.page.locator(CHAT_PREVIEW).locator(CHAT_LANE);
   assert.ok(await lanes.count() > 0, "the shelf draws lane rows");
   for (const lane of await lanes.all()) {

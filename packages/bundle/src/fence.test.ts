@@ -710,21 +710,24 @@ describe("only the registry knows a plugin's name", () => {
    * WHAT REMAINS IS TWO SUITES THAT DRIVE ROWS, and every line is a claim
    * rather than a hole.
    *
-   * `@olai/tests` is the cucumber suite: it drives plugins, so it names them.
-   * KOLU's door is the fake padi the e2e spawn stands on. CHAT's is the panel's
-   * own constants — how close to the foot of the transcript still counts as
-   * following, which trigger the composer has armed, and the two keys an alert
-   * preference is stored under. IDENTITY's is the header names a Given injects
-   * and the gravatar URL a Then expects drawn; `olai-plugin-identity/who` is the
-   * READING with no runtime in it — no Effect, no plugin API, no browser — which
-   * is what makes it importable from a cucumber process at all. FILES', LAYOUT's
-   * and OUTLINES' are the newest, and they are the same names as before under a
-   * different roof: which row one KIND of file draws, what a minting door is
-   * called, the width the sidebar remembers, the outline's referring word, its
-   * idle commit and its three view keys were all reaching this suite THROUGH
-   * `@olai/web/testlib`. A pass-through is not a smaller dependency than an
-   * import — it is the same edge with a general package's name on it — so the
-   * suite asks the row it is already driving, and the row is named here.
+   * `@olai/tests` is the cucumber suite's HARNESS, and the list shrank because
+   * the suite stopped being one package. A row keeps the features it promises
+   * and the steps that drive its own surface under its own `e2e/`, so a step
+   * that wanted `olai-plugin-identity/who`, `olai-plugin-files/making`,
+   * `olai-plugin-layout/preferences` or `olai-plugin-odu/testids` is now a file
+   * INSIDE that row reaching its own `src/` by a relative path — no door, no
+   * manifest line, and nothing for this table to record. Six rows left the
+   * harness's manifest with their steps.
+   *
+   * WHAT IS LEFT IS WHAT THE HARNESS ITSELF STANDS ON. KOLU's and ODU's
+   * appliance doors are the fake padi and the fake run service the spawn stands
+   * on. CHAT's is the panel constant `world.ts` composes a shared selector from.
+   * The six `/testids` doors are `ROW_TESTID` — which row draws one KIND of
+   * file — a question about six rows at once that no one of them can answer.
+   * And `storage_keys.ts` is the newest and the sharpest: the preferences PANEL
+   * is one row and the keys its steps assert on belong to two others, so the
+   * four names come through the harness rather than through a row reaching
+   * sideways for a bench door that is not a declared contract.
    *
    * `packages/server` carves its doors the same way: the git testlib, so
    * `headless.test.ts` does not copy `gitIn`; identity's reading, so the
@@ -746,16 +749,10 @@ describe("only the registry knows a plugin's name", () => {
       "tests/agent/fake-acp-agent.ts: olai-plugin-codex/testlib",
       "tests/agent/opencode/opencode.ts: olai-plugin-opencode/testlib",
       "tests/agent/pi/pi-acp.ts: olai-plugin-pi/testlib",
-      "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
-      "tests/step_definitions/editing_steps.ts: olai-plugin-outlines/testlib",
-      "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
-      "tests/step_definitions/new_file_steps.ts: olai-plugin-files/making",
-      "tests/step_definitions/odu_run_steps.ts: olai-plugin-odu/testids",
-      "tests/step_definitions/panel_steps.ts: olai-plugin-layout/preferences",
-      "tests/step_definitions/preferences_steps.ts: olai-plugin-alerts/keys",
-      "tests/step_definitions/preferences_steps.ts: olai-plugin-outlines/testlib",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/hooks.ts: olai-plugin-odu/appliance/testlib",
+      "tests/support/storage_keys.ts: olai-plugin-alerts/keys",
+      "tests/support/storage_keys.ts: olai-plugin-outlines/testlib",
       "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-csv/testids",
       "tests/support/world.ts: olai-plugin-hypertext/testids",
@@ -807,7 +804,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-identity", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
+    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
@@ -1599,12 +1596,29 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * through `@olai/bundle/testids`), which is the import half of the same
    * question and is held by claim 1.
    *
+   * ...AND `e2e/` IS THAT SAME EXCLUSION, following the suite to where it went.
+   * The browser suite is not one package any more: a plugin keeps the features
+   * it promises and the steps that drive its own surface under its own `e2e/`,
+   * loaded by the same cucumber run out of the same profile. Those files spell
+   * other rows' names for exactly the reason `packages/tests` always did — a
+   * scenario about a conversation says `kolu` because it is about kolu — and
+   * nothing under `e2e/` ships. It is the CONTAINER that is excused, not a
+   * suffix, because a step file is named for the feature it drives rather than
+   * for being a test. The import half is not excused with it: claim 1 and the
+   * manifest claim below read `e2e/` like any other source, so a row's steps
+   * reach another row through a declared static contract or not at all, and no
+   * row's steps may name the registry.
+   *
    * `.css` is left to claim 1, which reads `@import` in the grammar CSS has.
    */
   const SUITE = "tests"
+  /** A path segment, so `plugins/pins/e2e/steps/pin_steps.ts` is a bench and a
+   *  hypothetical `src/e2ething.ts` is not. */
+  const E2E = new RegExp(`(?:^|\\${path.sep})e2e(?:\\${path.sep}|$)`)
   const isBench = (file: string): boolean =>
     /\.(test|browsertest|spec|testlib)\.tsx?$/.test(file) ||
-    file.split(path.sep)[0] === SUITE
+    file.split(path.sep)[0] === SUITE ||
+    E2E.test(file)
   const compiled: ReadonlyMap<string, ReadonlyArray<{ file: string; code: string }>> = new Map(
     [...tree].map(([pkg, named]) => [
       pkg,
@@ -2526,6 +2540,18 @@ describe("a module another package can open holds no live value", () => {
     // document's, and a row that owned it would be a row whose withdrawal
     // decided what a pointer resting somewhere else is showing.
     "web/src/client/tip.ts": "which tip the document has open, with no owner but the page",
+
+    // THE E2E RUN ITSELF, and it is a door because the suite stopped being one
+    // package: a row keeps the steps that drive its own surface under its own
+    // `e2e/`, and three of them ask this module for the corpus box a scenario
+    // writes through. What it holds is the RUN's — the one browser this worker
+    // launched, the servers it spawned per corpus, the scratch copies it made
+    // and the failure it is keeping evidence for — with a lifetime that is the
+    // cucumber process's and an owner that is `BeforeAll`/`AfterAll`. There is
+    // no activation here to own it: this module is what OWNS the activations
+    // under test, and a step that took the browser from it would be a scenario
+    // with two lifetimes in it.
+    "tests/support/hooks.ts": "the e2e run's own browser, servers and scratch copies — owned by BeforeAll/AfterAll",
   }
 
   /** Every module the tree opens from another package, with the openers — the

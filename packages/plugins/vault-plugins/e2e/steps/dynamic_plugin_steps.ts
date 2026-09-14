@@ -272,7 +272,7 @@ When("the palette provider is replaced", function (this: OlaiWorld) {
 });
 
 Then("the agent service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
-  const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
+  const { callTool, connectTerminalAgent } = await import("@olai/tests/harness/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
   const answer = await callTool(this.terminalAgent, "vault-plugins_inspect", {});
   const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string }> };
@@ -282,7 +282,7 @@ Then("the agent service catalog {word} {string}", async function (this: OlaiWorl
 });
 
 Then("the palette {word} the colour {string}", async function (this: OlaiWorld, verdict: string, value: string) {
-  const { connectTerminalAgent, tryTool } = await import("../support/mcp.ts");
+  const { connectTerminalAgent, tryTool } = await import("@olai/tests/harness/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
   const answer = await tryTool(this.terminalAgent, "outlines_prop", { id: "amber", key: "swatch-hex", value });
   assert.strictEqual(answer["isError"] === true, verdict === "rejects", JSON.stringify(answer));
@@ -302,7 +302,7 @@ Then("the browser palette face is {string}", async function (this: OlaiWorld, ve
 });
 
 Then("the browser service catalog {word} {string}", async function (this: OlaiWorld, presence: string, key: string) {
-  const { callTool, connectTerminalAgent } = await import("../support/mcp.ts");
+  const { callTool, connectTerminalAgent } = await import("@olai/tests/harness/mcp.ts");
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`);
   const answer = await callTool(this.terminalAgent, "vault-plugins_inspect", {});
   const catalog = answer["structuredContent"] as { services: Array<{ key: string; half: string; availability: string }> };
