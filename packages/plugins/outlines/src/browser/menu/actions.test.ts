@@ -27,7 +27,7 @@
  * in bun's one shared process — run.
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { derive, rowsOf, type Row } from "@olai/format"
+import { derive, rowsOf, type Row, zoom } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { NO_PINS } from "@olai/format"
 import { expect, spyOn, test } from "bun:test"
@@ -35,7 +35,8 @@ import { expect, spyOn, test } from "bun:test"
 import type { Relation } from "../edges/relation.ts"
 import { flatten } from "../edit/order.ts"
 import * as writes from "../writes.ts"
-import { nodeMenuActions } from "./actions.ts"
+import { nodeMenuActions, type Panels, subjectMenuActions } from "./actions.ts"
+import { subjectOfSituated } from "./verbs.ts"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
 /** No plugin claims a URL — the roster these cases are about. A pinned plugin
  *  page is a case for a bench that binds its own (`routingIn(pages)`). */
@@ -71,21 +72,23 @@ const actionsFor = (
     foldable: [],
     go: () => {},
     record: () => {},
-    // The lie: a setter answers with the new value, and this is what the
-    // catalog does with it.
-    pickDate: opens as () => void,
-    // …and for the repeat picker, which is the fourth.
-    pickRepeat: opens as () => void,
-    // The same lie for the two edge verbs, which open the same kind of panel
-    // — `setLinking("see")` answers with `"see"`, a perfectly truthy value the
-    // panel would have drawn as a sentence.
-    pickEdge: opens as (relation: Relation) => void,
-    // And once more for the ADD-A-PROPERTY entry, which opens no panel at all
-    // any more — it opens the chip run's own editor — but is the same chance to
-    // hand the `•••` line whatever the opener happened to return.
-    addProp: opens,
-    // …and the fifth panel a menu entry opens, which is the move-to picker.
-    pickMove: opens as () => void,
+    panels: {
+      // The lie: a setter answers with the new value, and this is what the
+      // catalog does with it.
+      pickDate: opens as () => void,
+      // …and for the repeat picker, which is the fourth.
+      pickRepeat: opens as () => void,
+      // The same lie for the two edge verbs, which open the same kind of panel
+      // — `setLinking("see")` answers with `"see"`, a perfectly truthy value the
+      // panel would have drawn as a sentence.
+      pickEdge: opens as (relation: Relation) => void,
+      // And once more for the ADD-A-PROPERTY entry, which opens no panel at all
+      // any more — it opens the chip run's own editor — but is the same chance
+      // to hand the `•••` line whatever the opener happened to return.
+      addProp: opens as () => void,
+      // …and the fifth panel a menu entry opens, which is the move-to picker.
+      pickMove: opens as () => void,
+    },
   })
 
 const entry = (id: string, label: string) => {
@@ -230,8 +233,63 @@ test("a copy the browser REFUSED answers with no remark at all — it throws", a
 //
 // WHICH ID A PRESS IS HANDED did not move, and is what the deletion is safe
 // against: the walk at the bottom of `./actions.ts` spends the mirror rule ONCE
-// for every plugin's verb (`../fold/rows.ts`'s `foldIdOf`), so a tenant cannot
+// for every plugin's verb (the node the subject SHOWS), so a tenant cannot
 // get it wrong by not knowing the distinction exists — which is a stronger
 // guarantee than the case above was, since it holds for verbs nobody has
 // written yet. A case for it here would have to register into the slot from a
 // unit process that mounts no plugins at all.
+
+/** The catalog over a node SITUATED rather than a row — what a dated row on a
+ *  day page or the agenda asks — drawing only the panels it is handed. */
+const situatedLabels = (id: string, panels: Panels): ReadonlyArray<string> => {
+  const zoomed = zoom(derived, id)
+  if (zoomed.kind !== "node") throw new Error(`no node \`${id}\` in the fixture`)
+  return subjectMenuActions({
+    routes,
+    subject: subjectOfSituated(zoomed),
+    under: zoomed.under,
+    pins: NO_PINS,
+    go: () => {},
+    record: () => {},
+    panels,
+  }).map((one) => one.label)
+}
+
+test("a verb whose panel the surface does not draw is not offered at all", () => {
+  // A dated row draws the date, repeat and edge panels and not the move picker
+  // or the chip run's add: an entry for either would be a click that silently
+  // goes nowhere, which is the one outcome the catalog refuses everywhere else.
+  const none = situatedLabels("install", {})
+  for (const opens of ["Set date…", "Link to a node…", "Wait for a node…", "Add property…", "Move to…"]) {
+    expect(none).not.toContain(opens)
+  }
+  // ...while every verb that writes on the spot is still there.
+  expect(none).toContain("Complete")
+  expect(none).toContain("Duplicate")
+  expect(none).toContain("Move to Trash")
+
+  const some = situatedLabels("install", { pickDate: () => {}, pickEdge: () => {} })
+  expect(some).toContain("Set date…")
+  expect(some).toContain("Link to a node…")
+  expect(some).toContain("Wait for a node…")
+  expect(some).not.toContain("Move to…")
+  expect(some).not.toContain("Add property…")
+})
+
+test("a situated node's menu keeps the two halves in their order, with one rule between", () => {
+  const actions = subjectMenuActions({
+    routes,
+    subject: subjectOfSituated((() => {
+      const zoomed = zoom(derived, "install")
+      if (zoomed.kind !== "node") throw new Error("no `install` in the fixture")
+      return zoomed
+    })()),
+    under: 0,
+    pins: NO_PINS,
+    go: () => {},
+    record: () => {},
+    panels: {},
+  })
+  expect(actions.slice(0, 2).map((one) => one.id)).toEqual(["zoom", "copy-link"])
+  expect(actions.filter((one) => one.divider === true).map((one) => one.id)).toEqual(["pin"])
+})

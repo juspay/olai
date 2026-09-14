@@ -231,18 +231,26 @@ export const groupedOn = (
   // a reader still has to be shown.
   const placed = new Set<LocatedRegular>()
   const entries: Array<DayEntry> = []
+  // ONE count memo for the walk: every entry situates its node with how much
+  // hangs under it, and a day of nodes under one branch is that branch counted
+  // once rather than once per entry (`./derive.ts`'s `under`).
+  const counted = new Map<string, number>()
   for (const one of dated) {
     if (placed.has(one.at)) continue
     placed.add(one.at)
-    entries.push(entryOf(derived, one))
+    entries.push(entryOf(derived, one, counted))
   }
   return byOutline(entries)
 }
 
 /** The node, situated, wearing the date that put it here — the shape every
  *  reading of the set's dates hands its view, minted in one place. */
-export const entryOf = (derived: Derived, dated: Dated): DayEntry => ({
-  ...situate(derived, dated.at),
+export const entryOf = (
+  derived: Derived,
+  dated: Dated,
+  counted?: Map<string, number>,
+): DayEntry => ({
+  ...situate(derived, dated.at, counted),
   occasion: dated.occasion,
   date: dated.date,
 })

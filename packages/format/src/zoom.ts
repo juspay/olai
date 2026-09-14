@@ -28,7 +28,6 @@ import {
   rowsUnder,
   Situated,
   situate,
-  under,
 } from "./derive.ts"
 
 /**
@@ -43,11 +42,6 @@ export const Zoomed = Schema.Union([
     ...Situated.fields,
     kind: Schema.Literal("node"),
     children: Schema.Array(Row),
-    /** How many records hang under this node in the set — a row's own
-     *  {@link Row.under} asked of the heading, because a zoomed node has no
-     *  `•••` and the palette offers its write verbs instead
-     *  (`@olai/web`'s `palette/ops.ts`). */
-    under: Schema.Int,
   }),
   Schema.Struct({ kind: Schema.Literal("unknown"), id: Schema.String }),
   Schema.Struct({
@@ -80,6 +74,5 @@ export const zoom = (derived: Derived, id: string): Zoomed => {
     ...situated,
     kind: "node",
     children: rowsUnder(derived, situated.shows, situated.trail),
-    under: under(derived, situated.shows.node.id),
   }
 }

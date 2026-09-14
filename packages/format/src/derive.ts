@@ -1725,8 +1725,13 @@ export const Row: Schema.Codec<Row> = Schema.Union([
  * close a loop it is also the guard, since a node is filed at zero before its
  * own walk and a second arrival reads that rather than recursing for ever.
  */
-export const under = (derived: Pick<Derived, "children">, id: string): number =>
-  descendants(derived, id, new Map())
+export const under = (
+  derived: Pick<Derived, "children">,
+  id: string,
+  /** Shared across a walk that counts many nodes, so the set is walked once
+   *  rather than once per node; a fresh one otherwise. */
+  memo: Map<string, number> = new Map(),
+): number => descendants(derived, id, memo)
 
 /** {@link under}, sharing one memo across a whole walk — which is what makes
  *  a row per node cost the tree once rather than once per row. */
@@ -1960,10 +1965,21 @@ export const Situated = Schema.Struct({
   progress: Schema.optional(Progress),
   /** The canonical parent chain, root first, `shows` excluded. */
   trail: Schema.Array(LocatedRegular),
+  /** How many records hang under it IN THE SET — a row's own {@link Row.under}.
+   *  Every reader of a situated node draws a `•••` or a palette over it, whose
+   *  Move to Trash names this count, so it is situated with the rest rather than
+   *  attached by each reader — the one a later reader forgot would be a menu
+   *  that quietly lost the verb. */
+  under: Schema.Int,
 })
 export type Situated = typeof Situated.Type
 
-export const situate = (derived: Derived, shows: LocatedRegular): Situated => {
+export const situate = (
+  derived: Derived,
+  shows: LocatedRegular,
+  /** {@link under}'s memo, for a caller situating many nodes in one walk. */
+  counted: Map<string, number> = new Map(),
+): Situated => {
   // Absent rather than present-and-undefined, for the reason a row's are
   // ({@link Row}'s `place`): these travel, and a key the wire drops on the way
   // out must not be a key the value was built with.
@@ -1975,6 +1991,7 @@ export const situate = (derived: Derived, shows: LocatedRegular): Situated => {
     blocked: blockersOf(derived, shows.node.id),
     ...(progress === undefined ? {} : { progress }),
     trail: ancestorsOf(derived, shows.node.id),
+    under: under(derived, shows.node.id, counted),
   }
 }
 
