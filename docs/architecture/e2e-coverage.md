@@ -26,6 +26,7 @@ These rules decide when an audit row may be closed.
 - A row stays open until its UI actions and its failure and persistence paths are reviewed, exercised, and backed by assertions that observe the outcome.
 - The PR's single bug/fix/test table records confirmed defects and new coverage. This inventory keeps unresolved rows instead of treating passing scenario counts as completion.
 - Full-suite validation uses `just ci` or `just e2e-fast-remote`. Targeted browser runs use the worktree's dev server.
+- Feature files are named below without a path, because a feature lives with the row that promises it: `packages/plugins/<name>/e2e/features/`, or `packages/tests/features/` for the app-level ones no single row owns. `packages/tests/README.md` states the rule; an audit row is about a workflow, which is why the names here are bare.
 - Exploration against a real agent uses Claude/Sonnet in a disposable vault. Scripted ACP fixtures stand in for the agent in CI, so failures repeat exactly.
 
 ## Status at the September 5 review

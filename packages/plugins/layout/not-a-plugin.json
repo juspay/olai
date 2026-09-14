@@ -1,0 +1,31 @@
+{
+  "chat": [
+    "src/layout/live.ts",
+    "src/layout/prefs-owner.ts",
+    "src/layout/prefs.ts"
+  ],
+  "files": [
+    "src/Fault.tsx"
+  ],
+  "navigation": [
+    "src/browser.tsx"
+  ],
+  "outlines": [
+    "src/Fault.tsx"
+  ],
+  "sidebar": [
+    "src/Frame.tsx",
+    "src/Header.tsx",
+    "src/browser.tsx",
+    "src/index.ts",
+    "src/layout/Handle.tsx",
+    "src/layout/css.ts",
+    "src/layout/live.ts",
+    "src/layout/prefs-owner.ts",
+    "src/layout/prefs.ts",
+    "src/testids.ts"
+  ],
+  "trash": [
+    "src/pane/label.ts"
+  ]
+}

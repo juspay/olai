@@ -44,7 +44,7 @@
  * fetch of one immutable asset, the panel that arrives dismisses like any
  * other, and closing the window would mean a dismissal armed for the WAIT —
  * `../dismiss.ts` registers per owner, which for a menu is per ROW, and that is
- * the cost `./Dots.tsx` exists to refuse. `features/menu_arrives.feature` pins
+ * the cost `./Dots.tsx` exists to refuse. `packages/plugins/outlines/e2e/features/menu_arrives.feature` pins
  * the behaviour rather than the intention, so changing it stays a decision.
  *
  * ## TWO DOORS, because below 48rem there is no `•••` to press

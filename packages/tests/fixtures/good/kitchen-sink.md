@@ -9,7 +9,7 @@ the same size.
 
 It is also what the RHYTHM is checked against. The type and spacing scales are
 declared in `packages/web/src/client/theme/scale.ts`, the stylesheet is
-generated from them, and `features/documents.feature` walks every element of
+generated from them, and `packages/plugins/markdown/e2e/features/documents.feature` walks every element of
 this page — and of a note carrying the same surface — asserting each computed
 size, gap, pad and border is a value from those sets. So a drive-by `margin:
 6px` goes red here rather than going unnoticed. What no test can judge is

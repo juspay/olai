@@ -1,0 +1,30 @@
+{
+  "chat": [
+    "src/browser/commit/said.ts",
+    "src/ledger/pending.ts"
+  ],
+  "files": [
+    "src/browser.tsx",
+    "src/browser/commit/Panel.tsx",
+    "src/browser/commit/selection.ts",
+    "src/git/git.ts",
+    "src/ledger/pending.bench.ts",
+    "src/ledger/pending.ts"
+  ],
+  "mcp": [
+    "src/browser/commit/said.ts",
+    "src/ledger/pending.ts"
+  ],
+  "outlines": [
+    "src/browser/commit/Outlines.tsx",
+    "src/browser/commit/Panel.tsx",
+    "src/browser/commit/said.ts",
+    "src/browser/commit/selection.ts",
+    "src/ledger/pending.bench.ts",
+    "src/ledger/pending.ts",
+    "src/tools.ts"
+  ],
+  "vault": [
+    "src/server.ts"
+  ]
+}

@@ -404,7 +404,7 @@ test("a vault's own index.html has a page — the bundle answers it with the she
     // is the SPA shell, which is exactly what an unmatched path is answered
     // with. So the address reaches the client's parser and `index.html` opens
     // as the hypertext page it is — driven in a browser, with a reload, by
-    // `features/html_previews.feature`.
+    // `packages/plugins/hypertext/e2e/features/html_previews.feature`.
     expect(await shadowed.text()).toBe(await shell.text())
     // ...and it is still the shell's own freshness contract, not a cacheable
     // file: a reader who reloads here must not replay a stale bundle.

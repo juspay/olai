@@ -7,7 +7,7 @@
  * and door that are the query over it, the panel following it, and the two
  * gestures that make and remake it. None of that existed when `panel-live.ts`
  * was written, and none of it has ever met the real adapter: every scenario in
- * `features/node_agents.feature` drives the SCRIPTED agent, whose
+ * `packages/plugins/chat/e2e/features/node_agents.feature` drives the SCRIPTED agent, whose
  * `session/new` answers `fake-session-1` every time — so the one thing those
  * scenarios cannot assert is a node that changes which conversation it names,
  * which is exactly what *fresh session* is.

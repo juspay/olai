@@ -60,5 +60,7 @@
       "./referrers"
     ]
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
+  }
 }

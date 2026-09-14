@@ -710,21 +710,24 @@ describe("only the registry knows a plugin's name", () => {
    * WHAT REMAINS IS TWO SUITES THAT DRIVE ROWS, and every line is a claim
    * rather than a hole.
    *
-   * `@olai/tests` is the cucumber suite: it drives plugins, so it names them.
-   * KOLU's door is the fake padi the e2e spawn stands on. CHAT's is the panel's
-   * own constants — how close to the foot of the transcript still counts as
-   * following, which trigger the composer has armed, and the two keys an alert
-   * preference is stored under. IDENTITY's is the header names a Given injects
-   * and the gravatar URL a Then expects drawn; `olai-plugin-identity/who` is the
-   * READING with no runtime in it — no Effect, no plugin API, no browser — which
-   * is what makes it importable from a cucumber process at all. FILES', LAYOUT's
-   * and OUTLINES' are the newest, and they are the same names as before under a
-   * different roof: which row one KIND of file draws, what a minting door is
-   * called, the width the sidebar remembers, the outline's referring word, its
-   * idle commit and its three view keys were all reaching this suite THROUGH
-   * `@olai/web/testlib`. A pass-through is not a smaller dependency than an
-   * import — it is the same edge with a general package's name on it — so the
-   * suite asks the row it is already driving, and the row is named here.
+   * `@olai/tests` is the cucumber suite's HARNESS, and the list shrank because
+   * the suite stopped being one package. A row keeps the features it promises
+   * and the steps that drive its own surface under its own `e2e/`, so a step
+   * that wanted `olai-plugin-identity/who`, `olai-plugin-files/making`,
+   * `olai-plugin-layout/preferences` or `olai-plugin-odu/testids` is now a file
+   * INSIDE that row reaching its own `src/` by a relative path — no door, no
+   * manifest line, and nothing for this table to record. Six rows left the
+   * harness's manifest with their steps.
+   *
+   * WHAT IS LEFT IS WHAT THE HARNESS ITSELF STANDS ON. KOLU's and ODU's
+   * appliance doors are the fake padi and the fake run service the spawn stands
+   * on. CHAT's is the panel constant `world.ts` composes a shared selector from.
+   * The six `/testids` doors are `ROW_TESTID` — which row draws one KIND of
+   * file — a question about six rows at once that no one of them can answer.
+   * And `storage_keys.ts` is the newest and the sharpest: the preferences PANEL
+   * is one row and the keys its steps assert on belong to two others, so the
+   * four names come through the harness rather than through a row reaching
+   * sideways for a bench door that is not a declared contract.
    *
    * `packages/server` carves its doors the same way: the git testlib, so
    * `headless.test.ts` does not copy `gitIn`; identity's reading, so the
@@ -746,16 +749,10 @@ describe("only the registry knows a plugin's name", () => {
       "tests/agent/fake-acp-agent.ts: olai-plugin-codex/testlib",
       "tests/agent/opencode/opencode.ts: olai-plugin-opencode/testlib",
       "tests/agent/pi/pi-acp.ts: olai-plugin-pi/testlib",
-      "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
-      "tests/step_definitions/editing_steps.ts: olai-plugin-outlines/testlib",
-      "tests/step_definitions/identity_steps.ts: olai-plugin-identity/who",
-      "tests/step_definitions/new_file_steps.ts: olai-plugin-files/making",
-      "tests/step_definitions/odu_run_steps.ts: olai-plugin-odu/testids",
-      "tests/step_definitions/panel_steps.ts: olai-plugin-layout/preferences",
-      "tests/step_definitions/preferences_steps.ts: olai-plugin-alerts/keys",
-      "tests/step_definitions/preferences_steps.ts: olai-plugin-outlines/testlib",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/hooks.ts: olai-plugin-odu/appliance/testlib",
+      "tests/support/storage_keys.ts: olai-plugin-alerts/keys",
+      "tests/support/storage_keys.ts: olai-plugin-outlines/testlib",
       "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-csv/testids",
       "tests/support/world.ts: olai-plugin-hypertext/testids",
@@ -807,7 +804,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-identity", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
+    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
@@ -1599,12 +1596,29 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * through `@olai/bundle/testids`), which is the import half of the same
    * question and is held by claim 1.
    *
+   * ...AND `e2e/` IS THAT SAME EXCLUSION, following the suite to where it went.
+   * The browser suite is not one package any more: a plugin keeps the features
+   * it promises and the steps that drive its own surface under its own `e2e/`,
+   * loaded by the same cucumber run out of the same profile. Those files spell
+   * other rows' names for exactly the reason `packages/tests` always did — a
+   * scenario about a conversation says `kolu` because it is about kolu — and
+   * nothing under `e2e/` ships. It is the CONTAINER that is excused, not a
+   * suffix, because a step file is named for the feature it drives rather than
+   * for being a test. The import half is not excused with it: claim 1 and the
+   * manifest claim below read `e2e/` like any other source, so a row's steps
+   * reach another row through a declared static contract or not at all, and no
+   * row's steps may name the registry.
+   *
    * `.css` is left to claim 1, which reads `@import` in the grammar CSS has.
    */
   const SUITE = "tests"
+  /** A path segment, so `plugins/pins/e2e/steps/pin_steps.ts` is a bench and a
+   *  hypothetical `src/e2ething.ts` is not. */
+  const E2E = new RegExp(`(?:^|\\${path.sep})e2e(?:\\${path.sep}|$)`)
   const isBench = (file: string): boolean =>
     /\.(test|browsertest|spec|testlib)\.tsx?$/.test(file) ||
-    file.split(path.sep)[0] === SUITE
+    file.split(path.sep)[0] === SUITE ||
+    E2E.test(file)
   const compiled: ReadonlyMap<string, ReadonlyArray<{ file: string; code: string }>> = new Map(
     [...tree].map(([pkg, named]) => [
       pkg,
@@ -1746,594 +1760,58 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * look at `claude-agent-acp` or `piHalf` either — and the two directions this
    * claim can fail in are not symmetric.
    */
-  const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
-    "alerts": [
-      "plugins/chat/src/browser.tsx",
-      "plugins/chat/src/browser/chat/attention/attention.ts",
-      "plugins/journal/src/browser.tsx",
-      "plugins/journal/src/browser/reminders/ReminderRow.tsx",
-      "plugins/journal/src/browser/reminders/circuit.ts"
-    ],
-    "chat": [
-      "format/src/committing.ts",
-      "plugins/git/src/browser/commit/said.ts",
-      "plugins/git/src/ledger/pending.ts",
-      "plugins/layout/src/layout/live.ts",
-      "plugins/layout/src/layout/prefs-owner.ts",
-      "plugins/layout/src/layout/prefs.ts",
-      "plugins/xyne-spaces/src/client.ts",
-      "plugins/xyne-spaces/src/testlib/fake-spaces.ts"
-    ],
-    "vault": [
-      "format/src/conventions.bench.ts",
-      "format/src/dates.bench.ts",
-      "format/src/filter.bench.ts",
-      "format/src/meaning.ts",
-      "format/src/page.ts",
-      "format/src/patch.bench.ts",
-      "format/src/pointing.bench.ts",
-      "format/src/scope.bench.ts",
-      "format/src/searching.ts",
-      "format/src/typing.ts",
-      "format/src/validate.bench.ts",
-      "format/src/vocabulary.bench.ts",
-      "format/src/writing.ts",
-      "ops/src/documents.bench.ts",
-      "ops/src/plan.ts",
-      "ops/src/standing.bench.ts",
-      "ops/src/walks.bench.ts",
-      "plugin-api/src/configuration.ts",
-      "plugin-api/src/services.ts",
-      "plugin-build/src/bind.ts",
-      "plugin-build/src/imports.ts",
-      "plugins/capture/src/server.ts",
-      "plugins/capture/src/tools.ts",
-      "plugins/chat/src/browser/agents/AgentPalette.ts", // the unavailable vault reading
-      "plugins/chat/src/browser/chat/outline.ts",
-      "plugins/chat/src/server.ts",
-      "plugins/files/src/Files.tsx",
-      "plugins/files/src/testids.ts",
-      "plugins/git/src/server.ts",
-      "plugins/journal/src/agenda.ts",
-      "plugins/journal/src/server.ts",
-      "plugins/kolu/src/server.ts",
-      "plugins/markdown/src/server.ts",
-      "plugins/markdown/src/tools.ts",
-      "plugins/odu/src/server.ts",
-      "plugins/outlines/src/server.ts",
-      "plugins/outlines/src/tools.ts",
-      "plugins/pins/src/server.ts",
-      "plugins/plugin-inspector/src/approval.ts",
-      "plugins/search/src/server.ts",
-      "plugins/search/src/table.bench.ts",
-      "plugins/search/src/tools.ts",
-      "plugins/settings/src/server.ts",
-      "plugins/sidebar/src/browser.tsx",
-      "plugins/sidebar/src/contract.ts",
-      "plugins/trash/src/browser.tsx",
-      "plugins/trash/src/server.ts",
-      "plugins/trash/src/tools.ts",
-      "plugins/vault-plugins/src/client.ts",
-      "plugins/vault-plugins/src/index.ts",
-      "plugins/vault-plugins/src/server.ts",
-      "plugins/vault-plugins/src/source.ts",
-      "plugins/vault-plugins/src/tools.ts",
-      "plugins/xyne-spaces/src/server.ts",
-      "server/src/main.ts",
-      "server/src/serve.ts",
-      "surface/src/plugins.ts",
-      "surface/src/seal.ts"
-    ],
-    "settings": [
-      "plugin-api/src/configuration.ts",
-      "plugin-api/src/services.ts",
-      "plugins/chat/src/agent.ts",
-      "plugins/chat/src/agents/settings.ts",
-      "plugins/chat/src/browser/agents/AgentLine.tsx",
-      "plugins/chat/src/browser/chat/Model.tsx",
-      "plugins/chat/src/chat.ts",
-      "plugins/chat/src/server.ts",
-      "plugins/chat/src/wire/members.ts",
-      "plugins/identity/src/server.ts",
-      "plugins/kolu/src/doorbell.ts",
-      "plugins/vault/src/file-access.ts",
-      "plugins/vault/src/http.ts",
-      "plugins/vault/src/server.ts",
-      "plugins/vault/src/setup.ts",
-      "plugins/xyne-spaces/src/server.ts",
-      "server/src/configuration.ts"
-    ],
-    "git": [
-      "format/src/committing.ts",
-      "format/src/index.ts",
-      "format/src/searching.ts",
-      "format/src/writing.ts",
-      "plugins/files/src/file/delete.ts",
-      "plugins/files/src/tools.ts",
-      "plugins/kolu/src/client/fleet.ts",
-      "plugins/markdown/src/tools.ts",
-      "plugins/preferences/src/Preferences.tsx",
-      "plugins/trash/src/browser/question.ts",
-      "plugins/trash/src/tools.ts",
-      "server/src/main.ts"
-    ],
-    "search": [
-      "format/src/address.ts",
-      "format/src/documents.ts",
-      "format/src/filter.ts",
-      "format/src/index.ts",
-      "format/src/searching.ts",
-      "ops/src/live.ts",
-      "ops/src/ops.ts",
-      "ops/src/query.ts",
-      "ops/src/refusals.ts",
-      "ops/src/tools.ts",
-      "plugin-api/src/services.ts",
-      "plugin-build/src/bind.ts",
-      "plugins/capture/src/Palette.tsx",
-      "plugins/chat/src/agents/roster.ts",
-      "plugins/chat/src/browser/agents/AgentPalette.ts",
-      "plugins/chat/src/browser/chat/completion.ts",
-      "plugins/chat/src/testids.ts",
-      "plugins/journal/src/browser.tsx",
-      "plugins/markdown/src/browser/document/Rendered.tsx",
-      "plugins/mcp/src/endpoint.ts",
-      "plugins/mcp/src/tools.ts",
-      "plugins/navigation/src/palette/Palette.tsx",
-      "plugins/navigation/src/palette/items.ts",
-      "plugins/navigation/src/router.tsx",
-      "plugins/navigation/src/routes.ts",
-      "plugins/navigation/src/testids.ts",
-      "plugins/navigation/src/workspace.ts",
-      "plugins/outlines/src/browser/complete/trigger.ts",
-      "plugins/outlines/src/browser/edges/relation.ts",
-      "plugins/outlines/src/browser/move/MovePicker.tsx",
-      "plugins/outlines/src/browser/palette/ops.ts",
-      "plugins/outlines/src/testids.ts",
-      "plugins/outlines/src/tools.ts",
-      "plugins/pins/src/browser/palette.ts",
-      "plugins/vault/src/server.ts",
-      "plugins/vault/src/setup.ts",
-      "plugins/vault/src/views.ts",
-      "server/src/main.ts",
-      "surface/src/media.ts",
-      "web/src/client/keys.ts",
-      "web/src/host/loading.ts"
-    ],
-    "identity": [
-      "plugin-api/src/services.ts",
-      "plugins/capture/src/tools.ts",
-      "plugins/chat/src/browser/chat/attention/watching.ts",
-      "plugins/kolu/src/client/detect.ts",
-      "plugins/kolu/src/client/fleet.ts",
-      "plugins/kolu/src/client/link.ts",
-      "plugins/markdown/src/browser/document/DocumentPage.tsx",
-      "plugins/odu/src/appliance/link.ts",
-      "plugins/odu/src/appliance/testlib/fake-service.ts",
-      "plugins/odu/src/appliance/wire/index.ts",
-      "plugins/odu/src/browser/RunMatrix.tsx",
-      "plugins/odu/src/browser/words.ts",
-      "plugins/odu/src/doorbell.ts",
-      "plugins/outlines/src/browser/edit/Editable.tsx",
-      "plugins/outlines/src/tools.ts",
-      "server/src/serve.ts"
-    ],
-    "journal": [
-      "format/src/patch.ts",
-      "format/src/searching.ts",
-      "plugins/capture/src/tools.ts",
-      "plugins/markdown/src/tools.ts",
-      "plugins/outlines/src/tools.ts",
-      "sigterm/src/sigterm.ts"
-    ],
-    "claude": [
-      "format/src/filter.ts",
-      "format/src/searching.ts",
-      "plugins/outlines/src/tools.ts",
-      "plugins/search/src/tools.ts"
-    ],
-    "codex": [],
-    "opencode": [],
-    "pi": [
-      "appearance/src/tagInk.ts"
-    ],
-    "kolu": [],
-    "odu": [],
-    "xyne-spaces": [],
-    "ws": [],
-    "mcp": [
-      "acp/src/leg.ts",
-      "format/src/committing.ts",
-      "plugins/chat/src/agent.ts",
-      "plugins/chat/src/calls.ts",
-      "plugins/chat/src/fixtures/lifecycle-agent.ts",
-      "plugins/chat/src/server.ts",
-      "plugins/claude/src/leg.ts",
-      "plugins/codex/src/leg.ts",
-      "plugins/codex/src/testlib.ts",
-      "plugins/git/src/browser/commit/said.ts",
-      "plugins/git/src/ledger/pending.ts",
-      "plugins/odu/src/probe.ts",
-      "plugins/opencode/src/leg.ts",
-      "plugins/pi/src/leg.ts",
-      "server/src/dial.ts",
-      "server/src/main.ts",
-      "server/src/mcpClient.ts",
-      "server/src/serve.ts"
-    ],
-    "web-app": [
-      "plugins/theme/src/chrome.ts"
-    ],
-    "ui-renderer": [],
-    // Saved-layout vocabulary names a workspace target, not the layout plugin.
-    "layout": [
-      "plugins/navigation/src/address/Face.tsx",
-      "plugins/navigation/src/address/address.ts",
-      "plugins/navigation/src/workspace.ts",
-      "plugins/pins/src/browser/Palette.tsx",
-      "plugins/pins/src/browser/Pin.tsx",
-      "plugins/pins/src/browser/Shelf.tsx",
-      "plugins/pins/src/browser/naming.ts",
-      "plugins/pins/src/browser/palette.ts",
-      "plugins/pins/src/browser/pins.ts",
-      "plugins/test-layout/src/browser.tsx",
-      "plugins/test-layout/src/index.ts",
-      "plugins/vault-plugins/src/server.ts",
-      "plugins/vault-plugins/src/surface.ts",
-      "plugins/vault-plugins/src/tools.ts"
-    ],
-    "sidebar": [
-      "plugins/chat/src/browser.tsx",
-      "plugins/files/src/Files.tsx",
-      "plugins/files/src/browser.tsx",
-      "plugins/files/src/fold/folders.ts",
-      "plugins/files/src/fold/reference.ts",
-      "plugins/files/src/testids.ts",
-      "plugins/files/src/tools.ts",
-      "plugins/journal/src/browser.tsx",
-      "plugins/layout/src/Frame.tsx",
-      "plugins/layout/src/Header.tsx",
-      "plugins/layout/src/browser.tsx",
-      "plugins/layout/src/index.ts",
-      "plugins/layout/src/layout/Handle.tsx",
-      "plugins/layout/src/layout/css.ts",
-      "plugins/layout/src/layout/live.ts",
-      "plugins/layout/src/layout/prefs-owner.ts",
-      "plugins/layout/src/layout/prefs.ts",
-      "plugins/layout/src/testids.ts",
-      "plugins/markdown/src/tools.ts",
-      "plugins/navigation/src/palette/Palette.tsx",
-      "plugins/navigation/src/palette/items.ts",
-      "plugins/outlines/src/browser/NotFound.tsx",
-      "plugins/outlines/src/browser/menu/verbs.ts",
-      "plugins/outlines/src/tools.ts",
-      "plugins/pins/src/browser.tsx",
-      "plugins/pins/src/browser/palette.ts",
-      "plugins/trash/src/browser.tsx",
-      "plugins/trash/src/browser/question.ts",
-      "plugins/vault/src/browser/errors/Page.tsx",
-      "web/src/client/keys.ts"
-    ],
-    "preferences": [
-      "plugins/outlines/src/browser.tsx",
-      "plugins/theme/src/browser.tsx"
-    ],
-    "theme": [
-      "appearance/src/css.ts",
-      "appearance/src/palettes.ts",
-      "plugins/kolu/src/appliance/props/LivePane.tsx",
-      "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
-      "plugins/kolu/src/client/fleet.ts",
-      "plugins/kolu/src/client/wire/kolu.ts",
-      "plugins/preferences/src/Preferences.tsx",
-      "plugins/web-app/src/manifest.ts"
-    ],
-    "plugin-inspector": [],
-    "navigation": [
-      "plugins/capture/src/Palette.tsx",
-      "plugins/capture/src/browser.tsx",
-      "plugins/chat/src/browser.tsx",
-      "plugins/chat/src/browser/agents/AgentPalette.ts",
-      "plugins/chat/src/browser/agents/new-chat.ts",
-      "plugins/chat/src/browser/navigation.ts",
-      "plugins/chat/src/browser/verbs.tsx",
-      "plugins/csv/src/browser.tsx",
-      "plugins/files/src/browser.tsx",
-      "plugins/hypertext/src/browser.tsx",
-      "plugins/image/src/browser.tsx",
-      "plugins/journal/src/browser.tsx",
-      "plugins/layout/src/browser.tsx",
-      "plugins/markdown/src/browser.tsx",
-      "plugins/markdown/src/browser/BodyPage.tsx",
-      "plugins/outlines/src/browser.tsx",
-      "plugins/outlines/src/browser/PageView.tsx",
-      "plugins/outlines/src/browser/palette/adapter.tsx",
-      "plugins/pdf/src/browser.tsx",
-      "plugins/pins/src/browser.tsx",
-      "plugins/pins/src/browser/Palette.tsx",
-      "plugins/test-layout/src/browser.tsx",
-      "plugins/trash/src/browser.tsx"
-    ],
-    "outlines": [
-      "format/src/committing.ts",
-      "format/src/filter.ts",
-      "format/src/inbox.ts",
-      "format/src/index.ts",
-      "format/src/message.ts",
-      "format/src/node.ts",
-      "format/src/page.ts",
-      "format/src/pointing.bench.ts",
-      "format/src/reading.ts",
-      "format/src/searching.ts",
-      "format/src/set.ts",
-      "format/src/validate.bench.ts",
-      "format/src/validate.ts",
-      "format/src/window.ts",
-      "format/src/writing.ts",
-      "ops/src/asked.ts",
-      "ops/src/live.ts",
-      "ops/src/ops.ts",
-      "ops/src/plan.ts",
-      "ops/src/query.ts",
-      "ops/src/refusals.ts",
-      "ops/src/standing.bench.ts",
-      "ops/src/tools.ts",
-      "ops/src/walks.bench.ts",
-      "plugins/chat/src/adapter.ts",
-      "plugins/chat/src/browser/chat/NoAgent.tsx",
-      "plugins/chat/src/browser/chat/Unopened.tsx",
-      "plugins/files/src/Files.tsx", // The visible Outlines region label.
-      "plugins/files/src/Rail.tsx",
-      "plugins/files/src/testids.ts",
-      "plugins/files/src/tools.ts",
-      "plugins/git/src/browser/commit/Outlines.tsx",
-      "plugins/git/src/browser/commit/Panel.tsx",
-      "plugins/git/src/browser/commit/said.ts",
-      "plugins/git/src/browser/commit/selection.ts",
-      "plugins/git/src/ledger/pending.bench.ts",
-      "plugins/git/src/ledger/pending.ts",
-      "plugins/git/src/tools.ts",
-      "plugins/layout/src/Fault.tsx",
-      "plugins/markdown/src/tools.ts",
-      "plugins/mcp/src/endpoint.ts",
-      "plugins/mcp/src/tools.ts",
-      "plugins/search/src/matcher.ts",
-      "plugins/search/src/table.bench.ts",
-      "plugins/search/src/tools.ts",
-      "plugins/trash/src/tools.ts",
-      "plugins/vault-plugins/src/tools.ts",
-      "plugins/vault/src/browser/errors/Page.tsx",
-      "plugins/vault/src/format.ts",
-      "server/src/main.ts"
-    ],
-    "files": [
-      "format/src/conventions.bench.ts",
-      "format/src/dates.bench.ts",
-      "format/src/errors.ts",
-      "format/src/filter.bench.ts",
-      "format/src/message.ts",
-      "format/src/node.ts",
-      "format/src/page.ts",
-      "format/src/patch.bench.ts",
-      "format/src/patch.ts",
-      "format/src/pointing.bench.ts",
-      "format/src/reading.ts",
-      "format/src/rules.ts",
-      "format/src/scope.bench.ts",
-      "format/src/searching.ts",
-      "format/src/set.ts",
-      "format/src/validate.bench.ts",
-      "format/src/verdict.ts",
-      "format/src/vocabulary.bench.ts",
-      "ops/src/codec.ts",
-      "ops/src/door.ts",
-      "ops/src/following.ts",
-      "ops/src/ops.ts",
-      "ops/src/plan.ts",
-      "ops/src/query.ts",
-      "ops/src/sorted.ts",
-      "ops/src/standing.bench.ts",
-      "ops/src/walks.bench.ts",
-      "plugins/capture/src/browser.tsx",
-      "plugins/chat/src/browser/agents/Fold.tsx",
-      "plugins/chat/src/browser/chat/Composer.tsx",
-      "plugins/chat/src/browser/chat/DropTarget.tsx",
-      "plugins/chat/src/browser/chat/Wake.tsx",
-      "plugins/chat/src/browser/chat/holding.ts",
-      "plugins/chat/src/browser/chat/naming.ts",
-      "plugins/chat/src/chat.ts",
-      "plugins/git/src/browser.tsx",
-      "plugins/git/src/browser/commit/Panel.tsx",
-      "plugins/git/src/browser/commit/selection.ts",
-      "plugins/git/src/git/git.ts",
-      "plugins/git/src/ledger/pending.bench.ts",
-      "plugins/git/src/ledger/pending.ts",
-      "plugins/journal/src/browser/dates.ts",
-      "plugins/kolu/src/server.ts",
-      "plugins/layout/src/Fault.tsx",
-      "plugins/markdown/src/browser.tsx",
-      "plugins/markdown/src/projection.ts",
-      "plugins/markdown/src/tools.ts",
-      "plugins/mcp/src/endpoint.ts",
-      "plugins/navigation/src/PageView.tsx",
-      "plugins/navigation/src/browser.tsx",
-      "plugins/navigation/src/pages.ts",
-      "plugins/outlines/src/browser.tsx",
-      "plugins/outlines/src/browser/NotFound.tsx",
-      "plugins/outlines/src/browser/focus.ts",
-      "plugins/outlines/src/browser/fold/memory.ts",
-      "plugins/outlines/src/browser/page.ts",
-      "plugins/outlines/src/projection.ts",
-      "plugins/outlines/src/tools.ts",
-      "plugins/pins/src/browser.tsx",
-      "plugins/search/src/browser.tsx",
-      "plugins/search/src/browser/KindSelector.tsx",
-      "plugins/search/src/table.bench.ts",
-      "plugins/search/src/table.ts",
-      "plugins/sidebar/src/Sidebar.tsx",
-      "plugins/trash/src/browser.tsx",
-      "plugins/trash/src/browser/PageView.tsx",
-      "plugins/trash/src/browser/TrashPage.tsx",
-      "plugins/trash/src/tools.ts",
-      "plugins/vault/src/browser.tsx",
-      "plugins/vault/src/browser/errors/Banner.tsx",
-      "plugins/vault/src/browser/errors/Page.tsx",
-      "plugins/vault/src/browser/errors/Report.tsx",
-      "plugins/vault/src/browser/errors/banner.ts",
-      "plugins/vault/src/file-access.ts",
-      "plugins/vault/src/file-surface.ts",
-      "plugins/vault/src/http/media.ts",
-      "plugins/vault/src/lock.ts",
-      "plugins/vault/src/projection.ts",
-      "plugins/web-app/src/manifest.ts",
-      "server/src/main.ts",
-      "store/src/probe.ts",
-      "store/src/store.ts",
-      "surface/src/projection.ts",
-      "web/src/client/connection/status.ts",
-      "web/src/client/file/matching.ts"
-    ],
-    "pins": [
-      "edit-intents/src/index.ts",
-      "format/src/conventions.bench.ts",
-      "format/src/index.ts",
-      "format/src/node.ts",
-      "format/src/rules.ts",
-      "format/src/shelf.ts",
-      "ops/src/plan.ts",
-      "plugins/files/src/tools.ts",
-      "plugins/outlines/src/browser/Tree.tsx",
-      "plugins/outlines/src/browser/menu/actions.ts",
-      "plugins/outlines/src/tools.ts"
-    ],
-    "capture": [
-      "edit-intents/src/index.ts",
-      "format/src/conventions.bench.ts",
-      "format/src/inbox.ts",
-      "format/src/index.ts",
-      "format/src/message.ts",
-      "format/src/writing.ts",
-      "ops/src/plan.ts",
-      "ops/src/walks.bench.ts",
-      "plugins/chat/src/browser/chat/Composer.tsx",
-      "plugins/files/src/Files.tsx", // DOM capture-phase click suppression after a carry.
-      "plugins/files/src/tools.ts",
-      "plugins/outlines/src/browser/drag/Handle.tsx",
-      "plugins/outlines/src/browser/palette/adapter.tsx",
-      "plugins/outlines/src/tools.ts",
-      "plugins/pins/src/browser/Pin.tsx",
-      "server/src/main.ts",
-      "surface/src/edit.ts",
-      "web/src/client/Tip.tsx"
-    ],
-    "trash": [
-      "edit-intents/src/index.ts",
-      "format/src/index.ts",
-      "format/src/message.ts",
-      "format/src/moving.ts",
-      "format/src/narrowing.ts",
-      "format/src/node.ts",
-      "format/src/page.ts",
-      "format/src/rules.ts",
-      "format/src/searching.ts",
-      "format/src/writing.ts",
-      "ops/src/plan.ts",
-      "plugins/files/src/tools.ts",
-      "plugins/layout/src/pane/label.ts",
-      "plugins/mcp/src/endpoint.ts",
-      "plugins/navigation/src/address/address.ts",
-      "plugins/navigation/src/palette/items.ts",
-      "plugins/navigation/src/routes.ts",
-      "plugins/outlines/src/browser/PageView.tsx",
-      "plugins/outlines/src/browser/edit/redraws.ts",
-      "plugins/outlines/src/browser/filter/drawn.ts",
-      "plugins/outlines/src/browser/menu/verbs.ts",
-      "plugins/outlines/src/browser/page.ts",
-      "plugins/outlines/src/browser/select/SelectionBar.tsx",
-      "plugins/outlines/src/browser/select/bulk.ts",
-      "plugins/outlines/src/surface.ts",
-      "plugins/outlines/src/testids.ts",
-      "plugins/outlines/src/tools.ts",
-      "plugins/pins/src/browser/Palette.tsx",
-      "plugins/pins/src/browser/Shelf.tsx",
-      "plugins/pins/src/browser/writes.ts",
-      "plugins/vault-plugins/src/tools.ts",
-      "server/src/main.ts",
-      "surface/src/edit.ts"
-    ],
-    "test-layout": [],
-    "test-counter": [],
-    "vault-plugins": [
-      "server/src/main.ts"
-    ],
-    "outline-olai": [
-      "plugins/vault/src/format.ts"
-    ],
-    "markdown": [
-      "appearance/src/scale.ts",
-      "edit-intents/src/index.ts",
-      "format/src/dates.ts",
-      "format/src/document.ts",
-      "format/src/incremental.ts",
-      "format/src/index.ts",
-      "format/src/page.ts",
-      "format/src/reading.ts",
-      "format/src/rules.ts",
-      "format/src/searching.ts",
-      "format/src/set.ts",
-      "format/src/validate.bench.ts",
-      "format/src/validate.ts",
-      "format/src/writing.ts",
-      "markdown-ui/src/Markdown.tsx",
-      "markdown-ui/src/TitleHtml.tsx",
-      "markdown-ui/src/chunk.ts",
-      "markdown-ui/src/title.ts",
-      "ops/src/asked.ts",
-      "ops/src/documents.bench.ts",
-      "ops/src/ops.ts",
-      "ops/src/plan.ts",
-      "ops/src/query.ts",
-      "ops/src/refusals.ts",
-      "ops/src/sorted.ts",
-      "plugins/chat/src/browser/chat/Entry.tsx",
-      "plugins/chat/src/browser/chat/ToolFrame.tsx",
-      "plugins/files/src/tools.ts",
-      "plugins/journal/src/server.ts",
-      "plugins/kolu/src/appliance/props/EventsFeed.tsx",
-      "plugins/kolu/src/appliance/props/TerminalDoor.tsx",
-      "plugins/outlines/src/browser/Note.tsx",
-      "plugins/outlines/src/browser/document-properties.tsx",
-      "plugins/outlines/src/tools.ts",
-      "plugins/search/src/tools.ts",
-      "plugins/test-layout/src/browser.tsx",
-      "plugins/xyne-spaces/src/client.ts",
-      "plugins/xyne-spaces/src/mirror.ts",
-      "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
-      "server/src/main.ts"
-    ],
-    "hypertext": [],
-    "csv": [
-      "format/src/csv.ts",
-      "format/src/index.ts",
-      "format/src/writing.ts",
-      "plugins/files/src/tools.ts",
-      "surface/src/attach.ts"
-    ],
-    "image": [
-      "plugin-kit/src/mark/inline.ts",
-      "plugins/chat/src/agent.ts",
-      "plugins/chat/src/browser/chat/Composer.tsx",
-      "plugins/chat/src/browser/chat/attach.ts",
-      "plugins/kolu/src/client/testlib/fake-padi.ts",
-      "plugins/theme/src/chrome.ts",
-      "plugins/web-app/src/manifest.ts"
-    ],
-    "pdf": [
-      "format/src/writing.ts",
-      "plugins/files/src/tools.ts",
-      "surface/src/attach.ts"
-    ]
-}
+  const RECORD = "not-a-plugin.json"
+
+  /** ...AND EACH PACKAGE RECORDS ITS OWN, which is where the table went.
+   *
+   *  It was 587 lines of file paths in THIS file, and the cost was not the
+   *  length: renaming `pinning.ts` to `writes.ts` inside `olai-plugin-pins` was
+   *  a diff in the registry package the pins row does not own, reviewed by
+   *  people who were not changing anything. The same defect the browser suite
+   *  had, one directory over.
+   *
+   *  So the record lives beside the files it names:
+   *  `packages/<member>/not-a-plugin.json`, mapping a PLUGIN NAME to that
+   *  member's own files, spelled relative to the member. A rename inside a row
+   *  is a diff inside that row. A `//`-prefixed key carries a reason rather
+   *  than a list, which is this tree's manifest idiom.
+   *
+   *  WHAT DOES NOT CHANGE is the claim. It is still ONE equality over every
+   *  plugin name at once, composed here: a file that stopped spelling the word
+   *  is red, a file that stopped existing is red (the claim below), a name that
+   *  stopped being a plugin is red, and a NEW collision is red until somebody
+   *  writes it down with a reason. The record moved to its owner; the fence did
+   *  not move, and it did not widen. The three throws are why: a malformed
+   *  record, or one reaching outside its own member, fails loudly rather than
+   *  contributing nothing and forgiving whatever it was hiding. */
+  const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = (() => {
+    const found: Record<string, string[]> = {}
+    for (const member of MEMBERS) {
+      const at = path.join(PACKAGES, member, RECORD)
+      if (!existsSync(at)) continue
+      const said: unknown = JSON.parse(readFileSync(at, "utf8"))
+      if (typeof said !== "object" || said === null || Array.isArray(said)) {
+        throw new Error(`fence: ${member}/${RECORD} must be an object of plugin name to files`)
+      }
+      for (const [name, files] of Object.entries(said as Record<string, unknown>)) {
+        if (name.startsWith("//")) continue
+        if (!Array.isArray(files) || files.some((one) => typeof one !== "string")) {
+          throw new Error(`fence: ${member}/${RECORD}: "${name}" must be a list of file paths`)
+        }
+        for (const one of files as ReadonlyArray<string>) {
+          // RELATIVE, and inside the member. A record that could name somebody
+          // else's file would be the one table again with extra steps.
+          if (one.startsWith("/") || one.split("/").includes("..")) {
+            throw new Error(`fence: ${member}/${RECORD}: "${one}" must be a path inside ${member}`)
+          }
+          ;(found[name] ??= []).push(`${member}/${one}`)
+        }
+      }
+    }
+    for (const name of Object.keys(found)) found[name]?.sort()
+    return found
+  })()
+
 
 
   // settings.test.ts pairs this name fence with the inspector Config-key fence,
@@ -2526,6 +2004,18 @@ describe("a module another package can open holds no live value", () => {
     // document's, and a row that owned it would be a row whose withdrawal
     // decided what a pointer resting somewhere else is showing.
     "web/src/client/tip.ts": "which tip the document has open, with no owner but the page",
+
+    // THE E2E RUN ITSELF, and it is a door because the suite stopped being one
+    // package: a row keeps the steps that drive its own surface under its own
+    // `e2e/`, and three of them ask this module for the corpus box a scenario
+    // writes through. What it holds is the RUN's — the one browser this worker
+    // launched, the servers it spawned per corpus, the scratch copies it made
+    // and the failure it is keeping evidence for — with a lifetime that is the
+    // cucumber process's and an owner that is `BeforeAll`/`AfterAll`. There is
+    // no activation here to own it: this module is what OWNS the activations
+    // under test, and a step that took the browser from it would be a scenario
+    // with two lifetimes in it.
+    "tests/support/hooks.ts": "the e2e run's own browser, servers and scratch copies — owned by BeforeAll/AfterAll",
   }
 
   /** Every module the tree opens from another package, with the openers — the

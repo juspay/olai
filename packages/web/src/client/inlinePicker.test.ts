@@ -22,7 +22,7 @@
  * The GESTURES themselves. `bun test`'s resolution runs no effects, and both of
  * Kobalte's primitives are effects, so a case that pressed a pointer outside
  * would pass having listened to nothing. Those are pinned where they can happen,
- * in a browser: `features/the_agent.feature` holds the three ways out of the
+ * in a browser: `packages/plugins/chat/e2e/features/the_agent.feature` holds the three ways out of the
  * conversations list, and `features/dismiss_stack.feature` holds which panel a
  * gesture is for.
  *

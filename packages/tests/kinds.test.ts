@@ -21,7 +21,7 @@ const independent = new Set([
   "packages/surface/src/attach.test.ts",
   "packages/plugins/chat/src/attachments.test.ts",
   "packages/tests/agent/fake-acp-agent.ts",
-  "packages/tests/step_definitions/chat_steps.ts",
+  "packages/plugins/chat/e2e/steps/chat_steps.ts",
 ])
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")

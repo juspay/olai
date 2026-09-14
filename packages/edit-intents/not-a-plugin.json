@@ -1,0 +1,14 @@
+{
+  "capture": [
+    "src/index.ts"
+  ],
+  "markdown": [
+    "src/index.ts"
+  ],
+  "pins": [
+    "src/index.ts"
+  ],
+  "trash": [
+    "src/index.ts"
+  ]
+}

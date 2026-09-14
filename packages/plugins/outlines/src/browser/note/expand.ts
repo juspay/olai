@@ -31,7 +31,7 @@
  * draws itself share — so this one gained Escape by being deduped rather than
  * by being argued about. That is the model this note already documents anyway:
  * expanding and editing are one state and you leave both at once
- * (`features/keyboard_editing.feature`), and Escape has always been how a caret
+ * (`packages/plugins/outlines/e2e/features/keyboard_editing.feature`), and Escape has always been how a caret
  * leaves.
  */
 

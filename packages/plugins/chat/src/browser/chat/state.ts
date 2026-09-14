@@ -36,7 +36,7 @@
  * than of this panel: the per-key path yields a fresh object per frame, and a
  * collection switched onto it would start rebuilding every row several times a
  * second with nothing here changed. Keys do not have that in them to go wrong,
- * and `features/the_agent.feature` asserts the property directly — the same
+ * and `packages/plugins/chat/e2e/features/the_agent.feature` asserts the property directly — the same
  * DOM element, before and after an update.
  *
  * This module is also the ONE place in the client where an Effect is run

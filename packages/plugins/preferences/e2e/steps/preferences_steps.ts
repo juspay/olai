@@ -1,0 +1,1406 @@
+/**
+ * The preferences panel: the one door in the header, the rows behind it, and
+ * the promise every one of them makes — that a pick is this browser's and
+ * reaches no server. DONE is the one setting with two homes, and this file
+ * is both doors: the row says the panel's default; the flip beside a page's
+ * filter out-votes it for that page and remembers what it said.
+ *
+ * The KEYS a preference is stored under are imported from the client that owns
+ * them, for the reason `theme_steps.ts` imports the theme's: renaming one is
+ * then a type error at `bun run typecheck` rather than a scenario that times
+ * out thirty seconds later saying nothing about why.
+ *
+ * OPENING it, reading one row's hint and pressing one segment are the
+ * harness's (`support/preferences.ts`) rather than this file's, and the reason
+ * is that three other plugins do all three: the theme chips are a row of this
+ * panel, the reminder switches are two more, and the face picker is a fourth.
+ * A step file that exported them was a plugin reaching past another plugin's
+ * doors for a gesture it does not own. Every CLAIM about the panel is still
+ * here; what left is the way in.
+ */
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { TESTID } from "@olai/tests/harness/testids.ts"
+import * as assert from "node:assert";
+import { Given, Then, When } from "@olai/tests/harness/runner.ts";
+import type { Page, Locator } from "@olai/tests/harness/playwright.ts";
+
+
+import { fileKind } from "@olai/format";
+
+import { BOX_NAME } from "@olai/tests/harness/hooks.ts";
+import { SIZE_STORAGE_KEY, selector } from "@olai/web/testlib"
+// A PREFERENCE IS KEPT BY WHOEVER DRAWS THE THING, and the key it is kept
+// under is that row's name for it. These six came through `@olai/web/testlib`,
+// which is how a general package came to declare `olai-plugin-chat` and
+// `olai-plugin-outlines` for six strings about two plugins' own storage —
+// exactly the pass-through `@olai/bundle`'s `fence.test.ts` holds an equality
+// against. The SIZE key above stays on that door, because the door hands it on
+// from `@olai/appearance`, which really does own it.
+import { ALERT_SOUND_KEY, ALERTS_KEY, DENSITY_KEY, type Density, DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "@olai/tests/harness/storage_keys.ts"
+
+import { focusedOn } from "@olai/tests/harness/caret.ts";
+import { hintOf, pickChoice, prefRow as row, showPreferences } from "@olai/tests/harness/preferences.ts";
+import { pressed } from "@olai/tests/harness/settling.ts";
+import {
+  APP_HEADER,
+  attr,
+  CONNECTION,
+  HYDRATION_TIMEOUT,
+  PANE,
+  CHAT_TOGGLE,
+  PADI_PILL,
+  PLUGIN_CONFIG,
+  PLUGIN_CONFIRM,
+  PLUGIN_CONFIRM_KEEP,
+  PLUGIN_CONFIRM_OFF,
+  PLUGIN_GROUP,
+  PLUGIN_SWITCH,
+  PLUGINS_PANEL,
+  PLUGINS_REFUSED,
+  PLUGINS_STARTED,
+  PLUGINS_TRIGGER,
+  POLL_TIMEOUT,
+  PREFS_CHOICE,
+  PREFS_HINT,
+  PREFS_PANEL,
+  PREFS_ROW,
+  PREFS_SCOPE,
+  PREFS_SET_BY,
+  PREFS_TRIGGER,
+  SIDEBAR_BODY,
+  SIDEBAR_SCRIM,
+  SIDEBAR_TOGGLE,
+  WORDMARK,
+} from "@olai/tests/harness/world.ts";
+import type { OlaiWorld } from "@olai/tests/harness/world.ts";
+
+Given("this browser refuses local storage", async function (this: OlaiWorld) {
+  await this.page.addInitScript(() => {
+    for (const method of ["getItem", "setItem", "removeItem"] as const) {
+      Object.defineProperty(Storage.prototype, method, {
+        configurable: true,
+        value() { throw new DOMException("Storage is unavailable", "SecurityError"); },
+      });
+    }
+  });
+});
+
+// ── opening it ─────────────────────────────────────────────────────────
+
+When("I open the preferences", async function (this: OlaiWorld) {
+  await showPreferences(this.page);
+});
+
+Then("the preferences are open", async function (this: OlaiWorld) {
+  await this.page
+    .locator(PREFS_PANEL)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the preferences are shut", async function (this: OlaiWorld) {
+  await this.page
+    .locator(PREFS_PANEL)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+When("I press Escape on the preferences", async function (this: OlaiWorld) {
+  await pressed(this, "Escape");
+});
+
+// ── where the caret is ─────────────────────────────────────────────────
+
+When("I focus the preferences trigger", async function (this: OlaiWorld) {
+  await this.page.locator(PREFS_TRIGGER).focus();
+});
+
+When("I press Enter", async function (this: OlaiWorld) {
+  await pressed(this, "Enter");
+});
+
+When("I press Tab", async function (this: OlaiWorld) {
+  await pressed(this, "Tab");
+});
+
+When("I press Shift+Tab", async function (this: OlaiWorld) {
+  await pressed(this, "Shift+Tab");
+});
+
+Then("the preferences panel has the focus", async function (this: OlaiWorld) {
+  assert.equal(
+    await focusedOn(this),
+    TESTID.prefsPanel,
+    "opening the panel left the caret outside it, so a keyboard reaches the " +
+      "controls only after walking the whole page (the panel is portalled to " +
+      "the end of the body)",
+  );
+});
+
+/**
+ * The first and last things a Tab may land on INSIDE the panel, asked of the
+ * page rather than written down here.
+ *
+ * Written down, they would be "the leaf chip" and "the Hidden segment" — which
+ * is a list of what the panel happens to contain today, and a scenario about
+ * the tab CYCLE would then fail the day a row is added. What it is really
+ * asking is that the cycle's ends join up to the trigger.
+ */
+const endControl = (world: OlaiWorld, which: "first" | "last"): Promise<string> =>
+  world.page.evaluate((end) => {
+    const panel = document.querySelector('[data-testid="prefs-panel"]');
+    const controls = [
+      ...(panel?.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
+      ) ?? []),
+    ];
+    const el = end === "first" ? controls[0] : controls[controls.length - 1];
+    if (el === undefined) return "nothing";
+    const id = el.getAttribute("data-testid");
+    const value = el.getAttribute("data-value");
+    return `${id ?? el.tagName.toLowerCase()}${value === null ? "" : `=${value}`}`;
+  }, which);
+
+Then(
+  "the {word} control in the preferences has the focus",
+  async function (this: OlaiWorld, which: string) {
+    if (which !== "first" && which !== "last") {
+      throw new Error(`there is no "${which}" control; say first or last`);
+    }
+    const expected = await endControl(this, which);
+    assert.notEqual(expected, "nothing", "the panel offers no controls at all");
+    assert.equal(
+      await focusedOn(this),
+      expected,
+      `Tab was supposed to land on the ${which} control in the panel`,
+    );
+  },
+);
+
+Then("the preferences trigger has the focus", async function (this: OlaiWorld) {
+  const held = await focusedOn(this);
+  assert.equal(
+    held,
+    TESTID.prefsTrigger,
+    `the focus is on ${held}, not on the control that opened the panel`,
+  );
+});
+
+Then(
+  "the panel says these preferences are this browser's",
+  async function (this: OlaiWorld) {
+    const said = await this.page.locator(PREFS_SCOPE).innerText();
+    assert.ok(
+      /browser/i.test(said) && /never sent/i.test(said),
+      `the panel's scope line says "${said}", which does not say whose these ` +
+        "are or that they stay here",
+    );
+  },
+);
+
+/** The panel opens DOWNWARD from its trigger, escapes the bar, and lands
+ *  inside the window.
+ *
+ *  The header is `sticky` with a z-index, which makes it a stacking context and
+ *  a 3rem-tall box — so the panel is portalled out of it and placed against the
+ *  viewport (`web/src/client/anchor.ts`). A panel laid out inside the bar is
+ *  the failure this catches, and it is invisible to any assertion phrased as
+ *  "the panel is visible": a clipped one still is. Its top is measured against
+ *  the TRIGGER rather than the bar, because that is what it is anchored to —
+ *  the pill has padding above and below it inside the bar, so the gap below the
+ *  pill starts a pixel or two above the bar's own bottom edge. */
+Then("the preferences panel opens downward, clear of the bar", async function (this: OlaiWorld) {
+  const header = await this.box(this.page.locator(APP_HEADER), "the app header");
+  const trigger = await this.box(this.page.locator(PREFS_TRIGGER), "the trigger");
+  const panel = await this.box(this.page.locator(PREFS_PANEL), "the preferences");
+  assert.ok(
+    panel.y >= trigger.y + trigger.height - 1,
+    `the panel starts at y=${Math.round(panel.y)} and its trigger ends at ` +
+      `${Math.round(trigger.y + trigger.height)} — it is opening upward into ` +
+      "a 3rem bar",
+  );
+  assert.ok(
+    panel.y + panel.height > header.y + header.height,
+    "the whole panel is inside the header's own 3rem, which is a panel that " +
+      "has been clipped rather than one that was portalled out",
+  );
+  const viewport = this.viewport();
+  assert.ok(
+    panel.x >= -1 && panel.x + panel.width <= viewport.width + 1,
+    `the panel spans x=${Math.round(panel.x)}..` +
+      `${Math.round(panel.x + panel.width)} on a ${viewport.width}px screen`,
+  );
+  assert.ok(
+    panel.y + panel.height <= viewport.height + 1,
+    `the panel ends at y=${Math.round(panel.y + panel.height)} on a ` +
+      `${viewport.height}px screen — it should scroll inside itself instead`,
+  );
+});
+
+// ── picking a segment, whichever row it is on ──────────────────────────
+
+// ── the Done preference ────────────────────────────────────────────────
+
+/** Press one Done segment of THE PANEL — the reader's default for every page
+ *  that has not said otherwise. */
+const pickDone = async (
+  page: Page,
+  value: "hidden" | "visible",
+): Promise<void> => {
+  await pickChoice(page, "done", value);
+};
+
+const DONE_FLIP = attr("data-testid", TESTID.doneFlip);
+const FOCUSED_PANE = attr("data-pane-focused", "true");
+
+/** The outline a pane's `data-href` names, or nothing — `/` is the first
+ *  outline and does not spell a file; a node permalink does not either.
+ *  Asked of `fileKind`, not of a spelled suffix: kinds.test.ts is the
+ *  fence, and the registry is the one place that list exists. */
+const outlineNamedBy = (href: string | null): string | undefined => {
+  if (href === null || href === "") return undefined;
+  const path = decodeURIComponent(href.split("?")[0] ?? "").replace(
+    /^\//,
+    "",
+  );
+  return TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, path) ?? "")?.holds === "nodes" ? path : undefined;
+};
+
+/** The flip of the ADDRESSED page, not a held previous one.
+ *
+ *  `/` lands on the first outline; a later open keeps that tree on screen
+ *  until the named file arrives (`createReading`'s swap). The flip is drawn
+ *  from the held reading, so a wait on any done-flip prefs-choice matches
+ *  the previous page and the press (or the Then) is lost when the swap
+ *  remounts it. */
+const flipOfAddressed = async (page: Page) => {
+  const href = await page
+    .locator(`${PANE}${FOCUSED_PANE}`)
+    .getAttribute("data-href");
+  const named = outlineNamedBy(href);
+  return named === undefined
+    ? page.locator(`${FOCUSED_PANE} ${DONE_FLIP}`)
+    : page.locator(`${FOCUSED_PANE} ${DONE_FLIP}${attr("data-file", named)}`);
+};
+
+/** One segment of the flip beside the FOCUSED pane's filter: this page's own
+ *  say. Its value-space is the override map's — `shown` / `hidden` — where
+ *  the panel's segments answer in the row's own `visible` / `hidden`
+ *  (client/settings/done.ts keeps the two vocabularies apart on purpose). */
+const flipDone = async (
+  page: Page,
+  word: "shown" | "hidden",
+): Promise<void> => {
+  const flip = await flipOfAddressed(page);
+  const pick = flip.locator(`${PREFS_CHOICE}${attr("data-value", word)}`);
+  await pick.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await pick.click();
+  // Scored to THE SEGMENT PRESSED: either the press landed (the segment
+  // that was not in force now is) or the ask was a deliberate no-op (the
+  // in-force side already carries it — at pace the same selector, at no
+  // cost — a no-op IS the read a press makes of this strip now.
+  await flip
+    .locator(`${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
+
+Then(
+  "this page's Done flip says {string}",
+  async function (this: OlaiWorld, word: string) {
+    if (word !== "shown" && word !== "hidden") {
+      throw new Error(`Done is "shown" or "hidden", not "${word}"`);
+    }
+    const flip = await flipOfAddressed(this.page);
+    await flip
+      .locator(
+        `${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`,
+      )
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then("the Done flip is this page's own", async function (this: OlaiWorld) {
+  const flip = await flipOfAddressed(this.page);
+  await flip
+    .and(this.page.locator(`${DONE_FLIP}${attr("data-own", "true")}`))
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the Done flip is the panel's answer", async function (this: OlaiWorld) {
+  const flip = await flipOfAddressed(this.page);
+  await flip
+    .and(this.page.locator(`${DONE_FLIP}:not(${attr("data-own", "true")})`))
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+const asDone = (value: string): "hidden" | "visible" => {
+  if (value !== "hidden" && value !== "visible") {
+    throw new Error(`Done is "hidden" or "visible", not "${value}"`);
+  }
+  return value;
+};
+
+When(
+  "I set Done to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickDone(this.page, asDone(value));
+  },
+);
+
+/** Intent sentences the tree features already speak. They go through Prefs
+ *  and then put the panel away, because the next step is about the TREE and a
+ *  portalled panel would sit on top of it. */
+/** The panel AND whatever stood behind it back off the page. The trigger,
+ *  not Escape: hide/show is about the TREE, and a global Escape would
+ *  cancel an editor or a menu the next step is about. On a phone the
+ *  trigger lives in the directory drawer, so that tap shut the panel with
+ *  the drawer still standing over the page — the scrim is its own way out.
+ */
+const prefsAway = async (world: OlaiWorld): Promise<void> => {
+  await world.press(world.page.locator(PREFS_TRIGGER));
+  await world.page
+    .locator(PREFS_PANEL)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  const scrim = world.page.locator(SIDEBAR_SCRIM);
+  if (await scrim.isVisible().catch(() => false)) {
+    // The burger rather than the scrim: the drawer is nearly the scrim's
+    // whole width on a phone, and the scrim click would have to thread the
+    // sliver beside it. The header is the one place the scrim deliberately
+    // does NOT cover (`#101`'s ruling, right above the scrim), so the
+    // toggle is the door that always works.
+    await world.press(world.page.locator(SIDEBAR_TOGGLE));
+    await world.page
+      .locator(SIDEBAR_BODY)
+      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  }
+};
+
+When("I hide the done nodes", async function (this: OlaiWorld) {
+  await flipDone(this.page, "hidden");
+});
+
+When("I show the done nodes", async function (this: OlaiWorld) {
+  await flipDone(this.page, "shown");
+});
+
+/** The release door is the MARK — not a second press. The strip's gestures
+ *  are idempotent asks (press what you mean); only the `·` hands the pick
+ *  back to the panel, and that is deliberately a door one CLUTTER-free
+ *  second near a strip cannot miss (client/filter/DoneFlip.tsx). */
+When("I hand the page's Done pick back to the panel", async function (this: OlaiWorld) {
+  const flip = await flipOfAddressed(this.page);
+  await flip.locator(attr("data-testid", TESTID.doneRelease)).click();
+});
+
+/**
+ * A SECOND page in the same context, which is what makes it a second tab of the
+ * same browser rather than a second browser: one origin, one `localStorage`,
+ * and the `storage` event this app listens for is fired in every document of it
+ * except the one that wrote.
+ *
+ * Opened on the SAME address as this page: the scenario is on the page the
+ * other tab is about to speak for. Driven through the flip rather than
+ * through `setItem`, so what crosses is a pick somebody actually made. Left
+ * open on purpose, exactly as the theme's twin is (`theme_steps.ts`): a
+ * preference that only crossed once the other tab was gone would pass a
+ * scenario that closed it.
+ */
+When("a second tab shows the done on this page", async function (this: OlaiWorld) {
+  const other = await this.context.newPage();
+  await other.goto(this.page.url());
+  await flipDone(other, "shown");
+});
+
+Then(
+  "the Done row explains that finished work is {string}",
+  async function (this: OlaiWorld, expected: string) {
+    if (expected !== "hidden" && expected !== "shown") {
+      throw new Error(`the hint says "hidden" or "shown", not "${expected}"`);
+    }
+    const hint = await hintOf(this, "done");
+    assert.ok(
+      hint.includes(`Finished work is ${expected}`),
+      `the Done row says "${hint}", which does not say finished work is ` +
+        `${expected}`,
+    );
+  },
+);
+
+/**
+ * The OVERRIDE map's say for ONE outline — the entry the flip left. Absence
+ * is a stored fact too: a page that was never asked holds no entry, which
+ * the `no Done word` twin is the fence for.
+ */
+Then(
+  "this browser has stored that done nodes are {string} on {string}",
+  async function (this: OlaiWorld, state: string, file: string) {
+    if (state !== "shown" && state !== "hidden") {
+      throw new Error(`done nodes are "shown" or "hidden", not "${state}"`);
+    }
+    const stored = await this.stored(DONE_OVERRIDES_KEY);
+    const words: unknown = stored === null ? {} : JSON.parse(stored);
+    assert.ok(
+      typeof words === "object" && words !== null && !Array.isArray(words),
+      `this browser keeps "${stored}" under ${DONE_OVERRIDES_KEY}, ` +
+        "which is not a map of words",
+    );
+    assert.equal(
+      (words as Record<string, string>)[file],
+      state,
+      `this browser keeps "${stored}" under ${DONE_OVERRIDES_KEY}, ` +
+        `which does not say done nodes are ${state} on ${file}`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored no Done word on {string}",
+  async function (this: OlaiWorld, file: string) {
+    const stored = await this.stored(DONE_OVERRIDES_KEY);
+    const words =
+      stored === null
+        ? {}
+        : (JSON.parse(stored) as Record<string, string>);
+    assert.ok(
+      !(file in words),
+      `this browser keeps "${stored}" under ${DONE_OVERRIDES_KEY}, ` +
+        `which says something about ${file} nobody asked it to`,
+    );
+  },
+);
+
+/** The default's own fact under ITS own key — an absent entry means what
+ *  `boolCodec(true)` means, so "stored" here includes the browser that has
+ *  never written it. */
+Then(
+  "this browser has stored done nodes {string} by default",
+  async function (this: OlaiWorld, state: string) {
+    if (state !== "shown" && state !== "hidden") {
+      throw new Error(`done nodes are "shown" or "hidden", not "${state}"`);
+    }
+    const stored = await this.stored(DONE_HIDDEN_KEY);
+    const hidden: unknown = stored === null ? true : JSON.parse(stored);
+    assert.equal(
+      hidden,
+      state === "hidden",
+      `this browser keeps "${stored}" under ${DONE_HIDDEN_KEY}, ` +
+        `which does not mean done nodes are ${state} by default`,
+    );
+  },
+);
+
+/** On a page the pick does not reach — a day, the agenda, the trash, a
+ *  document — there is no flip to press: the question it answers was never
+ *  there (client/filter/DoneFlip.tsx's reaching argument). */
+Then("this page offers no Done flip", async function (this: OlaiWorld) {
+  const flips = this.page.locator(`${FOCUSED_PANE} ${DONE_FLIP}`);
+  await flips
+    .first()
+    .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
+    .catch(() => undefined);
+  assert.equal(
+    await flips.count(),
+    0,
+    "this page keeps a Done flip, and this step says it should offer none",
+  );
+});
+
+// ── the two Alert preferences ──────────────────────────────────────────
+//
+// What they DO is `packages/plugins/chat/e2e/features/the_agent_waits_on_you.feature`; what is here is
+// that they are preferences like the others — a pick that moves this browser,
+// is stored under one key, and says what it means.
+
+const asSwitch = (value: string): "on" | "off" => {
+  if (value !== "on" && value !== "off") {
+    throw new Error(`an alert row is "on" or "off", not "${value}"`);
+  }
+  return value;
+};
+
+When(
+  "I set Alerts to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "alerts", asSwitch(value));
+  },
+);
+
+When(
+  "I set the alert sound to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "alert-sound", asSwitch(value));
+  },
+);
+
+Then(
+  "this browser has stored that alerts are {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(ALERTS_KEY);
+    assert.equal(
+      stored,
+      asSwitch(value) === "on" ? "true" : "false",
+      `this browser keeps "${stored}" under ${ALERTS_KEY}`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored that the alert sound is {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(ALERT_SOUND_KEY);
+    assert.equal(
+      stored,
+      asSwitch(value) === "on" ? "true" : "false",
+      `this browser keeps "${stored}" under ${ALERT_SOUND_KEY}`,
+    );
+  },
+);
+
+/** The sound row is drawn INERT rather than hidden while alerts are off — the
+ *  Segmented control's own "frozen", which the git rows already wear: a choice
+ *  a reader cannot see is one they cannot ask anybody about. */
+Then("the alert sound cannot be set", async function (this: OlaiWorld) {
+  await showPreferences(this.page);
+  const segments = row(this, "alert-sound").locator(PREFS_CHOICE);
+  await segments.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const disabled = await segments.evaluateAll((all) =>
+    all.map((one) => one.getAttribute("aria-disabled")),
+  );
+  assert.ok(
+    disabled.length > 0 && disabled.every((said) => said === "true"),
+    `the alert sound row's segments say aria-disabled=${JSON.stringify(disabled)}`,
+  );
+});
+
+Then(
+  "the Alerts row explains {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "alerts");
+    assert.ok(
+      hint.includes(expected),
+      `the Alerts row says "${hint}", which does not carry "${expected}"`,
+    );
+  },
+);
+
+// ── the Notes preference: how much of a row is drawn by default ────────
+
+/** The three words the Notes row offers, checked here rather than left to a
+ *  typo in a scenario: a `data-value` that matches nothing waits thirty seconds
+ *  and then says a segment was not visible. */
+const asDensity = (value: string): Density => {
+  const found = (["compact", "cozy", "open"] as const).find(
+    (one) => one === value,
+  );
+  if (found === undefined) {
+    throw new Error(`Notes is compact, cozy or open, not "${value}"`);
+  }
+  return found;
+};
+
+When(
+  "I set Notes to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "density", asDensity(value));
+  },
+);
+
+/** ...and then put the panel away, because the next step is about the TREE and
+ *  a portalled panel would sit on top of it. The trigger rather than Escape,
+ *  for the reason the Done twin gives. */
+When(
+  "I read the outline with Notes on {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "density", asDensity(value));
+    await prefsAway(this);
+  },
+);
+
+Then(
+  "the Notes row explains that a row {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "density");
+    assert.ok(
+      hint.includes(expected),
+      `the Notes row says "${hint}", which does not say ${JSON.stringify(expected)}`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored that notes are {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(DENSITY_KEY);
+    assert.equal(
+      stored,
+      asDensity(value),
+      `this browser keeps "${stored}" under ${DENSITY_KEY}`,
+    );
+  },
+);
+
+// ── the Size preference: how big the page is set ───────────────────────
+
+When(
+  "I set Size to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "size", value);
+  },
+);
+
+/**
+ * The page's ROOT font size, which is the whole of what a size pick does: every
+ * length in this client is a `rem`, so this one number is the page.
+ *
+ * Read as pixels off the document rather than as the `rem` the table declares —
+ * that is what a reader gets, and it is what would stay at 16 if the sheet's
+ * blocks or the boot script's attribute stopped meeting.
+ */
+Then(
+  "the page is set at {string}",
+  async function (this: OlaiWorld, size: string) {
+    await this.waitUntil(
+      async () =>
+        (await this.page.evaluate(
+          () => getComputedStyle(document.documentElement).fontSize,
+        )) === size,
+      `the page to be set at ${size}`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored the size {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(SIZE_STORAGE_KEY);
+    assert.equal(
+      stored,
+      value,
+      `this browser keeps "${stored}" under ${SIZE_STORAGE_KEY}`,
+    );
+  },
+);
+
+// ── the two Git preferences ────────────────────────────────────────────
+//
+// TWO ROWS, because they are two independent facts: what is waiting can record
+// itself, and a recorded commit can be pushed. Either alone is a shipped case —
+// Auto-push with the Commit button is what #283 built — so the rows are asked
+// for separately here too. There is no toggle: both rows are always the
+// instance's, always read-only.
+
+const asGit = (value: string): "off" | "on" => {
+  if (value !== "off" && value !== "on") {
+    throw new Error(`a Git preference is "off" or "on", not "${value}"`);
+  }
+  return value;
+};
+
+Then(
+  "the Git commit row explains that a write {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "git-commit");
+    assert.ok(
+      hint.includes(expected),
+      `the Git commit row says "${hint}", which does not say a write ` +
+        JSON.stringify(expected),
+    );
+  },
+);
+
+Then(
+  "the Git push row explains that a commit {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "git-push");
+    assert.ok(
+      hint.includes(expected),
+      `the Git push row says "${hint}", which does not say a commit ` +
+        JSON.stringify(expected),
+    );
+  },
+);
+
+/**
+ * NOTHING ABOUT GIT IS STORED IN THIS BROWSER, and that is the fence for the
+ * whole move.
+ *
+ * The two git rows used to write `olai.git.autocommit` and `olai.git.autopush`
+ * here, which is what made a quiet window a claim about a reader: two tabs of
+ * two browsers could each believe something different about one directory, and
+ * a directory nobody had a tab open on recorded nothing. The rows draw the
+ * instance's policy now, so a key of either name in this browser is the old
+ * shape coming back.
+ */
+Then(
+  "this browser has stored nothing about git",
+  async function (this: OlaiWorld) {
+    for (const key of ["olai.git.autocommit", "olai.git.autopush"]) {
+      assert.equal(
+        await this.stored(key),
+        null,
+        `this browser keeps something under ${key}, so a git preference is stored here`,
+      );
+    }
+  },
+);
+
+// ── a git policy the INSTANCE holds ────────────────────────────────────
+//
+// Both git rows are the instance's: they draw its policy for this directory,
+// always read-only. A flag on the command line is named; omitting it is the
+// built-in default. Never hidden: a policy a reader cannot see is one they
+// cannot ask anybody about.
+
+/** Which of the two rows a scenario names, in the words the panel uses. */
+const asGitRow = (label: string): "git-commit" | "git-push" => {
+  if (label === "Git commit") return "git-commit";
+  if (label === "Git push") return "git-push";
+  throw new Error(`the pinnable rows are "Git commit" and "Git push", not "${label}"`);
+};
+
+Then(
+  "the {string} row is the server's, set by {string}",
+  async function (this: OlaiWorld, label: string, flag: string) {
+    const pref = asGitRow(label);
+    await showPreferences(this.page);
+    const it = row(this, pref);
+    await it.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(
+      await it.getAttribute("data-pinned"),
+      "true",
+      `the ${label} row is not drawn as the server's`,
+    );
+    const said = await it.locator(PREFS_SET_BY).innerText();
+    assert.ok(
+      said.includes(flag),
+      `the ${label} row says "${said}", which does not name ${JSON.stringify(flag)}`,
+    );
+  },
+);
+
+/** Every segment still on screen — a pinned row shows what it is set to AND
+ *  what it could have been — and none of them pressable. */
+Then(
+  "the {string} row cannot be changed from this browser",
+  async function (this: OlaiWorld, label: string) {
+    const pref = asGitRow(label);
+    await showPreferences(this.page);
+    const choices = row(this, pref).locator(PREFS_CHOICE);
+    const count = await choices.count();
+    assert.ok(count > 1, `the ${label} row draws ${count} choices, so it hides one`);
+    for (let at = 0; at < count; at += 1) {
+      assert.equal(
+        await choices.nth(at).getAttribute("aria-disabled"),
+        "true",
+        `segment ${at} of the ${label} row is still pressable`,
+      );
+    }
+  },
+);
+
+Then(
+  "the {string} row is the instance's built-in default",
+  async function (this: OlaiWorld, label: string) {
+    const pref = asGitRow(label);
+    await showPreferences(this.page);
+    const it = row(this, pref);
+    await it.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(
+      await it.getAttribute("data-pinned"),
+      "true",
+      `the ${label} row is not drawn as the instance's`,
+    );
+    const said = await it.locator(PREFS_SET_BY).innerText();
+    assert.ok(
+      /built-in default/i.test(said),
+      `the ${label} row says "${said}", which does not name the built-in default`,
+    );
+  },
+);
+
+Then(
+  "the {string} row is set to {string}",
+  async function (this: OlaiWorld, label: string, value: string) {
+    const pref = asGitRow(label);
+    await showPreferences(this.page);
+    const inForce = row(this, pref)
+      .locator(PREFS_CHOICE)
+      .and(this.page.locator('[aria-pressed="true"]'));
+    assert.equal(
+      await inForce.getAttribute("data-value"),
+      asGit(value),
+      `the ${label} row is not set to "${value}"`,
+    );
+  },
+);
+
+/** The negative half of the row's promise: a sentence that is true of a live
+ *  row can be exactly wrong on a pinned one, and only asserting what a hint
+ *  SAYS would let the old words survive beside the new. */
+Then(
+  "the Git commit row does not explain that a write {string}",
+  async function (this: OlaiWorld, unwanted: string) {
+    const hint = await hintOf(this, "git-commit");
+    assert.ok(
+      !hint.includes(unwanted),
+      `the Git commit row still says "${hint}", which claims ${JSON.stringify(unwanted)}`,
+    );
+  },
+);
+
+// ── the PLUGINS panel: what this build has, and what each row is doing ──
+//
+// A control of its own beside preferences, drawing the same four-part row
+// (`web/src/client/plugins/Panel.tsx`), so the reads below are the preferences
+// reads scoped to the other panel — which is exactly how the two are told
+// apart, and why `prefsRow` is one name across both.
+
+/** Open it unless it is open, on `showPreferences`'s terms and for its
+ *  reason. */
+When("I open the plugins panel", async function (this: OlaiWorld) {
+  if ((await this.pluginsPanel().count()) > 0) return;
+  const trigger = this.page.locator(PLUGINS_TRIGGER).locator("visible=true");
+  await this.waitUntil(async () => (await this.pluginsPanel().count()) > 0 || await trigger.isVisible(), "the restored panel or its trigger");
+  // A returning layout can restore an open inspector before its trigger.
+  if ((await this.pluginsPanel().count()) > 0) return;
+  await this.press(trigger);
+  await this.pluginsPanel().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+When("I close the plugins panel", async function (this: OlaiWorld) {
+  // A flip publishes its row before the replacement socket finishes opening.
+  // Wait for the reconnecting dialog to release pointer and keyboard input.
+  await this.page.locator(selector(TESTID.offline)).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => await this.pluginsPanel().locator(`${PLUGIN_SWITCH}[aria-disabled="true"]`).count() === 0, "the panel controls to finish reconciling");
+  const trigger = this.page.locator(`${PLUGINS_TRIGGER}:visible`);
+  // Desktop retains the ordinary trigger click, including Playwright's wait
+  // for any reconnecting overlay. On a phone the panel covers that trigger.
+  if (this.viewport().width > 700) await this.press(trigger);
+  else await this.pluginsPanel().press("Escape");
+  await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
+});
+
+/**
+ * WHAT ONE PLUGIN'S ROW SAYS IT IS DOING — the hint, which is the half of the
+ * row a person can act on.
+ *
+ * By the plugin's NAME, which is the settings namespace and the label the
+ * row wears, so a scenario names the row the same way the operator who caused
+ * this state did.
+ */
+Then(
+  "the plugins panel says {string} is {string}",
+  async function (this: OlaiWorld, plugin: string, said: string) {
+    // WAITED FOR rather than read once, and that is the loader surface rather
+    // than flake-proofing: a flip is a press, a settle over every row and a
+    // republish, so the sentence a scenario is waiting for arrives some frames
+    // after the click. The reads this step made before were of a serve that had
+    // not moved since it booted; this one is asked across a change.
+    //
+    // The WAIT is a locator carrying the words, which is what auto-waits; the
+    // catch is what turns "timed out on a selector" back into the sentence the
+    // row actually says, which is the whole of what a reader of a failure needs.
+    const row = await shownRow(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    try {
+      await row
+        .locator(`${PREFS_HINT}:has-text(${JSON.stringify(said)})`)
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      // ...AND THE SWITCH BESIDE IT, which is the half that turns "it says
+      // nothing" into a sentence somebody can act on: a row with no hint is a
+      // running row that carries nobody, and a reader of this failure needs to
+      // know whether the serve disagrees about the STATE or only about the
+      // words. There is a real failure behind that — a scenario waiting for a
+      // `waiting` row was told only that the row said `""`.
+      assert.fail(
+        `the row for ${JSON.stringify(plugin)} to say ${JSON.stringify(said)}, ` +
+          `and it says ${JSON.stringify(await hintOn(this, plugin))} ` +
+          `with its switch reading ${JSON.stringify(await switchOn(this, plugin))}`,
+      );
+    }
+  },
+);
+
+/**
+ * ...AND A ROW WITH NOTHING TO SAY SAYS NOTHING — the panel's ordinary state,
+ * asserted as an ABSENCE because that is the only way it can be.
+ *
+ * A running row that carries nobody draws no sentence at all: the switch
+ * already says On, and a paragraph repeating it is how a panel becomes the
+ * column of identical paragraphs this one was rewritten out of. That is a claim
+ * about what is NOT on screen, so no reading of the hint's words could hold it.
+ */
+Then(
+  "the plugins panel says nothing more about {string}",
+  async function (this: OlaiWorld, plugin: string) {
+    const row = await shownRow(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // Silence also describes an off or pending row now. Pin running first,
+    // especially after approval, before treating the missing caption as ready.
+    await row.locator(`${PLUGIN_SWITCH}[aria-checked="true"]`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // `detached` rather than a count read: this is asked after a flip, so the
+    // sentence that has to be gone may still be on screen for a frame — and a
+    // count read once would be asserting about whichever frame it landed in.
+    await row.locator(PREFS_HINT).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** Read the displayed effective value, including the default named beneath a
+ * refused file spelling. Raw drafts are asserted by the input-specific steps. */
+Then(
+  "the plugins panel shows {string} configured {string} as {string}",
+  async function (this: OlaiWorld, plugin: string, key: string, value: string) {
+    const row = await shownRow(this, plugin);
+    const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
+    await this.waitUntil(async () => await pair.count() === 1,
+      `the ${JSON.stringify(plugin)} row has no config for ${JSON.stringify(key)}`);
+    await this.waitUntil(async () => await pair.isVisible() && (await configurationValue(pair)) === value,
+      `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${JSON.stringify(value)}`);
+  },
+);
+
+Then(
+  "the plugins panel was started {string}",
+  async function (this: OlaiWorld, said: string) {
+    const foot = this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_STARTED}`);
+    await foot.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const line = (await foot.innerText()).replaceAll("\n", " ");
+    assert.ok(
+      line.includes(said),
+      `the panel's own line to say ${JSON.stringify(said)}, and it says ${JSON.stringify(line)}`,
+    );
+  },
+);
+
+/** ONE PLUGIN'S ROW on the plugins panel, by the settings namespace — which
+ *  is the label the row wears, so a scenario names it the way the operator who
+ *  caused this state did. */
+const rowFor = (world: OlaiWorld, plugin: string) =>
+  world.pluginsPanel().locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+
+const shownRow = (world: OlaiWorld, plugin: string) => world.showPluginRow(plugin);
+
+/** ...and its sentence, or the empty string where it has none. ABSENT IS NOT AN
+ *  ERROR here: a row with nothing to say draws no paragraph at all, so
+ *  `innerText` on a locator matching nothing would throw where the honest answer
+ *  is "it says nothing", and the caller's `includes` refuses it in words a
+ *  reader can act on. */
+const hintOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
+  const row = await shownRow(world, plugin);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const hint = row.locator(PREFS_HINT);
+  if ((await hint.count()) === 0) return "";
+  return (await hint.innerText()).replaceAll("\n", " ");
+};
+
+/**
+ * IS EVERY MEMBER THIS PAGE SUBSCRIBED TO STILL ARRIVING — the app's own
+ * liveness readout, which is the strongest assertion this feature has.
+ *
+ * ## Why this and not a face
+ *
+ * Every other check here asks whether one drawn thing is right, and a drawn
+ * thing can be right while the wire under it is dead: a chip that mounted off a
+ * roster frame draws whether or not the member it reads is still being served.
+ * This asks the question directly, about EVERY member at once, and it names the
+ * silent ones — so a plugin whose streams stopped is caught whether or not
+ * anybody wrote a scenario about that plugin.
+ *
+ * It is the reading behind the sentence a person sees on the connection chip:
+ * *connected, but nothing is arriving on … what is on screen is missing whatever
+ * those carry, and may be missing it silently.* `data-stopped` is empty on a
+ * healthy wire, which is what makes the assertion a plain one.
+ */
+Then(
+  "no member of this page has gone silent",
+  async function (this: OlaiWorld) {
+    const chip = this.page.locator(CONNECTION).first();
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // A roster switch may draw its surviving faces during a socket refresh.
+    // Await the connection's own readiness before asserting stream health;
+    // a permanently reconnecting or degraded wire still fails this bound.
+    await this.expectAttribute(CONNECTION, "data-connection", "live", "the connection", HYDRATION_TIMEOUT);
+    const stopped = (await chip.getAttribute("data-stopped")) ?? "";
+    assert.equal(
+      stopped,
+      "",
+      `the page reports nothing arriving on ${JSON.stringify(stopped)} — what is ` +
+        "drawn is missing whatever those carry, and is missing it silently",
+    );
+    // Check again beside the stopped members so a drop after readiness is
+    // not mistaken for an empty, healthy stream set.
+    assert.equal(await chip.getAttribute("data-connection"), "live");
+  },
+);
+
+/**
+ * WHETHER THE APPLIANCE BEHIND A PLUGIN IS REACHED — the pill kolu hangs in the
+ * bar, by the word it draws.
+ *
+ * A row coming back is TWO facts and they fail separately: the fiber re-applies
+ * (its kinds return, its sibling is on the wire, its chunk mounts) and the
+ * standing connection its `apply` armed is dialled again. A scenario that only
+ * asked about the drawn face could not tell a plugin that came back with no link
+ * from one that came back whole — and the second is the one that reads as *the
+ * feature works* right up until somebody looks at the data.
+ *
+ * BY THE PLUGIN'S OWN ATTRIBUTE, which is a closed set the appliance publishes
+ * (`connected` / `absent` / `skew`), rather than by a sentence: this step is
+ * about whether a socket is up, and the words around it are kolu's to change.
+ */
+Then(
+  "the appliance link reads {word}",
+  async function (this: OlaiWorld, word: string) {
+    try {
+      await this.page
+        .locator(`${PADI_PILL}${attr("data-padi", word)}`)
+        .first()
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      // ...AND WHAT IT ACTUALLY READS, because the two ways this fails want two
+      // different next steps: a pill saying `absent` is a plugin that is drawing
+      // and cannot reach its appliance, and NO PILL AT ALL is a plugin whose
+      // face never came back. A timeout on the selector alone cannot tell them
+      // apart, and the difference is which half of a remount to go and look at.
+      const pill = this.page.locator(PADI_PILL).first();
+      const found = (await pill.count()) === 0
+        ? "no pill at all"
+        : await pill.getAttribute("data-padi");
+      assert.fail(
+        `the appliance link to read ${JSON.stringify(word)}, and it is ` +
+          `${JSON.stringify(found)}`,
+      );
+    }
+  },
+);
+
+/** WHICH WAY ONE ROW'S SWITCH IS READING — `on`, `off`, or `neither` for a
+ *  strip that is drawn but has no segment pressed, which is not a state the
+ *  panel has and is worth saying rather than guessing at. */
+const switchOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
+  const row = await shownRow(world, plugin);
+  const strip = row.locator(PLUGIN_SWITCH);
+  if ((await strip.count()) === 0) return "neither";
+  const checked = await strip.first().getAttribute("aria-checked");
+  if (checked === "true") return "on";
+  if (checked === "false") return "off";
+  return "neither";
+};
+
+/**
+ * PRESS A CONTROL ON A ROW THAT IS ALLOWED TO BE REDRAWN UNDER THE FINGER.
+ *
+ * Roster and management reports can rebuild the panel's groups while a press
+ * is being aimed. `scrollIntoViewIfNeeded` can reject a detached element before
+ * the click is dispatched. Resolve the replacement row and reopen its group
+ * before trying the ordinary reachability and click checks again.
+ *
+ * So the re-resolution happens HERE, one level up, where `shownRow` can reopen
+ * the group and hand back the row the NEW tree drew. The post-flip wait below
+ * already polls this way for the same reason; the press had been left with the
+ * one row it resolved first (juspay/olai#547 CI, `98362ac`).
+ */
+const pressOnRow = async (
+  world: OlaiWorld,
+  plugin: string,
+  control: string,
+): Promise<void> => {
+  const deadline = Date.now() + POLL_TIMEOUT;
+  let last: unknown;
+  for (;;) {
+    try {
+      await world.press((await shownRow(world, plugin)).locator(control));
+      return;
+    } catch (error) {
+      last = error;
+      if (Date.now() >= deadline) break;
+    }
+  }
+  throw last;
+};
+
+const confirmIfAsked = async (
+  world: OlaiWorld,
+  plugin: string,
+  pick: string,
+): Promise<void> => {
+  const row = rowFor(world, plugin);
+  const confirm = row.locator(PLUGIN_CONFIRM);
+  if ((await confirm.count()) === 0) return;
+  if (!(await confirm.isVisible().catch(() => false))) return;
+  await pressOnRow(world, plugin, pick === "off" ? PLUGIN_CONFIRM_OFF : PLUGIN_CONFIRM_KEEP);
+};
+
+/**
+ * THE SWITCH — a person turning one plugin on or off on the running serve.
+ *
+ * `on`/`off` is WHERE THE SWITCH IS BEING PUT rather than which way to move it,
+ * all the way down: the segment carries the value it picks, the procedure takes
+ * `enabled`, and the loader is told a `disabled` — so a scenario, a browser and
+ * a serve all say the same thing about where this is aiming, and none of them
+ * has to have read the roster correctly first.
+ *
+ * IT RETURNS WHEN THE ROW SAYS SO, not when the click lands. The press freezes
+ * that row's strip while the bundle settles, so a scenario that carried on
+ * immediately would be asserting about a serve mid-flip — the exact frame the
+ * server holds its roster back for. Waiting for the segment to read the value
+ * asked for is waiting for the republish that ends the movement.
+ */
+/** HOW LONG A FLIP MAY TAKE before it is a hang — see the step below for the
+ *  four stages it is buying. Its own name rather than a literal, because it is
+ *  a claim about this product's slowest deliberate gesture and not a nudge
+ *  somebody tuned to make a suite pass. */
+const FLIP_STEP_TIMEOUT = 90_000;
+
+// A requested plugin may remain waiting on a dependency. Its switch reports
+// whether it is running, so these scenarios wait for the explanatory row next.
+When(
+  "I request that the plugin {string} be {word}",
+  async function (this: OlaiWorld, plugin: string, pick: string) {
+    await pressOnRow(this, plugin, PLUGIN_SWITCH);
+  },
+);
+
+Then(
+  "the plugins panel group {string} is collapsed",
+  async function (this: OlaiWorld, section: string) {
+    await this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}${attr("data-collapsed", "true")}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I open the plugins panel group {string}",
+  async function (this: OlaiWorld, section: string) {
+    const summary = this.pluginsPanel().locator(
+      `${PLUGIN_GROUP}${attr("data-section", section)} > details > summary`,
+    );
+    await this.press(summary);
+    await this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}:not([data-collapsed])`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the plugins panel groups {string} under {string}",
+  async function (this: OlaiWorld, plugin: string, section: string) {
+    const row = await shownRow(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const group = this.pluginsPanel()
+      .locator(`${PLUGIN_GROUP}${attr("data-section", section)}`)
+      .filter({ has: this.page.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`) });
+    try {
+      await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      const said = await this.pluginsPanel().locator(PLUGIN_GROUP).evaluateAll(
+        (nodes) => nodes.map((node) => node.getAttribute("data-section")).join(", "),
+      );
+      assert.fail(
+        `the row for ${JSON.stringify(plugin)} to sit under ${JSON.stringify(section)}, ` +
+          `and the panel's groups are ${JSON.stringify(said)}`,
+      );
+    }
+  },
+);
+
+Then(
+  "the plugins panel asks to confirm turning {string} off",
+  async function (this: OlaiWorld, plugin: string) {
+    const row = await shownRow(this, plugin);
+    await row.locator(PLUGIN_CONFIRM).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the confirm for {string} names {string}",
+  async function (this: OlaiWorld, plugin: string, named: string) {
+    const row = await shownRow(this, plugin);
+    const box = row.locator(PLUGIN_CONFIRM);
+    await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const said = (await box.innerText()).replaceAll("\n", " ");
+    assert.ok(
+      said.includes(named),
+      `the confirm for ${JSON.stringify(plugin)} to name ${JSON.stringify(named)}, and it says ${JSON.stringify(said)}`,
+    );
+  },
+);
+
+When(
+  "I confirm turning the plugin {string} off",
+  { timeout: FLIP_STEP_TIMEOUT },
+  async function (this: OlaiWorld, plugin: string) {
+    await pressOnRow(this, plugin, PLUGIN_CONFIRM_OFF);
+    await (await shownRow(this, plugin))
+      .locator(`${PLUGIN_SWITCH}${attr("aria-checked", "false")}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I keep the plugin {string} on",
+  async function (this: OlaiWorld, plugin: string) {
+    const row = await shownRow(this, plugin);
+    await this.press(row.locator(PLUGIN_CONFIRM_KEEP));
+    await row.locator(PLUGIN_CONFIRM).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I switch the plugin {string} {word}",
+  // A LONGER STEP THAN THE ORDINARY ONE, and the number is the flip's own
+  // shape rather than slack: a press is a settle over every row in the bundle,
+  // a re-validation of the vault against the vocabulary that just moved, a
+  // roster republish, a redial, and the tab's whole tree built again. Under the
+  // 40s default the two `waitFor`s here can add up past it, and what a reader
+  // would then see is `function timed out` rather than which of the four
+  // stages did not happen.
+  { timeout: FLIP_STEP_TIMEOUT },
+  async function (this: OlaiWorld, plugin: string, pick: string) {
+    const row = await shownRow(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const current = await switchOn(this, plugin);
+    if (current !== pick) {
+      await pressOnRow(this, plugin, PLUGIN_SWITCH);
+      await confirmIfAsked(this, plugin, pick);
+    }
+    // THE ROW THIS WAITS ON MAY BE A NEW ELEMENT, which is what makes this a
+    // wait for the flip rather than a wait for a control that has gone. It used
+    // to say a redial rebuilds the tab's whole tree; it does not, and has not
+    // since the pinned kolu's #2228 — the connection is one object and the tree
+    // is rendered once. What DOES re-draw is the panel itself, for its own
+    // reasons (the roster it lists moved), so the loop stands. Re-open the
+    // group on every try: the first shownRow can land on the outgoing draw.
+    const wanted = `${PLUGIN_SWITCH}${attr("aria-checked", pick === "on" ? "true" : "false")}`;
+    const deadline = Date.now() + POLL_TIMEOUT;
+    let last: unknown;
+    while (Date.now() < deadline) {
+      try {
+        await (await shownRow(this, plugin)).locator(wanted).waitFor({
+          state: "visible",
+          timeout: 1000,
+        });
+        last = undefined;
+        break;
+      } catch (error) {
+        last = error;
+      }
+    }
+    if (last !== undefined) throw last;
+  },
+);
+
+/** Chat's outline contributions leave and return with its browser activation. */
+Then("chat controls are {word} the outline", async function(this: OlaiWorld, presence: string) {
+  assert.ok(presence === "in" || presence === "gone-from");
+  await this.page.locator(`${selector(TESTID.agentStart)}, ${selector(TESTID.agentStanding)}`).first().waitFor({
+    state: presence === "in" ? "attached" : "detached", timeout: POLL_TIMEOUT,
+  });
+});
+
+/** ...AND THE REFUSAL, when the serve would not take it. One place on the panel
+ *  rather than per row, because it is about the press just made. */
+Then(
+  "the plugins panel refuses with {string}",
+  async function (this: OlaiWorld, said: string) {
+    const refused = this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_REFUSED}`);
+    await refused.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const line = await refused.innerText();
+    assert.ok(
+      line.includes(said),
+      `the panel to refuse with ${JSON.stringify(said)}, and it says ${JSON.stringify(line)}`,
+    );
+  },
+);
+
+Then("the plugin {string} has no browser warning", async function (this: OlaiWorld, plugin: string) {
+  const row = rowFor(this, plugin);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => !(await row.innerText()).includes("Browser"), `${plugin}'s browser components to recover`);
+});
+
+Then("the plugins panel shows no refusal", async function (this: OlaiWorld) {
+  await this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_REFUSED}`).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+Then("the plugin {string} has inline controls", async function (this: OlaiWorld, plugin: string) {
+  const row = await shownRow(this, plugin);
+  assert.equal(await row.locator('[data-testid="plugin-defaults"], [data-testid="plugin-summary"]').count(), 0);
+  const knobs = row.locator('[data-testid="plugin-knob"]');
+  assert.ok(await knobs.count() > 0);
+  for (const knob of await knobs.all()) assert.equal(await knob.isVisible(), true);
+});
+Then("the plugin {string} marks {string} as authored by {string}", async function (this: OlaiWorld, plugin: string, key: string, author: string) {
+  const row = await shownRow(this, plugin);
+  await this.waitUntil(async () => await row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`).getAttribute("data-set-by") === author, "the author mark");
+  const knob = row.locator(`[data-testid="plugin-knob"]${attr("data-config", key)}`);
+  if (await knob.count()) {
+    assert.equal(await knob.locator('[data-testid="plugin-source"]').count(), author === "vault" ? 1 : 0);
+    if (author === "vault") {
+      assert.equal(await knob.locator('[data-testid="plugin-source"]').getAttribute("title"), "set in Settings.olai");
+      assert.equal(await knob.locator('[data-testid="plugin-reset"]').isVisible(), true);
+    }
+  }
+});
+When("I follow the policy link for {string}", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator('[data-testid="plugin-config-link"]').click();
+});
+Then("the policy link targets node {string}", async function (this: OlaiWorld, node: string) {
+  await this.waitUntil(async () => this.page.url().includes(node), "the policy node in the address");
+});
+Then("the plugin {string} has no policy link", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator('[data-testid="plugin-config-link"]').waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+Then("the plugin {string} keeps its control visible when {string} becomes {string}", async function (this: OlaiWorld, plugin: string, key: string, value: string) {
+  await this.waitUntil(async () => await configurationValue((await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`)) === value, "the new default reading");
+  assert.equal(await (await shownRow(this, plugin)).locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`).isVisible(), true);
+});
+
+Then("This serve is expanded", async function (this: OlaiWorld) {
+  const foot = this.pluginsPanel().locator('[data-testid="this-serve"]')
+  assert.notEqual(await foot.getAttribute("open"), null)
+})
+When("I open This serve", async function (this: OlaiWorld) {
+  const section = this.pluginsPanel().locator('[data-testid="this-serve"]')
+  if (await section.getAttribute("open") === null) await section.locator("summary").click()
+})
+Then("This serve names its bound address and a set bearer without its value", async function (this: OlaiWorld) {
+  const text = await this.pluginsPanel().locator('[data-testid="this-serve"]').innerText()
+  assert.ok(text.includes("host 127.0.0.1"))
+  assert.ok(text.includes(`hostname ${BOX_NAME} ·env`))
+  assert.ok(text.includes(`port ${new URL(this.baseUrl).port}`))
+  assert.ok(text.includes("bearer set"))
+})
+Then("This serve reads {string} as {string} from {string}", async function (this: OlaiWorld, key: string, value: string, author: string) {
+  const control = this.pluginsPanel().locator(`[data-testid="this-serve"] ${attr("data-config", key)}${attr("data-set-by", author)}`)
+  await this.waitUntil(async () => await control.isVisible() && await configurationValue(control) === value, "the serve control reading")
+})
+
+
+Then("the plugin {string} is running", async function (this: OlaiWorld, plugin: string) {
+  await (await shownRow(this, plugin)).locator(`${PLUGIN_SWITCH}[aria-checked="true"]`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+Then("the commit ledger includes the settings switch", async function (this: OlaiWorld) {
+  const group = this.page.locator(`${selector(TESTID.commitGroup)}${attr("data-file", "_olai/Settings.olai")}`);
+  await group.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.ok((await group.innerText()).includes("journal"), "the journal namespace is recorded as an ordinary node change");
+});
+
+
+/** Read the selected control, never the text of its unselected alternatives. */
+const configurationValue = async (line: Locator): Promise<string> => {
+  // A refused file spelling stays in the input; the effective default is the
+  // value actually drawn in its problem line, not that unaccepted spelling.
+  const problem = line.locator(selector(TESTID.pluginProblem))
+  if (await problem.count()) {
+    const text = await problem.first().innerText()
+    const marker = " · using "
+    if (text.includes(marker)) return text.slice(text.lastIndexOf(marker) + marker.length)
+  }
+  const input = line.locator("input, select")
+  if (await input.count()) return input.first().inputValue()
+  const picked = line.locator('[aria-pressed="true"]')
+  if (await picked.count()) return (await picked.first().getAttribute("data-value")) ?? ""
+  const toggle = line.locator('[role="switch"]')
+  if (await toggle.count()) return await toggle.first().getAttribute("aria-checked") === "true" ? "yes" : "no"
+  return (await line.getAttribute("data-value")) ?? (await line.innerText()).replaceAll("\n", " ")
+}

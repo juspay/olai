@@ -812,7 +812,7 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
  * that the turn was over, and nothing came back — which is what an agent that
  * cannot reach a model looks like from the other side of a pipe, and there is
  * no frame anywhere that says so out loud. The sentence a person meets is
- * asserted where they would meet it (`features/choosing_an_agent.feature`,
+ * asserted where they would meet it (`packages/plugins/chat/e2e/features/choosing_an_agent.feature`,
  * against a scripted agent that answers exactly the way opencode does with no
  * key).
  *

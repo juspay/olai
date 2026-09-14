@@ -1,0 +1,73 @@
+{
+  "capture": [
+    "src/browser/drag/Handle.tsx",
+    "src/browser/palette/adapter.tsx",
+    "src/tools.ts"
+  ],
+  "claude": [
+    "src/tools.ts"
+  ],
+  "files": [
+    "src/browser.tsx",
+    "src/browser/NotFound.tsx",
+    "src/browser/focus.ts",
+    "src/browser/fold/memory.ts",
+    "src/browser/page.ts",
+    "src/projection.ts",
+    "src/tools.ts"
+  ],
+  "identity": [
+    "src/browser/edit/Editable.tsx",
+    "src/tools.ts"
+  ],
+  "journal": [
+    "src/tools.ts"
+  ],
+  "markdown": [
+    "src/browser/Note.tsx",
+    "src/browser/document-properties.tsx",
+    "src/tools.ts"
+  ],
+  "navigation": [
+    "src/browser.tsx",
+    "src/browser/PageView.tsx",
+    "src/browser/palette/adapter.tsx"
+  ],
+  "pins": [
+    "src/browser/Tree.tsx",
+    "src/browser/menu/actions.ts",
+    "src/tools.ts"
+  ],
+  "preferences": [
+    "src/browser.tsx"
+  ],
+  "search": [
+    "src/browser/complete/trigger.ts",
+    "src/browser/edges/relation.ts",
+    "src/browser/move/MovePicker.tsx",
+    "src/browser/palette/ops.ts",
+    "src/testids.ts",
+    "src/tools.ts"
+  ],
+  "sidebar": [
+    "src/browser/NotFound.tsx",
+    "src/browser/menu/verbs.ts",
+    "src/tools.ts"
+  ],
+  "trash": [
+    "src/browser/PageView.tsx",
+    "src/browser/edit/redraws.ts",
+    "src/browser/filter/drawn.ts",
+    "src/browser/menu/verbs.ts",
+    "src/browser/page.ts",
+    "src/browser/select/SelectionBar.tsx",
+    "src/browser/select/bulk.ts",
+    "src/surface.ts",
+    "src/testids.ts",
+    "src/tools.ts"
+  ],
+  "vault": [
+    "src/server.ts",
+    "src/tools.ts"
+  ]
+}

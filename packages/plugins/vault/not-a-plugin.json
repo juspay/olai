@@ -1,0 +1,35 @@
+{
+  "files": [
+    "src/browser.tsx",
+    "src/browser/errors/Banner.tsx",
+    "src/browser/errors/Page.tsx",
+    "src/browser/errors/Report.tsx",
+    "src/browser/errors/banner.ts",
+    "src/file-access.ts",
+    "src/file-surface.ts",
+    "src/http/media.ts",
+    "src/lock.ts",
+    "src/projection.ts"
+  ],
+  "outline-olai": [
+    "src/format.ts"
+  ],
+  "outlines": [
+    "src/browser/errors/Page.tsx",
+    "src/format.ts"
+  ],
+  "search": [
+    "src/server.ts",
+    "src/setup.ts",
+    "src/views.ts"
+  ],
+  "settings": [
+    "src/file-access.ts",
+    "src/http.ts",
+    "src/server.ts",
+    "src/setup.ts"
+  ],
+  "sidebar": [
+    "src/browser/errors/Page.tsx"
+  ]
+}
