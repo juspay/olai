@@ -400,17 +400,30 @@ nix:
     done < <(printf '%s' "$json" | jq -c 'to_entries[] | .value + {name: .key}')
     # The `OLAI_WRAPPER_DEFAULTS` `--run` must name exactly the declared set —
     # the settings panel's 'wrapper-provided' label is this loop's answer.
-    if ! grep -qF 'for key in OLAI_ODU_BIN' "$out/bin/olai"; then
-      echo "the wrapper's OLAI_WRAPPER_DEFAULTS loop does not name OLAI_ODU_BIN." >&2
-      cat "$out/bin/olai" >&2
-      exit 1
+    # The names arrive from the fold, not from a hard-coded list, so the
+    # loop's own answer to "wrapper-provided?" is compositional.
+    keys=$(printf '%s' "$json" | jq -r 'keys | join(" ")')
+    if ! grep -qF "for key in $keys" "$out/bin/olai"; then
+        echo "the wrapper's OLAI_WRAPPER_DEFAULTS loop does not name the fold's knobs: $keys" >&2
+        cat "$out/bin/olai" >&2
+        exit 1
     fi
-    if ! grep -qF 'export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"' "$out/bin/olai"; then
-      echo "the wrapper names OLAI_ODU_BIN but never splices it onto PATH —" >&2
-      echo "the probe would resolve nothing. Wrapper:" >&2
-      cat "$out/bin/olai" >&2
-      exit 1
-    fi
+    # Each `dir` knob must have its PATH splice baked — the probe would
+    # resolve nothing without it. `grep -F` with the interpolation stripped:
+    # the literal text `export PATH="${<NAME>}""${PATH:+:$PATH}"` appears
+    # once per knob, scanned for its two halves separately so the grep
+    # pattern itself never has to escape a `$` the justfile would.
+    printf '%s' "$json" | jq -r 'to_entries[] | select(.value.kind == "dir") | .key' | while read -r name; do
+        # The literal text scanned for is `export PATH="${NAME}""${PATH:+:$PATH}"`;
+        # the bash string `\$` escapes every dollar so grep sees the file's
+        # own spelling rather than an interpolated value.
+        if ! grep -qF "export PATH=\"\${${name}}\"\"\${PATH:+:\$PATH}\"" "$out/bin/olai"; then
+            echo "the wrapper names $name but never splices it onto PATH —" >&2
+            echo "the probe would resolve nothing. Wrapper:" >&2
+            cat "$out/bin/olai" >&2
+            exit 1
+        fi
+    done
 
 # The registry fold's contract/collision refusals, over fixture containers
 # (packages/bundle/nix/fixtures/<name>): an accepted case, several rejected
