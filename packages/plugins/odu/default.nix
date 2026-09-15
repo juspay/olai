@@ -25,7 +25,7 @@
 # `odu` is `packages/plugins/odu/default.nix` (the fold discovers it by the
 # `default.nix` filename), not `nix/odu.nix`; the old path is gone with this
 # commit.
-{ pkgs, pins, kit, b2n ? null }:
+{ pkgs, pins, kit, b2n ? null, ... }:
 
 let
   src = pins.odu;

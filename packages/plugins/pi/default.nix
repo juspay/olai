@@ -4,18 +4,15 @@
 # the Claude row reads (one lockfile, one npmDepsHash — see acp/README.md). Now
 # that engines are plugins, THIS file owns the pi row's facts: the npm package,
 # the wrapper's bin, the MCP extension that arms it, and the bridge bundle the
-# extension loads. The shared build itself is `nix/acp-agent.nix`, the same
-# mechanism the Claude plugin calls.
+# extension loads. The shared build itself is `@olai/plugin-kit`'s
+# `kit.npmAdapter`, the same mechanism the Claude plugin calls.
 #
 # The knob `OLAI_ACP_PI` is a `file` the fold bakes into the `olai` wrapper with
 # `--set-default`, and the package `pi-agent` is what the fold exports as a
-# flake output.
-{pkgs, pins, kit, b2n ? null}:
+{pkgs, pins, kit, b2n ? null, acpShim, ...}:
 let
   lib = pkgs.lib;
 
-  # The shared build: one derivation per ACP adapter, from the root `acp/` shim.
-  acpAgent = pkgs.callPackage ../../../nix/acp-agent.nix { };
 
   # `mods` is the shim's installed node_modules — the same literal the build's
   # postInstall spells against (`$out` being the shell's build output).
@@ -29,8 +26,12 @@ let
   mcpBridgeDir = "${mods}/olai-pi-mcp-bridge";
   bridge = ./acp/mcp-bridge;
 
-  adapter = acpAgent {
+  adapter = kit.npmAdapter {
     name = "olai-acp-pi";
+    # The shared `acp/` shim at the repo root: one lockfile, one FOD, one
+    # npmDepsHash for the Claude and Pi adapters both.
+    shim = acpShim;
+    shimName = "olai-acp";
     # tracks acp/package.json: @agentclientprotocol/claude-agent-acp + pi-acp
     version = "0.73.0+pi-0.0.33";
     package = "pi-acp";
@@ -39,10 +40,10 @@ let
     npmDepsHash = "sha256-AQw99ESOzQALZWKYIhe18WKWXjql07WGow/eAnFJeLg=";
     # This plugin's patches, beside the sources they are generated from.
     patches = ./acp/patches;
-    # esbuild bundles the MCP bridge into one self-contained file (below), which
-    # is what pi LOADS through jiti from inside a bun-compiled binary whose
-    # package-resolution drops the knot of relative-URL discipline.
-    nativeBuildInputs = [ pkgs.esbuild ];
+    # esbuild bundles the MCP bridge into one self-contained file (below),
+    # which is what pi LOADS through jiti from inside a bun-compiled binary
+    # whose package-resolution drops the knot of relative-URL discipline.
+    extraNativeBuildInputs = [ pkgs.esbuild ];
     # PI_ACP_MCP_EXTENSION is the ONE arming knob the patched adapter reads:
     # this wrapper sets it, so every documented way of starting olai gets an
     # adapter whose `mcpCapabilities` answer http/sse TRUE in fact, not the

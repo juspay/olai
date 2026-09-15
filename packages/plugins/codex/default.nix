@@ -7,10 +7,10 @@
 # spawns — lives in `./acp/default.nix` beside this file (neither its release
 # clock nor its platform layout is shared), and THIS file is the fold door that
 # surfaces it: the `OLAI_ACP_CODEX` knob and the `codex-agent` package.
-{pkgs, pins, kit, b2n ? null}:
+{pkgs, pins, kit, b2n ? null, ...}:
 let
   # The plugin's own complete executable side, a buildNpmPackage over its pin.
-  codexAgent = pkgs.callPackage ./acp { inherit pkgs; };
+  codexAgent = pkgs.callPackage ./acp { };
 in
 {
   # THE CODEX ROW'S EXECUTABLE RESOURCE. `file` kind: the knob points at the

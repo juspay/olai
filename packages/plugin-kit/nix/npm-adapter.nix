@@ -23,7 +23,7 @@
 # The CALLER supplies the per-adapter facts: the shim directory, the npm
 # hash, the package/entry/bin names, the wrapper's `env` lines, and a
 # `postInstall` for anything beyond that (a patchelf of a bun binary, an
-# esbuild of a bridge). Nothing here spells a plugin.
+# esbuild of a bridge — both want a tool `extraNativeBuildInputs` adds).
 #
 # `patchesFor` reads every `.patch` in `patches/`, sorted by name, because
 # the order patches apply in is a fact somebody depends on the moment two of
@@ -58,7 +58,14 @@ in
 , bin
 , patches ? null
 , env ? [ ]
+, extraNativeBuildInputs ? [ ]
 , postInstall ? ""
+# The shim's own `package.json` name — npm installs by THIS, not by the
+# derivation's `name`: `$out/lib/node_modules/<shimName>/node_modules` is
+# where the entry and the SDK binary live after npmInstallHook. Defaults to
+# "acp" because `cleanSourceWith` already strips the shim down to
+# `package.json` + `package-lock.json` and names the result `acp`.
+, shimName ? "acp"
 }:
 let
   # `shim` would also pull in whatever else lands in that directory; keep the
@@ -79,12 +86,11 @@ buildNpmPackage {
   npmFlags = [ "--ignore-scripts" ];
   dontStrip = true;
   dontPatchELF = true;
-
-  nativeBuildInputs = [ makeWrapper ];
+  nativeBuildInputs = [ makeWrapper ] ++ extraNativeBuildInputs;
 
   postInstall =
     let
-      mods = "$out/lib/node_modules/${name}/node_modules";
+      mods = "$out/lib/node_modules/${shimName}/node_modules";
       allPatches =
         if patches != null && builtins.pathExists patches then
           map (n: patches + "/${n}")

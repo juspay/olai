@@ -35,30 +35,29 @@ let
   # One `--set-default` per knob. `dir` kinds additionally splice onto PATH in
   # a `--run`, because an unguarded `:$PATH` with PATH unset would smuggle the
   # working directory onto it.
-  setDefaults = builtins.concatStringsSep " \\\n          "
+  setDefaults = pkgs.lib.concatStringsSep " "
     (map (k: "--set-default ${k} \"${knobs.${k}.path}\"") keys);
-  defaultsRun = pkgs.lib.optionalString (allKeys != [ ]) ''
-    --run 'export OLAI_WRAPPER_DEFAULTS=""; for key in ${keyList}; do if [[ ! -v "$key" ]]; then export OLAI_WRAPPER_DEFAULTS="$OLAI_WRAPPER_DEFAULTS''${OLAI_WRAPPER_DEFAULTS:+,}$key"; fi; done' \
-  '';
-
+  defaultsRun = pkgs.lib.optionalString (allKeys != [ ])
+    ''--run 'export OLAI_WRAPPER_DEFAULTS=""; for key in ${keyList}; do if [[ ! -v "$key" ]]; then export OLAI_WRAPPER_DEFAULTS="$OLAI_WRAPPER_DEFAULTS''${OLAI_WRAPPER_DEFAULTS:+,}$key"; fi; done' '';
 
   # One `--run` per `dir` knob: splice the dir onto PATH when it is a
   # directory, skip with a stderr line otherwise. `holds` names the
   # executable the dir is supposed to carry; the message tells a setter which
   # knob and what shape it wants.
-  dirRuns = pkgs.lib.concatMapStringsSep " \\\n          "
-    (k:
+  dirRunLines = builtins.filter (s: s != "")
+    (map (k:
       let d = knobs.${k};
       in if d.kind == "dir" then
-        pkgs.lib.optionalString true "--run 'if [ -n \"\${${k}}\" ]; then if [ -d \"\${${k}}\" ]; then export PATH=\"\${${k}}\"\"\${PATH:+:\$PATH}\"; else echo \"olai: ${k}=\${${k}} is not a directory — no ${d.holds} goes on the PATH of this serve\" >&2; fi; fi'"
-      else "\"\"")
-    keys;
+        "--run 'if [ -n \"\${${k}}\" ]; then if [ -d \"\${${k}}\" ]; then export PATH=\"\${${k}}\"\"\${PATH:+:\$PATH}\"; else echo \"olai: ${k}=\${${k}} is not a directory — no ${d.holds} goes on the PATH of this serve\" >&2; fi; fi'"
+      else "")
+      keys);
 in
 {
-  # The makeWrapper argument text for the packaged `olai` wrapper.
-  wrapperArgs = pkgs.lib.concatStringsSep " \\\n      " (
-    builtins.filter (s: s != "") ([ defaultsRun ] ++ [ setDefaults ] ++ builtins.filter (s: s != "\"\"") [ dirRuns ])
-  );
+  # The makeWrapper argument text for the packaged `olai` wrapper. Each entry
+  # is ONE complete makeWrapper arg; joining with " " lets makeWrapper parse
+  # them as sequenced flags, no continuation backslashes needed.
+  wrapperArgs = pkgs.lib.concatStringsSep " "
+    ([ defaultsRun ] ++ [ setDefaults ] ++ dirRunLines);
 
   # The dev loop's shell snippet: one `export VAR="${VAR-default}"` per knob.
   # The value the `-` substitutes when VAR is unset is the knob's path —

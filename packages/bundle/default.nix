@@ -33,6 +33,12 @@
 , containerDir ? ../plugins
 , containerInTree ? "packages/plugins"
 , extraKnobNames ? [ ]
+# The ACP shim lives at the repo root (`acp/`), one lockfile the Claude and
+# Pi plugins' `default.nix` files both build their adapters from. A plugin
+# reaches outside its own directory through an ARGUMENT, never a `../..`
+# literal — `containerDir` is staged as its own store path (`/nix/store/
+# <hash>-plugins/`), so a relative reach past it falls off the staged tree.
+, acpShim ? ../../acp
 }:
 
 let
@@ -61,7 +67,7 @@ let
   pluginsData = builtins.listToAttrs (map
     (name:
       let dir = "${containerDir}/${name}";
-          raw = import "${dir}/default.nix" { inherit pkgs pins kit b2n; };
+          raw = import "${dir}/default.nix" { inherit pkgs pins kit b2n acpShim; };
       in { inherit name; value = { inherit dir raw; }; })
     withDoor);
 
