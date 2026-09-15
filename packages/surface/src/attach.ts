@@ -73,12 +73,38 @@ export const DOCUMENT_EXTENSIONS: ReadonlyArray<string> = [
   ".json",
 ]
 
-/** Everything `chat.attach` takes: what can be looked at, and what can be
- *  read. The picker's `accept` is spelled from this too — a gate that takes a
- *  PDF the file picker will not offer is a gate that is half true. */
+/**
+ * What may be attached that MOVES — a screen recording, mostly, which is what a
+ * person holding a bug reaches for when a screenshot cannot show it.
+ *
+ * A third list rather than more pictures, for the reason documents are a
+ * second one: `isAttachmentPicture` decides which chips draw a thumbnail, and
+ * an `<img>` pointed at an `.mp4` is the broken-image icon a PDF would get. So a
+ * video's chip says its size, like a document's.
+ *
+ * The agent gets the path and nothing more, like every other attachment. What
+ * it can do with a video is the agent's business — Claude Code cannot watch
+ * one, and can cut frames out of it with a tool — and olai does not transcode
+ * or thumbnail it on the way through, because that would be a pipeline this
+ * gate has no business owning. The cap is unchanged: a long recording can
+ * exceed it, and is refused in the same sentence any other file is.
+ */
+export const VIDEO_EXTENSIONS: ReadonlyArray<string> = [
+  ".mp4",
+  ".m4v",
+  ".mov",
+  ".webm",
+  ".mkv",
+]
+
+/** Everything `chat.attach` takes: what can be looked at, what can be read,
+ *  and what can be played. The picker's `accept` is spelled from this too — a
+ *  gate that takes a PDF the file picker will not offer is a gate that is half
+ *  true. */
 export const ATTACHMENT_EXTENSIONS: ReadonlyArray<string> = [
   ...PICTURE_EXTENSIONS,
   ...DOCUMENT_EXTENSIONS,
+  ...VIDEO_EXTENSIONS,
 ]
 
 /** Is this a file the agent gets handed as a path? The extension decides,
