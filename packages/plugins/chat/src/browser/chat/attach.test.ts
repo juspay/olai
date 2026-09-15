@@ -11,6 +11,8 @@
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
 
+import { VIDEO_TYPES } from "@olai/surface"
+
 import { type Attach, attaching } from "./attach.ts"
 
 const picture = (name: string, bytes: Uint8Array, type = "image/png") =>
@@ -105,16 +107,14 @@ test("a picture the clipboard did not name is named after its type", async () =>
 })
 
 test("a recording the clipboard did not name is named after its type, not as a picture", async () => {
-  for (const [type, stored] of [
-    ["video/mp4", "stored-pasted.mp4"],
-    ["video/webm", "stored-pasted.webm"],
-    ["video/quicktime", "stored-pasted.mov"],
-  ] as const) {
-    const outcome = await Effect.runPromise(
-      Effect.result(attaching(picture("", body, type), spy().attach, 8)),
-    )
-    expect(Result.isSuccess(outcome)).toBe(true)
-    if (!Result.isSuccess(outcome)) return
-    expect(outcome.success.name).toBe(stored)
+  for (const { extension, types } of VIDEO_TYPES) {
+    for (const type of types) {
+      const outcome = await Effect.runPromise(
+        Effect.result(attaching(picture("", body, type), spy().attach, 8)),
+      )
+      expect(Result.isSuccess(outcome)).toBe(true)
+      if (!Result.isSuccess(outcome)) return
+      expect(outcome.success.name).toBe(`stored-pasted${extension}`)
+    }
   }
 })

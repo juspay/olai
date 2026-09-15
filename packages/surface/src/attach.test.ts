@@ -102,6 +102,12 @@ test("a video is attachable and is not a picture", () => {
   expect(attachmentRejection("long.mp4", MAX_ATTACHMENT_BYTES + 1)).toMatch(/over the 50 MB limit/)
 })
 
+test("a transport stream is .m2ts, and a TypeScript file is not a video", () => {
+  expect(isAttachable("broadcast.m2ts")).toBe(true)
+  expect(isAttachable("server.ts")).toBe(false)
+  expect(isAttachable("module.mts")).toBe(false)
+})
+
 
 test("picture attachments use the filename even when the blob has no MIME type", () => {
   const file = new File([new Uint8Array([1, 2, 3])], "shot.PNG")
