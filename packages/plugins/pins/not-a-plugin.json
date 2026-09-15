@@ -25,6 +25,10 @@
     "src/browser.tsx",
     "src/browser/palette.ts"
   ],
+  "tabs": [
+    "src/browser.tsx",
+    "src/browser/tabs.ts"
+  ],
   "trash": [
     "src/browser/Palette.tsx",
     "src/browser/Shelf.tsx",

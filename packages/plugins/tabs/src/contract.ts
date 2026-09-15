@@ -6,6 +6,8 @@
  * row for its activation.
  */
 import type { Accessor } from "solid-js"
+
+import { serviceTag } from "@olai/plugin-api/contracts"
 import type { Workspace } from "olai-plugin-navigation/workspace"
 
 /**
@@ -70,6 +72,9 @@ export interface Dots {
   readonly ids: Accessor<ReadonlySet<string>>
   readonly paint: string
 }
+
+/** The live tab set, offered by the row for its activation. */
+export const tabsState = serviceTag<TabsState>("tabs.state")
 
 /** The preference the set is kept under, per browser. */
 export const TABS_KEY = "olai.tabs"

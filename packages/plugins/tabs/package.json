@@ -20,6 +20,7 @@
     "@olai/web": "workspace:*",
     "@solid-primitives/keyed": "^1.5.2",
     "effect": "4.0.0-rc.112",
+    "olai-plugin-chat": "workspace:*",
     "olai-plugin-layout": "workspace:*",
     "olai-plugin-navigation": "workspace:*",
     "olai-plugin-ui-renderer": "workspace:*",

@@ -17,12 +17,15 @@
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
 
+import { chatState } from "olai-plugin-chat/attention"
+
 import { definePlugin, Offers, Slots } from "@olai/plugin-api"
 import { overlays, shell, strip } from "olai-plugin-layout/contract"
 import { navigation } from "olai-plugin-navigation/contract"
 import type {} from "olai-plugin-navigation/slots"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 
+import { needingYou } from "./attention.ts"
 import { chordsOf } from "./chords.ts"
 import type { TabsState } from "./contract.ts"
 import { name, tabsState } from "./index.ts"
@@ -60,6 +63,26 @@ export const components = {
       const geometry = yield* shell
       yield* Effect.acquireRelease(Effect.sync(() => tabs.draw(geometry.desktop)), (release) => Effect.sync(release))
       yield* (yield* rendererSlots).contribute(strip, () => <Strip tabs={tabs} router={router} />)
+    }),
+  }),
+  /** The needs-you dot, over chat's roster (`./attention.ts`). */
+  attention: definePlugin({
+    name: "attention",
+    needs: [tabsState, chatState, navigation],
+    apply: Effect.gen(function* () {
+      const tabs = yield* tabsState
+      const chat = yield* chatState
+      const router = yield* navigation
+      yield* Effect.acquireRelease(
+        Effect.sync(() => createRoot((dispose) => {
+          const release = tabs.dot(needingYou(chat, router.routes, tabs.tabs))
+          return () => {
+            release()
+            dispose()
+          }
+        })),
+        (stop) => Effect.sync(stop),
+      )
     }),
   }),
   /** Open in new tab, on any in-app link (`./Links.tsx`). */

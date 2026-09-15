@@ -1,12 +1,5 @@
-/** The tabs row's name and its one service. What a tab is, and what the
- *  service offers, is the static contract in `./contract.ts`. */
-import { serviceTag } from "@olai/plugin-api/contracts"
-
-import type { TabsState } from "./contract.ts"
-
+/** The tabs row's name, and its static contract: what a tab is, and the
+ *  `tabs.state` service the row offers (`./contract.ts`). */
 export const name = "tabs"
 
-/** The live tab set, offered by the row for its activation. */
-export const tabsState = serviceTag<TabsState>("tabs.state")
-
-export type { Dots, OpenOptions, Tab, TabsState } from "./contract.ts"
+export { type Dots, type OpenOptions, type Tab, type TabsState, tabsState } from "./contract.ts"
