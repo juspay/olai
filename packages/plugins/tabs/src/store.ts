@@ -39,7 +39,7 @@ import {
   type TabList,
   updateTab,
 } from "./list.ts"
-import { storedCodec } from "./persist.ts"
+import { printStored, readStored } from "./persist.ts"
 
 export interface TabsStore extends TabsState {
   /** Hold the front tab's lane in force while a strip draws the tabs on a
@@ -70,13 +70,15 @@ export const titleOf = (
 }
 
 export const createTabs = (router: Navigation): TabsStore => {
-  const preference = createPreference(TABS_KEY, storedCodec)
+  // The stored set as it is PRINTED: read once here, written below only when
+  // the printed string changes (`./persist.ts`'s `printStored`).
+  const preference = createPreference<string | null>(TABS_KEY, { parse: (raw) => raw, print: (raw) => raw })
   const hrefOf = (workspace: Workspace): string => hrefOfWorkspace(router.routes, workspace)
 
   // READ ONCE, here. The address bar WINS over the stored front tab's page: a
   // link somebody opened, or an address typed, is what the tab in front shows,
   // and a reload writes that very address back anyway.
-  const stored = untrack(preference.value)
+  const stored = readStored(untrack(preference.value))
   const drawing = untrack(router.workspace)
   const first = nextId(undefined)
   const initial: TabList = stored === undefined
@@ -84,11 +86,15 @@ export const createTabs = (router: Navigation): TabsStore => {
     : updateTab(stored, stored.front, { href: hrefOf(drawing), title: titleOf(router, drawing, false) })
   const [list, setList] = createSignal<TabList>(initial)
 
-  const [draws, setDraws] = createSignal<ReadonlyArray<Accessor<boolean>>>([])
-  const [dots, setDots] = createSignal<ReadonlyArray<Dots>>([])
-  const drawn = createMemo(() => draws().some((desktop) => desktop()))
+  // EACH REGISTRATION IS ITS OWN ROW, released by the row rather than by the
+  // value it carries: two strip activations hand over the same accessor
+  // (layout's breakpoint is one function), and a release that compared values
+  // would take the survivor's row with its own.
+  const [draws, setDraws] = createSignal<ReadonlyArray<{ readonly desktop: Accessor<boolean> }>>([])
+  const [dots, setDots] = createSignal<ReadonlyArray<{ readonly dots: Dots }>>([])
+  const drawn = createMemo(() => draws().some((row) => row.desktop()))
   const dotted = createMemo<ReadonlyMap<string, string>>(() =>
-    new Map(dots().flatMap((one) => [...one.ids()].map((id) => [id, one.paint] as const))))
+    new Map(dots().flatMap(({ dots: one }) => [...one.ids()].map((id) => [id, one.paint] as const))))
 
   /** Whether this store's lane is in force — between `takeLane` and its release. */
   let laned = false
@@ -152,12 +158,14 @@ export const createTabs = (router: Navigation): TabsStore => {
     },
     reorder: (from, to) => commit(reorderTabs(untrack(list), from, to)),
     draw: (desktop) => {
-      setDraws((all) => [...all, desktop])
-      return () => setDraws((all) => all.filter((one) => one !== desktop))
+      const row = { desktop }
+      setDraws((all) => [...all, row])
+      return () => setDraws((all) => all.filter((one) => one !== row))
     },
     dot: (reading) => {
-      setDots((all) => [...all, reading])
-      return () => setDots((all) => all.filter((one) => one !== reading))
+      const row = { dots: reading }
+      setDots((all) => [...all, row])
+      return () => setDots((all) => all.filter((one) => one !== row))
     },
     takeLane: () => createRoot((dispose) => {
       // THE LANE FOLLOWS THE STRIP. Below the breakpoint the tabs are kept but
@@ -195,7 +203,12 @@ export const createTabs = (router: Navigation): TabsStore => {
           return updateTab(all, all.front, { href, title: kept })
         })
       })
-      createEffect(() => preference.set(list()))
+      // A WRITE ONLY WHEN WHAT IS KEPT CHANGES. The front tab's address and
+      // name are not kept — the address bar supplies both at activation — so a
+      // filter keystroke in the tab in front prints the same string and writes
+      // nothing. A tab leaving the front is written with its last address then.
+      const printed = createMemo(() => printStored(list()))
+      createEffect(() => preference.set(printed()))
       return dispose
     }),
   }

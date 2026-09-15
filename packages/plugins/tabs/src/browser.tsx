@@ -61,8 +61,11 @@ export const components = {
       const tabs = yield* tabsState
       const router = yield* navigation
       const geometry = yield* shell
-      yield* Effect.acquireRelease(Effect.sync(() => tabs.draw(geometry.desktop)), (release) => Effect.sync(release))
+      // THE SEAT FIRST. `layout.strip` holds one occupant, and a refused claim
+      // must leave nothing behind — telling the set it is drawn takes the lane,
+      // which rewrites the history entry, so that waits until the seat is ours.
       yield* (yield* rendererSlots).contribute(strip, () => <Strip tabs={tabs} router={router} />)
+      yield* Effect.acquireRelease(Effect.sync(() => tabs.draw(geometry.desktop)), (release) => Effect.sync(release))
     }),
   }),
   /** The needs-you dot, over chat's roster (`./attention.ts`). */

@@ -151,11 +151,45 @@ test("the front tab mirrors the router, and a restored front takes the address a
     { id: "t1", href: "/garden.olai", title: "garden" },
     { id: "t2", href: "/old.md", title: "a name from last session" },
   ] })
-  withStore("/house.olai", ({ tabs, go, kept }) => {
+  withStore("/house.olai", ({ tabs, go, kept, desk }) => {
     expect(hrefs(tabs)).toEqual(["/garden.olai", "/house.olai"])
     expect(tabs.tabs()[1]?.title).toBe("house.olai")
+    const written = kept.get(TABS_KEY)
     go(atFile("finishes.md"))
     expect(hrefs(tabs)).toEqual(["/garden.olai", "/finishes.md"])
+    // The page in front moved, and what is kept did not: no write.
+    expect(kept.get(TABS_KEY)).toBe(written)
+    desk(true)
+    tabs.show("t1")
+    // ...until that tab leaves the front, with its last address.
     expect(JSON.parse(kept.get(TABS_KEY)!).tabs[1].href).toBe("/finishes.md")
   }, stored)
+})
+
+test("two strips holding the same breakpoint are two registrations, and releasing one keeps the other", () => {
+  withStore("/house.olai", ({ tabs, said, desk }) => {
+    desk(true)
+    const [breakpoint] = [() => true]
+    const first = tabs.draw(breakpoint)
+    const second = tabs.draw(breakpoint)
+    desk(false)
+    expect(tabs.drawn()).toBe(true)
+    first()
+    expect(tabs.drawn()).toBe(true)
+    expect(said.filter((line) => line.startsWith("switch null"))).toEqual([])
+    second()
+    expect(tabs.drawn()).toBe(false)
+  })
+})
+
+test("two dot readings with the same paint are two registrations", () => {
+  withStore("/house.olai", ({ tabs }) => {
+    const reading = { ids: () => new Set(["t1"]), paint: "bg-doing" }
+    const first = tabs.dot(reading)
+    const second = tabs.dot(reading)
+    first()
+    expect(tabs.dotted().get("t1")).toBe("bg-doing")
+    second()
+    expect(tabs.dotted().size).toBe(0)
+  })
 })
