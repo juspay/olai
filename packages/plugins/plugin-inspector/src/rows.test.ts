@@ -457,6 +457,51 @@ test("a quiet healthy group starts collapsed, and opt-in rows remain reachable",
   expect(groupCount(groups[0]!.rows)).toBe("1 on")
 })
 
+/**
+ * A ROW ITS OWN PLUGIN SAYS NEEDS A PERSON IS FILED WITH THE STUCK ONES.
+ *
+ * The roster can say a row is failed, pending or waiting, and it cannot say the
+ * one thing a plugin knows about itself: that it is running, faultless, and of
+ * no use until somebody does something — connect the account, sign the card,
+ * finish the setup. Left to the panel that row would sit among the healthy
+ * ones, which is the shape of the whole feature (the fourth argument here is
+ * the panel's reader over `plugins.row`, which is why a face answers `needs`).
+ *
+ * AND THE ROWS THAT DO NOT ASK STAY PUT, in one assertion: what this changes is
+ * where ONE row is filed, not the order of the rest, and not whether a section
+ * still heads the rows that were already fine.
+ */
+test("only the rows whose own plugin asks for a person are filed under Needs you", () => {
+  const sent = roster(["alpha", "beta"])
+  const groups = pluginGroups(sent, () => ({}), new Map(), (name) => name === "beta")
+  expect(groups.map((group) => group.label)).toEqual([NEEDS_YOU, "alpha"])
+  expect(groups[0]!.rows.map((row) => row.name)).toEqual(["beta"])
+  expect(groups[0]!.needs).toBe(true)
+  expect(groups[0]!.collapsed).toBe(false)
+  // ...and the row that asked is not ALSO drawn in its own section, which is
+  // what a walk that added the group without removing the row would do.
+  expect(groups.slice(1).flatMap((group) => group.rows.map((row) => row.name))).toEqual(["alpha"])
+})
+
+/**
+ * A BUILD WITH NO FACES IS THE BUILD THERE ALWAYS WAS.
+ *
+ * Most rows have no plugin behind them that wanted to say anything, so the
+ * reader's DEFAULT is the whole of what those panels get: no face, nobody
+ * asking, and the grouping the panel has always drawn. A face that answers
+ * `false` — loaded, drawn, and with nothing to ask for — lands on the same
+ * answer, which is the case a reader that consulted the face's EXISTENCE could
+ * not tell apart from a face that is pleading.
+ */
+test("a build whose faces ask for nothing keeps the groups it always had", () => {
+  const sent = roster(["alpha", "beta"])
+  const absent = pluginGroups(sent, () => ({}))
+  expect(absent.map((group) => group.label)).toEqual(["alpha", "beta"])
+  const loaded = pluginGroups(sent, () => ({}), new Map(), () => false)
+  expect(loaded.map((group) => group.label)).toEqual(["alpha", "beta"])
+  expect(loaded.every((group) => !group.needs)).toBe(true)
+})
+
 test("a file-authored off state and session exceptions have no row sentence", () => {
   expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], configurationFile: "_olai/Settings.olai" })).toBeNull()
   for (const configurationAvailable of [false, true]) {

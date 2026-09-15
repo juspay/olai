@@ -14,6 +14,17 @@ the vault defines are **Defined here** — they have no YAML section because the
 are not in the YAML; pending ones are Needs you until approved. Ordinary rows show a name, inline knobs and a labelled enable switch; carrying and a row's `switchHint` are a
 confirm on Off, not a caption on On.
 
+A row's own plugin may hang a face in `plugins.row`, which this panel owns and
+draws. The face is drawn in the row's extra area — below the row's own sentence,
+above the confirm a press raises — and it owns both halves of that drawing, its
+words and its verbs; the mail row uses it to offer connecting an account. The
+same face answers `needs()`: a row whose plugin says so is filed under **Needs
+you** with the failed and waiting ones, so a plugin that is running, faultless
+and still waiting on a person is not left among the healthy rows. A row whose
+plugin hung no face is drawn exactly as it was. The table is held by the
+integration that draws the panel, so a face lives exactly as long as the surface
+it is drawn on.
+
 Its provider owns panel visibility and the source versions the reader has
 acknowledged. A separate integration consumes `browser-management` and
 `ui-renderer.slots`, contributing through `layout.tools`. Removing the shell

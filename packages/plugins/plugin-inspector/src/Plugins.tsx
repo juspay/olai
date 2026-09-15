@@ -5,11 +5,15 @@ import { BarDoor } from "olai-plugin-layout/bar-door"
 
 import type { InspectorState } from "./state.ts"
 import type { BrowserManagement } from "@olai/surface/management"
+import type { PluginsRowFace } from "./slots.ts"
 import { Panel } from "./Panel.tsx"
 
 export function Plugins(props: {
   readonly state: InspectorState
   readonly management: BrowserManagement
+  /** What each row's own plugin hung on it, read at draw time
+   *  (`./browser.tsx`'s `tools` holds the table; `./Panel.tsx` asks it). */
+  readonly rows: () => ReadonlyMap<string, PluginsRowFace>
   /** `closet` is the phone drawer row. Default is the header chip. */
   readonly where?: "header" | "closet"
 }) {
@@ -23,7 +27,7 @@ export function Plugins(props: {
       title="plugins: which integrations this server is running, and why"
       // Keep this door open when its switch removes a plugin provider.
       held={props.state.door}
-      panel={(_at, inside) => <Panel inside={inside} state={props.state} management={props.management} />}
+      panel={(_at, inside) => <Panel inside={inside} state={props.state} management={props.management} rows={props.rows} />}
     />
   )
 }
