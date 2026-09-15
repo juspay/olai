@@ -26,6 +26,10 @@ import { TESTID } from "../src/testids.ts";
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);
+/** Where a scenario types to narrow the open model list. */
+export const CHAT_MODEL_FILTER = selector(TESTID.chatModelFilter);
+/** The row the list draws when the query matches nothing. */
+export const CHAT_MODEL_NONE = selector(TESTID.chatModelNone);
 /** WHO the conversation is with, beside the model. `data-agent` is the roster's
  *  own id, so a scenario names an agent rather than reading a brand name. */
 export const CHAT_AGENT = selector(TESTID.chatAgent);

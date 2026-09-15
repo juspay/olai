@@ -192,6 +192,15 @@ export const TESTID = {
   // ── the panel's header, and the conversation drawn under it ───────
   chatTitle: "chat-title",
   chatModel: "chat-model",
+  /** Where a person types to narrow the open model list — the first thing in
+   *  it whenever the agent offers models at all (`./browser/chat/model-filter.ts`
+   *  is the rule it runs). Its own id rather than a role alone because where a
+   *  scenario types must not move when the list around it is re-worded. */
+  chatModelFilter: "chat-model-filter",
+  /** The sentence the list draws when the query matches nothing, NAMING the
+   *  query. A row the cursor cannot take, so `Enter` over it is spent on
+   *  nothing — which is what a scenario asserts of it. */
+  chatModelNone: "chat-model-none",
   /** WHO this conversation is with, beside the model — the agent's name, with
    *  its mark in front of it. `data-agent` is the id, so a scenario can say
    *  which agent without reading a brand name off the screen. */

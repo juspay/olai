@@ -588,6 +588,19 @@ const configOptions = () => [
     options: [
       { value: "litellm/kimi-k3", name: "Kimi K3" },
       { value: "anthropic/claude-sonnet-5", name: "Claude Sonnet 5" },
+      // The SCROLL case of #600: a list named for the real one's FAMILY, its
+      // height, and nothing else. These are extra rows so the opened picker
+      // is taller than its frame (`max-h-80`) and an arrow-walked row can be
+      // observed scrolled into view — which means ANY read of this list must
+      // not be misled: the two rows above are the only ones every other
+      // scenario names, and these keep it that way by sitting AFTER them,
+      // in a provider (`litellm/fake-*`) with its own family word to filter
+      // by and distinct names ("Fake 01") that no narrow-by-provider scenario
+      // selects.
+      ...Array.from({ length: 30 }, (_, i) => {
+        const id = `${i + 1}`.padStart(2, "0")
+        return { value: `litellm/fake-${id}`, name: `Fake ${id}` }
+      }),
     ],
   },
   {

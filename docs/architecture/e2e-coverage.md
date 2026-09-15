@@ -242,3 +242,6 @@ The fifth engine arrived with one scripted fake and no new feature file: the sce
 
 Open: no live `omp` process is driven — the fake is the wire, so the cancel-on-send and the autonomous-turn `session_busy` refusal are asserted against scripted frames rather than a real harness; the `tools.xdev: false` top-level dispatch is pinned as a reader in the leg bench but never driven through the browser; and the flat fan-out and the one-page stored list are stated in [the engine's own page](../plugins/omp.md) without a scenario.
 
+## Model picker filter (#600)
+
+The model menu's filter box is exercised in `the_agent.feature` against the scripted ACP double: typing narrows the list, a query with no match draws one untakeable row naming it and leaves the sent-in model alone, the arrows walk the *visible* rows only, and the query is forgotten between openings. The `@omp` half is in `choosing_an_agent.feature` beside the omp picker scenario: a query matching the choice's `provider/id` *value* narrows a row whose name never says the word, Enter sends the narrowed row and hands the caret back to the model control, and a 32-row list (the fake's own approximation of the real 84) must itself scroll when the arrows walk it, including the wrap from the first row to the last. The shared case-insensitive match rule itself is pinned over plain values in `model-filter.test.ts`.
