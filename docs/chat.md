@@ -525,7 +525,7 @@ You can paste a file into the box — a screenshot, a photo of a whiteboard — 
 
 - **pictures**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.bmp`, `.ico`
 - **documents**: `.pdf`, `.txt`, `.md`, `.csv`, `.json`
-- **videos**: `.mp4`, `.m4v`, `.mov`, `.webm`, `.mkv`
+- **videos**: `.mp4`, `.m4v`, `.mov`, `.webm`, `.mkv`, `.avi`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.3gp`, `.3g2`, `.ogv`, `.m2ts` (a transport stream is taken as `.m2ts` only — a `.ts` or `.mts` is TypeScript)
 
 A video — a screen recording of the bug a screenshot could not show, usually — is handed over like any other file: the agent gets its path and nothing more. olai does not transcode it, cut frames out of it or thumbnail it. What happens next is up to the agent: Claude Code cannot watch a video, but it can pull frames out of one with a tool such as `ffmpeg` if the machine has one. The 50 MB cap applies to videos too, and a long recording can go over it.
 

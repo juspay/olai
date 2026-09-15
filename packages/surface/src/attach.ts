@@ -88,14 +88,36 @@ export const DOCUMENT_EXTENSIONS: ReadonlyArray<string> = [
  * or thumbnail it on the way through, because that would be a pipeline this
  * gate has no business owning. The cap is unchanged: a long recording can
  * exceed it, and is refused in the same sentence any other file is.
+ *
+ * Each extension is declared WITH the MIME types a file of it arrives as,
+ * because the two are one fact that changes at one moment: the browser names
+ * a recording the clipboard did not name from its type, and a table kept
+ * beside this list in the browser would be a second list kept by memory.
+ * `types` may be empty — `.mpg` is taken when it is named, and `video/mpeg` is
+ * `.mpeg`'s to answer for.
+ *
+ * An MPEG transport stream is `.m2ts` and never `.ts` or `.mts`: those are
+ * TypeScript first on any machine this runs on, and a gate that took a `.ts`
+ * as a video would be telling the agent something wrong about source code.
  */
-export const VIDEO_EXTENSIONS: ReadonlyArray<string> = [
-  ".mp4",
-  ".m4v",
-  ".mov",
-  ".webm",
-  ".mkv",
+export const VIDEO_TYPES: ReadonlyArray<{ readonly extension: string; readonly types: ReadonlyArray<string> }> = [
+  { extension: ".mp4", types: ["video/mp4"] },
+  { extension: ".m4v", types: ["video/x-m4v"] },
+  { extension: ".mov", types: ["video/quicktime"] },
+  { extension: ".webm", types: ["video/webm"] },
+  { extension: ".mkv", types: ["video/x-matroska"] },
+  { extension: ".avi", types: ["video/x-msvideo", "video/vnd.avi", "video/msvideo", "video/avi"] },
+  { extension: ".wmv", types: ["video/x-ms-wmv"] },
+  { extension: ".flv", types: ["video/x-flv"] },
+  { extension: ".mpg", types: [] },
+  { extension: ".mpeg", types: ["video/mpeg"] },
+  { extension: ".3gp", types: ["video/3gpp"] },
+  { extension: ".3g2", types: ["video/3gpp2"] },
+  { extension: ".ogv", types: ["video/ogg"] },
+  { extension: ".m2ts", types: ["video/mp2t"] },
 ]
+
+export const VIDEO_EXTENSIONS: ReadonlyArray<string> = VIDEO_TYPES.map((video) => video.extension)
 
 /** Everything `chat.attach` takes: what can be looked at, what can be read,
  *  and what can be played. The picker's `accept` is spelled from this too — a
