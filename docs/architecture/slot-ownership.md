@@ -49,6 +49,7 @@ Each builtin appliance acquires its shared subscriptions inside its own activati
 | Kolu | Terminal blocks and header | One fleet |
 | Odu | Chip and matrix | One run collection |
 | Spaces | Header | One link cell |
+| Mail | Header pill and its own plugins-panel row | One account cell |
 
 - Each contribution provides that state to its own subtree only.
 - They do not wrap unrelated content in `app.mount`. Its compatibility renderer belongs to Layout.
