@@ -10,7 +10,7 @@ Olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), wh
 
 You need a Google OAuth client. This is the one step that happens outside olai, and Google offers no way around it.
 
-1. In [Google Cloud Console](https://console.cloud.google.com/), create or pick a project and enable the **Gmail API** (**APIs & Services → Library**).
+1. In [Google Cloud Console](https://console.cloud.google.com/), create or pick a project. Then **enable the Gmail API** for it: **APIs & Services → Library**, search for *Gmail API*, press **Enable**. A project without it lets you finish every step below and then refuses the first mailbox call with HTTP 403.
 2. Configure the consent screen. Google will not let you create a client until this is done. Under **Google Auth Platform** (older consoles call it **OAuth consent screen**), fill in **Branding** with an app name such as `olai`, your email as the support address and as the developer contact, and set **Audience** to **External**. Leave the publishing status as *Testing*; olai is your own app and does not need verification.
 3. Still under **Audience**, add your own Google account as a **test user**. In *Testing* status only listed users can approve the app, and a missing entry shows up later as Google refusing the sign-in.
 4. Under **Clients** (or **APIs & Services → Credentials**), create an **OAuth client ID** of type **Web application**.
@@ -51,6 +51,8 @@ The pill is drawn only while the plugin is on.
 The `mail` row in the plugins panel always says what happened in plain words. Most faults fall into two kinds.
 
 **Google or the network was briefly unavailable.** Olai keeps your connection and retries by itself, first after thirty seconds and then at longer intervals up to ten minutes. While the previous token is still valid the pill stays `connected` and the row adds what it is retrying. If the outage outlasts the token, the pill shows `mail fault` until the retry succeeds. You do not need to do anything.
+
+**The Gmail API is not enabled.** The row shows Google's sentence *Gmail API has not been used in project … before or it is disabled*, with a link. Open the link, press **Enable**, and wait. Olai treats this as a temporary condition and keeps retrying, so the row heals within a few minutes with no further press.
 
 **Google no longer accepts the connection.** The row shows Google's own reason, most often `invalid_grant`, which means the permission was revoked from your Google account or expired through disuse. Press **Reconnect** and approve again.
 
