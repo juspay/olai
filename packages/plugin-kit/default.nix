@@ -1,57 +1,25 @@
-# A TENANT'S MARK, out of that tenant's npins pin and into a TypeScript
-# module — the mechanism, said once.
+# THE MECHANISM, SAID ONCE: the doors a plugin's `default.nix` can import and
+# the root's fold validates against. No plugin is named here.
 #
-# The face over a sentence a plugin delivered into somebody's conversation
-# is that appliance's OWN LOGO, and it must be the real one. Three ways of
-# getting it here were weighed and two were refused: a copy committed into
-# this tree (a second original, stale the day the appliance redraws its
-# mark), and a fetch from the running page (a transcript that sometimes has
-# no mark, which is worse than one that never does). What is left is the
-# pin, so BUMPING THE PIN IS THE WHOLE OF UPDATING THE LOGO.
+# Each plugin's `default.nix` (packages/plugins/<name>/default.nix) is a
+# function `{ pkgs, pins, kit, b2n ? null }: { ... }` returning a contract
+# attrset (see `packages/bundle/default.nix` and docs/architecture/plugin-system.md
+# §10). `kit` IS this directory: the four mechanisms below, nothing else.
 #
-# The CALLER names the file. A favicon is neither a seed nor a package; it
-# is one file at a known path in the same source the tenant already hydrates
-# from, so it is read as one. Kolu's is `packages/client/favicon.svg`; odu's
-# is `logo.svg` at the repo root. A third tenant names its own.
+#   - `mark`      — a tenant's own logo, out of that tenant's pin, as a TS module.
+#   - `npmAdapter`— one ACP adapter built from an npm shim (with its own lock).
+#   - `contract`  — the validator: known keys, right types, `.generated.` infix,
+#                   knob-vs-manifest equality. Every refusal names the plugin.
+#   - `knobShell` — the `--set-default` / `--run` lines for `makeWrapper` and the
+#                   equivalent `export VAR="${VAR-default}"` snippet for the dev
+#                   loop, one function two renderings so they cannot drift.
 #
-# The transform is NOT written here. `src/mark/inline.ts` is a pure function
-# with its own bench, and `src/mark/emit.ts` is the argv around it; this
-# derivation runs them with the pinned bun. A `sed` over XML in the shell
-# below would emit something for every input, and the something would be a
-# half-painted logo nothing could have tested.
-#
-# The output is a DIRECTORY holding one file, so `OLAI_*_MARK_DIR` stays one
-# variable if a tenant ever ships a second asset.
-{ pkgs
-, svg
-, revision
-, from
-,
-}:
-let
-  gen = pkgs.lib.fileset.toSource {
-    root = ./src/mark;
-    fileset = pkgs.lib.fileset.unions [
-      ./src/mark/inline.ts
-      ./src/mark/emit.ts
-    ];
-  };
-in
-pkgs.runCommand "olai-plugin-mark"
+# A plugin keeps its own derivations, lock, patches and generated files; this
+# directory holds only what the root and every plugin read the same way.
+{ pkgs }:
 {
-  nativeBuildInputs = [ pkgs.bun ];
-
-  inherit svg revision from;
-
-  meta.description = "a tenant's own mark, from its npins pin, as a TypeScript module";
-} ''
-  export HOME=$TMPDIR
-
-  test -f "$svg" || {
-    echo "the mark is not at $svg — it comes from $from (npins/sources.json); update the plugin's default.nix if the pin moved the file" >&2
-    exit 1
-  }
-
-  mkdir -p $out
-  bun ${gen}/emit.ts "$svg" "$revision" "$from" > $out/mark.generated.ts
-''
+  mark = import ./nix/mark.nix { inherit pkgs; };
+  npmAdapter = import ./nix/npm-adapter.nix { inherit pkgs; };
+  contract = import ./nix/contract.nix;
+  knobShell = import ./nix/knob-shell.nix { inherit pkgs; };
+}

@@ -7,9 +7,9 @@
 { pkgs }:
 let
   npins = import ../../../npins;
+  kit = import ../../plugin-kit { inherit pkgs; };
 in
-import ../../plugin-kit {
-  inherit pkgs;
+kit.mark {
   svg = "${npins.kolu}/packages/client/favicon.svg";
   revision = npins.kolu.revision;
   from = "juspay/kolu packages/client/favicon.svg";

@@ -7,9 +7,9 @@
 { pkgs }:
 let
   npins = import ../../../npins;
+  kit = import ../../plugin-kit { inherit pkgs; };
 in
-import ../../plugin-kit {
-  inherit pkgs;
+kit.mark {
   svg = "${npins.odu}/logo.svg";
   revision = npins.odu.revision;
   from = "juspay/odu logo.svg";
