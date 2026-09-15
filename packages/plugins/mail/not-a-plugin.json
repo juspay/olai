@@ -1,0 +1,11 @@
+{
+  "//": "WHERE THE WORD IS NOT THE PLUGIN. Three of this package's files spell another row's name as ordinary code, and each is recorded here rather than excused by a pattern — the equality in @olai/bundle's fence.test.ts is what refuses a NEW collision until somebody writes it down with a reason. 'search' is `url.searchParams`, which every one of the three files uses because they all compose or parse a request; 'git' is the `git:` line of the version string the fake binary prints, which the pinned Himalaya really does print (`himalaya --version` ends with two lines about the build and its revision) and which the fake must reproduce or the surface check's parse is exercised over a string no binary would answer.",
+  "git": [
+    "src/appliance/testlib/fake-himalaya.ts"
+  ],
+  "search": [
+    "src/account.ts",
+    "src/appliance/testlib/fake-google.ts",
+    "src/oauth.ts"
+  ]
+}

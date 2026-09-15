@@ -146,6 +146,16 @@
   name: olai-plugin-xyne-spaces/server
   section: Appliances
   disabled: true
+# OFF BY DEFAULT for the same reason, and it is the row that made the reason
+# general rather than about Spaces: a Gmail account needs an OAuth client this
+# machine may not have, and the plugin reads a MESSAGE STORE — a bar nobody asked
+# for, over somebody's whole mailbox. The row still declares the four
+# environment doors it wants, so a person learns what to set before switching it
+# on, and a policy selecting only mail is what turns it on.
+- id: mail
+  name: olai-plugin-mail/server
+  section: Appliances
+  disabled: true
 # TRANSPORTS — ordinary plugins, selected by profiles and vault policy.
 - id: ws
   name: olai-plugin-ws/server

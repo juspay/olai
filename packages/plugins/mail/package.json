@@ -1,0 +1,40 @@
+{
+  "name": "olai-plugin-mail",
+  "//name": "UNSCOPED, for `olai-plugin-odu`'s reason one appliance over: `@olai/*` is the scope for the packages that ARE olai, and a tenant is named the way a plugin written outside this tree would be.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "The doors this plugin opens: `./wire` is the account cell and the two procedures, the declaration everything that composes this surface pulls in statically; `./server` is the Cordis plugin (the token broker, the generated Himalaya config, the OAuth route); `./browser` is the header pill and the row's Connect/Disconnect face, a CHUNK fetched only when the roster names this row; `./testids` is names only, so `packages/tests` can assert on this plugin's DOM without SolidJS on its graph; `./all.css` is the Tailwind source; `./appliance/testlib` is the fake Himalaya and the fake Google the e2e harness spawns. There is NO `./appliance/*` wire door \u2014 Himalaya has no MCP face and no client package, so the plugin shells out to the pinned binary and nothing of Himalaya is imported here.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts",
+    "./browser": "./src/browser.tsx",
+    "./server": "./src/server.ts",
+    "./testids": "./src/testids.ts",
+    "./all.css": "./src/browser/all.css",
+    "./appliance/testlib": "./src/appliance/testlib/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "`effect` and `@olai/plugin-api` are what a Cordis plugin is written with: the server half names the services it injects here and gets its surface checked against this package's own wire, and the browser half is written in the same Effects. `solid-js` is the browser half's, and `@olai/ui-primitives` is the testid table `./testids` merges into. There is no `@olai/format` and no `@olai/web`: the refusals this plugin raises are its OWN class (the surface declares `MailRefusal`, so a caller narrows one tag rather than a table of four), and the two buttons in the panel row call their procedures directly rather than through the client's `run.ts` edge \u2014 one refusal, one reader.",
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0"
+  },
+  "//devDependencies": "`olai-plugin-layout` and `olai-plugin-plugin-inspector` for their slot CONTRACTS only \u2014 the declarations that make `app.header` and `plugins.row` names the compiler knows (odu's browser half merges the same three), and the row face this plugin hangs on its own row. A contract module is the one thing that may travel between two plugin packages, and the inspector's own manifest records `olai-plugin-layout` the same way. `@olai/tests` is the e2e harness the feature files under `e2e/` are written against.",
+  "devDependencies": {
+    "@olai/tests": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "olai-plugin-plugin-inspector": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
+  }
+}
