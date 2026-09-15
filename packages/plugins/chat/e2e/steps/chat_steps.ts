@@ -110,6 +110,8 @@ import {
   CHAT_MISSING_SERVER,
   CHAT_MISSING_WHY,
   CHAT_MODEL,
+  CHAT_MODEL_FILTER,
+  CHAT_MODEL_NONE,
   CHAT_NEW,
   CHAT_NO_AGENT,
   CHAT_QUEUED,
@@ -3843,6 +3845,124 @@ When("I choose the chat model {string}", async function (this: OlaiWorld, name: 
   await this.chatLine().getByRole("button", { name: "Change model", exact: true }).click();
   await this.chatLine().getByRole("list", { name: "Models", exact: true })
     .getByRole("button", { name, exact: true }).click();
+});
+
+// ── the filter in the open model menu ──────────────────────────────────
+
+When("I filter the chat models by {string}", async function (this: OlaiWorld, query: string) {
+  await this.chat(CHAT_MODEL_FILTER).pressSequentially(query);
+});
+
+When("I press {string} in the model filter", async function (this: OlaiWorld, key: string) {
+  await this.chat(CHAT_MODEL_FILTER).press(key);
+});
+
+Then("the model picker offers only {string}", async function (this: OlaiWorld, names: string) {
+  // The MODEL buttons and nothing else: the filter box is a searchbox, the
+  // settings rows are selects and checkboxes, and the "no match" row is
+  // neither — so a role of button inside the list is exactly what the picker
+  // would take. The list itself is inside the agent line, not the whole
+  // panel, because the menu hangs off the model name.
+  const list = this.chatLine().getByRole("list", { name: "Models", exact: true });
+  await this.waitUntil(
+    async () => {
+      const offered = await list.getByRole("button").allTextContents();
+      return offered.map(oneLine).join(", ") === names;
+    },
+    `the model picker to offer only: ${names}`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the model picker offers nothing for {string}", async function (this: OlaiWorld, query: string) {
+  await this.chat(CHAT_MODEL_NONE).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  // The empty row names the QUERY and takes nothing: no button rows to land
+  // a verdict on, which is what makes its Enter a dead key.
+  assert.strictEqual(await this.chat(CHAT_MODEL_NONE).innerText(), `no model matches "${query}"`);
+  assert.strictEqual(
+    await this.chatLine().getByRole("list", { name: "Models", exact: true }).getByRole("button").count(),
+    0,
+  );
+});
+
+When("I press {string} {int} times in the model filter", async function (this: OlaiWorld, key: string, count: number) {
+  const filter = this.chat(CHAT_MODEL_FILTER);
+  for (let i = 0; i < count; i++) await filter.press(key);
+});
+
+When("I pick the model under the cursor", async function (this: OlaiWorld) {
+  await this.chat(CHAT_MODEL_FILTER).press("Enter");
+});
+
+Then("the model picker is shut", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.chat(CHAT_MODEL_FILTER).count()) === 0,
+    "the model picker to be shut",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the caret is back on the model picker", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => {
+      const label = await this.page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? null);
+      return label === "Change model";
+    },
+    "the caret to be back on the model picker",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the model list has scrolled to the row under the cursor", async function (this: OlaiWorld) {
+  const list = this.chatLine().getByRole("list", { name: "Models", exact: true });
+  await this.waitUntil(
+    async () => {
+      const read = await list.evaluate((ul) => {
+        const active = ul.querySelector('[aria-selected="true"]');
+        if (active === null) return null;
+        const box = ul.getBoundingClientRect();
+        const row = active.getBoundingClientRect();
+        return { scrolled: ul.scrollTop, inside: row.top >= box.top && row.bottom <= box.bottom + 1 };
+      });
+      return read !== null && read.scrolled > 0 && read.inside;
+    },
+    "the list to scroll the row under the cursor into view",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the model list is back at the top", async function (this: OlaiWorld) {
+  const list = this.chatLine().getByRole("list", { name: "Models", exact: true });
+  await this.waitUntil(
+    async () => {
+      // "Top" is NOT a bare scrollTop number: the filter is a STICKY child an
+      // arrow-walked row must end up BELOW, and Chromium's nearest-scroll makes
+      // exactly that land scrollTop at zero (a sticky-naive mount instead stops
+      // at the row's own top and leaves it painted over by the filter). What is
+      // pinned here is the thing a pair of eyes would check: the FIRST model
+      // row is the one under the cursor, and it is fully on view below the
+      // filter with the list wound back to its first rows.
+      const read = await list.evaluate((ul) => {
+        // `aria-selected` rides the BUTTON inside the row's `li`: its rect is
+        // a hair inside the row's own, so the rect taken is the LI's. "First"
+        // is also asked geometrically — flush under the filter — because an
+        // index among children would be the layout re-derived, not checked.
+        const active = ul.querySelector('[aria-selected="true"]')?.closest("li");
+        const filter = ul.children[0];
+        if (active === undefined || active === null || filter === undefined) return null;
+        const row = active.getBoundingClientRect();
+        const box = ul.getBoundingClientRect();
+        return {
+          scrolled: ul.scrollTop,
+          first: Math.abs(row.top - filter.getBoundingClientRect().bottom) <= 2,
+          inside: row.top >= box.top && row.bottom <= box.bottom + 1,
+        };
+      });
+      return read !== null && read.first && read.inside && read.scrolled <= 1;
+    },
+    "the model list to be back on its first row, in view below the filter",
+    HYDRATION_TIMEOUT,
+  );
 });
 
 Given("the agent refuses model changes", async function (this: OlaiWorld) {

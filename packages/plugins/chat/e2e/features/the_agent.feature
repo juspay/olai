@@ -2148,6 +2148,55 @@ Feature: Talking to a node agent
     Then the panel header names the model "Fake One"
 
   @scratch:chat
+  Scenario: Typing in the model menu narrows it
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I open the session settings
+    And I filter the chat models by "haiku"
+    Then the model picker offers only "Fake Haiku"
+    When I pick the model under the cursor
+    Then the model picker is shut
+    And the panel header names the model "Fake Haiku"
+    And the caret is back on the model picker
+    And the agent is idle
+
+  @scratch:chat
+  Scenario: A filter nothing matches offers nothing
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I open the session settings
+    And I filter the chat models by "zzz"
+    Then the model picker offers nothing for "zzz"
+    When I pick the model under the cursor
+    Then the model picker offers nothing for "zzz"
+    And the panel header names the model "Fake One"
+
+  @scratch:chat
+  Scenario: Arrow keys walk what is visible
+    # "s" narrows to the Sonnet and Opus rows, so ONE step down lands on the
+    # FIFTH row of the full list — where it lands, and not the second row of
+    # the whole list, is the proof the cursor walks the visible rows.
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I open the session settings
+    And I filter the chat models by "s"
+    Then the model picker offers only "Fake Sonnet, Fake Opus (1M context)"
+    When I press "ArrowDown" in the model filter
+    And I pick the model under the cursor
+    Then the panel header names the model "Fake Opus (1M context)"
+
+  @scratch:chat
+  Scenario: The filter is forgotten on reopen
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I open the session settings
+    And I filter the chat models by "haiku"
+    Then the model picker offers only "Fake Haiku"
+    When I press "Escape" in the model filter
+    And I open the session settings
+    Then the model picker offers only "Fake One, Fake Two, Fake Sonnet, Fake Haiku, Fake Opus (1M context)"
+
+  @scratch:chat
   Scenario: Claude's olai write has its title, outline, clickable story and one reply
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready

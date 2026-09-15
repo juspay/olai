@@ -171,6 +171,23 @@ test("...and `shut` on its own does not touch the caret", () => {
   })
 })
 
+test("`focusTrigger` is the caret handed back for a take", () => {
+  // The dismissal's own rule reaches only Escape and the trigger's press: a
+  // row TAKEN with a key is neither, and after the list went with the press
+  // the caret sat on `<body>`. The caller asks the picker — the element is
+  // the picker's (`setTrigger` is where it was told), which is the whole
+  // contract.
+  withPicker(() => "", (picker) => {
+    const trigger = control()
+    picker.setTrigger(trigger.el)
+    picker.toggle()
+    picker.shut()
+    expect(trigger.focused()).toBe(0)
+    picker.focusTrigger()
+    expect(trigger.focused()).toBe(1)
+  })
+})
+
 test("a picker with no trigger yet still opens and shuts", () => {
   // A ref is called when its element attaches, and a toggle is reachable before
   // that has happened — which must not be the throw that takes the panel with
@@ -179,6 +196,19 @@ test("a picker with no trigger yet still opens and shuts", () => {
     picker.toggle()
     picker.toggle()
     expect(picker.open()).toBe(false)
+  })
+})
+
+test("the list's element is the picker's own to hand out, while it is on the page", () => {
+  // A caller that must act on the LIST ITSELF — scrolling one of its rows
+  // back on view — reads the element through the picker: the picker's is the
+  // only keeping of it, which it needs for its THE dismissal's root in the
+  // first place.
+  withPicker(() => "", (picker) => {
+    expect(picker.list()).toBeUndefined()
+    const el = box()
+    picker.setList(el)
+    expect(picker.list()).toBe(el)
   })
 })
 
