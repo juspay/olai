@@ -50,6 +50,9 @@ serve:
     fi
     export OLAI_ACP_PI="${PI_AGENT:-}"
     export OLAI_AGENT_PATH="${OLAI_AGENT_PATH:-}"
+    # The pinned Himalaya the mail row spawns, the same value default.nix bakes
+    # on the packaged wrapper — the row runs the pin, never one off PATH.
+    export OLAI_HIMALAYA="$(sh scripts/nix-out.sh .#himalaya-bin)/bin/himalaya"
     # A PATH prefix for binaries under evidence — odu under a pin, or any
     # fixture build that should sit in front of the plugin's probes. The
     # one law holds: the call answers, empty is off.

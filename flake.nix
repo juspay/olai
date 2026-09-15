@@ -63,7 +63,7 @@
           kolu = import ./nix/kolu.nix { inherit pkgs; };
         in
         kolu.packages // {
-          inherit (olai) olai olai-client olai-fonts kolu-mark odu-mark acp-agent codex-agent odu-bin;
+          inherit (olai) olai olai-client olai-fonts kolu-mark odu-mark acp-agent codex-agent odu-bin himalaya-bin;
           odu = olai.odu-bin;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the

@@ -93,6 +93,13 @@ import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
 import { type LivePadi, startPadi } from "olai-plugin-kolu/appliance/testlib";
 import { type LiveOdu, startOduService } from "olai-plugin-odu/appliance/testlib";
+// THE MAIL ROW'S TWO FAKES AND ITS FOUR DOORS. All of it comes off the plugin's
+// appliance door, like odu's and kolu's: the starters, which take the NAME a
+// `@mail-*` tag carried and resolve it against the row's own tables, the names
+// a spawn must set or strip, and the two credential VALUES `@mail-doors` puts in
+// them. Which fixture a name stands for — and what a door is called — is this
+// row's vocabulary, so the harness holds no copy of either.
+import { DOOR as MAIL_DOOR, DOORS as MAIL_DOOR_NAMES, DOOR_VALUES, startFakeGoogle, startFakeHimalaya } from "olai-plugin-mail/appliance/testlib";
 import { ILLEGIBLE_PX, PAINTS, recordPaints, WAITING } from "./paints.ts";
 import {
   alreadyShared,
@@ -381,6 +388,39 @@ const PADI_TAG = /^@padi:([\w-]+)$/;
 
 /** `@odu-service:<fleet>`: this scenario's server dials a fake odu service. */
 const ODU_SERVICE_TAG = /^@odu-service:([\w-]+)$/;
+
+/**
+ * `@mail-himalaya:<fixture>` / `@mail-google:<fixture>`: this scenario's server
+ * spawns a fake Himalaya and talks to a fake Google, both described by a table
+ * this ROW owns (`olai-plugin-mail/appliance/testlib`, whose `./fixtures.ts` says
+ * why the names live beside the row rather than here).
+ *
+ * TWO TAGS rather than one, because they are two services with two failure
+ * arms: a scenario that wants a revoked grant moves Google's fixture and leaves
+ * the mailbox alone, and one that wants a serve with no binary at all simply
+ * omits the first — which is a scenario of its own, and the reason the second is
+ * not implied by the first.
+ *
+ * Both need `@scratch:` for the mail row's third tag's reason, below.
+ */
+const MAIL_HIMALAYA_TAG = /^@mail-himalaya:([\w-]+)$/;
+const MAIL_GOOGLE_TAG = /^@mail-google:([\w-]+)$/;
+
+/**
+ * `@mail-doors`: this scenario's serve was handed the two OAuth credentials
+ * (`OLAI_MAIL_OAUTH_CLIENT` and `OLAI_MAIL_OAUTH_SECRET`).
+ *
+ * WITHOUT IT BOTH ARE UNSET, and that is a scenario rather than a gap: the row
+ * then says so in its own words and offers no Connect button, because a Connect
+ * with nothing to authorize with is a button that teaches a person the feature
+ * is broken (`olai-plugin-mail`'s `./src/browser/Row.tsx`). The values are
+ * fixtures (the row's `appliance/testlib` fixtures' `DOORS`), not a real client: what a scenario
+ * asserts about a credential is that the row GOT one, never which one.
+ *
+ * A TAG rather than a step for every reason the tags above are: these are read
+ * at spawn and a step runs after the server is up.
+ */
+const MAIL_DOORS_TAG = "@mail-doors";
 
 /** `@opencode`: this scenario's machine HAS opencode, so its server's roster is
  *  two agents and the panel asks which one a conversation is with. Untagged,
@@ -752,6 +792,22 @@ interface Spawn {
    *  in, and the one the hollow chip is drawn from. */
   readonly padiSocket?: string;
   readonly oduOrigin?: string;
+  /** WHICH HIMALAYA this server spawns — `@mail-himalaya:<fixture>`'s value,
+   *  the absolute path of the fake's executable. ABSENT is not "the pinned
+   *  pin": `./workers.ts` deletes the host's `OLAI_HIMALAYA` and this field is
+   *  what sets it, so a scenario with no tag hands the serve the empty string,
+   *  which is the row's own off switch and the state the scenario about a serve
+   *  with no Nix build asserts against. */
+  readonly himalaya?: string;
+  /** WHICH GOOGLE this server talks to — `@mail-google:<fixture>`'s origin.
+   *  Set on every spawn, for `ODU_WEB_ORIGIN`'s reason: an omitted variable is
+   *  not "derived and absent", it is the REAL Google, and no scenario may talk
+   *  to it (the default is an un-routable loopback port). */
+  readonly mailGoogle?: string;
+  /** Whether this server was given the two credential doors (`@mail-doors`).
+   *  Their ABSENCE is a scenario of its own — the row names the two doors and
+   *  offers no Connect — so there is no default to set. */
+  readonly mailDoors?: boolean;
   /** `true` puts a fake `opencode` on the agent search path, so this server's
    *  roster is two agents. Otherwise that path is EMPTY and the roster is the
    *  scripted agent alone — see {@link FAKE_OPENCODE_DIR}. */
@@ -878,6 +934,33 @@ const startServerChild = async (
         // this machine's real per-user service on CI. A scenario that did
         // not ask for a fake would otherwise connect to the host's odu.
         ODU_WEB_ORIGIN: spawnOptions.oduOrigin ?? "http://127.0.0.1:1",
+        // THE MAIL ROW'S FOUR DOORS, on the same reasoning and with one extra
+        // twist worth reading. `OLAI_HIMALAYA` is ALWAYS set — the fake's path,
+        // or the EMPTY STRING — because the packaged wrapper bakes the pinned
+        // Himalaya into this variable with `--set-default` (default.nix), so a
+        // scenario that simply did not tag `@mail-himalaya:` would otherwise
+        // spawn the REAL binary and read somebody's mailbox. Empty is the row's
+        // own off switch — `./src/server.ts`'s `doorOf` reads a blank value as
+        // *not set* — and it is what the scenario about a serve with no Nix
+        // build asserts against. `--set-default` is what lets the empty string
+        // survive the wrapper: a value is already there, so the default does
+        // not replace it.
+        [MAIL_DOOR.himalaya]: spawnOptions.himalaya ?? "",
+        // ...and this one is set for `ODU_WEB_ORIGIN`'s reason verbatim:
+        // omitting it is not "derived and absent", it is the REAL Google, which
+        // no scenario may talk to. The default is an un-routable loopback port.
+        [MAIL_DOOR.google]: spawnOptions.mailGoogle ?? "http://127.0.0.1:1",
+        // THE CREDENTIALS ONLY WHERE ASKED FOR, unlike the two above: their
+        // ABSENCE is the state one scenario is about (the row names the two
+        // doors and offers no Connect), so there is no default to set. The
+        // values are fixtures — this suite's own serve and its fake Google
+        // (the row's own `appliance/testlib` fixtures) — never a client id anybody's console knows.
+        ...(spawnOptions.mailDoors === true
+          ? {
+              [MAIL_DOOR.client]: DOOR_VALUES.client,
+              [MAIL_DOOR.secret]: DOOR_VALUES.secret,
+            }
+          : {}),
         // The avatar template, when the scenario asked for one (`AVATAR_TAG`).
         // Passed only where it was asked for: the variable being SET at all is
         // what puts the second rung of the picture ladder in play.
@@ -1064,6 +1147,19 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       ...(world.rowsOff === undefined
         ? {}
         : { rowsOff: world.rowsOff }),
+      // ...and the same MAIL doors, on the same sentence: `OLAI_HIMALAYA` is a
+      // path to a fake this scenario started, and a restart that came back
+      // without it would be a serve whose row reports the fault a machine with
+      // no Nix build reports — a different server, read as a lost connection.
+      // The fakes themselves keep running: they are this scenario's, their
+      // lifetimes are the scenario's, and only the restarted CHILD is new.
+      ...(world.mailHimalaya === undefined
+        ? { himalaya: "" }
+        : { himalaya: world.mailHimalaya.path }),
+      ...(world.mailGoogle === undefined
+        ? {}
+        : { mailGoogle: world.mailGoogle.origin }),
+      ...(world.mailDoors ? { mailDoors: true } : {}),
       // ... and the same avatar template, on the same sentence: a restart that
       // came back without it would draw the open page's person off a lower rung.
       ...(world.avatarTemplate === undefined
@@ -1417,6 +1513,15 @@ Before(
     this.oduFleet = scenario.pickle.tags
       .map((tag) => ODU_SERVICE_TAG.exec(tag.name)?.[1])
       .find((fleet): fleet is string => fleet !== undefined);
+    this.mailHimalayaFleet = scenario.pickle.tags
+      .map((tag) => MAIL_HIMALAYA_TAG.exec(tag.name)?.[1])
+      .find((name): name is string => name !== undefined);
+    this.mailGoogleFleet = scenario.pickle.tags
+      .map((tag) => MAIL_GOOGLE_TAG.exec(tag.name)?.[1])
+      .find((name): name is string => name !== undefined);
+    this.mailDoors = scenario.pickle.tags.some(
+      (tag) => tag.name === MAIL_DOORS_TAG,
+    );
     this.hasOpencode = scenario.pickle.tags.some(
       (tag) => tag.name === OPENCODE_TAG,
     );
@@ -1557,6 +1662,32 @@ Before(
       this.odu = await startOduService(this.oduFleet);
     }
 
+    // ...AND THE MAIL ROW'S TWO, for the same reason said twice: both arrive as
+    // a VARIABLE at spawn (`OLAI_HIMALAYA`, `OLAI_MAIL_GOOGLE`), so a shared
+    // corpus server is already deciding them for every other scenario. The
+    // check is the same shape as `@odu-service:`'s, deliberately: a reader who
+    // has met one of these tags has met all of them.
+    if (this.mailHimalayaFleet !== undefined) {
+      if (!writes) {
+        throw new Error(
+          `@mail-himalaya:${this.mailHimalayaFleet} points a server at a mailbox of its own, ` +
+            "so the scenario must own that server: tag it @scratch:<corpus> rather than " +
+            "@corpus:<corpus>.",
+        );
+      }
+      this.mailHimalaya = await startFakeHimalaya(this.mailHimalayaFleet);
+    }
+    if (this.mailGoogleFleet !== undefined) {
+      if (!writes) {
+        throw new Error(
+          `@mail-google:${this.mailGoogleFleet} points a server at a Google of its own, ` +
+            "so the scenario must own that server: tag it @scratch:<corpus> rather than " +
+            "@corpus:<corpus>.",
+        );
+      }
+      this.mailGoogle = await startFakeGoogle(this.mailGoogleFleet);
+    }
+
     if (writes) {
       const spawnOptions = {
         stored: this.storedSessions,
@@ -1569,6 +1700,18 @@ Before(
         kolu: this.hasKolu,
         ...(this.padi === undefined ? {} : { padiSocket: this.padi.socket }),
         ...(this.odu === undefined ? {} : { oduOrigin: this.odu.origin }),
+        // THE MAIL ROW'S THREE, and here the difference between them matters:
+        // `himalaya` is passed as the fake's path or as the EMPTY STRING (the
+        // row's own off switch, and the arm a scenario with no binary asserts),
+        // `mailGoogle` as the fake's origin or the harness's un-routable
+        // default, and `doors` only when the scenario asked for credentials.
+        ...(this.mailHimalaya === undefined
+          ? { himalaya: "" }
+          : { himalaya: this.mailHimalaya.path }),
+        ...(this.mailGoogle === undefined
+          ? {}
+          : { mailGoogle: this.mailGoogle.origin }),
+        ...(this.mailDoors ? { mailDoors: true } : {}),
         ...(this.avatarTemplate === undefined
           ? {}
           : { avatar: this.avatarTemplate }),
@@ -1762,6 +1905,16 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
   this.padi = undefined;
   this.odu?.stop();
   this.odu = undefined;
+  // ...and the mail row's two fakes, one of which is a SERVER in this worker's
+  // own process and the other a temp directory: both are this scenario's, they
+  // outlive nothing, and a fake left listening would be a port held for the
+  // rest of the run. The HTTP one is stopped first only so the directory the
+  // binary lives in is not removed while something might still be answering
+  // from it.
+  await this.mailGoogle?.stop();
+  this.mailGoogle = undefined;
+  await this.mailHimalaya?.stop();
+  this.mailHimalaya = undefined;
 
   // A feature-shared scratch outlives the scenario: After drains in-flight
   // writes (a blur-on-close, a last key still staging), puts the fixture

@@ -35,6 +35,17 @@ whose only outline is broken, then correct it or create healthy content beside i
 `empty_vault_capture.feature` creates the Inbox through capture on desktop and
 through the phone header’s touch control.
 
+## `mail/` — nothing, and nothing is the point
+
+Only an ignored `.gitkeep` keeps this directory tracked, like `empty/`. The
+scenarios in `packages/plugins/mail/e2e/features/` are about a serve's GMAIL
+ACCOUNT — the header pill, the panel row, the record a restart reads back, the
+route Google redirects to — so what a serve is pointed at is a directory and no
+outline in it is ever opened. It is its own name rather than a corner of `empty/`
+for the reason a corpus is a name at all: `@scratch:mail` says which row's
+scenarios these are, the way `@scratch:odu-run` does for the CI chip, and the two
+sets of scenarios then move independently.
+
 ## `good/` — a set that validates
 
 Three outlines, three documents, two saved `.html` pages, three pictures, a

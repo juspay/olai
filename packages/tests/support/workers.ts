@@ -38,6 +38,9 @@ import * as fs from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
 import type { EventEmitter } from "node:events";
+// THE MAIL ROW'S DOOR NAMES, for the strip list below — derived rather than
+// remembered, so a door this row adds later cannot be inherited by a scenario.
+import { DOORS as MAIL_DOOR_NAMES } from "olai-plugin-mail/appliance/testlib";
 
 export { defaultWorkers, WORKER_CAP, workerCount } from "./parallelism.js";
 
@@ -83,6 +86,26 @@ export const spawnFingerprint = (opts: {
   readonly padiSocket?: string;
   /** WHICH ODU SERVICE this server was pointed at (`@odu-service:<fleet>`). */
   readonly oduOrigin?: string;
+  /**
+   * WHICH HIMALAYA this server spawns (`@mail-himalaya:<fixture>`), as the
+   * absolute path of the fake's executable.
+   *
+   * Part of the key for the padi socket's reason one field up: the mail row
+   * runs `$OLAI_HIMALAYA`, so a scenario whose mailbox is a fake must not
+   * reuse a server that was handed another one — and the untagged case is a
+   * VALUE here (the empty string is the row's own off switch), not an absent
+   * field, because a server started with no binary at all is a different
+   * serve from one started with the packaged pin.
+   */
+  readonly himalaya?: string;
+  /** WHICH GOOGLE this server talks to (`@mail-google:<fixture>`), as the
+   *  fake's loopback origin — always set, for `ODU_WEB_ORIGIN`'s reason. */
+  readonly mailGoogle?: string;
+  /** Whether this server was given an OAuth client and secret (`@mail-doors`).
+   *  A boolean rather than the pair: the values are the same two constants for
+   *  every scenario that asks, and a key carrying them would be a fingerprint
+   *  with a secret in it (`olai-plugin-mail/appliance/testlib` spells them). */
+  readonly mailDoors?: boolean;
   /** WHICH INTEGRATIONS this server composed (the file’s row selection), if the scenario
    *  said. Part of the key for the padi socket's reason one field up: a server
    *  running fewer plugins serves a different WIRE — the disabled one's members
@@ -98,6 +121,13 @@ export const spawnFingerprint = (opts: {
   },pi=${opts.pi ? 1 : 0},omp=${opts.omp ? 1 : 0},codex=${opts.codex ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
   `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}` +
   `,padi=${opts.padiSocket ?? "-"},odu=${opts.oduOrigin ?? "-"},plugins=${opts.plugins ?? "-"}` +
+  // MAIL'S THREE follow `odu=` and are named the same way. `himalaya` is the
+  // one that is NOT "absent means off": the harness sets the variable on every
+  // spawn, so "" (no fake, the row's fault arm) and a fake's path are two
+  // different servers and the fingerprint says so. `google` is a fake's origin
+  // or the harness's own un-routable default, and `doors` whether the two
+  // credential values were handed over.
+  `,himalaya=${opts.himalaya ?? "(unset)"},google=${opts.mailGoogle ?? "-"},maildoors=${opts.mailDoors === true ? 1 : 0}` +
   `,extra=${opts.rowsOn ?? "-"},without=${opts.rowsOff ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
@@ -188,6 +218,20 @@ export const isolateEnv = (
   // wrapper's own pin: a laptop that has a real one gets the same suite as
   // one that has none — for `OLAI_AGENT_PATH`'s reason, one knob over.
   delete host.OLAI_ODU_BIN;
+  // THE MAIL ROW'S FOUR DOORS go the same way, for exactly that argument one
+  // row over, and they are the sharpest case of it in this file: a developer
+  // who has pointed their own laptop at a real Gmail account has all four set,
+  // and a scenario that inherited them would read THAT account's mailbox, on
+  // THAT person's consent, and report it as the scenario's answer. The two
+  // credential doors are the worse half — a scenario that forgot `@mail-doors`
+  // would find Connect working and assert about a real OAuth client. The
+  // harness sets `OLAI_HIMALAYA` and `OLAI_MAIL_GOOGLE` on every spawn
+  // (`hooks.ts`), so deleting them here is not "absent", it is "the scenario's
+  // to decide": a fake, or the off switch, or the un-routable default.
+  // ...and the LIST is the row's (`olai-plugin-mail/appliance/testlib`, which
+  // re-exports the names its own declaration reads), so a door this row adds in
+  // a later phase cannot be forgotten here and inherited by every scenario.
+  for (const door of MAIL_DOOR_NAMES) delete host[door];
   const env: NodeJS.ProcessEnv = {
     ...host,
     ...extras,

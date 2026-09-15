@@ -43,7 +43,7 @@ default:
 [parallel]
 [metadata("ci")]
 [doc("Run all checks in the CI pipeline")]
-check: typecheck test e2e kolu-deps odu-deps odu-surface cordis-deps fmt-check nix bun-nix-fresh hm-module
+check: typecheck test e2e kolu-deps odu-deps odu-surface mail-surface cordis-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
@@ -249,6 +249,22 @@ odu-deps:
 odu-surface:
     {{ nix_shell }} sh -c 'bun scripts/check-odu-surface.ts "$(sh scripts/nix-out.sh .#odu-bin)/bin"'
 
+# The mail row's half of the same question, asked of a DIFFERENT pin: does the
+# pinned `himalaya` still answer every subcommand `verbs.ts` freezes? The
+# fixtures cannot see this one move either — the fake Himalaya answers exactly
+# the verbs in that table, because that is the only way a scenario can state
+# what it expects — so a `gmail` subcommand clap renamed would be green in
+# every leg here and, in a packaged olai, be a mail row that refuses with a
+# sentence nobody can act on. The check runs the BUILT binary (nix/himalaya.nix,
+# from npins/sources.json) and names the verb that stopped answering.
+#
+# NO [metadata("ci")] HERE EITHER, and for the same structural reason: `check`
+# is the tagged root, odu expands the leaves it names, and a tag on this one
+# would make a second root for a single node.
+[doc("Verify the pinned Himalaya tool surface")]
+mail-surface:
+    {{ nix_shell }} sh -c 'bun scripts/check-himalaya-surface.ts "$(sh scripts/nix-out.sh .#himalaya-bin)/bin"'
+
 # ...and the same three questions about the four hydrated Cordis packages, over
 # the UNION of what they declare (nix/cordis.nix builds it): `cosmokit`,
 # `@standard-schema/spec` and `js-yaml`. The four resolve those by walking up
@@ -299,6 +315,11 @@ serve dir="docs" *args: build-client
     # `pi` on the search path gets the row, every other machine gets nothing
     # new (scripts/acp-pi.sh says why the roster probes for the agent).
     export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
+    # The pinned Himalaya the mail row spawns — one absolute FILE, the same
+    # value default.nix bakes on the packaged wrapper (`--set-default
+    # OLAI_HIMALAYA`). A dev start has no build to have baked it, so nix is
+    # asked here, through the one `nix build` script (scripts/nix-out.sh).
+    export OLAI_HIMALAYA="$(sh scripts/nix-out.sh .#himalaya-bin)/bin/himalaya"
     # The pinned odu on PATH, exactly as the packaged binary bakes into its
     # wrapper (default.nix) — scripts/olai-path.sh composes the whole
     # variable, so this can be the same one line the acp knobs are. An empty
@@ -745,6 +766,14 @@ bench: install
 # on every run; this file is WRITTEN once per worktree, so it composes
 # the default at write time the way the nix wrapper does at build time —
 # one knob, every face is only true when this face answers too.
+#
+# THE HIMALAYA FACE is the second pin this file carries, and the simpler half:
+# one absolute FILE rather than a bin directory to splice, so it is a `-`
+# default spelled exactly as default.nix writes it (`--set-default
+# OLAI_HIMALAYA`) and nothing else. Carried for the same reason the odu face
+# is: the harness spawns THIS wrapper, so a scenario must be able to hand the
+# row the fake — or, where the scenario says so, no binary at all, which a
+# `:-` default would make unreachable.
 [doc("Create a worktree-local binary wrapper for e2e tests")]
 dev-bin:
     #!/usr/bin/env bash
@@ -754,9 +783,11 @@ dev-bin:
     # The same build-on-demand scripts/olai-path.sh's header spends a
     # paragraph defending: here at WRITE time rather than each spawn.
     odu_dir="$(sh scripts/nix-out.sh .#odu-bin)/bin"
+    himalaya="$(sh scripts/nix-out.sh .#himalaya-bin)/bin/himalaya"
     printf '#!/usr/bin/env bash\n' > "$dir/bin"
     printf 'export OLAI_DIST_DIR="${OLAI_DIST_DIR-%s}"\n' "{{ dist }}" >> "$dir/bin"
     printf 'export OLAI_ODU_BIN="${OLAI_ODU_BIN-%s}"\n' "$odu_dir" >> "$dir/bin"
+    printf 'export OLAI_HIMALAYA="${OLAI_HIMALAYA-%s}"\n' "$himalaya" >> "$dir/bin"
     printf '%s\n' 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi' >> "$dir/bin"
     printf 'exec bun %s/packages/server/src/main.ts "$@"\n' \
       "{{ justfile_directory() }}" >> "$dir/bin"

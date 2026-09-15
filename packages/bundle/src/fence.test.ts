@@ -721,7 +721,9 @@ describe("only the registry knows a plugin's name", () => {
    *
    * WHAT IS LEFT IS WHAT THE HARNESS ITSELF STANDS ON. KOLU's and ODU's
    * appliance doors are the fake padi and the fake run service the spawn stands
-   * on. CHAT's is the panel constant `world.ts` composes a shared selector from.
+   * on; MAIL's is its pair of fakes, the mailbox the serve spawns and the Google
+   * it talks to (`@mail-himalaya:`, `@mail-google:`), which the same spawn is
+   * handed as two variables. CHAT's is the panel constant `world.ts` composes a shared selector from.
    * The six `/testids` doors are `ROW_TESTID` — which row draws one KIND of
    * file — a question about six rows at once that no one of them can answer.
    * And `storage_keys.ts` is the newest and the sharpest: the preferences PANEL
@@ -751,14 +753,17 @@ describe("only the registry knows a plugin's name", () => {
       "tests/agent/opencode/opencode.ts: olai-plugin-opencode/testlib",
       "tests/agent/pi/pi-acp.ts: olai-plugin-pi/testlib",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
+      "tests/support/hooks.ts: olai-plugin-mail/appliance/testlib",
       "tests/support/hooks.ts: olai-plugin-odu/appliance/testlib",
       "tests/support/storage_keys.ts: olai-plugin-alerts/keys",
       "tests/support/storage_keys.ts: olai-plugin-outlines/testlib",
+      "tests/support/workers.ts: olai-plugin-mail/appliance/testlib",
       "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-csv/testids",
       "tests/support/world.ts: olai-plugin-hypertext/testids",
       "tests/support/world.ts: olai-plugin-image/testids",
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
+      "tests/support/world.ts: olai-plugin-mail/appliance/testlib",
       "tests/support/world.ts: olai-plugin-markdown/testids",
       "tests/support/world.ts: olai-plugin-odu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-outlines/testids",
@@ -805,7 +810,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-omp", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
+    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-kolu", "olai-plugin-mail", "olai-plugin-odu", "olai-plugin-omp", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 

@@ -203,7 +203,7 @@ inputs.olai.url = "github:juspay/olai";
 }
 ```
 
-The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`) and the pinned `odu` (put first on the server's own PATH, so the chat panel's CI probe resolves the build's binary and not a host's — [plugins/odu.md](plugins/odu.md)), so the service needs no ambient environment.
+The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`), the pinned `odu` (put first on the server's own PATH, so the chat panel's CI probe resolves the build's binary and not a host's — [plugins/odu.md](plugins/odu.md)) and the pinned `himalaya` (`OLAI_HIMALAYA`, the absolute path the mail row runs — [plugins/mail.md](plugins/mail.md)), so the service needs no ambient environment.
 
 `OLAI_ODU_BIN` is the one knob over the last of those: it names a **directory** whose `odu` the serve puts first on its PATH instead of the pin — how you test a development odu against a packaged olai — and the empty string is the explicit off switch (the probe then answers from the ambient PATH, and a PATH with no `odu` draws the row under the roster — [chat.md](chat.md#when-a-tool-server-does-not-arrive)). The three adapter knobs beside it (`OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`) name executable *files*; this one names the *directory* the way the pin's own `bin/` does.
 
@@ -263,7 +263,7 @@ Olai is a bundle: its shell, content readers and editors, and integrations are p
 
 **The MATCHER is one** ([plugins/search.md](plugins/search.md)) — the index the server keeps, the walk that ranks and caps a query's hits, and the search box in the header. It is on by default. Leaving `search` out keeps the grammar, the `search_nodes` tool and every box a person types into, and answers every one of them with no hits and the reason, in words. The filter that narrows the page in front of you is not on this row and goes on working.
 
-Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)), pi ([plugins/pi.md](plugins/pi.md)) and Oh My Pi ([plugins/omp.md](plugins/omp.md)).
+Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)), mail ([plugins/mail.md](plugins/mail.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)), pi ([plugins/pi.md](plugins/pi.md)) and Oh My Pi ([plugins/omp.md](plugins/omp.md)).
 
 Use one top-level node per row in `_olai/Settings.olai`. For example:
 
@@ -310,6 +310,10 @@ Environment readings follow the controls and stay read-only. Wrapper-provided ex
 | `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI` | executable paths, normally wrapper-provided |
 | `OLAI_ODU_BIN` | directory prepended to the appliance's PATH |
 | `ODU_WEB_ORIGIN` | odu service origin this olai dials; default `http://127.0.0.1:18440` |
+| `OLAI_HIMALAYA` | the pinned `himalaya` the mail row runs, normally wrapper-provided |
+| `OLAI_MAIL_OAUTH_CLIENT` | the Google OAuth client id this serve connects a mailbox with |
+| `OLAI_MAIL_OAUTH_SECRET` | its client secret; secret |
+| `OLAI_MAIL_GOOGLE` | the Google origin this serve talks to; **loopback only** — anything else faults the row, because the POSTs carry the client secret |
 | `PADI_SOCKET` | local Kolu socket path |
 | `OLAI_ALLOWED_ORIGINS` | comma-separated browser origins |
 | `OLAI_HOSTNAME` | machine label override |
