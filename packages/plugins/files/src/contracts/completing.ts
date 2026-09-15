@@ -65,13 +65,22 @@
  *
  * ## The one refusal that is the box's own
  *
- * A name carrying ANOTHER kind's suffix — `Foo.md` typed into the outline door
- * — is refused here, in the box's own short sentence rather than the wire's
- * paragraph. It is not a second copy of an ops rule: the ops layer would only
- * ever see a completed path, and `Foo.md.olai` is what a "complete everything"
- * rule would have made of it — a file nobody asked for. What the sentence says
- * is the thing only this side knows: which kind that name names, which kind
- * this door makes, and what to type to get one.
+ * A name carrying ANOTHER KEEPING's suffix — `Foo.md` typed into the outline
+ * door — is refused here, in the box's own short sentence rather than the
+ * wire's paragraph. It is not a second copy of an ops rule: the ops layer
+ * would only ever see a completed path, and `Foo.md.olai` is what a "complete
+ * everything" rule would have made of it — a file nobody asked for. What the
+ * sentence says is the thing only this side knows: which kind that name
+ * names, which kind this door makes, and what to type to get one.
+ *
+ * A name carrying ANOTHER SPELLING of the thing the door keeps is the name as
+ * typed: `notes.org` at the outline door is an outline, in the org format
+ * that row claims — refusing it would have to say "an outline, not an
+ * outline", and completing it would mint a SECOND suffix over a spelling the
+ * person already chose. The test is `kept` rather than a list of the door's
+ * sibling rows: a `.html` is text like a document but is served and never
+ * minted, so `notes.html` at the document door stays a box refusal in the
+ * sentence it has always had.
  *
  * The two kinds are NAMED by the client's one vocabulary seam (`./kinds.ts`'s
  * `NAMED`), which is why a `.html` is "a page" in that sentence rather than
@@ -146,6 +155,11 @@ export const meantAt = (claims: Claims, of: string, typed: string): Meant => {
   if (ext === null) return { refused: `the ${of} row is off, so no file can be created` }
   const carried = fileKind(claims, name)
   if (carried === of) return { file: name }
+  // A SIBLING KEEPING is the format, chosen by the name's own spelling
+  // (the section above): `notes.org` at the outline door mints an org outline,
+  // whatever spelling the box was offering.
+  const carriedClaim = carried === null ? undefined : claims.byKind.get(carried)
+  if (carriedClaim !== undefined && carriedClaim.kept && carriedClaim.holds === claims.byKind.get(of)?.holds) return { file: name }
   // AS TYPED where completing would erase the refusal — the section above.
   if (carried === null) {
     const last = name.slice(name.lastIndexOf("/") + 1)
@@ -162,4 +176,20 @@ export const meantAt = (claims: Claims, of: string, typed: string): Meant => {
   // pair of backticks is advice about nothing.
   const advice = bare === "" ? "" : ` — type \`${bare}\` to make \`${bare}${ext}\``
   return { refused: `${said}${advice}.` }
+}
+
+/**
+ * THE SPELLINGS A DOOR CAN MINT — every kept claim that holds what this door's
+ * kind holds, each with the suffix a mint writes.
+ *
+ * The box draws its format choice from this list ({@link ../file/NewFile.tsx})
+ * and draws NOTHING when it holds one entry: a door whose kind is the only
+ * spelling of its keeping has nothing to ask. An unclaimed `of` answers the
+ * empty list for the same reason `mintExt` answers null above.
+ */
+export const spellingsOf = (claims: Claims, of: string): ReadonlyArray<{ readonly kind: string; readonly ext: string }> => {
+  const held = claims.byKind.get(of)?.holds
+  return [...claims.byKind.values()]
+    .filter(claim => claim.kept && claim.holds === held)
+    .map(claim => ({ kind: claim.kind, ext: claim.exts[0] }))
 }

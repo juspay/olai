@@ -761,6 +761,7 @@ describe("only the registry knows a plugin's name", () => {
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-markdown/testids",
       "tests/support/world.ts: olai-plugin-odu/appliance/testlib",
+      "tests/support/world.ts: olai-plugin-outline-org/testids",
       "tests/support/world.ts: olai-plugin-outlines/testids",
       "tests/support/world.ts: olai-plugin-outlines/testlib",
       "tests/support/world.ts: olai-plugin-pdf/testids",

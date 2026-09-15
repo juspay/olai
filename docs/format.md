@@ -2,6 +2,8 @@
 
 One `.olai` file per outline. One JSON object per line; one line per node. Every `.olai` file under the served directory is an independent tree: no cross-file parents. Cross-file relations are mirrors and edges, by bare id.
 
+The RECORDS are the format; `.olai` is their JSONL spelling, and this page is its spec. The `outline-org` row stores the same records as Org-mode headings: see [plugins/outline-org.md](plugins/outline-org.md).
+
 That is a rule about a `parent` FIELD and not about where a node may end up. A subtree moves between outlines whole — `outlines_move` with a `parent` or a `file` in another outline, and `outlines_trash` on the way to `_olai/Trash.olai` — and it keeps its ids, so what it lands under is a parent in the file it landed in. Ids are unique across the whole served directory (below), which is the entire mechanism: nothing has to be re-pointed, because nothing ever left the namespace it was pointed at in. Every mirror, edge, `node`-typed property and PIN aimed at what moved goes on resolving — a pin by the address grammar rather than by this rule, since a node address names the id and drops the file half ([Pins](#pins)) — and so does the day a dated node sits on, which changes only the outline it is grouped under. The one exception is a `ref`-typed property, which asserts ancestry as well as existence: moving a variant out of its declared root is refused `bad-prop` at the write gate, with nothing written ([Typed properties](#typed-properties)).
 
 ```jsonl

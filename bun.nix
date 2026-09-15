@@ -221,6 +221,30 @@
       hasInstallScript = false;
     };
   };
+  "@aviaviavi/org2@0.7.0" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@aviaviavi/org2/-/org2-0.7.0.tgz";
+      hash = "sha512-k961SdMNGAVvrI/KJPblwkbLLGdEdn2lok9NvJ5kQlXqxAiChePi5NLIryZicz5Y/VNfEx82Ic7x2Xzj6i/TqA==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@aviaviavi/org2/-/org2-0.7.0.tgz";
+      dependencies = {
+        "@duckdb/node-api" = "^1.5.4-r.1";
+        "@resvg/resvg-js" = "^2.6.2";
+        "@scarf/scarf" = "^1.4.0";
+      };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = {
+        "org2" = "dist/cli.js";
+        "org2-lsp" = "dist/lsp.js";
+      };
+      os = [ ];
+      cpu = [ ];
+      hasInstallScript = false;
+    };
+  };
   "@babel/code-frame@7.29.7" = fetchurl
     {
       url = "https://registry.npmjs.org/@babel/code-frame/-/code-frame-7.29.7.tgz";
@@ -1202,6 +1226,189 @@
       hasInstallScript = false;
     };
   };
+  "@duckdb/node-api@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-api/-/node-api-1.5.4-r.1.tgz";
+      hash = "sha512-3PYk/4//svuYmb9RYVM71cCoNa6ngoYWwrMhJaqbm010txzIMWbJCbxrFeqDl+krdIug+Hc/MNCeS0gHsTXSIw==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-api/-/node-api-1.5.4-r.1.tgz";
+      dependencies = {
+        "@duckdb/node-bindings" = "1.5.4-r.1";
+      };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ ];
+      cpu = [ ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings-darwin-arm64@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings-darwin-arm64/-/node-bindings-darwin-arm64-1.5.4-r.1.tgz";
+      hash = "sha512-fl8EC5xdmI7VAI7bX4W6D7lOGNtxyLvSxGjOY8Ov7viVEKwIcBXXKlMPgh3sw+PiVlwZhKlknuCI8BL5xXpSDg==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings-darwin-arm64/-/node-bindings-darwin-arm64-1.5.4-r.1.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "darwin" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings-darwin-x64@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings-darwin-x64/-/node-bindings-darwin-x64-1.5.4-r.1.tgz";
+      hash = "sha512-E8bECZ6abJqunPqVR1NA0Zho7qxanfDWWFuJrKMsU1NCUqyGLyhXqZwsRHAx7J6jrM+lhQ7wOZj1x/N4OVml3A==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings-darwin-x64/-/node-bindings-darwin-x64-1.5.4-r.1.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "darwin" ];
+      cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings-linux-arm64-musl@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings-linux-arm64-musl/-/node-bindings-linux-arm64-musl-1.5.4-r.1.tgz";
+      hash = "sha512-96Pyk5Syy18S5DSN0CKkOQ7/CsyVGRML8ewox1qpFDjYvPH1VsULlQoIRwbpw7mkFEy17wuWmbwzb7oKu/nGMw==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings-linux-arm64-musl/-/node-bindings-linux-arm64-musl-1.5.4-r.1.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings-linux-arm64@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings-linux-arm64/-/node-bindings-linux-arm64-1.5.4-r.1.tgz";
+      hash = "sha512-4EsB+cgRqOE++mdPQ2ZoGJCg4ylmuqdbLDtmo3L19B+C5OzGmrhxlKD4o75eGEtfO52M+w+TdL0qhy0H5XvaKQ==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings-linux-arm64/-/node-bindings-linux-arm64-1.5.4-r.1.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings-linux-x64-musl@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings-linux-x64-musl/-/node-bindings-linux-x64-musl-1.5.4-r.1.tgz";
+      hash = "sha512-tWgnttlKfWTktyv+m9YbxaedKBon5wmUoJ9DaIbE3D98KhhUaqmJhnjzso9O8hp6WUeRmwXR//hpT/X6Ft9nYA==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings-linux-x64-musl/-/node-bindings-linux-x64-musl-1.5.4-r.1.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings-linux-x64@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings-linux-x64/-/node-bindings-linux-x64-1.5.4-r.1.tgz";
+      hash = "sha512-IldapRydno5kf4VkPCe8yK+j4pCg+j6Qs46UmLnKex/mtIdJa7ifhMYRkvdc5KIAFEC0eEL5c830QeuwcUROyg==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings-linux-x64/-/node-bindings-linux-x64-1.5.4-r.1.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings-win32-arm64@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings-win32-arm64/-/node-bindings-win32-arm64-1.5.4-r.1.tgz";
+      hash = "sha512-77apmuNo51bPZzv8xjdeCp+hlU6JLwMPtS1CMViy83ONTsah+CGnpBx1lCnEqPL5Va0meufZyjSdZCVCijLdDA==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings-win32-arm64/-/node-bindings-win32-arm64-1.5.4-r.1.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "win32" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings-win32-x64@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings-win32-x64/-/node-bindings-win32-x64-1.5.4-r.1.tgz";
+      hash = "sha512-Wme7dScBGqjn2PUJ+RLFiFAblW1qQRBraX7SJc4uKtftZiUJJWZapEUh+doGfb68Qxvw8JhlMBSdaUsSUDJYsw==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings-win32-x64/-/node-bindings-win32-x64-1.5.4-r.1.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "win32" ];
+      cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@duckdb/node-bindings@1.5.4-r.1" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@duckdb/node-bindings/-/node-bindings-1.5.4-r.1.tgz";
+      hash = "sha512-v834OZZKQ59yAvh8GOEmM+R1foPNgdMGL0VTBgHywgblgQNyq11HvWgT4QGJIUFfo/cQ9WFyf1MFhK0+hV1aiA==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@duckdb/node-bindings/-/node-bindings-1.5.4-r.1.tgz";
+      dependencies = {
+        "detect-libc" = "^2.1.2";
+      };
+      peerDependencies = { };
+      optionalDependencies = {
+        "@duckdb/node-bindings-darwin-arm64" = "1.5.4-r.1";
+        "@duckdb/node-bindings-darwin-x64" = "1.5.4-r.1";
+        "@duckdb/node-bindings-linux-arm64" = "1.5.4-r.1";
+        "@duckdb/node-bindings-linux-arm64-musl" = "1.5.4-r.1";
+        "@duckdb/node-bindings-linux-x64" = "1.5.4-r.1";
+        "@duckdb/node-bindings-linux-x64-musl" = "1.5.4-r.1";
+        "@duckdb/node-bindings-win32-arm64" = "1.5.4-r.1";
+        "@duckdb/node-bindings-win32-x64" = "1.5.4-r.1";
+      };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ ];
+      cpu = [ ];
+      hasInstallScript = false;
+    };
+  };
   "@effect/platform-browser@4.0.0-rc.112" = fetchurl
     {
       url = "https://registry.npmjs.org/@effect/platform-browser/-/platform-browser-4.0.0-rc.112.tgz";
@@ -2142,6 +2349,240 @@
       hasInstallScript = false;
     };
   };
+  "@resvg/resvg-js-android-arm-eabi@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-android-arm-eabi/-/resvg-js-android-arm-eabi-2.6.2.tgz";
+      hash = "sha512-FrJibrAk6v29eabIPgcTUMPXiEz8ssrAk7TXxsiZzww9UTQ1Z5KAbFJs+Z0Ez+VZTYgnE5IQJqBcoSiMebtPHA==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-android-arm-eabi/-/resvg-js-android-arm-eabi-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "android" ];
+      cpu = [ "arm" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-android-arm64@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-android-arm64/-/resvg-js-android-arm64-2.6.2.tgz";
+      hash = "sha512-VcOKezEhm2VqzXpcIJoITuvUS/fcjIw5NA/w3tjzWyzmvoCdd+QXIqy3FBGulWdClvp4g+IfUemigrkLThSjAQ==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-android-arm64/-/resvg-js-android-arm64-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "android" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-darwin-arm64@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-darwin-arm64/-/resvg-js-darwin-arm64-2.6.2.tgz";
+      hash = "sha512-nmok2LnAd6nLUKI16aEB9ydMC6Lidiiq2m1nEBDR1LaaP7FGs4AJ90qDraxX+CWlVuRlvNjyYJTNv8qFjtL9+A==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-darwin-arm64/-/resvg-js-darwin-arm64-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "darwin" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-darwin-x64@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-darwin-x64/-/resvg-js-darwin-x64-2.6.2.tgz";
+      hash = "sha512-GInyZLjgWDfsVT6+SHxQVRwNzV0AuA1uqGsOAW+0th56J7Nh6bHHKXHBWzUrihxMetcFDmQMAX1tZ1fZDYSRsw==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-darwin-x64/-/resvg-js-darwin-x64-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "darwin" ];
+      cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-linux-arm-gnueabihf@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-linux-arm-gnueabihf/-/resvg-js-linux-arm-gnueabihf-2.6.2.tgz";
+      hash = "sha512-YIV3u/R9zJbpqTTNwTZM5/ocWetDKGsro0SWp70eGEM9eV2MerWyBRZnQIgzU3YBnSBQ1RcxRZvY/UxwESfZIw==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-linux-arm-gnueabihf/-/resvg-js-linux-arm-gnueabihf-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "arm" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-linux-arm64-gnu@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-linux-arm64-gnu/-/resvg-js-linux-arm64-gnu-2.6.2.tgz";
+      hash = "sha512-zc2BlJSim7YR4FZDQ8OUoJg5holYzdiYMeobb9pJuGDidGL9KZUv7SbiD4E8oZogtYY42UZEap7dqkkYuA91pg==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-linux-arm64-gnu/-/resvg-js-linux-arm64-gnu-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-linux-arm64-musl@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-linux-arm64-musl/-/resvg-js-linux-arm64-musl-2.6.2.tgz";
+      hash = "sha512-3h3dLPWNgSsD4lQBJPb4f+kvdOSJHa5PjTYVsWHxLUzH4IFTJUAnmuWpw4KqyQ3NA5QCyhw4TWgxk3jRkQxEKg==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-linux-arm64-musl/-/resvg-js-linux-arm64-musl-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-linux-x64-gnu@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-linux-x64-gnu/-/resvg-js-linux-x64-gnu-2.6.2.tgz";
+      hash = "sha512-IVUe+ckIerA7xMZ50duAZzwf1U7khQe2E0QpUxu5MBJNao5RqC0zwV/Zm965vw6D3gGFUl7j4m+oJjubBVoftw==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-linux-x64-gnu/-/resvg-js-linux-x64-gnu-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-linux-x64-musl@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-linux-x64-musl/-/resvg-js-linux-x64-musl-2.6.2.tgz";
+      hash = "sha512-UOf83vqTzoYQO9SZ0fPl2ZIFtNIz/Rr/y+7X8XRX1ZnBYsQ/tTb+cj9TE+KHOdmlTFBxhYzVkP2lRByCzqi4jQ==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-linux-x64-musl/-/resvg-js-linux-x64-musl-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "linux" ];
+      cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-win32-arm64-msvc@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-win32-arm64-msvc/-/resvg-js-win32-arm64-msvc-2.6.2.tgz";
+      hash = "sha512-7C/RSgCa+7vqZ7qAbItfiaAWhyRSoD4l4BQAbVDqRRsRgY+S+hgS3in0Rxr7IorKUpGE69X48q6/nOAuTJQxeQ==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-win32-arm64-msvc/-/resvg-js-win32-arm64-msvc-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "win32" ];
+      cpu = [ "arm64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-win32-ia32-msvc@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-win32-ia32-msvc/-/resvg-js-win32-ia32-msvc-2.6.2.tgz";
+      hash = "sha512-har4aPAlvjnLcil40AC77YDIk6loMawuJwFINEM7n0pZviwMkMvjb2W5ZirsNOZY4aDbo5tLx0wNMREp5Brk+w==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-win32-ia32-msvc/-/resvg-js-win32-ia32-msvc-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "win32" ];
+      cpu = [ "ia32" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js-win32-x64-msvc@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js-win32-x64-msvc/-/resvg-js-win32-x64-msvc-2.6.2.tgz";
+      hash = "sha512-ZXtYhtUr5SSaBrUDq7DiyjOFJqBVL/dOBN7N/qmi/pO0IgiWW/f/ue3nbvu9joWE5aAKDoIzy/CxsY0suwGosQ==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js-win32-x64-msvc/-/resvg-js-win32-x64-msvc-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ "win32" ];
+      cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@resvg/resvg-js@2.6.2" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@resvg/resvg-js/-/resvg-js-2.6.2.tgz";
+      hash = "sha512-xBaJish5OeGmniDj9cW5PRa/PtmuVU3ziqrbr5xJj901ZDN4TosrVaNZpEiLZAxdfnhAe7uQ7QFWfjPe9d9K2Q==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@resvg/resvg-js/-/resvg-js-2.6.2.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = {
+        "@resvg/resvg-js-android-arm-eabi" = "2.6.2";
+        "@resvg/resvg-js-android-arm64" = "2.6.2";
+        "@resvg/resvg-js-darwin-arm64" = "2.6.2";
+        "@resvg/resvg-js-darwin-x64" = "2.6.2";
+        "@resvg/resvg-js-linux-arm-gnueabihf" = "2.6.2";
+        "@resvg/resvg-js-linux-arm64-gnu" = "2.6.2";
+        "@resvg/resvg-js-linux-arm64-musl" = "2.6.2";
+        "@resvg/resvg-js-linux-x64-gnu" = "2.6.2";
+        "@resvg/resvg-js-linux-x64-musl" = "2.6.2";
+        "@resvg/resvg-js-win32-arm64-msvc" = "2.6.2";
+        "@resvg/resvg-js-win32-ia32-msvc" = "2.6.2";
+        "@resvg/resvg-js-win32-x64-msvc" = "2.6.2";
+      };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ ];
+      cpu = [ ];
+      hasInstallScript = false;
+    };
+  };
   "@rollup/rollup-linux-x64-gnu@4.63.0" = fetchurl
     {
       url = "https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.63.0.tgz";
@@ -2156,6 +2597,23 @@
       bin = { };
       os = [ "linux" ];
       cpu = [ "x64" ];
+      hasInstallScript = false;
+    };
+  };
+  "@scarf/scarf@1.4.0" = fetchurl
+    {
+      url = "https://registry.npmjs.org/@scarf/scarf/-/scarf-1.4.0.tgz";
+      hash = "sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==";
+    } // {
+    manifest = {
+      tarballUrl = "https://registry.npmjs.org/@scarf/scarf/-/scarf-1.4.0.tgz";
+      dependencies = { };
+      peerDependencies = { };
+      optionalDependencies = { };
+      optionalPeers = [ ];
+      bin = { };
+      os = [ ];
+      cpu = [ ];
       hasInstallScript = false;
     };
   };
@@ -7652,6 +8110,7 @@
   "olai-plugin-omp" = copyPathToStore ./packages/plugins/omp;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
   "olai-plugin-outline-olai" = copyPathToStore ./packages/plugins/outline-olai;
+  "olai-plugin-outline-org" = copyPathToStore ./packages/plugins/outline-org;
   "olai-plugin-outlines" = copyPathToStore ./packages/plugins/outlines;
   "olai-plugin-pdf" = copyPathToStore ./packages/plugins/pdf;
   "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;

@@ -70,13 +70,15 @@ import { PLUGIN_TESTID } from "@olai/bundle/testids";
 // and these two are the suite's, recorded. `ROW_TESTID` is which row one KIND
 // of file draws; `REFERRINGS` is the outline's word for a reference.
 import { TESTID as KIND_OUTLINES } from "olai-plugin-outlines/testids";
+import { TESTID as KIND_OUTLINE_ORG } from "olai-plugin-outline-org/testids";
 import { TESTID as KIND_MARKDOWN } from "olai-plugin-markdown/testids";
 import { TESTID as KIND_HYPERTEXT } from "olai-plugin-hypertext/testids";
 import { TESTID as KIND_CSV } from "olai-plugin-csv/testids";
 import { TESTID as KIND_IMAGE } from "olai-plugin-image/testids";
 import { TESTID as KIND_PDF } from "olai-plugin-pdf/testids";
 const ROW_TESTID = {
-  "outline-olai": KIND_OUTLINES.outlineLink, markdown: KIND_MARKDOWN.documentLink,
+  "outline-olai": KIND_OUTLINES.outlineLink, "outline-org": KIND_OUTLINE_ORG.outlineOrgLink,
+  markdown: KIND_MARKDOWN.documentLink,
   hypertext: KIND_HYPERTEXT.hypertextLink, csv: KIND_CSV.csvLink,
   image: KIND_IMAGE.imageLink, pdf: KIND_PDF.pdfLink,
 };
@@ -323,7 +325,14 @@ export const RAIL_DOCS = selector(TESTID.railDocs);
 export const SIDEBAR_RESIZE = selector(TESTID.sidebarResize);
 /** The file tree: every outline and document under the folders they live in. */
 export const OUTLINE_LIST = selector(TESTID.outlineList);
+/** The `.olai` row's id — one SPELLING of an outline; the org spelling's
+ *  sits beside it ({@link ANY_OUTLINE_LINK}). */
 export const OUTLINE_LINK = selector(TESTID.outlineLink);
+export const OUTLINE_ORG_LINK = selector(KIND_OUTLINE_ORG.outlineOrgLink);
+/** Every outline row, whichever of the two spellings keeps its records: the
+ *  two FORMATS' ids in one CSS arm — used anywhere a path already qualifies
+ *  the row, so the comma never splits the attribute it carries. */
+export const ANY_OUTLINE_LINK = `${OUTLINE_LINK},${OUTLINE_ORG_LINK}`;
 /** One folder in that tree. `data-path` / `data-collapsed` say which and how. */
 export const FILE_DIR = selector(TESTID.fileDir);
 export const FILE_DIR_TOGGLE = selector(TESTID.fileDirToggle);
@@ -1761,9 +1770,11 @@ export class OlaiWorld extends World {
     return addressOf(new URL(this.page.url()));
   }
 
-  /** One sidebar entry, by the relative path it stands for. */
+  /** One sidebar entry, by the relative path it stands for — EITHER outline
+   *  spelling: the attribute closes each CSS arm, because `X[a],Y` would
+   *  match `/house.olai` by any org row at all. */
   outlineLink(file: string): Locator {
-    return this.fileLink(OUTLINE_LINK, file);
+    return this.page.locator(`${OUTLINE_LINK}${attr("data-file", file)},${OUTLINE_ORG_LINK}${attr("data-file", file)}`);
   }
 
   /** ONE PANE of the workspace, by its index — the scope every question about

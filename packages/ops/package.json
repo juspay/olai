@@ -22,11 +22,12 @@
     "@olai/store": "workspace:*",
     "effect": "4.0.0-rc.112"
   },
-  "//devDependencies": "olai-plugin-outline-olai supplies the actual codec for writer and differential tests through its static format door; membership fixtures are literal data owned here, never re-exported from its testlib. @effect/platform-node is the FileSystem the tests drive a real temp directory through, exactly as @olai/store's are. @types/node is for the node built-ins the tests reach for. @olai/log is here for its `./testlib` collector ONLY \u2014 hearing a log line has exactly one spelling in this tree. It is deliberately not a runtime dependency: the levels and the verbs are Effect's, so nothing in src/ imports it.",
+  "//devDependencies": "olai-plugin-outline-olai supplies the actual codec for writer and differential tests through its static format door, and olai-plugin-outline-org the second spelling's claim for the mint-path tests; membership fixtures are literal data owned here, never re-exported from its testlib. @effect/platform-node is the FileSystem the tests drive a real temp directory through, exactly as @olai/store's are. @types/node is for the node built-ins the tests reach for. @olai/log is here for its `./testlib` collector ONLY \u2014 hearing a log line has exactly one spelling in this tree. It is deliberately not a runtime dependency: the levels and the verbs are Effect's, so nothing in src/ imports it.",
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",
     "@olai/log": "workspace:*",
     "@types/node": "^22.0.0",
-    "olai-plugin-outline-olai": "workspace:*"
+    "olai-plugin-outline-olai": "workspace:*",
+    "olai-plugin-outline-org": "workspace:*"
   }
 }

@@ -250,6 +250,15 @@
   quiet: true
   profiles: [surface, test-minimal]
   switchHint: Disabling this row unclaims outlines and prevents creating them; trash, inbox, pins and agenda become unavailable, and settings reading withdraws until it returns.
+# The ORG OUTLINES — the same records as Org headings with property drawers,
+# parsed by the packaged Org2. An ordinary claim row beside the olai reader:
+# off withdraws its files; the mint `format` setting decides which format row
+# new outlines are created in.
+- id: outline-org
+  name: olai-plugin-outline-org/server
+  section: Files
+  quiet: true
+  profiles: [surface]
 - id: markdown
   name: olai-plugin-markdown/server
   section: Files

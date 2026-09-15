@@ -3573,7 +3573,7 @@ const planCreate = (
     return Result.fail(new UsageFailure({ reason: `\`${path}\` is ${actual.article} ${actual.noun}; this verb takes an outline` }))
   }
   const file = outlinePath(scope.claims, scope.outlineRow, path)
-  if (file === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative path using ${mintExt(scope.claims, scope.outlineRow)} under the served directory.` }))
+  if (file === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative path using ${mintExt(scope.claims, fileKind(scope.claims, path) ?? scope.outlineRow)} under the served directory.` }))
 
   if (scope.asked.at(file)?.holds === "nodes") {
     return Result.fail(
@@ -3657,9 +3657,15 @@ const planCreate = (
  * resolving them, and require the name the format already treats as an outline.
  * Absolute paths (leading `/`) and Windows-style backslash separators never
  * become a segment that could be joined under the root by accident.
+ *
+ * WHICH spelling the name must carry is its own word when it names a kept
+ * outline row (`notes.org` mints on the same wire the configured row mints
+ * `notes.olai` — the browser's chips are this rule's other door), the row's
+ * own mint suffix otherwise.
  */
 export const outlinePath = (claims: Claims, row: string, raw: string): string | null => {
-  const ext = mintExt(claims, row)
+  const carried = claims.byKind.get(fileKind(claims, raw) ?? "")
+  const ext = carried !== undefined && carried.holds === "nodes" && carried.kept ? carried.exts[0] : mintExt(claims, row)
   return ext === null || claims.byKind.get(row)?.holds !== "nodes" ? null : creatable(raw, ext)
 }
 

@@ -28,7 +28,29 @@ import {
   steady,
   succeeded,
 } from "./fixtures.testlib.ts"
-import { plan, type Plan, scoping } from "./plan.ts"
+import { plan, outlinePath, type Plan, scoping } from "./plan.ts"
+import { claims } from "@olai/format"
+import { claim as ORG_CLAIM, name as ORG } from "olai-plugin-outline-org/claim"
+
+/** Both outline spellings claimed at once — the org row's registration from
+ *  its own claim module, beside this suite's literal membership. */
+const BOTH = claims([...TEST_CLAIMS.byKind.values(), { ...ORG_CLAIM, kind: ORG }])
+
+describe("the mint path's spelling", () => {
+  // `create`'s wire refuses what the name does not claim; a kept sibling
+  // spelling IS claimed — the chip in the sidebar and the agent's
+  // `files_create` meet the same rule here.
+  test("a kept sibling spelling mints on the same wire", () => {
+    expect(outlinePath(BOTH, "outline-olai", "notes.org")).toBe("notes.org")
+    expect(outlinePath(BOTH, ORG, "notes.olai")).toBe("notes.olai")
+    expect(outlinePath(BOTH, "outline-org", "plans/next.org")).toBe("plans/next.org")
+  })
+  test("what the name does not claim stays refused", () => {
+    expect(outlinePath(TEST_CLAIMS, "outline-olai", "notes.org")).toBeNull()
+    expect(outlinePath(BOTH, "outline-olai", "notes.md")).toBeNull()
+    expect(outlinePath(BOTH, "outline-olai", "../escape.org")).toBeNull()
+  })
+})
 
 const KITCHEN = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,

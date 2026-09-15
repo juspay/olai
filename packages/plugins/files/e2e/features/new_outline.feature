@@ -9,10 +9,12 @@ Feature: Starting a new outline from the sidebar
 
   What is typed is the PATH, because a file's name is its address in this app
   — the sidebar, the URL and every reading of the set call it by it. The suffix
-  is the door's own half of that: this door makes outlines, so `Foo` is asked
-  for as `Foo.olai` and `Foo.olai` is asked for as itself. Nothing else about
-  the path is judged in the browser — it goes to the ops layer completed and
-  otherwise as it was typed, and what comes back for one it will not take is
+  is the door's own half of that: this door makes outlines — and WHEN THE
+  RECORDS ARE KEPT IN TWO SPELLINGS it asks which one, one chip per format
+  with the configured row's chosen — so `Foo` is asked for as the chosen
+  spelling, and `Foo.org` as the format it names. Nothing else about the path
+  is judged in the browser — it goes to the ops layer completed and otherwise
+  as it was typed, and what comes back for one it will not take is
   `files_create`'s own sentence, drawn verbatim under the box.
 
   `@scratch:` because these write the directory they are served. They share
@@ -22,6 +24,47 @@ Feature: Starting a new outline from the sidebar
   Background:
     Given I open the outline "house.olai"
     And I mark the page
+
+  Scenario: The door asks which spelling of the records to mint
+    # The same records live in two formats here — the row's default chosen —
+    # and one chip per spelling says so; a door with one spelling draws none.
+    When I open the new outline box
+    Then the new outline box offers the spellings ".olai, .org"
+    And the ".olai" spelling is chosen for the new outline
+    When I choose the ".org" spelling for the new outline
+    And I fill the new outline box with "plans/next"
+    And I press "Enter"
+    Then the address is "/plans/next.org"
+    And the outline list links to "plans/next.org"
+    And the sidebar draws "plans/next.org" in the org spelling
+    And the file "plans/next.org" has been created
+    And there should be no page errors
+
+  Scenario: A typed sibling suffix names the format and skips the choice
+    # The name carries the answer, so the door's refusal is for suffixes
+    # naming what it CANNOT mint (`notes.md`), never for the other spelling.
+    When I create the outline "plans/raw.org" from the sidebar
+    Then the address is "/plans/raw.org"
+    And the outline list links to "plans/raw.org"
+    And the sidebar draws "plans/raw.org" in the org spelling
+    And there should be no page errors
+
+  Scenario: The door's spelling choice leaves with the second format row
+    Given I open the plugins panel
+    And I switch the plugin "outline-org" off
+    And I close the plugins panel
+    When I open the new outline box
+    Then the new outline box asks for no spelling
+    And I fill the new outline box with "plans/next"
+    And I press "Enter"
+    Then the address is "/plans/next.olai"
+    And the outline list links to "plans/next.olai"
+    And there should be no page errors
+    When I open the plugins panel
+    And I switch the plugin "outline-org" on
+    And I close the plugins panel
+    Then the outline list links to "house.olai"
+    And there should be no page errors
 
   Scenario: A new outline is created and opened, and the sidebar lists it
     When I create the outline "plans/next.olai" from the sidebar
