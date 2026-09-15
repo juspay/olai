@@ -11,10 +11,12 @@ import { lone } from "./workspace.ts"
  * `history.go` answering LATER with a `popstate` — so a seek is several
  * traversals the router has to see through without drawing any of them.
  */
-const browser = (first = "/") => {
-  const entries: Array<{ state: unknown; url: string }> = [{ state: null, url: first }]
-  let index = 0
+const browser = (first = "/", before: ReadonlyArray<{ state: unknown; url: string }> = []) => {
+  const entries: Array<{ state: unknown; url: string }> = [...before, { state: null, url: first }]
+  let index = before.length
   const popstate = new Set<() => void>()
+  const scrolled = new Set<() => void>()
+  let top = 0
   const url = () => new URL(entries[index]!.url, "http://localhost")
   const history = {
     scrollRestoration: "auto",
@@ -39,17 +41,29 @@ const browser = (first = "/") => {
   const globals: Record<string, unknown> = {
     history,
     location: { get pathname() { return url().pathname }, get search() { return url().search }, get hash() { return url().hash } },
-    addEventListener: (type: string, listener: () => void) => { if (type === "popstate") popstate.add(listener) },
-    removeEventListener: (type: string, listener: () => void) => { if (type === "popstate") popstate.delete(listener) },
-    scrollTo: () => {},
-    scrollY: 0,
+    addEventListener: (type: string, listener: () => void) => {
+      if (type === "popstate") popstate.add(listener)
+      if (type === "scroll") scrolled.add(listener)
+    },
+    removeEventListener: (type: string, listener: () => void) => {
+      popstate.delete(listener)
+      scrolled.delete(listener)
+    },
+    scrollTo: (to: { top: number }) => { top = to.top },
     requestAnimationFrame: (run: () => void) => setTimeout(run, 0),
     cancelAnimationFrame: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
   }
-  const saved = Object.keys(globals).map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const)
+  const saved: Array<readonly [string, PropertyDescriptor | undefined]> = [...Object.keys(globals), "scrollY"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const)
   for (const [name, value] of Object.entries(globals)) Object.defineProperty(globalThis, name, { configurable: true, value })
+  Object.defineProperty(globalThis, "scrollY", { configurable: true, get: () => top })
   return {
     path: () => url().pathname,
+    /** The reader scrolling the page to `to`. */
+    scroll: (to: number) => {
+      top = to
+      for (const listener of scrolled) listener()
+    },
+    top: () => top,
     address: () => entries[index]!.url,
     back: () => history.go(-1),
     forward: () => history.go(1),
@@ -70,8 +84,9 @@ const settled = async () => {
 const withRouter = async (
   run: (router: ReturnType<typeof createRouter>, page: ReturnType<typeof browser>) => Promise<void>,
   first?: string,
+  before?: ReadonlyArray<{ state: unknown; url: string }>,
 ) => {
-  const page = browser(first)
+  const page = browser(first, before)
   let dispose = () => {}
   try {
     const router = createRoot((stop) => {
@@ -98,11 +113,14 @@ test("Back walks the lane in front and skips another lane's pages", async () => 
     await settled()
     expect(drawn(router)).toBe("/")
     expect(page.path()).toBe("/")
-    // The start of b: Back bounces, and the reader stays where they were.
+    // The start of b: Back bounces, and the reader stays where they were —
+    // the same workspace, not a fresh one, and no landing minted on the way.
+    const before = router.workspace()
     page.back()
     await settled()
     expect(page.path()).toBe("/")
-    expect(drawn(router)).toBe("/")
+    expect(router.workspace()).toBe(before)
+    expect(router.landing(0)).toBeUndefined()
     page.forward()
     await settled()
     expect(drawn(router)).toBe("/three.md")
@@ -170,4 +188,85 @@ test("taking a lane over the page already drawn leaves the address bar alone, be
     router.switchLane(null, router.workspace(), router.entryKey())
     expect(page.address()).toBe(address)
   }, address)
+})
+
+test("Forward at the end of a lane bounces and leaves the page alone", async () => {
+  await withRouter(async (router, page) => {
+    router.switchLane("a", router.workspace(), router.entryKey())
+    router.go(atFile("one.md"))
+    router.switchLane("b", lone(atFile("b.md")))
+    router.go(atFile("b2.md"))
+    router.switchLane("a", lone(atFile("one.md")))
+    page.back()
+    await settled()
+    expect(drawn(router)).toBe("/")
+    page.forward()
+    await settled()
+    expect(drawn(router)).toBe("/one.md")
+    const before = router.workspace()
+    page.forward()
+    await settled()
+    expect(page.path()).toBe("/one.md")
+    expect(router.workspace()).toBe(before)
+  })
+})
+
+test("an entry written before positions existed is dead while a lane is in force", async () => {
+  await withRouter(async (router, page) => {
+    router.switchLane("a", router.workspace(), router.entryKey())
+    const before = router.workspace()
+    page.back()
+    await settled()
+    expect(page.path()).toBe("/here.md")
+    expect(router.workspace()).toBe(before)
+  }, "/here.md", [{ state: { key: "from-an-older-build" }, url: "/older.md" }])
+})
+
+test("forgetting the lane in force still leaves Back somewhere to come home to", async () => {
+  await withRouter(async (router, page) => {
+    router.switchLane("a", router.workspace(), router.entryKey())
+    router.go(atFile("one.md"))
+    router.forgetLane("a")
+    page.back()
+    await settled()
+    expect(page.path()).toBe("/one.md")
+    expect(drawn(router)).toBe("/one.md")
+    // ...and the lane switched in afterwards walks as usual.
+    router.switchLane("b", lone(atFile("b.md")))
+    router.go(atFile("b2.md"))
+    page.back()
+    await settled()
+    expect(drawn(router)).toBe("/b.md")
+  })
+})
+
+test("a lane brought back with its entry's key comes back to where it was scrolled", async () => {
+  await withRouter(async (router, page) => {
+    router.switchLane("a", router.workspace(), router.entryKey())
+    router.go(atFile("one.md"))
+    page.scroll(300)
+    const left = router.entryKey()
+    router.switchLane("b", lone(atFile("b.md")))
+    expect(page.top()).toBe(0)
+    router.switchLane("a", lone(atFile("one.md")), left)
+    expect(page.top()).toBe(300)
+  })
+})
+
+test("a switch asked for mid-travel is written once the browser is back on its entry", async () => {
+  await withRouter(async (router, page) => {
+    router.switchLane("a", router.workspace(), router.entryKey())
+    router.go(atFile("one.md"))
+    router.switchLane("b", lone(atFile("b.md")))
+    page.back() // b's start: this will bounce
+    router.switchLane("c", lone(atFile("c.md")))
+    await settled()
+    expect(page.path()).toBe("/c.md")
+    expect(router.lane()).toBe("c")
+    expect(drawn(router)).toBe("/c.md")
+    router.go(atFile("c2.md"))
+    page.back()
+    await settled()
+    expect(drawn(router)).toBe("/c.md")
+  })
 })

@@ -80,12 +80,21 @@ keeps travelling in the same direction without drawing anything, and when none
 of this lane's entries lies beyond it, it returns to the entry it started from.
 The decision is the pure `seek` in `src/lanes.ts`.
 
+While a traversal travels, nothing on screen changes — no workspace, no landing,
+no scroll — including when it bounces home. It counts the entries it has moved
+past, so it can always return. An entry it cannot place — one the browser made
+mid-travel, or one written by a build before positions, still in the stack after
+an upgrade — is passed over as dead; the second kind can only lie behind every
+entry this document wrote, so reaching it by Back bounces one step forward. A
+`switchLane` asked for mid-travel updates the lane and the page at once, and
+writes the entry once the browser is back on it.
+
 `switchLane` replaces the entry under the reader; it is not a history event. It
 reuses `key` when given, so the scroll memory returns the entry to where it was
 left, and returns the key the entry carries now. When the address does not
 change it leaves the landing and scroll alone. The first lane taken
 where none was in force adopts the entries this document wrote without one.
-`forgetLane(lane)` marks that lane's entries dead, so a closed tab's pages are skipped. `switchLane(null, …)`
+`forgetLane(lane)` marks that lane's entries dead, so a closed tab's pages are skipped. Forgetting the lane in force keeps the entry under the reader alive until the next `switchLane`, so Back and Forward always have an entry to return to. `switchLane(null, …)`
 restores window history: every entry matches again. `lane()` and `entryKey()`
 read the lane in force and the name of the current entry.
 
@@ -102,7 +111,9 @@ same rule: ⌘ on Apple and Ctrl elsewhere, no Alt, Shift matched exactly. With
 Shift held, `.` and `,` match by the key they are on. A chord whose key and
 Shift the core table already answers is refused with a console warning naming
 both, and between two plugins the first keeps it. Registered chords are listed
-in the shortcuts sheet under "Added by plugins", in their `said` words.
+in the shortcuts sheet under "Added by plugins", in their `said` words. They are
+answered only while the palette's component is active: it names `layout.shell`
+and the renderer, so with the layout row off a registered chord does nothing.
 
 `Routing.label(route)` is a page's short name — a node's id, a file's path, a
 plugin page's breadcrumb — read by the pane header and the tab strip alike.
