@@ -77,8 +77,9 @@ export const createTabs = (router: Navigation): TabsStore => {
   // and a reload writes that very address back anyway.
   const stored = untrack(preference.value)
   const drawing = untrack(router.workspace)
+  const first = nextId(undefined)
   const initial: TabList = stored === undefined
-    ? { tabs: [{ id: nextId(undefined), href: hrefOf(drawing), title: titleOf(router, drawing, false) }], front: nextId(undefined) }
+    ? { tabs: [{ id: first, href: hrefOf(drawing), title: titleOf(router, drawing, false) }], front: first }
     : updateTab(stored, stored.front, { href: hrefOf(drawing) })
   const [list, setList] = createSignal<TabList>(initial)
 
