@@ -35,7 +35,7 @@ marked,
 NOWHERE,
 spent
 } from "./landing.ts"
-import { forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
+import { adopted, forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
 import type { Route } from "./routes.ts"
 import { routing } from "./pages.ts"
 import { createScrollMemory } from "./scroll.ts"
@@ -304,9 +304,12 @@ export const createRouter = (): Router => {
     const moved = hrefOfWorkspace(routing, target) !== hrefOfWorkspace(routing, untrack(workspace))
     const renamed = name !== currentKey
     seeking = undefined
+    // The entries this document wrote while no lane was in force belong to no
+    // tab yet; the lane taken over them is the tab that was showing them.
+    const owned = untrack(lane) === null && next !== null ? adopted(rows, next) : rows
     setLane(next)
     currentKey = name
-    rows = new Map(rows).set(currentAt, next)
+    rows = new Map(owned).set(currentAt, next)
     history.replaceState(stamp(name), "", hrefOfWorkspace(routing, target))
     if (moved) batch(() => {
       setLandings(NOWHERE)

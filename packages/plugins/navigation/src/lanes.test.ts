@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { DEAD_LANE, forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
+import { adopted, DEAD_LANE, forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
 
 const rows = (...owners: ReadonlyArray<string | null>): LaneRows =>
   new Map(owners.map((owner, at) => [at, owner] as const))
@@ -47,4 +47,9 @@ test("positions the table never saw are dead while a lane is in force", () => {
 test("a push discards the entries beyond it", () => {
   const pushed = pushedAt(rows("a", "a", "b", "b"), 2, "a")
   expect([...pushed]).toEqual([[0, "a"], [1, "a"], [2, "a"]])
+})
+
+test("a lane taken over entries that belonged to no tab adopts them, and nothing else", () => {
+  const taken = adopted(new Map([[0, null], [1, "b"], [2, DEAD_LANE], [3, null]]), "a")
+  expect([...taken]).toEqual([[0, "a"], [1, "b"], [2, DEAD_LANE], [3, "a"]])
 })

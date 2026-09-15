@@ -1,0 +1,3 @@
+/* The strip and its menus are drawn by this row, so it owns their Tailwind source. */
+@import "@olai/ui-primitives/all.css";
+@source "./";

@@ -63,6 +63,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/ui-renderer.md](plugins/ui-renderer.md) | The Solid renderer and scope-owned extension locations. |
 | [plugins/layout.md](plugins/layout.md) | The root page layout: panels, header, banner, and viewer slots. |
 | [plugins/navigation.md](plugins/navigation.md) | Addresses, history, pane focus, and the command palette. |
+| [plugins/tabs.md](plugins/tabs.md) | Several pages open as tabs above the panes, each with its own Back and Forward. |
 | [plugins/sidebar.md](plugins/sidebar.md) | The directory column and the rail beside it, and their extension slots. |
 | [plugins/outlines.md](plugins/outlines.md) | Outline pages, node editing, and contextual commands. |
 | [plugins/markdown.md](plugins/markdown.md) | Document editing, frontmatter, and headings. |

@@ -83,8 +83,9 @@ The decision is the pure `seek` in `src/lanes.ts`.
 `switchLane` replaces the entry under the reader; it is not a history event. It
 reuses `key` when given, so the scroll memory returns the entry to where it was
 left, and returns the key the entry carries now. When the address does not
-change it leaves the landing and scroll alone. `forgetLane(lane)` marks that
-lane's entries dead, so a closed tab's pages are skipped. `switchLane(null, …)`
+change it leaves the landing and scroll alone. The first lane taken
+where none was in force adopts the entries this document wrote without one.
+`forgetLane(lane)` marks that lane's entries dead, so a closed tab's pages are skipped. `switchLane(null, …)`
 restores window history: every entry matches again. `lane()` and `entryKey()`
 read the lane in force and the name of the current entry.
 
