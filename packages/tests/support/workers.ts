@@ -101,7 +101,7 @@ export const spawnFingerprint = (opts: {
   /** Whether this server was given an OAuth client and secret (`@mail-doors`).
    *  A boolean rather than the pair: the values are the same two constants for
    *  every scenario that asks, and a key carrying them would be a fingerprint
-   *  with a secret in it (`./mail_fixtures.ts` spells them). */
+   *  with a secret in it (`olai-plugin-mail/appliance/testlib` spells them). */
   readonly mailDoors?: boolean;
   /** WHICH INTEGRATIONS this server composed (the file’s row selection), if the scenario
    *  said. Part of the key for the padi socket's reason one field up: a server

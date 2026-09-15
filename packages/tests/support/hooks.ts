@@ -413,7 +413,7 @@ const MAIL_GOOGLE_TAG = /^@mail-google:([\w-]+)$/;
  * then says so in its own words and offers no Connect button, because a Connect
  * with nothing to authorize with is a button that teaches a person the feature
  * is broken (`olai-plugin-mail`'s `./src/browser/Row.tsx`). The values are
- * fixtures (`./mail_fixtures.ts`'s `DOORS`), not a real client: what a scenario
+ * fixtures (the row's `appliance/testlib` fixtures' `DOORS`), not a real client: what a scenario
  * asserts about a credential is that the row GOT one, never which one.
  *
  * A TAG rather than a step for every reason the tags above are: these are read
@@ -791,6 +791,22 @@ interface Spawn {
    *  in, and the one the hollow chip is drawn from. */
   readonly padiSocket?: string;
   readonly oduOrigin?: string;
+  /** WHICH HIMALAYA this server spawns — `@mail-himalaya:<fixture>`'s value,
+   *  the absolute path of the fake's executable. ABSENT is not "the pinned
+   *  pin": `./workers.ts` deletes the host's `OLAI_HIMALAYA` and this field is
+   *  what sets it, so a scenario with no tag hands the serve the empty string,
+   *  which is the row's own off switch and the state the scenario about a serve
+   *  with no Nix build asserts against. */
+  readonly himalaya?: string;
+  /** WHICH GOOGLE this server talks to — `@mail-google:<fixture>`'s origin.
+   *  Set on every spawn, for `ODU_WEB_ORIGIN`'s reason: an omitted variable is
+   *  not "derived and absent", it is the REAL Google, and no scenario may talk
+   *  to it (the default is an un-routable loopback port). */
+  readonly mailGoogle?: string;
+  /** Whether this server was given the two credential doors (`@mail-doors`).
+   *  Their ABSENCE is a scenario of its own — the row names the two doors and
+   *  offers no Connect — so there is no default to set. */
+  readonly mailDoors?: boolean;
   /** `true` puts a fake `opencode` on the agent search path, so this server's
    *  roster is two agents. Otherwise that path is EMPTY and the roster is the
    *  scripted agent alone — see {@link FAKE_OPENCODE_DIR}. */
@@ -937,7 +953,7 @@ const startServerChild = async (
         // ABSENCE is the state one scenario is about (the row names the two
         // doors and offers no Connect), so there is no default to set. The
         // values are fixtures — this suite's own serve and its fake Google
-        // (`./mail_fixtures.ts`) — never a client id anybody's console knows.
+        // (the row's own `appliance/testlib` fixtures) — never a client id anybody's console knows.
         ...(spawnOptions.mailDoors === true
           ? {
               OLAI_MAIL_OAUTH_CLIENT: MAIL_FIXTURE_DOORS.client,
