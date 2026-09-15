@@ -51,6 +51,9 @@ These browser scenarios cover behavior that unit tests also cover, because the b
 | `outlines/browser/edit/undoing.test.ts`: pending undo entries, failed replay, older history | The real ordering of blur-save and key events, retained text, and Undo and Redo in the browser. The refusal permutations stay below the browser |
 | `pins/browser/reorder.test.ts`: gap and neighbor arithmetic | Held mouse gestures, Escape and secondary-button handling, the shelf changing under the gesture, indicator cleanup, and a later reorder with Undo |
 | `ops/plan.test.ts`: title and property preconditions, refusing a removed pin | The browser capturing and sending the original baseline, the refusal staying visible, and the draft staying correctable |
+| `navigation/src/lanes.test.ts`: apply, seek, bounce, dead and unknown positions | The browser's asynchronous `history.go` answering a seek, a popstate that lands on another tab's entry being passed over without drawing it, and Back after a reload (`tabs/e2e/features/history.feature`) |
+| `tabs/src/list.test.ts`: open, close neighbours, the last tab, close others, duplicate, reorder | The strip's gestures — press, middle-click, the menu, a drag past the threshold — reaching those verbs, and the router following the new front tab (`strip.feature`) |
+| `tabs/src/persist.test.ts`: round trip and every malformed record | Real `localStorage` across a reload and after a phone visit, and the address bar winning over the stored front tab (`strip.feature`, `history.feature`, `phone.feature`) |
 | `git/browser/commit/selection.test.ts`: deriving the selected files | The prepared state surviving a plugin rebuild, and the resulting Git commit containing exactly the reviewed files |
 
 These are overlaps in behavior, not evidence that the unit tests exercise the browser path. Several #510 fixes were exactly that: working logic underneath, wired to the wrong UI state or request.
