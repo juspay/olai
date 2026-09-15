@@ -95,6 +95,28 @@ export const Account = Schema.Struct({
   /** The fault's reason: Google's own error word (`invalid_grant`), or the
    *  sentence a missing door composed. `null` off the fault arm. */
   reason: Schema.NullOr(Schema.String),
+  /**
+   * WHETHER THE FAULT IS A WAIT RATHER THAN A VERDICT — the serve is retrying
+   * on its own backoff and a press is not what clears it (`../account.ts` says
+   * which failures are which). A FIELD rather than a word appended to `reason`,
+   * because it is what the faces branch on: the pill's tooltip, the row's
+   * grouping and whether a button is drawn at all. `false` off the fault arm.
+   */
+  retrying: Schema.Boolean,
+  /**
+   * WHETHER A PRESS OF CONNECT WOULD REACH GOOGLE — the pinned binary is
+   * there and both credential doors are set. The row reads it BEFORE drawing
+   * its connect button, because two of the three fault reasons are ones no
+   * press can fix: a serve started outside the Nix build cannot be repaired
+   * from a panel, and an operator's missing credential is not a button's.
+   *
+   * Server-computed rather than derived by a renderer, because the facts are
+   * the environment's and the renderer has none of them — and one predicate
+   * answers for the button AND for `needs()` (which files the row under Needs
+   * you), so a row can never be filed as asking while its own face offers
+   * nothing.
+   */
+  canConnect: Schema.Boolean,
 })
 export type Account = typeof Account.Type
 
@@ -111,6 +133,8 @@ export const MAIL_UNCONNECTED: Account = {
   scope: SCOPE,
   redirect: "",
   reason: null,
+  retrying: false,
+  canConnect: false,
 }
 
 export const sameAccount: (a: Account, b: Account) => boolean = Schema.toEquivalence(Account)
@@ -176,13 +200,14 @@ export const surface = defineSurface({
  * let a conversation unauthorize the mailbox it was asked about.
  *
  * `mutates: true` on both, because the exposure SHAPE is what a host reads if
- * this map is ever projected onto a face that asks — and a consent flow is not
- * a read by any measure.
+ * this map is ever projected onto a face that asks — and neither verb is a
+ * read: `begin` arms a pending authorization and republishes the cell with the
+ * redirect it just made knowable, and `disconnect` revokes a grant at Google.
  */
 export const faces = {
   browser: {
     account: "resource",
-    "connect.begin": { tool: { mutates: false } },
+    "connect.begin": { tool: { mutates: true } },
     "connect.disconnect": { tool: { mutates: true } },
   },
 } as const

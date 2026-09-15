@@ -72,7 +72,26 @@ declare module "@olai/plugin-api/slots" {
   }
 }
 
-/** The seat a plugin hangs its row's own drawing in, and the declaration the
- *  panel's tools entry offers as a child (`./browser.tsx`) — a registration
- *  into a location no active entry declared would simply wait. */
-export const pluginsRow = slotContract<PluginsRowFace>("plugins.row", "plugin")
+/**
+ * THE SEAT A PLUGIN HANGS ITS ROW'S OWN DRAWING IN, as the table every other
+ * slot owner in this tree publishes (`layout`, `chat`, `outlines`, `sidebar`
+ * and `navigation` all export `slotContracts` and re-export it as `slots`).
+ *
+ * The table rather than a lone export is not tidiness: `plugin-inspector`'s row
+ * in `olai.yml` names this package's ROOT module, and the root's `slots` is
+ * what `@olai/vault-plugins` reads to tell a plugin author which seats exist
+ * (`slotCatalog`). A lone `pluginsRow` export left this seat out of that
+ * answer — the one convention the fence could not check, because the fence
+ * asserts the door is declared, not what the door is called.
+ */
+export const slotContracts = {
+  /** The declaration the panel's tools entry offers as a child (`./browser.tsx`)
+   *  — a registration into a location no active entry declared would simply
+   *  wait. */
+  "plugins.row": slotContract<PluginsRowFace>("plugins.row", "plugin"),
+} as const
+
+/** THE SEAT ITSELF, for a reader that wants one name rather than a table —
+ *  this package's own tools entry, and the shape `slotContracts["plugins.row"]`
+ *  would spell at that call site. */
+export const pluginsRow = slotContracts["plugins.row"]

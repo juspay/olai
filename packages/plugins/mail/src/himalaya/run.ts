@@ -24,6 +24,26 @@
  * disk at all. The REFRESH TOKEN is the thing that must survive, and it lives in
  * core's `LocalState` file (`./local.ts`), not here.
  *
+ * ## What the child is ALLOWED to see, and for how long it may run
+ *
+ * Two things about this spawn that a spawn gets wrong by default:
+ *
+ *   - **the environment is an ALLOWLIST, not inherited.** A child inherits the
+ *     server's whole environment otherwise, which for olai means
+ *     `OLAI_MAIL_OAUTH_SECRET`, `OLAI_SPACES_TOKEN` and every provider key the
+ *     engines read (`docs/running.md` lists them) — credentials this process
+ *     holds for other purposes entirely, handed to a program that needs none of
+ *     them. What Himalaya does need is a PATH, a HOME, a TMPDIR, a timezone,
+ *     the locale, and the CA bundle variables a NixOS host sets for rustls;
+ *     {@link CHILD_ENV} is that list, and `../server.ts` fills it from the
+ *     declared `Env` door rather than from `process.env`.
+ *   - **the run is BOUNDED.** A Himalaya stalled on the network (Gmail slow, a
+ *     proxy black-holing) never closes, so the caller never returns and the row
+ *     sits on the seed `absent` with nothing saying why. {@link TIMEOUT_MS} is
+ *     the deadline, the signal kills the child, and the caller gets the same
+ *     kind of outcome any other failure has — which the machine treats as a
+ *     retry rather than a verdict (`../account.ts`).
+ *
  * ## What a refusal is made of
  *
  * The pinned binary with `--json` answers a failure on STDOUT as
@@ -57,6 +77,43 @@ export const NO_BINARY =
  *  thing in `absent`'s own words. */
 export const NO_ACCOUNT = "no Gmail account is connected to this serve"
 
+/** How long one verb may take before the child is killed and the caller told.
+ *  A minute is generous for a REST call against Gmail and short enough that a
+ *  black-holed connection is a retry rather than a hung row. */
+export const TIMEOUT_MS = 60 * 1000
+
+/**
+ * WHAT A HIMALAYA CHILD MAY SEE — an allowlist, and the whole of it.
+ *
+ * PATH and HOME so it can find its own way; TMPDIR so it writes where this
+ * serve does; TZ, LANG and LC_ALL so a date it formats reads as a date; the
+ * three CA-bundle variables because the pinned build speaks TLS through rustls
+ * and a NixOS host points those at the system store. Nothing else — in
+ * particular no `OLAI_*` door and no provider key, which this process holds for
+ * entirely different purposes.
+ */
+export const CHILD_ENV: ReadonlyArray<string> = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TZ",
+  "LANG",
+  "LC_ALL",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "NIX_SSL_CERT_FILE",
+]
+
+/** The directory a generated config lives in, and the credential with it: the
+ *  user's runtime directory when there is one — tmpfs, mode 0700, cleared at
+ *  logout — and `tmpdir()` when there is not (`cron`, a container with no
+ *  session). Either way `mkdtemp` makes the directory 0700 and `close` removes
+ *  it. */
+const configRoot = (env: Record<string, string | undefined>): string => {
+  const runtime = env["XDG_RUNTIME_DIR"]?.trim()
+  return runtime !== undefined && runtime !== "" ? runtime : tmpdir()
+}
+
 export interface Run {
   readonly verb: GmailVerb
   /** The verb's own arguments, in the order its `--help` lists them. */
@@ -64,6 +121,14 @@ export interface Run {
 }
 
 export interface Himalaya {
+  /**
+   * THE BINARY THIS SERVE WAS GIVEN, or `undefined` when it was handed none —
+   * the fact the machine's readiness reading is built on (`../account.ts`).
+   * Exposed here rather than passed beside this object, because "is there a
+   * pinned Himalaya" is a fact about the runner, which is the thing that
+   * spawns it: two copies of the same string is how the two answers drift.
+   */
+  readonly binary: string | undefined
   /** Write the token the next call runs with. Called on every successful
    *  refresh the token broker makes. */
   readonly useToken: (input: { readonly token: string; readonly address: string | null }) => Effect.Effect<void, MailRefusal>
@@ -77,14 +142,21 @@ interface Outcome {
   readonly code: number | null
   readonly stdout: string
   readonly stderr: string
+  /** Whether the deadline above is what ended this run, which is the one
+   *  outcome no exit status can spell: a killed child reports no code, and so
+   *  does a binary that was never there. */
+  readonly timedOut: boolean
 }
 
 /** Spawn, collect both streams, answer the exit. Never rejects: a binary that
  *  cannot be started at all (ENOENT, EACCES) is an outcome with no status and a
  *  message on stderr — which is the same road a refusal takes, one arm wider. */
-const execute = (binary: string, argv: ReadonlyArray<string>): Promise<Outcome> => {
+const execute = (binary: string, argv: ReadonlyArray<string>, env: NodeJS.ProcessEnv): Promise<Outcome> => {
   const { promise, resolve } = Promise.withResolvers<Outcome>()
-  const child = spawn(binary, [...argv], { stdio: ["ignore", "pipe", "pipe"] })
+  const deadline = AbortSignal.timeout(TIMEOUT_MS)
+  let timedOut = false
+  deadline.addEventListener("abort", () => { timedOut = true })
+  const child = spawn(binary, [...argv], { stdio: ["ignore", "pipe", "pipe"], env, signal: deadline })
   let stdout = ""
   let stderr = ""
   child.stdout?.setEncoding("utf8")
@@ -95,12 +167,13 @@ const execute = (binary: string, argv: ReadonlyArray<string>): Promise<Outcome> 
   // carries the status — so the error is recorded and the answer waits for the
   // close, which node emits even for a spawn that never happened.
   child.on("error", (error) => { stderr = stderr === "" ? error.message : `${stderr}\n${error.message}` })
-  child.on("close", (code) => resolve({ code, stdout, stderr }))
+  child.on("close", (code) => resolve({ code, stdout, stderr, timedOut }))
   return promise
 }
 
 /** The binary's own sentence, in the order of how much it knows. */
 const refusedWith = (where: string, done: Outcome): string => {
+  if (done.timedOut) return `${where} did not answer within ${TIMEOUT_MS / 1000} seconds`
   const printed = done.stdout.trim()
   if (printed !== "") {
     try {
@@ -131,35 +204,49 @@ const refusedWith = (where: string, done: Outcome): string => {
  * creates nothing. `close` on a runner that never wrote anything removes
  * nothing.
  */
-export const makeHimalaya = (binary: string | undefined): Himalaya => {
-  const exe = binary?.trim() ? binary.trim() : undefined
+export const makeHimalaya = (input: {
+  readonly binary: string | undefined
+  readonly env: Record<string, string | undefined>
+}): Himalaya => {
+  const exe = input.binary?.trim() ? input.binary.trim() : undefined
+  const childEnv: NodeJS.ProcessEnv = {}
+  for (const key of CHILD_ENV) {
+    const value = input.env[key]
+    if (value !== undefined) childEnv[key] = value
+  }
+  /** WHETHER A TOKEN HAS BEEN WRITTEN — one fact, and the only thing `run`'s
+   *  NO_ACCOUNT guard needs. It is deliberately not the token text: the file is
+   *  rewritten whole on every refresh (see the header), so a copy of that text
+   *  in memory would be a second place for the file and the token to disagree. */
+  let holding = false
   let directory: string | undefined
-  let written: string | undefined
 
   const configPath = async (): Promise<string> => {
-    if (directory === undefined) directory = await mkdtemp(join(tmpdir(), "olai-mail-"))
+    if (directory === undefined) directory = await mkdtemp(join(configRoot(input.env), "olai-mail-"))
     return join(directory, CONFIG_FILE)
   }
 
   return {
+    binary: exe,
+
     useToken: (input) =>
       Effect.tryPromise({
         try: async () => {
-          const rendered = renderConfig(input)
-          if (rendered === written && directory !== undefined) return
           const at = await configPath()
-          await writeFile(at, rendered, { mode: 0o600 })
-          written = rendered
+          await writeFile(at, renderConfig(input), { mode: 0o600 })
+          holding = true
         },
         catch: (error) => new MailRefusal({ reason: `could not write Himalaya's config: ${String(error)}` }),
       }),
 
     run: (call) =>
       Effect.gen(function*() {
+        // NO ARM FOR A MISSING BINARY: every caller reaches this through the
+        // machine's readiness reading, which is the same fact (`binary` above).
         if (exe === undefined) return yield* Effect.fail(new MailRefusal({ reason: NO_BINARY }))
-        if (written === undefined) return yield* Effect.fail(new MailRefusal({ reason: NO_ACCOUNT }))
+        if (!holding) return yield* Effect.fail(new MailRefusal({ reason: NO_ACCOUNT }))
         const at = yield* Effect.promise(() => configPath())
-        const done = yield* Effect.promise(() => execute(exe, himalayaArgv(at, call.verb.path, call.args ?? [])))
+        const done = yield* Effect.promise(() => execute(exe, himalayaArgv(at, call.verb.path, call.args ?? []), childEnv))
         if (done.code !== 0) {
           return yield* Effect.fail(new MailRefusal({ reason: refusedWith(exe, done) }))
         }
@@ -172,7 +259,7 @@ export const makeHimalaya = (binary: string | undefined): Himalaya => {
     close: async () => {
       const at = directory
       directory = undefined
-      written = undefined
+      holding = false
       if (at !== undefined) await rm(at, { recursive: true, force: true })
     },
   }

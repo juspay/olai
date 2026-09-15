@@ -87,7 +87,7 @@ import type { LiveOdu } from "olai-plugin-odu/appliance/testlib";
 // THE MAIL ROW'S TWO FAKES, for the same reason the two above are here: the
 // world holds what the harness started (so `After` can stop it), and a scenario
 // restarting its server has the fixture names to hand back to `hooks.ts`.
-import type { FakeGoogle, FakeHimalaya } from "olai-plugin-mail/appliance/testlib";
+import type { FakeGoogleByName, FakeHimalayaByName } from "olai-plugin-mail/appliance/testlib";
 import {
   setDefaultTimeout,
   setWorldConstructor,
@@ -1450,13 +1450,13 @@ export class OlaiWorld extends World {
   /** The fake Himalaya binary this scenario spawned, so the After hook can take
    *  its temp directory with it. One per scenario: a mailbox two scenarios
    *  shared would be two scenarios answering from one fixture. */
-  mailHimalaya: FakeHimalaya | undefined = undefined;
+  mailHimalaya: FakeHimalayaByName | undefined = undefined;
   /** `@mail-google:<fixture>`: which grant this scenario's fake Google honours. */
   mailGoogleFleet: string | undefined = undefined;
   /** The fake Google this scenario started — a server in this worker's process,
    *  so a step reads its record of what the product SENT (`revoked()`), and the
    *  After hook stops it. */
-  mailGoogle: FakeGoogle | undefined = undefined;
+  mailGoogle: FakeGoogleByName | undefined = undefined;
   /** `@mail-doors`: whether this scenario's serve was handed an OAuth client
    *  and secret. WITHOUT it both are UNSET, which is the row's own sentence
    *  about what a connect would need — a scenario of its own, and the reason

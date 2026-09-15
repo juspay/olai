@@ -28,13 +28,21 @@
  * plugin's file cannot afford to lose a refresh token to. The shape is
  * `olai-plugin-xyne-spaces`' `./local.ts`, one field set over.
  *
- * ## A malformed record is ABSENCE, said out loud
+ * ## A malformed record is ABSENCE — and only a STRANGER is said out loud
  *
  * A record that does not parse is not a defect and must not stop the row: this
  * file is written by a plugin that may have been a different version, and the
- * honest reading of a token-shaped thing olai cannot understand is *no account*,
- * with a line in the log naming the file. Losing a connection is recoverable in
- * one press; a serve that will not boot over a JSON key is not.
+ * honest reading of a token-shaped thing olai cannot understand is *no account*.
+ * Losing a connection is recoverable in one press; a serve that will not boot
+ * over a JSON key is not.
+ *
+ * The warning is for the case that is actually strange — an object holding
+ * something OTHER than the fields olai writes. Two ordinary states must not
+ * warn: a serve that has never connected (`LocalState.load` answers `null`) and
+ * a serve whose account was disconnected (core saves `{}` and writes it back as
+ * `{cwd}`, the served directory it keys the record by). A row that warned on
+ * every boot of every fresh serve would be a warning nobody reads, which is the
+ * only way a real one gets missed.
  */
 
 import type { LocalState, Refusal } from "@olai/plugin-api/services"
@@ -95,8 +103,13 @@ export interface Memory {
  */
 export const openMemory = (door: LocalState, warn: (line: string) => void): Effect.Effect<Memory> =>
   Effect.gen(function*() {
-    const loaded = recordOf(yield* door.load)
-    if (loaded === undefined) warn("mail: the memory record is not a record olai wrote — reading it as no account")
+    const raw = yield* door.load
+    const loaded = recordOf(raw)
+    // `cwd` is core's own key on every record it writes; anything else in
+    // there is somebody else's object, which is worth a line.
+    if (loaded === undefined && raw !== null && Object.keys(raw).some((key) => key !== "cwd")) {
+      warn("mail: the memory record is not a record olai wrote — reading it as no account")
+    }
     let held: MemoryRecord | undefined = loaded
     const writing = yield* Semaphore.make(1)
     return {

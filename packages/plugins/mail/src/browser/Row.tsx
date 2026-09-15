@@ -56,13 +56,17 @@ export interface MailClient {
   }
 }
 
-/** `needs` — whether the panel files this row under **Needs you**. A row is
- *  asking for a person exactly when a person can DO something about it: Connect
- *  when there is no account and the doors are set, Reconnect or Disconnect when
- *  there is a fault. A serve missing the two credential doors is not asking —
- *  the answer is an operator's, not a press. */
+/** `needs` — whether the panel files this row under **Needs you**, AND
+ *  whether the row draws a Connect / Reconnect button. One predicate, because
+ *  the two questions are the same question: a row is asking for a person
+ *  exactly when a PRESS can do something about it. Three facts, each the
+ *  machine's own reading rather than a sentence this file would have to match:
+ *  `canConnect` (a press would reach Google at all), `retrying` (the serve is
+ *  working on it, so a press is not what it needs), and the arm. A fault with
+ *  no way to press is not asking (a restart from Nix, or an operator's), and
+ *  neither is a serve missing the two credential doors. */
 export const mailNeedsYou = (account: Account): boolean =>
-  account.status === "fault" || (account.status === "absent" && account.reason === null)
+  account.canConnect && !account.retrying && account.status !== "connected"
 
 /** The URI to register in Google Cloud, as this serve would hand it over: the
  *  one a connect has already used when there is one, and otherwise this page's
@@ -140,28 +144,40 @@ export function MailRow(props: {
     const account = props.account()
     switch (account.status) {
       case "connected":
-        return `Connected as ${account.address} · ${account.messages ?? 0} messages · token refreshed ${refreshed()} · scope ${account.scope}`
+        // THE TOTAL IS OMITTED WHEN THE PROFILE OMITTED IT, and never drawn as
+        // `0`: a connected account reading *0 messages* is the one sentence
+        // that would make a person think they consented to the wrong mailbox,
+        // and the cell is nullable exactly for that case.
+        return `Connected as ${account.address}${account.messages === null ? "" : ` · ${account.messages} messages`} · token refreshed ${refreshed()} · scope ${account.scope}`
       // THE REASON, VERBATIM, and `docs.md` argues why this arm is not
       // composed into the sentence the prototype draws: a fault here is one of
       // THREE things — Google's own refusal, a door the environment is missing,
       // or a serve with no pinned binary — and a sentence that named a mailbox
       // for all three would be inventing the kind it cannot see.
       case "fault":
-        return account.reason ?? "this serve's Gmail connection is not working."
+        // THE REASON VERBATIM, plus what a WAIT is doing — the same composition
+        // the pill's tooltip makes (`./said.ts`), from the same field, so the
+        // two cannot disagree about which kind of fault this is.
+        return `${account.reason ?? "this serve's Gmail connection is not working."}${account.retrying ? " — retrying" : ""}`
       case "absent":
-        return account.reason === null
+        // A SERVE THAT CANNOT CONNECT IS NOT TOLD TO CONNECT: the seed, and a
+        // serve whose binary or Google origin is wrong, carry no reason of the
+        // operator's to print (`./wire.ts`), and offering the sentence that
+        // describes a press this row does not draw would be the flicker of a
+        // button that is not there.
+        if (account.reason !== null) return account.reason
+        return account.canConnect
           ? "No Gmail account is connected. Connecting opens Google in a new tab; the redirect comes back to this serve and the refresh token is kept in this serve's memory, never in the vault."
-          : account.reason
+          : "No Gmail account is connected to this serve."
     }
   }
 
-  /** WHETHER THIS ROW IS ASKING FOR A PRESS, which is {@link mailNeedsYou}'s
-   *  question asked one screen down: Connect when there is no account and the
-   *  doors are set, Reconnect after a fault. A CONNECTED row offers neither —
-   *  what a person does there is Disconnect, drawn below in the alarm register
-   *  because forgetting an account is the destructive half of this face. */
-  const asksForAPerson = (): boolean =>
-    props.account().status === "fault" || (props.account().status === "absent" && props.account().reason === null)
+  /** WHETHER THE CONNECT ACTION IS WORTH DRAWING — {@link mailNeedsYou}'s
+   *  question, asked one screen down (see it for the three facts behind it). A
+   *  CONNECTED row offers neither button: what a person does there is
+   *  Disconnect, drawn below in the alarm register because forgetting an
+   *  account is the destructive half of this face. */
+  const asksForAPerson = (): boolean => mailNeedsYou(props.account())
 
   const button = "rounded border border-rule px-2 py-0.5 text-xs"
   return (

@@ -41,7 +41,11 @@ export const mailSaid = (account: Account): Said => {
       return {
         dot: "bg-alarm",
         label: "mail fault",
-        detail: account.reason ?? "this serve's Gmail connection is not working, and it gave no reason.",
+        // THE WORDS BESIDE THE FIELD: `retrying` is what the cell carries
+        // (`../wire.ts`), and `— retrying` is what a reader is told, composed
+        // here because copy belongs to a renderer. A wait heals itself, so the
+        // tooltip says so rather than promising a fix nobody has to make.
+        detail: `${account.reason ?? "this serve's Gmail connection is not working, and it gave no reason."}${account.retrying ? " — retrying" : ""}`,
       }
   }
 }

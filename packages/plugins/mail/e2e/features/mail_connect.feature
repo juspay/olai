@@ -172,5 +172,9 @@ Feature: A Gmail account is a pill and a row, and both are readings of one cell
     Then the mail pill reads fault
     When I open the plugins panel
     Then the mail row's sentence names "Nix build"
-    And the mail row offers the connect action
+    # ...AND NO BUTTON, because a press could not work: the cell's `canConnect`
+    # is false and the row draws nothing a person can press
+    # (`../src/browser/Row.tsx`). A Reconnect here would land its own sentence
+    # under itself, which is the one thing the row's header forbids.
+    And the mail row offers no Connect action
     And there should be no page errors

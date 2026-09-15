@@ -70,6 +70,7 @@
  */
 
 import { createHash } from "node:crypto"
+import { fixtureNamed, GOOGLES } from "./fixtures.ts"
 
 /** The three paths, spelled as `../../oauth.ts`'s `endpointsAt` composes them. */
 const AUTHORIZE_PATH = "/o/oauth2/v2/auth"
@@ -158,7 +159,31 @@ interface Grant {
 /**
  * THE FAKE, LISTENING — one origin, three endpoints, every request recorded.
  */
-export const startFakeGoogle = async (input: FakeGoogleInput): Promise<FakeGoogle> => {
+/**
+ * START THE FAKE BY FIXTURE NAME — `@mail-google:<name>`, resolved here, for
+ *  the reason {@link ./fake-himalaya.ts}'s own starter gives: the name is the
+ *  whole of what a caller hands over, and the table of grants is this row's
+ *  vocabulary rather than a door's export.
+ */
+export const startFakeGoogle = async (name: string): Promise<FakeGoogleByName> => {
+  const fake = await startFakeGoogleFor(fixtureNamed(GOOGLES, "Google", name))
+  return {
+    ...fake,
+    rewrite: (next) => {
+      fake.rewrite(fixtureNamed(GOOGLES, "Google", next))
+    },
+  }
+}
+
+/** WHAT THAT HANDS BACK — see `./fake-himalaya.ts`'s own interface, one fake
+ *  over: a scenario moves the GRANT by name, and a test of the fake itself
+ *  moves a fixture. */
+export interface FakeGoogleByName extends Omit<FakeGoogle, "rewrite"> {
+  readonly rewrite: (name: string) => void
+}
+
+/** The same, for a fixture a test's own file wrote. Not exported from the door. */
+export const startFakeGoogleFor = async (input: FakeGoogleInput): Promise<FakeGoogle> => {
   // The fixture is MUTABLE: a scenario moves the answers of a flow that is
   // already running, and it cannot start a second fake to do it — the serve was
   // spawned with this origin. `input` seeds it through `rewrite`, so the one

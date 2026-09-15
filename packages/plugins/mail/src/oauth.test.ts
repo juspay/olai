@@ -6,8 +6,9 @@ import {
   base64url,
   challengeOf,
   endpointsAt,
-  endpointsOf,
   GOOGLE,
+  googleOf,
+  LOOPBACK_ONLY,
   parseCallback,
   refreshRequest,
   revokeRequest,
@@ -57,9 +58,24 @@ test("the authorization URL asks for what the consent screen has to show", () =>
 })
 
 test("the endpoints are Google's unless an origin was named, and one origin when it was", () => {
-  expect(endpointsOf(undefined)).toEqual(GOOGLE)
-  expect(endpointsOf("  ")).toEqual(GOOGLE)
-  expect(endpointsOf("http://127.0.0.1:4321")).toEqual(endpointsAt("http://127.0.0.1:4321"))
+  expect(googleOf(undefined)).toEqual({ kind: "endpoints", endpoints: GOOGLE })
+  expect(googleOf("  ")).toEqual({ kind: "endpoints", endpoints: GOOGLE })
+  expect(googleOf("http://127.0.0.1:4321")).toEqual({ kind: "endpoints", endpoints: endpointsAt("http://127.0.0.1:4321") })
+  expect(googleOf("http://localhost:1")).toEqual({ kind: "endpoints", endpoints: endpointsAt("http://localhost:1") })
+})
+
+test("only a loopback origin is honoured, because the POSTs carry the secret", () => {
+  // Every one of these would send the client secret and the refresh token to
+  // whoever owns the origin, so a deployment may not name any of them.
+  for (const origin of [
+    "https://accounts.example",
+    "https://accounts.google.com",
+    "http://127.0.0.1.evil.example:8080",
+    "http://127.0.0.1:4321/o/oauth2/v2/auth",
+    "not a url",
+  ]) {
+    expect(googleOf(origin), origin).toEqual({ kind: "refused", reason: LOOPBACK_ONLY })
+  }
 })
 
 test("a callback carries the code and the state, or Google's refusal", () => {
@@ -105,11 +121,21 @@ test("a token answer is read on both arms", () => {
     tokens: { accessToken: "at", refreshToken: null, expiresIn: 3600, scope: null },
   })
   // The fault arm the plugin branches on, with Google's own word kept whole.
+  // ...and a WORD on a 4xx is a verdict rather than a retry: only a person can
+  // replace a grant Google has revoked.
   expect(tokenAnswer(400, JSON.stringify({ error: "invalid_grant", error_description: "Token has been expired or revoked." })))
-    .toEqual({ ok: false, error: "invalid_grant", description: "Token has been expired or revoked." })
+    .toEqual({ ok: false, error: "invalid_grant", description: "Token has been expired or revoked.", retry: false })
   // A 200 with nothing usable is not a success either.
   expect(tokenAnswer(200, JSON.stringify({ token_type: "Bearer" })))
-    .toEqual({ ok: false, error: "no-access-token", description: "the token endpoint answered 200 without an access token" })
-  // ...and neither is a body that is not JSON at all.
-  expect(tokenAnswer(502, "<html>bad gateway</html>")).toEqual({ ok: false, error: "HTTP 502", description: "<html>bad gateway</html>" })
+    .toEqual({ ok: false, error: "no-access-token", description: "the token endpoint answered 200 without an access token", retry: true })
+  // ...and neither is a body that is not JSON at all — a proxy's HTML error
+  // page, which is the world rather than a verdict.
+  expect(tokenAnswer(502, "<html>bad gateway</html>"))
+    .toEqual({ ok: false, error: "HTTP 502", description: "<html>bad gateway</html>", retry: true })
+  // A 4xx with no word in it is the world too.
+  expect(tokenAnswer(400, "{}")).toEqual({ ok: false, error: "HTTP 400", description: null, retry: true })
+  // A 5xx that DID carry a word is still the world: Google's own words about a
+  // grant arrive on 4xx.
+  expect(tokenAnswer(503, JSON.stringify({ error: "backend_error" })))
+    .toEqual({ ok: false, error: "backend_error", description: null, retry: true })
 })

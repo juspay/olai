@@ -66,6 +66,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 
 import { GMAIL, GMAIL_VERBS, type GmailVerb } from "../../himalaya/verbs.ts"
+import { fixtureNamed, MAILBOXES } from "./fixtures.ts"
 
 /** The first line `himalaya --version` prints at the pin this repo carries, and
  *  the string a scenario replaces when it wants a serve to see an older one.
@@ -121,8 +122,10 @@ export interface FakeHimalaya {
   readonly fixturePath: string
   /** The verb ids this fake answers — {@link SPEAKS}. */
   readonly speaks: ReadonlyArray<string>
-  /** What the next call answers. Synchronous, so a scenario can move it between
-   *  two awaits without threading a promise through the step. */
+  /** What the next call answers, as a FIXTURE — this fake's own currency. A
+   *  scenario moves between the suite's named worlds instead, through the
+   *  interface below. Synchronous, so a scenario can move it between two awaits
+   *  without threading a promise through the step. */
   readonly rewrite: (fixture: MailFixture) => void
   /** Remove the temp directory. The spawned runs are short-lived processes the
    *  plugin owns, so there is nothing else to stop. */
@@ -344,7 +347,39 @@ await main(process.argv.slice(2))
  * fixture. `fixture` is what the FIRST call answers; {@link FakeHimalaya.rewrite}
  * moves it afterwards.
  */
-export const startFakeHimalaya = async (fixture: MailFixture): Promise<FakeHimalaya> => {
+/**
+ * START THE FAKE BY FIXTURE NAME — `@mail-himalaya:<name>`, resolved here.
+ *
+ * The NAME is the whole of what a caller hands over, and this module is what
+ * turns it into an answering mailbox: the tables are this row's vocabulary
+ * (`./fixtures.ts`), and a door that handed them out would make every consumer
+ * resolve a name and compose a fixture — one operation spread across the door
+ * and all its callers. A name nobody wrote is a sentence naming what there is.
+ */
+export const startFakeHimalaya = async (name: string): Promise<FakeHimalayaByName> => {
+  const fake = await startFakeHimalayaFor(fixtureNamed(MAILBOXES, "mailbox", name))
+  return {
+    ...fake,
+    rewrite: (next) => {
+      fake.rewrite(fixtureNamed(MAILBOXES, "mailbox", next))
+    },
+  }
+}
+
+/** ...AND WHAT THAT HANDS BACK: the same fake with its answers addressed by the
+ *  name a scenario wrote rather than by a fixture. One operation, one currency
+ *  per audience — a scenario moves a serve between the worlds this suite
+ *  stands behind, and a test of the fake itself moves a fixture. */
+export interface FakeHimalayaByName extends Omit<FakeHimalaya, "rewrite"> {
+  readonly rewrite: (name: string) => void
+}
+
+/** The same, for a fixture a TEST's own file wrote (and the internal half of
+ *  the name-taking starter above). Not exported from the door: a scenario
+ *  points a serve at one of the named worlds, and a fixture nobody named is a
+ *  test's own business. */
+/** The fixture-level starter, for a test that writes its own world. */
+export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHimalaya> => {
   const directory = mkdtempSync(path.join(tmpdir(), "olai-fake-himalaya-"))
   const fixturePath = path.join(directory, FIXTURE)
   const executable = path.join(directory, SCRIPT)

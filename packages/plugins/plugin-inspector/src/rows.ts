@@ -254,8 +254,14 @@ export const pluginGroups = (
   needs: (plugin: string) => boolean = () => false,
 ): ReadonlyArray<PluginGroup> => {
   const rows = pluginRows(roster)
-  const attention = rows.filter((plugin) => needsYou(plugin, reports, needs))
-  const rest = rows.filter((plugin) => !needsYou(plugin, reports, needs))
+  // ONE PASS, so each row is asked once whether it needs a person. Two filters
+  // asking the same question took two answers from `needs`, which is LIVE state
+  // the row's own plugin holds (`olai-plugin-plugin-inspector`'s `plugins.row`):
+  // a face that answered differently between the passes would put its row in
+  // both groups, or in neither.
+  const attention: BuiltPlugin[] = []
+  const rest: BuiltPlugin[] = []
+  for (const plugin of rows) (needsYou(plugin, reports, needs) ? attention : rest).push(plugin)
   const groups: PluginGroup[] = []
   if (attention.length > 0) {
     groups.push({ label: NEEDS_YOU, needs: true, collapsed: false, rows: attention })

@@ -61,9 +61,10 @@ import { Effect } from "effect"
 
 import { type Account, MAIL_UNCONNECTED, name, surface, faces } from "./wire.ts"
 import { makeAccount } from "./account.ts"
+import { DOOR } from "./doors.ts"
 import { makeHimalaya } from "./himalaya/run.ts"
 import { openMemory } from "./local.ts"
-import { endpointsOf, FORM_CONTENT_TYPE } from "./oauth.ts"
+import { FORM_CONTENT_TYPE, googleOf } from "./oauth.ts"
 import { mailRoute } from "./route.ts"
 
 export { faces, name, surface } from "./wire.ts"
@@ -79,24 +80,24 @@ const doorOf = (vars: Record<string, string | undefined>, key: string): string |
 export default definePlugin({
   environment: [
     {
-      key: "OLAI_HIMALAYA",
+      key: DOOR.himalaya,
       secret: false,
       says: "the pinned Himalaya this build runs, baked on the wrapper",
     },
     {
-      key: "OLAI_MAIL_OAUTH_CLIENT",
+      key: DOOR.client,
       secret: false,
       says: "the Google OAuth client id (type: Web application) for this serve",
     },
     {
-      key: "OLAI_MAIL_OAUTH_SECRET",
+      key: DOOR.secret,
       secret: true,
       says: "the Google OAuth client secret that goes with the client id",
     },
     {
-      key: "OLAI_MAIL_GOOGLE",
+      key: DOOR.google,
       secret: false,
-      says: "the Google origin this serve talks to — unset in every deployment",
+      says: "the Google origin this serve talks to — loopback only, and unset in every deployment",
     },
   ],
   name,
@@ -112,8 +113,12 @@ export default definePlugin({
     const run = yield* detached
     const warn = (line: string): void => run(Effect.logWarning(line))
 
-    const binary = doorOf(environment.vars, "OLAI_HIMALAYA")
-    const himalaya = makeHimalaya(binary)
+    // THE CHILD'S ENVIRONMENT IS COMPOSED HERE, from the declared `Env` door
+    // rather than from `process.env` — `./himalaya/run.ts` says which names
+    // and why that list is an allowlist rather than an inheritance. Which
+    // BINARY is not read here at all: the runner holds that fact and the
+    // machine asks it (`./doors.ts` names the variable).
+    const himalaya = makeHimalaya({ binary: doorOf(environment.vars, DOOR.himalaya), env: environment.vars })
     yield* Effect.addFinalizer(() => Effect.promise(() => himalaya.close()))
 
     const memory = yield* openMemory(localState, warn)
@@ -134,21 +139,24 @@ export default definePlugin({
      * twice`: it made the connector's write a no-op, so a tab that was already
      * open never heard about a connect at all while a tab opened later read the
      * new value out of the store and looked perfectly right. */
-    let current: Account = MAIL_UNCONNECTED
-    const store = inMemoryStore(current)
+    const store = inMemoryStore(MAIL_UNCONNECTED)
     let connector: { set: (value: Account) => void } | undefined
+    /** THE ONE WRITER. The reading itself is the MACHINE's (`./account.ts` keeps
+     *  it and hands it back through `current`), so this half owns only what to
+     *  do with it: the framework's write path once a connector has been bound,
+     *  and the store before that, which is what makes the reading true for a
+     *  client that attaches later. Two copies of the value — one here and one
+     *  there — is exactly how they would drift. */
     const paint = (next: Account): void => {
-      current = next
       if (connector === undefined) store.set(next)
       else connector.set(next)
     }
 
     const machine = makeAccount({
-      binary,
       clock,
-      client: doorOf(environment.vars, "OLAI_MAIL_OAUTH_CLIENT"),
-      secret: doorOf(environment.vars, "OLAI_MAIL_OAUTH_SECRET"),
-      endpoints: endpointsOf(doorOf(environment.vars, "OLAI_MAIL_GOOGLE")),
+      client: doorOf(environment.vars, DOOR.client),
+      secret: doorOf(environment.vars, DOOR.secret),
+      google: googleOf(doorOf(environment.vars, DOOR.google)),
       himalaya,
       memory,
       // THE PLATFORM'S OWN POST, and the only line of this plugin that knows
@@ -159,6 +167,12 @@ export default definePlugin({
           method: "POST",
           headers: { "content-type": FORM_CONTENT_TYPE },
           body: request.body,
+          // BOUNDED, and the deadline is what makes the timeout arm reachable:
+          // a socket nobody answers throws here, the machine reads that as
+          // `unreachable` and retries with backoff rather than parking a row
+          // that would otherwise sit on the seed `absent` forever
+          // (`./account.ts`'s header says which failures are which).
+          signal: AbortSignal.timeout(30_000),
         })
         return { status: answer.status, body: await answer.text() }
       },
@@ -180,7 +194,7 @@ export default definePlugin({
             connect: (cell: { set: (value: Account) => void }) =>
               Effect.sync(() => {
                 connector = cell
-                cell.set(current)
+                cell.set(machine.current())
               }),
           },
         },
@@ -199,11 +213,12 @@ export default definePlugin({
     yield* transport.register({ passive: true, routes: mailRoute(machine) })
 
     /** THE TWO FIBERS, forked onto this plugin's scope so the row's switch is
-     *  what stops them. Boot FIRST — the refresh fiber parks itself for a
-     *  second when there is nothing to refresh, and ordering the two the other
-     *  way would have it wake to a deadline that has not been set yet. Both are
-     *  forked rather than awaited: activation must not wait on a network round
-     *  trip, and a serve whose mailbox is slow to answer still draws its app. */
+     *  what stops them. Boot FIRST, because it is what offers the refresh
+     *  fiber its first deadline — the fiber takes from a queue of deadlines and
+     *  parks while it has none, so the other order would only have it wait a
+     *  moment longer. Both are forked rather than awaited: activation must not
+     *  wait on a network round trip, and a serve whose mailbox is slow to
+     *  answer still draws its app. */
     yield* Effect.forkScoped(machine.boot())
     yield* Effect.forkScoped(machine.refresh)
   }),

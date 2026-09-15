@@ -77,11 +77,10 @@ export const GOOGLES: Readonly<Record<string, FakeGoogleInput>> = {
  *  a fake Google on loopback, and a scenario that asserted a real client id
  *  would be asserting somebody's console.
  *
- *  A name rather than an inline pair because they are also the WORDS the row's
- *  sentence uses (`OLAI_MAIL_OAUTH_CLIENT and OLAI_MAIL_OAUTH_SECRET are not
- *  set…`), so a step can say "the env var the row named" and a reader can see
- *  it is set to something. */
-export const DOORS = {
+ *  A name rather than an inline pair because they are the values of the two
+ *  doors the ROW declares, so a caller can set them without copying a spelling
+ *  of the variable's name (`../doors.ts` holds the names). */
+export const DOOR_VALUES = {
   client: "olai-e2e.apps.googleusercontent.com",
   secret: "olai-e2e-not-a-secret",
 } as const

@@ -36,9 +36,9 @@ import {
   verifierOf,
 } from "../../oauth.ts"
 import type { FakeGoogle } from "./fake-google.ts"
-import { startFakeGoogle } from "./fake-google.ts"
+import { startFakeGoogleFor } from "./fake-google.ts"
 import type { FakeHimalaya, MailFixture } from "./fake-himalaya.ts"
-import { PINNED_VERSION, startFakeHimalaya } from "./fake-himalaya.ts"
+import { PINNED_VERSION, startFakeHimalayaFor } from "./fake-himalaya.ts"
 
 /** The OAuth client a scenario configures a serve with. Nothing checks it: the
  *  fake's job is that the SAME two strings come back on the exchange, which is
@@ -56,9 +56,20 @@ interface Done {
   readonly stderr: string
 }
 
-/** ONE SPAWN OF THE FAKE BINARY — the plugin's own way of running it
- *  (`../../himalaya/run.ts`'s `execute`): the path IS the program, `shell:
- *  false`, both streams read as text, and the exit code taken from the close. */
+/**
+ * ONE SPAWN OF THE FAKE BINARY, at the boundary the plugin spawns at: the path
+ * IS the program, `shell: false`, both streams read as text, and the exit code
+ * taken from the close.
+ *
+ * DELIBERATELY NOT `makeHimalaya`, though that is the plugin's own way of
+ * running a binary (`../../himalaya/run.ts`). What is under test here is the
+ * FAKE — that it answers the argv the plugin composes, that its refusals come
+ * back in clap's shape, that `--version` leads with the line the surface check
+ * parses — and the runner's own API answers *parsed JSON or a refusal
+ * sentence*, which is exactly the raw material these assertions are made of.
+ * Driving the fake through the runner would delete the subject to reuse a
+ * helper, so the spawn is spelled here and its shape is the assertion.
+ */
 const run = (fake: FakeHimalaya, argv: ReadonlyArray<string>): Promise<Done> => {
   const { promise, resolve } = Promise.withResolvers<Done>()
   const child = spawn(fake.path, [...argv], { shell: false, stdio: ["ignore", "pipe", "pipe"] })
@@ -77,7 +88,7 @@ const run = (fake: FakeHimalaya, argv: ReadonlyArray<string>): Promise<Done> => 
  *  against a config that is not there — and it is written into the fake's own
  *  temp directory so that one `stop()` is the only cleanup a test needs. */
 const startedFake = async (fixture: MailFixture): Promise<{ readonly fake: FakeHimalaya; readonly config: string }> => {
-  const fake = await startFakeHimalaya(fixture)
+  const fake = await startFakeHimalayaFor(fixture)
   const config = path.join(path.dirname(fake.fixturePath), "config.toml")
   writeFileSync(config, renderConfig({ token: "ya29.olai-fake", address: fixture.profile?.email ?? null }))
   return { fake, config }
@@ -229,7 +240,7 @@ test("rewrite moves what the next call answers, both ways", async () => {
 })
 
 test("the whole flow: consent, exchange, refresh and revoke, with every request recorded", async () => {
-  const google = await startFakeGoogle({ email: EMAIL })
+  const google = await startFakeGoogleFor({ email: EMAIL })
   try {
     const state = newState()
     const first = verifier(1)
@@ -285,7 +296,7 @@ test("the whole flow: consent, exchange, refresh and revoke, with every request 
 })
 
 test("a consent request that would not earn a refresh token is refused, with a sentence", async () => {
-  const google = await startFakeGoogle({ email: EMAIL })
+  const google = await startFakeGoogleFor({ email: EMAIL })
   try {
     const endpoints = endpointsAt(google.origin)
     const asked = authorizationUrl(endpoints, { client: CLIENT, redirect: REDIRECT, state: "s", challenge: challengeOf(verifier(2)) })
@@ -308,7 +319,7 @@ test("a consent request that would not earn a refresh token is refused, with a s
 })
 
 test("a code_verifier that does not hash to the challenge is invalid_grant", async () => {
-  const google = await startFakeGoogle({ email: EMAIL })
+  const google = await startFakeGoogleFor({ email: EMAIL })
   try {
     const back = await consented(google, verifier(3), "state-3")
     const response = await exchanged(google, back.searchParams.get("code") ?? "", verifier(4))
@@ -322,7 +333,7 @@ test("a code_verifier that does not hash to the challenge is invalid_grant", asy
 })
 
 test("an authorization code is single-use", async () => {
-  const google = await startFakeGoogle({ email: EMAIL })
+  const google = await startFakeGoogleFor({ email: EMAIL })
   try {
     const once = verifier(5)
     const code = (await consented(google, once, "state-5")).searchParams.get("code") ?? ""
@@ -336,7 +347,7 @@ test("an authorization code is single-use", async () => {
 })
 
 test('refresh: "invalid_grant" answers exactly what the plugin\'s fault arm reads', async () => {
-  const google = await startFakeGoogle({ email: EMAIL, refresh: "invalid_grant" })
+  const google = await startFakeGoogleFor({ email: EMAIL, refresh: "invalid_grant" })
   try {
     const refresh = refreshRequest(endpointsAt(google.origin), { client: CLIENT, secret: SECRET, refreshToken: "1//olai-fake-1" })
     const response = await fetch(refresh.url, { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: refresh.body })
@@ -354,7 +365,7 @@ test('refresh: "invalid_grant" answers exactly what the plugin\'s fault arm read
 })
 
 test("rewrite moves what the token endpoint answers, on the same origin", async () => {
-  const google = await startFakeGoogle({ email: EMAIL, refresh: "invalid_grant" })
+  const google = await startFakeGoogleFor({ email: EMAIL, refresh: "invalid_grant" })
   try {
     const refresh = refreshRequest(endpointsAt(google.origin), { client: CLIENT, secret: SECRET, refreshToken: "1//olai-fake-1" })
     const asked = { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: refresh.body }

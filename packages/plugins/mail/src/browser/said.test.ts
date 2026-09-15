@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
-import { mailSaid } from "./browser/said.ts"
-import { MAIL_UNCONNECTED, SCOPE, type Account } from "./wire.ts"
+import { mailSaid } from "./said.ts"
+import { MAIL_UNCONNECTED, SCOPE, type Account } from "../wire.ts"
 const account = (over: Partial<Account>): Account => ({ ...MAIL_UNCONNECTED, ...over })
 
 test("connected names the address and is quiet", () => {

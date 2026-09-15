@@ -38,6 +38,9 @@ import * as fs from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
 import type { EventEmitter } from "node:events";
+// THE MAIL ROW'S DOOR NAMES, for the strip list below — derived rather than
+// remembered, so a door this row adds later cannot be inherited by a scenario.
+import { DOORS as MAIL_DOOR_NAMES } from "olai-plugin-mail/appliance/testlib";
 
 export { defaultWorkers, WORKER_CAP, workerCount } from "./parallelism.js";
 
@@ -225,10 +228,10 @@ export const isolateEnv = (
   // harness sets `OLAI_HIMALAYA` and `OLAI_MAIL_GOOGLE` on every spawn
   // (`hooks.ts`), so deleting them here is not "absent", it is "the scenario's
   // to decide": a fake, or the off switch, or the un-routable default.
-  delete host.OLAI_HIMALAYA;
-  delete host.OLAI_MAIL_OAUTH_CLIENT;
-  delete host.OLAI_MAIL_OAUTH_SECRET;
-  delete host.OLAI_MAIL_GOOGLE;
+  // ...and the LIST is the row's (`olai-plugin-mail/appliance/testlib`, which
+  // re-exports the names its own declaration reads), so a door this row adds in
+  // a later phase cannot be forgotten here and inherited by every scenario.
+  for (const door of MAIL_DOOR_NAMES) delete host[door];
   const env: NodeJS.ProcessEnv = {
     ...host,
     ...extras,

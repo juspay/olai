@@ -20,17 +20,22 @@
  * decisions out of here is what lets this module be read as a description of the
  * protocol.
  *
- * ## The endpoints, and the one variable that moves them
+ * ## The endpoints, and the one variable that moves them — LOOPBACK ONLY
  *
  * `OLAI_MAIL_GOOGLE` is the Google ORIGIN, and unset means Google: authorize at
  * `accounts.google.com`, exchange, refresh and revoke at `oauth2.googleapis.com`.
  * Set — which only the e2e harness does, pointing all three at its fake — it is
  * one origin serving `/o/oauth2/v2/auth`, `/token` and `/revoke`, so a scenario
- * exercises the flow this plugin has rather than a mock of it. It is not
- * documented as a knob for people, for `ODU_WEB_ORIGIN`'s reason
- * (`packages/tests/support/workers.ts`): a variable whose only caller is a test
- * is a test's business, and one that a serve could be pointed at would be a
- * serve that could be pointed at somebody's token endpoint.
+ * exercises the flow this plugin has rather than a mock of it.
+ *
+ * IT IS A DOOR ANY DEPLOYMENT CAN OPEN, and the sharpest one in this plugin,
+ * which is why {@link googleOf} closes it: the POSTs it redirects carry the
+ * client secret and the refresh token, so an `environmentFile` that named a
+ * foreign origin would hand both to whoever owns it. Only a LOOPBACK origin is
+ * honoured; anything else is a fault on the row naming that ruling. #606's own
+ * words for this variable are *"the one thing that sets the path to something
+ * else"* — the harness — and a loopback check is what makes that true rather
+ * than a promise.
  *
  * ## PKCE, and why the verifier is derivable from bytes
  *
@@ -68,8 +73,39 @@ export const endpointsAt = (origin: string): Endpoints => ({
   revoke: `${origin}/revoke`,
 })
 
-export const endpointsOf = (google: string | undefined): Endpoints =>
-  google === undefined || google.trim() === "" ? GOOGLE : endpointsAt(google.trim())
+/**
+ * WHAT THIS SERVE TALKS TO, decided once at activation.
+ *
+ * A refusal rather than a thrown error, because the row has to be able to SAY
+ * it: the serve still boots, the plugin still stands, and the pill reports the
+ * reason. That is the same shape a missing binary and unset doors take.
+ */
+export type Google =
+  | { readonly kind: "endpoints"; readonly endpoints: Endpoints }
+  | { readonly kind: "refused"; readonly reason: string }
+
+/** What a serve that named somewhere other than loopback is told. */
+export const LOOPBACK_ONLY =
+  "OLAI_MAIL_GOOGLE may only name a loopback origin — this serve posts its OAuth client secret and its Gmail refresh token to whatever origin it names, so a deployment may not point it anywhere."
+
+const isLoopback = (hostname: string): boolean =>
+  hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]" || hostname === "::1"
+
+export const googleOf = (google: string | undefined): Google => {
+  const named = google?.trim() ?? ""
+  if (named === "") return { kind: "endpoints", endpoints: GOOGLE }
+  const parsed = (() => {
+    try {
+      return new URL(named)
+    } catch {
+      return null
+    }
+  })()
+  if (parsed === null || !isLoopback(parsed.hostname) || parsed.pathname !== "/" || parsed.search !== "" || parsed.hash !== "") {
+    return { kind: "refused", reason: LOOPBACK_ONLY }
+  }
+  return { kind: "endpoints", endpoints: endpointsAt(parsed.origin) }
+}
 
 /** `base64url` without padding, which is what every one of these values is
  *  spelled in (RFC 7636 §A and Google's own examples). */
@@ -241,10 +277,20 @@ export interface Tokens {
  * `access_token` is not a success either, and is reported with the same
  * vocabulary rather than as a defect: the endpoint is a remote service and what
  * a remote service says is data.
+ *
+ * ## `retry` — WHICH REFUSALS ARE WORTH WAITING OUT
+ *
+ * A refused-grant answer is a person's to fix: only a fresh consent replaces it.
+ * Everything else here — a transport failure, a 5xx, a body that is not JSON at
+ * all (a proxy's HTML error page) — is the world being briefly broken, and
+ * treating those as a fault would make a serve that booted while Google was
+ * unreachable demand a full re-consent for a refresh token that is perfectly
+ * valid. So the answer says which kind it is, and the machine
+ * (`../account.ts`) retries one and hands the other to a person.
  */
 export type Answer =
   | { readonly ok: true; readonly tokens: Tokens }
-  | { readonly ok: false; readonly error: string; readonly description: string | null }
+  | { readonly ok: false; readonly error: string; readonly description: string | null; readonly retry: boolean }
 
 const word = (value: unknown, fallback: string): string => typeof value === "string" && value !== "" ? value : fallback
 
@@ -253,7 +299,7 @@ export const tokenAnswer = (status: number, body: string): Answer => {
   try {
     said = JSON.parse(body)
   } catch {
-    return { ok: false, error: `HTTP ${status}`, description: body.trim().slice(0, 200) || null }
+    return { ok: false, error: `HTTP ${status}`, description: body.trim().slice(0, 200) || null, retry: true }
   }
   const record = (typeof said === "object" && said !== null ? said : {}) as Record<string, unknown>
   const failure = record["error"]
@@ -262,11 +308,15 @@ export const tokenAnswer = (status: number, body: string): Answer => {
       ok: false,
       error: word(failure, `HTTP ${status}`),
       description: typeof record["error_description"] === "string" ? record["error_description"] : null,
+      // A WORD from a 4xx is a verdict on the grant; a 5xx, a transport
+      // failure (status 0, which `../account.ts` spells `unreachable`) and a
+      // body with no word in it are the world, and the world comes back.
+      retry: !(status >= 400 && status < 500 && typeof failure === "string"),
     }
   }
   const access = record["access_token"]
   if (typeof access !== "string" || access === "") {
-    return { ok: false, error: "no-access-token", description: `the token endpoint answered ${status} without an access token` }
+    return { ok: false, error: "no-access-token", description: `the token endpoint answered ${status} without an access token`, retry: true }
   }
   const expires = record["expires_in"]
   return {

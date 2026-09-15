@@ -313,7 +313,7 @@ Environment readings follow the controls and stay read-only. Wrapper-provided ex
 | `OLAI_HIMALAYA` | the pinned `himalaya` the mail row runs, normally wrapper-provided |
 | `OLAI_MAIL_OAUTH_CLIENT` | the Google OAuth client id this serve connects a mailbox with |
 | `OLAI_MAIL_OAUTH_SECRET` | its client secret; secret |
-| `OLAI_MAIL_GOOGLE` | the Google origin this serve talks to; unset in every deployment — a test's door, not a knob |
+| `OLAI_MAIL_GOOGLE` | the Google origin this serve talks to; **loopback only** — anything else faults the row, because the POSTs carry the client secret |
 | `PADI_SOCKET` | local Kolu socket path |
 | `OLAI_ALLOWED_ORIGINS` | comma-separated browser origins |
 | `OLAI_HOSTNAME` | machine label override |

@@ -27,7 +27,19 @@
  *     person asking for their mail);
  *   - that every verb in `GMAIL_VERBS` answers `--help`. Clap answers an
  *     unknown subcommand on stderr with exit 2, so the exit status is the
- *     whole of the answer and no output has to be parsed.
+ *     whole of the answer and no output has to be parsed;
+ *   - that the ARGV the plugin composes is still this binary's argv, and that
+ *     a failure still arrives the way `./run.ts` reads one. That is the one
+ *     question the fixtures cannot answer at all, because the fake enforces
+ *     this repo's belief about it: `himalayaArgv` puts the two GLOBAL flags
+ *     (`-c`, `--json`) before the subcommand words, and the pinned binary
+ *     answers a runtime failure as `{"error": …}` on STDOUT with a non-zero
+ *     exit — two facts the plan for this plugin got wrong, and neither of them
+ *     visible to a fake that was written from the same document. The leg runs
+ *     the composed argv against a config path that does not exist: clap parses
+ *     the flags first (a moved or renamed global flag is a usage error, with
+ *     nothing on stdout), and the binary then fails to read the config and
+ *     answers the JSON envelope.
  *
  * There is no skip: a leg that passes when it could not find the binary is the
  * same silence again, one level up. Silence is also the SUCCESS output — the
@@ -52,7 +64,7 @@
 
 import { spawnSync } from "node:child_process"
 
-import { GMAIL_VERBS, HIMALAYA_VERSION_FLOOR } from "../packages/plugins/mail/src/himalaya/verbs.ts"
+import { GMAIL, GMAIL_VERBS, HIMALAYA_VERSION_FLOOR, himalayaArgv } from "../packages/plugins/mail/src/himalaya/verbs.ts"
 
 const dir = process.argv[2]
 if (dir === undefined || dir === "") {
@@ -146,6 +158,36 @@ if (belowFloor) {
     "conversation that cannot connect to Google and cannot say why. Move the pin",
     "back (npins/sources.json), or move the floor with the plugin if the surface",
     "is genuinely still there.",
+  ])
+}
+
+// THE ARGV AND THE ENVELOPE, in one invocation: a config path that cannot
+// exist makes the binary fail AFTER clap has parsed the global flags — so a
+// `--json` that moved, or a `-c` that stopped being global, is a usage error
+// (nothing on stdout) rather than the envelope this asserts.
+const composed = ask(himalayaArgv("/nonexistent/olai-mail-surface-check.toml", GMAIL.profileGet.path, []))
+const envelope = (() => {
+  try {
+    return JSON.parse(composed.stdout) as unknown
+  } catch {
+    return null
+  }
+})()
+const said = typeof envelope === "object" && envelope !== null && typeof (envelope as { error?: unknown }).error === "string"
+if (composed.status === 0 || !said) {
+  fail([
+    "check-himalaya-surface: the pinned `himalaya` no longer speaks the argv this plugin composes",
+    `  argv: ${["himalaya", ...himalayaArgv("<config>", GMAIL.profileGet.path, [])].join(" ")}`,
+    `  exit: ${composed.status ?? "no status"}`,
+    `  stdout: ${composed.stdout.trim() === "" ? "(empty)" : composed.stdout.trim().slice(0, 200)}`,
+    `  stderr: ${(composed.stderr.split("\n")[0] ?? "").trim().slice(0, 200) || "(empty)"}`,
+    "",
+    "`himalayaArgv` puts the two GLOBAL flags before the subcommand words and",
+    "`run.ts` reads a refusal as `{\"error\": …}` on STDOUT with a non-zero exit.",
+    "A usage error here (nothing on stdout, exit 2) means the flags moved — edit",
+    "`packages/plugins/mail/src/himalaya/verbs.ts`, which is the one table the",
+    "runner, the fake and this leg all read. A JSON body that arrived somewhere",
+    "else means the envelope moved, and `run.ts`'s `refusedWith` must move with it.",
   ])
 }
 

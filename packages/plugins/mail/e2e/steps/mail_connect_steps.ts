@@ -47,7 +47,7 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 import { POLL_TIMEOUT } from "@olai/tests/harness/world.ts"
 
 import { TESTID } from "../../src/testids.ts"
-import { fixtureNamed, GOOGLES } from "../../src/appliance/testlib/index.ts"
+import type { FakeGoogleByName } from "../../src/appliance/testlib/index.ts"
 
 /**
  * THE PATH GOOGLE REDIRECTS TO — spelled here rather than imported from
@@ -256,7 +256,7 @@ When(
     // A serve is handed this origin when it is SPAWNED, so moving the answer is
     // the only way a scenario can reach the fault arm and then the repair
     // (`../src/appliance/testlib/fake-google.ts`).
-    fakeGoogle(this).rewrite(fixtureNamed(GOOGLES, "Google", fixture))
+    fakeGoogle(this).rewrite(fixture)
   },
 )
 

@@ -33,20 +33,24 @@
 // returns the path to put in `OLAI_HIMALAYA`; `rewrite` moves what the NEXT
 // call answers; `speaks` is what it answers at all; `stop` removes the
 // directory. `PINNED_VERSION` is the `--version` first line a fixture replaces.
-export { PINNED_VERSION, SPEAKS, startFakeHimalaya } from "./fake-himalaya.ts" // `MailFixture` is what a scenario writes, `FakeHimalaya` what it holds.
-export type { FakeHimalaya, MailFixture } from "./fake-himalaya.ts"
+export { PINNED_VERSION, SPEAKS, startFakeHimalaya } from "./fake-himalaya.ts" // `startFakeHimalaya(name)`; `path` goes in `OLAI_HIMALAYA`.
+export type { FakeHimalaya, FakeHimalayaByName, MailFixture } from "./fake-himalaya.ts"
 
 // THE GOOGLE THE FLOW TALKS TO: one origin for the consent screen, the token
 // endpoint and the revocation, with every request it was handed (`requests`),
 // every access token it minted (`issued`), every token revoked (`revoked`), and
 // `rewrite` to move what it ANSWERS without moving its origin.
-export { startFakeGoogle } from "./fake-google.ts" // `origin` goes in `OLAI_MAIL_GOOGLE`; `FakeGoogleInput` is the fixture, and what `rewrite` takes.
-export type { FakeGoogle, FakeGoogleInput, GoogleRequest } from "./fake-google.ts"
+export { startFakeGoogle } from "./fake-google.ts" // `startFakeGoogle(name)`; `origin` goes in `OLAI_MAIL_GOOGLE`.
+export type { FakeGoogle, FakeGoogleByName, FakeGoogleInput, GoogleRequest } from "./fake-google.ts"
 
-// ...AND THE FIXTURES THE TWO TAGS NAME. The tables live here rather than in a
-// scenario's own file because the HARNESS has to resolve `@mail-himalaya:<name>`
-// and `@mail-google:<name>` at spawn, and this is the door it already reaches
-// this plugin through — one import line for the fakes and their fixtures, and no
-// relative climb into another package's `e2e/`. `DOORS` is the pair of values
-// `@mail-doors` sets; `fixtureNamed` is the sentence a name nobody wrote earns.
-export { ADDRESS, DOORS, fixtureNamed, GOOGLES, MAILBOXES, MESSAGES } from "./fixtures.ts"
+// ...AND THE ROW'S OWN DOORS, so the harness can set them and strip them
+// without spelling a variable's name a second time (`../../doors.ts` holds the
+// names; `./fixtures.ts` holds the values `@mail-doors` puts in them).
+//
+// THE FIXTURE TABLES DO NOT CROSS THIS DOOR, and that is the point: a starter
+// takes the NAME a tag carried (`startFakeHimalaya("mailbox")`,
+// `startFakeGoogle("granted")`) and resolves it against the row's own tables, so
+// one operation — point this serve at that world — is one call rather than an
+// export every caller re-composes.
+export { DOOR, DOORS } from "../../doors.ts"
+export { DOOR_VALUES } from "./fixtures.ts"

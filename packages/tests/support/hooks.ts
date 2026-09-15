@@ -93,12 +93,13 @@ import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
 import { type LivePadi, startPadi } from "olai-plugin-kolu/appliance/testlib";
 import { type LiveOdu, startOduService } from "olai-plugin-odu/appliance/testlib";
-// THE MAIL ROW'S TWO FAKES, THEIR FIXTURES, AND THE DOORS. All of it comes off
-// the plugin's appliance door, like odu's and kolu's: the starters, the tables
-// the three `@mail-*` tags name their fixture out of, and the two credential
-// values `@mail-doors` sets. The harness is only the thing that RESOLVES a name
-// it was given — which fixture a name stands for is this row's vocabulary.
-import { DOORS as MAIL_FIXTURE_DOORS, fixtureNamed, GOOGLES, MAILBOXES, startFakeGoogle, startFakeHimalaya } from "olai-plugin-mail/appliance/testlib";
+// THE MAIL ROW'S TWO FAKES AND ITS FOUR DOORS. All of it comes off the plugin's
+// appliance door, like odu's and kolu's: the starters, which take the NAME a
+// `@mail-*` tag carried and resolve it against the row's own tables, the names
+// a spawn must set or strip, and the two credential VALUES `@mail-doors` puts in
+// them. Which fixture a name stands for — and what a door is called — is this
+// row's vocabulary, so the harness holds no copy of either.
+import { DOOR as MAIL_DOOR, DOORS as MAIL_DOOR_NAMES, DOOR_VALUES, startFakeGoogle, startFakeHimalaya } from "olai-plugin-mail/appliance/testlib";
 import { ILLEGIBLE_PX, PAINTS, recordPaints, WAITING } from "./paints.ts";
 import {
   alreadyShared,
@@ -944,11 +945,11 @@ const startServerChild = async (
         // build asserts against. `--set-default` is what lets the empty string
         // survive the wrapper: a value is already there, so the default does
         // not replace it.
-        OLAI_HIMALAYA: spawnOptions.himalaya ?? "",
+        [MAIL_DOOR.himalaya]: spawnOptions.himalaya ?? "",
         // ...and this one is set for `ODU_WEB_ORIGIN`'s reason verbatim:
         // omitting it is not "derived and absent", it is the REAL Google, which
         // no scenario may talk to. The default is an un-routable loopback port.
-        OLAI_MAIL_GOOGLE: spawnOptions.mailGoogle ?? "http://127.0.0.1:1",
+        [MAIL_DOOR.google]: spawnOptions.mailGoogle ?? "http://127.0.0.1:1",
         // THE CREDENTIALS ONLY WHERE ASKED FOR, unlike the two above: their
         // ABSENCE is the state one scenario is about (the row names the two
         // doors and offers no Connect), so there is no default to set. The
@@ -956,8 +957,8 @@ const startServerChild = async (
         // (the row's own `appliance/testlib` fixtures) — never a client id anybody's console knows.
         ...(spawnOptions.mailDoors === true
           ? {
-              OLAI_MAIL_OAUTH_CLIENT: MAIL_FIXTURE_DOORS.client,
-              OLAI_MAIL_OAUTH_SECRET: MAIL_FIXTURE_DOORS.secret,
+              [MAIL_DOOR.client]: DOOR_VALUES.client,
+              [MAIL_DOOR.secret]: DOOR_VALUES.secret,
             }
           : {}),
         // The avatar template, when the scenario asked for one (`AVATAR_TAG`).
@@ -1674,9 +1675,7 @@ Before(
             "@corpus:<corpus>.",
         );
       }
-      this.mailHimalaya = await startFakeHimalaya(
-        fixtureNamed(MAILBOXES, "mailbox", this.mailHimalayaFleet),
-      );
+      this.mailHimalaya = await startFakeHimalaya(this.mailHimalayaFleet);
     }
     if (this.mailGoogleFleet !== undefined) {
       if (!writes) {
@@ -1686,9 +1685,7 @@ Before(
             "@corpus:<corpus>.",
         );
       }
-      this.mailGoogle = await startFakeGoogle(
-        fixtureNamed(GOOGLES, "Google", this.mailGoogleFleet),
-      );
+      this.mailGoogle = await startFakeGoogle(this.mailGoogleFleet);
     }
 
     if (writes) {
