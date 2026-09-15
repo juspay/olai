@@ -66,3 +66,18 @@ page outlet with the same content registrations.
 Deployment name and uptime readings are fresh for each layout activation.
 Withdrawal cancels publication from an outstanding name request; a returning
 layout asks again instead of inheriting the previous activation's signals.
+
+`layout.strip` is the seat above the panes in the main column, and it is single
+occupancy: one row may fill it (the `tabs` row does). The frame draws it only on
+a desktop, inside an element with `data-testid="main-strip"`, and it is not
+sticky — on a lone page it scrolls away with the document. While the seat is
+filled on a desktop the root entry publishes `--height-strip` on `:root` as
+`var(--height-tabs)` (2.625rem, from the appearance tokens), and `0px`
+otherwise; the pane sheet subtracts it (`PANES_SPLIT`, `PANES_LONE` in
+`./sheet`), so a split still fills the viewport under the bar. The shell's grid
+keeps the header-only heights, because the sidebar column beside the main one
+is not under the strip. Removing the entry restores the prior inline value, as
+it does for the widths.
+
+A pane's label is navigation's `Routing.label(route)`; `pane/label.ts` reads it
+through the routing this row holds from `navigation.state`.

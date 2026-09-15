@@ -61,6 +61,16 @@ export const contentStatus = location<{readonly ready:()=>boolean;readonly Messa
 export const overlays = location<(props:{readonly toggleDirectory:()=>void})=>JSX.Element>("layout.overlays")
 
 /**
+ * THE SEAT ABOVE THE PANES, in the main column — one occupant or none.
+ *
+ * Drawn on a desktop only; below the breakpoint the frame draws nothing here,
+ * so an occupant need not ask. While it is filled the frame publishes
+ * `--height-strip` as `--height-tabs` and the pane sheet subtracts it, so a
+ * split still fills the viewport exactly. `olai-plugin-tabs` is the occupant.
+ */
+export const strip = location<() => JSX.Element>("layout.strip", "one")
+
+/**
  * THE SHELL'S GEOMETRY, as a row that draws inside it reads it.
  *
  * Six rows want some of this: whether the viewport is at the desktop

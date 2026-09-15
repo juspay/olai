@@ -28,7 +28,7 @@ panesOf,
 type Pane,
 } from "olai-plugin-navigation/workspace"
 import { desktop } from "../layout/live.ts"
-import { SHELL_LONE,SHELL_SPLIT } from "../layout/sheet.ts"
+import { PANES_LONE,PANES_SPLIT } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
 import { labelOf } from "./label.ts"
 
@@ -46,8 +46,8 @@ export function Panes() {
       // takes its height from the pair below, not from a lone page's.
       class="flex min-w-0 flex-col bg-paper"
       classList={{
-        [SHELL_SPLIT]: split(),
-        [SHELL_LONE]: !split(),
+        [PANES_SPLIT]: split(),
+        [PANES_LONE]: !split(),
       }}
     >
       <Show when={split() && !desktop()}>

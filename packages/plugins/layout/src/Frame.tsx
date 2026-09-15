@@ -22,7 +22,7 @@ import { TipFloor } from "@olai/web/client/Tip.tsx"
 import { TESTID as LAYOUT_TESTID } from "./testids.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
-import { contentStatus,overlays,sidebar } from "./index.ts"
+import { contentStatus,overlays,sidebar,strip } from "./index.ts"
 import {
 createEffect,
 createSignal,
@@ -147,6 +147,15 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     </Show>
                     </>}</For>
                     <div class="min-w-0 bg-paper">
+                      {/* THE SEAT ABOVE THE PANES (`./index.ts`'s `strip`), on a
+                          desktop. Not sticky: on a lone page the document
+                          scrolls, and every sticky row a page draws already
+                          holds its place under the bar alone. */}
+                      <Show when={desktop() && props.slots.read(strip).length > 0}>
+                        <div data-testid={LAYOUT_TESTID.mainStrip} class="h-[var(--height-tabs)]">
+                          <For each={props.slots.read(strip)}>{({value: Strip})=><Strip/>}</For>
+                        </div>
+                      </Show>
                       <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
                       <Show when={props.slots.read(contentStatus).every(({value})=>value.ready())}><Panes/></Show>
                     </div>
