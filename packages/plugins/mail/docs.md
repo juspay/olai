@@ -1,71 +1,80 @@
-# Gmail in olai
+# Gmail
 
-Process a mailbox where you already think: **in a conversation, in the context of the vault**. A thread enters olai the way a terminal or a CI run does — Gmail stays the record of the mail, the vault records what was decided about it, and the verbs live in the conversation.
+Connect a Gmail account to olai so that, in later releases, an agent can read and file your mail in a conversation, with your vault as the context. Gmail stays the record of the mail; the vault records what you decided about it.
 
-The backend is [Himalaya](https://github.com/pimalaya/himalaya) ≥ 2.1.0, whose `[gmail]` account speaks Gmail's REST API with one OAuth 2.0 bearer token. The plugin is named **`mail`**, not `gmail`: the kind and the tools carry the plugin's word, so Himalaya's IMAP and JMAP backends can arrive later without a rename.
+**What works today is connecting the account.** You turn the `mail` plugin on, press one button, approve the mailbox at Google, and olai keeps that connection alive across restarts. Reading threads, filing them onto nodes, archiving, and being woken by new mail are the next steps and are not here yet.
 
-**This page describes what is here today: the row, the pinned binary, and connecting an account.** The read tools, the `mail-thread` property, the write verbs and the mail doorbell are the next four steps of the same plan; none of them exists yet, and nothing on this page is a promise about their shape.
+Olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), which is built into every olai release. There is nothing to install. The plugin is called `mail` rather than `gmail` because Himalaya also speaks IMAP and JMAP, and a second kind of mailbox should not need a rename.
 
-## Himalaya comes from the Nix build
+## Before you start
 
-There is no `which himalaya`, no PATH probe and no "bring your own Himalaya". The pinned revision in `npins/sources.json` is built into the packaged `olai` and handed to the plugin as one absolute path (`OLAI_HIMALAYA`), which the wrapper bakes and the panel reports as `·wrapper`.
+You need a Google OAuth client. This is the one step that happens outside olai, and Google offers no way around it.
 
-A serve whose environment carries no such path is not broken by an accident — it was not started from the Nix build. The row says so in a sentence naming `nix run`, the packaged binary and the home-manager unit, and that is the whole diagnosis.
+1. In [Google Cloud Console](https://console.cloud.google.com/), create or pick a project and enable the **Gmail API**.
+2. Under **APIs & Services → Credentials**, create an **OAuth client ID** of type **Web application**.
+3. Add one **Authorised redirect URI**: the address you reach olai at, followed by `/_olai/mail/oauth`. For example `https://olai.example.net/_olai/mail/oauth`. Olai shows you the exact string on the `mail` row once the plugin is on, so you can copy it from there.
+4. If the project is in *Testing* status, add your own Google account as a test user.
 
-## Connecting an account
+Google gives you a client ID and a client secret. Put both in the environment olai runs with:
 
-One step happens outside olai: **create an OAuth client** in Google Cloud Console with the type *Web application*, and register the redirect URI this serve will use. The row tells you the string — it is `https://<where you reach this olai>/_olai/mail/oauth`, and it is drawn under the Connect button.
+```
+OLAI_MAIL_OAUTH_CLIENT=1234567890-abc.apps.googleusercontent.com
+OLAI_MAIL_OAUTH_SECRET=GOCSPX-…
+```
 
-Then set the two doors in the environment (`environmentFile` for the systemd unit, or the shell for `just serve`):
+For the home-manager service that is the `environmentFile` ([running.md](../running.md#environment-doors)). For `just serve`, export them in your shell first. The plugins panel shows whether each one is set; it never shows the secret's value.
 
-- `OLAI_MAIL_OAUTH_CLIENT` — the client id;
-- `OLAI_MAIL_OAUTH_SECRET` — the client secret, marked secret in the panel: it shows `set` or `unset` and never the value.
+## Connecting
 
-Switch the `mail` row on (it is **off by default**, like every plugin that needs a credential) and press **Connect Gmail**. That opens Google in a new tab. Approve the mailbox you want this serve to read, and the callback lands back on this serve, which exchanges the code, asks Gmail who you are, and reports it.
+1. Open the plugins panel (**⧉** in the header) and switch **mail** on. It is off by default because it needs these credentials.
+2. The row moves to **Needs you** and shows a **Connect Gmail** button, with the redirect URI to register above it. If the two environment variables are missing, the row says so instead and shows no button; set them and restart.
+3. Press **Connect Gmail**. Google opens in a new tab. Choose the mailbox and approve.
+4. Google sends you back to olai. The tab says *Connected as you@gmail.com* and can be closed.
 
-The scope requested is `https://www.googleapis.com/auth/gmail.modify` — read, labels, archive, trash and untrash. It does **not** cover permanent delete, which needs the full `https://mail.google.com/` scope; permanent delete is deliberately not offered rather than widening every account's consent for it.
+The header now shows `● mail you@gmail.com`, and the row shows the address, how many messages the mailbox holds, when the token was last refreshed, and the permission granted.
 
-**One account per serve.** The property values that name a thread carry the account, so a second mailbox is an addition rather than a migration.
+Olai asks Google for the `gmail.modify` permission. That covers reading, labelling, archiving, and moving to and from Trash. It does not cover permanent deletion, and olai will not ask for it. One mailbox per olai.
 
-## What the row and the pill say
+## What the header pill means
 
-The header pill has three states, so a person can tell *nothing is configured* from *something is wrong*:
+| Pill | Meaning |
+| --- | --- |
+| `● mail you@gmail.com` | Connected. Hover for details. |
+| `● no mail` | No account is connected. Connect one from the plugins panel. |
+| `● mail fault` | Something needs attention. The tooltip and the row say what. |
 
-- `● mail you@gmail.com` — Himalaya answers for that address;
-- `● no mail` (dim) — no account is connected;
-- `● mail fault` (alarm) — with the reason in the tooltip: Google's own error word on a refused refresh, the two unset doors, or the missing Nix build.
+The pill is drawn only while the plugin is on.
 
-The panel row carries the same reading plus the verbs. It is filed under **Needs you** exactly when a press can do something about it — Connect when there is no account and the doors are set, Reconnect or Disconnect after a fault. A serve missing the credential doors is not asking: the answer there is an operator's, not a button's.
+## When something goes wrong
 
-### What a fault means, and what heals it
+The `mail` row in the plugins panel always says what happened in plain words. Most faults fall into two kinds.
 
-Two very different things are drawn as `● mail fault`, and the sentence says which:
+**Google or the network was briefly unavailable.** Olai keeps your connection and retries by itself, first after thirty seconds and then at longer intervals up to ten minutes. While the previous token is still valid the pill stays `connected` and the row adds what it is retrying. If the outage outlasts the token, the pill shows `mail fault` until the retry succeeds. You do not need to do anything.
 
-- **a verdict** — Google refused the grant (`invalid_grant` and its family), the environment is missing a door, the pinned binary is not there, or the binary answered something this plugin cannot read. Nothing heals these by waiting: a person presses Reconnect, or an operator sets the door and restarts.
-- **a wait** — Google was unreachable, answered 5xx, or the mailbox did not answer in time. The refresh token is still good, so the serve KEEPS it and retries on a doubling backoff (30 s, up to ten minutes). While that is happening the row says what failed and the pill carries the words; the serve heals itself, and nobody is asked to consent again. **The pill stays `connected`** for as long as the access token it is replacing is still live — the refresh starts five minutes before it expires — because a `gmail` call would answer in that window; the reading drops to `fault` only once there is no live token to fall back on (a boot whose first refresh never landed, or a token that has since expired).
+**Google no longer accepts the connection.** The row shows Google's own reason, most often `invalid_grant`, which means the permission was revoked from your Google account or expired through disuse. Press **Reconnect** and approve again.
 
-A fault whose press cannot work (no pinned binary, or a `OLAI_MAIL_GOOGLE` that names something other than loopback) draws **no button at all** — the row explains itself and waits for an operator.
+A few faults cannot be fixed with a button, and the row shows none:
 
-### Two places the row deliberately differs from the photograph
+- `OLAI_MAIL_OAUTH_CLIENT` or `OLAI_MAIL_OAUTH_SECRET` is not set. Set them and restart olai.
+- Olai was started without the built-in Himalaya. This happens only when olai is run outside its Nix build. Use `nix run`, the packaged binary, or the home-manager service.
+- `OLAI_MAIL_GOOGLE` is set to something other than a loopback address. This variable exists for olai's own tests and should not be set in a deployment.
 
-The row's own sentence is drawn from the account cell, and two details are not the prototype's:
+If the redirect back to olai fails, the page Google sends you to explains why. The usual causes are a redirect URI that does not match what you registered in Google Cloud, or a Connect that was started more than ten minutes earlier. Press **Connect Gmail** again.
 
-- **the fault arm prints the reason VERBATIM** — Google's own `invalid_grant`, the sentence naming the two unset doors, the Nix-build line, or `— retrying` — rather than composing a sentence around it. A fault here is one of several different things (see above), and a composed sentence would have to name a mailbox for all of them, some of which have no mailbox to name;
-- **the redirect URI is drawn beside Connect**, which the prototype does not show. It is the one step in the whole design that happens outside olai (creating the OAuth client and registering that URI in Google Cloud Console), and it is only knowable once a page has said where it is — so it is drawn where the button is rather than left to a doc.
+## Disconnecting
 
-## Where the credentials live, and where they do not
+Press **Disconnect** on the row. Olai revokes the permission at Google, forgets the stored token, and the pill returns to `no mail`. Switching the plugin off keeps the stored token but stops using it; switching it back on reconnects without asking you again.
 
-Olai never reads or writes `~/.config/himalaya`. What it keeps:
+## What olai stores
 
-- **the refresh token** in olai's own memory record, `$XDG_STATE_HOME/olai/mail/<hash>.json` — one file per served directory, written 0600, named but never opened by the panel. This is the only thing that has to survive a restart;
-- **the access token** in a generated config inside a `mkdtemp` directory of the running process, rewritten whenever the token is refreshed and removed when the row is switched off. The plugin hands that file to the pinned binary with `-c` and nothing else on the machine sees it;
-- **the pending authorization** in memory only: a `state` and a PKCE verifier, single-use, good for ten minutes.
+- **A refresh token**, in olai's own state directory at `$XDG_STATE_HOME/olai/mail/`, one file per served directory, readable only by your user. This is what survives a restart.
+- **A short-lived access token**, in a temporary config file that olai regenerates every time it refreshes the token and deletes when the plugin is switched off. Olai refreshes it five minutes before it expires.
 
-Access tokens are refreshed by olai, five minutes before they expire, so a call never has to fail once before it can succeed. **Disconnect** revokes the grant at Google and forgets the record; the access token on disk goes with the generated config when the row's scope closes.
+Nothing is written into your vault, and olai never reads or changes your own `~/.config/himalaya` if you have one.
 
-## Deliberately not here
+## Not included
 
-- **Sending and drafts.** No compose, no send, no drafts.
-- **Permanent delete** — the scope above, and no verb for it even behind a knob.
-- **A second account**, IMAP and JMAP, and an inbox digest over unfiled mail: additive later, none of them shaping what is here.
-- **Any way to run this against a Himalaya the Nix build did not pin.**
+- Sending mail or writing drafts.
+- Permanent deletion of messages.
+- More than one mailbox, or mailboxes other than Gmail.
+- Using a Himalaya other than the one built into olai.
