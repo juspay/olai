@@ -42,7 +42,7 @@ The panel row carries the same reading plus the verbs. It is filed under **Needs
 Two very different things are drawn as `● mail fault`, and the sentence says which:
 
 - **a verdict** — Google refused the grant (`invalid_grant` and its family), the environment is missing a door, the pinned binary is not there, or the binary answered something this plugin cannot read. Nothing heals these by waiting: a person presses Reconnect, or an operator sets the door and restarts.
-- **a wait** — Google was unreachable, answered 5xx, or the mailbox did not answer in time. The refresh token is still good, so the serve KEEPS it and retries on a doubling backoff (30 s, up to ten minutes), and the sentence ends `— retrying`. A serve that boots while Google is down heals itself; it does not ask anyone to consent again.
+- **a wait** — Google was unreachable, answered 5xx, or the mailbox did not answer in time. The refresh token is still good, so the serve KEEPS it and retries on a doubling backoff (30 s, up to ten minutes). While that is happening the row says what failed and the pill carries the words; the serve heals itself, and nobody is asked to consent again. **The pill stays `connected`** for as long as the access token it is replacing is still live — the refresh starts five minutes before it expires — because a `gmail` call would answer in that window; the reading drops to `fault` only once there is no live token to fall back on (a boot whose first refresh never landed, or a token that has since expired).
 
 A fault whose press cannot work (no pinned binary, or a `OLAI_MAIL_GOOGLE` that names something other than loopback) draws **no button at all** — the row explains itself and waits for an operator.
 

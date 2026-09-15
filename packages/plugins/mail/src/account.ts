@@ -56,7 +56,12 @@
  * offers `undefined` to park it, and the fiber sleeps until the moment it was
  * handed and then refreshes. There is no shared deadline variable and no
  * wake-up callback — the queue is the whole of the handoff, so a wake-up cannot
- * be missed and there is nothing to re-read.
+ * be missed.
+ *
+ * A deadline already being slept on cannot be WITHDRAWN, so the fiber refuses a
+ * stale one instead: anything left in the queue arrived later, so the schedule
+ * has moved on and this attempt is skipped (the loop's own paragraph says
+ * which two things that prevents).
  *
  * The arithmetic that turns a token into that deadline is a pure function
  * ({@link refreshDue}), because it is the part that can be wrong and the part
@@ -119,7 +124,28 @@ export const RETRY_CAP_MS = 10 * 60 * 1000
 export const PENDING_MS = 10 * 60 * 1000
 
 /**
- * WHEN TO REFRESH, from a token's own life, in epoch milliseconds.
+ * THE LIVE TOKEN, as an INTERVAL — when it was issued and when it dies.
+ *
+ * One fact, because the machine asks two things of it and both are derivations:
+ * when to refresh ({@link refreshDue}), and whether the string the generated
+ * config holds is still good for a call RIGHT NOW (a comparison). A retry needs
+ * the second: a broker that cannot reach Google has not taken the mailbox away,
+ * and a pill that said `fault` while a live token sat in the config would be
+ * saying so about a `gmail` call that would answer.
+ */
+export interface TokenLife {
+  readonly from: number
+  readonly until: number
+}
+
+/** The life of a token Google just answered, from its own `expires_in`. */
+export const lifeOf = (input: { readonly now: number; readonly expiresIn: number }): TokenLife => ({
+  from: input.now,
+  until: input.now + input.expiresIn * 1000,
+})
+
+/**
+ * WHEN TO REFRESH such a token, in epoch milliseconds.
  *
  * Two subtractions and a floor, and each is a mistake this plugin could make:
  * the lead is why a call never has to fail once before it succeeds, HALF THE
@@ -127,8 +153,8 @@ export const PENDING_MS = 10 * 60 * 1000
  * (`expires_in <= LEAD_MS` would otherwise answer *now* every time), and
  * {@link MINIMUM_GAP_MS} is why an absurd `expires_in` cannot spin at all.
  */
-export const refreshDue = (input: { readonly now: number; readonly expiresIn: number }): number =>
-  input.now + Math.max(input.expiresIn * 1000 - LEAD_MS, input.expiresIn * 500, MINIMUM_GAP_MS)
+export const refreshDue = (life: TokenLife): number =>
+  Math.max(life.until - LEAD_MS, life.from + (life.until - life.from) / 2, life.from + MINIMUM_GAP_MS)
 
 /** What a profile call answers, once `gmail profile get` has been read. */
 export interface Profile {
@@ -227,6 +253,10 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
   const client = inputs.client?.trim() ? inputs.client.trim() : undefined
   const secret = inputs.secret?.trim() ? inputs.secret.trim() : undefined
 
+  /** THE TOKEN THE GENERATED CONFIG HOLDS, when there is one ({@link TokenLife}).
+   *  `undefined` means there is nothing to refresh and nothing that still works
+   *  — no account, a verdict, or a disconnect. */
+  let life: TokenLife | undefined
   /** The current retry gap, doubling to {@link RETRY_CAP_MS} and reset by any
    *  success. State rather than a computation because a backoff is a fact about
    *  a sequence of failures, not about any one of them. */
@@ -292,17 +322,36 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
    *  fixed. `arm(undefined)` is what stops the fiber: a parked fiber takes a
    *  value, sees there is nothing to wait for, and takes again. */
   const stops = (reason: string, address: string | null = null): void => {
+    life = undefined
     arm?.(undefined)
     publish(account({ status: "fault", reason, address }))
   }
 
-  /** ...AND WAIT: the token and the record are both still good, so the next
-   *  attempt is armed on the backoff and the cell says it is retrying rather
-   *  than asking for a consent it does not need. */
+  /**
+   * ...AND WAIT: the record is still good, so the next attempt is armed on the
+   * backoff and the cell says it is retrying rather than asking for a consent
+   * it does not need.
+   *
+   * A TOKEN THAT IS STILL LIVE KEEPS THE PILL CONNECTED, and that is the whole
+   * of what this arm has to get right: the refresh starts {@link LEAD_MS} before
+   * the token dies, so the first retry (30 s later) is very likely answered by a
+   * Google that is fine again — and in the meantime the config holds a token
+   * that a `gmail` call would accept. Painting `fault` there would wear the
+   * alarm coat over a mailbox that still works, which is the one thing a
+   * readout must not do. It stays `fault` when there is nothing live to fall
+   * back on: a boot whose first refresh never landed, or a token that has since
+   * expired.
+   *
+   * The last connected reading is reused whole (address, total, when the token
+   * was refreshed) — this arm knows none of those and must not invent them.
+   */
   const retrying = (reason: string, address: string | null = null): void => {
     arm?.(now() + backoff)
     backoff = Math.min(backoff * 2, RETRY_CAP_MS)
-    publish(account({ status: "fault", reason, retrying: true, address }))
+    const usable = life !== undefined && life.until > now() && shown.status === "connected"
+    publish(usable
+      ? { ...shown, retrying: true, reason }
+      : account({ status: "fault", reason, retrying: true, address }))
   }
 
   /** NOTHING TO DO, and why: a serve with no account of its own. `broken` is a
@@ -392,7 +441,8 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
           warn(`mail: could not write ${profile.address} to the memory record: ${refusal._tag}`)
         })),
       )
-      arm?.(refreshDue({ now: now(), expiresIn: tokens.expiresIn }))
+      life = lifeOf({ now: now(), expiresIn: tokens.expiresIn })
+      arm?.(refreshDue(life))
       backoff = RETRY_MS
       publish(account({
         status: "connected",
@@ -565,6 +615,13 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
         // disconnect. Take again and wait for the next arm.
         if (due === undefined) continue
         yield* Effect.sleep(Math.max(0, due - now()))
+        // A DEADLINE ALREADY BEING SLEPT ON CANNOT BE WITHDRAWN, so a STALE one
+        // is refused instead: anything waiting in the queue arrived after this
+        // one did (the queue is FIFO and arms offer in order), which means the
+        // schedule has moved on — a Reconnect replaced this wait, or a verdict
+        // parked it. Attempting the stale deadline anyway would refresh twice
+        // after a Reconnect and ask a dead grant once more after a verdict.
+        if ((yield* Queue.size(deadlines)) > 0) continue
         const record = memory.current()
         if (record === undefined) continue
         yield* bringUp(record)

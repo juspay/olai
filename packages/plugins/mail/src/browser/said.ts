@@ -25,9 +25,16 @@ export const mailSaid = (account: Account): Said => {
   switch (account.status) {
     case "connected":
       return {
+        // STILL THE QUIET COAT WHILE A RETRY IS RUNNING, because the mailbox is
+        // still working: the token in the generated config is live, and what is
+        // failing is the broker's next one (`../account.ts` says why the arm
+        // stays `connected`). The words carry the trouble; the colour would be
+        // a lie about a `gmail` call that would answer.
         dot: "bg-done",
         label: `mail ${account.address ?? ""}`.trim(),
-        detail: `connected as ${account.address ?? "an unknown address"}`,
+        detail: account.retrying
+          ? `connected as ${account.address ?? "an unknown address"} — ${account.reason ?? "the next token is being retried"}`
+          : `connected as ${account.address ?? "an unknown address"}`,
       }
     case "absent":
       return {

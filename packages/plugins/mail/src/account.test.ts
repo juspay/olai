@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
 
-import { type AccountMachine, LEAD_MS, makeAccount, MINIMUM_GAP_MS, PENDING_MS, profileOf, refreshDue, RETRY_MS } from "./account.ts"
+import { type AccountMachine, LEAD_MS, lifeOf, makeAccount, MINIMUM_GAP_MS, PENDING_MS, profileOf, refreshDue, RETRY_MS } from "./account.ts"
 import { CREDENTIALS, DOOR } from "./doors.ts"
 import type { Himalaya } from "./himalaya/run.ts"
 import { openMemory, type MemoryRecord } from "./local.ts"
@@ -187,6 +187,38 @@ test("a transport failure is a RETRY: the record and the token survive", async (
   expect(ready.memory?.refreshToken).toBe(RECORD.refreshToken)
   expect(ready.closed()).toBe(0)
   expect(last(ready.painted).canConnect).toBe(true)
+  expect(last(ready.painted).address).toBe(ADDRESS)
+})
+
+test("a retry with a live token keeps the pill CONNECTED, and says what is retrying", async () => {
+  const ready = harness({ record: RECORD })
+  await Effect.runPromise(ready.machine.boot())
+  expect(last(ready.painted).status).toBe("connected")
+  // The refresh that follows the first one is what normally happens five
+  // minutes before the token dies — and the token it is replacing is still
+  // good, so a `gmail` call would answer. The pill must not wear the alarm
+  // coat over a mailbox that works, and the reading must keep the mailbox's
+  // own facts.
+  ready.answers([{ status: 503, body: { error: "backend_error" } }])
+  await Effect.runPromise(ready.machine.boot())
+  expect(last(ready.painted).status).toBe("connected")
+  expect(last(ready.painted).retrying).toBe(true)
+  expect(last(ready.painted).reason).toContain("backend_error")
+  expect(last(ready.painted).address).toBe(ADDRESS)
+  expect(last(ready.painted).messages).toBe(4213)
+  // ...and a press is not what it needs: `mailNeedsYou` reads the same field.
+  expect(last(ready.painted).canConnect).toBe(true)
+})
+
+test("...and once that token has expired the same failure is a fault", async () => {
+  const ready = harness({ record: RECORD })
+  await Effect.runPromise(ready.machine.boot())
+  // A token that is no longer live leaves nothing to fall back on.
+  ready.at(new Date(Date.parse(CONNECTED_AT) + 3600_000 + 1).toISOString())
+  ready.answers([{ status: 503, body: { error: "backend_error" } }])
+  await Effect.runPromise(ready.machine.boot())
+  expect(last(ready.painted).status).toBe("fault")
+  expect(last(ready.painted).retrying).toBe(true)
   expect(last(ready.painted).address).toBe(ADDRESS)
 })
 
@@ -410,17 +442,25 @@ test("a revoke Google would not take is still a disconnect, said once", async ()
 
 test("the refresh is due five minutes before the token expires", () => {
   const now = Date.parse(CONNECTED_AT)
-  expect(refreshDue({ now, expiresIn: 3600 })).toBe(now + 3600_000 - LEAD_MS)
+  expect(refreshDue(lifeOf({ now, expiresIn: 3600 }))).toBe(now + 3600_000 - LEAD_MS)
 })
 
 test("a token that lives less than the lead is refreshed at half its life, never in a loop", () => {
   const now = Date.parse(CONNECTED_AT)
   // `expires_in <= LEAD` would answer `now` for every token Google answers
   // with a short life, which is a refresh loop with no sleep in it.
-  expect(refreshDue({ now, expiresIn: 300 })).toBe(now + 150_000)
+  expect(refreshDue(lifeOf({ now, expiresIn: 300 }))).toBe(now + 150_000)
   // ...and an absurd life is floored rather than spun on.
-  expect(refreshDue({ now, expiresIn: 0 })).toBe(now + MINIMUM_GAP_MS)
+  expect(refreshDue(lifeOf({ now, expiresIn: 0 }))).toBe(now + MINIMUM_GAP_MS)
   expect(MINIMUM_GAP_MS).toBeGreaterThan(0)
+})
+
+test("a token's life says whether what the config holds is still usable", () => {
+  const now = Date.parse(CONNECTED_AT)
+  const life = lifeOf({ now, expiresIn: 3600 })
+  expect(life.until > now).toBe(true)
+  // ...and a token that has expired is not (`retrying` reads this).
+  expect(life.until > now + 3600_000).toBe(false)
 })
 
 test("a profile answer is read off the binary's own kebab-case JSON", () => {

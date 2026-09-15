@@ -148,7 +148,13 @@ export function MailRow(props: {
         // `0`: a connected account reading *0 messages* is the one sentence
         // that would make a person think they consented to the wrong mailbox,
         // and the cell is nullable exactly for that case.
+        //
+        // ...AND A CONNECTED ROW CAN BE RETRYING: the token the config holds is
+        // live while the broker's next one is being sought (`../account.ts`),
+        // so the sentence says what this serve is reading and, when there is
+        // something, what it is also waiting on.
         return `Connected as ${account.address}${account.messages === null ? "" : ` · ${account.messages} messages`} · token refreshed ${refreshed()} · scope ${account.scope}`
+          + (account.retrying ? ` — ${account.reason ?? "the next token is being retried"}` : "")
       // THE REASON, VERBATIM, and `docs.md` argues why this arm is not
       // composed into the sentence the prototype draws: a fault here is one of
       // THREE things — Google's own refusal, a door the environment is missing,
