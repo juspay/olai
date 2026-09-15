@@ -104,10 +104,10 @@ const drawn = (router: ReturnType<typeof createRouter>) => router.routes.href(ro
 
 test("Back walks the lane in front and skips another lane's pages", async () => {
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     router.go(atFile("one.md"))
     router.go(atFile("two.md"))
-    router.switchLane("b", lone(HOME_ROUTE))
+    router.switchLane("b", { workspace: lone(HOME_ROUTE) })
     router.go(atFile("three.md"))
     page.back()
     await settled()
@@ -129,12 +129,12 @@ test("Back walks the lane in front and skips another lane's pages", async () => 
 
 test("a lane brought back walks its own pages again, past the other lane's", async () => {
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     router.go(atFile("one.md"))
     const left = router.entryKey()
-    router.switchLane("b", lone(HOME_ROUTE))
+    router.switchLane("b", { workspace: lone(HOME_ROUTE) })
     router.go(atFile("three.md"))
-    router.switchLane("a", lone(atFile("one.md")), left)
+    router.switchLane("a", { workspace: lone(atFile("one.md")), key: left })
     expect(router.entryKey()).toBe(left)
     page.back()
     await settled()
@@ -147,19 +147,19 @@ test("a lane brought back walks its own pages again, past the other lane's", asy
 
 test("a forgotten lane's entries are passed over, and with no lane every entry is walked", async () => {
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     router.go(atFile("one.md"))
     router.go(atFile("two.md"))
-    router.switchLane("b", lone(atFile("b.md")))
+    router.switchLane("b", { workspace: lone(atFile("b.md")) })
     router.go(atFile("b2.md"))
-    router.switchLane("a", lone(atFile("two.md")))
+    router.switchLane("a", { workspace: lone(atFile("two.md")) })
     router.forgetLane("b")
     page.back()
     await settled()
     expect(drawn(router)).toBe("/one.md")
 
     // With the window's history back, the closed lane's page is a page again.
-    router.switchLane(null, router.workspace(), router.entryKey())
+    router.switchLane(null)
     page.forward()
     await settled()
     expect(drawn(router)).toBe("/b.md")
@@ -170,7 +170,7 @@ test("switching to the page already drawn keeps it, and the first lane adopts wh
   await withRouter(async (router, page) => {
     router.go(atFile("before.md"))
     const workspace = router.workspace()
-    router.switchLane("a", workspace, router.entryKey())
+    router.switchLane("a")
     expect(router.workspace()).toBe(workspace)
     page.back()
     await settled()
@@ -183,20 +183,20 @@ test("taking a lane over the page already drawn leaves the address bar alone, be
   // something else until it settles, and must not be written back as that.
   const address = "/s/house.olai%23handles/notes%2Fdeep.html%23beds"
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     expect(page.address()).toBe(address)
-    router.switchLane(null, router.workspace(), router.entryKey())
+    router.switchLane(null)
     expect(page.address()).toBe(address)
   }, address)
 })
 
 test("Forward at the end of a lane bounces and leaves the page alone", async () => {
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     router.go(atFile("one.md"))
-    router.switchLane("b", lone(atFile("b.md")))
+    router.switchLane("b", { workspace: lone(atFile("b.md")) })
     router.go(atFile("b2.md"))
-    router.switchLane("a", lone(atFile("one.md")))
+    router.switchLane("a", { workspace: lone(atFile("one.md")) })
     page.back()
     await settled()
     expect(drawn(router)).toBe("/")
@@ -213,7 +213,7 @@ test("Forward at the end of a lane bounces and leaves the page alone", async () 
 
 test("an entry written before positions existed is dead while a lane is in force", async () => {
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     const before = router.workspace()
     page.back()
     await settled()
@@ -224,7 +224,7 @@ test("an entry written before positions existed is dead while a lane is in force
 
 test("forgetting the lane in force still leaves Back somewhere to come home to", async () => {
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     router.go(atFile("one.md"))
     router.forgetLane("a")
     page.back()
@@ -232,7 +232,7 @@ test("forgetting the lane in force still leaves Back somewhere to come home to",
     expect(page.path()).toBe("/one.md")
     expect(drawn(router)).toBe("/one.md")
     // ...and the lane switched in afterwards walks as usual.
-    router.switchLane("b", lone(atFile("b.md")))
+    router.switchLane("b", { workspace: lone(atFile("b.md")) })
     router.go(atFile("b2.md"))
     page.back()
     await settled()
@@ -242,24 +242,24 @@ test("forgetting the lane in force still leaves Back somewhere to come home to",
 
 test("a lane brought back with its entry's key comes back to where it was scrolled", async () => {
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     router.go(atFile("one.md"))
     page.scroll(300)
     const left = router.entryKey()
-    router.switchLane("b", lone(atFile("b.md")))
+    router.switchLane("b", { workspace: lone(atFile("b.md")) })
     expect(page.top()).toBe(0)
-    router.switchLane("a", lone(atFile("one.md")), left)
+    router.switchLane("a", { workspace: lone(atFile("one.md")), key: left })
     expect(page.top()).toBe(300)
   })
 })
 
 test("a switch asked for mid-travel is written once the browser is back on its entry", async () => {
   await withRouter(async (router, page) => {
-    router.switchLane("a", router.workspace(), router.entryKey())
+    router.switchLane("a")
     router.go(atFile("one.md"))
-    router.switchLane("b", lone(atFile("b.md")))
+    router.switchLane("b", { workspace: lone(atFile("b.md")) })
     page.back() // b's start: this will bounce
-    router.switchLane("c", lone(atFile("c.md")))
+    router.switchLane("c", { workspace: lone(atFile("c.md")) })
     await settled()
     expect(page.path()).toBe("/c.md")
     expect(router.lane()).toBe("c")

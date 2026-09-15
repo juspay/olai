@@ -226,10 +226,6 @@ test("a plugin's chord over one the app already answers is refused, and the firs
     expect(said[0]).toContain("closePane")
     expect(said[0]).toContain("tabs")
     expect(said[1]).toContain("the plugin \"tabs\"")
-    // `>` with Shift is the `.` key with Shift: one keystroke, so one owner.
-    said.length = 0
-    expect(chordsIn([hung("tabs", next), hung("other", chord(">", true, "the same key"))])).toEqual([next])
-    expect(said).toHaveLength(1)
   } finally {
     console.warn = warned
   }

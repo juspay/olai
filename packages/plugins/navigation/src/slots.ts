@@ -43,7 +43,8 @@ export interface AppPalette {
 }
 
 export interface AppChord {
-  /** The letter, lowercase — `j`. */
+  /** The key, lowercase and as it reads without Shift — `j`, `.` — so one key
+   *  has one spelling whether or not the chord holds Shift. */
   readonly key: string
   /** ...with Shift, for a chord whose bare form the browser has taken. */
   readonly shift?: boolean

@@ -143,10 +143,6 @@ export const matchKey = (
  *  with those, and a chord names the key a hand reaches for, not the glyph. */
 const UNSHIFTED: Readonly<Record<string, string>> = { Period: ".", Comma: "," }
 
-/** The key a chord is ON, for comparing two chords: `>` and `.` are one key
- *  with Shift held, and so are `<` and `,` ({@link matchChord} matches both). */
-export const chordKeyOf = (key: string): string => ({ ">": ".", "<": "," } as Readonly<Record<string, string>>)[key] ?? key.toLowerCase()
-
 /**
  * {@link matchKey}'s rule over any table of chords — the modifier this platform
  * spends (⌘ on Apple, Ctrl elsewhere, never both), no Alt, and Shift matched

@@ -96,10 +96,10 @@ export interface Router {
   /** The name of the entry under the reader — what the scroll memory keys the
    *  place it was left at by. */
   readonly entryKey: () => string
-  /** Replace the current entry with `workspace` under `lane`. Not a history
-   *  event. Reuses `key` if given so the scroll memory finds that entry's place;
-   *  returns the key the entry carries now. */
-  readonly switchLane: (lane: string | null, workspace: Workspace, key?: string) => string
+  /** Name the lane the current entry belongs to; given `to`, also replace the
+   *  entry with `to.workspace`, reusing `to.key` if given so the scroll memory
+   *  finds that entry's place. Not a history event. Returns the entry's key. */
+  readonly switchLane: (lane: string | null, to?: { readonly workspace: Workspace; readonly key?: string }) => string
   /** Entries of this lane are dead from now on: a traversal passes over them. */
   readonly forgetLane: (lane: string) => void
 }

@@ -152,7 +152,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                           scrolls, and every sticky row a page draws already
                           holds its place under the bar alone. */}
                       <Show when={desktop() && props.slots.read(strip).length > 0}>
-                        <div data-testid={LAYOUT_TESTID.mainStrip} class="h-[var(--height-tabs)]">
+                        <div data-testid={LAYOUT_TESTID.mainStrip} class="h-[var(--height-strip)]">
                           <For each={props.slots.read(strip)}>{({value: Strip})=><Strip/>}</For>
                         </div>
                       </Show>

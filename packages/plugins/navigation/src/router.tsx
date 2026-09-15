@@ -144,6 +144,13 @@ export const createRouter = (): Router => {
    */
   let seeking: { readonly direction: 1 | -1; steps: number; pending?: () => void } | undefined
   const stamp = (key: string): Entry => ({ key, lane: untrack(lane), at: currentAt })
+  /** An entry pushed over the one under the reader, by this router or by the
+   *  browser: one position further, belonging to the lane in force, and every
+   *  entry beyond it discarded. */
+  const pushed = (): void => {
+    currentAt += 1
+    rows = pushedAt(rows, currentAt, untrack(lane))
+  }
   /** The name of the entry under the reader, minted and written onto it where
    *  it has none — and its position, where a build before positions wrote it. */
   const nameHere = (): string => {
@@ -191,8 +198,7 @@ export const createRouter = (): Router => {
     const href = hrefOfWorkspace(routing, next)
     if (how === "push") {
       currentKey = mintKey()
-      currentAt += 1
-      rows = pushedAt(rows, currentAt, untrack(lane))
+      pushed()
       history.pushState(stamp(currentKey), "", href)
     } else {
       history.replaceState(stamp(keyIn(history.state) ?? mintKey()), "", href)
@@ -236,6 +242,9 @@ export const createRouter = (): Router => {
     seeking.steps += delta
     history.go(delta)
   }
+  /** On toward the lane's next entry, or back home. */
+  const steer = (decision: "seek" | "bounce"): void =>
+    travel(decision === "seek" ? seeking!.direction : -seeking!.steps)
 
   /**
    * WHILE TRAVELLING nothing on screen moves — no workspace, no landing, no
@@ -266,8 +275,7 @@ export const createRouter = (): Router => {
     if (decision === "apply") {
       seeking = undefined
       arrive(target!, at)
-    } else if (decision === "seek") travel(trip.direction)
-    else travel(-trip.steps)
+    } else steer(decision)
   }
 
   const onPopState = () => {
@@ -282,10 +290,7 @@ export const createRouter = (): Router => {
       // every entry is stamped the moment it is landed on (`nameHere` below),
       // so the only state-less entry a traversal can meet is one the browser
       // made and this document never drew.
-      if (target === undefined) {
-        currentAt += 1
-        rows = pushedAt(rows, currentAt, untrack(lane))
-      }
+      if (target === undefined) pushed()
       // THE ADDRESS BAR, MOVING INSIDE THIS DOCUMENT — a fragment arrived
       // hand-carried, or the very address on screen was asked for again.
       // That is an ARRIVAL the way the first paint is one (the browser's
@@ -318,8 +323,7 @@ export const createRouter = (): Router => {
       const decision = seek(rows, currentAt, at, inForce)
       if (decision !== "apply") {
         seeking = { direction: Math.sign(at - currentAt) as 1 | -1, steps: at - currentAt }
-        if (decision === "seek") travel(seeking.direction)
-        else travel(-seeking.steps)
+        steer(decision)
         return
       }
     }
@@ -352,41 +356,37 @@ export const createRouter = (): Router => {
   }
 
   /**
-   * PUT ANOTHER LANE'S WORKSPACE ON THE ENTRY UNDER THE READER — what a tab
-   * brought to the front is. Not a history event: the entry is replaced, so
-   * Back from here is the arriving lane's own history.
+   * NAME THE LANE THE ENTRY UNDER THE READER BELONGS TO — and, given `to`, put
+   * that lane's workspace on it, which is what a tab brought to the front is.
+   * Not a history event either way: the entry is replaced, so Back from here is
+   * the lane's own history.
    *
-   * The page does not move when the address does not change (a tab row taking
-   * the lane of the page already drawn, or giving it back): the first paint's
-   * landing is still owed and the scroll is still the reader's. Otherwise it
-   * is an arrival the way a traversal is one — no landing, and the place this
-   * entry's key was left, which is the top for a key this document never saw.
+   * Without `to` nothing on screen moves and the address is left alone: a lane
+   * taken over the first paint arrives before every tenant has claimed its URL,
+   * and a plugin's page printed then would be the front page. With `to` it is
+   * an arrival the way a traversal is one — no landing, and the place `to.key`
+   * was left, which is the top for a key this document never saw.
    */
-  const switchLane = (next: string | null, target: Workspace, key?: string): string => {
-    const name = key ?? mintKey()
-    const moved = hrefOfWorkspace(routing, target) !== hrefOfWorkspace(routing, untrack(workspace))
-    const renamed = name !== currentKey
+  const switchLane = (next: string | null, to?: { readonly workspace: Workspace; readonly key?: string }): string => {
+    const name = to === undefined ? currentKey : (to.key ?? mintKey())
     // The entries this document wrote while no lane was in force belong to no
     // tab yet; the lane taken over them is the tab that was showing them.
     const owned = untrack(lane) === null && next !== null ? adopted(rows, next) : rows
     setLane(next)
     currentKey = name
     rows = new Map(owned).set(currentAt, next)
-    // THE ADDRESS IS LEFT ALONE when the page does not move. A lane taken over
-    // the first paint arrives before every tenant has claimed its URL, and a
-    // plugin's page printed then is the front page: rewriting the bar with it
-    // would lose the very page the reader opened.
-    const href = moved ? hrefOfWorkspace(routing, target) : undefined
+    const href = to === undefined ? undefined : hrefOfWorkspace(routing, to.workspace)
     const write = () => history.replaceState(stamp(name), "", href)
     // MID-TRAVEL the browser is on some other entry, so the write waits until
     // the traversal has taken it back to this one (`onTravel`).
     if (seeking !== undefined) seeking.pending = write
     else write()
-    if (moved) batch(() => {
+    if (to === undefined) return name
+    batch(() => {
       setLandings(NOWHERE)
-      setWorkspace(target)
+      setWorkspace(to.workspace)
     })
-    if (moved || renamed) scroll.restore(name)
+    scroll.restore(name)
     return name
   }
 

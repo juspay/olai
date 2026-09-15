@@ -72,7 +72,7 @@ Saved-layout normalization is the pure `savedLayout(workspace)` transformation. 
 
 The browser keeps one history stack per window. A row that keeps several
 workspaces open (the `tabs` row) names a **lane** for the one in front with
-`Router.switchLane(lane, workspace, key?)`, and from then on Back and Forward
+`Router.switchLane(lane, to?)`, and from then on Back and Forward
 walk only that lane's entries. Every entry the router writes carries its key,
 the lane in force and its position in the stack (a push is one further, a
 replace keeps the position). A traversal that reaches another lane's entry
@@ -91,12 +91,13 @@ started, and always finishes. A
 `switchLane` asked for mid-travel updates the lane and the page at once, and
 writes the entry once the browser is back on it.
 
-`switchLane` replaces the entry under the reader; it is not a history event. It
-reuses `key` when given, so the scroll memory returns the entry to where it was
-left, and returns the key the entry carries now. When the address does not
-change it leaves the landing and scroll alone. The first lane taken
+`switchLane` is not a history event. Without `to` it only names the lane the
+entry under the reader belongs to, and leaves the address, landing and scroll
+alone. With `to` it also replaces that entry with `to.workspace`, reusing `to.key`
+when given so the scroll memory returns the entry to where it was left. Either
+way it returns the key the entry carries now. The first lane taken
 where none was in force adopts the entries this document wrote without one.
-`forgetLane(lane)` marks that lane's entries dead, so a closed tab's pages are skipped. Forgetting the lane in force keeps the entry under the reader alive until the next `switchLane`, so Back and Forward always have an entry to return to. `switchLane(null, …)`
+`forgetLane(lane)` marks that lane's entries dead, so a closed tab's pages are skipped. Forgetting the lane in force keeps the entry under the reader alive until the next `switchLane`, so Back and Forward always have an entry to return to. `switchLane(null)`
 restores window history: every entry matches again. `lane()` and `entryKey()`
 read the lane in force and the name of the current entry.
 
