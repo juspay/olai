@@ -149,7 +149,6 @@ export {
   DOCUMENT_EXTENSIONS,
   isAttachable,
   MAX_ATTACHMENT_BYTES,
-  VIDEO_TYPES,
 } from "./attach.ts"
 
 export { isAttachmentPicture } from "./attach.ts"

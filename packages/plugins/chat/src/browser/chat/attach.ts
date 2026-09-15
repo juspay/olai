@@ -24,7 +24,7 @@
  */
 
 import { chunkBase64 } from "@kolu/surface/frame-chunking"
-import { attachmentRejection, VIDEO_TYPES } from "@olai/surface"
+import { attachmentRejection } from "@olai/surface"
 import { type Attached, type AttachChunk } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { Effect } from "effect"
@@ -99,15 +99,15 @@ export const refusalFor = (file: File): string | null =>
  * A pasted screenshot usually arrives as a `File` with a name of its own
  * (`image.png`), and sometimes as one with nothing useful at all — so the type
  * is the fallback, because the EXTENSION is what the gate judges and what the
- * agent reads the file's kind from. A pasted recording is named from the
- * gate's own video table: calling an unnamed `video/mp4` `pasted.png` would
- * get it past the gate as a picture it is not.
+ * agent reads the file's kind from. Only a PICTURE is named for it: anything
+ * else keeps the name it came with and meets the gate as that, because calling
+ * an unnamed zip or recording `pasted.png` would get it past the gate as a
+ * picture it is not.
  */
 const nameOf = (file: File): string => {
   if (file.name !== "" && file.name.includes(".")) return file.name
-  const video = VIDEO_TYPES.find((video) => video.types.includes(file.type))
-  if (video !== undefined) return `pasted${video.extension}`
-  const kind = file.type.startsWith("image/") ? file.type.slice("image/".length) : ""
+  if (file.type !== "" && !file.type.startsWith("image/")) return file.name === "" ? "pasted" : file.name
+  const kind = file.type.slice("image/".length)
   return `pasted.${kind === "" ? "png" : kind.replace(/[^a-z0-9]/gi, "")}`
 }
 

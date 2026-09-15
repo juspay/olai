@@ -11,9 +11,7 @@
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
 
-import { VIDEO_TYPES } from "@olai/surface"
-
-import { type Attach, attaching } from "./attach.ts"
+import { type Attach, attaching, refusalFor } from "./attach.ts"
 
 const picture = (name: string, bytes: Uint8Array, type = "image/png") =>
   new File([bytes as BlobPart], name, { type })
@@ -106,15 +104,16 @@ test("a picture the clipboard did not name is named after its type", async () =>
   expect(outcome.success.name).toBe("stored-pasted.webp")
 })
 
-test("a recording the clipboard did not name is named after its type, not as a picture", async () => {
-  for (const { extension, types } of VIDEO_TYPES) {
-    for (const type of types) {
-      const outcome = await Effect.runPromise(
-        Effect.result(attaching(picture("", body, type), spy().attach, 8)),
-      )
-      expect(Result.isSuccess(outcome)).toBe(true)
-      if (!Result.isSuccess(outcome)) return
-      expect(outcome.success.name).toBe(`stored-pasted${extension}`)
-    }
+test("a file the clipboard did not name is not called a picture unless it is one", async () => {
+  // It used to be: every unnamed file became `pasted.png`, so an unnamed zip
+  // or recording passed the gate as a picture. Now it meets the gate under the
+  // name it came with, and is refused before a byte is sent.
+  for (const [name, type] of [["", "video/mp4"], ["", "application/zip"], ["archive", "application/zip"]]) {
+    const server = spy()
+    const file = picture(name, body, type)
+    expect(refusalFor(file)).toMatch(/cannot be attached/)
+    const outcome = await Effect.runPromise(Effect.result(attaching(file, server.attach, 8)))
+    expect(Result.isFailure(outcome)).toBe(true)
+    expect(server.calls).toHaveLength(0)
   }
 })
