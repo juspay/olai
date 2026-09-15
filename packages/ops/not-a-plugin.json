@@ -44,6 +44,9 @@
     "src/refusals.ts",
     "src/tools.ts"
   ],
+  "tabs": [
+    "src/standing.bench.ts"
+  ],
   "trash": [
     "src/plan.ts"
   ],

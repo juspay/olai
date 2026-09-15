@@ -4,6 +4,7 @@
 
 import type { AgentStanding, NodeAgentRow } from "olai-plugin-chat/wire"
 import type { Look } from "@olai/web/client/readout.ts"
+import { NEEDS_YOU_DOT } from "../../attention.ts"
 
 export type Standing = AgentStanding
 export type Row = NodeAgentRow
@@ -12,7 +13,7 @@ export type Row = NodeAgentRow
  * table is read by both the sidebar row and the aside on the outline. */
 export const LOOK: Record<Standing, Look> = {
   "needs-you": {
-    dot: "bg-doing",
+    dot: NEEDS_YOU_DOT,
     label: "needs you",
     detail: "its turn has stopped on a question only you can answer, and nothing times out",
   },

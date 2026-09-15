@@ -92,6 +92,7 @@
         "olai-plugin-search": "workspace:*",
         "olai-plugin-settings": "workspace:*",
         "olai-plugin-sidebar": "workspace:*",
+        "olai-plugin-tabs": "workspace:*",
         "olai-plugin-test-counter": "workspace:*",
         "olai-plugin-test-layout": "workspace:*",
         "olai-plugin-theme": "workspace:*",
@@ -772,6 +773,7 @@
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-sidebar": "workspace:*",
+        "olai-plugin-tabs": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
@@ -869,6 +871,26 @@
         "@solid-primitives/keyed": "^1.5.2",
         "effect": "4.0.0-rc.112",
         "olai-plugin-layout": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
+        "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
+    },
+    "packages/plugins/tabs": {
+      "name": "olai-plugin-tabs",
+      "version": "0.1.0",
+      "dependencies": {
+        "@kobalte/core": "^0.13.13",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/ui-primitives": "workspace:*",
+        "@olai/web": "workspace:*",
+        "@solid-primitives/keyed": "^1.5.2",
+        "effect": "4.0.0-rc.112",
+        "olai-plugin-chat": "workspace:*",
+        "olai-plugin-layout": "workspace:*",
+        "olai-plugin-navigation": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "solid-js": "^1.9.0",
       },
@@ -2040,6 +2062,8 @@
     "olai-plugin-settings": ["olai-plugin-settings@workspace:packages/plugins/settings"],
 
     "olai-plugin-sidebar": ["olai-plugin-sidebar@workspace:packages/plugins/sidebar"],
+
+    "olai-plugin-tabs": ["olai-plugin-tabs@workspace:packages/plugins/tabs"],
 
     "olai-plugin-test-counter": ["olai-plugin-test-counter@workspace:packages/plugins/test-counter"],
 

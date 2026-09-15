@@ -35,6 +35,8 @@ import {
 } from "@olai/surface";
 
 import { saysThat } from "@olai/tests/harness/said.ts";
+import { TESTID } from "@olai/tests/harness/testids.ts";
+import { selector } from "@olai/web/testlib";
 import {
   BODY_REFUSED,
   DOCUMENT_BODY,
@@ -859,12 +861,16 @@ const landedOn = async (
   where: Locator,
   text: string,
   whose: string,
+  /** Chrome that holds still above the reading besides the bar — a split's
+   *  columns start under the seat above the panes, where a tab strip may be —
+   *  so "the top" is that much further down the screen. */
+  under = 0,
 ): Promise<void> => {
   const heading = where.locator(HEADINGS).filter({ hasText: text }).first();
   await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await world.waitUntil(async () => {
     const top = await heading.evaluate((node) => node.getBoundingClientRect().top);
-    return Math.abs(top) < AT_THE_TOP;
+    return Math.abs(top - under) < AT_THE_TOP;
   }, `the heading ${JSON.stringify(text)} to be at the top of ${whose}`);
 };
 
@@ -888,11 +894,13 @@ Then(
 Then(
   "the document in pane {int} is scrolled to the heading {string}",
   async function (this: OlaiWorld, index: number, text: string) {
+    const seat = await this.page.locator(selector(TESTID.mainStrip)).boundingBox();
     await landedOn(
       this,
       this.pane(index).locator(DOCUMENT_BODY).first(),
       text,
       `pane ${index}`,
+      seat?.height ?? 0,
     );
   },
 );

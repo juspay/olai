@@ -28,6 +28,8 @@ import {
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
+import { MAIN_STRIP } from "../selectors.ts";
+
 const paneAt = (world: OlaiWorld, index: number) => world.pane(index);
 
 When(
@@ -267,7 +269,10 @@ When("I scroll pane {int} to its middle", async function(this: OlaiWorld, index:
 Then("pane {int} keeps its title {string} above its scroller", async function(this: OlaiWorld, index: number, title: string) {
   const heading = this.page.locator(`${PANE_HEADER}${attr("data-pane", String(index))}`)
   assert.ok((await heading.innerText()).includes(title))
-  const bar = await this.page.locator(APP_HEADER).boundingBox()
+  // UNDER WHATEVER SITS ABOVE THE PANES: the bar, and the seat under it where a
+  // row fills it (the tab strip).
+  const strip = await this.page.locator(MAIN_STRIP).boundingBox()
+  const bar = strip ?? await this.page.locator(APP_HEADER).boundingBox()
   const box = await heading.boundingBox()
   const top = await this.pane(index).evaluate(root => {
     let host = root.parentElement

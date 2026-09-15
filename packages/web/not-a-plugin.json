@@ -12,5 +12,9 @@
   ],
   "sidebar": [
     "src/client/keys.ts"
+  ],
+  "//tabs": "A shortlist's Tab key, not the tabs row.",
+  "tabs": [
+    "src/client/keys.ts"
   ]
 }

@@ -58,4 +58,10 @@
    * those are written by JS at runtime, so the fallback is what the first
    * paint reads.) */
   --height-header: 4rem;
+
+  /* The tab strip's height, when a row fills the seat above the panes
+   * (`olai-plugin-layout`'s `layout.strip`). The pane sheet does not read this
+   * directly: layout publishes `--height-strip` as this token while the seat is
+   * filled on a desktop, and `0px` otherwise, and the sheet subtracts that. */
+  --height-tabs: 2.625rem;
 }

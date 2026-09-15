@@ -11,12 +11,14 @@
 import { createEffect,onCleanup } from "solid-js"
 
 import { RAIL_WIDTH_PX } from "./prefs.ts"
-import { panelWidth,sidebarOpen,sidebarWidth } from "./live.ts"
+import { desktop,panelWidth,sidebarOpen,sidebarWidth } from "./live.ts"
 
-/** Keep `--width-sidebar` / `--width-panel` in step with the preferences. */
-export const publishLayoutCss = (): void => {
+/** Keep `--width-sidebar` / `--width-panel` in step with the preferences, and
+ *  `--height-strip` in step with whether the seat above the panes is filled
+ *  (`filled`) on a desktop — the tab strip's token then, nothing otherwise. */
+export const publishLayoutCss = (filled: () => boolean = () => false): void => {
   const style = document.documentElement.style
-  const previous = ["--width-sidebar", "--width-panel"].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const)
+  const previous = ["--width-sidebar", "--width-panel", "--height-strip"].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const)
   onCleanup(() => {
     for (const [name, value, priority] of previous) {
       if (value) style.setProperty(name, value, priority)
@@ -28,5 +30,6 @@ export const publishLayoutCss = (): void => {
     const side = sidebarOpen() ? sidebarWidth() : RAIL_WIDTH_PX
     root.style.setProperty("--width-sidebar", `${side}px`)
     root.style.setProperty("--width-panel", `${panelWidth()}px`)
+    root.style.setProperty("--height-strip", filled() && desktop() ? "var(--height-tabs)" : "0px")
   })
 }

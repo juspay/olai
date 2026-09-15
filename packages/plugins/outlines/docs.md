@@ -15,6 +15,8 @@ that panel must keep working when the outline row stops: with no provider its
 chips draw the ids they carry. The overlay socket is minted and removed inside
 this row's activation, so turning the row off takes the container off the page.
 
+Every row line, on an outline page and on a day page, carries `data-menu-owner`: the row owns the menu a press on it opens, so a page-wide link menu (the tabs row's Open in new tab) leaves the links drawn inside a row to the row.
+
 An outline page declares the row chip, pane, block, action and door locations, along with typed title, dated-row, page-shell and property-navigation extension points. Journal supplies date destinations. Markdown supplies document destinations. Missing integrations produce ordinary text or no contribution, rather than importing or starting the missing provider.
 
 Unrelated plugin changes preserve existing editor instances and drafts. Removing outlines withdraws its pages and row locations, releases its observers, clears its focus and retained draft/form memory and prevents old reference lookups from publishing into a new activation. Restoring outlines creates a new activation and reads persisted browser preferences again.

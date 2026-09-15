@@ -11,7 +11,7 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
+import { atElement, atFile, atNode, labelIn, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
 import { ROUTES, routingIn } from "./routes.testlib.ts"
 
 /** No plugin claims a URL — the roster these cases are about, named rather
@@ -373,4 +373,24 @@ test("a source-line document link preserves its query without making the page na
   expect(lineAt("L999")).toBe(999)
   expect(lineAt("L0")).toBeUndefined()
   expect(lineAt("L9007199254740992")).toBeUndefined()
+})
+
+test("a page's short name: a node's id, a file's path, a tenant's breadcrumb, and a departed tenant's fallback", () => {
+  const route = defineAppRoute({
+    claims: [{ kind: "exact", path: "/named" }],
+    parse: () => "named",
+    href: () => "/named" as const,
+    breadcrumb: () => "a named page",
+    narrowable: false,
+    request: () => ({ kind: "trash" } as const),
+    stream: { use: () => () => undefined },
+  })
+  const pages = settleRoutePages([{ plugin: "named", face: defineAppPage(route, () => null) }])
+  const plugin: Route = { kind: "plugin", source: pages[0]!.page.route, value: "named" }
+  expect(labelIn(pages, HOME_ROUTE)).toBe("outline")
+  expect(labelIn(pages, atNode("kitchen"))).toBe("kitchen")
+  expect(labelIn(pages, atFile("wing/kitchen.olai"))).toBe("wing/kitchen.olai")
+  expect(labelIn(pages, { kind: "trash" })).toBe("trash")
+  expect(labelIn(pages, plugin)).toBe("a named page")
+  expect(labelIn([], plugin)).toBe("plugin")
 })

@@ -1,7 +1,9 @@
 @share-scratch
 @scratch:good
 Feature: Pinning layouts
-  A named shelf entry restores the saved pages as one workspace and one history push.
+  A named shelf entry restores the saved pages as one workspace. With the tabs
+  row on, the shelf opens it in a new tab in front, and the tab it was pressed
+  from keeps its page (`olai-plugin-tabs`' `pins.feature` has the row off).
 
   Background:
     Given I open the outline "house.olai"
@@ -25,7 +27,8 @@ Feature: Pinning layouts
     And pane 0 is focused
     And the layout panes have equal widths
     And the address is exactly "/s/house.olai/garden.olai"
-    When I go back
+    And there are 2 tabs
+    When I press tab 0
     Then there are 1 panes
     And the address is exactly "/finishes.md"
     And there should be no page errors
@@ -40,7 +43,7 @@ Feature: Pinning layouts
     And pane 1 is showing "/garden.olai"
     And pane 0 is focused
     And the layout panes have equal widths
-    When I go back
+    When I press tab 0
     Then pane 0 is showing "/#order"
     And pane 1 is showing "/finishes.md"
 
@@ -241,7 +244,7 @@ Feature: Pinning layouts
     And pane 0 is focused
     And the layout panes have equal widths
     And the address is exactly "/s/house.olai/garden.olai/finishes.md"
-    When I go back
+    When I press tab 0
     Then the address is exactly "/house.olai"
 
   Scenario: Reordering a layout pin consumes the click without opening its workspace

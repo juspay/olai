@@ -28,6 +28,15 @@ Every plugin that could reach a conversation names one of the five doors this ro
 | `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces |
 | `watching` | what a plugin that mirrors a conversation is told | [xyne-spaces](xyne-spaces.md) |
 
+In the browser, the row publishes its roster as `chat.state`. The static door
+`olai-plugin-chat/attention` names it (`chatState`) with a narrow shape — the
+rows and the tab-local folds — and carries `isCurrent`, the predicate the Chats
+section lights a row with, and `NEEDS_YOU_DOT`, the one paint of a standing
+another row draws. The rest of a standing's look and the sidebar's ordering stay
+in chat's browser modules. The tabs row's `attention`
+component names it to put a dot on a tab whose page is a conversation that needs
+you. The door holds no live value.
+
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
 
 Enable the chat row alongside any tenant that needs its services. Each namespace’s `on` property controls that row; unspecified rows retain their profile and build defaults.

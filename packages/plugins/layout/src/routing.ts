@@ -22,7 +22,7 @@
  */
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { Route } from "olai-plugin-navigation/routes"
-import { HOME_ROUTE, hrefOfPlain, type MountedAppPage, type Routing } from "olai-plugin-navigation/routes"
+import { HOME_ROUTE, hrefOfPlain, labelIn, NO_PAGES, type Routing } from "olai-plugin-navigation/routes"
 
 const provider = heldService<Routing>()
 
@@ -34,6 +34,8 @@ export const holdRouting = provider.hold
 export const hrefOf = (route: Route): string =>
   provider.read()?.href(route) ?? hrefOfPlain(HOME_ROUTE)
 
-/** The mounted tenant for a plugin route, or `null` after it left. */
-export const routeFace = (route: Route): MountedAppPage | null =>
-  provider.read()?.face(route) ?? null
+/** A pane's short name, in navigation's words ({@link Routing.label}) — a
+ *  plugin's page reads "plugin" while this package's navigation dependency has
+ *  not landed. */
+export const labelOf = (route: Route): string =>
+  provider.read()?.label(route) ?? labelIn(NO_PAGES, route)

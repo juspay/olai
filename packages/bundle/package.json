@@ -53,6 +53,7 @@
     "olai-plugin-web-app": "workspace:*",
     "olai-plugin-ui-renderer": "workspace:*",
     "olai-plugin-layout": "workspace:*",
+    "olai-plugin-tabs": "workspace:*",
     "olai-plugin-sidebar": "workspace:*",
     "olai-plugin-preferences": "workspace:*",
     "olai-plugin-theme": "workspace:*",

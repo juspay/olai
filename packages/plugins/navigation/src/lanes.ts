@@ -1,0 +1,65 @@
+/**
+ * WHICH TAB A HISTORY ENTRY BELONGS TO — the decision a `popstate` asks when a
+ * lane is in force, and nothing else.
+ *
+ * The browser keeps one history stack per window. A row that keeps several
+ * workspaces open (`olai-plugin-tabs`) wants Back to walk only the entries of
+ * the workspace in front, so the router stamps every entry it writes with the
+ * lane it was written under and a POSITION in the stack, and keeps a table of
+ * both for the entries this document created. What a traversal then does is a
+ * pure function of that table, which is this module; `./router.tsx` is the
+ * thin caller that turns the answer into `history.go`.
+ *
+ * With no lane in force every entry applies, which is what makes the navigation
+ * row without a tabs row exactly the router it was.
+ */
+
+/** The lane a forgotten tab's entries are rewritten to. No tab id can spell it,
+ *  because a tab id is minted by its owner and never carries a NUL. */
+export const DEAD_LANE = "\u0000dead"
+
+/** Position in the stack → the lane that entry was written under (`null` for
+ *  no owner). Only entries this document wrote have a row. */
+export type LaneRows = ReadonlyMap<number, string | null>
+
+/**
+ * `apply` — the entry is the lane's own: draw it.
+ * `seek` — it is somebody else's, and one of ours lies further the same way:
+ *   keep travelling.
+ * `bounce` — it is somebody else's and nothing of ours lies beyond it: go back
+ *   to where the traversal started, so the person stays where they were.
+ */
+export type Seek = "apply" | "seek" | "bounce"
+
+/** Does the entry at `at` count as the lane's? An unknown position is dead,
+ *  because the table is this document's and an entry it did not write is one a
+ *  reload left behind. */
+const ours = (rows: LaneRows, at: number, lane: string): boolean => rows.get(at) === lane
+
+export const seek = (
+  rows: LaneRows,
+  currentAt: number,
+  targetAt: number,
+  lane: string | null,
+): Seek => {
+  if (lane === null || ours(rows, targetAt, lane)) return "apply"
+  const direction = Math.sign(targetAt - currentAt)
+  if (direction === 0) return "apply"
+  for (const [at, owner] of rows) {
+    if (owner === lane && (at - targetAt) * direction > 0) return "seek"
+  }
+  return "bounce"
+}
+
+/** The table after a PUSH to `at`: the browser discarded every entry beyond it. */
+export const pushedAt = (rows: LaneRows, at: number, lane: string | null): LaneRows =>
+  new Map([...[...rows].filter(([one]) => one < at), [at, lane]])
+
+/** ...after a lane is closed: its entries are dead from now on. */
+export const forgotten = (rows: LaneRows, lane: string): LaneRows =>
+  new Map([...rows].map(([at, owner]) => [at, owner === lane ? DEAD_LANE : owner] as const))
+
+/** ...after a lane is taken where none was in force: the entries that belonged
+ *  to no tab belong to that one. */
+export const adopted = (rows: LaneRows, lane: string): LaneRows =>
+  new Map([...rows].map(([at, owner]) => [at, owner ?? lane] as const))

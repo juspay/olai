@@ -4,7 +4,7 @@ import { Show } from "solid-js"
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, REGION, REGION_LABEL } from "olai-plugin-layout/entry"
 import { useRouter } from "olai-plugin-navigation/routing"
-import { fileNamed } from "olai-plugin-navigation/routes"
+import { isCurrent } from "../../attention.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import { TESTID } from "../../testids.ts"
@@ -43,11 +43,7 @@ export function Chats() {
   const router = useRouter()
   const now = createNow()
   const rows = () => byActivity(agents.rows()).slice(0, 10)
-  const current = (row: Row) => {
-    const route = router.route()
-    return (fileNamed(route) === row.file && unfolded(row.id))
-      || (route.kind === "at" && route.address?.kind === "node" && route.address.id === row.id)
-  }
+  const current = (row: Row) => isCurrent(router.route(), row, unfolded(row.id))
   return <section class={REGION} data-testid={TESTID.agentRoster}>
     <h2 class={REGION_LABEL}>Chats</h2>
     <ul class="m-0 list-none p-0"><NewChat /><Key each={rows()} by="id">{row => <li>

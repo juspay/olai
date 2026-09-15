@@ -431,7 +431,8 @@ test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
     "plugins/chat/src/browser/agents/EngineMenu.tsx",
     "plugins/outlines/src/browser/menu/Confirm.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
-    "plugins/outlines/src/browser/menu/Panel.tsx"
+    "plugins/outlines/src/browser/menu/Panel.tsx",
+    "plugins/tabs/src/Menu.tsx"
   ])
 })
 
@@ -550,6 +551,7 @@ test("every dynamic import() the client spells takes a literal the bundler can r
     "plugins/chat/src/browser/agents/Standing.tsx",
     "plugins/kolu/src/appliance/props/LivePane.tsx",
     "plugins/outlines/src/browser/menu/chunk.ts",
+    "plugins/tabs/src/chunk.ts",
     "web/src/client/wire.ts"
   ])
 })
@@ -593,6 +595,7 @@ test("the stack is joined directly only where the gestures are not dismissOn's",
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/Shortcuts.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
+    "plugins/tabs/src/Menu.tsx",
     "web/src/client/dismiss.ts",
     "web/src/client/topmost.ts"
   ])

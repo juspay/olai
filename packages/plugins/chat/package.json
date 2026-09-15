@@ -16,7 +16,8 @@
     "./all.css": "./src/browser/all.css",
     "./testlib": "./src/testlib.ts",
     "./slots": "./src/slots.ts",
-    "./carry": "./src/carry.ts"
+    "./carry": "./src/carry.ts",
+    "./attention": "./src/attention.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -64,7 +65,8 @@
     "contracts": [
       "./slots",
       "./testids",
-      "./carry"
+      "./carry",
+      "./attention"
     ]
   }
 }

@@ -170,6 +170,10 @@
   name: olai-plugin-layout
   section: This tab
   quiet: true
+- id: tabs
+  name: olai-plugin-tabs
+  section: This tab
+  quiet: true
 - id: sidebar
   name: olai-plugin-sidebar
   section: This tab

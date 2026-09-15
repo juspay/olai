@@ -825,6 +825,34 @@ export interface Routing {
   readonly routeOf: (address: string) => Route
   /** The same PAGE, whatever it is narrowed by. */
   readonly samePage: (a: Route, b: Route) => boolean
+  /** A short name for a page — a pane's header, a tab's title before its page
+   *  has reported one. {@link labelIn}. */
+  readonly label: (route: Route) => string
+}
+
+/**
+ * A short name for a page — the rail, the pane header, a tab.
+ *
+ * Asked of the route rather than of the page, so a label is available before
+ * the set has been read and does not change meaning when a file fails to parse.
+ * A zoomed node is named by its id; a file by its whole PATH, because two panes
+ * on `a/x.olai` and `b/x.olai` have to be tellable apart; a plugin's page by its
+ * tenant's own breadcrumb, which is why this reads the roster. A narrow column's
+ * door wants a file's NAME instead, and that is `olai-plugin-pins`' `name.ts`,
+ * a second function for that reason.
+ *
+ * It was `olai-plugin-layout`'s `labelOf`, over a holder of this row's routing;
+ * it moved here when a second row (`olai-plugin-tabs`) needed the same name, so
+ * both read it off `navigation.state`.
+ */
+export const labelIn = (pages: MountedPages, route: Route): string => {
+  if (route.kind === "at") {
+    const address = route.address
+    if (address === null) return "outline"
+    return address.kind === "node" ? address.id : address.path
+  }
+  if (route.kind === "plugin") return routeFaceIn(pages, route)?.route.breadcrumb(route.value) ?? "plugin"
+  return "trash"
 }
 
 export const routingOver = (claims: () => Claims | undefined, pages: () => MountedPages): Routing => ({
@@ -836,4 +864,5 @@ export const routingOver = (claims: () => Claims | undefined, pages: () => Mount
   routeIn: (href) => routeInIn(claims(), pages(), href),
   routeOf: (address) => routeOfIn(claims(), pages(), address),
   samePage: (a, b) => samePageIn(claims(), pages(), a, b),
+  label: (route) => labelIn(pages(), route),
 })

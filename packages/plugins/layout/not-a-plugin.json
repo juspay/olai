@@ -25,7 +25,9 @@
     "src/layout/prefs.ts",
     "src/testids.ts"
   ],
-  "trash": [
-    "src/pane/label.ts"
+  "//tabs": "The seat above the panes is sized by the tab token, and the phone's pane strip is called tabs; neither names the tabs row.",
+  "tabs": [
+    "src/layout/css.ts",
+    "src/testids.ts"
   ]
 }

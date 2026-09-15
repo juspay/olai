@@ -23,6 +23,17 @@ export const SHELL_SPLIT = "h-[calc(100dvh-var(--height-header))] min-h-0"
 /** A lone page: grow with the outline, no forced viewport height. */
 export const SHELL_LONE = "min-h-[calc(100dvh-var(--height-header))]"
 
+/**
+ * ...and the same two for the PANES, under whatever sits in the seat above
+ * them (`../index.ts`'s `strip`). A pair of its own rather than the strip
+ * subtracted from the pair above, because the shell's grid holds the sidebar
+ * column too, and that column is as tall as the viewport under the bar whether
+ * or not the main column has a strip in it. `--height-strip` is `0px` whenever
+ * the seat is empty (`./css.ts`).
+ */
+export const PANES_SPLIT = "h-[calc(100dvh-var(--height-header)-var(--height-strip,0px))] min-h-0"
+export const PANES_LONE = "min-h-[calc(100dvh-var(--height-header)-var(--height-strip,0px))]"
+
 /** A page with no workspace under it — the error page, and the `Reading…`
  *  that stands in for one before the manifest lands. Paper, and as tall as a
  *  lone page: they are the same sheet, and the two of them spelling the calc

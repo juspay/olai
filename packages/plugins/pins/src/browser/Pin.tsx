@@ -27,10 +27,10 @@ import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
-import { followLayout } from "olai-plugin-navigation/layout-press"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { Link } from "olai-plugin-navigation/routing"
 import type { Pin } from "./pins.ts"
+import { pressLayout } from "./tabs.ts"
 
 /**
  * The row's own box, and the two faces it wears — the SAME shape and gap every
@@ -106,7 +106,7 @@ export function Pin(props: {
           aria-current={props.current ? "page" : undefined} title={props.pin.bare}
           onClick={(event) => {
             const target = props.pin.target
-            if (target.kind === "layout") followLayout(router, target.workspace, event)
+            if (target.kind === "layout") pressLayout(router, target.workspace, event)
           }}>
           <Face target={props.pin.target} name={props.pin.name} />
         </a>

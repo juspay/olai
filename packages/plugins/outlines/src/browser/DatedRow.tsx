@@ -183,6 +183,8 @@ export function DatedRow(props: {
         data-testid={TESTID.nodeGutter}
         onPointerDown={menu.hold.onPointerDown}
         onContextMenu={menu.hold.onContextMenu}
+        // This row owns its menu; a page-wide link menu leaves its links alone.
+        data-menu-owner="outline-row"
       >
         <div class={HANGING_MENU}>
           {/* Built where it is READ, inside the open panel — Solid compiles a

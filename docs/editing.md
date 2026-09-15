@@ -465,9 +465,22 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 
 With multiple panes open, `⌘K` also offers **Pin this layout…**, with the pane names underneath. It always asks for a name; empty Enter says **a layout needs a name** and keeps the question open. Escape writes nothing.
 
-A layout pin has a split mark and a tooltip listing its pages. Clicking it replaces the whole workspace in one history push, including with Alt or Shift held. ⌘/Ctrl-click and middle-click open its address in a new tab. Back restores the previous workspace. Only pages are saved: the layout reopens with equal widths and the first pane focused.
+A layout pin has a split mark and a tooltip listing its pages. Clicking it opens the layout in a new olai tab in front, including with Alt or Shift held ([Keeping several pages open](#keeping-several-pages-open)); with the tabs plugin switched off it replaces the whole workspace in one history push instead, and Back restores the previous workspace. ⌘/Ctrl-click and middle-click open its address in a new browser tab. Only pages are saved: the layout reopens with equal widths and the first pane focused.
 
 The command becomes **Unpin this layout** when those pages are already pinned, regardless of widths or focus. Shelf rename and remove work as for page pins, including undo; layout renames also require a name. Handwritten bare layout addresses are accepted and display the pane names, falling back to an unresolved node's address.
+
+## Keeping several pages open
+
+On a desktop, a strip of tabs sits above the page. Each tab holds one page, or a whole split of panes, and the tab in front is the page you are looking at: the address bar shows it, and the sidebar, Back and every pane gesture act on it. The sidebar, the chat panel and the palette are shared by every tab. A tab you leave keeps its page, its filter and where it was scrolled.
+
+- **A new tab.** Right-click a link — a door in the sidebar, a link in a document — and choose **Open in new tab**; the tab opens behind the one in front. **+** at the end of the strip, or `⌘⇧O` / `Ctrl+⇧O`, opens a tab on the front page. A pinned layout on the shelf opens in a new tab.
+- **Switching.** Press a tab, or use `⌘⇧.` and `⌘⇧,` (`Ctrl+⇧.` and `Ctrl+⇧,`) for the next and previous tab.
+- **Closing.** The × on a tab, a middle-click, or `⌘⇧X` / `Ctrl+⇧X` for the tab in front. Right-click a tab for **Duplicate tab** and **Close other tabs**. Closing the last tab leaves one on the front page.
+- **Reordering.** Drag a tab along the strip.
+
+Back and Forward move within the tab in front, and a closed tab's pages are gone from them. The open tabs are remembered in this browser, so a reload brings them back, though each tab's Back starts fresh. Opening olai at an address shows that address in the tab that was in front. Two browser windows do not share changes as they happen: the one that changes the set last is the one remembered.
+
+On a phone there is no strip. Open in new tab shows the page straight away, and the tabs from your desk are kept for when you return to it. The details, and what changes when plugins are switched off, are in [plugins/tabs.md](plugins/tabs.md).
 
 ## From the ⌘K palette
 
