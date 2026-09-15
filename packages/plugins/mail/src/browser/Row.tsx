@@ -155,11 +155,6 @@ export function MailRow(props: {
         // something, what it is also waiting on.
         return `Connected as ${account.address}${account.messages === null ? "" : ` · ${account.messages} messages`} · token refreshed ${refreshed()} · scope ${account.scope}`
           + (account.retrying ? ` — ${account.reason ?? "the next token is being retried"}` : "")
-      // THE REASON, VERBATIM, and `docs.md` argues why this arm is not
-      // composed into the sentence the prototype draws: a fault here is one of
-      // THREE things — Google's own refusal, a door the environment is missing,
-      // or a serve with no pinned binary — and a sentence that named a mailbox
-      // for all three would be inventing the kind it cannot see.
       case "fault":
         // THE REASON VERBATIM, plus what a WAIT is doing — the same composition
         // the pill's tooltip makes (`./said.ts`), from the same field, so the
