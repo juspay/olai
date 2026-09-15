@@ -288,25 +288,15 @@ build-client: install
 serve dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
-    # The chat panel defaults to the pinned Claude Code adapter, exactly as the
-    # packaged binary does — scripts/acp-agent.sh is the one place that is
-    # decided, and `OLAI_ACP_AGENT` overrides it (empty uses command discovery).
-    export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
-    # Codex is shipped from the pin inside its plugin, with a separate override
-    # so each engine has its own executable resource.
-    export OLAI_ACP_CODEX="$(sh scripts/acp-codex.sh)"
-    # The pi row's adapter, the other half of the same pin — a machine with a
-    # `pi` on the search path gets the row, every other machine gets nothing
-    # new (scripts/acp-pi.sh says why the roster probes for the agent).
-    export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
-    # THE ODU KNOB, sourced from the fold's `plugin-env` — the dev loop's own
-    # spelling of the same `export VAR="${VAR-default}"` the packaged wrapper
-    # bakes (`default.nix`), so unset means the pin and empty means off,
-    # exactly as a `nix run` would. An empty override is off, and off is a
-    # DRAWN row, not a quiet plugin. The PATH splice itself is inside
-    # packages/server/src/main.ts (the row the probe reads); the developer's
-    # own PATH is not touched. `scripts/olai-path.sh` is where the knob used
-    # to be composed by hand.
+    # EVERY PLUGIN KNOB arrives from the fold's `plugin-env` below — the dev
+    # loop's spelling of the same `export VAR="${VAR-default}"` the packaged
+    # wrapper bakes (`default.nix`), so unset means the pin and empty means
+    # off, exactly as a `nix run` would. That now covers the ACP adapters too:
+    # the Claude pin, codex, and pi each declare their knob in their own
+    # plugin's `default.nix`, so no engine's default is hand-copied here. An
+    # empty override is off, and off is a DRAWN row, not a quiet plugin. The
+    # PATH splice itself is inside packages/server/src/main.ts (the row the
+    # probe reads); the developer's own PATH is not touched.
     . "$(sh scripts/nix-out.sh .#plugin-env)"
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
@@ -328,12 +318,10 @@ serve dir="docs" *args: build-client
 run dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
-    export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
-    export OLAI_ACP_CODEX="$(sh scripts/acp-codex.sh)"
-    export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
-    # The pinned odu on PATH, the same fold's `plugin-env` as `serve`'s — the
-    # dev loop's spelling of the packaged wrapper's knob, sourced rather than
-    # composed by hand.
+    # Every plugin knob — the ACP rows included — arrives from the fold's
+    # `plugin-env` below, the same `export VAR="${VAR-default}"` `serve` sources
+    # (and the packaged wrapper bakes); no engine's pinned default is
+    # hand-copied here.
     . "$(sh scripts/nix-out.sh .#plugin-env)"
     OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
@@ -355,8 +343,7 @@ nix:
     # EVERY DECLARED KNOB, asserted of the wrapper the build actually ships.
     # The fold's `knobs` (read as JSON through `.#olai.passthru.knobs`) names
     # each variable's kind (`file` or `dir`), path, and — for a `dir` — the
-    # executable it holds. The ACP pins' names are still hand-written in
-    # default.nix (their plugins' `default.nix` files land in a later commit);
+    # default.nix (their plugins' `default.nix` files now declare them);
     # everything else arrives here by composition.
     json=$(nix eval --json .#olai.passthru.knobs --accept-flake-config)
     while IFS= read -r entry; do

@@ -10,8 +10,8 @@
  * three stylesheets, olai's own tokens and chip markup, and the row values
  * folded by kolu's own pure functions (`bindStatePip`, `rowSubline`,
  * `paintDockRow`, `activePr`, `rowRecency`) from a REAL padi record — the
- * `active` arm of `../fixtures/padi/lanes.json`, the same record the e2e's fake
- * padi serves.
+ * `active` arm of `packages/tests/fixtures/padi/lanes.json`, the same record
+ * the e2e's fake padi serves.
  *
  * WHAT IS NOT: `label` and `labelColor`. Their folds (`annotationLine`,
  * `assignColors`) stayed in kolu's app and are not exported — finding 3 to
@@ -32,7 +32,7 @@ import {
 import { StatePip } from "@kolu/solid-statepip"
 import { activePr } from "@kolu/padi-client/surface"
 
-import RECORDS from "../fixtures/padi/lanes.json"
+import RECORDS from "../../../tests/fixtures/padi/lanes.json"
 
 /** The LOUD row — padi's `active` arm with an agent BLOCKED ON YOU, which is
  *  the one face worth choosing a geometry around: the violet wash and the wait

@@ -1307,32 +1307,17 @@ const TIERS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
 const TENANT_MEMBERS: ReadonlySet<string> = new Set([...TENANTS.values()].flatMap((m) => [...m]))
 
 /**
- * THE ONE RECORDED BREACH, and it is recorded rather than excused.
+ * Product tier inside tenant — the fence is plain text.
  *
- * `packages/tests/geometry/harness.tsx` mounts kolu's own `DockRow` and
- * `StatePip` and folds a padi record with `activePr` — product tier, in the one
- * package that sits above every other. It is not new; it is what the header of
- * this file means by "sat in its geometry harness with `just check` green",
- * because `packages/<name>/src` never looked at `packages/tests`, the only member
- * with no `src/`. Its own header calls it "not part of any suite and not
- * shipped" — a one-off driver for a shot the human asked to SEE — and where it
- * belongs under this architecture is behind `olai-plugin-kolu`, whose faces
- * those are.
- *
- * Held as an EQUALITY, which is the difference between a debt and an exception:
- * a fifth import in that harness is red, a breach in any other file is red, and
- * the day the harness moves this entry is red until it is deleted. An
- * `expect(...).toEqual([])` with a path filtered out in front of it would be
- * none of those things.
+ * The one recorded breach used to be `packages/tests/geometry/harness.tsx`, a
+ * one-off shot driver sat in the package above every other with kolu's own
+ * `DockRow`/`StatePip` mounted. The harness moved into
+ * `packages/plugins/kolu/e2e/geometry/` with the tenant that owns those faces,
+ * so the entry is gone with the file's old home: the harness now reads its own
+ * tenant's modules and there is nothing left to record. A breach of this fence
+ * in any file is red, with no exceptions.
  */
-const DEBT: Readonly<Record<string, ReadonlyArray<string>>> = {
-  tests: [
-    "tests/geometry/harness.tsx: @kolu/padi-client/surface",
-    "tests/geometry/harness.tsx: @kolu/solid-dockrow",
-    "tests/geometry/harness.tsx: @kolu/solid-dockrow/rowValues",
-    "tests/geometry/harness.tsx: @kolu/solid-statepip",
-  ],
-}
+const DEBT: Readonly<Record<string, ReadonlyArray<string>>> = {}
 
 describe("an appliance's product tier stays inside its tenant", () => {
   test("the tenants are exactly what is written down here", () => {

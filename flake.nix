@@ -57,19 +57,25 @@
       packages = eachSystem ({ pkgs, b2n }:
         let
           olai = import ./default.nix { inherit pkgs b2n rev; };
-          # Per-system now: `nix/kolu.nix` takes a `pkgs`, because kolu's
+          bundle = olai.bundle;
           # `consumer.nix` builds the source copies rather than handing back a
           # list for an overlay to build. `bundle` is the fold the default.nix
           # above already composed; flake outputs read it once so two plugins
           # (or a plugin and a root output) cannot collide.
-          bundle = olai.bundle;
           overlap = builtins.attrNames
             (builtins.intersectAttrs bundle.packages
-              { inherit (olai) olai olai-client olai-fonts base acp-agent codex-agent; });
+              { inherit (olai) olai olai-client olai-fonts base; });
           clash = if overlap != [ ] then throw "flake packages: a plugin declares an output the root already names: ${builtins.concatStringsSep ", " overlap}" else null;
         in
         builtins.seq clash (bundle.packages // {
-          inherit (olai) olai olai-client olai-fonts base acp-agent codex-agent;
+          inherit (olai) olai olai-client olai-fonts base;
+          # The ACP adapters are plugins now — claude, pi and codex each export
+          # their own package through the fold (`claude-agent`, `pi-agent`,
+          # `codex-agent`). These two are the HISTORICAL output names the docs
+          # and the dev loop used: `acp-agent` is the Claude adapter and
+          # `codex-agent` the codex one, both still the same derivations.
+          acp-agent = bundle.packages.claude-agent or null;
+          codex-agent = bundle.packages.codex-agent or null;
           odu = bundle.packages.odu or null;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the

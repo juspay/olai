@@ -20,10 +20,10 @@ let
     # `containerDir`/`containerInTree` both name `packages/plugins` (readDir
     # at eval, install path at run time, relative to the build's source).
     #
-    # The three ACP pins' knobs are still hand-written in the `olai` wrapper
-    # below (their plugins' `default.nix` files land in a later commit), so
-    # the `OLAI_WRAPPER_DEFAULTS` `--run` must name them alongside the fold's own.
-    extraKnobNames = [ "OLAI_ACP_AGENT" "OLAI_ACP_CODEX" "OLAI_ACP_PI" ];
+    # Every knob the fold bakes into the `olai` wrapper now comes from a
+    # plugin's own `default.nix` (the ACP adapters included), so there is no
+    # hand-written `extraKnobNames` to name alongside the fold's own.
+    extraKnobNames = [ ];
   };
   # fold hands them here). `nix/kolu.nix` carries the framework's own.
   kolu = import ./nix/kolu.nix {
@@ -166,23 +166,15 @@ let
   olai-client = pkgs.runCommand "olai-client"
     { meta.description = "olai browser bundle (static assets)"; }
     "cp -r ${base}/packages/web/dist $out";
-
-  # The ACP agent the chat panel talks to, pinned rather than looked up: a
-  # nix-built olai needs nothing ambient, and two machines run the same adapter.
-  acp-agent = pkgs.callPackage ./nix/acp-agent.nix { };
-
-  # Codex owns a separate pin and derivation: its adapter and native CLI move
-  # on one release clock, independently of the patched Claude/Pi bundle above.
-  codex-agent = pkgs.callPackage ./packages/plugins/codex/acp { };
   # THE WRAPPER'S PLUGIN KNOBS, folded once. `bundle.wrapperArgs` is the
   # makeWrapper text the fold's knob-shell renders for every declared knob —
   # one `--run` recording which knobs the wrapper defaulted (the settings
   # panel's 'wrapper-provided' label), one `--set-default` per knob (unset →
   # the pin, empty → the off switch), one `--run` per `dir` knob splicing the
-  # directory onto PATH. The three ACP pins' `--set-default`s are still
-  # hand-written against the acp/codex derivations beside this one (their
-  # plugins' `default.nix` files land in a later commit), so their names ride
-  # bundle's `extraKnobNames` for the `OLAI_WRAPPER_DEFAULTS` run.
+  # directory onto PATH. The ACP adapters are plugins now — claude, pi and
+  # codex each own a `default.nix` declaring their knob — so every one of the
+  # four knobs (OLAI_ACP_AGENT, OLAI_ACP_CODEX, OLAI_ACP_PI, OLAI_ODU_BIN)
+  # arrives here by composition; nothing is hand-written any more.
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -200,12 +192,9 @@ let
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
-      --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
-      --set-default OLAI_ACP_CODEX "${codex-agent}/bin/codex-acp" \
-      --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \
       ${bundle.wrapperArgs}
   '';
 in
 {
-  inherit olai olai-client olai-fonts base acp-agent codex-agent bundle;
+  inherit olai olai-client olai-fonts base bundle;
 }

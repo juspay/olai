@@ -1,5 +1,5 @@
 /** Photograph the three chip geometries — see `./harness.tsx`.
- *  `bun packages/tests/geometry/shots.ts <builtdir> <outdir>`
+ *  `bun packages/plugins/kolu/e2e/geometry/shots.ts <builtdir> <outdir>`
  *
  *  Served over http rather than opened as a `file://`: the harness is an ES
  *  module, and a module script from a `file://` origin is a cross-origin

@@ -34,6 +34,11 @@
   "olai": {
     "contracts": [
       "./testids"
-    ]
+    ],
+    "knobs": {
+      "OLAI_ACP_PI": {
+        "kind": "file"
+      }
+    }
   }
 }

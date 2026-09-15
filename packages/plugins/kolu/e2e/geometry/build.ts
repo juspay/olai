@@ -1,5 +1,5 @@
 /** Build the chip-geometry harness — see `./harness.tsx`. One-off driver:
- *  `bun packages/tests/geometry/build.ts <outdir>`.
+ *  `bun packages/plugins/kolu/e2e/geometry/build.ts <outdir>`.
  *
  *  The Solid transform and the Tailwind CLI are `@olai/web`'s devDependencies
  *  and this package is not `@olai/web`, so they are resolved FROM there rather
