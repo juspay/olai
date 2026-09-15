@@ -38,6 +38,8 @@
 import { createSignal, Show, type Accessor } from "solid-js"
 import { Effect, Result } from "effect"
 
+import { agoOf, createNow } from "@olai/web/client/ago.ts"
+
 import { TESTID } from "../testids.ts"
 import { REDIRECT_PATH, type Account } from "../wire.ts"
 
@@ -122,16 +124,33 @@ export function MailRow(props: {
     )
   }
 
+  /** HOW LONG AGO THE TOKEN WAS REFRESHED, in the app's own register — the
+   *  same `agoOf`/`createNow` pair the commit pill and the chat picker spend, so
+   *  a stamp that moves says so by moving (`@olai/web/client/ago.ts`). An
+   *  unparseable stamp reads as `never` rather than as an empty phrase, which
+   *  is the one thing a row must not draw beside a colon. */
+  const now = createNow()
+  const refreshed = (): string => {
+    const at = props.account().refreshedAt
+    if (at === null) return "never"
+    return agoOf(at, now()) || "an unknown time"
+  }
+
   const said = () => {
     const account = props.account()
     switch (account.status) {
       case "connected":
-        return `${account.address} · ${account.messages ?? 0} messages · refreshed ${account.refreshedAt ?? "never"} · scope ${account.scope}`
+        return `Connected as ${account.address} · ${account.messages ?? 0} messages · token refreshed ${refreshed()} · scope ${account.scope}`
+      // THE REASON, VERBATIM, and `docs.md` argues why this arm is not
+      // composed into the sentence the prototype draws: a fault here is one of
+      // THREE things — Google's own refusal, a door the environment is missing,
+      // or a serve with no pinned binary — and a sentence that named a mailbox
+      // for all three would be inventing the kind it cannot see.
       case "fault":
         return account.reason ?? "this serve's Gmail connection is not working."
       case "absent":
         return account.reason === null
-          ? "Connect opens Google in a new tab; approve the mailbox you want this serve to read."
+          ? "No Gmail account is connected. Connecting opens Google in a new tab; the redirect comes back to this serve and the refresh token is kept in this serve's memory, never in the vault."
           : account.reason
     }
   }

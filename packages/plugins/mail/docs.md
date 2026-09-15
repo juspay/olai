@@ -37,6 +37,13 @@ The header pill has three states, so a person can tell *nothing is configured* f
 
 The panel row carries the same reading plus the verbs. It is filed under **Needs you** exactly when a press can do something about it — Connect when there is no account and the doors are set, Reconnect or Disconnect after a fault. A serve missing the credential doors is not asking: the answer there is an operator's, not a button's.
 
+### Two places the row deliberately differs from the photograph
+
+The row's own sentence is drawn from the account cell, and two details are not the prototype's:
+
+- **the fault arm prints the reason VERBATIM** — Google's own `invalid_grant`, the sentence naming the two unset doors, or the Nix-build line — rather than composing a sentence around it. A fault here is one of three different things, and a composed sentence would have to name a mailbox for all three, two of which have no mailbox to name;
+- **the redirect URI is drawn beside Connect**, which the prototype does not show. It is the one step in the whole design that happens outside olai (creating the OAuth client and registering that URI in Google Cloud Console), and it is only knowable once a page has said where it is — so it is drawn where the button is rather than left to a doc.
+
 ## Where the credentials live, and where they do not
 
 Olai never reads or writes `~/.config/himalaya`. What it keeps:
