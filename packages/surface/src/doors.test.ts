@@ -76,6 +76,7 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
       "REFUSED_MARKUP",
       "ROUNDING",
       "SEAL",
+      "VIDEO_TYPES",
       "WHO_PATH",
       "Who",
       "appName",
