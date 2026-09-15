@@ -10,10 +10,11 @@ Olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), wh
 
 You need a Google OAuth client. This is the one step that happens outside olai, and Google offers no way around it.
 
-1. In [Google Cloud Console](https://console.cloud.google.com/), create or pick a project and enable the **Gmail API**.
-2. Under **APIs & Services → Credentials**, create an **OAuth client ID** of type **Web application**.
-3. Add one **Authorised redirect URI**: the address you reach olai at, followed by `/_olai/mail/oauth`. For example `https://olai.example.net/_olai/mail/oauth`. Olai shows you the exact string on the `mail` row once the plugin is on, so you can copy it from there.
-4. If the project is in *Testing* status, add your own Google account as a test user.
+1. In [Google Cloud Console](https://console.cloud.google.com/), create or pick a project and enable the **Gmail API** (**APIs & Services → Library**).
+2. Configure the consent screen. Google will not let you create a client until this is done. Under **Google Auth Platform** (older consoles call it **OAuth consent screen**), fill in **Branding** with an app name such as `olai`, your email as the support address and as the developer contact, and set **Audience** to **External**. Leave the publishing status as *Testing*; olai is your own app and does not need verification.
+3. Still under **Audience**, add your own Google account as a **test user**. In *Testing* status only listed users can approve the app, and a missing entry shows up later as Google refusing the sign-in.
+4. Under **Clients** (or **APIs & Services → Credentials**), create an **OAuth client ID** of type **Web application**.
+5. Add one **Authorised redirect URI**: the address you reach olai at, followed by `/_olai/mail/oauth`. For example `https://olai.example.net/_olai/mail/oauth`. Olai shows you the exact string on the `mail` row once the plugin is on, so you can copy it from there.
 
 Google gives you a client ID and a client secret. Put both in the environment olai runs with:
 
