@@ -136,15 +136,33 @@ export const CHORDS: ReadonlyArray<
 export const matchKey = (
   event: KeyboardEvent,
   platform?: string,
-): KeyMatch | null => {
+): KeyMatch | null => matchChord(event, CHORDS, platform)
+
+/** The two punctuation keys a chord may name with Shift held, as the key they
+ *  are on: Shift turns `.` into `>` on the layouts whose `.` and `,` share a key
+ *  with those, and a chord names the key a hand reaches for, not the glyph. */
+const UNSHIFTED: Readonly<Record<string, string>> = { Period: ".", Comma: "," }
+
+/**
+ * {@link matchKey}'s rule over any table of chords — the modifier this platform
+ * spends (⌘ on Apple, Ctrl elsewhere, never both), no Alt, and Shift matched
+ * EXACTLY. One function, so the core table and the chords a plugin registers in
+ * `app.keys` cannot be matched by two readings of what a modifier means.
+ */
+export const matchChord = <T extends { readonly key: string; readonly shift?: boolean }>(
+  event: Pick<KeyboardEvent, "key" | "code" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">,
+  table: ReadonlyArray<T>,
+  platform?: string,
+): T | null => {
   const apple = onApple(platform)
   const mod = apple
     ? event.metaKey && !event.ctrlKey
     : event.ctrlKey && !event.metaKey
   if (!mod || event.altKey) return null
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
-  return CHORDS.find(
-    (chord) => chord.key === key && (chord.shift ?? false) === event.shiftKey,
+  const under = event.shiftKey ? UNSHIFTED[event.code] : undefined
+  return table.find(
+    (chord) => (chord.key === key || chord.key === under) && (chord.shift ?? false) === event.shiftKey,
   ) ?? null
 }
 

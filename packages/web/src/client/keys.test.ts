@@ -7,6 +7,7 @@ import {
   isApplePlatform,
   type ListAction,
   listKey,
+  matchChord,
   matchKey,
   paneKey,
   selectKey,
@@ -529,4 +530,15 @@ test("Tab belongs to a listing box only when that caller opts in", () => {
   const event = { key: "Tab", altKey: false, ctrlKey: false, metaKey: false, shiftKey: false } as KeyboardEvent
   expect(listKey(event)).toBeNull()
   expect(listKey(event, true)).toBe("cycle")
+})
+
+test("a registered chord is matched by the core table's rule, Shift exactly and the key a hand reaches for", () => {
+  const table = [{ key: ".", shift: true, id: "next" }, { key: "x", shift: true, id: "close" }]
+  const shifted = (k: string, code: string, mods: Parameters<typeof key>[1]) => ({ ...key(k, mods), code }) as KeyboardEvent
+  expect(matchChord(shifted(">", "Period", { ctrl: true, shift: true }), table, "Linux x86_64")?.id).toBe("next")
+  expect(matchChord(shifted(">", "Period", { meta: true, shift: true }), table, "MacIntel")?.id).toBe("next")
+  expect(matchChord(shifted(".", "Period", { ctrl: true }), table, "Linux x86_64")).toBeNull()
+  expect(matchChord(shifted("X", "KeyX", { ctrl: true, shift: true }), table, "Linux x86_64")?.id).toBe("close")
+  expect(matchChord(shifted("X", "KeyX", { ctrl: true, shift: true, alt: true }), table, "Linux x86_64")).toBeNull()
+  expect(matchChord(shifted("X", "KeyX", { meta: true, shift: true }), table, "Linux x86_64")).toBeNull()
 })

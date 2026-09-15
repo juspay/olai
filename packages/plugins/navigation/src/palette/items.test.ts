@@ -16,8 +16,8 @@ import type { Hung } from "@olai/plugin-api"
 import { atOnce } from "@olai/web/client/settled.ts"
 
 import { atFile, atNode } from "../routes.ts"
-import type { AppCommand } from "../slots.ts"
-import { boxOf, prefixesIn, type PalettePrefix, commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
+import type { AppChord, AppCommand } from "../slots.ts"
+import { boxOf, chordsIn, prefixesIn, type PalettePrefix, commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
 
 /** A plugin's command, as the slot hands it over. `run` answers "it landed",
  *  which is the one thing none of these tests presses. */
@@ -30,7 +30,7 @@ const command = (prefix: string, said = "send to agent"): AppCommand => ({
 
 /** ...and hung, with the plugin's own word beside it — the shape
  *  `@olai/web`'s `client/plugins/runtime.ts` `hung` reads a list slot back as. */
-const hung = (plugin: string, face: AppCommand): Hung<AppCommand> => ({ plugin, face })
+const hung = <T,>(plugin: string, face: T): Hung<T> => ({ plugin, face })
 
 /** The one every prefix test is written against: a chat plugin holding `>`. */
 const ASK = command(">")
@@ -204,4 +204,29 @@ test("an arbitrary prefix survives parsing and disappears with its contribution"
 test("a pending question owns Enter even when the box contains a contributed prefix", () => {
   const question = { kind: "line" as const, label: "Rename", question: "Name?", placeholder: "Name", initial: "", resolve: () => { throw new Error("parsing must not execute an action") } }
   expect(boxOf("+ text", question, [], [PREFIX])).toEqual({ kind: "answering", question })
+})
+
+const chord = (key: string, shift: boolean, said: string): AppChord => ({ key, shift, said, whileEditing: true, press: () => {} })
+
+test("a plugin's chord over one the app already answers is refused, and the first plugin keeps a free one", () => {
+  const warned = console.warn
+  const said: Array<string> = []
+  console.warn = (line: string) => { said.push(line) }
+  try {
+    const closePane = chord("w", true, "close the tab")
+    const next = chord(".", true, "next tab")
+    const again = chord(".", true, "another next")
+    const bare = chord("w", false, "bare w")
+    const kept = chordsIn(
+      [hung("tabs", closePane), hung("tabs", next), hung("other", again), hung("other", bare)],
+      [{ key: "w", shift: true, action: "closePane" }],
+    )
+    expect(kept).toEqual([next, bare])
+    expect(said).toHaveLength(2)
+    expect(said[0]).toContain("closePane")
+    expect(said[0]).toContain("tabs")
+    expect(said[1]).toContain("the plugin \"tabs\"")
+  } finally {
+    console.warn = warned
+  }
 })

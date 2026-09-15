@@ -81,7 +81,7 @@ import { needlesFrom } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
-import { isEditingTarget,listKey,matchKey,paneKey } from "@olai/web/client/keys.ts"
+import { CHORDS,isEditingTarget,listKey,matchChord,matchKey,paneKey } from "@olai/web/client/keys.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 import { only } from "@olai/web/client/narrow.ts"
 import { paletteFaces } from "../faces.ts"
@@ -103,6 +103,7 @@ import { isLone } from "olai-plugin-navigation/workspace"
 import { type Asking } from "./asking.ts"
 import {
 boxOf,
+chordsIn,
 prefixesIn,
 type PalettePrefix,
 commandsIn,
@@ -291,6 +292,10 @@ export function Palette(props: {
   const prefixes = createMemo(() => prefixesIn(readLocation(paletteAdapters).flatMap(entry =>
     entry.value.prefix ? [{ owner: entry.owner, value: entry.value.prefix }] : [])))
   const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(paletteFaces("app.command"), prefixes()))
+  /** ...and the chords plugins registered, answered after the core table by
+   *  the same rule and refused where that table already answers (`./items.ts`'s
+   *  `chordsIn`). */
+  const chords = createMemo(() => chordsIn(paletteFaces("app.keys"), CHORDS))
 
   const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes()))
   const listing = () => box().kind === "filter"
@@ -782,6 +787,13 @@ export function Palette(props: {
         return
       }
       const match = matchKey(event)
+      const chord = match === null ? matchChord(event, chords()) : null
+      if (chord !== null) {
+        if (!chord.whileEditing && isEditingTarget(event.target)) return
+        event.preventDefault()
+        chord.press()
+        return
+      }
       if (match === null) {
         if (paletteOpen() && topmost() && event.key === "Escape") {
           event.preventDefault()
@@ -826,7 +838,7 @@ export function Palette(props: {
 
   return (
     <>
-    <Shortcuts open={keys()} onClose={() => setKeys(false)} />
+    <Shortcuts open={keys()} onClose={() => setKeys(false)} more={chords()} />
     <Show when={paletteOpen()}>
       {/* On a phone this is a sheet under the header, not a card hanging in
           20vh of empty air: a `max-h-72` list under that padding sliced the

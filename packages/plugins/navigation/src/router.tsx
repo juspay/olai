@@ -35,6 +35,7 @@ marked,
 NOWHERE,
 spent
 } from "./landing.ts"
+import { forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
 import type { Route } from "./routes.ts"
 import { routing } from "./pages.ts"
 import { createScrollMemory } from "./scroll.ts"
@@ -59,9 +60,17 @@ workspaceOf,
 
 /** What this app keeps on a history entry, which is a NAME for it and nothing
  *  else: what was on screen is derived from the address, and a second copy of
- *  it in `history.state` would be a copy that could disagree with the URL. */
+ *  it in `history.state` would be a copy that could disagree with the URL.
+ *
+ *  ...AND WHERE IT IS. `lane` is the tab the entry was written under (`null`
+ *  while no row keeps tabs) and `at` its position in the stack — a push is one
+ *  further than the entry it was pushed over, a replace keeps the position — so
+ *  a traversal can tell which way it went and whose entry it reached
+ *  (`./lanes.ts`). */
 interface Entry {
   readonly key: string
+  readonly lane: string | null
+  readonly at: number
 }
 
 let minted = 0
@@ -72,12 +81,9 @@ const keyIn = (state: unknown): string | undefined => {
   return typeof entry?.key === "string" ? entry.key : undefined
 }
 
-const nameHere = (): string => {
-  const known = keyIn(history.state)
-  if (known !== undefined) return known
-  const key = mintKey()
-  history.replaceState({ key } as Entry, "")
-  return key
+const atIn = (state: unknown): number | undefined => {
+  const entry = state as Partial<Entry> | null
+  return typeof entry?.at === "number" && Number.isSafeInteger(entry.at) ? entry.at : undefined
 }
 
 const here = (): string =>
@@ -121,6 +127,28 @@ export const createRouter = (): Router => {
   // move inside this document? A same-document navigation births an entry
   // with no name of ours on it: that popstate is the address bar SPEAKING,
   // not the reader going back.
+  //
+  // THE LANE IN FORCE, and the table of which entry is whose. The table is this
+  // DOCUMENT's: an entry written before a reload has no row, so while a lane is
+  // in force it is dead, and history is per document (`./lanes.ts`). With no
+  // lane in force nothing below reads it.
+  const [lane, setLane] = createSignal<string | null>(null)
+  let currentAt = atIn(history.state) ?? 0
+  let rows: LaneRows = new Map([[currentAt, null]])
+  /** Where a traversal that reached another lane's entry started, while it is
+   *  still travelling to one of ours (or back home). */
+  let seeking: { readonly origin: number } | undefined
+  const stamp = (key: string): Entry => ({ key, lane: untrack(lane), at: currentAt })
+  /** The name of the entry under the reader, minted and written onto it where
+   *  it has none — and its position, where a build before positions wrote it. */
+  const nameHere = (): string => {
+    const known = keyIn(history.state)
+    if (known !== undefined && atIn(history.state) !== undefined) return known
+    const key = known ?? mintKey()
+    history.replaceState(stamp(key), "")
+    return key
+  }
+
   let currentKey = nameHere()
   const scroll = createScrollMemory(() => keyIn(history.state))
 
@@ -158,9 +186,11 @@ export const createRouter = (): Router => {
     const href = hrefOfWorkspace(routing, next)
     if (how === "push") {
       currentKey = mintKey()
-      history.pushState({ key: currentKey } as Entry, "", href)
+      currentAt += 1
+      rows = pushedAt(rows, currentAt, untrack(lane))
+      history.pushState(stamp(currentKey), "", href)
     } else {
-      history.replaceState({ key: nameHere() } as Entry, "", href)
+      history.replaceState(stamp(keyIn(history.state) ?? mintKey()), "", href)
     }
     // ONE PROPAGATION, not two: without this every pane's landing memo re-runs
     // on the first write and everything drawn from the workspace on the second,
@@ -183,7 +213,15 @@ export const createRouter = (): Router => {
 
   const onPopState = () => {
     const target = keyIn(history.state)
-    if (target === undefined || target === currentKey) {
+    const at = atIn(history.state)
+    if (target === undefined || (target === currentKey && (at === undefined || at === currentAt))) {
+      seeking = undefined
+      // A same-document navigation the browser made is an entry pushed over
+      // this one, and it belongs to whichever lane is in force.
+      if (target === undefined) {
+        currentAt += 1
+        rows = pushedAt(rows, currentAt, untrack(lane))
+      }
       // THE ADDRESS BAR, MOVING INSIDE THIS DOCUMENT — a fragment arrived
       // hand-carried, or the very address on screen was asked for again.
       // That is an ARRIVAL the way the first paint is one (the browser's
@@ -199,6 +237,25 @@ export const createRouter = (): Router => {
         setWorkspace(next)
       })
       return
+    }
+    if (at !== undefined) {
+      // A TRAVERSAL WITH A LANE IN FORCE may have reached another tab's entry.
+      // While it travels, nothing on screen moves: no workspace, no landing,
+      // no scroll — the entries it passes through are not pages anyone asked
+      // for. It stops on one of this lane's, or back where it started.
+      const origin = seeking?.origin ?? currentAt
+      if (seeking !== undefined && at === origin) {
+        seeking = undefined
+        return
+      }
+      const decision = seek(rows, origin, at, untrack(lane))
+      if (decision !== "apply") {
+        seeking = { origin }
+        history.go(decision === "seek" ? Math.sign(at - origin) : origin - at)
+        return
+      }
+      seeking = undefined
+      currentAt = at
     }
     currentKey = target
     // NOBODY IS OWED AN ARRIVAL ON THE WAY BACK, in any pane: a browser applies
@@ -231,7 +288,41 @@ export const createRouter = (): Router => {
     )
   }
 
+  /**
+   * PUT ANOTHER LANE'S WORKSPACE ON THE ENTRY UNDER THE READER — what a tab
+   * brought to the front is. Not a history event: the entry is replaced, so
+   * Back from here is the arriving lane's own history.
+   *
+   * The page does not move when the address does not change (a tab row taking
+   * the lane of the page already drawn, or giving it back): the first paint's
+   * landing is still owed and the scroll is still the reader's. Otherwise it
+   * is an arrival the way a traversal is one — no landing, and the place this
+   * entry's key was left, which is the top for a key this document never saw.
+   */
+  const switchLane = (next: string | null, target: Workspace, key?: string): string => {
+    const name = key ?? mintKey()
+    const moved = hrefOfWorkspace(routing, target) !== hrefOfWorkspace(routing, untrack(workspace))
+    const renamed = name !== currentKey
+    seeking = undefined
+    setLane(next)
+    currentKey = name
+    rows = new Map(rows).set(currentAt, next)
+    history.replaceState(stamp(name), "", hrefOfWorkspace(routing, target))
+    if (moved) batch(() => {
+      setLandings(NOWHERE)
+      setWorkspace(target)
+    })
+    if (moved || renamed) scroll.restore(name)
+    return name
+  }
+
   return {
+    lane,
+    entryKey: () => currentKey,
+    switchLane,
+    forgetLane: (gone) => {
+      rows = forgotten(rows, gone)
+    },
     // THE ROSTER-DEPENDENT HALF OF THE GRAMMAR, on the router that holds the
     // routes — one binding over this row's own claim table (`./pages.ts`), so
     // every `<Link>`, every pane label and every consuming row asks one thing.
