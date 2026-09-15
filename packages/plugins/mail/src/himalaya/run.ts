@@ -151,7 +151,7 @@ interface Outcome {
 /** Spawn, collect both streams, answer the exit. Never rejects: a binary that
  *  cannot be started at all (ENOENT, EACCES) is an outcome with no status and a
  *  message on stderr — which is the same road a refusal takes, one arm wider. */
-const execute = (binary: string, argv: ReadonlyArray<string>, env: NodeJS.ProcessEnv): Promise<Outcome> => {
+const execute = (binary: string, argv: ReadonlyArray<string>, env: NodeJS.ProcessEnv): Effect.Effect<Outcome> => Effect.callback<Outcome>((resume) => {
   const { promise, resolve } = Promise.withResolvers<Outcome>()
   const deadline = AbortSignal.timeout(TIMEOUT_MS)
   let timedOut = false
@@ -167,9 +167,13 @@ const execute = (binary: string, argv: ReadonlyArray<string>, env: NodeJS.Proces
   // carries the status — so the error is recorded and the answer waits for the
   // close, which node emits even for a spawn that never happened.
   child.on("error", (error) => { stderr = stderr === "" ? error.message : `${stderr}\n${error.message}` })
-  child.on("close", (code) => resolve({ code, stdout, stderr, timedOut }))
-  return promise
-}
+  child.on("close", (code) => {
+    const done = { code, stdout, stderr, timedOut }
+    resolve(done)
+    resume(Effect.succeed(done))
+  })
+  return Effect.promise(async () => { child.kill("SIGKILL"); await promise })
+})
 
 /** The binary's own sentence, in the order of how much it knows. */
 const refusedWith = (where: string, done: Outcome): string => {
@@ -194,7 +198,7 @@ const refusedWith = (where: string, done: Outcome): string => {
 
 /**
  * ONE RUNNER PER ACTIVATION. Not an Effect service and not a class: the caller
- * (the account machine, `../account.ts`) is the only consumer, it is written in
+ * (the account machine and the mail tools) lives in the same activation and is written in
  * Effects, and what this holds is three mutable facts — the directory once it
  * exists, the token it holds, and the path it was told. A store would be a
  * second place for the same three.
@@ -237,7 +241,7 @@ export const makeHimalaya = (input: {
           holding = true
         },
         catch: (error) => new MailRefusal({ reason: `could not write Himalaya's config: ${String(error)}` }),
-      }),
+      }).pipe(Effect.uninterruptible),
 
     run: (call) =>
       Effect.gen(function*() {
@@ -246,7 +250,7 @@ export const makeHimalaya = (input: {
         if (exe === undefined) return yield* Effect.fail(new MailRefusal({ reason: NO_BINARY }))
         if (!holding) return yield* Effect.fail(new MailRefusal({ reason: NO_ACCOUNT }))
         const at = yield* Effect.promise(() => configPath())
-        const done = yield* Effect.promise(() => execute(exe, himalayaArgv(at, call.verb.path, call.args ?? []), childEnv))
+        const done = yield* execute(exe, himalayaArgv(at, call.verb.path, call.args ?? []), childEnv)
         if (done.code !== 0) {
           return yield* Effect.fail(new MailRefusal({ reason: refusedWith(exe, done) }))
         }

@@ -256,3 +256,7 @@ supply the work begun at lift; receiver routing remains in `carry.ts`, and outli
 placement rules remain in outlines. Each plugin still declares `Landings` and
 holds its own activation scope. This shares static mechanics, not live plugin
 state or a new global gesture owner.
+
+### Mail tool calls
+
+Mail's MCP tools close over activation-local resources instead of calling sibling procedures. They enter the Effect bridge's exported `gate` before touching the runner, label cache or attachment directory. Withdrawal closes that gate and joins interrupted calls before resource cleanup. The runner's interruption finalizer kills and joins its child process; the attachment directory closes before the generated token config. A retained tool closure therefore cannot restart work after the row leaves. Account refresh calls share the runner but do not spend the tools' four spawn permits.

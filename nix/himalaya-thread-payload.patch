@@ -1,0 +1,28 @@
+--- a/src/gmail/threads/get.rs
++++ b/src/gmail/threads/get.rs
+@@ -6,7 +6,7 @@
+ 
+ use anyhow::Result;
+ use clap::Parser;
+-use io_gmail::v1::rest::{messages::GmailMessageFormat, threads::get::GmailThreadGet};
++use io_gmail::v1::rest::{messages::{GmailMessageFormat, GmailMessagePayload}, threads::get::GmailThreadGet};
+ use pimalaya_cli::printer::Printer;
+ use schemars::JsonSchema;
+ use serde::Serialize;
+@@ -55,7 +55,8 @@
+                 id: message.id,
+                 label_ids: message.label_ids,
+                 snippet: message.snippet,
+-                headers: message_headers(message.payload, &hs),
++                headers: message_headers(message.payload.clone(), &hs),
++                payload: message.payload,
+             })
+             .collect();
+ 
+@@ -105,4 +106,6 @@
+     #[serde(skip_serializing_if = "Option::is_none")]
+     snippet: Option<String>,
+     headers: Vec<GmailMessageHeaderOutput>,
++    #[serde(skip_serializing_if = "Option::is_none")]
++    payload: Option<GmailMessagePayload>,
+ }

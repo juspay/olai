@@ -25,13 +25,18 @@
     "@olai/ui-primitives": "workspace:*",
     "@olai/web": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "solid-js": "^1.9.0"
+    "solid-js": "^1.9.0",
+    "@olai/ops": "workspace:*",
+    "@olai/format": "workspace:*",
+    "@olai/effect-cordis": "workspace:*"
   },
   "//devDependencies": "`olai-plugin-layout` and `olai-plugin-plugin-inspector` for their slot CONTRACTS only \u2014 the declarations that make `app.header` and `plugins.row` names the compiler knows (odu's browser half merges the same three), and the row face this plugin hangs on its own row. A contract module is the one thing that may travel between two plugin packages, and the inspector's own manifest records `olai-plugin-layout` the same way. `@olai/tests` is the e2e harness the feature files under `e2e/` are written against.",
   "devDependencies": {
     "@olai/tests": "workspace:*",
     "olai-plugin-layout": "workspace:*",
-    "olai-plugin-plugin-inspector": "workspace:*"
+    "olai-plugin-plugin-inspector": "workspace:*",
+    "olai-plugin-chat": "workspace:*",
+    "ajv": "^8.20.0"
   },
   "olai": {
     "contracts": [

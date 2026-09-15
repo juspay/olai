@@ -1,8 +1,8 @@
 # Gmail
 
-Connect a Gmail account to olai so that, in later releases, an agent can read and file your mail in a conversation, with your vault as the context. Gmail stays the record of the mail; the vault records what you decided about it.
+Read and act on Gmail in an olai conversation, with your vault as the context. Gmail stays the record of the mail; the vault records what you decided about it.
 
-**What works today is connecting the account.** You turn the `mail` plugin on, press one button, approve the mailbox at Google, and olai keeps that connection alive across restarts. Reading threads, filing them onto nodes, archiving, and being woken by new mail are the next steps and are not here yet.
+Turn the `mail` plugin on, connect an account, and ask an agent to read threads, archive, move mail to Trash, apply labels or mark it read. The connection survives restarts. Live thread properties on nodes and waking on new mail are still to come.
 
 Olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), which is built into every olai release. There is nothing to install. The plugin is called `mail` rather than `gmail` because Himalaya also speaks IMAP and JMAP, and a second kind of mailbox should not need a rename.
 
@@ -81,3 +81,19 @@ Nothing is written into your vault, and olai never reads or changes your own `~/
 - Permanent deletion of messages.
 - More than one mailbox, or mailboxes other than Gmail.
 - Using a Himalaya other than the one built into olai.
+
+## Asking an agent about your mail
+
+The mail tools are available in every conversation under **olai ✓**. Try:
+
+- “What came in since yesterday? Check the vault for the projects involved.”
+- “Read the Nix meetup thread, including its HTML message.”
+- “Archive the newsletters and mark the invoice thread read.”
+- “Label that thread waiting, then record what we decided in the project node.”
+- “Save the invoice attachment so you can read it.”
+
+Search accepts Gmail's usual syntax, including `from:`, `newer_than:1d`, `is:unread`, `has:attachment` and `label:`. Label names are the ones Gmail shows you, such as `waiting`; system labels use names such as `INBOX` and `UNREAD`. Olai uses existing labels and does not create new ones.
+
+Archive removes a thread from the inbox. Trash moves it to Gmail's own Trash, and the agent can restore it. Olai never permanently deletes mail and does not send mail or create drafts. A write refused before it is sent changes nothing; if Gmail accepts a write but its follow-up read fails, the reply says the outcome needs checking.
+
+A thread reply includes plain text and raw HTML where present, with each capped at 64 KiB and a notice when cut. Attachments are listed first, so the agent can check their size before downloading. Files up to 50 MB land in a private mail temporary directory under the serve's runtime directory (or system temporary directory), outside the vault. The agent reads them with its file tools. Switching mail off removes those files; download them again if needed.

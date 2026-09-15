@@ -6,9 +6,22 @@
   "search": [
     "src/account.ts",
     "src/appliance/testlib/fake-google.ts",
-    "src/oauth.ts"
+    "src/browser/story.ts",
+    "src/oauth.ts",
+    "src/tools.ts"
   ],
   "vault": [
     "src/browser/Row.tsx"
+  ],
+  "//tools": "Mail query, trash verbs and PDF attachment fixtures are mail vocabulary, not dependencies on those plugin rows.",
+  "pdf": [
+    "src/appliance/testlib/fixtures.ts"
+  ],
+  "trash": [
+    "src/appliance/testlib/fake-himalaya.ts",
+    "src/appliance/testlib/fixtures.ts",
+    "src/browser/story.ts",
+    "src/himalaya/verbs.ts",
+    "src/tools.ts"
   ]
 }

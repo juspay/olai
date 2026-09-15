@@ -73,6 +73,13 @@ export const GMAIL = {
     path: ["gmail", "profile", "get"],
     says: "the signed-in address and the mailbox's totals",
   },
+  threadsList: { id: "threads.list", path: ["gmail", "threads", "list"], says: "threads.list" },
+  threadsGet: { id: "threads.get", path: ["gmail", "threads", "get"], says: "threads.get" },
+  threadsModify: { id: "threads.modify", path: ["gmail", "threads", "modify"], says: "threads.modify" },
+  threadsTrash: { id: "threads.trash", path: ["gmail", "threads", "trash"], says: "threads.trash" },
+  threadsUntrash: { id: "threads.untrash", path: ["gmail", "threads", "untrash"], says: "threads.untrash" },
+  labelsList: { id: "labels.list", path: ["gmail", "labels", "list"], says: "labels.list" },
+  attachmentsGet: { id: "attachments.get", path: ["gmail", "attachments", "get"], says: "attachments.get" },
 } as const satisfies Record<string, GmailVerb>
 
 /** Every verb this plugin speaks, in one list — what the fake offers, and what

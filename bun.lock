@@ -565,6 +565,9 @@
       "name": "olai-plugin-mail",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/effect-cordis": "workspace:*",
+        "@olai/format": "workspace:*",
+        "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
@@ -573,6 +576,8 @@
       },
       "devDependencies": {
         "@olai/tests": "workspace:*",
+        "ajv": "^8.20.0",
+        "olai-plugin-chat": "workspace:*",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-plugin-inspector": "workspace:*",
       },

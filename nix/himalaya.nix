@@ -44,7 +44,7 @@ in
   # nixpkgs and toolchain. The import returns the derivation itself (the pin's
   # root default.nix ends in `pimalaya.mkDefault { … }`), which is what the
   # wrapper in `default.nix` bakes as `OLAI_HIMALAYA`.
-  bin = import "${npins.himalaya}/default.nix" {
+  bin = (import "${npins.himalaya}/default.nix" {
     nixpkgs = "${npins.nixpkgs}";
     inherit pkgs;
     system = pkgs.stdenv.hostPlatform.system;
@@ -53,5 +53,9 @@ in
       inherit pkgs;
       system = pkgs.stdenv.hostPlatform.system;
     };
-  };
+  }).overrideAttrs (old: {
+    # The pin fetches full MIME payloads but drops them while rendering JSON.
+    # Retain that typed field; mail-surface checks the generated schema.
+    patches = (old.patches or [ ]) ++ [ ./himalaya-thread-payload.patch ];
+  });
 }

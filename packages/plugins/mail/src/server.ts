@@ -34,8 +34,7 @@
  * reads the served directory: a `needs` entry is a claim that this plugin
  * cannot start without that door, and this plugin can — the account's record is
  * keyed by core's own hashing of the served directory, and the value never has
- * to be looked at. It arrives when an attachment needs somewhere to land (PR 2)
- * and the tools need the vault's context, which is where naming it becomes true.
+ * to be looked at. Attachments belong to a mail-owned temporary directory; tools still do not need Vault.
  *
  * ## Off by default
  *
@@ -60,6 +59,7 @@ import { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect } from "effect"
 
 import { type Account, MAIL_UNCONNECTED, name, surface, faces } from "./wire.ts"
+import { makeTools } from "./tools.ts"
 import { makeAccount } from "./account.ts"
 import { DOOR } from "./doors.ts"
 import { makeHimalaya } from "./himalaya/run.ts"
@@ -187,6 +187,7 @@ export default definePlugin({
     yield* surfaces.register({
       surface,
       faces,
+      tools: yield* makeTools(himalaya, machine, environment.vars["XDG_RUNTIME_DIR"]),
       deps: {
         cells: {
           account: {

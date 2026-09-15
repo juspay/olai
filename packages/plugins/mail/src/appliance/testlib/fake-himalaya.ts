@@ -60,13 +60,13 @@
  * `run.ts`'s `refusedWith` is written around.
  */
 
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
 import { GMAIL, GMAIL_VERBS, type GmailVerb } from "../../himalaya/verbs.ts"
-import { fixtureNamed, MAILBOXES } from "./fixtures.ts"
+import { fixtureNamed, MAILBOXES, LABELS, THREADS } from "./fixtures.ts"
 
 /** The first line `himalaya --version` prints at the pin this repo carries, and
  *  the string a scenario replaces when it wants a serve to see an older one.
@@ -94,6 +94,7 @@ export const SPEAKS: ReadonlyArray<string> = GMAIL_VERBS.map((verb) => verb.id)
  *  has nothing to answer them with (which the fake says in a sentence rather
  *  than answering `null`). */
 export interface MailFixture {
+  readonly mailbox?: boolean
   /** Replaces the first line of `--version`. */
   readonly version?: string
   /** What `gmail profile get --json` answers. `messagesTotal` and
@@ -322,6 +323,11 @@ For more information, try '--help'.`))
     return
   }
 
+  appendFileSync(path.join(path.dirname(fixturePath), "calls.jsonl"), JSON.stringify({ verb: verb.id, args: invocation.words.slice(verb.path.length) }) + "\n")
+  if (verb.id !== GMAIL.profileGet.id && fixture.mailbox) {
+    says(mailAnswer(verb, invocation.words.slice(verb.path.length), path.dirname(fixturePath)))
+    return
+  }
   says(answerFor(verb, fixture, fixturePath))
 }
 
@@ -398,4 +404,51 @@ export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHi
     },
     stop: () => rm(directory, { recursive: true, force: true }),
   }
+}
+
+/** Per-thread files let separate fake processes preserve writes without lost updates on other threads. */
+export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directory: string): Answered => {
+  const ok = (value: unknown): Answered => ({ code: 0, stdout: JSON.stringify(value), stderr: "" })
+  const flag = (name: string) => args[args.indexOf(name) + 1]
+  const values = (name: string) => args.flatMap((arg, i) => arg === name ? [args[i + 1] ?? ""] : [])
+  const threads = THREADS.map(original => {
+    const file = path.join(directory, `thread-${original.id}.json`)
+    return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as typeof original : structuredClone(original)
+  })
+  if (verb.id === "labels.list") return ok(LABELS)
+  if (verb.id === "threads.list") {
+    const query = args.includes("-q") ? flag("-q") ?? "" : ""
+    let selected = threads.filter(t => {
+      const labels = t.messages.flatMap(m => m["label-ids"])
+      if (!args.includes("--include-spam-trash") && !query.includes("in:trash") && !query.includes("in:spam") && (labels.includes("TRASH") || labels.includes("SPAM"))) return false
+      if (!values("-l").every(l => labels.includes(l))) return false
+      return query.split(/\s+/).filter(Boolean).every(word => word === "is:unread" ? labels.includes("UNREAD")
+        : word === "in:trash" ? labels.includes("TRASH")
+        : word.startsWith("from:") ? t.messages.some(m => m.headers.some(h => h.name === "From" && h.value.includes(word.slice(5))))
+        : t.messages.some(m => m.headers.some(h => h.name === "Subject" && h.value.toLowerCase().includes(word.toLowerCase()))))
+    })
+    const start = args.includes("--page-token") ? Number(flag("--page-token")) : 0
+    const max = args.includes("-s") ? Number(flag("-s")) : 20
+    const next = start + max < selected.length ? String(start + max) : null
+    selected = selected.slice(start, start + max)
+    return ok({ threads: selected.map(t => ({ id: t.id })), ...(next ? { next_page: next } : {}) })
+  }
+  if (verb.id === "attachments.get") {
+    if (args[0] !== "a32" || args[1] !== "attachment_1") return failed("404 not found")
+    const output = flag("-o")
+    if (!output) return failed("output path required")
+    writeFileSync(output, Buffer.alloc(12288, 65))
+    return ok(`Saved 12288 bytes to ${output}`)
+  }
+  const thread = threads.find(t => t.id === args[0])
+  if (!thread) return failed("404 not found")
+  if (verb.id === "threads.get") {
+    return ok(flag("--format") === "full" ? thread : { ...thread, messages: thread.messages.map(({ payload, ...message }) => message) })
+  }
+  const add = verb.id === "threads.trash" ? ["TRASH"] : values("--add-label")
+  const remove = verb.id === "threads.untrash" ? ["TRASH"] : values("--remove-label")
+  if ([...add, ...remove].some(id => !LABELS.labels.some(l => l.id === id))) return failed("Invalid label: unknown label id")
+  for (const message of thread.messages) message["label-ids"] = [...new Set([...message["label-ids"], ...add])].filter(id => !remove.includes(id))
+  writeFileSync(path.join(directory, `thread-${thread.id}.json`), JSON.stringify(thread))
+  return ok(`Gmail thread ${thread.id} successfully modified`)
 }
