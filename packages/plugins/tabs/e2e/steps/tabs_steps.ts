@@ -37,6 +37,19 @@ const tabsNow = async (world: OlaiWorld) =>
     title: face.getAttribute("title"),
   })));
 
+/** Wait for the strip to say something, and say what it held when it would not. */
+const untilTabs = async (
+  world: OlaiWorld,
+  holds: (tabs: Awaited<ReturnType<typeof tabsNow>>) => boolean,
+  what: string,
+): Promise<void> => {
+  try {
+    await world.waitUntil(async () => holds(await tabsNow(world)), what);
+  } catch {
+    throw new Error(`${what}, and the strip holds ${JSON.stringify(await tabsNow(world))}`);
+  }
+};
+
 const settled = async (world: OlaiWorld): Promise<void> => {
   await world.waitForFrame();
 };
@@ -49,26 +62,22 @@ Then("there {word} {int} tab(s)", async function (this: OlaiWorld, _are: string,
 });
 
 Then("tab {int} is in front", async function (this: OlaiWorld, index: number) {
-  await this.waitUntil(async () => {
-    const tabs = await tabsNow(this);
-    return tabs.filter((tab) => tab.front).length === 1 && tabs[index]?.front === true;
-  }, `tab ${index} to be the one in front`);
+  await untilTabs(this, (tabs) => tabs.filter((tab) => tab.front).length === 1 && tabs[index]?.front === true,
+    `tab ${index} to be the one in front`);
 });
 
 Then("tab {int} holds {string}", async function (this: OlaiWorld, index: number, href: string) {
-  await this.waitUntil(async () => (await tabsNow(this))[index]?.href === href, `tab ${index} to hold ${href}`);
+  await untilTabs(this, (tabs) => tabs[index]?.href === href, `tab ${index} to hold ${href}`);
 });
 
 Then("tab {int} is titled {string}", async function (this: OlaiWorld, index: number, title: string) {
-  await this.waitUntil(async () => (await tabsNow(this))[index]?.title === title, `tab ${index} to be titled ${title}`);
+  await untilTabs(this, (tabs) => tabs[index]?.title === title, `tab ${index} to be titled ${title}`);
 });
 
 Then("the tabs hold {string}", async function (this: OlaiWorld, hrefs: string) {
   const wanted = hrefs.split(" ");
-  await this.waitUntil(
-    async () => JSON.stringify((await tabsNow(this)).map((tab) => tab.href)) === JSON.stringify(wanted),
-    `the tabs to hold ${hrefs}`,
-  );
+  await untilTabs(this, (tabs) => JSON.stringify(tabs.map((tab) => tab.href)) === JSON.stringify(wanted),
+    `the tabs to hold ${hrefs}`);
 });
 
 Then("the tab strip reads the address {string}", async function (this: OlaiWorld, href: string) {
@@ -146,6 +155,15 @@ const chooseFromMenu = async (world: OlaiWorld, entry: string): Promise<void> =>
 When("I choose {string} from the menu of the outline link {string}", async function (this: OlaiWorld, entry: string, file: string) {
   await this.showSidebar();
   const link = this.outlineLink(file);
+  await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await link.click({ button: "right" });
+  await chooseFromMenu(this, entry);
+});
+
+When("I choose {string} from the menu of the document link {string}", async function (this: OlaiWorld, entry: string, file: string) {
+  await this.showSidebar();
+  await this.expandReference();
+  const link = this.documentLink(file);
   await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await link.click({ button: "right" });
   await chooseFromMenu(this, entry);

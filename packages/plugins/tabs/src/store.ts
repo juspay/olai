@@ -166,7 +166,18 @@ export const createTabs = (router: Navigation): TabsStore => {
         const workspace = router.workspace()
         const href = hrefOf(workspace)
         const title = titleOf(router, workspace, true)
-        setList((all) => updateTab(all, all.front, { href, title }))
+        setList((all) => {
+          const front = all.tabs.find((tab) => tab.id === all.front)
+          // A TAB COMING BACK KEEPS ITS NAME while its page arrives. The page
+          // mounts before it knows what it is called — no report at all, then
+          // its own address as a stand-in (`/#p71164pu`), then the name — and
+          // redrawing each of those on the tab that was just pressed is a
+          // flicker, not news. Only a page at a new address takes a new name
+          // before it has a real one.
+          const provisional = !router.info(0)?.title || title.startsWith("/")
+          const kept = front !== undefined && front.href === href && provisional ? front.title : title
+          return updateTab(all, all.front, { href, title: kept })
+        })
       })
       createEffect(() => preference.set(list()))
       return dispose

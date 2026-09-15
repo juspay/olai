@@ -8,13 +8,13 @@ Feature: Switching the tabs row off and on
     And I mark the page
     When I click the outline "garden.olai"
     And I press the new tab button
-    And I click the outline "Daily/2026-08.olai"
+    And I click the document "finishes.md"
     Then there are 2 tabs
     When I open the plugins panel
     And I switch the plugin "tabs" off
     And I close the plugins panel
     Then there is no tab strip
-    And the address is "/Daily/2026-08.olai"
+    And the address is "/finishes.md"
     When I go back
     Then the address is "/"
     When I go back

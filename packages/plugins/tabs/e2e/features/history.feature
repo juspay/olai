@@ -8,7 +8,7 @@ Feature: Back and Forward stay inside the tab in front
     Given I open the outline "house.olai"
     And I mark the page
     When I click the outline "garden.olai"
-    And I click the outline "Daily/2026-08.olai"
+    And I click the document "finishes.md"
     And I press the new tab button
     And I click the outline "house.olai"
     Then the address is "/house.olai"
@@ -40,7 +40,7 @@ Feature: Back and Forward stay inside the tab in front
     And I mark the page
     When I click the outline "garden.olai"
     And I press the new tab button
-    And I click the outline "Daily/2026-08.olai"
+    And I click the document "finishes.md"
     And I press tab 0
     And I close tab 1 with its button
     And I go back

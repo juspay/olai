@@ -55,9 +55,9 @@ Feature: Tabs above the panes
 
   Scenario: Closing the tab in front shows its right neighbour, else its left
     Given I open the outline "house.olai"
-    When I choose "Open in new tab" from the menu of the outline link "Daily/2026-08.olai"
+    When I choose "Open in new tab" from the menu of the document link "finishes.md"
     And I choose "Open in new tab" from the menu of the outline link "garden.olai"
-    Then the tabs hold "/house.olai /garden.olai /Daily/2026-08.olai"
+    Then the tabs hold "/house.olai /garden.olai /finishes.md"
     When I close tab 0 with its button
     Then there are 2 tabs
     And tab 0 is in front

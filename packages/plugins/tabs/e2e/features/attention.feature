@@ -8,7 +8,7 @@ Feature: A tab whose conversation needs you wears a dot
     And the node agent's fold is ready
 
   Scenario: The dot goes on that conversation's tab only, and answering takes it away
-    When I choose "Open in new tab" from the menu of the outline link "garden.olai"
+    When I choose "Open in new tab" from the menu of the outline link "yard.olai"
     And I ask the agent "ask"
     Then the chat shows a question
     And the agent "kitchen" stands "needs-you"

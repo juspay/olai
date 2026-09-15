@@ -31,7 +31,7 @@ Feature: Tabs on a phone
     Then the stored tabs hold "/house.olai /garden.olai"
     When I shrink the window to a phone
     And I reload the page
-    And I click the outline "Daily/2026-08.olai"
+    And I click the document "finishes.md"
     Then there is no tab strip
-    And the stored tabs hold "/Daily/2026-08.olai /garden.olai"
+    And the stored tabs hold "/finishes.md /garden.olai"
     And there should be no page errors

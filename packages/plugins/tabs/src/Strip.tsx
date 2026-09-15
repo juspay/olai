@@ -2,8 +2,8 @@
  * THE STRIP — the row of tabs above the panes, on a desktop.
  *
  * Desk ground and a one-pixel rule under it; the tab in front on paper with the
- * rule broken under it, the others muted. A press brings a tab forward (a tab
- * switches on the press, as a browser's does), a drag reorders it with the
+ * rule broken under it, the others muted. A press brings a tab forward when it
+ * is let go, a drag reorders it with the
  * pane header's threshold and pointer helper, a middle-click closes it, and a
  * right-click opens its menu. `+` opens a front-page tab, and the readout at
  * the right is the address of the tab in front.
@@ -44,10 +44,13 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
       ?.scrollIntoView({ block: "nearest", inline: "nearest" }))
   })
 
+  // A PRESS THAT DOES NOT TRAVEL brings the tab forward when it is let go, not
+  // when it goes down: the page coming back asks for its old scroll position,
+  // and that request stands down for the reader's own pointerdown — which the
+  // one still being dispatched would be.
   const press = (event: PointerEvent, tab: Tab) => {
     if (event.button !== 0) return
     if ((event.target as HTMLElement).closest("button")) return
-    tabs.show(tab.id)
     const from = tabs.tabs().findIndex((one) => one.id === tab.id)
     let moved = false
     stop?.()
@@ -60,7 +63,9 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
       onEnd: (up) => {
         stop = undefined
         setLifted(null)
-        if (up === null || !moved || row === undefined) return
+        if (up === null) return
+        if (!moved) return tabs.show(tab.id)
+        if (row === undefined) return
         const faces = [...row.querySelectorAll(`[data-testid="${TESTID.tabsTab}"]`)]
         const over = faces.findIndex((face) => {
           const box = face.getBoundingClientRect()
@@ -92,7 +97,10 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               data-tab-front={front() ? "true" : undefined}
               data-href={tab().href}
               data-lifted={lifted() === tab().id ? "true" : undefined}
-              class="group/tab relative flex min-w-[5rem] max-w-[15rem] shrink cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-t-lg border border-b-0 pl-2.5 pr-1 text-[0.8125rem]"
+              // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
+              // (a page naming itself as it arrives) must not move its
+              // neighbours along the strip.
+              class="group/tab relative flex min-w-[5rem] max-w-[15rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-t-lg border border-b-0 pl-2.5 pr-1 text-[0.8125rem]"
               classList={{
                 "z-[1] h-full border-rule/70 bg-paper font-semibold text-ink": front(),
                 "h-[calc(100%-0.25rem)] border-transparent text-muted hover:bg-panel/55 hover:text-ink": !front(),
