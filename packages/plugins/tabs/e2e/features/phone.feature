@@ -23,6 +23,9 @@ Feature: Tabs on a phone
     And the stored tabs hold "/house.olai /garden.olai"
     When I press the "previous tab" chord
     Then the address is "/garden.olai"
+    # No lane on a phone: Back is the window's, and returns to the page before.
+    When I go back
+    Then the address is "/house.olai"
     And there should be no page errors
 
   Scenario: A set stored on a desk is still stored after a phone visit

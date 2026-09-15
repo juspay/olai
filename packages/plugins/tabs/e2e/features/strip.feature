@@ -17,6 +17,7 @@ Feature: Tabs above the panes
     When I click the outline "garden.olai"
     Then there is 1 tab
     And tab 0 holds "/garden.olai"
+    And tab 0 is titled "garden.olai"
     And the tab strip reads the address "/garden.olai"
     And there should be no page errors
 
@@ -29,6 +30,12 @@ Feature: Tabs above the panes
     And tab 1 holds "/garden.olai"
     And the address is "/house.olai"
     And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A link drawn inside an outline row keeps the row's own menu
+    Given I open the outline "house.olai"
+    Then right-clicking the bullet of "install" opens no tab menu
+    And there is 1 tab
     And there should be no page errors
 
   Scenario: Open from a link's menu follows the link in the tab in front

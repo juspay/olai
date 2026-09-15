@@ -14,7 +14,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
 import { DOT } from "@olai/web/client/readout.ts"
-import { drag } from "@olai/web/client/pointer.ts"
+import { createDrags } from "@olai/web/client/pointer.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { lone } from "olai-plugin-navigation/workspace"
@@ -31,8 +31,24 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
   const tabs = props.tabs
   const [menu, setMenu] = createSignal<{ readonly id: string; readonly x: number; readonly y: number } | null>(null)
   const [lifted, setLifted] = createSignal<string | null>(null)
+  /** Where a carried tab would land: the tab it is over, while it travels. */
+  const [over, setOver] = createSignal<{ readonly id: string; readonly side: "before" | "after" } | null>(null)
   let row: HTMLDivElement | undefined
-  let stop: (() => void) | undefined
+  // One gesture at a time, torn down with the strip — a strip removed
+  // mid-drag (the row switched off, the breakpoint crossed) leaves no window
+  // listener and no selection guard behind.
+  const drags = createDrags()
+
+  /** The index a tab carried from `from` lands at, for a pointer at `x`. */
+  const landingAt = (x: number, from: number): number => {
+    const faces = row === undefined ? [] : [...row.querySelectorAll(`[data-testid="${TESTID.tabsTab}"]`)]
+    const hit = faces.findIndex((face) => {
+      const box = face.getBoundingClientRect()
+      return x >= box.left && x <= box.right
+    })
+    if (hit >= 0) return hit
+    return x < (faces[0]?.getBoundingClientRect().left ?? 0) ? 0 : Math.max(from, faces.length - 1)
+  }
 
   const frontHref = () => tabs.tabs().find((tab) => tab.id === tabs.front())?.href ?? ""
 
@@ -59,25 +75,23 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
     if ((event.target as HTMLElement).closest("button")) return
     const from = tabs.tabs().findIndex((one) => one.id === tab.id)
     let moved = false
-    stop?.()
-    stop = drag(event, {
+    drags.start(event, {
       threshold: DRAG_PX,
       onStart: () => {
         moved = true
         setLifted(tab.id)
       },
+      onMove: (move) => {
+        const to = landingAt(move.clientX, from)
+        const target = tabs.tabs()[to]
+        setOver(to === from || target === undefined ? null : { id: target.id, side: to < from ? "before" : "after" })
+      },
       onEnd: (up) => {
-        stop = undefined
         setLifted(null)
+        setOver(null)
         if (up === null) return
         if (!moved) return tabs.show(tab.id)
-        if (row === undefined) return
-        const faces = [...row.querySelectorAll(`[data-testid="${TESTID.tabsTab}"]`)]
-        const over = faces.findIndex((face) => {
-          const box = face.getBoundingClientRect()
-          return up.clientX >= box.left && up.clientX <= box.right
-        })
-        const to = over >= 0 ? over : up.clientX < (faces[0]?.getBoundingClientRect().left ?? 0) ? 0 : faces.length - 1
+        const to = landingAt(up.clientX, from)
         if (to !== from) tabs.reorder(from, to)
       },
     })
@@ -105,6 +119,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               data-tab-front={front() ? "true" : undefined}
               data-href={tab().href}
               data-lifted={lifted() === tab().id ? "true" : undefined}
+              data-drop={over()?.id === tab().id ? over()!.side : undefined}
               // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
               // (a page naming itself as it arrives) must not move its
               // neighbours along the strip.
@@ -133,6 +148,11 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 }
               }}
             >
+              {/* WHERE THE CARRIED TAB WOULD LAND, drawn on the tab it is over. */}
+              <Show when={over()?.id === tab().id ? over()!.side : undefined}>{(side) =>
+                <span aria-hidden="true" class="pointer-events-none absolute bottom-1 top-1.5 w-0.5 rounded-full bg-accent"
+                  classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
+              }</Show>
               <span aria-hidden="true" class="shrink-0 font-mono text-xs opacity-75">{glyphOf(props.router.routes, tab().href)}</span>
               <span class="min-w-0 truncate">{tab().title}</span>
               <Show when={dot()}>{(paint) =>

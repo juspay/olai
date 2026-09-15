@@ -861,15 +861,16 @@ const landedOn = async (
   where: Locator,
   text: string,
   whose: string,
-  /** Chrome that holds still above the reading on top of the bar — a split's
-   *  columns start under the seat above the panes, where a tab strip may be. */
+  /** Chrome that holds still above the reading besides the bar — a split's
+   *  columns start under the seat above the panes, where a tab strip may be —
+   *  so "the top" is that much further down the screen. */
   under = 0,
 ): Promise<void> => {
   const heading = where.locator(HEADINGS).filter({ hasText: text }).first();
   await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await world.waitUntil(async () => {
     const top = await heading.evaluate((node) => node.getBoundingClientRect().top);
-    return Math.abs(top) < AT_THE_TOP + under;
+    return Math.abs(top - under) < AT_THE_TOP;
   }, `the heading ${JSON.stringify(text)} to be at the top of ${whose}`);
 };
 

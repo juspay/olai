@@ -10,6 +10,7 @@ import type { Search } from "olai-plugin-search/reading"
 import type { NodeProp } from "olai-plugin-search/ui/props.ts"
 import { hitRow } from "olai-plugin-search/ui/row.ts"
 import { atOnce,type Taking } from "@olai/web/client/settled.ts"
+import { chordKeyOf } from "@olai/web/client/keys.ts"
 import { HOME_ROUTE,type Route } from "olai-plugin-navigation/routes"
 import type { Asking } from "./asking.ts"
 
@@ -179,7 +180,7 @@ export const chordsIn = (
   entries: ReadonlyArray<Hung<AppChord>>,
   reserved: ReadonlyArray<{ readonly key: string; readonly shift?: boolean; readonly action: string }> = [],
 ): ReadonlyArray<AppChord> => {
-  const spelled = (key: string, shift: boolean | undefined) => `${shift === true ? "shift+" : ""}${key}`
+  const spelled = (key: string, shift: boolean | undefined) => `${shift === true ? "shift+" : ""}${chordKeyOf(key)}`
   const held = new Map<string, string>(
     reserved.map((chord) => [spelled(chord.key, chord.shift), `the app's own "${chord.action}" chord`] as const),
   )

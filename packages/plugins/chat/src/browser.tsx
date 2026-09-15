@@ -16,6 +16,7 @@ import type {} from "olai-plugin-navigation/slots"
 import type {} from "olai-plugin-outlines/slots"
 import type {} from "olai-plugin-sidebar/slots"
 import { slotContracts } from "./slots.ts"
+import type { Attention } from "./attention.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
@@ -88,7 +89,9 @@ export default definePlugin({
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
-    yield* (yield* Offers).own("state", () => state)
+    // `chat.state`, as its static door names it (`./attention.ts`): the value
+    // is the whole activation state, and it must keep satisfying that shape.
+    yield* (yield* Offers).own("state", () => state satisfies Attention)
 
 
     yield* Effect.acquireRelease(Effect.sync(trackCamera), stop => Effect.sync(stop))

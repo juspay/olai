@@ -25,7 +25,7 @@ nothing about the other tabs.
 - Middle-click a tab, or press its ×, to close it. Closing the tab in front
   brings the tab to its right forward, or the one to its left when it was the
   rightmost. Closing the last tab leaves one tab on the front page.
-- Drag a tab to reorder the strip.
+- Drag a tab to reorder the strip; a bar shows where it will land.
 - Right-click a tab for **Duplicate tab** (a copy right after it, brought to the
   front), **Close other tabs** and **Close**.
 - Press **+** for a new tab on the front page.
@@ -62,7 +62,8 @@ Back and Forward move within the tab in front. Bringing a tab to the front is
 not a history step, and closing a tab drops its history. Returning to a tab
 returns to where its page was scrolled. History is kept per document: after a
 reload every tab's history starts empty, and Back at the start of a tab's
-history stays on that tab.
+history stays on that tab. All of this holds only while the strip is drawn: on a
+phone, or with the layout row off, Back and Forward are the window's own.
 
 ## What is kept
 
@@ -81,7 +82,8 @@ on or off since the tab was opened is honoured when the tab comes back.
 Below the desktop breakpoint there is no strip, and the existing pane strip is
 unchanged. The set is still kept and still written, so visiting on a phone does
 not erase the tabs of a desk. Open in new tab shows the page at once, since
-there is no strip to find it in, and the chords do nothing.
+there is no strip to find it in, and Back returns to the page before it, in the
+window's own history. The chords do nothing.
 
 ## When rows are switched off
 
@@ -90,7 +92,8 @@ there is no strip to find it in, and the chords do nothing.
   stored set.
 - **chat** off: tabs have no needs-you dot.
 - **pins** off: nothing changes here; pinned layouts are the pins row's.
-- **layout** off: no strip is drawn. The set is kept and the chords do nothing.
+- **layout** off: no strip is drawn. The set is kept, the chords do nothing, and
+  Back and Forward walk the window's history.
 
 ## For plugin authors
 
@@ -103,8 +106,10 @@ reading of which tabs wear a dot, which the `attention` component uses. Name
 `tabs.state` on a component of your own, so your row still works without tabs.
 
 The row itself needs only `navigation.state`. It names a history lane for the
-tab in front (see [navigation](navigation.md)) and gives the window its history
-back when it is released. The strip is the `strip` component, contributed to
+tab in front (see [navigation](navigation.md)) while the strip reports that it
+draws on a desktop, and gives the window its history back when it stops drawing
+and when the row is released. Without a lane, a tab brought forward is an
+ordinary navigation (`Router.open`). The strip is the `strip` component, contributed to
 layout's `layout.strip` seat and waiting for `layout.shell`; the link menu is
 the `links` component, contributed to `layout.overlays`; the needs-you dot is
 the `attention` component, waiting for `chat.state`.

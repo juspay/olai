@@ -138,9 +138,9 @@ export const titleFace = (
  * says the new name on the frame the store publishes, because there was never
  * a second copy of it to go stale.
  *
- * ## Not `../pane/label.ts`, and the placement was argued rather than assumed
+ * ## Not `../routes.ts`'s `labelIn`, and the placement was argued rather than assumed
  *
- * That module names a PANE and this one names a PLACE, and they are two total
+ * That function names a PANE and this one names a PLACE, and they are two total
  * switches over one `Route` — which is the shape to justify, because "name a
  * route" is one kind of operation and a second table for it is how concepts
  * multiply. Three things decide it:

@@ -79,5 +79,5 @@ keeps the header-only heights, because the sidebar column beside the main one
 is not under the strip. Removing the entry restores the prior inline value, as
 it does for the widths.
 
-A pane's label is navigation's `Routing.label(route)`; `pane/label.ts` reads it
-through the routing this row holds from `navigation.state`.
+A pane's label is navigation's `Routing.label(route)`, read through the routing
+this row holds from `navigation.state` (`src/routing.ts`).

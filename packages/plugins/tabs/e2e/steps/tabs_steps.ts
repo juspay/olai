@@ -12,21 +12,10 @@ import assert from "node:assert/strict";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
-import { TESTID as ALL } from "@olai/tests/harness/testids.ts";
-import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { HYDRATION_TIMEOUT, POLL_TIMEOUT, ZOOM } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
-import { selector } from "@olai/web/testlib";
 
-import { TESTID } from "../../src/testids.ts";
-
-const STRIP = selector(TESTID.tabsStrip);
-const TAB = selector(TESTID.tabsTab);
-const CLOSE = selector(TESTID.tabsClose);
-const NEW = selector(TESTID.tabsNew);
-const DOT = selector(TESTID.tabsDot);
-const ADDRESS = selector(TESTID.tabsAddress);
-const MENU = selector(TESTID.tabsMenu);
-const SHORTCUT = selector(ALL.shortcut);
+import { ADDRESS, CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB } from "../selectors.ts";
 
 const tabAt = (world: OlaiWorld, index: number) => world.page.locator(`${TAB}${attr("data-tab", String(index))}`);
 
@@ -173,13 +162,15 @@ When("I choose {string} from the menu of the document link {string}", async func
   await chooseFromMenu(this, entry);
 });
 
-Then("the menu of the outline link {string} offers no tab entries", async function (this: OlaiWorld, file: string) {
-  await this.showSidebar();
-  const link = this.outlineLink(file);
-  await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await link.click({ button: "right" });
+Then("right-clicking the bullet of {string} opens no tab menu", async function (this: OlaiWorld, id: string) {
+  // The bullet is a link INSIDE the row's line, which owns the menu a press on
+  // it opens (`data-menu-owner`), so the page-wide link menu leaves it alone.
+  const bullet = this.within(id, ZOOM);
+  await bullet.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.ok(await bullet.evaluate((link) => link.closest("[data-menu-owner]") !== null), "the bullet is not inside a row that owns its menu");
+  await bullet.click({ button: "right" });
   await this.waitForFrame();
-  assert.equal(await this.page.locator(MENU).count(), 0, "a tab menu opened where none should");
+  assert.equal(await this.page.locator(MENU).count(), 0, "a tab menu opened over a row that owns its menu");
 });
 
 // ── keys ───────────────────────────────────────────────────────────────

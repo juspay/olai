@@ -19,7 +19,7 @@
  * from the attention component, which names `chat.state`). Each is registered
  * by its owner and released with it.
  */
-import { type Accessor, createEffect, createMemo, createRoot, createSignal, untrack } from "solid-js"
+import { type Accessor, createEffect, createMemo, createRoot, createSignal, on, untrack } from "solid-js"
 
 import { createPreference } from "@olai/web/client/preference.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
@@ -42,8 +42,9 @@ import {
 import { storedCodec } from "./persist.ts"
 
 export interface TabsStore extends TabsState {
-  /** Put the front tab's lane in force. The answer gives the window its own
-   *  history back (`switchLane(null, …)`), which is the row's release. */
+  /** Hold the front tab's lane in force while a strip draws the tabs on a
+   *  desktop, and the window's own history otherwise. The answer gives the
+   *  window its history back, which is the row's release. */
   readonly takeLane: () => () => void
   /** Mirror the router into the front tab, and keep the stored set written.
    *  The answer stops both. */
@@ -80,7 +81,7 @@ export const createTabs = (router: Navigation): TabsStore => {
   const first = nextId(undefined)
   const initial: TabList = stored === undefined
     ? { tabs: [{ id: first, href: hrefOf(drawing), title: titleOf(router, drawing, false) }], front: first }
-    : updateTab(stored, stored.front, { href: hrefOf(drawing) })
+    : updateTab(stored, stored.front, { href: hrefOf(drawing), title: titleOf(router, drawing, false) })
   const [list, setList] = createSignal<TabList>(initial)
 
   const [draws, setDraws] = createSignal<ReadonlyArray<Accessor<boolean>>>([])
@@ -109,8 +110,15 @@ export const createTabs = (router: Navigation): TabsStore => {
     }
     setList(updateTab(next, before.front, { key: router.entryKey() }))
     const incoming = next.tabs.find((tab) => tab.id === next.front)!
-    const key = router.switchLane(laned ? incoming.id : null, workspaceOf(router.routes, incoming.href), incoming.key)
-    setList((all) => updateTab(all, incoming.id, { key }))
+    const workspace = workspaceOf(router.routes, incoming.href)
+    if (laned) {
+      const key = router.switchLane(incoming.id, workspace, incoming.key)
+      setList((all) => updateTab(all, incoming.id, { key }))
+    } else {
+      // NOT DRIVEN — a phone, or no strip: the page is simply gone to, in the
+      // window's own history, so Back returns to the page it came from.
+      router.open(workspace)
+    }
   }
 
   const home = (from: TabList) => (): Tab => ({
@@ -151,16 +159,24 @@ export const createTabs = (router: Navigation): TabsStore => {
       setDots((all) => [...all, reading])
       return () => setDots((all) => all.filter((one) => one !== reading))
     },
-    takeLane: () => {
-      laned = true
-      const front = untrack(list).front
-      const key = router.switchLane(front, untrack(router.workspace), router.entryKey())
-      setList((all) => updateTab(all, front, { key }))
+    takeLane: () => createRoot((dispose) => {
+      // THE LANE FOLLOWS THE STRIP. Below the breakpoint the tabs are kept but
+      // not driven, so Back there is the window's — across a reload too — and
+      // the first lane taken on a desk adopts whatever the window wrote meanwhile.
+      createEffect(on(drawn, (desk) => {
+        if (desk === laned) return
+        laned = desk
+        const front = untrack(list).front
+        const key = router.switchLane(desk ? front : null, untrack(router.workspace), router.entryKey())
+        setList((all) => updateTab(all, front, { key }))
+      }))
       return () => {
+        dispose()
+        if (!laned) return
         laned = false
         router.switchLane(null, untrack(router.workspace), router.entryKey())
       }
-    },
+    }),
     follow: () => createRoot((dispose) => {
       createEffect(() => {
         const workspace = router.workspace()

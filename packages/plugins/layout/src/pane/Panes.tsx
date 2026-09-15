@@ -30,7 +30,7 @@ type Pane,
 import { desktop } from "../layout/live.ts"
 import { PANES_LONE,PANES_SPLIT } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
-import { labelOf } from "./label.ts"
+import { labelOf } from "../routing.ts"
 
 export { PANE_MIN_PX,PANE_RAIL_PX } from "./geometry.ts"
 
