@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { printStored, readStored, storedCodec } from "./persist.ts"
+import { printStored, readStored } from "./persist.ts"
 
 const set = {
   tabs: [
@@ -10,14 +10,26 @@ const set = {
   front: "t2",
 }
 
-test("a set round-trips", () => {
-  expect(readStored(printStored(set))).toEqual(set)
-  expect(storedCodec.parse(storedCodec.print(set))).toEqual(set)
+test("a set round-trips, with the front tab kept as its id and key alone", () => {
+  const printed = JSON.parse(printStored(set))
+  expect(printed.tabs[1]).toEqual({ id: "t2" })
+  expect(readStored(printStored(set))).toEqual({ ...set, tabs: [set.tabs[0]!, { id: "t2", href: "", title: "" }] })
+  const keyed = { ...set, front: "t1" }
+  expect(JSON.parse(printStored(keyed)).tabs[0]).toEqual({ id: "t1", key: "k1" })
+})
+
+test("a change to the front tab's address or name prints the same string", () => {
+  const moved = { ...set, tabs: [set.tabs[0]!, { ...set.tabs[1]!, href: "/d/2026-09-14?q=milk", title: "Monday, filtered" }] }
+  expect(printStored(moved)).toBe(printStored(set))
+})
+
+test("only the front record may be kept without an address", () => {
+  const raw = JSON.stringify({ v: 1, front: "t2", tabs: [{ id: "t1" }, { id: "t2" }] })
+  expect(readStored(raw)).toEqual({ tabs: [{ id: "t2", href: "", title: "" }], front: "t2" })
 })
 
 test("no storage reads as no set", () => {
   expect(readStored(null)).toBeUndefined()
-  expect(storedCodec.print(undefined)).toBeNull()
 })
 
 test("another version reads as no set", () => {

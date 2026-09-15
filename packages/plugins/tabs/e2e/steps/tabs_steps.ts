@@ -173,6 +173,12 @@ Then("right-clicking the bullet of {string} opens no tab menu", async function (
   assert.equal(await this.page.locator(MENU).count(), 0, "a tab menu opened over a row that owns its menu");
 });
 
+When("I widen the window to a desk", async function (this: OlaiWorld) {
+  // The laptop the suite lays out at, back from a phone-width visit.
+  await this.page.setViewportSize({ width: 1440, height: 900 });
+  await this.waitForFrame();
+});
+
 // ── keys ───────────────────────────────────────────────────────────────
 
 const CHORDS: Readonly<Record<string, string>> = {
@@ -201,11 +207,18 @@ Then("the shortcuts list {string} as {string}", async function (this: OlaiWorld,
 
 // ── what is kept ───────────────────────────────────────────────────────
 
+/** The stored set, in strip order: a background tab by its address, and the
+ *  tab in front as `(front)` — it is kept without one, since the address bar
+ *  supplies it when the set is read back. */
 Then("the stored tabs hold {string}", async function (this: OlaiWorld, hrefs: string) {
   const wanted = hrefs.split(" ");
-  await this.waitUntil(async () => {
+  const read = async () => {
     const stored = await this.page.evaluate(() => localStorage.getItem("olai.tabs"));
-    const tabs = stored === null ? [] : (JSON.parse(stored) as { tabs: Array<{ href: string }> }).tabs.map((tab) => tab.href);
-    return JSON.stringify(tabs) === JSON.stringify(wanted);
-  }, `the stored tab set to hold ${hrefs}`);
+    return stored === null ? [] : (JSON.parse(stored) as { tabs: Array<{ href?: string }> }).tabs.map((tab) => tab.href ?? "(front)");
+  };
+  try {
+    await this.waitUntil(async () => JSON.stringify(await read()) === JSON.stringify(wanted), `the stored tab set to hold ${hrefs}`);
+  } catch {
+    throw new Error(`the stored tab set to hold ${hrefs}, and it holds ${JSON.stringify(await read())}`);
+  }
 });

@@ -84,8 +84,10 @@ While a traversal travels, nothing on screen changes — no workspace, no landin
 no scroll — including when it bounces home. It counts the entries it has moved
 past, so it can always return. An entry it cannot place — one the browser made
 mid-travel, or one written by a build before positions, still in the stack after
-an upgrade — is passed over as dead; the second kind can only lie behind every
-entry this document wrote, so reaching it by Back bounces one step forward. A
+an upgrade — is dead, and the traversal goes home from it rather than on past
+it, because nothing says whether anything of the lane lies beyond. So a
+traversal only ever moves toward a live entry it knows of or back to where it
+started, and always finishes. A
 `switchLane` asked for mid-travel updates the lane and the page at once, and
 writes the entry once the browser is back on it.
 

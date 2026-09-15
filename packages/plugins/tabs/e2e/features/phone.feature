@@ -17,10 +17,10 @@ Feature: Tabs on a phone
     Given I open the outline "house.olai"
     When I press the "new tab" chord
     Then the address is "/house.olai"
-    And the stored tabs hold "/house.olai"
+    And the stored tabs hold "(front)"
     When I choose "Open in new tab" from the menu of the outline link "garden.olai"
     Then the address is "/garden.olai"
-    And the stored tabs hold "/house.olai /garden.olai"
+    And the stored tabs hold "/house.olai (front)"
     When I press the "previous tab" chord
     Then the address is "/garden.olai"
     # No lane on a phone: Back is the window's, and returns to the page before.
@@ -31,9 +31,12 @@ Feature: Tabs on a phone
   Scenario: A set stored on a desk is still stored after a phone visit
     Given I open the outline "house.olai"
     When I choose "Open in new tab" from the menu of the outline link "garden.olai"
-    Then the stored tabs hold "/house.olai /garden.olai"
+    Then the stored tabs hold "(front) /garden.olai"
     When I shrink the window to a phone
     And I open the address "/finishes.md"
     Then there is no tab strip
-    And the stored tabs hold "/finishes.md /garden.olai"
+    And the stored tabs hold "(front) /garden.olai"
+    When I widen the window to a desk
+    And I reload the page
+    Then the tabs hold "/finishes.md /garden.olai"
     And there should be no page errors

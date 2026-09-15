@@ -49,7 +49,7 @@ export const isCurrent = (route: Route, row: Pick<AttentionRow, "id" | "file">, 
  *  and what it means. One table, read by the sidebar row, the aside on the
  *  outline, and a tab's dot. Lifecycle is per node, so nothing here derives it
  *  from the foreground chat cell; it only decides how the wire's answer looks. */
-export const LOOK: Record<AgentStanding, Look> = {
+export const LOOK: Readonly<Record<AgentStanding, Look>> = Object.freeze({
   "needs-you": {
     dot: "bg-doing",
     label: "needs you",
@@ -85,7 +85,7 @@ export const LOOK: Record<AgentStanding, Look> = {
     label: "no session bound",
     detail: "nobody has bound a conversation to this node agent yet",
   },
-}
+})
 
 const instant = (value: string | undefined): number => {
   const parsed = Date.parse(value ?? "")

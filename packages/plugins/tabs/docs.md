@@ -68,8 +68,10 @@ phone, or with the layout row off, Back and Forward are the window's own.
 ## What is kept
 
 The set of tabs, their order, their addresses and titles, and which tab is in
-front are kept per browser under the `olai.tabs` preference, and written on
-every change. Opening olai at an address shows that address in the tab that was
+front are kept per browser under the `olai.tabs` preference. The tab in front is
+kept as its id alone, since opening olai always shows the address being opened
+in it, so the set is written when a tab opens, closes, moves, or changes places
+with the one in front, and not on every change to the page in front. Opening olai at an address shows that address in the tab that was
 in front, so a link you open or a reload always shows what you asked for.
 Another browser window does not pick up changes live: the window that writes
 last wins.

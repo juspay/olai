@@ -85,5 +85,6 @@ export const STORED_VERSION = 1
 export interface Stored {
   readonly v: typeof STORED_VERSION
   readonly front: string
-  readonly tabs: ReadonlyArray<Tab>
+  /** The front tab is kept as its id and entry key alone. */
+  readonly tabs: ReadonlyArray<Tab | Pick<Tab, "id" | "key">>
 }

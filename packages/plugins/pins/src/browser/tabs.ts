@@ -5,6 +5,13 @@
  * Optional by construction: the component names `tabs.state` and waits without
  * it, and with nothing held the shelf opens a layout in place, as it did before
  * tabs existed.
+ *
+ * PRIVATE TO THIS PACKAGE, and it must stay so. The holder is installed by one
+ * component and read in another's render, which the `heldService` idiom allows
+ * within one package; this row's `"./*"` export would let another package
+ * import it too, and that import would be a live value crossing a package wall
+ * — which `@olai/bundle`'s fence refuses. Another row wanting tabs names
+ * `tabs.state` on a component of its own.
  */
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { TabsState } from "olai-plugin-tabs/contract"

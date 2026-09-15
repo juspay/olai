@@ -253,11 +253,13 @@ export const createRouter = (): Router => {
       return
     }
     if (trip.pending !== undefined || at === undefined) {
-      // A switch is waiting, so the only way is home; or an entry with no
-      // position (the browser's own, or a build's before positions) is dead
-      // and passed over the same way.
-      if (trip.pending !== undefined) travel(-trip.steps)
-      else travel(trip.direction)
+      // HOME, and nowhere else: a switch is waiting, or the browser is on an
+      // entry with no position (its own, or a build's before positions) and so
+      // cannot say whether anything of this lane lies beyond it. Travelling on
+      // past one could run off the end of the stack, where no popstate ever
+      // comes and the trip would never finish; the entry it started from is
+      // always there, `steps` away.
+      travel(-trip.steps)
       return
     }
     const decision = seek(rows, currentAt, at, untrack(lane))
@@ -274,7 +276,12 @@ export const createRouter = (): Router => {
     if (seeking !== undefined) return onTravel(target, at)
     if (target === undefined || (target === currentKey && (at === undefined || at === currentAt))) {
       // A same-document navigation the browser made is an entry pushed over
-      // this one, and it belongs to whichever lane is in force.
+      // this one, and it belongs to whichever lane is in force. THAT IS AN
+      // ASSUMPTION, and the one this reading rests on: a state-less entry the
+      // reader TRAVERSED to would be read as a push too. None is reachable —
+      // every entry is stamped the moment it is landed on (`nameHere` below),
+      // so the only state-less entry a traversal can meet is one the browser
+      // made and this document never drew.
       if (target === undefined) {
         currentAt += 1
         rows = pushedAt(rows, currentAt, untrack(lane))
@@ -319,7 +326,12 @@ export const createRouter = (): Router => {
     arrive(target, at)
   }
   addEventListener("popstate", onPopState)
-  onCleanup(() => removeEventListener("popstate", onPopState))
+  onCleanup(() => {
+    removeEventListener("popstate", onPopState)
+    // A trip in flight ends with the router: its write waited for an entry
+    // this router will never be told it reached, so it is refused, not joined.
+    seeking = undefined
+  })
 
   const goIn = (index: number, next: Route): void => {
     commit(

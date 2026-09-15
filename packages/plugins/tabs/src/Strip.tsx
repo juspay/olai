@@ -59,8 +59,9 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
   // navigation inside the tab (which rewrites its record) moves nothing.
   const front = createMemo(() => tabs.front())
   createEffect(on(front, (id) => queueMicrotask(() => {
-    const face = row?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(id)}"]`)
-    if (row === undefined || face === undefined || face === null) return
+    if (row === undefined || !row.isConnected) return
+    const face = row.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(id)}"]`)
+    if (face === null) return
     const left = face.offsetLeft - row.offsetLeft
     if (left < row.scrollLeft) row.scrollLeft = left
     else if (left + face.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + face.offsetWidth - row.clientWidth
