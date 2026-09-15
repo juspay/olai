@@ -53,7 +53,7 @@ export interface TabsStore extends TabsState {
 
 /** What a workspace is called before its page says: a page's label, or a
  *  split's leaves' labels joined. */
-export const labelOf = (routes: Navigation["routes"], workspace: Workspace): string =>
+const labelOf = (routes: Navigation["routes"], workspace: Workspace): string =>
   panesOf(workspace).map((pane) => routes.label(pane.route)).join(" + ")
 
 /**
@@ -93,9 +93,10 @@ export const createTabs = (router: Navigation): TabsStore => {
   const dotted = createMemo<ReadonlyMap<string, string>>(() =>
     new Map(dots().flatMap(({ dots: one }) => [...one.ids()].map((id) => [id, one.paint] as const))))
 
-  /** Whether a lane is in force — the router's own answer, and only this row
-   *  takes one. */
-  const laned = (): boolean => untrack(router.lane) !== null
+  /** Whether THIS store holds the lane — its own claim, taken and given back
+   *  below. Not read off the router: a release must undo only what its owner
+   *  took, whoever else ever names a lane. */
+  let laned = false
 
   /**
    * THE ONE WAY THE LIST CHANGES. A verb hands over the list afterwards; what
@@ -115,7 +116,7 @@ export const createTabs = (router: Navigation): TabsStore => {
     setList(updateTab(next, before.front, { key: router.entryKey() }))
     const incoming = next.tabs.find((tab) => tab.id === next.front)!
     const workspace = workspaceOf(router.routes, incoming.href)
-    if (laned()) {
+    if (laned) {
       const key = router.switchLane(incoming.id, { workspace, key: incoming.key })
       setList((all) => updateTab(all, incoming.id, { key }))
     } else {
@@ -165,11 +166,15 @@ export const createTabs = (router: Navigation): TabsStore => {
       // not driven, so Back there is the window's — across a reload too — and
       // the first lane taken on a desk adopts whatever the window wrote meanwhile.
       createEffect(on(drawn, (desk) => {
-        if (desk !== laned()) router.switchLane(desk ? untrack(list).front : null)
+        if (desk === laned) return
+        laned = desk
+        router.switchLane(desk ? untrack(list).front : null)
       }))
       return () => {
         dispose()
-        if (laned()) router.switchLane(null)
+        if (!laned) return
+        laned = false
+        router.switchLane(null)
       }
     }),
     follow: () => createRoot((dispose) => {

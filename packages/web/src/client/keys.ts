@@ -159,10 +159,12 @@ export const matchChord = <T extends { readonly key: string; readonly shift?: bo
     ? event.metaKey && !event.ctrlKey
     : event.ctrlKey && !event.metaKey
   if (!mod || event.altKey) return null
-  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
-  const under = event.shiftKey ? UNSHIFTED[event.code] : undefined
+  // THE KEY, AS IT READS WITHOUT SHIFT — one spelling per key, whether or not
+  // the chord holds Shift.
+  const key = (event.shiftKey ? UNSHIFTED[event.code] : undefined)
+    ?? (event.key.length === 1 ? event.key.toLowerCase() : event.key)
   return table.find(
-    (chord) => (chord.key === key || chord.key === under) && (chord.shift ?? false) === event.shiftKey,
+    (chord) => chord.key === key && (chord.shift ?? false) === event.shiftKey,
   ) ?? null
 }
 
