@@ -310,7 +310,11 @@ export const createRouter = (): Router => {
     setLane(next)
     currentKey = name
     rows = new Map(owned).set(currentAt, next)
-    history.replaceState(stamp(name), "", hrefOfWorkspace(routing, target))
+    // THE ADDRESS IS LEFT ALONE when the page does not move. A lane taken over
+    // the first paint arrives before every tenant has claimed its URL, and a
+    // plugin's page printed then is the front page: rewriting the bar with it
+    // would lose the very page the reader opened.
+    history.replaceState(stamp(name), "", moved ? hrefOfWorkspace(routing, target) : undefined)
     if (moved) batch(() => {
       setLandings(NOWHERE)
       setWorkspace(target)

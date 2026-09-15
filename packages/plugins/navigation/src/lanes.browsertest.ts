@@ -11,8 +11,8 @@ import { lone } from "./workspace.ts"
  * `history.go` answering LATER with a `popstate` — so a seek is several
  * traversals the router has to see through without drawing any of them.
  */
-const browser = () => {
-  const entries: Array<{ state: unknown; url: string }> = [{ state: null, url: "/" }]
+const browser = (first = "/") => {
+  const entries: Array<{ state: unknown; url: string }> = [{ state: null, url: first }]
   let index = 0
   const popstate = new Set<() => void>()
   const url = () => new URL(entries[index]!.url, "http://localhost")
@@ -50,6 +50,7 @@ const browser = () => {
   for (const [name, value] of Object.entries(globals)) Object.defineProperty(globalThis, name, { configurable: true, value })
   return {
     path: () => url().pathname,
+    address: () => entries[index]!.url,
     back: () => history.go(-1),
     forward: () => history.go(1),
     restore: () => {
@@ -66,8 +67,11 @@ const settled = async () => {
   for (let turn = 0; turn < 12; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
-const withRouter = async (run: (router: ReturnType<typeof createRouter>, page: ReturnType<typeof browser>) => Promise<void>) => {
-  const page = browser()
+const withRouter = async (
+  run: (router: ReturnType<typeof createRouter>, page: ReturnType<typeof browser>) => Promise<void>,
+  first?: string,
+) => {
+  const page = browser(first)
   let dispose = () => {}
   try {
     const router = createRoot((stop) => {
@@ -154,4 +158,16 @@ test("switching to the page already drawn keeps it, and the first lane adopts wh
     await settled()
     expect(drawn(router)).toBe("/")
   })
+})
+
+test("taking a lane over the page already drawn leaves the address bar alone, before any tenant has claimed it", async () => {
+  // No claims are held: a page whose reading needs the roster prints as
+  // something else until it settles, and must not be written back as that.
+  const address = "/s/house.olai%23handles/notes%2Fdeep.html%23beds"
+  await withRouter(async (router, page) => {
+    router.switchLane("a", router.workspace(), router.entryKey())
+    expect(page.address()).toBe(address)
+    router.switchLane(null, router.workspace(), router.entryKey())
+    expect(page.address()).toBe(address)
+  }, address)
 })
