@@ -17,8 +17,6 @@ import type { Accessor } from "solid-js"
 import { serviceTag } from "@olai/plugin-api/contracts"
 import { fileNamed, type Route } from "olai-plugin-navigation/routes"
 
-import type { Look } from "@olai/web/client/readout.ts"
-
 import type { AgentStanding } from "./wire/agents.ts"
 
 /** One row of the roster, as far as a page's reader needs it. */
@@ -45,61 +43,6 @@ export const isCurrent = (route: Route, row: Pick<AttentionRow, "id" | "file">, 
   (unfolded && fileNamed(route) === row.file)
     || (route.kind === "at" && route.address?.kind === "node" && route.address.id === row.id)
 
-/** What each of the seven server-owned standings is called, how it is painted,
- *  and what it means. One table, read by the sidebar row, the aside on the
- *  outline, and a tab's dot. Lifecycle is per node, so nothing here derives it
- *  from the foreground chat cell; it only decides how the wire's answer looks. */
-export const LOOK: Readonly<Record<AgentStanding, Look>> = Object.freeze({
-  "needs-you": {
-    dot: "bg-doing",
-    label: "needs you",
-    detail: "its turn has stopped on a question only you can answer, and nothing times out",
-  },
-  working: {
-    dot: "bg-done animate-pulse",
-    label: "working…",
-    detail: "a turn is in flight",
-  },
-  waking: {
-    dot: "bg-done animate-pulse",
-    label: "starting…",
-    detail: "its agent is coming up — a subprocess, a handshake, a replay",
-  },
-  idle: {
-    dot: "bg-done",
-    label: "idle",
-    detail: "its conversation is open and ready",
-  },
-  gone: {
-    dot: "bg-alarm",
-    label: "not running",
-    detail: "its agent is not there; this is the one that needs a person",
-  },
-  asleep: {
-    dot: "bg-muted/50",
-    label: "asleep",
-    detail: "its session is on disk with nothing running it — pressing it opens the conversation",
-  },
-  unbound: {
-    dot: "border border-muted/60",
-    label: "no session bound",
-    detail: "nobody has bound a conversation to this node agent yet",
-  },
-})
-
-const instant = (value: string | undefined): number => {
-  const parsed = Date.parse(value ?? "")
-  return Number.isNaN(parsed) ? -Infinity : parsed
-}
-/** Vault stamps retain their local offset; compare instants, not spellings. */
-export const newestFirst = (a: string | undefined, b: string | undefined): number =>
-  instant(b) - instant(a) || 0
-
-/** The rows that need a person, newest first and the ones not running last.
- *  The same order is used by the sidebar and identity-free notification clicks. */
-export const needing = <R extends { readonly standing: AgentStanding; readonly said: { readonly at: string } | null }>(
-  rows: ReadonlyArray<R>,
-): ReadonlyArray<R> => rows
-  .filter(row => row.standing === "needs-you" || row.standing === "gone")
-  .toSorted((a, b) => Number(a.standing === "gone") - Number(b.standing === "gone")
-    || newestFirst(a.said?.at, b.said?.at))
+/** The paint of the needs-you dot — the one piece of a standing's look another
+ *  row draws (a tab's dot). The rest of the table is chat's (`browser/agents/roster.ts`). */
+export const NEEDS_YOU_DOT = "bg-doing"

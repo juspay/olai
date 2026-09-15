@@ -6,10 +6,14 @@
  * needs you is about, by chat's own predicate (`isCurrent`). It is a dot and
  * nothing more: no tab comes forward because of it. Without the chat row the
  * component waits and no tab wears one.
+ *
+ * `needs-you` ONLY, where the sidebar's Needs you section also lists `gone`: a
+ * dot on a tab says the page there is waiting on an answer, and an agent that
+ * is not running asks nothing of the page it is on.
  */
 import { type Accessor, createMemo } from "solid-js"
 
-import { type Attention, isCurrent, LOOK } from "olai-plugin-chat/attention"
+import { type Attention, isCurrent, NEEDS_YOU_DOT } from "olai-plugin-chat/attention"
 import type { Routing } from "olai-plugin-navigation/routes"
 import { panesOf, workspaceOf } from "olai-plugin-navigation/workspace"
 
@@ -20,7 +24,7 @@ export const needingYou = (
   routes: Routing,
   tabs: Accessor<ReadonlyArray<Tab>>,
 ): Dots => ({
-  paint: LOOK["needs-you"].dot,
+  paint: NEEDS_YOU_DOT,
   ids: createMemo(() => {
     const waiting = chat.agents.rows().filter((row) => row.standing === "needs-you")
     if (waiting.length === 0) return new Set<string>()

@@ -30,8 +30,10 @@ Every plugin that could reach a conversation names one of the five doors this ro
 
 In the browser, the row publishes its roster as `chat.state`. The static door
 `olai-plugin-chat/attention` names it (`chatState`) with a narrow shape — the
-rows and the tab-local folds — and carries `needing`, `LOOK` and `isCurrent`,
-the predicate the Chats section lights a row with. The tabs row's `attention`
+rows and the tab-local folds — and carries `isCurrent`, the predicate the Chats
+section lights a row with, and `NEEDS_YOU_DOT`, the one paint of a standing
+another row draws. The rest of a standing's look and the sidebar's ordering stay
+in chat's browser modules. The tabs row's `attention`
 component names it to put a dot on a tab whose page is a conversation that needs
 you. The door holds no live value.
 

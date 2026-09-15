@@ -1,8 +1,12 @@
 import type { Row } from "./roster.ts"
 
-import { newestFirst } from "../../attention.ts"
-
-export { newestFirst }
+const instant = (value: string | undefined): number => {
+  const parsed = Date.parse(value ?? "")
+  return Number.isNaN(parsed) ? -Infinity : parsed
+}
+/** Vault stamps retain their local offset; compare instants, not spellings. */
+export const newestFirst = (a: string | undefined, b: string | undefined): number =>
+  instant(b) - instant(a) || 0
 
 /** Last speech leads; agents not yet heard from follow by their vault edit.
  * Sorting never filters by standing, and the palette uses the uncapped answer. */

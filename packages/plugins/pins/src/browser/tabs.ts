@@ -17,20 +17,14 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 import type { TabsState } from "olai-plugin-tabs/contract"
 import { followLayout } from "olai-plugin-navigation/layout-press"
 import type { Router } from "olai-plugin-navigation/routing"
-import { savedLayout, type Workspace } from "olai-plugin-navigation/workspace"
+import type { Workspace } from "olai-plugin-navigation/workspace"
 
 const tabs = heldService<Pick<TabsState, "open">>()
 
 /** Told by `../browser.tsx`'s `tabs` component, for that activation. */
 export const holdTabs = tabs.hold
 
-/** A press on a pinned layout: a new tab in front where the tabs row is active,
- *  else in place. A press that asks the browser for a tab of its own, or that
- *  something already answered, is left to it either way. */
-export const pressLayout = (router: Pick<Router, "open">, workspace: Workspace, event: MouseEvent): void => {
-  const held = tabs.read()
-  if (held === undefined) return followLayout(router, workspace, event)
-  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.button !== 0) return
-  event.preventDefault()
-  held.open(savedLayout(workspace))
-}
+/** A press on a pinned layout: `followLayout`'s own gesture rule, answered by
+ *  a new tab in front where the tabs row is active, and in place otherwise. */
+export const pressLayout = (router: Pick<Router, "open">, workspace: Workspace, event: MouseEvent): void =>
+  followLayout(tabs.read() ?? router, workspace, event)
