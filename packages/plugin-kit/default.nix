@@ -17,9 +17,18 @@
 # A plugin keeps its own derivations, lock, patches and generated files; this
 # directory holds only what the root and every plugin read the same way.
 { pkgs }:
+let
+  contractDoor = import ./nix/contract.nix { inherit pkgs; };
+in
 {
   mark = import ./nix/mark.nix { inherit pkgs; };
   npmAdapter = import ./nix/npm-adapter.nix { inherit pkgs; };
-  contract = import ./nix/contract.nix;
+  contract = contractDoor.contract;
+  # The pure door of the SAME validator (`nix/contract.nix`): every refusal as
+  # a message list rather than a throw, read by the fold's `diagnostics` and by
+  # `nix/fold-check.nix` (Nix's tryEval exposes no thrown message, so the
+  # both-sides assertion is made on the pure projection the strict door throws
+  # over — one helper computes both).
+  contractProblems = contractDoor.contractProblems;
   knobShell = import ./nix/knob-shell.nix { inherit pkgs; };
 }

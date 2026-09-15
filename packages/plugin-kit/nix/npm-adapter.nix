@@ -42,7 +42,13 @@
 # To make a NEW adapter: a shim directory with its own lockfile (regenerate
 # with `npm install --package-lock-only --ignore-scripts`), set the hash to
 # `lib.fakeHash`, build, paste the hash it prints.
-{ lib, stdenv, buildNpmPackage, makeWrapper, nodejs }:
+{ pkgs }:
+let
+  lib = pkgs.lib;
+  buildNpmPackage = pkgs.buildNpmPackage;
+  makeWrapper = pkgs.makeWrapper;
+  nodejs = pkgs.nodejs;
+in
 { name
 , version
 , shim

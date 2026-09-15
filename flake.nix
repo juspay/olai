@@ -103,6 +103,11 @@
           inherit pkgs;
           module = ./nix/home/module.nix;
         };
+        # The registry fold's contract/collision refusals over fixture
+        # containers, asserted at eval time by packages/bundle/nix/fold-check.nix.
+        plugin-fold = import ./packages/bundle/nix/fold-check.nix {
+          inherit pkgs;
+        };
       });
     };
 }
