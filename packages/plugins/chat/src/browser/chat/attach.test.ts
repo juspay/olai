@@ -108,7 +108,7 @@ test("a file the clipboard did not name is not called a picture unless it is one
   // It used to be: every unnamed file became `pasted.png`, so an unnamed zip
   // or recording passed the gate as a picture. Now it meets the gate under the
   // name it came with, and is refused before a byte is sent.
-  for (const [name, type] of [["", "video/mp4"], ["", "application/zip"], ["archive", "application/zip"]]) {
+  for (const [name, type] of [["", "video/mp4"], ["", "application/zip"], ["archive", "application/zip"]] as const) {
     const server = spy()
     const file = picture(name, body, type)
     expect(refusalFor(file)).toMatch(/cannot be attached/)
