@@ -15,7 +15,9 @@ glyph for the kind of page it holds, its title, and a close button that appears
 on hover and on the tab in front. A tab in the background has no page mounted,
 so its title is the one it had when it was last in front: the page's own title
 where the page reported one, otherwise the page's label. A split tab's title is
-its panes' labels joined with " + ". The address of the tab in front is shown at
+its panes' labels joined with " + ". A tab brought back to the front keeps that
+title until its page reports a real name, and every tab in the strip is the same
+width, so nothing moves while a page arrives. The address of the tab in front is shown at
 the right of the strip; the browser's address bar shows the same address and
 nothing about the other tabs.
 
