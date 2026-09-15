@@ -55,7 +55,25 @@ let
     lib.evalModules {
       modules = [
         {
-          options = lib.mapAttrs (k: t: lib.mkOption { type = t; default = { }; }) keys;
+          options = lib.mapAttrs
+            (k: t: lib.mkOption {
+              type = t;
+              # A plugin that names no contract key still gets a valid default
+              # from this table: `{}` for the attrs, `[]` for the lists, a
+              # no-op function for `checks`.
+              default = {
+                hydrate = [ ];
+                externals = { };
+                koluSeeds = [ ];
+                koluPins = { };
+                generated = { };
+                npmTrees = [ ];
+                knobs = { };
+                packages = { };
+                checks = (_: { });
+              }.${k};
+            })
+            keys;
           config = lib.filterAttrs (_: v: true) contract;
         }
       ];

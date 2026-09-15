@@ -1,16 +1,49 @@
-# KOLU'S OWN MARK — the pin path, and nothing else.
+# KOLU'S NIX HALF — the plugin's own `default.nix`, in the fold's contract.
 #
-# The mechanism lives in `@olai/plugin-kit`. This file names the file: kolu's
-# logo is `packages/client/favicon.svg` in juspay/kolu, and it is read out of
-# the same npins revision every `@kolu/*` source hydrates from. Bumping the
-# pin is the whole of updating the logo.
-{ pkgs }:
+# Kolu is olai's framework: the surface, the Dock row, the terminal
+# vocabulary, six packages deep. The ROOT's `nix/kolu.nix` declares the
+# framework seeds (`@kolu/surface*`, the Dock row, `@kolu/detect`) and asks
+# kolu's own `consumer.nix` to expand them into the thirty-two-member closure
+# this tree hydrates as raw TypeScript. This file adds the TENANT half: the
+# favicon the chat chip inlines and the `terminal-themes` seed nobody else
+# needs.
+#
+# It is `packages/plugins/kolu/default.nix` rather than `nix/kolu.nix`'s
+# tenant-words, the other plugins' own files: `nix/kolu.nix` takes
+# `extraSeeds` and `pinnedSources` so the tenant answers its own `koluSeeds`
+# and `koluPins` through the fold, one overlay at a time.
+{ pkgs, pins, kit, ... }:
+
 let
-  npins = import ../../../npins;
-  kit = import ../../plugin-kit { inherit pkgs; };
+  src = pins.kolu;
+
+  mark = kit.mark {
+    svg = "${src}/packages/client/favicon.svg";
+    revision = src.revision;
+    from = "juspay/kolu packages/client/favicon.svg";
+  };
 in
-kit.mark {
-  svg = "${npins.kolu}/packages/client/favicon.svg";
-  revision = npins.kolu.revision;
-  from = "juspay/kolu packages/client/favicon.svg";
+{
+  # THE TENANT SEEDS — `terminal-themes` the chat UI's color select reads,
+  # the Dock row and detector the plugin's own `appliance` door answers.
+  # `@kolu/surface*` stays the framework's (nix/kolu.nix); this list is what
+  # the root folds in with `extraSeeds`.
+  koluSeeds = [ "@kolu/detect" "@kolu/solid-dockrow" "terminal-themes" ];
+
+  # The osfacts graft, named the way the fold hands it to kolu's
+  # `consumer.nix`: `src` is the npins osfacts tree's `client-ts` brother,
+  # `revision` is the npins revision the build refuses to be out of step with.
+  koluPins."osfacts-client" = {
+    src = "${pins.osfacts}/client-ts";
+    revision = pins.osfacts.revision;
+  };
+
+  # The favicon, stamped and inlined by `kit.mark`; `just install` (and the
+  # packaged build) copies the `mark.generated.ts` file beside the component
+  # that draws the chat chip.
+  generated."src/browser/mark.generated.ts" = mark;
+
+  # Exported as `kolu-mark`, the same output the packaged build's wrapper
+  # used to name at the root.
+  packages.kolu-mark = mark;
 }

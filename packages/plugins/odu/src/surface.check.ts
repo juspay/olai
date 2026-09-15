@@ -38,7 +38,7 @@
 
 import { Effect } from "effect"
 
-import { ODU_COMMAND, probing } from "../packages/plugins/odu/src/probe.ts"
+import { ODU_COMMAND, probing } from "./probe.ts"
 
 const dir = process.argv[2]
 if (dir === undefined || dir === "") {

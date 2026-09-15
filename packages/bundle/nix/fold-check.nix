@@ -32,7 +32,8 @@ let
   foldFor = scenario: import ../default.nix {
     inherit pkgs pins;
     b2n = null;
-    container = ./fixtures/${scenario};
+    containerDir = ./fixtures/${scenario};
+    containerInTree = "packages/bundle/nix/fold-check-fixtures/${scenario}";
   };
 
   # The scenario table describes the fold's contract:

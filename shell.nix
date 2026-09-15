@@ -1,13 +1,24 @@
 # Dev shell — shared by `nix develop` (via flake.nix) and `nix-shell`.
 { pkgs ? import ./nix/nixpkgs.nix { } }:
 let
-  kolu = import ./nix/kolu.nix { inherit pkgs; };
-  odu = import ./nix/odu.nix { inherit pkgs; };
-  cordis = import ./nix/cordis.nix { inherit pkgs; };
   pins = import ./npins;
+
+  # THE FOLD: the same `packages/bundle/default.nix` the rooted build reads,
+  # so a dev shell and the store path agree on what a plugin declares
+  # (hydrate, externals, knobs, generated). `b2n = null` because no plugin's
+  # `default.nix` is allowed to build under the shell — `bin` / `checks`
+  # short-circuit, and the fold keeps the facts.
+  bundle = import ./packages/bundle {
+    inherit pkgs pins;
+  };
+
+  kolu = import ./nix/kolu.nix {
+    inherit pkgs;
+    extraSeeds = bundle.koluSeeds;
+    pinnedSources = bundle.koluPins;
+  };
+  cordis = import ./nix/cordis.nix { inherit pkgs; };
   olaiFonts = import ./packages/fonts { inherit pkgs; };
-  koluMark = import ./packages/plugins/kolu { inherit pkgs; };
-  oduMark = import ./packages/plugins/odu { inherit pkgs; };
 in
 pkgs.mkShell {
   name = "olai-shell";
@@ -31,24 +42,19 @@ pkgs.mkShell {
     # a version constraint that is checked and one that is hoped.
     OLAI_KOLU_EXTERNALS = builtins.toJSON kolu.externals;
 
-    # ODU'S THREE PACKAGES, the same two ways: the argv for the copier (kolu's
-    # script — `nix/odu.nix` says why there is not a second one), and the
-    # union of npm externals `scripts/check-hydrated-deps.sh` asserts olai's
-    # root against. Workspace `@odu/*` arrows stay out of that union: they
-    # resolve to the other hydrated directories.
-    # A separate variable rather than a longer `OLAI_KOLU_HYDRATE`, because the
-    # two pins move independently — a single argv would hide which half a
-    # `just update-pins` had walked forward, and which half a `just check`
-    # failure is about.
-    OLAI_ODU_HYDRATE = odu.hydrateArgs;
-    OLAI_ODU_MANIFEST = builtins.toJSON odu.externals;
+    # THE FOLD: every plugin's hydrate argv, npm externals and knob defaults,
+    # one derivation on the shell ('./packages/bundle') so `just install`,
+    # `just plugin-deps` and `just plugin-checks` read ONE fact rather than
+    # three pairs of per-pin variables. `nix/odu.nix` behind these two legs is
+    # gone with the fold; the odu plugin's own `default.nix` names them.
+    OLAI_PLUGIN_INSTALL = bundle.devInstallScript;
+    OLAI_PLUGIN_EXTERNALS = builtins.toJSON bundle.externals;
+    OLAI_PLUGIN_ENV = "${bundle.devEnv}";
 
-    # CORDIS, the same two ways as odu: the argv for kolu's copier — FOUR
-    # (src, dest) pairs on one line, because the four packages come out of one
-    # pin and move together — and the union of what those four declare, for
-    # `scripts/check-hydrated-deps.sh`. A third pin, a third pair of variables,
-    # because the three repositories move on three clocks and a `just check`
-    # failure has to name which one it is about.
+    # CORDIS, the same two ways as the fold's: the argv for kolu's copier —
+    # FOUR (src, dest) pairs on one line, because the four packages come out
+    # of one pin and move together — and the union of what those four
+    # declare, for `scripts/check-hydrated-deps.sh`.
     OLAI_CORDIS_HYDRATE = cordis.hydrateArgs;
     OLAI_CORDIS_MANIFEST = builtins.toJSON cordis.externals;
 
@@ -82,26 +88,6 @@ pkgs.mkShell {
     # the repo, and no woff2_compress in this shell — the derivation brings its
     # own. The packaged build (default.nix) sets the same one variable.
     OLAI_FONTS_DIR = "${olaiFonts}";
-
-    # KOLU'S OWN MARK, already a TypeScript module. The plugin's own
-    # `packages/plugins/kolu/default.nix` reads the pinned kolu's
-    # `packages/client/favicon.svg` — the same pin the @kolu/* sources above
-    # come from — and writes `mark.generated.ts`; `just install` copies that
-    # one file into `packages/plugins/kolu/src/browser/`, beside the component
-    # that draws it, exactly as the hydrate calls copy the sources. A logo is
-    # updated by bumping the pin and nothing else.
-    #
-    # Read by the justfile and by the packaged build's install phase, and by NO
-    # TypeScript: no file under `packages/*/src` names this variable, which is
-    # what keeps the arrangement clear of the plugin fence rather than a
-    # word-boundary technicality.
-    OLAI_KOLU_MARK_DIR = "${koluMark}";
-
-    # ODU'S OWN MARK, the same errand one tenant over: the plugin's
-    # `default.nix` names `logo.svg` on the npins odu pin, and
-    # `packages/plugin-kit/default.nix` writes `mark.generated.ts`. Bumping
-    # the pin is the whole of updating the logo.
-    OLAI_ODU_MARK_DIR = "${oduMark}";
   };
 
   # nodejs is knotted through here rather than ambient: the acp/ pin's

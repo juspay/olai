@@ -26,9 +26,10 @@ node_modules
 
 # A tenant's own mark, as a TypeScript module: GENERATED from that tenant's
 # npins pin by packages/plugin-kit/default.nix, and copied into place by
-# `just install` (the nix build regenerates it in its sandbox).
-/packages/plugins/kolu/src/browser/mark.generated.ts
-/packages/plugins/odu/src/browser/mark.generated.ts
+# `just install` (the nix build regenerates it in its sandbox). The fold's
+# `.generated.` infix is what makes this glob total — any plugin's generated
+# file lands beside its component, so no second ignore pattern grows.
+/packages/plugins/**/*.generated.ts
 
 # The browser's rows, the stylesheet chain and the merged testid table:
 # GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts, so

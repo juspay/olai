@@ -21,22 +21,26 @@
 # — read by the shell, exactly as `wrapperArgs` is read by makeWrapper. The dev
 # shell then answers the pin when unset and off when empty, like the wrapper.
 { pkgs }:
-{ knobs }:
+{ knobs, extraKnobNames ? [ ] }:
 let
   keys = builtins.attrNames knobs;
-  keyList = pkgs.lib.concatStringsSep " " keys;
+  # `OLAI_WRAPPER_DEFAULTS` records every knob the wrapper promised, which is
+  # BOTH the folded ones above AND any the root still spells by hand (the ACP
+  # pins, until their plugins' `default.nix` files land). `extraKnobNames` is
+  # the latter list, so one `--run` names the whole set rather than a second
+  # one overwriting the first.
+  allKeys = keys ++ extraKnobNames;
+  keyList = pkgs.lib.concatStringsSep " " allKeys;
 
   # One `--set-default` per knob. `dir` kinds additionally splice onto PATH in
   # a `--run`, because an unguarded `:$PATH` with PATH unset would smuggle the
   # working directory onto it.
   setDefaults = builtins.concatStringsSep " \\\n          "
     (map (k: "--set-default ${k} \"${knobs.${k}.path}\"") keys);
-
-  # The `OLAI_WRAPPER_DEFAULTS` bookkeeping run: which of the declared knobs
-  # the wrapper actually defaulted (left unset by the caller).
-  defaultsRun = pkgs.lib.optionalString (keys != [ ]) ''
+  defaultsRun = pkgs.lib.optionalString (allKeys != [ ]) ''
     --run 'export OLAI_WRAPPER_DEFAULTS=""; for key in ${keyList}; do if [[ ! -v "$key" ]]; then export OLAI_WRAPPER_DEFAULTS="$OLAI_WRAPPER_DEFAULTS''${OLAI_WRAPPER_DEFAULTS:+,}$key"; fi; done' \
   '';
+
 
   # One `--run` per `dir` knob: splice the dir onto PATH when it is a
   # directory, skip with a stderr line otherwise. `holds` names the
@@ -46,7 +50,7 @@ let
     (k:
       let d = knobs.${k};
       in if d.kind == "dir" then
-        "--run 'if [ -n \"$${${k}}\" ]; then if [ -d \"$${${k}}\" ]; then export PATH=\"$${${k}}\"\"$${PATH:+:$$PATH}\"; else echo \"olai: ${k}=$${${k}} is not a directory — no ${d.holds} goes on the PATH of this serve\" >&2; fi; fi'"
+        pkgs.lib.optionalString true "--run 'if [ -n \"\${${k}}\" ]; then if [ -d \"\${${k}}\" ]; then export PATH=\"\${${k}}\"\"\${PATH:+:\$PATH}\"; else echo \"olai: ${k}=\${${k}} is not a directory — no ${d.holds} goes on the PATH of this serve\" >&2; fi; fi'"
       else "\"\"")
     keys;
 in
@@ -56,9 +60,13 @@ in
     builtins.filter (s: s != "") ([ defaultsRun ] ++ [ setDefaults ] ++ builtins.filter (s: s != "\"\"") [ dirRuns ])
   );
 
-  # The dev loop's shell snippet: one `export VAR="${VAR-default}"` per knob,
-  # the same facts in the same three states (unset → pin, empty → off).
+  # The dev loop's shell snippet: one `export VAR="${VAR-default}"` per knob.
+  # The value the `-` substitutes when VAR is unset is the knob's path —
+  # `export OLAI_ODU_BIN="${OLAI_ODU_BIN-/nix/store/.../bin}"` — so the dev
+  # shell and the wrapper answer the pin the same three ways (unset → pin,
+  # empty → off, a value → that value). `\${` is the double-quoted-string
+  # escape for a literal `${` in Nix.
   devEnv = pkgs.lib.concatMapStringsSep "\n"
-    (k: "export ${k}=\"\$${${k}-${knobs.${k}.path}}\"")
+    (k: "export ${k}=\"\${${k}-${knobs.${k}.path}}\"")
     keys;
 }

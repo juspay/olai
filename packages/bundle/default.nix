@@ -21,7 +21,19 @@
 # facts), `hydrateScript` (one script for the sandbox and `just install`),
 # `externals` / `koluSeeds` / `koluPins` (the dependency-check legs), and
 # `checks` (the plugin-contributed Nix checks). One fold, every consumer.
-{ pkgs, pins, b2n ? null, container ? ../plugins }:
+{ pkgs
+, pins
+, b2n ? null
+# The plugin container: WHERE the plugins live. `containerDir` is the Nix
+# path for `builtins.readDir`/`builtins.pathExists` (relative to this file,
+# so the default `../plugins` resolves to `packages/plugins`); `containerInTree`
+# is its STRING name prefixes for the shell scripts (`install -m 644 <store>
+# <containerInTree>/<name>/...`), so relative to whichever tree the script
+# runs in — the staged build source or a developer's working copy.
+, containerDir ? ../plugins
+, containerInTree ? "packages/plugins"
+, extraKnobNames ? [ ]
+}:
 
 let
   lib = pkgs.lib;
@@ -33,11 +45,9 @@ let
   # no second spelling. A fixture container (no `kolu` pin) supplies none and
   # the hydrate script falls back to a no-op.
   koluCopier = if pins ? kolu then "${pins.kolu}/scripts/hydrate-kolu-packages.sh" else null;
-
-  # Subdirectory names of the container that carry a `default.nix`.
-  dirs = builtins.filter (n: (builtins.readDir container).${n} == "directory")
-    (builtins.attrNames (builtins.readDir container));
-  withDoor = builtins.filter (n: builtins.pathExists "${container}/${n}/default.nix") dirs;
+  dirs = builtins.filter (n: (builtins.readDir containerDir).${n} == "directory")
+    (builtins.attrNames (builtins.readDir containerDir));
+  withDoor = builtins.filter (n: builtins.pathExists "${containerDir}/${n}/default.nix") dirs;
 
   # Import each plugin's door into THREE doors:
   #   `raw`     — the attrset the plugin returned, untouched (always computable).
@@ -50,7 +60,7 @@ let
   # refusal without ever forcing a `throw`.
   pluginsData = builtins.listToAttrs (map
     (name:
-      let dir = "${container}/${name}";
+      let dir = "${containerDir}/${name}";
           raw = import "${dir}/default.nix" { inherit pkgs pins kit b2n; };
       in { inherit name; value = { inherit dir raw; }; })
     withDoor);
@@ -153,8 +163,8 @@ let
   # ship `src/browser/mark.generated.ts`, and the prefix is what makes the union
   # (and the `.gitignore` glob) total. So fold directly with `${name}/${path}`.
   generated = refuse (builtins.foldl' (acc: it: acc // it) { }
-    (builtins.concatMap (name:
-      builtins.mapAttrs' (path: file:
+    (map (name:
+      lib.mapAttrs' (path: file:
         { name = "${name}/${path}"; value = file; })
         (contracts.${name}.generated or { }))
       pluginNames));
@@ -167,7 +177,7 @@ let
   checks = { tree }:
     let
       perPlugin = builtins.foldl' (acc: name:
-        acc // builtins.mapAttrs (check: drv: { name = "plugin-${name}-${check}"; value = drv; })
+        acc // lib.mapAttrs' (check: drv: { name = "plugin-${name}-${check}"; value = drv; })
           ((contracts.${name}.checks or (_: { })) { inherit tree; }))
         { } pluginNames;
       linkFarm = pkgs.symlinkJoin {
@@ -182,13 +192,11 @@ let
   # two cannot drift: runs the kolu copier over every plugin's hydrate pairs,
   # then installs every plugin's `generated` file into its own tree.
   hydrateScript = pkgs.writeShellScript "olai-plugin-hydrate"
-    ((if koluCopier == null then
-      "true"
-    else
-      lib.concatMapStringsSep "\n" (p: "sh ${koluCopier} ${p.src} ${p.dest}") hydrate)
-    + lib.concatMapStringsSep "\n"
-      (path: "install -m 644 ${generated.${path}} ${container}/${path}")
-      (builtins.attrNames generated));
+    (lib.concatStringsSep "\n"
+      ((if koluCopier == null then [ "true" ] else
+        map (p: "sh ${koluCopier} ${p.src} ${p.dest}") hydrate)
+      ++ map (path: "install -m 644 ${generated.${path}}/${builtins.baseNameOf path} ${containerInTree}/${path}")
+        (builtins.attrNames generated)));
 
   # DEV-ONLY INSTALL: `npm ci` in every declared npmTrees dir (announced on
   # stderr, npm's own quiet flags), then hydrateScript. `npm ci` is what lets a
@@ -196,15 +204,15 @@ let
   # shell; the sandbox never runs this.
   devInstallScript = pkgs.writeShellScript "olai-plugin-dev-install"
     (lib.concatMapStringsSep "\n" (dir:
-      "echo >&2 \"cd ${container}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund\"\n"
-      + "cd ${container}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund")
+      "echo >&2 \"cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund\"\n"
+      + "cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund")
       npmTrees
     + (if npmTrees == [ ] then "" else "\n")
     + "sh ${hydrateScript}");
 
   # The knob table rendered two ways — the wrapper's makeWrapper args and the
   # dev loop's export snippet. One function, two renderings (kit.knobShell).
-  knobShell = kit.knobShell { inherit knobs; };
+  knobShell = kit.knobShell { inherit knobs extraKnobNames; };
 
   devEnv = pkgs.writeText "olai-plugin-env"
     ''# The plugin env, rendered by the registry fold (packages/bundle/default.nix).
