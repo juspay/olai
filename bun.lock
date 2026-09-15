@@ -76,6 +76,7 @@
         "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-layout": "workspace:*",
+        "olai-plugin-mail": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
         "olai-plugin-mcp": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
@@ -558,6 +559,21 @@
       },
       "devDependencies": {
         "@olai/tests": "workspace:*",
+      },
+    },
+    "packages/plugins/mail": {
+      "name": "olai-plugin-mail",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "@olai/ui-primitives": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+        "olai-plugin-layout": "workspace:*",
+        "olai-plugin-plugin-inspector": "workspace:*",
       },
     },
     "packages/plugins/markdown": {
@@ -1152,6 +1168,7 @@
         "olai-plugin-hypertext": "workspace:*",
         "olai-plugin-image": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
+        "olai-plugin-mail": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
         "olai-plugin-odu": "workspace:*",
         "olai-plugin-omp": "workspace:*",
@@ -2030,6 +2047,8 @@
     "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/kolu"],
 
     "olai-plugin-layout": ["olai-plugin-layout@workspace:packages/plugins/layout"],
+
+    "olai-plugin-mail": ["olai-plugin-mail@workspace:packages/plugins/mail"],
 
     "olai-plugin-markdown": ["olai-plugin-markdown@workspace:packages/plugins/markdown"],
 
