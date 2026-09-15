@@ -25,6 +25,7 @@ import {
   isAttachable,
   isAttachmentPicture,
   MAX_ATTACHMENT_BYTES,
+  VIDEO_EXTENSIONS,
 } from "./attach.ts"
 
 // The one relation between olai's number and the framework's, and the reason
@@ -44,6 +45,12 @@ test("the gate takes what can be looked at AND what can be read", () => {
   // ... and the documents an agent opens from a path rather than looks at. A
   // PDF is the one a person reaches for first; the rest is text.
   for (const name of ["Type 04-C.pdf", "notes.txt", "README.md", "rows.csv", "tsconfig.json"]) {
+    expect(attachmentRejection(name, 1024)).toBeNull()
+  }
+
+  // ... and a recording of what happened, which a screenshot cannot hold. The
+  // name is the one a phone's screen recorder actually writes.
+  for (const name of ["ScreenRecording_09-12-2026 23-01-06_1.mp4", "clip.MOV", "take.webm", "a.m4v", "b.mkv"]) {
     expect(attachmentRejection(name, 1024)).toBeNull()
   }
 })
@@ -80,7 +87,25 @@ test("what may be ATTACHED and what may be PAINTED are two lists that meet once"
   expect(isAttachable("Type 04-C.pdf")).toBe(true)
   // Every picture is attachable; the reverse is what is new.
   for (const extension of PICTURE_EXTENSIONS) expect(isAttachable(`shot${extension}`)).toBe(true)
-  expect(ATTACHMENT_EXTENSIONS).toEqual([...PICTURE_EXTENSIONS, ...DOCUMENT_EXTENSIONS])
+  expect(ATTACHMENT_EXTENSIONS).toEqual([...PICTURE_EXTENSIONS, ...DOCUMENT_EXTENSIONS, ...VIDEO_EXTENSIONS])
+})
+
+test("a video is attachable and is not a picture", () => {
+  // Attachable, so the gate and the picker take it; not a picture, so its chip
+  // says a size rather than pointing an `<img>` at bytes it cannot draw.
+  for (const extension of VIDEO_EXTENSIONS) {
+    expect(isAttachable(`clip${extension}`)).toBe(true)
+    expect(isAttachmentPicture(`clip${extension}`)).toBe(false)
+  }
+  // The cap is about the FILE, whatever it is: a recording over it is refused
+  // with the same sentence as a PDF.
+  expect(attachmentRejection("long.mp4", MAX_ATTACHMENT_BYTES + 1)).toMatch(/over the 50 MB limit/)
+})
+
+test("a transport stream is .m2ts, and a TypeScript file is not a video", () => {
+  expect(isAttachable("broadcast.m2ts")).toBe(true)
+  expect(isAttachable("server.ts")).toBe(false)
+  expect(isAttachable("module.mts")).toBe(false)
 })
 
 
