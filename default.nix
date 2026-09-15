@@ -8,6 +8,7 @@ let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
   odu = import ./nix/odu.nix { inherit pkgs b2n; };
   cordis = import ./nix/cordis.nix { inherit pkgs; };
+  himalaya = import ./nix/himalaya.nix { inherit pkgs; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
   # @kolu/surface-app's own helper for stamping a build's commit into the
@@ -168,6 +169,12 @@ let
   # the acp-agent line's own argument, one integration over.
   odu-bin = odu.bin;
 
+  # THE PINNED HIMALAYA, the binary half of the mail pin (nix/himalaya.nix),
+  # baked on the wrapper below the way the ACP adapters and `odu` are: the
+  # mail plugin runs the binary the BUILD carries, never one it found, and the
+  # one absolute path is the whole of what it is told about it.
+  himalaya-bin = himalaya.bin;
+
   # THE ODU KNOB THE WRAPPER READS, documented beside it because the wrapper
   # is generated text: `OLAI_ODU_BIN` names a DIRECTORY to put first on the
   # server's PATH. Unset, it answers the pin — every packaged start resolves
@@ -182,6 +189,18 @@ let
   # over one mis-set variable is the worse failure for the systemd unit.
   # scripts/olai-path.sh is the dev loop's spelling of the same knob; the
   # e2e suite's servers are this wrapper, so it is also the suite's spelling.
+  #
+  # HIMALAYA IS NOT A KNOB, and is still a `--set-default`. `OLAI_HIMALAYA`
+  # names one FILE — the pinned `himalaya` — and nothing outside this build
+  # has any business answering it: there is no operator override, no "bring
+  # your own Himalaya", and the plugin treats an empty value as no binary at
+  # all. The default arm is what makes the PIN the answer for every packaged
+  # start, exactly as `--set OLAI_DIST_DIR` makes the build's browser bundle
+  # the answer. It stays overridable for `--set`'s own reason, one face over:
+  # the e2e harness spawns THIS wrapper (`OLAI_BIN`) and must be able to hand
+  # a scenario the fake — and, in the scenario that says so, nothing at all,
+  # which `--set` would make unreachable. A serve nobody pointed elsewhere
+  # runs the pin.
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -198,14 +217,15 @@ let
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
-      --run 'export OLAI_WRAPPER_DEFAULTS=""; for key in OLAI_ACP_AGENT OLAI_ACP_CODEX OLAI_ACP_PI OLAI_ODU_BIN; do if [[ ! -v "$key" ]]; then export OLAI_WRAPPER_DEFAULTS="$OLAI_WRAPPER_DEFAULTS''${OLAI_WRAPPER_DEFAULTS:+,}$key"; fi; done' \
+      --run 'export OLAI_WRAPPER_DEFAULTS=""; for key in OLAI_ACP_AGENT OLAI_ACP_CODEX OLAI_ACP_PI OLAI_ODU_BIN OLAI_HIMALAYA; do if [[ ! -v "$key" ]]; then export OLAI_WRAPPER_DEFAULTS="$OLAI_WRAPPER_DEFAULTS''${OLAI_WRAPPER_DEFAULTS:+,}$key"; fi; done' \
       --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
       --set-default OLAI_ACP_CODEX "${codex-agent}/bin/codex-acp" \
       --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \
       --set-default OLAI_ODU_BIN "${odu-bin}/bin" \
+      --set-default OLAI_HIMALAYA "${himalaya-bin}/bin/himalaya" \
       --run 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN''${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi'
   '';
 in
 {
-  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent codex-agent odu-bin;
+  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent codex-agent odu-bin himalaya-bin;
 }

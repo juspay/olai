@@ -267,7 +267,7 @@ The tools olai is built from, with the one-line reason for each.
 
 A Bun workspace over two globs, `packages/*` and `packages/plugins/*`, sharing `tsconfig.base.json`.
 
-- `packages/plugins/` is the plugin container and holds no package of its own: chat, journal, search, the tenants `kolu`, `odu` and `xyne-spaces`, and the engines `claude`, `codex`, `opencode`, `pi` and `omp`.
+- `packages/plugins/` is the plugin container and holds no package of its own: chat, journal, search, the tenants `kolu`, `odu`, `xyne-spaces` and `mail`, and the engines `claude`, `codex`, `opencode`, `pi` and `omp`.
 - Plugins are written against `@olai/plugin-api`. The registry that names them is `@olai/bundle`, and they are separate packages because a package that both named every plugin and was named by every plugin would be a cycle. `@olai/bundle` is the one package a plugin may not import.
 - The workspace field is spelled once per consumer and nowhere restated: the root `typecheck` glob (`./packages/**`), `scripts/workspace-members.sh` (used by `scripts/check-hydrated-deps.sh` and `scripts/prove-fence.sh`), and `packages/bundle/src/tree.testlib.ts` for the TypeScript reading. All three refuse a shape they cannot expand and a glob that matched nothing.
 - Layering between olai packages is declared in workspace dependencies and machine-checked by `bun install`. The isolated linker (`bunfig.toml`) gives each member only the `@olai/*` siblings its manifest names, so an undeclared one does not resolve.
@@ -295,6 +295,7 @@ A Bun workspace over two globs, `packages/*` and `packages/plugins/*`, sharing `
 | `plugins/kolu` | `format`, `plugin-kit` (`solid-js`, `@xterm/*`) | The kolu tenant: olai's judgement about kolu, and every face kolu wears. One package, because the wall runs at the `./appliance` door rather than between two manifests. |
 | `plugins/odu` | `format`, `plugin-kit` (`solid-js`) | The odu tenant, and one cell (`ci`) holding every CI run this server watches. `solid-js` is a runtime dependency here, because this package owns its browser faces. |
 | `plugins/xyne-spaces` | `format` (`solid-js`, `effect`) | The Spaces tenant, phase 1 Mirror: one `link` cell in three states (`connected`, `absent`, `fault`). Watch-only, with no appliance-client package, because Spaces is reached over HTTP. |
+| `plugins/mail` | `format`, `plugin-api`, `web` (`solid-js`, `effect`) | The Gmail tenant, phase 1 Connect: one `account` cell in three states (`absent`, `connected`, `fault`) and two browser-only procedures. It shells out to the pinned Himalaya and imports nothing of it, because Himalaya publishes no client package. |
 | `plugins/claude` | `acp`, `plugin-api` (`solid-js`, `effect`) | The Claude Code engine: its `Leg`, its probe, its model alias tiers, its install sentence and its mark. Its adapter pin and patches live in `acp/`. |
 | `plugins/opencode` | `acp`, `plugin-api` (`solid-js`, `effect`) | The opencode engine, found on the agent search path rather than shipped. A leg, a probe, a sentence and a mark, with no pin and no patches. |
 | `plugins/pi` | `acp`, `plugin-api` (`solid-js`, `effect`) | The pi engine, the one row that is a pair: an adapter olai pins and an agent the machine supplies. Its pin, patches and MCP bridge are in `acp/`. |

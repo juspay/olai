@@ -1,0 +1,380 @@
+/**
+ * THE TWO FAKES, DRIVEN DIRECTLY — what the harness will do to them, without a
+ * serve, a browser or a scenario.
+ *
+ * A fake that answers is not evidence; a fake that refuses is. So these tests
+ * are mostly about the refusals: an unoffered verb is clap's `unrecognized
+ * subcommand` and exit 2, an invocation with no `--json` is refused rather than
+ * answered in a shape the plugin cannot read, a config that is not a file stops
+ * a verb before it is answered, and on Google's side a request that would not
+ * earn a refresh token — or a code redeemed with the wrong verifier — is a 400.
+ * The happy paths are here too, and each one is asserted through the PLUGIN'S
+ * OWN shapes: the argv `himalayaArgv` composes, the authorization URL
+ * `authorizationUrl` composes, the form bodies `exchangeRequest`,
+ * `refreshRequest` and `revokeRequest` compose. A fake that only agreed with a
+ * test's private idea of those would prove nothing about the plugin.
+ */
+
+import { spawn } from "node:child_process"
+import { writeFileSync } from "node:fs"
+import path from "node:path"
+
+import { expect, test } from "bun:test"
+
+import { renderConfig } from "../../himalaya/config.ts"
+import { GMAIL, himalayaArgv } from "../../himalaya/verbs.ts"
+import {
+  authorizationUrl,
+  challengeOf,
+  endpointsAt,
+  exchangeRequest,
+  FORM_CONTENT_TYPE,
+  newState,
+  refreshRequest,
+  revokeRequest,
+  tokenAnswer,
+  verifierOf,
+} from "../../oauth.ts"
+import type { FakeGoogle } from "./fake-google.ts"
+import { startFakeGoogle } from "./fake-google.ts"
+import type { FakeHimalaya, MailFixture } from "./fake-himalaya.ts"
+import { PINNED_VERSION, startFakeHimalaya } from "./fake-himalaya.ts"
+
+/** The OAuth client a scenario configures a serve with. Nothing checks it: the
+ *  fake's job is that the SAME two strings come back on the exchange, which is
+ *  the property a copy-paste error in the plugin would break. */
+const CLIENT = "olai-test-client"
+const SECRET = "olai-test-secret"
+/** A loopback redirect on a port nothing listens on: these tests read the 302
+ *  rather than chase it, so a real listener would be a listener to leak. */
+const REDIRECT = "http://127.0.0.1:9/_olai/mail/oauth"
+const EMAIL = "reader@olai.invalid"
+
+interface Done {
+  readonly code: number | null
+  readonly stdout: string
+  readonly stderr: string
+}
+
+/** ONE SPAWN OF THE FAKE BINARY — the plugin's own way of running it
+ *  (`../../himalaya/run.ts`'s `execute`): the path IS the program, `shell:
+ *  false`, both streams read as text, and the exit code taken from the close. */
+const run = (fake: FakeHimalaya, argv: ReadonlyArray<string>): Promise<Done> => {
+  const { promise, resolve } = Promise.withResolvers<Done>()
+  const child = spawn(fake.path, [...argv], { shell: false, stdio: ["ignore", "pipe", "pipe"] })
+  let stdout = ""
+  let stderr = ""
+  child.stdout?.setEncoding("utf8")
+  child.stderr?.setEncoding("utf8")
+  child.stdout?.on("data", (chunk: string) => { stdout += chunk })
+  child.stderr?.on("data", (chunk: string) => { stderr += chunk })
+  child.on("close", (code) => resolve({ code, stdout, stderr }))
+  return promise
+}
+
+/** THE FAKE AND THE CONFIG TO POINT IT AT. The config is the plugin's own
+ *  `renderConfig`, because the file has to EXIST — the fake refuses a verb
+ *  against a config that is not there — and it is written into the fake's own
+ *  temp directory so that one `stop()` is the only cleanup a test needs. */
+const startedFake = async (fixture: MailFixture): Promise<{ readonly fake: FakeHimalaya; readonly config: string }> => {
+  const fake = await startFakeHimalaya(fixture)
+  const config = path.join(path.dirname(fake.fixturePath), "config.toml")
+  writeFileSync(config, renderConfig({ token: "ya29.olai-fake", address: fixture.profile?.email ?? null }))
+  return { fake, config }
+}
+
+/** One consent, as the plugin asks for it: the URL `../../oauth.ts` composes for
+ *  a given verifier, followed with `redirect: "manual"` so the 302 is READ and
+ *  the code taken out of it rather than chased into a dead port. */
+const consented = async (google: FakeGoogle, verifier: string, state: string): Promise<URL> => {
+  const endpoints = endpointsAt(google.origin)
+  const asked = authorizationUrl(endpoints, { client: CLIENT, redirect: REDIRECT, state, challenge: challengeOf(verifier) })
+  const response = await fetch(asked, { redirect: "manual" })
+  expect(response.status).toBe(302)
+  return new URL(response.headers.get("location") ?? "")
+}
+
+/** The exchange, as the plugin sends it. */
+const exchanged = async (google: FakeGoogle, code: string, verifier: string): Promise<Response> => {
+  const request = exchangeRequest(endpointsAt(google.origin), { client: CLIENT, secret: SECRET, code, redirect: REDIRECT, verifier })
+  return fetch(request.url, { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: request.body })
+}
+
+/** A verifier of the length RFC 7636 §4.1 allows, from bytes the test chose. */
+const verifier = (seed: number): string => verifierOf(new Uint8Array(32).fill(seed))
+
+test("--version prints the pin's line and the two under it", async () => {
+  const { fake } = await startedFake({ profile: { email: EMAIL } })
+  try {
+    for (const flag of ["--version", "-V"]) {
+      const done = await run(fake, [flag])
+      expect(done.code, flag).toBe(0)
+      expect(done.stderr, flag).toBe("")
+      const lines = done.stdout.trimEnd().split("\n")
+      expect(lines[0], flag).toBe(PINNED_VERSION)
+      expect(lines[1]?.startsWith("build: "), flag).toBe(true)
+      expect(lines[2]?.startsWith("git: "), flag).toBe(true)
+    }
+    // ...and the fixture's `version` replaces the FIRST line only, which is how
+    // a scenario makes a serve read a pin that slid back.
+    fake.rewrite({ version: "himalaya v2.0.0 +gmail" })
+    const older = await run(fake, ["--version"])
+    expect(older.stdout.trimEnd().split("\n")[0]).toBe("himalaya v2.0.0 +gmail")
+    expect(older.stdout).toContain("build: ")
+  } finally {
+    await fake.stop()
+  }
+})
+
+test("gmail profile get answers the fixture's mailbox in the pin's own JSON", async () => {
+  const { fake, config } = await startedFake({
+    profile: { email: EMAIL, messagesTotal: 4211, threadsTotal: 1900, historyId: "h-99" },
+  })
+  try {
+    const done = await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])
+    expect(done.code).toBe(0)
+    expect(done.stderr).toBe("")
+    expect(JSON.parse(done.stdout)).toEqual({
+      email: EMAIL,
+      "messages-total": 4211,
+      "threads-total": 1900,
+      "history-id": "h-99",
+    })
+  } finally {
+    await fake.stop()
+  }
+})
+
+test("the totals are OMITTED when the fixture does not carry them", async () => {
+  const { fake, config } = await startedFake({ profile: { email: EMAIL } })
+  try {
+    const done = await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])
+    expect(JSON.parse(done.stdout)).toEqual({ email: EMAIL })
+  } finally {
+    await fake.stop()
+  }
+})
+
+test("a verb the table does not have is clap's refusal, exit 2, naming what it speaks", async () => {
+  const { fake, config } = await startedFake({ profile: { email: EMAIL } })
+  try {
+    const done = await run(fake, [...himalayaArgv(config, ["gmail", "threads", "list"], [])])
+    expect(done.code).toBe(2)
+    expect(done.stdout).toBe("")
+    expect(done.stderr).toContain("error: unrecognized subcommand 'gmail threads list'")
+    // The half a person needs: what this fake DOES answer, from the table's own
+    // `says`, so an unoffered verb cannot be mistaken for a broken mailbox.
+    expect(done.stderr).toContain("profile.get")
+    expect(done.stderr).toContain(GMAIL.profileGet.says)
+  } finally {
+    await fake.stop()
+  }
+})
+
+test("an invocation with no --json is refused rather than answered in an unreadable shape", async () => {
+  const { fake, config } = await startedFake({ profile: { email: EMAIL } })
+  try {
+    const done = await run(fake, ["-c", config, ...GMAIL.profileGet.path])
+    expect(done.code).toBe(2)
+    expect(done.stdout).toBe("")
+    expect(done.stderr).toContain("--json")
+  } finally {
+    await fake.stop()
+  }
+})
+
+test("a --config that names no file stops the verb before it is answered", async () => {
+  const { fake } = await startedFake({ profile: { email: EMAIL } })
+  try {
+    const gone = [...himalayaArgv(path.join(path.dirname(fake.fixturePath), "never-written.toml"), GMAIL.profileGet.path, [])]
+    const done = await run(fake, gone)
+    expect(done.code).toBe(2)
+    expect(done.stdout).toBe("")
+    expect(done.stderr).toContain("never-written.toml")
+  } finally {
+    await fake.stop()
+  }
+})
+
+test("the fixture's failure is the JSON error on stdout, exit 1, stderr empty", async () => {
+  const sentence = "Gmail refused this request: the access token is expired"
+  const { fake, config } = await startedFake({ profile: { email: EMAIL }, failure: sentence })
+  try {
+    const done = await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])
+    expect(done.code).toBe(1)
+    expect(done.stderr).toBe("")
+    expect(JSON.parse(done.stdout)).toEqual({ error: sentence, sources: [], backtrace: null })
+    // A version is still a version: the pin is not a permission.
+    const version = await run(fake, ["--version"])
+    expect(version.code).toBe(0)
+  } finally {
+    await fake.stop()
+  }
+})
+
+test("rewrite moves what the next call answers, both ways", async () => {
+  const { fake, config } = await startedFake({ profile: { email: EMAIL } })
+  try {
+    expect(JSON.parse((await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])).stdout).email).toBe(EMAIL)
+    fake.rewrite({ profile: { email: EMAIL }, failure: "the token was revoked while you were reading" })
+    const refused = await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])
+    expect(refused.code).toBe(1)
+    fake.rewrite({ profile: { email: "second@olai.invalid" } })
+    const recovered = await run(fake, [...himalayaArgv(config, GMAIL.profileGet.path, [])])
+    expect(recovered.code).toBe(0)
+    expect(JSON.parse(recovered.stdout).email).toBe("second@olai.invalid")
+  } finally {
+    await fake.stop()
+  }
+})
+
+test("the whole flow: consent, exchange, refresh and revoke, with every request recorded", async () => {
+  const google = await startFakeGoogle({ email: EMAIL })
+  try {
+    const state = newState()
+    const first = verifier(1)
+    const back = await consented(google, first, state)
+    expect(back.searchParams.get("state")).toBe(state)
+    const code = back.searchParams.get("code") ?? ""
+    expect(code).not.toBe("")
+
+    const granted = await exchanged(google, code, first)
+    expect(granted.status).toBe(200)
+    const tokens = await granted.json() as {
+      readonly access_token: string
+      readonly refresh_token: string
+      readonly expires_in: number
+      readonly scope: string
+      readonly token_type: string
+    }
+    expect(tokens.token_type).toBe("Bearer")
+    expect(tokens.expires_in).toBe(3600)
+    expect(tokens.scope).toBe("https://www.googleapis.com/auth/gmail.modify")
+    expect(google.issued()).toEqual([tokens.access_token])
+
+    // The refresh — and Google's own shape when it is not rotating: no new
+    // refresh token, which `../../oauth.ts` reads as *keep the one you have*.
+    const refresh = refreshRequest(endpointsAt(google.origin), { client: CLIENT, secret: SECRET, refreshToken: tokens.refresh_token })
+    const refreshed = await fetch(refresh.url, { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: refresh.body })
+    expect(refreshed.status).toBe(200)
+    const next = await refreshed.json() as Record<string, unknown>
+    expect(next["refresh_token"]).toBeUndefined()
+    expect(next["access_token"]).not.toBe(tokens.access_token)
+    expect(google.issued()).toHaveLength(2)
+
+    const revoke = revokeRequest(endpointsAt(google.origin), tokens.refresh_token)
+    const revoked = await fetch(revoke.url, { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: revoke.body })
+    expect(revoked.status).toBe(200)
+    expect(google.revoked()).toEqual([tokens.refresh_token])
+
+    // WHAT WAS SENT, in order — the record a scenario's assertions are built on.
+    expect(google.requests().map((one) => `${one.method} ${one.path}`)).toEqual([
+      "GET /o/oauth2/v2/auth",
+      "POST /token",
+      "POST /token",
+      "POST /revoke",
+    ])
+    const asked = new URLSearchParams(google.requests()[0]?.query ?? "")
+    expect(asked.get("access_type")).toBe("offline")
+    expect(asked.get("prompt")).toBe("consent")
+    expect(asked.get("code_challenge_method")).toBe("S256")
+    expect(new URLSearchParams(google.requests()[1]?.body ?? "").get("grant_type")).toBe("authorization_code")
+  } finally {
+    await google.stop()
+  }
+})
+
+test("a consent request that would not earn a refresh token is refused, with a sentence", async () => {
+  const google = await startFakeGoogle({ email: EMAIL })
+  try {
+    const endpoints = endpointsAt(google.origin)
+    const asked = authorizationUrl(endpoints, { client: CLIENT, redirect: REDIRECT, state: "s", challenge: challengeOf(verifier(2)) })
+    // The two parameters that TOGETHER are what make Google hand back a refresh
+    // token — each one dropped on its own, so neither can pass for the other.
+    for (const dropped of ["access_type", "prompt"]) {
+      const holes = new URL(asked)
+      holes.searchParams.delete(dropped)
+      const response = await fetch(holes, { redirect: "manual" })
+      expect(response.status, dropped).toBe(400)
+      expect(await response.text(), dropped).toContain(EMAIL)
+    }
+    // ...and a challenge that is not a hash makes the code worth stealing.
+    const plain = new URL(asked)
+    plain.searchParams.set("code_challenge_method", "plain")
+    expect((await fetch(plain, { redirect: "manual" })).status).toBe(400)
+  } finally {
+    await google.stop()
+  }
+})
+
+test("a code_verifier that does not hash to the challenge is invalid_grant", async () => {
+  const google = await startFakeGoogle({ email: EMAIL })
+  try {
+    const back = await consented(google, verifier(3), "state-3")
+    const response = await exchanged(google, back.searchParams.get("code") ?? "", verifier(4))
+    expect(response.status).toBe(400)
+    const said = await response.json() as Record<string, unknown>
+    expect(said["error"]).toBe("invalid_grant")
+    expect(String(said["error_description"])).toContain("code_verifier")
+  } finally {
+    await google.stop()
+  }
+})
+
+test("an authorization code is single-use", async () => {
+  const google = await startFakeGoogle({ email: EMAIL })
+  try {
+    const once = verifier(5)
+    const code = (await consented(google, once, "state-5")).searchParams.get("code") ?? ""
+    expect((await exchanged(google, code, once)).status).toBe(200)
+    const again = await exchanged(google, code, once)
+    expect(again.status).toBe(400)
+    expect((await again.json() as Record<string, unknown>)["error"]).toBe("invalid_grant")
+  } finally {
+    await google.stop()
+  }
+})
+
+test('refresh: "invalid_grant" answers exactly what the plugin\'s fault arm reads', async () => {
+  const google = await startFakeGoogle({ email: EMAIL, refresh: "invalid_grant" })
+  try {
+    const refresh = refreshRequest(endpointsAt(google.origin), { client: CLIENT, secret: SECRET, refreshToken: "1//olai-fake-1" })
+    const response = await fetch(refresh.url, { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: refresh.body })
+    expect(response.status).toBe(400)
+    const body = await response.text()
+    expect((JSON.parse(body) as Record<string, unknown>)["error"]).toBe("invalid_grant")
+    // The plugin's own reading of that answer: a refusal the panel can word,
+    // rather than a throw.
+    const answered = tokenAnswer(response.status, body)
+    expect(answered.ok).toBe(false)
+    if (!answered.ok) expect(answered.error).toBe("invalid_grant")
+  } finally {
+    await google.stop()
+  }
+})
+
+test("rewrite moves what the token endpoint answers, on the same origin", async () => {
+  const google = await startFakeGoogle({ email: EMAIL, refresh: "invalid_grant" })
+  try {
+    const refresh = refreshRequest(endpointsAt(google.origin), { client: CLIENT, secret: SECRET, refreshToken: "1//olai-fake-1" })
+    const asked = { method: "POST", headers: { "content-type": FORM_CONTENT_TYPE }, body: refresh.body }
+    expect((await fetch(refresh.url, asked)).status).toBe(400)
+    // The arm a scenario's fault-and-recover path needs, and the reason it
+    // cannot start a second fake: a serve was SPAWNED with this origin.
+    google.rewrite({ email: EMAIL, refresh: "ok", accessToken: "ya29.moved", expiresIn: 90 })
+    const recovered = await fetch(refresh.url, asked)
+    expect(recovered.status).toBe(200)
+    const tokens = await recovered.json() as Record<string, unknown>
+    expect(tokens["access_token"]).toBe("ya29.moved")
+    expect(tokens["expires_in"]).toBe(90)
+    expect(google.issued()).toEqual(["ya29.moved"])
+    // A rewrite moves what the fake SAYS: the conversation so far is still
+    // there for a scenario to assert over, both halves of it.
+    expect(google.requests()).toHaveLength(2)
+    // ...and a fixture with no account is refused where it is written, not at
+    // the next request.
+    expect(() => google.rewrite({ email: " " })).toThrow()
+  } finally {
+    await google.stop()
+  }
+})
