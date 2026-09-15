@@ -1283,7 +1283,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   })()
   if (mailCall) {
     const answer = await useTool(`mail_${mailCall.name}`, mailCall.args)
-    say(JSON.stringify(answer))
+    say("```json\n" + JSON.stringify(answer) + "\n```")
     reply(id, { stopReason: "end_turn" })
     return
   }

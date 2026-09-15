@@ -809,5 +809,10 @@ export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined
     : Array.isArray(rawOutput) ? rawOutput.find(block => record(block)?.["type"] === "text")?.text
     : undefined
   if (typeof text !== "string") return undefined
-  try { return record(JSON.parse(text)) } catch { return undefined }
+  try { return record(JSON.parse(text)) } catch {
+    // Claude forwards only MCP text blocks, dropping structuredContent. The
+    // owned MCP server's branded refusal still carries its kind and reason.
+    const refusal = /^surface-mcp: `[^`]+` was refused \((usage|not-found|validation|busy)\): ([\s\S]+)$/.exec(text)
+    return refusal ? { kind: refusal[1], reason: refusal[2] } : undefined
+  }
 }

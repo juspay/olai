@@ -930,3 +930,10 @@ test("real Claude JSON-string writes retain file and story facts", () => {
     expect(CLAUDE.replyIn(raw)).toBeUndefined()
   }
 })
+
+
+test("Claude preserves olai MCP refusal stories after the SDK drops structuredContent", () => {
+  const result = { isError: true, content: [{ type: "text" as const, text: "surface-mcp: `mail_inbox` was refused (usage): no Gmail account is connected to this serve — connect one in ⧉ plugins" }], structuredContent: { kind: "usage", reason: "ignored by the Claude SDK" } }
+  expect(CLAUDE.replyIn(wrapped(result).rawOutput)).toEqual({ kind: "usage", reason: "no Gmail account is connected to this serve — connect one in ⧉ plugins" })
+  expect(CLAUDE.replyIn("permission denied")).toBeUndefined()
+})
