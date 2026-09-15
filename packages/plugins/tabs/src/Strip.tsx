@@ -21,7 +21,7 @@ import { lone } from "olai-plugin-navigation/workspace"
 
 import type { Tab, TabsState } from "./contract.ts"
 import { glyphOf } from "./face.ts"
-import { PointMenu } from "./Menu.tsx"
+import { PointMenu } from "./chunk.ts"
 import { TESTID } from "./testids.ts"
 
 /** How far a press on a tab travels before it is a drag — the pane header's. */
@@ -85,6 +85,8 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
 
   return (
     <div data-testid={TESTID.tabsStrip} class="relative flex h-full items-end gap-1 bg-desk px-2 pt-1.5">
+      {/* The rule under the strip. Every tab is positioned and comes after it,
+          so the tab in front, on paper, breaks the rule without a z-index. */}
       <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-rule/70" />
       <div ref={row} role="tablist" aria-label="open tabs"
         class="flex h-full min-w-0 flex-1 items-end gap-0.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
@@ -108,7 +110,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               // neighbours along the strip.
               class="group/tab relative flex min-w-[5rem] max-w-[15rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-t-lg border border-b-0 pl-2.5 pr-1 text-[0.8125rem]"
               classList={{
-                "z-[1] h-full border-rule/70 bg-paper font-semibold text-ink": front(),
+                "h-full border-rule/70 bg-paper font-semibold text-ink": front(),
                 "h-[calc(100%-0.25rem)] border-transparent text-muted hover:bg-panel/55 hover:text-ink": !front(),
                 "opacity-40": lifted() === tab().id,
               }}

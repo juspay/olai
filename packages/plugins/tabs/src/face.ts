@@ -14,7 +14,5 @@ export const glyphOf = (routes: Routing, href: string): string => {
   if (route.kind === "trash") return "⌫"
   const address = route.address
   if (address === null) return "⌂"
-  if (address.kind === "node") return "•"
-  if ("path" in address && address.path.endsWith(".olai")) return "≡"
-  return "¶"
+  return address.kind === "node" ? "•" : "¶"
 }

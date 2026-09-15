@@ -25,7 +25,7 @@ import type { Navigation } from "olai-plugin-navigation/contract"
 import { lone, type Workspace } from "olai-plugin-navigation/workspace"
 
 import type { TabsState } from "./contract.ts"
-import { PointMenu } from "./Menu.tsx"
+import { PointMenu } from "./chunk.ts"
 import { TESTID } from "./testids.ts"
 
 /** The workspace an in-app `href` opens, or `undefined` for one this app would

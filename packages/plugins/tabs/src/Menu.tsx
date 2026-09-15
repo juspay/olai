@@ -1,5 +1,6 @@
 /**
- * A MENU AT A POINT — what a right-click on a tab or on a link opens.
+ * A MENU AT A POINT — what a right-click on a tab or on a link opens. Loaded
+ * behind `import()` by both, so Kobalte's dropdown stays off first paint.
  *
  * The outline's `•••` menu's paint (`@olai/ui-primitives`' `menu.ts`) and
  * Kobalte's dropdown, anchored at the pointer rather than at a trigger, the
@@ -19,7 +20,7 @@ export type MenuEntry =
   | { readonly label: string; readonly run: () => void }
   | { readonly rule: true }
 
-export function PointMenu(props: {
+export default function PointMenu(props: {
   readonly x: number
   readonly y: number
   readonly label: string
@@ -30,6 +31,8 @@ export function PointMenu(props: {
   portal.className = `fixed left-0 top-0 ${LAYER.over}`
   document.body.append(portal)
   onCleanup(() => portal.remove())
+  // ON THE STACK DIRECTLY, like chat's engine menu: its dismissal gestures are
+  // Kobalte's, so it joins without `dismissOn`.
   const topmost = topmostWhileOpen(() => true)
   const { x, y } = props
   return <DropdownMenu open modal={false} placement="bottom-start" gutter={0}
