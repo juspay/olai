@@ -525,6 +525,9 @@ You can paste a file into the box — a screenshot, a photo of a whiteboard — 
 
 - **pictures**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.bmp`, `.ico`
 - **documents**: `.pdf`, `.txt`, `.md`, `.csv`, `.json`
+- **videos**: `.mp4`, `.m4v`, `.mov`, `.webm`, `.mkv`
+
+A video — a screen recording of the bug a screenshot could not show, usually — is handed over like any other file: the agent gets its path and nothing more. olai does not transcode it, cut frames out of it or thumbnail it. What happens next is up to the agent: Claude Code cannot watch a video, but it can pull frames out of one with a tool such as `ffmpeg` if the machine has one. The 50 MB cap applies to videos too, and a long recording can go over it.
 
 **On a phone the `+` has a camera beside it.** One tap opens the camera itself rather than a picker: shoot, the photo lands in the strip above the box like any other attachment, and you can shoot again — tap the camera, one more photo joins the strip — until one send carries them all into the same message. It is drawn only where there is a finger to press it: a desktop has no button at all, because a "camera" that opened a file dialog would be a control that lies, and the roll is exactly as reachable there either way. A picture the list above does not take — say a camera that answers with a `.heic` — is named in the refusal, the same as a drop that misses the gate.
 

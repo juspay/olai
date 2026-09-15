@@ -99,12 +99,28 @@ export const refusalFor = (file: File): string | null =>
  * A pasted screenshot usually arrives as a `File` with a name of its own
  * (`image.png`), and sometimes as one with nothing useful at all — so the type
  * is the fallback, because the EXTENSION is what the gate judges and what the
- * agent reads the file's kind from.
+ * agent reads the file's kind from. A pasted recording is named after its type
+ * too: calling an unnamed `video/mp4` `pasted.png` would get it past the gate
+ * as a picture it is not.
  */
 const nameOf = (file: File): string => {
   if (file.name !== "" && file.name.includes(".")) return file.name
-  const kind = file.type.startsWith("image/") ? file.type.slice("image/".length) : ""
-  return `pasted.${kind === "" ? "png" : kind.replace(/[^a-z0-9]/gi, "")}`
+  return `pasted.${extensionOf(file.type)}`
+}
+
+/** The video types whose subtype is not the extension a file of them carries. */
+const VIDEO_TYPE_EXTENSIONS: Readonly<Record<string, string>> = {
+  "video/quicktime": "mov",
+  "video/x-m4v": "m4v",
+  "video/x-matroska": "mkv",
+}
+
+const extensionOf = (type: string): string => {
+  const known = VIDEO_TYPE_EXTENSIONS[type]
+  if (known !== undefined) return known
+  const [family, subtype = ""] = type.split("/")
+  const kind = family === "image" || family === "video" ? subtype.replace(/[^a-z0-9]/gi, "") : ""
+  return kind === "" ? "png" : kind
 }
 
 /** Bytes as base64, in slices small enough that `String.fromCharCode` is not

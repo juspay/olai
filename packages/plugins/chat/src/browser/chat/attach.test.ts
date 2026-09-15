@@ -103,3 +103,18 @@ test("a picture the clipboard did not name is named after its type", async () =>
   // ... and the server still has the last word on what it is called.
   expect(outcome.success.name).toBe("stored-pasted.webp")
 })
+
+test("a recording the clipboard did not name is named after its type, not as a picture", async () => {
+  for (const [type, stored] of [
+    ["video/mp4", "stored-pasted.mp4"],
+    ["video/webm", "stored-pasted.webm"],
+    ["video/quicktime", "stored-pasted.mov"],
+  ] as const) {
+    const outcome = await Effect.runPromise(
+      Effect.result(attaching(picture("", body, type), spy().attach, 8)),
+    )
+    expect(Result.isSuccess(outcome)).toBe(true)
+    if (!Result.isSuccess(outcome)) return
+    expect(outcome.success.name).toBe(stored)
+  }
+})

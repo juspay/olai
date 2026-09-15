@@ -2990,16 +2990,23 @@ const TINY_PDF =
 /** Five bytes of text: `notes`. */
 const TINY_TEXT = "bm90ZXM=";
 
+/** An MP4's opening box, 24 bytes — `ftyp`, `mp42`, which is what every file
+ *  a screen recorder writes begins with. Nothing here plays it; the agent is
+ *  asserted to have read that many bytes off the disk. */
+const TINY_MP4 = "AAAAGGZ0eXBtcDQyAAAAAG1wNDJpc29t";
+
 /** What a named file is made of. The extension decides, because the extension
  *  is what the app's own gate judges — so a scenario names `shot.png` or
  *  `Type 04-C.pdf` and gets a file the panel will treat exactly as it would
  *  treat a real one. A `.zip` is here to be REFUSED: the gate takes pictures,
- *  PDFs and text, and a suite that had nothing left to be turned away by it
- *  would have stopped testing the gate at all. */
+ *  PDFs, text and videos, and a suite that had nothing left to be turned away
+ *  by it would have stopped testing the gate at all. */
 const fileSpec = (name: string): { name: string; data: string; type: string } => {
   if (name.endsWith(".svg")) return { name, data: TINY_SVG, type: "image/svg+xml" };
   if (name.endsWith(".pdf")) return { name, data: TINY_PDF, type: "application/pdf" };
   if (name.endsWith(".txt")) return { name, data: TINY_TEXT, type: "text/plain" };
+  if (name.endsWith(".mp4")) return { name, data: TINY_MP4, type: "video/mp4" };
+  if (name.endsWith(".mov")) return { name, data: TINY_MP4, type: "video/quicktime" };
   if (name.endsWith(".zip")) return { name, data: TINY_TEXT, type: "application/zip" };
   return { name, data: ONE_PIXEL_PNG, type: "image/png" };
 };
