@@ -84,6 +84,10 @@ import { REFERRINGS } from "olai-plugin-outlines/testlib";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "olai-plugin-kolu/appliance/testlib";
 import type { LiveOdu } from "olai-plugin-odu/appliance/testlib";
+// THE MAIL ROW'S TWO FAKES, for the same reason the two above are here: the
+// world holds what the harness started (so `After` can stop it), and a scenario
+// restarting its server has the fixture names to hand back to `hooks.ts`.
+import type { FakeGoogle, FakeHimalaya } from "olai-plugin-mail/appliance/testlib";
 import {
   setDefaultTimeout,
   setWorldConstructor,
@@ -1439,6 +1443,25 @@ export class OlaiWorld extends World {
   /** `@odu-service:<fleet>`: which fixture this scenario's fake odu serves. */
   oduFleet: string | undefined = undefined;
   odu: LiveOdu | undefined = undefined;
+  /** `@mail-himalaya:<fixture>`: which mailbox this scenario's fake binary
+   *  answers. Carried on the world for `padiFleet`'s reason — a restart has to
+   *  reproduce the first boot, and the fake's path is passed at spawn. */
+  mailHimalayaFleet: string | undefined = undefined;
+  /** The fake Himalaya binary this scenario spawned, so the After hook can take
+   *  its temp directory with it. One per scenario: a mailbox two scenarios
+   *  shared would be two scenarios answering from one fixture. */
+  mailHimalaya: FakeHimalaya | undefined = undefined;
+  /** `@mail-google:<fixture>`: which grant this scenario's fake Google honours. */
+  mailGoogleFleet: string | undefined = undefined;
+  /** The fake Google this scenario started — a server in this worker's process,
+   *  so a step reads its record of what the product SENT (`revoked()`), and the
+   *  After hook stops it. */
+  mailGoogle: FakeGoogle | undefined = undefined;
+  /** `@mail-doors`: whether this scenario's serve was handed an OAuth client
+   *  and secret. WITHOUT it both are UNSET, which is the row's own sentence
+   *  about what a connect would need — a scenario of its own, and the reason
+   *  this is a tag rather than a default. Carried for a restart's reason. */
+  mailDoors = false;
   /** `@opencode`: this scenario's machine HAS opencode, so its server's roster
    *  is two agents and the panel asks which one a conversation is with. Every
    *  other scenario's agent search path is empty — see `hooks.ts`. */
