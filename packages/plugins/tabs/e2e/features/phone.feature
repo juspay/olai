@@ -30,8 +30,7 @@ Feature: Tabs on a phone
     When I choose "Open in new tab" from the menu of the outline link "garden.olai"
     Then the stored tabs hold "/house.olai /garden.olai"
     When I shrink the window to a phone
-    And I reload the page
-    And I click the document "finishes.md"
+    And I open the address "/finishes.md"
     Then there is no tab strip
     And the stored tabs hold "/finishes.md /garden.olai"
     And there should be no page errors

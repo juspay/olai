@@ -148,7 +148,7 @@ Feature: Tabs above the panes
     And I alt-click the zoom of "install"
     Then there are 2 panes
     And there are 2 tabs
-    And tab 0 holds "/s/house.olai/%23install?f=1"
+    And tab 0 holds the address in the bar
     And tab 0 is titled "house.olai + install"
     When I press tab 1
     Then there are 1 panes

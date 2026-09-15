@@ -11,7 +11,7 @@
  * It draws the list and nothing else: every verb is `tabs.state`'s.
  */
 import { Key } from "@solid-primitives/keyed"
-import { createEffect, createSignal, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
 import { DOT } from "@olai/web/client/readout.ts"
 import { drag } from "@olai/web/client/pointer.ts"
@@ -36,13 +36,19 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
 
   const frontHref = () => tabs.tabs().find((tab) => tab.id === tabs.front())?.href ?? ""
 
-  // The tab in front is kept in view when it changes — a chord or a new tab
-  // can bring one forward that the strip has scrolled past.
-  createEffect(() => {
-    const id = tabs.front()
-    queueMicrotask(() => row?.querySelector(`[data-tab-id="${CSS.escape(id)}"]`)
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" }))
-  })
+  // The tab in front is kept in view when it CHANGES — a chord or a new tab can
+  // bring one forward that the strip has scrolled past. Only the strip's own
+  // row scrolls, sideways: `scrollIntoView` would also move the window up to a
+  // strip the reader had scrolled away from, and the front id is compared so a
+  // navigation inside the tab (which rewrites its record) moves nothing.
+  const front = createMemo(() => tabs.front())
+  createEffect(on(front, (id) => queueMicrotask(() => {
+    const face = row?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(id)}"]`)
+    if (row === undefined || face === undefined || face === null) return
+    const left = face.offsetLeft - row.offsetLeft
+    if (left < row.scrollLeft) row.scrollLeft = left
+    else if (left + face.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + face.offsetWidth - row.clientWidth
+  })))
 
   // A PRESS THAT DOES NOT TRAVEL brings the tab forward when it is let go, not
   // when it goes down: the page coming back asks for its old scroll position,

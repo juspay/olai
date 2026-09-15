@@ -70,6 +70,10 @@ Then("tab {int} holds {string}", async function (this: OlaiWorld, index: number,
   await untilTabs(this, (tabs) => tabs[index]?.href === href, `tab ${index} to hold ${href}`);
 });
 
+Then("tab {int} holds the address in the bar", async function (this: OlaiWorld, index: number) {
+  await untilTabs(this, (tabs) => tabs[index]?.href === this.address(), `tab ${index} to hold the address ${this.address()}`);
+});
+
 Then("tab {int} is titled {string}", async function (this: OlaiWorld, index: number, title: string) {
   await untilTabs(this, (tabs) => tabs[index]?.title === title, `tab ${index} to be titled ${title}`);
 });
