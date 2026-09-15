@@ -5,7 +5,7 @@ import type { Navigation } from "olai-plugin-navigation/contract"
 import { atFile, NO_PAGES, routingOver } from "olai-plugin-navigation/routes"
 import { lone, type Workspace, workspaceOf, workspaceRoutingOver } from "olai-plugin-navigation/workspace"
 
-import { TABS_KEY } from "./contract.ts"
+import { TABS_KEY } from "./persist.ts"
 import { createTabs } from "./store.ts"
 
 /**
@@ -18,6 +18,7 @@ const fakeRouter = (first: string) => {
   const routes = workspaceRoutingOver(routingOver(() => undefined, () => NO_PAGES))
   const [workspace, setWorkspace] = createSignal<Workspace>(workspaceOf(routes, first))
   let key = "k0"
+  let lane: string | null = null
   let minted = 0
   const said: Array<string> = []
   const router = {
@@ -25,10 +26,12 @@ const fakeRouter = (first: string) => {
     workspace,
     info: () => undefined,
     entryKey: () => key,
-    switchLane: (lane: string | null, next: Workspace, reuse?: string) => {
-      key = reuse ?? `m${++minted}`
-      said.push(`switch ${lane} ${reuse ?? "(new)"}`)
-      setWorkspace(next)
+    lane: () => lane,
+    switchLane: (next: string | null, to?: { readonly workspace: Workspace; readonly key?: string }) => {
+      lane = next
+      if (to !== undefined) key = to.key ?? `m${++minted}`
+      said.push(`switch ${next} ${to === undefined ? key : (to.key ?? "(new)")}`)
+      if (to !== undefined) setWorkspace(to.workspace)
       return key
     },
     forgetLane: (lane: string) => said.push(`forget ${lane}`),

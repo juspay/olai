@@ -108,6 +108,8 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
         <Key each={tabs.tabs()} by="id">{(tab, index) => {
           const front = () => tabs.front() === tab().id
           const dot = () => tabs.dotted().get(tab().id)
+          const isLifted = () => lifted() === tab().id
+          const drop = () => (over()?.id === tab().id ? over()!.side : undefined)
           return (
             <div
               role="tab"
@@ -119,8 +121,8 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               data-tab-id={tab().id}
               data-tab-front={front() ? "true" : undefined}
               data-href={tab().href}
-              data-lifted={lifted() === tab().id ? "true" : undefined}
-              data-drop={over()?.id === tab().id ? over()!.side : undefined}
+              data-lifted={isLifted() ? "true" : undefined}
+              data-drop={drop()}
               // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
               // (a page naming itself as it arrives) must not move its
               // neighbours along the strip.
@@ -128,7 +130,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               classList={{
                 "h-full border-rule/70 bg-paper font-semibold text-ink": front(),
                 "h-[calc(100%-0.25rem)] border-transparent text-muted hover:bg-panel/55 hover:text-ink": !front(),
-                "opacity-40": lifted() === tab().id,
+                "opacity-40": isLifted(),
               }}
               draggable={false}
               onPointerDown={(event) => press(event, tab())}
@@ -150,7 +152,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               }}
             >
               {/* WHERE THE CARRIED TAB WOULD LAND, drawn on the tab it is over. */}
-              <Show when={over()?.id === tab().id ? over()!.side : undefined}>{(side) =>
+              <Show when={drop()}>{(side) =>
                 <span aria-hidden="true" class="pointer-events-none absolute bottom-1 top-1.5 w-0.5 rounded-full bg-accent"
                   classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
               }</Show>

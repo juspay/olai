@@ -15,6 +15,7 @@ import { pressed } from "@olai/tests/harness/settling.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT, ZOOM } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
+import { TABS_KEY } from "../../src/persist.ts";
 import { ADDRESS, CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB } from "../selectors.ts";
 
 const tabAt = (world: OlaiWorld, index: number) => world.page.locator(`${TAB}${attr("data-tab", String(index))}`);
@@ -213,7 +214,7 @@ Then("the shortcuts list {string} as {string}", async function (this: OlaiWorld,
 Then("the stored tabs hold {string}", async function (this: OlaiWorld, hrefs: string) {
   const wanted = hrefs.split(" ");
   const read = async () => {
-    const stored = await this.page.evaluate(() => localStorage.getItem("olai.tabs"));
+    const stored = await this.page.evaluate((key) => localStorage.getItem(key), TABS_KEY);
     return stored === null ? [] : (JSON.parse(stored) as { tabs: Array<{ href?: string }> }).tabs.map((tab) => tab.href ?? "(front)");
   };
   try {

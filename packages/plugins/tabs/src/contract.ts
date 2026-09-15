@@ -76,15 +76,3 @@ export interface Dots {
 /** The live tab set, offered by the row for its activation. */
 export const tabsState = serviceTag<TabsState>("tabs.state")
 
-/** The preference the set is kept under, per browser. */
-export const TABS_KEY = "olai.tabs"
-
-/** The stored shape's version. A record of any other is read as no record. */
-export const STORED_VERSION = 1
-
-export interface Stored {
-  readonly v: typeof STORED_VERSION
-  readonly front: string
-  /** The front tab is kept as its id and entry key alone. */
-  readonly tabs: ReadonlyArray<Tab | Pick<Tab, "id" | "key">>
-}

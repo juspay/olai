@@ -24,9 +24,9 @@ import { type Accessor, createEffect, createMemo, createRoot, createSignal, on, 
 import { createPreference } from "@olai/web/client/preference.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
-import { hrefOfWorkspace, panesOf, type Workspace, workspaceOf } from "olai-plugin-navigation/workspace"
+import { hrefOfWorkspace, lone, panesOf, type Workspace, workspaceOf } from "olai-plugin-navigation/workspace"
 
-import { type Dots, type Tab, TABS_KEY, type TabsState } from "./contract.ts"
+import type { Dots, Tab, TabsState } from "./contract.ts"
 import {
   closeOthers,
   closeTab,
@@ -39,7 +39,7 @@ import {
   type TabList,
   updateTab,
 } from "./list.ts"
-import { printStored, readStored } from "./persist.ts"
+import { printStored, readStored, TABS_KEY } from "./persist.ts"
 
 export interface TabsStore extends TabsState {
   /** Hold the front tab's lane in force while a strip draws the tabs on a
@@ -51,22 +51,20 @@ export interface TabsStore extends TabsState {
   readonly follow: () => () => void
 }
 
+/** What a workspace is called before its page says: a page's label, or a
+ *  split's leaves' labels joined. */
+export const labelOf = (routes: Navigation["routes"], workspace: Workspace): string =>
+  panesOf(workspace).map((pane) => routes.label(pane.route)).join(" + ")
+
 /**
- * What a workspace is called: the page's own title where the page in it
- * reported one (`live`, which is only true of the workspace being drawn), else
- * its label; a split's leaves' labels joined.
+ * What the lone page being drawn calls itself, once it has really said. A page
+ * mounts before it knows its name — no report, then its own address standing in
+ * for one (`/#p71164pu`), then the name — and only the last is a name.
  */
-export const titleOf = (
-  router: Pick<Navigation, "info" | "routes">,
-  workspace: Workspace,
-  live: boolean,
-): string => {
-  const panes = panesOf(workspace)
-  if (panes.length === 1) {
-    const reported = live ? router.info(0)?.title?.trim() : undefined
-    return reported !== undefined && reported !== "" ? reported : router.routes.label(panes[0]!.route)
-  }
-  return panes.map((pane) => router.routes.label(pane.route)).join(" + ")
+const reportedName = (router: Pick<Navigation, "info" | "routes">, workspace: Workspace): string | undefined => {
+  const [pane, ...more] = panesOf(workspace)
+  const title = router.info(0)?.title?.trim()
+  return more.length > 0 || pane === undefined || !title || title === router.routes.href(pane.route) ? undefined : title
 }
 
 export const createTabs = (router: Navigation): TabsStore => {
@@ -75,16 +73,15 @@ export const createTabs = (router: Navigation): TabsStore => {
   const preference = createPreference<string | null>(TABS_KEY, { parse: (raw) => raw, print: (raw) => raw })
   const hrefOf = (workspace: Workspace): string => hrefOfWorkspace(router.routes, workspace)
 
+  /** A tab holding `workspace`, named by its label until its page says. */
+  const tabFor = (id: string, workspace: Workspace): Tab =>
+    ({ id, href: hrefOf(workspace), title: labelOf(router.routes, workspace) })
+
   // READ ONCE, here. The address bar WINS over the stored front tab's page: a
-  // link somebody opened, or an address typed, is what the tab in front shows,
-  // and a reload writes that very address back anyway.
-  const stored = readStored(untrack(preference.value))
-  const drawing = untrack(router.workspace)
-  const first = nextId(undefined)
-  const initial: TabList = stored === undefined
-    ? { tabs: [{ id: first, href: hrefOf(drawing), title: titleOf(router, drawing, false) }], front: first }
-    : updateTab(stored, stored.front, { href: hrefOf(drawing), title: titleOf(router, drawing, false) })
-  const [list, setList] = createSignal<TabList>(initial)
+  // link somebody opened, or an address typed, is what the tab in front shows.
+  const here = tabFor(nextId(undefined), untrack(router.workspace))
+  const [list, setList] = createSignal<TabList>(
+    readStored(untrack(preference.value), here) ?? { tabs: [here], front: here.id })
 
   // EACH REGISTRATION IS ITS OWN ROW, released by the row rather than by the
   // value it carries: two strip activations hand over the same accessor
@@ -96,8 +93,9 @@ export const createTabs = (router: Navigation): TabsStore => {
   const dotted = createMemo<ReadonlyMap<string, string>>(() =>
     new Map(dots().flatMap(({ dots: one }) => [...one.ids()].map((id) => [id, one.paint] as const))))
 
-  /** Whether this store's lane is in force — between `takeLane` and its release. */
-  let laned = false
+  /** Whether a lane is in force — the router's own answer, and only this row
+   *  takes one. */
+  const laned = (): boolean => untrack(router.lane) !== null
 
   /**
    * THE ONE WAY THE LIST CHANGES. A verb hands over the list afterwards; what
@@ -117,8 +115,8 @@ export const createTabs = (router: Navigation): TabsStore => {
     setList(updateTab(next, before.front, { key: router.entryKey() }))
     const incoming = next.tabs.find((tab) => tab.id === next.front)!
     const workspace = workspaceOf(router.routes, incoming.href)
-    if (laned) {
-      const key = router.switchLane(incoming.id, workspace, incoming.key)
+    if (laned()) {
+      const key = router.switchLane(incoming.id, { workspace, key: incoming.key })
       setList((all) => updateTab(all, incoming.id, { key }))
     } else {
       // NOT DRIVEN — a phone, or no strip: the page is simply gone to, in the
@@ -127,11 +125,7 @@ export const createTabs = (router: Navigation): TabsStore => {
     }
   }
 
-  const home = (from: TabList) => (): Tab => ({
-    id: nextId(from),
-    href: router.routes.href(HOME_ROUTE),
-    title: router.routes.label(HOME_ROUTE),
-  })
+  const home = (from: TabList) => (): Tab => tabFor(nextId(from), lone(HOME_ROUTE))
 
   return {
     tabs: () => list().tabs,
@@ -140,10 +134,9 @@ export const createTabs = (router: Navigation): TabsStore => {
     dotted,
     open: (workspace, options) => {
       const from = untrack(list)
-      const id = nextId(from)
-      commit(openTab(from, { id, href: hrefOf(workspace), title: titleOf(router, workspace, false) },
-        options?.behind === true && untrack(drawn)))
-      return id
+      const tab = tabFor(nextId(from), workspace)
+      commit(openTab(from, tab, options?.behind === true && untrack(drawn)))
+      return tab.id
     },
     show: (id) => commit(showTab(untrack(list), id)),
     step: (delta) => commit(stepFront(untrack(list), delta)),
@@ -172,35 +165,25 @@ export const createTabs = (router: Navigation): TabsStore => {
       // not driven, so Back there is the window's — across a reload too — and
       // the first lane taken on a desk adopts whatever the window wrote meanwhile.
       createEffect(on(drawn, (desk) => {
-        if (desk === laned) return
-        laned = desk
-        const front = untrack(list).front
-        const key = router.switchLane(desk ? front : null, untrack(router.workspace), router.entryKey())
-        setList((all) => updateTab(all, front, { key }))
+        if (desk !== laned()) router.switchLane(desk ? untrack(list).front : null)
       }))
       return () => {
         dispose()
-        if (!laned) return
-        laned = false
-        router.switchLane(null, untrack(router.workspace), router.entryKey())
+        if (laned()) router.switchLane(null)
       }
     }),
     follow: () => createRoot((dispose) => {
       createEffect(() => {
         const workspace = router.workspace()
         const href = hrefOf(workspace)
-        const title = titleOf(router, workspace, true)
+        const reported = reportedName(router, workspace)
+        const label = labelOf(router.routes, workspace)
+        // A TAB COMING BACK KEEPS ITS NAME while its page arrives, rather than
+        // flickering through its stand-ins; only a page at a new address takes
+        // its label before it has a real name.
         setList((all) => {
           const front = all.tabs.find((tab) => tab.id === all.front)
-          // A TAB COMING BACK KEEPS ITS NAME while its page arrives. The page
-          // mounts before it knows what it is called — no report at all, then
-          // its own address as a stand-in (`/#p71164pu`), then the name — and
-          // redrawing each of those on the tab that was just pressed is a
-          // flicker, not news. Only a page at a new address takes a new name
-          // before it has a real one.
-          const provisional = !router.info(0)?.title || title.startsWith("/")
-          const kept = front !== undefined && front.href === href && provisional ? front.title : title
-          return updateTab(all, all.front, { href, title: kept })
+          return updateTab(all, all.front, { href, title: reported ?? (front?.href === href ? front.title : label) })
         })
       })
       // A WRITE ONLY WHEN WHAT IS KEPT CHANGES. The front tab's address and
