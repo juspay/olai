@@ -14,10 +14,11 @@
  *
  * No `@odu/*`-shaped client package: Himalaya publishes no client library this
  * repo could consume and no MCP face a conversation could dial, so the plugin
- * shells out to one absolute path the Nix build baked (`nix/himalaya.nix`) and
- * nothing of Himalaya is imported here. That is why PR 2's tools are this
- * plugin's own rather than a projection of somebody else's real code, and it is
- * the only reason this package has a `himalaya/` directory at all.
+ * shells out to one absolute path the plugin's own Nix half baked (see
+ * `../default.nix`) and nothing of Himalaya is imported here. That is why PR
+ * 2's tools are this plugin's own rather than a projection of somebody else's
+ * real code, and it is the only reason this package has a `himalaya/`
+ * directory at all.
  *
  * The wire identity is re-exported rather than restated: `name` is the sibling
  * key, the panel row id, the docs slug and the word a vault's row selection

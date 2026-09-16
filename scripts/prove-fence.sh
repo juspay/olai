@@ -119,8 +119,20 @@ container=$(
   for m in $plugins; do dirname "$m"; done | sort | uniq -c | sort -rn | head -n 1 | awk '{print $2}'
 )
 plugins=$(for m in $plugins; do if [ "$(dirname "$m")" = "$container" ]; then echo "$m"; fi; done)
-plugin_a=$(echo "$plugins" | sed -n 1p)
-plugin_b=$(echo "$plugins" | sed -n 2p)
+# `$plugin_a`/`$plugin_b` are the two the mutations APPEND to, which needs
+# both halves: mutations 3/4/6 plant in `src/browser.tsx`, mutations 7/8/16
+# in `src/server.ts`. A BROWSER-ONLY plugin (`alerts`, a `browserOnly` row
+# with no server half) was the first alphabetically and took `plugin_a`,
+# turning the `src/server.ts` guard below into this script's own refusal to
+# start. So the pair is derived from the servers AND browsers that both
+# exist, the same way `tenant_a` derives from `src/wire.ts` — derived still,
+# and the guard below is what turns "have a server but no browser" into a
+# diagnostic rather than a `cp` dying mid-run.
+plugin_cands=$(for m in $plugins; do
+  if [ -f "$m/src/server.ts" ] && [ -f "$m/src/browser.tsx" ]; then echo "$m"; fi
+done)
+plugin_a=$(echo "$plugin_cands" | sed -n 1p)
+plugin_b=$(echo "$plugin_cands" | sed -n 2p)
 # ...AND THE FIRST OF THEM THAT COMPOSES A SIBLING SURFACE, which is what a
 # `src/wire.ts` is.
 #

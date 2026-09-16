@@ -46,11 +46,13 @@ default:
 check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module plugin-fold mail-surface
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
-# The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
-# tests (packages/plugins/pi/acp/mcp-bridge) resolve the SDK from ITS lockfile, not the root's
-# bun one — and `bun test` discovers them with everything else, so a fresh
-# machine's first `just test` needs both trees standing. It is the same
-# lockfile the FOD builds from; nothing here drifts.
+# The acp/ adapter's `npm ci` is the pi engine's half — the MCP bridge's tests
+# (packages/plugins/pi/acp/mcp-bridge) resolve the SDK from ITS lockfile, not the root's
+# bun one, and `bun test` discovers them with everything else, so a fresh
+# machine's first `just test` needs both trees standing. Every plugin declares
+# its own `npmTrees` in its `default.nix`; the fold renders them into ONE
+# `devInstallScript`, exported here as `$OLAI_PLUGIN_INSTALL`, so this recipe
+# names no plugin directory by hand.
 # `npm ci` is announced on stderr before it starts, then run with
 # `--loglevel=http`: `nix develop -c` is not a TTY, so npm turns progress
 # off and notice-level is silent until "added N packages in 5m" — a cold
@@ -83,8 +85,6 @@ check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-ch
 [doc("Install dependencies and generate pinned sources and assets")]
 install:
     {{ nix_shell }} sh -c 'bun install --frozen-lockfile \
-      && echo >&2 "cd acp && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund" \
-      && (cd acp && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund) \
       && sh $OLAI_PLUGIN_INSTALL \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_CORDIS_HYDRATE \
@@ -257,8 +257,9 @@ plugin-checks:
 # the verbs in that table, because that is the only way a scenario can state
 # what it expects — so a `gmail` subcommand clap renamed would be green in
 # every leg here and, in a packaged olai, be a mail row that refuses with a
-# sentence nobody can act on. The check runs the BUILT binary (nix/himalaya.nix,
-# from npins/sources.json) and names the verb that stopped answering.
+# sentence nobody can act on. The check runs the BUILT binary (the mail
+# plugin's `default.nix`, from npins/sources.json) and names the verb that
+# stopped answering.
 #
 # NO [metadata("ci")] HERE EITHER, and for the same structural reason: `check`
 # is the tagged root, odu expands the leaves it names, and a tag on this one
@@ -353,28 +354,24 @@ run dir="docs" *args: build-client
 # node_modules meet outside the dev shell, and running it is what proves that
 # tree's module graph resolves — a typecheck cannot, because the dev tree has
 # packages the build's does not. The run re-uses the build's output (it
-# re-evaluates the flake, which is cheap and warm). The recipe enters the
-# shell because the knob assertions below need `jq` (the fold's `knobs` JSON
-# is what feeds them, and jq lives in the shell).
+# re-evaluates the flake, which is cheap and warm). The recipe reads the
+# fold's `knobsTable` — a TAB-SEPARATED text rendering in the flake, no dev
+# shell needed — so a knob failure names the variable without shell quoting.
 [doc("Build and verify the Nix-packaged binary")]
 nix:
     #!/usr/bin/env bash
     set -euo pipefail
-    JQ=$({{ nix_shell }} which jq | tail -1)
     out=$(sh scripts/nix-out.sh .#olai)
     echo >&2 "nix run .#olai -- --help"
     nix run .#olai --accept-flake-config -- --help > /dev/null
     # EVERY DECLARED KNOB, asserted of the wrapper the build actually ships.
-    # The fold's `knobs` (read as JSON through `.#olai.passthru.knobs`) names
-    # each variable's kind (`file` or `dir`), path, and — for a `dir` — the
-    # default.nix (their plugins' `default.nix` files now declare them);
-    # everything else arrives here by composition.
-    json=$(nix eval --json .#olai.passthru.knobs --accept-flake-config)
-    while IFS= read -r entry; do
-      name=$(printf '%s' "$entry" | "$JQ" -r '.name')
-      kind=$(printf '%s' "$entry" | "$JQ" -r '.kind')
-      path=$(printf '%s' "$entry" | "$JQ" -r '.path')
-      holds=$(printf '%s' "$entry" | "$JQ" -r '.holds // ""')
+    # The fold's `knobsTable` (read as raw text through
+    # `.#olai.passthru.knobsTable`) names each variable's kind (`file` or
+    # `dir`), path, and — for a `dir` — the executable it should hold.
+    table=$(nix eval --raw .#olai.passthru.knobsTable --accept-flake-config)
+    keys=""
+    while IFS=$'\t' read -r name kind path holds; do
+      keys="$keys $name"
       # The one-dash `${VAR-...}` is asserted, and it is load-bearing: it
       # substitutes only when the variable is UNSET, which is what makes an
       # empty command skip the packaged default and leave search-path
@@ -408,12 +405,12 @@ nix:
           echo "packaged ${name}: $default"
           ;;
       esac
-    done < <(printf '%s' "$json" | "$JQ" -c 'to_entries[] | .value + {name: .key}')
+    done <<< "$table"
     # The `OLAI_WRAPPER_DEFAULTS` `--run` must name exactly the declared set —
     # the settings panel's 'wrapper-provided' label is this loop's answer.
     # The names arrive from the fold, not from a hard-coded list, so the
     # loop's own answer to "wrapper-provided?" is compositional.
-    keys=$(printf '%s' "$json" | "$JQ" -r 'keys | join(" ")')
+    keys=$(echo "$keys" | xargs)  # strip leading/trailing whitespace
     if ! grep -qF "for key in $keys" "$out/bin/olai"; then
         echo "the wrapper's OLAI_WRAPPER_DEFAULTS loop does not name the fold's knobs: $keys" >&2
         cat "$out/bin/olai" >&2
@@ -424,15 +421,17 @@ nix:
     # the literal text `export PATH="${<NAME>}""${PATH:+:$PATH}"` appears
     # once per knob, scanned for its two halves separately so the grep
     # pattern itself never has to escape a `$` the justfile would.
-    printf '%s' "$json" | "$JQ" -r 'to_entries[] | select(.value.kind == "dir") | .key' | while read -r name; do
-        # The literal text scanned for is `export PATH="${NAME}""${PATH:+:$PATH}"`;
-        # the bash string `\$` escapes every dollar so grep sees the file's
-        # own spelling rather than an interpolated value.
-        if ! grep -qF "export PATH=\"\${${name}}\"\"\${PATH:+:\$PATH}\"" "$out/bin/olai"; then
-            echo "the wrapper names $name but never splices it onto PATH —" >&2
-            echo "the probe would resolve nothing. Wrapper:" >&2
-            cat "$out/bin/olai" >&2
-            exit 1
+    printf '%s' "$table" | cut -f1,2 | while IFS=$'\t' read -r name kind; do
+        if [ "$kind" = "dir" ]; then
+            # The literal text scanned for is `export PATH="${NAME}""${PATH:+:$PATH}"`;
+            # the bash string `\$` escapes every dollar so grep sees the file's
+            # own spelling rather than an interpolated value.
+            if ! grep -qF "export PATH=\"\${${name}}\"\"\${PATH:+:\$PATH}\"" "$out/bin/olai"; then
+                echo "the wrapper names $name but never splices it onto PATH —" >&2
+                echo "the probe would resolve nothing. Wrapper:" >&2
+                cat "$out/bin/olai" >&2
+                exit 1
+            fi
         fi
     done
 

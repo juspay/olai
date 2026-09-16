@@ -2489,10 +2489,10 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     "nix/kolu.nix": ["kolu", "mcp"],
     "// justfile": "kolu-deps names the framework pin (a word the tenant shares); git/odu/mail are tool or feature words, files/pins are recipe names",
     "justfile": ["git", "kolu", "odu", "mail", "files", "pins"],
-    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary",
-    "default.nix": ["kolu", "pins"],
-    "// flake.nix": "the flake re-exports plugin Nix halves as flake outputs (claude-agent, codex-agent, odu, etc.); kolu is the npins source name",
-    "flake.nix": ["claude", "codex", "kolu", "odu"],
+    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary; mail IS the word the himalaya-bin throw spells",
+    "default.nix": ["kolu", "mail", "pins"],
+    "// flake.nix": "the flake folds plugin Nix halves as flake outputs through the fold (kolu is the npins source name)",
+    "flake.nix": ["kolu"],
     "// packages/bundle/default.nix": "the bundle fold names the framework's surface pin and the bundle's pin vocabulary",
     "packages/bundle/default.nix": ["kolu", "pins"],
     "// packages/bundle/nix/fold-check.nix": "asserts fixture containers named after bundle vocabulary",
@@ -2510,6 +2510,10 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     "scripts/test-shard.sh": ["git", "odu", "files"],
     "// shell.nix": "exposes kolu-hydrate pins and the vault's workspace import",
     "shell.nix": ["vault", "kolu", "pins"],
+    "// packages/tests/support/hooks.ts": "the e2e harness's per-tag setup spells the plugins its scenario tags drive (`@alerts`, `@markdown-paints`) and the tool suites it exercises (git, files, search, capture); section 13.3's prove-fence mutations land here, so it is checked, not blanked",
+    "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "files", "capture", "markdown"],
+    "// packages/tests/support/workers.ts": "the e2e harness's worker driver spells the plugins it routes to as recorded equalities",
+    "packages/tests/support/workers.ts": ["git", "odu", "mail"],
   }
 
 
@@ -2555,6 +2559,7 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     // `./himalaya/verbs.ts`, surfaced only because just's namespace has to
     // reach a script that calls a Nix build.
     const PATH_ALLOWED: Record<string, true> = {
+      "default.nix": true,
       "packages/bundle/default.nix": true,
       "scripts/cordis-graph.ts": true,
       "scripts/check-himalaya-surface.ts": true,
@@ -2580,11 +2585,13 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     // The equality claim, over every corpus file at once so one moved file
     // cannot mask a second breach: what a file spells is either in its record
     // or it is red. `\b`-free SHOUT is what lets `OLAI_ODU_BIN` (a variable)
-    // count as the word `odu`. The six harness files below are excluded from
-    // this claim — their whole vocabulary is plugin-shaped (a step definition
+    // count as the word `odu`. The remaining harness files below are excluded
+    // from this claim — their whole vocabulary is plugin-shaped (a step
+    // definition names the plugin it drives, and the engine fakes spell the
+    // engines they are fakes OF) — while hooks.ts and workers.ts are checked
+    // with their own ALLOWED records above, because section 13.3's
+    // prove-fence mutations land there.
     const HARNESS: Record<string, true> = {
-      "packages/tests/support/hooks.ts": true,
-      "packages/tests/support/workers.ts": true,
       "packages/tests/support/fake.ts": true,
       "packages/tests/agent/scripted-acp.ts": true,
       "packages/tests/agent/command.ts": true,

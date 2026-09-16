@@ -2,7 +2,7 @@
 
 olai's own judgement **about a Gmail mailbox**, in the one place that is neither Gmail nor core. Phase 1 is Connect: a serve holds one account, an OAuth refresh token lives in core's memory door, and the header pill says which mailbox it is reading.
 
-There is no appliance-client package one floor down, and that is the shape of this tenant rather than a phase not yet reached: [Himalaya](https://github.com/pimalaya/himalaya) publishes no client library this repository could consume and no MCP face a conversation could dial, so [`src/himalaya/`](src/himalaya/) is a frozen verb table, a generated config and a spawn — and NOTHING of Himalaya is imported here. The binary is a resource the Nix build owns (`nix/himalaya.nix`, baked on the wrapper as `OLAI_HIMALAYA`); the plugin names it through `env.vars` and never resolves it.
+There is no appliance-client package one floor down, and that is the shape of this tenant rather than a phase not yet reached: [Himalaya](https://github.com/pimalaya/himalaya) publishes no client library this repository could consume and no MCP face a conversation could dial, so [`src/himalaya/`](src/himalaya/) is a frozen verb table, a generated config and a spawn — and NOTHING of Himalaya is imported here. The binary is the plugin's own Nix half (`default.nix`, baked on the wrapper as `OLAI_HIMALAYA`); the plugin names it through `env.vars` and never resolves it.
 
 The user page is [`docs.md`](docs.md), served at `docs/plugins/mail.md`.
 

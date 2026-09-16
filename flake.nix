@@ -69,14 +69,6 @@
         in
         builtins.seq clash (bundle.packages // {
           inherit (olai) olai olai-client olai-fonts base himalaya-bin;
-          # The ACP adapters are plugins now — claude, pi and codex each export
-          # their own package through the fold (`claude-agent`, `pi-agent`,
-          # `codex-agent`). These two are the HISTORICAL output names the docs
-          # and the dev loop used: `acp-agent` is the Claude adapter and
-          # `codex-agent` the codex one, both still the same derivations.
-          acp-agent = bundle.packages.claude-agent or null;
-          codex-agent = bundle.packages.codex-agent or null;
-          odu = bundle.packages.odu or null;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
           # lockfile-derived nix expression (`just regenerate-bun-nix`).

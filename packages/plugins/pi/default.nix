@@ -9,14 +9,14 @@
 #
 # The knob `OLAI_ACP_PI` is a `file` the fold bakes into the `olai` wrapper with
 # `--set-default`, and the package `pi-agent` is what the fold exports as a
-{ pkgs, pins, kit, b2n ? null, acpShim, ... }:
+{ pkgs, pins, kit, b2n ? null, ... }:
 let
   lib = pkgs.lib;
 
 
   # `mods` is the shim's installed node_modules — the same literal the build's
   # postInstall spells against (`$out` being the shell's build output).
-  mods = "$out/lib/node_modules/olai-acp/node_modules";
+  mods = "$out/lib/node_modules/olai-acp-pi/node_modules";
 
   # THE OTHER HALF OF PI'S PATCH: the extension pi loads and the vocabulary
   # module it shares with the pin's test rig. Installed one directory up from
@@ -28,16 +28,13 @@ let
 
   adapter = kit.npmAdapter {
     name = "olai-acp-pi";
-    # The shared `acp/` shim at the repo root: one lockfile, one FOD, one
-    # npmDepsHash for the Claude and Pi adapters both.
-    shim = acpShim;
-    shimName = "olai-acp";
-    # tracks acp/package.json: @agentclientprotocol/claude-agent-acp + pi-acp
-    version = "0.73.0+pi-0.0.33";
+    shim = ./acp/shim;
+    shimName = "olai-acp-pi";
+    version = "0.0.33";
     package = "pi-acp";
     entry = "dist/index.js";
     bin = "pi-acp";
-    npmDepsHash = "sha256-AQw99ESOzQALZWKYIhe18WKWXjql07WGow/eAnFJeLg=";
+    npmDepsHash = "sha256-AQW+KKIHTMfTKtr7VooOswlpVDVwj6diicoKR+c5vcY=";
     # This plugin's patches, beside the sources they are generated from.
     patches = ./acp/patches;
     # esbuild bundles the MCP bridge into one self-contained file (below),
@@ -67,6 +64,10 @@ let
   };
 in
 {
+  # `npmTrees` names the shim dir `just install` runs npm ci in — the mcp
+  # bridge's tests resolve the SDK from THIS shim's node_modules, not the
+  # root's (see the roundtrip test's pinned() path).
+  npmTrees = [ "acp/shim" ];
   # THE PI ROW'S EXECUTABLE RESOURCE. `file` kind: the knob points at the
   # wrapper itself, so the `just nix` lane can assert it is executable.
   knobs.OLAI_ACP_PI = {

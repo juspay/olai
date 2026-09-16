@@ -16,11 +16,11 @@
 #
 # `b2n` must be a real `bun2nix` package (the CLI derivation with `hook` and
 # `fetchBunDeps` on passthru). The fold's `contract` door passes it through only
-# when the root asks for the real package; on the fold-check and shell paths
-# it is `null` and both `bin` and `checks` short-circuit to never-tested
-# stubs — the shell reads odu's `hydrate`/`externals`/`knobs`/`generated` for
-# facts only, never to build. `b2n == null` forces `bin` and `checks` to the
-# same standing-answer the root uses to keep shell eval lazy.
+# it is `null`, and `checks` short-circuits to never-tested `{ }` while `bin`
+# throws the moment it is forced — the shell reads odu's
+# `hydrate`/`externals`/`knobs`/`generated` for facts only, never to build,
+# so the throw never cascades from `nix develop`. Forcing `bin` on
+# `b2n == null` is a loud refusal, not an empty dir.
 #
 # `odu` is `packages/plugins/odu/default.nix` (the fold discovers it by the
 # `default.nix` filename), not `nix/odu.nix`; the old path is gone with this
@@ -37,10 +37,15 @@ let
   # be substituted for odu's own pinned one: the build hydrates @kolu/* sources
   # from the overlay odu's nixpkgs import applies, and the revisions those
   # resolve to are the pin's business, not this tree's. `b2n` not supplied
-  # short-circuits to a stub — the dev shell never builds odu.
+  # is NOT a stub: a `dir` knob pointing at an empty directory would be a
+  # silent lie — the wrapper would splice `bin` onto PATH and guard a
+  # nonexistent executable. So the shell may carry `b2n == null` lazily, but
+  # the moment anything forces `bin` (the knob's `.path`, the `odu` package,
+  # a surface check) it throws, naming `b2n`, rather than shipping an empty
+  # dir.
   bin =
     if b2n == null then
-      pkgs.runCommand "olai-odu-bin-stub" { } "mkdir -p $out"
+      throw "odu plugin: b2n is null — this plugin builds only in the flake, not the dev shell"
     else
       (import "${src}/default.nix" {
         pkgs = import "${src}/nix/nixpkgs.nix" {
@@ -49,7 +54,6 @@ let
         inherit b2n;
         selfFlake = "${src}";
       }).odu;
-
   mark = kit.mark {
     svg = "${src}/logo.svg";
     revision = src.revision;

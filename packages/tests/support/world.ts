@@ -1426,15 +1426,11 @@ export class OlaiWorld extends World {
   hasAgent = true;
 
 
-  /** Whether this scenario's host is running kolu (`@kolu`), so its sessions
-   *  are handed kolu's terminals as well as olai's own tools. Carried for the
-   *  same reason again: a restart has to reproduce the first boot. */
-  hasKolu = false;
   /** `@padi:<fleet>`: which fleet this scenario's own padi is serving, or
    *  `undefined` for every scenario without one — whose server derives the
-   *  rendezvous path, finds nothing, and reports `absent`. Carried on the world
-   *  for `hasKolu`'s reason: a restart has to reproduce the first boot, and the
-   *  socket is passed at spawn. */
+   *  rendezvous path, finds nothing, and reports `absent`. Carried on the
+   *  world so a restart reproduces the first boot, and the socket is passed
+   *  at spawn. */
   padiFleet: string | undefined = undefined;
   /** The padi this scenario spawned, so the After hook can stop it. One per
    *  scenario, never shared: a fleet is a world, and two scenarios sharing one
@@ -1462,40 +1458,18 @@ export class OlaiWorld extends World {
    *  about what a connect would need — a scenario of its own, and the reason
    *  this is a tag rather than a default. Carried for a restart's reason. */
   mailDoors = false;
-  /** `@opencode`: this scenario's machine HAS opencode, so its server's roster
-   *  is two agents and the panel asks which one a conversation is with. Every
-   *  other scenario's agent search path is empty — see `hooks.ts`. */
-  hasOpencode = false;
-  /** `@pi`: this scenario's machine HAS pi — the stub the roster's probe
-   *  finds — and its server is pointed at the scripted adapter beside it.
-   *  Same reasoning as the row above: which agents a server finds decides
-   *  whether its panel asks, so it is a property of the scenario. */
-  hasPi = false;
-  /** `@omp`: this scenario's machine HAS Oh My Pi — a runnable `omp` on the
-   *  agent search path, which is the whole row (it ships its own ACP server and
-   *  MCP client, so there is no adapter half). Same reasoning as the two rows
-   *  above. */
-  hasOmp = false;
-  /** The Codex roster row, using the scripted ACP transport. */
-  hasCodex = false;
   /** The engine words this scenario's tags voted for (`@<word>` for each
    *  roster row) — the roster fold this boot's fakes came from, carried so a
    *  restart reproduces the same boot. The ONE shape the spawn and the
    *  fingerprint read, so neither names an engine. */
   fakes: ReadonlyArray<string> = [];
-  /** Read the roster's vote list into this scenario's per-engine booleans.
-   *  The words are this file's to spell — the booleans ARE the words, as
-   *  fields — so the harness's `hooks.ts` stays free of them (section 13.3's
-   *  fence): it hands the list over and never reads one back. The fields stay
-   *  public because a step still flips one directly (`this.hasOpencode =
-   *  false`), which is a scenario changing its mind, not a vote. */
+  /** Read the roster's vote list into the word list the restarter replays.
+   *  Nothing else is set: the spawn reads `fakes` and the fingerprint reads
+   *  `fakes`, and the harness's `hooks.ts` never spells an engine's name
+   *  (section 13.3's fence). A step that changes its mind mid-scenario
+   *  removes the word from `fakes` directly. */
   voteFakes(fakes: ReadonlyArray<string>): void {
     this.fakes = fakes;
-    this.hasKolu = fakes.includes("kolu");
-    this.hasOpencode = fakes.includes("opencode");
-    this.hasPi = fakes.includes("pi");
-    this.hasOmp = fakes.includes("omp");
-    this.hasCodex = fakes.includes("codex");
   }
   /** Repository condition, reproduced when the scenario restarts its server. */
   gitMode?: GitMode;

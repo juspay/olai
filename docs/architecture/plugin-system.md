@@ -959,14 +959,14 @@ name:
 | `generated` | files written into the plugin's own tree; the path must contain `.generated.` |
 | `npmTrees` | directories `just install` runs `npm ci` in, for a node_modules a test resolves |
 | `knobs` | the executable variables the packaged wrapper bakes as `--set-default` (the engine rows: `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`, `OLAI_ODU_BIN`) |
-| `packages` | flake outputs this plugin contributes (`acp-agent`, `codex-agent`, `odu-bin`, …) |
+| `packages` | flake outputs this plugin contributes (`claude-agent`, `pi-agent`, `codex-agent`, `odu-bin`, …) |
 | `checks` | checks that need the built tree, as `checks.<system>.plugin-<name>-<check>` |
 
-This is the engine's binary door: what `nix acp-agent.nix` used to build from
-the root is now the engine's own `default.nix` reaching
-`@olai/plugin-kit`'s `npmAdapter` (or `acp/default.nix`), and a generated mark
-or pin is that plugin's `generated`/`packages` entry. Nothing outside the
-plugin's directory names any of it.
+This is the engine's binary door: an engine's adapter is built by its own
+`default.nix` reaching `@olai/plugin-kit`'s `npmAdapter` (or by
+`acp/default.nix`, as Codex keeps), and a generated mark or pin is that
+plugin's `generated`/`packages` entry. Nothing outside the plugin's directory
+names any of it.
 
 ### 8. If the plugin is an engine: `e2e/fake/`
 

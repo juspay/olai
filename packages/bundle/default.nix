@@ -33,12 +33,6 @@
 , containerDir ? ../plugins
 , containerInTree ? "packages/plugins"
 , extraKnobNames ? [ ]
-  # The ACP shim lives at the repo root (`acp/`), one lockfile the Claude and
-  # Pi plugins' `default.nix` files both build their adapters from. A plugin
-  # reaches outside its own directory through an ARGUMENT, never a `../..`
-  # literal — `containerDir` is staged as its own store path (`/nix/store/
-  # <hash>-plugins/`), so a relative reach past it falls off the staged tree.
-, acpShim ? ../../acp
 }:
 
 let
@@ -68,7 +62,7 @@ let
     (name:
       let
         dir = "${containerDir}/${name}";
-        raw = import "${dir}/default.nix" { inherit pkgs pins kit b2n acpShim; };
+        raw = import "${dir}/default.nix" { inherit pkgs pins kit b2n; };
       in
       { inherit name; value = { inherit dir raw; }; })
     withDoor);
@@ -121,8 +115,6 @@ let
       { union = { }; owners = { }; collisions = [ ]; }
       pluginNames;
 
-  unionOf = attr: (attrUnion attr).union;
-
   # Hydrate dest collisions (the collision is over the COPY DESTINATION —
   # two plugins copying sources into one node_modules dir is an atomic
   # ownership claim broken in two).
@@ -167,16 +159,52 @@ let
     (name: d: kit.contract { inherit name; dir = d.dir; contract = d.raw; })
     pluginsData;
 
+
+  # The VALUES path folds the VALIDATED contracts (`contracts`), not `raw`:
+  # the root composes what the strict door guarantees, so a value-shape error
+  # (a wrong `holds` kind, …) is caught before it ships. This mirrors
+  # `attrUnion` above, which the PURE `diagnostics` path keeps on `raw` so a
+  # check can read a refusal without forcing a `throw` (fold-check.nix). A
+  # union's collision rows are the same on both paths — validation checks
+  # shapes, never renames keys.
+  unionFromContracts = attr:
+    builtins.foldl'
+      (acc: name:
+        let
+          contrib = contracts.${name}.${attr} or { };
+          dups = builtins.attrNames (builtins.intersectAttrs contrib acc.owners);
+        in
+        {
+          union = acc.union // contrib;
+          owners = acc.owners //
+            builtins.listToAttrs (map (k: { name = k; value = name; })
+              (builtins.attrNames contrib));
+          collisions = acc.collisions
+            ++ map
+            (k: {
+              inherit attr k;
+              owners = [ acc.owners.${k} name ];
+              message = "registry fold: ${attr} '${k}' is claimed by both '${acc.owners.${k}}' and '${name}'";
+            })
+            dups;
+        })
+      { union = { }; owners = { }; collisions = [ ]; }
+      pluginNames;
+
+  unionOfContracts = attr: (unionFromContracts attr).union;
+
   # The merged per-plugin contributions (each refuses the whole fold on a collision).
-  knobs = refuse (unionOf "knobs");
-  packages = refuse (unionOf "packages");
-  externals = refuse (unionOf "externals");
-  koluPins = refuse (unionOf "koluPins");
+  knobs = refuse (unionOfContracts "knobs");
+  packages = refuse (unionOfContracts "packages");
+  externals = refuse (unionOfContracts "externals");
+  koluPins = refuse (unionOfContracts "koluPins");
 
   koluSeeds = refuse (builtins.concatLists
     (builtins.attrValues (builtins.mapAttrs (name: c: c.koluSeeds or [ ]) contracts)));
   npmTrees = refuse (builtins.concatLists
-    (builtins.attrValues (builtins.mapAttrs (name: c: c.npmTrees or [ ]) contracts)));
+    (builtins.attrValues (builtins.mapAttrs (name: c:
+      map (dir: "${name}/${dir}") (c.npmTrees or [ ])
+    ) contracts)));
 
   # `generated` is keyed by the PLUGIN-PREFIXED path — two plugins may both
   # ship `src/browser/mark.generated.ts`, and the prefix is what makes the union
@@ -190,7 +218,16 @@ let
           (contracts.${name}.generated or { }))
       pluginNames));
 
-  hydrate = refuse (map (h: { src = h.src; dest = h.dest; }) hydrateItems);
+  # `hydrate` fold from the VALIDATED contracts (same reasoning as
+  # `unionOfContracts`); the `hydrateItems` collision diagnostic above stays on
+  # `raw` so fold-check.nix reads refusals without forcing a `throw`.
+  hydrateItemsFromContracts = builtins.concatMap
+    (name: map
+      (h: { inherit name; dest = h.dest; src = h.src; })
+      (contracts.${name}.hydrate or [ ]))
+    pluginNames;
+
+  hydrate = refuse (map (h: { src = h.src; dest = h.dest; }) hydrateItemsFromContracts);
 
   # The `checks` contract attr is a function `{ tree } -> attrset`. Fold across
   # plugins, prefixing each check `plugin-<name>-<check>` so two plugins cannot
@@ -228,8 +265,8 @@ let
   devInstallScript = pkgs.writeShellScript "olai-plugin-dev-install"
     (lib.concatMapStringsSep "\n"
       (dir:
-        "echo >&2 \"cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund\"\n"
-          + "cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund")
+        "echo >&2 \"(cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund)\"\n"
+          + "(cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund)")
       npmTrees
     + (if npmTrees == [ ] then "" else "\n")
     + "sh ${hydrateScript}");
@@ -257,4 +294,5 @@ in
   # Everything the root composes reads the fold:
   inherit hydrate hydrateScript devInstallScript externals koluSeeds koluPins knobs packages checks devEnv generated;
   wrapperArgs = knobShell.wrapperArgs;
+  knobsTable = knobShell.knobsTable;
 }

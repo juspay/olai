@@ -49,7 +49,6 @@ pkgs.mkShell {
     # gone with the fold; the odu plugin's own `default.nix` names them.
     OLAI_PLUGIN_INSTALL = bundle.devInstallScript;
     OLAI_PLUGIN_EXTERNALS = builtins.toJSON bundle.externals;
-    OLAI_PLUGIN_ENV = "${bundle.devEnv}";
 
     # CORDIS, the same two ways as the fold's: the argv for kolu's copier —
     # FOUR (src, dest) pairs on one line, because the four packages come out

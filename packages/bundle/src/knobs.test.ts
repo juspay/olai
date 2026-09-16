@@ -39,7 +39,7 @@ type ManifestKnobs = Readonly<Record<string, Record<string, unknown>>>
  *  wrong, but the list of executable resources may be empty if every entry
  *  uses a door const. That mirrors the contract the manifest names anyway:
  *  the knob manifest is the source of truth; `environment:` only echoes it. */
-function parseEnvironment(source: string): EnvDecl[] {
+function parseEnvironment(source: string, dir: string): EnvDecl[] {
   const match = /\benvironment:\s*\[([\s\S]*?)\]/.exec(source)
   if (!match) return []
   const body = match[1]
@@ -51,25 +51,50 @@ function parseEnvironment(source: string): EnvDecl[] {
     .filter((line) => line.startsWith("{") && line.endsWith("},"))
     .map((line) => JSON.parse(line.replace(/,\s*$/, "")) as EnvDecl)
   if (singleLine.length > 0) return singleLine
-  // Multi-line: find balanced `{…}` blocks; entries referencing a constant
-  // for `key` are skipped, because without a literal they cannot be a knob
-  // the manifest might be missing.
+  // Multi-line: find balanced `{…}` blocks; entries may reference a constant
+  // for `key` (e.g. `key: DOOR.himalaya`). Resolve `DOOR.xxx` by reading the
+  // plugin's `doors.ts` for the exported constant's string value. An
+  // unresolvable key is skipped — the test would have no knob to compare.
   const entries: EnvDecl[] = []
   const blockRe = /\{([\s\S]*?)\s*\}/g
   let m: RegExpExecArray | null
   while ((m = blockRe.exec(body)) !== null) {
     const text: string = m[1] ?? ""
-    const keyMatch = text.match(/\bkey:\s*"([^"]+)"/)
+    // Try literal first, then constant reference.
+    let key: string | undefined
+    const litMatch = text.match(/\bkey:\s*"([^"]+)"/)
+    if (litMatch) {
+      key = litMatch[1]!
+    } else {
+      const refMatch = text.match(/\bkey:\s*(\w+)\.(\w+)/)
+      if (refMatch) {
+        key = resolveDoor(refMatch[1]!, refMatch[2]!, dir)
+      }
+    }
+    if (!key) continue
     const secretMatch = text.match(/\bsecret:\s*(true|false)/)
     const saysMatch = text.match(/\bsays:\s*"([^"]*)"/)
-    if (!keyMatch || !saysMatch) continue
+    if (!saysMatch) continue
     entries.push({
-      key: keyMatch[1]!,
+      key,
       secret: secretMatch?.[1] === "true",
       says: saysMatch[1]!,
     })
   }
   return entries
+}
+
+/** Resolve a `DOOR.xxx` reference to its string value by reading the plugin's
+ *  `src/doors.ts` for the exported constant map. */
+function resolveDoor(ref: string, prop: string, dir: string): string | undefined {
+  const doorsPath = join(PLUGINS_ROOT, dir, "src", "doors.ts")
+  if (!existsSync(doorsPath)) return undefined
+  const source = readFileSync(doorsPath, "utf8")
+  // Look for the constant map: `export const DOOR = { ... }`
+  const mapMatch = new RegExp(`export\\s+const\\s+${ref}\\s*=\\s*\\{([^}]+)\\}`).exec(source)
+  if (!mapMatch) return undefined
+  const entryMatch = new RegExp(`\\b${prop}:\\s*"([^"]+)"`).exec(mapMatch[1]!)
+  return entryMatch?.[1]
 }
 
 /** Is this environment entry an executable resource (a knob candidate)?
@@ -84,7 +109,7 @@ function isExecutableResource(entry: EnvDecl): boolean {
   // Web origins, server URLs, search paths, sockets and credentials are not
   // executables; an `OLAI_*` non-secret variable that says it is one of those
   // is plain configuration, not a knob.
-  return !/(origin|to reach|containing|socket|credential)/i.test(entry.says)
+  return !/(origin|to reach|containing|socket|credential|oauth|client id|application)/i.test(entry.says)
 }
 
 /** The plugin directories of the tree, each with the plugin's own name. */
@@ -110,7 +135,7 @@ test("every plugin's olai.knobs equals the executable resources its server decla
     // refusal that names the plugin.
     if (knobKeys.length === 0) {
       if (existsSync(serverPath)) {
-        const resourceKeys = parseEnvironment(readFileSync(serverPath, "utf8"))
+        const resourceKeys = parseEnvironment(readFileSync(serverPath, "utf8"), dir)
           .filter(isExecutableResource)
           .map((e) => e.key)
           .sort()
@@ -128,7 +153,7 @@ test("every plugin's olai.knobs equals the executable resources its server decla
       `plugin "${dir}" declares olai.knobs ${JSON.stringify(knobKeys)} but has no src/server.ts`,
     ).toBe(true)
 
-    const resourceKeys = parseEnvironment(readFileSync(serverPath, "utf8"))
+    const resourceKeys = parseEnvironment(readFileSync(serverPath, "utf8"), dir)
       .filter(isExecutableResource)
       .map((e) => e.key)
       .sort()

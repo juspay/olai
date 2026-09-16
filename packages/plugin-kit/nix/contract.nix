@@ -42,7 +42,7 @@ let
     knobs = lib.types.attrsOf (lib.types.submodule {
       options.kind = lib.mkOption { type = lib.types.enum [ "file" "dir" ]; };
       options.path = lib.mkOption { type = lib.types.str; };
-      options.holds = lib.mkOption { type = lib.types.nullOr (lib.types.enum [ "file-or-dir" "dir" ]); };
+      options.holds = lib.mkOption { type = lib.types.nullOr lib.types.str; };
     });
     packages = lib.types.attrsOf lib.types.package;
     checks = lib.types.functionTo (lib.types.attrsOf lib.types.package);
@@ -142,10 +142,29 @@ in
     else
       check.config;
 
-  # The pure door: the whole list of problem messages, or [ ].
+  # The pure door: the whole list of problem messages, or [ ]. `check` is
+  # still forced so a value-shape error (a wrong `holds` kind, a `kind` that is
+  # neither `file` nor `dir`, …) surfaces here instead of silently passing the
+  # pure door and only exploding (or worse, not exploding) in the strict door.
   contractProblems = { name, dir, contract }:
     let
+      ps = problems { inherit name dir contract; };
       check = checkVals contract;
     in
-    problems { inherit name dir contract; };
+    # Run the type-checking machinery on a CLEAN contract — the `check` was
+    # computed but never forced, so option declarations undetected otherwise.
+    # Deliberately NOT realizing the evalModules `config`: on a BROKEN
+    # contract it throws "option does not exist" before `problems` can report
+    # the unknown key as a diagnostic, and on the shell path it realizes a
+    # knob's operational `path` (odu's `"${bin}/bin"` with `b2n == null`).
+    # So `ps` gates it — a broken contract returns its refusals as-is
+    # (fold-check / `diagnostics` read that list, never a `throw`), and only a
+    # valid one has the declared-type tree driven (which surfaces declaration
+    # / structural errors without touching values). VALUE shape errors inside
+    # an option surface from the strict `contract` door when the root composes
+    # the value, where `b2n` is real and realization is expected.
+    if ps == [ ] then
+      lib.seq check.options ps
+    else
+      ps;
 }

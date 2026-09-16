@@ -48,10 +48,10 @@
  * ## Why a script and not a test file
  *
  * The binary's path is a build artifact somebody must ask nix for: no `himalaya`
- * belongs on a developer's PATH or in the dev shell, and `nix/himalaya.nix`
- * builds the pin from `npins/sources.json` (Cargo, fenix, pimalaya), which is
- * not something a `bun test` run should pay. So the asking belongs in the
- * recipe (`just mail-surface`) that hands this script the directory, and it
+ * belongs on a developer's PATH or in the dev shell, and the mail plugin's
+ * `default.nix` builds the pin from `npins/sources.json` (Cargo, fenix, pimalaya),
+ * which is not something a `bun test` run should pay. So the asking belongs in
+ * the recipe (`just mail-surface`) that hands this script the directory, and it
  * takes exactly ONE argument — a directory holding `himalaya` — so a developer
  * can point it at a candidate pin by hand before moving the pin.
  *
@@ -116,7 +116,7 @@ if (version.error !== undefined || version.status !== 0) {
     `  where: ${binary}`,
     `  why:   ${version.error?.message ?? `exited ${version.status}`}`,
     "",
-    "This is the binary `nix/himalaya.nix` builds and `default.nix` bakes as",
+    "This is the binary the mail plugin's `default.nix` builds, baked as",
     "OLAI_HIMALAYA. If it is not there, the pin did not build; if it answered",
     "with a status, something other than Himalaya is standing at that path.",
   ])

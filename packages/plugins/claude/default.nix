@@ -12,7 +12,7 @@
 # The knob `OLAI_ACP_AGENT` is a `file` the fold bakes into the `olai` wrapper
 # with `--set-default`, exactly as it now does for every plugin knob, and the
 # flake output `.#acp-agent` (the historical name for "the Claude adapter") is
-{ pkgs, pins, kit, b2n ? null, acpShim, ... }:
+{ pkgs, pins, kit, b2n ? null, ... }:
 let
   lib = pkgs.lib;
 
@@ -22,20 +22,17 @@ let
   # `mods` is the shim's installed node_modules — the same literal the build's
   # postInstall spells against (`$out` being the shell's build output), so the
   # env arms the SDK binary at the path the build actually leaves.
-  mods = "$out/lib/node_modules/olai-acp/node_modules";
+  mods = "$out/lib/node_modules/olai-acp-claude/node_modules";
 
   adapter = kit.npmAdapter {
     name = "olai-acp-claude";
-    # The shared `acp/` shim at the repo root: one lockfile, one FOD, one
-    # npmDepsHash for the Claude and Pi adapters both.
-    shim = acpShim;
-    shimName = "olai-acp";
-    version = "0.73.0+pi-0.0.33";
+    shim = ./acp/shim;
+    shimName = "olai-acp-claude";
+    version = "0.73.0";
     package = "@agentclientprotocol/claude-agent-acp";
     entry = "dist/index.js";
     bin = "claude-agent-acp";
-    npmDepsHash = "sha256-AQw99ESOzQALZWKYIhe18WKWXjql07WGow/eAnFJeLg=";
-    # This plugin's patches, beside the sources they are generated from.
+    npmDepsHash = "sha256-UQE+Qt588t3x+0wW7WUZSwDhBakJ1uQv1rIysWOSZxI=";
     patches = ./acp/patches;
     # patchelf for the SDK's bun-compiled `claude`; only the interpreter may
     # be touched (see `@olai/plugin-kit`'s `npm-adapter.nix` header).

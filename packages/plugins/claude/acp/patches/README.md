@@ -11,16 +11,14 @@ documented way of starting olai — `nix run`, the packaged binary,
 `just serve`, `just run`, the e2e suite's `OLAI_BIN` — gets the same agent.
 
 **They sit in this plugin's directory rather than beside the shim**, and that
-is the agents phase: an engine is a plugin now, with its own release clock —
-this adapter's pin moved five times in a month and no other engine's did —
-so its patches and the sources they are generated from travel with it. What
-is still shared is the npm SHIM (`acp/package.json` and its lockfile, carried
-in the fold as `acpShim`) — one lockfile, the Claude and pi adapters, one
-fixed-output derivation — and `default.nix` names that shim in its call to
-`npm-adapter.nix`; this file is where the why-one-lockfile argument now lives,
-alongside the shim it argues for. The pi adapter's one patch is one directory
-over, in `packages/plugins/pi/acp/patches/`.
-
+is the isolation phase: an engine is a plugin now, with its own release clock
+— this adapter's pin moved five times in a month and no other engine's did —
+so its patches, their sources, and the npm SHIM all travel with it. This
+engine's shim is `acp/shim/` (`acp/shim/package.json` + its lockfile), its own
+because the engines now share no lockfile: `default.nix` beside this file
+names that shim in its call to `@olai/plugin-kit`'s `npm-adapter.nix`, and the
+adapter's one fixed-output derivation comes from it. The pi adapter's one
+patch and its own shim are one directory over in `packages/plugins/pi/acp/`.
 ---
 
 # `background-tasks-visible.patch` — a background task lives past its launch

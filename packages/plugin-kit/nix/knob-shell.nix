@@ -69,4 +69,12 @@ in
   devEnv = pkgs.lib.concatMapStringsSep "\n"
     (k: "export ${k}=\"\${${k}-${knobs.${k}.path}}\"")
     keys;
+
+  # The fold's knobs as TAB-SEPARATED lines — one `name\tkind\tpath\tholds`
+  # per knob — so `just nix` reads them with `while read` and never needs jq.
+  knobsTable = pkgs.lib.concatMapStringsSep "\n"
+    (k:
+      let d = knobs.${k};
+      in ''${k}	${d.kind}	${d.path}	${if (d.holds or null) == null then "" else d.holds}'')
+    keys;
 }

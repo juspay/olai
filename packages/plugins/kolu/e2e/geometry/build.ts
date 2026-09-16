@@ -1,11 +1,11 @@
 /** Build the chip-geometry harness — see `./harness.tsx`. One-off driver:
  *  `bun packages/plugins/kolu/e2e/geometry/build.ts <outdir>`.
  *
- *  The Solid transform and the Tailwind CLI are `@olai/web`'s devDependencies
- *  and this package is not `@olai/web`, so they are resolved FROM there rather
- *  than declared here: a throwaway evidence driver should not put three build
- *  tools in a test package's manifest. `createRequire` against web's own
- *  directory is the whole of that. */
+ *  The Solid transform and the Tailwind CLI are declared as devDependencies of
+ *  THIS package, at `@olai/web`'s pinned versions, so the harness builds with
+ *  the tools its own manifest names — `createRequire(import.meta.url)` against
+ *  this module's directory is the whole of the resolution, and there is no
+ *  reaching into another package's tree. */
 import { createRequire } from "node:module"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -16,12 +16,11 @@ import { scaleCss } from "@olai/appearance/scale.ts"
 import { sizeCss } from "@olai/appearance/sizes.ts"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const WEB = resolve(HERE, "../../web")
-const fromWeb = createRequire(join(WEB, "package.json"))
+const fromHERE = createRequire(import.meta.url)
 
-const { transformAsync } = fromWeb("@babel/core")
-const babelSolid = fromWeb("babel-preset-solid")
-const babelTypeScript = fromWeb("@babel/preset-typescript")
+const { transformAsync } = fromHERE("@babel/core")
+const babelSolid = fromHERE("babel-preset-solid")
+const babelTypeScript = fromHERE("@babel/preset-typescript")
 
 const out = resolve(process.argv[2] ?? join(HERE, "dist"))
 mkdirSync(out, { recursive: true })
@@ -53,7 +52,7 @@ if (!built.success) {
   throw new Error("the harness bundle failed")
 }
 
-const cli = fromWeb.resolve("@tailwindcss/cli/package.json").replace(
+const cli = fromHERE.resolve("@tailwindcss/cli/package.json").replace(
   /package\.json$/,
   "dist/index.mjs",
 )

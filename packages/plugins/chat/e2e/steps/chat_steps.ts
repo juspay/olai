@@ -3580,7 +3580,7 @@ Then(
  *  thing the `@opencode` tag decides, moved mid-scenario, which is what
  *  uninstalling an agent between two serves looks like from here. */
 When("opencode is no longer installed", function (this: OlaiWorld) {
-  this.hasOpencode = false;
+  this.fakes = this.fakes.filter((word) => word !== "opencode");
 });
 
 /**

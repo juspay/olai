@@ -45,6 +45,8 @@ for (const dir of membersOut.stdout.toString().split("\n")) {
       throw new Error(`${weightsFile}: weight for "${file}" must be a number`)
     if (file in seconds)
       throw new Error(`test "${file}" has a weight in both ${seconds[file].member} and ${dir}`)
+    if (!file.startsWith(dir + "/"))
+      throw new Error(`${weightsFile}: weight for "${file}" is not under ${dir}/`)
     seconds[file] = { member: dir, seconds: secs }
   }
 }

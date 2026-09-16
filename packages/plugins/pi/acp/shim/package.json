@@ -1,0 +1,12 @@
+{
+  "name": "olai-acp-pi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "pi's ACP adapter shim",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "pi-acp": "0.0.33",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "typebox": "1.3.20"
+  }
+}

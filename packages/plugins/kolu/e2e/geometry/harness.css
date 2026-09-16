@@ -11,7 +11,7 @@
  * That double-loaded every one of them, and — worse for a harness whose whole
  * job is measurement — it measured a CASCADE THE APP NO LONGER HAS. A geometry
  * shot is only evidence if the thing photographed is the thing that ships. */
-@import "../../web/src/client/styles.css";
+@import "../../../../web/src/client/styles.css";
 
 /* The harness's own components, which `styles.css` cannot see from here. */
 @source "./";

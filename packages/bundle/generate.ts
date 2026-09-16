@@ -1,5 +1,5 @@
 /**
- * THE ROWS, AS CODE — three generated files out of one `olai.yml`, so that file
+ * THE ROWS, AS CODE — generated files out of one `olai.yml`, so that file
  * is the ONLY place a plugin is named.
  *
  * ## Why anything is generated at all
@@ -20,7 +20,7 @@
  * it is a reason to WRITE it, from the rows, at the one moment a literal is
  * still something a program can emit. Hence this.
  *
- * ## Three files, because a plugin's name is spellable in three grammars
+ * ## One file per grammar a plugin's name is spellable in
  *
  *   - `src/rows.generated.ts` — the catalogue, plus a dynamic `import()` for each
  *     declared browser export. The literal specifier is what makes each plugin its own
@@ -35,6 +35,12 @@
  *     proof: a spread resolves a collision silently, so the assertion is what
  *     makes one a type error rather than a scenario that fails thirty seconds
  *     later with a timeout that says nothing.
+ *   - `src/assets.generated.ts` — static build contributions; no runtime may
+ *     import this graph.
+ *   - `src/policy.generated.ts` — static write reservations; enforced even
+ *     when the runtime owner is disabled.
+ *   - `src/fakes.generated.ts` — every engine's scripted e2e fake, as a roster
+ *     the harness folds over.
  *
  * ## GENERATED, GITIGNORED, and produced beside the hydrated sources
  *
@@ -272,7 +278,7 @@ export const WRITE_RESERVATIONS: ReadonlyArray<WriteReservation> = [${policyRows
 
 const fakeRows = rows.filter((row) => hasDoor(row, "./e2e/fake"))
 writeFileSync(join(SRC, "fakes.generated.ts"), `${HEADER("Every engine's scripted e2e fake, as a roster the harness folds over (section 13.3). A dynamic import is what keeps an engine's testlib out of the server graph.")}
-import type { Fake } from "@olai/tests/harness/fake.ts"
+import type { Fake } from "./fake.ts"
 export interface FakeRow { readonly id: string; readonly load: () => Promise<{ readonly fake: Fake }> }
 export const FAKES_ROSTER: ReadonlyArray<FakeRow> = [
 ${fakeRows.map((row) => `  { id: ${quoted(row.id)}, load: () => import(${quoted(`${packageOf(row)}/e2e/fake`)}) },`).join("\n")}
