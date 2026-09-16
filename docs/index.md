@@ -54,7 +54,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/kolu.md](plugins/kolu.md) | Terminals from kolu: the Dock row, the live pane, the events feed, and the doorbell. |
 | [plugins/odu.md](plugins/odu.md) | CI from odu: the run chip, the run matrix, and the doorbell. |
 | [plugins/xyne-spaces.md](plugins/xyne-spaces.md) | Mirroring doorbell digests into a Xyne Spaces channel. |
-| [plugins/mail.md](plugins/mail.md) | Gmail from a conversation: the pinned Himalaya, connecting an account, and the three states of the pill. |
+| [plugins/mail.md](plugins/mail.md) | Gmail: connecting an account, reading and filing mail from a conversation, and acting on threads. |
 | [plugins/journal.md](plugins/journal.md) | The calendar, the day page, and the agenda of dated tasks. |
 
 ### Browser UI

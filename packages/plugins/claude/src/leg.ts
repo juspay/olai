@@ -1,3 +1,4 @@
+import { refusalIn } from "@olai/surface"
 /**
  * What the Claude Code adapter MEANS by what it sends — olai's first leg
  * (`@olai/acp/engine`'s `Leg`), meaning unchanged from the day it was the only
@@ -809,5 +810,9 @@ export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined
     : Array.isArray(rawOutput) ? rawOutput.find(block => record(block)?.["type"] === "text")?.text
     : undefined
   if (typeof text !== "string") return undefined
-  try { return record(JSON.parse(text)) } catch { return undefined }
+  try { return record(JSON.parse(text)) } catch {
+    // Claude forwards only MCP text blocks, dropping structuredContent. The
+    // owned MCP server's branded refusal still carries its kind and reason.
+    return refusalIn(text)
+  }
 }

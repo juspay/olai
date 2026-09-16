@@ -344,3 +344,22 @@ test("shared write tags retain only their active content cases on the MCP catalo
     expect(await names()).toContain("capture_add")
   })
 })
+
+
+test("mail advertises exactly nine tools while running and withdraws them on every stop", async () => {
+  await withServing({ root: served(), plugins: ["vault", "ws", "mcp", "web-app", "mail"] }, async url => {
+    const names = async () => {
+      const response = await request(url)
+      const body = await response.json()
+      return body.result.tools.map((tool: { name: string }) => tool.name).filter((name: string) => name.startsWith("mail_")).sort()
+    }
+    const expected = ["archive", "attachment", "inbox", "label", "read", "search", "thread", "trash", "untrash"].map(n => `mail_${n}`)
+    for (let round = 0; round < 2; round++) {
+      expect(await names()).toEqual(expected)
+      await flip(url, "mail", false)
+      expect(await names()).toEqual([])
+      await flip(url, "mail", true)
+    }
+    expect(await names()).toEqual(expected)
+  })
+}, 30_000)

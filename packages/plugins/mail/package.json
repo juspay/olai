@@ -19,19 +19,24 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "`effect` and `@olai/plugin-api` are what a Cordis plugin is written with: the server half names the services it injects here and gets its surface checked against this package's own wire, and the browser half is written in the same Effects. `solid-js` is the browser half's, and `@olai/ui-primitives` is the testid table `./testids` merges into. There is no `@olai/format` and no `@olai/web`: the refusals this plugin raises are its OWN class (the surface declares `MailRefusal`, so a caller narrows one tag rather than a table of four), and the two buttons in the panel row call their procedures directly rather than through the client's `run.ts` edge \u2014 one refusal, one reader.",
+  "//dependencies": "Effect and plugin-api provide declared services and activation lifetimes. The Effect bridge gate owns direct tool calls; ops supplies tool contracts and format supplies its refusal union. Solid and ui-primitives are the browser face. Runtime capabilities are acquired in server apply, never imported from another plugin.",
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
     "@olai/web": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "solid-js": "^1.9.0"
+    "solid-js": "^1.9.0",
+    "@olai/ops": "workspace:*",
+    "@olai/format": "workspace:*",
+    "@olai/effect-cordis": "workspace:*"
   },
   "//devDependencies": "`olai-plugin-layout` and `olai-plugin-plugin-inspector` for their slot CONTRACTS only \u2014 the declarations that make `app.header` and `plugins.row` names the compiler knows (odu's browser half merges the same three), and the row face this plugin hangs on its own row. A contract module is the one thing that may travel between two plugin packages, and the inspector's own manifest records `olai-plugin-layout` the same way. `@olai/tests` is the e2e harness the feature files under `e2e/` are written against.",
   "devDependencies": {
     "@olai/tests": "workspace:*",
     "olai-plugin-layout": "workspace:*",
-    "olai-plugin-plugin-inspector": "workspace:*"
+    "olai-plugin-plugin-inspector": "workspace:*",
+    "olai-plugin-chat": "workspace:*",
+    "ajv": "^8.20.0"
   },
   "olai": {
     "contracts": [

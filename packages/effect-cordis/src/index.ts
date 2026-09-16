@@ -65,3 +65,5 @@ export { type Chain, type Dispatch, type Middleware, waterfall, type Waterfall }
 
 export { offer, OfferConflict } from "./lifecycle.ts"
 export { location, locationReference, locations, type LocationReference, type Location, type LocationOwner, type LocationReport, type Locations, type Contribution } from "./locations.ts"
+
+export { gate, type Gate } from "./gate.ts"

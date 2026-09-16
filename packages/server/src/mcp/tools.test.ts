@@ -1,3 +1,4 @@
+import { refusalIn } from "@olai/surface"
 /**
  * The tool surface, through a real MCP client.
  *
@@ -287,7 +288,16 @@ const call = async (
 ): Promise<Answer> => {
   const result = await client.callTool({ name, arguments: args }) as {
     structuredContent?: Record<string, unknown>
+    content?: Array<{ type: string; text?: string }>
     isError?: boolean
+  }
+  // The actual olai formatter AND pinned surface-mcp framing, not a copied
+  // sentence. Every refusal kind exercised in this suite checks the fallback.
+  if (result.isError && typeof result.structuredContent?.kind === "string") {
+    const text = result.content?.find(block => block.type === "text")?.text
+    const reason = result.structuredContent.reason
+    if (typeof reason !== "string") throw new Error("a structured refusal must carry its reason")
+    expect(refusalIn(text ?? "")).toEqual({ kind: result.structuredContent.kind, reason })
   }
   return {
     structured: result.structuredContent ?? {},

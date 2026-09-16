@@ -217,6 +217,7 @@ export interface AccountMachine {
    *  connected to is set to (`./server.ts`). The ONLY reason the reading is
    *  kept here rather than in the composition root: whoever knows it is the
    *  writer, and there must be one. */
+  readonly usable: () => boolean
   readonly current: () => Account
   /** The refresh fiber's body. `./server.ts` forks it onto the plugin's scope;
    *  it never ends, and the scope is what stops it. */
@@ -598,6 +599,7 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
         yield* bringUp(record)
       }),
 
+    usable: () => shown.status === "connected" && life !== undefined && life.until > now(),
     current: () => shown,
 
     refresh: Effect.gen(function*() {

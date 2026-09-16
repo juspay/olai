@@ -89,6 +89,7 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
       "mediaTarget",
       "ours",
       "pluginState",
+      "refusalIn",
       "sealPolicy",
       "spellsHost",
       "surface",

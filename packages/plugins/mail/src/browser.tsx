@@ -36,6 +36,8 @@ import type { Accessor } from "solid-js"
 // THE DECLARATION ONLY — the slot NAME below is checked against the table this
 // module merges in, which is how a face looked up by a word and a slot declaring
 // it cannot be two spellings. No value is imported: registering is by name.
+import type {} from "olai-plugin-chat/slots"
+import { story } from "./browser/story.tsx"
 import type {} from "olai-plugin-layout/slots"
 import type {} from "olai-plugin-plugin-inspector/slots"
 
@@ -77,6 +79,8 @@ export default definePlugin({
       }))),
       (held) => Effect.sync(held.dispose),
     )
+
+    yield* slots.register("tool.reply", { fileOf: () => null, story })
 
     yield* slots.register("app.header", {
       place: "cluster",

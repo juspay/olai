@@ -169,10 +169,10 @@ test("the totals are OMITTED when the fixture does not carry them", async () => 
 test("a verb the table does not have is clap's refusal, exit 2, naming what it speaks", async () => {
   const { fake, config } = await startedFake({ profile: { email: EMAIL } })
   try {
-    const done = await run(fake, [...himalayaArgv(config, ["gmail", "threads", "list"], [])])
+    const done = await run(fake, [...himalayaArgv(config, ["gmail", "threads", "delete"], [])])
     expect(done.code).toBe(2)
     expect(done.stdout).toBe("")
-    expect(done.stderr).toContain("error: unrecognized subcommand 'gmail threads list'")
+    expect(done.stderr).toContain("error: unrecognized subcommand 'gmail threads delete'")
     // The half a person needs: what this fake DOES answer, from the table's own
     // `says`, so an unoffered verb cannot be mistaken for a broken mailbox.
     expect(done.stderr).toContain("profile.get")
@@ -388,4 +388,31 @@ test("rewrite moves what the token endpoint answers, on the same origin", async 
   } finally {
     await google.stop()
   }
+})
+
+test("every structured fake answer validates against the built Himalaya schemas", async () => {
+  const { default: Ajv } = await import("ajv/dist/2020.js")
+  const { readFileSync, mkdtempSync, rmSync } = await import("node:fs")
+  const { tmpdir } = await import("node:os")
+  const { join } = await import("node:path")
+  const { mailAnswer } = await import("./fake-himalaya.ts")
+  const { GMAIL } = await import("../../himalaya/verbs.ts")
+  const directory = mkdtempSync(join(tmpdir(), "mail-schema-test-"))
+  const ajv = new Ajv({ strict: false, validateFormats: false })
+  try {
+    for (const [verb, args] of [
+      [GMAIL.threadsList, ["-s", "2"]],
+      [GMAIL.threadsGet, ["a3", "--format", "full"]],
+      [GMAIL.threadsGet, ["a2", "--format", "metadata"]],
+      [GMAIL.labelsList, []],
+    ] as const) {
+      const schema = JSON.parse(readFileSync(new URL(`../../himalaya/schemas/himalaya-gmail-${verb.id.replace(".", "-")}.json`, import.meta.url), "utf8"))
+      const validate = ajv.compile(schema)
+      const answer = mailAnswer(verb, args, directory)
+      expect(answer.code).toBe(0)
+      const valid = validate(JSON.parse(answer.stdout))
+      expect(validate.errors).toBeNull()
+      expect(valid).toBe(true)
+    }
+  } finally { rmSync(directory, { recursive: true, force: true }) }
 })

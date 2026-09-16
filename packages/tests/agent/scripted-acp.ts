@@ -1307,6 +1307,27 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   const [verb, ...rest] = commandWords(text)
   const argument = rest.join(" ")
 
+  const mailWords = [verb, ...rest].join(" ")
+  const mailCall = (() => {
+    if (mailWords === "list my inbox") return { name: "inbox", args: {} }
+    if (mailWords.startsWith("search mail for ")) return { name: "search", args: { query: mailWords.slice(16) } }
+    const thread = /^(read|archive|trash|untrash) mail thread (\S+)$/.exec(mailWords)
+    if (thread) return { name: thread[1] === "read" ? "thread" : thread[1]!, args: { thread: thread[2] } }
+    const attachment = /^save mail attachment (\S+) (\S+)$/.exec(mailWords)
+    if (attachment) return { name: "attachment", args: { message: attachment[1], attachment: attachment[2] } }
+    const label = /^label mail thread (\S+) with (.+)$/.exec(mailWords)
+    if (label) return { name: "label", args: { thread: label[1], add: [label[2]] } }
+    const read = /^mark mail thread (\S+) (read|unread)$/.exec(mailWords)
+    if (read) return { name: "read", args: { thread: read[1], read: read[2] === "read" } }
+    return null
+  })()
+  if (mailCall) {
+    const answer = await useTool(`mail_${mailCall.name}`, mailCall.args)
+    say("```json\n" + JSON.stringify(answer) + "\n```")
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
   // FALL OVER SAYING NOTHING, and BEFORE the usage frames below — which is the
   // whole difference from `crash` and the only reason this verb exists. A turn
   // that produced not one frame leaves the client unable to tell a prompt that
