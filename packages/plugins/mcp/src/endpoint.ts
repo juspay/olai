@@ -8,6 +8,7 @@ import { currentLogin, mcpTransport, mcpRoute } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
 import { type ClientOrConnection, type McpSibling, serveSurfaceAsMcp, type ServedSurfaceMcp } from "@kolu/surface-mcp"
 import { hostFaces, hostSurface } from "@olai/surface/host"
+import { AGENT_CHARTER } from "@olai/surface/charter"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, type Scope } from "effect"
@@ -158,6 +159,42 @@ export const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  * one the set already serves, what is named is a whole file — its records, or
  * its existence — rather than any part of one, and nothing about either
  * reaches outside this directory.
+ *
+ * ## The second paragraph is the app's, not this row's
+ *
+ * What follows the tool-surface paragraph is `@olai/surface`'s `AGENT_CHARTER`
+ * — where an agent's words LAND: that a person reads them in a chat panel
+ * beside the outline, that `/#<id>` is an address of the app's own with no
+ * host to know, that a backticked id there is a button and a fenced one is
+ * not. It rides HERE because `initialize` is olai's only wire into an agent's
+ * standing context: ACP carries a cwd and a list of MCP servers and no field a
+ * client may put words in (`olai-plugin-chat`'s `teaching.ts` rules it, and
+ * the first-turn preamble it chose is per node-agent session, not per agent).
+ * The alternative — teaching it in the tool descriptions — would have put a
+ * sentence about the panel on thirty verbs that are not about the panel, and
+ * still said nothing to an agent that reads no description before it answers.
+ *
+ * AUTHORED THERE AND ONLY CARRIED HERE, deliberately. Every sentence in it is
+ * a fact `@olai/format`'s address grammar, the navigation row's routing or the
+ * chat row's press rule owns; this package owns none of them and is about
+ * transport. A charter spelled in this file would be the app's self-description
+ * kept in the one package that does not describe the app. The import is a
+ * static contract with no live value, which is the shape the composition
+ * leaves as an import (AGENTS.md).
+ *
+ * THE WHOLE TEXT STAYS UNDER 2000 BYTES, and `./endpoint.test.ts` holds the
+ * boundary. Claude Code truncates server instructions at 2 KB — silently, so
+ * an overrun would cut the charter mid-sentence and nobody would see it — and
+ * bills the text on every turn, so what is spent here is spent per message for
+ * the life of a session. That is why the charter names no plugin route, no
+ * mark, no search operator: those are taught at the point of use by the tool
+ * that owns them, and repeating them here would spend this budget on sentences
+ * that are sometimes false.
+ *
+ * WHO READS IT: Codex and Claude Code honour `instructions`. opencode fetches
+ * it and drops it (anomalyco/opencode#7373), so an agent there is exactly as
+ * untaught as before — a known gap, recorded in `docs/plugins/mcp.md`, and not
+ * one this row can close from its side of the wire. pi is unverified.
  */
 const INSTRUCTIONS =
   "olai serves a directory of outlines and the documents beside them. Everything here " +
@@ -167,7 +204,8 @@ const INSTRUCTIONS =
   "removes a document or an emptied outline — guarded, and not to be put back, so a " +
   "path you are not sure of is a refusal you want. There is no filesystem under this " +
   "— no shell, no grep, no path outside the served directory, and no way to name part " +
-  "of a file — and that is deliberate."
+  "of a file — and that is deliberate.\n\n" +
+  AGENT_CHARTER
 
 /**
  * THE ROOT OF THE BUNDLE — core's own surface, granting an agent NOTHING.
