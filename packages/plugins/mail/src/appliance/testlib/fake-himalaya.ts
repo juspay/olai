@@ -494,7 +494,13 @@ const deliverMail = (directory: string, id: string, subject: string, inbox: bool
   const history = historyAt(directory)
   history.latest = String(Number(history.latest) + 1)
   const file = path.join(directory, `thread-${id}.json`)
-  const thread = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as typeof THREADS[number] : structuredClone(THREADS.find(t => t.id === id) ?? { id, messages: [] })
+  let thread: typeof THREADS[number]
+  try {
+    thread = JSON.parse(readFileSync(file, "utf8"))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+    thread = structuredClone(THREADS.find(t => t.id === id) ?? { id, messages: [] })
+  }
   const message = { payload: { mimeType: "text/plain", parts: [] }, id: id + history.latest, "label-ids": inbox ? ["INBOX", "UNREAD"] : ["UNREAD"], snippet: subject + " preview", headers: [{ name: "Subject", value: subject }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "Date", value: "2026-09-15T09:15:00Z" }] }
   thread.messages.push(message)
   writeFileSync(file, JSON.stringify(thread))
