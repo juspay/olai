@@ -14,7 +14,7 @@
 
 import { collector, findSaid } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
-import { Effect, Fiber } from "effect"
+import { Effect, Exit, Fiber } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -1208,22 +1208,41 @@ test("integrate on a conflict is Conflicted naming the path, tree clean, nothing
 test("interrupting integrate mid-rebase removes the worktree", async () => {
   const { root, theirs } = await diverged()
   const run = git(root)
+  // A rebase slow enough to still be running when the interrupt arrives —
+  // without the many unpushed commits the interrupt could land after the
+  // integrate had already finished, and the test would pass for the wrong
+  // reason.
+  manyCommits(root, run, 40)
   await asked(root, (g) => g.fetch)
   const standing = await asked(root, (g) => g.standing)
   if (standing === null) throw new Error("expected an upstream")
 
   const before = run("worktree", "list").trim().split("\n").length
+  let exit: Exit.Exit<unknown, unknown> | undefined
   await Effect.runPromise(Effect.gen(function*() {
     const fiber = yield* asEffect(root, (g) => g.integrate(standing)).pipe(Effect.forkChild)
-    // Let the worktree appear (the rebase is running inside it), then stop
-    // the fiber. `@olai/child`'s `run` has no abort hook, so the rebase
-    // subprocess is still alive in that directory when the release runs —
-    // exactly the residue the review named — and `worktree remove --force`
-    // removes it anyway.
-    yield* Effect.sleep("50 millis")
+    // Wait for the worktree to be there — the rebase is running inside it —
+    // then stop the fiber. `@olai/child`'s `run` has no abort hook, so the
+    // rebase subprocess is still alive in that directory when the release
+    // runs — exactly the residue the review named — and `worktree remove
+    // --force` removes it anyway.
+    let found = false
+    for (let i = 0; i < 400; i++) {
+      if (fs.readdirSync(path.join(root, ".git")).some((n) => n.startsWith("olai-integrate-"))) {
+        found = true
+        break
+      }
+      yield* Effect.sleep("5 millis")
+    }
+    expect(found).toBe(true)
     yield* Fiber.interrupt(fiber)
+    exit = yield* Fiber.await(fiber)
   }))
-  // The release ran on interrupt: no worktree remains.
+  // PROOF the interrupt landed while the work was in flight: the fiber's
+  // Exit carries an Interrupt cause. A run in which the integrate finished
+  // first would be Success and fail this.
+  expect(exit?._tag).toBe("Failure")
+  expect(exit !== undefined && Exit.hasInterrupts(exit)).toBe(true)
   expect(run("worktree", "list").trim().split("\n").length).toBe(before)
   expect(fs.readdirSync(path.join(root, ".git")).filter((n) => n.startsWith("olai-integrate-")))
     .toHaveLength(0)
@@ -1274,10 +1293,14 @@ test("integrate's compare-and-swap refuses when a terminal commit landed, and do
   if (standing === null) throw new Error("expected an upstream")
   const from = run("rev-parse", "HEAD").trim()
 
-  // The terminal commit lands BETWEEN the two-tree move and the ref update —
-  // the exact window the review named. `read-tree -m -u` runs the served
-  // repo's post-checkout hook, so the hook moves the branch ref after
-  // read-tree has updated the tree and before integrate's update-ref runs.
+  // The terminal commit lands while the rebase runs, so by the time the
+  // move reaches its compare-and-swap the branch is no longer where `from`
+  // says it is — the exact window the review named. The served repo's
+  // post-checkout hook does the moving, and it fires from the rebase's
+  // initial checkout inside the temporary worktree: that checkout is the
+  // one `git` invocation under this test that runs the hook.
+  // (`read-tree -m -u`, `worktree add --no-checkout` and `reset --hard`
+  // run no hook.)
   const tree = run("rev-parse", "HEAD^{tree}").trim()
   const terminal = run("commit-tree", tree, "-p", from, "-m", "terminal commit").trim()
   const hooks = path.join(root, ".git", "hooks")
@@ -1321,13 +1344,20 @@ test("the served survey stays Ready and worktree-free while an integrate is in f
     }
     expect(found).toBe(true)
     // The temp worktree lives under `.git`, so the served survey must read a
-    // coherent state — no path from the worktree, and not Blocked by a rebase
-    // it cannot see (the rebase state is in the worktree, not `.git/rebase-merge`).
-    const mid = yield* asEffect(root, (g) => g.dirty)
-    expect(mid._tag).toBe("Surveyed")
-    if (mid._tag === "Surveyed") {
-      expect(mid.files.some((f) => f.path.includes("olai-integrate-"))).toBe(false)
-    }
+    // coherent state — not Blocked by a rebase it cannot see (the rebase
+    // state is in the worktree, not `.git/rebase-merge`). The index gate is
+    // held by the integrate for its whole span, so `dirty` would wait for it
+    // to finish; `state` is ungated (`git.ts:335`), and this test's own
+    // `status` probe bypasses the gate too.
+    const mid = yield* asEffect(root, (g) => g.state)
+    expect(mid._tag).toBe("Ready")
+    if (mid._tag !== "Ready") throw new Error("expected Ready mid-integrate")
+    // The served tree itself: nothing staged or modified, and no path from
+    // the temporary worktree anywhere.
+    const servedStatus = run("status", "--porcelain")
+    const serveProbe = run("status", "--porcelain", "--", "a.olai")
+    expect(serveProbe).toBe("")
+    expect(servedStatus.split("\n").some((l) => l.includes("olai-integrate-"))).toBe(false)
     yield* Fiber.await(fiber)
   }))
   // After it lands, no residue anywhere the survey or git could see it.

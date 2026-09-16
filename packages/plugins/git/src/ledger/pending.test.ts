@@ -894,11 +894,21 @@ describe("push", () => {
    *  — remembered, republished, and (under `commit: auto`) a stop, exactly as
    *  a refused push is today. This is the ledger-level arm the review asked
    *  for: the plumbing `standing` test covers the `null`, and this covers
-   *  what the policy does with it. */
+   *  what the policy does with it.
+   *
+   *  A remote EXISTS here — unlike the fetch-refused path, which a fixture
+   *  with no remote at all would have exercised instead. The branch simply
+   *  does not track anything, which is the arm this test is named for. */
   test("a push with no upstream is git's own refusal, remembered and republished", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        // No remote at all — not `fixture.remote()`, which would set one up.
+        // A real remote exists (so `git fetch` succeeds), but the branch is
+        // not tracking it — `origin/main` is not an upstream of `mine`.
+        const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-remote-")))
+        gitIn(bare)("init", "--quiet", "--bare", "--initial-branch", "main")
+        fixture.git("remote", "add", "origin", bare)
+        fixture.git("push", "--quiet", "origin", "main")
+        fixture.git("checkout", "--quiet", "-b", "mine")
         fixture.write("notes.md", "the cabinets are late\n")
         fixture.git("add", "notes.md")
         fixture.git("commit", "--quiet", "-m", "olai: mine")
@@ -908,9 +918,12 @@ describe("push", () => {
         expect(sent._tag).toBe("Failed")
         if (sent._tag !== "Failed") throw new Error("unreachable")
         // git's OWN words, not an olai sentence — the words about the remote
-        // that has not been set.
+        // that the branch does not track.
         expect(sent.said).toBeTruthy()
         expect(sent.said).not.toContain("no upstream to push to")
+        // The fetch did not refuse first: the words are the PUSH's, naming an
+        // upstream that is not set, which `git fetch` would not have said.
+        expect(sent.said.toLowerCase()).toContain("upstream")
         // Remembered and republished: the refusal reaches the pill.
         const said = yield* fixture.ops.git
         expect(said.pushSaid).not.toBeNull()
@@ -1389,7 +1402,11 @@ describe("push: auto", () => {
         const refused = yield* fixture.ops.push
         expect(refused._tag).toBe("Failed")
         const said = yield* fixture.ops.git
+        // The overlap sentence names the path — charge's own parenthetical,
+        // not the copy inside git's verbatim words — so a regression in the
+        // path parsing fails here rather than silently.
         expect(said.pushSaid).toContain("overlap")
+        expect(said.pushSaid).toMatch(/nothing moved \(house\.olai\)/)
         expect(said.paused).toBeNull()
 
         // The window's own next commit — `record` calls exactly this —
