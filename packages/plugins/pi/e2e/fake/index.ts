@@ -24,5 +24,6 @@ export const fake: Fake = {
     exe: resolve(import.meta.dirname, "pi-acp"),
   },
   searchPath: import.meta.dirname,
-  env: ({ on, stored }) => on && stored ? { OLAI_FAKE_PI_STORED: "yes" } : {},
+  env: ({ on, stored }): Readonly<Record<string, string>> =>
+    on && stored ? { OLAI_FAKE_PI_STORED: "yes" } : {},
 };

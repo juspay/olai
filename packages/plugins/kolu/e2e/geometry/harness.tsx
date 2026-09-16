@@ -32,7 +32,7 @@ import {
 import { StatePip } from "@kolu/solid-statepip"
 import { activePr } from "@kolu/padi-client/surface"
 
-import RECORDS from "../../../tests/fixtures/padi/lanes.json"
+import RECORDS from "../../src/client/testlib/fixtures/lanes.json"
 
 /** The LOUD row — padi's `active` arm with an agent BLOCKED ON YOU, which is
  *  the one face worth choosing a geometry around: the violet wash and the wait

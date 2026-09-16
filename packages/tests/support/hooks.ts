@@ -1177,7 +1177,7 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
           active.bin,
           root,
           `corpus "${corpus}"`,
-          { stateRoot: corpusHome(corpus) },
+          { fakes: [], stateRoot: corpusHome(corpus) },
         );
 
   // A FAILED start is not kept: the next scenario asking for this corpus
@@ -1454,9 +1454,11 @@ Before(
     );
     // The per-engine booleans are a scenario's votes about itself, and the
     // words are the world's to spell: `voteFakes` reads the folded list (and
-    // keeps it) so this file never spells one (section 13.3's fence).
+    // keeps it) so this file never spells one (section 13.3's fence). That
+    // call also owns every "scenario has engine X" flag — `hasKolu`, the
+    // himalaya vote, and the rest — so nothing here spells an engine's name
+    // twice.
     this.voteFakes(fakesOf(scenario.pickle.tags));
-    this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
     this.padiFleet = scenario.pickle.tags
       .map((tag) => PADI_TAG.exec(tag.name)?.[1])
       .find((fleet): fleet is string => fleet !== undefined);

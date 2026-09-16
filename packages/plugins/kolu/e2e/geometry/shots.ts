@@ -8,7 +8,7 @@ import { chromium } from "playwright"
 import { join, resolve } from "node:path"
 import { mkdirSync } from "node:fs"
 
-import { BROWSER_ARGS } from "../support/browser.ts"
+import { BROWSER_ARGS } from "@olai/tests/harness/browser.ts"
 
 const built = resolve(process.argv[2] ?? "/tmp/geo")
 const out = resolve(process.argv[3] ?? "/tmp/geo/shots")

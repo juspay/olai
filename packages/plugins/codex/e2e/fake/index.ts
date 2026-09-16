@@ -16,5 +16,6 @@ export const fake: Fake = {
     knob: "OLAI_ACP_CODEX",
     exe: resolve(import.meta.dirname, "codex-acp"),
   },
-  env: ({ stored }) => stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {},
+  env: ({ stored }): Readonly<Record<string, string>> =>
+    stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {},
 };
