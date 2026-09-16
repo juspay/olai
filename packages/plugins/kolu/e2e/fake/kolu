@@ -24,7 +24,7 @@
  * transcript can prove that display ownership comes from the catalogue.
  */
 
-import { readMessages } from "../../support/ndjson.ts";
+import { readMessages } from "@olai/tests/harness/ndjson.ts";
 
 const LIVE = process.env.OLAI_FAKE_KOLU === "live";
 

@@ -1455,6 +1455,25 @@ export class OlaiWorld extends World {
   hasOmp = false;
   /** The Codex roster row, using the scripted ACP transport. */
   hasCodex = false;
+  /** The engine words this scenario's tags voted for (`@<word>` for each
+   *  roster row) — the roster fold this boot's fakes came from, carried so a
+   *  restart reproduces the same boot. The ONE shape the spawn and the
+   *  fingerprint read, so neither names an engine. */
+  fakes: ReadonlyArray<string> = [];
+  /** Read the roster's vote list into this scenario's per-engine booleans.
+   *  The words are this file's to spell — the booleans ARE the words, as
+   *  fields — so the harness's `hooks.ts` stays free of them (section 13.3's
+   *  fence): it hands the list over and never reads one back. The fields stay
+   *  public because a step still flips one directly (`this.hasOpencode =
+   *  false`), which is a scenario changing its mind, not a vote. */
+  voteFakes(fakes: ReadonlyArray<string>): void {
+    this.fakes = fakes;
+    this.hasKolu = fakes.includes("kolu");
+    this.hasOpencode = fakes.includes("opencode");
+    this.hasPi = fakes.includes("pi");
+    this.hasOmp = fakes.includes("omp");
+    this.hasCodex = fakes.includes("codex");
+  }
   /** Repository condition, reproduced when the scenario restarts its server. */
   gitMode?: GitMode;
   /** Policy authored before boot. Absent leaves keep schema defaults. */

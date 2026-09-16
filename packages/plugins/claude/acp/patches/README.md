@@ -4,7 +4,8 @@
 
 Two patches apply to the pinned `@agentclientprotocol/claude-agent-acp`
 0.73.0 — to its **compiled** `dist/acp-agent.js`, because npm is the only
-channel the adapter ships through (`nix/acp-agent.nix` says why that pin is
+channel the adapter ships through (`default.nix` beside this plugin reaches
+`@olai/plugin-kit`'s `npm-adapter.nix` for exactly the reason that pin is
 npm-shaped). They are applied by that derivation's `postInstall`, so every
 documented way of starting olai — `nix run`, the packaged binary,
 `just serve`, `just run`, the e2e suite's `OLAI_BIN` — gets the same agent.
@@ -13,10 +14,12 @@ documented way of starting olai — `nix run`, the packaged binary,
 is the agents phase: an engine is a plugin now, with its own release clock —
 this adapter's pin moved five times in a month and no other engine's did —
 so its patches and the sources they are generated from travel with it. What
-is still shared is the npm SHIM (`acp/package.json` and its lockfile) — one
-lockfile, two adapters, one fixed-output derivation — and `acp/README.md`
-says why. The pi adapter's one patch is one directory over, in
-`packages/plugins/pi/acp/patches/`.
+is still shared is the npm SHIM (`acp/package.json` and its lockfile, carried
+in the fold as `acpShim`) — one lockfile, the Claude and pi adapters, one
+fixed-output derivation — and `default.nix` names that shim in its call to
+`npm-adapter.nix`; this file is where the why-one-lockfile argument now lives,
+alongside the shim it argues for. The pi adapter's one patch is one directory
+over, in `packages/plugins/pi/acp/patches/`.
 
 ---
 
@@ -214,7 +217,8 @@ with the hunks computed by `diff -u` against the pristine npm extract — one
 generation of hand-numbered hunks failed at `-F0` on the pristine corpus and
 that was the argument). The suite in `facts.test.js` is why each rule below
 is a claimed edge and not a hope. The patch remains diff-shaped because the
-build must stay LOUD: `patch -p1 -F0` at `nix/acp-agent.nix:81-82` is what
+build must stay LOUD: `patch -p1 -F0` in `@olai/plugin-kit`'s
+`npm-adapter.nix` is what
 makes a pin bump fail rather than silently drop the behaviour — one reviewer
 had it as the promise, one as evidence it was not yet keeping itself; both
 hunters are now bound the same way: loudly, by construction.

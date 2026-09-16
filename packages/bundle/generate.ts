@@ -269,3 +269,12 @@ import type { WriteReservation } from "./policy.ts"
 ${policyRows.map((row, at) => `import { writeReservations as p${at} } from ${quoted(`${packageOf(row)}/policy`)}`).join("\n")}
 export const WRITE_RESERVATIONS: ReadonlyArray<WriteReservation> = [${policyRows.map((_, at) => `...p${at}`).join(", ")}]
 `)
+
+const fakeRows = rows.filter((row) => hasDoor(row, "./e2e/fake"))
+writeFileSync(join(SRC, "fakes.generated.ts"), `${HEADER("Every engine's scripted e2e fake, as a roster the harness folds over (section 13.3). A dynamic import is what keeps an engine's testlib out of the server graph.")}
+import type { Fake } from "@olai/tests/harness/fake.ts"
+export interface FakeRow { readonly id: string; readonly load: () => Promise<{ readonly fake: Fake }> }
+export const FAKES_ROSTER: ReadonlyArray<FakeRow> = [
+${fakeRows.map((row) => `  { id: ${quoted(row.id)}, load: () => import(${quoted(`${packageOf(row)}/e2e/fake`)}) },`).join("\n")}
+]
+`)

@@ -107,6 +107,18 @@ needed to restore this door use explicit session switches.
 
 The degenerate case is the same code as every other: a runtime with **no** plugins mounts no sibling on the rooted bundle, which leaves core's own surface byte for byte what it was. That is what `@olai/server`'s `wiring.plugins: null` means, and it is the state every `olai surface`, every headless face and every server test runs in. [`src/composition.test.ts`](src/composition.test.ts) asserts it rather than leaving it to be discovered.
 
+## The Nix fold is the same registry, once removed
+
+Beside the TS registry there is a Nix one: `default.nix` is
+`{ pkgs, pins, b2n, container ? ../plugins }`, and it does for evaluation what
+`olai.yml` does for mounting. It `readDir`s the plugin container, imports each
+directory's `default.nix` where one exists, validates every returned contract
+against `@olai/plugin-kit`'s `contract`, refuses any collision by name, and
+returns ONE attrset the root consumes — the wrapper's `knobs`, the dev shell's
+hydrates and environment, the flake's `packages` and `checks`. It names no
+plugin; the row list and the fence's ninth claim already hold the container
+equal to the roster, so the same directory serves both lists.
+
 ## See also
 
 - [`@olai/plugin-api`](../plugin-api/README.md) — the interface every plugin here is written against, and the Effect services its server half installs itself into.

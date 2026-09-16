@@ -195,7 +195,8 @@ component_b_spec=./$(printf '%s' "${component_b#"$plugin_b/src/"}")
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
   "$container" "$plugin_a/src/browser.tsx" "$plugin_b/src/browser.tsx" \
   "$tenant_a/src/wire.ts" "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" \
-  "$shell_door" "$contract_door" "$component_b"; do
+  "$shell_door" "$contract_door" "$component_b" \
+  "default.nix" "justfile" "packages/tests/support/hooks.ts"; do
   [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
 done
 
@@ -343,7 +344,7 @@ unnamed=0
 # this script's own indictment of the lints reproduced on its one argument.
 #
 # Plugin package edges are forbidden again: services carry the dependency.
-DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22"
+DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -612,6 +613,28 @@ export const provenHeld = provenSlot<unknown>()'
 run 22 "a SHELL DOOR re-exports a holder from a module BEHIND it" \
   'nothing opened across a boundary holds live state' \
   behind_door "$shell_door" packages/web/src/client/proven-fence-leak.ts
+
+# ── THE NIX-ISOLATION FENCE (claim 9) ───────────────────────────────────────
+#
+# Three defects from the plan's section 9, each the exact shape the fence
+# exists to refuse: a bare path reaching into the plugin container, a knob
+# variable hand-written back at the root, and a plugin's word as a tag literal
+# in the e2e harness — a plugin's fact landing in a file outside its own
+# directory, which is the whole of what that describe is about. Each is CAUGHT
+# by the claim that NAMES the shape: the path by claim 1, the variable and the
+# tag by claim 2's word spelling (whose `\b`-free SHOUT is exactly so
+# `OLAI_ODU_BIN` and `@pi` count).
+run 23 "a bare path reaches into a plugin's directory" \
+  "outside packages/plugins contains the path itself" \
+  append "default.nix" "container = ./packages/plugins/odu;"
+
+run 24 "a plugin's knob variable is spelled at the root" \
+  "spells a plugin's word" \
+  append "justfile" 'export OLAI_ODU_BIN="${OLAI_ODU_BIN:-}"'
+
+run 25 "a plugin's word is a tag literal in the e2e harness" \
+  "spells a plugin's word" \
+  append "packages/tests/support/hooks.ts" 'const PLANTED = "@pi"'
 
 run 17 "a general package SPELLS AN ENGINE'S name in code" \
   "outside the registry and the plugin's own tenant spells it" \

@@ -46,7 +46,7 @@ A row that owns e2e steps declares `@olai/tests` in its `devDependencies` — pl
 
 Three doors, and nothing else.
 
-**The harness** is `@olai/tests/harness/…` — `world.ts`, `said.ts`, `settling.ts`, the rest of `support/`, and `@olai/tests/agent/…` for the scripted ACP agents. Never a relative climb out of the row into `packages/tests/`: it would resolve (two directories in one repository) and would say nothing true — no door, no dependency, and a module-resolution error in a lane the day either one moves. `imports.test.ts` holds that.
+**The harness** is `@olai/tests/harness/…` — `world.ts`, `said.ts`, `settling.ts`, the rest of `support/`, and `@olai/tests/harness/fake.ts` (the descriptor an engine's `e2e/fake/index.ts` fills in), with the engine-agnostic scripted-agent core at `@olai/tests/agent/…`. An engine's fake itself lives in that engine's plugin and is reached only through `@olai/bundle/e2e-fakes`. Never a relative climb out of the row into `packages/tests/`: it would resolve (two directories in one repository) and would say nothing true — no door, no dependency, and a module-resolution error in a lane the day either one moves. `imports.test.ts` holds that.
 
 **Its own row** is a relative path into `../src/`. A row's steps read its own testids, its own testlib, its own minting names. They may NOT read the registry: `@olai/bundle` imports every plugin, so a plugin importing it back is a cycle whichever directory it is spelled in, and `@olai/bundle`'s `fence.test.ts` holds it over the sources as well as the manifests. The combined table, when a step legitimately needs it, comes through `@olai/tests/harness/testids.ts`.
 
@@ -124,11 +124,15 @@ packages/tests/
 │                           #   by that client and every fake below
 │   └── scripted.ts          # ... and the write half: the JSON-RPC envelope, the
 │                           #   requests a fake is waiting on, and the hold
-│                           #   protocol — shared by the three scripted agents
-├── agent/                   # the three scripted ACP agents the chat scenarios
-│                           #   drive — one shaped like the Claude Code adapter,
-│                           #   one like opencode, one like Oh My Pi — and the
-│                           #   fake `kolu` every server finds on PATH
+│                           #   protocol — shared by every engine's fake
+├── agent/                   # the engine-agnostic ACP scripted-agent core
+│                           #   (`scripted-acp.ts`, which takes an engine's tool
+│                           #   vocabulary and flavour) plus the shared bits a
+│                           #   fake builds on — `command.ts`, `session-store.ts`,
+│                           #   `native-activity.ts`. Each engine's own fake
+│                           #   lives in that engine's plugin, at
+│                           #   packages/plugins/<engine>/e2e/fake/, and the
+│                           #   harness reaches them through @olai/bundle/e2e-fakes
 ├── bin/broken-git/git       # a `git` that is found and fails, for @git:broken
 ├── tasks.ts                 # what the PINNED ADAPTER says about a background
 │                            #   task — a driver, not a lane: it needs a real
@@ -168,7 +172,7 @@ just build-client
 export OLAI_BIN="$(just dev-bin)"
 ```
 
-`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The wrapper takes the same argv AND the same first answer: it re-spells the nix wrapper's `OLAI_ODU_BIN` default with its own splice, so which odu the server resolves is the build's pin on both shapes — the harness cannot tell the difference. It defaults `OLAI_DIST_DIR` to this worktree’s `packages/web/dist` (an explicit environment override wins), so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
+`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The dev binary sources the plugin-env snippet produced by `.#plugin-env` — the same `export VAR="${VAR-default}"` lines the dev shell uses — and adds its own splice, so which odu the server resolves is the build's pin on both shapes; the harness cannot tell the difference. It defaults `OLAI_DIST_DIR` to this worktree's `packages/web/dist` (an explicit environment override wins), so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
 
 Bun hosts the runner. Bun executes `.ts` directly, so there is no tsx, no ts-node and no build step between a step definition and the browser — which is also why the dev shell needs no node.
 
@@ -283,7 +287,7 @@ the same one.
 The first is that it needs an AGENT, and it is the only session that does:
 
 ```bash
-AGENT=$PWD/agent/fake-acp-agent.ts SESSION=chat bash wire.sh
+AGENT=$PWD/../plugins/claude/e2e/fake/claude-agent-acp SESSION=chat bash wire.sh
 ```
 
 `support/serve.sh` wires `AGENT` through as the served server's
@@ -304,7 +308,7 @@ through it costs twice that and the numbers on the other side are the numbers a
 reader in another country gets:
 
 ```bash
-AGENT=$PWD/agent/fake-acp-agent.ts SESSION=chat DELAY=125 bash wire.sh
+AGENT=$PWD/../plugins/claude/e2e/fake/claude-agent-acp SESSION=chat DELAY=125 bash wire.sh
 ```
 
 The session asks the agent twice — once paced the way a model paces its tokens
@@ -669,20 +673,30 @@ A later Darwin-only miss of the same scenario (221px asked, 77px held, retry gre
 
 ## The scripted agents
 
-There are THREE, and that is the point rather than an accident of history: one
-is shaped like the Claude Code adapter, one like opencode, and one like Oh My
-Pi, and what they share is the transport (`support/scripted.ts`,
-`support/ndjson.ts`) and nothing else. Every frame shape each of them sends —
-where a tool's name is said, how an MCP server's tools are spelled, which
-methods are refused, the order of a permission's options — is its own file's, so
-the three are independent witnesses to the same protocol. A fake whose shape is
-chosen by a flag is one that can agree with the client by construction.
+There are several — one per engine that has a fake — and that is the point
+rather than an accident of history: each is shaped like its own adapter (the
+Claude Code one, opencode, Oh My Pi, codex, omp), and what they share is the
+transport (`support/scripted.ts`, `support/ndjson.ts`) and the generic core
+`agent/scripted-acp.ts`, which takes an engine's tool vocabulary and flavour
+(`scripted({ tool, flavour })`) and nothing else. Every frame shape each fake
+sends — where a tool's name is said, how an MCP server's tools are spelled,
+which methods are refused, the order of a permission's options — is that
+engine's own file, so the fakes are independent witnesses to the same
+protocol. A fake whose shape is chosen by a flag is one that can agree with
+the client by construction.
 
 ### The Claude-shaped one
 
 Scripted commands use the prompt's first line, in both ordinary turns and steering. The complete prompt remains available for binding, node-context and attachment assertions. In particular, a node moved between files can receive fresh binding instructions after `done hinges`; those instructions must never become part of the node id sent to MCP.
 
-`agent/fake-acp-agent.ts` is a deterministic ACP agent: line-delimited JSON-RPC on stdio, just enough of the protocol to be indistinguishable from a real one as far as the server's client is concerned. Every server this suite spawns is pointed at it, for the same reason the Chromium flags are not branched on `CI` — a server configured differently for one feature than for another is a class of bug that only reproduces where it is hardest to see.
+`packages/plugins/claude/e2e/fake/` is a deterministic ACP agent: the Claude
+flavour of the generic `scripted-acp` core, line-delimited JSON-RPC on stdio,
+just enough of the protocol to be indistinguishable from a real one as far as
+the server's client is concerned. Every server this suite spawns is pointed at
+it (the harness sets `OLAI_ACP_AGENT` to its executable from the generated
+fakes roster), for the same reason the Chromium flags are not branched on `CI`
+— a server configured differently for one feature than for another is a class
+of bug that only reproduces where it is hardest to see.
 
 What makes it worth having is the last thing it does: it calls the **real** internal MCP server, over the real HTTP route, with the token the real `session/new` handed it. So a chat scenario drives the real panel, the real ops layer and the real store — everything except the part that would need a language model, which is the one thing a CI lane cannot afford to be non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`, `add <title>`, `edit [file]`, `hunks [file]`, `servers`, `slow`, `hold`, `model <id>`, `crash`), so a scenario asks for what it needs.
 
@@ -696,7 +710,14 @@ A DROP is dispatched for the same reason — no portable way to make the desktop
 
 `hold` is the one worth knowing about: it starts a tool call, streams a chunk, and goes on streaming until the scenario touches `.agent-release` in the served directory. A turn that finishes in a millisecond can only be asserted about afterwards, and afterwards is when a panel's own bugs stop being visible — a row rebuilt on every frame looks perfect once the frames stop. Waiting on a file rather than a clock is what makes "mid-turn" a state a scenario ENDS instead of one it races; the file is a dot-file, which the store's walk prunes, so waiting for one is not itself an edit.
 
-It lives in `agent/` rather than `support/` because Cucumber imports everything under `support/` as part of the world, and importing this reads stdin — which, in the runner's own process, ends immediately and takes the run down with it. It imports the other way round freely: `support/ndjson.ts` is a function and nothing else, so there is nothing for Cucumber's import of it to start.
+It lives in its own plugin's `e2e/fake/` rather than in `support/` for two
+reasons: Cucumber imports everything under `support/` as part of the world,
+and importing this reads stdin — which, in the runner's own process, ends
+immediately and takes the run down with it — and an engine owns its fake the
+way it owns its wire, reached through the generated `@olai/bundle/e2e-fakes`
+roster rather than through `support/`. The generic core imports the other way
+round freely: `support/ndjson.ts` is a function and nothing else, so there is
+nothing for Cucumber's import of it to start.
 
 `@no-agent` clears the explicit adapter paths and the engine discovery search path. Engine rows remain enabled, but none can find an executable, so the panel explains how to install one. Disabling engine rows through file policy is a separate scenario.
 
@@ -712,14 +733,15 @@ The real Claude adapter is for driving the panel by hand: `just serve` resolves 
 
 ### The opencode-shaped one
 
-`agent/opencode/opencode` is an executable named exactly that, and its directory
+`packages/plugins/opencode/e2e/fake/opencode` is an executable named exactly
+that, and its directory
 goes on `OLAI_AGENT_PATH` for a scenario tagged `@opencode` — the variable olai
 probes for installed agents. Every OTHER server this suite spawns gets that
 variable set to the EMPTY string, which is "look nowhere": which agents a server
 finds decides whether its panel ASKS which one a conversation is with, so a
 developer with the real opencode installed would otherwise run a different suite
-than a CI lane does. The fake `kolu` next door makes the same argument about
-PATH.
+than a CI lane does. The fake `kolu` in its own plugin makes the same argument
+about PATH.
 
 Its differences from the file above are opencode 1.17.9's own, captured live
 (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/opencode-chat.md`): no `_meta` on any frame, so the tool's
@@ -746,13 +768,14 @@ to be lost in.
 
 ### The Oh My Pi-shaped one
 
-`agent/omp/omp` is an executable named exactly that, and its directory goes on
-`OLAI_AGENT_PATH` for a scenario tagged `@omp` — the same variable, and the same
-empty-string default everywhere else, that the opencode-shaped one uses. The
-fake `kolu` next door is the third PATH-found executable in this directory, and
-the reason all three are found rather than handed in is the same: what a server
-finds on its PATH decides what its panel offers, so a machine with a real `omp`
-installed must not run a different suite than a CI lane does.
+`packages/plugins/omp/e2e/fake/omp` is an executable named exactly that, and
+its directory goes on `OLAI_AGENT_PATH` for a scenario tagged `@omp` — the same
+variable, and the same empty-string default everywhere else, that the
+opencode-shaped one uses. The fake `kolu` in its own plugin makes the same
+argument about PATH, and the reason this fake is found rather than handed in is
+the same: what a server finds on its PATH decides what its panel
+offers, so a machine with a real `omp` installed must not run a different suite
+than a CI lane does.
 
 Its differences from the two files above are omp 18.1.21's own, captured live:
 no `_meta` on any frame, so a tool's name is the head of the `toolCallId`
@@ -797,7 +820,8 @@ conversation`.
 
 ## The fake kolu
 
-`agent/kolu/kolu` is an executable named exactly that, and its directory goes FIRST on the PATH of every server this suite spawns. Olai looks for a `kolu` when it opens a conversation and hands the session kolu's terminals if a padi daemon answers it, so without this the suite would ask the laptop it is running on — and a developer working inside a kolu terminal would get a different run than a CI lane does.
+`packages/plugins/kolu/e2e/fake/kolu` is an executable named exactly that,
+and its directory goes FIRST on the PATH of every server this suite spawns. Olai looks for a `kolu` when it opens a conversation and hands the session kolu's terminals if a padi daemon answers it, so without this the suite would ask the laptop it is running on — and a developer working inside a kolu terminal would get a different run than a CI lane does.
 
 It answers the probe two ways, and the DEFAULT is the unhelpful one: it speaks the protocol and reaches no daemon, which is both "no kolu here" and what a wrong build looks like (a padi-spawned terminal prepends its own bundled copy, and one of those was an older build reporting the same version while missing most of the verbs). `@kolu` is the knob that makes a daemon answer. So a scenario that says nothing about kolu is one whose session gets olai's own tool server and nothing else, deterministically.
 

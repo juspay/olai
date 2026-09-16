@@ -20,7 +20,7 @@ const independent = new Set([
   "packages/surface/src/attach.ts",
   "packages/surface/src/attach.test.ts",
   "packages/plugins/chat/src/attachments.test.ts",
-  "packages/tests/agent/fake-acp-agent.ts",
+  "packages/tests/agent/scripted-acp.ts",
   "packages/plugins/chat/e2e/steps/chat_steps.ts",
 ])
 

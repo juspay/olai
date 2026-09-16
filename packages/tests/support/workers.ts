@@ -50,12 +50,13 @@ export { defaultWorkers, WORKER_CAP, workerCount } from "./parallelism.js";
  */
 export const spawnFingerprint = (opts: {
   readonly stored: boolean;
+  /** False for `@no-agent`, otherwise true. */
   readonly agent: boolean;
-  readonly opencode: boolean;
-  readonly pi: boolean;
-  readonly omp?: boolean;
-  readonly codex?: boolean;
-  readonly kolu: boolean;
+  /** The engine words this server guesses AT — each a fake that fold put
+   *  somewhere the server can reach it. Sorted, and the whole vocabulary the
+   *  fingerprint used to spell as `opencode=/pi=/omp=/codex=/kolu=`: two
+   *  scenarios share a server exactly when the same set of fakes answers. */
+  readonly fakes: ReadonlyArray<string>;
   readonly git?: string;
   /** Authored git policy belongs in the reuse key: scenarios with different
    *  file properties must never share a server. */
@@ -93,9 +94,7 @@ export const spawnFingerprint = (opts: {
   readonly rowsOff?: string;
 }): string =>
 
-  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},opencode=${
-    opts.opencode ? 1 : 0
-  },pi=${opts.pi ? 1 : 0},omp=${opts.omp ? 1 : 0},codex=${opts.codex ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
+  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},fakes=${[...opts.fakes].sort().join("+")},git=${opts.git ?? "off"}` +
   `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}` +
   `,padi=${opts.padiSocket ?? "-"},odu=${opts.oduOrigin ?? "-"},plugins=${opts.plugins ?? "-"}` +
   `,extra=${opts.rowsOn ?? "-"},without=${opts.rowsOff ?? "-"}`;

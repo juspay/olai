@@ -97,9 +97,9 @@
 import { announced, wrapped, type CallToolResult } from "olai-plugin-opencode/testlib";
 import { existsSync, rmSync } from "node:fs";
 
-import { commandLine } from "../command.ts";
-import { readMessages } from "../../support/ndjson.ts";
-import { emitter, MARKER, released, speaking } from "../../support/scripted.ts";
+import { commandLine } from "@olai/tests/agent/command.ts";
+import { readMessages } from "@olai/tests/harness/ndjson.ts";
+import { emitter, MARKER, released, speaking } from "@olai/tests/harness/scripted.ts";
 
 /** The wire, and what an agent puts on it — the transport this file shares with
  *  the other scripted agent ({@link ../../support/scripted.ts}). What is NOT

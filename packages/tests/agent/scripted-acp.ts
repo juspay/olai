@@ -1,7 +1,3 @@
-#!/usr/bin/env bun
-import * as claudeTool from "olai-plugin-claude/testlib"
-import * as codexTool from "olai-plugin-codex/testlib"
-const toolWire = process.env.OLAI_FAKE_CODEX === "yes" ? codexTool : claudeTool
 import { nativeActivity } from "./native-activity.ts"
 /**
  * A scripted ACP agent, for driving the chat loop without a language model.
@@ -210,6 +206,50 @@ import { commandWords } from "./command.ts"
 
 const OUT = process.stdout
 
+/**
+ * THE ENGINE VOCABULARY, as an argument rather than an import. The one thing
+ * this file used to special-case for an engine was the shape its adapter puts
+ * on a tool-call frame `(`announced`/`wrapped`) and the flavour that decides a
+ * handful of behaviours — and each engine's executable passes them in now, so
+ * the core names no engine package (`olai-plugin-claude/testlib` and
+ * `olai-plugin-codex/testlib` left with the split).
+ *
+ * The shape is the two fixture vocabularies' common ground, structural on
+ * purpose: the core reads a call's announcement and completion OFF the wire's
+ * frames, and the frames' fields are what `announced`/`wrapped` contribute.
+ */
+/** A `CallToolResult` is the payload a wrapped engine's `tools/call` answer
+ *  is read as — text blocks, an optional `structuredContent`, an optional
+ *  `isError`, the three facts a call's outcome is made of. */
+export interface CallToolResult {
+  readonly content: { type: "text"; text: string }[]
+  readonly structuredContent?: Record<string, unknown>
+  readonly isError?: boolean
+}
+export interface ScriptedTool {
+  /** The `session/update` fields a tool-call ANNOUNCEMENT carries — what an
+   *  engine's adapter says about a call at the moment it starts. */
+  readonly announced: (
+    server: string,
+    tool: string,
+    args: unknown,
+  ) => Readonly<Record<string, unknown>>
+  /** The `session/update` fields a COMPLETED call carries — what a finished
+   *  call reports back, `rawOutput` first. */
+  readonly wrapped: (
+    result: CallToolResult,
+  ) => { readonly rawOutput: unknown; readonly content?: ReadonlyArray<Record<string, unknown>> }
+}
+
+/** Which engine's vocabulary this run answers with, and which flavour it runs.
+ *  Both are the caller's argument ({@link scripted}) rather than an
+ *  environment variable, because the executable is the arm: claude's runs the
+ *  claude vocabulary, codex's the codex one, and no flag can flip a running
+ *  fake into speaking for the other engine. */
+let toolWire: ScriptedTool = { announced: () => ({}), wrapped: () => ({ rawOutput: undefined }) }
+let isCodex = false
+
+
 /** The wire, and what an agent puts on it — the transport this file shares with
  *  the other scripted agent ({@link ../support/scripted.ts}). What is NOT
  *  shared is anything either of them MEANS: the frames, the `_meta`, the call
@@ -378,7 +418,7 @@ let listRefused = false
  *  never ask a structured question of, and this one does not either. */
 let capabilities: Record<string, unknown> = {}
 
-const CODEX = process.env["OLAI_FAKE_CODEX"] === "yes"
+
 
 const STORED = process.env["OLAI_FAKE_ACP_STORED"] ?? ""
 const stored = () => STORED !== ""
@@ -965,7 +1005,7 @@ const useExternal = async (
     const blocks = result["content"] as ReadonlyArray<{ type?: string; text?: string }> | undefined
     const said = blocks?.find((block) => block?.type === "text")?.text
       ?? JSON.stringify(result["structuredContent"] ?? result)
-    sayOutcome(result["isError"] === true ? "failed" : "completed", toolWire.wrapped(result as unknown as claudeTool.CallToolResult).rawOutput)
+    sayOutcome(result["isError"] === true ? "failed" : "completed", toolWire.wrapped(result as unknown as CallToolResult).rawOutput)
     return said
   } catch (thrown) {
     sayOutcome("failed", { error: String(thrown) })
@@ -1013,7 +1053,7 @@ const useTool = async (
       toolCallId,
       ...(late ? toolWire.announced("olai", name, args) : {}),
       status: failed ? "failed" : "completed",
-      ...toolWire.wrapped(result as unknown as claudeTool.CallToolResult),
+      ...toolWire.wrapped(result as unknown as CallToolResult),
     },
   })
   return result
@@ -2873,7 +2913,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           // (the read loop has queued prompts behind the running turn all
           // along); what depends on it is the panel's PROMISE, which is made
           // only for an agent that said this.
-          ...(silent() || CODEX ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
+          ...(silent() || isCodex ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
         // ... and IT TAKES AN INTERRUPTION, in the top-level `_meta` beside
@@ -2975,7 +3015,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         for (const update of sessionStore(cwd).read(sessionId)?.updates ?? []) {
           sendNotification("session/update", { sessionId, update })
         }
-      } else if (CODEX && sessionId === "fake-stored-old") {
+      } else if (isCodex && sessionId === "fake-stored-old") {
         await nativeActivity("agents", sessionId, notify, request, released)
         await nativeActivity("watch stopped", sessionId, notify, request, released)
       } else await replay()
@@ -3096,7 +3136,15 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
  *  going, which is what lets a cancel arrive during a prompt. */
 let queue: Promise<void> = Promise.resolve()
 
-readMessages(
+export function scripted(options: {
+  readonly tool: ScriptedTool
+  readonly flavour: "claude" | "codex"
+}): void {
+  // The two arguments ARE the engine: this process speaks that vocabulary and
+  // runs that flavour from here on, and nothing later may flip it.
+  toolWire = options.tool
+  isCodex = options.flavour === "codex"
+  readMessages(
   process.stdin,
   (message) => {
     // A cancel must be seen NOW, not behind the turn it is cancelling.
@@ -3145,7 +3193,7 @@ readMessages(
       // whole shape of an agent with no queue: the refusal comes back at once
       // rather than when the running turn ends, and nothing about the turn in
       // flight changes.
-      if ((busyRefused || CODEX) && running) {
+      if ((busyRefused || isCodex) && running) {
         // Output belongs to the still-running earlier turn. Put it before the
         // refusal deterministically: a conversation-wide output counter must
         // not make the queued prompt appear delivered because its sibling spoke.
@@ -3158,13 +3206,11 @@ readMessages(
     queue = queue.then(() => handle(message)).catch((cause: unknown) => {
       noise(`fake agent: ${String(cause)}`)
     })
-  },
-  (line) => noise(`fake agent: not JSON: ${line}`),
-)
-
-// Our client hung up, so there is nobody left to answer — except when WE shut
-// the pipe deliberately (`deaf`), where staying alive and streaming is the
-// whole point of the scenario.
-process.stdin.on("end", () => {
-  if (!deaf) process.exit(0)
-})
+  }, (line) => noise(`fake agent: not JSON: ${line}`))
+  // Our client hung up, so there is nobody left to answer — except when WE shut
+  // the pipe deliberately (`deaf`), where staying alive and streaming is the
+  // whole point of the scenario.
+  process.stdin.on("end", () => {
+    if (!deaf) process.exit(0)
+  })
+}

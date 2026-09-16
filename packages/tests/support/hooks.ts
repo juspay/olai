@@ -74,7 +74,9 @@
  * `support/storage_keys.ts` carries the two rows' preference keys the panel's
  * steps assert on, because a name is not a resource.
  */
-import { writeFixturePolicy } from "@olai/bundle/testlib"
+import { writeFixturePolicy } from "@olai/bundle/testlib";
+import { FAKES_ROSTER } from "@olai/bundle/e2e-fakes";
+import type { Fake } from "./fake.ts";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
@@ -266,24 +268,50 @@ const keepEvidence = async (world: OlaiWorld, scenario: {
 };
 
 /**
- * The ACP agent every server under test is pointed at.
- *
- * It is the scripted one (`support/fake-acp-agent.ts`), and it is handed to
- * EVERY server rather than only to the chat scenarios, for the same reason the
- * browser flags are not branched on `CI`: a server configured differently for
- * one feature than for another is a class of bug that only reproduces where it
- * is hardest to see. A scenario that never opens the panel is unaffected — the
- * agent is spawned lazily and says nothing.
+ * THE FAKES — every engine's scripted substitute, loaded from the generated
+ * roster as the one place this harness goes from "a scenario's tags" to "the
+ * environment a spawned server sees" (section 13.3). Descriptors rather than
+ * directories: nothing here names an engine's knob, executable or search
+ * path; each plugin's `e2e/fake` declares those behind its own door, and the
+ * roster enumerates them in `olai.yml` row order.
  *
  * The real Claude adapter is for driving this by hand. It needs a model, a
- * network and an account, and a CI lane can afford none of the three.
+ * network and an account, and a CI lane can afford none of the three. The
+ * scripted substitutes that stand in for it — and for the other engines —
+ * are dumb and deterministic on purpose: everything is reached here through
+ * this one list, so which fakes a server sees is a property of the scenario
+ * rather than of the laptop the run is on.
  */
-const FAKE_AGENT = path.resolve(
-  import.meta.dirname,
-  "..",
-  "agent",
-  "fake-acp-agent.ts",
+const FAKES: ReadonlyArray<Fake> = await Promise.all(
+  FAKES_ROSTER.map((row) => row.load().then((module) => module.fake)),
 );
+
+/** A descriptor by its tag word, or `undefined` for a word no roster row
+ *  answers to. `@<word>` recognition IS this lookup, so a scenario naming an
+ *  engine the roster does not ship simply votes for nothing — which the
+ *  fingerprint records as that engine being absent, as it should. */
+const FAKE_OF = (word: string): Fake | undefined =>
+  FAKES.find((fake) => fake.word === word);
+
+/** The default agent: the first roster row with an adapter (the `olai.yml`
+ *  row order already puts it first, so this file names nobody). It is on for
+ *  every scenario, pointed at its executable — except `@no-agent`, which
+ *  starts the server with no agent at all. */
+const DEFAULT_AGENT: Fake | undefined = FAKES.find((fake) => fake.adapter !== undefined);
+
+/** A scenario's tag list, as the words of the fakes its server guesses at:
+ *  every `@<word>` a roster row answers to. Derived once and carried on the
+ *  world, because a restarted server comes up with the same fakes it first
+ *  booted with — which is the whole claim a restart scenario makes. `agent`
+ *  stays its own boolean: "no agent at all" is a state a person should never
+ *  reach by following a documented launch path, so it is not a word on the
+ *  roster but the absence of all of them. */
+const fakesOf = (
+  tags: ReadonlyArray<{ readonly name: string }>,
+): ReadonlyArray<string> => {
+  const on = new Set(tags.map((tag) => tag.name));
+  return FAKES.filter((fake) => on.has(`@${fake.word}`)).map((fake) => fake.word);
+};
 
 /**
  * The machine NAME every spawned server believes its own (the server's
@@ -296,75 +324,12 @@ const FAKE_AGENT = path.resolve(
 export const BOX_NAME = "cucumber";
 
 /**
- * The directory holding a fake `kolu`, put FIRST on every spawned server's
- * PATH — so whether this host "is running kolu" is a property of the scenario
- * rather than of the laptop the run is on. A developer whose machine really is
- * running one would otherwise get a different suite than a CI lane does.
- *
- * The default that fixture answers with is the unhelpful one (a kolu that
- * reaches no daemon), so a scenario that says nothing about kolu is a scenario
- * whose session gets olai's tool server and nothing else. `@kolu` is what makes
- * it answer.
- */
-const FAKE_KOLU_DIR = path.resolve(import.meta.dirname, "..", "agent", "kolu");
-
-/**
- * The directory holding a fake `opencode`, put on a spawned server's
- * `OLAI_AGENT_PATH` when — and only when — a scenario asks for one.
- *
- * WHICH AGENTS A SERVER FINDS IS A PROPERTY OF THE SCENARIO, for the fake
- * kolu's reason and a sharper version of it: the roster decides whether the
- * panel ASKS which agent, so a developer with the real opencode installed would
- * otherwise run a different suite than a CI lane does — one where every chat
- * scenario opens on a picker.
- *
- * It is the agent search path rather than `PATH` because that is the variable
- * olai probes with, and because the default has to be "nothing": every other
- * scenario spawns with `OLAI_AGENT_PATH` set to the EMPTY string, which finds
- * no agent anywhere and leaves the roster as the one `OLAI_ACP_AGENT` names —
- * a roster of one, which the rest of this suite deliberately stages and
- * the state the rest of this suite is written against.
- */
-const FAKE_OPENCODE_DIR = path.resolve(import.meta.dirname, "..", "agent", "opencode");
-
-/**
- * The directory holding a fake `omp`, put on a spawned server's
- * `OLAI_AGENT_PATH` when — and only when — a scenario asks for one.
- *
- * ONE DIRECTORY AND ONE FILE, unlike the pi pair next door: `omp` ships its own
- * ACP server and its own MCP client, so there is no adapter half for olai to
- * name and nothing for a second variable to point at. Same argument as
- * {@link FAKE_OPENCODE_DIR} for the rest: which agents a server finds decides
- * whether its panel asks, and that has to be the scenario's business rather
- * than the laptop's.
- */
-const FAKE_OMP_DIR = path.resolve(import.meta.dirname, "..", "agent", "omp");
-
-/**
- * The directory holding the fake `pi` and the scripted `pi-acp` beside it —
- * the pair the roster's pi row is made of.
- *
- * THE ROW IS TWO HALVES, and the tag wires them differently: the search path
- * gets the directory (so the probe finds `pi`), and `OLAI_ACP_PI` gets the
- * adapter DIRECTLY — the variable is the adapter's whole door, exactly as it
- * is on a documented start where the nix wrapper bakes the pin in. Untagged,
- * `OLAI_ACP_PI` is the empty string and no pi is ever found: same argument as
- * {@link FAKE_OPENCODE_DIR}, one floor down.
- */
-const FAKE_PI_DIR = path.resolve(import.meta.dirname, "..", "agent", "pi");
-const FAKE_PI_ACP = path.join(FAKE_PI_DIR, "pi-acp");
-
-/**
  * A `git` that is found and cannot work, put FIRST on the PATH of a server a
  * `@git:broken` scenario spawns — same argument as the kolu above: whether git
  * works is a property of the scenario rather than of the machine the run is on,
  * and there is no way to break the real one for one server only.
  */
 const BROKEN_GIT_DIR = path.resolve(import.meta.dirname, "..", "bin", "broken-git");
-
-/** `@kolu`: this scenario's host is running kolu, so its session should be
- *  handed kolu's terminals alongside olai's own tools. */
-const KOLU_TAG = "@kolu";
 
 /**
  * `@padi:<fleet>`: this scenario's server has a PADI to dial, serving the
@@ -381,18 +346,6 @@ const PADI_TAG = /^@padi:([\w-]+)$/;
 
 /** `@odu-service:<fleet>`: this scenario's server dials a fake odu service. */
 const ODU_SERVICE_TAG = /^@odu-service:([\w-]+)$/;
-
-/** `@opencode`: this scenario's machine HAS opencode, so its server's roster is
- *  two agents and the panel asks which one a conversation is with. Untagged,
- *  the agent search path is empty and the roster is the scripted Claude-shaped
- *  agent alone — see {@link FAKE_OPENCODE_DIR}. */
-const OPENCODE_TAG = "@opencode";
-
-/** `@pi`: this scenario's machine HAS pi — see {@link FAKE_PI_DIR}. */
-const PI_TAG = "@pi";
-
-/** `@omp`: this scenario's machine HAS Oh My Pi — see {@link FAKE_OMP_DIR}. */
-const OMP_TAG = "@omp";
 
 /** `@wire`: this scenario asks what the SERVER SENT rather than what the page
  *  drew, so every websocket frame the tab is delivered is kept for it
@@ -733,6 +686,12 @@ interface Spawn {
   readonly stored?: boolean;
   readonly fastNodeIdle?: boolean;
 
+  /** The fakes this server is configured to see — the tag words a roster row
+   *  answers to. Each descriptor with an `adapter` contributes a knob, each
+   *  `searchPath` joins the agent path, each `path` joins `PATH`, and each
+   *  `env` merges its own variables — nothing here spells one engine's
+   *  switch, which is the whole of section 13.3. */
+  readonly fakes: ReadonlyArray<string>;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
   /** `true` makes the scratch copy a repository — see {@link GIT_TAG}. */
@@ -741,10 +700,6 @@ interface Spawn {
    *  that is not a repository with commits ON is a state of its own, and the
    *  pill has a face for it. */
   readonly commits?: "off" | "manual";
-  /** `true` puts a kolu on PATH that a padi answers, which is the whole of
-   *  "this host is running kolu". Otherwise the one on PATH reaches no daemon,
-   *  which detection must refuse. */
-  readonly kolu?: boolean;
   /** The socket a `@padi:` scenario's server should dial — passed as
    *  `$PADI_SOCKET`, which is kolu's own "be given the socket" door. Absent is
    *  every other scenario, whose server derives the rendezvous path, finds
@@ -752,19 +707,6 @@ interface Spawn {
    *  in, and the one the hollow chip is drawn from. */
   readonly padiSocket?: string;
   readonly oduOrigin?: string;
-  /** `true` puts a fake `opencode` on the agent search path, so this server's
-   *  roster is two agents. Otherwise that path is EMPTY and the roster is the
-   *  scripted agent alone — see {@link FAKE_OPENCODE_DIR}. */
-  readonly opencode?: boolean;
-  /** `true` gives this server a pi: the stub on the agent search path AND the
-   *  scripted adapter named by `OLAI_ACP_PI` — the two halves of the row.
-   *  See {@link FAKE_PI_DIR}. */
-  readonly pi?: boolean;
-  /** `true` puts a fake `omp` on the agent search path, so this server's
-   *  roster has an Oh My Pi in it. Otherwise that path is empty — see
-   *  {@link FAKE_OMP_DIR}. */
-  readonly omp?: boolean;
-  readonly codex?: boolean;
   /** Repository condition, independent of the default manual commit policy. */
   readonly git?: GitMode;
   /** Explicit policy leaves; absent leaves use the schema defaults. */
@@ -783,6 +725,14 @@ interface Spawn {
    *  other worker. HOME is not overridden — see `isolateEnv`. */
   readonly stateRoot: string;
 }
+
+/** Whether a roster row is ON for this spawn: asked for by its tag, or — for
+ *  the default agent alone — on every server unless `@no-agent`. One reading,
+ *  used for the adapter knob, the search path and the descriptor's env, so the
+ *  three never disagree about whether a fake is in play. */
+const agentOn = (fake: Fake, spawnOptions: Spawn): boolean =>
+  spawnOptions.fakes.includes(fake.word) ||
+  (fake === DEFAULT_AGENT && spawnOptions.agent !== false);
 
 const startServerChild = async (
   bin: string,
@@ -823,49 +773,49 @@ const startServerChild = async (
         // wrapper exited on purpose", the daemonising case that must NOT
         // self-terminate.
         OLAI_DIE_WITH_PARENT: String(process.pid),
-        // Empty executable inputs and an empty search path leave no test agent.
-        // Product row enablement is configured separately in the fixture.
-        OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
-        // The packaged binary now carries Codex too. Every scenario here is
-        // deterministic against the scripted engine(s) it explicitly asks
-        // for, so its real baked adapter must not silently add a picker row.
-        OLAI_ACP_CODEX: spawnOptions.codex === true ? FAKE_AGENT : "",
-        ...(spawnOptions.codex === true ? { OLAI_FAKE_CODEX: "yes" } : {}),
-        ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+        // THE AGENTS, one knob per adapter the roster ships. A descriptor's
+        // knob points at the fake's own executable when its row is on, and at
+        // nothing — the empty string — otherwise, which keeps a developer's
+        // own bake from deciding a scenario. The default agent (the first
+        // roster row with an adapter) is on for every server unless
+        // `@no-agent`; every other adapter is on only when its tag asks. No
+        // engine is named here: the roster is, once (`FAKES`), and each
+        // descriptor names its own knob — section 13.3's whole point.
+        ...Object.fromEntries(
+          FAKES.filter((fake) => fake.adapter !== undefined).map((fake) => [
+            fake.adapter!.knob,
+            agentOn(fake, spawnOptions) ? fake.adapter!.exe : "",
+          ]),
+        ),
         // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
-        // string is "look on no path at all", so a developer's own opencode
-        // cannot decide a scenario. `@opencode` is what puts one there.
-        OLAI_AGENT_PATH: [
-          ...(spawnOptions.opencode === true ? [FAKE_OPENCODE_DIR] : []),
-          ...(spawnOptions.pi === true ? [FAKE_PI_DIR] : []),
-          ...(spawnOptions.omp === true ? [FAKE_OMP_DIR] : []),
-        ].join(path.delimiter),
-        ...(spawnOptions.opencode === true && spawnOptions.stored === true
-          ? { OLAI_FAKE_OPENCODE_STORED: "yes" }
-          : {}),
-        // The third PATH-found fake's stored sessions, set on the same rule:
-        // the variable being PRESENT at all is what tells it to answer
-        // `session/list` and replay a load, so a scenario that did not ask for
-        // a conversation on disk gets none.
-        ...(spawnOptions.omp === true && spawnOptions.stored === true
-          ? { OLAI_FAKE_OMP_STORED: "yes" }
-          : {}),
-        // THE ADAPTER, named the way a wrapper bakes it — and the empty
-        // string when the scenario is not about pi, which is the row's off
-        // switch and keeps a developer's own bake from deciding a scenario.
-        OLAI_ACP_PI: spawnOptions.pi === true ? FAKE_PI_ACP : "",
-        ...(spawnOptions.pi === true && spawnOptions.stored === true
-          ? { OLAI_FAKE_PI_STORED: "yes" }
-          : {}),
-        // FIRST, so a real kolu on the developer's PATH does not decide a
-        // scenario. Which one this is, is the tag's business — and the broken
-        // git goes ahead of even that, for exactly the same reason.
+        // string is "look on no path at all", so a developer's own agent
+        // cannot decide a scenario. A fake with a searchPath joins it only
+        // when its tag is on.
+        OLAI_AGENT_PATH: FAKES.filter(
+          (fake) => fake.searchPath !== undefined && agentOn(fake, spawnOptions),
+        )
+          .map((fake) => fake.searchPath!)
+          .join(path.delimiter),
+        // FIRST, so a real fake on the developer's PATH does not decide a
+        // scenario: every `path` the roster ships is ahead of the host's, and
+        // the broken git goes ahead of even that, for exactly the same reason.
         PATH: [
           ...(spawnOptions.git === "broken" ? [BROKEN_GIT_DIR] : []),
-          FAKE_KOLU_DIR,
+          ...FAKES.filter((fake) => fake.path !== undefined).map(
+            (fake) => fake.path!,
+          ),
           process.env.PATH ?? "",
         ].join(path.delimiter),
-        OLAI_FAKE_KOLU: spawnOptions.kolu === true ? "live" : "stale",
+        // Each descriptor's own variables — the stored-session flags, and the
+        // tenant's live-or-stale answer — asked once with the scenario's votes
+        // and merged. Which word a flag answers for is the descriptor's
+        // business, not this file's.
+        ...Object.assign(
+          {},
+          ...FAKES.filter((fake) => fake.env !== undefined).map((fake) =>
+            fake.env!({ on: agentOn(fake, spawnOptions), stored: spawnOptions.stored === true })
+          ),
+        ),
         // WHERE PADI IS, for a scenario that has one. Set only where it was
         // asked for: the variable being present at all is what makes the
         // server take the told path over the derived one, and every other
@@ -1046,11 +996,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       stored: world.storedSessions,
       fastNodeIdle: world.fastNodeIdle,
       agent: world.hasAgent,
-      opencode: world.hasOpencode,
-      omp: world.hasOmp,
-      pi: world.hasPi,
-      codex: world.hasCodex,
-      kolu: world.hasKolu,
+      fakes: world.fakes,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
       // ... and the same git POLICY, for the same reason: a restart that came
@@ -1410,19 +1356,10 @@ Before(
     this.hasAgent = !scenario.pickle.tags.some(
       (tag) => tag.name === NO_AGENT_TAG,
     );
-    this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
-    this.padiFleet = scenario.pickle.tags
-      .map((tag) => PADI_TAG.exec(tag.name)?.[1])
-      .find((fleet): fleet is string => fleet !== undefined);
-    this.oduFleet = scenario.pickle.tags
-      .map((tag) => ODU_SERVICE_TAG.exec(tag.name)?.[1])
-      .find((fleet): fleet is string => fleet !== undefined);
-    this.hasOpencode = scenario.pickle.tags.some(
-      (tag) => tag.name === OPENCODE_TAG,
-    );
-    this.hasPi = scenario.pickle.tags.some((tag) => tag.name === PI_TAG);
-    this.hasOmp = scenario.pickle.tags.some((tag) => tag.name === OMP_TAG);
-    this.hasCodex = scenario.pickle.tags.some((tag) => tag.name === "@codex");
+    // The per-engine booleans are a scenario's votes about itself, and the
+    // words are the world's to spell: `voteFakes` reads the folded list (and
+    // keeps it) so this file never spells one (section 13.3's fence).
+    this.voteFakes(fakesOf(scenario.pickle.tags));
 
     // On the world rather than in a local, because a restart mid-scenario has
     // to reproduce this boot (`startOwnServer`).
@@ -1496,29 +1433,18 @@ Before(
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
-    // A shared corpus server is running for every other scenario too, so which
-    // kolu it found is not this one's to choose. Said here rather than left to
-    // the assertion, which would fail thirty seconds later about the transcript
-    // instead of about the tag.
-    if (this.hasKolu && !writes) {
+    // A shared corpus server is running for every other scenario too, so what
+    // it finds — an agent on the roster, a tenant on PATH — is not this one's
+    // to choose. Every engine tag is one vote of that kind now (the roster
+    // fold, section 13.3), so one check covers them all: any word the scenario
+    // named, it must own the server that answers with it. Said here rather
+    // than left to an assertion that would fail thirty seconds later about the
+    // transcript instead of about the tag.
+    if (this.fakes.length > 0 && !writes) {
       throw new Error(
-        `${KOLU_TAG} decides what its server finds on PATH, so the scenario must own that ` +
-          `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
-      );
-    }
-    // ... and the same for the roster, for the same reason: which agents a
-    // server offers decides whether its panel asks, and a shared corpus server
-    // is answering that for every other scenario in the run too.
-    if (this.hasOpencode && !writes) {
-      throw new Error(
-        `${OPENCODE_TAG} decides which agents its server finds, so the scenario must own ` +
-          `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
-      );
-    }
-    if ((this.hasPi || this.hasCodex || this.hasOmp) && !writes) {
-      throw new Error(
-        `The agent tag decides which agents its server finds, so the scenario must own ` +
-          `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+        `an engine tag (${this.fakes.map((word) => `@${word}`).join(", ")}) decides ` +
+          `what its server finds, so the scenario must own that server: tag it ` +
+          `@scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
     // …and the same rule for the avatar template, which is one more thing a
@@ -1562,11 +1488,7 @@ Before(
         stored: this.storedSessions,
         fastNodeIdle: this.fastNodeIdle,
         agent: this.hasAgent,
-        opencode: this.hasOpencode,
-        omp: this.hasOmp,
-        pi: this.hasPi,
-        codex: this.hasCodex,
-        kolu: this.hasKolu,
+        fakes: this.fakes,
         ...(this.padi === undefined ? {} : { padiSocket: this.padi.socket }),
         ...(this.odu === undefined ? {} : { oduOrigin: this.odu.origin }),
         ...(this.avatarTemplate === undefined

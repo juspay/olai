@@ -1,0 +1,18 @@
+#!/usr/bin/env bun
+/**
+ * THE CLAUDE-SHAPED SCRIPTED ACP AGENT — the engine's own half of section
+ * 13.3. The generic driver lives in the harness core
+ * (`@olai/tests/agent/scripted-acp.ts`); this executable names the engine it
+ * speaks for by passing the claude vocabulary (this package's `./testlib`) and
+ * the claude flavour, and the harness reaches THIS as `OLAI_ACP_AGENT` because
+ * the descriptor next door says so — see `./index.ts`.
+ *
+ * Why the argument rather than the old `OLAI_FAKE_CODEX` switch: an executable
+ * is the arm. Claude's runs the claude vocabulary, codex's the codex one, and
+ * no environment variable can flip a running fake into speaking for the other
+ * engine — which is what lets the harness stop naming either knob.
+ */
+import { scripted } from "@olai/tests/agent/scripted-acp.ts"
+import * as tool from "../../src/testlib.ts"
+
+scripted({ tool, flavour: "claude" })

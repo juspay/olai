@@ -105,10 +105,10 @@ test("PIN (profile): cucumber.js asks workerCount(); it does not hardcode 1", ()
 });
 
 test("PIN (spawn shape): fingerprints differ when the server would start differently", () => {
-  const base = { stored: false, agent: true, opencode: false, pi: false, kolu: false };
+  const base = { stored: false, agent: true, fakes: [] as string[] };
   expect(spawnFingerprint(base)).toBe(spawnFingerprint({ ...base }));
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, kolu: true }),
+    spawnFingerprint({ ...base, fakes: ["kolu"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, git: "repo" }),
@@ -120,18 +120,22 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
     spawnFingerprint({ ...base, agent: false }),
   );
   // Which AGENTS a server finds decides whether its panel asks which one a
-  // conversation is with, so two servers that differ in it are two servers.
+  // conversation is with, so two servers that differ in it are two servers —
+  // whichever word the difference is, and in whichever order it was asked.
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, opencode: true }),
+    spawnFingerprint({ ...base, fakes: ["opencode"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, pi: true }),
+    spawnFingerprint({ ...base, fakes: ["pi"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, omp: true }),
+    spawnFingerprint({ ...base, fakes: ["omp"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, codex: true }),
+    spawnFingerprint({ ...base, fakes: ["codex"] }),
+  );
+  expect(spawnFingerprint({ ...base, fakes: ["pi", "omp"] })).toBe(
+    spawnFingerprint({ ...base, fakes: ["omp", "pi"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, rowsOn: "xyne-spaces" }),

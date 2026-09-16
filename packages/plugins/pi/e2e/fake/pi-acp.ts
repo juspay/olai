@@ -73,9 +73,9 @@
 import { announced, wrapped, type CallToolResult } from "olai-plugin-pi/testlib";
 import { existsSync, realpathSync, rmSync } from "node:fs";
 
-import { commandLine } from "../command.ts";
-import { readMessages } from "../../support/ndjson.ts";
-import { emitter, MARKER, released, speaking } from "../../support/scripted.ts";
+import { commandLine } from "@olai/tests/agent/command.ts";
+import { readMessages } from "@olai/tests/harness/ndjson.ts";
+import { emitter, MARKER, released, speaking } from "@olai/tests/harness/scripted.ts";
 
 const emit = emitter(process.stdout);
 const { notify, refuse, respond, take } = speaking(emit, "pi");

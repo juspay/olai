@@ -745,11 +745,10 @@ describe("only the registry knows a plugin's name", () => {
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: [
-      "tests/agent/fake-acp-agent.ts: olai-plugin-claude/testlib",
-      "tests/agent/fake-acp-agent.ts: olai-plugin-codex/testlib",
-      "tests/agent/omp/omp.ts: olai-plugin-omp/testlib",
-      "tests/agent/opencode/opencode.ts: olai-plugin-opencode/testlib",
-      "tests/agent/pi/pi-acp.ts: olai-plugin-pi/testlib",
+      // The five engine fakes used to live under tests/agent/ and import
+      // each engine's /testlib. Section 13.3 moved each into its own
+      // plugin's e2e/fake/, where the engine naming ITSELF is no longer a
+      // spread — those rows are gone from this record, by construction.
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/hooks.ts: olai-plugin-odu/appliance/testlib",
       "tests/support/storage_keys.ts: olai-plugin-alerts/keys",
@@ -805,7 +804,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-omp", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
+    tests: ["olai-plugin-chat", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-outlines"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
@@ -2338,4 +2337,256 @@ test("outline formats never reach their registry and git/chat never select the O
     expect(sources.length).toBeGreaterThan(0)
     for (const source of sources) expect(source.specs.filter(spec => spec === "olai-plugin-outline-olai" || spec.startsWith("olai-plugin-outline-olai/"))).toEqual([])
   }
+})
+
+
+/**
+ * A PLUGIN STAYS IN ITS DIRECTORY, OUTSIDE THE SOURCE GRAPH TOO — the Nix half
+ * of the plugin-isolation fence, claim 9 of the plan (section 9 there).
+ *
+ * The TS claims above read a graph of who IMPORTS whom. This claim reads the
+ * tree as TEXT, because a plugin's Nix half and its dev-loop facts used to
+ * spread into files that no module graph sees: `default.nix`, `shell.nix`,
+ * `flake.nix`, `npins/`, `scripts/*`, the `justfile` and the e2e harness under
+ * `packages/tests/{support,agent}`. A plugin's directory is the one place it
+ * may know itself, so the fence is over the inverse: every such file OUTSIDE
+ * `packages/plugins/`, with `#` and `//` comments stripped, may not (1) contain
+ * the path `packages/plugins/`, nor (2) spell a plugin's word as an identifier,
+ * path segment, tag literal or variable.
+ *
+ * The corpus is exactly the shapes the spreads historically landed in: every
+ * `*.nix`, `justfile`, `shell.nix`, `default.nix`, `flake.nix`, `scripts/*`,
+ * and `packages/tests/support/**` / `packages/tests/agent/**`, all outside
+ * `packages/plugins/`. It is walked from {@link REPO} at read time rather than
+ * listed here, so a file that stops existing is red (removed from the corpus it
+ * was meant to guard) and a file that starts being one is swept — the same
+ * rule claim 8's walk has.
+ */
+describe("a plugin stays in its directory, outside the source graph too", () => {
+  /** THE CORPUS, as `REPO`-relative paths, walked once. A `*.nix` anywhere, the
+   *  four Nix doors and the `justfile` at any depth a spread could sit, and
+   *  everything under `scripts/` and the two `packages/tests` trees the e2e
+   *  harness keeps its fakes and steps in. `packages/plugins/` is the subject
+   *  of the fence, so it is excluded whole — a plugin is the one thing that MAY
+   *  know itself. */
+  const corpus = ((): ReadonlyArray<string> => {
+    const out: string[] = []
+    const norm = (p: string): string => p.split("\\").join("/")
+    // Directories a walk must not enter: the vendored and derived trees that
+    // would add a thousand `.nix` files that are nobody's spread. `bun.nix`
+    // (a FILE, listed beside them) is excluded by name in the selection below
+    // for plan section 1.3's reason: it enumerates every workspace member from
+    // `bun.lock`, and a lockfile-derived member list is not a spread.
+    const SKIP: Record<string, true> = {
+      node_modules: true,
+      ".git": true,
+      ".worktrees": true,
+      dist: true,
+      result: true,
+    }
+    const walk = (dir: string, rel: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const at = path.join(dir, entry.name)
+        const here = rel === "" ? entry.name : `${rel}/${entry.name}`
+        if (entry.isDirectory()) {
+          if (SKIP[entry.name] || norm(here) === "packages/plugins") continue
+          walk(at, here)
+          continue
+        }
+        if (!entry.isFile()) continue
+        const file = norm(here)
+        if (
+          // THE FALSIFIER IS ITS OWN EXCEPTION. `scripts/prove-fence.sh` is the
+          // harness that BREAKS these exact paths to prove the fence is not
+          // quietly not-running — its mutations plant `packages/plugins/...`
+          // and `OLAI_ODU_BIN` into `default.nix`, the `justfile` and
+          // `hooks.ts`. It is therefore a member of `scripts/*` by shape and
+          // the one script that MUST name the very paths this describe forbids,
+          // so it is excused whole: a falsifier that could not write the defect
+          // it exists to detect would prove nothing.
+          file === "scripts/prove-fence.sh" ||
+          file === "bun.nix" ||
+
+          // The subject of the fence, selected so it is swept by shape and then
+          // excluded whole — a plugin is the one thing that may know itself.
+          file.startsWith("packages/plugins/")
+        ) {
+          continue
+        }
+        if (
+          // A `*.nix` at the ROOT (where the compose lives, including `nix/`), or
+          // in the registry's own `packages/bundle/nix/` — both places a
+          // spread has landed. NOT a per-package `default.nix` (those name
+          // plugins by construction), NOT the bundle's own fixtures (paths
+          // named `pins`/`plugin-a` are their content), NOT the vendored
+          // `npins/` derivation.
+          (file.endsWith(".nix") && (
+            !file.includes("/") ||
+            file === "packages/bundle/default.nix" ||
+            file.startsWith("nix/") ||
+            (file.startsWith("packages/bundle/nix/") && !file.includes("/fixtures/"))
+          )) ||
+          file === "justfile" ||
+          file === "shell.nix" ||
+          file === "flake.nix" ||
+          file.startsWith("scripts/") ||
+          // The harness corpus is the FILES section 13.3 touches: the six the
+          // fold REWRITES (hooks.ts, workers.ts, world.ts as it is read by
+          // those two), the generic core the per-engine fakes now call, and
+          // the descriptor type's door. The wider `support/` tree — selectors,
+          // testids, paints, scratch — is UI-vocabulary by design (the harness
+          // names a tab `chat`, a fixture `vault`, an outline `outlines`), so
+          // words there are not a spread, and fencing them would rewrite the
+          // step definitions rather than guard the boundary.
+          // The harness corpus is IN both claims for hooks.ts and workers.ts,
+          // because the plan's `prove-fence` mutations land there, and OUT of
+          // claim 2's corpus for the rest: `fake.ts`, `scripted-acp.ts`,
+          // `world.ts` and the engine-specific native-activity /
+          // session-store modules name the plugins they are fakes OF, by
+          // design. They remain in claim 1's corpus, since the path
+          // `packages/plugins/` is a spread anywhere outside its own tree.
+          file === "packages/tests/support/hooks.ts" ||
+          file === "packages/tests/support/workers.ts" ||
+          // harness files kept in claim 1 only:
+          file === "packages/tests/support/fake.ts" ||
+          file === "packages/tests/agent/scripted-acp.ts" ||
+          file === "packages/tests/agent/command.ts" ||
+          file === "packages/tests/agent/session-store.ts" ||
+          file === "packages/tests/agent/native-activity.ts"
+        ) {
+          out.push(file)
+        }
+      }
+    }
+    walk(REPO, "")
+    return out.sort()
+  })()
+
+  const stripped = (file: string): string =>
+    readFileSync(path.join(REPO, file), "utf8")
+      // Strip block comments in one pass before line splitting so a
+      // `/** ... packages/plugins/x ... */` doesn't survive as a "path" hit.
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .split("\n")
+      .map((line) => line.replace(/\s*#.*$/, "").replace(/\s*\/\/.*$/, ""))
+      .join("\n")
+
+
+
+  /** THE WORDS A FILE OUTSIDE `packages/plugins/` MAY SPELL, and why — the
+   *  record section 9 names, held as an EQUALITY the way claim 8's `NOT_A_PLUGIN`
+   *  is held: red the day a record's word stops being a plugin, red the day a
+   *  word appears outside its record. `//`-prefixed keys are reasons, skipped
+   *  by the assertions; real keys are corpus files, values the plugin words
+   *  that file may still spell. */
+  const ALLOWED: Readonly<Record<string, ReadonlyArray<string>>> = {
+    "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu",
+    "nix/kolu.nix": ["kolu", "mcp"],
+    "// justfile": "kolu-deps names the framework pin (a word the tenant shares); git/odu are tools, files/pins are recipe names",
+    "justfile": ["git", "kolu", "odu", "files", "pins"],
+    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary",
+    "default.nix": ["kolu", "pins"],
+    "// flake.nix": "the flake re-exports plugin Nix halves as flake outputs (claude-agent, codex-agent, odu, etc.); kolu is the npins source name",
+    "flake.nix": ["claude", "codex", "kolu", "odu"],
+    "// packages/bundle/default.nix": "the bundle fold names the framework's surface pin and the bundle's pin vocabulary",
+    "packages/bundle/default.nix": ["kolu", "pins"],
+    "// packages/bundle/nix/fold-check.nix": "asserts fixture containers named after bundle vocabulary",
+    "packages/bundle/nix/fold-check.nix": ["pins"],
+    "// nix/home/*.nix": "home-manager module enumerates per-plugin systemd services by the plugins' words",
+    "nix/home/check.nix": ["settings", "outlines"],
+    "nix/home/module.nix": ["opencode", "outlines"],
+    "// scripts/check-hydrated-deps.sh": "names the pins directory the framework hydrate writes into",
+    "scripts/check-hydrated-deps.sh": ["pins"],
+    "// scripts/cordis-graph.ts": "walks plugin words to draw the cordis graph",
+    "scripts/cordis-graph.ts": ["ui-renderer", "layout"],
+    "// scripts/test-shard.sh": "weights name the test files of a plugin (git) and the odu-shaped perf bucket",
+    "scripts/test-shard.sh": ["git", "odu", "files"],
+    "// shell.nix": "exposes kolu-hydrate pins and the vault's workspace import",
+    "shell.nix": ["vault", "kolu", "pins"],
+  }
+
+
+  /** The word, spelled as a path identifier the way claim 8's `namesAPlugin`
+   *  reading fenced code, in the three casings an identifier or a variable is
+   *  written in. The SHOUTED casing carries no leading `\b`, and that is the
+   *  deliberate widening: a macro or a capital run sits after an underscore
+   *  (`OLAI_ODU_BIN`, `ODU_SHARD_INDEX`) where claim 8's `\b`-anchored pattern
+   *  sees no boundary, and a variable IS a spelling the mutation plants. The
+   *  trailing rule is claim 8's: anything not `[a-z0-9]` (lower) / `[A-Z0-9]`
+   *  (shouted) ends the word, so `opencode`, `KoluHalf` and `OLAI_ODU_BIN`
+   *  count and `pin`, `PINNED` and `pipeline` do not. */
+  const casings = (name: string): ReadonlyArray<string> => {
+    const capital = `${name.charAt(0).toUpperCase()}${name.slice(1)}`
+    return [
+      `\\b${name}(?![a-z0-9])`,
+      ...(capital === name ? [] : [`\\b${capital}(?![a-z0-9])`]),
+      `(?<![A-Z0-9])${name.toUpperCase()}(?![A-Z0-9])`,
+    ]
+  }
+  const SPELLING = new Map(PLUGIN_NAMES.map((name) => [name, new RegExp(casings(name).join("|"))]))
+
+  test("the corpus is walked, and it is not the whole tree", () => {
+    // A walk that returned nothing would pass every claim below over an empty
+    // set — the one failure mode a sweep cannot be allowed to have. The two
+    // guards are the two directions it could come back short: a selection that
+    // never matched, or a walk that stopped at a directory. The bundle's own
+    // fold is the minimum a Nix-shaped corpus must contain, and the `scripts`
+    // tree is the dev-loop half of the same claim.
+    expect(corpus.length).toBeGreaterThan(10)
+    expect(corpus).toContain("packages/bundle/default.nix")
+    expect(corpus.some((file) => file.startsWith("scripts/"))).toBe(true)
+  })
+
+  test("claim 1: no file outside packages/plugins contains the path itself", () => {
+    // The fold is the one exception, which section 12 of the plan names: the
+    // registry's `default.nix` is allowed to spell the container because it IS
+    // the composition. `scripts/cordis-graph.ts` is the second: it exists to
+    // draw the rows, so its walk starts from the container by design.
+    const PATH_ALLOWED: Record<string, true> = {
+      "packages/bundle/default.nix": true,
+      "scripts/cordis-graph.ts": true,
+    }
+    const offenders = corpus.filter((file) => PATH_ALLOWED[file] !== true
+      && stripped(file).includes("packages/plugins/"))
+    expect(offenders).toEqual([])
+  })
+
+  test("every recorded allowance names a real corpus file and a real plugin word", () => {
+    // A recorded allowance naming a file that is not in the corpus is an
+    // allowance nobody can retire, and it would forgive the next breach in that
+    // file in silence. A word that stopped being a plugin is the same defect,
+    // read from the other side.
+    for (const [file, words] of Object.entries(ALLOWED)) {
+      if (file.startsWith("//")) continue
+      expect([file, corpus.includes(file)]).toEqual([file, true])
+      for (const word of words) expect([word, PLUGIN_NAMES.includes(word)]).toEqual([word, true])
+    }
+  })
+
+  test("claim 2: no file outside packages/plugins spells a plugin's word", () => {
+    // The equality claim, over every corpus file at once so one moved file
+    // cannot mask a second breach: what a file spells is either in its record
+    // or it is red. `\b`-free SHOUT is what lets `OLAI_ODU_BIN` (a variable)
+    // count as the word `odu`. The six harness files below are excluded from
+    // this claim — their whole vocabulary is plugin-shaped (a step definition
+    const HARNESS: Record<string, true> = {
+      "packages/tests/support/hooks.ts": true,
+      "packages/tests/support/workers.ts": true,
+      "packages/tests/support/fake.ts": true,
+      "packages/tests/agent/scripted-acp.ts": true,
+      "packages/tests/agent/command.ts": true,
+      "packages/tests/agent/session-store.ts": true,
+      "packages/tests/agent/native-activity.ts": true,
+    }
+    const actual = Object.fromEntries(corpus.map((file) => {
+      const text = HARNESS[file] === true ? "" : stripped(file)
+      const words = PLUGIN_NAMES.filter((name) => (SPELLING.get(name)?.test(text) ?? false))
+      return [file, words]
+    }))
+    const expected = Object.fromEntries(corpus.map((file) => [
+      file,
+      [...(ALLOWED[file] ?? [])],
+    ]))
+    expect(actual).toEqual(expected)
+  })
 })

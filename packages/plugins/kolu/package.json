@@ -19,7 +19,8 @@
     "./appliance/wire": "./src/client/wire/index.ts",
     "./appliance/testlib": "./src/client/testlib/index.ts",
     "./appliance/drivers/foreignResize": "./src/client/drivers/foreignResize.ts",
-    "./appliance/drivers/makeBusyTerminal": "./src/client/drivers/makeBusyTerminal.ts"
+    "./appliance/drivers/makeBusyTerminal": "./src/client/drivers/makeBusyTerminal.ts",
+    "./e2e/fake": "./e2e/fake/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

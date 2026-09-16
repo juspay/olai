@@ -36,7 +36,9 @@ node_modules
 # that file is the only place a plugin is named. Written by `just install`
 # (the nix build rewrites them in its sandbox).
 /packages/bundle/src/rows.generated.ts
+/packages/bundle/src/fakes.generated.ts
 /packages/bundle/src/all.generated.css
+
 /packages/bundle/src/testids.generated.ts
 
 # The unit suite, to a log rather than to the terminal — `just test-log` says
