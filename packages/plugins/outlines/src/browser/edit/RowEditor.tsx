@@ -74,6 +74,21 @@ export function TitleEditor(props: {
   /** The parked input was focused: put the caret here. */
   readonly onActivate?: () => void
   readonly onParkedInput?: (text: string) => void
+  /**
+   * The box takes the whole LINE it is drawn in rather than only the width of
+   * the text in it — the two shapes this editor is drawn in, and the difference
+   * is what each one IS.
+   *
+   * TRUE for a ghost (`./NewRow.tsx`): an empty line is what a person is about
+   * to type in, so the box is the rest of that line and the placeholder has to
+   * be readable inside it.
+   *
+   * ABSENT for a row's title (`../NodeLine.tsx`): the title is as wide as its
+   * own words, so that the pilcrow and the facts after it are exactly where
+   * they were before the caret arrived — a title that opened a full-width box
+   * would push every one of them to the end of the line and back.
+   */
+  readonly fillsLine?: boolean
 }) {
   let element!: HTMLInputElement
 
@@ -136,11 +151,50 @@ export function TitleEditor(props: {
     // hangs off this box (Kobalte's popper, portalled) so the row's own
     // geometry is untouched (../complete/Completions.tsx says why it is
     // not in flow).
-    <span class="relative flex min-w-0 flex-1">
+    <span
+      class={props.fillsLine === true
+        ? "relative flex min-w-0 flex-1"
+        // A GRID whose one cell holds the sizer below and the input OVER it:
+        // the cell is exactly as wide as the source, and nothing measured it —
+        // a width in JS would be a number to keep in step with the font, and a
+        // `size` attribute would be an average that no proportional title
+        // agrees with. `overflow-hidden` because the sizer does not wrap (an
+        // input does not either), so a title longer than its line would
+        // otherwise hang off the pane invisible and scroll it sideways.
+        //
+        // `min-h-[1.5em]` because an EMPTY source draws no line box at all: the
+        // cell would be nothing tall, the input (out of flow, one line high)
+        // would hang out of the LINE and over whatever the row says under it —
+        // and a title being retyped is empty for as long as it takes to type
+        // (`outline_drafts_lifecycle.feature`'s refusal, which draws a line
+        // there, is where this was found).
+        : "relative inline-grid min-h-[1.5em] min-w-0 max-w-full overflow-hidden"}
+    >
+      {props.fillsLine === true ? undefined : (
+        // The sizer: the SOURCE, which is exactly what the input shows while
+        // it is open (`./RowEditor.tsx`'s header — a title reads as its markdown
+        // until the caret leaves it). `whitespace-pre` because an input does
+        // not wrap either, and `min-w-4` because an emptied title still has to
+        // be a box with a caret in it.
+        <span
+          class="invisible col-start-1 row-start-1 min-w-4 whitespace-pre"
+          aria-hidden="true"
+        >
+          {props.text}
+        </span>
+      )}
       <input
         ref={element}
         type="text"
-        class={`m-0 h-[1.5em] w-full min-h-0 flex-1 appearance-none border-0 bg-transparent p-0 text-ink outline-none ${props.section === true ? SECTION_TITLE : ROW_TITLE}`}
+        class={`m-0 h-[1.5em] w-full min-h-0 appearance-none border-0 bg-transparent p-0 text-ink outline-none ${props.section === true ? SECTION_TITLE : ROW_TITLE}`}
+        classList={{
+          "flex-1": props.fillsLine === true,
+          // OUT of the grid, so the sizer alone decides the cell's width: an
+          // input's own intrinsic width is `size`'s twenty characters, and an
+          // in-flow item would make the box at least that wide whatever the
+          // title said.
+          "absolute left-0 right-0 top-0": props.fillsLine !== true,
+        }}
         data-testid={TESTID.titleEditor}
         value={props.text}
         placeholder={props.placeholder}
