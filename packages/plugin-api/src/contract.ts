@@ -378,23 +378,11 @@ export interface Deliveries {
     say: () => string | null,
     options?: { readonly coalesce?: string },
   ) => Effect.Effect<void>
-  /**
-   * THE CONVERSATIONS THAT OPTED INTO THIS PLUGIN'S WAKES, each with the file a
-   * person picked to filter by. Pass the issued scope, including its `current` capability, to
-   * `deliver`: it carries the authority of that exact pick through startup
-   * and queued work. Bare routing coordinates are not a delivery recipient.
-   *
-   * SYNCHRONOUS, and that shapes what is behind it: the composition root builds
-   * this blob inside a plain `.map`, and the caller is a watcher sink with no
-   * Effect around it. So core mirrors the table in memory and the disk copy
-   * follows the write rather than leading the read.
-   *
-   * The list is the WHOLE of the scope. A conversation is on it because somebody
-   * picked a file for it, and it leaves when somebody clears it: there is no
-   * serve-level default, and no way for an AGENT to add one — the member that
-   * writes this is drawn for the browser and refused to the agent face, which is
-   * where that reads as physics rather than as a promise. A fresh conversation's
-   * doorbell is off, and the only thing that turns it on is a person.
+  /** Registered wakes receive explicit browser-written choices, opaque to chat.
+   * Delivery-only plugins receive node conversation addresses with `pick: null`.
+   * Pass the whole recipient to `deliver`: `current` carries the authority of
+   * that choice or node binding through startup and queued work. Reads are
+   * synchronous; successful choice writes persist before publishing new rows.
    */
   readonly scopes: () => ReadonlyArray<DeliveryRecipient & { readonly pick: (typeof import("effect").Schema.Json)["Type"] }>
   /**
