@@ -223,13 +223,14 @@ kolu-deps:
 plugin-deps:
     #!/usr/bin/env bash
     set -euo pipefail
+    JQ=$({{ nix_shell }} which jq | tail -1)
     while IFS= read -r entry; do
-      name=$(printf '%s' "$entry" | jq -r '.name')
-      manifest=$(printf '%s' "$entry" | jq -r '.externals')
+      name=$(printf '%s' "$entry" | "$JQ" -r '.name')
+      manifest=$(printf '%s' "$entry" | "$JQ" -r '.externals')
       if [ "$manifest" != "{}" ]; then
         {{ nix_shell }} sh -c "sh scripts/check-hydrated-deps.sh \"$name\" '$manifest'"
       fi
-    done < <(printf '%s' "$OLAI_PLUGIN_EXTERNALS" | jq -c 'to_entries[] | {name: .key, externals: .value}')
+    done < <(printf '%s' "$OLAI_PLUGIN_EXTERNALS" | "$JQ" -c 'to_entries[] | {name: .key, externals: .value}')
 
 # EVERY PLUGIN'S SANDBOXED surface check, run as one `nix build` over the
 # fold's `checks` attrset. The odu plugin's row runs the real probe
@@ -352,12 +353,14 @@ run dir="docs" *args: build-client
 # node_modules meet outside the dev shell, and running it is what proves that
 # tree's module graph resolves — a typecheck cannot, because the dev tree has
 # packages the build's does not. The run re-uses the build's output (it
-# re-evaluates the flake, which is cheap and warm). No nix_shell prefix: this
-# recipe IS the outside-the-shell check.
+# re-evaluates the flake, which is cheap and warm). The recipe enters the
+# shell because the knob assertions below need `jq` (the fold's `knobs` JSON
+# is what feeds them, and jq lives in the shell).
 [doc("Build and verify the Nix-packaged binary")]
 nix:
     #!/usr/bin/env bash
     set -euo pipefail
+    JQ=$({{ nix_shell }} which jq | tail -1)
     out=$(sh scripts/nix-out.sh .#olai)
     echo >&2 "nix run .#olai -- --help"
     nix run .#olai --accept-flake-config -- --help > /dev/null
@@ -368,10 +371,10 @@ nix:
     # everything else arrives here by composition.
     json=$(nix eval --json .#olai.passthru.knobs --accept-flake-config)
     while IFS= read -r entry; do
-      name=$(printf '%s' "$entry" | jq -r '.name')
-      kind=$(printf '%s' "$entry" | jq -r '.kind')
-      path=$(printf '%s' "$entry" | jq -r '.path')
-      holds=$(printf '%s' "$entry" | jq -r '.holds // ""')
+      name=$(printf '%s' "$entry" | "$JQ" -r '.name')
+      kind=$(printf '%s' "$entry" | "$JQ" -r '.kind')
+      path=$(printf '%s' "$entry" | "$JQ" -r '.path')
+      holds=$(printf '%s' "$entry" | "$JQ" -r '.holds // ""')
       # The one-dash `${VAR-...}` is asserted, and it is load-bearing: it
       # substitutes only when the variable is UNSET, which is what makes an
       # empty command skip the packaged default and leave search-path
@@ -405,12 +408,12 @@ nix:
           echo "packaged ${name}: $default"
           ;;
       esac
-    done < <(printf '%s' "$json" | jq -c 'to_entries[] | .value + {name: .key}')
+    done < <(printf '%s' "$json" | "$JQ" -c 'to_entries[] | .value + {name: .key}')
     # The `OLAI_WRAPPER_DEFAULTS` `--run` must name exactly the declared set —
     # the settings panel's 'wrapper-provided' label is this loop's answer.
     # The names arrive from the fold, not from a hard-coded list, so the
     # loop's own answer to "wrapper-provided?" is compositional.
-    keys=$(printf '%s' "$json" | jq -r 'keys | join(" ")')
+    keys=$(printf '%s' "$json" | "$JQ" -r 'keys | join(" ")')
     if ! grep -qF "for key in $keys" "$out/bin/olai"; then
         echo "the wrapper's OLAI_WRAPPER_DEFAULTS loop does not name the fold's knobs: $keys" >&2
         cat "$out/bin/olai" >&2
@@ -421,7 +424,7 @@ nix:
     # the literal text `export PATH="${<NAME>}""${PATH:+:$PATH}"` appears
     # once per knob, scanned for its two halves separately so the grep
     # pattern itself never has to escape a `$` the justfile would.
-    printf '%s' "$json" | jq -r 'to_entries[] | select(.value.kind == "dir") | .key' | while read -r name; do
+    printf '%s' "$json" | "$JQ" -r 'to_entries[] | select(.value.kind == "dir") | .key' | while read -r name; do
         # The literal text scanned for is `export PATH="${NAME}""${PATH:+:$PATH}"`;
         # the bash string `\$` escapes every dollar so grep sees the file's
         # own spelling rather than an interpolated value.
