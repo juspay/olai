@@ -273,7 +273,7 @@ Use one top-level node per row in `_olai/Settings.olai`. For example:
 {"id":"chat","ord":"a2","title":"chat","custom":{"idle-ms":"1200000"}}
 ```
 
-`on: yes` enables a build opt-in row; `on: no` disables one. The case-insensitive pairs `on`/`off` and `true`/`false` mean the same thing. An absent choice uses the profile/build default. Selecting a tool the machine lacks leaves its row unavailable with the reason; it does not break unrelated rows. With no engine available chat explains the absence. Turning chat off removes the conversation and leaves its dependants waiting.
+`on: yes` enables a build opt-in row; `on: no` disables one. An absent choice uses the profile/build default. Selecting a tool the machine lacks leaves its row unavailable with the reason; it does not break unrelated rows. With no engine available chat explains the absence. Turning chat off removes the conversation and leaves its dependants waiting.
 
 ### Three settings doors
 

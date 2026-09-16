@@ -1,5 +1,5 @@
 @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
-Feature: An agent opts into inbox wakes on its node
+Feature: A person switches inbox wakes on for a conversation
 
   Background:
     Given the harness keeps distinct sessions on disk

@@ -2,9 +2,10 @@
  * Mail owns its OAuth route, token broker, generated config and account cell.
  * Its MCP tool closures also own a label cache, four spawn permits, per-thread
  * write permits and a temporary attachment directory. The activation gate cuts
- * and joins tool calls before resources close. The watcher and refresh fibers stop before
- * attachments and the config directory close. Vault and chat seating are declared
- * readings; deliveries is write-only. All pending digest state dies with the row.
+ * and joins tool calls before resources close. The watcher and refresh fibers
+ * stop before attachments and the config directory close. The watcher reads
+ * Deliveries.scopes() for its recipients and holds no vault reading. All pending
+ * digest state dies with the row.
  */
 
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"

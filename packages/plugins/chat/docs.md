@@ -25,7 +25,7 @@ Every plugin that could reach a conversation names one of the five doors this ro
 | `agents` | which ACP engines this build can seat | [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md), [omp](omp.md) |
 | `deliveries` | where a doorbell may ring | [kolu](kolu.md), [odu](odu.md), [mail](mail.md) |
 | `session-start` | what to ask this host when a conversation opens | kolu, odu |
-| `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces, mail |
+| `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces |
 | `watching` | what a plugin that mirrors a conversation is told | [xyne-spaces](xyne-spaces.md) |
 
 In the browser, the row publishes its roster as `chat.state`. The static door
