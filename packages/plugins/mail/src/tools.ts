@@ -112,7 +112,7 @@ export const makeTools = (himalaya: Himalaya, machine: Pick<AccountMachine, "cur
     ...(["archive", "trash", "untrash"] as const).map(kind => calls(kind, `${kind} mail thread`, `${kind === "archive" ? "Remove INBOX from" : kind === "trash" ? "Move to Gmail Trash:" : "Restore from Gmail Trash:"} a thread. Never permanently deletes mail.` + manual, ThreadArgs, true,
       (_client: unknown, args) => perform(kind, args, write(kind, args)))),
     calls("label", "Label mail thread", "Add or remove existing labels by name. Supply at least one list; unknown labels refuse before any write." + manual,
-      Schema.Struct({ thread, add: Schema.optionalKey(names), remove: Schema.optionalKey(names) }), true,
+      Schema.Struct({ thread, add: Schema.optionalKey(names.annotate({ description: "Existing label names to add, 1–10. Supply add or remove (or both)." })), remove: Schema.optionalKey(names.annotate({ description: "Existing label names to remove, 1–10. Unknown names refuse the entire write." })) }), true,
       (_client: unknown, args) => perform("label", args, write("label", args))),
     calls("read", "Mark mail read", "Set whether a thread is read." + manual, Schema.Struct({ thread, read: Schema.Boolean.annotate({ description: "True marks read; false marks unread." }) }), true,
       (_client: unknown, args) => perform("read", args, write("read", args))),
