@@ -9,7 +9,8 @@
     "src/browser/commit/selection.ts",
     "src/git/git.ts",
     "src/ledger/pending.bench.ts",
-    "src/ledger/pending.ts"
+    "src/ledger/pending.ts",
+    "src/tools.ts"
   ],
   "mcp": [
     "src/browser/commit/said.ts",
