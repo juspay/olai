@@ -41,6 +41,10 @@ import type { EventEmitter } from "node:events";
 // THE MAIL ROW'S DOOR NAMES, for the strip list below — derived rather than
 // remembered, so a door this row adds later cannot be inherited by a scenario.
 import { DOORS as MAIL_DOOR_NAMES } from "olai-plugin-mail/appliance/testlib";
+// EVERY KNOB THE WRAPPER COULD BAKE, for the strip list below — derived from
+// the fold's `olai.knobs` so a plugin that declares one cannot be inherited
+// by a scenario. {@link KNOBS} in `../../bundle/src/fakes.generated.ts`.
+import { KNOBS } from "@olai/bundle/e2e-fakes";
 
 export { defaultWorkers, WORKER_CAP, workerCount } from "./parallelism.js";
 
@@ -210,13 +214,17 @@ export const isolateEnv = (
   // the tag could not work at all.
   delete host.PADI_SOCKET;
   delete host.ODU_WEB_ORIGIN;
-  // WHICH ODU goes the same way, one variable over: the packaged wrapper reads
-  // `OLAI_ODU_BIN` first (default.nix), so a developer mid-test of their own
-  // odu would otherwise point EVERY spawned server at it — which odu answers
-  // a scenario is the suite's to answer, and the default answer is the
-  // wrapper's own pin: a laptop that has a real one gets the same suite as
-  // one that has none — for `OLAI_AGENT_PATH`'s reason, one knob over.
-  delete host.OLAI_ODU_BIN;
+  // EVERY KNOB THE WRAPPER COULD HAVE BAKED, the same way, for that argument
+  // one row over, and derived: the fold's `olai.knobs` is the one place a
+  // plugin declares a wrapper variable, so a host mid-test of their own odu,
+  // ACP adapter or himalaya would otherwise point EVERY spawned server at a
+  // laptop's pin — which answer a server returns is the suite's to answer,
+  // and the default answer is the wrapper's own. The harness overwrites them
+  // per spawn (`hooks.ts`), so deleting here is not "absent", it is "the
+  // scenario's to decide": a fake, or the off switch, or the un-routable
+  // default. The list travels beside the roster, so a plugin that adds a
+  // knob cannot be forgotten here.
+  for (const knob of KNOBS) delete host[knob];
   // THE MAIL ROW'S FOUR DOORS go the same way, for exactly that argument one
   // row over, and they are the sharpest case of it in this file: a developer
   // who has pointed their own laptop at a real Gmail account has all four set,

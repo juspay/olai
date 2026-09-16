@@ -156,14 +156,18 @@ const packageOf = (row: Row): string => {
 
 /** Exports describe which graphs exist. A server-only package needs no empty
  * browser module or stylesheet, and the generator never imports server code. */
-const hasDoor = (row: Row, door: string): boolean => {
+const packageDirOf = (row: Row): string => {
   let directory = dirname(Bun.resolveSync(row.name, HERE))
   while (!existsSync(join(directory, "package.json"))) {
     const parent = dirname(directory)
     if (parent === directory) throw new Error(`bundle: no manifest for ${row.name}`)
     directory = parent
   }
-  const manifest = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"))
+  return directory
+}
+
+const hasDoor = (row: Row, door: string): boolean => {
+  const manifest = JSON.parse(readFileSync(join(packageDirOf(row), "package.json"), "utf8"))
   return Object.hasOwn(manifest.exports ?? {}, door)
 }
 
@@ -277,10 +281,20 @@ export const WRITE_RESERVATIONS: ReadonlyArray<WriteReservation> = [${policyRows
 `)
 
 const fakeRows = rows.filter((row) => hasDoor(row, "./e2e/fake"))
-writeFileSync(join(SRC, "fakes.generated.ts"), `${HEADER("Every engine's scripted e2e fake, as a roster the harness folds over (section 13.3). A dynamic import is what keeps an engine's testlib out of the server graph.")}
+// ONE LIST FOR THE WHOLE FOLD: the harness's `isolateEnv` deletes every knob
+// the wrapper could bake before a scenario sets its own. The fold's source
+// for that list is `olai.knobs` in each plugin's manifest, which is exactly
+// what `packages/bundle/nix/fold-check.nix` reads — so a plugin that adds a
+const knobNames = rows.flatMap((row) => {
+  const manifest = JSON.parse(readFileSync(join(packageDirOf(row), "package.json"), "utf8")) as { olai?: { knobs?: Record<string, unknown> } }
+  return Object.keys(manifest.olai?.knobs ?? {})
+})
+writeFileSync(join(SRC, "fakes.generated.ts"), `${HEADER("Every engine's scripted e2e fake, as a roster the harness folds over (section 13.3). A dynamic import is what keeps an engine's testlib out of the server graph. `KNOBS` is the fold's own answer to 'what could the wrapper have baked' — `olai.knobs` from every manifest, emitted beside the roster so the harness deletes a host's by name before a scenario sets its own.")}
 import type { Fake } from "./fake.ts"
 export interface FakeRow { readonly id: string; readonly load: () => Promise<{ readonly fake: Fake }> }
 export const FAKES_ROSTER: ReadonlyArray<FakeRow> = [
 ${fakeRows.map((row) => `  { id: ${quoted(row.id)}, load: () => import(${quoted(`${packageOf(row)}/e2e/fake`)}) },`).join("\n")}
 ]
+
+export const KNOBS: ReadonlyArray<string> = [${knobNames.map(quoted).join(", ")}]
 `)

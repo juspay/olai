@@ -2518,8 +2518,8 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     "shell.nix": ["kolu", "pins"],
     "// packages/tests/support/hooks.ts": "the e2e harness's per-tag setup spells the plugins its scenario tags drive (`@alerts`, `@markdown-paints`), the tool suites it exercises (git, files, search, capture), and the worker constants it seeds; its comments name OLAI_HIMALAYA so the mail row's knob counts. Section 13.3's prove-fence mutation (the `@pi` tag) lands here, so the file is checked, not blanked",
     "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "mail#knob", "files", "capture", "markdown"],
-    "// packages/tests/support/workers.ts": "the e2e harness's worker driver reads the OLAI_ODU_BIN constant it must sometimes unset and prepares $OLAI_HIMALAYA on every spawn",
-    "packages/tests/support/workers.ts": ["git", "odu", "odu#knob", "mail", "mail#knob"],
+    "// packages/tests/support/workers.ts": "the e2e harness's isolation loop reads the fold-derived KNOBS list and deletes every declared knob the wrapper could have baked; the mail row's door names travel beside it",
+    "packages/tests/support/workers.ts": ["git", "odu", "mail", "mail#knob"],
   }
 
 
