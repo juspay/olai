@@ -273,23 +273,49 @@ Feature: Committing on purpose
     And there should be no page errors
 
   @policy:git.commit=auto @policy:git.push=auto
-  Scenario: A branch somebody else has moved stops the loop, and says so
+  Scenario: A branch somebody else has moved is taken in, and the push lands
+    # THE DIVERGENCE, ruled at dispatch: it used to stop the loop asking for a
+    # terminal; now the push FETCHES, rebases what is unpushed onto the moved
+    # upstream, and sends — the servo takes the other machine's commit in and
+    # this side's commit lands on top of it. What still stops the loop is a
+    # CONFLICT (the next scenario), a fetch or push the remote refused, or an
+    # integration that could not run. An empty commit from the other side
+    # rebases cleanly, which is the shape this scenario builds.
+    Given the served repository has a remote
+    And somebody else has pushed "theirs" to the remote
+    When I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    Then the flurry records itself
+    And olai has recorded 1 commit here
+    # The take-in and push are the same verb now, so the push happens without
+    # a button and the pill goes back to READY — the branch is in sync.
+    And the commit pill says auto-commit is "armed"
+    And the commit pill says 0 unpushed
+    And the remote has "olai: 1 file — notes.md"
+    # The take-in LANDED: the other side's commit is the tip's parent, not a
+    # force over it.
+    And the remote has taken in "theirs" before this commit
+    And there should be no page errors
+
+  @policy:git.commit=auto @policy:git.push=auto
+  Scenario: A conflicting take-in stops the loop, and says so
     # THE CONFLICT, ruled at dispatch: conflict-safe enough not to corrupt, and
-    # on one, STOP rather than retry blindly. A divergence is what a single user
-    # with two machines actually meets — the upstream moved, so git refuses the
-    # push as a non-fast-forward. Nothing here pulls, rebases or forces, and
-    # nothing goes round again: the commit stands, the loop stops, and git's own
-    # words are on the pill and in the panel with the one gesture that resumes
-    # it. The second flurry is the fence: the window is given its full run and
-    # what it would have recorded is still on disk, uncommitted.
+    # on one, STOP rather than retry blindly. A same-line edit from the other
+    # machine is what makes the rebase stop; the take-in is aborted, nothing
+    # moves, and git's own words are on the pill and in the panel with the one
+    # gesture that resumes it. The second flurry is the fence: the window is
+    # given its full run and what it would have recorded is still on disk,
+    # uncommitted.
     #
     # AND THE CHIP SAYS THE PUSH FAILED, which is `push-failure-invisible`: the
     # screenshot that started this was `✓ committed · 13 unpushed` with the
     # reason nowhere, because it lived in one tab's memory. The refusal is the
     # directory's now, so the tick comes off and git's words are on the label.
     Given the served repository has a remote
-    And somebody else has pushed to the remote
-    When I rewrite "notes.md" as:
+    And somebody else has pushed a conflicting edit to "finishes.md"
+    When I rewrite "finishes.md" as:
       """
       the herb bed needs splitting again
       """
@@ -297,7 +323,7 @@ Feature: Committing on purpose
     And olai has recorded 1 commit here
     And the commit pill says auto-commit is "paused"
     # Git's own words, on the sentence a reader with no pointer gets.
-    And the commit pill explains "rejected"
+    And the commit pill explains "CONFLICT"
     And the commit pill says the push was refused
     And the commit pill reads "the last push was refused"
     And the commit pill is alarming
@@ -324,8 +350,8 @@ Feature: Committing on purpose
     # about the stop at all. It is a fact about the directory now: it survives
     # the reload, and the one gesture that clears it is a server procedure.
     Given the served repository has a remote
-    And somebody else has pushed to the remote
-    When I rewrite "notes.md" as:
+    And somebody else has pushed a conflicting edit to "finishes.md"
+    When I rewrite "finishes.md" as:
       """
       the herb bed needs splitting again
       """

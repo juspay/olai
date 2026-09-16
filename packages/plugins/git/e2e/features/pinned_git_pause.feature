@@ -18,25 +18,26 @@ Feature: A pinned loop that git stopped can still be started again
   has taken the toggle away, and the one control a stopped loop needs must not
   go with it.
 
-  This server is started `commit: auto push: auto`, and the divergence is the
-  case that meets it — somebody else has pushed, so the push is a
-  non-fast-forward. Nothing here pulls, rebases or forces.
+  This server is started `commit: auto push: auto`, and a CONFLICT is the case
+  that meets it — somebody else has edited the same line, so the take-in stops
+  and the loop pauses. Nothing here pulls, rebases or forces, and a clean
+  divergence no longer stops anything (it is taken in and pushed).
 
   Background:
     Given I open the outline "garden.olai"
     And the served repository has a remote
 
   Scenario: A branch somebody else moved stops the pinned loop, and Resume starts it again
-    Given somebody else has pushed to the remote
-    When I rewrite "notes.md" as:
+    Given somebody else has pushed a conflicting edit to "finishes.md"
+
+    When I rewrite "finishes.md" as:
       """
       the herb bed needs splitting again
       """
     Then the flurry records itself
     And olai has recorded 1 commit here
     And the commit pill says auto-commit is "paused"
-    # Git's own words, on the sentence a reader with no pointer gets.
-    And the commit pill explains "rejected"
+    And the commit pill explains "CONFLICT"
     # ... and the gesture named is the one that exists: a frozen row has no
     # toggle, and neither does an unfrozen one any more.
     And the commit pill explains "Resume"
