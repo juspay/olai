@@ -30,6 +30,9 @@ the whole host, for a key the vault never declared; the arrow points this way
 now, which costs this row no wait it did not already have. The registration
 unwinds with this activation, so a vault outliving the ledger falls back to
 refusing in its own words.
+On the push path the row fetches the upstream, and while it does it owns a
+temporary linked worktree under the git directory — the files you are served
+move onto the result only with one all-or-nothing tree update.
 
 ## In the browser
 
