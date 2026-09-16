@@ -59,6 +59,28 @@ Feature: A new line keeps its box while its save lands
     Then the line being typed has become the row holding "the first thing"
     And there should be no page errors
 
+  Scenario: A line being typed takes the ring with it, and nothing else wears it
+    # The ring says "this is the row" (`browser/focus.ts`, one signal for the
+    # whole app, and `data-focused` is how a scenario reads it). A ghost is
+    # drawn inside the `<li>` of the row it will follow, so its input used to
+    # hand that row the claim on the caret's behalf: the row ABOVE wore the ring
+    # while the line below was what was being typed, and it lost the ring the
+    # moment the new row landed — which is the change this feature is about.
+    Given outline page revisions can be held after their writes reply
+    And I open the outline "house.olai"
+    When I click the title of "handles"
+    And I press "Enter"
+    And I hold the next outline page revision
+    And I type "measure twice"
+    And "house.olai" holds a node titled "measure twice"
+    Then no row is pointed at
+    When I release the held outline page revision
+    Then the line being typed has become the row holding "measure twice"
+    # ...and the ring arrives WITH the row, on the same pixels the ghost's own
+    # chrome already stood on: the landing is the moment nothing may move.
+    And the row being typed is the one pointed at
+    And there should be no page errors
+
   Scenario: The caret a person left mid-word survives the save landing
     # The reply and the frame swap the BOX under the caret. The offset is the
     # one thing about it that is in neither the draft nor the row — it is in

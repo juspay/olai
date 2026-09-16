@@ -31,7 +31,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
-import { isoDayOf } from "@olai/web/testlib"
+import { isoDayOf, selector } from "@olai/web/testlib"
 // HOW LONG THE OUTLINE WAITS BEFORE IT COMMITS is the outline row's number, and
 // a step that asserts "not yet" has to outwait the one the client actually
 // uses. It was re-exported by `@olai/web/testlib`, which put
@@ -39,7 +39,7 @@ import { isoDayOf } from "@olai/web/testlib"
 // entirely that row's — the equality `@olai/bundle`'s `fence.test.ts` holds.
 import { IDLE_COMMIT } from "../../src/testlib.ts"
 
-import type { Locator } from "@olai/tests/harness/playwright.ts";
+import type { ElementHandle, Locator } from "@olai/tests/harness/playwright.ts";
 
 import { leavingTheLine, nothingIsBeingTyped } from "@olai/tests/harness/caret.ts";
 import { pressed, typed } from "@olai/tests/harness/settling.ts";
@@ -640,12 +640,16 @@ Then(
 
 const idTitled = async (world: OlaiWorld, title: string): Promise<string | null> =>
   world.page.locator(NODE).evaluateAll((rows, selectors) => {
-    // Read one DOM snapshot. Between separate count/textContent awaits, an
-    // idle save can swap the title span for its editor and strand the locator.
+    // Read one DOM snapshot. Between separate count/innerText awaits, an idle
+    // save can land and redraw the row under the locator.
     for (const row of rows) {
-      const shown = row.querySelector(selectors.shown);
-      const typing = row.querySelector<HTMLTextAreaElement>(selectors.typing);
-      const text = shown === null ? typing?.value : shown.textContent;
+      // The row's OWN cell, and the editor INSIDE it: a row's descendants are
+      // whole child rows, so an editor looked for anywhere under it can answer
+      // with a child's (`../browser/NodeLine.tsx` draws both states in the one
+      // cell for exactly this kind of reason — one place to read a title).
+      const cell = row.querySelector(selectors.shown);
+      const field = cell?.querySelector(selectors.typing);
+      const text = field instanceof HTMLInputElement ? field.value : cell?.textContent;
       if (text?.includes(selectors.title)) return row.getAttribute("data-node-id");
     }
     return null;
@@ -1142,6 +1146,109 @@ Then("the remembered parked input still holds the caret", async function (this: 
   const input = parkedInputs.get(this);
   assert.ok(input);
   assert.equal(await input.evaluate((element) => element.isConnected && document.activeElement === element), true);
+});
+
+// ── the facts a row draws after its title ──────────────────────────────
+
+/** The pilcrow that opens a row's note, and the chip a plugin hangs on it —
+ *  the two ends of one claim, and the two the report named by sight: opening a
+ *  title editor used to take BOTH of them off the line. */
+const NOTE_MARK = selector(TESTID.noteMark);
+const AGENT_CHIP = selector(TESTID.agentStart);
+
+/** What is written down about them: the ELEMENT itself, and where it sat.
+ *  Both halves, because they are two different failures — an element that was
+ *  REMADE in the same place passes a box check and is still the blink this
+ *  exists to catch (the chip is a button with state of its own, and remaking
+ *  it is a pointer's hover and a plugin's own fetch both lost), and an element
+ *  that survived while the line laid out around it has moved. */
+type Sat = {
+  readonly what: string;
+  readonly element: ElementHandle<HTMLElement | SVGElement>;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+};
+const facts = new WeakMap<OlaiWorld, ReadonlyArray<Sat>>();
+
+const WHAT_FACTS: ReadonlyArray<readonly [string, string]> = [
+  ["the title cell", NODE_TITLE],
+  ["the note mark", NOTE_MARK],
+  ["the plugin chip", AGENT_CHIP],
+];
+
+When("I write down where the facts of {string} sit", async function (this: OlaiWorld, id: string) {
+  const row = this.node(id);
+  const written: Array<Sat> = [];
+  for (const [what, control] of WHAT_FACTS) {
+    const element = await row.locator(control).first().elementHandle();
+    assert.ok(element !== null, `${what} of "${id}" is not on the line to write down`);
+    const box = await element.boundingBox();
+    assert.ok(box !== null, `${what} of "${id}" has no box`);
+    written.push({ what, element, box });
+  }
+  facts.set(this, written);
+});
+
+/** What is no longer true about them, or `null` when nothing changed. */
+const movedOf = async (world: OlaiWorld, id: string): Promise<string | null> => {
+  const written = facts.get(world);
+  assert.ok(written !== undefined, "no `I write down where the facts of … sit` came first");
+  for (const one of written) {
+    if (!(await one.element.evaluate((element) => element.isConnected))) {
+      return `${one.what} was taken off the line and made again`;
+    }
+    const box = await one.element.boundingBox();
+    if (box === null) return `${one.what} has no box any more`;
+    for (const edge of ["x", "y", "width", "height"] as const) {
+      const written = one.box[edge];
+      if (Math.abs(box[edge] - written) > 1) {
+        return `${one.what} moved: its ${edge} was ${written} and is ${box[edge]}`;
+      }
+    }
+  }
+  return null;
+};
+
+Then("the facts of {string} sit where they sat", async function (this: OlaiWorld, id: string) {
+  await this.waitUntil(
+    async () => (await movedOf(this, id)) === null,
+    `the facts of "${id}" to sit where they sat`,
+  ).catch(async () => {
+    assert.fail(`"${id}": ${await movedOf(this, id)}`);
+  });
+});
+
+/** The editor is drawn IN the title cell — the cell rather than the line, which
+ *  is the whole of what keeps everything after it still (`../browser/NodeLine.tsx`). */
+Then("the title of {string} is being typed", async function (this: OlaiWorld, id: string) {
+  await this.node(id).locator(NODE_TITLE).first().locator(TITLE_EDITOR)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+// ── which row the ring is on ───────────────────────────────────────────
+
+/** The ring that says "this is the row" (`../browser/focus.ts`, one signal for
+ *  the whole app). A row's ring is a `data-` fact rather than a colour, which
+ *  is what makes "which row is pointed at" a question a scenario can ask. */
+Then("no row is pointed at", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(`${NODE}[data-focused="true"]`).count()) === 0,
+    "no row to wear the ring a reference puts on the row it points at",
+  );
+});
+
+Then("the row being typed is the one pointed at", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      await this.page.evaluate(
+        ([editor, node]) => {
+          const field = document.activeElement;
+          const row = field === null ? null : field.closest(node);
+          return row !== null && row.getAttribute("data-focused") === "true";
+        },
+        [TITLE_EDITOR, NODE] as [string, string],
+      ),
+    "the line being typed to hold the caret AND the ring, as one row",
+  );
 });
 
 // ── the line that is saving ────────────────────────────────────────────
