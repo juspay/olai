@@ -24,7 +24,9 @@ let
     # own `default.nix` — `OLAI_HIMALAYA` among them, owned by the mail
     # plugin, so there is no hand-written exception left to spare.
   };
-  # fold hands them here). `nix/kolu.nix` carries the framework's own.
+  # The framework's pin: `nix/kolu.nix` takes `extraSeeds` and `pinnedSources`
+  # from the fold (each plugin's contribution), and computes the closure for
+  # the six seed names every olai source imports.
   kolu = import ./nix/kolu.nix {
     inherit pkgs;
     extraSeeds = bundle.koluSeeds;
