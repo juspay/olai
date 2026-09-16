@@ -46,10 +46,10 @@
         "owner": "juspay",
         "repo": "kolu"
       },
-      "branch": "mcp-instructions-live",
+      "branch": "master",
       "submodules": false,
-      "revision": "7fa62bd4feace0bca4b027abdacc29878c08f0e8",
-      "url": "https://github.com/juspay/kolu/archive/7fa62bd4feace0bca4b027abdacc29878c08f0e8.tar.gz",
+      "revision": "1bd2645bb04bca8a2997651df5e4cb86b95ccc2b",
+      "url": "https://github.com/juspay/kolu/archive/1bd2645bb04bca8a2997651df5e4cb86b95ccc2b.tar.gz",
       "hash": "sha256-fcOXbABW+OktQCsbrE7opxFNfhyfED91KzyHk6f6rzE="
     },
     "nixpkgs": {
