@@ -62,6 +62,9 @@
  * a plugin one. Both are things a conversation would otherwise draw first.
  */
 
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { spawnSync } from "node:child_process"
 
 import { GMAIL, GMAIL_VERBS, HIMALAYA_VERSION_FLOOR, himalayaArgv } from "../packages/plugins/mail/src/himalaya/verbs.ts"
@@ -213,4 +216,23 @@ for (const verb of GMAIL_VERBS) {
       "came up without the `gmail` feature the version line above named.",
     ])
   }
+}
+
+// Mutations and attachment saves answer a JSON string, not structured output,
+// so upstream publishes schemas only for the four readers below.
+const schemas = ["profile-get", "threads-list", "threads-get", "labels-list"]
+const temporary = mkdtempSync(join(tmpdir(), "olai-mail-surface-"))
+try {
+  const dumped = ask(["json-schema", "--dir", temporary])
+  if (dumped.status !== 0) throw new Error(dumped.stderr || dumped.stdout)
+  for (const name of schemas) {
+    const file = `himalaya-gmail-${name}.json`
+    const actual = JSON.parse(readFileSync(join(temporary, file), "utf8"))
+    const expected = JSON.parse(readFileSync(new URL(`../packages/plugins/mail/src/himalaya/schemas/${file}`, import.meta.url), "utf8"))
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`${file} differs from the decoder's checked-in schema`)
+  }
+} catch (error) {
+  fail([`check-himalaya-surface: schema check failed: ${String(error)}`])
+} finally {
+  rmSync(temporary, { recursive: true, force: true })
 }

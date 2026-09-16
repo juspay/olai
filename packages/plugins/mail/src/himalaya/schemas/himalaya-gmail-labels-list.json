@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "GmailLabel": {
+      "description": "A Gmail label resource.\n\nLabels are used to categorize messages and threads within the\nuser's mailbox.",
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GmailLabelColor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The color of the label; only available for user labels."
+        },
+        "id": {
+          "description": "The immutable id of the label.",
+          "type": "string"
+        },
+        "labelListVisibility": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GmailLabelListVisibility"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The visibility of the label in the label list."
+        },
+        "messageListVisibility": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GmailMessageListVisibility"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The visibility of messages with this label in the message list."
+        },
+        "messagesTotal": {
+          "description": "The total number of messages with the label.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "messagesUnread": {
+          "description": "The number of unread messages with the label.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The display name of the label.",
+          "type": "string"
+        },
+        "threadsTotal": {
+          "description": "The total number of threads with the label.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "threadsUnread": {
+          "description": "The number of unread threads with the label.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GmailLabelType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The owner type of the label, serialized as `type`."
+        }
+      },
+      "type": "object"
+    },
+    "GmailLabelColor": {
+      "description": "Text and background colors of a user label, given as hex strings.",
+      "properties": {
+        "backgroundColor": {
+          "description": "The background color of the label as a hex string.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "textColor": {
+          "description": "The text color of the label as a hex string.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "GmailLabelListVisibility": {
+      "description": "Visibility of the label in the label list of the Gmail web client.",
+      "oneOf": [
+        {
+          "const": "labelShow",
+          "description": "The label always shows in the label list.",
+          "type": "string"
+        },
+        {
+          "const": "labelShowIfUnread",
+          "description": "The label shows in the label list only when unread.",
+          "type": "string"
+        },
+        {
+          "const": "labelHide",
+          "description": "The label never shows in the label list.",
+          "type": "string"
+        }
+      ]
+    },
+    "GmailLabelType": {
+      "description": "Owner of the label: created by Gmail or by the user.",
+      "oneOf": [
+        {
+          "const": "system",
+          "description": "A label created by Gmail, like INBOX or TRASH.",
+          "type": "string"
+        },
+        {
+          "const": "user",
+          "description": "A label created by the user.",
+          "type": "string"
+        }
+      ]
+    },
+    "GmailMessageListVisibility": {
+      "description": "Whether messages carrying a label show up in the message list.",
+      "oneOf": [
+        {
+          "const": "show",
+          "description": "Messages with the label show in the message list.",
+          "type": "string"
+        },
+        {
+          "const": "hide",
+          "description": "Messages with the label are hidden from the message list.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Renderable table of Gmail labels.",
+  "properties": {
+    "labels": {
+      "items": {
+        "$ref": "#/$defs/GmailLabel"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "labels"
+  ],
+  "title": "LabelsTable",
+  "type": "object"
+}

@@ -254,10 +254,11 @@ Then(
       .locator(AGENDA_PAGE)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await drawn(this.page.locator(`${AGENDA_PAGE} ${NODE}`));
-    assert.strictEqual(
-      await this.page.locator(`${AGENDA_PAGE} ${nodeSelector(id)}`).count(),
-      0,
-      `the node "${id}" is on the agenda, and nothing about it is owed`,
+    // A menu write returns before its server revision reaches this page.
+    // Wait for the promised absence, not just for the previous frame to draw.
+    await this.waitUntil(
+      async () => (await this.page.locator(`${AGENDA_PAGE} ${nodeSelector(id)}`).count()) === 0,
+      `the node "${id}" to leave the agenda`,
     );
   },
 );

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Gmail profile, rendered as aligned text or, under `--json`, as a\nstructured object (`{email, messages-total, threads-total,\nhistory-id}`) instead of a wrapped human string.",
+  "properties": {
+    "email": {
+      "type": "string"
+    },
+    "history-id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "messages-total": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "threads-total": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "email"
+  ],
+  "title": "GmailProfileOutput",
+  "type": "object"
+}

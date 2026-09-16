@@ -9,6 +9,7 @@
  */
 
 export const TESTID = {
+  mailStory: "mail-story",
   /** THE HEADER READOUT — `data-mail` is `absent` / `connected` / `fault`, a
    *  closed set, and it is the pill's whole assertion. `data-address` carries
    *  the connected address so a scenario asserts WHICH mailbox without reading

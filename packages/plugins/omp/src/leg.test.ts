@@ -289,3 +289,9 @@ describe("what omp does not do", () => {
     expect(OMP.models?.nameIn(labels, "openai/gpt-5")).toBeNull()
   })
 })
+
+
+test("MCP refusal text retains its story through omp's xdev wrapper", () => {
+  const result = { isError: true, content: [{ type: "text" as const, text: "surface-mcp: `mail_archive` was refused (usage): this thread is not in you@gmail.com" }] }
+  expect(OMP.replyIn(wrapped(result).rawOutput)).toEqual({ kind: "usage", reason: "this thread is not in you@gmail.com" })
+})
