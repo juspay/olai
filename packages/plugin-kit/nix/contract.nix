@@ -152,17 +152,17 @@ in
       check = checkVals contract;
     in
     # Run the type-checking machinery on a CLEAN contract — the `check` was
-    # computed but never forced, so option declarations undetected otherwise.
-    # Deliberately NOT realizing the evalModules `config`: on a BROKEN
-    # contract it throws "option does not exist" before `problems` can report
-    # the unknown key as a diagnostic, and on the shell path it realizes a
-    # knob's operational `path` (odu's `"${bin}/bin"` with `b2n == null`).
-    # So `ps` gates it — a broken contract returns its refusals as-is
-    # (fold-check / `diagnostics` read that list, never a `throw`), and only a
-    # valid one has the declared-type tree driven (which surfaces declaration
-    # / structural errors without touching values). VALUE shape errors inside
-    # an option surface from the strict `contract` door when the root composes
-    # the value, where `b2n` is real and realization is expected.
+      # computed but never forced, so option declarations undetected otherwise.
+      # Deliberately NOT realizing the evalModules `config`: on a BROKEN
+      # contract it throws "option does not exist" before `problems` can report
+      # the unknown key as a diagnostic, and on the shell path it realizes a
+      # knob's operational `path` (odu's `"${bin}/bin"` with `b2n == null`).
+      # So `ps` gates it — a broken contract returns its refusals as-is
+      # (fold-check / `diagnostics` read that list, never a `throw`), and only a
+      # valid one has the declared-type tree driven (which surfaces declaration
+      # / structural errors without touching values). VALUE shape errors inside
+      # an option surface from the strict `contract` door when the root composes
+      # the value, where `b2n` is real and realization is expected.
     if ps == [ ] then
       lib.seq check.options ps
     else

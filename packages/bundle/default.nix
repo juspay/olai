@@ -202,9 +202,11 @@ let
   koluSeeds = refuse (builtins.concatLists
     (builtins.attrValues (builtins.mapAttrs (name: c: c.koluSeeds or [ ]) contracts)));
   npmTrees = refuse (builtins.concatLists
-    (builtins.attrValues (builtins.mapAttrs (name: c:
-      map (dir: "${name}/${dir}") (c.npmTrees or [ ])
-    ) contracts)));
+    (builtins.attrValues (builtins.mapAttrs
+      (name: c:
+        map (dir: "${name}/${dir}") (c.npmTrees or [ ])
+      )
+      contracts)));
 
   # `generated` is keyed by the PLUGIN-PREFIXED path — two plugins may both
   # ship `src/browser/mark.generated.ts`, and the prefix is what makes the union
