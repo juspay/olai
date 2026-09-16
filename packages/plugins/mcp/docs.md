@@ -47,6 +47,37 @@ receives the same reaped-conversation refusal. A provider returning with fresh
 handlers cannot revive that credential; writes accepted before release remain
 on disk.
 
+## What `initialize` says
+
+The server's `instructions` are two paragraphs. The first is this row's: what
+olai IS to a tool caller — nodes and whole files, never bytes, no filesystem
+under it. The second is `@olai/surface`'s **agent charter**: where an agent's
+words land. A person reads the answer in the chat panel beside the outline; an
+address (`/#<id>`, `/<path>`, `/<path>.olai#<id>`, `/<path>.md#<slug>`, `?q=`
+before the fragment) is the app's own and needs no host or port; a tool's `at`
+is the same address without the leading `/`; a backticked id in prose is
+pressable and one in a code fence is a quotation; a markdown link to an app
+address is followed in place and `https://` opens a new tab; tools are named
+`<row>_<verb>` and an absent row's verbs are absent. It is authored in
+`@olai/surface` rather than here because every sentence states a fact the
+address grammar, the navigation row or the chat row owns; this row only
+carries it, because `initialize` is the one wire into an agent's standing
+context — ACP has no system prompt ([chat.md](../chat.md), "Pointing back at
+a node", is the person's side of the same contract).
+
+The charter names only what is true whatever rows are standing. `/today`,
+`/agenda`, `/trash`, pins, mirrors, marks and the search operators are a
+plugin's each and are taught by the tool that owns them; a sentence here that
+the agent's next call can disprove teaches that the rest is decoration.
+
+**The whole text stays under 2000 bytes.** Claude Code truncates server
+instructions at 2 KB, silently, and bills them on every turn; the ceiling is
+held by `@olai/server`'s `mcp/tools.test.ts`. Codex and Claude Code honour
+`instructions`; **opencode fetches it and drops it**
+([anomalyco/opencode#7373](https://github.com/anomalyco/opencode/issues/7373)),
+so an agent on opencode is exactly as untaught as before and this row cannot
+close that from its side of the wire; pi is unverified.
+
 ## Tool display catalogue
 
 The activation offers `mcp.catalogue`, an optional `advertised(server, tool)` lookup returning the served title and owning plugin name. The activation supplies the endpoint’s server identity; the lookup imports no HTTP implementation. It walks the live agent rows on every call, using the same scoped name as tool serving; it keeps no cache or subscription. Other servers and absent tools answer `null`. The bundle resolves the offer per call through `Tools.advertised`, so MCP and chat remain independently optional and withdrawal or replacement takes effect immediately.
