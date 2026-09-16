@@ -1,0 +1,2 @@
+{"id":"mail-inbox-agent","ord":"a0","title":"Inbox","desc":"Read each arrival and propose one action. Wait for my agreement before changing mail. Record decisions as todos with a Gmail URL.","custom":{"chat-agent-session":"claude"}}
+{"id":"mail-quiet-agent","ord":"a1","title":"Other agent","custom":{"chat-agent-session":"claude"}}

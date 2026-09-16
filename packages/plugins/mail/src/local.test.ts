@@ -4,7 +4,7 @@ import { Effect } from "effect"
 import { openMemory, type MemoryRecord, recordOf, valuesOf } from "./local.ts"
 import { doorOver } from "./local.testlib.ts"
 
-const RECORD: MemoryRecord = {
+const RECORD: MemoryRecord = { historyId: null,
   refreshToken: "1//rt",
   address: "you@gmail.com",
   scope: "https://www.googleapis.com/auth/gmail.modify",
@@ -19,7 +19,7 @@ test("a record with no refresh token is not a record", () => {
   expect(recordOf(null)).toBeUndefined()
   expect(recordOf({})).toBeUndefined()
   expect(recordOf({ refreshToken: "   " })).toBeUndefined()
-  expect(recordOf({ refreshToken: "1//rt" })).toEqual({ refreshToken: "1//rt", address: null, scope: null, connectedAt: "" })
+  expect(recordOf({ refreshToken: "1//rt" })).toEqual({ refreshToken: "1//rt", address: null, scope: null, historyId: null, connectedAt: "" })
 })
 
 test("a record that is somebody else's says so", () => {
@@ -55,4 +55,16 @@ test("remember and forget move the held record and the door together", async () 
   await Effect.runPromise(memory.forget())
   expect(memory.current()).toBeUndefined()
   expect(held.now()).toEqual({})
+})
+
+test("token refresh cannot overwrite the watcher cursor, and an old watcher cannot write a new connection", async () => {
+  const held = doorOver(valuesOf(RECORD))
+  const memory = Effect.runSync(openMemory(held.door, () => {}))
+  const stale = memory.current()!
+  await Effect.runPromise(memory.advance(RECORD.connectedAt, "120"))
+  await Effect.runPromise(memory.remember({ ...stale, refreshToken: "rotated" }))
+  expect(memory.current()?.historyId).toBe("120")
+  await Effect.runPromise(memory.remember({ ...RECORD, connectedAt: "new connection" }))
+  await Effect.runPromise(memory.advance(RECORD.connectedAt, "999"))
+  expect(memory.current()?.historyId).toBeNull()
 })

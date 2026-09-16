@@ -2,8 +2,7 @@
  * THE MEMORY DOOR — the one thing that has to survive a restart.
  *
  * A refresh token, the address it belongs to, the scope Google granted and when
- * the account was connected. That is the whole record, and it is the whole
- * reason this plugin has state at all: everything else about the account (the
+ * the account was connected, plus the inbox history cursor. Everything else (the
  * access token, the generated Himalaya config, the pending authorization) is
  * derived or short-lived, and dies with the activation that made it.
  *
@@ -56,6 +55,7 @@ export interface MemoryRecord {
   readonly refreshToken: string
   readonly address: string | null
   readonly scope: string | null
+  readonly historyId: string | null
   readonly connectedAt: string
 }
 
@@ -74,6 +74,7 @@ export const recordOf = (raw: Record<string, unknown> | null): MemoryRecord | un
     address: text(raw["address"]),
     scope: text(raw["scope"]),
     connectedAt: text(raw["connectedAt"]) ?? "",
+    historyId: text(raw["historyId"]),
   }
 }
 
@@ -82,6 +83,7 @@ export const valuesOf = (record: MemoryRecord): Record<string, unknown> => ({
   address: record.address,
   scope: record.scope,
   connectedAt: record.connectedAt,
+  historyId: record.historyId,
 })
 
 export interface Memory {
@@ -90,6 +92,7 @@ export interface Memory {
   readonly current: () => MemoryRecord | undefined
   readonly remember: (record: MemoryRecord) => Effect.Effect<void, Refusal>
   /** Forget, which is what a disconnect does after Google has revoked. */
+  readonly advance: (connection: string, historyId: string | null) => Effect.Effect<void, Refusal>
   readonly forget: () => Effect.Effect<void, Refusal>
 }
 
@@ -116,9 +119,16 @@ export const openMemory = (door: LocalState, warn: (line: string) => void): Effe
       current: () => held,
       remember: (record) =>
         writing.withPermit(Effect.gen(function*() {
-          yield* door.save(valuesOf(record))
-          held = record
+          const next = held?.connectedAt === record.connectedAt && held.address === record.address ? { ...record, historyId: held.historyId } : record
+          yield* door.save(valuesOf(next))
+          held = next
         })),
+      advance: (connection, historyId) => writing.withPermit(Effect.gen(function*() {
+        if (!held || held.connectedAt !== connection) return
+        const next = { ...held, historyId }
+        yield* door.save(valuesOf(next))
+        held = next
+      })),
       forget: () =>
         writing.withPermit(Effect.gen(function*() {
           yield* door.save({})

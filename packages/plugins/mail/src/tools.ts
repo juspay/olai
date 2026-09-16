@@ -2,9 +2,7 @@ import { gate } from "@olai/effect-cordis"
 import { UsageFailure } from "@olai/format"
 import { calls, type Tool } from "@olai/ops"
 import { Effect, Fiber, Result, Schema } from "effect"
-import type { AccountMachine } from "./account.ts"
-import { openMailbox } from "./mailbox.ts"
-import type { Himalaya } from "./himalaya/run.ts"
+import type { openMailbox } from "./mailbox.ts"
 import { MailRefusal } from "./wire.ts"
 
 const described = (description: string) => Schema.String.annotate({ description })
@@ -18,8 +16,7 @@ const names = Schema.Array(described("Label name as Gmail shows it; system label
 const manual = " Gmail query syntax is passed verbatim: from:, newer_than:1d, is:unread, has:attachment, label:. Thread ids are opaque Gmail hex ids; file a thread as <address>/<thread id>. Labels use Gmail's displayed names (system labels INBOX, UNREAD, STARRED, IMPORTANT)."
 
 /** Activation-local capabilities only: no vault or conversation identity is needed. */
-export const makeTools = (himalaya: Himalaya, machine: Pick<AccountMachine, "current" | "usable">, runtime?: string) => Effect.gen(function*() {
-  const mailbox = yield* openMailbox(himalaya, machine, runtime)
+export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>>) => Effect.gen(function*() {
   const owned = yield* gate("mail", "tools")
   const perform = <A>(verb: string, args: unknown, work: Effect.Effect<A, MailRefusal>) => Effect.gen(function*() {
     const started = Date.now()

@@ -3,6 +3,7 @@ import type { AccountMachine } from "./account.ts"
 import { openAttachments } from "./attachments.ts"
 import type { Himalaya, Run } from "./himalaya/run.ts"
 import { delta, fullOf, idsOf, Listing, rowOf, Thread } from "./himalaya/threads.ts"
+import { History } from "./himalaya/history.ts"
 import { GMAIL } from "./himalaya/verbs.ts"
 import { makeLabels } from "./labels.ts"
 import { MailRefusal } from "./wire.ts"
@@ -88,5 +89,11 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     return answer
   })
   const attachment = (message: string, id: string, filename?: string) => ready.pipe(Effect.andThen(attachments.get(message, id, filename)))
-  return { list, thread, attachment, write }
+  // History/profile cadence has its own sequential fiber, outside tool permits.
+  const history = (since: string, page?: string) => ready.pipe(Effect.andThen(himalaya.run({ verb: GMAIL.historyList,
+    args: ["--start-history-id", since, "--label-id", "INBOX", "--history-type", "messageAdded", "-s", "500", ...(page ? ["--page-token", page] : [])],
+  })), Effect.flatMap(raw => decode(History, raw)))
+  const seed = ready.pipe(Effect.andThen(himalaya.run({ verb: GMAIL.profileGet, args: [] })), Effect.flatMap(raw => decode(Schema.Struct({ "history-id": Schema.String }), raw)), Effect.map(raw => raw["history-id"]))
+  const summary = (id: string) => ready.pipe(Effect.andThen(get(id)), Effect.map(t => rowOf(t, labels.names)))
+  return { list, thread, attachment, write, history, seed, summary }
 })

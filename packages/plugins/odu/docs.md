@@ -68,3 +68,5 @@ A service upgrade that drops the websocket clears the chips for the redial gap r
 ## The chat panel's odu
 
 Every new conversation is handed `odu mcp` — odu's own agent face. The agent then holds `run_start`, `run_retry`, `run_cancel`, `run_wait`, `venue_hold`/`venue_release` and odu's own tools. A run is addressed globally by `runId`. `odu mcp` bootstraps the service on first contact, so a conversation holding odu's tools has already brought it up.
+
+The file picker in the conversation strip belongs to this plugin. It hangs in chat's `conversation.wake` slot, reads the served files through its declared `vault.files` service, and shows its own gone or unwatchable state. Chat stores the pick and draws the waiting count; it does not interpret the file.

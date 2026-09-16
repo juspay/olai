@@ -405,6 +405,7 @@ test("every structured fake answer validates against the built Himalaya schemas"
       [GMAIL.threadsGet, ["a3", "--format", "full"]],
       [GMAIL.threadsGet, ["a2", "--format", "metadata"]],
       [GMAIL.labelsList, []],
+      [GMAIL.historyList, ["--start-history-id", "100", "--label-id", "INBOX", "--history-type", "messageAdded", "-s", "500"]],
     ] as const) {
       const schema = JSON.parse(readFileSync(new URL(`../../himalaya/schemas/himalaya-gmail-${verb.id.replace(".", "-")}.json`, import.meta.url), "utf8"))
       const validate = ajv.compile(schema)
@@ -415,4 +416,30 @@ test("every structured fake answer validates against the built Himalaya schemas"
       expect(valid).toBe(true)
     }
   } finally { rmSync(directory, { recursive: true, force: true }) }
+})
+
+
+test("history retains arrival labels and thread ids, pages, and expires", async () => {
+  const { default: Ajv } = await import("ajv/dist/2020.js")
+  const { readFileSync } = await import("node:fs")
+  const { fake, config } = await startedFake({ mailbox: true, profile: { email: EMAIL } })
+  const schema = JSON.parse(readFileSync(new URL("../../himalaya/schemas/himalaya-gmail-history-list.json", import.meta.url), "utf8"))
+  const valid = new Ajv({ strict: false, validateFormats: false }).compile(schema)
+  const args = ["--start-history-id", "100", "--label-id", "INBOX", "--history-type", "messageAdded", "-s", "500"]
+  try {
+    fake.deliver("b1", "one")
+    fake.deliver("b2", "two", false)
+    fake.deliver("b3", "three")
+    const first = JSON.parse((await run(fake, himalayaArgv(config, GMAIL.historyList.path, args))).stdout)
+    expect(valid(first)).toBe(true)
+    expect(first.history).toHaveLength(2)
+    expect(first.history[0]["messages-added-details"][0]["thread-id"]).toBe("b1")
+    expect(first.history[1]["messages-added-details"][0]["label-ids"]).not.toContain("INBOX")
+    const second = JSON.parse((await run(fake, himalayaArgv(config, GMAIL.historyList.path, [...args, "--page-token", first.next_page]))).stdout)
+    expect(valid(second)).toBe(true)
+    expect(second.history).toHaveLength(1)
+    expect(second.next_page).toBeNull()
+    fake.expireHistory()
+    expect((await run(fake, himalayaArgv(config, GMAIL.historyList.path, args))).stdout).toContain("404")
+  } finally { await fake.stop() }
 })

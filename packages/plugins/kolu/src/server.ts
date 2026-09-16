@@ -1,3 +1,5 @@
+import { LocalState } from "@olai/plugin-api/services"
+import { fileScopes, ringing as ringingScopes, fileFault, fileWakeFaults } from "@olai/plugin-api/file-wakes"
 /**
  * KOLU'S SERVER HALF — everything kolu-shaped that a composition root used to
  * have to spell for itself.
@@ -107,7 +109,7 @@ import {
 } from "./doorbell.ts"
 import { probe } from "./probe.ts"
 import { listed, type Trace, tracing } from "./trace.ts"
-import { wake } from "./wake.ts"
+import { wake, fileFaultWords } from "./wake.ts"
 import { faces, name, surface } from "./wire.ts"
 
 /** The kinds this plugin teaches a vault, reached on this door — see
@@ -222,7 +224,7 @@ export default definePlugin({
     {"key": "PADI_SOCKET", "secret": false, "says": "the padi daemon socket"},
   ],
   name,
-  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
+  needs: [LocalState, Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   config: Config,
   // Our declared Vault subscription follows policy without dropping the fleet.
   configUpdates: "live",
@@ -237,6 +239,7 @@ export default definePlugin({
     const opening = yield* SessionStart
     const surfaces = yield* Surfaces
     const vault = yield* Vault
+    const local = yield* LocalState
     const wakes = yield* Wakes
     /** THE ONE SEAM ACROSS THE BOUNDARY — see this module's header. */
     const run = yield* detached
@@ -344,17 +347,22 @@ export default definePlugin({
      *  but the honest answer costs one comparison. */
     let derived: Derived | undefined
 
-    type ScopeRow = ReturnType<typeof deliveries.scopes>[number]
-    const sameScope = (left: ScopeRow, right: ScopeRow): boolean =>
+    let paths: ReadonlyArray<string> = []
+    const judge = (file: string) => derived ? fileFault(derived.claims, paths, file) : "gone" as const
+    const wakeScopes = () => fileScopes(deliveries.scopes()).filter(row => judge(row.file) === null)
+    const faults = yield* fileWakeFaults(local, deliveries, judge, fileFaultWords)
+
+    type ScopeRow = ReturnType<typeof wakeScopes>[number]
+    const sameScope = (left: Pick<ScopeRow, "agent" | "session" | "file" | "under">, right: Pick<ScopeRow, "agent" | "session" | "file" | "under">): boolean =>
       left.agent === right.agent
       && left.session === right.session
       && left.file === right.file
       && left.under === right.under
     const claimsFor = (
-      scope: ScopeRow,
+      scope: { readonly file: string; readonly under?: string; readonly agent: string; readonly session: string },
       claiming: Ringing["claiming"],
     ): Ringing["claiming"] => new Map([...claiming].filter(([, claim]) =>
-      deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))
+      ringingScopes(wakeScopes(), derived, scope.file, claim.node).some((row) => sameScope(row, scope))
     ))
 
     /**
@@ -559,7 +567,7 @@ export default definePlugin({
           perStanding.set(key, fresh)
           return fresh
         }
-        const scopes = deliveries.scopes()
+        const scopes = wakeScopes()
         trace("scopes", {
           terminal: event.row.terminal,
           scoped: scopes.length,
@@ -570,7 +578,7 @@ export default definePlugin({
           const eventClaim = whole.claiming.get(event.row.terminal)
           if (
             eventClaim === undefined
-            || !deliveries.ringing(scope.file, eventClaim.node)
+            || !ringingScopes(wakeScopes(), derived, scope.file, eventClaim.node)
               .some((row) => sameScope(row, scope))
           ) continue
           const ringing = { ...whole, claiming: claimsFor(scope, whole.claiming) }
@@ -684,7 +692,7 @@ export default definePlugin({
      * in the shape a number-returning closure can spell it, and it is why a
      * heartbeat cannot go out with a hole where its count belongs.
      */
-    const terminals = (scope: ScopeRow): number | null => {
+    const terminals = (scope: { readonly file: string; readonly under?: string; readonly agent: string; readonly session: string; readonly current: () => boolean }): number | null => {
       const at = derived
       return at === undefined ? null : terminalsIn(declaring, at, scope.file, scope.under)
     }
@@ -705,7 +713,7 @@ export default definePlugin({
      * own arm/collapse gate — and composes its sentence there.
      */
     const heart: Heartbeat = makeHeartbeat({
-      scopes: () => deliveries.scopes(),
+      scopes: () => wakeScopes(),
       deliver: (to, say, options) => run(deliveries.deliver(to, say, options)),
       terminals,
       now: () => clock.now(),
@@ -807,10 +815,11 @@ export default definePlugin({
         // the WATCHER's clock rather than on this listener — a fleet event arrives
         // between revisions, and the vault it is joined against has to be the last
         // one that landed.
+        paths = revision.value.set.documents.map(doc => doc.path)
         derived = revision.value.derived
         currentWatch = watchReadingIn(revision.value)
         half.revision(revision.value.derived.nodes, file.file ?? null)
-      })
+      }).pipe(Effect.andThen(faults))
     )
 
     /**
@@ -884,7 +893,7 @@ export default definePlugin({
      *
      * The accumulator unwinds in reverse. That order is load-bearing here and
      * not merely tidy: a beat that lands mid-teardown forks {@link beats}
-     * through the detached seam and `heart.beat` reads `deliveries.scopes()` and
+     * through the detached seam and `heart.beat` reads `scopes()` and
      * may hand core a delivery — a doorbell ringing out of a plugin that is
      * being taken down. Stopping the timers before the surface, the wake and
      * the listeners come off is what makes the last beat the last one.

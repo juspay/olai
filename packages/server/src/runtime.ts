@@ -76,9 +76,7 @@ export const rosterOf = (
         ...(wake === undefined ? {} : {
           wake: {
             subject: wake.subject,
-            from: wake.from,
             waiting: wake.waiting,
-            walks: wake.walks,
           },
         }),
         ...(config === undefined ? {} : { config }),

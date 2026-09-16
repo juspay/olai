@@ -275,3 +275,11 @@ Text-only agent adapters share `@olai/surface`'s pure `refusalIn` decoder. Each
 engine retains its own SDK envelope extraction. The server's MCP tests parse
 real formatted refusals and compare them with structured details, tying the
 compatibility check to the formatter's release cycle.
+
+### Mail inbox watcher
+
+Mail acquires `Deliveries` and registers its words with `Wakes`. It hangs a `conversation.wake` switch in chat's strip; chat stores an opaque JSON pick, writes it only through the browser face, and hands back a recipient whose authority ends when the choice is replaced, cleared or evicted. Mail re-reads recipients at delivery time. No vault property can opt a conversation in.
+
+The watcher, OAuth refresh and mailbox operations belong to the mail activation. The poll fiber stops before the shared mailbox's attachment directory and Himalaya config close. History calls have their own sequential cadence; thread metadata uses the mailbox's four spawn permits. The persisted history cursor advances only after delivery thunks have been accepted. A separate cadence component depends on `ConfigurationSource` and the activation's `mail.poll` service; it withdraws before the timer owner.
+
+Chat owns the wake strip location, persistence and queue counts. Each plugin owns its face and the meaning of its pick. Kolu and odu acquire `vault.files` for their picker faces and use their own server vault readings to filter recipients. The static `file-wakes` helper supplies nearest-ancestor precedence and file-fault accounting without sharing live state between plugins. Their local-state doors retain which broken picks have already been announced, so a restart does not repeat the warning.

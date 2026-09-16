@@ -131,7 +131,6 @@ describe("node-agent write rule", () => {
   })
 })
 
-
 describe("file-scoped agent reservation", () => {
   const file = "_olai/Settings.olai"
   const keys = new Map([["on", { file: "settings.olai", says: "a person's choice" }]])

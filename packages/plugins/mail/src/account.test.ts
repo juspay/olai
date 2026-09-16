@@ -14,7 +14,7 @@ const CONNECTED_AT = "2026-09-15T10:00:00.000Z"
 
 const PROFILE = { email: ADDRESS, "messages-total": 4213, "threads-total": 900, "history-id": "h-9" }
 
-const RECORD: MemoryRecord = { refreshToken: "1//rt", address: ADDRESS, scope: SCOPE, connectedAt: CONNECTED_AT }
+const RECORD: MemoryRecord = { historyId: null, refreshToken: "1//rt", address: ADDRESS, scope: SCOPE, connectedAt: CONNECTED_AT }
 
 interface Answer {
   readonly status: number
@@ -388,7 +388,7 @@ test("a connect stores the record, asks the profile, and reports the address", a
   ])
   const done = await Effect.runPromise(ready.machine.complete({ code: "c-1", state: new URL(begun.url).searchParams.get("state") ?? "" }))
   expect(done.address).toBe(ADDRESS)
-  expect(ready.memory).toEqual({ refreshToken: "1//rt", address: ADDRESS, scope: SCOPE, connectedAt: CONNECTED_AT })
+  expect(ready.memory).toEqual({ historyId: null, refreshToken: "1//rt", address: ADDRESS, scope: SCOPE, connectedAt: CONNECTED_AT })
   expect(last(ready.painted).status).toBe("connected")
   // The exchange carried the verifier and the redirect the authorization URL
   // was built with — the PKCE pair is what makes a leaked code worthless.

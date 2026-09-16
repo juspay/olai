@@ -121,7 +121,7 @@ import { roster as agentsRoster } from "./server/agents.ts"
 import { type Binding, startAgentSession } from "./server/binding.ts"
 import { Config } from "./settings.ts"
 export { Config } from "./settings.ts"
-import { faultedIn, scopeThrough } from "./server/doorbell.ts"
+import { scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
 import type { ChatEntry, ChatState } from "./wire/members.ts"
@@ -591,7 +591,7 @@ export default definePlugin({
             agent: string
             session: string
             plugin: string
-            file: string | null
+            pick: import("./json.ts").Json
           }
         },
       ) =>
@@ -650,7 +650,6 @@ export default definePlugin({
         // belonged to nobody until the next time a session opened.
         chat?.reread()
         republishAgents()
-        faulted(revision)
       })
     )
     yield* vault.unloaded(Effect.sync(() => {
@@ -661,16 +660,6 @@ export default definePlugin({
     /** A SCOPE ITS DOORBELL CANNOT WATCH — the walk, over this revision.
      *  {@link ./server/doorbell.ts} argues every clause of it; what is here is
      *  the two readings it does not take for itself. */
-    function faulted(snapshot: VaultRevision): void {
-      const open = chat
-      if (open === null) return
-      ring(Effect.flatMap(rings, (declared) =>
-        faultedIn(open, {
-          claims: snapshot.value.claims,
-          served: (file) => documentAt(snapshot.value.set, file) !== undefined,
-          declared,
-        })))
-    }
 
     /** Agent refusals belong in the transcript. Web gestures receive the
      *  same failure at their own surface and must not add a chat row. */

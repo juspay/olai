@@ -10,7 +10,6 @@
     "src/browser/agents/Fold.tsx",
     "src/browser/chat/Composer.tsx",
     "src/browser/chat/DropTarget.tsx",
-    "src/browser/chat/Wake.tsx",
     "src/browser/chat/holding.ts",
     "src/browser/chat/naming.ts",
     "src/chat.ts"
