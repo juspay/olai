@@ -6,8 +6,9 @@
  * that package. So there is nothing left for this file to arrange.
  *
  * It used to repeat the retired arrangement on top of that import: two
- * `@source` lines reaching into `node_modules/@kolu/*/src` from three
- * directories up, and the three sheets in the order the README used to require.
+ * `@source` lines reaching into every kolu package's `src` inside
+ * `node_modules` from three directories up, and the three sheets in the
+ * order the README used to require.
  * That double-loaded every one of them, and — worse for a harness whose whole
  * job is measurement — it measured a CASCADE THE APP NO LONGER HAS. A geometry
  * shot is only evidence if the thing photographed is the thing that ships. */
