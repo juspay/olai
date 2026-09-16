@@ -981,3 +981,227 @@ test("two handles on one repository still never fight index.lock", async () => {
     rounds.some(([done]) => done?._tag === "Committed"),
   ).toBe(true)
 })
+
+/*******************************************************************************
+ * fetch, standing, integrate — the push path's three new verbs.              *
+ ******************************************************************************/
+
+/** A served repository with a bare `origin` its branch tracks, and a SECOND
+ *  clone standing in for the other machine: the upstream the integration has
+ *  to take in. Every integrate test below is the same story — base, then
+ *  theirs on the remote, then mine not pushed — told differently. */
+const diverged = async (): Promise<{
+  readonly root: string
+  readonly file: string
+  readonly bare: string
+  readonly theirs: string
+}> => {
+  const made = repo()
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-remote-"))
+  git(bare)("init", "--quiet", "--bare", "--initial-branch", "main")
+  const run = git(made.root)
+  run("remote", "add", "origin", bare)
+  run("push", "--quiet", "--set-upstream", "origin", "main")
+
+  const theirs = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-theirs-")))
+  git(theirs)("clone", "--quiet", bare, ".")
+  git(theirs)("config", "user.email", "them@example.com")
+  git(theirs)("config", "user.name", "them")
+  fs.writeFileSync(path.join(theirs, "theirs.md"), "the other machine\n")
+  git(theirs)("add", "-A")
+  git(theirs)("commit", "--quiet", "-m", "theirs")
+  git(theirs)("push", "--quiet", "origin", "main")
+
+  fs.writeFileSync(made.file, `{"id":"a","ord":"a0","title":"mine"}\n`)
+  run("commit", "--quiet", "-am", "mine")
+  return { root: made.root, file: made.file, bare, theirs }
+}
+
+test("fetch moves the remote-tracking ref; a remote that cannot be reached is Refused with words", async () => {
+  const { root, bare } = await diverged()
+  const run = git(root)
+  // Stale: the remote-tracking ref has not seen the other machine's commit
+  // yet — it still points at the fixture's own seed.
+  expect(run("log", "--format=%s", "origin/main", "-1").trim()).toBe("fixtures")
+  const fetched = await asked(root, (g) => g.fetch)
+  expect(fetched).toEqual({ _tag: "Fetched" })
+  expect(run("log", "--format=%s", "origin/main", "-1").trim()).toBe("theirs")
+
+  // A remote that cannot be reached is a refusal, with git's own words — the
+  // same shape as a refused commit or push, because it is the same class of
+  // news.
+  run("remote", "set-url", "origin", fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-gone-")))
+  const refused = await Effect.runPromise(
+    asEffect(root, (g) => g.fetch).pipe(Effect.provide(collector().layer)),
+  )
+  expect(refused._tag).toBe("Refused")
+  if (refused._tag === "Refused") expect(refused.said).not.toBe("")
+  expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("theirs")
+}, 30_000)
+
+test("standing reads ahead and behind and the upstream, and is null with no upstream", async () => {
+  const { root } = await diverged()
+  const before = await asked(root, (g) => g.standing)
+  // STALE until the fetch: `behind` is 0 because the remote-tracking ref has
+  // not seen the other machine. That is the whole reason the push path fetches
+  // before it stands — and the reason the sweep must never.
+  expect(before).toEqual({
+    upstream: "refs/remotes/origin/main",
+    name: "origin/main",
+    ahead: 1,
+    behind: 0,
+  })
+
+  await asked(root, (g) => g.fetch)
+  expect(await asked(root, (g) => g.standing)).toEqual({
+    upstream: "refs/remotes/origin/main",
+    name: "origin/main",
+    ahead: 1,
+    behind: 1,
+  })
+
+  // A branch nobody has ever pushed tracks nothing: `null`, which is a
+  // different fact from "nothing behind".
+  const unborn = repo()
+  git(unborn.root)("checkout", "--quiet", "-b", "feature")
+  expect(await asked(unborn.root, (g) => g.standing)).toBe(null)
+}, 30_000)
+
+test("integrate rebases the unpushed commits onto the upstream, and cleans up after itself", async () => {
+  const { root, file, bare } = await diverged()
+  const run = git(root)
+  await asked(root, (g) => g.fetch)
+  const standing = await asked(root, (g) => g.standing)
+  if (standing === null) throw new Error("expected an upstream")
+
+  const old = run("rev-parse", "HEAD").trim()
+  const done = await asked(root, (g) => g.integrate(standing))
+
+  expect(done._tag).toBe("Integrated")
+  if (done._tag !== "Integrated") throw new Error("unreachable")
+  expect(done.taken).toBe(1)
+  expect(done.from).toBe(old)
+  // The other machine's file is ON DISK, in the served tree, uncommitted —
+  // the two-tree move, not a pull into nothing.
+  expect(fs.readFileSync(path.join(root, "theirs.md"), "utf8")).toBe("the other machine\n")
+  expect(run("rev-parse", "HEAD").trim()).toBe(done.to)
+  // The audit view is one line: the rebase kept the subject and the trailer.
+  expect(run("log", "--format=%s", "-1").trim()).toBe("mine")
+  // ... and the plumbing left nothing behind: one worktree entry, no
+  // `olai-integrate-*` directory, no rebase in progress in the MAIN git dir.
+  expect(run("worktree", "list").trim().split("\n")).toHaveLength(1)
+  expect(fs.readdirSync(path.join(root, ".git")).filter((name) => name.startsWith("olai-integrate-")))
+    .toHaveLength(0)
+  expect(fs.existsSync(path.join(root, ".git", "rebase-merge"))).toBe(false)
+  expect(git(bare)("log", "--format=%s", "-1", "main").trim()).toBe("theirs")
+  // The served tree is still Ready — the integration never detached it.
+  expect((await Effect.runPromise(open(root)))._tag).toBe("Opened")
+  fs.rmSync(path.join(root, "theirs.md"), { force: true })
+}, 30_000)
+
+test("integrate preserves a hand-staged entry and an unstaged edit for a path the upstream did not change", async () => {
+  const { root, file } = await diverged()
+  const run = git(root)
+  await asked(root, (g) => g.fetch)
+  const standing = await asked(root, (g) => g.standing)
+  if (standing === null) throw new Error("expected an upstream")
+
+  // THE selection-shaped work: a staged edit, and a further unstaged edit on
+  // top of it, in a path the upstream never touched. The integration must
+  // leave both bit-identical — this is the test `git reset --keep` would
+  // have failed.
+  const staged = `{"id":"a","ord":"a0","title":"staged"}\n`
+  const further = `{"id":"a","ord":"a0","title":"staged, and still working"}\n`
+  fs.writeFileSync(file, staged)
+  run("add", file)
+  fs.writeFileSync(file, further)
+
+  const done = await asked(root, (g) => g.integrate(standing))
+  expect(done._tag).toBe("Integrated")
+  expect(fs.readFileSync(file, "utf8")).toBe(further)
+  expect(run("diff", "--cached", "--", file).trim()).toContain('"staged"')
+  expect(run("diff", "--", file).trim()).toContain("still working")
+  fs.rmSync(path.join(root, "theirs.md"), { force: true })
+}, 30_000)
+
+test("integrate with an uncommitted edit in a path the upstream changed is Overlapped, nothing moved", async () => {
+  const { root, file, theirs } = await diverged()
+  const run = git(root)
+  await asked(root, (g) => g.fetch)
+  const standing = await asked(root, (g) => g.standing)
+  if (standing === null) throw new Error("expected an upstream")
+
+  // The upstream changed `theirs.md`; edit THAT file, uncommitted.
+  fs.writeFileSync(path.join(root, "theirs.md"), "half a thought\n")
+  const old = run("rev-parse", "HEAD").trim()
+
+  const done = await asked(root, (g) => g.integrate(standing))
+  expect(done._tag).toBe("Overlapped")
+  expect(run("rev-parse", "HEAD").trim()).toBe(old)
+  expect(fs.readFileSync(path.join(root, "theirs.md"), "utf8")).toBe("half a thought\n")
+  expect(run("worktree", "list").trim().split("\n")).toHaveLength(1)
+  fs.rmSync(theirs, { recursive: true, force: true })
+}, 30_000)
+
+test("integrate with an untracked file where the upstream added one is Overlapped, nothing moved", async () => {
+  const { root, theirs } = await diverged()
+  const run = git(root)
+  await asked(root, (g) => g.fetch)
+  const standing = await asked(root, (g) => g.standing)
+  if (standing === null) throw new Error("expected an upstream")
+  const old = run("rev-parse", "HEAD").trim()
+  // The upstream ADDED `theirs.md`, and this tree has one of its own there,
+  // untracked: the two-tree merge refuses rather than overwriting it.
+  fs.writeFileSync(path.join(root, "theirs.md"), "mine is here\n")
+
+  const done = await asked(root, (g) => g.integrate(standing))
+  expect(done._tag).toBe("Overlapped")
+  if (done._tag === "Overlapped") expect(done.said).toContain("would be overwritten")
+  expect(run("rev-parse", "HEAD").trim()).toBe(old)
+  expect(fs.readFileSync(path.join(root, "theirs.md"), "utf8")).toBe("mine is here\n")
+  fs.rmSync(theirs, { recursive: true, force: true })
+}, 30_000)
+
+test("integrate on a conflict is Conflicted naming the path, tree clean, nothing left behind", async () => {
+  // A DIFFERENT repository from {@link diverged}, because the conflict has to
+  // be in a path both sides wrote — the ordinary shape is two machines editing
+  // the same file.
+  const made = repo()
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-remote-"))
+  git(bare)("init", "--quiet", "--bare", "--initial-branch", "main")
+  const run = git(made.root)
+  fs.writeFileSync(path.join(made.root, "both.txt"), "base content\n")
+  run("add", "both.txt")
+  run("commit", "--quiet", "-m", "base both")
+  run("remote", "add", "origin", bare)
+  run("push", "--quiet", "--set-upstream", "origin", "main")
+
+  const other = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-theirs-")))
+  git(other)("clone", "--quiet", bare, ".")
+  git(other)("config", "user.email", "them@example.com")
+  git(other)("config", "user.name", "them")
+  fs.writeFileSync(path.join(other, "both.txt"), "their line\n")
+  git(other)("commit", "--quiet", "-am", "theirs")
+  git(other)("push", "--quiet", "origin", "main")
+
+  fs.writeFileSync(path.join(made.root, "both.txt"), "my line\n")
+  run("commit", "--quiet", "-am", "mine")
+  await asked(made.root, (g) => g.fetch)
+  const at = await asked(made.root, (g) => g.standing)
+  if (at === null) throw new Error("expected an upstream")
+  const old = run("rev-parse", "HEAD").trim()
+
+  const done = await asked(made.root, (g) => g.integrate(at))
+  expect(done._tag).toBe("Conflicted")
+  if (done._tag === "Conflicted") {
+    expect(done.said).toContain("both.txt")
+    expect(done.said).toContain("CONFLICT")
+  }
+  // The served tree is untouched: same HEAD, no markers on disk, nothing
+  // rebasing anywhere olai could see it.
+  expect(run("rev-parse", "HEAD").trim()).toBe(old)
+  expect(fs.readFileSync(path.join(made.root, "both.txt"), "utf8")).toBe("my line\n")
+  expect(fs.existsSync(path.join(made.root, ".git", "rebase-merge"))).toBe(false)
+  expect(run("worktree", "list").trim().split("\n")).toHaveLength(1)
+})
+
