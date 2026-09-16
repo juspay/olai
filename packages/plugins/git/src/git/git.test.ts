@@ -1137,6 +1137,7 @@ test("integrate with an uncommitted edit in a path the upstream changed is Overl
 
   const done = await asked(root, (g) => g.integrate(standing))
   expect(done._tag).toBe("Overlapped")
+  if (done._tag === "Overlapped") expect(done.paths).toEqual(["theirs.md"])
   expect(run("rev-parse", "HEAD").trim()).toBe(old)
   expect(fs.readFileSync(path.join(root, "theirs.md"), "utf8")).toBe("half a thought\n")
   expect(run("worktree", "list").trim().split("\n")).toHaveLength(1)
@@ -1156,7 +1157,10 @@ test("integrate with an untracked file where the upstream added one is Overlappe
 
   const done = await asked(root, (g) => g.integrate(standing))
   expect(done._tag).toBe("Overlapped")
-  if (done._tag === "Overlapped") expect(done.said).toContain("would be overwritten")
+  if (done._tag === "Overlapped") {
+    expect(done.said).toContain("would be overwritten")
+    expect(done.paths).toEqual(["theirs.md"])
+  }
   expect(run("rev-parse", "HEAD").trim()).toBe(old)
   expect(fs.readFileSync(path.join(root, "theirs.md"), "utf8")).toBe("mine is here\n")
   fs.rmSync(theirs, { recursive: true, force: true })
@@ -1195,6 +1199,7 @@ test("integrate on a conflict is Conflicted naming the path, tree clean, nothing
   expect(done._tag).toBe("Conflicted")
   if (done._tag === "Conflicted") {
     expect(done.said).toContain("both.txt")
+    expect(done.paths.join(" ")).toContain("both.txt")
     expect(done.said).toContain("CONFLICT")
   }
   // The served tree is untouched: same HEAD, no markers on disk, nothing

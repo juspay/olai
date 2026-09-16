@@ -484,10 +484,11 @@ export interface Committing {
    * chip would go back to `✓ committed · N unpushed` with the reason nowhere,
    * which is the whole of `push-failure-invisible` restored.
    *
-   * So the words are re-earned rather than remembered. One `git push` at boot,
-   * the same bare one every other door runs — nothing forced, nothing fetched,
-   * nothing rebased — and whatever git says lands on the cell through the same
-   * path a pressed Push takes.
+   * So the words are re-earned rather than remembered. One push at boot, the
+   * same bare one every other door runs — and a push takes the upstream in
+   * first, so the boot's is no different: it fetches and rebases what it
+   * finds, and what git says lands on the cell through the same path a
+   * pressed Push takes.
    *
    * ONLY WHERE THERE ARE COMMITS TO SEND, and that check is here rather than
    * left to {@link push} — the one place the two verbs genuinely want different
@@ -625,6 +626,14 @@ export const make = (options: Options): Committing => {
    * against the first's ref move, pausing the loop over olai racing itself.
    * The second caller WAITS on the permit, then surveys again and finds
    * nothing to push. `whyWaiting` and the survey do not take it.
+   *
+   * This is a POLICY mutex, one push pipeline per directory — a different
+   * axis from the index gate in {@link Git.Indexed}: the permit serializes
+   * the whole pipeline (whose second caller gets the honest `NothingToPush`
+   * after the wait), where git.ts's gate is a resource lock on the index
+   * TOUCHERS ({@link Git.dirty}, {@link Git.commit}, {@link Git.integrate}'s
+   * move). The permit cannot protect the tree, and the gate cannot serialize
+   * the pipeline.
    */
   const pushPermit = Semaphore.makeUnsafe(1)
 
@@ -648,7 +657,7 @@ export const make = (options: Options): Committing => {
    * "auto-commit paused" over it would be chrome about a loop nobody armed.
    */
   const committed = (said: string | null): void => {
-    settled = { ...settled, refusal: said, paused: stopBy(said, mode()) }
+    settled = { ...settled, refusal: said, paused: stopBy(said) }
   }
 
   /**
@@ -659,15 +668,22 @@ export const make = (options: Options): Committing => {
    * `Overlapped`-does-not-pause is that it is a wait, not a stop). Every
    * other outcome — a conflict, a fetch that refused, an integration that
    * could not run, a push the remote refused — is a stop exactly as today.
+   *
+   * The KIND is the outcome, not what the caller decided: `"overlap"` is
+   * the one outcome that is a wait; `"refused"` is everything that stops;
+   * `"ok"` sets the words and leaves the pause alone. A caller that has one
+   * of these has no policy to apply, which is the whole of the veto branch
+   * this shape replaced.
    */
-  const pushed = (said: string | null, stops: boolean): void => {
-    // `mode()` is the COMMIT policy, and that is the loop: whether a refusal
-    // pauses is a fact about the loop that would go round again, not about
-    // the button that was pressed. `stopBy` reads it for both verbs, so a
-    // pushed-out refusal under `push: auto` does not arm a pause on a
-    // `commit: manual` door that has no loop, and a remote that refused
-    // under `commit: auto` still stops the committing.
-    settled = { ...settled, pushSaid: said, paused: stops ? stopBy(said, mode()) : settled.paused }
+  type PushedOutcome = "ok" | "overlap" | "refused"
+  const pushed = (said: string | null, outcome: PushedOutcome): void => {
+    // Whether a refusal pauses is the loop's business, and {@link stopBy}
+    // is the one place that reads the commit policy for it.
+    settled = {
+      ...settled,
+      pushSaid: said,
+      paused: outcome === "refused" ? stopBy(said) : settled.paused,
+    }
   }
 
   /**
@@ -676,19 +692,17 @@ export const make = (options: Options): Committing => {
    * follow it, whole, and the pair is what reaches the pill and the panel
    * through `pushSaid`.
    *
-   * The paths come from BOTH of git's refusal shapes: a rebase conflict names
-   * its files on lines that start `CONFLICT`, and a `read-tree` overlap names
-   * its path inside `Entry '<path>' not uptodate` or `Untracked working tree
-   * file '<path>'` — the latter two have no `CONFLICT` line, which is why the
-   * overlap sentence used to name no path at all.
+   * The paths are git's own, carried out of the plumbing on the arm that
+   * refused — {@link Git.Integrated}'s `Overlapped` and `Conflicted` are the
+   * two shapes that name files, and {@link Git.refusalPaths} is the one
+   * place their words are parsed, so the sentence and the copy never drift.
    */
-  const charge = (kind: "overlap" | "conflict", said: string): string => {
-    const paths = [...said.matchAll(
-      /CONFLICT \([^)]*\): ([^\n]+)|Entry '([^']+)' not uptodate|Untracked working tree file '([^']+)'/g,
-    )]
-      .map((match) => match[1] ?? match[2] ?? match[3])
-      .filter((one): one is string => one !== undefined)
-    const named = paths.length > 0 ? paths.join(", ") : ""
+  const charge = (
+    kind: "overlap" | "conflict",
+    said: string,
+    paths: ReadonlyArray<string>,
+  ): string => {
+    const named = paths.join(", ")
     const base = kind === "overlap"
       ? "changes here overlap changes the upstream took in, so nothing moved"
       : "the upstream's changes conflict with the ones here, so nothing moved"
@@ -697,9 +711,6 @@ export const make = (options: Options): Committing => {
       : "resolve it in a terminal — `git pull --rebase`, then Resume"
     return `${base}${named === "" ? "" : ` (${named})`} — ${gesture}. git said: ${said}`
   }
-
-
-
   /**
    * What a refusal does to the loop, or `null` for one that leaves it running.
    *
@@ -712,9 +723,16 @@ export const make = (options: Options): Committing => {
    * stop already on the record is the one a person is about to read, and only
    * they may lift it ({@link Committing.resume}) — a commit that landed after a
    * push was refused says nothing about whether the branch can be sent.
+   *
+   * `mode()` is the COMMIT policy, and that is the loop: whether a refusal
+   * pauses is a fact about the loop that would go round again, not about
+   * the button that was pressed. This is the ONE place that reads it, so a
+   * pushed-out refusal under `push: auto` does not arm a pause on a
+   * `commit: manual` door that has no loop, and a remote that refused under
+   * `commit: auto` still stops the committing.
    */
-  const stopBy = (said: string | null, governing: "auto" | "off" | "manual"): string | null =>
-    settled.paused ?? (said !== null && governing === "auto" ? said : null)
+  const stopBy = (said: string | null): string | null =>
+    settled.paused ?? (said !== null && mode() === "auto" ? said : null)
 
   /**
    * The repository, once it is one.
@@ -1070,20 +1088,22 @@ export const make = (options: Options): Committing => {
    * commits rebased onto it — so a push is never refused as a non-fast-forward
    * for a reason olai could have removed itself.
    *
-   * THE SEQUENCE — survey, permit, fetch, stand, integrate when behind,
-   * push, stand again — is the whole of the policy, and the interesting
-   * decisions live in {@link integrate} (the plumbing), {@link pushed} (what a
-   * refusal does to the loop) and {@link charge} (what olai says about the two
-   * it understands). The survey is the existing {@link survey}:
-   * `NothingToPush` and `Blocked` are asked against what git already knew, so
-   * a busy repository is refused with its reason before any of this, exactly
-   * as a commit is. The PERMIT is {@link pushPermit}: two pushes can never
-   * race one integration. The FETCH is bare. The STANDING is the honest
-   * ahead/behind — `behind` is meaningless until the fetch, which is the whole
-   * reason nothing outside the push path fetches. The REBASE runs in a
-   * worktree of olai's own under the git directory, and the served tree moves
-   * onto the result by the two-tree update of {@link integrate}, which applies
-   * whole or refuses whole. Then the PUSH, bare, exactly as today. And the
+   * THE SEQUENCE — survey, permit, survey again, fetch, stand, integrate
+   * when behind, push, stand again — is the whole of the policy, and the
+   * interesting decisions live in {@link integrate} (the plumbing),
+   * {@link pushed} (what a refusal does to the loop) and {@link charge}
+   * (what olai says about the two it understands). The DOOR survey is
+   * {@link git.state}: a repository that cannot take a commit is refused
+   * with its reason before any of this, exactly as a commit is. The one
+   * "what is there to send" survey is taken INSIDE the permit, where it is
+   * true of the moment this push is about to act rather than the moment it
+   * queued. The PERMIT is {@link pushPermit}: two pushes can never race one
+   * integration. The FETCH is bare. The STANDING is the honest ahead/behind
+   * — `behind` is meaningless until the fetch, which is the whole reason
+   * nothing outside the push path fetches. The REBASE runs in a worktree of
+   * olai's own under the git directory, and the served tree moves onto the
+   * result by the two-tree update of {@link integrate}, which applies whole
+   * or refuses whole. Then the PUSH, bare, exactly as today. And the
    * STANDING AGAIN, for the honest `ahead` a `Pushed` reports: the count
    * offered at the top of the button is the count that was about to be sent,
    * and after a rebase it is a lie.
@@ -1105,27 +1125,17 @@ export const make = (options: Options): Committing => {
     }
     const git = opening.repo
 
-    // Two independent questions, asked together — the same shape `survey` above
-    // uses, and it earns it twice over now that this verb is on the commit path
-    // rather than behind a button: `state` is a subprocess AND a synchronous
-    // walk of the git directory, so serialising them stalls the loop's own
-    // round trip for no reason. `dirty` may wait on a `commit` (the index);
-    // `state` does not. `push` itself is not on that gate: a network call
-    // with the ten-second budget must not stall `whyWaiting`.
-    const [repo, dirt] = yield* Effect.all(
-      [git.state, git.dirty],
-      { concurrency: 2 },
-    )
+    // The MID-INTEGRATE gate is the only gate: whether the repository can
+    // take a commit is asked once, at the door, against what git knew a
+    // moment ago — and a busy repository is refused with its reason before
+    // the permit, exactly as a commit is. `state` is a subprocess AND a
+    // synchronous walk of the git directory, so it is the one survey this
+    // door asks. The "is there anything to send" half is asked once, INSIDE
+    // the permit, where it reflects what git knew the moment this push is
+    // about to act — one survey per push, not two, and never one that has
+    // aged while the permit was held.
+    const repo = yield* git.state
     if (repo._tag !== "Ready") return { _tag: "Blocked", repo } as const
-    if (dirt._tag === "Unusable") {
-      // A survey git refused: the count this verb reports on cannot be read, so
-      // it is the same news the panel gets rather than a push into the dark.
-      return { _tag: "Blocked", repo: { _tag: "Unusable", said: dirt.said } } as const
-    }
-    const upstream = dirt.upstream
-    if (upstream !== null && upstream.ahead === 0) {
-      return { _tag: "NothingToPush" } as const
-    }
 
     // ONE INTEGRATION PER DIRECTORY at a time — see {@link pushPermit}. The
     // second caller waits, then surveys again, and finds nothing to push.
@@ -1133,13 +1143,20 @@ export const make = (options: Options): Committing => {
     // union of the survey arms, and this one's answer is a whole `PushResult`
     // on its own.
     const integratedPush: Effect.Effect<PushResult> = Effect.gen(function*() {
-      // THE SECOND CALLER of a racing pair: the permit may have waited for
-      // the first push to land, so the "is there anything to send" question
-      // is asked AGAIN here, inside the gate — a push that landed while we
-      // queued leaves nothing to push, and answering `Pushed` for a branch
-      // that is already in sync would be a lie.
+      // THE ONE SURVEY, taken after the permit: a push that landed while we
+      // queued leaves nothing to send, and answering `Pushed` for a branch
+      // that is already in sync would be a lie. It is inside the gate rather
+      // than at the door so it reflects what git knew when this is about to
+      // act — for the racing second caller AND for the first, whose door
+      // survey could have gone stale while it waited for the permit.
       const second = yield* git.dirty
-      if (second._tag !== "Unusable" && second.upstream !== null && second.upstream.ahead === 0) {
+      if (second._tag === "Unusable") {
+        // A survey git refused: the count this verb reports on cannot be
+        // read, so it is the same news the panel gets rather than a push
+        // into the dark.
+        return { _tag: "Blocked", repo: { _tag: "Unusable", said: second.said } } as const
+      }
+      if (second.upstream !== null && second.upstream.ahead === 0) {
         return { _tag: "NothingToPush" } as const
       }
       const fetched = yield* git.fetch
@@ -1147,7 +1164,7 @@ export const make = (options: Options): Committing => {
         // The fetch is part of what pushing means now, so its refusal is the
         // push's refusal — git's words whole, and a stop exactly as a refused
         // push is today.
-        pushed(fetched.said, true)
+        pushed(fetched.said, "refused")
         options.onSettled?.()
         return { _tag: "Failed", said: fetched.said } as const
       }
@@ -1162,19 +1179,19 @@ export const make = (options: Options): Committing => {
       if (standing !== null && standing.behind > 0) {
         const done = yield* git.integrate(standing)
         if (done._tag === "Overlapped") {
-          const said = charge("overlap", done.said)
-          pushed(said, false)
+          const said = charge("overlap", done.said, done.paths)
+          pushed(said, "overlap")
           options.onSettled?.()
           return { _tag: "Failed", said } as const
         }
         if (done._tag === "Conflicted") {
-          const said = charge("conflict", done.said)
-          pushed(said, true)
+          const said = charge("conflict", done.said, done.paths)
+          pushed(said, "refused")
           options.onSettled?.()
           return { _tag: "Failed", said } as const
         }
         if (done._tag === "Refused") {
-          pushed(done.said, true)
+          pushed(done.said, "refused")
           options.onSettled?.()
           return { _tag: "Failed", said: done.said } as const
         }
@@ -1203,12 +1220,12 @@ export const make = (options: Options): Committing => {
         // server's log and nowhere else, so a reload lost them and a second
         // tab never had them, while the chip went on reading `✓ committed`
         // over a count that never came down.
-        pushed(outcome.said, true)
+        pushed(outcome.said, "refused")
         options.onSettled?.()
         return { _tag: "Failed", said: outcome.said } as const
       }
 
-      pushed(null, false)
+      pushed(null, "ok")
       // What is waiting has changed without a served byte moving — the same
       // reason a commit republishes.
       options.onSettled?.()

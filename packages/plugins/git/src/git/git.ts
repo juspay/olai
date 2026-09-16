@@ -92,9 +92,10 @@ import type { How, Reason, RepoState } from "@olai/format"
 const BUDGET = 10_000
 
 /**
- * The INDEX GATE: one permit per git directory, held by {@link dirty} and
- * {@link commit} only. See the file header. Keyed on `gitDir` so two handles
- * of one repository share it; a handle-local semaphore would re-open the
+ * The INDEX GATE: one permit per git directory, held by {@link dirty},
+ * {@link commit} and {@link integrate} (whose move spans `read-tree` and
+ * `update-ref`). See the file header. Keyed on `gitDir` so two handles of one
+ * repository share it; a handle-local semaphore would re-open the
  * `index.lock` race the moment anyone called {@link open} twice.
  */
 const indexGates = new Map<string, Semaphore.Semaphore>()
@@ -1151,13 +1152,29 @@ const standing = (root: string): Effect.Effect<Standing | null> =>
 export type Integrated =
   | { readonly _tag: "Integrated"; readonly from: string; readonly to: string; readonly taken: number }
   /** An uncommitted edit, or an untracked file, in a path the upstream
-   *  changed — nothing moved, and the caller decides what to say. */
-  | { readonly _tag: "Overlapped"; readonly said: string }
+   *  changed — nothing moved, and the caller decides what to say. `paths`
+   *  are the files git named, the ones the caller's sentence calls out. */
+  | { readonly _tag: "Overlapped"; readonly said: string; readonly paths: ReadonlyArray<string> }
   /** The rebase met a content conflict and was aborted; nothing moved. */
-  | { readonly _tag: "Conflicted"; readonly said: string }
+  | { readonly _tag: "Conflicted"; readonly said: string; readonly paths: ReadonlyArray<string> }
   /** Everything else that tried: a worktree that would not be made, the
    *  branch moving under the rebase, a git that hung. */
   | { readonly _tag: "Refused"; readonly said: string }
+
+/**
+ * The paths a refusal names, out of git's OWN words — the ONE place the two
+ * refusal vocabularies are parsed, so the plumbing and the caller's sentence
+ * can never drift. A rebase conflict names its files on lines that start
+ * `CONFLICT`; a `read-tree` overlap names its path inside `Entry '<path>'
+ * not uptodate` or `Untracked working tree file '<path>'`, and has no
+ * `CONFLICT` line at all.
+ */
+const refusalPaths = (said: string): ReadonlyArray<string> =>
+  [...said.matchAll(
+    /CONFLICT \([^)]*\): ([^\n]+)|Entry '([^']+)' not uptodate|Untracked working tree file '([^']+)'/g,
+  )]
+    .map((match) => match[1] ?? match[2] ?? match[3])
+    .filter((one): one is string => one !== undefined)
 
 let integrations = 0
 
@@ -1298,7 +1315,7 @@ const integrate = (
                   Effect.logWarning("olai git: the take-in conflicted, nothing moved"),
                   { said: rebased.said },
                 )
-                return { _tag: "Conflicted", said: rebased.said } as const
+                return { _tag: "Conflicted", said: rebased.said, paths: refusalPaths(rebased.said) } as const
               }
               // Everything else the rebase refused with is a refusal: the
               // rebase could not run, or git hung at the budget.
@@ -1320,7 +1337,7 @@ const integrate = (
                 // untracked file would be overwritten: nothing moved, and the
                 // tree is exactly as it was. The served tree's `state` stays
                 // `Ready`, and what the caller does about it is ITS decision.
-                return { _tag: "Overlapped", said: moved.said } as const
+                return { _tag: "Overlapped", said: moved.said, paths: refusalPaths(moved.said) } as const
               }
               const branch = (yield* git(root, ["symbolic-ref", "--short", "HEAD"])).out.trim()
               const ref = branch === "" ? "HEAD" : `refs/heads/${branch}`
