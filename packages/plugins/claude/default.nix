@@ -10,8 +10,9 @@
 # patchelf of the bun-compiled `claude` binary the SDK ships.
 #
 # The knob `OLAI_ACP_AGENT` is a `file` the fold bakes into the `olai` wrapper
-# with `--set-default`, exactly as it now does for every plugin knob, and the
-# flake output `.#acp-agent` (the historical name for "the Claude adapter") is
+# with `--set-default`, exactly as it now does for every plugin knob. The
+# flake output is `.#claude-agent` — `packages.claude-agent` at the bottom —
+# arrived at through the fold's disjoint-union merge rather than a root line.
 { pkgs, pins, kit, b2n ? null, ... }:
 let
   lib = pkgs.lib;
