@@ -2516,7 +2516,7 @@ export class OlaiWorld extends World {
    * is a real non-fast-forward rather than a simulated refusal: the words the
    * app then shows are git's own, and those are the words being asserted.
    */
-  advanceRemote(subject: string): void {
+  advanceRemote(subject: string, change?: { readonly file: string; readonly content: string }): void {
     const remote = this.remote;
     if (remote === undefined) {
       throw new Error("this scenario has no remote — say the repository has one first");
@@ -2526,18 +2526,34 @@ export class OlaiWorld extends World {
       execFileSync("git", [...argv], { cwd: work, stdio: "ignore" });
     };
     execFileSync("git", ["clone", "--quiet", remote, work], { stdio: "ignore" });
-    run(
-      "-c",
-      "user.email=someone@olai.invalid",
-      "-c",
-      "user.name=somebody else",
-      "commit",
-      "--allow-empty",
-      "--quiet",
-      "--no-verify",
-      "-m",
-      subject,
-    );
+    if (change !== undefined) {
+      fs.writeFileSync(path.join(work, change.file), change.content);
+      run("add", change.file);
+      run(
+        "-c",
+        "user.email=someone@olai.invalid",
+        "-c",
+        "user.name=somebody else",
+        "commit",
+        "--quiet",
+        "--no-verify",
+        "-m",
+        subject,
+      );
+    } else {
+      run(
+        "-c",
+        "user.email=someone@olai.invalid",
+        "-c",
+        "user.name=somebody else",
+        "commit",
+        "--allow-empty",
+        "--quiet",
+        "--no-verify",
+        "-m",
+        subject,
+      );
+    }
     run("push", "--quiet");
   }
 

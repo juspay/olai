@@ -187,15 +187,18 @@ export const GitState = Schema.Struct({
    * What git said when it last refused a PUSH, or `null` when the last one
    * worked (and for a directory nothing has ever been pushed from).
    *
+   * THE WORDS OF THE PUSH, THE FETCH BEFORE IT, OR THE INTEGRATION BETWEEN
+   * THEM: any of the three can be what stopped the branch going out, and a
+   * person who is told only about the last of them is told the least useful
+   * half. Olai's own sentence about an overlap or a conflict rides in the
+   * same field, followed by git's words.
+   *
    * Its own field beside {@link GitState.said} rather than folded into it, and
    * the separation is the bug this feature was filed for: a refused push leaves
    * a repository whose every commit still lands, so the status stays `repo` and
    * the pill read `✓ committed · 13 unpushed` over a push that had been failing
    * for an hour. One field per verb is what lets the chip say the true thing
    * about both at once.
-   *
-   * REMEMBERED, like the commit refusal, because no probe can see it: `git
-   * status` says how far ahead the branch is, never why it is still ahead.
    */
   pushSaid: Schema.NullOr(Schema.String),
   /**
@@ -639,6 +642,10 @@ export const PushResult = Schema.Union([
     _tag: Schema.Literal("Pushed"),
     upstream: Schema.String,
     commits: Schema.Int,
+    /** Commits taken in from the upstream before pushing — `0` when the
+     *  branch was already up to date. What the push DID, so a divergence that
+     *  was integrated is told apart from one that simply did not exist. */
+    integrated: Schema.Int,
   }),
   Schema.Struct({ _tag: Schema.Literal("NothingToPush") }),
   Schema.Struct({ _tag: Schema.Literal("Blocked"), repo: RepoState }),

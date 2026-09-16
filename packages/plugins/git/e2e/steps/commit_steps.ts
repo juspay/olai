@@ -20,6 +20,8 @@
  */
 
 import * as assert from "node:assert";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { selector } from "@olai/web/testlib";
@@ -559,21 +561,59 @@ Then("the panel says a push was refused", async function (this: OlaiWorld) {
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const said = oneLine(await line.innerText());
   assert.ok(
-    said.includes("reject"),
+    // A refused push says "rejected" in git's words; a take-in that met a
+    // conflict says "CONFLICT" and names the file — both are git's own
+    // account of the refusal, which is what this line carries.
+    said.includes("reject") || said.includes("CONFLICT"),
     `the refused-push line says "${said}", which is not git's own refusal`,
   );
 });
 
-/** THE CONFLICT, in the only shape a single user meets it: another machine —
- *  or a colleague — has pushed, so this branch's upstream has moved and a push
- *  from here is a non-fast-forward. Real git, a real bare remote, and no
- *  network. */
+/** THE DIVERGENCE, in the only shape a single user meets it: another machine
+ *  — or a colleague — has pushed, so this branch's upstream has moved. A push
+ *  from here now FETCHES that, rebases what is unpushed onto it, and sends —
+ *  so the other side's commit is taken in and this side's lands on top. Real
+ *  git, a real bare remote, and no network.
+ *
+ *  The file the other side commits is real, so a take-in visibly moves the
+ *  served directory. What makes the rebase STOP is the
+ *  conflicting-edit step next door. */
 Given(
-  "somebody else has pushed to the remote",
-  function (this: OlaiWorld) {
-    this.advanceRemote("somebody else's work");
+  "somebody else has pushed {string} to the remote",
+  function (this: OlaiWorld, subject: string) {
+    this.advanceRemote(subject, { file: "their-file.md", content: `${subject}\n` });
   },
 );
+
+Given(
+  "somebody else has rewritten {string} as:",
+  function (this: OlaiWorld, file: string, contents: string) {
+    // THE OTHER SIDE'S EDIT, spelled out — for the cases where the fixed
+    // conflicting-edit content is not the right shape (an OVERLAP wants the
+    // other side's change on a line of its OWN, so the person's later commit
+    // of a different line can rebase cleanly).
+    this.advanceRemote("somebody else's work", { file, content: contents });
+  },
+);
+Given(
+  "somebody else has pushed a conflicting edit to {string}",
+  function (this: OlaiWorld, file: string) {
+    // A SAME-LINE rewrite of the file this side is about to edit: the other
+    // machine changes the one line that carries the divergence, which is the
+    // only shape of change that makes a rebase STOP rather than take in
+    // cleanly. (Different lines, or a different file entirely, rebase with
+    // no conflict at all on real git.)
+    this.advanceRemote("somebody else's work", { file, content: "\"somebody else's\"\n" });
+  },
+);
+
+
+Then("the served directory has {string}", function (this: OlaiWorld, file: string) {
+  assert.ok(
+    fs.existsSync(path.join(this.scratch(), file)),
+    `the served directory has no ${file}`,
+  );
+});
 
 Then("the repository is clean", function (this: OlaiWorld) {
   assert.strictEqual(this.git("status", "--porcelain").trim(), "");
@@ -691,7 +731,7 @@ Then(
       COMMIT_PILL,
       "data-unpushed",
       String(count),
-      "the commit pill",
+      "the unpushed count on the pill",
     );
   },
 );
@@ -707,10 +747,25 @@ Then(
     );
   },
 );
-
 When("I push", async function (this: OlaiWorld) {
   await this.page.locator(COMMIT_PUSH).click({ timeout: POLL_TIMEOUT });
 });
+Then(
+  "the remote has taken in {string} before this commit",
+  function (this: OlaiWorld, subject: string) {
+    // The take-in is a REBASE, so the other side's commit is older than this
+    // side's: the tip's history CONTAINS it rather than the tip itself being
+    // it — which is the proof a push took the divergence in instead of a
+    // force overwriting it.
+    const remoteTip = this.remoteGit("log", "--format=%s", "-1", "main").trim();
+    const all = this.remoteGit("log", "--format=%s", "main").split("\n");
+    assert.ok(
+      all.length >= 2 && all[1] === subject,
+      `expected the remote to hold "${subject}" as the tip's parent, but its log is: ${all.join(", ")}`,
+    );
+    assert.notStrictEqual(remoteTip, subject);
+  },
+);
 
 /** What actually arrived at the other end. The whole reason the button exists
  *  is that a person should not have to check this by hand — so the test does. */
@@ -723,3 +778,5 @@ Then(
     );
   },
 );
+
+

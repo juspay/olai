@@ -864,11 +864,16 @@ describe("push", () => {
 
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         yield* fixture.ops.commit({ message: "the cabinets are ordered" }, "web")
+        // Before the push: the panel is offering exactly the one commit.
         expect((yield* fixture.ops.pending).unpushed)
           .toEqual({ upstream: "origin/main", commits: 1 })
-
         const sent = yield* fixture.ops.push
-        expect(sent).toEqual({ _tag: "Pushed", upstream: "origin/main", commits: 1 })
+        expect(sent).toEqual({
+          _tag: "Pushed",
+          upstream: "origin/main",
+          commits: 1,
+          integrated: 0,
+        })
         expect(gitIn(bare)("log", "--format=%s", "-1", "main").trim())
           .toBe("olai: the cabinets are ordered")
         // ... and the panel stops offering to send it.
@@ -884,18 +889,106 @@ describe("push", () => {
         expect((yield* fixture.ops.pending).unpushed).toBe(null)
       })))
 
+  /** A branch with pushes to make but NO upstream: `standing` is null and the
+   *  push path falls through to `git.push`, whose refusal is git's own words
+   *  — remembered, republished, and (under `commit: auto`) a stop, exactly as
+   *  a refused push is today. This is the ledger-level arm the review asked
+   *  for: the plumbing `standing` test covers the `null`, and this covers
+   *  what the policy does with it.
+   *
+   *  A remote EXISTS here — unlike the fetch-refused path, which a fixture
+   *  with no remote at all would have exercised instead. The branch simply
+   *  does not track anything, which is the arm this test is named for. */
+  test("a push with no upstream is git's own refusal, remembered and republished", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        // A real remote exists (so `git fetch` succeeds), but the branch is
+        // not tracking it — `origin/main` is not an upstream of `mine`.
+        const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-remote-")))
+        gitIn(bare)("init", "--quiet", "--bare", "--initial-branch", "main")
+        fixture.git("remote", "add", "origin", bare)
+        fixture.git("push", "--quiet", "origin", "main")
+        fixture.git("checkout", "--quiet", "-b", "mine")
+        fixture.write("notes.md", "the cabinets are late\n")
+        fixture.git("add", "notes.md")
+        fixture.git("commit", "--quiet", "-m", "olai: mine")
+        yield* fixture.refresh
+
+        const sent = yield* fixture.ops.push
+        expect(sent._tag).toBe("Failed")
+        if (sent._tag !== "Failed") throw new Error("unreachable")
+        // git's OWN words, not an olai sentence — the words about the remote
+        // that the branch does not track.
+        expect(sent.said).toBeTruthy()
+        expect(sent.said).not.toContain("no upstream to push to")
+        // The fetch did not refuse first: the words are the PUSH's, naming an
+        // upstream that is not set, which `git fetch` would not have said.
+        expect(sent.said.toLowerCase()).toContain("upstream")
+        // Remembered and republished: the refusal reaches the pill.
+        const said = yield* fixture.ops.git
+        expect(said.pushSaid).not.toBeNull()
+        // Nothing pauses: `commits: manual` gives the push no loop to stop.
+        expect(said.paused).toBeNull()
+      }), { commits: "manual", pushes: "auto" }))
+
   /**
-   * A refusal comes back with git's own words, exactly as a refused commit
-   * does — never silently, and never as a failed effect. This is the one thing
-   * about pushing that a person cannot find out any other way from inside the
-   * app.
+   * A CONFLICTING edit — another clone rewrites the same file this side also
+   * commits — is the refusal a person actually meets now. A plain divergence
+   * is taken in by the integration, which is what this file's push-path change
+   * is FOR: the push's refusal is reserved for the things olai cannot cure
+   * itself (a conflict, a fetch that refused, an integration that could not
+   * run, the remote moving again in the window).
    */
   test("a refusal surfaces verbatim", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const bare = fixture.remote()
-        // The remote moves on without us, so the push is a non-fast-forward —
-        // the refusal a person actually meets.
+        // The other clone edits the SAME file this side commits, so the
+        // integration itself conflicts.
+        const elsewhere = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-clone-")))
+        gitIn(elsewhere)("clone", "--quiet", bare, ".")
+        gitIn(elsewhere)("config", "user.email", "test@olai.invalid")
+        gitIn(elsewhere)("config", "user.name", "olai tests")
+        // The other clone edits the SAME LINE of the SAME file this side also
+        // commits — `order` is line 2, and olai's own edit here is the `done`
+        // on that same line — so the integration itself conflicts.
+        fs.writeFileSync(
+          path.join(elsewhere, "house.olai"),
+          HOUSE.replace('"order the cabinets"', '"order the cabinets"  // theirs'),
+        )
+        gitIn(elsewhere)("add", "-A")
+        gitIn(elsewhere)("commit", "--quiet", "-m", "theirs")
+        gitIn(elsewhere)("push", "--quiet", "origin", "main")
+
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        // Olai's own edit must touch the SAME LINE the other clone rewrote —
+        const edit = HOUSE.replace('"order the cabinets"', '"order the cabinets"  /* mine */')
+        fixture.write("house.olai", edit)
+        yield* fixture.ops.commit({ message: "mine" }, "web")
+
+        const sent = yield* fixture.ops.push
+        // Olai's own sentence first ("the upstream's changes conflict ..."),
+        // then git's words, whole — the conflict names the file.
+        if (sent._tag === "Failed") {
+          expect(sent.said).toContain("conflict")
+          expect(sent.said).toContain("CONFLICT")
+        }
+        // Nothing moved: the served tree is exactly as the commit left it.
+        expect(fs.readFileSync(path.join(fixture.root, "house.olai"), "utf8"))
+          .toContain(`"order"`)
+        // ... and the loop is NOT stopped. A refusal pauses only the loop
+        // that would go round again: this test runs `commits: manual`, and a
+        // button press that failed is drawn by the panel, not paused over.
+        // (`pushes: auto` arms no pause on a manual commit door.)
+        expect((yield* fixture.ops.git).paused).toBeNull()
+      }), { commits: "manual", pushes: "auto" }))
+
+  /** A DIVERGENCE is no longer a stop at all: the push takes in what the
+   *  upstream has, rebases the unpushed commit onto it, and lands. */
+  test("a diverged push integrates and lands, and reports what it took in", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const bare = fixture.remote()
         const elsewhere = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-clone-")))
         gitIn(elsewhere)("clone", "--quiet", bare, ".")
         gitIn(elsewhere)("config", "user.email", "test@olai.invalid")
@@ -907,12 +1000,27 @@ describe("push", () => {
 
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         yield* fixture.ops.commit({ message: "mine" }, "web")
+        const before = fixture.settlements()
 
         const sent = yield* fixture.ops.push
-        expect(sent._tag).toBe("Failed")
-        // Git's own account, whole. What to do about it stays a conversation in
-        // a terminal, and these are the words that start it.
-        expect(sent._tag === "Failed" ? sent.said : "").toContain("rejected")
+        expect(sent).toEqual({
+          _tag: "Pushed",
+          upstream: "origin/main",
+          commits: 1,
+          integrated: 1,
+        })
+        // The remote's tip is olai's commit, on top of the other machine's.
+        expect(gitIn(bare)("log", "--format=%s", "-1", "main").trim())
+          .toStartWith("olai:")
+        expect(gitIn(bare)("log", "--format=%s", "main", "-2").trim().split("\n"))
+          .toEqual(["olai: mine", "theirs"])
+        // The other machine's file is on disk in the served tree.
+        expect(fs.readFileSync(path.join(fixture.root, "theirs.md"), "utf8"))
+          .toBe("from another clone\n")
+        // The loop is NOT stopped — this is the whole of `Overlapped`-and-this
+        // both being "taken in": a divergence is not a stop.
+        expect((yield* fixture.ops.git).paused).toBeNull()
+        expect(fixture.settlements()).toBeGreaterThan(before)
       })))
 
   test("commits off has nothing to push either", () =>
@@ -1242,54 +1350,212 @@ describe("push: auto", () => {
         expect((yield* fixture.ops.pending).unpushed?.commits).toBe(0)
       }), { commits: "auto", pushes: "auto", quiet: 40 }))
 
-  test("a push git refuses is remembered, drawn, and stops the loop", () =>
+  /**
+   * `Overlapped` — an uncommitted edit in a path the upstream changed — is the
+   * one refusal that does NOT stop the loop even when it surfaces through it.
+   * The plumbed fixture above proves the refusal itself. THIS is the loop
+   * half: the loop's next survey re-arms the window, the window commits the
+   * overlapping work, and the push that follows integrates cleanly — nobody
+   * pressed Resume, because the loop walked the wait out on its own.
+   *
+   * From the MANUAL commit door (the push button or an agent's `push`), so
+   * `pushSaid` is what the overlap set.
+   */
+  test("an uncommitted edit in a path the upstream changed waits for its commit, and does not pause", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const bare = fixture.remote()
+        // THE UPSTREAM MOVES FIRST: a different clone edits `install them`
+        // (line 3) and pushes. This side is behind by one with a clean tree.
+        const theirs = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-theirs-")))
+        gitIn(theirs)("clone", "--quiet", bare, ".")
+        gitIn(theirs)("config", "user.email", "them@example.com")
+        gitIn(theirs)("config", "user.name", "them")
+        fs.writeFileSync(
+          path.join(theirs, "house.olai"),
+          HOUSE.replace('"install them"', '"install them"  // theirs'),
+        )
+        gitIn(theirs)("add", "-A")
+        gitIn(theirs)("commit", "--quiet", "-m", "theirs")
+        gitIn(theirs)("push", "--quiet")
+
+        // THE UNPUSHED COMMIT, made straight on the git command line like a
+        // terminal would — ahead of the upstream, with nothing observed, so
+        // no window has armed around it.
+        fixture.write("notes.md", "the cabinets are late\n")
+        fixture.git("add", "notes.md")
+        fixture.git("commit", "--quiet", "-m", "olai: mine")
+
+        // THE OVERLAP: an UNCOMMITTED edit lands on line 1 of the SAME tracked
+        // file (house.olai), two lines from what the upstream changed.
+        const edit = HOUSE.replace('Kitchen remodel', 'Kitchen remodel // mine')
+        fixture.write("house.olai", edit)
+        yield* fixture.refresh
+
+        // THE OVERLAP: an UNCOMMITTED edit lands on line 1 of the SAME tracked
+        // file (house.olai) — the read-tree refuses (`Entry not uptodate`) no
+        // matter how far, and the two-line gap keeps the later rebase clean.
+        //
+        // A push — the manual door (the push button or an agent's `push`) —
+        // meets the overlap: it refuses with the overlap sentence and does
+        // NOT pause.
+        const refused = yield* fixture.ops.push
+        expect(refused._tag).toBe("Failed")
+        const said = yield* fixture.ops.git
+        // The overlap sentence names the path — charge's own parenthetical,
+        // not the copy inside git's verbatim words — so a regression in the
+        // path parsing fails here rather than silently.
+        expect(said.pushSaid).toContain("overlap")
+        expect(said.pushSaid).toMatch(/nothing moved \(house\.olai\)/)
+        expect(said.paused).toBeNull()
+
+        // The window's own next commit — `record` calls exactly this —
+        // sweeps the overlapping file in, and the push in its tail integrates
+        // (far line, clean rebase), clearing the words.
+        yield* fixture.ops.commit({}, "auto")
+        expect((yield* fixture.ops.git).pushSaid).toBeNull()
+        expect((yield* fixture.ops.git).paused).toBeNull()
+        expect((yield* fixture.ops.pending).unpushed?.commits).toBe(0)
+        expect(gitIn(bare)("log", "--format=%s", "-1", "main").trim()).toStartWith("olai:")
+      }), { commits: "auto", pushes: "auto", quiet: 40 }))
+  /** A CONFLICT is what actually stops the loop now — see §5 of the plan. The
+   *  other clone edits the SAME LINE of the file the loop's own next commit
+   *  will touch, and the "theirs" upstream commit collides with olai's own
+   *  commit on rebase. The commit stands, the tree is exactly as it was, and
+   *  the pill names the file and the one gesture that helps. */
+  test("a conflict stops the loop, and the words name the file", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const bare = fixture.remote()
         yield* Effect.forkScoped(fixture.ops.loop)
 
-        // THE DIVERGENCE, which is what a single user with two machines meets:
-        // somebody else moved the upstream, so the push is a non-fast-forward.
-        // Nothing here pulls, rebases or forces.
+        // The other clone rewrites the SAME LINE of house.olai that olai's
+        // own edit here will also rewrite, so the integration conflicts.
         const theirs = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-theirs-")))
         gitIn(theirs)("clone", "--quiet", bare, ".")
         gitIn(theirs)("config", "user.email", "them@example.com")
         gitIn(theirs)("config", "user.name", "them")
-        fs.writeFileSync(path.join(theirs, "theirs.md"), "somebody else's work\n")
+        fs.writeFileSync(
+          path.join(theirs, "house.olai"),
+          HOUSE.replace('"order the cabinets"', '"order the cabinets"  // theirs'),
+        )
         gitIn(theirs)("add", "-A")
         gitIn(theirs)("commit", "--quiet", "-m", "theirs")
         gitIn(theirs)("push", "--quiet")
 
-        fixture.write("notes.md", "the cabinets are late\n")
+        // The SAME LINE, rewritten THIS side — before the push, so olai's
+        // commit (made by the window) collides with theirs.
+        const edit = HOUSE.replace('"order the cabinets"', '"order the cabinets" // mine')
+        fixture.write("house.olai", edit)
         yield* fixture.refresh
-        const diverged = fixture.settlements()
         yield* fixture.observe
-        yield* fixture.settled(diverged)
+
         while (true) {
           const n = fixture.settlements()
-          if ((yield* fixture.ops.git).pushSaid !== null) break
+          if ((yield* fixture.ops.git).paused !== null) break
           yield* fixture.settled(n)
         }
-
-        // The COMMIT stands — a refused push is not a rollback.
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
         const said = yield* fixture.ops.git
-        // ... and the whole of `push-failure-invisible`: git's own words, on
-        // the cell, where every tab reads them and a reload cannot lose them.
-        expect(said.pushSaid).not.toBeNull()
-        expect(said.pushSaid).toContain("reject")
+        expect(said.pushSaid).toContain("conflict")
+        expect(said.pushSaid).toContain("CONFLICT")
+        expect(said.pushSaid).toContain("house.olai")
         // The commit half is UNTOUCHED, which is why these are two fields: the
-        // history is fine and the sharing is not, and one status could not say
-        // both.
+        // history is fine and the sharing is not.
         expect(said.status).toBe("repo")
         expect(said.said).toBeNull()
-        // ... and the loop is stopped, because piling more commits onto a
-        // branch that has already diverged makes the resolution worse.
+        // ... and the loop is stopped, because a person has to look.
         expect(said.paused).not.toBeNull()
+        // The tree carries NO markers: the rebase was aborted, nothing moved.
+        expect(fs.readFileSync(path.join(fixture.root, "house.olai"), "utf8"))
+          .not.toContain("<<<<<<<")
 
+        // THE ONE GESTURE THAT HELPS, end to end: a person resolves the
+        // conflict in a terminal. The pill says `git pull --rebase`; a merge
+        // is another way and is what this terminal does. The conflict is the
+        // same either way; the hand-cleaned file is the resolution. The
+        // resolution commits and pushes, Resume lifts the stop, and the
+        // conflict's words are gone because the branch is truly in sync.
+        try {
+          fixture.git("merge", "origin/main", "--no-edit")
+        } catch {
+          // the expected conflict: the merge stops, the tree is conflicted
+        }
+        fixture.write(
+          "house.olai",
+          HOUSE.replace('"order the cabinets"', '"order the cabinets"  // resolved'),
+        )
+        fixture.git("add", "house.olai")
+        fixture.git(
+          "-c", "core.editor=true",
+          "commit", "--no-edit",
+        )
+        fixture.git("push", "--quiet")
+        yield* fixture.ops.resume
+        // A survey — the panel's `pending` — is what clears `pushSaid` when
+        // the branch is in sync; the narrow `git` probe never does.
+        expect((yield* fixture.ops.pending).unpushed?.commits).toBe(0)
+        yield* fixture.observe
+        expect((yield* fixture.ops.git).pushSaid).toBeNull()
+        // The merge is the tip, taking both sides in — the branch is truly
+        // one line again, and the other clone's own push met it.
+        expect(gitIn(bare)("log", "--format=%s", "-3", "main").replace(/\n/g, " | "))
+          .toContain("olai:")
         fs.rmSync(theirs, { recursive: true, force: true })
       }), { commits: "auto", pushes: "auto", quiet: 40 }))
+  /** A fetch that cannot even run — the remote URL pointed at a directory
+   *  that does not exist — is a refusal with git's words (a fetch is part of
+   *  what pushing means now) and a pause, exactly as a refused push is. */
+  test("a fetch that fails is a refusal with words and a pause", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const bare = fixture.remote()
+        // Unpushed work, made straight on the command line so nothing else
+        // has pushed it.
+        fixture.write("notes.md", "the cabinets are late\n")
+        fixture.git("add", "notes.md")
+        fixture.git("commit", "--quiet", "-m", "olai: mine")
+
+        // Point the remote at a directory that does not exist.
+        const ghost = path.join(fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ghost-"))), "absent")
+        fixture.git("remote", "set-url", "origin", ghost)
+        yield* fixture.refresh
+
+        const sent = yield* fixture.ops.push
+        expect(sent._tag).toBe("Failed")
+        if (sent._tag === "Failed") expect(sent.said).toBeTruthy()
+        const said = yield* fixture.ops.git
+        // The remote cannot be reached, so we are still behind — nothing
+        // moved, the commit stands. The loop is NOT paused: nothing would go
+        // round again under `commits: manual` (a refused push pauses only
+        // the auto loop that would otherwise pile more commits onto the
+        // refusal), and the words are still remembered and republished.
+        expect(said.paused).toBeNull()
+        expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
+      }), { commits: "manual", pushes: "auto" }))
+
+  /** ONE INTEGRATION PER DIRECTORY — two pushes racing one another make one
+   *  integration; the second caller waits, surveys again, and finds nothing
+   *  to push. */
+  test("two concurrent pushes make one integration", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.remote()
+        fixture.write("notes.md", "the cabinets are late\n")
+        fixture.git("add", "notes.md")
+        fixture.git("commit", "--quiet", "-m", "olai: mine")
+        yield* fixture.refresh
+
+        const [a, b] = yield* Effect.all(
+          [fixture.ops.push, fixture.ops.push],
+          { concurrency: 2 },
+        )
+        expect(a._tag === "Pushed" || b._tag === "Pushed").toBe(true)
+        expect(a._tag === "NothingToPush" || b._tag === "NothingToPush").toBe(true)
+        expect((yield* fixture.ops.pending).unpushed?.commits).toBe(0)
+      }), { commits: "manual", pushes: "auto" }))
 })
+
 
 describe("commit: off", () => {
   test("has nothing to say at all", () =>
@@ -1559,11 +1825,61 @@ describe("the one push a boot owes", () => {
     fixture.git("commit", "--quiet", "-m", "olai: earlier")
   }
 
+  /** The same, but the unpushed commit edits the SAME LINE of house.olai that
+   *  the conflicting clone rewrote — so the integration itself conflicts. */
+  const unpushedConflicting = (fixture: Fixture): void => {
+    fixture.write("house.olai", HOUSE.replace('"order the cabinets"', '"order the cabinets"  /* mine */'))
+    fixture.git("add", "-A")
+    fixture.git("commit", "--quiet", "-m", "olai: earlier")
+  }
+
+  /** The other clone edits the SAME LINE of a file this side's own commit will
+   *  also change, so the integration itself conflicts. */
+  const divergeConflicting = (bare: string): void => {
+    const theirs = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-theirs-")))
+    gitIn(theirs)("clone", "--quiet", bare, ".")
+    gitIn(theirs)("config", "user.email", "them@example.com")
+    gitIn(theirs)("config", "user.name", "them")
+    fs.writeFileSync(
+      path.join(theirs, "house.olai"),
+      HOUSE.replace('"order the cabinets"', '"order the cabinets"  // theirs'),
+    )
+    gitIn(theirs)("add", "-A")
+    gitIn(theirs)("commit", "--quiet", "-m", "theirs")
+    gitIn(theirs)("push", "--quiet")
+    fs.rmSync(theirs, { recursive: true, force: true })
+  }
+
+  test("a boot under push: auto on a diverged repository integrates and pushes", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const bare = fixture.remote()
+        diverge(bare)
+        unpushed(fixture)
+        yield* fixture.refresh
+
+        // Before the boot push: nothing was remembered, because a restart is
+        // an operator's act and the state file keeps the policy and nothing
+        // else.
+        expect((yield* fixture.ops.git).pushSaid).toBeNull()
+
+        yield* fixture.ops.catchUp
+
+        // The boot push took the other machine's commit in and landed: the
+        // remote tip is ours, the other machine's file is on disk, and the
+        // refusal field is empty.
+        expect(gitIn(bare)("log", "--format=%s", "-1", "main").trim()).toBe("olai: earlier")
+        expect(fs.existsSync(path.join(fixture.root, "theirs.md"))).toBe(true)
+        expect((yield* fixture.ops.git).pushSaid).toBeNull()
+        expect((yield* fixture.ops.git).paused).toBeNull()
+        expect(fixture.settlements()).toBeGreaterThan(0)
+      }), { commits: "manual", pushes: "auto" }))
+
   test("a boot under push: auto re-earns the words, on the FIRST reading", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        diverge(fixture.remote())
-        unpushed(fixture)
+        divergeConflicting(fixture.remote())
+        unpushedConflicting(fixture)
         yield* fixture.refresh
 
         // Before the boot push: the cell has nothing to say about a refusal,
@@ -1574,7 +1890,12 @@ describe("the one push a boot owes", () => {
         yield* fixture.ops.catchUp
 
         const said = yield* fixture.ops.git
-        expect(said.pushSaid).toContain("reject")
+        // The boot push met a CONFLICT, and git's own sentence is on the cell
+        // — the deploy-restart hole (`push-failure-invisible`) is closed by
+        // re-earning the words.
+        expect(said.pushSaid).toContain("conflict")
+        expect(said.pushSaid).toContain("CONFLICT")
+        expect(said.pushSaid).toContain("house.olai")
         // The COMMIT half is untouched: the history is fine and the sharing is
         // not, which is why these are two fields.
         expect(said.status).toBe("repo")

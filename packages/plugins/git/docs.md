@@ -30,6 +30,9 @@ the whole host, for a key the vault never declared; the arrow points this way
 now, which costs this row no wait it did not already have. The registration
 unwinds with this activation, so a vault outliving the ledger falls back to
 refusing in its own words.
+On the push path the row fetches the upstream, and while it does it owns a
+temporary linked worktree under the git directory — the files you are served
+move onto the result only with one all-or-nothing tree update.
 
 ## In the browser
 
@@ -41,7 +44,7 @@ Git's members compose as a sibling, under its own key:
 
 - `surface/git/git` — what git is doing for this directory
 - `surface/git/pending` — what is waiting
-- `surface/git/git/commit`, `surface/git/git/push`, `surface/git/git/resume` — the three verbs
+- `surface/git/git/commit`, `surface/git/git/push`, `surface/git/git/resume` — the three verbs. `push` fetches the upstream, rebases what is unpushed onto it, and sends — a divergence is taken in rather than refused, and the only stop a push can meet is a conflict, a refused fetch or push, or an integration that could not run ([git.md](../git.md#pushing)).
 
 They are on the browser face. The MCP tools an agent calls are `git_commit` and `git_push` — the row's word in front of its own verb, on every face (#546) — and they are THIS ROW'S now (`packages/plugins/git/src/tools.ts`, juspay/olai#546): they used to be two entries in `@olai/ops`' one closed table, which meant a serve with no ledger row still advertised them. They do not land on the sibling verbs above; they call through the ops layer's own ledger door, which this row stands behind when it is mounted and which refuses in words when it is not. So the row still puts nothing on the agent face. An agent cannot see what is pending, and `git_commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs are gone with them. The adapter HAS a sibling segment now (juspay/kolu#2234, so a row's resource reads `surface://cells/<row>/<member>`), and that is no longer what would keep them off the face: this row publishes no `resources` map, which is the decision rather than a limitation. An agent observes the recorder through `git_commit` and `git_push`.
 
