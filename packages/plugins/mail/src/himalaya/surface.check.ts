@@ -136,7 +136,7 @@ if (found === null) {
   ])
 }
 
-const [major, minor, patch] = found
+const [major, minor, patch] = found as [number, number, number]
 const [floorMajor, floorMinor, floorPatch] = HIMALAYA_VERSION_FLOOR
 // Highest component first, and the first pair that differs is the whole answer —
 // which is what comparing three version components is, spelled out rather than
