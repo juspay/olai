@@ -103,10 +103,20 @@ import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
 export interface Editor {
-  /** Consume the range inherited from a previous instance of this editor, or
-   *  the one left behind by the editor a landed line was TYPED in — the box
-   *  goes and a new one opens at the same seat (`./draft.ts`'s `was`). */
-  readonly takeRange: (slot: Slot | undefined, was?: Slot) => EditorRange | undefined
+  /** Consume the range inherited from a previous instance of this editor — one
+   *  box of the same draft handing its selection to the next, after a rebuild.
+   *  CONSUMING, unlike {@link Editor.takeForwarded}, which is the other way a
+   *  box comes by a range it did not read itself. */
+  readonly takeRange: (slot: Slot | undefined) => EditorRange | undefined
+  /** The range the editor a LANDED line was typed in left behind, when this box
+   *  opens at that same address — the ghost unmounting and the row's own editor
+   *  opening are one update, so the caret has only the address to travel on
+   *  (`./draft.ts`'s `Editing.was`).
+   *
+   *  IT IS NOT CONSUMED: more than one box can open at that address inside the
+   *  one update that draws the row, and the record belongs to the address
+   *  rather than to whichever box read it first. */
+  readonly takeForwarded: (was: Slot) => EditorRange | undefined
   /** Record the browser selection for a later rebuild of the same draft. */
   readonly rememberRange: (range: EditorRange) => void
   /** Keep Escape's completion dismissal with its draft; a fresh edit resets it. */

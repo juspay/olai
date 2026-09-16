@@ -480,7 +480,7 @@ const takeCaret = (
   const was = draft !== null && draft.kind === "row" ? draft.was : undefined
   // Only a new editor instance consumes a retained range. Ordinary caret
   // bumps and structural row redraws keep their existing placement rules.
-  const retained = editor.takeRange(slot, was)
+  const retained = editor.takeRange(slot) ?? (was === undefined ? undefined : editor.takeForwarded(was))
   const remember = () => {
     if (said.armed?.() === false || slot === undefined) return
     const field = element()
