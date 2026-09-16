@@ -31,6 +31,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
 import { DOT } from "@olai/web/client/marks.tsx"
 
 import { CONTROL, GUTTER_GAP, HOVER_CELL, HOVER_GUTTER } from "@olai/ui-primitives/touch.ts"
+import { clearNode } from "../focus.ts"
 import type { Pending } from "./draft.ts"
 import { DraftSaid, TitleEditor } from "./RowEditor.tsx"
 
@@ -59,6 +60,18 @@ export function NewRow(props: {
         // not a row anybody is in.
         class={`flex items-center rounded-sm py-1 ${GUTTER_GAP}`}
         classList={{ "bg-accent/10 ring-1 ring-accent/50": props.active !== false }}
+        // A CARET IN A LINE THAT IS NOT A ROW LIGHTS NO ROW. The ring a
+        // selected row wears (`../focus.ts`) has to leave, or the row above
+        // goes on claiming to be the one while this line is what is being
+        // typed — and it would then lose it at the landing, when the new row's
+        // own editor takes the focus and selects it. Nothing would move at
+        // that moment if this line already said the whole of it.
+        //
+        // HERE rather than at the row this line happens to be drawn in: a start
+        // line's ghost is inside no row at all (`./StartLine.tsx`), and the
+        // fact is the line's own. `../Tree.tsx`'s `onFocusIn` still has to
+        // ignore an input's focus — this says why it may.
+        onFocusIn={() => clearNode()}
         data-testid={TESTID.newRow}
       >
         {/* The hover strip's PLACE, cell for cell: a row reserves the `•••`
@@ -94,6 +107,10 @@ export function NewRow(props: {
           onActivate={props.onActivate}
           onParkedInput={props.onParkedInput}
           placeholder="a new line — type it, and Enter makes the next one"
+          // A ghost IS a line: the box is the rest of it, which is what a
+          // person aims at and what the placeholder has to be readable in.
+          // A row's title is the other shape (`../NodeLine.tsx`).
+          fillsLine
         />
       </div>
       {/* Under the line it belongs to. A new row is the draft most likely to
