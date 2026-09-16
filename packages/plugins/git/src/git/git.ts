@@ -1290,6 +1290,10 @@ const integrate = (
               // conversation; a refusal is something to look at.
               if (/CONFLICT \(content\)|CONFLICT \(modify\/delete\)|CONFLICT \(add\/add\)/.test(rebased.said)) {
                 yield* git(root, ["-C", worktree, "rebase", "--abort"])
+                yield* Effect.annotateLogs(
+                  Effect.logWarning("olai git: the take-in conflicted, nothing moved"),
+                  { said: rebased.said },
+                )
                 return { _tag: "Conflicted", said: rebased.said } as const
               }
               // Everything else the rebase refused with is a refusal: the
