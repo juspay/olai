@@ -100,8 +100,10 @@ import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
 export interface Editor {
-  /** Consume the range inherited from a previous instance of this editor. */
-  readonly takeRange: (slot: Slot | undefined) => EditorRange | undefined
+  /** Consume the range inherited from a previous instance of this editor, or
+   *  the one left behind by the editor a landed line was TYPED in — the box
+   *  goes and a new one opens at the same seat (`./draft.ts`'s `was`). */
+  readonly takeRange: (slot: Slot | undefined, was?: Slot) => EditorRange | undefined
   /** Record the browser selection for a later rebuild of the same draft. */
   readonly rememberRange: (range: EditorRange) => void
   /** Keep Escape's completion dismissal with its draft; a fresh edit resets it. */
@@ -1324,11 +1326,32 @@ export const createEditor = (
   }
 
   return {
-    takeRange: (slot) => {
-      if (retainedRange === undefined || slot === undefined || !sameSlot(retainedRange.slot, slot)) return undefined
-      const range = retainedRange
-      retainedRange = undefined
-      return range
+    takeRange: (slot, was) => {
+      if (retainedRange !== undefined && slot !== undefined && sameSlot(retainedRange.slot, slot)) {
+        const range = retainedRange
+        retainedRange = undefined
+        return range
+      }
+      // THE LINE THAT BECAME A ROW. `was` is the address the draft was typed
+      // at ({@link ./draft.ts}'s `Editing.was`), and the editor that holds it
+      // is a NEW box at the same seat: the ghost unmounting and the row's own
+      // editor opening are one update, so the caret a person left mid-word has
+      // nothing but that address to travel on. Read from `memory.range` rather
+      // than `retainedRange` because this is not a rebuild — the `<input>` that
+      // remembered it is still attached, and its last word (`rememberRange`,
+      // DOM-driven) is the current one.
+      //
+      // AND LEFT WHERE IT IS, which `retainedRange` above is not: more than one
+      // box can open at that address inside the one update that draws the row
+      // (the ghost's list and the row's are two, `../Tree.tsx`), and the first
+      // of them to take the caret must not leave the second — the one that
+      // ends up with the focus — with nothing. The field that opens writes this
+      // record itself the moment it takes the selection, so a stale entry
+      // cannot outlive the swap.
+      if (was !== undefined && memory.range !== undefined && sameSlot(memory.range.slot, was)) {
+        return memory.range
+      }
+      return undefined
     },
     rememberRange: (range) => { memory.range = range },
     completionDismissal: (slot) => {
