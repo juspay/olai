@@ -13,7 +13,7 @@ export function Wake(props: { readonly chat: Chat }) {
     const state = props.chat.state()
     const agent = agentIn(state)
     return agent && state.session ? { agent: agent.id, session: state.session.id } : undefined
-  })
+  }, undefined, { equals: (before, after) => before?.agent === after?.agent && before?.session === after?.session })
   const rows = () => faces().hung("conversation.wake")
   return <Show when={to()} keyed>{conversation =>
     <Show when={rows().length > 0}>
