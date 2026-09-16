@@ -109,7 +109,7 @@ let
     # dev shell run the same copier over the same list.
     # ...and `@odu/run-client` beside them, through the SAME script: the copier
     # takes (src, dest) pairs and knows nothing about which repo a source came
-    # from, which is why odu needs no second one (nix/odu.nix).
+    # from, which is why odu needs no second one.
     # ...and CORDIS on a third line, four packages out of one pin
     # (nix/cordis.nix): the runtime the server's plugin composition is built
     # on, hydrated as raw TypeScript like everything else olai pins.
@@ -173,9 +173,10 @@ let
   # panel's 'wrapper-provided' label), one `--set-default` per knob (unset →
   # the pin, empty → the off switch), one `--run` per `dir` knob splicing the
   # directory onto PATH. The ACP adapters are plugins now — claude, pi and
-  # codex each own a `default.nix` declaring their knob — so every one of the
-  # four knobs (OLAI_ACP_AGENT, OLAI_ACP_CODEX, OLAI_ACP_PI, OLAI_ODU_BIN)
-  # arrives here by composition; nothing is hand-written any more.
+  # codex each own a `default.nix` declaring their knob — so every knob,
+  # engine and mail alike (OLAI_ACP_AGENT, OLAI_ACP_CODEX, OLAI_ACP_PI,
+  # OLAI_ODU_BIN, OLAI_HIMALAYA), arrives here by composition; nothing is
+  # hand-written any more.
 
   # Every plugin's package output arrives through the fold: `bundle.packages`
   # merges each plugin's `packages.*` (mail's `himalaya-bin` among them), and
