@@ -63,7 +63,8 @@ Feature: Reading and acting on Gmail in a conversation
     When I ask the agent "save mail attachment a32 attachment_1"
     Then the mail attachment story says "invoice.pdf · 12 KiB"
     And the mail attachment is outside the vault under the runtime directory
-    When the non-UI controller sets plugin "mail" off
+    When I open the plugins panel
+    And I switch the plugin "mail" off
     Then the saved mail attachment is gone
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
