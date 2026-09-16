@@ -1264,7 +1264,7 @@ Then("the row being typed is the one pointed at", async function (this: OlaiWorl
  * wears `new-row-glyph` and the row's is the link its bullet is drawn in
  * (`../browser/Glyph.tsx`), and a scenario that had to name them separately
  * would be free to compare two different things. */
-const GLYPH = `[data-testid="${TESTID.newRowGlyph}"], [data-testid="${TESTID.zoom}"]`;
+const GLYPH = `${selector(TESTID.newRowGlyph)}, ${selector(TESTID.zoom)}`;
 
 type LineBox = {
   readonly x: number;
