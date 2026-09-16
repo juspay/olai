@@ -295,7 +295,9 @@ const call = async (
   // sentence. Every refusal kind exercised in this suite checks the fallback.
   if (result.isError && typeof result.structuredContent?.kind === "string") {
     const text = result.content?.find(block => block.type === "text")?.text
-    expect(refusalIn(text ?? "")).toEqual({ kind: result.structuredContent.kind, reason: result.structuredContent.reason })
+    const reason = result.structuredContent.reason
+    if (typeof reason !== "string") throw new Error("a structured refusal must carry its reason")
+    expect(refusalIn(text ?? "")).toEqual({ kind: result.structuredContent.kind, reason })
   }
   return {
     structured: result.structuredContent ?? {},
