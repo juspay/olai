@@ -106,16 +106,16 @@ Feature: An agent opts into inbox wakes on its node
     Then mail has stored history cursor "101"
     And this conversation has 1 mail wakes
     When the server stops
+    And mail delivers thread "b2" titled "While stopped" to the inbox
     And the server starts again on the same port
     And I reload the page
     Then the mail pill reads connected
     When I open the outline "inbox.olai"
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
-    Then mail has stored history cursor "101"
-    When mail delivers thread "b2" titled "After restart" to the inbox
     Then mail has stored history cursor "102"
-    And the latest mail wake names "After restart"
+    And the latest mail wake names "While stopped"
+    And the latest mail wake names "1 thread since"
 
   Scenario: An expired history id seeds without ringing for the gap
     When I open the plugins panel
@@ -154,6 +154,7 @@ Feature: An agent opts into inbox wakes on its node
     Then mail makes no history calls for a second
     When I open the plugins panel
     Then the plugins panel shows "mail" configured "poll" as "2m"
+    And mail warns that the bad poll value uses its default
 
   Scenario: With no account the opted-in node gets one connect notice
     When I open the outline "inbox.olai"

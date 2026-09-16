@@ -70,3 +70,7 @@ Given("inbox consent is named {string}", function(this: OlaiWorld, key: string) 
   }
   this.writeServed("inbox.olai", nodes.map(node => JSON.stringify(node)).join("\n"))
 })
+
+Then("mail warns that the bad poll value uses its default", async function(this: OlaiWorld) {
+  await this.waitUntil(async () => this.serverLog.text.includes("mail.poll") && this.serverLog.text.includes("bad") && this.serverLog.text.includes("uses its default"), "mail poll validation warning")
+})
