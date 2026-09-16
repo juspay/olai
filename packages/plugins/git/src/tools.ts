@@ -30,7 +30,7 @@ export const tools: ReadonlyArray<Tool> = [
   act(
     "push",
     "Push what is recorded",
-    "Send the current branch to the upstream it already tracks. One verb and no arguments: no remote to pick, no refspec, never a force, and nothing that resolves a divergence — pending carries `unpushed` (the upstream's name and how many commits it is missing), and that is what this sends. Answers `NothingToPush` for a branch already in sync, and hands back git's own words verbatim when it refuses: authentication, a non-fast-forward, a branch with no upstream at all. Those are the terminal's business to resolve; report what git said rather than retrying.",
+    "Fetches the upstream, rebases what is unpushed onto it, and pushes — never a force. A plain divergence is taken in and reported as `integrated`; what this refuses is a conflict, a fetch or push the remote refused, or an uncommitted edit in a path the upstream changed. A conflict is refused with the files named; resolve it in a terminal (`git pull --rebase`) and report what git said rather than retrying.",
     NoArgs,
     (ops) => ops.push,
   ),
