@@ -269,40 +269,45 @@ export const refused = (draft: Draft, failure: OpFailure): Draft => ({
 })
 
 /**
- * The LIVE line as it is DRAWN: the pending being typed, or the row it became
- * while that row is still a frame away from being drawn.
+ * The LIVE line as the GHOST that draws it needs it: the draft itself, and the
+ * address it is typed at.
  *
  * The reply and the frame that carries the row arrive in either order, and the
  * line must not blink out in between — a person typing in a line that is saving
- * keeps their box and their caret, and both are things the ROW cannot give them
- * until the file says the row exists ({@link Editing.was} is the same fact one
- * layer down, where a blur reads it). One shape for both, so a row asks the
- * editor for the line it is typing without first having to know which side of
- * the reply it is on.
+ * keeps their box and their caret ({@link Editing.was} is the same fact one
+ * layer down, where a blur reads it). One shape for both sides of the reply, so
+ * a row asks the editor for the line it is typing without first having to know
+ * which side it is on.
  *
- * `at` is the ROW that landed rather than the anchor it was typed at: the
- * anchor is the editor's to walk back ({@link walked}, which reads the placing
- * `commit` has just recorded), and a second copy here could not know about a
- * frame. The `slot` is the pending's own, which is what keeps this the SAME
- * `<input>` across the landing instead of a remounted one.
+ * THE DRAFT ITSELF, not a copy of the four fields a ghost draws: a landed line
+ * is NOT a pending, and this file does not dress it as one. What a pending and
+ * a landed line genuinely do not spell the same way is the ADDRESS — a pending
+ * minted a slot, and a landed line keeps the one it was typed at — so that is
+ * the one thing projected, and it is the one thing the `<input>` needs
+ * (`../Tree.tsx` keys its list of ghosts by it, which is what keeps this the
+ * same box instead of a remounted one).
+ *
+ * Nothing else here answers "where is it drawn": the seat is the editor's
+ * (`./editing.tsx`'s `where`, which reads the placings a write left behind),
+ * and a projection that carried an anchor of its own would be a second answer
+ * to that question — one the frame could contradict.
  */
-export const ghostOf = (draft: Draft | null): Pending | null => {
+export interface Ghost {
+  readonly draft: Draft
+  /** What the `<input>` is keyed by, and the address a blur arrives with. */
+  readonly slot: string
+}
+
+export const ghostOf = (draft: Draft | null): Ghost | null => {
   if (draft === null) return null
-  if (draft.kind === "new") return draft
+  if (draft.kind === "new") return { draft, slot: draft.slot }
   const was = draft.was
-  // `place !== null` is a line whose row the page is already drawing — the
-  // caret is in a ROW now, and a second editor for it would be two. `row ===
-  // null` cannot happen for a slot a pending minted, and a forwarding address
-  // with nothing to forward to is not one.
+  // `place !== null` is a line whose row the page is drawing — the caret is in
+  // a ROW now, and a second editor for it would be two. `was.row === null`
+  // cannot happen for a slot a pending minted, and a forwarding address with
+  // nothing to forward to is not one.
   if (draft.place !== null || was === undefined || was.row === null) return null
-  return {
-    kind: "new",
-    at: { kind: "after", id: draft.row },
-    text: draft.text,
-    slot: was.row,
-    refused: draft.refused,
-    nudge: draft.nudge,
-  }
+  return { draft, slot: was.row }
 }
 
 /**
@@ -354,10 +359,6 @@ export const besideOf = (at: Anchor): Beside | null =>
     ? { kind: at.kind, id: at.id }
     : null
 
-/** What a walk that has no page to ask about passes — a line whose seat is
- *  KEPT rather than found again ({@link walked}). */
-const NOTHING_DRAWN: ReadonlySet<string> = new Set()
-
 /**
  * Where an anchor is drawn NOW, given where the writes said it went.
  *
@@ -370,23 +371,17 @@ const NOTHING_DRAWN: ReadonlySet<string> = new Set()
  *
  * Pure, and here rather than in the editor, because it is the same rule for
  * both readers — the caret's own seat and a page's start line — and because
- * "where the line that landed is drawn" is worth a unit test.
+ * "where the line that landed is drawn" is a unit test.
  */
 export const walked = (
   at: Anchor,
   placements: ReadonlyMap<string, Anchor>,
-  /** What the page draws now — which is what STOPS the walk: the first anchor
-   *  naming a row that is on screen is where the thing is drawn.
-   *
-   *  ABSENT IS A WALK THAT KEEPS ITS SEAT, and there is one caller: a line that
-   *  has LANDED is drawn where its ghost was, and the row it is waiting for may
-   *  NOT end the walk — the frame can beat the reply, and a seat that moved
-   *  onto that row would draw the line in the row's own list rather than the
-   *  ghost's. `../Tree.tsx` keys a LIST of ghosts, so a seat that changes lists
-   *  is the `<input>` a person is typing in destroyed and made again, with the
-   *  caret and the record of where it was going with it. A pending asks the
-   *  other way (its anchor IS a row on screen) and so does a parked skeleton. */
-  present: ReadonlySet<string> = NOTHING_DRAWN,
+  /** What the page draws now, which is what STOPS the walk: the first anchor
+   *  naming a row that is on screen is where the thing is drawn. REQUIRED,
+   *  because it is the whole of what this function means — a caller with no
+   *  page to ask is keeping a seat rather than finding one, and that is
+   *  {@link seatKept}, which is a different rule with its own name. */
+  present: ReadonlySet<string>,
 ): Anchor => {
   const seen = new Set<string>()
   while ("id" in at && !present.has(at.id) && !seen.has(at.id)) {
@@ -398,13 +393,54 @@ export const walked = (
   return at
 }
 
+/**
+ * Where a row that has LANDED is drawn, walking the placings a write left — and
+ * NOT stopping at a row the page has drawn, which is the whole difference from
+ * {@link walked}.
+ *
+ * The entry is an ID rather than an anchor, which is the honest shape of the
+ * question: a landed line's address in the placings is the NODE the write made
+ * (`commit` records `placements[newId] = the anchor it was typed at`), and the
+ * frame that draws it may arrive before, after or between those two facts. A
+ * walk that stopped at the drawn row would draw the line in that row's own list
+ * instead of the anchor's, which for `../Tree.tsx` is a different `<Key>` over
+ * a different array — the `<input>` a person is typing in destroyed and made
+ * again, and the caret with it.
+ *
+ * `null` when nothing records it: a write that has not answered yet, or a
+ * placing the page has already outlived (`./editing.tsx` drops the ones whose
+ * row is drawn).
+ */
+export const seatKept = (
+  id: string,
+  placements: ReadonlyMap<string, Anchor>,
+): Anchor | null => {
+  let at = placements.get(id)
+  const seen = new Set<string>()
+  while (at !== undefined && "id" in at && !seen.has(at.id)) {
+    seen.add(at.id)
+    const next = placements.get(at.id)
+    if (next === undefined) break
+    at = next
+  }
+  return at ?? null
+}
+
+/** Whether two seats are the same place. ONE rule, because a seat is compared
+ *  by more than one reader: a tree row asks whether the caret is beside IT
+ *  (`../Tree.tsx`) and a page's start line asks whether the live line is the one
+ *  IT offered (`./StartLine.tsx`). Two spellings of "the same seat" would be
+ *  two answers to one question. */
+export const sameBeside = (a: Beside | null, b: Beside | null): boolean =>
+  a === null || b === null ? a === b : a.kind === b.kind && a.id === b.id
+
 /** The seat a BLANK is drawn at: which row, and before, after or under it —
  *  `null` for a page's start line, which is nobody's row
  *  ({@link besideOf}). */
 export const seatOf = (
   blank: Pending,
   placements: ReadonlyMap<string, Anchor>,
-  present?: ReadonlySet<string>,
+  present: ReadonlySet<string>,
 ): Beside | null => besideOf(walked(blank.at, placements, present))
 
 /**

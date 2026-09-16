@@ -17,7 +17,7 @@ import type { Anchor } from "@olai/surface"
 import { Show } from "solid-js"
 
 
-import { sameAnchor } from "./draft.ts"
+import { besideOf, sameBeside } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { Ghosts } from "./Ghosts.tsx"
 
@@ -30,19 +30,21 @@ export function StartLine(props: {
   const editor = useEditor()
   /** The LIVE line, when it is the one this line offered — a pending, or the
    *  row it landed as while the page has not drawn that row yet
-   *  (`./draft.ts`'s `ghostOf`). Compared against the ANCHOR rather than its
-   *  KIND: a draft anchored `after` a row is drawn by that row
-   *  (`../Tree.tsx`), and saying which anchor is ours states the half of that
-   *  rule this component owns instead of implying it. `displayAt` walks the
-   *  placing a landed line recorded, which is what keeps this line's own draft
-   *  here after its write rather than unmounting it with the start line. */
+   *  (`./draft.ts`'s `ghostOf`).
+   *
+   * ONE QUESTION, ASKED OF ONE FACT: the SEAT the caret's line is drawn at,
+   * which is what a tree row compares its own id against too (`../Tree.tsx`).
+   * A start line matched its anchor instead, which meant walking a landed
+   * line's placings here to re-derive the very seat the editor had already
+   * worked out — a second answer to a question the editor owns, and one the
+   * frame could answer differently. */
   const live = () => {
-    const blank = editor.live()
-    return blank !== null && sameAnchor(editor.displayAt(blank.at), props.at)
-      ? blank
-      : undefined
+    const line = editor.live()
+    if (line === null || !sameBeside(editor.where().pending, besideOf(props.at))) return undefined
+    return line
   }
-  const parked = () => editor.ghosts().filter((g) => sameAnchor(editor.displayAt(g.at), props.at))
+  const parked = () =>
+    editor.ghosts().filter((g) => sameBeside(besideOf(editor.displayAt(g.at)), besideOf(props.at)))
   const any = () => live() !== undefined || parked().length > 0
 
   return (

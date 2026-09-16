@@ -32,11 +32,15 @@ import { DOT } from "@olai/web/client/marks.tsx"
 
 import { CONTROL, GLYPH_BOX, HOVER_CELL, HOVER_GUTTER, ROW_LINE } from "@olai/ui-primitives/touch.ts"
 import { clearNode } from "../focus.ts"
-import type { Pending } from "./draft.ts"
+import type { Ghost } from "./draft.ts"
 import { DraftSaid, TitleEditor } from "./RowEditor.tsx"
 
 export function NewRow(props: {
-  readonly draft: Pending
+  /** The LIVE line this ghost draws — the draft and the address it is typed at
+   *  (`./draft.ts`'s `Ghost`), whether it is still a pending or the row it
+   *  became one reply ago. What this component draws is a line at a seat, and
+   *  the seat is `../Tree.tsx`'s `where().pending`. */
+  readonly line: Ghost
   readonly onInput: (text: string) => void
   readonly onKey: (event: KeyboardEvent) => void
   readonly onBlur: (left: boolean) => void
@@ -110,6 +114,10 @@ export function NewRow(props: {
           <span
             class={CONTROL}
             classList={{ "text-accent": props.active !== false }}
+            // WHAT A STEP MEASURES THE BULLET BY (`../e2e/steps/editing_steps.ts`,
+            // which asks the same box of the row it becomes): the blank's cell
+            // is not the row's `zoom` link, so the two states are two testids —
+            // named here, one per state, rather than unioned in the dark.
             data-testid={TESTID.newRowGlyph}
             aria-hidden="true"
           >
@@ -119,8 +127,8 @@ export function NewRow(props: {
           </span>
         </span>
         <TitleEditor
-          slot={{ row: props.draft.slot, field: "new" }}
-          text={props.draft.text}
+          slot={{ row: props.line.slot, field: "new" }}
+          text={props.line.draft.text}
           onInput={props.onInput}
           onKey={props.onKey}
           onBlur={props.onBlur}
@@ -138,7 +146,7 @@ export function NewRow(props: {
           be refused (a node needs a title), and on an empty outline it is the
           only thing on the page — so what the write said has to be here
           rather than somewhere the tree would have drawn it. */}
-      <DraftSaid draft={props.draft} />
+      <DraftSaid draft={props.line.draft} />
     </div>
   )
 }

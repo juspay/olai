@@ -5,12 +5,12 @@ import { expect, test } from "bun:test"
 import {
   after,
   before,
-  besideOf,
   commitOf,
   type Draft,
   type Editing,
   emptyPending,
   emptyPendingOf,
+  besideOf,
   ghostOf,
   kept,
   landed,
@@ -20,7 +20,7 @@ import {
   refused,
   sameAnchor,
   sameSlot,
-  seatOf,
+  seatKept,
   slotOf,
   stillAt,
   typed,
@@ -207,21 +207,18 @@ test("a new row that landed becomes the row it created", () => {
 
 // ── the line that is being typed, on either side of the reply ──────────
 
-test("a line that landed is still the ghost it was typed in", () => {
+test("a landed line is the same ghost at the same address", () => {
   // The reply and the frame carrying the row arrive in either order, and the
-  // ghost is what stands in for the row in between: same words, and — this is
-  // the load-bearing half — the SLOT it was typed at, so the `<input>` a person
-  // is typing in is not remounted (with the caret) the moment the save lands.
+  // ghost stands in for the row in between: the same draft, and the same
+  // ADDRESS — which is the one thing the two sides of the reply do not spell
+  // the same way, and the thing the `<input>` is keyed by. A landed line is not
+  // dressed as a pending: what it says, where it goes and the node it names all
+  // stay on the draft, where the rest of the editor reads them.
   const line = pending({ text: "measure the alcove" })
-  expect(ghostOf(line)).toEqual(line)
-  expect(ghostOf(landed(line, "n7"))).toEqual({
-    kind: "new",
-    at: { kind: "after", id: "n7" },
-    text: "measure the alcove",
-    slot: "d1",
-    refused: undefined,
-    nudge: undefined,
-  })
+  expect(ghostOf(line)).toEqual({ draft: line, slot: "d1" })
+  const landedLine = landed(line, "n7")
+  expect(ghostOf(landedLine)).toEqual({ draft: landedLine, slot: "d1" })
+  expect(ghostOf(landedLine)!.draft).toBe(landedLine)
 })
 
 test("a row with a place of its own is not a ghost", () => {
@@ -248,62 +245,54 @@ test("an editor a key opened on a row it has not drawn yet is not a ghost", () =
   })).toBeNull()
 })
 
-test("a line that landed is drawn at the seat its ghost had", () => {
+test("a landed row is drawn at the seat the write recorded", () => {
   // `commit` records where a pending was TYPED, keyed by the row the write
   // made, and that record is the whole of how the line stays put: the row it
   // names is not drawn yet, so walking the placings is what says where the line
   // belongs — the same answer the pending itself gave a moment earlier.
-  const line = ghostOf(landed(pending({ at: { kind: "before", id: "kitchen" }, text: "measure" }), "n7"))
-  expect(line).not.toBeNull()
-  expect(seatOf(
-    line!,
-    new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]]),
-    new Set(["kitchen", "order"]),
-  )).toEqual({ kind: "before", id: "kitchen" })
+  expect(seatKept("n7", new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]])))
+    .toEqual({ kind: "before", id: "kitchen" })
 })
 
-test("the walk goes back through a chain, and stops at a row that is drawn", () => {
-  const line = ghostOf(landed(pending({ text: "measure" }), "n7"))!
-  // Two writes over one line that has not been drawn leave two placings behind.
-  expect(seatOf(
-    { ...line, at: { kind: "after", id: "n8" } },
-    new Map<string, Anchor>([
-      ["n8", { kind: "after", id: "n7" }],
-      ["n7", { kind: "under", id: "kitchen" }],
-    ]),
-    new Set(["kitchen", "order"]),
-  )).toEqual({ kind: "under", id: "kitchen" })
-  // ...and the frame that draws the row ends it: the placing has nothing left
-  // to say, and `follow` fills the draft's place in the same flush.
-  expect(seatOf(
-    line,
-    new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]]),
-    new Set(["kitchen", "n7"]),
-  )).toEqual({ kind: "after", id: "n7" })
+test("the keep-walk goes back through a chain, and past a row that IS drawn", () => {
+  // Two writes over one line leave two placings behind...
+  expect(seatKept("n8", new Map<string, Anchor>([
+    ["n8", { kind: "after", id: "n7" }],
+    ["n7", { kind: "under", id: "kitchen" }],
+  ]))).toEqual({ kind: "under", id: "kitchen" })
+  // ...and a row the frame has already drawn does NOT end it, which is the
+  // whole difference from `walked`: stopping there draws the line in that
+  // row's own list, which is the input a person is typing in made again.
+  expect(seatKept("n7", new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]])))
+    .toEqual({ kind: "before", id: "kitchen" })
+  // Nothing recorded is `null`, and the editor draws it against the row it
+  // became for the frame before `follow` fills the place in.
+  expect(seatKept("n7", new Map())).toBeNull()
 })
 
 test("a page's start line is nobody's row, landed or not", () => {
-  // `first` has no row to sit beside, so a start line draws its own draft —
-  // which is exactly the case `StartLine` matches its anchor for.
-  const line = ghostOf(landed(
-    pending({ at: { kind: "first", file: "empty.olai" }, text: "the first thing" }),
-    "n1",
-  ))
-  expect(line).not.toBeNull()
-  expect(seatOf(
-    line!,
-    new Map<string, Anchor>([["n1", { kind: "first", file: "empty.olai" }]]),
-    new Set(["kitchen"]),
-  )).toBeNull()
+  // `first` has no row to sit beside, so a start line draws its own draft at a
+  // seat of `null` — which is what `StartLine` matches on.
+  expect(besideOf({ kind: "first", file: "empty.olai" })).toBeNull()
+  expect(besideOf(seatKept("n1", new Map<string, Anchor>([["n1", { kind: "first", file: "empty.olai" }]]))!))
+    .toBeNull()
 })
 
 test("a placing that points back at itself is not a walk without end", () => {
-  // A superseded write can leave a chain that closes on itself; the walk stops
-  // rather than spinning, and the line is drawn against what it named.
+  // A superseded write can leave a chain that closes on itself; both walks stop
+  // rather than spinning, and the anchor names what it named.
+  const loop = new Map<string, Anchor>([["n7", { kind: "after", id: "n7" }]])
+  expect(seatKept("n7", loop)).toEqual({ kind: "after", id: "n7" })
+  expect(walked({ kind: "after", id: "n7" }, loop, new Set())).toEqual({ kind: "after", id: "n7" })
+})
+
+test("the find-walk stops at a row the page draws", () => {
+  // A pending's anchor IS a row on screen, so the walk ends there rather than
+  // following the placings a LANDED line leaves behind (`seatKept`).
   expect(walked(
     { kind: "after", id: "n7" },
-    new Map<string, Anchor>([["n7", { kind: "after", id: "n7" }]]),
-    new Set(),
+    new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]]),
+    new Set(["n7"]),
   )).toEqual({ kind: "after", id: "n7" })
 })
 
