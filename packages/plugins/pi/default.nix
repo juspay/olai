@@ -9,7 +9,7 @@
 #
 # The knob `OLAI_ACP_PI` is a `file` the fold bakes into the `olai` wrapper with
 # `--set-default`, and the package `pi-agent` is what the fold exports as a
-{pkgs, pins, kit, b2n ? null, acpShim, ...}:
+{ pkgs, pins, kit, b2n ? null, acpShim, ... }:
 let
   lib = pkgs.lib;
 

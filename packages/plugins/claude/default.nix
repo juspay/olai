@@ -12,7 +12,7 @@
 # The knob `OLAI_ACP_AGENT` is a `file` the fold bakes into the `olai` wrapper
 # with `--set-default`, exactly as it now does for every plugin knob, and the
 # flake output `.#acp-agent` (the historical name for "the Claude adapter") is
-{pkgs, pins, kit, b2n ? null, acpShim, ...}:
+{ pkgs, pins, kit, b2n ? null, acpShim, ... }:
 let
   lib = pkgs.lib;
 

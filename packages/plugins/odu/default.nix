@@ -116,11 +116,12 @@ in
       # `olai` tracks the odu-blessed FOD, and a divergence between the two is
       # (today) only what this probe catches; the fallback is `just odu-surface`
       # against the dev shell's bun2nix.
-      surface = pkgs.runCommand "olai-plugin-odu-surface" {
-        nativeBuildInputs = [ pkgs.bun ];
-        src = tree;
-        server = bin;
-      } ''
+      surface = pkgs.runCommand "olai-plugin-odu-surface"
+        {
+          nativeBuildInputs = [ pkgs.bun ];
+          src = tree;
+          server = bin;
+        } ''
         export HOME=$TMPDIR
         cd $src
         OLAI_ODU_BIN=$server/bin \

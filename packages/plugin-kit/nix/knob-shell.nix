@@ -45,11 +45,12 @@ let
   # executable the dir is supposed to carry; the message tells a setter which
   # knob and what shape it wants.
   dirRunLines = builtins.filter (s: s != "")
-    (map (k:
-      let d = knobs.${k};
-      in if d.kind == "dir" then
-        "--run 'if [ -n \"\${${k}}\" ]; then if [ -d \"\${${k}}\" ]; then export PATH=\"\${${k}}\"\"\${PATH:+:\$PATH}\"; else echo \"olai: ${k}=\${${k}} is not a directory — no ${d.holds} goes on the PATH of this serve\" >&2; fi; fi'"
-      else "")
+    (map
+      (k:
+        let d = knobs.${k};
+        in if d.kind == "dir" then
+          "--run 'if [ -n \"\${${k}}\" ]; then if [ -d \"\${${k}}\" ]; then export PATH=\"\${${k}}\"\"\${PATH:+:\$PATH}\"; else echo \"olai: ${k}=\${${k}} is not a directory — no ${d.holds} goes on the PATH of this serve\" >&2; fi; fi'"
+        else "")
       keys);
 in
 {

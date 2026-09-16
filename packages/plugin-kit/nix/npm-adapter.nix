@@ -60,11 +60,11 @@ in
 , env ? [ ]
 , extraNativeBuildInputs ? [ ]
 , postInstall ? ""
-# The shim's own `package.json` name — npm installs by THIS, not by the
-# derivation's `name`: `$out/lib/node_modules/<shimName>/node_modules` is
-# where the entry and the SDK binary live after npmInstallHook. Defaults to
-# "acp" because `cleanSourceWith` already strips the shim down to
-# `package.json` + `package-lock.json` and names the result `acp`.
+  # The shim's own `package.json` name — npm installs by THIS, not by the
+  # derivation's `name`: `$out/lib/node_modules/<shimName>/node_modules` is
+  # where the entry and the SDK binary live after npmInstallHook. Defaults to
+  # "acp" because `cleanSourceWith` already strips the shim down to
+  # `package.json` + `package-lock.json` and names the result `acp`.
 , shimName ? "acp"
 }:
 let

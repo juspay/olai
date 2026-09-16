@@ -24,20 +24,20 @@
 { pkgs
 , pins
 , b2n ? null
-# The plugin container: WHERE the plugins live. `containerDir` is the Nix
-# path for `builtins.readDir`/`builtins.pathExists` (relative to this file,
-# so the default `../plugins` resolves to `packages/plugins`); `containerInTree`
-# is its STRING name prefixes for the shell scripts (`install -m 644 <store>
-# <containerInTree>/<name>/...`), so relative to whichever tree the script
-# runs in — the staged build source or a developer's working copy.
+  # The plugin container: WHERE the plugins live. `containerDir` is the Nix
+  # path for `builtins.readDir`/`builtins.pathExists` (relative to this file,
+  # so the default `../plugins` resolves to `packages/plugins`); `containerInTree`
+  # is its STRING name prefixes for the shell scripts (`install -m 644 <store>
+  # <containerInTree>/<name>/...`), so relative to whichever tree the script
+  # runs in — the staged build source or a developer's working copy.
 , containerDir ? ../plugins
 , containerInTree ? "packages/plugins"
 , extraKnobNames ? [ ]
-# The ACP shim lives at the repo root (`acp/`), one lockfile the Claude and
-# Pi plugins' `default.nix` files both build their adapters from. A plugin
-# reaches outside its own directory through an ARGUMENT, never a `../..`
-# literal — `containerDir` is staged as its own store path (`/nix/store/
-# <hash>-plugins/`), so a relative reach past it falls off the staged tree.
+  # The ACP shim lives at the repo root (`acp/`), one lockfile the Claude and
+  # Pi plugins' `default.nix` files both build their adapters from. A plugin
+  # reaches outside its own directory through an ARGUMENT, never a `../..`
+  # literal — `containerDir` is staged as its own store path (`/nix/store/
+  # <hash>-plugins/`), so a relative reach past it falls off the staged tree.
 , acpShim ? ../../acp
 }:
 
@@ -66,22 +66,27 @@ let
   # refusal without ever forcing a `throw`.
   pluginsData = builtins.listToAttrs (map
     (name:
-      let dir = "${containerDir}/${name}";
-          raw = import "${dir}/default.nix" { inherit pkgs pins kit b2n acpShim; };
-      in { inherit name; value = { inherit dir raw; }; })
+      let
+        dir = "${containerDir}/${name}";
+        raw = import "${dir}/default.nix" { inherit pkgs pins kit b2n acpShim; };
+      in
+      { inherit name; value = { inherit dir raw; }; })
     withDoor);
 
   pluginNames = builtins.attrNames pluginsData;
 
   # Per-plugin contract refusals (pure), one diagnostic row apiece.
-  contractDiagnostics = builtins.concatMap (name:
-    let d = pluginsData.${name}; in
-    map (message: {
-      attr = "contract";
-      k = name;
-      owners = [ name ];
-      inherit message;
-    }) (kit.contractProblems { inherit (d) dir; contract = d.raw; name = name; }))
+  contractDiagnostics = builtins.concatMap
+    (name:
+      let d = pluginsData.${name}; in
+      map
+        (message: {
+          attr = "contract";
+          k = name;
+          owners = [ name ];
+          inherit message;
+        })
+        (kit.contractProblems { inherit (d) dir; contract = d.raw; name = name; }))
     pluginNames;
 
   # ---------------------------------------------------------------------------
@@ -93,21 +98,26 @@ let
   # `pluginsData.<name>.raw` — the unvalidated attrset — so a contract problem
   # in one plugin does not hide a collision.
   attrUnion = attr:
-    builtins.foldl' (acc: name:
-      let contrib = pluginsData.${name}.raw.${attr} or { };
-          dups = builtins.attrNames (builtins.intersectAttrs contrib acc.owners); in
-      {
-        union = acc.union // contrib;
-        owners = acc.owners //
-          builtins.listToAttrs (map (k: { name = k; value = name; })
-            (builtins.attrNames contrib));
-        collisions = acc.collisions
-          ++ map (k: {
-            inherit attr k;
-            owners = [ acc.owners.${k} name ];
-            message = "registry fold: ${attr} '${k}' is claimed by both '${acc.owners.${k}}' and '${name}'";
-          }) dups;
-      })
+    builtins.foldl'
+      (acc: name:
+        let
+          contrib = pluginsData.${name}.raw.${attr} or { };
+          dups = builtins.attrNames (builtins.intersectAttrs contrib acc.owners);
+        in
+        {
+          union = acc.union // contrib;
+          owners = acc.owners //
+            builtins.listToAttrs (map (k: { name = k; value = name; })
+              (builtins.attrNames contrib));
+          collisions = acc.collisions
+            ++ map
+            (k: {
+              inherit attr k;
+              owners = [ acc.owners.${k} name ];
+              message = "registry fold: ${attr} '${k}' is claimed by both '${acc.owners.${k}}' and '${name}'";
+            })
+            dups;
+        })
       { union = { }; owners = { }; collisions = [ ]; }
       pluginNames;
 
@@ -121,15 +131,18 @@ let
       (pluginsData.${name}.raw.hydrate or [ ]))
     pluginNames;
   hydrateCollision =
-    builtins.foldl' (acc: it:
-      if builtins.hasAttr it.dest acc.owners then
-        acc // { collisions = acc.collisions ++ [{
-          attr = "hydrate";
-          k = it.dest;
-          owners = [ acc.owners.${it.dest} it.name ];
-          message = "registry fold: hydrate dest '${it.dest}' is claimed by both '${acc.owners.${it.dest}}' and '${it.name}'";
-        }]; }
-      else acc // { owners = acc.owners // { ${it.dest} = it.name; }; })
+    builtins.foldl'
+      (acc: it:
+        if builtins.hasAttr it.dest acc.owners then
+          acc // {
+            collisions = acc.collisions ++ [{
+              attr = "hydrate";
+              k = it.dest;
+              owners = [ acc.owners.${it.dest} it.name ];
+              message = "registry fold: hydrate dest '${it.dest}' is claimed by both '${acc.owners.${it.dest}}' and '${it.name}'";
+            }];
+          }
+        else acc // { owners = acc.owners // { ${it.dest} = it.name; }; })
       { collisions = [ ]; owners = { }; }
       hydrateItems;
 
@@ -169,10 +182,12 @@ let
   # ship `src/browser/mark.generated.ts`, and the prefix is what makes the union
   # (and the `.gitignore` glob) total. So fold directly with `${name}/${path}`.
   generated = refuse (builtins.foldl' (acc: it: acc // it) { }
-    (map (name:
-      lib.mapAttrs' (path: file:
-        { name = "${name}/${path}"; value = file; })
-        (contracts.${name}.generated or { }))
+    (map
+      (name:
+        lib.mapAttrs'
+          (path: file:
+            { name = "${name}/${path}"; value = file; })
+          (contracts.${name}.generated or { }))
       pluginNames));
 
   hydrate = refuse (map (h: { src = h.src; dest = h.dest; }) hydrateItems);
@@ -182,10 +197,12 @@ let
   # collide, and append the aggregate `plugins` link farm.
   checks = { tree }:
     let
-      perPlugin = builtins.foldl' (acc: name:
-        acc // lib.mapAttrs' (check: drv: { name = "plugin-${name}-${check}"; value = drv; })
-          ((contracts.${name}.checks or (_: { })) { inherit tree; }))
-        { } pluginNames;
+      perPlugin = builtins.foldl'
+        (acc: name:
+          acc // lib.mapAttrs' (check: drv: { name = "plugin-${name}-${check}"; value = drv; })
+            ((contracts.${name}.checks or (_: { })) { inherit tree; }))
+        { }
+        pluginNames;
       linkFarm = pkgs.symlinkJoin {
         name = "olai-plugin-checks";
         paths = builtins.attrValues perPlugin;
@@ -200,7 +217,7 @@ let
   hydrateScript = pkgs.writeShellScript "olai-plugin-hydrate"
     (lib.concatStringsSep "\n"
       ((if koluCopier == null then [ "true" ] else
-        map (p: "sh ${koluCopier} ${p.src} ${p.dest}") hydrate)
+      map (p: "sh ${koluCopier} ${p.src} ${p.dest}") hydrate)
       ++ map (path: "install -m 644 ${generated.${path}}/${builtins.baseNameOf path} ${containerInTree}/${path}")
         (builtins.attrNames generated)));
 
@@ -209,9 +226,10 @@ let
   # test that resolves a pin's node_modules (the mcp bridge's) run in the dev
   # shell; the sandbox never runs this.
   devInstallScript = pkgs.writeShellScript "olai-plugin-dev-install"
-    (lib.concatMapStringsSep "\n" (dir:
-      "echo >&2 \"cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund\"\n"
-      + "cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund")
+    (lib.concatMapStringsSep "\n"
+      (dir:
+        "echo >&2 \"cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund\"\n"
+          + "cd ${containerInTree}/${dir} && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund")
       npmTrees
     + (if npmTrees == [ ] then "" else "\n")
     + "sh ${hydrateScript}");
