@@ -643,6 +643,14 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     // part of a file. Those are what make this a charter rather than a tour.
     expect(said).toContain("no path outside the served directory")
     expect(said).toContain("no way to name part of a file")
+
+    // AND IT FITS THE HOST THAT READS IT. Claude Code truncates server
+    // instructions at 2 KB — silently, so an overrun cuts the second paragraph
+    // mid-sentence and nobody sees it — and bills them every turn. The second
+    // paragraph is `@olai/surface`'s charter, where an agent's words land; the
+    // ceiling is over the WHOLE text the host is handed, not either half.
+    expect(said).toContain("olai's chat panel")
+    expect(Buffer.byteLength(said, "utf8")).toBeLessThan(2000)
   })
 })
 
