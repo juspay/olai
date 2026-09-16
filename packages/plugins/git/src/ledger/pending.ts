@@ -101,7 +101,7 @@ import {
 } from "@olai/format"
 import type { Ops } from "@olai/ops"
 import * as Git from "../git/git.ts"
-import { Duration, Effect, Stream, SubscriptionRef } from "effect"
+import { Duration, Effect, Semaphore, Stream, SubscriptionRef } from "effect"
 
 import { type Committed, remembering } from "./committed.ts"
 import { AUDIT, signed } from "./message.ts"
@@ -200,14 +200,21 @@ interface Settled {
    *  next commit that works. #108's, and the reason this is remembered at all. */
   readonly refusal: string | null
   /**
-   * ... and a PUSH.
+   * WHY THE LAST PUSH DID NOT GO — git's words, and olai's where olai has
+   *  something to add.
    *
-   * Its own field rather than the same one, and the separation is the bug this
-   * feature was filed for: a refused push leaves a repository whose every
-   * commit still lands, so folding it into `refusal` would make the chip read
-   * `git error` at a directory whose git is fine. What is broken is the
-   * sharing, and the chip has to be able to say so while still saying
-   * everything else is well.
+   * THE WORDS OF THE PUSH, THE FETCH BEFORE IT, OR THE INTEGRATION BETWEEN
+   * THEM: any of the three can be what stopped the branch going out. A charge
+   * that git refused is olai's own sentence with git's words after it; a fetch
+   * or integration that could not run, and a push the remote refused, are
+   * git's words whole.
+   *
+   * Its own field rather than the same one as `refusal`, and the separation
+   * is the bug this feature was filed for: a refused push leaves a repository
+   * whose every commit still lands, so folding it into `refusal` would make
+   * the chip read `git error` at a directory whose git is fine. What is
+   * broken is the sharing, and the chip has to be able to say so while still
+   * saying everything else is well.
    */
   readonly pushSaid: string | null
   /** Why the quiet window stopped, or `null` while it is running. A fact about
@@ -613,6 +620,15 @@ export const make = (options: Options): Committing => {
     [...counts].map(([writer, ops]) => ({ writer, ops }))
 
   /**
+   * ONE PUSH IN FLIGHT PER DIRECTORY — see §5 of the plan. Two pushes racing
+   * would run two integrates into one branch and the second's compare-and-swap
+   * would refuse against the first's ref move, pausing the loop over olai
+   * racing itself. The second caller WAITS on the permit, then surveys again
+   * and finds nothing to push. `whyWaiting` and the survey do not take it.
+   */
+  const pushPermit = Semaphore.makeUnsafe(1)
+
+  /**
    * THE THREE THINGS THIS LAYER REMEMBERS about git — see {@link Settled}.
    *
    * One place, written by the three functions below and by nothing else, so
@@ -632,13 +648,46 @@ export const make = (options: Options): Committing => {
    * "auto-commit paused" over it would be chrome about a loop nobody armed.
    */
   const committed = (said: string | null): void => {
-    settled = { ...settled, refusal: said, paused: stopBy(said) }
+    settled = { ...settled, refusal: said, paused: stopBy(said, mode()) }
   }
 
-  /** ... and the push's own end, with the same two jobs. */
-  const pushed = (said: string | null): void => {
-    settled = { ...settled, pushSaid: said, paused: stopBy(said) }
+  /**
+   * ... and the push's own end, with the same two jobs — except that an
+   * OVERLAP's two jobs ARE one: an uncommitted edit that a change from the
+   * upstream does not touch is curable by the NEXT commit, which under auto the
+   * loop is about to make anyway, so the loop must not be stopped (and the
+   * whole of `Overlapped`-does-not-pause is that it is a wait, not a stop).
+   * Every other outcome — a conflict, a fetch that refused, an integration
+   * that could not run, a push the remote refused — is a stop exactly as
+   * today.
+   */
+  const pushed = (said: string | null, stops: boolean): void => {
+    settled = { ...settled, pushSaid: said, paused: stops ? stopBy(said, options.policy.push) : settled.paused }
   }
+
+  /**
+   * What the integration met, in the words a person acts on — see §5 of the
+   * plan. Olai's own sentence names the paths and the ONE gesture that helps;
+   * git's words follow it, whole, and the pair is what reaches the pill and
+   * the panel through `pushSaid`.
+   */
+  const charge = (kind: "overlap" | "conflict", said: string): string => {
+    const paths = said
+      .split("\n")
+      .filter((line) => line.startsWith("CONFLICT"))
+      .map((line) => line.replace(/^CONFLICT \([^)]*\): /, ""))
+      .filter(Boolean)
+    const named = paths.length > 0 ? paths.join(", ") : ""
+    const base = kind === "overlap"
+      ? "changes here overlap changes the upstream took in, so nothing moved"
+      : "the upstream's changes conflict with the ones here, so nothing moved"
+    const gesture = kind === "overlap"
+      ? "commit what is yours first, then push again"
+      : "resolve it in a terminal — `git pull --rebase`, then Resume"
+    return `${base}${named === "" ? "" : ` (${named})`} — ${gesture}. git said: ${said}`
+  }
+
+
 
   /**
    * What a refusal does to the loop, or `null` for one that leaves it running.
@@ -653,8 +702,8 @@ export const make = (options: Options): Committing => {
    * they may lift it ({@link Committing.resume}) — a commit that landed after a
    * push was refused says nothing about whether the branch can be sent.
    */
-  const stopBy = (said: string | null): string | null =>
-    settled.paused ?? (said !== null && mode() === "auto" ? said : null)
+  const stopBy = (said: string | null, governing: "auto" | "off" | "manual"): string | null =>
+    settled.paused ?? (said !== null && governing === "auto" ? said : null)
 
   /**
    * The repository, once it is one.
@@ -974,7 +1023,6 @@ export const make = (options: Options): Committing => {
       // wrong in the other direction.
       if (request.paths === undefined) counts.clear()
       options.onSettled?.()
-
       // ... AND THE PUSH, which is what `push: auto` now means: a settled
       // commit is shared, whichever door made it — the Commit button, the
       // agent's `commit` tool, or the quiet window. It used to fire in the
@@ -987,9 +1035,9 @@ export const make = (options: Options): Committing => {
       // would have put a network call inside every keystroke. The window is
       // what makes this affordable.
       //
-      // The push's own refusal is remembered and stops the loop ({@link sent}),
-      // and the commit STANDS either way: nothing here is rolled back, and
-      // nothing is retried.
+      // The push's own refusal is remembered and stops the loop
+      // ({@link pushed}), and the commit STANDS either way: nothing here is
+      // rolled back, and nothing is retried.
       if (options.policy.push === "auto") yield* push
 
       return {
@@ -1006,22 +1054,38 @@ export const make = (options: Options): Committing => {
    * "I think 'push' is the only thing that makes me use CLI outside of olai" —
    * the human, and this is the whole of the answer. The current branch to the
    * upstream it already has, and nothing else: no remote to pick, no refspec,
-   * no `--force`, and no branch or pull or fetch UI. Resolving a divergence
-   * stays a conversation in a terminal.
+   * no `--force`, and no branch or pull or fetch UI. What is NEW here is the
+   * one thing olai does BEFORE pushing (see the file's plan, §1-§5): it takes
+   * in what its upstream already has, by rebasing the unpushed commits onto
+   * it, so a push is never refused as a non-fast-forward for a reason olai
+   * could have removed itself.
    *
-   * `NothingToPush` is asked BEFORE pushing rather than read out of git's own
-   * "Everything up-to-date", because the count is what the panel is offering to
-   * send and a person pressing the button is entitled to be told it was already
-   * there. A branch with no upstream falls through to git, whose refusal names
-   * the thing to do about it better than this file could.
+   * THE SEQUENCE — survey, permit, fetch, stand, integrate when behind,
+   * push, stand again — is the whole of the policy, and the interesting
+   * decisions live in {@link integrate} (the plumbing), {@link pushed} (what a
+   * refusal does to the loop) and {@link charge} (what olai says about the two
+   * it understands). The survey is the existing {@link survey}:
+   * `NothingToPush` and `Blocked` are asked against what git already knew, so
+   * a busy repository is refused with its reason before any of this, exactly
+   * as a commit is. The PERMIT is {@link pushPermit}: two pushes can never
+   * race one integration. The FETCH is bare. The STANDING is the honest
+   * ahead/behind — `behind` is meaningless until the fetch, which is the whole
+   * reason nothing outside the push path fetches. The REBASE runs in a
+   * worktree of olai's own under the git directory, and the served tree moves
+   * onto the result by the two-tree update of {@link integrate}, which applies
+   * whole or refuses whole. Then the PUSH, bare, exactly as today. And the
+   * STANDING AGAIN, for the honest `ahead` a `Pushed` reports: the count
+   * offered at the top of the button is the count that was about to be sent,
+   * and after a rebase it is a lie.
    *
-   * A BUSY REPOSITORY is refused with its reason, exactly as a commit is, and
-   * for the same reason one rule serves both: mid-rebase there is no branch to
-   * push, so git answers "you are not currently on a branch" — true, and the
-   * less useful half of it. `Blocked` names the rebase, which is the thing to
-   * finish. The panel already hides the button in those states (a detached HEAD
-   * tracks nothing, so there is no unpushed count to draw); this is what the
-   * agent's tool gets, and the two faces answer the same way.
+   * `NothingToPush` comes back when the survey found an upstream already in
+   * sync. A branch with no upstream falls through to git, whose refusal names
+   * the thing to do about it better than this file could. The five outcomes
+   * of the middle are the plan's table: `Integrated` continues to the push,
+   * `Overlapped` is a refusal that does NOT stop the loop (the next commit is
+   * the cure — under auto the loop is about to make it anyway), `Conflicted`
+   * is a refusal that DOES, with olai's sentence naming the file and git's
+   * words after it, and so is a fetch or integration that refused.
    */
   const push: Effect.Effect<PushResult> = Effect.gen(function*() {
     if (mode() === "off") return { _tag: "Blocked", repo: OFF } as const
@@ -1029,6 +1093,8 @@ export const make = (options: Options): Committing => {
     if (opening._tag !== "Opened") {
       return { _tag: "Blocked", repo: opening } as const
     }
+    const git = opening.repo
+
     // Two independent questions, asked together — the same shape `survey` above
     // uses, and it earns it twice over now that this verb is on the commit path
     // rather than behind a button: `state` is a subprocess AND a synchronous
@@ -1037,7 +1103,7 @@ export const make = (options: Options): Committing => {
     // `state` does not. `push` itself is not on that gate: a network call
     // with the ten-second budget must not stall `whyWaiting`.
     const [repo, dirt] = yield* Effect.all(
-      [opening.repo.state, opening.repo.dirty],
+      [git.state, git.dirty],
       { concurrency: 2 },
     )
     if (repo._tag !== "Ready") return { _tag: "Blocked", repo } as const
@@ -1051,31 +1117,109 @@ export const make = (options: Options): Committing => {
       return { _tag: "NothingToPush" } as const
     }
 
-    const outcome = yield* opening.repo.push
-    if (outcome._tag === "Refused") {
-      // VERBATIM, exactly as a refused commit is: authentication, a
-      // non-fast-forward, a branch with no upstream. What git said is the only
-      // thing that says what to do next, and this is the one failure a person
-      // cannot see any other way from inside the app.
-      //
-      // REMEMBERED now, and republished — which is the bug this feature is
-      // named after. The words used to reach one tab's memory and the server's
-      // log and nowhere else, so a reload lost them and a second tab never had
-      // them, while the chip went on reading `✓ committed` over a count that
-      // never came down.
-      pushed(outcome.said)
+    // ONE INTEGRATION PER DIRECTORY at a time — see {@link pushPermit}. The
+    // second caller waits, then surveys again, and finds nothing to push.
+    // NAMED EFFECT rather than an inline gen: the CALLER's gen has to stay a
+    // union of the survey arms, and this one's answer is a whole `PushResult`
+    // on its own.
+    const integratedPush: Effect.Effect<PushResult> = Effect.gen(function*() {
+      // THE SECOND CALLER of a racing pair: the permit may have waited for
+      // the first push to land, so the "is there anything to send" question
+      // is asked AGAIN here, inside the gate — a push that landed while we
+      // queued leaves nothing to push, and answering `Pushed` for a branch
+      // that is already in sync would be a lie.
+      const second = yield* git.dirty
+      if (second._tag !== "Unusable" && second.upstream !== null && second.upstream.ahead === 0) {
+        return { _tag: "NothingToPush" } as const
+      }
+      const fetched = yield* git.fetch
+      if (fetched._tag === "Refused") {
+        // The fetch is part of what pushing means now, so its refusal is the
+        // push's refusal — git's words whole, and a stop exactly as a refused
+        // push is today.
+        pushed(fetched.said, true)
+        options.onSettled?.()
+        return { _tag: "Failed", said: fetched.said } as const
+      }
+      const standing = yield* git.standing
+      if (standing === null) {
+        // No upstream: falls through to git's own refusal, exactly as a branch
+        // with no upstream does today — the boots' gating and the button's
+        // honesty are two different answers, and both are preserved.
+        return { _tag: "Failed", said: "no upstream to push to" } as const
+      }
+
+      let integrated = 0
+      if (standing.behind > 0) {
+        const done = yield* git.integrate(standing)
+        if (done._tag === "Overlapped") {
+          pushed(charge("overlap", done.said), false)
+          options.onSettled?.()
+          return { _tag: "Failed", said: done.said } as const
+        }
+        if (done._tag === "Conflicted") {
+          pushed(charge("conflict", done.said), true)
+          options.onSettled?.()
+          return { _tag: "Failed", said: done.said } as const
+        }
+        if (done._tag === "Refused") {
+          pushed(done.said, true)
+          options.onSettled?.()
+          return { _tag: "Failed", said: done.said } as const
+        }
+        integrated = done.taken
+      }
+
+      const outcome = yield* git.push
+      if (outcome._tag === "Refused") {
+        // VERBATIM, exactly as a refused commit is: authentication, a
+        // non-fast-forward (the remote moved again in the window), a branch
+        // with no upstream. What git said is the only thing that says what to
+        // do next, and this is the one failure a person cannot see any other
+        // way from inside the app.
+        //
+        // REMEMBERED now, and republished — which is the bug this feature is
+        // named after. The words used to reach one tab's memory and the
+        // server's log and nowhere else, so a reload lost them and a second
+        // tab never had them, while the chip went on reading `✓ committed`
+        // over a count that never came down.
+        pushed(outcome.said, true)
+        options.onSettled?.()
+        return { _tag: "Failed", said: outcome.said } as const
+      }
+
+      // The honest `ahead`: what a `Pushed` reports is what is still not on
+      // the upstream AFTER the rebase took in what was, which is the count a
+      // reader can actually check against. A count is only ever `0` here —
+      // the rebase put every unpushed commit on top of the upstream — but it
+      // is read fresh rather than assumed, so a future that stops assuming
+      // gets the true number for free.
+      const after = yield* git.standing
+      const ahead = after === null ? 0 : after.ahead
+
+      pushed(null, false)
+      // What is waiting has changed without a served byte moving — the same
+      // reason a commit republishes.
       options.onSettled?.()
-      return { _tag: "Failed", said: outcome.said } as const
-    }
-    pushed(null)
-    // What is waiting has changed without a served byte moving — the same
-    // reason a commit republishes.
-    options.onSettled?.()
-    return {
-      _tag: "Pushed",
-      upstream: upstream?.name ?? "",
-      commits: upstream?.ahead ?? 0,
-    } as const
+      return {
+        _tag: "Pushed",
+        upstream: standing.name,
+        commits: ahead,
+        integrated,
+      } as const
+    })
+
+    return yield* Semaphore.withPermit(pushPermit)(integratedPush).pipe(
+      // The plumbing is total — every exit is an answer — so a defect here is
+      // a genuine bug (or a kill), and it must not leak out of the push door
+      // as an unhandled error: the door's contract is to ANSWER.
+      Effect.catchCause(() =>
+        Effect.succeed({
+          _tag: "Blocked",
+          repo: { _tag: "Unusable", said: "the push could not run" },
+        } as const),
+      ),
+    )
   })
 
   /**
