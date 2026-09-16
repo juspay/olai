@@ -43,7 +43,7 @@ export const makeWatch = (deps: {
     const stopped = next.binds.length === 0 && (!observed || reading.binds.length > 0)
     const keys = new Set(next.binds.map(keyOf))
     for (const key of pending.keys()) if (!keys.has(key)) pending.delete(key)
-    if (observed && reading.binds.length > 0 && next.binds.length === 0) { reseed = true; generation++ }
+    if (stopped) { reseed = true; generation++ }
     reading = next
     observed = true
     return stopped

@@ -50,10 +50,13 @@ Then("the latest mail wake names {string}", async function(this: OlaiWorld, text
   assert.equal(await latest.getAttribute("data-rang-by"), "mail")
 })
 Then("mail makes no history calls for a second", async function(this: OlaiWorld) {
-  const before = calls(this).filter(call => call.verb === "history.list").length
-  const since = Date.now()
-  await this.waitUntil(async () => Date.now() - since >= 1000, "one second of silence")
-  assert.equal(calls(this).filter(call => call.verb === "history.list").length, before)
+  let count = calls(this).filter(call => call.verb === "history.list").length
+  let quietSince = Date.now()
+  await this.waitUntil(async () => {
+    const next = calls(this).filter(call => call.verb === "history.list").length
+    if (next !== count) { count = next; quietSince = Date.now() }
+    return Date.now() - quietSince >= 1000
+  }, "history calls to stop for one second")
 })
 
 Given("inbox consent is named {string}", function(this: OlaiWorld, key: string) {

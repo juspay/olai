@@ -2,7 +2,8 @@
 Feature: An agent opts into inbox wakes on its node
 
   Background:
-    Given mail checks the inbox every "200ms"
+    Given the harness keeps distinct sessions on disk
+    And mail checks the inbox every "200ms"
     And I open the app
 
   Scenario: An inbox arrival wakes only the opted-in conversation

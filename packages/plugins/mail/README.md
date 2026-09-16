@@ -8,21 +8,21 @@ The user page is [`docs.md`](docs.md), served at `docs/plugins/mail.md`.
 
 ## The name is spelled once
 
-`name = "mail"` sits in [`src/wire.ts`](src/wire.ts) beside the members. One cell, `account`, composes to `surface/mail/account/get` — whether this serve holds a Gmail authorization, in three states (`absent` / `connected` / `fault`) — and two browser-only procedures, `connect.begin` and `connect.disconnect`. A connect is a person at a panel; an agent acting as the mailbox is what the read tools are for, the nine tools are registered through the shared mailbox.
+`name = "mail"` sits in [`src/wire.ts`](src/wire.ts) beside the members. One cell, `account`, composes to `surface/mail/account/get` — whether this serve holds a Gmail authorization, in three states (`absent` / `connected` / `fault`) — and two browser-only procedures, `connect.begin` and `connect.disconnect`. A connect is a person at a panel; an agent acting as the mailbox is what the read tools are for. The nine tools are registered through the shared mailbox.
 
 The state machine that moves between the three arms is [`src/account.ts`](src/account.ts): a boot, a callback the passive route lands, a disconnect, and one fiber that refreshes the access token five minutes before it expires.
 
 ## The direction, and where the fit is proved
 
-This package names `@olai/plugin-api` — the INTERFACE, which names no plugin — and names `@olai/bundle` nowhere, which is the REGISTRY and imports every plugin. What crosses is the service TAGS each half names in its `needs` — `Clock`, `Env`, `LocalState`, `Surfaces`, `TransportSurface` on the server; `Slots`, `Bar`, `Wired` in the tab — plus the `definePlugin` that turns each half's Effect into a plugin.
+This package names `@olai/plugin-api` — the INTERFACE, which names no plugin — and names `@olai/bundle` nowhere, which is the REGISTRY and imports every plugin. What crosses is the service TAGS each half names in its `needs` — `Clock`, `Env`, `LocalState`, `Surfaces`, `TransportSurface`, `Vault`, `Kinds`, `Deliveries` and the minted `chat.seating` tag on the server; `Slots`, `Bar`, `Wired` in the tab — plus the `definePlugin` that turns each half's Effect into a plugin.
 
 Two things leave this package that no other tenant does, and both are named here because they are the interesting part:
 
 - **it claims a listener path.** `/_olai/mail/oauth` is registered through `TransportSurface` as a PASSIVE route — the serve already has a listener, and this row adds one path to it for as long as it stands. Switching the row off takes the route with it, which is what a person expects a switch to mean and what a second listener could not promise.
 - **it hangs a face in `plugins.row`,** a slot `olai-plugin-plugin-inspector` owns: the panel draws the row, and this plugin supplies the sentence and the two verbs, because core cannot write a sentence about a mailbox and must not learn one. The slot's face answers `needs()` too, which is how a row that is running, faultless and waiting on a person is filed under **Needs you** rather than among the healthy.
 
-Four code doors, disjoint by graph: `./wire`, `./server`, `./browser`, `./appliance/testlib` — and the root is the wire identity. Tests run against two fakes (`src/appliance/testlib/`): a Himalaya that IS a spawned program, and a Google that is one loopback origin serving the consent screen, the token endpoint and the revocation. Neither is reachable from the plugin.
+Code doors: `./wire`, `./server`, `./browser`, `./policy`, `./appliance/testlib` — and the root is the wire identity. Tests run against two fakes (`src/appliance/testlib/`): a Himalaya that IS a spawned program, and a Google that is one loopback origin serving the consent screen, the token endpoint and the revocation. Neither is reachable from the plugin.
 
-## Not here
+## Inbox wakes and scope
 
 The nine tools and `mail-inbox` node opt-in complete the inbox-zero loop. `inbox.ts` joins declared properties with the `chat.seating` service; `watch.ts` owns history paging and pending digests, and the memory door persists the cursor alongside OAuth state. `poll` is live configuration. Sending, drafts, permanent delete and live filed-thread properties are excluded.
