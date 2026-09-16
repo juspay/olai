@@ -40,9 +40,10 @@ type ManifestKnobs = Readonly<Record<string, Record<string, unknown>>>
  *  uses a door const. That mirrors the contract the manifest names anyway:
  *  the knob manifest is the source of truth; `environment:` only echoes it. */
 function parseEnvironment(source: string): EnvDecl[] {
-  const match = source.match(/\benvironment:\s*\[([\s\S]*?)\]/)
+  const match = /\benvironment:\s*\[([\s\S]*?)\]/.exec(source)
   if (!match) return []
   const body = match[1]
+  if (body === undefined) return []
   // Single-line: every stripped line that starts with `{` is one entry.
   const singleLine = body
     .split("\n")
@@ -57,7 +58,7 @@ function parseEnvironment(source: string): EnvDecl[] {
   const blockRe = /\{([\s\S]*?)\s*\}/g
   let m: RegExpExecArray | null
   while ((m = blockRe.exec(body)) !== null) {
-    const text = m[1] ?? ""
+    const text: string = m[1] ?? ""
     const keyMatch = text.match(/\bkey:\s*"([^"]+)"/)
     const secretMatch = text.match(/\bsecret:\s*(true|false)/)
     const saysMatch = text.match(/\bsays:\s*"([^"]*)"/)

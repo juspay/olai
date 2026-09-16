@@ -2484,7 +2484,7 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
    *  word appears outside its record. `//`-prefixed keys are reasons, skipped
    *  by the assertions; real keys are corpus files, values the plugin words
    *  it may spell. */
-  const ALLOWED: Readonly<Record<string, ReadonlyArray<string>>> = {
+  const ALLOWED: Record<string, ReadonlyArray<string> | string> = {
     "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu",
     "nix/kolu.nix": ["kolu", "mcp"],
     "// justfile": "kolu-deps names the framework pin (a word the tenant shares); git/odu/mail are tool or feature words, files/pins are recipe names",
@@ -2598,7 +2598,10 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     }))
     const expected = Object.fromEntries(corpus.map((file) => [
       file,
-      [...(ALLOWED[file] ?? [])],
+      // `//`-prefixed entries are reasons, not rows — the test walks corpus
+      // files, so a real file's value is its word array by construction, and
+      // the type is widened only so the reasons may sit beside the rows.
+      [...(typeof ALLOWED[file] === "string" ? [] : (ALLOWED[file] ?? []))],
     ]))
     expect(actual).toEqual(expected)
   })
