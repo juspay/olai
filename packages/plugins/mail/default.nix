@@ -45,7 +45,28 @@ in
     path = "${himalaya}/bin/himalaya";
   };
   # The package and the derivation are one: the fold merges this into the
-  # flake output so `.#himalaya-bin` (which the `mail-surface` leg shells out
-  # to the built binary through) and the knob's path cannot drift.
+  # flake output so `.#himalaya-bin` and the knob's path cannot drift.
   packages.himalaya-bin = himalaya;
+  # SANDBOXED SURFACE CHECK — `checks.plugin-mail-surface`, the sandboxed
+  # sibling of the recipe `just mail-surface` used to run. The probe spawns
+  # the pinned binary over `--version` and every subcommand
+  # `src/himalaya/verbs.ts` declares (the dev-loop check this replaces was a
+  # root just recipe; the plugin owns the probe now). The staged tree is the
+  # repository source so the probe's `import ../src/himalaya/verbs.ts` reads
+  # the same file it would in the dev loop.
+  checks = { tree }: {
+    surface = pkgs.runCommand "olai-plugin-mail-surface"
+      {
+        nativeBuildInputs = [ pkgs.bun ];
+        src = tree;
+        server = himalaya;
+      } ''
+      export HOME=$TMPDIR
+      cd $src
+      OLAI_HIMALAYA=$server/bin/himalaya \
+        bun packages/plugins/mail/src/himalaya/surface.check.ts $server/bin
+      mkdir -p $out
+      echo "$server/bin/himalaya" > $out/ok
+    '';
+  };
 }

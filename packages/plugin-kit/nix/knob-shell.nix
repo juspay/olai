@@ -21,15 +21,11 @@
 # — read by the shell, exactly as `wrapperArgs` is read by makeWrapper. The dev
 # shell then answers the pin when unset and off when empty, like the wrapper.
 { pkgs }:
-{ knobs, extraKnobNames ? [ ] }:
+{ knobs }:
 let
   keys = builtins.attrNames knobs;
-  # `OLAI_WRAPPER_DEFAULTS` records every knob the wrapper promised, which is
-  # BOTH the folded ones above AND any the root still spells by hand (the ACP
-  # pins, until their plugins' `default.nix` files land). `extraKnobNames` is
-  # the latter list, so one `--run` names the whole set rather than a second
-  # one overwriting the first.
-  allKeys = keys ++ extraKnobNames;
+  # `OLAI_WRAPPER_DEFAULTS` records every knob the wrapper promised.
+  allKeys = keys;
   keyList = pkgs.lib.concatStringsSep " " allKeys;
 
   # One `--set-default` per knob. `dir` kinds additionally splice onto PATH in

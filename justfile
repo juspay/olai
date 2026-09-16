@@ -43,7 +43,7 @@ default:
 [parallel]
 [metadata("ci")]
 [doc("Run all checks in the CI pipeline")]
-check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module plugin-fold mail-surface
+check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module plugin-fold
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # The acp/ adapter's `npm ci` is the pi engine's half — the MCP bridge's tests
@@ -251,23 +251,6 @@ plugin-deps:
 plugin-checks:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).plugins --no-link --accept-flake-config
 
-# The mail row's half of the same question, asked of a DIFFERENT pin: does the
-# pinned `himalaya` still answer every subcommand `verbs.ts` freezes? The
-# fixtures cannot see this one move either — the fake Himalaya answers exactly
-# the verbs in that table, because that is the only way a scenario can state
-# what it expects — so a `gmail` subcommand clap renamed would be green in
-# every leg here and, in a packaged olai, be a mail row that refuses with a
-# sentence nobody can act on. The check runs the BUILT binary (the mail
-# plugin's `default.nix`, from npins/sources.json) and names the verb that
-# stopped answering.
-#
-# NO [metadata("ci")] HERE EITHER, and for the same structural reason: `check`
-# is the tagged root, odu expands the leaves it names, and a tag on this one
-# would make a second root for a single node.
-[doc("Verify the pinned Himalaya tool surface")]
-mail-surface:
-    {{ nix_shell }} sh -c 'bun scripts/check-himalaya-surface.ts "$(sh scripts/nix-out.sh .#himalaya-bin)/bin"'
-
 # ...and the same three questions about the four hydrated Cordis packages, over
 # the UNION of what they declare (nix/cordis.nix builds it): `cosmokit`,
 # `@standard-schema/spec` and `js-yaml`. The four resolve those by walking up
@@ -316,11 +299,6 @@ serve dir="docs" *args: build-client
     # PATH splice itself is inside packages/server/src/main.ts (the row the
     # probe reads); the developer's own PATH is not touched.
     . "$(sh scripts/nix-out.sh .#plugin-env)"
-    # THE PINNED HIMALAYA is NOT a knob (the mail plugin's `doors.ts` rules
-    # it that way) — the packaged wrapper bakes it with one hand-written
-    # `--set-default`, and the dev loop's parallel hand-written line is this
-    # one. A `plugin-env` row would declare it a knob; it is not one.
-    export OLAI_HIMALAYA="$(sh scripts/nix-out.sh .#himalaya-bin)/bin/himalaya"
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
@@ -772,14 +750,11 @@ dev-bin:
     # The wrapper the dev loop's e2e suite spawns: `OLAI_DIST_DIR` answers the
     # built client, every OTHER knob the fold declares is `export
     # VAR="${VAR-default}"` from the same `plugin-env` `serve` and `run`
-    # source. `OLAI_HIMALAYA` is hand-written here just as it is on the
-    # packaged wrapper, because the mail plugin owns it as a non-knob
-    # (packages/plugins/mail/src/doors.ts says so).
+    # source. Every declared knob — the ACP adapters' and the mail plugin's
+    # `OLAI_HIMALAYA` alike — arrives from the same `plugin-env`.
     plugin_env="$(sh scripts/nix-out.sh .#plugin-env)"
-    himalaya="$(sh scripts/nix-out.sh .#himalaya-bin)/bin/himalaya"
     printf '#!/usr/bin/env bash\n' > "$dir/bin"
     printf 'export OLAI_DIST_DIR="${OLAI_DIST_DIR-%s}"\n' "{{ dist }}" >> "$dir/bin"
-    printf 'export OLAI_HIMALAYA="${OLAI_HIMALAYA-%s}"\n' "$himalaya" >> "$dir/bin"
     printf '. %s\n' "\"$plugin_env\"" >> "$dir/bin"
     printf 'exec bun %s/packages/server/src/main.ts "$@"\n' \
       "{{ justfile_directory() }}" >> "$dir/bin"

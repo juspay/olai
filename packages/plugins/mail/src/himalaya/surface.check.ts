@@ -67,7 +67,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { spawnSync } from "node:child_process"
 
-import { GMAIL, GMAIL_VERBS, HIMALAYA_VERSION_FLOOR, himalayaArgv } from "../packages/plugins/mail/src/himalaya/verbs.ts"
+import { GMAIL, GMAIL_VERBS, HIMALAYA_VERSION_FLOOR, himalayaArgv } from "./verbs.ts"
 
 const dir = process.argv[2]
 if (dir === undefined || dir === "") {

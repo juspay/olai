@@ -32,7 +32,6 @@
   # runs in — the staged build source or a developer's working copy.
 , containerDir ? ../plugins
 , containerInTree ? "packages/plugins"
-, extraKnobNames ? [ ]
 }:
 
 let
@@ -275,7 +274,7 @@ let
 
   # The knob table rendered two ways — the wrapper's makeWrapper args and the
   # dev loop's export snippet. One function, two renderings (kit.knobShell).
-  knobShell = kit.knobShell { inherit knobs extraKnobNames; };
+  knobShell = kit.knobShell { inherit knobs; };
 
   devEnv = pkgs.writeText "olai-plugin-env"
     ''# The plugin env, rendered by the registry fold (packages/bundle/default.nix).

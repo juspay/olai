@@ -68,7 +68,7 @@
           clash = if overlap != [ ] then throw "flake packages: a plugin declares an output the root already names: ${builtins.concatStringsSep ", " overlap}" else null;
         in
         builtins.seq clash (bundle.packages // {
-          inherit (olai) olai olai-client olai-fonts base himalaya-bin;
+          inherit (olai) olai olai-client olai-fonts base;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
           # lockfile-derived nix expression (`just regenerate-bun-nix`).

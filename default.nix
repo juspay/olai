@@ -175,16 +175,10 @@ let
   # four knobs (OLAI_ACP_AGENT, OLAI_ACP_CODEX, OLAI_ACP_PI, OLAI_ODU_BIN)
   # arrives here by composition; nothing is hand-written any more.
 
-  # THE PINNED HIMALAYA, the binary half of the mail pin, is now the mail
-  # plugin's own knob and package: the fold merges its `packages.himalaya-bin`
-  # (the derivation the knob's `path` points at) into `bundle.packages`, and
-  # `OLAI_HIMALAYA` arrives here by composition exactly like the ACP adapters'
-  # knobs. This line is the root's one handle on it, kept so `flake.nix`'s
-  # `inherit (olai) … himalaya-bin` keeps resolving to a derivation — the mail
-  # plugin must declare it, and a name collision with any other plugin's
-  # `himalaya-bin` is refused by the fold's package-union.
-  himalaya-bin = bundle.packages.himalaya-bin
-    or (throw "the mail plugin must declare package himalaya-bin (packages/plugins/mail/default.nix)");
+  # Every plugin's package output arrives through the fold: `bundle.packages`
+  # merges each plugin's `packages.*` (mail's `himalaya-bin` among them), and
+  # the flake reads `bundle.packages // { inherit (olai) … }`, so no plugin
+  # needs a root line to reach the flake.
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -207,5 +201,5 @@ let
   '';
 in
 {
-  inherit olai olai-client olai-fonts base bundle himalaya-bin;
+  inherit olai olai-client olai-fonts base bundle;
 }

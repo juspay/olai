@@ -1680,8 +1680,16 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
   }
   // Built ONCE per plugin rather than once per file: the filter below runs it
   // across the whole compiled corpus, which was fourteen hundred `RegExp`
-  // constructions a run for two distinct patterns.
-  const spelling = (name: string) => new RegExp(`\\b(?:${casings(name).join("|")})`)
+  // constructions a run for two distinct patterns. Two spellings per plugin:
+  // the three-casing word shape, and the `OLAI_<NAME>_*` env-var shape the
+  // seeded harness knobs take — `\\b` refuses the underscore before `ODU` in
+  // `OLAI_ODU_BIN`, which is exactly the spelling the mutation plants, so the
+  // env shape gets its own pattern with the underscore promoted to a real
+  // boundary.
+  const spelling = (name: string) => new RegExp(
+    `\\b(?:${casings(name).join("|")})` +
+    `|(?:^|[^A-Za-z0-9])OLAI_${name.toUpperCase()}(?![A-Z0-9])`
+  )
   const SPELLING = new Map(PLUGIN_NAMES.map((name) => [name, spelling(name)]))
   const spellingOf = (name: string) => SPELLING.get(name) ?? spelling(name)
 
@@ -2487,10 +2495,10 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
   const ALLOWED: Record<string, ReadonlyArray<string> | string> = {
     "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu",
     "nix/kolu.nix": ["kolu", "mcp"],
-    "// justfile": "kolu-deps names the framework pin (a word the tenant shares); git/odu/mail are tool or feature words, files/pins are recipe names",
-    "justfile": ["git", "kolu", "odu", "mail", "files", "pins"],
-    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary; mail IS the word the himalaya-bin throw spells",
-    "default.nix": ["kolu", "mail", "pins"],
+    "// justfile": "kolu-deps names the framework pin; git/odu are tool names, files/pins are recipe names",
+    "justfile": ["git", "kolu", "odu", "files", "pins"],
+    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary",
+    "default.nix": ["kolu", "pins"],
     "// flake.nix": "the flake folds plugin Nix halves as flake outputs through the fold (kolu is the npins source name)",
     "flake.nix": ["kolu"],
     "// packages/bundle/default.nix": "the bundle fold names the framework's surface pin and the bundle's pin vocabulary",
@@ -2504,8 +2512,6 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     "scripts/check-hydrated-deps.sh": ["pins"],
     "// scripts/cordis-graph.ts": "walks plugin words to draw the cordis graph",
     "scripts/cordis-graph.ts": ["ui-renderer", "layout"],
-    "// scripts/check-himalaya-surface.ts": "the check half of the mail plugin's himalaya-door — the surface it asserts lives in `packages/plugins/mail` itself (claim 1's PATH_ALLOWED row), so its own file may name the plugin",
-    "scripts/check-himalaya-surface.ts": ["mail"],
     "// scripts/test-shard.sh": "weights name the test files of a plugin (git) and the odu-shaped perf bucket",
     "scripts/test-shard.sh": ["git", "odu", "files"],
     "// shell.nix": "exposes kolu-hydrate pins and the vault's workspace import",
@@ -2552,17 +2558,13 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     // The fold is the one exception, which section 12 of the plan names: the
     // registry's `default.nix` is allowed to spell the container because it IS
     // the composition. `scripts/cordis-graph.ts` is the second: it exists to
-    // draw the rows, so its walk starts from the container by design. And
-    // `scripts/check-himalaya-surface.ts` is the third, by the same argument
-    // section 13's mail row sits on: it is the check half of the mail plugin's
-    // himalaya-door contract — the module it reads is the plugin's own
-    // `./himalaya/verbs.ts`, surfaced only because just's namespace has to
-    // reach a script that calls a Nix build.
+    // draw the rows, so its walk starts from the container by design. The
+    // himalaya check half moved into the mail plugin's `default.nix` as a
+    // sandboxed `checks.surface` — no root script spells the plugin path any
+    // more, and no root file is on this list.
     const PATH_ALLOWED: Record<string, true> = {
-      "default.nix": true,
       "packages/bundle/default.nix": true,
       "scripts/cordis-graph.ts": true,
-      "scripts/check-himalaya-surface.ts": true,
     }
     const offenders = corpus.filter((file) => PATH_ALLOWED[file] !== true
       && stripped(file).includes("packages/plugins/"))
