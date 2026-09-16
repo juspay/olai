@@ -22,7 +22,11 @@ Feature: The panel says which MCP servers a conversation has
 
   The fake `kolu` in the kolu plugin's `e2e/fake/` is what every server this suite spawns finds
   first on its PATH, and the tag decides which one it is: the DEFAULT reaches no
-  daemon, and `@kolu` is a host whose padi answers. The odu row beside it needs
+  daemon, and `@kolu` is a host whose padi answers. The live-versus-stale
+  discrimination runs in `an_external_agent.feature`'s last scenario: the same
+  `external kolu outlines_done {}` line succeeds with the tag and is refused
+  at the wire without it, so the two hosts cannot be mistaken for each other.
+  The odu row beside it needs
   no fake: the wrapper the suite spawns (`OLAI_BIN`, the nix-built binary or
   `just dev-bin`'s own) answers the probe from its own pin, on a laptop that
   has a real odu too — isolateEnv deletes the host's `OLAI_ODU_BIN`, so the

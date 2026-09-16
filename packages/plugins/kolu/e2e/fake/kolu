@@ -16,10 +16,14 @@
  *     wrong build looks like (juspay/kolu#2146: a padi-spawned terminal
  *     prepends its own bundled copy, and one of those was an older build
  *     reporting the same version while missing most of the verbs). Detection
- *     must refuse it, so every scenario that says nothing about kolu gets it.
- *   live — a daemon answers, which is the whole of "kolu is running here".
+ *     must refuse it, so every scenario that says nothing about kolu gets it:
+ *     the identity read AND every tool call refuse with "padi transport
+ *     down", because the tools and the identity cell are the DAEMON's — a
+ *     process that reached nobody has neither.
+ *   live — a daemon answers, which is the whole of "kolu is running here":
+ *     the identity read is healthy and a tool call is answered.
  *
- * It serves no terminals and holds no state. Besides roster detection, it
+ * It serves no terminals and holds no state. When LIVE, and only then, it
  * answers a tool call with a deliberately olai-shaped foreign payload so the
  * transcript can prove that display ownership comes from the catalogue.
  */
@@ -60,6 +64,15 @@ const answer = (id: unknown, method: string): void => {
     return;
   }
   if (method === "tools/call") {
+    // THE DAEMON'S PROPERTY, not this process's: every tool a `kolu` serves is
+    // padi's surface, so a build that reached no daemon has NO tools to
+    // answer with. Refusing here is what the header's first clause ("reaches
+    // no daemon") MEANS on the wire; a stale build answering `outlines_done`
+    // with success is precisely the lie juspay/kolu#2146 shipped for a week.
+    if (!LIVE) {
+      emit({ jsonrpc: "2.0", id, error: { code: -32603, message: "surface-mcp: padi transport down" } });
+      return;
+    }
     const structuredContent = { did: "outlines_done", id: "order", title: "foreign write-shaped reply", file: "foreign.olai", sort: "done" };
     emit({ jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(structuredContent) }], structuredContent } });
     return;

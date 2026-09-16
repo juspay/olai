@@ -111,15 +111,16 @@ in
   };
   checks = { tree }:
     if b2n == null then { } else {
-      # SANDBOXED SURFACE CHECK — the sandboxed sibling of `just odu-surface`
-      # (mod.just). Runs `src/surface.check.ts` against the pinned odu binary in
-      # a fully-staged working copy of the sources (so `process.cwd()` in the
-      # probe reads a real directory), with `out` an allowed-to-create store
-      # path so the probe's failure handshake has somewhere to write. The `bun`
-      # carrying it is `pkgs.bun` — `pkgs.bun` tracks nixpkgs, the packaged
-      # `olai` tracks the odu-blessed FOD, and a divergence between the two is
-      # (today) only what this probe catches; the fallback is `just odu-surface`
-      # against the dev shell's bun2nix.
+      # SANDBOXED SURFACE CHECK — olai's proof that the pinned odu answers
+      # its own protocol the way this tree's client expects. Runs
+      # `src/surface.check.ts` against the pinned odu binary in a fully-staged
+      # working copy of the sources (so `process.cwd()` in the probe reads a
+      # real directory), with `out` an allowed-to-create store path so the
+      # probe's failure handshake has somewhere to write. The `bun` carrying
+      # it is `pkgs.bun` — `pkgs.bun` tracks nixpkgs, the packaged `olai`
+      # tracks the odu-blessed FOD, and a divergence between the two is what
+      # this probe catches. `just plugin-checks` (the fold's `plugins`
+      # aggregate) is the leg that drives it.
       surface = pkgs.runCommand "olai-plugin-odu-surface"
         {
           nativeBuildInputs = [ pkgs.bun ];

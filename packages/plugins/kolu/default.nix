@@ -2,16 +2,15 @@
 #
 # Kolu is olai's framework: the surface, the Dock row, the terminal
 # vocabulary, six packages deep. The ROOT's `nix/kolu.nix` declares the
-# framework seeds (`@kolu/surface*`, the Dock row, `@kolu/detect`) and asks
-# kolu's own `consumer.nix` to expand them into the thirty-two-member closure
-# this tree hydrates as raw TypeScript. This file adds the TENANT half: the
-# favicon the chat chip inlines and the `terminal-themes` seed nobody else
-# needs.
+# framework seeds (`@kolu/surface*` alone) and asks kolu's own
+# `consumer.nix` to expand them into the thirty-two-member closure this tree
+# hydrates as raw TypeScript. This file adds the TENANT half: the favicon the
+# chat chip inlines, the Dock row and `@kolu/detect` the appliance door
+# answers, and the `terminal-themes` seed nobody else needs.
 #
-# It is `packages/plugins/kolu/default.nix` rather than `nix/kolu.nix`'s
-# tenant-words, the other plugins' own files: `nix/kolu.nix` takes
-# `extraSeeds` and `pinnedSources` so the tenant answers its own `koluSeeds`
-# and `koluPins` through the fold, one overlay at a time.
+# It plugs into `nix/kolu.nix` through the fold's `extraSeeds` /
+# `pinnedSources` — so the tenant answers its own `koluSeeds` and
+# `koluPins`, one overlay at a time.
 { pkgs, pins, kit, ... }:
 
 let

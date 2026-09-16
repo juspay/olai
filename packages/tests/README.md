@@ -172,7 +172,7 @@ just build-client
 export OLAI_BIN="$(just dev-bin)"
 ```
 
-`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The dev binary sources the plugin-env snippet produced by `.#plugin-env` — the same `export VAR="${VAR-default}"` lines the dev shell uses — and adds its own splice, so which odu the server resolves is the build's pin on both shapes; the harness cannot tell the difference. It defaults `OLAI_DIST_DIR` to this worktree's `packages/web/dist` (an explicit environment override wins), so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
+`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The dev binary sources the plugin-env snippet produced by `.#plugin-env` — the same `export VAR="${VAR-default}"` lines the dev shell uses — so which odu the server resolves is the build's pin on both shapes; the harness cannot tell the difference. It defaults `OLAI_DIST_DIR` to this worktree's `packages/web/dist` (an explicit environment override wins), so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
 
 Bun hosts the runner. Bun executes `.ts` directly, so there is no tsx, no ts-node and no build step between a step definition and the browser — which is also why the dev shell needs no node.
 

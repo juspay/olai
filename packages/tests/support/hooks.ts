@@ -1452,12 +1452,11 @@ Before(
     this.hasAgent = !scenario.pickle.tags.some(
       (tag) => tag.name === NO_AGENT_TAG,
     );
-    // The per-engine booleans are a scenario's votes about itself, and the
-    // words are the world's to spell: `voteFakes` reads the folded list (and
-    // keeps it) so this file never spells one (section 13.3's fence). That
-    // call also owns every "scenario has engine X" flag — `hasKolu`, the
-    // himalaya vote, and the rest — so nothing here spells an engine's name
-    // twice.
+    // The per-engine votes are a scenario's flags about itself, spelled as
+    // data: `voteFakes` reads the folded roster (and keeps it) so this file
+    // never spells an engine's name (section 13.3's fence). That call owns
+    // every engine-shaped flag the world now carries — nothing here names
+    // one twice.
     this.voteFakes(fakesOf(scenario.pickle.tags));
     this.padiFleet = scenario.pickle.tags
       .map((tag) => PADI_TAG.exec(tag.name)?.[1])

@@ -1008,6 +1008,12 @@ const useExternal = async (
     sayOutcome(result["isError"] === true ? "failed" : "completed", toolWire.wrapped(result as unknown as CallToolResult).rawOutput)
     return said
   } catch (thrown) {
+    // What the wrapped CLI learns from an erroring server: the NEXT init
+    // reports it, the way a real adapter's `mcp_servers` reports a server
+    // its connection could not reach (`mcp-roster-visible`). A kolu whose
+    // padi is down is exactly that case, and a roster that went on saying
+    // `connected` after the wire refused would be a fact nobody gave it.
+    attachment.set(server, "failed")
     sayOutcome("failed", { error: String(thrown) })
     return `the call failed: ${String(thrown)}`
   }

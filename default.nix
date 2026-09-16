@@ -119,12 +119,10 @@ let
     # rather than in buildPhase for the mark's reason one line down — the
     # generated files are gitignored, so they are never in the store copy of the
     # tree, and a packaged build cannot ship a stale one.
-    # ...and kolu's MARK on a fourth line, which is the same errand for an asset
-    # rather than for sources. It must run here rather than in buildPhase
-    # because `bun packages/web/src/build.ts` bundles it as a module: the
-    # generated file is gitignored and `fileset.toSource` above takes tracked
-    # content only, so it is never in the store copy of the tree and a packaged
-    # build is structurally incapable of shipping a stale working-tree logo.
+    # THE WEB ROWS AND THE NUMERIC TOKEN TABLES, for the mark's own reason
+    # one line up — generated sources the browser bundle reads as modules
+    # (fileset.toSource above takes tracked content only, so a store copy of
+    # the tree never has them and a packaged build cannot ship a stale one).
     postBunNodeModulesInstallPhase = ''
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
       sh ${kolu.hydrateScript} ${cordis.hydrateArgs}
@@ -193,10 +191,10 @@ let
       };
     } ''
     mkdir -p $out/bin
-    # The compose-not-splice rule olai-path.sh teaches, and every face owns:
-    # an unguarded `:$PATH` with PATH unset earns every spawned server a
-    # trailing colon — the empty PATH element, the working directory
-    # smuggled onto it. scripts/olai-path.sh writes it the same way.
+    # THE COMPOSE-NOT-SPLICE RULE, repeated wherever PATH is put together: an
+    # unguarded `:$PATH` with PATH unset earns every spawned server a trailing
+    # colon — the empty PATH element, the working directory smuggled onto it
+    # (juspay/kolu#2146's shape).
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \

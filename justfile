@@ -724,24 +724,15 @@ bench: install
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees
 # used to drive one tree; this file lives in THIS worktree.
 #
-# THE ODU FACE OF “the same binary”: a wrapper that only changed the argv
+# THE ODU FACE OF "the same binary": a wrapper that only changed the argv
 # would be the ONE spawn shape with no odu answer of its own, and
 # workers.ts deleting the host's odu knob would make the roster features
 # host-dependent on exactly the loop the README hands developers. The
-# generated file therefore re-spells default.nix's own shape: a
-# set-default line for the pin's bin dir, the same three-arm splice.
-# `serve`/`run` ask scripts/olai-path.sh to compose the variable on every
-# run; this file is WRITTEN once per worktree, so it composes the default
-# at write time the way the nix wrapper does at build time — one knob,
-# every face is only true when this face answers too.
-#
-# THE HIMALAYA FACE is the second pin this file carries, and the simpler
-# half: one absolute FILE rather than a bin directory to splice, so it is
-# a `-` default spelled exactly as default.nix writes it and nothing more.
-# Carried for the same reason the odu face is: the harness spawns THIS
-# wrapper, so a scenario must be able to hand the row the fake — or, where
-# the scenario says so, no binary at all, which a `:-` default would make
-# unreachable.
+# generated file therefore re-spells default.nix's own shape: OLAI_DIST_DIR
+# spelled once, then the fold's `.#plugin-env` sourced — which carries every
+# declared knob (the pins' `-` defaults, the PATH splices, the mail face)
+# — so the wrapper defaults read off one manifest rather than three places
+# each writing their own.
 [doc("Create a worktree-local binary wrapper for e2e tests")]
 dev-bin:
     #!/usr/bin/env bash

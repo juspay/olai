@@ -8,8 +8,8 @@
  *     other kind besides opencode and omp whose panel command the fold can
  *     point at an executable by knob.
  *   - An UNLINKED scenario only needs `pi` (the probe) on the agent path to
- *     offer the link flow — the whole point of an unlinked pi is that no
- *     adapter runs, so the fold stops at `searchPath`.
+ *     offer the link flow — so the fold sets the adapter knob to the empty
+ *     string (off means off), and `searchPath` still joins the agent path.
  *
  * `env` turns the harness's `@agent-stored` flag into the stored-sessions env
  * this engine's core reads.
