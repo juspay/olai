@@ -56,7 +56,7 @@
 # the slug is kolu's now, and a consumer inventing its own would be one more
 # thing to keep in step.
 
-{ pkgs }:
+{ pkgs, extraSeeds ? [ ], pinnedSources ? { } }:
 
 let
   npins = import ../npins;
@@ -65,10 +65,15 @@ let
     inherit pkgs;
     src = npins.kolu;
 
-    # THE SEEDS — what olai's own source imports by name. Read the two tiers
-    # rather than the list: `@kolu/surface*` is the FRAMEWORK olai's app is
-    # built on (imported anywhere, like `effect`), and the rest is the padi
-    # INTEGRATION.
+    # THE SEEDS — what olai's own source imports by name. The list is in TWO
+    # halves, and the halves are different owners: the ROOT's three are the
+    # framework olai's app is built on (`@kolu/surface*` — imported anywhere,
+    # like `effect`), and the rest is the padi INTEGRATION the `kolu` plugin
+    # owns. A tenant seed is declared beside the tenant, in
+    # `packages/plugins/kolu/default.nix`'s `koluSeeds`, and arrives here as
+    # `extraSeeds` through the fold — so this file's own list may name only
+    # what the framework asks for, and a tenant's needs never have to migrate
+    # up to the root to be seen.
     #
     # `@kolu/padi-client` and `@kolu/terminal-vocab` are not here because they
     # are not seeds: they arrive through `@kolu/solid-dockrow`, whose closure is
@@ -79,22 +84,18 @@ let
     # `@kolu/padi-client` in it while `olai-plugin-kolu/appliance` still imports it, and
     # the sibling walk that used to catch exactly that is gone by design.
     seeds = [
-      "@kolu/detect"
-      "@kolu/solid-dockrow"
       "@kolu/surface-app"
       "@kolu/surface-cli"
       "@kolu/surface-mcp"
-      "terminal-themes"
-    ];
+    ] ++ extraSeeds;
 
     # The second pin, grafted. `revision` is not decoration: kolu compares it
     # against the revision its own closure records and throws if they differ,
     # naming both — so the two repositories cannot drift apart silently, which
-    # is precisely what the retired shell check was watching for.
-    pinnedSources."osfacts-client" = {
-      src = "${npins.osfacts}/client-ts";
-      revision = npins.osfacts.revision;
-    };
+    # is precisely what the retired shell check was watching for. The kolu
+    # plugin declares it as `koluPins."osfacts-client"` (its own manifest),
+    # and the fold hands it here.
+    inherit pinnedSources;
   };
 in
 consumer

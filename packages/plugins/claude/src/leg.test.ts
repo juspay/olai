@@ -11,7 +11,7 @@
  * the prefix, a `_meta` from some other agent.
  *
  * The e2e suite drives the same two permission requests through a real agent
- * (`packages/tests/agent/fake-acp-agent.ts`, the `plan` and `permit` verbs) and
+ * (`packages/plugins/claude/e2e/fake/claude-agent-acp`, the `plan` and `permit` verbs) and
  * stays the regression net for the wiring.
  */
 

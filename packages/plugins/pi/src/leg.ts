@@ -200,7 +200,7 @@ export const PI: Leg = {
   // in its env, and pi's own registerTool API makes them real, callable
   // tools. Standing here is therefore the same as the other legs': what
   // olai handed, pi holds. What NO lane can answer is a foreign adapter
-  // (the override lane in scripts/acp-pi.sh) — its capability flags are
+  // (the `OLAI_ACP_PI` override lane) — its capability flags are
   // its own claim, and olai's banner is exactly as strong as them, which
   // is the conversation every leg has with its adapter.
   // auto-approval for pi lives in its own settings, outside ACP.

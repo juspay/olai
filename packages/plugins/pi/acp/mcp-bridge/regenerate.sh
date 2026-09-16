@@ -13,7 +13,7 @@ set -euo pipefail
 # The four splice points, all against the pinned 0.0.33 bundle:
 #
 #   1. `PiRpcProcess.spawn` — after the args line: this pin's bridge is
-#      `PI_ACP_MCP_EXTENSION` (set by nix/acp-agent.nix's wrapper): when it
+#      `PI_ACP_MCP_EXTENSION` (set by the pi plugin's `default.nix` wrapper): when it
 #      names a file and the request handed mcpServers, pi gets `-e <file>`
 #      and the session's process env carries PI_ACP_MCP_SERVERS as JSON —
 #      the same hand-off the seeded SKILL/AGENT env uses, one process per
@@ -26,20 +26,19 @@ set -euo pipefail
 #
 #     bash packages/plugins/pi/acp/mcp-bridge/regenerate.sh
 
-# WHERE THIS RIG SITS, since the agents phase moved it: this directory is
-# `packages/plugins/pi/acp/mcp-bridge/`, so the plugin's own `acp/` is one up
-# and the REPOSITORY is four. The npm shim whose lockfile pins the version is
-# still the shared one at the repository root (`acp/README.md` says why one
-# lockfile carries two adapters).
+# WHERE THIS RIG SITS, since the isolation phase moved it: this directory is
+# `packages/plugins/pi/acp/mcp-bridge/`, so the plugin's own `acp/shim/` is
+# two up (mcp-bridge → acp → shim). The pi shim whose lockfile pins the
+# version is this engine's own `acp/shim/package-lock.json`, one lockfile per
+# engine since the split.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo="$(cd "$here/../../../../.." && pwd)"
 out="$here/../patches/pi-mcp-servers.patch"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-version="$(jq -r '.packages["node_modules/pi-acp"].version' "$repo/acp/package-lock.json")"
+version="$(jq -r '.packages["node_modules/pi-acp"].version' "$here/../shim/package-lock.json")"
 if [[ -z "$version" || "$version" == "null" ]]; then
-  echo "no pin found in acp/package-lock.json" >&2
+  echo "no pin found in acp/shim/package-lock.json" >&2
   exit 1
 fi
 curl -sfSL "https://registry.npmjs.org/pi-acp/-/pi-acp-$version.tgz" -o "$work/pkg.tgz"

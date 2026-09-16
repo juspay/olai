@@ -88,13 +88,17 @@ test("no file in the suite reaches the client past ./testlib", () => {
   expect(found).toEqual([]);
 });
 
-/** A row's own e2e tree, which is where a step file lives. */
-const IN_A_ROW = /^packages\/plugins\/[^/]+\/e2e\/.+\.ts$/;
+/** A row's own e2e tree, which is where a step file lives — and, since 13.3,
+ *  where its scripted fake lives: the executables under `e2e/fake/` carry no
+ *  `.ts` (a probe runs them as commands), so the fake's tree is swept by
+ *  name, `.ts` or not. */
+const IN_A_ROW = /^packages\/plugins\/[^/]+\/e2e\/(?:.+\.ts|fake\/[^.]+)$/;
 
 /** ...and the ONE way back to the harness from there. `./harness/*` is
- *  `@olai/tests`' exports map; `./agent/*` is the scripted ACP agents beside
+ *  `@olai/tests`' exports map; `./agent/*` is the scripted ACP core beside
  *  it. Anything else spelled at this package — and every relative climb out of
- *  the row — is the door being walked around. */
+ *  the row — is the door being walked around. A row's own `../../src/testlib.ts`
+ *  is two levels up and stays. */
 const HARNESS_DOOR = /^@olai\/tests\/(?:harness|agent)\/[^"]+$/;
 
 test("a row's e2e reaches the harness through its door, and never around it", () => {

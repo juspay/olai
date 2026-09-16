@@ -182,9 +182,20 @@ Feature: Edit plugin settings on the panel
     And the plugin "git" has inline controls
     And there should be no page errors
 
+  # Plan §9: the `file` knob of the ACP engines (claude/codex/pi) is not
+  # asserted end to end here, because each adapter's probe needs a provider
+  # credential that CI does not carry (ANTHROPIC_API_KEY, OPENAI_API_KEY).
+  # Only the `dir` knob (OLAI_ODU_BIN) runs with none, which is the scenario
+  # below.
   Scenario: Build defaults stay hidden while operator environment readings stay read-only
     Given the roster includes wrapper and operator environment readings
     And I open the app
     When I open the plugins panel
     Then the panel hides wrapper defaults and shows operator environment readings
+    And there should be no page errors
+
+  Scenario: The packaged binary's wrapper default for ODU is read as wrapper-provided
+    Given I open the app
+    When I open the plugins panel
+    Then the plugin "odu" env reading "OLAI_ODU_BIN" is wrapper-provided and hidden
     And there should be no page errors

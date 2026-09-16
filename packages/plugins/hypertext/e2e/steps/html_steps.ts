@@ -1198,7 +1198,7 @@ Then(
  *
  * The prefix is SPELLED here, and that is the one place in this suite where
  * spelling a wire constant is the right thing rather than the usual mistake —
- * for `fake-acp-agent.ts`' reason, which is the same reason: an adversary has no
+ * for the scripted agent's reason, which is the same reason: an adversary has no
  * access to olai's constants, and a fixture that derived the message from the
  * implementation under test would agree with it by construction and prove
  * nothing about a hostile page that guesses.

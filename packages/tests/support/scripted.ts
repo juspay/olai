@@ -2,9 +2,10 @@
  * What every scripted agent in this suite has in common — and nothing about
  * what any of them MEANS.
  *
- * There are two of them now (`agent/fake-acp-agent.ts`, shaped like the Claude
- * Code adapter, and `agent/opencode/opencode`, shaped like opencode), plus the
- * fake `kolu` next door, and the whole value of having two is that they are
+ * The engines each own an executable in their `e2e/fake/` (claude's
+ * `claude-agent-acp`, pi's `pi-acp`, codex's `codex-acp`), each scripted
+ * through the shared core in `agent/scripted-acp.ts`, plus the fake `kolu`
+ * next door, and the whole value of having more than one is that they are
  * INDEPENDENT WITNESSES to the same protocol: the frames, the `_meta`, the call
  * ids, the order of a permission's options are each file's own to get right,
  * and a shared implementation of any of them would let a fake agree with the

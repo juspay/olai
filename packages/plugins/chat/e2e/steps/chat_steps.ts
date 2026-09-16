@@ -377,7 +377,7 @@ Given("the listing counter is armed", function (this: OlaiWorld) {
 });
 
 /** How many times the agents have been ASKED FOR THEIR LISTING so far, off
- *  the line the fake appends on every one (`packages/tests/agent/fake-acp-agent.ts`
+ *  the line the fake appends on every one (`packages/tests/agent/scripted-acp.ts`
  *  — an absent file is an agent never asked, which is zero). The count is the
  *  pin's currency: what asking costs is the asking, whatever it answered. */
 const listAsks = (scratch: string): number => {
@@ -1192,6 +1192,31 @@ Then("the chat shows a completed tool call", async function (this: OlaiWorld) {
     HYDRATION_TIMEOUT,
   );
 });
+
+Then("the chat shows a failed tool call", async function (this: OlaiWorld) {
+  await this.expectAttribute(this.chatSelector(CHAT_TOOL),
+    "data-tool-status",
+    "failed",
+    "the tool call frame",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/** The fold's detail block carries the call's arguments and result verbatim
+ *  (`detailOf`), which is the one place a FOREIGN call's own words land — a
+ *  server olai does not advertise gets no `reply` half, so what it said is
+ *  asserted here rather than against a rendered story. */
+Then(
+  "the tool call's detail mentions {string}",
+  async function (this: OlaiWorld, said: string) {
+    const detail = heldTool(this).locator(CHAT_TOOL_DETAIL);
+    await detail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      oneLine(await detail.innerText()).includes(said),
+      `the tool call's detail does not mention "${said}"`,
+    );
+  },
+);
 
 /** How many calls the conversation drew, which is the one thing a claim about
  *  a REPEATED report turns on: a frame that arrives twice must produce the row
@@ -3580,7 +3605,7 @@ Then(
  *  thing the `@opencode` tag decides, moved mid-scenario, which is what
  *  uninstalling an agent between two serves looks like from here. */
 When("opencode is no longer installed", function (this: OlaiWorld) {
-  this.hasOpencode = false;
+  this.fakes = this.fakes.filter((word) => word !== "opencode");
 });
 
 /**

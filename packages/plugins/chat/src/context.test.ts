@@ -5,7 +5,7 @@
  * line, tested the same way and for the same reason: it is the whole of what
  * the agent is told, and the e2e suite's scripted agent reads it back with a
  * regular expression. So the shape is a contract between three files
- * (`./chat.ts` writes it, `packages/tests/agent/fake-acp-agent.ts` parses it,
+ * (`./chat.ts` writes it, `packages/tests/agent/scripted-acp.ts` parses it,
  * `packages/web/src/client/chat/refs.ts` makes the same spelling pressable),
  * and a change to it that nothing noticed would be a change no agent could
  * follow.

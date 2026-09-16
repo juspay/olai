@@ -1,0 +1,14 @@
+#!/usr/bin/env bun
+/**
+ * THE CODEX-SHAPED SCRIPTED ACP AGENT — codex's own half of section 13.3.
+ * The generic driver lives in the harness core
+ * (`@olai/tests/agent/scripted-acp.ts`); this executable names the engine it
+ * speaks for by passing the codex vocabulary (this package's `./testlib`) and
+ * the codex flavour. The harness reaches THIS as `OLAI_ACP_CODEX` because the
+ * descriptor next door says so — the old `OLAI_FAKE_CODEX` switch is gone, and
+ * the executable is the arm.
+ */
+import { scripted } from "@olai/tests/agent/scripted-acp.ts"
+import * as tool from "../../src/testlib.ts"
+
+scripted({ tool, flavour: "codex" })

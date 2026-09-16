@@ -231,3 +231,12 @@ Then("the panel hides wrapper defaults and shows operator environment readings",
   assert.equal(await row.locator('[data-config="PRIVATE_TOKEN"]').innerText(), "token env · set")
   assert.equal(await row.locator('[data-config="OPERATOR_BIN"] input').count(), 0)
 })
+Then("the plugin {string} env reading {string} is wrapper-provided and hidden", async function(this: OlaiWorld, name: string, key: string) {
+  const row = await this.showPluginRow(name)
+  // A wrapper-provided reading (source: "wrapper", named by the generated
+  // OLAI_WRAPPER_DEFAULTS) is not a machine input a person can change here, so
+  // the panel hides it from the row's env grid. If the wrapper-defaults
+  // plumbing broke, OLAI_ODU_BIN would render as an editable operator reading
+  // ("bin env · <path>"), which is the discriminating absence this asserts.
+  await this.waitUntil(async () => await row.locator(attr("data-config", key)).count() === 0, `the ${name} wrapper reading to stay hidden`)
+})

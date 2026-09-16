@@ -5,7 +5,7 @@
 #   ROOT=/path/to/a/worktree LABEL=before bash wire.sh
 #   SESSION=pages ROOT=… LABEL=…    # the reading session, not the preview one
 #   SESSION=filter ROOT=… LABEL=…   # the narrowed-page session (calls, not bytes)
-#   AGENT=$PWD/agent/fake-acp-agent.ts SESSION=chat ROOT=… LABEL=…
+#   AGENT=$PWD/../plugins/claude/e2e/fake/claude-agent-acp SESSION=chat ROOT=… LABEL=…
 #                             # one chat turn: bytes AND frames. The only
 #                             # session that needs an agent — serve.sh wires
 #                             # AGENT through as the server OLAI_ACP_AGENT,

@@ -55,5 +55,17 @@ read off two independent sources — the roster, and a `readdir` of this directo
 — so a plugin left outside it and a general package dropped inside it are each a
 red test. `scripts/prove-fence.sh`'s mutation 13 is that claim's falsifier.
 
+**A plugin with a Nix half declares it in its own `default.nix`.** A plugin
+who ships a binary, a pin or a generated file (the tenants and the three
+engines with adapters) names those facts there, in the fold's contract
+(`hydrate`, `externals`, `koluSeeds`, `koluPins`, `generated`, `npmTrees`,
+`knobs`, `packages`, `checks`). The root never reads a plugin's file directly:
+`packages/bundle/default.nix` imports each directory's `default.nix` where one
+exists, validates every result against `@olai/plugin-kit`'s `contract`, and
+folds them into one attrset the wrapper and `.#plugin-env` consume. A general
+package may know the container holds directories and the shape of that
+contract, and nothing about any particular plugin — the Nix twin of the
+import rule below.
+
 The whole checklist for adding one is
 [docs/architecture/plugin-system.md §9](../../docs/architecture/plugin-system.md).

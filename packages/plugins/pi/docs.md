@@ -28,7 +28,15 @@ Every reading was captured live against **pi-acp 0.0.33** driving **pi 0.84.2**.
 
 ## The adapter, and its patch
 
-`nix/acp-agent.nix` builds the pinned adapter from a committed lockfile. One patch and one bundled extension ride that pin, and both live in this plugin's own directory ([`acp/`](https://github.com/juspay/olai/tree/master/packages/plugins/pi/acp)): the patch makes the adapter spawn each session's pi with the bridge loaded and the session's MCP servers passed along, and the extension is what turns them into pi's own tools. A version bump makes the patch FAIL rather than silently drop the behaviour.
+`default.nix` beside this plugin builds the pinned adapter from a committed
+lockfile — through `@olai/plugin-kit`'s `npm-adapter.nix` over the shared
+`acp/` shim. One patch and one bundled extension ride that pin, and both live
+in this plugin's own directory
+([`acp/`](https://github.com/juspay/olai/tree/master/packages/plugins/pi/acp)):
+the patch makes the adapter spawn each session's pi with the bridge loaded
+and the session's MCP servers passed along, and the extension is what turns
+them into pi's own tools. A version bump makes the patch FAIL rather than
+silently drop the behaviour.
 
 An adapter olai did not build — the `OLAI_ACP_PI` override lane — answers for the wiring it actually carries, which is the conversation every engine has with its adapter.
 

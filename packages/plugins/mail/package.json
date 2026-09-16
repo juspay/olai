@@ -42,6 +42,11 @@
   "olai": {
     "contracts": [
       "./testids"
-    ]
+    ],
+    "knobs": {
+      "OLAI_HIMALAYA": {
+        "kind": "file"
+      }
+    }
   }
 }
