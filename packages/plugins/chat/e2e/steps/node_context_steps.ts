@@ -10,7 +10,7 @@
  * Everything here asks about what a person would see: which chips are on the
  * composer, whether an id in the answer became pressable, which row the page
  * says is the one being pointed at. What the AGENT received is asserted by the
- * agent itself (`agent/fake-acp-agent.ts`'s `context` verb, which reads the id
+ * agent itself (the scripted agent's `context` verb — `@olai/tests/agent/scripted-acp.ts` — which reads the id
  * out of its own prompt and calls `outlines_read` with it) — the one claim a
  * browser cannot make on its own.
  */

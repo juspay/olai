@@ -21,7 +21,7 @@
  */
 
 export const DOOR = {
-  /** The pinned binary, baked on the wrapper. Not a knob: see `./himalaya/run.ts`. */
+  /** The pinned binary, the plugin's own knob: see `./himalaya/run.ts`. */
   himalaya: "OLAI_HIMALAYA",
   /** The Google OAuth client this serve connects a mailbox with. */
   client: "OLAI_MAIL_OAUTH_CLIENT",

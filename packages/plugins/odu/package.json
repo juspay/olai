@@ -43,6 +43,11 @@
   "olai": {
     "contracts": [
       "./testids"
-    ]
+    ],
+    "knobs": {
+      "OLAI_ODU_BIN": {
+        "kind": "dir"
+      }
+    }
   }
 }

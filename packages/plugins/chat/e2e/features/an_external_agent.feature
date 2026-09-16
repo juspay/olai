@@ -340,3 +340,29 @@ Feature: An agent olai did not start
     And the agent's answer mentions "foreign write-shaped reply"
     When I unfold the tool call
     Then the foreign tool reply remains ordinary detail
+
+  Scenario: A kolu that reached no daemon refuses EVERY call, and the next init says so
+    # THE OTHER HOST, and the scenario that tells the two apart. No `@kolu`
+    # tag, so the server this suite spawns finds the same fake first on its
+    # PATH — but with `OLAI_FAKE_KOLU` at its default: a build that speaks the
+    # protocol and reaches no daemon (juspay/kolu#2146). Every tool a real
+    # `kolu` answers is the DAEMON's, so this one refuses the call at the
+    # wire, and the agent's next `init` reports the server `failed` — the
+    # standing a live host never shows. The line above and the `@kolu` arm
+    # beside it are ONE `When` against the same fake; purely the tag decides
+    # which answer comes back, which is the discrimination the suite owes the
+    # harness's `env` fold.
+    Given I open the outline "house.olai"
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I ask the agent "external kolu outlines_done {}"
+    Then the agent is idle
+    And the chat shows a tool call named "mcp__kolu__outlines_done"
+    And the chat shows a failed tool call
+    When I unfold the tool call
+    Then the tool call's detail mentions "padi transport down"
+    When I ask the agent "hello"
+    Then the agent is idle
+    And the panel says the agent could not attach "kolu"
+    And the reason it gives is "failed"
+    And there should be no page errors

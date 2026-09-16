@@ -70,7 +70,7 @@ import { fixtureNamed, MAILBOXES, LABELS, THREADS } from "./fixtures.ts"
 
 /** The first line `himalaya --version` prints at the pin this repo carries, and
  *  the string a scenario replaces when it wants a serve to see an older one.
- *  Spelled here rather than derived from `himalaya.nix`: the point of a fake is
+ *  Spelled here rather than derived from `../default.nix`: the point of a fake is
  *  to say what the plugin expects, and the check that the PIN matches this is
  *  `scripts/check-himalaya-surface.ts`'s, run against the built binary. */
 export const PINNED_VERSION = "himalaya v2.1.0 +msgraph +rustls-ring +imap +sieve +smtp +gmail +jmap +maildir"

@@ -6,10 +6,13 @@ uses that release's own manifest and lockfile, which pins both
 `@agentclientprotocol/codex-acp` and the `@openai/codex` CLI it resolves. The
 wrapper points the adapter at that exact native CLI through `CODEX_PATH`.
 
-It is deliberately not a third row in the repository-level `acp/` shim. That
-derivation carries patched Claude and pi adapters whose pins and build rules
-move together. Codex has its own upstream release clock and native platform
-layout, so a Codex bump belongs here and rebuilds only this output.
+It is deliberately not built from the shared `acp/` shim the Claude and pi
+adapters come through. Those two declare their adapters in their own
+`default.nix` files via `@olai/plugin-kit`'s `npm-adapter.nix` over the shared
+shim's one lockfile — their pins and build rules move together. Codex has its
+own upstream release clock and native platform layout, so its derivation
+belongs here, next to this plugin's `default.nix`, and a Codex bump rebuilds
+only this output.
 
 To update it, change the release, set both hashes in `default.nix` to fake
 hashes, and build:

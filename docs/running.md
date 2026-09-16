@@ -52,7 +52,7 @@ Unit-test shards place the longest estimated files first. The existing
 passing `0342dac6c` run and estimates other files at 0.1s. Git determines which
 files run; missing or stale timing hints affect balance, never coverage.
 
-A worktree launch builds the pinned adapters and odu on demand (`nix build .#acp-agent`, `.#codex-agent`, `.#odu-bin`) and `just install` runs `npm ci` in `acp/`. Each of those prints the command on stderr before it starts; `npm ci` then logs every fetch (`--loglevel=http`) because `nix develop -c` is not a TTY and npm would otherwise sit silent until it finished.
+A worktree launch builds and dev-shells everything on demand through `.#plugin-env`: the fold drives the per-plugin default.nix builds (each adapter and odu as a `file`/`dir` knob), and `just install` then runs `npm ci` in each plugin's declared tree (its `npmTrees`). Each of those prints the command on stderr before it starts; `npm ci` then logs every fetch (`--loglevel=http`) because `nix develop -c` is not a TTY and npm would otherwise sit silent until it finished.
 
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.olai` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `0` (the OS picks one), host `127.0.0.1`. A fixed `--port` is a deploy's word — the home-manager module passes `7714` ("olai" on a phone keypad). `--port 0` asks the OS every boot: a `just run` / `just serve` restart may land on a new port.
 

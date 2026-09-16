@@ -1,5 +1,5 @@
 /**
- * THE ROWS, AS CODE — three generated files out of one `olai.yml`, so that file
+ * THE ROWS, AS CODE — generated files out of one `olai.yml`, so that file
  * is the ONLY place a plugin is named.
  *
  * ## Why anything is generated at all
@@ -20,7 +20,7 @@
  * it is a reason to WRITE it, from the rows, at the one moment a literal is
  * still something a program can emit. Hence this.
  *
- * ## Three files, because a plugin's name is spellable in three grammars
+ * ## One file per grammar a plugin's name is spellable in
  *
  *   - `src/rows.generated.ts` — the catalogue, plus a dynamic `import()` for each
  *     declared browser export. The literal specifier is what makes each plugin its own
@@ -35,6 +35,12 @@
  *     proof: a spread resolves a collision silently, so the assertion is what
  *     makes one a type error rather than a scenario that fails thirty seconds
  *     later with a timeout that says nothing.
+ *   - `src/assets.generated.ts` — static build contributions; no runtime may
+ *     import this graph.
+ *   - `src/policy.generated.ts` — static write reservations; enforced even
+ *     when the runtime owner is disabled.
+ *   - `src/fakes.generated.ts` — every engine's scripted e2e fake, as a roster
+ *     the harness folds over.
  *
  * ## GENERATED, GITIGNORED, and produced beside the hydrated sources
  *
@@ -150,14 +156,18 @@ const packageOf = (row: Row): string => {
 
 /** Exports describe which graphs exist. A server-only package needs no empty
  * browser module or stylesheet, and the generator never imports server code. */
-const hasDoor = (row: Row, door: string): boolean => {
+const packageDirOf = (row: Row): string => {
   let directory = dirname(Bun.resolveSync(row.name, HERE))
   while (!existsSync(join(directory, "package.json"))) {
     const parent = dirname(directory)
     if (parent === directory) throw new Error(`bundle: no manifest for ${row.name}`)
     directory = parent
   }
-  const manifest = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"))
+  return directory
+}
+
+const hasDoor = (row: Row, door: string): boolean => {
+  const manifest = JSON.parse(readFileSync(join(packageDirOf(row), "package.json"), "utf8"))
   return Object.hasOwn(manifest.exports ?? {}, door)
 }
 
@@ -268,4 +278,38 @@ writeFileSync(join(SRC, "policy.generated.ts"), `${HEADER("Static write reservat
 import type { WriteReservation } from "./policy.ts"
 ${policyRows.map((row, at) => `import { writeReservations as p${at} } from ${quoted(`${packageOf(row)}/policy`)}`).join("\n")}
 export const WRITE_RESERVATIONS: ReadonlyArray<WriteReservation> = [${policyRows.map((_, at) => `...p${at}`).join(", ")}]
+`)
+
+const fakeRows = rows.filter((row) => hasDoor(row, "./e2e/fake"))
+writeFileSync(join(SRC, "fakes.generated.ts"), `${HEADER("Every engine's scripted e2e fake, as a roster the harness folds over (section 13.3). A dynamic import is what keeps an engine's testlib out of the server graph.")}
+import type { Fake } from "./fake.ts"
+export interface FakeRow { readonly id: string; readonly load: () => Promise<{ readonly fake: Fake }> }
+export const FAKES_ROSTER: ReadonlyArray<FakeRow> = [
+${fakeRows.map((row) => `  { id: ${quoted(row.id)}, load: () => import(${quoted(`${packageOf(row)}/e2e/fake`)}) },`).join("\n")}
+]
+`)
+
+// ONE LIST FOR THE WHOLE FOLD, in a MODULE OF ITS OWN rather than beside the
+// fake roster it is about to share a file with: `KNOBS` is not about fakes.
+// The roster revs when a plugin adds or drops an `./e2e/fake` export; this
+// list revs when a plugin declares or withdraws an `olai.knobs` entry in its
+// manifest — two different clocks, and one happens to tick on the other's
+// package.json edit today only because both happen to live on the same rows.
+// A plugin that adds a knob without adding a fake still lands here; a plugin
+// that adds a fake without a knob never does. Writing KNOBS beside the roster
+// would fuse the two schedules into one file and hand a reader a fake roster
+// that carries a harness concern — the harness's `isolateEnv` loops THIS
+// file, not that one.
+//
+// The fold's source for the list is `olai.knobs` in each plugin's manifest,
+// which `packages/bundle/nix/fold-check.nix` also reads: a plugin that adds a
+// knob arrives in this file by composition rather than by a second spelling in
+// `workers.ts`, and that is the whole of the argument for generating instead
+// of checking.
+const knobNames = rows.flatMap((row) => {
+  const manifest = JSON.parse(readFileSync(join(packageDirOf(row), "package.json"), "utf8")) as { olai?: { knobs?: Record<string, unknown> } }
+  return Object.keys(manifest.olai?.knobs ?? {})
+})
+writeFileSync(join(SRC, "knobs.generated.ts"), `${HEADER("Every wrapper variable the fold could bake — \`olai.knobs\` from every row's manifest, emitted as a module of its own so the harness's env-strip does not borrow the fake roster's file.")}
+export const KNOBS: ReadonlyArray<string> = [${knobNames.map(quoted).join(", ")}]
 `)

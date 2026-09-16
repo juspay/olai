@@ -28,9 +28,9 @@ import { describe, expect, test } from "bun:test";
 import { registerServerTools } from "./wire.mjs";
 import { serverToClientPlan } from "./naming.js";
 
-/** One module out of the PIN'S own tree — `acp/node_modules/…`, five
- *  directories up, which is where `npm ci` under the shim puts it. */
-const pinned = (spec) => new URL(`../../../../../acp/node_modules/${spec}`, import.meta.url);
+/** One module out of the PIN'S own tree — the pi shim's `node_modules`, one
+ *  directory up, which is where `npm ci` in `acp/shim/` puts it. */
+const pinned = (spec) => new URL(`../shim/node_modules/${spec}`, import.meta.url);
 
 const { Client } = await import(pinned("@modelcontextprotocol/sdk/dist/esm/client/index.js").href);
 const { McpServer } = await import(pinned("@modelcontextprotocol/sdk/dist/esm/server/mcp.js").href);

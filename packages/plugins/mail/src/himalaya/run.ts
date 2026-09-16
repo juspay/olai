@@ -5,7 +5,8 @@
  * ## The binary is a resource this build owns
  *
  * `env.vars.OLAI_HIMALAYA` holds one absolute path, baked on the packaged
- * wrapper by `default.nix` from the npins pin. Nothing here resolves a binary:
+ * wrapper by this plugin's own `default.nix` (the `OLAI_HIMALAYA` knob) from
+ * the npins pin. Nothing here resolves a binary:
  * there is no `which`, no PATH walk, no `HIMALAYA_*` environment a person can
  * point somewhere, and a serve that was not started from the Nix build (a plain
  * `bun packages/server/src/main.ts`, say) has no path at all — which is a FAULT

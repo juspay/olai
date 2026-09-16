@@ -492,7 +492,7 @@ a plugin import it.
 | Fact | Detail |
 | --- | --- |
 | What is generated | [`generate.ts`](../../packages/bundle/generate.ts) writes, from the rows: the browser's row table with a dynamic `import()` per plugin, the stylesheet chain, and the merged testid table with its pairwise disjointness proof |
-| Where it lives | all three are gitignored and produced by `just install` and by the nix build in its own sandbox, beside the tenants' marks, so a packaged build cannot ship a stale copy |
+| Where it lives | all three are gitignored and produced by `just install` and by the nix build in its own sandbox, beside the tenants' marks, so a packaged build cannot ship a stale copy. On the Nix side each plugin whose tree gets a generated file — a mark, a probe — declares it in its own `default.nix`'s `generated` map, and the fold writes it into that plugin's directory |
 | What it replaced | the browser kept two hand-written `as const` arrays for one release, held equal to the rows by a `rosters.test.ts`. That test recorded the duplication rather than removing it, and it is deleted with the lists |
 | Why the specifier is a literal | it makes each plugin its own JS chunk: a plugin the roster does not name is never fetched, never evaluated and registers nothing. kolu's terminal emulator is 336 KB a machine not running kolu never downloads |
 
@@ -818,6 +818,11 @@ docs line, step 4), and no general package changes at all.
   shortcut.
 - Never declare `@olai/bundle` (it imports you), or `@olai/effect-cordis` and
   `cordis` (the engine, one package's business).
+- A plugin with slow tests records its relative share in its own
+  `test-weights.json` at the package root — a `{ "<repo-relative path>":
+  seconds }` map — because sharding is the harness's and the timings are the
+  tests'. A plugin that gets slow enough to matter adds its own file rather
+  than rebalancing someone else's.
 
 ### 1. `src/wire.ts`
 
@@ -928,11 +933,49 @@ appliance olai has a judgement about. Smaller shape, same rules.
 - If olai ships an adapter for it, the volatile packaging belongs in
   `packages/plugins/<name>/acp/`: patches and their rigs always, plus a
   standalone lock and derivation when the adapter has its own release and
-  platform clock (Codex). The older Claude/Pi pair still shares the root `acp/`
-  shim and the rows in `nix/acp-agent.nix`; that directory's README says why.
+  platform clock (Codex). A **shipped adapter is a plugin's own `acp/`** with
+  its own shim and lock: the plugin's `default.nix` declares the adapter via
+  `@olai/plugin-kit`'s `npmAdapter` (or a standalone `acp/default.nix`, as
+  Codex keeps), and the root never names a plugin's adapter directly. The
+  shared `acp/` shim's *why one lockfile* argument lives in each engine's
+  `patches/README.md`.
 - **The order of the engine rows is load-bearing**, unlike a tenant's: it is the
   order the picker draws and the install screen lists, and the first row is what
   a conversation note naming no agent is read as being about.
+
+### 7. If the plugin ships a binary, a pin or a generated file: `default.nix`
+
+An optional `packages/plugins/<name>/default.nix` is the plugin's Nix half,
+folded by `packages/bundle/default.nix`; a plugin without one simply has no Nix
+half (thirty-six of forty-one). It is `{ pkgs, pins, kit, b2n ? null }: { ... }`
+and returns a contract attrset, every key optional and any other key refused by
+name:
+
+| Key | Meaning |
+| --- | --- |
+| `hydrate` | sources copied into `node_modules/<dest>` after `bun install` |
+| `externals` | the npm externals those sources need at the root |
+| `koluSeeds` / `koluPins` | the kolu seeds this plugin's source imports and their closure grafts |
+| `generated` | files written into the plugin's own tree; the path must contain `.generated.` |
+| `npmTrees` | directories `just install` runs `npm ci` in, for a node_modules a test resolves |
+| `knobs` | the executable variables the packaged wrapper bakes as `--set-default` (the engine rows: `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`, `OLAI_ODU_BIN`) |
+| `packages` | flake outputs this plugin contributes (`claude-agent`, `pi-agent`, `codex-agent`, `odu-bin`, …) |
+| `checks` | checks that need the built tree, as `checks.<system>.plugin-<name>-<check>` |
+
+This is the engine's binary door: an engine's adapter is built by its own
+`default.nix` reaching `@olai/plugin-kit`'s `npmAdapter` (or by
+`acp/default.nix`, as Codex keeps), and a generated mark or pin is that
+plugin's `generated`/`packages` entry. Nothing outside the plugin's directory
+names any of it.
+
+### 8. If the plugin is an engine: `e2e/fake/`
+
+An engine's scripted e2e fake lives in its own directory, at
+`packages/plugins/<name>/e2e/fake/`: an `index.ts` descriptor (whose type is
+`@olai/tests`' `./harness/fake.ts`) plus the executable(s) the harness spawns.
+`packages/tests/agent/` keeps only the engine-agnostic core
+(`scripted-acp.ts`); the harness reaches the fakes through the generated
+`@olai/bundle/e2e-fakes` roster, never by name.
 
 Then run `bun test packages/bundle` and let the fence tell you what you got
 wrong. It will be specific.
@@ -951,6 +994,10 @@ Every claim on this page is a test. If you break one, the failure names the file
 | --- | --- |
 | `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests); no general package **spells** a plugin name in production code; a plugin imports the interface, never the registry, and does import the interface; the services door pulls in no browser component; `packages/plugins/` holds the plugins and nothing else, both directions; and **no module another package can open holds a live value** — no module-scope `let`, no Solid signal or `heldService`/`heldFaces` created at module load, no state-bearing IIFE or instance of a locally declared class, no `const` the module writes into. It walks every cross-package subpath, and for general packages the implementation behind them too, since a `let` one import away is state the door does not show. A plugin's contract doors get the same walk; its `./browser` does not, because the bundle opens that to mount the plugin rather than to read values out of it. Allowed exceptions are named with a reason each (the audit's §12). Fixtures hold every prohibited shape beside the legitimate one it is easiest to confuse with, aliases and namespace imports included |
 | `scripts/prove-fence.sh` | that the fence and the mechanics lint go red when they should. Not a `just check` leg: it mutates tracked files and restores them, and `check` runs its legs in parallel. Run it when the fence changes — a fence that stopped running looks exactly like a fence that is passing |
+| `packages/bundle/src/fence.test.ts`, the describe *a plugin stays in its directory, outside the source graph too* | the Nix side of the same rule: no `*.nix`, `justfile`, `shell.nix`, root `default.nix`/`flake.nix`, `scripts/*` or `packages/tests/support/**`/`packages/tests/agent/**` file outside `packages/plugins/` contains the path `packages/plugins/`, and none spells a plugin's word as an identifier, path segment, tag literal or variable. A plugin's word is recorded in two shapes — the bare casing-folded word (code only: comments stripped) and the env-shaped knob `<name>#knob` drawn from its `olai.knobs` manifest (raw text: a comment naming `OLAI_ODU_BIN` is a spelling) — so an `odu` allowance can never mask a planted `OLAI_ODU_BIN`. `scripts/prove-fence.sh`'s three mutations (a `packages/plugins/odu` path in `default.nix`, `OLAI_ODU_BIN` in the `justfile`, `"@pi"` in `hooks.ts`) must all go red |
+| `packages/bundle/src/knobs.test.ts` | every plugin manifest with `olai.knobs` has those keys equal to the resource keys its `./server` module's `environment` declares, a plugin without one declares no `OLAI_*` executable resource, and every `olai.knobs` value is `file` or `dir` — one fact, three readers |
+| `checks.plugin-fold` (`packages/bundle/nix/fold-check.nix`) | evaluates the fold over fixture containers under `packages/bundle/nix/fixtures/` and refuses, each by name: a plugin with no `default.nix` is accepted; an unknown key, a generated path without `.generated.`, two plugins claiming one knob, one flake name or one hydrate destination, and a knob/message mismatch each name both plugin and rule |
+| the `plugin-checks` recipe (and `checks.<system>.plugin-<name>-<check>`) | the per-plugin checks that need the built tree, exposed by the fold (`plugin-odu-surface` probes the pinned binary); run by `just nix` (and its assertions lane) against the fold, not against hand-written names |
 | `packages/bundle/src/mechanics.test.ts` | olai hand-writes no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim: the shared reading the two files above stand on (workspace members, manifests, sources, module graph), written once |
 | `packages/bundle/src/report.test.ts` | what became of each row on a real runtime — a row nothing mounted reads `off`, a failed `apply` reads `failed` and carries the plugin's own message verbatim, a row short of a named service reads `waiting`. These are the words the panel's five are composed from |

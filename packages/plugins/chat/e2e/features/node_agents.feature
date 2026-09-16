@@ -292,7 +292,7 @@ Feature: A node with an `agent-session` property IS an agent
   # context intact.
   #
   # These scenarios run on a serve whose agent has TWO stored conversations, one
-  # of them a `/clear` behind the other (`agent/fake-acp-agent.ts`) — which is
+  # of them a `/clear` behind the other (the scripted agent, `@olai/tests/agent/scripted-acp.ts`) — which is
   # what makes the chain assertable — and the panel comes up in the newer of
   # them, which is the state a person migrating is actually in: talking in a
   # chat that belongs to nobody.

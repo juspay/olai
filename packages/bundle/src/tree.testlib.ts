@@ -254,6 +254,7 @@ export const cssImportsOf = (text: string): ReadonlyArray<string> =>
  *  `packages/tests` 109, neither with a single `node_modules` entry. */
 export const sourcesUnder = (dir: string): ReadonlyArray<string> =>
   [...new Bun.Glob("**/*.{ts,tsx,css}").scanSync({ cwd: dir })]
+    .filter((found) => !found.includes("node_modules"))
     .map((found) => path.join(dir, found))
     .sort()
 

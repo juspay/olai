@@ -1,0 +1,10 @@
+{
+  "name": "olai-acp-claude",
+  "version": "0.1.0",
+  "private": true,
+  "description": "claude's ACP adapter shim",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.73.0"
+  }
+}

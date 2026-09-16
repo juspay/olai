@@ -747,11 +747,10 @@ describe("only the registry knows a plugin's name", () => {
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: [
-      "tests/agent/fake-acp-agent.ts: olai-plugin-claude/testlib",
-      "tests/agent/fake-acp-agent.ts: olai-plugin-codex/testlib",
-      "tests/agent/omp/omp.ts: olai-plugin-omp/testlib",
-      "tests/agent/opencode/opencode.ts: olai-plugin-opencode/testlib",
-      "tests/agent/pi/pi-acp.ts: olai-plugin-pi/testlib",
+      // The five engine fakes used to live under tests/agent/ and import
+      // each engine's /testlib. Section 13.3 moved each into its own
+      // plugin's e2e/fake/, where the engine naming ITSELF is no longer a
+      // spread — those rows are gone from this record, by construction.
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
       "tests/support/hooks.ts: olai-plugin-mail/appliance/testlib",
       "tests/support/hooks.ts: olai-plugin-odu/appliance/testlib",
@@ -810,7 +809,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-claude", "olai-plugin-codex", "olai-plugin-kolu", "olai-plugin-mail", "olai-plugin-odu", "olai-plugin-omp", "olai-plugin-opencode", "olai-plugin-outlines", "olai-plugin-pi"],
+    tests: ["olai-plugin-chat", "olai-plugin-kolu", "olai-plugin-mail", "olai-plugin-odu", "olai-plugin-outlines"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
@@ -1312,32 +1311,17 @@ const TIERS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
 const TENANT_MEMBERS: ReadonlySet<string> = new Set([...TENANTS.values()].flatMap((m) => [...m]))
 
 /**
- * THE ONE RECORDED BREACH, and it is recorded rather than excused.
+ * Product tier inside tenant — the fence is plain text.
  *
- * `packages/tests/geometry/harness.tsx` mounts kolu's own `DockRow` and
- * `StatePip` and folds a padi record with `activePr` — product tier, in the one
- * package that sits above every other. It is not new; it is what the header of
- * this file means by "sat in its geometry harness with `just check` green",
- * because `packages/<name>/src` never looked at `packages/tests`, the only member
- * with no `src/`. Its own header calls it "not part of any suite and not
- * shipped" — a one-off driver for a shot the human asked to SEE — and where it
- * belongs under this architecture is behind `olai-plugin-kolu`, whose faces
- * those are.
- *
- * Held as an EQUALITY, which is the difference between a debt and an exception:
- * a fifth import in that harness is red, a breach in any other file is red, and
- * the day the harness moves this entry is red until it is deleted. An
- * `expect(...).toEqual([])` with a path filtered out in front of it would be
- * none of those things.
+ * The one recorded breach used to be `packages/tests/geometry/harness.tsx`, a
+ * one-off shot driver sat in the package above every other with kolu's own
+ * `DockRow`/`StatePip` mounted. The harness moved into
+ * `packages/plugins/kolu/e2e/geometry/` with the tenant that owns those faces,
+ * so the entry is gone with the file's old home: the harness now reads its own
+ * tenant's modules and there is nothing left to record. A breach of this fence
+ * in any file is red, with no exceptions.
  */
-const DEBT: Readonly<Record<string, ReadonlyArray<string>>> = {
-  tests: [
-    "tests/geometry/harness.tsx: @kolu/padi-client/surface",
-    "tests/geometry/harness.tsx: @kolu/solid-dockrow",
-    "tests/geometry/harness.tsx: @kolu/solid-dockrow/rowValues",
-    "tests/geometry/harness.tsx: @kolu/solid-statepip",
-  ],
-}
+const DEBT: Readonly<Record<string, ReadonlyArray<string>>> = {}
 
 describe("an appliance's product tier stays inside its tenant", () => {
   test("the tenants are exactly what is written down here", () => {
@@ -1696,8 +1680,16 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
   }
   // Built ONCE per plugin rather than once per file: the filter below runs it
   // across the whole compiled corpus, which was fourteen hundred `RegExp`
-  // constructions a run for two distinct patterns.
-  const spelling = (name: string) => new RegExp(`\\b(?:${casings(name).join("|")})`)
+  // constructions a run for two distinct patterns. Two spellings per plugin:
+  // the three-casing word shape, and the `OLAI_<NAME>_*` env-var shape the
+  // seeded harness knobs take — `\\b` refuses the underscore before `ODU` in
+  // `OLAI_ODU_BIN`, which is exactly the spelling the mutation plants, so the
+  // env shape gets its own pattern with the underscore promoted to a real
+  // boundary.
+  const spelling = (name: string) => new RegExp(
+    `\\b(?:${casings(name).join("|")})` +
+    `|(?:^|[^A-Za-z0-9])OLAI_${name.toUpperCase()}(?![A-Z0-9])`
+  )
   const SPELLING = new Map(PLUGIN_NAMES.map((name) => [name, spelling(name)]))
   const spellingOf = (name: string) => SPELLING.get(name) ?? spelling(name)
 
@@ -2358,4 +2350,299 @@ test("outline formats never reach their registry and git/chat never select the O
     expect(sources.length).toBeGreaterThan(0)
     for (const source of sources) expect(source.specs.filter(spec => spec === "olai-plugin-outline-olai" || spec.startsWith("olai-plugin-outline-olai/"))).toEqual([])
   }
+})
+
+
+/**
+ * A PLUGIN STAYS IN ITS DIRECTORY, OUTSIDE THE SOURCE GRAPH TOO — the Nix half
+ * of the plugin-isolation fence, claim 9 of the plan (section 9 there).
+ *
+ * The TS claims above read a graph of who IMPORTS whom. This claim reads the
+ * tree as TEXT, because a plugin's Nix half and its dev-loop facts used to
+ * spread into files that no module graph sees: `default.nix`, `shell.nix`,
+ * `flake.nix`, `npins/`, `scripts/*`, the `justfile` and the e2e harness under
+ * `packages/tests/{support,agent}`. A plugin's directory is the one place it
+ * may know itself, so the fence is over the inverse: every such file OUTSIDE
+ * `packages/plugins/`, with `#` and `//` comments stripped, may not (1) contain
+ * the path `packages/plugins/`, nor (2) spell a plugin's word as an identifier,
+ * path segment, tag literal or variable.
+ *
+ * The corpus is exactly the shapes the spreads historically landed in: every
+ * `*.nix`, `justfile`, `shell.nix`, `default.nix`, `flake.nix`, `scripts/*`,
+ * and `packages/tests/support/**` / `packages/tests/agent/**`, all outside
+ * `packages/plugins/`. It is walked from {@link REPO} at read time rather than
+ * listed here, so a file that stops existing is red (removed from the corpus it
+ * was meant to guard) and a file that starts being one is swept — the same
+ * rule claim 8's walk has.
+ */
+describe("a plugin stays in its directory, outside the source graph too", () => {
+  /** THE CORPUS, as `REPO`-relative paths, walked once. A `*.nix` anywhere, the
+   *  four Nix doors and the `justfile` at any depth a spread could sit, and
+   *  everything under `scripts/` and the two `packages/tests` trees the e2e
+   *  harness keeps its fakes and steps in. `packages/plugins/` is the subject
+   *  of the fence, so it is excluded whole — a plugin is the one thing that MAY
+   *  know itself. */
+  const corpus = ((): ReadonlyArray<string> => {
+    const out: string[] = []
+    const norm = (p: string): string => p.split("\\").join("/")
+    // Directories a walk must not enter: the vendored and derived trees that
+    // would add a thousand `.nix` files that are nobody's spread. `bun.nix`
+    // (a FILE, listed beside them) is excluded by name in the selection below
+    // for plan section 1.3's reason: it enumerates every workspace member from
+    // `bun.lock`, and a lockfile-derived member list is not a spread.
+    const SKIP: Record<string, true> = {
+      node_modules: true,
+      ".git": true,
+      ".worktrees": true,
+      dist: true,
+      result: true,
+    }
+    const walk = (dir: string, rel: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const at = path.join(dir, entry.name)
+        const here = rel === "" ? entry.name : `${rel}/${entry.name}`
+        if (entry.isDirectory()) {
+          if (SKIP[entry.name] || norm(here) === "packages/plugins") continue
+          walk(at, here)
+          continue
+        }
+        if (!entry.isFile()) continue
+        const file = norm(here)
+        if (
+          // THE FALSIFIER IS ITS OWN EXCEPTION. `scripts/prove-fence.sh` is the
+          // harness that BREAKS these exact paths to prove the fence is not
+          // quietly not-running — its mutations plant `packages/plugins/...`
+          // and `OLAI_ODU_BIN` into `default.nix`, the `justfile` and
+          // `hooks.ts`. It is therefore a member of `scripts/*` by shape and
+          // the one script that MUST name the very paths this describe forbids,
+          // so it is excused whole: a falsifier that could not write the defect
+          // it exists to detect would prove nothing.
+          file === "scripts/prove-fence.sh" ||
+          file === "bun.nix" ||
+
+          // The subject of the fence, selected so it is swept by shape and then
+          // excluded whole — a plugin is the one thing that may know itself.
+          file.startsWith("packages/plugins/")
+        ) {
+          continue
+        }
+        if (
+          // A `*.nix` at the ROOT (where the compose lives, including `nix/`), or
+          // in the registry's own `packages/bundle/nix/` — both places a
+          // spread has landed. NOT a per-package `default.nix` (those name
+          // plugins by construction), NOT the bundle's own fixtures (paths
+          // named `pins`/`plugin-a` are their content), NOT the vendored
+          // `npins/` derivation.
+          (file.endsWith(".nix") && (
+            !file.includes("/") ||
+            file === "packages/bundle/default.nix" ||
+            file.startsWith("nix/") ||
+            (file.startsWith("packages/bundle/nix/") && !file.includes("/fixtures/"))
+          )) ||
+          file === "justfile" ||
+          file === "shell.nix" ||
+          file === "flake.nix" ||
+          file.startsWith("scripts/") ||
+          // The harness corpus is the FILES section 13.3 touches: the six the
+          // fold REWRITES (hooks.ts, workers.ts, world.ts as it is read by
+          // those two), the generic core the per-engine fakes now call, and
+          // the descriptor type's door. The wider `support/` tree — selectors,
+          // testids, paints, scratch — is UI-vocabulary by design (the harness
+          // names a tab `chat`, a fixture `vault`, an outline `outlines`), so
+          // words there are not a spread, and fencing them would rewrite the
+          // step definitions rather than guard the boundary.
+          // The harness corpus is IN both claims for hooks.ts and workers.ts,
+          // because the plan's `prove-fence` mutations land there, and OUT of
+          // claim 2's corpus for the rest: `fake.ts`, `scripted-acp.ts`,
+          // `world.ts` and the engine-specific native-activity /
+          // session-store modules name the plugins they are fakes OF, by
+          // design. They remain in claim 1's corpus, since the path
+          // `packages/plugins/` is a spread anywhere outside its own tree.
+          file === "packages/tests/support/hooks.ts" ||
+          file === "packages/tests/support/workers.ts" ||
+          // harness files kept in claim 1 only:
+          file === "packages/tests/support/fake.ts" ||
+          file === "packages/tests/agent/scripted-acp.ts" ||
+          file === "packages/tests/agent/command.ts" ||
+          file === "packages/tests/agent/session-store.ts" ||
+          file === "packages/tests/agent/native-activity.ts"
+        ) {
+          out.push(file)
+        }
+      }
+    }
+    walk(REPO, "")
+    return out.sort()
+  })()
+
+  const stripped = (file: string): string =>
+    readFileSync(path.join(REPO, file), "utf8")
+      // Strip block comments in one pass before line splitting so a
+      // `/** ... packages/plugins/x ... */` doesn't survive as a "path" hit.
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .split("\n")
+      .map((line) => line.replace(/\s*#.*$/, "").replace(/\s*\/\/.*$/, ""))
+      .join("\n")
+
+
+
+  /** THE WORDS A FILE OUTSIDE `packages/plugins/` MAY SPELL, and why — the
+   *  record section 9 names, held as an EQUALITY the way claim 8's `NOT_A_PLUGIN`
+   *  is held: red the day a record's word stops being a plugin, red the day a
+   *  word appears outside its record. `//`-prefixed keys are reasons, skipped
+   *  by the assertions; real keys are corpus files, values the plugin words
+   *  it may spell. */
+  const ALLOWED: Record<string, ReadonlyArray<string> | string> = {
+    "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu",
+    "nix/kolu.nix": ["kolu", "mcp"],
+    "// justfile": "kolu-deps names the framework pin; git/odu are tool names, files/pins are recipe names",
+    "justfile": ["git", "kolu", "odu", "files", "pins"],
+    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary; the comments enumerate the wrapper-baked knobs (OLAI_ACP_*, OLAI_ODU_BIN, OLAI_HIMALAYA) so the wrap text explains itself",
+    "default.nix": ["claude#knob", "codex#knob", "pi#knob", "kolu", "odu#knob", "mail#knob", "pins"],
+    "// flake.nix": "the flake folds plugin Nix halves as flake outputs through the fold (kolu is the npins source name)",
+    "flake.nix": ["kolu"],
+    "// packages/bundle/default.nix": "the bundle fold names the framework's surface pin and the bundle's pin vocabulary",
+    "packages/bundle/default.nix": ["kolu", "pins"],
+    "// packages/bundle/nix/fold-check.nix": "asserts fixture containers named after bundle vocabulary",
+    "packages/bundle/nix/fold-check.nix": ["pins"],
+    "// nix/home/*.nix": "home-manager module's option names (a user's outlines directory) and one mention of a plugin by word (opencode's env key in an error string)",
+    "nix/home/check.nix": ["settings", "outlines"],
+    "nix/home/module.nix": ["opencode", "outlines"],
+    "// scripts/check-hydrated-deps.sh": "names the pins directory the framework hydrate writes into",
+    "scripts/check-hydrated-deps.sh": ["pins"],
+    "// scripts/cordis-graph.ts": "walks plugin words to draw the cordis graph",
+    "scripts/cordis-graph.ts": ["ui-renderer", "layout"],
+    "// scripts/test-shard.sh": "spells the git CLI and one odu-shaped perf bucket; per-member heavy-test weights come from each member's own test-weights.json",
+    "scripts/test-shard.sh": ["git", "odu", "files"],
+    "// shell.nix": "the dev shell carries OLAI_KOLU_HYDRATE / OLAI_KOLU_EXTERNALS — harness constants outside any plugin's `olai.knobs`; the vault's OSS_OLAI_VAULT workspace import does not match `OLAI_VAULT` and is not a knob spelling",
+    "shell.nix": ["kolu", "pins"],
+    "// packages/tests/support/hooks.ts": "the e2e harness's per-tag setup spells the plugins its scenario tags drive (`@alerts`, `@markdown-paints`), the tool suites it exercises (git, files, search, capture), and the worker constants it seeds; its comments name OLAI_HIMALAYA so the mail row's knob counts. Section 13.3's prove-fence mutation (the `@pi` tag) lands here, so the file is checked, not blanked",
+    "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "mail#knob", "files", "capture", "markdown"],
+    "// packages/tests/support/workers.ts": "the e2e harness's isolation loop reads the fold-derived KNOBS list and deletes every declared knob the wrapper could have baked; the mail row's door names travel beside it",
+    "packages/tests/support/workers.ts": ["git", "odu", "mail", "mail#knob"],
+  }
+
+
+  /** The word, spelled as a path identifier the way claim 8's `namesAPlugin`
+   *  reading fenced code, in the three casings an identifier or a variable is
+   *  written in. The SHOUTED casing carries no leading `\b`, and that is the
+   *  deliberate widening: a macro or a capital run sits after an underscore
+   *  (`OLAI_ODU_BIN`, `ODU_SHARD_INDEX`) where claim 8's `\b`-anchored pattern
+   *  sees no boundary, and a variable IS a spelling the mutation plants. The
+   *  trailing rule is claim 8's: anything not `[a-z0-9]` (lower) / `[A-Z0-9]`
+   *  (shouted) ends the word, so `opencode`, `KoluHalf` and `OLAI_ODU_BIN`
+   *  count and `pin`, `PINNED` and `pipeline` do not. */
+  const casings = (name: string): ReadonlyArray<string> => {
+    const capital = `${name.charAt(0).toUpperCase()}${name.slice(1)}`
+    return [
+      `\\b${name}(?![a-z0-9])`,
+      ...(capital === name ? [] : [`\\b${capital}(?![a-z0-9])`]),
+      `(?<![A-Z0-9])${name.toUpperCase()}(?![A-Z0-9])`,
+    ]
+  }
+  const SPELLING = new Map(PLUGIN_NAMES.map((name) => [name, new RegExp(casings(name).join("|"))]))
+
+  test("the corpus is walked, and it is not the whole tree", () => {
+    // A walk that returned nothing would pass every claim below over an empty
+    // set — the one failure mode a sweep cannot be allowed to have. The two
+    // guards are the two directions it could come back short: a selection that
+    // never matched, or a walk that stopped at a directory. The bundle's own
+    // fold is the minimum a Nix-shaped corpus must contain, and the `scripts`
+    // tree is the dev-loop half of the same claim.
+    expect(corpus.length).toBeGreaterThan(10)
+    expect(corpus).toContain("packages/bundle/default.nix")
+    expect(corpus.some((file) => file.startsWith("scripts/"))).toBe(true)
+  })
+
+  test("claim 1: no file outside packages/plugins contains the path itself", () => {
+    // The fold is the one exception, which section 12 of the plan names: the
+    // registry's `default.nix` is allowed to spell the container because it IS
+    // the composition. `scripts/cordis-graph.ts` is the second: it exists to
+    // draw the rows, so its walk starts from the container by design. The
+    // himalaya check half moved into the mail plugin's `default.nix` as a
+    // sandboxed `checks.surface` — no root script spells the plugin path any
+    // more, and no root file is on this list.
+    const PATH_ALLOWED: Record<string, true> = {
+      "packages/bundle/default.nix": true,
+      "scripts/cordis-graph.ts": true,
+    }
+    const offenders = corpus.filter((file) => PATH_ALLOWED[file] !== true
+      && stripped(file).includes("packages/plugins/"))
+    expect(offenders).toEqual([])
+  })
+
+  test("every recorded allowance names a real corpus file and a real plugin word", () => {
+    // A recorded allowance naming a file that is not in the corpus is an
+    // allowance nobody can retire, and it would forgive the next breach in that
+    // file in silence. A word that stopped being a plugin is the same defect,
+    // read from the other side.
+    for (const [file, words] of Object.entries(ALLOWED)) {
+      if (file.startsWith("//")) continue
+      expect([file, corpus.includes(file)]).toEqual([file, true])
+      for (const word of words) {
+        // The `<name>#knob` entries are the env-shape record: accepted iff
+        // `<name>` is a real plugin.
+        const base = word.endsWith("#knob") ? word.slice(0, -"#knob".length) : word
+        expect([word, PLUGIN_NAMES.includes(base)]).toEqual([word, true])
+      }
+    }
+  })
+
+  test("claim 2: no file outside packages/plugins spells a plugin's word", () => {
+    // The equality claim, over every corpus file at once so one moved file
+    // cannot mask a second breach. The record holds BARE-WORD spellings
+    // (`odu` the tool in the justfile); the env-shaped knob `OLAI_<NAME>_*`
+    // is tracked SEPARATELY as `"<name>#knob"` because a plugin's knob in a
+    // root file is its own defect — the bare-word `odu` record for the
+    // justfile would otherwise mask `OLAI_ODU_BIN` planted there, which is
+    // exactly what prove-fence mutation 24 plants.
+    const HARNESS: Record<string, true> = {
+      "packages/tests/support/fake.ts": true,
+      "packages/tests/agent/scripted-acp.ts": true,
+      "packages/tests/agent/command.ts": true,
+      "packages/tests/agent/session-store.ts": true,
+      "packages/tests/agent/native-activity.ts": true,
+    }
+    // The knobs live in the manifests — `olai.knobs`'s keys are the exact
+    // `OLAI_*` variables a plugin owns. Match any of them as its PLUGIN'S
+    // knob entry (file → `<name>#knob`), so the mail row's `OLAI_HIMALAYA`
+    // is `mail#knob` even though the name does not contain "mail".
+    const knobEntries: Array<{ name: string; knobs: RegExp }> = PLUGIN_NAMES.map((name) => {
+      const pkgPath = path.join(REPO, "packages/plugins", name, "package.json")
+      if (!existsSync(pkgPath)) return { name, knobs: /$^/ }
+      const manifest = JSON.parse(readFileSync(pkgPath, "utf8")) as { olai?: { knobs?: Record<string, unknown> } }
+      const keys = Object.keys(manifest.olai?.knobs ?? {})
+      if (keys.length === 0) return { name, knobs: /$^/ }
+      return {
+        name,
+        knobs: new RegExp(`(?:^|[^A-Za-z0-9])(?:${keys.join("|")})(?![A-Z0-9])`),
+      }
+    })
+    const actual = Object.fromEntries(corpus.map((file) => {
+      if (HARNESS[file] === true) return [file, []]
+      // Bare words live in code: comments are stripped so `# what koluDeps`
+      // does not count as a spelling of `kolu`. A knob's exact name keeps
+      // the comments too — `OLAI_ODU_BIN` is a token nobody spells without
+      // meaning the variable, so a comment that names it IS a spelling of
+      // the plugin's knob and must count against the record.
+      const text = stripped(file)
+      const raw = readFileSync(path.join(REPO, file), "utf8")
+      const hits = PLUGIN_NAMES.flatMap((name) => {
+        const out: string[] = []
+        if (casings(name).some((c) => new RegExp(`\\b${c}`).test(text))) out.push(name)
+        const entry = knobEntries.find((e) => e.name === name)
+        if (entry && entry.knobs.test(raw)) out.push(`${name}#knob`)
+        return out
+      })
+      return [file, hits]
+    }))
+    const expected = Object.fromEntries(corpus.map((file) => [
+      file,
+      // `//`-prefixed entries are reasons, not rows — the test walks corpus
+      // files, so a real file's value is its word array by construction, and
+      // the type is widened only so the reasons may sit beside the rows.
+      [...(typeof ALLOWED[file] === "string" ? [] : (ALLOWED[file] ?? []))],
+    ]))
+    expect(actual).toEqual(expected)
+  })
 })

@@ -28,20 +28,19 @@ set -euo pipefail
 #     bash packages/plugins/claude/acp/session-list-info/regenerate.sh
 
 # WHERE THIS RIG SITS, since the agents phase moved it: this directory is
-# `packages/plugins/claude/acp/session-list-info/`, so the plugin's own `acp/`
-# is one up and the REPOSITORY is four. The npm shim whose lockfile pins the
-# version is still the shared one at the repository root (`acp/README.md` says
-# why one lockfile carries two adapters).
+# `packages/plugins/claude/acp/session-list-info/`, so the plugin's own
+# `acp/shim/` is two up (this dir → acp → shim) and the REPOSITORY is five.
+# The claude shim whose lockfile pins the version is this plugin's own
+# `acp/shim/package-lock.json`, one lockfile per engine since the split.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo="$(cd "$here/../../../../.." && pwd)"
 facts="$here/facts.js"
 out="$here/../patches/session-list-info.patch"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-version="$(jq -r '.packages["node_modules/@agentclientprotocol/claude-agent-acp"].version' "$repo/acp/package-lock.json")"
+version="$(jq -r '.packages["node_modules/@agentclientprotocol/claude-agent-acp"].version' "$here/../shim/package-lock.json")"
 if [[ -z "$version" || "$version" == "null" ]]; then
-  echo "no pin found in acp/package-lock.json" >&2
+  echo "no pin found in acp/shim/package-lock.json" >&2
   exit 1
 fi
 curl -sfSL "https://registry.npmjs.org/@agentclientprotocol/claude-agent-acp/-/claude-agent-acp-$version.tgz" -o "$work/pkg.tgz"

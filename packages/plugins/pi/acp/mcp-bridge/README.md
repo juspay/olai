@@ -26,11 +26,14 @@ The adapter's own advertised `mcpCapabilities` is the testable witness: `{ http:
 
 ## Bumping the pin
 
-Bump the `pi-acp` line in `acp/package.json`. Then:
+Bump the `pi-acp` line in `acp/shim/package.json`. Then:
 
-1. `cd acp && npm install --package-lock-only --ignore-scripts` — the lockfile first.
-2. `bash packages/plugins/pi/packages/plugins/pi/acp/mcp-bridge/regenerate.sh` — the patch re-baseline.
-3. Set `npmDepsHash` to `lib.fakeHash` in `nix/acp-agent.nix`, build, paste the hash it prints.
+1. `cd acp/shim && npm install --package-lock-only --ignore-scripts` — the
+   lockfile first.
+2. `bash packages/plugins/pi/acp/mcp-bridge/regenerate.sh` — the patch
+   re-baseline.
+3. Set `npmDepsHash` to `lib.fakeHash` in `default.nix` beside this plugin
+   (the `npm-adapter.nix` call), build, paste the hash it prints.
 4. Re-verify the four anchors the patch notes (the spawn args, both spawn call sites, mcpCapabilities) and the tests.
 
 **`-F0` at the build is the guarantee**: it fails loudly on the moved anchor instead of glue-pasting it somewhere nearby.

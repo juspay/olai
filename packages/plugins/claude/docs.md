@@ -28,7 +28,11 @@ Each of these is a bet on the pinned adapter, and every one of them is safe to l
 
 ## The adapter, and its patches
 
-`nix/acp-agent.nix` builds the pinned adapter from a committed lockfile: nothing is fetched at build time and no `npx` runs at start. Two patches ride that pin and both live in this plugin's own directory ([`acp/patches/`](https://github.com/juspay/olai/tree/master/packages/plugins/claude/acp/patches)):
+`default.nix` beside this plugin builds the pinned adapter from a committed
+lockfile — through `@olai/plugin-kit`'s `npm-adapter.nix` over the shared
+`acp/` shim — so nothing is fetched at build time and no `npx` runs at start.
+Two patches ride that pin and both live in this plugin's own directory
+([`acp/patches/`](https://github.com/juspay/olai/tree/master/packages/plugins/claude/acp/patches)):
 
 - **background tasks are visible** — the adapter drops the frames that say a call armed a background task, so the strip above the transcript could not draw one;
 - **`session/list` carries its `_meta`** — the count and the superseded-by pointer the picker's rows draw.
