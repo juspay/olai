@@ -320,7 +320,7 @@ const serving = (options: ServeOptions, logging: Effect.Success<typeof liveLevel
         // line is not a missing resource but an empty bundle:
         // `serveSurfaceAsMcp` would be handed no siblings and the served face
         // would publish no `surface://` URI at all.
-        agentRows: () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] })),
+        agentRows: () => wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter })),
         agentRosterMoved: wired.bound.rosterMoved,
         writeReservations: WRITE_RESERVATIONS,
     }));

@@ -542,6 +542,36 @@ export interface Sibling {
    * brought it.
    */
   readonly tools?: ReadonlyArray<unknown>
+  /**
+   * THIS ROW'S SENTENCE TO AN AGENT — one paragraph of what the row IS to a
+   * caller as an application rather than as a set of verbs, and, like
+   * {@link tools}, present only while the row is standing.
+   *
+   * The prose twin of `tools`. `olai-plugin-mcp` composes the two the same
+   * way: `initialize`'s `instructions` is its own transport paragraph followed
+   * by every standing row's charter, read off the roster at each host
+   * connection, so a sentence leaves with its row for the reason a verb does.
+   * A row that is off has no verbs on the list and no sentence in the text.
+   *
+   * IT WAS ONE STATIC STRING IN `@olai/surface`, and that was the tools table
+   * in `@olai/ops` again in words: core asserting that a person reads the
+   * answer in a chat panel, that a backticked id there is pressable, that a
+   * link is followed in place — every one of them `olai-plugin-chat`'s
+   * behaviour, on a serve that may run `mcp` with no `chat` row at all
+   * (`@olai/server`'s `mcp/face.test.ts` mounts exactly that), and to an
+   * external host that dials `/mcp` with no panel anywhere. A charter an agent
+   * can disprove teaches that the rest of the text is decoration; this field is
+   * what lets the sentence be true, because the row that makes it true is the
+   * one that says it.
+   *
+   * ABSENT ON MOST ROWS, and that is the ordinary case: a row whose whole
+   * contribution is verbs is already described by them. Only a row that owns a
+   * fact about where an agent's words LAND — who reads them, what is pressable
+   * — has a paragraph to add, and it is one paragraph: Claude Code truncates
+   * server instructions at 2 KB, silently, and the composed whole is held
+   * under that by `@olai/server`'s `profiles.test.ts`.
+   */
+  readonly charter?: string
   /** This plugin's `ImplementSurfaceDeps`, against its own spec. */
   readonly deps: unknown
   /** This plugin's OWN ctx, handed back the moment its sibling is implemented.
