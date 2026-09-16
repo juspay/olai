@@ -524,6 +524,14 @@ function Branch(props: {
         // A nested row's focus bubbles through its ancestors. Only the row
         // containing the actual control claims it; a portal keeps that claim
         // while the reader moves into the palette or row menu.
+        //
+        // A LINE THAT IS NOT A ROW YET is drawn INSIDE the `<li>` of the row it
+        // will follow (`./edit/Ghosts.tsx`), so its input bubbles through that
+        // row — which claimed the focus and put the ring on the row ABOVE the
+        // one being typed. Nothing here is the anchor's to claim: the caret is
+        // in a line that has no row to light up, and the ghost draws its own
+        // (`./edit/NewRow.tsx`).
+        if (event.target.closest(`[data-testid="${TESTID.newRow}"]`) !== null) return
         if (!event.target.closest("[data-outline-fold]") && event.target.closest(`[data-testid="${TESTID.node}"]`) === event.currentTarget) {
           selectNode(foldIdOf(props.row))
         }

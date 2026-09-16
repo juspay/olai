@@ -16,13 +16,16 @@
  *
  * The bullet has two faces, and they answer the one question a reader who
  * looks away and back asks — where is the caret: the line the caret is IN
- * draws the FILLED dot, the bullet of the row it is becoming — Tab,
+ * draws the FILLED dot, in the accent a row holding the caret draws its glyph
+ * in, and the line around it wears the wash and ring such a row wears — Tab,
  * Shift+Tab and Alt+Shift+↑/↓ already answer under it, so that line is a
  * row, not a hint — while a PARKED one holds the outline: the sketch left
  * standing on the page, an answer at a glance rather than an area of
- * editing. Neither says a record exists — there is none until a title
- * commits one — so both spellings of the dot are `marks.tsx`'s: one place
- * a bullet's size is decided.
+ * editing. The chrome is not decoration: this line IS the row for as long as
+ * its write is in flight and its frame has not arrived, so what a reader sees
+ * when the save lands is nothing at all. Neither says a record exists — there
+ * is none until a title commits one — so both spellings of the dot are
+ * `marks.tsx`'s: one place a bullet's size is decided.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { DOT } from "@olai/web/client/marks.tsx"
@@ -46,7 +49,18 @@ export function NewRow(props: {
 }) {
   return (
     <div class="my-0.5">
-      <div class={`flex items-center py-1 ${GUTTER_GAP}`} data-testid={TESTID.newRow}>
+      <div
+        // THE LINE THE CARET IS IN WEARS THE CHROME OF THE ROW IT IS BECOMING.
+        // A row being typed is toned while it holds the caret, a wash and a
+        // ring (`../Tree.tsx`'s `editing` and `focused`) — and this line is
+        // that row one reply early, so when the save lands nothing a reader can
+        // see changes except the `•••` beside it going live. A PARKED blank
+        // keeps the bare outline it always had: it is a sketch left standing,
+        // not a row anybody is in.
+        class={`flex items-center rounded-sm py-1 ${GUTTER_GAP}`}
+        classList={{ "bg-accent/10 ring-1 ring-accent/50": props.active !== false }}
+        data-testid={TESTID.newRow}
+      >
         {/* The hover strip's PLACE, cell for cell: a row reserves the `•••`
             (pointer devices only, `hidden md:` exactly as the menu hides
             itself) and the collapse triangle, and a draft that reserved one
@@ -59,12 +73,13 @@ export function NewRow(props: {
           <span class={HOVER_CELL} aria-hidden="true" />
         </span>
         {/* The two faces of the same dot: the line the caret is IN draws the
-            bullet of the row it will become — Tab, Shift+Tab and
+            bullet of the row it will become, in the accent the caret's own row
+            draws its glyph in (`./Glyph.tsx`'s `holding`) — Tab, Shift+Tab and
             Alt+Shift+↑/↓ already answer under it, and a place the keys claim
             is a row, not a placeholder — while a PARKED one stays the outline:
             the sketch left standing on the page (the comment above).
             `active` is exactly that line. */}
-        <span class={CONTROL} aria-hidden="true">
+        <span class={CONTROL} classList={{ "text-accent": props.active !== false }} aria-hidden="true">
           <span
             class={props.active === false ? `${DOT} border-[1.5px] border-muted` : `${DOT} bg-current`}
           />
