@@ -204,7 +204,7 @@ const withTools = <A>(
     // `surface/outlines/ops/node` — which the scoped dispatch does without
     // anything here consulting a route.
     const rows = (): ReadonlyArray<Row> =>
-      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] }))
+      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
     // Minted per call for the reason `binding.ts` mints it per call: the roster
     // it describes moves, and a bundle held across a recompose would carry a
     // client for a row that has left.
@@ -235,6 +235,7 @@ const withTools = <A>(
         push: ops.push,
       })),
       client: panel,
+      rows,
       transport: serverSide,
     })
 
@@ -644,13 +645,13 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     expect(said).toContain("no path outside the served directory")
     expect(said).toContain("no way to name part of a file")
 
-    // AND IT FITS THE HOST THAT READS IT. Claude Code truncates server
-    // instructions at 2 KB — silently, so an overrun cuts the second paragraph
-    // mid-sentence and nobody sees it — and bills them every turn. The second
-    // paragraph is `@olai/surface`'s charter, where an agent's words land; the
-    // ceiling is over the WHOLE text the host is handed, not either half.
-    expect(said).toContain("olai's chat panel")
-    expect(Buffer.byteLength(said, "utf8")).toBeLessThan(2000)
+    // NO PANEL SENTENCE HERE, and that is the claim rather than an omission:
+    // this fixture mounts no `chat` row, and "a person reads your answer in
+    // olai's chat panel" is that row's paragraph, riding its sibling entry the
+    // way its verbs do. `../profiles.test.ts` reads both states of it over a
+    // real serve, and holds the 2 KB ceiling over the FULL bundle; what this
+    // bench can say is that the mcp row's own text never speaks for the panel.
+    expect(said).not.toContain("chat panel")
   })
 })
 

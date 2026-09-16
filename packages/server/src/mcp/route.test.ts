@@ -146,7 +146,7 @@ const withRoute = <A>(
     // `surface/outlines/ops/node`), which the per-sibling client does by
     // construction rather than by consulting a route.
     const rows = (): ReadonlyArray<Row> =>
-      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] }))
+      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
     const panel = () => clientsFor(
       rows(),
       () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
@@ -173,6 +173,7 @@ const withRoute = <A>(
         push: ops.push,
       })),
       client: panel,
+      rows,
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)
