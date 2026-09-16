@@ -653,30 +653,41 @@ export const make = (options: Options): Committing => {
 
   /**
    * ... and the push's own end, with the same two jobs — except that an
-   * OVERLAP's two jobs ARE one: an uncommitted edit that a change from the
-   * upstream does not touch is curable by the NEXT commit, which under auto the
-   * loop is about to make anyway, so the loop must not be stopped (and the
-   * whole of `Overlapped`-does-not-pause is that it is a wait, not a stop).
-   * Every other outcome — a conflict, a fetch that refused, an integration
-   * that could not run, a push the remote refused — is a stop exactly as
-   * today.
+   * OVERLAP's two jobs ARE one: an uncommitted edit in a path the upstream
+   * changed is curable by the NEXT commit, which under auto the loop is
+   * about to make anyway, so the loop must not be stopped (and the whole of
+   * `Overlapped`-does-not-pause is that it is a wait, not a stop). Every
+   * other outcome — a conflict, a fetch that refused, an integration that
+   * could not run, a push the remote refused — is a stop exactly as today.
    */
   const pushed = (said: string | null, stops: boolean): void => {
-    settled = { ...settled, pushSaid: said, paused: stops ? stopBy(said, options.policy.push) : settled.paused }
+    // `mode()` is the COMMIT policy, and that is the loop: whether a refusal
+    // pauses is a fact about the loop that would go round again, not about
+    // the button that was pressed. `stopBy` reads it for both verbs, so a
+    // pushed-out refusal under `push: auto` does not arm a pause on a
+    // `commit: manual` door that has no loop, and a remote that refused
+    // under `commit: auto` still stops the committing.
+    settled = { ...settled, pushSaid: said, paused: stops ? stopBy(said, mode()) : settled.paused }
   }
 
   /**
-   * What the integration met, in the words a person acts on — see §5 of the
-   * plan. Olai's own sentence names the paths and the ONE gesture that helps;
-   * git's words follow it, whole, and the pair is what reaches the pill and
-   * the panel through `pushSaid`.
+   * What the integration met, in the words a person acts on. Olai's own
+   * sentence names the paths and the ONE gesture that helps; git's words
+   * follow it, whole, and the pair is what reaches the pill and the panel
+   * through `pushSaid`.
+   *
+   * The paths come from BOTH of git's refusal shapes: a rebase conflict names
+   * its files on lines that start `CONFLICT`, and a `read-tree` overlap names
+   * its path inside `Entry '<path>' not uptodate` or `Untracked working tree
+   * file '<path>'` — the latter two have no `CONFLICT` line, which is why the
+   * overlap sentence used to name no path at all.
    */
   const charge = (kind: "overlap" | "conflict", said: string): string => {
-    const paths = said
-      .split("\n")
-      .filter((line) => line.startsWith("CONFLICT"))
-      .map((line) => line.replace(/^CONFLICT \([^)]*\): /, ""))
-      .filter(Boolean)
+    const paths = [...said.matchAll(
+      /CONFLICT \([^)]*\): ([^\n]+)|Entry '([^']+)' not uptodate|Untracked working tree file '([^']+)'/g,
+    )]
+      .map((match) => match[1] ?? match[2] ?? match[3])
+      .filter((one): one is string => one !== undefined)
     const named = paths.length > 0 ? paths.join(", ") : ""
     const base = kind === "overlap"
       ? "changes here overlap changes the upstream took in, so nothing moved"
@@ -1141,26 +1152,27 @@ export const make = (options: Options): Committing => {
         options.onSettled?.()
         return { _tag: "Failed", said: fetched.said } as const
       }
+      // No upstream: `standing` is null and the branch falls through to
+      // `git.push` below, whose refusal is git's own words — remembered,
+      // republished and a stop, exactly as a branch with no upstream is
+      // today. The boots' gating and the button's honesty are two different
+      // answers, and both are preserved.
       const standing = yield* git.standing
-      if (standing === null) {
-        // No upstream: falls through to git's own refusal, exactly as a branch
-        // with no upstream does today — the boots' gating and the button's
-        // honesty are two different answers, and both are preserved.
-        return { _tag: "Failed", said: "no upstream to push to" } as const
-      }
 
       let integrated = 0
-      if (standing.behind > 0) {
+      if (standing !== null && standing.behind > 0) {
         const done = yield* git.integrate(standing)
         if (done._tag === "Overlapped") {
-          pushed(charge("overlap", done.said), false)
+          const said = charge("overlap", done.said)
+          pushed(said, false)
           options.onSettled?.()
-          return { _tag: "Failed", said: done.said } as const
+          return { _tag: "Failed", said } as const
         }
         if (done._tag === "Conflicted") {
-          pushed(charge("conflict", done.said), true)
+          const said = charge("conflict", done.said)
+          pushed(said, true)
           options.onSettled?.()
-          return { _tag: "Failed", said: done.said } as const
+          return { _tag: "Failed", said } as const
         }
         if (done._tag === "Refused") {
           pushed(done.said, true)
@@ -1169,6 +1181,15 @@ export const make = (options: Options): Committing => {
         }
         integrated = done.taken
       }
+
+      // THE COUNT SENT — read fresh AFTER the integrate moved the branch and
+      // BEFORE the push empties it. What this PR first shipped was `ahead`
+      // read AFTER the push: always `0`, which threw away the one number the
+      // verb exists to report. The rebase just put every unpushed commit on
+      // top of the upstream, so `ahead` here is exactly how many this push
+      // sends.
+      const sending = yield* git.standing
+      const sends = sending === null ? 0 : sending.ahead
 
       const outcome = yield* git.push
       if (outcome._tag === "Refused") {
@@ -1188,36 +1209,37 @@ export const make = (options: Options): Committing => {
         return { _tag: "Failed", said: outcome.said } as const
       }
 
-      // The honest `ahead`: what a `Pushed` reports is what is still not on
-      // the upstream AFTER the rebase took in what was, which is the count a
-      // reader can actually check against. A count is only ever `0` here —
-      // the rebase put every unpushed commit on top of the upstream — but it
-      // is read fresh rather than assumed, so a future that stops assuming
-      // gets the true number for free.
-      const after = yield* git.standing
-      const ahead = after === null ? 0 : after.ahead
-
       pushed(null, false)
       // What is waiting has changed without a served byte moving — the same
       // reason a commit republishes.
       options.onSettled?.()
       return {
         _tag: "Pushed",
-        upstream: standing.name,
-        commits: ahead,
+        upstream: standing === null ? "" : standing.name,
+        commits: sends,
         integrated,
       } as const
     })
 
     return yield* Semaphore.withPermit(pushPermit)(integratedPush).pipe(
-      // The plumbing is total — every exit is an answer — so a defect here is
-      // a genuine bug (or a kill), and it must not leak out of the push door
-      // as an unhandled error: the door's contract is to ANSWER.
-      Effect.catchCause(() =>
-        Effect.succeed({
-          _tag: "Blocked",
-          repo: { _tag: "Unusable", said: "the push could not run" },
-        } as const),
+      // The plumbing is total — every exit is an answer — except for a
+      // DEFECT, which is a genuine bug. `catchDefect`, deliberately NOT
+      // `catchCause`: interruption must propagate (a row switched off or a
+      // server stopping mid-push is not a "the push could not run" the caller
+      // should continue past), and the defect is logged with the same
+      // annotation style the loop's own handler uses at {@link loop}, so the
+      // real cause reaches the log rather than vanishing into a sentence olai
+      // made up.
+      Effect.catchDefect((defect) =>
+        Effect.annotateLogs(
+          Effect.logError("olai git: the push could not run"),
+          { cause: String(defect) },
+        ).pipe(
+          Effect.as({
+            _tag: "Blocked",
+            repo: { _tag: "Unusable", said: "the push could not run" },
+          } as const),
+        ),
       ),
     )
   })

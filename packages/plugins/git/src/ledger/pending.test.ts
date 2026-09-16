@@ -868,7 +868,7 @@ describe("push", () => {
         expect(sent).toEqual({
           _tag: "Pushed",
           upstream: "origin/main",
-          commits: 0,
+          commits: 1,
           integrated: 0,
         })
         expect(gitIn(bare)("log", "--format=%s", "-1", "main").trim())
@@ -885,6 +885,35 @@ describe("push", () => {
       Effect.gen(function*() {
         expect((yield* fixture.ops.pending).unpushed).toBe(null)
       })))
+
+  /** A branch with pushes to make but NO upstream: `standing` is null and the
+   *  push path falls through to `git.push`, whose refusal is git's own words
+   *  — remembered, republished, and (under `commit: auto`) a stop, exactly as
+   *  a refused push is today. This is the ledger-level arm the review asked
+   *  for: the plumbing `standing` test covers the `null`, and this covers
+   *  what the policy does with it. */
+  test("a push with no upstream is git's own refusal, remembered and republished", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        // No remote at all — not `fixture.remote()`, which would set one up.
+        fixture.write("notes.md", "the cabinets are late\n")
+        fixture.git("add", "notes.md")
+        fixture.git("commit", "--quiet", "-m", "olai: mine")
+        yield* fixture.refresh
+
+        const sent = yield* fixture.ops.push
+        expect(sent._tag).toBe("Failed")
+        if (sent._tag !== "Failed") throw new Error("unreachable")
+        // git's OWN words, not an olai sentence — the words about the remote
+        // that has not been set.
+        expect(sent.said).toBeTruthy()
+        expect(sent.said).not.toContain("no upstream to push to")
+        // Remembered and republished: the refusal reaches the pill.
+        const said = yield* fixture.ops.git
+        expect(said.pushSaid).not.toBeNull()
+        // Nothing pauses: `commits: manual` gives the push no loop to stop.
+        expect(said.paused).toBeNull()
+      }), { commits: "manual", pushes: "auto" }))
 
   /**
    * A CONFLICTING edit — another clone rewrites the same file this side also
@@ -931,8 +960,11 @@ describe("push", () => {
         // Nothing moved: the served tree is exactly as the commit left it.
         expect(fs.readFileSync(path.join(fixture.root, "house.olai"), "utf8"))
           .toContain(`"order"`)
-        // ... and the loop is stopped, because a person has to look.
-        expect((yield* fixture.ops.git).paused).not.toBeNull()
+        // ... and the loop is NOT stopped. A refusal pauses only the loop
+        // that would go round again: this test runs `commits: manual`, and a
+        // button press that failed is drawn by the panel, not paused over.
+        // (`pushes: auto` arms no pause on a manual commit door.)
+        expect((yield* fixture.ops.git).paused).toBeNull()
       }), { commits: "manual", pushes: "auto" }))
 
   /** A DIVERGENCE is no longer a stop at all: the push takes in what the
@@ -958,7 +990,7 @@ describe("push", () => {
         expect(sent).toEqual({
           _tag: "Pushed",
           upstream: "origin/main",
-          commits: 0,
+          commits: 1,
           integrated: 1,
         })
         // The remote's tip is olai's commit, on top of the other machine's.
@@ -1473,10 +1505,12 @@ describe("push: auto", () => {
         expect(sent._tag).toBe("Failed")
         if (sent._tag === "Failed") expect(sent.said).toBeTruthy()
         const said = yield* fixture.ops.git
-        expect(said.pushSaid).not.toBeNull()
         // The remote cannot be reached, so we are still behind — nothing
-        // moved, the commit stands, and the loop is stopped.
-        expect(said.paused).not.toBeNull()
+        // moved, the commit stands. The loop is NOT paused: nothing would go
+        // round again under `commits: manual` (a refused push pauses only
+        // the auto loop that would otherwise pile more commits onto the
+        // refusal), and the words are still remembered and republished.
+        expect(said.paused).toBeNull()
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
       }), { commits: "manual", pushes: "auto" }))
 

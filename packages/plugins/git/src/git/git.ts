@@ -1216,9 +1216,12 @@ let integrations = 0
  * not this process is left alone.
  *
  * WHAT THIS COSTS a shutdown: a stop arriving inside an integrate waits out at
- * most the uninterruptible move (three subprocesses at {@link BUDGET}), on top
- * of the commit's own three. The rebase itself is interruptible and its abort
- * is the worktree's removal.
+ * most the uninterruptible move — five subprocesses at {@link BUDGET}:
+ * `rev-parse` for the rebased tip, `read-tree` to move the tree,
+ * `symbolic-ref` to name the branch, `update-ref` as the compare-and-swap,
+ * and a second `read-tree` only when the compare-and-swap refuses, to put the
+ * tree back — on top of the commit's own three. The rebase itself is
+ * interruptible and its abort is the worktree's removal.
  */
 const integrate = (
   root: string,

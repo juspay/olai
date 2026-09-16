@@ -1205,3 +1205,134 @@ test("integrate on a conflict is Conflicted naming the path, tree clean, nothing
   expect(run("worktree", "list").trim().split("\n")).toHaveLength(1)
 })
 
+test("interrupting integrate mid-rebase removes the worktree", async () => {
+  const { root, theirs } = await diverged()
+  const run = git(root)
+  await asked(root, (g) => g.fetch)
+  const standing = await asked(root, (g) => g.standing)
+  if (standing === null) throw new Error("expected an upstream")
+
+  const before = run("worktree", "list").trim().split("\n").length
+  await Effect.runPromise(Effect.gen(function*() {
+    const fiber = yield* asEffect(root, (g) => g.integrate(standing)).pipe(Effect.forkChild)
+    // Let the worktree appear (the rebase is running inside it), then stop
+    // the fiber. `@olai/child`'s `run` has no abort hook, so the rebase
+    // subprocess is still alive in that directory when the release runs —
+    // exactly the residue the review named — and `worktree remove --force`
+    // removes it anyway.
+    yield* Effect.sleep("50 millis")
+    yield* Fiber.interrupt(fiber)
+  }))
+  // The release ran on interrupt: no worktree remains.
+  expect(run("worktree", "list").trim().split("\n").length).toBe(before)
+  expect(fs.readdirSync(path.join(root, ".git")).filter((n) => n.startsWith("olai-integrate-")))
+    .toHaveLength(0)
+  fs.rmSync(theirs, { recursive: true, force: true })
+}, 30_000)
+
+
+/** Many unpushed commits, all touching the one served file — what makes a
+ *  rebase slow enough that the race tests below have a real window to act
+ *  in. */
+const manyCommits = (root: string, run: (...argv: ReadonlyArray<string>) => string, n: number): void => {
+  const file = path.join(root, "a.olai")
+  for (let i = 0; i < n; i++) {
+    fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"mine ${i}"}\n`)
+    run("add", "a.olai")
+    run("commit", "--quiet", "-m", `mine ${i}`)
+  }
+}
+
+const worktreeCount = (run: (...argv: ReadonlyArray<string>) => string): number =>
+  run("worktree", "list").trim().split("\n").length
+
+test("a stale olai-integrate-<deadpid> worktree is swept at the start of the next integrate", async () => {
+  const { root, theirs } = await diverged()
+  const run = git(root)
+  await asked(root, (g) => g.fetch)
+  const standing = await asked(root, (g) => g.standing)
+  if (standing === null) throw new Error("expected an upstream")
+
+  // A "previous process" left a worktree behind under the git dir, and its
+  // pid is dead: the sweep at the start of the next integrate removes it.
+  const gitDir = run("rev-parse", "--git-dir").trim()
+  const stale = path.join(gitDir, "olai-integrate-2147483647-1")
+  run("worktree", "add", "--no-checkout", "--detach", stale, "HEAD")
+  expect(worktreeCount(run)).toBe(2)
+
+  await asked(root, (g) => g.integrate(standing))
+  // The stale worktree is gone, and only the served entry remains.
+  expect(worktreeCount(run)).toBe(1)
+  expect(fs.existsSync(stale)).toBe(false)
+  fs.rmSync(theirs, { recursive: true, force: true })
+}, 30_000)
+test("integrate's compare-and-swap refuses when a terminal commit landed, and does not drop it", async () => {
+  const { root, theirs } = await diverged()
+  const run = git(root)
+  await asked(root, (g) => g.fetch)
+  const standing = await asked(root, (g) => g.standing)
+  if (standing === null) throw new Error("expected an upstream")
+  const from = run("rev-parse", "HEAD").trim()
+
+  // The terminal commit lands BETWEEN the two-tree move and the ref update —
+  // the exact window the review named. `read-tree -m -u` runs the served
+  // repo's post-checkout hook, so the hook moves the branch ref after
+  // read-tree has updated the tree and before integrate's update-ref runs.
+  const tree = run("rev-parse", "HEAD^{tree}").trim()
+  const terminal = run("commit-tree", tree, "-p", from, "-m", "terminal commit").trim()
+  const hooks = path.join(root, ".git", "hooks")
+  fs.mkdirSync(hooks, { recursive: true })
+  const hook = `#!/bin/sh\nrepo="${root}"\nterminal="${terminal}"\ngit -C "$repo" update-ref refs/heads/main "$terminal"\nexit 0\n`
+  fs.writeFileSync(path.join(hooks, "post-checkout"), hook)
+  fs.chmodSync(path.join(hooks, "post-checkout"), 0o755)
+
+  const done = await asked(root, (g) => g.integrate(standing))
+  // The CAS refused: the ref is the terminal commit, NOT the rebased tip —
+  // the terminal commit was not dropped. The tree was put back (read-tree
+  // the other way), so the served tree is clean and the branch is where the
+  // terminal move left it. The integrate's release still removed the worktree.
+  expect(done._tag).toBe("Refused")
+  if (done._tag === "Refused") expect(done.said).not.toBe("")
+  expect(run("rev-parse", "HEAD").trim()).toBe(terminal)
+  expect(run("status", "--porcelain").trim()).toBe("")
+  expect(run("log", "--format=%s", "-1").trim()).toBe("terminal commit")
+  expect(worktreeCount(run)).toBe(1)
+  fs.unlinkSync(path.join(hooks, "post-checkout"))
+  fs.rmSync(theirs, { recursive: true, force: true })
+}, 30_000)
+
+test("the served survey stays Ready and worktree-free while an integrate is in flight", async () => {
+  const { root, theirs } = await diverged()
+  const run = git(root)
+  manyCommits(root, run, 40)
+  await asked(root, (g) => g.fetch)
+  const standing = await asked(root, (g) => g.standing)
+  if (standing === null) throw new Error("expected an upstream")
+
+  await Effect.runPromise(Effect.gen(function*() {
+    const fiber = yield* asEffect(root, (g) => g.integrate(standing)).pipe(Effect.forkChild)
+    let found = false
+    for (let i = 0; i < 400; i++) {
+      if (fs.readdirSync(path.join(root, ".git")).some((n) => n.startsWith("olai-integrate-"))) {
+        found = true
+        break
+      }
+      yield* Effect.sleep("5 millis")
+    }
+    expect(found).toBe(true)
+    // The temp worktree lives under `.git`, so the served survey must read a
+    // coherent state — no path from the worktree, and not Blocked by a rebase
+    // it cannot see (the rebase state is in the worktree, not `.git/rebase-merge`).
+    const mid = yield* asEffect(root, (g) => g.dirty)
+    expect(mid._tag).toBe("Surveyed")
+    if (mid._tag === "Surveyed") {
+      expect(mid.files.some((f) => f.path.includes("olai-integrate-"))).toBe(false)
+    }
+    yield* Fiber.await(fiber)
+  }))
+  // After it lands, no residue anywhere the survey or git could see it.
+  expect(fs.readdirSync(path.join(root, ".git")).filter((n) => n.startsWith("olai-integrate-")))
+    .toHaveLength(0)
+  fs.rmSync(theirs, { recursive: true, force: true })
+}, 30_000)
+
