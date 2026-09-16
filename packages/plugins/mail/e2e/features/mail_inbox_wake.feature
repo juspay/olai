@@ -182,6 +182,7 @@ Feature: An agent opts into inbox wakes on its node
     Then the mail wake is off for this conversation
     When I ask the agent "set property mail-quiet-agent mail-inbox on"
     Then the agent is idle
+    And the vault node "mail-quiet-agent" has property "mail-inbox" holding "on"
     And the mail wake is off for this conversation
     And this conversation has 0 mail wakes
     And mail makes no history calls for a second

@@ -1,3 +1,5 @@
+import type { Json } from "../../json.ts"
+import type { Refusal } from "../../slots.ts"
 import { Effect } from "effect"
 /**
  * The conversation, as this tab sees it.
@@ -208,8 +210,8 @@ export interface Chat {
     agent: string,
     session: string,
     plugin: string,
-    pick: import("../../json.ts").Json,
-  ) => import("effect").Effect.Effect<void, import("../../slots.ts").Refusal>
+    pick: Json,
+  ) => Effect.Effect<void, Refusal>
 }
 
 /**
