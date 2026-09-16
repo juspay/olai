@@ -13,7 +13,8 @@ Feature: Reading and acting on Gmail in a conversation
     And the node agent's fold is ready
     When I ask the agent "list my inbox"
     Then the mail inbox story says "3 threads in INBOX"
-    And the agent's answer mentions "unread"
+    And the agent's answer mentions "\"unread\":true"
+    And the agent's answer mentions "\"unread\":false"
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Search finds the unread thread
@@ -44,7 +45,7 @@ Feature: Reading and acting on Gmail in a conversation
     When I ask the agent "read mail thread a2"
     Then the mail thread story says "Nix meetup · Ravi"
     And the agent's answer mentions "<p>Meetup on October 2</p>"
-    And the agent's answer mentions "null"
+    And the agent's answer mentions "\"text\":null"
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Attachment is temporary and removed when mail stops
@@ -165,30 +166,39 @@ Feature: Reading and acting on Gmail in a conversation
     When I ask the agent "list my inbox"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 1 mail refusal stories
     When I ask the agent "search mail for is:unread"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 2 mail refusal stories
     When I ask the agent "read mail thread a1"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 3 mail refusal stories
     When I ask the agent "save mail attachment a32 attachment_1"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 4 mail refusal stories
     When I ask the agent "archive mail thread a1"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 5 mail refusal stories
     When I ask the agent "trash mail thread a1"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 6 mail refusal stories
     When I ask the agent "untrash mail thread a1"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 7 mail refusal stories
     When I ask the agent "label mail thread a1 with waiting"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 8 mail refusal stories
     When I ask the agent "mark mail thread a1 read"
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
+    And the conversation has 9 mail refusal stories
     And the fake mailbox has received no tool calls
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:refused @mail-doors

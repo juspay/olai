@@ -33,3 +33,7 @@ Then("the saved mail attachment is gone", async function(this: OlaiWorld) {
   assert.ok(path)
   await this.waitUntil(async () => !existsSync(path), "mail attachment cleanup")
 })
+
+Then("the conversation has {int} mail refusal stories", async function(this: OlaiWorld, count: number) {
+  await this.waitUntil(async () => (await this.page.locator(`[data-testid="${TESTID.mailStory}"][data-mail-story="refused"]`).count()) === count, `${count} mail refusal stories`)
+})

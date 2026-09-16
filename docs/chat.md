@@ -550,7 +550,7 @@ If the machine is running [kolu](https://kolu.dev) — terminals for coding agen
 
 ## mail
 
-When connected, [mail](plugins/mail.md) provides inbox, search, thread and attachment reads, plus archive, Trash, restore, labels and read marks. These nine tools live on olai's own MCP server and appear under **olai ✓**, with a one-line result in each tool row.
+When connected, [mail](plugins/mail.md) provides inbox, search, thread and attachment reads, plus archive, Trash, restore, labels and read marks. These nine tools live on olai's own MCP server and appear under **olai ✓**, with a one-line result in each tool row. Refusal sentences remain visible with agents that forward MCP replies as text, including Claude and omp.
 
 ## odu
 

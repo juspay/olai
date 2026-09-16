@@ -218,7 +218,9 @@ export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined
   try {
     return record(JSON.parse(text))
   } catch {
-    return undefined
+    // This adapter also forwards MCP text without structuredContent.
+    const refusal = /^surface-mcp: `[^`]+` was refused \((usage|not-found|validation|busy)\): ([\s\S]+)$/.exec(text)
+    return refusal ? { kind: refusal[1], reason: refusal[2] } : undefined
   }
 }
 
