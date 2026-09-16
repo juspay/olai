@@ -572,17 +572,29 @@ Then("the panel says a push was refused", async function (this: OlaiWorld) {
 /** THE DIVERGENCE, in the only shape a single user meets it: another machine
  *  — or a colleague — has pushed, so this branch's upstream has moved. A push
  *  from here now FETCHES that, rebases what is unpushed onto it, and sends —
- *  so an empty or different-file commit from the other side is taken in and
- *  this side's lands on top. Real git, a real bare remote, and no network.
+ *  so the other side's commit is taken in and this side's lands on top. Real
+ *  git, a real bare remote, and no network.
  *
- *  What makes the rebase STOP is the {@link conflicting} step next door. */
+ *  The file the other side commits is real, so a take-in visibly moves the
+ *  served directory. What makes the rebase STOP is the
+ *  conflicting-edit step next door. */
 Given(
   "somebody else has pushed {string} to the remote",
   function (this: OlaiWorld, subject: string) {
-    this.advanceRemote(subject);
+    this.advanceRemote(subject, { file: "their-file.md", content: `${subject}\n` });
   },
 );
 
+Given(
+  "somebody else has rewritten {string} as:",
+  function (this: OlaiWorld, file: string, contents: string) {
+    // THE OTHER SIDE'S EDIT, spelled out — for the cases where the fixed
+    // conflicting-edit content is not the right shape (an OVERLAP wants the
+    // other side's change on a line of its OWN, so the person's later commit
+    // of a different line can rebase cleanly).
+    this.advanceRemote("somebody else's work", { file, content: contents });
+  },
+);
 Given(
   "somebody else has pushed a conflicting edit to {string}",
   function (this: OlaiWorld, file: string) {
@@ -594,6 +606,7 @@ Given(
     this.advanceRemote("somebody else's work", { file, content: "\"somebody else's\"\n" });
   },
 );
+
 
 Then("the served directory has {string}", function (this: OlaiWorld, file: string) {
   assert.ok(

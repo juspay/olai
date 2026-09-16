@@ -295,8 +295,9 @@ Feature: Committing on purpose
     And the commit pill says 0 unpushed
     And the remote has "olai: 1 file — notes.md"
     # The take-in LANDED: the other side's commit is the tip's parent, not a
-    # force over it.
+    # force over it, and its file is on disk in the served directory.
     And the remote has taken in "theirs" before this commit
+    And the served directory has "their-file.md"
     And there should be no page errors
 
   @policy:git.commit=auto @policy:git.push=auto
@@ -341,6 +342,13 @@ Feature: Committing on purpose
     And "later.md" is still waiting in the repository
     And the commit pill says auto-commit is "paused"
     And there should be no page errors
+    # THE ONE GESTURE OUT — and only it: the loop stays stopped with work
+    # waiting until a person says they have dealt with what git said.
+    When I open the commit panel
+    Then the commit panel offers to resume auto-commit
+    When I resume auto-commit
+    Then the commit pill says auto-commit is "armed"
+    And there should be no page errors
 
   @policy:git.commit=auto @policy:git.push=auto
   Scenario: A reload does not clear a stop, and Resume in any tab does
@@ -364,4 +372,48 @@ Feature: Committing on purpose
     Then the commit panel offers to resume auto-commit
     When I resume auto-commit
     Then the commit pill says auto-commit is "armed"
+    And there should be no page errors
+
+  @policy:git.commit=manual @policy:git.push=auto
+  Scenario: An edit you have not committed in a path somebody else changed waits for its commit
+    # THE OVERLAP, ruled at dispatch: an uncommitted edit in a path the
+    # upstream changed cannot be swept by the take-in, so nothing moves and
+    # the loop does NOT pause — the next commit is the cure. Somebody else
+    # has pushed a file; the person has the same file on disk here, not yet
+    # committed. Committing another file with it unticked, the push says the
+    # overlap rather than stopping; committing the overlapping file (same
+    # content as upstream, so the take-in rebases cleanly) pushes and
+    # integrates.
+    Given the served repository has a remote
+    And somebody else has rewritten "their-file.md" as:
+      """
+      theirs
+      """
+    And I rewrite "their-file.md" as:
+      """
+      theirs
+      """
+    And I rewrite "another.md" as:
+      """
+      the frames want glazing
+      """
+    And I open the commit panel
+    And I untick "their-file.md"
+    And I commit with the message "the other file"
+    # The push's words name the overlap and ask for a commit — a wait, not
+    # a stop. Under `commit: manual` there is no loop to pause at all; the
+    # pill's auto state is `off` rather than `paused`, and the refusal stays
+    # a refusal with the tick off. The attribute is polled first, because
+    # the push answers after the commit.
+    And the commit pill says the push was refused
+    Then the commit pill explains "commit what is yours first"
+    And the commit pill says 1 unpushed
+    And I commit with the message "the overlapping file"
+    Then the commit pill says 0 unpushed
+    # The person's file matched upstream byte-for-byte, so the take-in's
+    # rebase had nothing to re-play for it and the second commit became a
+    # no-op — the FIRST commit is what integrated, and the file is on the
+    # remote either way.
+    And the remote has "olai: the other file"
+    And the served directory has "their-file.md"
     And there should be no page errors
