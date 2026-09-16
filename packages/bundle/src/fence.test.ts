@@ -2497,8 +2497,8 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     "nix/kolu.nix": ["kolu", "mcp"],
     "// justfile": "kolu-deps names the framework pin; git/odu are tool names, files/pins are recipe names",
     "justfile": ["git", "kolu", "odu", "files", "pins"],
-    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary",
-    "default.nix": ["kolu", "pins"],
+    "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary; the comments enumerate the wrapper-baked knobs (OLAI_ACP_*, OLAI_ODU_BIN, OLAI_HIMALAYA) so the wrap text explains itself",
+    "default.nix": ["claude#knob", "codex#knob", "pi#knob", "kolu", "odu#knob", "mail#knob", "pins"],
     "// flake.nix": "the flake folds plugin Nix halves as flake outputs through the fold (kolu is the npins source name)",
     "flake.nix": ["kolu"],
     "// packages/bundle/default.nix": "the bundle fold names the framework's surface pin and the bundle's pin vocabulary",
@@ -2514,12 +2514,12 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     "scripts/cordis-graph.ts": ["ui-renderer", "layout"],
     "// scripts/test-shard.sh": "weights name the test files of a plugin (git) and the odu-shaped perf bucket",
     "scripts/test-shard.sh": ["git", "odu", "files"],
-    "// shell.nix": "exposes kolu-hydrate pins and the vault's workspace import",
-    "shell.nix": ["vault", "kolu", "pins"],
-    "// packages/tests/support/hooks.ts": "the e2e harness's per-tag setup spells the plugins its scenario tags drive (`@alerts`, `@markdown-paints`) and the tool suites it exercises (git, files, search, capture); section 13.3's prove-fence mutations land here, so it is checked, not blanked",
-    "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "files", "capture", "markdown"],
-    "// packages/tests/support/workers.ts": "the e2e harness's worker driver spells the plugins it routes to as recorded equalities",
-    "packages/tests/support/workers.ts": ["git", "odu", "mail"],
+    "// shell.nix": "the dev shell carries OLAI_KOLU_HYDRATE / OLAI_KOLU_EXTERNALS — harness constants outside any plugin's `olai.knobs`; the vault's OSS_OLAI_VAULT workspace import does not match `OLAI_VAULT` and is not a knob spelling",
+    "shell.nix": ["kolu", "pins"],
+    "// packages/tests/support/hooks.ts": "the e2e harness's per-tag setup spells the plugins its scenario tags drive (`@alerts`, `@markdown-paints`), the tool suites it exercises (git, files, search, capture), and the worker constants it seeds; its comments name OLAI_HIMALAYA so the mail row's knob counts. Section 13.3's prove-fence mutation (the `@pi` tag) lands here, so the file is checked, not blanked",
+    "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "mail#knob", "files", "capture", "markdown"],
+    "// packages/tests/support/workers.ts": "the e2e harness's worker driver reads the OLAI_ODU_BIN constant it must sometimes unset and prepares $OLAI_HIMALAYA on every spawn",
+    "packages/tests/support/workers.ts": ["git", "odu", "odu#knob", "mail", "mail#knob"],
   }
 
 
@@ -2579,20 +2579,23 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     for (const [file, words] of Object.entries(ALLOWED)) {
       if (file.startsWith("//")) continue
       expect([file, corpus.includes(file)]).toEqual([file, true])
-      for (const word of words) expect([word, PLUGIN_NAMES.includes(word)]).toEqual([word, true])
+      for (const word of words) {
+        // The `<name>#knob` entries are the env-shape record: accepted iff
+        // `<name>` is a real plugin.
+        const base = word.endsWith("#knob") ? word.slice(0, -"#knob".length) : word
+        expect([word, PLUGIN_NAMES.includes(base)]).toEqual([word, true])
+      }
     }
   })
 
   test("claim 2: no file outside packages/plugins spells a plugin's word", () => {
     // The equality claim, over every corpus file at once so one moved file
-    // cannot mask a second breach: what a file spells is either in its record
-    // or it is red. `\b`-free SHOUT is what lets `OLAI_ODU_BIN` (a variable)
-    // count as the word `odu`. The remaining harness files below are excluded
-    // from this claim — their whole vocabulary is plugin-shaped (a step
-    // definition names the plugin it drives, and the engine fakes spell the
-    // engines they are fakes OF) — while hooks.ts and workers.ts are checked
-    // with their own ALLOWED records above, because section 13.3's
-    // prove-fence mutations land there.
+    // cannot mask a second breach. The record holds BARE-WORD spellings
+    // (`odu` the tool in the justfile); the env-shaped knob `OLAI_<NAME>_*`
+    // is tracked SEPARATELY as `"<name>#knob"` because a plugin's knob in a
+    // root file is its own defect — the bare-word `odu` record for the
+    // justfile would otherwise mask `OLAI_ODU_BIN` planted there, which is
+    // exactly what prove-fence mutation 24 plants.
     const HARNESS: Record<string, true> = {
       "packages/tests/support/fake.ts": true,
       "packages/tests/agent/scripted-acp.ts": true,
@@ -2600,10 +2603,38 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
       "packages/tests/agent/session-store.ts": true,
       "packages/tests/agent/native-activity.ts": true,
     }
+    // The knobs live in the manifests — `olai.knobs`'s keys are the exact
+    // `OLAI_*` variables a plugin owns. Match any of them as its PLUGIN'S
+    // knob entry (file → `<name>#knob`), so the mail row's `OLAI_HIMALAYA`
+    // is `mail#knob` even though the name does not contain "mail".
+    const knobEntries: Array<{ name: string; knobs: RegExp }> = PLUGIN_NAMES.map((name) => {
+      const pkgPath = path.join(REPO, "packages/plugins", name, "package.json")
+      if (!existsSync(pkgPath)) return { name, knobs: /$^/ }
+      const manifest = JSON.parse(readFileSync(pkgPath, "utf8")) as { olai?: { knobs?: Record<string, unknown> } }
+      const keys = Object.keys(manifest.olai?.knobs ?? {})
+      if (keys.length === 0) return { name, knobs: /$^/ }
+      return {
+        name,
+        knobs: new RegExp(`(?:^|[^A-Za-z0-9])(?:${keys.join("|")})(?![A-Z0-9])`),
+      }
+    })
     const actual = Object.fromEntries(corpus.map((file) => {
-      const text = HARNESS[file] === true ? "" : stripped(file)
-      const words = PLUGIN_NAMES.filter((name) => (SPELLING.get(name)?.test(text) ?? false))
-      return [file, words]
+      if (HARNESS[file] === true) return [file, []]
+      // Bare words live in code: comments are stripped so `# what koluDeps`
+      // does not count as a spelling of `kolu`. A knob's exact name keeps
+      // the comments too — `OLAI_ODU_BIN` is a token nobody spells without
+      // meaning the variable, so a comment that names it IS a spelling of
+      // the plugin's knob and must count against the record.
+      const text = stripped(file)
+      const raw = readFileSync(path.join(REPO, file), "utf8")
+      const hits = PLUGIN_NAMES.flatMap((name) => {
+        const out: string[] = []
+        if (casings(name).some((c) => new RegExp(`\\b${c}`).test(text))) out.push(name)
+        const entry = knobEntries.find((e) => e.name === name)
+        if (entry && entry.knobs.test(raw)) out.push(`${name}#knob`)
+        return out
+      })
+      return [file, hits]
     }))
     const expected = Object.fromEntries(corpus.map((file) => [
       file,
