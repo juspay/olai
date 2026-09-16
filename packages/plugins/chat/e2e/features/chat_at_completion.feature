@@ -12,7 +12,7 @@ Feature: Typing @ in the chat completes a file of the directory
   directory the agent is working in. This one is the word you would have typed.
 
   Every scenario is `@scratch:chat` — the panel needs an agent, and the agent
-  is the scripted one in `agent/fake-acp-agent.ts`, whose fallback answer
+  is the scripted one driven by `@olai/tests/agent/scripted-acp.ts`, whose fallback answer
   quotes the prompt back. That is what makes "the path reached the agent"
   something a scenario can read rather than assume.
 

@@ -5,8 +5,8 @@
  * The suite's third scripted agent, and what makes it a WITNESS rather than a
  * mode of one of the others: every frame shape below was captured live against
  * **pi-acp 0.0.33 driving pi 0.84.2** (the spike, 2026-08-28 — the leg file,
- * `packages/chat/src/agents/pi.ts`, carries the whole table), and none of it
- * is shared with `agent/opencode/opencode` or `agent/fake-acp-agent.ts`:
+ * `packages/plugins/pi/src/leg.ts`, carries the whole table), and none of it
+ * is shared with the other engines' fakes:
  *
  *   - **call ids are `<tool>:<n>`** — `bash:0` — and nothing on any frame
  *     names the tool: a bash call's `_meta` corners are its terminal

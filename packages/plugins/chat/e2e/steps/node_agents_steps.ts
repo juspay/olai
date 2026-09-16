@@ -228,7 +228,7 @@ const OPENS = [
 /** How many times olai has told this agent what it is.
  *
  *  COUNTED OVER THE PAGE'S TEXT rather than over notice rows, because the
- *  scripted agent SAYS THE PROMPT BACK (`agent/fake-acp-agent.ts` echoes what
+ *  scripted agent SAYS THE PROMPT BACK (`@olai/tests/agent/scripted-acp.ts` echoes what
  *  it was given) — so the words appear twice per teaching, once as olai's
  *  notice and once inside the agent's echo of the message they rode under.
  *  Halving that is what makes the count mean teachings, and it is also the

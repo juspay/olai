@@ -377,7 +377,7 @@ Given("the listing counter is armed", function (this: OlaiWorld) {
 });
 
 /** How many times the agents have been ASKED FOR THEIR LISTING so far, off
- *  the line the fake appends on every one (`packages/tests/agent/fake-acp-agent.ts`
+ *  the line the fake appends on every one (`packages/tests/agent/scripted-acp.ts`
  *  — an absent file is an agent never asked, which is zero). The count is the
  *  pin's currency: what asking costs is the asking, whatever it answered. */
 const listAsks = (scratch: string): number => {

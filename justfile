@@ -46,7 +46,7 @@ default:
 check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module plugin-fold
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
-# The acp/ adapter's `npm ci` is the pi engine's half — the MCP bridge's tests
+# Each plugin's `npmTrees` leg is its own — the pi engine's MCP bridge tests
 # (packages/plugins/pi/acp/mcp-bridge) resolve the SDK from ITS lockfile, not the root's
 # bun one, and `bun test` discovers them with everything else, so a fresh
 # machine's first `just test` needs both trees standing. Every plugin declares

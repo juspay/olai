@@ -13,7 +13,7 @@ set -euo pipefail
 # The four splice points, all against the pinned 0.0.33 bundle:
 #
 #   1. `PiRpcProcess.spawn` — after the args line: this pin's bridge is
-#      `PI_ACP_MCP_EXTENSION` (set by nix/acp-agent.nix's wrapper): when it
+#      `PI_ACP_MCP_EXTENSION` (set by the pi plugin's `default.nix` wrapper): when it
 #      names a file and the request handed mcpServers, pi gets `-e <file>`
 #      and the session's process env carries PI_ACP_MCP_SERVERS as JSON —
 #      the same hand-off the seeded SKILL/AGENT env uses, one process per

@@ -20,7 +20,7 @@ Feature: The panel says which MCP servers a conversation has
   in neither, which is why the strip says "plus the agent's own" on every
   conversation rather than letting the list read as complete.
 
-  The fake `kolu` in `agent/kolu/` is what every server this suite spawns finds
+  The fake `kolu` in the kolu plugin's `e2e/fake/` is what every server this suite spawns finds
   first on its PATH, and the tag decides which one it is: the DEFAULT reaches no
   daemon, and `@kolu` is a host whose padi answers. The odu row beside it needs
   no fake: the wrapper the suite spawns (`OLAI_BIN`, the nix-built binary or

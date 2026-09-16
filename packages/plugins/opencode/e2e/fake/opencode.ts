@@ -2,10 +2,11 @@
 /**
  * An `opencode` on PATH, shaped the way the real one is on the wire.
  *
- * The suite's other scripted agent (`agent/fake-acp-agent.ts`) is the CLAUDE
- * CODE adapter's shape and has been since there was only one: a `_meta` on
- * every frame, tool names inside it, a bypass mode, a steering extension. This
- * one is the other shape, and every difference in it was captured live against
+ * The claude plugin's fake (`packages/plugins/claude/e2e/fake/claude-agent-acp`)
+ * is the CLAUDE CODE adapter's shape and has been since there was only one: a
+ * `_meta` on every frame, tool names inside it, a bypass mode, a steering
+ * extension. This one is the other shape, and every difference in it was
+ * captured live against
  * **opencode 1.17.9** (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/opencode-chat.md`):
  *
  *   - **no `_meta` on any frame, ever.** Which is what makes the tool name

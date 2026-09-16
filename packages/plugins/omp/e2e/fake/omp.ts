@@ -7,7 +7,7 @@
  * was captured live against **omp 18.1.21** spawned as `omp --approval-mode
  * yolo acp` (the spike, 2026-09-14 — `packages/plugins/omp/src/leg.ts` carries
  * the reading and that package's `docs.md` the prose). What it is NOT is a mode
- * of `agent/opencode/opencode` or `agent/fake-acp-agent.ts`. Two fakes keep
+ * of opencode's or claude's fakes. Two fakes keep
  * distinct fixtures because a fake whose shape is chosen by a flag is a fake
  * that can agree with the client by construction the day somebody makes the
  * flag do less than it says; a third is here for the same reason, and the
@@ -272,7 +272,8 @@ const callIdFor = (tool: string): string => `${tool}:${nextCall++}`;
  * wire: the corners that pair writes on a frame's `_meta` are an extension
  * nothing in omp's ACP mapper stamps. What the pair below models is the four
  * client requests instead — create, announce; wait, drain, release, complete —
- * spelled the way `agent/fake-acp-agent.ts`'s terminal path spells them,
+ * spelled the way the scripted core's terminal path spells them
+ * (`@olai/tests/agent/scripted-acp.ts`),
  * because that is the way the real one does.
  */
 const announceCommand = async (

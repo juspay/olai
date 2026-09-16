@@ -3,8 +3,9 @@
  * package that talks to a subprocess.
  *
  * Two things here speak newline-framed JSON-RPC down or up a pipe — the
- * scripted ACP agent every server is pointed at (`agent/fake-acp-agent.ts`),
- * and the fake `kolu` every server finds on its PATH (`agent/kolu/kolu`) —
+ * scripted ACP core the engines' fakes are scripted through
+ * (`agent/scripted-acp.ts`), and the kolu plugin's fake every server finds
+ * on its PATH (`packages/plugins/kolu/e2e/fake/kolu`) —
  * and each of them used to
  * carry its own copy of the same six lines: keep what has not ended in a
  * buffer, cut on newlines, parse each whole line. The copies were the bug. A
