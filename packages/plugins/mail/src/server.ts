@@ -1,48 +1,10 @@
 /**
- * MAIL'S SERVER HALF — the row, assembled where the judgement about Gmail
- * lives.
- *
- * ## What this half owns, and what owns it
- *
- * Four things are this row's, and all four are tied to this activation:
- *
- *   - the TOKEN BROKER (`./account.ts`) — the refresh token in core's memory
- *     door, the access token in a generated config, and the fiber that keeps it
- *     live;
- *   - the CONFIG DIRECTORY (`./himalaya/run.ts`) — a `mkdtemp` of the process,
- *     removed when the scope closes;
- *   - the PASSIVE ROUTE (`./route.ts`) — Google's redirect lands on this
- *     serve's own listener while the row is standing, and the route leaves with
- *     it;
- *   - the ACCOUNT CELL, which is the pill and the panel row.
- *
- * Switching the row off withdraws all four, in the reverse of the order they
- * were taken, because every one of them is a registration or a finalizer on
- * this apply's scope rather than a value something else holds.
- *
- * ## The doors, and why each is DECLARED rather than reached for
- *
- * `Env` is where `OLAI_HIMALAYA` and the two credential doors arrive — never
- * `process.env`, because a plugin that read the process directly would be a
- * plugin nobody could tell what it spends, and the panel's environment readings
- * are drawn from this declaration. `Clock` is the serve's time, so a stamp in a
- * cell and a stamp in a log are the same clock. `LocalState` is the memory file.
- * `Surfaces` publishes the account and the two procedures. `TransportSurface` is
- * the listener the redirect lands on.
- *
- * `Vault` is NOT named. The plan for this plugin lists it, and nothing in PR 1
- * reads the served directory: a `needs` entry is a claim that this plugin
- * cannot start without that door, and this plugin can — the account's record is
- * keyed by core's own hashing of the served directory, and the value never has
- * to be looked at. Attachments belong to a mail-owned temporary directory; tools still do not need Vault.
- *
- * ## Off by default
- *
- * The row is `disabled: true` in `packages/bundle/olai.yml`, for
- * `olai-plugin-xyne-spaces`' reason: this plugin needs a credential, and a
- * pill in every bar for an integration nobody pointed at is the wrong default.
- * The row itself still says what it wants in its environment readings — which
- * is how a person finds out what to set before switching it on.
+ * Mail owns its OAuth route, token broker, generated config and account cell.
+ * Its MCP tool closures also own a label cache, four spawn permits, per-thread
+ * write permits and a temporary attachment directory. The activation gate cuts
+ * and joins tool calls before resources close. Refresh fibers stop first, then
+ * attachments are removed, then the config directory. Vault is not a dependency:
+ * mail neither reads nor writes the served directory.
  */
 
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"

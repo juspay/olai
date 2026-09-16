@@ -17,3 +17,7 @@ test("each tool story is derived from reply JSON, including refusal and no-op", 
   ] as const
   for (const [reply, text] of examples) expect(storyOf(reply)?.text).toBe(text)
 })
+
+test("incomplete or unrelated stored replies do not break the transcript", () => {
+  for (const reply of [null, [], {}, { mail: "inbox" }, { mail: "thread", messages: null }, { mail: "label", changed: { added: null } }, { mail: "unknown" }]) expect(storyOf(reply)).toBeNull()
+})

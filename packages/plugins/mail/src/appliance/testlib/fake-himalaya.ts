@@ -323,7 +323,7 @@ For more information, try '--help'.`))
     return
   }
 
-  appendFileSync(path.join(path.dirname(fixturePath), "calls.jsonl"), JSON.stringify({ verb: verb.id, args: invocation.words.slice(verb.path.length) }) + "\n")
+  appendFileSync(path.join(path.dirname(fixturePath), "calls.ndjson"), JSON.stringify({ verb: verb.id, args: invocation.words.slice(verb.path.length) }) + "\n")
   if (verb.id !== GMAIL.profileGet.id && fixture.mailbox) {
     says(mailAnswer(verb, invocation.words.slice(verb.path.length), path.dirname(fixturePath)))
     return
