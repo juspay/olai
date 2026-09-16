@@ -132,10 +132,26 @@ export const HELD = "[-webkit-touch-callout:none]"
  * Reveal policy for hover-only gutter controls (triangle; menu on md+).
  *
  * Below 48rem: always on (a finger has no hover). Above: invisible until the
- * row line is hovered or something in the gutter is focused.
+ * row line is hovered, or something in it is FOCUSED — and that second half is
+ * the KEYBOARD's, not the caret's.
+ *
+ * A TITLE BEING TYPED IS ALSO FOCUS INSIDE THIS LINE, and `group-focus-within`
+ * counted it as a hand on the row: the title's `<input>` is drawn in the row's
+ * own group (`./client/RowEditor.tsx` — it is the title's cell), so the gutter
+ * was revealed for as long as anybody was typing. What a reader saw was a
+ * `•••` and a plugin's chip appearing on a line at the moment it landed, with
+ * the pointer nowhere near the row.
+ *
+ * So the clause asks for focus on anything that is NOT an editor — the two
+ * this client's fields are, one `<input>` and one `<textarea>`
+ * (`@olai/web`'s `isEditingTarget` names the wider set for the same question
+ * one layer up). A programmatic `focus()` counts as focus, which is what keeps
+ * `workflowy_gutter.feature`'s keyboard path true: the caret put ON a control
+ * is the state that clause exists for.
  */
 export const HOVER_REVEAL =
-  "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100"
+  "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 " +
+  "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100"
 
 /**
  * Reveal for the `•••` menu button — hover/focus-only, and no phone branch,
@@ -147,9 +163,14 @@ export const HOVER_REVEAL =
  * that attribute on the trigger for exactly this (`menu/Dropdown.tsx`), which
  * is steadier than the focus it used to ride on — a menu's own list can take
  * and drop the caret as a pointer moves over it.
+ *
+ * The focus arm is {@link HOVER_REVEAL}'s, in its spelling and for its reason:
+ * a hand on the row, or the caret on a CONTROL in it — never the caret in the
+ * title, which is what made this button appear when a new line landed.
  */
 export const MENU_REVEAL =
-  "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 " +
+  "opacity-0 group-hover/row:opacity-100 " +
+  "group-has-[:focus:not(input):not(textarea)]/row:opacity-100 " +
   "data-[expanded]:opacity-100"
 
 /** Past the glyph — where a day's row puts its note. */
