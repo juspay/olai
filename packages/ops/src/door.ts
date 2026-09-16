@@ -23,17 +23,20 @@
  */
 import {
   changesOf,
+  declarationsOf,
+  keysDeclaredAs,
   customText,
   type Derived,
   isMirror,
   type Node,
   nodesOf,
+  propertiesIn,
   type Writer,
 } from "@olai/format"
 
 import type { Plan } from "./plan.ts"
 
-export type ReservedKey = string | { readonly says: string; readonly file: string }
+export type ReservedKey = string | { readonly says: string; readonly file: string } | { readonly says: string; readonly kind: string }
 
 export type SessionRule =
   | { readonly _tag: "closed" }
@@ -82,7 +85,7 @@ export const barred = (
   // also refuses renames, moves, deletion and an empty shallower file masking
   // a deeper one; a property-only comparison would miss all four.
   for (const [key, reservation] of forbidden) {
-    if (typeof reservation === "string") continue
+    if (typeof reservation === "string" || !("file" in reservation)) continue
     const before = new Map<string, ReadonlyArray<Node>>(paths.map((file) => [file, nodesOf(derived, file).map((one) => one.node)]))
     const after = new Map(before)
     for (const one of plan.documents ?? []) after.set(one.file, [])
@@ -111,18 +114,44 @@ export const barred = (
   }
 
   const was = new Map(
-    plan.files.map((one) => [one.file, nodesOf(derived, one.file).map((at) => at.node)]),
+    [...plan.files.map(one => one.file), ...(plan.removed ?? [])].map(file => [file, nodesOf(derived, file).map(at => at.node)]),
   )
-  const now = new Map(plan.files.map((one) => [one.file, one.nodes]))
+  const now = new Map<string, ReadonlyArray<Node>>(plan.files.map((one) => [one.file, one.nodes]))
+  for (const file of plan.removed ?? []) now.set(file, [])
   const planned = new Map<string, Node>()
   for (const nodes of now.values()) {
     for (const node of nodes) planned.set(node.id, node)
   }
 
+  const keys = new Map(forbidden)
+  for (const [key, reservation] of forbidden) {
+    if (typeof reservation === "string" || !("kind" in reservation)) continue
+    const word = reservation.kind
+    const claim = { kind: word, claims: word, takes: "text", admits: () => true }
+    const built = new Map([[word, claim]])
+    for (const alias of keysDeclaredAs(declarationsOf(derived, { built, enabled: built }), word)) keys.set(alias, reservation.says)
+    keys.set(key, reservation.says)
+    // Compare the selected declaration namespace, including shadowing and file removal.
+    const before = new Map<string, ReadonlyArray<Node>>(paths.map(file => [file, nodesOf(derived, file).map(at => at.node)]))
+    const after = new Map(before)
+    for (const one of plan.documents ?? []) after.set(one.file, [])
+    for (const one of plan.files) after.set(one.file, one.nodes)
+    for (const file of plan.removed ?? []) after.delete(file)
+    const selected = (files: ReadonlyMap<string, ReadonlyArray<Node>>) => files.get(propertiesIn(derived.claims, files.keys()) ?? "") ?? []
+    const old = selected(before)
+    const next = selected(after)
+    const titles = new Set([key, ...[...old, ...next].flatMap(node => !isMirror(node) && customText(node, "type") === word ? [node.title] : [])])
+    const claims = (nodes: ReadonlyArray<Node>) => nodes.flatMap(node => !isMirror(node) && titles.has(node.title)
+      ? [{ id: node.id, title: node.title, parent: node.parent, ord: node.ord, type: customText(node, "type") }] : []).sort((a, b) => a.id.localeCompare(b.id))
+    if (JSON.stringify(claims(old)) !== JSON.stringify(claims(next))) {
+      const node = claims(next)[0] ?? claims(old)[0]!
+      return { why: "key", id: node.id, title: node.title, key, says: reservation.says }
+    }
+  }
   for (const change of changesOf(derived.claims, was, now)) {
     const before = derived.byId.get(change.id)
     const after = planned.get(change.id)
-    for (const [key, says] of forbidden) {
+    for (const [key, says] of keys) {
       if (typeof says !== "string") continue
       // BOTH DIRECTIONS, which is the comparison rather than a policy: a value
       // that moved is a value this door wrote, and taking one off is writing it

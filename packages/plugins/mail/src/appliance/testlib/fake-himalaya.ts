@@ -60,7 +60,7 @@
  * `run.ts`'s `refusedWith` is written around.
  */
 
-import { appendFileSync, chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -128,6 +128,8 @@ export interface FakeHimalaya {
    *  scenario moves between the suite's named worlds instead, through the
    *  interface below. Synchronous, so a scenario can move it between two awaits
    *  without threading a promise through the step. */
+  readonly deliver: (thread: string, subject: string, inbox?: boolean) => void
+  readonly expireHistory: () => void
   readonly rewrite: (fixture: MailFixture) => void
   /** Remove the temp directory. The spawned runs are short-lived processes the
    *  plugin owns, so there is nothing else to stop. */
@@ -325,6 +327,11 @@ For more information, try '--help'.`))
   }
 
   appendFileSync(path.join(path.dirname(fixturePath), "calls.ndjson"), JSON.stringify({ verb: verb.id, args: invocation.words.slice(verb.path.length) }) + "\n")
+  if (verb.id === GMAIL.profileGet.id && fixture.mailbox && fixture.profile) {
+    const history = historyAt(path.dirname(fixturePath))
+    says(answerFor(verb, { ...fixture, profile: { ...fixture.profile, historyId: history.latest } }, fixturePath))
+    return
+  }
   if (verb.id !== GMAIL.profileGet.id && fixture.mailbox) {
     says(mailAnswer(verb, invocation.words.slice(verb.path.length), path.dirname(fixturePath), fixture.stale))
     return
@@ -400,6 +407,8 @@ export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHi
     path: executable,
     fixturePath,
     speaks: SPEAKS,
+    deliver: (thread, subject, inbox = true) => deliverMail(directory, thread, subject, inbox),
+    expireHistory: () => { const history = historyAt(directory); history.latest = String(Number(history.latest) + 10); history.floor = history.latest; writeFileSync(path.join(directory, "history.json"), JSON.stringify(history)) },
     rewrite: (next) => {
       writeFileSync(fixturePath, JSON.stringify(next, null, 2))
     },
@@ -412,12 +421,27 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
   const ok = (value: unknown): Answered => ({ code: 0, stdout: JSON.stringify(value), stderr: "" })
   const flag = (name: string) => args[args.indexOf(name) + 1]
   const values = (name: string) => args.flatMap((arg, i) => arg === name ? [args[i + 1] ?? ""] : [])
-  const threads = THREADS.map(original => {
+  const originals = [...THREADS]
+  for (const file of readdirSync(directory).filter(file => /^thread-[0-9a-f]+\.json$/.test(file))) {
+    const saved = JSON.parse(readFileSync(path.join(directory, file), "utf8")) as typeof THREADS[number]
+    if (!originals.some(t => t.id === saved.id)) originals.push(saved)
+  }
+  const threads = originals.map(original => {
     const file = path.join(directory, `thread-${original.id}.json`)
     return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as typeof original : structuredClone(original)
   })
   if (stale) {
     threads[0]!.messages[0]!["label-ids"].push("Label_deleted", "SYSTEM_UNKNOWN")
+  }
+  if (verb.id === "history.list") {
+    if (!args.includes("--start-history-id") || flag("--label-id") !== "INBOX" || flag("--history-type") !== "messageAdded") return failed("history requires a start id and the inbox messageAdded filters")
+    const history = historyAt(directory)
+    const since = Number(flag("--start-history-id"))
+    if (since < Number(history.floor)) return failed("404 history id expired")
+    const records = history.records.filter(record => Number(record.id) > since)
+    const start = args.includes("--page-token") ? Number(flag("--page-token")) : 0
+    const max = Math.min(Number(flag("-s")), 2)
+    return ok({ history: records.slice(start, start + max), "history-id": history.latest, next_page: start + max < records.length ? String(start + max) : null })
   }
   if (verb.id === "labels.list") return ok(LABELS)
   if (verb.id === "threads.list") {
@@ -455,4 +479,25 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
   for (const message of thread.messages) message["label-ids"] = [...new Set([...message["label-ids"], ...add])].filter(id => !remove.includes(id))
   writeFileSync(path.join(directory, `thread-${thread.id}.json`), JSON.stringify(thread))
   return ok(`Gmail thread ${thread.id} successfully modified`)
+}
+
+interface FakeHistory {
+  latest: string
+  floor: string
+  records: Array<{ id: string; "messages-added": string[]; "messages-deleted": string[]; "labels-added": never[]; "labels-removed": never[]; "messages-added-details": Array<{ id: string; "thread-id": string; "label-ids": string[] }> }>
+}
+const historyAt = (directory: string): FakeHistory => {
+  const file = path.join(directory, "history.json")
+  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { latest: "100", floor: "0", records: [] }
+}
+const deliverMail = (directory: string, id: string, subject: string, inbox: boolean): void => {
+  const history = historyAt(directory)
+  history.latest = String(Number(history.latest) + 1)
+  const file = path.join(directory, `thread-${id}.json`)
+  const thread = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as typeof THREADS[number] : structuredClone(THREADS.find(t => t.id === id) ?? { id, messages: [] })
+  const message = { payload: { mimeType: "text/plain", parts: [] }, id: id + history.latest, "label-ids": inbox ? ["INBOX", "UNREAD"] : ["UNREAD"], snippet: subject + " preview", headers: [{ name: "Subject", value: subject }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "Date", value: "2026-09-15T09:15:00Z" }] }
+  thread.messages.push(message)
+  writeFileSync(file, JSON.stringify(thread))
+  history.records.push({ id: history.latest, "messages-added": [message.id], "messages-deleted": [], "labels-added": [], "labels-removed": [], "messages-added-details": [{ id: message.id, "thread-id": id, "label-ids": message["label-ids"] }] })
+  writeFileSync(path.join(directory, "history.json"), JSON.stringify(history))
 }

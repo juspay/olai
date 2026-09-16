@@ -103,3 +103,24 @@ that list once and show the raw ID if it is still unknown. A missing label name
 you ask to add or remove still refuses the write. An attachment that disappears
 after reading a thread is reported as a missing attachment on that message.
 Attachment stories round KiB sizes to one decimal place.
+
+## Waking an agent when mail arrives
+
+Put `mail-inbox: on` on your triage agent's node. Once that node has a conversation and this serve has a connected Gmail account, new inbox mail wakes it with a digest: sender, subject, date, thread id, unread status and a short preview. A busy conversation receives one combined digest when its turn finishes. Nothing wakes unless a node opts in; look on the node for this choice, rather than in the conversation strip.
+
+The first check starts from now, without replaying the inbox. Set the property to `off` to stop; turning it back on starts from then. Restarts resume the saved position. If Gmail's history has expired, the watcher starts from now again without replaying the gap. Use `mail_inbox` whenever you want the current inbox, including any mail missed during that gap. Digests show at most 50 threads and say how many more arrived.
+
+Checks default to every two minutes. In `_olai/Settings.olai`, give the `mail` node a `poll` property such as `30s` or `2m`. Changes take effect live. An invalid value warns and uses `2m`. No opted-in conversation means no mailbox polling.
+
+For an `Inbox` agent, paste this charter into its note:
+
+```text
+Help me reach inbox zero.
+For each arrival, search my vault for the sender, project and earlier decisions.
+Read the thread if its preview is not enough.
+Propose one action per thread and wait for my yes.
+When agreed, record the outcome as a todo or note with a Gmail URL.
+Then archive, label or mark the thread as agreed. Never send mail.
+```
+
+Use `https://mail.google.com/mail/u/0/#all/<thread id>` as the todo's `url`. The watcher supplies facts; your charter decides what the agent does with them. Only you can change its inbox opt-in through Olai's editing tools.

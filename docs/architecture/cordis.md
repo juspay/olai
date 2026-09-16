@@ -275,3 +275,9 @@ Text-only agent adapters share `@olai/surface`'s pure `refusalIn` decoder. Each
 engine retains its own SDK envelope extraction. The server's MCP tests parse
 real formatted refusals and compare them with structured details, tying the
 compatibility check to the formatter's release cycle.
+
+### Mail inbox watcher
+
+Mail acquires `Vault`, `chat.seating`, `Kinds` and `Deliveries` through declared services. A vault revision supplies the complete opt-in reading; unload clears it. The watcher, OAuth refresh and mailbox operations belong to the mail activation. The poll fiber stops before the shared mailbox's attachment directory and Himalaya config close. History calls have their own sequential cadence; thread metadata uses the mailbox's four spawn permits. Queued chat thunks recheck the current node opt-in and account connection before composing their digest, and chat withdraws those thunks when mail leaves. The persisted history cursor advances only after delivery thunks have been accepted.
+
+The `mail-inbox` kind's static write reservation follows re-keyed declarations and remains active while mail is disabled. The shared operation door enforces that policy on agent tickets; it carries the owner's explanation rather than knowing about mail.

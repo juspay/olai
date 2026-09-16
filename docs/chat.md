@@ -596,6 +596,8 @@ An agent's report never overrules the probe. If this host's `kolu` would not ans
 
 ## What this conversation wakes on
 
+Mail wakes are chosen on the agent node: put `mail-inbox: on` there and connect Gmail in the plugins panel. The choice travels with the node and its charter, so it has no picker in this strip. New arrivals bring a digest; `off` stops them. See [mail](plugins/mail.md#waking-an-agent-when-mail-arrives) for the cadence and a sample triage charter.
+
 Manual wake picks only run for conversations currently bound to a live node. A pick on an unbound or trashed conversation is ignored; bind and arm the node to resume automatic wakes.
 
 **A plugin can put a message into this conversation, and you decide which one it may put it into.** Under the roster and the strip of what is running is a third line — one per plugin that has something to watch — saying what the wake would be about and which file you pointed it at:

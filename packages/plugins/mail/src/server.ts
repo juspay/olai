@@ -2,15 +2,18 @@
  * Mail owns its OAuth route, token broker, generated config and account cell.
  * Its MCP tool closures also own a label cache, four spawn permits, per-thread
  * write permits and a temporary attachment directory. The activation gate cuts
- * and joins tool calls before resources close. Refresh fibers stop first, then
- * attachments are removed, then the config directory. Vault is not a dependency:
- * mail neither reads nor writes the served directory.
+ * and joins tool calls before resources close. The watcher and refresh fibers stop before
+ * attachments and the config directory close. Vault and chat seating are declared
+ * readings; deliveries is write-only. All pending digest state dies with the row.
  */
 
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
   Clock,
+  Deliveries,
+  Kinds,
+  Vault,
   definePlugin,
   detached,
   Env,
@@ -18,9 +21,15 @@ import {
   Surfaces,
 } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
-import { Effect } from "effect"
+import { Effect, Queue } from "effect"
 
 import { type Account, MAIL_UNCONNECTED, name, surface, faces } from "./wire.ts"
+import type { Reading } from "@olai/format"
+import { Config, pollIn } from "./settings.ts"
+import { Seating, wakingIn } from "./inbox.ts"
+import { kinds } from "./kinds.ts"
+import { makeWatch } from "./watch.ts"
+import { openMailbox } from "./mailbox.ts"
 import { makeTools } from "./tools.ts"
 import { makeAccount } from "./account.ts"
 import { DOOR } from "./doors.ts"
@@ -29,6 +38,8 @@ import { openMemory } from "./local.ts"
 import { FORM_CONTENT_TYPE, googleOf } from "./oauth.ts"
 import { mailRoute } from "./route.ts"
 
+export { kinds } from "./kinds.ts"
+export { Config } from "./settings.ts"
 export { faces, name, surface } from "./wire.ts"
 
 /** The trimmed value of a door, or `undefined` — because an empty string is how
@@ -63,8 +74,15 @@ export default definePlugin({
     },
   ],
   name,
-  needs: [Clock, Env, LocalState, Surfaces, TransportSurface],
+  needs: [Clock, Env, LocalState, Surfaces, TransportSurface, Vault, Seating, Deliveries, Kinds],
+  config: Config,
+  configUpdates: "live",
   apply: Effect.gen(function*() {
+    const vault = yield* Vault
+    const seating = yield* Seating
+    const deliveries = yield* Deliveries
+    const vocabulary = yield* Kinds
+    for (const kind of kinds) yield* vocabulary.register(kind)
     const clock = yield* Clock
     const environment = yield* Env
     const localState = yield* LocalState
@@ -142,6 +160,8 @@ export default definePlugin({
       warn,
     })
 
+    const mailbox = yield* openMailbox(himalaya, machine, environment.vars["XDG_RUNTIME_DIR"])
+
     /** ONE CELL AND TWO PROCEDURES. `deps` is annotated against THIS package's
      *  own spec, so a member renamed in `./wire.ts` is a type error here rather
      *  than a boot crash in somebody's composition root. No `published`: this
@@ -149,7 +169,7 @@ export default definePlugin({
     yield* surfaces.register({
       surface,
       faces,
-      tools: yield* makeTools(himalaya, machine, environment.vars["XDG_RUNTIME_DIR"]),
+      tools: yield* makeTools(mailbox),
       deps: {
         cells: {
           account: {
@@ -184,5 +204,24 @@ export default definePlugin({
      *  answer still draws its app. */
     yield* Effect.forkScoped(machine.boot())
     yield* Effect.forkScoped(machine.refresh)
+    const watcher = makeWatch({ mailbox, memory, machine, deliveries, clock, warn,
+      debug: line => run(Effect.logDebug(line)),
+    })
+    let pollMs = 120_000
+    const changed = yield* Queue.unbounded<void>()
+    yield* vault.revision((revision: { value: Reading }) => Effect.sync(() => {
+      const stopped = watcher.revision(wakingIn(revision.value.derived, seating.in(revision.value.derived)))
+      const next = pollIn(revision.value)
+      if (next !== pollMs) { pollMs = next; Queue.offerUnsafe(changed, undefined) }
+      return stopped
+    }).pipe(Effect.flatMap(stopped => {
+      const record = memory.current()
+      return stopped && record ? memory.advance(record.connectedAt, null).pipe(Effect.catch(() => Effect.logWarning("mail: could not clear the inactive inbox cursor"))) : Effect.void
+    })))
+    yield* vault.unloaded(Effect.sync(() => watcher.revision({ binds: [], named: [] })))
+    yield* Effect.forkScoped(Effect.forever(Effect.gen(function*() {
+      const due = yield* Effect.raceFirst(Effect.sleep(pollMs).pipe(Effect.as(true)), Queue.take(changed).pipe(Effect.as(false)))
+      if (due) yield* watcher.poll
+    })))
   }),
 })

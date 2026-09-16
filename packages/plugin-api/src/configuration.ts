@@ -1,5 +1,5 @@
 /** Static configuration protocol. Live readings are owned by the offering row. */
-import { type Claims, fileKind, stemOf, customText, isRegular, UsageFailure, type WriteRequest, type Located, type Reading } from "@olai/format"
+import { yesNo, type Claims, fileKind, stemOf, customText, isRegular, UsageFailure, type WriteRequest, type Located, type Reading } from "@olai/format"
 import { Schema, SchemaAST, type Stream } from "effect"
 import { serviceTag } from "@olai/effect-cordis"
 
@@ -50,7 +50,7 @@ export const policyControl = (ast: SchemaAST.AST): Control => {
 export const coerceLeaf = (schema: Schema.ConstraintDecoder<unknown, never>, raw: string): unknown => {
   const control = policyControl(schema.ast)
   const input = control.kind === "number" ? (raw.trim() === "" ? NaN : Number(raw))
-    : control.kind === "switch" ? (raw === "yes" ? true : raw === "no" ? false : raw) : raw
+    : control.kind === "switch" ? (yesNo(raw) ?? raw) : raw
   const decode = Schema.decodeUnknownSync(schema)
   if (input === raw) return decode(raw)
   // Some declarations already own a string-to-value codec. Give that encoding

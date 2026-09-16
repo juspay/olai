@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "GmailHistoryLabelOutput": {
+      "description": "Labels added to or removed from one message in a history record.",
+      "properties": {
+        "label-ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "message-id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "message-id",
+        "label-ids"
+      ],
+      "type": "object"
+    },
+    "GmailHistoryMessageOutput": {
+      "description": "Message identity and labels at the time of arrival.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label-ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "thread-id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label-ids"
+      ],
+      "type": "object"
+    },
+    "GmailHistoryRecordOutput": {
+      "description": "A single change to the mailbox since the requested history id.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "labels-added": {
+          "items": {
+            "$ref": "#/$defs/GmailHistoryLabelOutput"
+          },
+          "type": "array"
+        },
+        "labels-removed": {
+          "items": {
+            "$ref": "#/$defs/GmailHistoryLabelOutput"
+          },
+          "type": "array"
+        },
+        "messages-added": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "messages-added-details": {
+          "items": {
+            "$ref": "#/$defs/GmailHistoryMessageOutput"
+          },
+          "type": "array"
+        },
+        "messages-deleted": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "messages-added",
+        "messages-added-details",
+        "messages-deleted",
+        "labels-added",
+        "labels-removed"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A listing plus the cursor of its next page.\n\nThe cursor is part of the output, a footer line in text and a\n`next_page` field in JSON, so a script reads it. Logging it to stderr\nwould not.",
+  "properties": {
+    "history": {
+      "items": {
+        "$ref": "#/$defs/GmailHistoryRecordOutput"
+      },
+      "type": "array"
+    },
+    "history-id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "next_page": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "history"
+  ],
+  "title": "Paginated",
+  "type": "object"
+}

@@ -67,6 +67,7 @@ export const GMAIL = {
     path: ["gmail", "profile", "get"],
     says: "the signed-in address and the mailbox's totals",
   },
+  historyList: { id: "history.list", path: ["gmail", "history", "list"], says: "mailbox changes since a history id" },
   threadsList: { id: "threads.list", path: ["gmail", "threads", "list"], says: "a page of matching Gmail threads" },
   threadsGet: { id: "threads.get", path: ["gmail", "threads", "get"], says: "the messages and labels of one thread" },
   threadsModify: { id: "threads.modify", path: ["gmail", "threads", "modify"], says: "add or remove labels across a thread" },

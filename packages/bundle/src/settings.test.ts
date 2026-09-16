@@ -58,10 +58,10 @@ test("the audit refuses numeric and nullable fields without a string spelling", 
 })
 
 
-test("the agent write reservation set is exactly enablement and definition approval", async () => {
+test("the agent write reservation set is enablement, inbox consent and definition approval", async () => {
   const { WRITE_RESERVATIONS } = await import("./policy.ts")
   expect(WRITE_RESERVATIONS.map(({ key, file }) => ({ key, file })).sort((a, b) => a.key.localeCompare(b.key))).toEqual([
-    { key: "approved", file: undefined }, { key: "on", file: "settings.olai" },
+    { key: "approved", file: undefined }, { key: "mail-inbox", file: undefined }, { key: "on", file: "settings.olai" },
   ])
 })
 
@@ -150,4 +150,12 @@ test("the key fence catches literals, dotted keys, property reads and local iden
     'reading.commit', 'const commit = () => {}', 'const view = <p>{"held-for"}</p>',
   ]) expect(spelledKeys(source, keys).length, source).toBeGreaterThan(0)
   expect(spelledKeys('// commit\nimport type { commit } from "commit"; rows.push(value)', new Set([...keys, "push"]))).toEqual([])
+})
+
+
+test("mail declares a two-minute poll knob with duration validation", async () => {
+  const { Config } = await import("olai-plugin-mail/server")
+  expect(Schema.decodeUnknownSync(Config)({})).toEqual({ poll: "2m" })
+  expect(Schema.decodeUnknownSync(Config)({ poll: "1s" })).toEqual({ poll: "1s" })
+  expect(() => Schema.decodeUnknownSync(Config)({ poll: "0s" })).toThrow()
 })

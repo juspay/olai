@@ -1,5 +1,5 @@
 {
-  "//": "WHERE THE WORD IS NOT THE PLUGIN. A handful of this package's files spell another row's name as ordinary code, and each is recorded here rather than excused by a pattern — the equality in @olai/bundle's fence.test.ts is what refuses a NEW collision until somebody writes it down with a reason. 'search' is `url.searchParams`, which every one of the three files uses because they all compose or parse a request; 'git' is the `git:` line of the version string the fake binary prints, which the pinned Himalaya really does print (`himalaya --version` ends with two lines about the build and its revision) and which the fake must reproduce or the surface check's parse is exercised over a string no binary would answer; 'vault' is the English word in the panel row's own sentence to a person — the refresh token is kept in this serve's memory, never in the vault — which is the product's word for the served directory and also a row's name.",
+  "//": "WHERE THE WORD IS NOT THE PLUGIN. A handful of this package's files spell another row's name as ordinary code, and each is recorded here rather than excused by a pattern \u2014 the equality in @olai/bundle's fence.test.ts is what refuses a NEW collision until somebody writes it down with a reason. 'search' is `url.searchParams`, which every one of the three files uses because they all compose or parse a request; 'git' is the `git:` line of the version string the fake binary prints, which the pinned Himalaya really does print (`himalaya --version` ends with two lines about the build and its revision) and which the fake must reproduce or the surface check's parse is exercised over a string no binary would answer; 'vault' is the English word in the panel row's own sentence to a person \u2014 the refresh token is kept in this serve's memory, never in the vault \u2014 which is the product's word for the served directory and also a row's name.",
   "git": [
     "src/appliance/testlib/fake-himalaya.ts"
   ],
@@ -12,7 +12,8 @@
     "src/tools.ts"
   ],
   "vault": [
-    "src/browser/Row.tsx"
+    "src/browser/Row.tsx",
+    "src/server.ts"
   ],
   "//tools": "Mail query, trash verbs and PDF attachment fixtures are mail vocabulary, not dependencies on those plugin rows.",
   "pdf": [
@@ -25,5 +26,6 @@
     "src/himalaya/verbs.ts",
     "src/mailbox.ts",
     "src/tools.ts"
-  ]
+  ],
+  "//watch": "Server acquires the declared Vault service; the local variable is the capability, not a plugin lookup."
 }

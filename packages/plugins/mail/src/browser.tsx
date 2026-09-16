@@ -80,6 +80,8 @@ export default definePlugin({
       (held) => Effect.sync(held.dispose),
     )
 
+    yield* slots.register("delivery.mark", () => <span aria-label="mail">✉</span>)
+
     yield* slots.register("tool.reply", { fileOf: () => null, story })
 
     yield* slots.register("app.header", {

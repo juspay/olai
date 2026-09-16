@@ -273,7 +273,7 @@ Use one top-level node per row in `_olai/Settings.olai`. For example:
 {"id":"chat","ord":"a2","title":"chat","custom":{"idle-ms":"1200000"}}
 ```
 
-`on: yes` enables a build opt-in row; `on: no` disables one. An absent choice uses the profile/build default. Selecting a tool the machine lacks leaves its row unavailable with the reason; it does not break unrelated rows. With no engine available chat explains the absence. Turning chat off removes the conversation and leaves its dependants waiting.
+`on: yes` enables a build opt-in row; `on: no` disables one. The case-insensitive pairs `on`/`off` and `true`/`false` mean the same thing. An absent choice uses the profile/build default. Selecting a tool the machine lacks leaves its row unavailable with the reason; it does not break unrelated rows. With no engine available chat explains the absence. Turning chat off removes the conversation and leaves its dependants waiting.
 
 ### Three settings doors
 
@@ -288,7 +288,7 @@ Memory is a separate machine-local record. The panel foot names `memory · $XDG_
 
 ### Settings declarations
 
-Each plugin's `Config` schema is the sole declaration of keys, defaults, validation and descriptions. `olai.yml` carries `id`, `name`, `section`, and optional `disabled`, `profiles`, `quiet` and `switchHint`; it carries no config block. The settings row reads the vault's revision, publishes a service, and owns no loader verbs. The composition root applies patches and waits for reconciliation. A changed config normally re-applies its row. A plugin may declare that it follows values live; Kolu does this for its `watch` child on the same revision, preserving its activation. It never reads `Kolu.olai`.
+Each plugin's `Config` schema is the sole declaration of keys, defaults, validation and descriptions. `olai.yml` carries `id`, `name`, `section`, and optional `disabled`, `profiles`, `quiet` and `switchHint`; it carries no config block. The settings row reads the vault's revision, publishes a service, and owns no loader verbs. The composition root applies patches and waits for reconciliation. A changed config normally re-applies its row. A plugin may declare that it follows values live; Kolu does this for its `watch` child on the same revision, preserving its activation. It never reads `Kolu.olai`. Mail also follows its `poll` property live (default `2m`; for example `30s`), under the `mail` node. It polls only while an agent node opts into inbox wakes with `mail-inbox: on`.
 
 The reader selects `Settings.olai` by case-folded basename, shallowest path first, then path order. Missing file, node or leaf uses defaults. An invalid leaf defaults and warns once; the input shows the refused file text in alarm, with the schema message and effective default beneath it; a broken line defaults all rows and names the broken file on the panel. Repair restores the reading. Boot enables the vault and reader profile first, then folds the first policy reading into the remaining row patches before enabling them. A row the file disables never applies. There is no second disk reader before the vault lock.
 
