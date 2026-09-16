@@ -81,6 +81,24 @@ Feature: A new line keeps its box while its save lands
     And the row being typed is the one pointed at
     And there should be no page errors
 
+  Scenario: What a row hides until a hand is on it stays hidden while its title is typed
+    # The report: type a new line, and when it lands the row grows a `•••` and
+    # a `✳ start an agent` chip with the pointer nowhere near it. They are
+    # HOVER-only, and a caret in an editor is not a hand on the row —
+    # `group-focus-within/row` said it was, and the editor fires it for as long
+    # as anybody is typing.
+    Given I open the outline "house.olai"
+    When I click the title of "handles"
+    And I press "Enter"
+    And I type "measure twice"
+    And "house.olai" holds a node titled "measure twice"
+    And the line being typed has become the row holding "measure twice"
+    And the pointer is off every row
+    Then the row being typed hides its furniture
+    When I hover the row being typed
+    Then the row being typed shows its furniture
+    And there should be no page errors
+
   Scenario: The caret a person left mid-word survives the save landing
     # The reply and the frame swap the BOX under the caret. The offset is the
     # one thing about it that is in neither the draft nor the row — it is in

@@ -51,6 +51,7 @@ import {
   expectBefore,
   NEW_ROW,
   NODE,
+  NODE_MENU,
   NODE_TITLE,
   nodeSelector,
   POLL_TIMEOUT,
@@ -1249,6 +1250,82 @@ Then("the row being typed is the one pointed at", async function (this: OlaiWorl
       ),
     "the line being typed to hold the caret AND the ring, as one row",
   );
+});
+
+// ── what a row hides until a hand is on it ─────────────────────────────
+
+/** The controls a row keeps at `opacity: 0` until the pointer is on it — the
+ *  `•••` and whatever a plugin hung beside it (`@olai/ui-primitives/touch.ts`'s
+ *  `MENU_REVEAL` and `HOVER_REVEAL`, whose contract IS the opacity). */
+const HIDDEN_UNTIL_HOVERED: ReadonlyArray<readonly [string, string]> = [
+  ["the •••", NODE_MENU],
+  ["the plugin chip", AGENT_CHIP],
+];
+
+/** The row the CARET is in, by id — a line a keystroke made has an id nobody
+ *  chose, so the row these steps are about is named by where the caret is. */
+const caretRow = async (world: OlaiWorld): Promise<string> => {
+  const id = await world.page.evaluate((editor) => {
+    const field = document.activeElement;
+    return field !== null && field.matches(editor)
+      ? field.closest("[data-node-id]")?.getAttribute("data-node-id") ?? null
+      : null;
+  }, TITLE_EDITOR);
+  assert.ok(id !== null, "the caret is not in a row's title");
+  return id;
+};
+
+/** What each of them is at, as opacity, and `null` where the row has none
+ *  (a plugin that is off draws no chip). */
+const revealsOf = async (
+  world: OlaiWorld,
+  id: string,
+): Promise<ReadonlyArray<readonly [string, number | null]>> => {
+  const out: Array<readonly [string, number | null]> = [];
+  for (const [what, control] of HIDDEN_UNTIL_HOVERED) {
+    const where = world.within(id, control);
+    out.push([
+      what,
+      (await where.count()) === 0
+        ? null
+        : await where.evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity)),
+    ]);
+  }
+  return out;
+};
+
+When("the pointer is off every row", async function (this: OlaiWorld) {
+  // A corner of the page no row can be under. `I click the title of …` leaves
+  // the pointer ON the row it pressed, which is a hand on that row and would
+  // be ordinary hover chrome — the report's state is a hand nowhere.
+  await this.page.locator("body").hover({ position: { x: 2, y: 2 } });
+  await this.waitForFrame();
+});
+
+Then("the row being typed hides its furniture", async function (this: OlaiWorld) {
+  const id = await caretRow(this);
+  await this.waitUntil(async () => {
+    const reveals = await revealsOf(this, id);
+    return reveals.every(([, opacity]) => opacity === null || opacity < 0.1);
+  }, `the ••• and the chip of "${id}" to stay hidden while its title is typed`).catch(async () => {
+    assert.fail(`"${id}": ${JSON.stringify(await revealsOf(this, id))} — the caret is not a hand`);
+  });
+});
+
+When("I hover the row being typed", async function (this: OlaiWorld) {
+  await this.node(await caretRow(this)).hover();
+  await this.waitForFrame();
+});
+
+Then("the row being typed shows its furniture", async function (this: OlaiWorld) {
+  const id = await caretRow(this);
+  await this.waitUntil(async () => {
+    const reveals = await revealsOf(this, id);
+    return reveals.some(([, opacity]) => opacity !== null) &&
+      reveals.every(([, opacity]) => opacity === null || opacity > 0.5);
+  }, `the ••• and the chip of "${id}" to be revealed by a hand on the row`).catch(async () => {
+    assert.fail(`"${id}": ${JSON.stringify(await revealsOf(this, id))}`);
+  });
 });
 
 // ── the line that is saving ────────────────────────────────────────────
