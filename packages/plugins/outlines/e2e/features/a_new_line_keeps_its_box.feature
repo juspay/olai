@@ -81,6 +81,21 @@ Feature: A new line keeps its box while its save lands
     And the row being typed is the one pointed at
     And there should be no page errors
 
+  Scenario: The bullet and the caret do not move when the line lands
+    # Measured off the recording: the title stayed put, the bullet dropped six
+    # pixels and the caret changed height — the blank was `items-center` where a
+    # row is `items-baseline`. Two lines, one layout (`touch.ts`'s `ROW_LINE`):
+    # the boxes are written down in the blank and asked for again on the row.
+    Given I open the outline "house.olai"
+    When I click the title of "handles"
+    And I press "Enter"
+    And I write down the boxes of the line being typed
+    And I type "measure twice"
+    And "house.olai" holds a node titled "measure twice"
+    And the line being typed has become the row holding "measure twice"
+    Then the row it became stands in the same boxes
+    And there should be no page errors
+
   Scenario: What a row hides until a hand is on it stays hidden while its title is typed
     # The report: type a new line, and when it lands the row grows a `•••` and
     # a `✳ start an agent` chip with the pointer nowhere near it. They are

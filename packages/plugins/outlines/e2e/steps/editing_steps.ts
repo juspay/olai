@@ -1252,6 +1252,74 @@ Then("the row being typed is the one pointed at", async function (this: OlaiWorl
   );
 });
 
+// ── the boxes a landing must not move ─────────────────────────────────
+
+/** A line's GLYPH CELL and the caret's box: the two things a person sees move
+ *  when a blank and a row are laid out differently — the bullet drops and the
+ *  caret changes height (`../browser/edit/NewRow.tsx` draws the blank with the
+ *  row's own `ROW_LINE` and its `GLYPH_BOX`, which is the whole of why they do
+ *  not).
+ *
+ * ONE selector for the glyph in both states, because it is one cell: the blank
+ * wears `new-row-glyph` and the row's is the link its bullet is drawn in
+ * (`../browser/Glyph.tsx`), and a scenario that had to name them separately
+ * would be free to compare two different things. */
+const GLYPH = `[data-testid="${TESTID.newRowGlyph}"], [data-testid="${TESTID.zoom}"]`;
+
+type LineBox = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
+const lineBoxes = new WeakMap<OlaiWorld, { readonly glyph: LineBox; readonly field: LineBox }>();
+
+const readyBox = async (world: OlaiWorld, where: Locator, what: string): Promise<LineBox> => {
+  await where.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const box = await where.boundingBox();
+  assert.ok(box !== null, `${what} has no box`);
+  return box;
+};
+
+When("I write down the boxes of the line being typed", async function (this: OlaiWorld) {
+  const blank = this.page.locator(NEW_ROW).first();
+  lineBoxes.set(this, {
+    glyph: await readyBox(this, blank.locator(GLYPH).first(), "the bullet of the line being typed"),
+    field: await readyBox(this, blank.locator(TITLE_EDITOR).first(), "the caret of the line being typed"),
+  });
+});
+
+Then("the row it became stands in the same boxes", async function (this: OlaiWorld) {
+  const written = lineBoxes.get(this);
+  assert.ok(written !== undefined, "no boxes were written down first");
+  const id = await caretRow(this);
+  const row = this.node(id);
+  const now = {
+    glyph: await readyBox(this, row.locator(GLYPH).first(), `the bullet of "${id}"`),
+    field: await readyBox(this, row.locator(TITLE_EDITOR).first(), `the caret of "${id}"`),
+  };
+  // X, Y AND HEIGHT, and not the width: a blank's field is the rest of its LINE
+  // (`./RowEditor.tsx`'s `fillsLine`) while a row's title is as wide as its own
+  // words, so the two boxes are deliberately different shapes whose LEFT edges
+  // and baselines are the same pixels.
+  //
+  // EVERY difference is collected before the assertion, because they are one
+  // answer — the two lines are laid out by different rules — and the first
+  // number a loop happened to reach says less than all of them.
+  const WHAT = { glyph: "bullet", field: "caret" } as const;
+  const moved: Array<string> = [];
+  for (const which of ["glyph", "field"] as const) {
+    for (const edge of ["x", "y", "height"] as const) {
+      const was = written[which][edge];
+      const is = now[which][edge];
+      if (Math.abs(is - was) > 1) {
+        moved.push(`the ${WHAT[which]}'s ${edge} was ${was} in the blank and is ${is} on the row`);
+      }
+    }
+  }
+  assert.deepStrictEqual(moved, [], `the line moved when it landed: ${moved.join("; ")}`);
+});
+
 // ── what a row hides until a hand is on it ─────────────────────────────
 
 /** The controls a row keeps at `opacity: 0` until the pointer is on it — the

@@ -30,7 +30,7 @@
 import { TESTID } from "olai-plugin-outlines/testids"
 import { DOT } from "@olai/web/client/marks.tsx"
 
-import { CONTROL, GUTTER_GAP, HOVER_CELL, HOVER_GUTTER } from "@olai/ui-primitives/touch.ts"
+import { CONTROL, GLYPH_BOX, HOVER_CELL, HOVER_GUTTER, ROW_LINE } from "@olai/ui-primitives/touch.ts"
 import { clearNode } from "../focus.ts"
 import type { Pending } from "./draft.ts"
 import { DraftSaid, TitleEditor } from "./RowEditor.tsx"
@@ -58,7 +58,14 @@ export function NewRow(props: {
         // see changes except the `•••` beside it going live. A PARKED blank
         // keeps the bare outline it always had: it is a sketch left standing,
         // not a row anybody is in.
-        class={`flex items-center rounded-sm py-1 ${GUTTER_GAP}`}
+        //
+        // AND IT IS LAID OUT BY THE ROW'S OWN RULE — {@link ROW_LINE}, the same
+        // constant `../Tree.tsx` draws a row with. This was `items-center` here
+        // and `items-baseline` there, and the bullet dropped six pixels (and the
+        // caret changed height) at every landing: a blank is a row one write
+        // early, so the two boxes are the same box or the seat they share is
+        // only pretending.
+        class={`${ROW_LINE} rounded-sm`}
         classList={{ "bg-accent/10 ring-1 ring-accent/50": props.active !== false }}
         // A CARET IN A LINE THAT IS NOT A ROW LIGHTS NO ROW. The ring a
         // selected row wears (`../focus.ts`) has to leave, or the row above
@@ -91,11 +98,25 @@ export function NewRow(props: {
             Alt+Shift+↑/↓ already answer under it, and a place the keys claim
             is a row, not a placeholder — while a PARKED one stays the outline:
             the sketch left standing on the page (the comment above).
-            `active` is exactly that line. */}
-        <span class={CONTROL} classList={{ "text-accent": props.active !== false }} aria-hidden="true">
+            `active` is exactly that line.
+
+            THE CELL IS A ROW'S CELL, box for box: `GLYPH_BOX` is the span a
+            tree row wraps its bullet in so the bullet can be picked up
+            (`./drag/Handle.tsx`), and `CONTROL` is what both draw inside it —
+            an alignment that lived in two files put this dot six pixels away
+            from the glyph it becomes. No `data-handle`: a blank is not
+            something to pick up. */}
+        <span class={GLYPH_BOX} aria-hidden="true">
           <span
-            class={props.active === false ? `${DOT} border-[1.5px] border-muted` : `${DOT} bg-current`}
-          />
+            class={CONTROL}
+            classList={{ "text-accent": props.active !== false }}
+            data-testid={TESTID.newRowGlyph}
+            aria-hidden="true"
+          >
+            <span
+              class={props.active === false ? `${DOT} border-[1.5px] border-muted` : `${DOT} bg-current`}
+            />
+          </span>
         </span>
         <TitleEditor
           slot={{ row: props.draft.slot, field: "new" }}

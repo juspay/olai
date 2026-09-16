@@ -127,6 +127,7 @@ import {
   HOVER_REVEAL,
   PAST_CONTROLS,
   ROOT_RAIL,
+  ROW_LINE,
   ROW_TITLE,
 } from "@olai/ui-primitives/touch.ts"
 import { applying } from "./writes.ts"
@@ -594,7 +595,7 @@ function Branch(props: {
         // (./NodeLine.tsx), and centring would set the bullet and the fold
         // triangle beside the middle of the paragraph rather than its first
         // line. A day page's row was already aligned this way (./DatedRow.tsx).
-        class={`group/row relative flex items-baseline py-1 ${HELD} ${GUTTER_GAP} ${
+        class={`group/row ${ROW_LINE} ${HELD} ${
           WAITING_DIM(props.row.blocked)
         } ${CONTEXT_DIM(narrowed, shownId())}`}
         // The phone's door to the `•••` menu: hold a finger on the row. Touch

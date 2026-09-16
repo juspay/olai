@@ -81,6 +81,34 @@ export const TARGET_BOX = "min-h-11 min-w-11"
 export const GUTTER_GAP = "gap-1"
 
 /**
+ * A LINE of the outline — the row line, and the blank that is about to become
+ * one. ONE spelling, used by both (`../client/Tree.tsx` and
+ * `../client/edit/NewRow.tsx`), because a blank is a row one write early: if
+ * the two are laid out by different rules, the bullet and the caret MOVE the
+ * moment the write lands, which is the one thing the seat they share exists to
+ * prevent. It was `items-center` on the blank and `items-baseline` here, and
+ * the bullet dropped six pixels at every landing.
+ *
+ * `items-baseline`, not `items-center`, and that is the rule rather than a
+ * preference: a title WRAPS (`../client/NodeLine.tsx`), so the glyph and the
+ * fold triangle sit against the title's first line rather than the middle of
+ * the block. `py-1` is the vertical rhythm every row is spaced on.
+ */
+export const ROW_LINE = `relative flex items-baseline py-1 ${GUTTER_GAP}`
+
+/**
+ * The box a line's GLYPH is drawn in: the span a tree row wraps its bullet in
+ * so the bullet can be picked up (`../client/drag/Handle.tsx`), and the same
+ * box around a blank's dot — the two lines are one layout (`@olai/outlines` and
+ * this file's `ROW_LINE`).
+ *
+ * `items-center` HERE and `items-baseline` on the line, which is not a
+ * contradiction: this box is a flex item of the line and is aligned by the
+ * line's rule, while the glyph inside it is centred on its own cell.
+ */
+export const GLYPH_BOX = "inline-flex items-center"
+
+/**
  * A row's permanent control — the glyph, and the hollow dot a row that does not
  * exist yet draws in its place.
  *
