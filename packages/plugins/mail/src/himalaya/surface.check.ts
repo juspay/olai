@@ -228,7 +228,7 @@ try {
   for (const name of schemas) {
     const file = `himalaya-gmail-${name}.json`
     const actual = JSON.parse(readFileSync(join(temporary, file), "utf8"))
-    const expected = JSON.parse(readFileSync(new URL(`../packages/plugins/mail/src/himalaya/schemas/${file}`, import.meta.url), "utf8"))
+    const expected = JSON.parse(readFileSync(new URL(`./schemas/${file}`, import.meta.url), "utf8"))
     if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`${file} differs from the decoder's checked-in schema`)
   }
 } catch (error) {
