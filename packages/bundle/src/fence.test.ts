@@ -721,7 +721,9 @@ describe("only the registry knows a plugin's name", () => {
    *
    * WHAT IS LEFT IS WHAT THE HARNESS ITSELF STANDS ON. KOLU's and ODU's
    * appliance doors are the fake padi and the fake run service the spawn stands
-   * on. CHAT's is the panel constant `world.ts` composes a shared selector from.
+   * on; MAIL's is its pair of fakes, the mailbox the serve spawns and the Google
+   * it talks to (`@mail-himalaya:`, `@mail-google:`), which the same spawn is
+   * handed as two variables. CHAT's is the panel constant `world.ts` composes a shared selector from.
    * The six `/testids` doors are `ROW_TESTID` — which row draws one KIND of
    * file — a question about six rows at once that no one of them can answer.
    * And `storage_keys.ts` is the newest and the sharpest: the preferences PANEL
@@ -750,14 +752,17 @@ describe("only the registry knows a plugin's name", () => {
       // plugin's e2e/fake/, where the engine naming ITSELF is no longer a
       // spread — those rows are gone from this record, by construction.
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
+      "tests/support/hooks.ts: olai-plugin-mail/appliance/testlib",
       "tests/support/hooks.ts: olai-plugin-odu/appliance/testlib",
       "tests/support/storage_keys.ts: olai-plugin-alerts/keys",
       "tests/support/storage_keys.ts: olai-plugin-outlines/testlib",
+      "tests/support/workers.ts: olai-plugin-mail/appliance/testlib",
       "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-csv/testids",
       "tests/support/world.ts: olai-plugin-hypertext/testids",
       "tests/support/world.ts: olai-plugin-image/testids",
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
+      "tests/support/world.ts: olai-plugin-mail/appliance/testlib",
       "tests/support/world.ts: olai-plugin-markdown/testids",
       "tests/support/world.ts: olai-plugin-odu/appliance/testlib",
       "tests/support/world.ts: olai-plugin-outlines/testids",
@@ -804,7 +809,7 @@ describe("only the registry knows a plugin's name", () => {
    *  the `workspace:*` line left behind is a package still standing on the wrong
    *  side of the wall, and that is precisely what its seven rows had become. */
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-chat", "olai-plugin-kolu", "olai-plugin-odu", "olai-plugin-outlines"],
+    tests: ["olai-plugin-chat", "olai-plugin-kolu", "olai-plugin-mail", "olai-plugin-odu", "olai-plugin-outlines"],
     server: ["olai-plugin-git", "olai-plugin-identity", "olai-plugin-mcp", "olai-plugin-vault", "olai-plugin-web-app"],
   }
 
@@ -2478,12 +2483,12 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
    *  is held: red the day a record's word stops being a plugin, red the day a
    *  word appears outside its record. `//`-prefixed keys are reasons, skipped
    *  by the assertions; real keys are corpus files, values the plugin words
-   *  that file may still spell. */
+   *  it may spell. */
   const ALLOWED: Readonly<Record<string, ReadonlyArray<string>>> = {
     "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu",
     "nix/kolu.nix": ["kolu", "mcp"],
-    "// justfile": "kolu-deps names the framework pin (a word the tenant shares); git/odu are tools, files/pins are recipe names",
-    "justfile": ["git", "kolu", "odu", "files", "pins"],
+    "// justfile": "kolu-deps names the framework pin (a word the tenant shares); git/odu/mail are tool or feature words, files/pins are recipe names",
+    "justfile": ["git", "kolu", "odu", "mail", "files", "pins"],
     "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary",
     "default.nix": ["kolu", "pins"],
     "// flake.nix": "the flake re-exports plugin Nix halves as flake outputs (claude-agent, codex-agent, odu, etc.); kolu is the npins source name",
@@ -2499,6 +2504,8 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     "scripts/check-hydrated-deps.sh": ["pins"],
     "// scripts/cordis-graph.ts": "walks plugin words to draw the cordis graph",
     "scripts/cordis-graph.ts": ["ui-renderer", "layout"],
+    "// scripts/check-himalaya-surface.ts": "the check half of the mail plugin's himalaya-door — the surface it asserts lives in `packages/plugins/mail` itself (claim 1's PATH_ALLOWED row), so its own file may name the plugin",
+    "scripts/check-himalaya-surface.ts": ["mail"],
     "// scripts/test-shard.sh": "weights name the test files of a plugin (git) and the odu-shaped perf bucket",
     "scripts/test-shard.sh": ["git", "odu", "files"],
     "// shell.nix": "exposes kolu-hydrate pins and the vault's workspace import",
@@ -2541,10 +2548,16 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     // The fold is the one exception, which section 12 of the plan names: the
     // registry's `default.nix` is allowed to spell the container because it IS
     // the composition. `scripts/cordis-graph.ts` is the second: it exists to
-    // draw the rows, so its walk starts from the container by design.
+    // draw the rows, so its walk starts from the container by design. And
+    // `scripts/check-himalaya-surface.ts` is the third, by the same argument
+    // section 13's mail row sits on: it is the check half of the mail plugin's
+    // himalaya-door contract — the module it reads is the plugin's own
+    // `./himalaya/verbs.ts`, surfaced only because just's namespace has to
+    // reach a script that calls a Nix build.
     const PATH_ALLOWED: Record<string, true> = {
       "packages/bundle/default.nix": true,
       "scripts/cordis-graph.ts": true,
+      "scripts/check-himalaya-surface.ts": true,
     }
     const offenders = corpus.filter((file) => PATH_ALLOWED[file] !== true
       && stripped(file).includes("packages/plugins/"))

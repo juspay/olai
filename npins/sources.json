@@ -13,6 +13,32 @@
       "url": "https://github.com/cordiverse/cordis/archive/00278924a984fedfaffb4bc3d5eb7d8e76215643.tar.gz",
       "hash": "sha256-tCoHVKDAs8e3+BpHI0JV0x+hNPjrvwAHvACQsiZCkZA="
     },
+    "fenix": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "nix-community",
+        "repo": "fenix"
+      },
+      "branch": "monthly",
+      "submodules": false,
+      "revision": "af85de9d317b402448a8ebb06bc16c7fd82f0375",
+      "url": "https://github.com/nix-community/fenix/archive/af85de9d317b402448a8ebb06bc16c7fd82f0375.tar.gz",
+      "hash": "sha256-N7UHRZbJzgWaad+SOgl9QlWKiBulHan2/ezZhLfnjlo="
+    },
+    "himalaya": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "pimalaya",
+        "repo": "himalaya"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "eaada0f940b1ccd85888c33e3e38a51b67eb1874",
+      "url": "https://github.com/pimalaya/himalaya/archive/eaada0f940b1ccd85888c33e3e38a51b67eb1874.tar.gz",
+      "hash": "sha256-oTgsWRZqVspSUrjqopwB7NnDTQGTwH+xaHVLThyfeJI="
+    },
     "kolu": {
       "type": "Git",
       "repository": {
@@ -77,6 +103,19 @@
       "revision": "3e03cf051b0e8f20079cbf37715d9d89ba854848",
       "url": "https://github.com/juspay/oss.olai/archive/3e03cf051b0e8f20079cbf37715d9d89ba854848.tar.gz",
       "hash": "sha256-DNxapKgFTBBxy61+sySDF8IchtvSgRcxh8ezy25hcQo="
+    },
+    "pimalaya": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "pimalaya",
+        "repo": "nix"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "cc4f9e1797955a2511a0e7dd6b1b1c997a25d0ee",
+      "url": "https://github.com/pimalaya/nix/archive/cc4f9e1797955a2511a0e7dd6b1b1c997a25d0ee.tar.gz",
+      "hash": "sha256-SI2JDg/tPha5Xu33GchS1dj+3E/gFOW9kszjDcmUG1M="
     }
   },
   "version": 8

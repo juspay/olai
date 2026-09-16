@@ -1,7 +1,7 @@
 # The plugin system
 
-olai integrates with tools it does not own — kolu, odu, xyne-spaces, ACP coding
-agents — and with most of its own features, through **plugins**. A plugin is a
+olai integrates with tools it does not own — kolu, odu, xyne-spaces, Gmail,
+ACP coding agents — and with most of its own features, through **plugins**. A plugin is a
 package the bundle mounts at runtime. General olai packages may know a plugin's
 name and nothing else about it.
 
@@ -37,6 +37,7 @@ olai packages.
 | **kolu** | runs coding agents in terminals, serves them over MCP |
 | **odu** | runs CI |
 | **xyne-spaces** | mirrors a conversation into a bound channel |
+| **mail** | connects a Gmail account, through the pinned Himalaya |
 
 kolu and odu were once "extracted into their own packages" and still left this
 behind:
@@ -194,7 +195,7 @@ terms that need an example.
 
 | Word | What it means |
 | --- | --- |
-| **plugin** | one integration: two halves, one shape, each a `definePlugin` over an Effect. Two kinds exist — a **tenant** (olai's judgement about an outside appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP coding agent the chat panel can seat: claude, codex, opencode, pi, omp). The system does not distinguish them |
+| **plugin** | one integration: two halves, one shape, each a `definePlugin` over an Effect. Two kinds exist — a **tenant** (olai's judgement about an outside appliance: kolu, odu, xyne-spaces, mail) and an **engine** (an ACP coding agent the chat panel can seat: claude, codex, opencode, pi, omp). The system does not distinguish them |
 | **name** | the plugin's one word, e.g. `"kolu"`. Also its row id, wire prefix, fiber name, settings namespace and docs address |
 | **row** | one entry in `packages/bundle/olai.yml`: an `id` and the module the loader mounts. Profiles apply `disabled` patches over that catalogue |
 | **fiber** | one mounted plugin. Callers see four words — `running`, `waiting`, `failed`, `off`; the engine's six internal states stay inside `@olai/effect-cordis` |

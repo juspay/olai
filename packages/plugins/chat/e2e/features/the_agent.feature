@@ -1795,6 +1795,25 @@ Feature: Talking to a node agent
     And the conversation shows the picture "shot.png"
 
   @scratch:chat
+  Scenario: A screen recording reaches the agent as a file it can read
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    # A bug a screenshot cannot show is a recording, and the recorder names it
+    # with spaces. The picker has to OFFER the extension (the step asserts the
+    # `accept`), the chip has to say a size rather than draw a broken picture,
+    # and the agent has to be able to open the bytes from the path. A dropped
+    # `.mov` rides the same gate beside it.
+    When I pick "ScreenRecording 23-01-06_1.mp4" with the attach button
+    Then the composer is holding "ScreenRecording_23-01-06_1.mp4", showing how big it is
+    When I drop "take.mov" on the chat panel
+    Then the composer is holding "ScreenRecording_23-01-06_1.mp4, take.mov" in that order
+    And the composer is holding "take.mov", showing how big it is
+    When I ask the agent "what went wrong here"
+    Then the agent's answer mentions "read 24 bytes from ScreenRecording_23-01-06_1.mp4"
+    And the agent's answer mentions "read 24 bytes from take.mov"
+    And the composer is holding nothing
+
+  @scratch:chat
   Scenario: A kind olai does not take is refused before it is uploaded
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready

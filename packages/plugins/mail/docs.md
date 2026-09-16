@@ -1,0 +1,83 @@
+# Gmail
+
+Connect a Gmail account to olai so that, in later releases, an agent can read and file your mail in a conversation, with your vault as the context. Gmail stays the record of the mail; the vault records what you decided about it.
+
+**What works today is connecting the account.** You turn the `mail` plugin on, press one button, approve the mailbox at Google, and olai keeps that connection alive across restarts. Reading threads, filing them onto nodes, archiving, and being woken by new mail are the next steps and are not here yet.
+
+Olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), which is built into every olai release. There is nothing to install. The plugin is called `mail` rather than `gmail` because Himalaya also speaks IMAP and JMAP, and a second kind of mailbox should not need a rename.
+
+## Before you start
+
+You need a Google OAuth client. This is the one step that happens outside olai, and Google offers no way around it.
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create or pick a project. Then **enable the Gmail API** for it: **APIs & Services → Library**, search for *Gmail API*, press **Enable**. A project without it lets you finish every step below and then refuses the first mailbox call with HTTP 403.
+2. Configure the consent screen. Google will not let you create a client until this is done. Under **Google Auth Platform** (older consoles call it **OAuth consent screen**), fill in **Branding** with an app name such as `olai`, your email as the support address and as the developer contact, and set **Audience** to **External**. Leave the publishing status as *Testing*; olai is your own app and does not need verification.
+3. Still under **Audience**, add your own Google account as a **test user**. In *Testing* status only listed users can approve the app, and a missing entry shows up later as Google refusing the sign-in.
+4. Under **Clients** (or **APIs & Services → Credentials**), create an **OAuth client ID** of type **Web application**.
+5. Add one **Authorised redirect URI**: the address you reach olai at, followed by `/_olai/mail/oauth`. For example `https://olai.example.net/_olai/mail/oauth`. Olai shows you the exact string on the `mail` row once the plugin is on, so you can copy it from there. Leave **Authorised JavaScript origins** empty; olai completes the sign-in on the server, not from browser scripts.
+
+Google gives you a client ID and a client secret. Put both in the environment olai runs with:
+
+```
+OLAI_MAIL_OAUTH_CLIENT=1234567890-abc.apps.googleusercontent.com
+OLAI_MAIL_OAUTH_SECRET=GOCSPX-…
+```
+
+For the home-manager service that is the `environmentFile` ([running.md](../running.md#environment-doors)). For `just serve`, export them in your shell first. The plugins panel shows whether each one is set; it never shows the secret's value.
+
+## Connecting
+
+1. Open the plugins panel (**⧉** in the header) and switch **mail** on. It is off by default because it needs these credentials.
+2. The row moves to **Needs you** and shows a **Connect Gmail** button, with the redirect URI to register above it. If the two environment variables are missing, the row says so instead and shows no button; set them and restart.
+3. Press **Connect Gmail**. Google opens in a new tab. Choose the mailbox and approve.
+4. Google sends you back to olai. The tab says *Connected as you@gmail.com* and can be closed.
+
+The header now shows `● mail you@gmail.com`, and the row shows the address, how many messages the mailbox holds, when the token was last refreshed, and the permission granted.
+
+Olai asks Google for the `gmail.modify` permission. That covers reading, labelling, archiving, and moving to and from Trash. It does not cover permanent deletion, and olai will not ask for it. One mailbox per olai.
+
+## What the header pill means
+
+| Pill | Meaning |
+| --- | --- |
+| `● mail you@gmail.com` | Connected. Hover for details. |
+| `● no mail` | No account is connected. Connect one from the plugins panel. |
+| `● mail fault` | Something needs attention. The tooltip and the row say what. |
+
+The pill is drawn only while the plugin is on.
+
+## When something goes wrong
+
+The `mail` row in the plugins panel always says what happened in plain words. Most faults fall into two kinds.
+
+**Google or the network was briefly unavailable.** Olai keeps your connection and retries by itself, first after thirty seconds and then at longer intervals up to ten minutes. While the previous token is still valid the pill stays `connected` and the row adds what it is retrying. If the outage outlasts the token, the pill shows `mail fault` until the retry succeeds. You do not need to do anything.
+
+**The Gmail API is not enabled.** The row shows Google's sentence *Gmail API has not been used in project … before or it is disabled*, with a link. Open the link, press **Enable**, and wait. Olai treats this as a temporary condition and keeps retrying, so the row heals within a few minutes with no further press.
+
+**Google no longer accepts the connection.** The row shows Google's own reason, most often `invalid_grant`, which means the permission was revoked from your Google account or expired through disuse. Press **Reconnect** and approve again.
+
+A few faults cannot be fixed with a button, and the row shows none:
+
+- `OLAI_MAIL_OAUTH_CLIENT` or `OLAI_MAIL_OAUTH_SECRET` is not set. Set them and restart olai.
+- Olai was started without the built-in Himalaya. This happens only when olai is run outside its Nix build. Use `nix run`, the packaged binary, or the home-manager service.
+- `OLAI_MAIL_GOOGLE` is set to something other than a loopback address. This variable exists for olai's own tests and should not be set in a deployment.
+
+If the redirect back to olai fails, the page Google sends you to explains why. The usual causes are a redirect URI that does not match what you registered in Google Cloud, or a Connect that was started more than ten minutes earlier. Press **Connect Gmail** again.
+
+## Disconnecting
+
+Press **Disconnect** on the row. Olai revokes the permission at Google, forgets the stored token, and the pill returns to `no mail`. Switching the plugin off keeps the stored token but stops using it; switching it back on reconnects without asking you again.
+
+## What olai stores
+
+- **A refresh token**, in olai's own state directory at `$XDG_STATE_HOME/olai/mail/`, one file per served directory, readable only by your user. This is what survives a restart.
+- **A short-lived access token**, in a temporary config file that olai regenerates every time it refreshes the token and deletes when the plugin is switched off. Olai refreshes it five minutes before it expires.
+
+Nothing is written into your vault, and olai never reads or changes your own `~/.config/himalaya` if you have one.
+
+## Not included
+
+- Sending mail or writing drafts.
+- Permanent deletion of messages.
+- More than one mailbox, or mailboxes other than Gmail.
+- Using a Himalaya other than the one built into olai.

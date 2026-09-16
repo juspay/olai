@@ -68,7 +68,7 @@
           clash = if overlap != [ ] then throw "flake packages: a plugin declares an output the root already names: ${builtins.concatStringsSep ", " overlap}" else null;
         in
         builtins.seq clash (bundle.packages // {
-          inherit (olai) olai olai-client olai-fonts base;
+          inherit (olai) olai olai-client olai-fonts base himalaya-bin;
           # The ACP adapters are plugins now — claude, pi and codex each export
           # their own package through the fold (`claude-agent`, `pi-agent`,
           # `codex-agent`). These two are the HISTORICAL output names the docs

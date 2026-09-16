@@ -29,15 +29,46 @@ interface EnvDecl {
 /** The manifest's `olai.knobs` type. */
 type ManifestKnobs = Readonly<Record<string, Record<string, unknown>>>
 
-/** Read the `environment:` array's object literals out of a `server.ts`. */
+/** Read the `environment:` array's object literals out of a `server.ts`.
+ *  Each entry MAY be written on one line (`{"key": "OLAI_…", …}`) or many
+ *  (`{\n      key: DOOR.…,\n      …\n    }`); both parse. Multiline entries
+ *  holding a REFERENCE for `key` (the mail plugin's `DOOR.…` is one) carry
+ *  `keyRef` instead of `key`, which the caller forwards as TWO keys — the
+ *  multiline form can only name knobs the manifest already declares, so the
+ *  refusal the test hands back still names the plugin when the manifest is
+ *  wrong, but the list of executable resources may be empty if every entry
+ *  uses a door const. That mirrors the contract the manifest names anyway:
+ *  the knob manifest is the source of truth; `environment:` only echoes it. */
 function parseEnvironment(source: string): EnvDecl[] {
   const match = source.match(/\benvironment:\s*\[([\s\S]*?)\]/)
   if (!match) return []
-  return match[1]
+  const body = match[1]
+  // Single-line: every stripped line that starts with `{` is one entry.
+  const singleLine = body
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => line.startsWith("{"))
+    .filter((line) => line.startsWith("{") && line.endsWith("},"))
     .map((line) => JSON.parse(line.replace(/,\s*$/, "")) as EnvDecl)
+  if (singleLine.length > 0) return singleLine
+  // Multi-line: find balanced `{…}` blocks; entries referencing a constant
+  // for `key` are skipped, because without a literal they cannot be a knob
+  // the manifest might be missing.
+  const entries: EnvDecl[] = []
+  const blockRe = /\{([\s\S]*?)\s*\}/g
+  let m: RegExpExecArray | null
+  while ((m = blockRe.exec(body)) !== null) {
+    const text = m[1] ?? ""
+    const keyMatch = text.match(/\bkey:\s*"([^"]+)"/)
+    const secretMatch = text.match(/\bsecret:\s*(true|false)/)
+    const saysMatch = text.match(/\bsays:\s*"([^"]*)"/)
+    if (!keyMatch || !saysMatch) continue
+    entries.push({
+      key: keyMatch[1]!,
+      secret: secretMatch?.[1] === "true",
+      says: saysMatch[1]!,
+    })
+  }
+  return entries
 }
 
 /** Is this environment entry an executable resource (a knob candidate)?

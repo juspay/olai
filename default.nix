@@ -20,10 +20,14 @@ let
     # `containerDir`/`containerInTree` both name `packages/plugins` (readDir
     # at eval, install path at run time, relative to the build's source).
     #
-    # Every knob the fold bakes into the `olai` wrapper now comes from a
-    # plugin's own `default.nix` (the ACP adapters included), so there is no
-    # hand-written `extraKnobNames` to name alongside the fold's own.
-    extraKnobNames = [ ];
+    # Every knob the fold bakes into the `olai` wrapper comes from a plugin's
+    # own `default.nix`. THE ONE HAND-WRITTEN exception: `OLAI_HIMALAYA` is
+    # not a knob (the mail plugin's `doors.ts` rules it that way — the
+    # wrapper holds the only path, no operator override is possible), but it
+    # is still a `--set-default` on the wrapper below, so the fold lists it
+    # for `OLAI_WRAPPER_DEFAULTS` here. When (if) the mail plugin's
+    # `default.nix` declares a knob, this list goes back to `[ ]`.
+    extraKnobNames = [ "OLAI_HIMALAYA" ];
   };
   # fold hands them here). `nix/kolu.nix` carries the framework's own.
   kolu = import ./nix/kolu.nix {
@@ -32,6 +36,7 @@ let
     pinnedSources = bundle.koluPins;
   };
   cordis = import ./nix/cordis.nix { inherit pkgs; };
+  himalaya = import ./nix/himalaya.nix { inherit pkgs; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
   # @kolu/surface-app's own helper for stamping a build's commit into the
@@ -175,6 +180,22 @@ let
   # codex each own a `default.nix` declaring their knob — so every one of the
   # four knobs (OLAI_ACP_AGENT, OLAI_ACP_CODEX, OLAI_ACP_PI, OLAI_ODU_BIN)
   # arrives here by composition; nothing is hand-written any more.
+
+  # THE PINNED HIMALAYA, the binary half of the mail pin (nix/himalaya.nix),
+  # baked on the wrapper below the way the ACP adapters and `odu` are: the
+  # mail plugin runs the binary the BUILD carries, never one it found, and the
+  # one absolute path is the whole of what it is told about it.
+  himalaya-bin = himalaya.bin;
+
+  # HIMALAYA IS NOT A KNOB the fold knows about, and is still a
+  # `--set-default`. `OLAI_HIMALAYA` names one FILE — the pinned `himalaya` —
+  # and the mail plugin treats an empty value as no binary at all. The
+  # default arm is what makes the PIN the answer for every packaged start;
+  # it stays overridable because the e2e harness spawns THIS wrapper
+  # (`OLAI_BIN`) and must be able to hand a scenario the fake — and, in the
+  # scenario that says so, nothing at all. The comment text in
+  # `packages/plugins/mail/src/doors.ts` rules the same: not a knob, one
+  # `--set-default` line.
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -192,9 +213,10 @@ let
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
-      ${bundle.wrapperArgs}
+      ${bundle.wrapperArgs} \
+      --set-default OLAI_HIMALAYA "${himalaya-bin}/bin/himalaya"
   '';
 in
 {
-  inherit olai olai-client olai-fonts base bundle;
+  inherit olai olai-client olai-fonts base bundle himalaya-bin;
 }
