@@ -212,3 +212,5 @@ olai ✓  kolu ✓  · plus the agent's own
 The two halves share a host and a daemon and nothing else: one is a standing subscription to a fleet, the other a spawn-time probe for a tool server. [chat.md](../chat.md#kolu) has that one in full.
 
 The plugin's `Config` schema declares the `watch` section and each field's default, validation and description. The shared settings reader uses that validation and owns malformed-value warnings. Kolu follows its `watch` child on the same vault revision. The former `Kolu.olai` file is no longer read for configuration.
+
+The file picker in the conversation strip belongs to this plugin. It hangs in chat's `conversation.wake` slot, reads the served files through its declared `vault.files` service, and shows its own gone or unwatchable state. Chat stores the pick and draws the waiting count; it does not interpret the file.

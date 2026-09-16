@@ -6,7 +6,6 @@ import { doorOver } from "./local.testlib.ts"
 import { connected } from "./tools.testlib.ts"
 import { MailRefusal, MAIL_UNCONNECTED } from "./wire.ts"
 import type { History } from "./himalaya/history.ts"
-const bind = { node: "inbox", file: "inbox.olai", title: "Inbox", engine: "claude", session: "session" }
 const row = (id: string) => ({ id, from: "Ravi", subject: "Invoice", date: "today", snippet: "Please review", unread: true, messages: 1, labels: ["INBOX"] })
 const page = (id: string, threads: string[], inbox = true): History => ({ "history-id": id, history: [{ id, "messages-added-details": threads.map(id => ({ id: id + "1", "thread-id": id, "label-ids": inbox ? ["INBOX"] : [] })) }] })
 const bench = (historyId: string | null = "10") => {
@@ -20,6 +19,8 @@ const bench = (historyId: string | null = "10") => {
   const warnings: string[] = []
   let following: History | undefined
   let usable = true
+  let active = true
+  let epoch = 0
   const watch = makeWatch({ memory, clock: { now: () => "2026-09-15T09:14:00Z" },
     machine: { current: () => usable ? connected : MAIL_UNCONNECTED, usable: () => usable },
     mailbox: {
@@ -27,11 +28,10 @@ const bench = (historyId: string | null = "10") => {
       history: (_since, token) => Effect.suspend(() => { calls.push("history"); return refused ? Effect.fail(new MailRefusal({ reason: "503 unavailable" })) : expired ? Effect.fail(new MailRefusal({ reason: "404 not found" })) : Effect.succeed(token && following ? following : answer) }),
       summary: id => Effect.sync(() => { calls.push(id); return row(id) }),
     },
-    deliveries: { notify: (_to, body) => Effect.sync(() => { expect(memory.current()?.historyId).not.toBe(answer["history-id"]); held.push(body) }) },
+    deliveries: { scopes: () => { const issued = epoch; return active ? [{ agent: "claude", session: "session", pick: true, current: () => active && epoch === issued }] : [] }, deliver: (_to, body) => Effect.sync(() => { expect(memory.current()?.historyId).not.toBe(answer["history-id"]); held.push(body) }) },
     debug: () => {}, warn: line => warnings.push(line),
   })
-  watch.revision({ binds: [bind], named: [bind] })
-  return { watch, memory, held, calls, warnings, refuse: (value: boolean) => { refused = value }, next: (value: History) => { following = value }, answer: (next: History) => { answer = next }, expired: () => { expired = true }, absent: () => { usable = false } }
+  return { choose: (on: boolean) => { active = on; epoch++ }, watch, memory, held, calls, warnings, refuse: (value: boolean) => { refused = value }, next: (value: History) => { following = value }, answer: (next: History) => { answer = next }, expired: () => { expired = true }, absent: () => { usable = false } }
 }
 test("history advances only after handing delivery thunks over; held polls coalesce all distinct threads", async () => {
   const b = bench()
@@ -62,10 +62,10 @@ test("first seed is silent; off clears queued mail and re-enabling seeds without
   expect(b.calls).toEqual(["seed"])
   b.answer(page("21", ["a1"]))
   await Effect.runPromise(b.watch.poll)
-  b.watch.revision({ binds: [], named: [] })
+  b.choose(false)
   expect(b.held[0]!()).toBeNull()
   await Effect.runPromise(b.watch.poll)
-  b.watch.revision({ binds: [bind], named: [bind] })
+  b.choose(true)
   await Effect.runPromise(b.watch.poll)
   expect(b.calls).toEqual(["seed", "history", "a1", "seed"])
 })

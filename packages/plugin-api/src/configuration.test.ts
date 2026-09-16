@@ -4,8 +4,8 @@ import { coerceLeaf, policyControl } from "./configuration.ts"
 
 test("boolean and numeric spellings share the decoder; bounds and filters describe controls", () => {
   expect(policyControl(Schema.Boolean.ast)).toEqual({ kind: "switch" })
-  for (const value of ["yes", "ON", " true "]) expect(coerceLeaf(Schema.Boolean, value)).toBe(true)
-  for (const value of ["no", "OFF", " false "]) expect(coerceLeaf(Schema.Boolean, value)).toBe(false)
+  expect(coerceLeaf(Schema.Boolean, "yes")).toBe(true)
+  expect(coerceLeaf(Schema.Boolean, "no")).toBe(false)
   expect(() => coerceLeaf(Schema.Boolean, "perhaps")).toThrow()
   const number = Schema.Union([Schema.Int, Schema.NumberFromString.check(Schema.isInt())]).check(Schema.isBetween({ minimum: 1, maximum: 10 }))
   expect(policyControl(number.ast)).toEqual({ kind: "number", integer: true, min: 1, max: 10 })

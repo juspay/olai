@@ -12,8 +12,7 @@
     "src/tools.ts"
   ],
   "vault": [
-    "src/browser/Row.tsx",
-    "src/server.ts"
+    "src/browser/Row.tsx"
   ],
   "//tools": "Mail query, trash verbs and PDF attachment fixtures are mail vocabulary, not dependencies on those plugin rows.",
   "pdf": [
@@ -26,6 +25,5 @@
     "src/himalaya/verbs.ts",
     "src/mailbox.ts",
     "src/tools.ts"
-  ],
-  "//watch": "Server acquires the declared Vault service; the local variable is the capability, not a plugin lookup."
+  ]
 }

@@ -1,3 +1,5 @@
+import { LocalState } from "@olai/plugin-api/services"
+import { fileScopes, ringing as ringingScopes, fileFault, fileWakeFaults } from "@olai/plugin-api/file-wakes"
 /**
  * ODU'S SERVER HALF — the CI probe and the doorbell it rings, assembled where
  * the judgement about them lives.
@@ -68,7 +70,7 @@ import { type DialService, oduHalf, type RunNotice } from "olai-plugin-odu/appli
 import { boardedIn } from "./boarded.ts"
 import { bodyFor, claimedIn, claimingIn, coalesceOf, countsFor } from "./doorbell.ts"
 import { probing } from "./probe.ts"
-import { wake } from "./wake.ts"
+import { wake, fileFaultWords } from "./wake.ts"
 import { kinds as ours, ownKinds } from "./kinds.ts"
 import { faces, name, surface } from "./wire.ts"
 
@@ -115,6 +117,7 @@ export { wake } from "./wake.ts"
 export interface VaultRevision {
   readonly value: {
     readonly derived: Derived
+    readonly set: { readonly documents: ReadonlyArray<{ readonly path: string }> }
   }
 }
 
@@ -167,7 +170,7 @@ export default definePlugin({
     {"key": "ODU_WEB_ORIGIN", "secret": false, "says": "the odu service origin this olai dials"},
   ],
   name,
-  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
+  needs: [LocalState, Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
@@ -179,6 +182,7 @@ export default definePlugin({
     const opening = yield* SessionStart
     const surfaces = yield* Surfaces
     const vault = yield* Vault
+    const local = yield* LocalState
     const wakes = yield* Wakes
     /**
      * THE ONE SEAM ACROSS THE BOUNDARY — see `@olai/effect-cordis`'s `detached`.
@@ -207,7 +211,12 @@ export default definePlugin({
      *  pointer read on the revisions the declarations file did not move on. */
     let declaring: PropDeclarations = NO_TYPING
 
-    type ScopeRow = ReturnType<typeof deliveries.scopes>[number]
+    let paths: ReadonlyArray<string> = []
+    const judge = (file: string) => derived ? fileFault(derived.claims, paths, file) : "gone" as const
+    const wakeScopes = () => fileScopes(deliveries.scopes()).filter(row => judge(row.file) === null)
+    const faults = yield* fileWakeFaults(local, deliveries, judge, fileFaultWords)
+
+    type ScopeRow = ReturnType<typeof wakeScopes>[number]
     const sameScope = (left: ScopeRow, right: ScopeRow): boolean =>
       left.agent === right.agent
       && left.session === right.session
@@ -239,7 +248,7 @@ export default definePlugin({
       if (at === undefined) return null
       const claim = claimingIn(claimedIn(declaring, at, scope.file)).get(notice.run.id)
       if (claim === undefined) return null
-      if (!deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))) return null
+      if (!ringingScopes(wakeScopes(), derived, scope.file, claim.node).some((row) => sameScope(row, scope))) return null
       if (notice.kind === "first-red") {
         return bodyFor(notice, claim, clock.now(), countsFor(half.rows(), notice))
       }
@@ -277,7 +286,7 @@ export default definePlugin({
           perFile.set(file, fresh)
           return fresh
         }
-        const scopes = deliveries.scopes()
+        const scopes = wakeScopes()
         const ringing = scopes.flatMap((scope) => {
           const claim = claimingFor(scope.file).get(notice.run.id)
           return claim === undefined ? [] : [`${notice.run.id}@${claim.node}`]
@@ -292,7 +301,7 @@ export default definePlugin({
           const claim = claimingFor(scope.file).get(notice.run.id)
           if (
             claim === undefined
-            || !deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))
+            || !ringingScopes(wakeScopes(), derived, scope.file, claim.node).some((row) => sameScope(row, scope))
           ) continue
           yield* deliveries.deliver(
             scope,
@@ -373,7 +382,6 @@ export default definePlugin({
       deps: half.handlers satisfies ImplementSurfaceDeps<typeof surface.spec>,
     })
 
-
     /** A VAULT REVISION LANDED — the hook a `PluginServer.revision` used to be.
      *
      *  Holding the answer is all it does: dialing is the service cell's, on
@@ -393,9 +401,10 @@ export default definePlugin({
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
         declaring = declarationsOf(revision.value.derived, ownKinds)
+        paths = revision.value.set.documents.map(doc => doc.path)
         derived = revision.value.derived
         half.revision(boardedIn(revision.value.derived))
-      })
+      }).pipe(Effect.andThen(faults))
     )
 
     /** THE STORE HAS NEVER PUBLISHED — and this is NOT teardown.

@@ -28,5 +28,9 @@
   ],
   "vault": [
     "src/server.ts"
-  ]
+  ],
+  "chat": [
+    "src/browser/Wake.tsx"
+  ],
+  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls."
 }

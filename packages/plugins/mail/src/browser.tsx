@@ -1,3 +1,4 @@
+import { MailWake } from "./browser/Wake.tsx"
 /**
  * MAIL'S BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -80,6 +81,7 @@ export default definePlugin({
       (held) => Effect.sync(held.dispose),
     )
 
+    yield* slots.register("conversation.wake", context => <MailWake {...context} />)
     yield* slots.register("delivery.mark", () => <span aria-label="mail">✉</span>)
 
     yield* slots.register("tool.reply", { fileOf: () => null, story })

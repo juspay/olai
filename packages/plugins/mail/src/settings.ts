@@ -1,6 +1,4 @@
 import { Effect, Schema } from "effect"
-import { type Reading } from "@olai/format"
-import { configurationNodes, configurationNode, decodePolicy } from "@olai/plugin-api/configuration"
 const units: Record<string, number> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }
 /** Same whole-number, unit and timer bounds as kolu's poll settings. */
 export const pollMillis = (value: string): number | undefined => {
@@ -13,8 +11,3 @@ export const Config = Schema.Struct({
     Schema.withDecodingDefaultKey(Effect.succeed("2m")), Schema.annotate({ description: "how often opted-in agents check for inbox arrivals" }),
   ),
 })
-export const pollIn = (reading: Pick<Reading, "set" | "derived">): number => {
-  const { nodes } = configurationNodes(reading)
-  const parsed = decodePolicy(Config, nodes, configurationNode(nodes, "mail"), () => {})
-  return pollMillis((parsed.config as typeof Config.Type).poll)!
-}

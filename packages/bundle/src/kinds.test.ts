@@ -285,7 +285,7 @@ test("a plugin's own composed word is the one the bundle composes", async () => 
   // something. A COUNT and not a floor, for this file's usual reason: a
   // derivation that came back short would satisfy the equality by comparing
   // less, and the number is one line to move when a fourth word arrives.
-  expect(expected.length).toBe(4)
+  expect(expected.length).toBe(3)
   // ...and each plugin's own constant is on that list, which is the half a
   // fixture cannot check — `takes` is written with it, and so is the walk that
   // finds the keys a vault declared.

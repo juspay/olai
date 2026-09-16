@@ -106,9 +106,9 @@ Attachment stories round KiB sizes to one decimal place.
 
 ## Waking an agent when mail arrives
 
-Put `mail-inbox: on` on your triage agent's node. Once that node has a conversation and this serve has a connected Gmail account, new inbox mail wakes it with a digest: sender, subject, date, thread id, unread status and a short preview. A busy conversation receives one combined digest when its turn finishes. Nothing wakes unless a node opts in; look on the node for this choice, rather than in the conversation strip.
+Open your triage agent's conversation and turn **wake on new mail** on in its strip. Connect Gmail in the plugins panel. New inbox mail then wakes that conversation with a digest: sender, subject, date, thread id, unread status and a short preview. A busy conversation receives one combined digest when its turn finishes. Each conversation starts with the switch off; only a person can turn it on.
 
-The first check starts from now, without replaying the inbox. Set the property to `off` to stop; turning it back on starts from then. Restarts resume the saved position. If Gmail's history has expired, the watcher starts from now again without replaying the gap. Use `mail_inbox` whenever you want the current inbox, including any mail missed during that gap. Digests show at most 50 threads and say how many more arrived.
+The first check starts from now, without replaying the inbox. Switch the wake off to stop; turning it back on starts from then. Restarts resume the saved position. If Gmail's history has expired, the watcher starts from now again without replaying the gap. Use `mail_inbox` whenever you want the current inbox, including any mail missed during that gap. Digests show at most 50 threads and say how many more arrived.
 
 Checks default to every two minutes. In `_olai/Settings.olai`, give the `mail` node a `poll` property such as `30s` or `2m`. Changes take effect live. An invalid value warns and uses `2m`. No opted-in conversation means no mailbox polling.
 
@@ -123,4 +123,4 @@ When agreed, record the outcome as a todo or note with a Gmail URL.
 Then archive, label or mark the thread as agreed. Never send mail.
 ```
 
-Use `https://mail.google.com/mail/u/0/#all/<thread id>` as the todo's `url`. The watcher supplies facts; your charter decides what the agent does with them. Only you can change its inbox opt-in through Olai's editing tools.
+Use `https://mail.google.com/mail/u/0/#all/<thread id>` as the todo's `url`. The watcher supplies facts; your charter decides what the agent does with them. The switch is a browser-only choice. An agent can edit a node's properties, but those edits cannot subscribe a conversation to mail.

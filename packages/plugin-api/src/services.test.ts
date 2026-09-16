@@ -457,8 +457,8 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
           yield* (yield* Offers).offer(Deliveries, (plugin) => {
             asked.push(plugin)
             return {
-              scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai`, current: () => true }],
-              ringing: (file) => [{ agent: "a", session: "s", file, current: () => true }],
+              scopes: () => [{ agent: "a", session: "s", pick: `${plugin}.olai`, current: () => true }],
+
               deliver: () => Effect.void,
               notify: () => Effect.void,
             }
@@ -472,7 +472,7 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
         name,
         needs: [Deliveries],
         apply: Effect.gen(function*() {
-          for (const scope of (yield* Deliveries).scopes()) seen.push(scope.file)
+          for (const scope of (yield* Deliveries).scopes()) seen.push(String(scope.pick))
         }),
       })
     yield* mountPlugin(plugins.host, looking("kolu"))
@@ -809,8 +809,8 @@ test("the door a plugin stands behind is the door its dependents are handed", as
             // STAMPED BY THE OFFERING ROW'S PROVISION with the word the registry
             // bound the CONSUMER under — the keying survives the hand-over,
             // which is the property that would be worth nothing if it did not.
-            scopes: () => [{ agent: "a", session: "s", file: `${who}.olai`, current: () => true }],
-            ringing: () => [],
+            scopes: () => [{ agent: "a", session: "s", pick: `${who}.olai`, current: () => true }],
+
             deliver: () => Effect.void,
               notify: () => Effect.void,
           }))
@@ -823,7 +823,7 @@ test("the door a plugin stands behind is the door its dependents are handed", as
         name: "kolu",
         needs: [Deliveries],
         apply: Effect.gen(function*() {
-          for (const scope of (yield* Deliveries).scopes()) seen.push(scope.file)
+          for (const scope of (yield* Deliveries).scopes()) seen.push(String(scope.pick))
         }),
       }),
     )
@@ -918,7 +918,6 @@ test("a plugin that comes back stands behind its door again", async () => {
     expect((yield* mirror.report).state).toBe("running")
   })))
 })
-
 
 test("offer preserves a lifecycle defect when the service already has an owner", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {

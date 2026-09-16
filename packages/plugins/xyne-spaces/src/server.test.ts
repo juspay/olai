@@ -123,7 +123,7 @@ const mounted = async (doubles: Doubles) => {
         yield* offers.own("seating", () => ({ in: seatingIn }))
         yield* offers.offer(DeliveriesDoor, () => ({
           scopes: () => [],
-          ringing: () => [],
+
           deliver: () => Effect.void,
           notify: doubles.notify ?? (() => Effect.void),
         }))

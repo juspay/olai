@@ -68,7 +68,7 @@ export interface Tickets {
 }
 
 export const ticketing = (options: {
-  readonly reservations: ReadonlyArray<{ readonly key: string; readonly says: string; readonly kind?: string; readonly file?: string }>
+  readonly reservations: ReadonlyArray<{ readonly key: string; readonly says: string; readonly file?: string }>
   readonly bound: Pick<Bound, "group" | "handlers" | "writes"> | (() => Pick<Bound, "group" | "handlers" | "writes">)
   readonly face: FaceExposure | (() => FaceExposure)
   readonly ops: Ops
@@ -117,7 +117,7 @@ export const ticketing = (options: {
         },
         get forbidden() {
           return new Map(
-            [...forbidden(), ...options.reservations].map((one) => [one.key, "kind" in one && one.kind !== undefined ? { says: one.says, kind: one.kind } : "file" in one && one.file !== undefined ? { says: one.says, file: one.file } : one.says] as const),
+            [...forbidden(), ...options.reservations].map((one) => [one.key, "file" in one && one.file !== undefined ? { says: one.says, file: one.file } : one.says] as const),
           )
         },
       } as SessionRule

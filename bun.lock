@@ -549,6 +549,7 @@
         "olai-plugin-chat": "workspace:*",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
+        "olai-plugin-vault": "workspace:*",
         "playwright": "1.61.1",
       },
     },
@@ -679,6 +680,7 @@
         "olai-plugin-chat": "workspace:*",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
+        "olai-plugin-vault": "workspace:*",
       },
     },
     "packages/plugins/omp": {

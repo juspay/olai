@@ -14,8 +14,7 @@
     "./server": "./src/server.ts",
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css",
-    "./appliance/testlib": "./src/appliance/testlib/index.ts",
-    "./policy": "./src/policy.ts"
+    "./appliance/testlib": "./src/appliance/testlib/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

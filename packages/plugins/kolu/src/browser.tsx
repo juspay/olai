@@ -1,3 +1,5 @@
+import { fileAccess } from "olai-plugin-vault/contract"
+import { Wake as WakeFace } from "./browser/Wake.tsx"
 /**
  * KOLU'S BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -102,6 +104,10 @@ export default definePlugin({
 
 /** The feed survives an absent inspector. Only its configuration door waits. */
 export const components = {
+  wake: definePlugin({ name: "wake", needs: [Slots, fileAccess], apply: Effect.gen(function*() {
+    const directory = yield* fileAccess
+    yield* (yield* Slots).register("conversation.wake", context => <WakeFace context={context} directory={directory} />)
+  }) }),
   configuration: definePlugin({ name: "configuration", needs: [configurationPanel], apply: Effect.gen(function*() {
     const panel = yield* configurationPanel
     yield* Effect.acquireRelease(Effect.sync(() => holdConfigurationPanel(panel)), stop => Effect.sync(stop))

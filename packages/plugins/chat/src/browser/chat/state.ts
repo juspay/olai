@@ -1,3 +1,4 @@
+import { Effect } from "effect"
 /**
  * The conversation, as this tab sees it.
  *
@@ -207,8 +208,8 @@ export interface Chat {
     agent: string,
     session: string,
     plugin: string,
-    file: string | null,
-  ) => void
+    pick: import("../../json.ts").Json,
+  ) => import("effect").Effect.Effect<void, import("../../slots.ts").Refusal>
 }
 
 /**
@@ -494,8 +495,8 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
     // doorbell at a file opens nothing, so the panel has nothing to say from
     // the click — what it did shows up as the strip's own row changing, which
     // is where somebody who just picked a file is already looking.
-    scope: (agent, session, plugin, file) =>
-      verb(chatWire().procedures.conversation.scope({ agent, session, plugin, file })),
+    scope: (agent, session, plugin, pick) =>
+      chatWire().procedures.conversation.scope({ agent, session, plugin, pick }).pipe(Effect.asVoid, Effect.mapError(error => ({ reason: String(error) }))),
     reopen: () => opens(chatWire().procedures.conversation.reopen({ conv, scope: state().uploadScope })),
     answer: (id, answers, done) =>
       verb(chatWire().procedures.conversation.answer({ conv, id, answers }), done),

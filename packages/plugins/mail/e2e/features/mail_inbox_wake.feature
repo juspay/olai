@@ -15,6 +15,7 @@ Feature: An agent opts into inbox wakes on its node
     And I mark the page
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
+    And I switch the mail wake on for this conversation
     Then mail has stored history cursor "100"
     When I open the "claude" agent on node "mail-quiet-agent"
     And the node agent's fold is ready
@@ -38,6 +39,7 @@ Feature: An agent opts into inbox wakes on its node
     And I mark the page
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
+    And I switch the mail wake on for this conversation
     Then mail has stored history cursor "100"
     When I ask the agent "hold"
     Then the agent is working
@@ -61,12 +63,13 @@ Feature: An agent opts into inbox wakes on its node
     And I mark the page
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
+    And I switch the mail wake on for this conversation
     Then mail has stored history cursor "100"
     When mail delivers thread "a4" titled "Archived arrival" outside the inbox
     Then mail has stored history cursor "101"
     And this conversation has 0 mail wakes
 
-  Scenario: Turning the property off drops queued mail and resumes without the gap
+  Scenario: Turning the switch off drops queued mail and resumes without the gap
     When I open the plugins panel
     And I press Connect in the mail row
     Then the mail pill reads connected
@@ -75,17 +78,18 @@ Feature: An agent opts into inbox wakes on its node
     And I mark the page
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
+    And I switch the mail wake on for this conversation
     Then mail has stored history cursor "100"
     When I ask the agent "hold"
     Then the agent is working
     When mail delivers thread "b1" titled "Queued before off" to the inbox
     Then mail has stored history cursor "101"
-    When this node's inbox wake becomes "off"
+    When I switch the mail wake off for this conversation
     Then mail makes no history calls for a second
     When mail delivers thread "b2" titled "During the gap" to the inbox
     And the agent is released
     Then this conversation has 0 mail wakes
-    When this node's inbox wake becomes "on"
+    When I switch the mail wake on for this conversation
     Then mail has stored history cursor "102"
     When mail delivers thread "b3" titled "After the gap" to the inbox
     Then mail has stored history cursor "103"
@@ -101,6 +105,7 @@ Feature: An agent opts into inbox wakes on its node
     And I mark the page
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
+    And I switch the mail wake on for this conversation
     Then mail has stored history cursor "100"
     When mail delivers thread "b1" titled "Before restart" to the inbox
     Then mail has stored history cursor "101"
@@ -126,6 +131,7 @@ Feature: An agent opts into inbox wakes on its node
     And I mark the page
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
+    And I switch the mail wake on for this conversation
     Then mail has stored history cursor "100"
     When the Gmail history cursor expires
     Then mail has stored history cursor "110"
@@ -143,6 +149,7 @@ Feature: An agent opts into inbox wakes on its node
     And I mark the page
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
+    And I switch the mail wake on for this conversation
     Then mail has stored history cursor "100"
     When the mail poll setting becomes "1h"
     Then mail makes no history calls for a second
@@ -161,22 +168,20 @@ Feature: An agent opts into inbox wakes on its node
     And I mark the page
     And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
+    And I switch the mail wake on for this conversation
     Then this conversation has 1 mail wakes
     And the latest mail wake names "connect one in ⧉ plugins"
     And mail makes no history calls for a second
     And this conversation has 1 mail wakes
 
-  Scenario Outline: An agent cannot opt itself into inbox wakes
-    Given inbox consent is named "<key>"
+  Scenario: A fresh conversation is off and a node property cannot enable its mail wake
     When I open the outline "inbox.olai"
     And I mark the page
     And I open the "claude" agent on node "mail-quiet-agent"
     And the node agent's fold is ready
-    And I ask the agent "set property mail-quiet-agent <key> on"
-    Then the agent's answer mentions "a person's choice"
+    Then the mail wake is off for this conversation
+    When I ask the agent "set property mail-quiet-agent mail-inbox on"
+    Then the agent is idle
+    And the mail wake is off for this conversation
     And this conversation has 0 mail wakes
-
-    Examples:
-      | key        |
-      | mail-inbox |
-      | notify     |
+    And mail makes no history calls for a second

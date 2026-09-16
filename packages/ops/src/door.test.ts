@@ -131,7 +131,6 @@ describe("node-agent write rule", () => {
   })
 })
 
-
 describe("file-scoped agent reservation", () => {
   const file = "_olai/Settings.olai"
   const keys = new Map([["on", { file: "settings.olai", says: "a person's choice" }]])
@@ -173,27 +172,5 @@ describe("file-scoped agent reservation", () => {
   test("a shallower empty file cannot mask an existing choice", () => {
     const at = readingOf(setOf({ [file]: '{"id":"example","ord":"a0","title":"example","custom":{"on":"no"}}' }))
     expect(barred(keys, at.derived, { files: [{ file: "SETTINGS.olai", nodes: [] }], id: "", title: "", file: "SETTINGS.olai", summary: "mask file" })?.key).toBe("on")
-  })
-})
-
-describe("kind-scoped consent reservation", () => {
-  const check = (request: Request) => {
-    const at = readingOf(setOf({
-      "_olai/Properties.olai": '{"id":"consent-column","ord":"a0","title":"notify","custom":{"type":"mail-inbox"}}',
-      "notes.olai": '{"id":"notes","ord":"a0","title":"notes","custom":{"notify":"off"}}',
-    }))
-    const built = new Map([["mail-inbox", { kind: "mail-inbox", claims: "mail-inbox", takes: "boolean", admits: () => true }]])
-    const result = plan(scoping(at, steady(), { built, enabled: built }, "outline-olai"), request)
-    if (Result.isFailure(result)) throw new Error(result.failure.message)
-    return barred(new Map([["mail-inbox", { kind: "mail-inbox", says: "a person's inbox consent" }]]), at.derived, result.success)
-  }
-  test("the default key and re-keyed consent cannot be changed by an agent", () => {
-    for (const key of ["mail-inbox", "notify"]) expect(check({ op: "prop", id: "notes", key, value: "on" })?.key).toBe(key)
-    expect(check({ op: "prop", id: "notes", key: "notify", value: null })?.key).toBe("notify")
-  })
-  test("declarations cannot be changed to bypass consent, while notes stay writable", () => {
-    expect(check({ op: "title", id: "consent-column", title: "other" })?.key).toBe("mail-inbox")
-    expect(check({ op: "prop", id: "consent-column", key: "type", value: "text" })?.key).toBe("mail-inbox")
-    expect(check({ op: "title", id: "notes", title: "new title" })).toBeNull()
   })
 })

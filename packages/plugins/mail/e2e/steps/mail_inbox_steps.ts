@@ -30,12 +30,16 @@ Then("mail has stored history cursor {string}", async function(this: OlaiWorld, 
 When("mail delivers thread {string} titled {string} to the inbox", function(this: OlaiWorld, id: string, title: string) { this.mailHimalaya!.deliver(id, title) })
 When("mail delivers thread {string} titled {string} outside the inbox", function(this: OlaiWorld, id: string, title: string) { this.mailHimalaya!.deliver(id, title, false) })
 When("the Gmail history cursor expires", function(this: OlaiWorld) { this.mailHimalaya!.expireHistory() })
-When("this node's inbox wake becomes {string}", async function(this: OlaiWorld, value: string) {
-  const nodes = this.servedNodes("inbox.olai")
-  const node = nodes.find(node => node.id === "mail-inbox-agent")!
-  node.custom = { ...(node.custom as object), "mail-inbox": value }
-  this.writeServed("inbox.olai", nodes.map(node => JSON.stringify(node)).join("\n"))
-  await this.waitUntil(async () => (await this.page.locator('[data-node-id="mail-inbox-agent"]').allTextContents()).join(" ").includes(value), `mail-inbox ${value}`)
+const switchWake = async (world: OlaiWorld, on: boolean) => {
+  const button = world.chat('[data-testid="mail-wake-switch"]')
+  await world.waitUntil(async () => await button.count() === 1, "mail wake switch")
+  if ((await button.getAttribute("aria-checked") === "true") !== on) await button.click()
+  await world.waitUntil(async () => (await button.getAttribute("aria-checked") === "true") === on, `mail wake ${on ? "on" : "off"}`)
+}
+When("I switch the mail wake on for this conversation", async function(this: OlaiWorld) { await switchWake(this, true) })
+When("I switch the mail wake off for this conversation", async function(this: OlaiWorld) { await switchWake(this, false) })
+Then("the mail wake is off for this conversation", async function(this: OlaiWorld) {
+  assert.equal(await this.chat('[data-testid="mail-wake-switch"]').getAttribute("aria-checked"), "false")
 })
 Then("this conversation has {int} mail wakes", async function(this: OlaiWorld, count: number) {
   const since = Date.now()
@@ -57,18 +61,6 @@ Then("mail makes no history calls for a second", async function(this: OlaiWorld)
     if (next !== count) { count = next; quietSince = Date.now() }
     return Date.now() - quietSince >= 1000
   }, "history calls to stop for one second")
-})
-
-Given("inbox consent is named {string}", function(this: OlaiWorld, key: string) {
-  this.writeServed("_olai/Properties.olai", JSON.stringify({ id: "inbox-consent", ord: "a0", title: key, custom: { type: "mail-inbox" } }))
-  const nodes = this.servedNodes("inbox.olai")
-  for (const node of nodes) {
-    const custom = node.custom as Record<string, string>
-    const value = custom["mail-inbox"]
-    delete custom["mail-inbox"]
-    if (value !== undefined) custom[key] = value
-  }
-  this.writeServed("inbox.olai", nodes.map(node => JSON.stringify(node)).join("\n"))
 })
 
 Then("mail warns that the bad poll value uses its default", async function(this: OlaiWorld) {

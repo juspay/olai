@@ -3,7 +3,7 @@
 import { Effect } from "effect"
 import type { Clock, Deliveries } from "@olai/plugin-api/services"
 import type { AccountMachine } from "./account.ts"
-import type { InboxBind, InboxReading } from "./inbox.ts"
+type InboxBind = ReturnType<Deliveries["scopes"]>[number]
 import type { Memory } from "./local.ts"
 import type { openMailbox } from "./mailbox.ts"
 import type { rowOf } from "./himalaya/threads.ts"
@@ -11,7 +11,7 @@ import { arrivingIn } from "./himalaya/history.ts"
 
 type Row = ReturnType<typeof rowOf>
 type Mailbox = Pick<Effect.Success<ReturnType<typeof openMailbox>>, "history" | "seed" | "summary">
-const keyOf = (bind: InboxBind) => JSON.stringify([bind.node, bind.engine, bind.session])
+const keyOf = (bind: InboxBind) => JSON.stringify([bind.agent, bind.session])
 const line = (text: string) => text.replace(/[\r\n]+/g, " ")
 export const digest = (address: string, since: string, rows: ReadonlyArray<Row>): string => [
   `New mail in ${address} — ${rows.length} ${rows.length === 1 ? "thread" : "threads"} since ${since.slice(11, 16)} UTC.`,
@@ -24,41 +24,48 @@ export const makeWatch = (deps: {
   readonly mailbox: Mailbox
   readonly memory: Memory
   readonly machine: Pick<AccountMachine, "current" | "usable">
-  readonly deliveries: Pick<Deliveries, "notify">
+  readonly deliveries: Pick<Deliveries, "scopes" | "deliver">
   readonly clock: Clock
   readonly debug: (line: string) => void
   readonly warn: (line: string) => void
 }) => {
   const { mailbox, memory, machine, deliveries, clock, debug, warn } = deps
-  let reading: InboxReading = { binds: [], named: [] }
+  let reading: ReadonlyArray<InboxBind> = []
   let observed = false
   let reseed = false
   let generation = 0
   let since = clock.now()
   let warned = false
   let gapSaid = false
-  const notices = new Set<string>()
-  const pending = new Map<string, { since: string; rows: Map<string, Row>; connection: string }>()
-  const revision = (next: InboxReading): boolean => {
-    const stopped = next.binds.length === 0 && (!observed || reading.binds.length > 0)
-    const keys = new Set(next.binds.map(keyOf))
-    for (const key of pending.keys()) if (!keys.has(key)) pending.delete(key)
+  const notices = new Map<string, InboxBind>()
+  const pending = new Map<string, { since: string; rows: Map<string, Row>; connection: string; current: () => boolean }>()
+  const revision = (next: ReadonlyArray<InboxBind>): boolean => {
+    const stopped = next.length === 0 && (!observed || reading.length > 0)
+    const keys = new Set(next.map(keyOf))
+    for (const [key, held] of pending) if (!keys.has(key) || !held.current()) pending.delete(key)
     if (stopped) { reseed = true; generation++ }
     reading = next
     observed = true
     return stopped
   }
   const poll = Effect.gen(function*() {
-    const binds = [...reading.binds]
+    const next = deliveries.scopes().filter(row => row.pick === true && row.current())
+    if (reading.length > 0 && reading.every(row => !row.current())) { reseed = true; generation++; pending.clear() }
+    const stopped = revision(next)
+    if (stopped) {
+      const held = memory.current()
+      if (held) yield* memory.advance(held.connectedAt, null)
+    }
+    const binds = [...reading]
     if (!binds.length) { debug("mail inbox dropped why=no-binds"); return }
     if (!machine.usable()) {
       if (machine.current().status === "absent") for (const bind of binds) {
         const key = keyOf(bind)
-        if (notices.has(key)) continue
-        yield* deliveries.notify({ agent: bind.engine, session: bind.session }, () =>
-          reading.binds.some(now => keyOf(now) === key) && machine.current().status === "absent"
-            ? "this node asks for inbox wakes but this serve has no Gmail account connected — connect one in ⧉ plugins" : null)
-        notices.add(key)
+        if (notices.get(key)?.current()) continue
+        yield* deliveries.deliver(bind, () =>
+          bind.current() && deliveries.scopes().some(now => now.pick === true && keyOf(now) === key) && machine.current().status === "absent"
+            ? "this conversation asks for inbox wakes but this serve has no Gmail account connected — connect one in ⧉ plugins" : null)
+        notices.set(key, bind)
       }
       debug("mail inbox dropped why=not-usable")
       return
@@ -109,16 +116,16 @@ export const makeWatch = (deps: {
     if (!rows.length) debug("mail inbox dropped why=empty")
     for (const bind of binds) {
       const key = keyOf(bind)
-      if (!reading.binds.some(now => keyOf(now) === key) || !rows.length) continue
+      if (!(bind.current() && deliveries.scopes().some(now => now.pick === true && keyOf(now) === key)) || !rows.length) continue
       let held = pending.get(key)
       if (!held || held.connection !== connection) {
-        held = { since, rows: new Map(), connection }
+        held = { since, rows: new Map(), connection, current: bind.current }
         pending.set(key, held)
       }
       for (const row of rows) held.rows.set(row.id, row)
       const batch = held
-      yield* deliveries.notify({ agent: bind.engine, session: bind.session }, () => {
-        if (pending.get(key) !== batch || !reading.binds.some(now => keyOf(now) === key) || memory.current()?.connectedAt !== connection || !machine.usable()) return null
+      yield* deliveries.deliver(bind, () => {
+        if (pending.get(key) !== batch || !(bind.current() && deliveries.scopes().some(now => now.pick === true && keyOf(now) === key)) || memory.current()?.connectedAt !== connection || !machine.usable()) return null
         const body = digest(record.address!, batch.since, [...batch.rows.values()])
         debug(`mail inbox delivering session=${bind.session} threads=${batch.rows.size}`)
         pending.delete(key)
@@ -132,5 +139,5 @@ export const makeWatch = (deps: {
   }).pipe(Effect.catchCause(cause => Effect.sync(() => {
     if (!warned) { warn(`mail inbox poll failed; retrying next poll: ${String(cause)}`); warned = true }
   })))
-  return { revision, poll }
+  return { poll }
 }

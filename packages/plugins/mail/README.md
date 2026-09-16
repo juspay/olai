@@ -14,17 +14,17 @@ The state machine that moves between the three arms is [`src/account.ts`](src/ac
 
 ## The direction, and where the fit is proved
 
-This package names `@olai/plugin-api` — the INTERFACE, which names no plugin — and names `@olai/bundle` nowhere, which is the REGISTRY and imports every plugin. What crosses is the service TAGS each half names in its `needs` — `Clock`, `Env`, `LocalState`, `Surfaces`, `TransportSurface`, `Vault`, `Kinds`, `Deliveries` and the minted `chat.seating` tag on the server; `Slots`, `Bar`, `Wired` in the tab — plus the `definePlugin` that turns each half's Effect into a plugin.
+This package names `@olai/plugin-api` — the INTERFACE, which names no plugin — and names `@olai/bundle` nowhere, which is the REGISTRY and imports every plugin. What crosses is the service TAGS each half names in its `needs` — `Clock`, `Env`, `LocalState`, `Surfaces`, `TransportSurface`, `Deliveries`, `Wakes` and `Offers` on the server; `Slots`, `Bar`, `Wired` in the tab — plus the `definePlugin` that turns each half's Effect into a plugin.
 
 Two things leave this package that no other tenant does, and both are named here because they are the interesting part:
 
 - **it claims a listener path.** `/_olai/mail/oauth` is registered through `TransportSurface` as a PASSIVE route — the serve already has a listener, and this row adds one path to it for as long as it stands. Switching the row off takes the route with it, which is what a person expects a switch to mean and what a second listener could not promise.
 - **it hangs a face in `plugins.row`,** a slot `olai-plugin-plugin-inspector` owns: the panel draws the row, and this plugin supplies the sentence and the two verbs, because core cannot write a sentence about a mailbox and must not learn one. The slot's face answers `needs()` too, which is how a row that is running, faultless and waiting on a person is filed under **Needs you** rather than among the healthy.
 
-Code doors: `./wire`, `./server`, `./browser`, `./policy`, `./appliance/testlib` — and the root is the wire identity. Tests run against two fakes (`src/appliance/testlib/`): a Himalaya that IS a spawned program, and a Google that is one loopback origin serving the consent screen, the token endpoint and the revocation. Neither is reachable from the plugin.
+Code doors: `./wire`, `./server`, `./browser`, `./appliance/testlib` — and the root is the wire identity. Tests run against two fakes (`src/appliance/testlib/`): a Himalaya that IS a spawned program, and a Google that is one loopback origin serving the consent screen, the token endpoint and the revocation. Neither is reachable from the plugin.
 
 ## Inbox wakes and scope
 
-The nine tools and `mail-inbox` node opt-in complete the inbox-zero loop. `inbox.ts` joins declared properties with the `chat.seating` service; `watch.ts` owns history paging and pending digests, and the memory door persists the cursor alongside OAuth state. `poll` is live configuration. Sending, drafts, permanent delete and live filed-thread properties are excluded.
+The nine tools and the conversation strip's **wake on new mail** switch complete the inbox-zero loop. Chat stores the browser's opaque `true` pick and issues revocable recipients through `Deliveries.scopes()`. `watch.ts` owns history paging and pending digests; the memory door persists the cursor alongside OAuth state. The optional cadence component reads the declared configuration service and updates the activation's poll control. Sending, drafts, permanent delete and live filed-thread properties are excluded.
 
 The plugin’s `default.nix` applies the local MIME payload and history-message patches. The latter preserves thread ids and labels in history JSON for inbox wakes; `src/himalaya/surface.check.ts` checks both against the built binary’s schemas.

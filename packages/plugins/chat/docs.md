@@ -87,7 +87,7 @@ its own. Conversation UI state is keyed by engine/session within the activation,
 so drafts, refusals, question state and dismissed completions do not leak across
 conversations.
 
-Chat also declares `engine.install` and `delivery.mark`. The fold registration
+Chat also declares `engine.install`, `delivery.mark` and `conversation.wake`. The fold registration
 owns these shared child locations once; page faces consume the same locations.
 Reverse withdrawal removes page consumers before the fold's location owner.
 An engine contributes its installation sentence and a delivering plugin its
@@ -155,7 +155,6 @@ working update. The pending count belongs to that conversation reading and
 clears as its sends settle. Sequential workflows wait for both acceptance and
 idle, rather than treating a stale idle frame as a completed turn.
 
-
 The zoomed agent page has one scroller per pane. Its breadcrumb, title and agent
 line stay at the top; the composer stays at the bottom with safe-area clearance.
 Memory and transcript share the pane scroll. Opening follows the newest line;
@@ -167,7 +166,6 @@ its parent releases its live agent scope. Agent cleanup closes the protocol and
 stops the whole child process group, escalating when it ignores termination,
 before joining pending requests. Opening a ninth held agent reports the capacity
 refusal in its conversation, with an explicit retry.
-
 
 Attention multiplexes watched-node identities over one activation-owned browser
 channel and one set of visibility listeners. Closing that activation releases
@@ -185,7 +183,6 @@ Already-filed conversations from older builds have their inherited wake picks
 cleared once at startup. A marker in chat's existing local heard record prevents
 later restarts from clearing deliberate new wake choices. A failed cleanup is
 logged and retried, without starting an engine.
-
 
 The page and inline fold use the same owner-scoped `createNodeConversation`
 hook for history resolution, reading acquisition, and question tracking. Page
@@ -210,3 +207,11 @@ composer's formatting and caret policy (`chat/insertion.ts`). Each mounted
 composer owns its insertion callback; shared conversation state does not choose
 which pane receives focus. Pointer and hold mechanics use the same component-owned
 `@olai/web/client/lifting.ts` primitive as outline rows and sidebar files.
+
+### Wake controls
+
+| Door | Owner | Contract |
+| --- | --- | --- |
+| `conversation.wake` | Chat's conversation strip | One face per plugin, given its opaque pick, browser-only setter, waiting count and conversation address |
+
+Kolu and odu draw their file pickers; mail draws its switch. Chat does not inspect a pick. It persists at most 32 choices, rejects agent writes, and revokes queued deliveries when a choice is cleared or replaced.

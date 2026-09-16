@@ -1,3 +1,5 @@
+import { fileAccess } from "olai-plugin-vault/contract"
+import { Wake as WakeFace } from "./browser/Wake.tsx"
 /**
  * ODU'S BROWSER HALF — a plugin, exactly the shape its server half is.
  *
@@ -136,3 +138,9 @@ export default definePlugin({
 
   }),
 })
+
+export const components = {
+  wake: definePlugin({ name: "wake", needs: [Slots, fileAccess], apply: Effect.gen(function*() {
+    const directory = yield* fileAccess
+    yield* (yield* Slots).register("conversation.wake", context => <WakeFace context={context} directory={directory} />)
+  }) }),}

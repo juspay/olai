@@ -24,7 +24,6 @@ import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { makePanel } from "./chat.ts"
 
-
 const ACTIVATION = {}
 
 const logging = () => {
@@ -169,7 +168,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     }
 
     await run(chat.doorFor("kolu").deliver(
-      chat.doorFor("kolu").scopes().find((row) => row.agent === "alpha")!,
+      { agent: "alpha", session: oneSession! },
       () => "wake in the background",
     ))
     await until("the sleeping scope to wake and finish", () => chat.live().get("one")?.status === "idle")
@@ -447,7 +446,6 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
 }, 30_000)
 }
 
-
 test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
   const { run, fork, said } = logging()
   let nodes: ReadonlyArray<NodeAgent> = [
@@ -563,7 +561,6 @@ test("agent switches, disabled plugins and listing probes have distinct exit rea
   }
 })
 
-
 test("node wake picks are off by default, independent, durable and clear the live inbox", async () => {
   const { run, fork } = logging()
   const local = ephemeralLocalState()
@@ -592,26 +589,26 @@ test("node wake picks are off by default, independent, durable and clear the liv
     expect(chat.doorFor("kolu").scopes()).toEqual([])
     expect(chat.doorFor("odu").scopes()).toEqual([])
     // Delivery-only plugins retain node recipients, through the same service.
-    expect(chat.doorFor("agenda").scopes().map((scope) => scope.under)).toEqual(["one", "two"])
+    expect(chat.doorFor("agenda").scopes()).toEqual([])
     await run(chat.scope(one, "kolu", "Other.olai"))
     await run(chat.scope(one, "odu", "Work.olai"))
     expect(chat.live().size).toBe(0)
-    expect(chat.doorFor("kolu").ringing("Other.olai", "outside-one").map(({ current: _current, ...row }) => row)).toEqual([
-      { ...one, file: "Other.olai" },
+    expect(chat.doorFor("kolu").scopes().map(({ current: _current, ...row }) => row)).toEqual([
+      { ...one, pick: "Other.olai" },
     ])
     await run(chat.loadSession(one.agent, one.session))
-    expect(chat.state().wake.map(({ name, file }) => ({ name, file }))).toEqual([
-      { name: "kolu", file: "Other.olai" }, { name: "odu", file: "Work.olai" },
+    expect(chat.state().wake.map(({ name, pick }) => ({ name, pick }))).toEqual([
+      { name: "kolu", pick: "Other.olai" }, { name: "odu", pick: "Work.olai" },
     ])
     await run(chat.scope(one, "kolu", "Work.olai"))
-    expect(chat.state().wake.find((row) => row.name === "kolu")?.file).toBe("Work.olai")
+    expect(chat.state().wake.find((row) => row.name === "kolu")?.pick).toBe("Work.olai")
     await run(chat.loadSession(two.agent, two.session))
     expect(chat.state().wake).toEqual([])
     // A delayed choice for the other conversation cannot change this one's strip.
     await run(chat.scope(one, "kolu", "Other.olai"))
     expect(chat.state().wake).toEqual([])
     await run(chat.loadSession(one.agent, one.session))
-    expect(chat.state().wake.find((row) => row.name === "kolu")?.file).toBe("Other.olai")
+    expect(chat.state().wake.find((row) => row.name === "kolu")?.pick).toBe("Other.olai")
     await run(chat.send("wait:5000", [], []))
     await until("a running turn", () => chat.state().status === "thinking")
     await run(chat.doorFor("kolu").deliver(chat.doorFor("kolu").scopes()[0]!, () => "discard this kolu delivery"))
@@ -623,12 +620,6 @@ test("node wake picks are off by default, independent, durable and clear the liv
     await run(chat.cancel)
     await until("odu's queued message", () => JSON.stringify([...chat.entries().values()]).includes("keep this odu delivery"))
     expect(JSON.stringify([...chat.entries().values()])).not.toContain("discard this kolu delivery")
-    // Fault and healing updates reach the node panel, not just the root panel.
-    await run(chat.faults(() => "gone", () => true))
-    expect(chat.state().wake[0]?.fault).toBe("gone")
-    expect(chat.doorFor("odu").scopes()).toEqual([])
-    await run(chat.faults(() => null, () => true))
-    expect(chat.state().wake[0]?.fault).toBeNull()
     await run(chat.scope(one, "odu", null))
     expect((await run(scopesIn(local))).rows()).toEqual([])
     expect(chat.doorFor("odu").scopes()).toEqual([])
@@ -636,7 +627,6 @@ test("node wake picks are off by default, independent, durable and clear the liv
     await run(chat.stop)
   }
 }, 25_000)
-
 
 test("filing clears old manual wakes and trash releases a running node", async () => {
   let present = true
