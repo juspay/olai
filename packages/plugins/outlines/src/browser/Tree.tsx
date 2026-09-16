@@ -391,14 +391,13 @@ function Branch(props: {
     const draft = editor.draft()
     return draft?.kind === "row" ? draft : undefined
   }
-  const pending = () => {
-    const held = editor.draft()
-    return held?.kind === "new" ? held : undefined
-  }
   const live = (kind: "after" | "before" | "under") => {
     const at = editor.where().pending
     if (at?.kind !== kind || at.id !== props.row.at.node.id) return undefined
-    return pending()
+    // The line itself, which may be a pending OR the row it became a moment
+    // ago — the same seat, the same editor, and the same words
+    // (`./edit/draft.ts`'s `ghostOf`). Only the row that matched reads it.
+    return editor.live() ?? undefined
   }
   const parked = (kind: "after" | "before" | "under") =>
     editor.ghosts().filter((g) => {

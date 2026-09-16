@@ -269,6 +269,43 @@ export const refused = (draft: Draft, failure: OpFailure): Draft => ({
 })
 
 /**
+ * The LIVE line as it is DRAWN: the pending being typed, or the row it became
+ * while that row is still a frame away from being drawn.
+ *
+ * The reply and the frame that carries the row arrive in either order, and the
+ * line must not blink out in between — a person typing in a line that is saving
+ * keeps their box and their caret, and both are things the ROW cannot give them
+ * until the file says the row exists ({@link Editing.was} is the same fact one
+ * layer down, where a blur reads it). One shape for both, so a row asks the
+ * editor for the line it is typing without first having to know which side of
+ * the reply it is on.
+ *
+ * `at` is the ROW that landed rather than the anchor it was typed at: the
+ * anchor is the editor's to walk back ({@link walked}, which reads the placing
+ * `commit` has just recorded), and a second copy here could not know about a
+ * frame. The `slot` is the pending's own, which is what keeps this the SAME
+ * `<input>` across the landing instead of a remounted one.
+ */
+export const ghostOf = (draft: Draft | null): Pending | null => {
+  if (draft === null) return null
+  if (draft.kind === "new") return draft
+  const was = draft.was
+  // `place !== null` is a line whose row the page is already drawing — the
+  // caret is in a ROW now, and a second editor for it would be two. `row ===
+  // null` cannot happen for a slot a pending minted, and a forwarding address
+  // with nothing to forward to is not one.
+  if (draft.place !== null || was === undefined || was.row === null) return null
+  return {
+    kind: "new",
+    at: { kind: "after", id: draft.row },
+    text: draft.text,
+    slot: was.row,
+    refused: draft.refused,
+    nudge: draft.nudge,
+  }
+}
+
+/**
  * After a write that keeps the caret: THIS draft, with what the write said —
  * or nothing, if the reader already let go.
  *
@@ -316,6 +353,59 @@ export const besideOf = (at: Anchor): Beside | null =>
   at.kind === "after" || at.kind === "before" || at.kind === "under"
     ? { kind: at.kind, id: at.id }
     : null
+
+/** What a walk that has no page to ask about passes — a line whose seat is
+ *  KEPT rather than found again ({@link walked}). */
+const NOTHING_DRAWN: ReadonlySet<string> = new Set()
+
+/**
+ * Where an anchor is drawn NOW, given where the writes said it went.
+ *
+ * An edit's reply and the frame carrying what it changed arrive in either
+ * order, and `add` is what mints an id: the anchor a line was TYPED at names a
+ * row that is still on screen, while the row the write produced is not drawn
+ * yet, and the placings `commit` records (`./editing.tsx`) are the only thing
+ * that knows the two are the same place. So a walk back along them, until the
+ * anchor names something the page actually draws.
+ *
+ * Pure, and here rather than in the editor, because it is the same rule for
+ * both readers — the caret's own seat and a page's start line — and because
+ * "where the line that landed is drawn" is worth a unit test.
+ */
+export const walked = (
+  at: Anchor,
+  placements: ReadonlyMap<string, Anchor>,
+  /** What the page draws now — which is what STOPS the walk: the first anchor
+   *  naming a row that is on screen is where the thing is drawn.
+   *
+   *  ABSENT IS A WALK THAT KEEPS ITS SEAT, and there is one caller: a line that
+   *  has LANDED is drawn where its ghost was, and the row it is waiting for may
+   *  NOT end the walk — the frame can beat the reply, and a seat that moved
+   *  onto that row would draw the line in the row's own list rather than the
+   *  ghost's. `../Tree.tsx` keys a LIST of ghosts, so a seat that changes lists
+   *  is the `<input>` a person is typing in destroyed and made again, with the
+   *  caret and the record of where it was going with it. A pending asks the
+   *  other way (its anchor IS a row on screen) and so does a parked skeleton. */
+  present: ReadonlySet<string> = NOTHING_DRAWN,
+): Anchor => {
+  const seen = new Set<string>()
+  while ("id" in at && !present.has(at.id) && !seen.has(at.id)) {
+    seen.add(at.id)
+    const previous = placements.get(at.id)
+    if (previous === undefined) break
+    at = previous
+  }
+  return at
+}
+
+/** The seat a BLANK is drawn at: which row, and before, after or under it —
+ *  `null` for a page's start line, which is nobody's row
+ *  ({@link besideOf}). */
+export const seatOf = (
+  blank: Pending,
+  placements: ReadonlyMap<string, Anchor>,
+  present?: ReadonlySet<string>,
+): Beside | null => besideOf(walked(blank.at, placements, present))
 
 /**
  * WHICH EDITOR a draft is drawn in: the row, and which of the three things it

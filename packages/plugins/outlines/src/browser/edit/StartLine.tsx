@@ -28,14 +28,18 @@ export function StartLine(props: {
   readonly label: string
 }) {
   const editor = useEditor()
-  /** The pending draft, when it is the one this line offered. Compared against
-   *  the anchor rather than its KIND: a draft anchored `after` a row is drawn
-   *  by that row (`../Tree.tsx`), and saying which anchor is ours states the
-   *  half of that rule this component owns instead of implying it. */
+  /** The LIVE line, when it is the one this line offered — a pending, or the
+   *  row it landed as while the page has not drawn that row yet
+   *  (`./draft.ts`'s `ghostOf`). Compared against the ANCHOR rather than its
+   *  KIND: a draft anchored `after` a row is drawn by that row
+   *  (`../Tree.tsx`), and saying which anchor is ours states the half of that
+   *  rule this component owns instead of implying it. `displayAt` walks the
+   *  placing a landed line recorded, which is what keeps this line's own draft
+   *  here after its write rather than unmounting it with the start line. */
   const live = () => {
-    const draft = editor.draft()
-    return draft !== null && draft.kind === "new" && sameAnchor(editor.displayAt(draft.at), props.at)
-      ? draft
+    const blank = editor.live()
+    return blank !== null && sameAnchor(editor.displayAt(blank.at), props.at)
+      ? blank
       : undefined
   }
   const parked = () => editor.ghosts().filter((g) => sameAnchor(editor.displayAt(g.at), props.at))

@@ -70,11 +70,11 @@ import type { Selection } from "../select/selection.ts"
 import { client } from "../../client.ts"
 import {
   after,
-  besideOf,
   before,
   commitOf,
   emptyPending,
   emptyPendingOf,
+  ghostOf,
   IDLE_COMMIT,
   type Beside,
   type Draft,
@@ -86,10 +86,12 @@ import {
   reaimed,
   refused,
   sameSlot,
+  seatOf,
   type Slot,
   slotOf,
   stillAt,
   typed,
+  walked,
 } from "./draft.ts"
 import { flatten, reanchored, refound, seated } from "./order.ts"
 import type { Standing } from "./order.ts"
@@ -117,6 +119,12 @@ export interface Editor {
    *  Enter parks each one rather than collapsing it. The live draft is not
    *  in this list; a row reads both to draw every ghost at its anchor. */
   readonly ghosts: Accessor<ReadonlyArray<Pending>>
+  /** The LIVE line, as the editor drawing it needs it — the pending being
+   *  typed, or the row it became while that row is a frame away from being
+   *  drawn (`./draft.ts`'s `ghostOf`). {@link where}'s `pending` is the same
+   *  line's SEAT, as three primitives every row may compare; this is the line
+   *  itself, and only the row that matched reads it. */
+  readonly live: Accessor<Pending | null>
   /** Put the caret in a parked empty draft. Clicking a ghost that is already
    *  on screen is how a skeleton gets filled in. */
   readonly resume: (slot: string) => void
@@ -209,7 +217,11 @@ export interface Where {
   readonly place: string | null
   /** The row a NEW line is drawn against, after or before it. One field, so
    *  a live draft cannot be both. `null` when there is no pending draft, or
-   *  it belongs to a page's start line (`under` / `first`). */
+   *  it belongs to a page's start line (`under` / `first`).
+   *
+   *  A line whose write has LANDED answers with the same seat: the row exists
+   *  on disk and the page has not drawn it yet, and until it does the ghost
+   *  stands exactly where the row will (`./draft.ts`'s `ghostOf`). */
   readonly pending: Beside | null
   readonly field: "title" | "desc" | null
 }
@@ -350,16 +362,9 @@ export const createEditor = (
     page.frames()
     return new Set(flatten(page.rows(), new Set()).map((row) => row.at.node.id))
   })
-  const displayAt = (at: Anchor): Anchor => {
-    const seen = new Set<string>()
-    while ("id" in at && !present().has(at.id) && !seen.has(at.id)) {
-      seen.add(at.id)
-      const previous = memory.placements().get(at.id)
-      if (previous === undefined) break
-      at = previous
-    }
-    return at
-  }
+  /** The walk itself is `./draft.ts`'s (`walked`): the same rule a blank's
+   *  seat is read by, and the same one a start line matches its anchor with. */
+  const displayAt = (at: Anchor): Anchor => walked(at, memory.placements(), present())
   createEffect(() => {
     const held = memory.placements()
     const next = new Map([...held].filter(([id]) => !present().has(id)))
@@ -371,9 +376,36 @@ export const createEditor = (
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
-      return { place: null, pending: besideOf(displayAt(held.at)), field: null }
+      return { place: null, pending: seatOf(held, memory.placements(), present()), field: null }
     }
-    return { place: held.place, pending: null, field: held.field }
+    // A LINE THAT LANDED KEEPS ITS SEAT. The write's reply names the row it
+    // made; the frame that draws that row is still to come, and the line a
+    // person is typing in must not blink out in the gap between them
+    // (`./draft.ts`'s `ghostOf` says what the line is; this says where).
+    // `seatOf` walks the placing `commit` recorded, so it is drawn exactly
+    // where it was — the same call the pending above makes with its own
+    // anchor, because it IS the same seat.
+    //
+    // WITHOUT A PAGE TO STOP IT, which is where the two differ and the whole
+    // reason this is a second call: the frame can beat the reply, and once it
+    // has, the row the line is waiting for IS drawn — a walk that stopped there
+    // would draw the line in that row's own list instead of the ghost's, which
+    // is a different `<Key>` over a different list (`../Tree.tsx`) and so the
+    // `<input>` a person is typing in destroyed and made again. `follow` moves
+    // the caret onto the row itself in this same frame, and THAT is what ends
+    // the ghost.
+    //
+    // `field` is what a WALK of the tree is gated on (`drawn`, below), and it
+    // is the one thing the two halves of this answer differ about: a line with
+    // no row behind it is nothing to walk for, while a line whose row the
+    // frame is about to draw is exactly what `follow` walks the tree to find.
+    const blank = ghostOf(held)
+    if (blank === null) return { place: held.place, pending: null, field: held.field }
+    return {
+      place: null,
+      pending: seatOf(blank, memory.placements()),
+      field: held.field,
+    }
   }, NOWHERE, {
     equals: (a, b) =>
       a.place === b.place && a.field === b.field &&
@@ -1309,6 +1341,7 @@ export const createEditor = (
     },
     draft,
     ghosts,
+    live: () => ghostOf(draft()),
     resume,
     resuming,
     displayAt,
