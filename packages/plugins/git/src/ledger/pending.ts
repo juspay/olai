@@ -485,9 +485,9 @@ export interface Committing {
    * which is the whole of `push-failure-invisible` restored.
    *
    * So the words are re-earned rather than remembered. One `git push` at boot,
-   * the same bare one every other door runs — never a force, never a pull — and
-   * whatever git says lands on the cell through the same path a pressed Push
-   * takes.
+   * the same bare one every other door runs — nothing forced, nothing fetched,
+   * nothing rebased — and whatever git says lands on the cell through the same
+   * path a pressed Push takes.
    *
    * ONLY WHERE THERE ARE COMMITS TO SEND, and that check is here rather than
    * left to {@link push} — the one place the two verbs genuinely want different
@@ -620,11 +620,11 @@ export const make = (options: Options): Committing => {
     [...counts].map(([writer, ops]) => ({ writer, ops }))
 
   /**
-   * ONE PUSH IN FLIGHT PER DIRECTORY — see §5 of the plan. Two pushes racing
-   * would run two integrates into one branch and the second's compare-and-swap
-   * would refuse against the first's ref move, pausing the loop over olai
-   * racing itself. The second caller WAITS on the permit, then surveys again
-   * and finds nothing to push. `whyWaiting` and the survey do not take it.
+   * ONE PUSH IN FLIGHT PER DIRECTORY. Two pushes racing would run two
+   * integrates into one branch and the second's compare-and-swap would refuse
+   * against the first's ref move, pausing the loop over olai racing itself.
+   * The second caller WAITS on the permit, then surveys again and finds
+   * nothing to push. `whyWaiting` and the survey do not take it.
    */
   const pushPermit = Semaphore.makeUnsafe(1)
 
@@ -706,7 +706,7 @@ export const make = (options: Options): Committing => {
    * ONE STOP FOR BOTH VERBS, which is the divergence ruling: piling more
    * automatic commits onto a branch that has already refused a push makes the
    * eventual resolution worse, so a refused push stops the committing too. It
-   * does not pull, does not rebase, does not force and does not try again.
+   * does not fetch, does not rebase, does not force and does not try again.
    *
    * The FIRST reason wins, and a verb that WORKED does not clear the stop. A
    * stop already on the record is the one a person is about to read, and only
@@ -1065,11 +1065,10 @@ export const make = (options: Options): Committing => {
    * "I think 'push' is the only thing that makes me use CLI outside of olai" —
    * the human, and this is the whole of the answer. The current branch to the
    * upstream it already has, and nothing else: no remote to pick, no refspec,
-   * no `--force`, and no branch or pull or fetch UI. What is NEW here is the
-   * one thing olai does BEFORE pushing (see the file's plan, §1-§5): it takes
-   * in what its upstream already has, by rebasing the unpushed commits onto
-   * it, so a push is never refused as a non-fast-forward for a reason olai
-   * could have removed itself.
+   * no `--force`, no branch or pull or fetch UI. Before the push olai takes
+   * in what its upstream gained — the branch is fetched and the unpushed
+   * commits rebased onto it — so a push is never refused as a non-fast-forward
+   * for a reason olai could have removed itself.
    *
    * THE SEQUENCE — survey, permit, fetch, stand, integrate when behind,
    * push, stand again — is the whole of the policy, and the interesting

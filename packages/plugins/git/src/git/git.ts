@@ -1260,10 +1260,11 @@ const integrate = (
       placed.gitDir,
       Effect.acquireUseRelease(
         Effect.gen(function*() {
-          yield* git(root, ["worktree", "add", "--no-checkout", "--detach", worktree, from])
+          const added = yield* git(root, ["worktree", "add", "--no-checkout", "--detach", worktree, from])
           // `-C`, never `--git-dir`: the checkout directory holds a `.git`
           // file pointing at `.git/worktrees/<name>`, which is where the
           // rebase's state lives, and `--git-dir` does not follow it.
+          if (!added.ok) return added
           return yield* git(
             root,
             ["-C", worktree, "reset", "--hard", "--quiet", "HEAD"],
@@ -1359,7 +1360,10 @@ const isAlive = (pid: number): boolean => {
   try {
     process.kill(pid, 0)
     return true
-  } catch {
-    return false
+  } catch (error) {
+    // `ESRCH` is the one certain "dead"; anything else — `EPERM` for a live
+    // process we may not signal, `EINVAL` for a pid out of range — is not a
+    // corpse to sweep.
+    return (error as NodeJS.ErrnoException).code !== "ESRCH"
   }
 }

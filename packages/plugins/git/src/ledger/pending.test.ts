@@ -864,6 +864,9 @@ describe("push", () => {
 
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         yield* fixture.ops.commit({ message: "the cabinets are ordered" }, "web")
+        // Before the push: the panel is offering exactly the one commit.
+        expect((yield* fixture.ops.pending).unpushed)
+          .toEqual({ upstream: "origin/main", commits: 1 })
         const sent = yield* fixture.ops.push
         expect(sent).toEqual({
           _tag: "Pushed",

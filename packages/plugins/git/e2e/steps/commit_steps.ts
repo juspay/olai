@@ -737,6 +737,20 @@ Then(
 );
 
 Then(
+  "the panel offers to push {int} commits",
+  async function (this: OlaiWorld, count: number) {
+    await this.expectAttribute(
+      COMMIT_UNPUSHED,
+      "data-commits",
+      String(count),
+      "the unpushed line",
+    );
+  },
+);
+When("I push", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_PUSH).click({ timeout: POLL_TIMEOUT });
+});
+Then(
   "the remote has taken in {string} before this commit",
   function (this: OlaiWorld, subject: string) {
     // The take-in is a REBASE, so the other side's commit is older than this
@@ -765,18 +779,4 @@ Then(
   },
 );
 
-Then(
-  "the panel offers to push {int} commits",
-  async function (this: OlaiWorld, count: number) {
-    await this.expectAttribute(
-      COMMIT_UNPUSHED,
-      "data-commits",
-      String(count),
-      "the unpushed line",
-    );
-  },
-);
-When("I push", async function (this: OlaiWorld) {
-  await this.page.locator(COMMIT_PUSH).click({ timeout: POLL_TIMEOUT });
-});
 
