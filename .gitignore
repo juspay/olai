@@ -52,3 +52,5 @@ node_modules
 /packages/bundle/src/assets.generated.ts
 
 /packages/bundle/src/policy.generated.ts
+
+/packages/bundle/src/knobs.generated.ts

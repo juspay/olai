@@ -43,8 +43,9 @@ import type { EventEmitter } from "node:events";
 import { DOORS as MAIL_DOOR_NAMES } from "olai-plugin-mail/appliance/testlib";
 // EVERY KNOB THE WRAPPER COULD BAKE, for the strip list below — derived from
 // the fold's `olai.knobs` so a plugin that declares one cannot be inherited
-// by a scenario. {@link KNOBS} in `../../bundle/src/fakes.generated.ts`.
-import { KNOBS } from "@olai/bundle/e2e-fakes";
+// by a scenario. {@link KNOBS} in `@olai/bundle/knobs`, a module of its own
+// beside the fake roster it does not share with.
+import { KNOBS } from "@olai/bundle/knobs";
 
 export { defaultWorkers, WORKER_CAP, workerCount } from "./parallelism.js";
 

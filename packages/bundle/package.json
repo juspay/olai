@@ -20,6 +20,7 @@
     "./agent-face": "./src/agent-face.ts",
     "./testlib": "./src/fixture.testlib.ts",
     "./e2e-fakes": "./src/fakes.generated.ts",
+    "./knobs": "./src/knobs.generated.ts",
     "./fake.ts": "./src/fake.ts",
     "./fake": "./src/fake.ts"
   },

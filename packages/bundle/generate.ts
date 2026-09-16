@@ -281,20 +281,35 @@ export const WRITE_RESERVATIONS: ReadonlyArray<WriteReservation> = [${policyRows
 `)
 
 const fakeRows = rows.filter((row) => hasDoor(row, "./e2e/fake"))
-// ONE LIST FOR THE WHOLE FOLD: the harness's `isolateEnv` deletes every knob
-// the wrapper could bake before a scenario sets its own. The fold's source
-// for that list is `olai.knobs` in each plugin's manifest, which is exactly
-// what `packages/bundle/nix/fold-check.nix` reads — so a plugin that adds a
-const knobNames = rows.flatMap((row) => {
-  const manifest = JSON.parse(readFileSync(join(packageDirOf(row), "package.json"), "utf8")) as { olai?: { knobs?: Record<string, unknown> } }
-  return Object.keys(manifest.olai?.knobs ?? {})
-})
-writeFileSync(join(SRC, "fakes.generated.ts"), `${HEADER("Every engine's scripted e2e fake, as a roster the harness folds over (section 13.3). A dynamic import is what keeps an engine's testlib out of the server graph. `KNOBS` is the fold's own answer to 'what could the wrapper have baked' — `olai.knobs` from every manifest, emitted beside the roster so the harness deletes a host's by name before a scenario sets its own.")}
+writeFileSync(join(SRC, "fakes.generated.ts"), `${HEADER("Every engine's scripted e2e fake, as a roster the harness folds over (section 13.3). A dynamic import is what keeps an engine's testlib out of the server graph.")}
 import type { Fake } from "./fake.ts"
 export interface FakeRow { readonly id: string; readonly load: () => Promise<{ readonly fake: Fake }> }
 export const FAKES_ROSTER: ReadonlyArray<FakeRow> = [
 ${fakeRows.map((row) => `  { id: ${quoted(row.id)}, load: () => import(${quoted(`${packageOf(row)}/e2e/fake`)}) },`).join("\n")}
 ]
+`)
 
+// ONE LIST FOR THE WHOLE FOLD, in a MODULE OF ITS OWN rather than beside the
+// fake roster it is about to share a file with: `KNOBS` is not about fakes.
+// The roster revs when a plugin adds or drops an `./e2e/fake` export; this
+// list revs when a plugin declares or withdraws an `olai.knobs` entry in its
+// manifest — two different clocks, and one happens to tick on the other's
+// package.json edit today only because both happen to live on the same rows.
+// A plugin that adds a knob without adding a fake still lands here; a plugin
+// that adds a fake without a knob never does. Writing KNOBS beside the roster
+// would fuse the two schedules into one file and hand a reader a fake roster
+// that carries a harness concern — the harness's `isolateEnv` loops THIS
+// file, not that one.
+//
+// The fold's source for the list is `olai.knobs` in each plugin's manifest,
+// which `packages/bundle/nix/fold-check.nix` also reads: a plugin that adds a
+// knob arrives in this file by composition rather than by a second spelling in
+// `workers.ts`, and that is the whole of the argument for generating instead
+// of checking.
+const knobNames = rows.flatMap((row) => {
+  const manifest = JSON.parse(readFileSync(join(packageDirOf(row), "package.json"), "utf8")) as { olai?: { knobs?: Record<string, unknown> } }
+  return Object.keys(manifest.olai?.knobs ?? {})
+})
+writeFileSync(join(SRC, "knobs.generated.ts"), `${HEADER("Every wrapper variable the fold could bake — \`olai.knobs\` from every row's manifest, emitted as a module of its own so the harness's env-strip does not borrow the fake roster's file.")}
 export const KNOBS: ReadonlyArray<string> = [${knobNames.map(quoted).join(", ")}]
 `)
