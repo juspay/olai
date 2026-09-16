@@ -49,30 +49,44 @@ on disk.
 
 ## What `initialize` says
 
-The server's `instructions` are two paragraphs. The first is this row's: what
-olai IS to a tool caller — nodes and whole files, never bytes, no filesystem
-under it. The second is `@olai/surface`'s **agent charter**: where an agent's
-words land. A person reads the answer in the chat panel beside the outline; an
-address (`/#<id>`, `/<path>`, `/<path>.olai#<id>`, `/<path>.md#<slug>`, `?q=`
-before the fragment) is the app's own and needs no host or port; a tool's `at`
-is the same address without the leading `/`; a backticked id in prose is
-pressable and one in a code fence is a quotation; a markdown link to an app
-address is followed in place and `https://` opens a new tab; tools are named
-`<row>_<verb>` and an absent row's verbs are absent. It is authored in
-`@olai/surface` rather than here because every sentence states a fact the
-address grammar, the navigation row or the chat row owns; this row only
-carries it, because `initialize` is the one wire into an agent's standing
-context — ACP has no system prompt ([chat.md](../chat.md), "Pointing back at
-a node", is the person's side of the same contract).
+The server's `instructions` are COMPOSED, at each `initialize`, from the rows
+standing at that moment — the same reading the tool list and the `surface://`
+resources come from. This row's own paragraphs come first: what olai IS to a
+tool caller (nodes and whole files, never bytes, no filesystem under it), the
+address grammar (`/#<id>` a node anywhere, `/<path>` a document or an outline,
+`/<path>#<element>` a row or a heading — `@olai/format`'s, true with no other
+row standing), that a tool's `at` is that address without the leading `/`, that
+an address is the app's own with no host or port to know, and that tools are
+named `<row>_<verb>` with an absent row's verbs absent. After them, in roster
+order, comes every standing row's **charter**: the one paragraph a row tells an
+agent about itself as an application, carried on its `Sibling.charter` beside
+the `tools` it brings. Today one row has one — chat's, that a person reads the
+answer in the panel beside the outline, that a backticked id in prose is
+pressable and a fenced one is a quotation, that a link to an app address is
+followed in place ([chat.md](../chat.md), "Pointing back at a node", is the
+person's side of that contract).
 
-The charter names only what is true whatever rows are standing. `/today`,
-`/agenda`, `/trash`, pins, mirrors, marks and the search operators are a
-plugin's each and are taught by the tool that owns them; a sentence here that
-the agent's next call can disprove teaches that the rest is decoration.
+**A sentence leaves with its row, like a verb.** It was one static paragraph in
+`@olai/surface` for one PR, and that was core speaking for a plugin: a serve
+may run `mcp` with no `chat` row, and an external host dialling `/mcp` from a
+terminal has no panel anywhere, so both were told about a panel they did not
+have. A charter the agent's next glance can disprove teaches that the rest is
+decoration. `/today`, `/agenda`, pins, mirrors, marks and the search operators
+are each a plugin's too, and are taught by the tool that owns them rather than
+here.
 
-**The whole text stays under 2000 bytes.** Claude Code truncates server
-instructions at 2 KB, silently, and bills them on every turn; the ceiling is
-held by `@olai/server`'s `mcp/tools.test.ts`. Codex and Claude Code honour
+**Per connection, not per session.** The text is read when a host sends
+`initialize`, so a host that connects after a row is switched on or off is told
+the roster it gets. A host already connected keeps what it was told: MCP has
+`tools/list_changed` and `resources/list_changed` and no `instructions_changed`
+— the same reconnect-per-roster-change limit a browser socket has, stated
+rather than hidden. This depends on `@kolu/surface-mcp` taking `instructions`
+as a function (juspay/kolu#2253).
+
+**The composed whole stays under 2000 bytes with every row standing.** Claude
+Code truncates server instructions at 2 KB, silently, and bills them on every
+turn; `@olai/server`'s `profiles.test.ts` holds the ceiling over the full
+bundle and reads both states of chat's paragraph. Codex and Claude Code honour
 `instructions`; **opencode fetches it and drops it**
 ([anomalyco/opencode#7373](https://github.com/anomalyco/opencode/issues/7373)),
 so an agent on opencode is exactly as untaught as before and this row cannot

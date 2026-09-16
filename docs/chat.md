@@ -319,7 +319,7 @@ If the lookup itself fails, the panel says so at the end of the conversation —
 
 **A link the agent writes is a link**, and it behaves like every other link in this app: a path to a document (`notes/plan.md`) or an address of olai's own (`/house.olai`, `/#order`, `/today`) opens in the pane you were last reading, in place, with the conversation still beside it — and Alt+click opens it in a pane to the right. A `https://` one opens in a new tab, so a click can never throw the app away.
 
-**The agent is TOLD all of this**, once, at MCP `initialize`: that a person reads its answer in this panel beside the outline, that an address is the app's own with no host or port to know, that a backticked id in prose is pressable and one in a code fence is a quotation, and that a link to an app address is followed in place — the paragraph is `@olai/surface`'s charter, the MCP row carries it, and [plugins/mcp.md](plugins/mcp.md) says what it may claim and which clients drop it.
+**Claude Code and Codex are TOLD all of this**, once, at MCP `initialize`: that a person reads the answer in this panel beside the outline, that a backticked id in prose is pressable and one in a code fence is a quotation, and that a link to an app address is followed in place. The paragraph is this plugin's own — it rides chat's sibling entry beside its members, so a serve running MCP without chat says nothing about a panel, and an agent whose host connects after chat is switched on is told (one already connected is not; MCP has no way to re-tell it). The address grammar and the tool naming are the MCP row's own sentences beside it; [plugins/mcp.md](plugins/mcp.md) says how the text is composed and which clients drop it.
 
 ## What it shows when it changes something
 
