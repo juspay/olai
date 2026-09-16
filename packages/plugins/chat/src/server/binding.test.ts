@@ -94,7 +94,7 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     scope: () => elsewhere,
     start: Effect.void,
     stop: Effect.void,
-    doorFor: () => ({ scopes: () => [], ringing: () => [], deliver: () => elsewhere }),
+    doorFor: () => ({ scopes: () => [], deliver: () => elsewhere }),
     faults: () => elsewhere,
   } as unknown as Chat
   return { chat, assigned, replaced }

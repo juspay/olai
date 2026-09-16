@@ -318,7 +318,7 @@ export const surface = defineSurface({
            *  second verb, because there is one fact here and it has an empty
            *  value: a `forget` beside a `set` would be two ways to write one
            *  row and a question about which of them a fresh pick goes through. */
-          file: Schema.NullOr(Schema.String),
+          pick: Schema.Json,
         }),
         error: ChatFailure,
       },

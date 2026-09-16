@@ -90,7 +90,6 @@
  */
 import type { Advertised } from "@olai/plugin-api/services"
 
-
 import { type AgentChoice, type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
 import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
@@ -112,7 +111,7 @@ import * as Memory from "./memory.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
-import type { Fault, Faulted, Scoped, Scopes } from "./scopes.ts"
+import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
@@ -126,8 +125,7 @@ export interface WakeScope {
   readonly current: () => boolean
   readonly agent: string
   readonly session: string
-  readonly file: string
-  readonly under?: string
+  readonly pick: import("./json.ts").Json
 }
 
 /** Everything one conversation needs. Pooling, eviction and per-node
@@ -496,26 +494,11 @@ export interface Panel {
    * second place a plugin roster had to be kept.
    */
   readonly doorFor: (plugin: string) => {
-    /**
-     * The conversations THIS plugin's doorbell was pointed at, each with the
-     * file a person picked. SYNCHRONOUS, because the blob it feeds is built in
-     * a plain `.map` and read from a watcher sink with no Effect around it.
-     *
-     * A ROW WHOSE DOORBELL CANNOT WATCH WHAT IT NAMES IS NOT ON THIS LIST
-     * ({@link Panel.faults}) — the file is gone, or it is served and is not a
-     * kind this plugin reads — and that omission is the boundary between the
-     * two things a quiet conversation can mean, kept by construction rather
-     * than by care. There is nothing to derive and nothing to ring about; and
-     * anything else a plugin does per scope — a heartbeat saying it is alive and the subject is
-     * quiet, most of all — must not fire for a conversation whose scope is
-     * broken, because "alive and quiet" and "watching nothing" are the two
-     * sentences this whole feature exists to keep apart. Neither end has to
-     * remember that: the row is simply not here.
-     */
+    /** This plugin's opaque picks, with authority for the exact stored choice. */
     readonly scopes: () => ReadonlyArray<WakeScope>
     /** Which scopes hear a claim at one node. A single panel has only manual
      * whole-file scopes; the scheduler above adds nearest-node precedence. */
-    readonly ringing: (file: string, node: string) => ReadonlyArray<WakeScope>
+
     /**
      * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION.
      *
@@ -549,87 +532,11 @@ export interface Panel {
   readonly scope: (
     to: { readonly agent: string; readonly session: string },
     plugin: string,
-    file: string | null,
+    pick: import("./json.ts").Json,
   ) => Effect.Effect<ReadonlyArray<Scoped>, OpFailure>
   /** Refresh this panel after the shared picks changed, dropping deliveries
    * for every replaced, cleared or evicted pick. */
   readonly refreshWakes: (left: ReadonlyArray<Scoped>) => void
-  /**
-   * WHICH SCOPED FILES A DOORBELL CAN STILL WATCH — asked of every published
-   * revision, and answered with the conversations whose doorbell JUST BROKE.
-   *
-   * ## The defect this exists to make impossible
-   *
-   * A person scopes a conversation to `lanes.olai`. Somebody renames the file.
-   * The doorbell derives per revision and walks a file that is not there, so it
-   * derives nothing — forever — while the strip goes on drawing the control as
-   * ON. Nothing is wrong anywhere a person can see, and the conversation is
-   * silent in exactly the way a conversation with nothing to report is silent.
-   * QUIET-AND-FINE AND QUIET-BECAUSE-BROKEN MUST NOT LOOK ALIKE, and after the
-   * hand-run fleet watch is retired this is the only thing standing between
-   * them.
-   *
-   * ## THE SECOND WAY IN, and it is the same silence by a different door
-   *
-   * The file is right there and is not something that doorbell can read: a
-   * `.md` under a wake that derives its set from a file's NODES. The picker
-   * offered every served file until the kinds were declared
-   * (`@olai/plugin-api`'s `PluginServerHalf.wake.walks`), so this is a state a
-   * record on disk can be in and a gesture cannot reach any more — and a
-   * picker-only fix would have left it exactly as silent as the rename was.
-   * Same walk, same one signal, same row off the plugin's door; a different
-   * cause and therefore a different sentence.
-   *
-   * ## WHO DETECTS AND WHO SPEAKS
-   *
-   * Core detects, because core owns both halves of both questions: the served
-   * set is a fact about the vault, WHICH KINDS a doorbell can watch is a
-   * declaration its plugin handed the composition root, and the pick is a row
-   * in this package's own record. Core says NOTHING, because a sentence about
-   * somebody's terminals is a sentence core may not compose — what goes into
-   * the conversation is the string the plugin DECLARED for that cause
-   * (`@olai/plugin-api`'s `PluginServerHalf.wake.faults`),
-   * carried verbatim through the door {@link Panel.doorFor} already hands out.
-   * This member is the join between those two and composes nothing itself.
-   *
-   * ## A JUDGEMENT rather than the paths that went missing
-   *
-   * The caller holds a revision and can answer "can this doorbell watch this
-   * path" in a binary search plus a lookup; it cannot hand over a list of what
-   * broke without either a second member here or a walk of the whole directory
-   * per revision. The picks are the small side — at most a few dozen — so the
-   * walk is over them and the judgement comes in. That is `@olai/format`'s
-   * `conventions.ts` argument, spent here for its reason rather than copied.
-   *
-   * ## Exactly once, and quiet on the way back
-   *
-   * What comes back is the fine→faulted edge only ({@link ./scopes.ts}'s
-   * `Scoped.fault`): a second revision with the same fault standing answers
-   * with nothing, and a restart with the mark already on the record answers
-   * with nothing, so a rename is one sentence rather than one per revision or
-   * one per boot. A file that COMES RIGHT unmarks the row, the plugin's door
-   * starts listing it again, and nobody is told — one signal per fault, and the
-   * strip is where the recovery shows.
-   *
-   * ## It cannot fail, because nobody is standing at the screen
-   *
-   * The caller is a revision connector, not a gesture. A record that will not
-   * take the mark is one warning and no rows — the discipline the boot read
-   * keeps ({@link ./scopes.ts}) and the exact opposite of {@link Panel.scope},
-   * which refuses because somebody is waiting to hear whether their pick stuck.
-   * Nothing is marked when the write fails, so the same edge is still there for
-   * the next revision to find.
-   */
-  readonly faults: (
-    /** What is wrong with one row's file for one row's doorbell — the served
-     *  set and the plugin's declared kinds, asked as one question, answered
-     *  `null` for the file that doorbell can watch. */
-    judge: (plugin: string, file: string) => Fault | null,
-    /** Whether a fault on this plugin's row can be SAID. A row nobody can be
-     *  told about is left unmarked, so the one signal is not spent by a serve
-     *  that has no doorbell to lose. */
-    sayable: (plugin: string) => boolean,
-  ) => Effect.Effect<ReadonlyArray<Faulted & { readonly current: () => boolean }>>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
   readonly recordRefusal: (
@@ -662,9 +569,9 @@ const sameWake = (
     const was = b[at]
     return was !== undefined
       && row.name === was.name
-      && row.file === was.file
+      && JSON.stringify(row.pick) === JSON.stringify(was.pick)
       && row.waiting === was.waiting
-      && row.fault === was.fault
+
   })
 /**
  * How long an agent may say NOTHING after a cancel before the panel says so.
@@ -1523,16 +1430,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // ({@link ../../surface/src/index.ts}).
         .map((row) => ({
           name: row.plugin,
-          file: row.file,
+          pick: row.pick,
           waiting: counted.get(row.plugin) ?? 0,
-          // THE FAULT TRAVELS, AND SO DOES ITS CAUSE, so the control can stop
-          // drawing as enabled and can say which of the two things happened
-          // ({@link Panel.faults}). NULLABLE on the wire where the record carries
-          // the word-or-absent: the wire is a decoded value a browser reads per
-          // frame, and an optional key there would be one more state for a face
-          // to have an opinion about. The two unions are held equal by this
-          // line and by the type checker rather than by a shared literal.
-          fault: row.fault ?? null,
+
         }))
     }
 
@@ -3446,21 +3346,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       doorFor: (plugin) => {
         const scopes = (): ReadonlyArray<WakeScope> =>
           (options.scoping?.rows() ?? [])
-            // ... AND NOT A ROW THAT IS NOT BEING WATCHED. There is nothing to watch,
-            // so there is nothing for this plugin to derive — and everything a
-            // plugin does PER SCOPE stops with it, which is the point: a
-            // heartbeat that fired for a broken scope would be the panel saying
-            // "alive and quiet" about a doorbell that is watching nothing. The
-            // filter is how those two are kept apart by construction rather
-            // than by every caller remembering ({@link Panel.faults}).
-            .filter((row) => row.plugin === plugin && row.fault === undefined)
+            .filter((row) => row.plugin === plugin)
             // The `plugin` column goes on the way out: a door is already
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
             .map((row) => options.scoping!.recipient(row))
         return {
           scopes,
-          ringing: (file) => scopes().filter((scope) => scope.file === file),
           deliver: (to, say, how) => deliverTo(to, say, plugin, how),
         }
       },
@@ -3485,7 +3377,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
        * draws next comes through the one publisher every other chat verb
        * publishes through.
        */
-      scope: (to, plugin, file) =>
+      scope: (to, plugin, pick) =>
         Effect.gen(function*() {
           const scoping = options.scoping ?? null
           if (scoping === null) {
@@ -3513,7 +3405,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // A failed write preserves the choice and costs only a re-derivation.
           held.dropped(to, plugin)
           const left = yield* Effect.mapError(
-            scoping.set(to, plugin, file),
+            scoping.set(to, plugin, pick),
             (failure) => new BusyFailure({ reason: failure.why }),
           )
           // ... AND SO DOES A WRITE THAT PUSHED SOMEBODY ELSE OUT. The cap
@@ -3526,52 +3418,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           move({ wake: wakeOf() })
           return left
         }),
-      /**
-       * A revision, judged against the picks. See {@link Panel.faults} for what
-       * it is for; what is here is the three things this package owns about it.
-       *
-       * IT ANSWERS EMPTY FOR A PANEL WITH NO SCOPE TABLE, rather than refusing:
-       * a serve composed without plugins has no picks to break, and a caller
-       * driving this off every revision has nowhere to put a refusal for a
-       * question that was never applicable.
-       *
-       * A WRITE THAT FAILS IS A WARNING AND NO ROWS. Nobody is standing at the
-       * screen — this is a revision and not a gesture — so it takes the boot
-       * read's arm and not {@link Panel.scope}'s. Nothing is marked when the
-       * write fails ({@link ./scopes.ts}), so the same edge is still there next
-       * revision and the only cost is a delay.
-       *
-       * ...AND THE STRIP IS REPUBLISHED, through the one publisher every other
-       * chat verb publishes through: {@link wakeOf} reads the same rows this
-       * just marked, so the control stops drawing as enabled in the same frame
-       * the sentence goes out. Unconditionally, and not only when something
-       * fell — a HEALED row moves the cell too, and it is the arm with nothing
-       * else to announce it.
-       */
-      faults: (served, sayable) =>
-        Effect.gen(function*() {
-          const scoping = options.scoping ?? null
-          if (scoping === null) return []
-          const fell = yield* Effect.result(scoping.faults(served, sayable))
-          if (fell._tag === "Failure") {
-            yield* Effect.logWarning(
-              `a doorbell's file is no longer served and the record would not take the mark ` +
-                `(${fell.failure.why}) — the conversation is not told yet, and the next ` +
-                `revision tries again`,
-            )
-            return []
-          }
-          // ONLY WHEN THE ROWS ACTUALLY MOVED, and this guard is not an economy.
-          // This runs on EVERY published revision — every keystroke somebody
-          // saves anywhere in the vault — and the chat cell declares no
-          // `equals`, so an unconditional `move` here would ship a whole
-          // `ChatState` (roster, commands, servers, usage, watching, wake) to
-          // every open tab on every revision, for a value that is the same
-          // value. `watched()` above keeps the same discipline for the same
-          // reason.
-          if (!sameWake(wakeOf(), state.wake)) move({ wake: wakeOf() })
-          return fell.success.map((row) => ({ ...row, ...scoping.recipient(row) }))
-        }),
+
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
           publish(transcript.refuse(`\`${tool}\` was refused`, failure))

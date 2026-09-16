@@ -865,22 +865,9 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
   }
   const drawn = {
     subject: "wake on terminal activity",
-    from: "terminals from",
     waiting: { one: "waiting sentence", many: "waiting sentences" },
-    // WHICH FILES THE PICKER MAY OFFER, which is drawn in the sense that
-    // matters: it is what the list is made of, and core cannot work it out.
-    walks: "nodes" as const,
   }
-  /** ... and the member that is NOT: a whole sentence per way this doorbell can
-   *  stop watching. They are delivered into the transcript, and a browser has no
-   *  occasion to write any of them. */
-  const wake = {
-    ...drawn,
-    faults: {
-      gone: "the file you woke on is not here any more",
-      unwatchable: "the file you woke on is not one this can read",
-    },
-  }
+  const wake = drawn
   const wakes = new Map([[first, wake]])
 
   const all = rosterOf(offering(PLUGIN_NAMES, mounted(PLUGIN_NAMES)), wakes)

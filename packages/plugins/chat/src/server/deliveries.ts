@@ -13,7 +13,6 @@ export const deliveryProvision = (
   }))
   return {
     scopes: () => current() ? recipients(chat()?.doorFor(who).scopes() ?? []) : [],
-    ringing: (file, node) => current() ? recipients(chat()?.doorFor(who).ringing(file, node) ?? []) : [],
     deliver: (to, say, how) => Effect.suspend(() => current()
       ? chat()?.doorFor(who).deliver({ ...to, current: () => current() && to.current() }, say, how) ?? Effect.void
       : Effect.void),

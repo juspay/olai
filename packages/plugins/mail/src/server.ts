@@ -2,15 +2,19 @@
  * Mail owns its OAuth route, token broker, generated config and account cell.
  * Its MCP tool closures also own a label cache, four spawn permits, per-thread
  * write permits and a temporary attachment directory. The activation gate cuts
- * and joins tool calls before resources close. Refresh fibers stop first, then
- * attachments are removed, then the config directory. Vault is not a dependency:
- * mail neither reads nor writes the served directory.
+ * and joins tool calls before resources close. The watcher and refresh fibers
+ * stop before attachments and the config directory close. The watcher reads
+ * Deliveries.scopes() for its recipients and holds no vault reading. All pending
+ * digest state dies with the row.
  */
 
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
   Clock,
+  Deliveries,
+  Offers,
+  Wakes,
   definePlugin,
   detached,
   Env,
@@ -18,9 +22,14 @@ import {
   Surfaces,
 } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
-import { Effect } from "effect"
+import { Effect, Queue, Stream } from "effect"
 
 import { type Account, MAIL_UNCONNECTED, name, surface, faces } from "./wire.ts"
+import { ConfigurationSource } from "@olai/plugin-api/configuration"
+import { serviceTag } from "@olai/plugin-api/services"
+import { Config, pollMillis } from "./settings.ts"
+import { makeWatch } from "./watch.ts"
+import { openMailbox } from "./mailbox.ts"
 import { makeTools } from "./tools.ts"
 import { makeAccount } from "./account.ts"
 import { DOOR } from "./doors.ts"
@@ -29,6 +38,7 @@ import { openMemory } from "./local.ts"
 import { FORM_CONTENT_TYPE, googleOf } from "./oauth.ts"
 import { mailRoute } from "./route.ts"
 
+export { Config } from "./settings.ts"
 export { faces, name, surface } from "./wire.ts"
 
 /** The trimmed value of a door, or `undefined` — because an empty string is how
@@ -63,8 +73,12 @@ export default definePlugin({
     },
   ],
   name,
-  needs: [Clock, Env, LocalState, Surfaces, TransportSurface],
+  needs: [Clock, Env, LocalState, Surfaces, TransportSurface, Deliveries, Wakes, Offers],
+  config: Config,
+  configUpdates: "live",
   apply: Effect.gen(function*() {
+    const deliveries = yield* Deliveries
+    yield* (yield* Wakes).register(wake)
     const clock = yield* Clock
     const environment = yield* Env
     const localState = yield* LocalState
@@ -142,6 +156,8 @@ export default definePlugin({
       warn,
     })
 
+    const mailbox = yield* openMailbox(himalaya, machine, environment.vars["XDG_RUNTIME_DIR"])
+
     /** ONE CELL AND TWO PROCEDURES. `deps` is annotated against THIS package's
      *  own spec, so a member renamed in `./wire.ts` is a type error here rather
      *  than a boot crash in somebody's composition root. No `published`: this
@@ -149,7 +165,7 @@ export default definePlugin({
     yield* surfaces.register({
       surface,
       faces,
-      tools: yield* makeTools(himalaya, machine, environment.vars["XDG_RUNTIME_DIR"]),
+      tools: yield* makeTools(mailbox),
       deps: {
         cells: {
           account: {
@@ -184,5 +200,32 @@ export default definePlugin({
      *  answer still draws its app. */
     yield* Effect.forkScoped(machine.boot())
     yield* Effect.forkScoped(machine.refresh)
+    const watcher = makeWatch({ mailbox, memory, machine, deliveries, clock, warn,
+      debug: line => run(Effect.logDebug(line)),
+    })
+    let pollMs = 120_000
+    const changed = yield* Queue.unbounded<void>()
+    yield* (yield* Offers).own("poll", () => ({ set: (next: number) => {
+      if (next !== pollMs) { pollMs = next; Queue.offerUnsafe(changed, undefined) }
+    } }))
+    yield* Effect.forkScoped(Effect.forever(Effect.gen(function*() {
+      const due = yield* Effect.raceFirst(Effect.sleep(pollMs).pipe(Effect.as(true)), Queue.take(changed).pipe(Effect.as(false)))
+      if (due) yield* watcher.poll
+    })))
   }),
 })
+
+const Poll = serviceTag<{ readonly set: (ms: number) => void }>("mail.poll")
+export const wake = { subject: "wake on new mail", waiting: { one: "mail event waiting", many: "mail events waiting" } }
+export const components = {
+  cadence: definePlugin({ name: "cadence", needs: [ConfigurationSource, Poll], apply: Effect.gen(function*() {
+    const source = yield* ConfigurationSource
+    const poll = yield* Poll
+    const update = (value: ReturnType<typeof source.current>) => Effect.sync(() => {
+      const configured = value.rows.get("mail")?.config.poll
+      poll.set(typeof configured === "string" ? pollMillis(configured) ?? 120_000 : 120_000)
+    })
+    yield* update(source.current())
+    yield* Effect.forkScoped(Stream.runForEach(source.changes, update))
+  }) }),
+}

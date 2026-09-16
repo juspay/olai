@@ -347,7 +347,7 @@ test("shared write tags retain only their active content cases on the MCP catalo
 
 
 test("mail advertises exactly nine tools while running and withdraws them on every stop", async () => {
-  await withServing({ root: served(), plugins: ["vault", "ws", "mcp", "web-app", "mail"] }, async url => {
+  await withServing({ root: served(), plugins: ["vault", "ws", "mcp", "web-app", "chat", "mail"] }, async url => {
     const names = async () => {
       const response = await request(url)
       const body = await response.json()

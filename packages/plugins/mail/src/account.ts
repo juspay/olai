@@ -432,7 +432,7 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
         stops("the pinned Himalaya answered a profile this plugin cannot read", record.address)
         return undefined
       }
-      const settled: MemoryRecord = { ...keep, address: profile.address }
+      const settled: MemoryRecord = { ...keep, address: profile.address, historyId: record.address === profile.address ? keep.historyId : null }
       yield* memory.remember(settled).pipe(
         Effect.catch((refusal: Refusal) => Effect.sync(() => {
           // The connection works and the disk did not take the note; saying so
@@ -552,7 +552,7 @@ export const makeAccount = (inputs: AccountInputs): AccountMachine => {
             reason: "Google answered without a refresh token — this serve would have to ask a person to connect again after an hour, so the connection was not kept",
           }))
         }
-        const kept: MemoryRecord = { refreshToken, address: null, scope: answer.tokens.scope ?? SCOPE, connectedAt: clock.now() }
+        const kept: MemoryRecord = { historyId: null, refreshToken, address: null, scope: answer.tokens.scope ?? SCOPE, connectedAt: clock.now() }
         yield* asMail(memory.remember(kept))
         // STRAIGHT INTO THE PROFILE, with the token Google just handed us in
         // the exchange — a refresh here would be a second round trip for a

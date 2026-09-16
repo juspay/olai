@@ -1,3 +1,4 @@
+import { openMailbox } from "./mailbox.ts"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { harness, connected } from "./tools.testlib.ts"
@@ -56,11 +57,11 @@ test("fifty-thread listings never run more than four Himalaya children", async (
   let active = 0
   let peak = 0
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
-    const tools = yield* makeTools({ binary: "/fake", useToken: () => Effect.void, close: async () => {}, run: call => Effect.acquireUseRelease(
+    const tools = yield* makeTools(yield* openMailbox({ binary: "/fake", useToken: () => Effect.void, close: async () => {}, run: call => Effect.acquireUseRelease(
       Effect.sync(() => { active++; peak = Math.max(peak, active) }),
       () => Effect.sleep("2 millis").pipe(Effect.as(call.verb.id === "labels.list" ? LABELS : call.verb.id === "threads.list" ? { threads: Array.from({ length: 50 }, (_, i) => ({ id: i.toString(16) })) } : { ...THREADS[0], id: call.args?.[0] })),
       () => Effect.sync(() => { active-- }),
-    ) }, { current: () => connected, usable: () => true })
+    ) }, { current: () => connected, usable: () => true }))
     const tool = tools.find(t => t.name === "inbox")!
     if (tool.kind !== "surface") throw new Error("wrong tool kind")
     yield* tool.call(undefined as never, { max: 50 } as never)
@@ -77,11 +78,11 @@ test("closing mail cuts running calls before deleting attachments and refuses re
   const entered = Deferred.makeUnsafe<void>()
   let cut = false
   let spawns = 0
-  const tools = await Effect.runPromise(Effect.provideService(makeTools({ binary: "/fake", useToken: () => Effect.void, close: async () => {}, run: call => {
+  const tools = await Effect.runPromise(Effect.provideService(openMailbox({ binary: "/fake", useToken: () => Effect.void, close: async () => {}, run: call => {
     spawns++
     if (call.verb.id === "labels.list") return Effect.succeed(LABELS)
     return Deferred.succeed(entered, undefined).pipe(Effect.andThen(Effect.never), Effect.ensuring(Effect.sync(() => { cut = true })))
-  } }, { current: () => connected, usable: () => true }), Scope.Scope, scope))
+  } }, { current: () => connected, usable: () => true }).pipe(Effect.flatMap(makeTools)), Scope.Scope, scope))
   const tool = tools.find(t => t.name === "thread")!
   if (tool.kind !== "surface") throw new Error("wrong tool kind")
   const call = tool.call(undefined as never, { thread: "a1" } as never)

@@ -12,7 +12,6 @@ import { QUEUES } from "./agents/legs.testlib.ts"
 import { ephemeralLocalState, type ChatLocalState, MemoryFailure } from "./local.ts"
 import { make } from "./scoped.ts"
 import { forLocalState, ROWS, type Scopes } from "./scopes.ts"
-import { faultedIn } from "./server/doorbell.ts"
 
 const run = <A, E>(work: Effect.Effect<A, E>) => Effect.runPromise(work)
 const until = async (ready: () => boolean) => {
@@ -28,8 +27,7 @@ afterEach(() => { rmSync(cwd, { recursive: true, force: true }) })
 const TO = { agent: "alpha", session: "one-session" }
 const NODE: NodeAgent = { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: TO.session, memory: 2 }
 const WAKE: Wake = {
-  subject: "activity", from: "files", waiting: { one: "one", many: "many" }, walks: "nodes",
-  faults: { gone: "obsolete missing-file warning", unwatchable: "wrong kind" },
+  subject: "activity", waiting: { one: "one", many: "many" },
 }
 const bench = async (options: {
   scoping?: Scopes
@@ -78,7 +76,7 @@ for (const replacement of [null, "Other.olai", "Work.olai"]) {
       try {
         await run(it.chat.scope(TO, "kolu", "Work.olai"))
         const delivery = fault
-          ? run(faultedIn(it.chat, { claims: TEST_CLAIMS, served: () => false, declared: new Map([["kolu", WAKE]]) }))
+          ? run(it.chat.doorFor("kolu").deliver(it.recipient(), () => "obsolete missing-file warning"))
           : run(it.chat.doorFor("kolu").deliver(it.recipient(), () => "obsolete wake"))
         await run(Deferred.await(it.entered))
         await run(it.chat.scope(TO, "kolu", replacement))
@@ -207,9 +205,7 @@ test("a refused choice write preserves authority, while fault marking and healin
   const recipient = scoping.recipient(scoping.rows()[0]!)
   const allowed = recipient.current
   expect({ ...recipient }.current()).toBe(true)
-  await run(scoping.faults(() => "gone", () => true))
   expect(allowed()).toBe(true)
-  await run(scoping.faults(() => null, () => true))
   expect(allowed()).toBe(true)
   fail = true
   expect((await run(Effect.result(scoping.set(TO, "kolu", null))))._tag).toBe("Failure")
@@ -218,7 +214,6 @@ test("a refused choice write preserves authority, while fault marking and healin
   await run(scoping.set(TO, "kolu", "Work.olai"))
   expect(allowed()).toBe(false)
 })
-
 
 test("Cordis disposal revokes queued work, retained recipients and fresh calls through the old service", async () => {
   const it = await bench()
@@ -244,9 +239,9 @@ test("Cordis disposal revokes queued work, retained recipients and fresh calls t
       yield* mountPlugin(host, plugin)
       const fresh = doors[1]!
       expect(old.scopes()).toEqual([])
-      expect(old.ringing("Work.olai", "one")).toEqual([])
+      expect(old.scopes()).toEqual([])
       expect(recipient.current()).toBe(false)
-      expect(fresh.scopes()[0]?.file).toBe("Work.olai")
+      expect(fresh.scopes()[0]?.pick).toBe("Work.olai")
       yield* old.deliver(fresh.scopes()[0]!, () => "obsolete service")
       yield* old.notify(TO, () => "obsolete addressed service")
       yield* fresh.deliver(recipient, () => "obsolete recipient in new activation")
@@ -265,17 +260,16 @@ test("a wake declaration leaving and returning revokes a queued missing-file war
     await run(it.chat.loadSession(TO.agent, TO.session))
     await run(it.chat.scope(TO, "kolu", "Work.olai"))
     await run(it.chat.send("wait:5000", [], []))
-    await run(faultedIn(it.chat, { claims: TEST_CLAIMS, served: () => false, declared: new Map([["kolu", WAKE]]) }))
+    await run(it.chat.doorFor("kolu").deliver(it.recipient(), () => "obsolete missing-file warning"))
     expect(it.chat.state().wake[0]?.waiting).toBe(1)
     activation = undefined
     activation = { ...WAKE }
     await run(it.chat.cancel)
     await until(() => it.chat.state().status === "idle")
     expect(it.text()).not.toContain("obsolete")
-    expect(it.scoping.rows()[0]?.file).toBe("Work.olai")
+    expect(it.scoping.rows()[0]?.pick).toBe("Work.olai")
   } finally { await run(it.chat.stop) }
 }, 20_000)
-
 
 test("delivery-only addressed notices work and expire with their consumer", async () => {
   const it = await bench()
@@ -304,17 +298,16 @@ test("delivery-only addressed notices work and expire with their consumer", asyn
   } finally { await run(it.chat.stop) }
 }, 20_000)
 
-
-test("registering a selectable wake revokes recipients issued before its declaration", async () => {
-  let activation: Wake | undefined
-  const it = await bench({ wake: () => activation })
+test("delivery-only recipients carry no pick and expire with their node binding", async () => {
+  const it = await bench({ wake: () => undefined })
   try {
-    const recipient = it.recipient()
-    expect(recipient.current()).toBe(true)
-    activation = WAKE
-    expect(recipient.current()).toBe(false)
+    const [recipient] = it.chat.doorFor("kolu").scopes()
+    expect(recipient).toBeDefined()
+    expect(recipient!.pick).toBeNull()
+    expect(recipient!.current()).toBe(true)
+    it.unassign()
+    expect(recipient!.current()).toBe(false)
     expect(it.chat.doorFor("kolu").scopes()).toEqual([])
-    await run(it.chat.doorFor("kolu").deliver(recipient, () => "before the picker existed"))
-    expect(it.chat.live().size).toBe(0)
-  } finally { await run(it.chat.stop) }
+  }
+  finally { await run(it.chat.stop) }
 })

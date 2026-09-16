@@ -93,10 +93,9 @@ export default definePlugin({
     // is the whole activation state, and it must keep satisfying that shape.
     yield* (yield* Offers).own("state", () => state satisfies Attention)
 
-
     yield* Effect.acquireRelease(Effect.sync(trackCamera), stop => Effect.sync(stop))
     yield* slots.register("outline.row.fold", props => <AgentsProvider value={state.agents}><Fold {...props} /></AgentsProvider>, {
-      children: [slotContracts["tool.reply"], slotContracts["delivery.mark"], slotContracts["engine.install"]],
+      children: [slotContracts["conversation.wake"], slotContracts["tool.reply"], slotContracts["delivery.mark"], slotContracts["engine.install"]],
     })
     yield* slots.register("outline.page.head", props => <AgentsProvider value={state.agents}><PageHead {...props} /></AgentsProvider>)
     // The fold registration above owns the shared conversation locations for

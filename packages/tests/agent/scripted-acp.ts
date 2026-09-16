@@ -1314,6 +1314,13 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   const argument = rest.join(" ")
 
   const mailWords = [verb, ...rest].join(" ")
+  const property = /^set property (\S+) (\S+) (\S+)$/.exec(mailWords)
+  if (property) {
+    const answer = await useTool("outlines_prop", { id: property[1], key: property[2], value: property[3] })
+    say(JSON.stringify(answer))
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
   const mailCall = (() => {
     if (mailWords === "list my inbox") return { name: "inbox", args: {} }
     if (mailWords.startsWith("search mail for ")) return { name: "search", args: { query: mailWords.slice(16) } }

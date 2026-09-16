@@ -140,7 +140,6 @@ export const decodePolicy = (
   return { config, values }
 }
 
-
 export type EnvironmentReading =
   | { readonly key: string; readonly kind: "secret"; readonly set: boolean; readonly says: string }
   | { readonly key: string; readonly kind: "resource"; readonly set: boolean; readonly says: string; readonly value?: string; readonly source?: "wrapper" }
@@ -167,7 +166,6 @@ const publicResource = (value: string): string => {
   }
   catch { return value }
 }
-
 
 /** Resolve a declared leaf and build one ordinary write. Missing ancestors are
  * captured together, so validation cannot leave an empty section behind. */

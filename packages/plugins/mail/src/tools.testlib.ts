@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Schema } from "effect"
+import { openMailbox } from "./mailbox.ts"
 import { makeTools } from "./tools.ts"
 import { mailAnswer } from "./appliance/testlib/fake-himalaya.ts"
 import { MAIL_UNCONNECTED, MailRefusal, type Account } from "./wire.ts"
@@ -22,7 +23,7 @@ export const harness = <A>(use: (h: {
     binary: "/fake", useToken: () => Effect.void, close: async () => {},
     run: call => Effect.sync(() => { calls.push(call); return mailAnswer(call.verb, call.args ?? [], root, stale) }).pipe(Effect.flatMap(answer => answer.code ? Effect.fail(new MailRefusal({ reason: JSON.parse(answer.stdout).error })) : Effect.succeed(JSON.parse(answer.stdout)))),
   }
-  const tools = yield* makeTools(runner, { current: () => state, usable: () => live }, root)
+  const tools = yield* makeTools(yield* openMailbox(runner, { current: () => state, usable: () => live }, root))
   return yield* use({
     root, calls, state: (next, usable = next.status === "connected") => { state = next; live = usable },
     call: (name, args = {}) => {

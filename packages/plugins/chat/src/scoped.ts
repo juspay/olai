@@ -639,23 +639,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (activation !== undefined) return manual.map((row) => ({
           ...row, current: () => wake(plugin) === activation && nodeFor(row.agent, row.session) !== null && row.current(),
         }))
-        const derived = nodesAt().flatMap((node) =>
-          node.session === null
-            ? []
-            : [{ agent: node.engine, session: node.session, file: node.file, under: node.id,
-              current: () => nodeFor(node.engine, node.session!)?.id === node.id }]
-        )
-        return derived
-          .map((row) => ({ ...row, current: () => wake(plugin) === undefined && row.current() }))
+        // Delivery-only plugins address node conversations without a user pick.
+        // The recipient grants no file semantics and expires with its binding.
+        return nodesAt().flatMap(node => node.session === null ? [] : [{
+          agent: node.engine, session: node.session, pick: null,
+          current: () => wake(plugin) === undefined
+            && nodeFor(node.engine, node.session!)?.id === node.id,
+        }])
       }
       return {
         scopes,
-        ringing: (file: string, node: string): ReadonlyArray<WakeScope> => {
-          const rows = scopes().filter((scope) => scope.file === file)
-          const candidates = new Set(rows.flatMap((scope) => scope.under ?? []))
-          const nearest = nearestAt(node, candidates)
-          return rows.filter((scope) => scope.under === undefined || scope.under === nearest)
-        },
         deliver: (
           to: { readonly agent: string; readonly session: string; readonly current?: () => boolean },
           say: () => string | null,
@@ -951,17 +944,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         return left
       }),
       refreshWakes,
-      faults: (served, sayable) => Effect.gen(function*() {
-        const activations = new Map((panelOptions.scoping?.rows() ?? [])
-          .map((row) => [row.plugin, wake(row.plugin)] as const))
-        const fell = yield* root.faults(served, sayable)
-        refreshWakes([])
-        return fell.map((row) => ({
-          ...row,
-          current: () => activations.get(row.plugin) !== undefined
-            && wake(row.plugin) === activations.get(row.plugin) && row.current(),
-        }))
-      }),
       recordRefusal: (tool, failure) => panelOf().recordRefusal(tool, failure),
       start,
       stop: stopWithReason("shutdown"),
