@@ -331,6 +331,7 @@
       "dependencies": {
         "@olai/acp": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "effect": "4.0.0-rc.112",
         "solid-js": "^1.9.0",
@@ -678,6 +679,7 @@
       "dependencies": {
         "@olai/acp": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "effect": "4.0.0-rc.112",
         "solid-js": "^1.9.0",

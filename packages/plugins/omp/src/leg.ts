@@ -1,3 +1,4 @@
+import { refusalIn } from "@olai/surface"
 /**
  * What OH-MY-PI means by what it sends — the fifth leg (`@olai/acp/engine`'s
  * `Leg`).
@@ -219,8 +220,7 @@ export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined
     return record(JSON.parse(text))
   } catch {
     // This adapter also forwards MCP text without structuredContent.
-    const refusal = /^surface-mcp: `[^`]+` was refused \((usage|not-found|validation|busy)\): ([\s\S]+)$/.exec(text)
-    return refusal ? { kind: refusal[1], reason: refusal[2] } : undefined
+    return refusalIn(text)
   }
 }
 

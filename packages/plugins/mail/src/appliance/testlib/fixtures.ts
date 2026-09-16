@@ -62,6 +62,7 @@ export const MESSAGES = 1281
 
 /** `@mail-himalaya:<name>` — the mailbox the fake binary answers. */
 export const MAILBOXES: Readonly<Record<string, MailFixture>> = {
+  stale: { profile: { email: ADDRESS, messagesTotal: MESSAGES }, mailbox: true, stale: true },
   mailbox: { profile: { email: ADDRESS, messagesTotal: MESSAGES }, mailbox: true },
 }
 

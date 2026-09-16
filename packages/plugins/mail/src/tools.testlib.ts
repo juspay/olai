@@ -13,14 +13,14 @@ export const harness = <A>(use: (h: {
   calls: Run[]
   state: (next: Account, live?: boolean) => void
   root: string
-}) => Effect.Effect<A, unknown>) => Effect.scoped(Effect.gen(function*() {
+}) => Effect.Effect<A, unknown>, stale = false) => Effect.scoped(Effect.gen(function*() {
   const root = yield* Effect.acquireRelease(Effect.promise(() => mkdtemp(join(tmpdir(), "mail-test-"))), root => Effect.promise(() => rm(root, { recursive: true, force: true })))
   let state = connected
   let live = true
   const calls: Run[] = []
   const runner: Himalaya = {
     binary: "/fake", useToken: () => Effect.void, close: async () => {},
-    run: call => Effect.sync(() => { calls.push(call); return mailAnswer(call.verb, call.args ?? [], root) }).pipe(Effect.flatMap(answer => answer.code ? Effect.fail(new MailRefusal({ reason: JSON.parse(answer.stdout).error })) : Effect.succeed(JSON.parse(answer.stdout)))),
+    run: call => Effect.sync(() => { calls.push(call); return mailAnswer(call.verb, call.args ?? [], root, stale) }).pipe(Effect.flatMap(answer => answer.code ? Effect.fail(new MailRefusal({ reason: JSON.parse(answer.stdout).error })) : Effect.succeed(JSON.parse(answer.stdout)))),
   }
   const tools = yield* makeTools(runner, { current: () => state, usable: () => live }, root)
   return yield* use({

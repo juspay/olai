@@ -26,7 +26,6 @@ export const makeLabels = (run: Himalaya["run"]) => {
     if (!labels) yield* refresh
     const missing = () => ids.find(id => !labels?.some(label => label.id === id))
     if (missing() !== undefined) yield* refresh
-    if (missing() !== undefined) return yield* Effect.fail(new MailRefusal({ reason: `this mailbox has no name for label id ${missing()}` }))
   }))
   return { load, resolve, ensureIds, names: (ids: ReadonlyArray<string>): string[] => ids.map(id => labels?.find(l => l.id === id)?.name ?? id), clear: () => { labels = undefined } }
 }

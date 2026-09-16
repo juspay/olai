@@ -260,3 +260,18 @@ state or a new global gesture owner.
 ### Mail tool calls
 
 Mail's MCP tools close over activation-local resources instead of calling sibling procedures. They enter the Effect bridge's exported `gate` before touching the runner, label cache or attachment directory. Withdrawal closes that gate and joins interrupted calls before resource cleanup. The runner's interruption finalizer kills and joins its child process; the attachment directory closes before the generated token config. A retained tool closure therefore cannot restart work after the row leaves. Account refresh calls share the runner but do not spend the tools' four spawn permits.
+
+The mail implementation separates invocation policy (`tools.ts`: schemas,
+activation gate, logging and reply decoration) from mailbox operations
+(`mailbox.ts`: account checks, Himalaya commands, label cache and serialized
+writes). This is an internal boundary within one activation, not a new service
+or owner. The mailbox is acquired before the gate; closing the activation still
+cuts and joins calls before removing attachments and token configuration.
+Account readiness has one definition, checked again before each spawn. Command
+failures are translated where the command is known, so an attachment 404 does
+not become a missing-thread refusal.
+
+Text-only agent adapters share `@olai/surface`'s pure `refusalIn` decoder. Each
+engine retains its own SDK envelope extraction. The server's MCP tests parse
+real formatted refusals and compare them with structured details, tying the
+compatibility check to the formatter's release cycle.

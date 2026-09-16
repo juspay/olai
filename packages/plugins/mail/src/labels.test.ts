@@ -19,3 +19,13 @@ test("label cache resolves both directions, ignores case, refreshes once on a mi
   if (refused._tag === "Failure") expect(refused.failure.reason).toBe('this mailbox has no label "missing"; it has: INBOX, waiting')
   expect(runs).toBe(3)
 })
+
+test("unknown read ids refresh once then survive as ids; typed names still refuse", async () => {
+  let runs = 0
+  const labels = makeLabels(() => Effect.sync(() => { runs++; return { labels: [{ id: "INBOX", name: "INBOX" }] } }))
+  await Effect.runPromise(labels.load)
+  await Effect.runPromise(labels.ensureIds(["INBOX", "Label_deleted", "SYSTEM_UNKNOWN"]))
+  expect(runs).toBe(2)
+  expect(labels.names(["INBOX", "Label_deleted", "SYSTEM_UNKNOWN"])).toEqual(["INBOX", "Label_deleted", "SYSTEM_UNKNOWN"])
+  expect((await Effect.runPromise(Effect.result(labels.resolve(["deleted"]))))._tag).toBe("Failure")
+})

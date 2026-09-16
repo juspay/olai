@@ -220,3 +220,40 @@ Feature: Reading and acting on Gmail in a conversation
     When I ask the agent "list my inbox"
     Then the mail refused story says "invalid_grant"
     And the fake mailbox has received no tool calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:stale @mail-google:granted @mail-doors
+  Scenario: Deleted and unlisted label ids remain readable
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "list my inbox"
+    Then the mail inbox story says "3 threads in INBOX"
+    And the agent's answer mentions "Label_deleted"
+    When I ask the agent "search mail for is:unread"
+    Then the mail search story says "1 threads for"
+    And the agent's answer mentions "SYSTEM_UNKNOWN"
+    When I ask the agent "read mail thread a1"
+    Then the mail thread story says "Q3 invoice"
+    And the agent's answer mentions "Label_deleted"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:stale @mail-google:granted @mail-doors
+  Scenario: A vanished attachment names the attachment in its refusal
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "read mail thread a3"
+    Then the mail thread story says "2 messages"
+    When I ask the agent "save mail attachment a32 attachment_1"
+    Then the mail refused story says "this attachment is not on that message"

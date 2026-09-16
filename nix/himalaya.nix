@@ -55,7 +55,8 @@ in
     };
   }).overrideAttrs (old: {
     # The pin fetches full MIME payloads but drops them while rendering JSON.
-    # Retain that typed field; mail-surface checks the generated schema.
+    # Upstream: https://github.com/pimalaya/himalaya/issues/750
+    # Drop this patch when the pin retains payload; mail-surface checks its schema.
     patches = (old.patches or [ ]) ++ [ ./himalaya-thread-payload.patch ];
   });
 }

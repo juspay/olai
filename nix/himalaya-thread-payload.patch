@@ -1,3 +1,6 @@
+Upstream: https://github.com/pimalaya/himalaya/issues/750
+Retain full MIME payloads in JSON; remove once the Himalaya pin includes the fix.
+
 --- a/src/gmail/threads/get.rs
 +++ b/src/gmail/threads/get.rs
 @@ -6,7 +6,7 @@

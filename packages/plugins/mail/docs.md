@@ -97,3 +97,9 @@ Search accepts Gmail's usual syntax, including `from:`, `newer_than:1d`, `is:unr
 Archive removes a thread from the inbox. Trash moves it to Gmail's own Trash, and the agent can restore it. Olai never permanently deletes mail and does not send mail or create drafts. A write refused before it is sent changes nothing; if Gmail accepts a write but its follow-up read fails, the reply says the outcome needs checking.
 
 A thread reply includes plain text and raw HTML where present, with each capped at 64 KiB and a notice when cut. Attachments are listed first, so the agent can check their size before downloading. Files up to 50 MB land in a private mail temporary directory under the serve's runtime directory (or system temporary directory), outside the vault. The agent reads them with its file tools. Switching mail off removes those files; download them again if needed.
+
+If Gmail returns a label ID that its label list no longer names, reads refresh
+that list once and show the raw ID if it is still unknown. A missing label name
+you ask to add or remove still refuses the write. An attachment that disappears
+after reading a thread is reported as a missing attachment on that message.
+Attachment stories round KiB sizes to one decimal place.

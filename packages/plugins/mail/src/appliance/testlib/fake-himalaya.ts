@@ -95,6 +95,7 @@ export const SPEAKS: ReadonlyArray<string> = GMAIL_VERBS.map((verb) => verb.id)
  *  than answering `null`). */
 export interface MailFixture {
   readonly mailbox?: boolean
+  readonly stale?: boolean
   /** Replaces the first line of `--version`. */
   readonly version?: string
   /** What `gmail profile get --json` answers. `messagesTotal` and
@@ -325,7 +326,7 @@ For more information, try '--help'.`))
 
   appendFileSync(path.join(path.dirname(fixturePath), "calls.ndjson"), JSON.stringify({ verb: verb.id, args: invocation.words.slice(verb.path.length) }) + "\n")
   if (verb.id !== GMAIL.profileGet.id && fixture.mailbox) {
-    says(mailAnswer(verb, invocation.words.slice(verb.path.length), path.dirname(fixturePath)))
+    says(mailAnswer(verb, invocation.words.slice(verb.path.length), path.dirname(fixturePath), fixture.stale))
     return
   }
   says(answerFor(verb, fixture, fixturePath))
@@ -407,7 +408,7 @@ export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHi
 }
 
 /** Per-thread files let separate fake processes preserve writes without lost updates on other threads. */
-export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directory: string): Answered => {
+export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directory: string, stale = false): Answered => {
   const ok = (value: unknown): Answered => ({ code: 0, stdout: JSON.stringify(value), stderr: "" })
   const flag = (name: string) => args[args.indexOf(name) + 1]
   const values = (name: string) => args.flatMap((arg, i) => arg === name ? [args[i + 1] ?? ""] : [])
@@ -415,6 +416,9 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     const file = path.join(directory, `thread-${original.id}.json`)
     return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as typeof original : structuredClone(original)
   })
+  if (stale) {
+    threads[0]!.messages[0]!["label-ids"].push("Label_deleted", "SYSTEM_UNKNOWN")
+  }
   if (verb.id === "labels.list") return ok(LABELS)
   if (verb.id === "threads.list") {
     const query = args.includes("-q") ? flag("-q") ?? "" : ""
@@ -434,7 +438,7 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     return ok({ threads: selected.map(t => ({ id: t.id })), ...(next ? { next_page: next } : {}) })
   }
   if (verb.id === "attachments.get") {
-    if (args[0] !== "a32" || args[1] !== "attachment_1") return failed("404 not found")
+    if (stale || args[0] !== "a32" || args[1] !== "attachment_1") return failed("404 not found")
     const output = flag("-o")
     if (!output) return failed("output path required")
     writeFileSync(output, Buffer.alloc(12288, 65))

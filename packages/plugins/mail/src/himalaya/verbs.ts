@@ -31,14 +31,8 @@
  *      refusal Google gives, which is the one thing a person needs the sentence
  *      for. `./run.ts` reads both streams and prefers the JSON error.
  *
- * ## What this table holds NOW, and what it grows into
- *
- * The rows are the verbs this PR speaks — one. PR 2 (the read tools) adds
- * `gmail threads list`, `gmail threads get`, `gmail messages get` and
- * `gmail attachments get`; PR 4 adds the three write verbs and `labels list`;
- * PR 5 adds `history list`. Each lands with its fake beside it, and the surface
- * check covers the table as it stands at every commit — which is the point of
- * one table rather than four.
+ * The table covers account verification, thread reads and writes, label lookup
+ * and attachment downloads. Each verb lands with its fake and surface check.
  */
 
 /** What `himalaya --version` prints first: the version, then the build's
@@ -73,13 +67,13 @@ export const GMAIL = {
     path: ["gmail", "profile", "get"],
     says: "the signed-in address and the mailbox's totals",
   },
-  threadsList: { id: "threads.list", path: ["gmail", "threads", "list"], says: "threads.list" },
-  threadsGet: { id: "threads.get", path: ["gmail", "threads", "get"], says: "threads.get" },
-  threadsModify: { id: "threads.modify", path: ["gmail", "threads", "modify"], says: "threads.modify" },
-  threadsTrash: { id: "threads.trash", path: ["gmail", "threads", "trash"], says: "threads.trash" },
-  threadsUntrash: { id: "threads.untrash", path: ["gmail", "threads", "untrash"], says: "threads.untrash" },
-  labelsList: { id: "labels.list", path: ["gmail", "labels", "list"], says: "labels.list" },
-  attachmentsGet: { id: "attachments.get", path: ["gmail", "attachments", "get"], says: "attachments.get" },
+  threadsList: { id: "threads.list", path: ["gmail", "threads", "list"], says: "a page of matching Gmail threads" },
+  threadsGet: { id: "threads.get", path: ["gmail", "threads", "get"], says: "the messages and labels of one thread" },
+  threadsModify: { id: "threads.modify", path: ["gmail", "threads", "modify"], says: "add or remove labels across a thread" },
+  threadsTrash: { id: "threads.trash", path: ["gmail", "threads", "trash"], says: "move a thread to Gmail Trash" },
+  threadsUntrash: { id: "threads.untrash", path: ["gmail", "threads", "untrash"], says: "restore a thread from Gmail Trash" },
+  labelsList: { id: "labels.list", path: ["gmail", "labels", "list"], says: "the mailbox label ids and displayed names" },
+  attachmentsGet: { id: "attachments.get", path: ["gmail", "attachments", "get"], says: "save one message attachment to a file" },
 } as const satisfies Record<string, GmailVerb>
 
 /** Every verb this plugin speaks, in one list — what the fake offers, and what

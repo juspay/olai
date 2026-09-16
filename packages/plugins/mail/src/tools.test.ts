@@ -95,3 +95,15 @@ test("closing mail cuts running calls before deleting attachments and refuses re
   expect(refused._tag).toBe("Failure")
   expect(spawns).toBe(before)
 })
+
+test("stale label ids survive all reads, and a missing attachment names the attachment", () => Effect.runPromise(harness(h => Effect.gen(function*() {
+  for (const [name, args] of [["inbox", {}], ["search", { query: "is:unread" }], ["thread", { thread: "a1" }]] as const) {
+    const answer = yield* h.call(name, args)
+    expect(JSON.stringify(answer)).toContain("Label_deleted")
+    expect(JSON.stringify(answer)).toContain("SYSTEM_UNKNOWN")
+  }
+  yield* h.call("thread", { thread: "a3" })
+  const result = yield* Effect.result(h.call("attachment", { message: "a32", attachment: "attachment_1" }))
+  expect(result._tag).toBe("Failure")
+  if (result._tag === "Failure") expect(result.failure).toMatchObject({ reason: "this attachment is not on that message" })
+}), true)))

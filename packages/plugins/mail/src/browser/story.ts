@@ -20,7 +20,7 @@ export const storyOf = (reply: unknown): { kind: string; text: string } | null =
   }
   if (kind === "attachment") {
     if (typeof r.filename !== "string" || typeof r.bytes !== "number") return null
-    return { kind, text: `${r.filename} · ${r.bytes >= 1024 ? `${r.bytes / 1024} KiB` : `${r.bytes} bytes`}` }
+    return { kind, text: `${r.filename} · ${r.bytes >= 1024 ? `${Math.round(r.bytes / 102.4) / 10} KiB` : `${r.bytes} bytes`}` }
   }
   if (!["archive", "trash", "untrash", "label", "read"].includes(kind)) return null
   const change = record(r.changed)
