@@ -16,7 +16,7 @@ const cursor = (world: OlaiWorld): string | null => {
 }
 const poll = async (world: OlaiWorld, value: string) => {
   const file = "_olai/Settings.olai"
-  const nodes = existsSync(join(world.scratch(), file)) ? world.servedNodes(file) : []
+  const nodes = existsSync(join(world.scratch(), file)) ? [...world.servedNodes(file)] : []
   const mail = nodes.find(node => node.title === "mail")
   if (mail) mail.custom = { ...(mail.custom as object), poll: value }
   else nodes.push({ id: "mail-settings", ord: "a9", title: "mail", custom: { on: "yes", poll: value } })
@@ -54,4 +54,16 @@ Then("mail makes no history calls for a second", async function(this: OlaiWorld)
   const since = Date.now()
   await this.waitUntil(async () => Date.now() - since >= 1000, "one second of silence")
   assert.equal(calls(this).filter(call => call.verb === "history.list").length, before)
+})
+
+Given("inbox consent is named {string}", function(this: OlaiWorld, key: string) {
+  this.writeServed("_olai/Properties.olai", JSON.stringify({ id: "inbox-consent", ord: "a0", title: key, custom: { type: "mail-inbox" } }))
+  const nodes = this.servedNodes("inbox.olai")
+  for (const node of nodes) {
+    const custom = node.custom as Record<string, string>
+    const value = custom["mail-inbox"]
+    delete custom["mail-inbox"]
+    if (value !== undefined) custom[key] = value
+  }
+  this.writeServed("inbox.olai", nodes.map(node => JSON.stringify(node)).join("\n"))
 })

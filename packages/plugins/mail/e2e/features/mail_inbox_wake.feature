@@ -12,15 +12,19 @@ Feature: An agent opts into inbox wakes on its node
     When I close the plugins panel
     And I open the outline "inbox.olai"
     And I mark the page
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then mail has stored history cursor "100"
+    When I open the "claude" agent on node "mail-quiet-agent"
+    And the node agent's fold is ready
+    And I open the "claude" agent on node "mail-inbox-agent"
+    And the node agent's fold is ready
     When mail delivers thread "b1" titled "New invoice" to the inbox
     Then mail has stored history cursor "101"
     And this conversation has 1 mail wakes
     And the latest mail wake names "New invoice"
     And the latest mail wake names "b1 (unread)"
-    When I press the agent "mail-quiet-agent"
+    When I open the "claude" agent on node "mail-quiet-agent"
     And the node agent's fold is ready
     Then this conversation has 0 mail wakes
 
@@ -31,7 +35,7 @@ Feature: An agent opts into inbox wakes on its node
     When I close the plugins panel
     And I open the outline "inbox.olai"
     And I mark the page
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then mail has stored history cursor "100"
     When I ask the agent "hold"
@@ -54,7 +58,7 @@ Feature: An agent opts into inbox wakes on its node
     When I close the plugins panel
     And I open the outline "inbox.olai"
     And I mark the page
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then mail has stored history cursor "100"
     When mail delivers thread "a4" titled "Archived arrival" outside the inbox
@@ -68,7 +72,7 @@ Feature: An agent opts into inbox wakes on its node
     When I close the plugins panel
     And I open the outline "inbox.olai"
     And I mark the page
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then mail has stored history cursor "100"
     When I ask the agent "hold"
@@ -94,7 +98,7 @@ Feature: An agent opts into inbox wakes on its node
     When I close the plugins panel
     And I open the outline "inbox.olai"
     And I mark the page
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then mail has stored history cursor "100"
     When mail delivers thread "b1" titled "Before restart" to the inbox
@@ -105,7 +109,7 @@ Feature: An agent opts into inbox wakes on its node
     And I reload the page
     Then the mail pill reads connected
     When I open the outline "inbox.olai"
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then mail has stored history cursor "101"
     When mail delivers thread "b2" titled "After restart" to the inbox
@@ -119,7 +123,7 @@ Feature: An agent opts into inbox wakes on its node
     When I close the plugins panel
     And I open the outline "inbox.olai"
     And I mark the page
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then mail has stored history cursor "100"
     When the Gmail history cursor expires
@@ -136,7 +140,7 @@ Feature: An agent opts into inbox wakes on its node
     When I close the plugins panel
     And I open the outline "inbox.olai"
     And I mark the page
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then mail has stored history cursor "100"
     When the mail poll setting becomes "1h"
@@ -153,9 +157,24 @@ Feature: An agent opts into inbox wakes on its node
   Scenario: With no account the opted-in node gets one connect notice
     When I open the outline "inbox.olai"
     And I mark the page
-    And I press the agent "mail-inbox-agent"
+    And I open the "claude" agent on node "mail-inbox-agent"
     And the node agent's fold is ready
     Then this conversation has 1 mail wakes
     And the latest mail wake names "connect one in ⧉ plugins"
     And mail makes no history calls for a second
     And this conversation has 1 mail wakes
+
+  Scenario Outline: An agent cannot opt itself into inbox wakes
+    Given inbox consent is named "<key>"
+    When I open the outline "inbox.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-quiet-agent"
+    And the node agent's fold is ready
+    And I ask the agent "set property mail-quiet-agent <key> on"
+    Then the agent's answer mentions "a person's choice"
+    And this conversation has 0 mail wakes
+
+    Examples:
+      | key        |
+      | mail-inbox |
+      | notify     |
