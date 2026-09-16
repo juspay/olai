@@ -1,4 +1,5 @@
 import { UsageFailure } from "@olai/format"
+import type { Anchor } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import {
@@ -10,6 +11,7 @@ import {
   type Editing,
   emptyPending,
   emptyPendingOf,
+  ghostOf,
   kept,
   landed,
   parked,
@@ -18,9 +20,11 @@ import {
   refused,
   sameAnchor,
   sameSlot,
+  seatOf,
   slotOf,
   stillAt,
   typed,
+  walked,
 } from "./draft.ts"
 
 const editing = (over: Partial<Editing> = {}): Editing => ({
@@ -199,6 +203,108 @@ test("a new row that landed becomes the row it created", () => {
     saved: "measure",
     was: { row: "d1", field: "new" },
   })
+})
+
+// ── the line that is being typed, on either side of the reply ──────────
+
+test("a line that landed is still the ghost it was typed in", () => {
+  // The reply and the frame carrying the row arrive in either order, and the
+  // ghost is what stands in for the row in between: same words, and — this is
+  // the load-bearing half — the SLOT it was typed at, so the `<input>` a person
+  // is typing in is not remounted (with the caret) the moment the save lands.
+  const line = pending({ text: "measure the alcove" })
+  expect(ghostOf(line)).toEqual(line)
+  expect(ghostOf(landed(line, "n7"))).toEqual({
+    kind: "new",
+    at: { kind: "after", id: "n7" },
+    text: "measure the alcove",
+    slot: "d1",
+    refused: undefined,
+    nudge: undefined,
+  })
+})
+
+test("a row with a place of its own is not a ghost", () => {
+  // `follow` has filled the place in, so the row is on screen and the editor is
+  // the row's own — a second line for it would be two.
+  const drawn = landed(pending({ text: "measure" }), "n7")
+  expect(ghostOf({ ...drawn, place: "/kitchen/measure" })).toBeNull()
+  expect(ghostOf(editing())).toBeNull()
+  expect(ghostOf(null)).toBeNull()
+})
+
+test("an editor a key opened on a row it has not drawn yet is not a ghost", () => {
+  // A split and a merge open theirs on the row the write answered with
+  // (`editing.tsx`'s `opening`), and carry no address they were typed at:
+  // there is no box to keep, and nothing to draw a ghost from.
+  expect(ghostOf({
+    kind: "row",
+    row: "n7",
+    id: "n7",
+    place: null,
+    field: "title",
+    text: " the handles",
+    saved: " the handles",
+  })).toBeNull()
+})
+
+test("a line that landed is drawn at the seat its ghost had", () => {
+  // `commit` records where a pending was TYPED, keyed by the row the write
+  // made, and that record is the whole of how the line stays put: the row it
+  // names is not drawn yet, so walking the placings is what says where the line
+  // belongs — the same answer the pending itself gave a moment earlier.
+  const line = ghostOf(landed(pending({ at: { kind: "before", id: "kitchen" }, text: "measure" }), "n7"))
+  expect(line).not.toBeNull()
+  expect(seatOf(
+    line!,
+    new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]]),
+    new Set(["kitchen", "order"]),
+  )).toEqual({ kind: "before", id: "kitchen" })
+})
+
+test("the walk goes back through a chain, and stops at a row that is drawn", () => {
+  const line = ghostOf(landed(pending({ text: "measure" }), "n7"))!
+  // Two writes over one line that has not been drawn leave two placings behind.
+  expect(seatOf(
+    { ...line, at: { kind: "after", id: "n8" } },
+    new Map<string, Anchor>([
+      ["n8", { kind: "after", id: "n7" }],
+      ["n7", { kind: "under", id: "kitchen" }],
+    ]),
+    new Set(["kitchen", "order"]),
+  )).toEqual({ kind: "under", id: "kitchen" })
+  // ...and the frame that draws the row ends it: the placing has nothing left
+  // to say, and `follow` fills the draft's place in the same flush.
+  expect(seatOf(
+    line,
+    new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]]),
+    new Set(["kitchen", "n7"]),
+  )).toEqual({ kind: "after", id: "n7" })
+})
+
+test("a page's start line is nobody's row, landed or not", () => {
+  // `first` has no row to sit beside, so a start line draws its own draft —
+  // which is exactly the case `StartLine` matches its anchor for.
+  const line = ghostOf(landed(
+    pending({ at: { kind: "first", file: "empty.olai" }, text: "the first thing" }),
+    "n1",
+  ))
+  expect(line).not.toBeNull()
+  expect(seatOf(
+    line!,
+    new Map<string, Anchor>([["n1", { kind: "first", file: "empty.olai" }]]),
+    new Set(["kitchen"]),
+  )).toBeNull()
+})
+
+test("a placing that points back at itself is not a walk without end", () => {
+  // A superseded write can leave a chain that closes on itself; the walk stops
+  // rather than spinning, and the line is drawn against what it named.
+  expect(walked(
+    { kind: "after", id: "n7" },
+    new Map<string, Anchor>([["n7", { kind: "after", id: "n7" }]]),
+    new Set(),
+  )).toEqual({ kind: "after", id: "n7" })
 })
 
 test("the next row follows the ROW, not the node it shows", () => {

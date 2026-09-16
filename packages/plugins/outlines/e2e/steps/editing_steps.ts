@@ -1143,3 +1143,111 @@ Then("the remembered parked input still holds the caret", async function (this: 
   assert.ok(input);
   assert.equal(await input.evaluate((element) => element.isConnected && document.activeElement === element), true);
 });
+
+// ── the line that is saving ────────────────────────────────────────────
+
+/**
+ * WATCH THE LINE, frame by frame — because what a scenario about a save has to
+ * claim is about the WHOLE of it, and no single read can make that claim: by
+ * the time a step looks, the hole the write's reply used to open has closed,
+ * and what is on screen is a perfectly ordinary editor.
+ *
+ * `requestAnimationFrame` rather than a timer: one callback per frame, after
+ * that frame's DOM update and before it is painted, which is exactly the moment
+ * "what did the reader see" is decided. It stops by itself on a page that is
+ * not being drawn, and the step below stops it on purpose.
+ */
+When("I watch the line being typed", async function (this: OlaiWorld) {
+  await this.page.evaluate((editor) => {
+    const seen: Array<{ editors: number; focused: boolean }> = []
+    const look = () => {
+      seen.push({
+        editors: document.querySelectorAll(editor).length,
+        focused: document.activeElement?.matches(editor) ?? false,
+      })
+      frame = requestAnimationFrame(look)
+    }
+    let frame = requestAnimationFrame(look)
+    Object.assign(window, { __lineWatch: { seen, stop: () => cancelAnimationFrame(frame) } })
+  }, TITLE_EDITOR)
+});
+
+/**
+ * What the watch saw. TWO claims, and they are the two halves of one promise —
+ * the line a person is typing in is never taken away from them: there is always
+ * an editor, and the caret is always in it.
+ *
+ * A frame with an editor but the caret OUTSIDE it is the quieter half of the
+ * bug and the one that costs a keystroke: the input is on the page, the words
+ * are in it, and what is typed goes to `<body>`.
+ */
+Then("the line being typed never stopped being an editor", async function (this: OlaiWorld) {
+  const seen = await this.page.evaluate(() => {
+    const held = (window as unknown as {
+      readonly __lineWatch?: {
+        readonly seen: Array<{ editors: number; focused: boolean }>
+        readonly stop: () => void
+      }
+    }).__lineWatch
+    if (held === undefined) return null
+    held.stop()
+    return held.seen
+  })
+  assert.ok(
+    seen !== null,
+    "nothing was watching the line: `I watch the line being typed` has to come before this",
+  );
+  assert.ok(seen.length > 0, "the watch saw no frames at all, so it claims nothing");
+  const gone = seen.filter((one) => one.editors === 0);
+  assert.strictEqual(
+    gone.length,
+    0,
+    `the line was not an editor for ${gone.length} of ${seen.length} frames — the caret was on ` +
+      `the document body and anything typed there went nowhere`,
+  );
+  const lost = seen.filter((one) => one.editors > 0 && !one.focused);
+  assert.strictEqual(
+    lost.length,
+    0,
+    `the caret was outside every editor for ${lost.length} of ${seen.length} frames — the ` +
+      `line was on screen and what was typed went past it`,
+  );
+});
+
+/**
+ * THE OTHER END OF THE SEAM: the editor holding the caret is drawn by a ROW
+ * (`[data-node-id]`) rather than by a ghost, and it holds the words that were
+ * typed. Waited for, because the row the write made arrives on a frame of its
+ * own — this is where the watch above must still find an editor.
+ */
+Then(
+  "the line being typed has become the row holding {string}",
+  async function (this: OlaiWorld, text: string) {
+    await this.waitUntil(
+      async () =>
+        await this.page.evaluate(
+          ([editor, ghost, wanted]) => {
+            const field = document.activeElement as HTMLInputElement | null
+            return field !== null && field.matches(editor) && field.closest(ghost) === null &&
+              field.value === wanted
+          },
+          [TITLE_EDITOR, NEW_ROW, text] as [string, string, string],
+        ),
+      `the line being typed to be drawn as a row holding ${JSON.stringify(text)}`,
+    )
+  },
+);
+
+/**
+ * Which row is being POINTED at — asked of a row that should not be, which is
+ * the half a blank drawn inside that row's own `<li>` used to get wrong: the
+ * blank's input bubbles its focus through the row it will follow, so the ring
+ * landed on the line ABOVE wherever the reader was looking
+ * (`./Tree.tsx`'s `onFocusIn`).
+ */
+Then(
+  "the row {string} is not pointed at",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectAttributeAbsent(nodeSelector(this.nodeId(id)), "data-focused", `node "${id}"`);
+  },
+);
