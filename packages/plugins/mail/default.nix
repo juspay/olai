@@ -29,7 +29,9 @@ let
   }).overrideAttrs (old: {
     # The pin fetches full MIME payloads but drops them while rendering JSON.
     # Upstream: https://github.com/pimalaya/himalaya/issues/750
-    # Drop this patch when the pin retains payload; mail-surface checks its schema.
+    # History JSON also drops added-message thread IDs and labels.
+    # Upstream: https://github.com/pimalaya/himalaya/issues/752
+    # Drop each patch when the pin retains its fields; mail-surface checks the schemas.
     patches = (old.patches or [ ]) ++ [ ./himalaya-thread-payload.patch ./himalaya-history-messages.patch ];
   });
 in

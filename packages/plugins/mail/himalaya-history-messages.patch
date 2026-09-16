@@ -1,4 +1,5 @@
 Retain arrival thread ids and labels alongside existing message ids.
+Upstream: https://github.com/pimalaya/himalaya/issues/752
 Remove when the Himalaya pin retains these fields; mail-surface checks the schema.
 
 --- a/src/gmail/history/list.rs
