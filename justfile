@@ -286,6 +286,7 @@ build-client: install
 # (that vault, a checkout of your own) is the argument to pass. `just nix` is
 # the other path: the packaged binary, built from tracked files only. Use this
 # one while working; that one is what CI proves.
+[doc("Serve a directory with client and server file watching")]
 serve dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail

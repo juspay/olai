@@ -97,20 +97,7 @@ function resolveDoor(ref: string, prop: string, dir: string): string | undefined
   return entryMatch?.[1]
 }
 
-/** Is this environment entry an executable resource (a knob candidate)?
- *
- * A knob is a non-secret `OLAI_*` variable naming something the wrapper can
- * default — an adapter binary or an executable-spliced directory. URL
- * origins, server URLs, search paths, sockets and credentials are read
- * through the same array but are not executables, so they never count. */
-function isExecutableResource(entry: EnvDecl): boolean {
-  if (entry.secret) return false
-  if (!/^OLAI_/.test(entry.key)) return false
-  // Web origins, server URLs, search paths, sockets and credentials are not
-  // executables; an `OLAI_*` non-secret variable that says it is one of those
-  // is plain configuration, not a knob.
-  return !/(origin|to reach|containing|socket|credential|oauth|client id|application)/i.test(entry.says)
-}
+
 
 /** The plugin directories of the tree, each with the plugin's own name. */
 const pluginDirs = readdirSync(PLUGINS_ROOT, { withFileTypes: true })
@@ -130,45 +117,39 @@ test("every plugin's olai.knobs equals the executable resources its server decla
     const knobs = manifest.olai?.knobs ?? {}
     const knobKeys = Object.keys(knobs).sort()
 
-    // The package may declare knobs without shipping a server; it may not
-    // declare them and say nothing about them in `environment`. Both are a
-    // refusal that names the plugin.
-    if (knobKeys.length === 0) {
-      if (existsSync(serverPath)) {
-        const resourceKeys = parseEnvironment(readFileSync(serverPath, "utf8"), dir)
-          .filter(isExecutableResource)
-          .map((e) => e.key)
-          .sort()
-        expect(
-          resourceKeys,
-          `plugin "${dir}" declares no olai.knobs but its server environment names executable resources ${JSON.stringify(resourceKeys)}`,
-        ).toEqual([])
-      }
+    // The manifest's `kind` is the whole of what makes an environment entry a
+    // knob — the wrapper has defaults for `file` and `dir`, and for nothing
+    // else. The server's `environment` array may also hold URLs, sockets,
+    // search paths and secrets the wrapper has nothing to default; those are
+    // spelled beside the knobs and are not counted here.
+    if (!existsSync(serverPath)) {
+      expect(
+        knobKeys,
+        `plugin "${dir}" declares olai.knobs ${JSON.stringify(knobKeys)} but has no src/server.ts`,
+      ).toEqual([])
       continue
     }
 
-    // A plugin with knobs must ship the server that reads them.
-    expect(
-      existsSync(serverPath),
-      `plugin "${dir}" declares olai.knobs ${JSON.stringify(knobKeys)} but has no src/server.ts`,
-    ).toBe(true)
-
-    const resourceKeys = parseEnvironment(readFileSync(serverPath, "utf8"), dir)
-      .filter(isExecutableResource)
+    const environmentKeys = parseEnvironment(readFileSync(serverPath, "utf8"), dir)
       .map((e) => e.key)
-      .sort()
+    const environmentSet = new Set(environmentKeys)
 
-    // The manifest may not spell a knob the server does not also spell.
-    for (const kind of Object.values(knobs)) {
+    // The manifest may only name knobs, and the knob shapes the wrapper knows.
+    for (const [key, kind] of Object.entries(knobs)) {
       expect(
         kind.kind === "file" || kind.kind === "dir",
         `plugin "${dir}" declares a knob with kind ${JSON.stringify(kind.kind)}; every olai.knobs value is "file" or "dir"`,
       ).toBe(true)
+      expect(
+        environmentSet.has(key),
+        `plugin "${dir}" declares olai.knobs.${key} with kind "${kind.kind}" but its server environment does not name it`,
+      ).toBe(true)
     }
 
-    expect(
-      knobKeys,
-      `plugin "${dir}": olai.knobs keys ${JSON.stringify(knobKeys)} do not equal the executable resources its server environment declares ${JSON.stringify(resourceKeys)}`,
-    ).toEqual(resourceKeys)
+    // The manifest is the fold's enumeration of the knobs — a server's variable
+    // the manifest does not declare is not a knob, whatever its name or its
+    // prose. Non-knob configuration sits beside the knobs in `environment`
+    // (`OLAI_SPACES_URL`, `OLAI_AGENT_PATH`) and the wrapper has nothing to
+    // default for it.
   }
 })
