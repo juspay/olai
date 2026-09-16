@@ -68,7 +68,7 @@
  *
  * Claude Code truncates server instructions at 2 KB and bills them every turn,
  * so the WHOLE text it rides in — this plus the tool-surface paragraph before
- * it — stays under 2000 bytes; `olai-plugin-mcp`'s `endpoint.test.ts` holds
+ * it — stays under 2000 bytes; `@olai/server`'s `mcp/tools.test.ts` holds
  * the boundary. Prose, not a list: it is a system prompt, and a bullet is a
  * thing an agent quotes back rather than obeys. Codex and Claude Code honour
  * `instructions`; opencode fetches it and drops it on the floor

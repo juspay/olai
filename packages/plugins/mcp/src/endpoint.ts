@@ -182,7 +182,7 @@ export const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  * static contract with no live value, which is the shape the composition
  * leaves as an import (AGENTS.md).
  *
- * THE WHOLE TEXT STAYS UNDER 2000 BYTES, and `./endpoint.test.ts` holds the
+ * THE WHOLE TEXT STAYS UNDER 2000 BYTES, and `@olai/server`'s `mcp/tools.test.ts` holds the
  * boundary. Claude Code truncates server instructions at 2 KB — silently, so
  * an overrun would cut the charter mid-sentence and nobody would see it — and
  * bills the text on every turn, so what is spent here is spent per message for
