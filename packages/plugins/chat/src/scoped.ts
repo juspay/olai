@@ -639,7 +639,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (activation !== undefined) return manual.map((row) => ({
           ...row, current: () => wake(plugin) === activation && nodeFor(row.agent, row.session) !== null && row.current(),
         }))
-        return []
+        // Delivery-only plugins address node conversations without a user pick.
+        // The recipient grants no file semantics and expires with its binding.
+        return nodesAt().flatMap(node => node.session === null ? [] : [{
+          agent: node.engine, session: node.session, pick: null,
+          current: () => wake(plugin) === undefined
+            && nodeFor(node.engine, node.session!)?.id === node.id,
+        }])
       }
       return {
         scopes,

@@ -589,7 +589,9 @@ test("node wake picks are off by default, independent, durable and clear the liv
     expect(chat.doorFor("kolu").scopes()).toEqual([])
     expect(chat.doorFor("odu").scopes()).toEqual([])
     // Delivery-only plugins retain node recipients, through the same service.
-    expect(chat.doorFor("agenda").scopes()).toEqual([])
+    expect(chat.doorFor("agenda").scopes().map(({ current: _current, ...row }) => row)).toEqual([
+      { ...one, pick: null }, { ...two, pick: null },
+    ])
     await run(chat.scope(one, "kolu", "Other.olai"))
     await run(chat.scope(one, "odu", "Work.olai"))
     expect(chat.live().size).toBe(0)

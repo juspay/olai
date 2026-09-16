@@ -215,3 +215,5 @@ which pane receives focus. Pointer and hold mechanics use the same component-own
 | `conversation.wake` | Chat's conversation strip | One face per plugin, given its opaque pick, browser-only setter, waiting count and conversation address |
 
 Kolu and odu draw their file pickers; mail draws its switch. Chat does not inspect a pick. It persists at most 32 choices, rejects agent writes, and revokes queued deliveries when a choice is cleared or replaced.
+
+Delivery-only plugins receive node conversation addresses from `Deliveries.scopes()` with `pick: null`. Those recipients expire when the node binding changes; they expose no file or subtree. Registered wake plugins receive only explicit conversation picks.

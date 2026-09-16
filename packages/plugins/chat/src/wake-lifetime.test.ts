@@ -101,7 +101,7 @@ for (const replacement of [null, "Other.olai", "Work.olai"]) {
       await run(it.chat.doorFor("kolu").deliver(TO, () => "bare address bypass"))
       expect(it.text()).not.toContain("obsolete")
       expect(it.text()).not.toContain("bare address bypass")
-      await run(it.chat.doorFor("agenda").deliver(TO, () => "delivery-only still works"))
+      await run(it.chat.doorFor("agenda").deliver(it.chat.doorFor("agenda").scopes()[0]!, () => "delivery-only still works"))
       expect(it.text()).toContain("delivery-only still works")
     } finally { await run(it.chat.stop) }
   }, 20_000)
@@ -298,8 +298,16 @@ test("delivery-only addressed notices work and expire with their consumer", asyn
   } finally { await run(it.chat.stop) }
 }, 20_000)
 
-test("an unregistered wake issues no selectable recipients", async () => {
+test("delivery-only recipients carry no pick and expire with their node binding", async () => {
   const it = await bench({ wake: () => undefined })
-  try { expect(it.chat.doorFor("kolu").scopes()).toEqual([]) }
+  try {
+    const [recipient] = it.chat.doorFor("kolu").scopes()
+    expect(recipient).toBeDefined()
+    expect(recipient!.pick).toBeNull()
+    expect(recipient!.current()).toBe(true)
+    it.unassign()
+    expect(recipient!.current()).toBe(false)
+    expect(it.chat.doorFor("kolu").scopes()).toEqual([])
+  }
   finally { await run(it.chat.stop) }
 })
