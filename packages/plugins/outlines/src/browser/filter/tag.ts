@@ -32,8 +32,10 @@ import { TAG_ATTRIBUTE } from "@olai/markdown-ui/tag-contract.ts"
  *  Which presses are this app's at all is `../press.ts`'s one answer, not a
  *  third spelling of it: a modified click is the browser's (⌘-click and
  *  shift-click on a row are also the multi-select gestures, `../Tree.tsx`), and
- *  one something deeper already answered — a tag inside a breadcrumb, where the
- *  `<Link>` has run first — goes where the link says.
+ *  one something deeper already answered — a tag inside a breadcrumb, or
+ *  inside a row that is itself one link to somewhere (`NodeTitle`, the
+ *  shared `ReferrersSection`), where the surrounding anchor has run first —
+ *  goes where the link says.
  *
  *  NAMED FOR THE PRESS, and it was `taggedBy` until `@olai/format` grew a
  *  `Derived.taggedBy` — the reverse index of which records write which tag.
@@ -44,7 +46,16 @@ export const tagPressed = (event: MouseEvent): string | null => {
   const target = event.target
   if (!(target instanceof Element)) return null
   // `closest`, because a pill can hold an element the markdown put there.
-  return target.closest(`[${TAG_ATTRIBUTE}]`)?.getAttribute(TAG_ATTRIBUTE) ?? null
+  const held = target.closest(`[${TAG_ATTRIBUTE}]`)
+  if (held === null) return null
+  // A tag inside an ANCHOR is not a filter affordance — the row's whole claim
+  // is one link, and the pill sits inside it only because a title travels
+  // whole (`NodeTitle`, the shared `ReferrersSection`). The link has run
+  // first, as with a breadcrumb; the tag keeps its look, and the press goes
+  // where the row points. A tag with no anchor around it (a tree row, a
+  // zoomed heading) still filters.
+  if (held.closest("a") !== null) return null
+  return held.getAttribute(TAG_ATTRIBUTE)
 }
 
 /** Is this click on a tag pill? What a row's own title handler asks before it

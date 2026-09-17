@@ -427,6 +427,7 @@ Feature: Documents
   @scratch:good
   Scenario: A link in another document's prose arrives and leaves live
     Given I open the document "finishes.md"
+    And I mark the page
     When I rewrite "notes/palette.md" as:
       """
       # Palette
@@ -450,6 +451,7 @@ Feature: Documents
   # A link ONTO ONE HEADING is a reference to the whole document: what points
   # at `finishes.md#finishes` is pointing at the page a reader opens, so the
   # section names the source once instead of splitting the question per slug.
+  @scratch:good
   Scenario: A heading link is a reference to the whole document
     Given I open the document "finishes.md"
     When I rewrite "notes/palette.md" as:
