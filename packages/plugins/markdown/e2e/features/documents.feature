@@ -510,6 +510,29 @@ Feature: Documents
     When I open what points at the document
     Then what points at the document is "Palette"
     And there should be no page errors
+  # The BODY pages draw the same section under the same `<BodyPage>`, and the
+  # memory is the same declared service — so the rebuild promise holds there
+  # too: a journal flip leaves a pdf's open section open (item 1's half).
+  @scratch:good
+  Scenario: A plugin rebuild keeps a pdf page's referrers open
+    Given I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      [the quote](../reports/q3.pdf)
+      """
+    And I open the document "reports/q3.pdf"
+    And I open what points at the document
+    Then what points at the document is "Palette"
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I close the plugins panel
+    And I use the original browser tab
+    Then the journal chrome is absent
+    And the what-points-at section is still open
+    And what points at the document is "Palette"
+    And there should be no page errors
 
   # Trash is the one place a reference is NOT — the ruling the node page's
   # section already obeys, and this section keeps: a record put away still

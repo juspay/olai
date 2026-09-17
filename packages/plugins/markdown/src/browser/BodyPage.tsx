@@ -14,10 +14,17 @@ import { only } from "@olai/web/client/narrow.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { documentRequest } from "olai-plugin-markdown/document-route"
 import { Referrers } from "olai-plugin-markdown/referrers"
+import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 
 export function BodyPage(props: {
   readonly directory: Directory
   readonly navigation: Navigation
+  /** The referrers section's open-state memory — this page draws the shared
+   *  section under its body, and the memory is the declared browser service
+   *  this plugin offers (`./index.ts`'s `referrerMemory`). The four body-page
+   *  hosts hand it in, the same way they hand in `directory` and
+   *  `navigation`. */
+  readonly memory: ReferrerMemory
   readonly Body: (props: { readonly file: string }) => JSX.Element
 }) {
   const here = useHere(), follow = useFollow()
@@ -40,7 +47,7 @@ export function BodyPage(props: {
           <section data-testid={TESTID.documentPage} data-file={path}>
             <header class="mb-8"><h1 class="m-0 max-w-full break-all font-mono text-sm tracking-tight text-muted">{path}</h1></header>
             <props.Body file={path} />
-            <Referrers file={path} reading={page} claims={props.directory.claims()} href={props.navigation.routes.href} />
+            <Referrers file={path} reading={page} claims={props.directory.claims()} href={props.navigation.routes.href} memory={props.memory} />
           </section>
         }</Show>}</Match>
       </Switch>}

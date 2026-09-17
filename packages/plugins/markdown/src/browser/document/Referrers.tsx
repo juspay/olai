@@ -15,9 +15,13 @@
  *
  * THE SECTION ITSELF IS THE SHARED ONE (`@olai/markdown-ui`'s
  * `ReferrersSection`), which both this page and a node's page draw — the same
- * wire shape, the same collapse, the same rows, and the same open-state
- * memory (`./referrer-memory.ts`, minted by this plugin's activation). What
- * is left HERE is what only this page knows:
+ * wire shape, the same collapse, the same labels, the same rows, and the same
+ * open-state memory: ONE store, minted by THIS plugin's activation and
+ * offered behind `olai-plugin-markdown/contract`'s `referrerMemory`. This
+ * page's own caller hands the value in as a prop — a document's page reads
+ * its own activation's copy (`./memory.ts`), and a body page's host names
+ * the service and passes it through `<BodyPage>`. What is left HERE is what
+ * only this page knows:
  *
  *   - WHICH references to draw, off the page's own reading —
  *     `@olai/format`'s `referencesOf`, answered by the server as
@@ -27,11 +31,8 @@
  *   - the ROWS, shaped per way — a record opens its node page, a document
  *     opens its file, and the two are different routes this plugin knows how
  *     to spell (`olai-plugin-navigation`);
- *   - THIS PLUGIN'S OWN TABLE of ways (`../referrings.ts`), which pairs each
- *     way with its label ("sees this") and its testid;
- *   - the KEY this section remembers its open state under — (pane, file) —
- *     and the MEMORY itself, read from this plugin's activation
- *     (`./referrer-memory.ts`) rather than threaded.
+ *   - the testids each row answers to (the labels are the shared section's);
+ *   - the KEY this section remembers its open state under — (pane, file).
  *
  * TWO KINDS OF ROW, because there are two kinds of referrer and they are not
  * the same claim (`@olai/format`'s `referencesOf`): a RECORD that linked this
@@ -46,18 +47,16 @@
  * split the two would answer half the question twice (`referencesOf` reads it
  * that way round).
  */
-import type { Claims, PageReading } from "@olai/format"
+import type { Claims, PageReading, Reference } from "@olai/format"
 import type { Accessor } from "solid-js"
 import { TESTID } from "olai-plugin-markdown/testids"
-import type { Reference } from "@olai/format"
-import { createMemo, onCleanup, Show, untrack } from "solid-js"
+import { createMemo, Show, untrack } from "solid-js"
 
-import { ReferrersSection, type ReferrerRow } from "@olai/markdown-ui/ReferrersSection.tsx"
-import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+import { makeReferrerWays, ReferrersSection, type ReferrerRow } from "@olai/markdown-ui/ReferrersSection.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { atFile, atNode, type Route } from "olai-plugin-navigation/routes"
-import { REFERRING_DOCUMENT } from "../../contracts/referrings.ts"
 import { useHere } from "olai-plugin-navigation/routing"
+import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 
 export function Referrers(props: {
   /** The document this page is about — read for the KEY below rather than for
@@ -66,14 +65,8 @@ export function Referrers(props: {
   readonly file: string
   readonly reading: Accessor<PageReading | undefined>
   readonly claims: Claims | undefined
+  readonly memory: ReferrerMemory
   readonly href: (route: Route) => string
-  /** The open-state memory, owned by the activation that mounts this page.
-   *  The markdown plugin's own document page hands its activation-scope
-   *  memory in; a body page a SIBLING plugin renders (csv/pdf/image/
-   *  hypertext's `BodyPage`) has no markdown scope above it, so the section
-   *  draws collapsed with nothing to remember — the same behavior the
-   *  document page had before this feature. */
-  readonly memory?: ReferrerMemory
 }) {
   const reading = props.reading
   const found = createMemo(() => {
@@ -89,7 +82,7 @@ export function Referrers(props: {
     // page), and a page reused from one document to another gets a NEW
     // element rather than the reader's answer about the first.
     <Show when={found().length > 0 ? props.file : undefined} keyed>
-      {(file) => <Section file={file} found={found} claims={props.claims} href={props.href} memory={props.memory} reading={reading} />}
+      {(file) => <Section file={file} found={found} claims={props.claims} href={props.href} reading={reading} memory={props.memory} />}
     </Show>
   )
 }
@@ -103,77 +96,59 @@ function Section(props: {
   readonly found: () => ReadonlyArray<Reference>
   readonly claims: Claims | undefined
   readonly href: (route: Route) => string
-  readonly memory: ReferrerMemory | undefined
   readonly reading: Accessor<PageReading | undefined>
+  readonly memory: ReferrerMemory
 }) {
   const pane = useHere()()
   const key = JSON.stringify([pane, `referrers:${props.file}`])
   const memory = props.memory
-  // WHAT LEAVING THE SECTION MEANS, decided at the moment it leaves — the
-  // shared component already REMEMBERS on every toggle, so the only question
-  // here is when to FORGET:
-  //   - the same file is still shown AND it still has referrers — a rebuild
-  //     in place, and the remembered answer is still the reader's; keep it;
-  //   - anything else — the last referrer went (a returning visit starts
-  //     collapsed), or the reader navigated away (a new visit). Both forget.
-  // Read UNTRACKED for the outlines backlinks' reason, at the leaving moment
-  // rather than as a subscription.
-  if (memory !== undefined) {
-    onCleanup(() => {
-      const shows = untrack(props.reading)?.shows
-      const doc = shows === undefined ? undefined : only(shows, "document")
-      if (doc === undefined || doc.file !== props.file || props.found().length === 0) {
-        memory.forget(key)
-      }
-    })
+  const stillShown = () => {
+    const shows = untrack(props.reading)?.shows
+    const doc = shows === undefined ? undefined : only(shows, "document")
+    return doc !== undefined && doc.file === props.file && props.found().length > 0
   }
   return (
     <ReferrersSection
       found={props.found()}
       claims={props.claims}
-      ways={REFERRING_DOCUMENT}
-      rows={(way) => props.found()
-        .filter((one) => one.ways.includes(way))
-        .map((one) => rowOf(one, props.href))}
+      ways={makeReferrerWays({
+        see: TESTID.documentSeeRefs,
+        mention: TESTID.documentMentionRefs,
+        link: TESTID.documentLinkRefs,
+      })}
+      row={rowOf(props.href)}
+      stillShown={stillShown}
       memoryKey={key}
       testid={TESTID.documentReferrers}
       summaryTestid={TESTID.documentReferrersSummary}
       linkTestid={TESTID.documentReferrer}
       summary={said}
-      memory={memory ?? EMPTY_MEMORY}
+      memory={memory}
     />
   )
 }
 
-/** One drawn row: what identifies it, where it opens, what it is called
- *  there, and — for a record — the outline it was written in. */
-const rowOf = (one: Reference, href: (route: Route) => string): ReferrerRow =>
-  "path" in one.source
-    ? {
-      key: `doc:${one.source.path}`,
-      opens: href(atFile(one.source.path)),
-      calls: one.source.title,
-      callsFrom: one.source.path,
-      ref: one.source.path,
-    }
-    : {
-      key: `node:${one.source.node.id}`,
-      opens: href(atNode(one.source.node.id)),
-      calls: one.source.node.title,
-      callsFrom: one.source.file,
-      where: one.source.file,
-      ref: one.source.node.id,
-    }
-
-/** Before the activation installs its memory (this plugin's scope starting to
- *  draw before `apply` finishes), the section draws collapsed and remembers
- *  nothing — a no-op memory, which is the honest reading of "not mounted
- *  yet". */
-const EMPTY_MEMORY: ReferrerMemory = {
-  opened: undefined,
-  remember: () => {},
-  forget: () => {},
-}
+/** ONE row per reference — a record opens its node page, a document its own.
+ *  The per-way split is the shared section's. */
+const rowOf =
+  (href: (route: Route) => string) =>
+  (one: Reference): ReferrerRow =>
+    "path" in one.source
+      ? {
+        key: `doc:${one.source.path}`,
+        opens: href(atFile(one.source.path)),
+        calls: one.source.title,
+        callsFrom: one.source.path,
+        ref: one.source.path,
+      }
+      : {
+        key: `node:${one.source.node.id}`,
+        opens: href(atNode(one.source.node.id)),
+        calls: one.source.node.title,
+        callsFrom: one.source.file,
+        where: one.source.file,
+        ref: one.source.node.id,
+      }
 
 /** The summary line: a count in a sentence rather than a bare number, because
  *  it is the whole of what a shut section says. */

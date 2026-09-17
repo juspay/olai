@@ -1,33 +1,31 @@
 /**
- * THE BACKLINKS SECTION'S OPEN-STATE MEMORY, as this plugin's activation hands
- * it to the page that draws the section.
+ * THE SHARED REFERRERS SECTION'S OPEN-STATE MEMORY, as this plugin's backlinks
+ * read it — held for the activation that declared the service.
  *
- * The memory itself is `@olai/ui-primitives`' `createReferrerMemory` — a
- * factory the activation calls INSIDE its `createRoot` scope — and the
- * SHARED section reads it through props. What this module adds is the
- * channel from the activation to the component: a `heldService`, the same
- * one every other browser service in this package travels on
- * (`./clock.ts`, `./gestures.ts`, `./routing.ts`).
+ * ONE memory exists per tab, minted and owned by `olai-plugin-markdown`'s
+ * activation (its `createRoot` scope) and offered behind
+ * `markdown.referrer-memory`. The outline does not mint one of its own: the
+ * whole reason the section's open state survives a plugin rebuild is that
+ * both pages — a document's and a node's — answer under the same store, so a
+ * pane rebuilt from one to the other finds the answer it left.
  *
- * WHY A HOLD AND NOT A PROP THREADED THROUGH `NodePage`: the plugin's
- * activation scope is not a component mount point — there is no JSX from
- * `apply` — so a value minted there reaches a component only through the
- * held channel or Solid context. `heldService` is the designed one, and it
- * is exactly its three rules: the consumer holds (this activation's
- * `browser.tsx`), the hold clears BY IDENTITY (the disposed activation
- * removes its own memory and no other), and the read is tracked (a node
- * page drawn before the activation installed its memory gets `undefined`
- * and draws the section collapsed).
+ * What makes it safe to IMPORT a value minted by another row is that the
+ * dependency is DECLARED: `../browser.tsx`'s `backlinks` component names the
+ * service and installs its view of it here, for that activation, cleared by
+ * identity when it leaves (`@olai/ui-primitives/held.ts`'s three rules).
+ * With markdown off the component sits `waiting` and this read answers
+ * nothing — the delivery of that absence is `../browser.tsx`, the same way
+ * `document-properties` already withdraws its integration.
  */
 import { heldService } from "@olai/ui-primitives/held.ts"
-import { createReferrerMemory, type ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 
 const provider = heldService<ReferrerMemory>()
 
-/** The memory this activation created, or nothing before it installs one. */
-export const backlinksMemory = provider.read
+/** Told by `../browser.tsx`'s `backlinks` component, for that activation. */
+export const holdBacklinksMemory = provider.hold
 
-/** Called by the activation's `createRoot` for ITS scope. The answer removes
- *  this memory and no other — the `stop` an `acquireRelease` releases with. */
-export const holdBacklinksMemory = (): (() => void) =>
-  provider.hold(createReferrerMemory())
+/** ...and read by this package's backlinks. `undefined` is a serve with no
+ *  markdown row mounted: the section draws collapsed, which is the same
+ *  nothing the memory had to say. */
+export const useBacklinksMemory = provider.read

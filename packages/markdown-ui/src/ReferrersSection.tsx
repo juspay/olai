@@ -13,14 +13,14 @@
  * two pages could drift, and one of them (the document's) remembered nothing
  * at all.
  *
- * This is that section, once. The one thing it does NOT do is know what a row
- * IS: a record opens a node page, a document opens a file, and which route
- * and which title each gets is a plugin's own question (the routes come from
- * `olai-plugin-navigation`, which this general package must not name). So a
- * caller hands it ROWS — already shaped, with their href — and the ways, and
- * the testids. What is shared is the whole of the rest: the counts, the
- * per-way split, the collapse, and the memory of whether the reader left it
- * open.
+ * This is that section, once. What it does NOT do is know what a row IS: a
+ * record opens a node page, a document opens a file, and which route and
+ * which title each gets is a plugin's own question (the routes come from
+ * `olai-plugin-navigation`, which this general package must not name). So the
+ * caller hands it the rows and the testids; what is shared here is the whole
+ * of the rest — the counts, the per-way split, the labels, the collapse, the
+ * open-state memory, and the forget rule that decides when a leaving section
+ * stops remembering.
  *
  * COLLAPSED, and the collapse is the browser's — a `<details>`, the shape
  * `../document/Toc.tsx` already uses, so it works before this app's
@@ -36,15 +36,17 @@
  * hundred rows and diffing several hundred anchors nobody could see. The
  * element's own `toggle` drives a signal, and the rows live behind it; the
  * SUMMARY needs only the count, which is a length the caller already has.
- * The caller's `rows` function is what keeps that true: this component calls
+ * The caller's `row` function is what keeps that true: this component calls
  * it ONLY inside the open `<Show>`, because the mapping itself — however
  * cheap — is the thing a shut section must not do.
  *
- * A ROW PER WAY, because the ways are not the same claim: a `see` is an edge
- * somebody wrote with a verb, a mention is a word in a sentence, and a link
- * written in a body or a note is a third. Each row is drawn under the label
- * the caller's table gives it, and a source that refers several ways appears
- * in several rows, which is what it is doing.
+ * A ROW PER WAY, out of the format's own list ({@link WAYS}), because the ways
+ * are not the same claim: a `see` is an edge somebody wrote with a verb, a
+ * mention is a word in a sentence, and a link written in a body or a note is
+ * a third. Each row is drawn under the label {@link makeReferrerWays} gives its
+ * way — the shared vocabulary "sees this", "mentions this", "links this",
+ * once, not chased into a per-plugin table — and a source that refers several
+ * ways appears in several rows, which is what it is doing.
  *
  * KEYED ON THE PLACE, which is the caller's. A page reused from one node to
  * another would otherwise carry the reader's answer about the first onto the
@@ -54,11 +56,27 @@
  * signal is reset with it. It is NOT keyed on the count: the section staying
  * open while a reference is added elsewhere is exactly the live update this
  * feature is for.
+ *
+ * THE KEY THE MEMORY ANSWERS UNDER is the caller's (place) string, and what it
+ * is made of is the caller's own business — the node pages read the pane
+ * INDEX from `useHere()`, which revs on the layout clock when a pane is
+ * reordered or closed. No pane identity exists on this wire today, so the
+ * index is what there is; a key built on it merely starts a new visit when
+ * the layout moves, which is the honest reading of a place that left.
+ *
+ * FORGETTING is the section's too, decided at the moment it leaves: the
+ * {@link ReferrerMemory} is written on every toggle, and the caller's
+ * `stillShown` says whether the same place is on screen any more (true = a
+ * rebuild in place, and the remembered answer is still the reader's). When it
+ * is not — the last referrer went, or the reader navigated away — the key is
+ * FORGOTTEN, untracked at the leaving moment rather than as a subscription: a
+ * cleanup that re-rendered the pane on every frame would be the section
+ * keeping itself alive by what it was closing.
  */
 import { Key } from "@solid-primitives/keyed"
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, For, onCleanup, Show } from "solid-js"
 
-import type { Claims, Reference, Way } from "@olai/format"
+import { type Claims, type Reference, type Way, WAYS } from "@olai/format"
 import type { AnyTestId } from "@olai/ui-primitives/testids.ts"
 import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 
@@ -91,15 +109,33 @@ export interface ReferrerRow {
   readonly ref?: string
 }
 
-/** One way a row can be drawn, as a value — the caller's own table, handed in
- *  rather than imported, because the label is a reader's sentence that each
- *  page says in its own words; this general package must not carry it. */
+/** One way a row is drawn, as a value — ONE table, shared by every page that
+ *  draws this section. The labels are the section's own vocabulary (a reader's
+ *  sentence on a row: "sees this", "mentions this", "links this"), the same
+ *  way the summary line is; the testid is the caller's, because what a row is
+ *  called to the browser tests is a fact about the surface that draws it. */
 export interface ReferrerWay {
   readonly way: Way
-  /** The label on the row — "sees this", "mentions this", "links this". */
+  /** The label on the row of links. */
   readonly label: string
   /** What that row is called to the browser tests. */
   readonly refs: AnyTestId
+}
+
+/** ALL the ways, in the format's own order ({@link WAYS}: the edge first, the
+ *  prose after it), READ rather than re-declared — the labels once, and a
+ *  fourth way added where the rulings live is a compile error HERE plus a
+ *  `refs` the caller's record must supply, not a row silently undrawn. The
+ *  {@link ReferrerWay.refs} the page's own testids fill in is what the rows
+ *  answer to; the labels are fixed, because a reader's sentence does not
+ *  change with the page that draws it. */
+export const makeReferrerWays = (refs: Record<Way, AnyTestId>): ReadonlyArray<ReferrerWay> =>
+  WAYS.map((way) => ({ way, label: REFERRER_LABELS[way], refs: refs[way] }))
+
+const REFERRER_LABELS: Record<Way, string> = {
+  see: "sees this",
+  mention: "mentions this",
+  link: "links this",
 }
 export type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 
@@ -109,13 +145,21 @@ export interface ReferrersSectionProps {
   readonly found: ReadonlyArray<Reference>
   /** The set's claims, for rendering titles' `#tags`. */
   readonly claims: Claims | undefined
-  /** The ways this page draws, in the order the rows should appear. */
+  /** The ways this page draws, in the order the rows appear — built from
+   *  {@link makeReferrerWays} over the page's own testids, so the labels are
+   *  the shared ones and the totality is the format's. */
   readonly ways: ReadonlyArray<ReferrerWay>
-  /** The rows one way draws. The per-way SPLIT is the caller's — it is the
-   *  same order as the references, one pass, and only the caller knows which
-   *  way a reference's `ways` belong to this page's drawing. Called only
-   *  inside the open `<Show>`: a shut section never maps a reference. */
-  readonly rows: (way: Way) => ReadonlyArray<ReferrerRow>
+  /** ONE row per reference, in the section's own order — the per-way SPLIT is
+   *  here (a reference whose `ways` carry two ways appears in two rows), and
+   *  the mapping itself lives in the caller only because only it knows which
+   *  route a record or a document opens. Called only inside the open
+   *  `<Show>`: a shut section never maps a reference. */
+  readonly row: (one: Reference) => ReferrerRow
+  /** Whether the same place this section describes is still on screen — the
+   *  caller's own answer, closed over its reading. TRUE is a rebuild in place
+   *  (keep the remembered answer); anything else — the last referrer went, or
+   *  the reader navigated away — forgets it. */
+  readonly stillShown: () => boolean
   /** The key this section remembers its open state under — the caller's own
    *  (pane, place) spelling, unique per place on screen. */
   readonly memoryKey: string
@@ -126,7 +170,7 @@ export interface ReferrersSectionProps {
   /** The summary line — a count in a sentence rather than a bare number,
    *  because it is the whole of what a shut section says. */
   readonly summary: (total: number) => string
-  readonly memory: ReferrerMemory
+  readonly memory: ReferrerMemory | undefined
 }
 
 /** The section, minted PER PLACE by the caller's keyed `<Show>`, so the open
@@ -136,7 +180,17 @@ export function ReferrersSection(props: ReferrersSectionProps) {
   /** The remembered answer, read ONCE at mount: `<details>` reads its `open`
    *  attribute at parse time, so the element must be BORN open, not opened a
    *  frame later by a command. */
-  const initiallyOpen = () => props.memory.opened?.get(props.memoryKey) ?? false
+  const initiallyOpen = () => props.memory?.opened?.get(props.memoryKey) ?? false
+  // WHAT LEAVING THE SECTION MEANS, decided at the moment it leaves — the
+  // memory is already WRITTEN on every toggle, so the only question here is
+  // when to FORGET: the same place is still shown AND still has referrers (a
+  // rebuild in place), or the answer goes. Read UNTRACKED, because this is the
+  // leaving moment, not a subscription: a cleanup that re-rendered the pane on
+  // every frame would be the section keeping itself alive by what it was
+  // closing.
+  onCleanup(() => {
+    if (!props.stillShown()) props.memory?.forget(props.memoryKey)
+  })
   return (
     <details
       ref={(element) => { element.open = initiallyOpen() }}
@@ -150,24 +204,18 @@ export function ReferrersSection(props: ReferrersSectionProps) {
       onToggle={(event) => {
         const now = event.currentTarget.open
         setOpen(now)
-        props.memory.remember(props.memoryKey, now)
+        props.memory?.remember(props.memoryKey, now)
       }}
     >
-      <summary
-        class="cursor-pointer text-sm text-muted select-none"
-        data-testid={props.summaryTestid}
-      >
-        {props.summary(props.found.length)}
-      </summary>
       <Show when={open()}>
-        {/* A row per WAY, out of the caller's table — never a label written
-            here beside a testid picked by hand, which is the fragmentation
-            the outlines plugin's `referrings.ts` exists to have stopped. An
+        {/* A row per WAY, out of ONE shared table — never a label written here
+            beside a testid picked by hand, which is the fragmentation the
+            outlines plugin's `referrings.ts` existed to have stopped. An
             empty way draws nothing, which is the same rule every relation row
             on this page follows. */}
         <For each={props.ways}>
           {(way) => (
-            <Show when={props.rows(way.way).length > 0}>
+            <Show when={props.found.some((one) => one.ways.includes(way.way))}>
               <div
                 class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
                 data-testid={way.refs}
@@ -179,7 +227,10 @@ export function ReferrersSection(props: ReferrersSectionProps) {
                     the list around it moves, and what a live section owes its
                     reader is that the anchors under a pointer are the ones
                     they were. */}
-                <Key each={props.rows(way.way)} by="key">
+                <Key
+                  each={props.found.filter((one) => one.ways.includes(way.way)).map(props.row)}
+                  by="key"
+                >
                   {(row) => (
                     <>
                       <a

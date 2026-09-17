@@ -4,8 +4,13 @@
  *
  * The section itself is the shared one (`@olai/markdown-ui`'s
  * `ReferrersSection`), which both this page and a document's page draw — the
- * same wire shape, the same collapse, the same rows, and the same open-state
- * memory (`. /memory.ts`, minted by this plugin's activation).
+ * same wire shape, the same collapse, the same labels, the same rows, and the
+ * same open-state memory: ONE store, minted by the MARKDOWN plugin's
+ * activation, offered behind `markdown.referrer-memory`, and read here
+ * through this package's own copy of it (`./memory.ts`), installed by
+ * `../browser.tsx`'s `backlinks` component — which sits `waiting` while that
+ * row is off, so an outline with no markdown row draws the section without
+ * its memory rather than this page turning off with it.
  *
  * What is left HERE is what only this page knows:
  *
@@ -15,44 +20,36 @@
  *   - the ROWS, shaped per way — a record opens its node page, a body opens
  *     its file, and the two are different routes this plugin knows how to
  *     spell (`olai-plugin-navigation`);
- *   - THIS PLUGIN'S OWN TABLE of ways (`../contracts/referrings.ts`), which
- *     pairs each way with its label ("sees this") and its testid;
+ *   - the testids each row answers to (`../contracts/referrings.ts` is gone —
+ *     the labels are the shared section's, and only the testids are this
+ *     page's);
  *   - the KEY this section remembers its open state under — (pane, node) —
- *     and the MEMORY itself, read from this plugin's activation
- *     (`. /memory.ts`) rather than threaded: the node page draws one of these
- *     where the plugin's scope owns the answer.
+ *     and the "still shown" answer that decides the forget.
  *
  * DERIVED, and therefore READ-ONLY: there is no `×` here, for `../NodeRefs.tsx`'s
  * own reason — half of these entries are words in somebody else's sentence, and
  * an affordance that could not take those back would be an affordance that did
  * nothing for half the list. What removes a reference is editing the record
  * that makes it, which is one click away on every row.
- *
- * KEYED ON THE NODE, for the reason the shared section's own header gives: the
- * open state is an attribute the browser then owns, so a page reused from
- * `/#a` to `/#b` would carry the reader's answer about the first node onto the
- * second. A different node is a different element by construction — and the
- * signal is reset with it, since it is created inside the keyed block. It is
- * NOT keyed on the count: the section staying open while a reference is added
- * elsewhere is exactly the live update this feature is for.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { type Reference } from "@olai/format"
-import { createMemo, onCleanup, Show, untrack } from "solid-js"
+import { createMemo, Show, untrack } from "solid-js"
 import { only } from "@olai/web/client/narrow.ts"
 import type { PageReading } from "@olai/format"
 
-import { ReferrersSection, type ReferrerRow } from "@olai/markdown-ui/ReferrersSection.tsx"
-import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+import {
+  makeReferrerWays,
+  ReferrersSection,
+  type ReferrerRow,
+} from "@olai/markdown-ui/ReferrersSection.tsx"
+import { useBacklinksMemory } from "./memory.ts"
 import { useReading } from "../reading.tsx"
 import { useHere } from "olai-plugin-navigation/routing"
 import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { hrefOf } from "../routing.ts"
 import { servedDirectory } from "../vault.ts"
-import { rowsOf, type DocRef } from "./refs.ts"
-import { REFERRINGS } from "./way.ts"
-import { backlinksMemory } from "./memory.ts"
-import type { NodeRef } from "../ref.ts"
+import { refOf, type NodeRef } from "../ref.ts"
 
 export function Backlinks(props: {
   /** The node the page is about — canonical, since a zoom resolves a mirror's
@@ -88,81 +85,69 @@ function Section(props: {
   readonly reading: () => PageReading | undefined
 }) {
   const pane = useHere()()
-  // The KEY is (pane, node), not the route object: a remount of the same pane
-  // and node — a rebuild, a frame that redraws the block — must find the same
-  // key, and the answer that was left under it. Unlike the old WeakMap keyed
-  // by the route, this survives a route object being replaced while the same
-  // node stays on screen.
+  // The KEY is (pane, node) — the pane INDEX, which revs on the layout clock
+  // when a pane is reordered or closed (the shared section's header says why
+  // that is what there is): a remount of the same pane and node — a rebuild —
+  // must find the same key, and the answer that was left under it.
   const key = JSON.stringify([pane, `backlinks:${props.id}`])
-  const memory = backlinksMemory()
-  // WHAT LEAVING THE SECTION MEANS, decided at the moment it leaves. The
-  // shared component already REMEMBERS on every toggle, so the only question
-  // here is when to FORGET:
-  //   - the same node is still zoomed AND it still has references — the
-  //     section is being rebuilt in place, and its remembered answer is
-  //     still the reader's; keep it;
-  //   - anything else — the last reference went (a returning visit starts
-  //     collapsed, the answer the reader was never asked again), or the
-  //     reader navigated away (a new visit). Both forget.
-  // Read UNTRACKED, because this is the leaving moment, not a subscription:
-  // a cleanup that re-rendered the pane on every frame would be the section
-  // keeping itself alive by what it was closing.
-  onCleanup(() => {
-    if (memory === undefined) return
+  const memory = useBacklinksMemory()
+  // The "still shown" answer the shared section's own forget rule reads at the
+  // leaving moment, untracked: the same node is still zoomed AND it still has
+  // references (a rebuild in place keeps the reader's answer), or the answer
+  // goes.
+  const stillShown = () => {
     const shows = untrack(props.reading)?.shows
     const page = shows === undefined ? undefined : only(shows, "node")
     const zoomed = page?.zoomed
-    if (zoomed === undefined || zoomed.kind !== "node" || zoomed.shows.node.id !== props.id || props.found().length === 0) {
-      memory.forget(key)
-    }
-  })
+    return zoomed !== undefined && zoomed.kind === "node" && zoomed.shows.node.id === props.id && props.found().length > 0
+  }
   return (
     <ReferrersSection
       found={props.found()}
       claims={servedDirectory()?.claims()}
-      ways={REFERRINGS}
-      rows={(way) => rowsOf(props.found())[way].map(toShared)}
+      ways={makeReferrerWays({
+        see: TESTID.backlinkSeeRefs,
+        mention: TESTID.backlinkMentionRefs,
+        link: TESTID.backlinkLinkRefs,
+      })}
+      row={rowOf(props.found())}
+      stillShown={stillShown}
       memoryKey={key}
       testid={TESTID.backlinks}
       summaryTestid={TESTID.backlinksSummary}
       linkTestid={TESTID.nodeRef}
       summary={said}
-      memory={memory ?? EMPTY_MEMORY}
+      memory={memory}
     />
   )
 }
 
-/** One drawn row: what identifies it, where it opens, what it is called
- *  there, and — for a record — the outline it was written in. */
-const toShared = (row: NodeRef | DocRef): ReferrerRow =>
-  "id" in row
-    ? {
-      key: `node:${row.id}`,
-      opens: hrefOf(atNode(row.id)),
-      calls: row.title,
-      callsFrom: row.from,
-      where: row.from,
-      title: `open ${row.title}`,
-      ref: row.id,
-    }
-    : {
-      key: `doc:${row.path}`,
-      opens: hrefOf(atFile(row.path)),
-      calls: row.title,
-      callsFrom: row.path,
-      title: `open ${row.path}`,
-      ref: row.path,
-    }
-
-/** Before the activation installs its memory (this plugin's scope starting to
- *  draw before `apply` finishes), the section draws collapsed and remembers
- *  nothing — a no-op memory, which is the honest reading of "not mounted
- *  yet". */
-const EMPTY_MEMORY: ReferrerMemory = {
-  opened: undefined,
-  remember: () => {},
-  forget: () => {},
-}
+/** ONE row per reference — the record as the node it is, the body as the file
+ *  it is; the per-way split is the shared section's. */
+const rowOf =
+  (found: ReadonlyArray<Reference>) =>
+  (one: Reference): ReferrerRow =>
+    "path" in one.source
+      ? {
+        key: `doc:${one.source.path}`,
+        opens: hrefOf(atFile(one.source.path)),
+        calls: one.source.title,
+        callsFrom: one.source.path,
+        title: `open ${one.source.path}`,
+        ref: one.source.path,
+      }
+      : (() => {
+        const record = refOf(one.source)
+        return {
+          key: `node:${record.id}`,
+          opens: hrefOf(atNode(record.id)),
+          calls: record.title,
+          callsFrom: record.from,
+          where: record.from,
+          title: `open ${record.title}`,
+          ref: record.id,
+        }
+      })()
 
 /** The summary line: a count in a sentence rather than a bare number, because
  *  it is the whole of what a shut section says and "Referenced by 3" beside a

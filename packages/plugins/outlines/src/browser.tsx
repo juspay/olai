@@ -40,6 +40,8 @@ import { fileTypes, fileState } from "olai-plugin-files/contract"
 import { holdFileControls } from "./browser/files.tsx"
 import { NewOutline } from "./browser/outline/NewOutline.tsx"
 import { sections } from "olai-plugin-preferences/contract"
+import { referrerMemory } from "olai-plugin-markdown/contract"
+import { holdBacklinksMemory } from "./browser/backlinks/memory.ts"
 import { name, browserState, datedRows, pageView, titles, propertyRoutes, type OutlinesBrowser } from "./index.ts"
 import type { References } from "./contracts/references.ts"
 import { openOverlaySocket, overlayRoot } from "./browser/overlay.ts"
@@ -60,7 +62,6 @@ import { atFile } from "olai-plugin-navigation/routes"
 import { DatedRow } from "./browser/DatedRow.tsx"
 import { OutlinePageView } from "./browser/PageView.tsx"
 
-import { holdBacklinksMemory } from "./browser/backlinks/memory.ts"
 import { clearEditorMemory } from "./browser/edit/memory.ts"
 import { PreferenceRows } from "./browser/PreferenceRows.tsx"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -116,10 +117,7 @@ export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slot
     const readings = createReadings()
     const fields = createFields()
     const air = createAir()
-    const stops = [holdUndo(undo), holdReadings(readings), holdFields(fields), holdAir(air),
-      openOverlaySocket(), holdBacklinksMemory()]
-    createRefiling({ ask: request => runAsync(client().procedures.nodes.homes(request)),
-      reachable: () => reachable(connectionReadout()) })
+    const stops = [holdUndo(undo), holdReadings(readings), holdFields(fields), holdAir(air), openOverlaySocket()]
     return {
       value: { client, undo, readings, fields, air, references, overlay: overlayRoot } satisfies OutlinesBrowser,
       dispose: () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearRowForms(); clearFocus(); clearDeclared() },
@@ -202,6 +200,15 @@ export const components = {
   }) }),
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
     yield* (yield* rendererSlots).contribute(fileTypes, { Create: NewOutline })
+  }) }),
+  /** The backlinks section's open-state memory, DECLARED — a component of its
+   *  own so the outline keeps editing and navigating when the markdown row
+   *  leaves: this component sits `waiting`, and the backlinks section reads
+   *  the empty answer (collapsed) rather than this row turning off with it
+   *  (`./browser/backlinks/memory.ts`, the `document-properties` pattern). */
+  backlinks: definePlugin({ name: "backlinks", needs: [referrerMemory], apply: Effect.gen(function*() {
+    const memory = yield* referrerMemory
+    yield* Effect.acquireRelease(Effect.sync(() => holdBacklinksMemory(memory)), stop => Effect.sync(stop))
   }) }),
   preferences: definePlugin({ name: "preferences", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
     yield* (yield* rendererSlots).contribute(sections, PreferenceRows)

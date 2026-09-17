@@ -17,9 +17,8 @@
  *
  * Which row a scenario means is named by the LABEL a reader sees on it — a
  * relation is read in the reader's language rather than as a field name in a
- * slot (`edge_steps.ts`' own rule) — and resolved through the client's own
- * table (`backlinks/way.ts`, via `world.ts`'s `backlinkRow`), so a row renamed
- * there fails a scenario saying so rather than leaving it looking at nothing.
+ * table (`@olai/markdown-ui`'s `makeReferrerWays`, via `world.ts`'s
+ * `backlinkRow`), so a row renamed
  */
 
 import * as assert from "node:assert";
