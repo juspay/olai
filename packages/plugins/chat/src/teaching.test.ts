@@ -37,8 +37,22 @@ test("it says the subtree is the memory, and how much of it there is", () => {
 test("... and that the transcript is history rather than memory", () => {
   const [, law] = teachingFor(SPACES)
   expect(law).toContain("HISTORY")
-  expect(law).toContain("write standing facts back into it")
+  expect(law).toContain("maintain it as you learn or the situation changes")
 })
+
+for (const arrival of ["opened", "assigned"] as const) {
+  test(`${arrival} teaches organized current memory rather than accumulated history`, () => {
+    const [, law] = teachingFor(SPACES, arrival)
+    expect(law).toContain("organized by topic with clear headings and concise entries")
+    expect(law).toContain("using the existing structure where it fits")
+    expect(law).toContain("Update existing entries when facts change, merge duplicates, and remove obsolete memory")
+    expect(law).toContain("status and next steps of active work")
+    expect(law).toContain("historical detail only when it explains a current constraint or decision")
+    expect(law).toContain("Do not append session logs or transcripts")
+    expect(law).toContain("understand the current state, and continue the work")
+    expect(law).not.toContain("know everything this one knew")
+  })
+}
 
 test("a node agent with nothing under it yet is told so, not told it has zero", () => {
   const [, law] = teachingFor({ ...SPACES, memory: 0 })
@@ -78,7 +92,8 @@ test("... and is ordered to BANK what it knows rather than to write as it learns
   const [, law] = teachingFor(SPACES, "assigned")
   expect(law).toContain("NOW your memory")
   expect(law).toContain("WRITE INTO IT")
-  expect(law).toContain("only copy")
+  expect(law).toContain("reconcile it with what is still relevant")
+  expect(law).toContain("resolve superseded information")
   // The same law underneath, in the same words: the transcript is history.
   expect(law).toContain("HISTORY")
   expect(law).toContain("14 rows")

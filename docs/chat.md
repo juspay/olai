@@ -743,9 +743,20 @@ the next message can repeat it; the transcript does not claim a record the
 machine could not retain.
 
 A filed session gets the assigned-session contract: it was moved here and must
-write what it knows into the subtree now. A session opened for a node gets the
+reconcile the subtree with the current knowledge and active work from its
+conversation now. A session opened for a node gets the
 ordinary contract. Neither requires copying or converting the engine's session
 files.
+
+Both contracts ask the agent to maintain current memory: concise entries grouped
+by topic under clear headings, reusing the existing structure where it fits.
+Changed facts replace existing entries; duplicates are merged and obsolete
+memory is removed. Keep current facts, preferences, decisions still in force,
+and active work with its status and next steps. Historical detail belongs only
+where it explains a current constraint or decision, not as appended session
+logs or copied transcripts. A fresh session needs enough to understand the
+current state and continue, rather than everything any previous session knew.
+These are instructions to the agent, not an automatic subtree reorganization.
 
 ## Moving the chats you already have
 

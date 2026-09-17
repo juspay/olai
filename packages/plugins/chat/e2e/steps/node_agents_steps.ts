@@ -262,6 +262,21 @@ Then(
   },
 );
 
+/** Both arrival paths must deliver the current-memory discipline to the agent. */
+const assertCurrentMemoryContract = (said: string): void => {
+  for (const instruction of [
+    "organized by topic with clear headings and concise entries",
+    "Update existing entries when facts change, merge duplicates, and remove obsolete memory",
+    "status and next steps of active work",
+    "historical detail only when it explains a current constraint or decision",
+    "Do not append session logs or transcripts",
+    "understand the current state, and continue the work",
+  ]) {
+    assert.ok(said.includes(instruction), `the contract to include ${JSON.stringify(instruction)}`);
+  }
+  assert.ok(!said.includes("know everything this one knew"));
+};
+
 /** ... and what it SAYS, which is the half that matters: the node it names and
  *  the law that node's subtree is the memory. */
 Then(
@@ -277,6 +292,7 @@ Then(
       `the contract to say the subtree is the memory and the transcript is history, ` +
         `and it says ${JSON.stringify(said)}`,
     );
+    assertCurrentMemoryContract(said);
   },
 );
 
@@ -299,10 +315,12 @@ Then(
   async function (this: OlaiWorld) {
     const said = await this.page.locator("body").innerText();
     assert.ok(
-      said.includes("NOW your memory") && said.includes("WRITE INTO IT"),
+      said.includes("NOW your memory") && said.includes("WRITE INTO IT") &&
+        said.includes("reconcile it with what is still relevant"),
       `the contract to order the session to write what it knows into the subtree, ` +
         `and it says ${JSON.stringify(said)}`,
     );
+    assertCurrentMemoryContract(said);
     // ... and the standing law is still under it, in the same words the other
     // contract uses: the transcript is history.
     assert.ok(

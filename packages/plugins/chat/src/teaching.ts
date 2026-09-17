@@ -5,8 +5,8 @@
  * decoration: a node's subtree is only the agent's memory if the AGENT WRITES
  * INTO IT. The orchestrator has run that discipline by hand since August — *the
  * session memory dies with the session; the board is the memory; a fresh
- * session must be able to read the board and know everything a dead session
- * knew* — and node agents are that discipline turned into product, which means
+ * session must be able to read the board and recover the current knowledge
+ * needed to continue* — and node agents are that discipline turned into product, which means
  * the standing instruction has to be product too rather than a paragraph
  * somebody remembers to paste
  * (https://github.com/juspay/oss.olai/blob/main/brainstorming/node-agents.md,
@@ -50,8 +50,8 @@
  *
  * ## What it says, and what it deliberately does not
  *
- * Three facts and no advice: WHICH node this conversation belongs to, that the
- * node's subtree is the memory, and that the transcript is history. No tool
+ * The node this conversation belongs to, how to maintain its subtree as
+ * organized current memory, and where historical detail belongs. No tool
  * names — which verbs are reachable is a property of the servers that
  * conversation was handed ({@link ./servers.ts}), and an instruction naming a
  * call the session does not have would be teaching a contract it cannot keep.
@@ -79,7 +79,7 @@ import { memoryOf, type NodeAgent } from "@olai/format"
  * ({@link ./sessions.ts}'s `Overheard.assigned`, and the migration this phase
  * ships): everything it knows is in a transcript that has just stopped being
  * its memory. So the standing law is the same law with an ORDER in front of
- * it — bank what you know, now, before the transcript stops mattering. It is
+ * it — distill what is still relevant, now, before the transcript stops mattering. It is
  * the one turn where "write standing facts as you learn them" is not enough,
  * because nothing new is going to be learnt: the knowledge is already there and
  * is about to be in the wrong place.
@@ -135,7 +135,7 @@ export const teachingFor = (
  * edit into two laws. What varies is above it and is a table.
  */
 const LAW =
-  `This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`
+  `Keep the subtree organized by topic with clear headings and concise entries, using the existing structure where it fits. Update existing entries when facts change, merge duplicates, and remove obsolete memory. Retain current facts, preferences, decisions still in force, and the status and next steps of active work; keep historical detail only when it explains a current constraint or decision. Do not append session logs or transcripts. This transcript is HISTORY, not memory — a fresh session should be able to read the subtree, understand the current state, and continue the work.`
 
 /** What one arrival says for itself: who this conversation is, what its memory
  *  IS, and what to do about it. Three clauses and no more — everything else in
@@ -165,13 +165,13 @@ const SAYS: Record<Arrival, Words> = {
       `This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
     memory: "That node's SUBTREE is your memory",
     order:
-      "read it to find out what you already know, and write standing facts back into it as you learn them.",
+      "read it to recover current knowledge, and maintain it as you learn or the situation changes.",
   },
   assigned: {
     who: (agent) =>
       `This conversation has been ASSIGNED to the node agent “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`. It was an ordinary chat until now; from here it is that node's current session.`,
     memory: "That node's SUBTREE is NOW your memory",
     order:
-      "read it, and then WRITE INTO IT — the standing facts this transcript is currently the only copy of, the decisions, what you are in the middle of, what a successor would need.",
+      "read it, and then reconcile it with what is still relevant from this conversation. WRITE INTO IT only the current knowledge and active work a successor needs; resolve superseded information rather than copying the conversation history.",
   },
 }
