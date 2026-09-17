@@ -1,16 +1,8 @@
 /**
  * WHAT AN AGENT-ASSOCIATED SESSION IS TOLD, ONCE, AND HOW IT ARRIVES.
  *
- * The keystone of node agents, and the reason the rest of the feature is not
- * decoration: a node's subtree is only the agent's memory if the AGENT WRITES
- * INTO IT. The orchestrator has run that discipline by hand since August — *the
- * session memory dies with the session; the board is the memory; a fresh
- * session must be able to read the board and know everything a dead session
- * knew* — and node agents are that discipline turned into product, which means
- * the standing instruction has to be product too rather than a paragraph
- * somebody remembers to paste
- * (https://github.com/juspay/oss.olai/blob/main/brainstorming/node-agents.md,
- * "write-back discipline is the whole trick").
+ * A node's subtree holds organized current knowledge. The teaching asks the
+ * agent to maintain that knowledge as its understanding changes.
  *
  * ## THE CHANNEL: a first-turn preamble, and not a system prompt
  *
@@ -50,8 +42,8 @@
  *
  * ## What it says, and what it deliberately does not
  *
- * Three facts and no advice: WHICH node this conversation belongs to, that the
- * node's subtree is the memory, and that the transcript is history. No tool
+ * The node this conversation belongs to, how to maintain its subtree as
+ * organized current memory. No tool
  * names — which verbs are reachable is a property of the servers that
  * conversation was handed ({@link ./servers.ts}), and an instruction naming a
  * call the session does not have would be teaching a contract it cannot keep.
@@ -75,14 +67,8 @@ import { memoryOf, type NodeAgent } from "@olai/format"
  * `opened` is a conversation olai opened FOR the node — it knows nothing that
  * is not in its subtree, because it has not said anything yet.
  *
- * `assigned` is a chat that already existed and was moved to a node
- * ({@link ./sessions.ts}'s `Overheard.assigned`, and the migration this phase
- * ships): everything it knows is in a transcript that has just stopped being
- * its memory. So the standing law is the same law with an ORDER in front of
- * it — bank what you know, now, before the transcript stops mattering. It is
- * the one turn where "write standing facts as you learn them" is not enough,
- * because nothing new is going to be learnt: the knowledge is already there and
- * is about to be in the wrong place.
+ * `assigned` is an existing chat moved to a node. It must reconcile relevant
+ * knowledge from the conversation with the subtree it now belongs to.
  */
 export type Arrival = "opened" | "assigned"
 
@@ -106,9 +92,8 @@ export type Arrival = "opened" | "assigned"
  * node, and what its subtree is — because they are the same two facts, and a
  * reader comparing an assigned agent's first turn with an opened one's should
  * see one contract rather than two. What differs is a clause on each: that this
- * conversation was moved here (it was somebody's chat a moment ago and its
- * transcript is the only copy of what it knows), and that the first thing to do
- * about that is WRITE THE STANDING FACTS DOWN. The distillation order is a
+ * conversation was moved here (and may already contain useful knowledge), and that the first thing to do
+ * is reconcile that knowledge with the subtree. The distillation order is a
  * sentence in the contract rather than a turn of its own, for the reason the
  * whole teaching is a preamble: a turn spent before anybody has said anything
  * is a turn spent on every migrated chat whether or not it is ever used again.
@@ -135,7 +120,7 @@ export const teachingFor = (
  * edit into two laws. What varies is above it and is a table.
  */
 const LAW =
-  `This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`
+  `Keep your memory current and organized by topic. Update existing entries as understanding changes, consolidate duplicates, and remove obsolete information. Store useful knowledge, not a running account of conversations or actions.`
 
 /** What one arrival says for itself: who this conversation is, what its memory
  *  IS, and what to do about it. Three clauses and no more — everything else in
@@ -165,13 +150,13 @@ const SAYS: Record<Arrival, Words> = {
       `This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
     memory: "That node's SUBTREE is your memory",
     order:
-      "read it to find out what you already know, and write standing facts back into it as you learn them.",
+      "read it to recover current knowledge, and maintain it as you learn or the situation changes.",
   },
   assigned: {
     who: (agent) =>
       `This conversation has been ASSIGNED to the node agent “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`. It was an ordinary chat until now; from here it is that node's current session.`,
     memory: "That node's SUBTREE is NOW your memory",
     order:
-      "read it, and then WRITE INTO IT — the standing facts this transcript is currently the only copy of, the decisions, what you are in the middle of, what a successor would need.",
+      "read it, and then reconcile it with what is still relevant from this conversation. WRITE INTO IT the useful current knowledge, updating existing entries where appropriate.",
   },
 }

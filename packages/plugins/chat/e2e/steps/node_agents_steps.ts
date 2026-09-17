@@ -273,8 +273,8 @@ Then(
       `the contract to name ${JSON.stringify(title)}, and it says ${JSON.stringify(said)}`,
     );
     assert.ok(
-      said.includes("SUBTREE is your memory") && said.includes("HISTORY"),
-      `the contract to say the subtree is the memory and the transcript is history, ` +
+      said.includes("SUBTREE is your memory"),
+      `the contract to say the subtree is the memory, ` +
         `and it says ${JSON.stringify(said)}`,
     );
   },
@@ -302,12 +302,6 @@ Then(
       said.includes("NOW your memory") && said.includes("WRITE INTO IT"),
       `the contract to order the session to write what it knows into the subtree, ` +
         `and it says ${JSON.stringify(said)}`,
-    );
-    // ... and the standing law is still under it, in the same words the other
-    // contract uses: the transcript is history.
-    assert.ok(
-      said.includes("HISTORY"),
-      `the contract to say the transcript is history, and it says ${JSON.stringify(said)}`,
     );
   },
 );
