@@ -23,7 +23,7 @@
  * an engine supplies a probe and a leg to chat, not a sibling conversation.
  */
 import type {} from "olai-plugin-chat/slots"
-import { chatEngines as engines } from "olai-plugin-chat/browser-engines"
+import { engines } from "olai-plugin-chat/browser-engines"
 import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { CodexMark } from "./browser/Mark.tsx"

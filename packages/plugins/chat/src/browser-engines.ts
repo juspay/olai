@@ -11,4 +11,4 @@ import type { PluginsRowFace } from "olai-plugin-plugin-inspector/slots"
 export interface EnginesService {
   readonly row: (engine: string) => PluginsRowFace
 }
-export const chatEngines = serviceTag<EnginesService>("chat.engines")
+export const engines = serviceTag<EnginesService>("chat.engines")
