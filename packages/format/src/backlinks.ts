@@ -87,6 +87,7 @@ import { type Address, addressOf } from "./address.ts"
 import { byCorpus, tagText, type Derived } from "./derive.ts"
 import { Face } from "./document.ts"
 import { isPutAway, isRegular, LocatedRegular } from "./node.ts"
+import { byPath } from "./paths.ts"
 import { type Pointing, pointingAt, type Source } from "./pointing.ts"
 import type { Reading } from "./validate.ts"
 
@@ -274,12 +275,12 @@ const documentRefs = (
 
 /** Path order over two references: by file, and by CORPUS ORDER within a file —
  *  the promise {@link byCorpus} makes, with a BODY's entry ordered ahead of the
- *  file's records: the body IS the file, so its entry is the FILE's. Two files
- *  can never tie, which is {@link byPath}'s promise. */
+ *  file's records: the body IS the file, so its entry is the FILE's. The file
+ *  half is {@link byPath} — the same order the directory is read in — so a
+ *  `wing.olai` and a `wing/held.olai` cannot come out in the wrong-< order.
+ *  Two files can never tie, which is {@link byPath}'s promise. */
 const byReference = (one: Reference, other: Reference): number => {
-  const onePath = pathOf(one.source)
-  const otherPath = pathOf(other.source)
-  const side = onePath < otherPath ? -1 : onePath > otherPath ? 1 : 0
+  const side = byPath(pathOf(one.source), pathOf(other.source))
   if (side !== 0) return side
   const oneRecord = "file" in one.source
   const otherRecord = "file" in other.source

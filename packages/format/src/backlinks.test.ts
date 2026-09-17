@@ -194,6 +194,21 @@ test("a document and its headings are the same referrer question", () => {
   expect(said(view, "herbs")).toEqual(["notes/plan.md link"])
 })
 
+test("the referrers come in byPath order, so a directory sorts before the file beside it", () => {
+  // `wing.olai` and `wing/held.olai` both point at the node; a plain `<`
+  // compare would put `wing.olai` first (`.`, code point 0x2E, before `/`.
+  // 0x2F). The reading uses the same `byPath` the directory is read in, which
+  // sorts the separator first: the file INSIDE `wing/` comes before the file
+  // named `wing.olai` beside it.
+  const view = viewOf({
+    "wing.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+      `{"id":"plan","ord":"b","title":"plan","see":["herbs"]}`,
+    "wing/held.olai": `{"id":"held","ord":"a","title":"held"}\n` +
+      `{"id":"also","ord":"b","title":"also","see":["herbs"]}`,
+  })
+  expect(said(view, "herbs")).toEqual(["also see", "plan see"])
+})
+
 // ── a note is markdown, and this reading is not ────────────────────────
 //
 // The decision is `./derive.ts`'s `writtenTags`: this package holds no markdown
