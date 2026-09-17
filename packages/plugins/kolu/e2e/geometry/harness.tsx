@@ -92,6 +92,8 @@ function Row(props: { readonly bag: ReturnType<typeof bagFor>; readonly id: stri
         pip={props.bag.pip}
         bucket={props.bag.bucket}
         agentState={props.bag.agentState}
+        // The same absence `TerminalDoor.tsx` passes: olai's row carries no model.
+        model={undefined}
         label={props.bag.label}
         labelColor={props.bag.labelColor}
         renderLabel={(md) => md}

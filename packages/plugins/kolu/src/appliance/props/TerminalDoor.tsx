@@ -283,6 +283,13 @@ function Row(props: {
         pip={pip()}
         bucket={vocab().bucket}
         agentState={narrowAgentState(props.row.agentState).attr}
+        // NOT TRANSPORTED YET. kolu#2250 gave the row a model tag, read off
+        // the agent record padi keeps per session; olai's wire row
+        // (`../../client/wire/kolu.ts`) carries no such field, and `fleet.ts`'s
+        // law is that an input crosses only when a fold here needs it. Until a
+        // producer sends it, `undefined` is the row's own word for "not named"
+        // and draws nothing — never an "unknown".
+        model={undefined}
         label={props.row.label}
         labelColor={props.row.labelColor}
         // PLAIN TEXT, and it is a decision rather than a stub. The annotation

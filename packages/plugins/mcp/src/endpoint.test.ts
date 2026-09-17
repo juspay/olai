@@ -40,7 +40,7 @@ const parked = () => {
  *  bundle — which is what lets this bench stand up an adapter with nothing
  *  behind it. */
 const face = (transport: Transport) =>
-  serveFace({ siblings: {}, client: () => ({}) as unknown as ClientOrConnection, transport })
+  serveFace({ siblings: {}, client: () => ({}) as unknown as ClientOrConnection, rows: () => [], transport })
 
 test("an adapter acquired by a half that is already stopping is still closed", async () => {
   // THE HOLE: this used to await the adapter and only THEN say how to close it,

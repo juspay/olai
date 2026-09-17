@@ -204,7 +204,7 @@ const withTools = <A>(
     // `surface/outlines/ops/node` — which the scoped dispatch does without
     // anything here consulting a route.
     const rows = (): ReadonlyArray<Row> =>
-      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] }))
+      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
     // Minted per call for the reason `binding.ts` mints it per call: the roster
     // it describes moves, and a bundle held across a recompose would carry a
     // client for a row that has left.
@@ -235,6 +235,7 @@ const withTools = <A>(
         push: ops.push,
       })),
       client: panel,
+      rows,
       transport: serverSide,
     })
 
@@ -643,6 +644,14 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     // part of a file. Those are what make this a charter rather than a tour.
     expect(said).toContain("no path outside the served directory")
     expect(said).toContain("no way to name part of a file")
+
+    // NO PANEL SENTENCE HERE, and that is the claim rather than an omission:
+    // this fixture mounts no `chat` row, and "a person reads your answer in
+    // olai's chat panel" is that row's paragraph, riding its sibling entry the
+    // way its verbs do. `../profiles.test.ts` reads both states of it over a
+    // real serve, and holds the 2 KB ceiling over the FULL bundle; what this
+    // bench can say is that the mcp row's own text never speaks for the panel.
+    expect(said).not.toContain("chat panel")
   })
 })
 
