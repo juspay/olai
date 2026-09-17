@@ -83,8 +83,8 @@ test("olai's own re-pointing wins over a `/clear` link the agent reported", () =
   // a `/clear` remainder — the row already names the successor its agent
   // reported — and then give that node a fresh session. If the agent's link
   // stands, the walk back from the new session finds nothing, the conversation
-  // the node just let go of comes back under Unassigned, and the one node that
-  // would refuse it is the node it belonged to.
+  // the node just let go of comes back as a chat nobody claims, and the one
+  // node that would refuse it is the node it belonged to.
   //
   // The field's one consumer is the lineage of a NODE AGENT, and olai's link is
   // the only one that answers that question: `/clear` says what happened to a

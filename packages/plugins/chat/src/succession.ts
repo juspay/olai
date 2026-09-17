@@ -14,8 +14,8 @@
  * one and re-points the property at the new one — a supersession olai MADE,
  * with nothing on either agent's disk to say so. Without it written down, a
  * node agent's own previous session comes back as a conversation nobody claims:
- * it would sit under Unassigned inviting somebody to assign it to the node it
- * already belonged to, which is the one node that would refuse it.
+ * re-filed into Chats, offered back to the node it already belonged to, which
+ * is the one node that would refuse it.
  *
  * So the record keeps it ({@link ./sessions.ts}'s `Overheard.superseded`) and
  * this puts it on the rows, at the one door every reader of the listing comes
@@ -39,8 +39,8 @@
  * that was itself a `/clear` remainder — the row already names the successor
  * its agent reported — then give that node a fresh session. The re-pointing is
  * dropped, the walk back from the new session finds nothing, and the
- * conversation the node just let go of comes back under Unassigned, offering
- * itself to the one node that would refuse it.
+ * conversation the node just let go of comes back as a chat nobody claims,
+ * offered to the one node that would refuse it.
  *
  * WHAT IT COSTS is the drawn line in the rare disagreement: a conversation olai
  * re-pointed away from AND somebody later cleared in a terminal says *superseded

@@ -372,8 +372,9 @@ export interface Panel {
    * not say whose.
    *
    * Same shape and same silence as {@link Panel.assigned}, and what a lost write
-   * costs here is one old session appearing under Unassigned as a conversation
-   * nobody claims, which somebody can see and nothing acts on.
+   * costs here is one old session coming back as a conversation nobody claims
+   * — re-filed into Chats and offered back to the node that had just left it,
+   * which somebody can see and nothing acts on.
    */
   readonly replaced: (to: Conversing, by: Conversing) => Effect.Effect<void>
   /**
@@ -782,11 +783,10 @@ const assignLost = (failure: Memory.MemoryFailure): string =>
   `a chat was assigned to a node agent and that it was ASSIGNED could not be written down ` +
   `(${failure.why}) — the pointer landed, and the session will be taught the ordinary ` +
   `contract rather than the one that asks it to bank what it knows`
-
 const replaceLost = (failure: Memory.MemoryFailure): string =>
   `a node agent was given a fresh session and what it replaced could not be written down ` +
-  `(${failure.why}) — the new session is bound, and the old one will show under Unassigned ` +
-  `as a conversation no node claims`
+  `(${failure.why}) — the new session is bound, and the old one comes back as a chat ` +
+  `no node claims, re-filed into Chats`
 
 export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, never> =>
   Effect.gen(function*() {
