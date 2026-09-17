@@ -431,7 +431,7 @@ Feature: Documents
       """
       # Palette
 
-      [the finishes](finishes.md)
+      [the finishes](../finishes.md)
       """
     Then the document is pointed at by 2 things
     When I open what points at the document
@@ -456,7 +456,7 @@ Feature: Documents
       """
       # Palette
 
-      [the top](finishes.md#finishes)
+      [the top](../finishes.md#finishes)
       """
     Then the document is pointed at by 2 things
     When I open what points at the document
@@ -501,7 +501,7 @@ Feature: Documents
       """
       # Palette
 
-      [the quote](reports/q3.pdf)
+      [the quote](../reports/q3.pdf)
       """
     And I open the document "reports/q3.pdf"
     Then the document is pointed at by 1 things
@@ -517,7 +517,7 @@ Feature: Documents
     Given I open the document "finishes.md"
     When I rewrite "_olai/Trash.olai" as:
       """
-      {"id":"old-notes","ord":"a0","title":"the old finishes notes","desc":"[finishes](finishes.md)"}
+      {"id":"old-notes","ord":"a0","title":"the old finishes notes","desc":"[finishes](../finishes.md)"}
       """
     Then the document is pointed at by 1 things
     When I open what points at the document
