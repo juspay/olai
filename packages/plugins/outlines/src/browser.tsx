@@ -118,6 +118,8 @@ export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slot
     const fields = createFields()
     const air = createAir()
     const stops = [holdUndo(undo), holdReadings(readings), holdFields(fields), holdAir(air), openOverlaySocket()]
+    createRefiling({ ask: request => runAsync(client().procedures.nodes.homes(request)),
+      reachable: () => reachable(connectionReadout()) })
     return {
       value: { client, undo, readings, fields, air, references, overlay: overlayRoot } satisfies OutlinesBrowser,
       dispose: () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearRowForms(); clearFocus(); clearDeclared() },
