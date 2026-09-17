@@ -7,7 +7,6 @@ import { expect, test } from "bun:test"
 import { printAddress } from "./address.ts"
 import {
   bytesOf,
-  bodiedOf,
   bracketSpacedLinks,
   firstLine,
   isAsset,
@@ -77,38 +76,6 @@ test("only a relative picture is drawn at all", () => {
   }
 })
 
-// A link between two `.md` files is the way a vault of Markdown points at
-// itself, and it lands beside the file that WROTE it — the same arithmetic a
-// picture already uses, which is why they are one resolver.
-test("a relative link to a document resolves beside the file that names it", () => {
-  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
-    .toBe("projects/deck.md")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
-  // A note is written in an OUTLINE, and a link in one resolves the same way.
-  expect(bodiedOf(TEST_CLAIMS, "house.olai", "finishes.md")).toBe("finishes.md")
-})
-
-// A space in the filename is still a filename. The arithmetic is the same as
-// a name without one: join onto the writer, clamp `..`, and a `.md` is a
-// document.
-test("a relative link to a document whose name has spaces resolves beside the file that names it", () => {
-  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../the brief.md"))
-    .toBe("the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "the brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "./the brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "house.olai", "the brief.md")).toBe("the brief.md")
-})
-
-// Markdown's portable spelling of a space in a destination is `%20`. A vault
-// that encoded the name is still pointing at the file, not at a file whose
-// name contains the percent sign.
-test("a percent-encoded space in a document link names the file, not the encoding", () => {
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "the%20brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "house.olai", "the%20brief.md")).toBe("the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../the%20brief.md"))
-    .toBe("the brief.md")
-})
 
 const named = (from: string, prose: string) =>
   linksIn(TEST_CLAIMS, from, prose).map(printAddress)
@@ -178,31 +145,19 @@ test("anything else is not a path this app resolves", () => {
     "the%ZZ.md",
     "%2Fsecret.md",
   ]) {
-    expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", href)).toBeNull()
+    expect(pathedOf("notes/palette.md", href)).toBeNull()
   }
 })
 
 // THE WIDENING of the link rule, and it is the whole of what changed here: a
 // `[…](…)` names whichever served file it resolves to, whatever kind page it
 // carries. An outline is a document with a page and a reading of its own; a
-// `.pdf` is a body; a picture is a file the picture kind claims. `bodiedOf`
-// still keeps its own list — it is the RENDERER's half, asked where the
-// directory cannot be — but a link is read by the reader, and the reader
-// knows the set gives every file a page.
+// `.pdf` is a body; a picture is a file the picture kind claims. The reader's
+// resolver asks no kind question, because the set gives every file a page.
 test("a relative link names any served file, not only a body", () => {
   expect(pathedOf("notes/palette.md", "garden.olai")).toBe("notes/garden.olai")
   expect(pathedOf("notes/palette.md", "../garden.olai")).toBe("garden.olai")
   expect(pathedOf("notes/palette.md", "../../README")).toBe("README")
-})
-
-test("bodiedOf refuses a file with no body, where pathedOf does not", () => {
-  for (const href of [
-    "garden.olai",
-    "README",
-  ]) {
-    expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", href)).toBeNull()
-    expect(pathedOf("notes/palette.md", href)).not.toBeNull()
-  }
   // …and where the WIDER rule lands: a link names the file whatever kind
   // page it carries, because the set serves every file.
   expect(named("notes/palette.md", "[the garden](garden.olai)"))
@@ -216,9 +171,12 @@ test("bodiedOf refuses a file with no body, where pathedOf does not", () => {
 // a `[shot](art/handle.png)` in somebody's notes becomes a link olai can
 // follow, and the picture's page is what it opens.
 test("a relative link to a picture, a csv or a pdf is one too", () => {
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "../art/handle.png")).toBe("art/handle.png")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "sales.csv")).toBe("notes/sales.csv")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "../q3.pdf")).toBe("q3.pdf")
+  // The kind half of that question is the RENDERER's, answered where the
+  // directory cannot be asked: only a body has a page of its own (a `.pdf`
+  // is a body, an outline is a tree, a picture is not a page).
+  expect(pathedOf("notes/palette.md", "../art/handle.png")).toBe("art/handle.png")
+  expect(pathedOf("notes/palette.md", "sales.csv")).toBe("notes/sales.csv")
+  expect(pathedOf("notes/palette.md", "../q3.pdf")).toBe("q3.pdf")
 })
 
 // The suffixes MARKDOWN may name, which is the registry's picture kind minus

@@ -19,7 +19,7 @@
  *     date derivations (`datedDays`, `datedOn`, and the daily-note pair
  *     `dailyNoteDays` / `dailyNotesOn`), the forward reading of those same
  *     dates (`isOverdue`, `agendaOf`) and the document rules (`pathedOf`,
- *     `isPicture`, `isAsset`, `bodiedOf`) — so a reader and the validator agree on
+ *     `isPicture`, `isAsset`) — so a reader and the validator agree on
  *     sibling order, mirror expansion, one node's ancestry, what is standing in
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
@@ -264,7 +264,6 @@ export {
   writtenAddress,
 } from "./address.ts"
 export {
-  bodiedOf,
   bracketSpacedLinks,
   bytesOf,
   firstLine,
@@ -272,8 +271,8 @@ export {
   isPicture,
   servingOf,
   /** The path in this directory a relative reference names, whatever kind of
-   *  file it is — the same arithmetic and refusals as the two above with no
-   *  suffix allowlist at the end, for the caller that can ask the directory
+   *  file it is — the same arithmetic and refusals as the picture rule, with
+   *  no suffix allowlist at the end, for the caller that can ask the directory
    *  itself whether it serves the answer. */
   pathedOf,
   pictureOf,

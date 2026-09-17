@@ -62,9 +62,10 @@
  * land; its tags are the `#topic` and `@person` in its prose, read by the same
  * walk that reads a note's; its elements are the slugs of its headings. Those
  * were four helpers scattered across two packages, called by whoever
- * remembered them ({@link ./documents.ts}'s `firstLine` and `bodiedOf` were
- * both, and the browser had a `preview.ts` of its own). They are FIELDS now,
- * which is the whole difference: a consumer cannot forget to call a field.
+ * remembered them ({@link ./documents.ts}'s `firstLine` and the whole of the
+ * browser's link rewriting were both, and the browser had a `preview.ts` of
+ * its own). They are FIELDS now, which is the whole difference: a consumer
+ * cannot forget to call a field.
  *
  * **...and one field that is not derived at all.** `props` is a `.md`'s YAML
  * frontmatter, read by {@link ./frontmatter.ts} — the document's own authored

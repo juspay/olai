@@ -118,59 +118,28 @@ const decodedSegment = (segment: string): string | null => {
   }
 }
 
-/**
- * The file WITH A PAGE that a markdown `[…](…)` names, as a path relative to
- * the served directory — or `null` for a link that names none.
- *
- * The vault case, and the reason it exists: a directory of `.md` files links
- * between them with plain relative paths (`../projects/deck.md`), and a
- * renderer that left those alone would hand the browser an address relative to
- * whatever ROUTE the page happens to be at — which is the document's own
- * directory by luck, and the wrong place everywhere else. Resolved
- * here instead, beside the file the link was WRITTEN in, exactly as a relative picture is.
- *
- * The same address rule as {@link pictureOf} — one {@link relativeTo} between
- * them — and a different question at the end of it: a file whose content is a
- * BODY ({@link bodyKind}), so `README` and `art/handle.png` are not, and a
- * `.md` or a `.html` anywhere under the root is. It is the registry's question
- * rather than "is it a document" because the answer it decides is whether the
- * app has a page to open, and that is exactly what a body means — a link to a
- * saved `report.html` beside the notes is one a reader can follow now, and it
- * used to be a full page load to an address resolved against whatever they were
- * reading.
- *
- * Whether the directory actually HOLDS the answer is not asked here, and that
- * is deliberate: this package knows the arithmetic, the page model knows what
- * was found, and a link to a file that is not there is answered by the screen
- * that says so rather than by a link that silently was not one.
- */
-export const bodiedOf = (claims: Claims, from: string, href: string): string | null => {
-  const resolved = relativeTo(from, href)
-  return resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
-}
 
 /**
- * The same arithmetic with NO KIND QUESTION at the end of it: the path in this
- * directory that a relative reference names, whatever suffix it turns out to
- * have — or `null` for a string that names no path at all.
+ * The path in this directory that a relative reference names, whatever suffix
+ * it turns out to have — or `null` for a string that names no path at all.
  *
- * The third sibling of {@link pictureOf} and {@link bodiedOf}, and the one that
- * asks less rather than more. The other two end at an allowlist because their
- * callers cannot ask the directory: a markdown renderer rewrites an `href`
- * without knowing what the vault holds, so "is this a picture" and "does this
- * have a page" have to be answered from the name. THIS one's caller can ask —
- * a property value becomes a link only where the tab is holding the path in its
- * file list (`@olai/web`'s `props/door.ts`) — and existence is a stronger
- * answer than any suffix rule: it lets an `.olai` be named, which `bodyKind`
- * refuses because an outline is a tree rather than a body, and it refuses a
- * `.md` the directory has not got, which `bodiedOf` deliberately allows.
+ * THE SIBLING of {@link pictureOf}, and the one that asks less rather than
+ * more. The picture rule ends at an allowlist because its caller cannot ask
+ * the directory: a markdown renderer rewrites an `href` without knowing what
+ * the vault holds, so "is this a picture" has to be answered from the name.
+ * THIS one's caller can ask — a property value becomes a link only where the
+ * tab is holding the path in its file list (`@olai/web`'s `props/door.ts`) —
+ * and existence is a stronger answer than any suffix rule: it lets an `.olai`
+ * be named, which `bodyKind` refuses because an outline is a tree rather than
+ * a body, and it refuses a `.md` the directory has not got, which a rendered
+ * link would otherwise rewrite for a page the vault does not have.
  *
  * WHAT IT STILL OWNS is the half that is not the suffix, and it is the half
  * that matters: {@link relativeTo}'s refusals — no scheme, no `//host`, no
  * absolute path, no bare fragment — and {@link resolveRelative}'s clamping of
- * `..` to the served root. Those are one spelling for all three of these, which
- * is exactly the arrangement the paragraph above {@link relativeTo} is written
- * to keep.
+ * `..` to the served root. Those are one spelling for both of these, which
+ * is exactly the arrangement the paragraph above {@link relativeTo} is
+ * written to keep.
  */
 export const pathedOf = (from: string, href: string): string | null =>
   relativeTo(from, href)
@@ -551,8 +520,8 @@ export const proseLinks = (text: string): ReadonlyArray<string> =>
  *
  * The scan above already names those files. The renderer goes through a
  * parser that will not: a space inside parentheses is not a destination, so
- * `[the brief](the brief.md)` never becomes an `<a>` and there is nothing
- * for {@link bodiedOf} to rewrite. Wrapping the destination — and only the
+ * `[the brief](the brief.md)` never becomes an `<a>` and the page's own
+ * resolver never sees the name. Wrapping the destination — and only the
  * destination, so an optional title stays a title — is the one edit that
  * makes the two readings agree, and it is this scan's inverse rather than
  * a second parser.
@@ -672,9 +641,11 @@ export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Add
  * gives EVERY file a page. An outline is a document with a page and a
  * reading of its own, a `.pdf` is a body whose page draws it, and `![](…)`,
  * which {@link eachTarget} reads as a link with an empty label, names the
- * same document an `[…](…)` would. `bodiedOf` stays for the renderer's half
- * of the same question — what a rewritten `href` is allowed to point at —
- * and it is NOT asked here. */
+ * same document an `[…](…)` would. The renderer's own half of the same
+ * question — what a rewritten `href` is allowed to point at — asks
+ * {@link bodyKind} directly and is NOT this one. This one reads the whole
+ * grammar — the path, the kind it names, and the address it is spelled as —
+ * and the renderer's narrower question is its own. */
 const linkTo = (claims: Claims, from: string, href: string): Address | null => {
   const cut = href.indexOf("#")
   if (cut === 0) return addressOf(claims, null, href.slice(1))
