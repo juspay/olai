@@ -41,7 +41,7 @@ import {
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 Then(
-  "the page says it is referenced by {int} nodes",
+  "the page says it is referenced by {int} things",
   async function (this: OlaiWorld, many: number) {
     await this.expectAttribute(
       BACKLINKS,

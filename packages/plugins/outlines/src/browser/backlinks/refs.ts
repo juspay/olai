@@ -63,6 +63,10 @@ import { type NodeRef, refOf } from "../ref.ts"
 export interface DocRef {
   readonly kind: "doc"
   readonly path: string
+  /** The body's own title — what a row of it is CALLED, the same answer the
+   *  markdown plugin's referrers draw. A path would say where; the section
+   *  says what the thing is. */
+  readonly title: string
 }
 
 /** The rows the referrers are drawn as, once somebody has opened the section.
@@ -81,5 +85,7 @@ export const rowsOf = (
 
 const refsOf = (found: ReadonlyArray<Reference>, way: Way): ReadonlyArray<NodeRef | DocRef> =>
   found.flatMap((one): ReadonlyArray<NodeRef | DocRef> => (one.ways.includes(way)
-    ? ("path" in one.source ? [{ kind: "doc", path: one.source.path }] : [refOf(one.source)])
+    ? ("path" in one.source
+      ? [{ kind: "doc", path: one.source.path, title: one.source.title }]
+      : [refOf(one.source)])
     : []))

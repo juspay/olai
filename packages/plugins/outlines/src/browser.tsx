@@ -50,8 +50,7 @@ import { createReadings, holdReadings } from "./browser/reading.tsx"
 import { createAir, holdAir } from "./browser/drag/air.ts"
 import { createFields, holdFields } from "./browser/drag/fields.ts"
 import { clearRowForms } from "./browser/date/memory.tsx"
-import { clearBacklinks } from "./browser/backlinks/Backlinks.tsx"
-import { clearEditorMemory } from "./browser/edit/memory.ts"
+
 import { followDensity } from "./browser/settings/density.ts"
 import { followDonePrefs } from "./browser/settings/done.ts"
 import { followFolds } from "./browser/fold/memory.ts"
@@ -60,6 +59,9 @@ import { NodeTitle } from "./browser/NodeTitle.tsx"
 import { atFile } from "olai-plugin-navigation/routes"
 import { DatedRow } from "./browser/DatedRow.tsx"
 import { OutlinePageView } from "./browser/PageView.tsx"
+
+import { holdBacklinksMemory } from "./browser/backlinks/memory.ts"
+import { clearEditorMemory } from "./browser/edit/memory.ts"
 import { PreferenceRows } from "./browser/PreferenceRows.tsx"
 import { runAsync } from "@olai/web/client/run.ts"
 import { connectionReadout } from "@olai/web/client/wire.ts"
@@ -115,12 +117,12 @@ export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slot
     const fields = createFields()
     const air = createAir()
     const stops = [holdUndo(undo), holdReadings(readings), holdFields(fields), holdAir(air),
-      openOverlaySocket()]
+      openOverlaySocket(), holdBacklinksMemory()]
     createRefiling({ ask: request => runAsync(client().procedures.nodes.homes(request)),
       reachable: () => reachable(connectionReadout()) })
     return {
       value: { client, undo, readings, fields, air, references, overlay: overlayRoot } satisfies OutlinesBrowser,
-      dispose: () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearRowForms(); clearBacklinks(); clearFocus(); clearDeclared() },
+      dispose: () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearRowForms(); clearFocus(); clearDeclared() },
     }
   })), state => Effect.sync(state.dispose))
   const offers = yield* Offers

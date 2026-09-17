@@ -72,5 +72,5 @@ test("a body's link is a doc row, named by the file it was written in", () => {
     "herbs",
     [["notes.md", "# notes\n\n[the herb bed](#herbs) is outside"]],
   ))
-  expect(rows.link).toEqual([{ kind: "doc", path: "notes.md" }])
+  expect(rows.link).toEqual([{ kind: "doc", path: "notes.md", title: "notes" }])
 })

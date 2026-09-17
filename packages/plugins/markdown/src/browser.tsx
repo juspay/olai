@@ -32,15 +32,16 @@ import { holdRouting } from "./browser/routing.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
+import { holdReferrersMemory } from "./browser/document/referrer-memory.ts"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
-import { MarkdownPageView } from "./browser/PageView.tsx"
 import { documentFile } from "./browser/document-route.ts"
-import { NewDocument } from "./browser/document/NewDocument.tsx"
-import { propertyRoutes } from "olai-plugin-outlines/contract"
+import { MarkdownPageView } from "./browser/PageView.tsx"
 import { atFile } from "olai-plugin-navigation/routes"
 import { name, browserState, documentBodies, properties, type MarkdownBrowser } from "./index.ts"
 import { client } from "./client.ts"
 import { runAsync } from "@olai/web/client/run.ts"
+import { NewDocument } from "./browser/document/NewDocument.tsx"
+import { propertyRoutes } from "olai-plugin-outlines/contract"
 
 export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect.gen(function*() {
   const ownWire = yield* Wired
@@ -56,7 +57,7 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
   const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
     const documents = createDocuments()
     const history = createUndo(edit => runAsync(writeEdit(edit)))
-    const release = [holdDocuments(documents), holdHistory(history)]
+    const release = [holdDocuments(documents), holdHistory(history), holdReferrersMemory()]
     return {
       value: { client, documents, history, editing: { openCreated } } satisfies MarkdownBrowser,
       dispose: () => { dispose(); for (const stop of release) stop(); clearDocumentDrafts(); clearMinted() },

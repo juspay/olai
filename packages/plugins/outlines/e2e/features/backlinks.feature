@@ -35,7 +35,7 @@ Feature: Referenced by — a zoomed node says what points at it
   Scenario: A node that is pointed at says so, and starts shut
     # `order` (house.olai) sees `herbs` (garden.olai), which is the one `see` in
     # this corpus and the only thing that counts here.
-    Then the page says it is referenced by 1 nodes
+    Then the page says it is referenced by 1 things
     And the referenced-by section is collapsed
     When I open the referenced-by section
     Then the referenced-by "sees this" row reads "order the new cabinets"
@@ -58,7 +58,7 @@ Feature: Referenced by — a zoomed node says what points at it
     # things referring to it. A view is not a claim.
     Given I open the node "kitchen-herbs"
     Then the zoomed node is "herbs"
-    And the page says it is referenced by 1 nodes
+    And the page says it is referenced by 1 things
     When I open the referenced-by section
     Then the referenced-by "sees this" row reads "order the new cabinets"
     And there should be no page errors
@@ -72,7 +72,7 @@ Feature: Referenced by — a zoomed node says what points at it
     # The archived record does BOTH things this section draws, and neither
     # reaches the page: what arrives is the live mention, so the count is two
     # rather than three and each row holds exactly the live half.
-    Then the page says it is referenced by 2 nodes
+    Then the page says it is referenced by 2 things
     When I open the referenced-by section
     Then the referenced-by "sees this" row reads "order the new cabinets"
     And the referenced-by "mentions this" row reads "look at @herbs before Tuesday"
@@ -84,7 +84,7 @@ Feature: Referenced by — a zoomed node says what points at it
   Scenario: A reference written elsewhere arrives while the section is open
     When I open the referenced-by section
     And another writer adds "look at @herbs before Tuesday" to "garden.olai"
-    Then the page says it is referenced by 2 nodes
+    Then the page says it is referenced by 2 things
     # The section a reader opened stays open when the set moves under it — the
     # list grows in place rather than shutting and starting again.
     And the referenced-by section is still open
@@ -95,14 +95,14 @@ Feature: Referenced by — a zoomed node says what points at it
 
   Scenario: A word taken back out takes its entry with it
     When another writer adds "look at @herbs before Tuesday" to "garden.olai"
-    And the page says it is referenced by 2 nodes
+    And the page says it is referenced by 2 things
     And I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
       {"id":"outsider","ord":"z0","title":"look at nothing in particular"}
       """
-    Then the page says it is referenced by 1 nodes
+    Then the page says it is referenced by 1 things
     And the page has not reloaded
     And there should be no page errors
 
@@ -125,7 +125,7 @@ Feature: Referenced by — a zoomed node says what points at it
       """
     # THREE would be counting links; the count is the records that refer, and
     # `order` is one record saying two things.
-    Then the page says it is referenced by 2 nodes
+    Then the page says it is referenced by 2 things
     When I open the referenced-by section
     Then the referenced-by "sees this" row reads "order the new cabinets for @herbs"
     # CORPUS ORDER, whichever index found them: garden.olai sorts before
