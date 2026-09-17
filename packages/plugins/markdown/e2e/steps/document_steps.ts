@@ -25,6 +25,7 @@ import {
   DOCUMENT_REFERRERS,
   HYDRATION_TIMEOUT,
   NOTHING,
+  detailsOpen,
   oneLine,
   POLL_TIMEOUT,
   PROP,
@@ -411,6 +412,32 @@ Then(
       String(total),
       "what points at the document",
       HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+// The same `<details>` answer the node page's section carries: shut is the
+// default, and "still open" is the claim a rebuild owes the reader.
+Then(
+  "the what-points-at section is still open",
+  async function (this: OlaiWorld) {
+    const section = this.page.locator(DOCUMENT_REFERRERS).first();
+    await section.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.ok(
+      await detailsOpen(section),
+      "what points at the document shut under the reader when the set moved",
+    );
+  },
+);
+
+// The absence half: a document nobody points at draws nothing, the same rule
+// every relation row on a node's page follows.
+Then(
+  "the document's page draws no what-points-at section",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () => (await this.page.locator(DOCUMENT_REFERRERS).count()) === 0,
+      "what points at the document to be absent",
     );
   },
 );

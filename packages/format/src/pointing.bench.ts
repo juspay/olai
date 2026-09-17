@@ -8,17 +8,20 @@
  * laptop sample this repository has already retired once.
  *
  * THE COST THE ROADMAP NAMED (`perf-doc-backlinks-index`) is a page's, and it
- * was paid on every published revision: `referrersTo` tested every link of
- * every face in the directory, per revision, per tab sitting on any `.md` or
- * `.html` page. So the arms are the two halves of what a revision costs that
- * page, and BOTH are printed — because this index is a TRADE and printing one
- * half would be quoting the good one. The walk cost a page and nothing per
+ * was paid on every published revision: the reverse reading tested every link
+ * of every face in the directory, per revision, per tab sitting on any `.md`
+ * or `.html` page. So the arms are the two halves of what a revision costs
+ * that page, and BOTH are printed — because this index is a TRADE and printing
+ * one half would be quoting the good one. The walk cost a page and nothing per
  * write; the index costs a page much less and every revision something.
  *
- *   - `read` — answering "who points here" once. The `scan` arm is that walk as
- *     it stood (`./pointing.testlib.ts`, one copy, shared with the
- *     differential); the `index` arm is one lookup and then the same walk of
- *     the files that really do point here.
+ *   - `read` — answering "who points here" once, BOTH arms printed so the
+ *     trade is stated whole. The `scan` arm is the walk as it stood
+ *     (`./pointing.testlib.ts`, one copy, shared with the differential); the
+ *     `index` arm is the same question off the carried map, `pointingAt` —
+ *     one lookup, and the entry found is already the record-granular answer
+ *     (which record wrote it, and where in the body), because the fold files
+ *     one entry per source with its `at` rather than one per file.
  *   - `read (unpointed)` — the same question about a page NOTHING points at,
  *     which is most pages in most directories. It is the row that shows the
  *     shape of the change rather than one corpus's constant: the scan's cost is
@@ -29,13 +32,12 @@
  *     what a first load costs; `carry` is {@link repointed} over the two sets,
  *     which is the step a revision actually takes.
  *
- * WHAT THE READ ARM STILL PAYS, said here so the ratio is read for what it is:
- * an outline that points here is opened and its records asked which of THEM
- * wrote the link (`recordLinks`, the same function that built the face). That
- * walk is the old code's too and this index does not remove it — what it
- * removes is opening every OTHER file in the directory. On a corpus where every
- * body is pointed at by dozens of outlines, that record walk is most of what is
- * left, which is why the `unpointed` row is beside it.
+ * WHAT THE READ ARM NO LONGER PAYS, said here so the ratio is read for what it
+ * is: the walk that opened an outline and asked its records which of THEM
+ * wrote the link (`recordLinks`) is AT THE FOLD — it names the `at` the index
+ * carries, so a read is lookups over the map, however many sources answer.
+ * What a revision still pays is the fold's own cost ({@link repointed}) and
+ * nothing per page.
  *
  * THE VAULT IS GENERATED (`./pointing.testlib.ts`'s `linkyVault`) rather than
  * read, so the figure is reproducible and is about a stated shape: outlines
@@ -46,7 +48,7 @@
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { addressOf } from "./address.ts"
-import { referrersTo } from "./backlinks.ts"
+import { referencesOf } from "./backlinks.ts"
 import { alternating, median, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import {
@@ -119,15 +121,15 @@ const unpointed = addressOf(TEST_CLAIMS, "nobody-points-here.md", null)!
 
 // ── the arms ───────────────────────────────────────────────────────────
 
-const readIndex = (pointing: Pointing, at: Reading, which = open): number =>
-  which.reduce((held, address) => held + referrersTo(address, pointing, at.derived).length, 0)
+const readIndex = (at: Reading, which = open): number =>
+  which.reduce((held, address) => held + referencesOf(at, address).length, 0)
 
 const readScan = (at: Reading, which = open): number =>
   which.reduce((held, address) => held + scannedReferrers(address, faces, at.derived).length, 0)
 
 /** The answers are compared before anything is timed: two arms that disagree
  *  are not two arms of one comparison. */
-const drawn = readIndex(first.at.pointing, first.at)
+const drawn = readIndex(first.at)
 if (drawn !== readScan(first.at)) {
   throw new Error("the two read arms disagree, so there is nothing to compare")
 }
@@ -135,13 +137,13 @@ if (drawn !== readScan(first.at)) {
 const ROUNDS = 9
 
 const [scan, index] = alternating(
-  [() => readScan(first.at), () => readIndex(first.at.pointing, first.at)],
+  [() => readScan(first.at), () => readIndex(first.at)],
   ROUNDS,
 )
 const [scanCold, indexCold] = alternating(
   [
     () => readScan(first.at, [unpointed]),
-    () => readIndex(first.at.pointing, first.at, [unpointed]),
+    () => readIndex(first.at, [unpointed]),
   ],
   ROUNDS,
 )
@@ -155,12 +157,12 @@ const pairs = readings.slice(1).map((one, at) => ({
   now: one.set,
   before: (readings[at] as { readonly at: Reading }).at.pointing,
 }))
-const carries = pairs.map((pair) => timed(() => repointed(pair.before, pair.was.documents, pair.now.documents)))
-const rebuilds = pairs.map((pair) => timed(() => pointingOf(pair.now.documents)))
+const carries = pairs.map((pair) => timed(() => repointed(pair.before, TEST_CLAIMS, pair.was.documents, pair.now.documents)))
+const rebuilds = pairs.map((pair) => timed(() => pointingOf(TEST_CLAIMS, pair.now.documents)))
 
 /** …and how many of those edits handed the index straight on, uncloned. */
 const carried = pairs.filter((pair) =>
-  repointed(pair.before, pair.was.documents, pair.now.documents) === pair.before
+  repointed(pair.before, TEST_CLAIMS, pair.was.documents, pair.now.documents) === pair.before
 ).length
 
 /** How thickly the corpus points at its own bodies — printed because the read
@@ -169,7 +171,7 @@ const carried = pairs.filter((pair) =>
  *  here. A directory whose pages have a handful of referrers each sees the
  *  `unpointed` row; one whose every page has dozens sees the `read` row. */
 const density = bodies
-  .map((path) => referrersTo(addressOf(TEST_CLAIMS, path, null)!, first.at.pointing, first.at.derived).length)
+  .map((path) => referencesOf(first.at, addressOf(TEST_CLAIMS, path, null)!).length)
   .sort((one, other) => one - other)
 
 console.log(

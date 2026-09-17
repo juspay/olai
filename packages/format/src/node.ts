@@ -482,10 +482,20 @@ export const isRegular = (at: Located): at is LocatedRegular => !isMirror(at.nod
 export const storedMarker = (node: RegularNode): Status | undefined =>
   MARKS.find((mark) => node[mark] !== undefined)
 
-/** Ids are slugs — a chosen name or a minted short string. The shape is
- *  checked rather than assumed because ids appear in URLs, in `#tag`-adjacent
- *  text and as bare wire keys. */
-export const ID_SHAPE = /^[A-Za-z0-9_-]+$/
+/** THE ONE ALPHABET a tag name and a node id are written in — letters, digits,
+ *  `_`, `-` and `/`, the last so `#work/olai` is one tag. Declared HERE rather
+ *  than beside the tag grammar (`./derive.ts`) or the completion
+ *  (`@olai/web`'s client): this is the leaf everything downstream already
+ *  imports, so a heartbeat where the id rule and the grammar drifted apart
+ *  would be an id nobody can mention and a completion offering ids its own
+ *  trigger cannot see, two ways to learn the same lesson. */
+export const MENTION_ALPHABET = "A-Za-z0-9_/-"
+
+/** Ids are `MENTION_ALPHABET` tags — a chosen name or a minted short string,
+ *  spelling in the one alphabet a mention of an id can be written in. The
+ *  shape is checked rather than assumed because ids appear in URLs, in
+ *  `#tag`-adjacent text and as bare wire keys. */
+export const ID_SHAPE = new RegExp(`^[${MENTION_ALPHABET}]+$`)
 
 /** The edge fields, and the order the validator reports them in. `blocks` is
  *  sugar — `a blocks b` means `b after a` — so it is normalised into `after`

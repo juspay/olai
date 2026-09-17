@@ -83,7 +83,8 @@ const CATALOGUE = {
   /** The object is not a well-formed record: a field has the wrong type, an
    *  unknown field is present, or a required one is missing. */
   "bad-record": "line",
-  /** `id` is not a slug: `[A-Za-z0-9_-]+`. */
+  /** `id` is not in the mention alphabet (`MENTION_ALPHABET`): `/` included,
+   *  so every id a `@` can name is legal, and nothing else. */
   "bad-id": "line",
   /** Two of `done`, `doing` and `todo` are set; at most one may be. */
   "several-marks": "line",

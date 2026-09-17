@@ -8,6 +8,7 @@ import {
   TRASH,
   TRASH_FILE,
   ID_SHAPE,
+  MENTION_ALPHABET,
   INBOX,
   inboxIn,
   inOlaiDir,
@@ -63,10 +64,16 @@ test("the two shapes share placement and nothing else", () => {
 })
 
 // The id alphabet is published because ids travel into URLs and wire keys, so
-// the layers that mint or accept an id check against this very regex.
-test("ID_SHAPE admits slugs and nothing else", () => {
-  expect(ID_SHAPE.test("kitchen-2_a")).toBe(true)
-  for (const bad of ["", "has space", "dot.ted", "sla/sh", "hash#", "uni¢ode"]) {
+// the layers that mint or accept an id check against this very regex. It IS
+// the mention alphabet (`MENTION_ALPHABET`, imported and asserted here rather
+// than trusted): an id nobody can be mentioned with is an id the backlinks
+// reading can never draw, so the two shapes cannot be allowed to drift.
+test("ID_SHAPE is the mention alphabet, and nothing else admits", () => {
+  expect(MENTION_ALPHABET).toContain("A")
+  for (const good of ["kitchen-2_a", "work/olai"]) {
+    expect(ID_SHAPE.test(good)).toBe(true)
+  }
+  for (const bad of ["", "has space", "dot.ted", "hash#", "uni¢ode"]) {
     expect(ID_SHAPE.test(bad)).toBe(false)
   }
 })

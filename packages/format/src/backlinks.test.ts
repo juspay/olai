@@ -1,22 +1,34 @@
 /**
- * What refers to a node — the reading, and the four rulings inside it.
+ * What refers to a node — the reading, and the rulings inside it.
  *
- * The INDEXES are held to `derive` by `./patch.test.ts`'s oracle; what is
- * asserted here is the meaning laid over them: which of the things a record can
+ * The INDEX is held to `derive` by `./patch.test.ts`'s oracle; what is
+ * asserted here is the meaning laid over it: which of the things a record can
  * do counts as a reference, which ids a node answers to, and who is left out.
+ *
+ * THE SET'S POINTING INDEX is where the reading looks, and a `Reading` is what
+ * carries both halves of it — so a fixture here is built with {@link readingOf},
+ * the helper that pairs a set with its derived view and its index exactly as
+ * `validate` does in production.
  */
-import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { backlinksOf } from "./backlinks.ts"
-import { derive, type Derived } from "./derive.ts"
-import { recordsOf, setOf } from "./fixtures.testlib.ts"
+import { NodeId, type Address } from "./address.ts"
+import { referencesOf } from "./backlinks.ts"
+import { readingOf, setOf } from "./fixtures.testlib.ts"
+import type { Reading } from "./validate.ts"
 
-const viewOf = (files: Record<string, string>): Derived => derive(TEST_CLAIMS, recordsOf(setOf(files)))
+/** The node address the grammar spells, off a plain id — the tests' own
+ *  {@link addressOf}, which needs claims. */
+const atNode = (id: string): Address => ({ kind: "node", id: NodeId.make(id) })
 
-/** A referrer as this suite reads one: which record, and how it refers. */
-const said = (derived: Derived, id: string): ReadonlyArray<string> =>
-  backlinksOf(derived, id).map((one) => `${one.at.node.id} ${one.ways.join("+")}`)
+const viewOf = (
+  files: Record<string, string>,
+  documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
+): Reading => readingOf(setOf(files, documents))
+const said = (view: Reading, id: string): ReadonlyArray<string> =>
+  referencesOf(view, atNode(id)).map((one) =>
+    `${"file" in one.source ? one.source.node.id : one.source.path} ${one.ways.join("+")}`
+  )
 
 const HOUSE = {
   "house.olai": `{"id":"kitchen","ord":"a","title":"kitchen remodel"}\n` +
@@ -30,10 +42,10 @@ test("a `see` lands on the node it names, and so does a word in a note", () => {
 })
 
 test("nothing refers to a node nobody has written about", () => {
-  expect(backlinksOf(viewOf(HOUSE), "kitchen")).toEqual([])
+  expect(referencesOf(viewOf(HOUSE), atNode("kitchen"))).toEqual([])
   // An id the set does not hold has no referrers either — the same empty
   // answer, since this is a lookup rather than a claim about what exists.
-  expect(backlinksOf(viewOf(HOUSE), "nobody")).toEqual([])
+  expect(referencesOf(viewOf(HOUSE), atNode("nobody"))).toEqual([])
 })
 
 test("one record doing both is one referrer saying both, edge first", () => {
@@ -50,7 +62,7 @@ test("`@word` is a reference exactly when a record claims the word", () => {
   // them apart — that is what makes it patchable — so this is the reading's
   // decision, asserted from both sides.
   const files = { "a.olai": `{"id":"note","ord":"a","title":"ask @alice about it"}` }
-  expect(backlinksOf(viewOf(files), "alice")).toEqual([])
+  expect(referencesOf(viewOf(files), atNode("alice"))).toEqual([])
   const claimed = viewOf({ ...files, "b.olai": `{"id":"alice","ord":"a","title":"Alice"}` })
   expect(said(claimed, "alice")).toEqual(["note mention"])
 })
@@ -70,7 +82,7 @@ test("a `#topic` spelled like an id is not a reference, and the `@` beside it is
   })
   // Both keys are really there, so this is the READING choosing between them
   // rather than an index that never filed the topic.
-  expect([...view.taggedBy.keys()].sort()).toEqual(["#herbs", "@herbs"])
+  expect([...view.derived.taggedBy.keys()].sort()).toEqual(["#herbs", "@herbs"])
   expect(said(view, "herbs")).toEqual(["ask mention"])
 })
 
@@ -84,17 +96,18 @@ test("a mention that arrives with the node it names is a reference at once", () 
   expect(said(view, "alice")).toEqual(["note mention"])
 })
 
-test("a placement is not a reference, and neither is an ordering edge", () => {
+test("a body's `@mention` of a node is a reference, with the file as its source", () => {
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed","todo":true}\n` +
-      `{"id":"later","ord":"b","title":"later","after":["herbs"]}\n` +
-      `{"id":"sooner","ord":"c","title":"sooner","blocks":["herbs"]}`,
-    "b.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
-  })
-  // The mirror is drawn where it sits and answered by `outlines_read`'s `mirrors`;
-  // the two ordering edges are drawn as `blocked by` and `after` on the pages
-  // that already say them. None of the three is a reference.
-  expect(backlinksOf(view, "herbs")).toEqual([])
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+  }, [["notes/garden.md", "# the garden\n\nwater the @herbs every morning"]])
+  expect(said(view, "herbs")).toEqual(["notes/garden.md mention"])
+})
+
+test("a body's link onto the node is a reference, way `link`", () => {
+  const view = viewOf({
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+  }, [["notes/garden.md", "# the garden\n\n[the herb bed](#herbs) is outside"]])
+  expect(said(view, "herbs")).toEqual(["notes/garden.md link"])
 })
 
 test("a reference to a PLACEMENT of this node is a reference to this node", () => {
@@ -116,7 +129,7 @@ test("a record never refers to itself, through its own prose or its own placemen
     "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed","desc":"this is @herbs","see":["m"]}`,
     "b.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
   })
-  expect(backlinksOf(view, "herbs")).toEqual([])
+  expect(referencesOf(view, atNode("herbs"))).toEqual([])
 })
 
 test("what is put away is on the Trash and nowhere else", () => {
@@ -147,6 +160,53 @@ test("the referrers come in corpus order, whichever index found them", () => {
       `{"id":"late","ord":"b","title":"late","see":["herbs"]}`,
   })
   expect(said(view, "herbs")).toEqual(["early mention", "late see"])
+})
+
+// ── THE THIRD WAY: a LINK, from a note or a body's prose ────────────────
+//
+// Item 1 of the backlinks plan: a `.md` writing `@herbs` or `[x](#herbs)` was
+// invisible on the herb bed's page, and a record's note `[x](#herbs)` was in
+// `recordLinks` but not a backlink. Both are references now, filed in the
+// pointing index at the fold and read back here.
+
+test("a record's note linking the node is a reference, way `link`", () => {
+  const view = viewOf({
+    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+      `{"id":"note","ord":"b","title":"note","desc":"see [the bed](#herbs) outside"}`,
+  })
+  expect(said(view, "herbs")).toEqual(["note link"])
+})
+
+test("a body's link onto the node is a reference, way `link`", () => {
+  const view = viewOf({
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+  }, [["notes/garden.md", "# the garden\n\n[the herb bed](#herbs) is outside"]])
+  expect(said(view, "herbs")).toEqual(["notes/garden.md link"])
+})
+
+
+test("a document and its headings are the same referrer question", () => {
+  // Links onto a document's heading are filed under the document too, so the
+  // document arm answers whole-document — and the node arm is unaffected.
+  const view = viewOf({
+    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+  }, [["notes/plan.md", "# plan\n\nsee [the bed](#herbs) or [the doc](notes/plan.md)"]])
+  expect(said(view, "herbs")).toEqual(["notes/plan.md link"])
+})
+
+test("the referrers come in byPath order, so a directory sorts before the file beside it", () => {
+  // `wing.olai` and `wing/held.olai` both point at the node; a plain `<`
+  // compare would put `wing.olai` first (`.`, code point 0x2E, before `/`.
+  // 0x2F). The reading uses the same `byPath` the directory is read in, which
+  // sorts the separator first: the file INSIDE `wing/` comes before the file
+  // named `wing.olai` beside it.
+  const view = viewOf({
+    "wing.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+      `{"id":"plan","ord":"b","title":"plan","see":["herbs"]}`,
+    "wing/held.olai": `{"id":"held","ord":"a","title":"held"}\n` +
+      `{"id":"also","ord":"b","title":"also","see":["herbs"]}`,
+  })
+  expect(said(view, "herbs")).toEqual(["also see", "plan see"])
 })
 
 // ── a note is markdown, and this reading is not ────────────────────────
@@ -198,7 +258,7 @@ test("...and a TIGHT code span is not one, on either side", () => {
     "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"tight","ord":"b","title":"tight","desc":"write \`@herbs\` in the note"}`,
   })
-  expect(backlinksOf(view, "herbs")).toEqual([])
+  expect(referencesOf(view, atNode("herbs"))).toEqual([])
 })
 
 test("and the divergence runs the OTHER way too: emphasis is styled and is not a mention", () => {
@@ -213,7 +273,7 @@ test("and the divergence runs the OTHER way too: emphasis is styled and is not a
       `{"id":"emphasised","ord":"b","title":"emphasised","desc":"see *@herbs* today"}\n` +
       `{"id":"strong","ord":"c","title":"strong","desc":"see **@herbs** today"}`,
   })
-  expect(backlinksOf(view, "herbs")).toEqual([])
+  expect(referencesOf(view, atNode("herbs"))).toEqual([])
 })
 
 test("a word inside another word is not a mention", () => {
@@ -224,5 +284,5 @@ test("a word inside another word is not a mention", () => {
     "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"mail","ord":"b","title":"write to sam@herbs.example","desc":"filed under #herbs"}`,
   })
-  expect(backlinksOf(view, "herbs")).toEqual([])
+  expect(referencesOf(view, atNode("herbs"))).toEqual([])
 })

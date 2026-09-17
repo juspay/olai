@@ -76,7 +76,7 @@ import { DeadLink } from "./dead-links.ts"
 import { ClaimData } from "./kinds.ts"
 import { Schema } from "effect"
 
-import { Way } from "./backlinks.ts"
+import { Reference, Way } from "./backlinks.ts"
 import { Custom } from "./custom.ts"
 import { Progress } from "./derive.ts"
 import { MARKS, MirrorNode, RegularNode, Site, STAMPED, Status } from "./node.ts"
@@ -676,26 +676,9 @@ export const ProjectedPlaced = Schema.Struct({
 })
 export type ProjectedPlaced = typeof ProjectedPlaced.Type
 
-/**
- * One record that REFERS to a node, and how — a {@link Found} like every other
- * situated answer, plus the ways.
- *
- * A `Found` rather than a bare id for {@link Placed}'s reason: a reader given a
- * list of referrers wants to know what they ARE — their titles, where they sit,
- * whether they are finished — and a list of ids is a list of second reads.
- *
- * `ways` is `./backlinks.ts`'s own {@link Way}, imported rather than respelled:
- * that module is where the list is CLOSED — the argument that a `see` counts
- * and a placement does not is its header — and a `Schema.Literals` here would
- * be that closure written where nothing argues it. The same arrangement
- * {@link Progress} has with `./derive.ts`. Two entries for one record would be
- * one record said twice, so a record doing both says both in one entry.
- */
-export const Reference = Schema.Struct({
-  ...Found.fields,
-  ways: Schema.Array(Way),
-})
-export type Reference = typeof Reference.Type
+// `Reference` — the one wire shape for who refers to what — lives in
+// ./backlinks.ts, the module that answers the question; this one's ANSWER
+// field reads it. One name, one shape, on every door that asks.
 
 /**
  * What one node's page would say, plus the record itself.
@@ -792,9 +775,10 @@ export const Detail = Schema.Struct({
    *  question the ops layer could not answer at all, and the ledger it was built
    *  for is read by hand again (the 2026-08-11 review). */
   placed: Schema.optionalKey(Schema.Array(Placed)),
-  /** What REFERS to this node — every record whose `see` lands on it and every
-   *  record whose title or note writes its `@id`, each with the ways it does.
-   *  Absent when nothing does, which is most nodes.
+  /** What REFERS to this node — every record whose `see` lands on it, every
+   *  record or body whose title, note or prose writes its `@id`, every link
+   *  onto the node or one of its placements — each with the ways it does, in
+   *  {@link Way} order. Absent when nothing does, which is most nodes.
    *
    *  It is here for {@link Detail.mirrors}' reason read one relation over: a
    *  reference points ONE way on disk, so without this the only way to find
@@ -824,7 +808,6 @@ export const Detail = Schema.Struct({
    * travels in, which is {@link Found} for {@link Reference}'s reason — a
    * reader told only the ids of what it is waiting on is a reader making one
    * more read per blocker to learn whether any of them has moved.
-   *
    * A `Found` and not a narrower shape, and that choice is worth its sentence
    * because two things pull the other way. Every entry here does carry a
    * `status`, and it is `todo` or `doing` — what is in the way is unfinished

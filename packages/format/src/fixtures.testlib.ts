@@ -175,7 +175,7 @@ export const readingOf = (set: OutlineSet, table = TEST_CLAIMS): Reading & { rea
   // backwards (`./pointing.ts`). A `Reading` is what a page is drawn from, so a
   // fixture that left this out would be a reading whose document pages had no
   // referrers and no way to say so.
-  pointing: pointingOf(set.documents),
+  pointing: pointingOf(TEST_CLAIMS, set.documents),
 })
 
 /**

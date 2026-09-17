@@ -118,59 +118,28 @@ const decodedSegment = (segment: string): string | null => {
   }
 }
 
-/**
- * The file WITH A PAGE that a markdown `[…](…)` names, as a path relative to
- * the served directory — or `null` for a link that names none.
- *
- * The vault case, and the reason it exists: a directory of `.md` files links
- * between them with plain relative paths (`../projects/deck.md`), and a
- * renderer that left those alone would hand the browser an address relative to
- * whatever ROUTE the page happens to be at — which is the document's own
- * directory by luck, and the wrong place everywhere else. Resolved
- * here instead, beside the file the link was WRITTEN in, exactly as a relative picture is.
- *
- * The same address rule as {@link pictureOf} — one {@link relativeTo} between
- * them — and a different question at the end of it: a file whose content is a
- * BODY ({@link bodyKind}), so `README` and `art/handle.png` are not, and a
- * `.md` or a `.html` anywhere under the root is. It is the registry's question
- * rather than "is it a document" because the answer it decides is whether the
- * app has a page to open, and that is exactly what a body means — a link to a
- * saved `report.html` beside the notes is one a reader can follow now, and it
- * used to be a full page load to an address resolved against whatever they were
- * reading.
- *
- * Whether the directory actually HOLDS the answer is not asked here, and that
- * is deliberate: this package knows the arithmetic, the page model knows what
- * was found, and a link to a file that is not there is answered by the screen
- * that says so rather than by a link that silently was not one.
- */
-export const bodiedOf = (claims: Claims, from: string, href: string): string | null => {
-  const resolved = relativeTo(from, href)
-  return resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
-}
 
 /**
- * The same arithmetic with NO KIND QUESTION at the end of it: the path in this
- * directory that a relative reference names, whatever suffix it turns out to
- * have — or `null` for a string that names no path at all.
+ * The path in this directory that a relative reference names, whatever suffix
+ * it turns out to have — or `null` for a string that names no path at all.
  *
- * The third sibling of {@link pictureOf} and {@link bodiedOf}, and the one that
- * asks less rather than more. The other two end at an allowlist because their
- * callers cannot ask the directory: a markdown renderer rewrites an `href`
- * without knowing what the vault holds, so "is this a picture" and "does this
- * have a page" have to be answered from the name. THIS one's caller can ask —
- * a property value becomes a link only where the tab is holding the path in its
- * file list (`@olai/web`'s `props/door.ts`) — and existence is a stronger
- * answer than any suffix rule: it lets an `.olai` be named, which `bodyKind`
- * refuses because an outline is a tree rather than a body, and it refuses a
- * `.md` the directory has not got, which `bodiedOf` deliberately allows.
+ * THE SIBLING of {@link pictureOf}, and the one that asks less rather than
+ * more. The picture rule ends at an allowlist because its caller cannot ask
+ * the directory: a markdown renderer rewrites an `href` without knowing what
+ * the vault holds, so "is this a picture" has to be answered from the name.
+ * THIS one's caller can ask — a property value becomes a link only where the
+ * tab is holding the path in its file list (`@olai/web`'s `props/door.ts`) —
+ * and existence is a stronger answer than any suffix rule: it lets an `.olai`
+ * be named, which `bodyKind` refuses because an outline is a tree rather than
+ * a body, and it refuses a `.md` the directory has not got, which a rendered
+ * link would otherwise rewrite for a page the vault does not have.
  *
  * WHAT IT STILL OWNS is the half that is not the suffix, and it is the half
  * that matters: {@link relativeTo}'s refusals — no scheme, no `//host`, no
  * absolute path, no bare fragment — and {@link resolveRelative}'s clamping of
- * `..` to the served root. Those are one spelling for all three of these, which
- * is exactly the arrangement the paragraph above {@link relativeTo} is written
- * to keep.
+ * `..` to the served root. Those are one spelling for both of these, which
+ * is exactly the arrangement the paragraph above {@link relativeTo} is
+ * written to keep.
  */
 export const pathedOf = (from: string, href: string): string | null =>
   relativeTo(from, href)
@@ -391,6 +360,62 @@ const UTF8 = new TextEncoder()
 export const bytesOf = (text: string): number => UTF8.encode(text).length
 
 /**
+ * BLOCK CONTEXT, LOCALLY — the lines that are a fenced or indented code block,
+ * replaced with blank lines so the link scan below never sees inside one.
+ *
+ * List continuation indentation belongs to prose; four further spaces
+ * introduce code within that item. Blank lines retain the list context.
+ * Block context is local to this Markdown source, never shared across fields.
+ */
+const withoutCodeBlocks = (text: string): string => {
+  let listIndent: number | undefined
+  let fence: { marker: string; length: number } | undefined
+  return text.split("\n").map(line => {
+    // List continuation indentation belongs to prose; four further spaces
+    // introduce code within that item. Blank lines retain the list context.
+    const indent = /^( *)/.exec(line)![1]!.length
+    // Literal fence contents cannot change the list context of its closer.
+    if (fence === undefined) {
+      const item = /^( *)(?:[-+*]|\d+[.)]) +/.exec(line)
+      if (item && indent < (listIndent ?? 0) + 4) listIndent = item[0].length
+      else if (line.trim() !== "" && listIndent !== undefined && indent < listIndent) listIndent = undefined
+    }
+    const content = listIndent === undefined ? line : line.slice(Math.min(indent, listIndent))
+    const match = /^(?: {0,3}> ?)* {0,3}(`{3,}|~{3,})(.*)$/.exec(content)
+    if (fence !== undefined) {
+      if (match && match[1]![0] === fence.marker && match[1]!.length >= fence.length && match[2]!.trim() === "") fence = undefined
+      return ""
+    }
+    if (match && (match[1]![0] !== "`" || !match[2]!.includes("`"))) {
+      fence = { marker: match[1]![0]!, length: match[1]!.length }
+      return ""
+    }
+    return /^( {4}|\t)/.test(content) ? "" : content
+  }).join("\n")
+}
+
+/**
+ * INLINE CODE has its own delimiter rules, independent of block indentation —
+ * the mirror half of {@link withoutCodeBlocks}, applied AFTER it so a span
+ * split across nothing a fence let through is still removed.
+ */
+const withoutCodeSpans = (lines: string): string => {
+  let prose = ""
+  for (let i = 0; i < lines.length;) {
+    if (lines[i] === "\\") { prose += lines.slice(i, i + 2); i += 2; continue }
+    if (lines[i] !== "`") { prose += lines[i++]; continue }
+    let end = i
+    while (lines[end] === "`") end++
+    const marker = lines.slice(i, end)
+    let close = lines.indexOf(marker, end)
+    while (close !== -1 && (lines[close - 1] === "`" || lines[close + marker.length] === "`")) close = lines.indexOf(marker, close + marker.length)
+    if (close === -1) { prose += marker; i = end }
+    else { prose += " "; i = close + marker.length }
+  }
+  return prose
+}
+
+/**
  * EVERY ADDRESS A PIECE OF PROSE POINTS AT, in the order it writes them and
  * never twice.
  *
@@ -402,33 +427,34 @@ export const bytesOf = (text: string): number => UTF8.encode(text).length
  *
  * The three things a link here can name are the three the address grammar has:
  *
- *   - `../projects/deck.md` — another document of this directory, resolved
- *     beside the file the link was written in ({@link bodiedOf}, whose refusals
- *     are this function's refusals).
+ *   - `../projects/deck.md` — any relative path: another document, an
+ *     outline, a `.pdf` a page draws, a picture a page opens ({@link pathedOf}'s
+ *     refusals are this function's).
  *   - `notes/README.md#install` — a heading inside one. The fragment is cut off
  *     BEFORE the path is resolved, because `#` is the grammar's punctuation and
  *     `README.md#install` is not a filename.
  *   - `#a1b2c3` — a node, wherever it lives. It is the one link with no
- *     document half, and {@link bodiedOf} refuses it (there is no file there to
- *     resolve), so it is read straight as the address it is.
+ *     document half, and there is no file there to resolve, so it is read
+ *     straight as the address it is.
  *
  * A SCAN, NOT A PARSE, and the boundary is worth naming: this package holds no
  * markdown parser and deliberately does not gain one here (`./derive.ts` makes
  * the same refusal about tags, for the same reason — it is the floor the write
- * gate stands on). So a `[…](…)` inside a fenced code block is a link to this
- * function and is drawn as text by the browser. That direction is the safe one:
- * the cost is a backlink nobody wrote, never a page that will not render.
+ * gate stands on). What the scan DOES know is literal code — a tight or loose
+ * code span, a fenced or indented block — and it removes it BEFORE the links
+ * are read, so a `[…](…)` inside one is not a link at all. That is one
+ * scanner, shared by the faces, the references index and the dead-link
+ * reading: a link in a fence is drawn as text by the browser, and drawing a
+ * backlink or a dead link where the browser draws nothing would be the two
+ * readings of one text.
  *
  * NEVER TWICE, and the container says so: a note that links the same document
  * three times points at it once. What reads this wants the EDGES.
  */
 export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArray<Address> => {
-  // The cheap negative first: nearly every note in a directory holds no link
-  // at all, and this is asked of every record and every body of the set.
-  if (!text.includes("](")) return NO_LINKS
   let found: Array<Address> | undefined
   let seen: Set<string> | undefined
-  for (const href of writtenLinks(text)) {
+  for (const href of proseLinks(text)) {
     const address = linkTo(claims, from, href)
     if (address === null) continue
     const written = printAddress(address)
@@ -451,9 +477,11 @@ export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArr
  * directory and every note in it, which is exactly the input that is not
  * this app's to trust.
  *
- * The scan still does not parse: the label may not hold a `]`, and a
- * `[…](…)` inside a fence is still a link to this function. What it now
- * reads, that the pattern would not, is a filename with a space in it —
+ * The scan still does not parse: the label may not hold a `]`, and code
+ * removal is the CALLER's — {@link proseLinks} strips literal code before it
+ * asks this, while {@link bracketSpacedLinks} reads the raw text, which is
+ * exactly the split a renderer's rewrite needs. What it now reads, that the
+ * pattern would not, is a filename with a space in it —
  * CommonMark's angle-bracketed destination, and the space left raw, which
  * is the spelling people write. An optional title is still dropped: a
  * space that opens `"…"` / `'…'` / `(…)` is markdown's title, not part of
@@ -468,13 +496,25 @@ export const writtenLinks = (text: string): ReadonlyArray<string> => {
 }
 
 /**
+ * THE TARGETS OF LINKS IN RENDERED PROSE — the same scan as
+ * {@link writtenLinks}, with literal code already removed. This is the
+ * scanner every reading of what prose SAYS goes through: {@link linksIn}
+ * resolves these to addresses, and the dead-link reading
+ * (`./dead-links.ts`) asks which of them name nothing served. One scanner,
+ * because a link in a fence is drawn as text by the browser and no reading
+ * may treat it as a link.
+ */
+export const proseLinks = (text: string): ReadonlyArray<string> =>
+  text.includes("](") ? writtenLinks(withoutCodeSpans(withoutCodeBlocks(text))) : []
+
+/**
  * Rewrite a `[…](…)` whose destination holds a space into the angle-bracket
  * form CommonMark's parser will read.
  *
  * The scan above already names those files. The renderer goes through a
  * parser that will not: a space inside parentheses is not a destination, so
- * `[the brief](the brief.md)` never becomes an `<a>` and there is nothing
- * for {@link bodiedOf} to rewrite. Wrapping the destination — and only the
+ * `[the brief](the brief.md)` never becomes an `<a>` and the page's own
+ * resolver never sees the name. Wrapping the destination — and only the
  * destination, so an optional title stays a title — is the one edit that
  * makes the two readings agree, and it is this scan's inverse rather than
  * a second parser.
@@ -549,10 +589,16 @@ const NO_LINKS: ReadonlyArray<Address> = []
  *
  * The forward half of a reference, per record — and it is a function of its own
  * because it is read BOTH WAYS: {@link outlineDocument} folds it into an
- * outline's face, and `./backlinks.ts` reads it backwards to say which record
- * of a file the reference was written in. Two walks of the same fields would be
+ * outline's face, and the references FOLD reads it to say which record of a
+ * file an index entry's `at` came from. Two walks of the same fields would be
  * two answers to "does this node point there", and the page would draw one of
  * them while the face claimed the other.
+ *
+ * The WAYS are kept apart because the fold needs them apart: {@link
+ * recordContributions} is this walk in the index's own vocabulary, so the
+ * fold files a `see` under the id it names and a link under the address it
+ * lands on — and here that is one list, deduped, which is the DRAWING's
+ * answer. One walk, two projections.
  *
  * Three things a record can point at, and one it deliberately cannot:
  *
@@ -572,26 +618,50 @@ const NO_LINKS: ReadonlyArray<Address> = []
  * carrying no prose and no edge fields; what it shows is the node's, and the
  * node is where the reference is written.
  */
-export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Address> => {
-  if (isMirror(located.node)) return NO_LINKS
-  const found: Array<Address> = []
+export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Address> =>
+  recordContributions(claims, located).map((one) => one.address).filter(isAddress)
+
+const isAddress = (address: Address | undefined): address is Address => address !== undefined
+
+/** One record's written targets, in the fold's own vocabulary — what the index
+ *  reads ({@link ./imports.ts}'s `contributionsOf`), in the order the record
+ *  writes them. {@link recordLinks} is its deduped {@link Contribution.address}
+ *  projection; the fold keeps the `way` and the target address for the way the
+ *  index files under. */
+export const recordContributions = (
+  claims: Claims,
+  located: Located,
+): ReadonlyArray<{ readonly way: "see" | "link"; readonly address: Address; readonly at: Located }> => {
+  const found: Array<{ readonly way: "see" | "link"; readonly address: Address; readonly at: Located }> = []
+  if (isMirror(located.node)) return found
   for (const id of located.node.see ?? []) {
     const address = addressOf(claims, null, id)
-    if (address !== null) found.push(address)
+    if (address !== null) found.push({ way: "see", address, at: located })
   }
-  found.push(...linksIn(claims, located.file, located.node.title))
+  for (const address of linksIn(claims, located.file, located.node.title)) found.push({ way: "link", address, at: located })
   if (located.node.desc !== undefined) {
-    found.push(...linksIn(claims, located.file, located.node.desc))
+    for (const address of linksIn(claims, located.file, located.node.desc)) found.push({ way: "link", address, at: located })
   }
   return found
 }
 
 /** What one written link names, or `null` — the grammar's three arms, told
- *  apart by where the `#` is. */
+ *  apart by where the `#` is.
+ *
+ * THE PATH HALF IS WIDE on purpose: any relative path a file of the set could
+ * hold is a document address, whatever suffix it carries, because the set
+ * gives EVERY file a page. An outline is a document with a page and a
+ * reading of its own, a `.pdf` is a body whose page draws it, and `![](…)`,
+ * which {@link eachTarget} reads as a link with an empty label, names the
+ * same document an `[…](…)` would. The renderer's own half of the same
+ * question — what a rewritten `href` is allowed to point at — asks
+ * {@link bodyKind} directly and is NOT this one. This one reads the whole
+ * grammar — the path, the kind it names, and the address it is spelled as —
+ * and the renderer's narrower question is its own. */
 const linkTo = (claims: Claims, from: string, href: string): Address | null => {
   const cut = href.indexOf("#")
   if (cut === 0) return addressOf(claims, null, href.slice(1))
   const path = cut === -1 ? href : href.slice(0, cut)
-  const resolved = bodiedOf(claims, from, path)
+  const resolved = pathedOf(from, path)
   return resolved === null ? null : addressOf(claims, resolved, cut === -1 ? null : href.slice(cut + 1))
 }

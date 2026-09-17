@@ -62,9 +62,10 @@
  * land; its tags are the `#topic` and `@person` in its prose, read by the same
  * walk that reads a note's; its elements are the slugs of its headings. Those
  * were four helpers scattered across two packages, called by whoever
- * remembered them ({@link ./documents.ts}'s `firstLine` and `bodiedOf` were
- * both, and the browser had a `preview.ts` of its own). They are FIELDS now,
- * which is the whole difference: a consumer cannot forget to call a field.
+ * remembered them ({@link ./documents.ts}'s `firstLine` and the whole of the
+ * browser's link rewriting were both, and the browser had a `preview.ts` of
+ * its own). They are FIELDS now, which is the whole difference: a consumer
+ * cannot forget to call a field.
  *
  * **...and one field that is not derived at all.** `props` is a `.md`'s YAML
  * frontmatter, read by {@link ./frontmatter.ts} — the document's own authored
@@ -163,6 +164,19 @@ export const Face = Schema.Struct({
   props: Custom,
 })
 export type Face = typeof Face.Type
+
+/**
+ * A document source's HEAD — its path and its title — the only two facts
+ * about a referring document that the reference reading's consumers read
+ * (`./backlinks.ts`'s `Reference`). The full {@link Face} travels on the
+ * pointing index, which is a read-side structure; the WIRE carries this
+ * projection so that a `Reference` cannot grow a consumer that reaches for a
+ * body-only half of a face (`links`, `tags`, `props`) it was never sent.
+ */
+export interface FaceHead {
+  readonly path: DocumentPath
+  readonly title: string
+}
 
 /**
  * A document's face, on its own — what is known about a file once its CONTENT

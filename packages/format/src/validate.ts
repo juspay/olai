@@ -292,7 +292,7 @@ const degraded = (
       upserts: NO_UPSERTS,
       removes: broken.map((entry) => entry.file),
     }),
-    pointing: repointed(view.pointing, set.documents, withdrawn.documents),
+    pointing: repointed(view.pointing, view.derived.claims, set.documents, withdrawn.documents),
   }
 }
 
@@ -572,7 +572,7 @@ export const following = (
     // offered whichever way the view went — including the rebuild, since a
     // patcher that declined has said nothing at all about what any file points
     // at ({@link viewOf} makes the same call for the same reason).
-    pointing: repointed(read.pointing, read.set.documents, set.documents),
+    pointing: repointed(read.pointing, read.claims, read.set.documents, set.documents),
   }
 }
 
@@ -725,8 +725,8 @@ const viewOf = (claims: Claims, set: OutlineSet, previous: Previous | undefined)
   // derivation gives up on, since a patcher that declined over a duplicate id
   // has said nothing at all about what any file points at.
   const pointing = previous === undefined
-    ? pointingOf(set.documents)
-    : repointed(previous.read.pointing, previous.read.set.documents, set.documents)
+    ? pointingOf(claims, set.documents)
+    : repointed(previous.read.pointing, claims, previous.read.set.documents, set.documents)
   if (previous !== undefined) {
     const view = patched(previous.read.derived, previous.delta)
     if (view !== undefined && isSet(view, set)) {

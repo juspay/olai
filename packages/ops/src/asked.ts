@@ -163,8 +163,8 @@ export const carried = (
     // has written is the document the next op writes over.
     markdown: (path) => {
       const found = written.get(path)
-      if (found === undefined) return base.markdown(path)
-      return isMarkdown(found) ? found : undefined
+      if (found !== undefined) return isMarkdown(found) ? found : undefined
+      return markdownAt(set, path)
     },
   }
 }

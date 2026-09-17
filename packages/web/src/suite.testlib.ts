@@ -121,9 +121,10 @@ export { BROWSER_MODULES_ID } from "@olai/plugin-api/mount"
 //     the panel stores them, so the panel names them;
 //   - `SIDEBAR_WIDTH_KEY` is `olai-plugin-layout/preferences`' — the chrome
 //     that draws the sidebar is the chrome that remembers its width;
-//   - `REFERRINGS`, `IDLE_COMMIT`, `DENSITY_KEY`, `Density`,
+//   - `IDLE_COMMIT`, `DENSITY_KEY`, `Density`,
 //     `DONE_HIDDEN_KEY` and `DONE_OVERRIDES_KEY` are
-//     `olai-plugin-outlines/testlib`'s.
+//     `olai-plugin-outlines/testlib`'s, and the referrers' label↔testid
+//     pairing is the shared section's own (`@olai/markdown-ui`).
 //
 // A PASS-THROUGH IS NOT A SMALLER DEPENDENCY THAN AN IMPORT — it is the same
 // edge with this package's name on it. Those five lines carried four of the

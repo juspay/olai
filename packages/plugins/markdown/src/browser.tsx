@@ -32,15 +32,17 @@ import { holdRouting } from "./browser/routing.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
+import { createReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+import { referrersMemory } from "./browser/memory.ts"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
-import { MarkdownPageView } from "./browser/PageView.tsx"
 import { documentFile } from "./browser/document-route.ts"
-import { NewDocument } from "./browser/document/NewDocument.tsx"
-import { propertyRoutes } from "olai-plugin-outlines/contract"
+import { MarkdownPageView } from "./browser/PageView.tsx"
 import { atFile } from "olai-plugin-navigation/routes"
 import { name, browserState, documentBodies, properties, type MarkdownBrowser } from "./index.ts"
 import { client } from "./client.ts"
 import { runAsync } from "@olai/web/client/run.ts"
+import { NewDocument } from "./browser/document/NewDocument.tsx"
+import { propertyRoutes } from "olai-plugin-outlines/contract"
 
 export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect.gen(function*() {
   const ownWire = yield* Wired
@@ -62,12 +64,22 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
       dispose: () => { dispose(); for (const stop of release) stop(); clearDocumentDrafts(); clearMinted() },
     }
   })), state => Effect.sync(state.dispose))
+  // THE SECTION'S OPEN-STATE MEMORY, minted on THIS activation's scope and
+  // withdrawn with it — held here (the activation that owns it) and offered
+  // behind `markdown.referrer-memory` below, so a flip that removes this row
+  // takes every section's memory off the screen with it
+  // (`./browser/memory.ts`, `./index.ts`'s `referrerMemory`).
+  const memory = createReferrerMemory()
+  yield* Effect.acquireRelease(Effect.sync(() => referrersMemory.hold(memory)), stop => Effect.sync(stop))
   const offers = yield* Offers
   yield* offers.own("browser-state", () => state.value)
   // WHAT A ROW THAT MINTS A DOCUMENT DOES WITH THE ANSWER — offered rather than
   // pushed into a module signal the journal read across the wall
   // (`./index.ts`'s `DocumentActions`).
   yield* offers.own("editing", () => state.value.editing)
+  // ...AND THE SECTION'S MEMORY, for every page that draws the shared section — this
+  // row's own documents, the outline's backlinks, and the four body-page hosts.
+  yield* offers.own("referrer-memory", () => memory)
 }) })
 export const components = {
   glyph: definePlugin({ name: "glyph", needs: [rendererSlots], apply: Effect.gen(function*() {

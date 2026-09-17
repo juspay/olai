@@ -420,6 +420,146 @@ Feature: Documents
     # errors are the sandbox REFUSING it (features/html_preview.feature).
     Then what points at the document is "Finishes"
 
+  # A document is a source exactly as a record is, which is the half this
+  # section exists for: a second `.md` linking `finishes.md` arrives LIVE (a
+  # private scratch copy, since these scenarios write the files they serve)
+  # and leaves when the prose drops it.
+  @scratch:good
+  Scenario: A link in another document's prose arrives and leaves live
+    Given I open the document "finishes.md"
+    And I mark the page
+    When I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      [the finishes](../finishes.md)
+      """
+    Then the document is pointed at by 2 things
+    When I open what points at the document
+    # PATH ORDER, as every referrer list is: house.olai before notes/.
+    Then what points at the document is "install the cabinets, Palette"
+    When I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      no link here
+      """
+    Then the document is pointed at by 1 things
+    And the page has not reloaded
+    And there should be no page errors
+
+  # A link ONTO ONE HEADING is a reference to the whole document: what points
+  # at `finishes.md#finishes` is pointing at the page a reader opens, so the
+  # section names the source once instead of splitting the question per slug.
+  @scratch:good
+  Scenario: A heading link is a reference to the whole document
+    Given I open the document "finishes.md"
+    When I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      [the top](../finishes.md#finishes)
+      """
+    Then the document is pointed at by 2 things
+    When I open what points at the document
+    Then what points at the document is "install the cabinets, Palette"
+    And there should be no page errors
+
+  # The section is the browser's own `<details>` answer, so it survives a
+  # rebuild the way the node page's does — the promise `docs/format.md` made
+  # for both pages, and the half that was only ever tested on one.
+  @scratch:good
+  Scenario: A plugin rebuild keeps the document's referrers open
+    Given I open the document "finishes.md"
+    When I open what points at the document
+    Then what points at the document is "install the cabinets"
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I close the plugins panel
+    And I use the original browser tab
+    Then the journal chrome is absent
+    And the what-points-at section is still open
+    And what points at the document is "install the cabinets"
+    And there should be no page errors
+
+  # A `.pdf` and a picture are BODY pages, and the section rides the same
+  # bodyPage that draws them: a picture's page lists the documents that show
+  # it (an embed is a reference, the item-3 ruling), and a `.pdf` nobody
+  # names at first picks its one referrer up live.
+  @corpus:good
+  Scenario: A picture's page says which documents show it
+    When I open the document "art/handle.png"
+    Then the document is pointed at by 3 things
+    When I open what points at the document
+    # PATH ORDER: finishes.md, kitchen-sink.md, notes/palette.md — the three
+    # bodies that draw the handle, each naming its own first line.
+    Then what points at the document is "Finishes, Kitchen sink — every mark the pipeline claims, Palette"
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: A pdf's page says which document links it
+    When I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      [the quote](../reports/q3.pdf)
+      """
+    And I open the document "reports/q3.pdf"
+    Then the document is pointed at by 1 things
+    When I open what points at the document
+    Then what points at the document is "Palette"
+    And there should be no page errors
+  # The BODY pages draw the same section under the same `<BodyPage>`, and the
+  # memory is the same declared service — so the rebuild promise holds there
+  # too: a journal flip leaves a pdf's open section open (item 1's half).
+  @scratch:good
+  Scenario: A plugin rebuild keeps a pdf page's referrers open
+    Given I rewrite "notes/palette.md" as:
+      """
+      # Palette
+
+      [the quote](../reports/q3.pdf)
+      """
+    And I open the document "reports/q3.pdf"
+    And I open what points at the document
+    Then what points at the document is "Palette"
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "journal" off
+    And I close the plugins panel
+    And I use the original browser tab
+    Then the journal chrome is absent
+    And the what-points-at section is still open
+    And what points at the document is "Palette"
+    And there should be no page errors
+
+  # Trash is the one place a reference is NOT — the ruling the node page's
+  # section already obeys, and this section keeps: a record put away still
+  # holds its link, but the page hears only the live half.
+  @scratch:good
+  Scenario: A referrer put away is on the Trash and nowhere else
+    Given I open the document "finishes.md"
+    When I rewrite "_olai/Trash.olai" as:
+      """
+      {"id":"old-notes","ord":"a0","title":"the old finishes notes","desc":"[finishes](../finishes.md)"}
+      """
+    Then the document is pointed at by 1 things
+    When I open what points at the document
+    Then what points at the document is "install the cabinets"
+    And there should be no page errors
+
+  # The last referrer going takes the whole section with it — a document
+  @scratch:good
+  Scenario: The last document referrer going takes the section with it
+    Given I open the document "finishes.md"
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets"}
+      """
+    And the document's page draws no what-points-at section
+
   # ── search reaches a body ────────────────────────────────────────────
   #
   # `cabinetmaker` is written in `finishes.md`'s prose and in no node's title,

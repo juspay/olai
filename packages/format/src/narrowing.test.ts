@@ -103,7 +103,7 @@ const READING: Reading = {
   claims: TEST_CLAIMS,
   set: { documents: FACES, broken: READABLE } as unknown as OutlineSet,
   derived: SET,
-  pointing: pointingOf(FACES as unknown as ReadonlyArray<Document>),
+  pointing: pointingOf(TEST_CLAIMS, FACES as unknown as ReadonlyArray<Document>),
 }
 
 const at = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null)! })

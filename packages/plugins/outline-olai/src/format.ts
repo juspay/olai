@@ -158,7 +158,9 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
   if (!ID_SHAPE.test(node.id)) {
     at(
       "bad-id",
-      `\`${node.id}\` is not a usable id: ids are slugs of letters, digits, \`_\` and \`-\``,
+      `\`${node.id}\` is not a usable id: an id is written in the mention ` +
+        `alphabet — letters, digits, \`_\`, \`-\` and \`/\` — so it can be ` +
+        `named by \`@\` in a title or a note`,
     )
   }
 

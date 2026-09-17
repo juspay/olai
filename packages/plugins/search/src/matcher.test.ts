@@ -32,6 +32,7 @@ import {
   NO_KINDS,
   type OutlineSet,
   type PageRequest,
+  type Reading,
   type SearchAnswer,
   type SearchRequest,
 } from "@olai/format"
@@ -85,7 +86,7 @@ const reading = () => readingOf(LEDGER())
 
 /** A node read that ANSWERED — the ops layer's own door, used by the two cases
  *  below whose claim is that a hit and a read say the same thing. */
-const read = (of: Derived, id: string): Detail | null =>
+const read = (of: Reading, id: string): Detail | null =>
   succeeded(Query.detail(of, id), "`outlines_read` to answer")
 
 /** A set with both sigils, including the same NAME under each — which is the
@@ -189,7 +190,7 @@ describe("the fields a hit carries", () => {
       "roadmap.olai": `{"id":"bare","ord":"a0","title":"a bare lane","custom":{"pr":""}}`,
     }))
     expect(search(bare, { text: "lane" }, TODAY, NO_KINDS).hits[0]).not.toHaveProperty("custom")
-    expect(read(bare.derived, "bare")).not.toHaveProperty("custom")
+    expect(read(bare, "bare")).not.toHaveProperty("custom")
   })
 
 

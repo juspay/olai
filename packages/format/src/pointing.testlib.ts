@@ -2,10 +2,10 @@
  * THE LINKS INDEX, HELD TO THE WALK IT REPLACED — the reference arm, the
  * corpora that move links, and the addresses to ask about.
  *
- * `./pointing.ts` is an INDEX where `referrersTo` was a scan, and the claim it
- * makes is an equivalence: the same referrers, in the same order, for every
- * address, at every revision. So what holds it is a differential and not a
- * table of expectations, which is the arrangement `./patch.ts` has with
+ * `./pointing.ts` is an INDEX where the reverse reading was a scan, and the
+ * claim it makes is an equivalence: the same referrers, in the same order, for
+ * every address, at every revision. So what holds it is a differential and not
+ * a table of expectations, which is the arrangement `./patch.ts` has with
  * `derive` one value over.
  *
  * TWO ARMS AND ONE COPY OF EACH. The reference arm below is the walk as it
@@ -35,65 +35,167 @@
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { type Address, addressOf } from "./address.ts"
-import { type Referrer } from "./backlinks.ts"
-import type { Derived } from "./derive.ts"
-import { type Document, type Face, faceOf } from "./document.ts"
-import { recordLinks } from "./documents.ts"
+import type { Reference, Way } from "./backlinks.ts"
+import { tagsIn, type Derived } from "./derive.ts"
+import { type Document, type Face, faceOf, type FaceHead } from "./document.ts"
+import { linksIn, recordLinks } from "./documents.ts"
 import { seeded } from "./fixtures.testlib.ts"
 import { fileKind } from "./kinds.ts"
-import { isPutAway, isRegular } from "./node.ts"
+import { isMirror, isPutAway, isRegular, type Located } from "./node.ts"
 import type { OutlineSet } from "./set.ts"
 
 // ── the reading as it STOOD, before the links index ────────────────────
 
 /**
  * WHO POINTS AT AN ADDRESS, by WALKING every face of the directory — the
- * `referrersTo` of `packages/format/src/backlinks.ts` as it was written before
- * `perf-doc-backlinks-index`, verbatim but for the faces coming in as a list.
+ * {@link Reference} reading of `packages/format/src/backlinks.ts` as it is
+ * defined here, verified by hand against the index at every revision.
  *
- * This is the cost the roadmap node named: every link of every file, tested per
- * revision, per tab sitting on any page with a body. It is kept because the new
- * answer is defined as being this one.
+ * The node arm asks EVERY way the node is named — the `@` prose half and the
+ * `#` half of the index — so the scan has to read the body's own tags and
+ * links, and each record's `see`, links and `@` tags, exactly as
+ * `contributionsOf` files them; and a reference to a PLACEMENT of the node is
+ * a reference to the node ({@link referencesOf}'s mirrors rule), so the scan
+ * asks the node AND every placement standing for it. The document, heading
+ * and row arms ask only about links, which is what the index files under
+ * those keys.
+ *
+ * THIS IS THE COST the roadmap node named: every link of every file, tested
+ * per revision, per tab sitting on any page with a body. It is kept because
+ * the index's answer is defined as being this one.
  */
 export const scannedReferrers = (
   address: Address,
   faces: ReadonlyArray<Face>,
   derived: Pick<Derived, "byFile">,
-): ReadonlyArray<Referrer> => {
-  const here = address.kind === "node" ? null : address.path
-  const points = (link: Address): boolean => {
-    if (address.kind === "node") return link.kind === "node" && link.id === address.id
-    if (link.kind === "node" || link.path !== address.path) return false
-    if (address.kind === "heading") {
-      return link.kind === "heading" && link.slug === address.slug
-    }
-    if (address.kind === "row") {
-      return link.kind === "row" && link.id === address.id
-    }
-    return true
+): ReadonlyArray<Reference> => {
+  /** Ways merged per source, in the reading's own order. */
+  const found = new Map<object, { source: Reference["source"]; ways: Set<Way> }>()
+  const add = (source: Reference["source"], ...ways: ReadonlyArray<Way>): void => {
+    const key: object = source
+    const held = found.get(key)
+    if (held === undefined) found.set(key, { source, ways: new Set(ways) })
+    else for (const way of ways) held.ways.add(way)
   }
-  const found: Array<Referrer> = []
-  for (const face of faces) {
-    if (face.path === here || isPutAway(TEST_CLAIMS, face.path)) continue
-    if (!face.links.some(points)) continue
-    const records = derived.byFile.get(face.path)
-    if (records === undefined) {
-      found.push({ face })
-      continue
+  if (address.kind === "node") {
+    // THE MIRRORS RULE: a reference to a placement of this node is a
+    // reference to this node.
+    const asked = new Set([address.id, ...mirrorsOf(address.id, faces, derived)])
+    for (const face of faces) {
+      if (isPutAway(TEST_CLAIMS, face.path)) continue
+      const records = derived.byFile.get(face.path)
+      if (records === undefined) {
+        // A BODY: its prose names the node with a link or an `@`.
+        const ways = bodyWays(face, asked)
+        if (ways.length > 0) add(headOf(face), ...ways)
+        continue
+      }
+      for (const located of records) {
+        if (!isRegular(located) || located.node.id === address.id) continue
+        const ways = recordWays(located, asked)
+        if (ways.length > 0) add(located, ...ways)
+      }
     }
-    for (const located of records) {
-      if (!isRegular(located)) continue
-      if (!recordLinks(TEST_CLAIMS, located).some(points)) continue
-      found.push({ face, at: located })
+  } else {
+    const here = address.path
+    const points = (link: Address): boolean => {
+      if (link.kind === "node" || link.path !== here) return false
+      if (address.kind === "heading") return link.kind === "heading" && link.slug === address.slug
+      if (address.kind === "row") return link.kind === "row" && link.id === address.id
+      return true
+    }
+    for (const face of faces) {
+      if (face.path === here || isPutAway(TEST_CLAIMS, face.path)) continue
+      if (!face.links.some(points)) continue
+      const records = derived.byFile.get(face.path)
+      if (records === undefined) {
+        add(headOf(face), "link")
+        continue
+      }
+      for (const located of records) {
+        if (!isRegular(located)) continue
+        if (!recordLinks(TEST_CLAIMS, located).some(points)) continue
+        add(located, "link")
+      }
     }
   }
-  return found
+  return [...found.values()].map(({ source, ways }) => ({
+    source,
+    ways: ["see", "mention", "link"].filter((way) => ways.has(way as Way)) as ReadonlyArray<Way>,
+  }))
+}
+
+const mirrorsOf = (
+  id: string,
+  faces: ReadonlyArray<Face>,
+  derived: Pick<Derived, "byFile">,
+): ReadonlyArray<string> => {
+  // WALK for the placements standing for this node, resolving chains the same
+  // way `derive.ts`'s `mirrorsOf` does (that map is not handed to the scan —
+  // the scan is the OTHER arm, so it may use nothing the reading's own arm
+  // uses; what it sees is the directory).
+  const asked: Array<string> = []
+  const seen = new Set([id])
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const face of faces) {
+      for (const located of derived.byFile.get(face.path) ?? []) {
+        if (isMirror(located.node) && seen.has(located.node.mirror) && !seen.has(located.node.id)) {
+          seen.add(located.node.id)
+          asked.push(located.node.id)
+          grew = true
+        }
+      }
+    }
+  }
+  return asked
+}
+
+const bodyWays = (face: Face, asked: ReadonlySet<string>): ReadonlyArray<Way> => {
+  const ways = new Set<Way>()
+  for (const link of face.links) {
+    if (link.kind === "node" && asked.has(link.id)) ways.add("link")
+  }
+  for (const tag of face.tags) {
+    if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
+  }
+  return [...ways] as ReadonlyArray<Way>
+}
+
+const recordWays = (located: Located, asked: ReadonlySet<string>): ReadonlyArray<Way> => {
+  if (!isRegular(located)) return []
+  const node = located.node
+  const ways = new Set<Way>()
+  for (const id of node.see ?? []) {
+    if (asked.has(id)) ways.add("see")
+  }
+  for (const address of linksIn(TEST_CLAIMS, located.file, node.title)) {
+    if (address.kind === "node" && asked.has(address.id)) ways.add("link")
+  }
+  if (node.desc !== undefined) {
+    for (const address of linksIn(TEST_CLAIMS, located.file, node.desc)) {
+      if (address.kind === "node" && asked.has(address.id)) ways.add("link")
+    }
+  }
+  for (const tag of tagsIn(node.title)) {
+    if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
+  }
+  if (node.desc !== undefined) {
+    for (const tag of tagsIn(node.desc)) {
+      if (tag.charAt(0) === "@" && asked.has(tag.slice(1))) ways.add("mention")
+    }
+  }
+  return [...ways] as ReadonlyArray<Way>
 }
 
 /** The set's faces, as the walk above takes them — the projection the index
  *  files, so the two arms are compared over one shape rather than over a face
  *  on one side and a whole document on the other. */
 export const facesIn = (set: OutlineSet): ReadonlyArray<Face> => set.documents.map(faceOf)
+
+/** A body source's head — the wire's reference shape (backlinks.ts). */
+const headOf = (face: Face): FaceHead => ({ path: face.path, title: face.title })
 
 // ── what to ask about ──────────────────────────────────────────────────
 
