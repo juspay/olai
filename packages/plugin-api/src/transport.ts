@@ -58,12 +58,18 @@ export interface TransportSurface {
    * and there is no other live source for the second half. A row is entered
    * with `{}` when it publishes nothing addressable, which is most of them, and
    * `olai-plugin-mcp`'s `siblingsOf` leaves those out of the bundle.
+   *
+   * `charter` RIDES FOR THE SAME REASON, one field over: `initialize`'s
+   * `instructions` is composed from this reading at each host connection, and
+   * a row's paragraph has no other way to the wire than the row's own entry —
+   * which is what makes it leave when the row does.
    */
   readonly agentRows: () => ReadonlyArray<{
     readonly name: string
     readonly surface: { readonly spec: unknown }
     readonly resources: Readonly<Record<string, unknown>>
     readonly tools: ReadonlyArray<unknown>
+    readonly charter?: string
   }>
   /**
    * ...AND A BELL WHEN THE COMPOSED ROSTER MOVES.

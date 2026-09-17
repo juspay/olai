@@ -127,6 +127,7 @@ import { contextFor } from "./server/context.ts"
 import type { ChatEntry, ChatState } from "./wire/members.ts"
 import { type Agents, NO_AGENT_ROSTER } from "./wire/agents.ts"
 import { faces, name, surface } from "./wire.ts"
+import { CHARTER } from "./charter.ts"
 
 /** The kinds this plugin teaches a vault — see {@link ./kinds.ts} for the word
  *  and the migration row an existing vault needs. */
@@ -612,6 +613,9 @@ export default definePlugin({
     yield* surfaces.register({
       surface,
       faces,
+      // THIS ROW'S PARAGRAPH FOR AN AGENT, on the same entry as its members so
+      // it leaves with the row (`./charter.ts` argues each sentence).
+      charter: CHARTER,
       deps: {
         cells: {
           // NO CHAT IS A STATE WITH A REASON, and the reason rides the same cell

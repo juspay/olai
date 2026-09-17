@@ -35,12 +35,15 @@ import type { BespokeTool, McpSibling } from "@kolu/surface-mcp"
 import { scopedTo, type Reading } from "./live-client.ts"
 import type { writerAt } from "./authority.ts"
 
-/** One standing row, as this face reads it off `TransportSurface.agentRows`. */
+/** One standing row, as this face reads it off `TransportSurface.agentRows`.
+ *  `charter` is the row's paragraph for `initialize` — `./endpoint.ts`
+ *  composes it beside the tools this same value carries. */
 export interface Row {
   readonly name: string
   readonly surface: { readonly spec: unknown }
   readonly resources: Readonly<Record<string, unknown>>
   readonly tools: ReadonlyArray<unknown>
+  readonly charter?: string
 }
 
 type Spec = {

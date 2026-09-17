@@ -124,7 +124,14 @@ and settled node-agent turns (the latter ask only their already-running engine).
 Withdrawal interrupts its work and releases subscriptions.
 
 The MCP face remains the existing vault tools and surface resources; browser
-conversation controls do not become agent tools. Node credentials retain the
+conversation controls do not become agent tools. What chat adds to that face is
+one paragraph, not a verb: its sibling entry carries a `charter` — that a person
+reads the agent's answer in the panel beside the outline, that a backticked id
+in prose is pressable and a fenced one is a quotation, that a link to an app
+address is followed in place — which the MCP row composes into `initialize`'s
+`instructions` while this row is standing and drops when it is not
+(`src/charter.ts` argues each sentence; [mcp.md](mcp.md), "What `initialize`
+says", is the composition). Node credentials retain the
 reserved-key refusal and their session-owned cleanup.
 
 ## Turning it off is not the same as turning the agent off

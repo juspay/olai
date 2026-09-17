@@ -137,7 +137,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     // OWN resource map go in under the row's key, and the URIs below carry that
     // key — which is why every one of them changed.
     const rows = (): ReadonlyArray<Row> =>
-      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] }))
+      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
     yield* serveFace({
       // NO VERBS ON THESE SIBLINGS. This bench is the READ face — what a client
       // is handed as `surface://` addresses — and a row's tools are the other
@@ -153,6 +153,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
         () => ({ group: wired.bound.group, handlers: wired.bound.handlers, writes: wired.bound.writes, expose: wired.faces.agent }),
         { writer: "mcp" },
       ),
+      rows,
       transport: serverSide,
     })
 
