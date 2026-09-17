@@ -5,8 +5,8 @@
  * this value back as the `NotHere` arm of its answer, so the roster publishes
  * a row for a machine that has not got this engine with the sentence attached —
  * the picker draws it greyed, the plugins panel files it under Needs you, and
- * the detection log names it. The browser half draws a mark and nothing else;
- * the slot that carried this sentence is gone.
+ * the detection log names it. The browser contributes its mark and its own
+ * inspector row; both read the published standing rather than a second sentence.
  *
  * A MODULE OF ITS OWN rather than lines inside `./server.ts`, because that
  * bench must not open the server door: `packages/tests` runs under a process

@@ -12,6 +12,7 @@
     "./wire": "./src/wire.ts",
     "./server": "./src/server.ts",
     "./browser": "./src/browser.tsx",
+    "./browser-engines": "./src/browser-engines.ts",
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css",
     "./testlib": "./src/testlib.ts",
@@ -58,6 +59,8 @@
   "//devDependencies": "@types/node is for the Node stream types `pipes.ts` still names — the ACP transport, residue on top of `@olai/child`.",
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "olai-plugin-plugin-inspector": "workspace:*",
+    "olai-plugin-omp": "workspace:*",
     "olai-plugin-sidebar": "workspace:*",
     "@olai/tests": "workspace:*"
   },
@@ -65,6 +68,7 @@
     "contracts": [
       "./slots",
       "./testids",
+      "./browser-engines",
       "./carry",
       "./attention"
     ]

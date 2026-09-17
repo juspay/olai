@@ -72,6 +72,17 @@ export const TESTID = {
   chatGrip: "chat-grip",
   agentStart: "agent-start",
   agentEngineMenu: "agent-engine-menu",
+  /** A not-here engine's row in the picker menu (`EngineMenu`): present,
+   *  greyed, `aria-disabled`, carrying the shared sentence line
+   *  (`./browser/agents/Missing.tsx`). `data-engine` is the engine's id, so a
+   *  scenario names one row rather than reading which of the menu's entries
+   *  happened to be disabled. */
+  agentEngineMissing: "agent-engine-missing",
+  /** The same sentence line on the PLUGINS PANEL's row for an engine whose
+   *  executable this machine has not got — the face each engine plugin hangs
+   *  through `engineRow` (`./browser.tsx`'s `components`), filed under
+   *  **Needs you** by its own `needs`. `data-engine` is the engine's id. */
+  engineMissing: "engine-missing",
   agentStanding: "agent-standing",
   agentFold: "agent-fold",
   agentPageHead: "agent-page-head",

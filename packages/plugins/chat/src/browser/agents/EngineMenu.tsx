@@ -6,11 +6,21 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 import type { AgentChoice } from "../../wire.ts"
 import { TESTID } from "../../testids.ts"
+import { Missing } from "./Missing.tsx"
+
+/** HOW A GREYED ROW IS PAINTED — the item classes without the pointer and the
+ *  hover band, so a row that cannot be picked does not glow under a cursor it
+ *  is pretending to answer. */
+const MENU_ITEM_OFF = "px-3 py-1.5 text-left text-muted focus:outline-none"
 
 export default function EngineMenu(props: {
   /** A sidebar menu must clear its chrome; row menus keep their row layer. */
   readonly layer?: typeof LAYER.row | typeof LAYER.over
   readonly anchor: HTMLElement
+  /** THE WHOLE STANDING TABLE, in bundle order — `here` rows pickable,
+   *  `not-here` rows greyed with the engine's own sentence. The caller hands
+   *  the table rather than the fold (`useAgents().engines()`), because the one
+   *  thing this menu is for is the CHOICE a person can see they are missing. */
   readonly engines: ReadonlyArray<AgentChoice>
   readonly pick: (engine: string) => void
   readonly close: () => void
@@ -31,8 +41,14 @@ export default function EngineMenu(props: {
         data-testid={TESTID.agentEngineMenu}
         ref={element => queueMicrotask(() => { if (element.isConnected) element.focus({ preventScroll: true }) })}
         onCloseAutoFocus={event => { event.preventDefault(); anchor.isConnected && anchor.focus({ preventScroll: true }) }}>
-        <For each={props.engines}>{engine => <DropdownMenu.Item class={MENU_ITEM}
-          onSelect={() => props.pick(engine.id)}>{engine.name}</DropdownMenu.Item>}</For>
+        <For each={props.engines}>{engine => engine.standing === "here"
+          ? <DropdownMenu.Item class={MENU_ITEM} data-engine={engine.id}
+              onSelect={() => props.pick(engine.id)}>{engine.name}</DropdownMenu.Item>
+          : <DropdownMenu.Item class={`${MENU_ITEM_OFF} max-w-sm`} disabled
+              data-testid={TESTID.agentEngineMissing} data-engine={engine.id}>
+              <Missing id={engine.id} missing={engine.missing} />
+            </DropdownMenu.Item>
+        }</For>
       </DropdownMenu.Content>
     </DropdownMenu.Portal>
   </DropdownMenu>

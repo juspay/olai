@@ -92,9 +92,12 @@ owns these shared child locations once; page faces consume the same locations.
 Reverse withdrawal removes page consumers before the fold's location owner.
 Engine absence is data on the roster, not a separate browser slot. One sentence
 component draws its mark, reason and optional link in the picker, no-agent face
-and engine-owned inspector row. Chat's declared browser `engines` service shares
-that live reading; each engine's optional `row` component waits for chat and the
-inspector slot, then contributes under its own plugin identity.
+and engine-owned inspector row. Chat's declared browser `chat.engines` service
+shares the live reading and renderer. The static
+`olai-plugin-chat/browser-engines` door exports `engineRow(name)`; its inert
+descriptor acquires that service and registers the row under the calling
+engine's identity. The component waits for chat and the inspector slot, and
+withdraws before chat releases its renderer.
 
 Optional dependencies remain in separate scoped components. Navigation and its
 existing palette control supply route changes and choice reset on dismissal;

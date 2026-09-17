@@ -38,12 +38,19 @@ export function Standing(props: { readonly node: string; readonly record?: strin
           data-testid={TESTID.agentStart} data-agent={props.node} disabled={starting()}
           onClick={event => {
             event.stopPropagation()
+            // AUTO-START ONLY WHEN THE TABLE IS UNAMBIGUOUS: exactly one
+            // `here` row AND no `not-here` rows. A lone here row beside a
+            // greyed one is still a choice a person should see — the menu
+            // says what the machine has and what it is owed — and a table of
+            // nothing but greyed rows is the `off` face, which the outer
+            // `Show` already refuses to draw a pill for.
+            const standings = roster.standings()
             const only = roster.engines()[0]
-            if (roster.engines().length === 1 && only !== undefined) void start(only.id)
+            if (standings.length === 1 && only !== undefined) void start(only.id)
             else setMenu(event.currentTarget)
           }}><AgentMark id={roster.engines()[0]?.id ?? ""} />start an agent</button>
       }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>
-      <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.engines()}
+      <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.standings()}
         close={() => setMenu(null)} pick={agent => void start(agent)} />}</Show>
       <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-xs" />}</Show>
     </span>

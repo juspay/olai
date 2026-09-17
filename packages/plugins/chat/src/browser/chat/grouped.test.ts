@@ -13,8 +13,8 @@ import { describe, expect, test } from "bun:test"
 
 import { groupedByAgent, nameOf } from "./grouped.ts"
 
-const CLAUDE: AgentChoice = { id: "claude", name: "Claude Code" }
-const OPENCODE: AgentChoice = { id: "opencode", name: "opencode" }
+const CLAUDE: AgentChoice = { id: "claude", name: "Claude Code", standing: "here" }
+const OPENCODE: AgentChoice = { id: "opencode", name: "opencode", standing: "here" }
 /** The roster's own order, which is the order the agent picker offers. */
 const ROSTER = [CLAUDE, OPENCODE]
 

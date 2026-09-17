@@ -28,7 +28,16 @@ import { chatWire } from "../wire.ts"
 export interface Roster {
   readonly rows: Accessor<ReadonlyArray<Row>>
   readonly at: (node: string) => Row | undefined
+  /** The engines this serve mounted that this machine can start — the fold
+   *  every "startable" consumer keeps: the verbs, the palette, the composer's
+   *  select. A `not-here` row is NOT in it, on purpose ({@link standings}). */
   readonly engines: Accessor<ReadonlyArray<AgentChoice>>
+  /** The WHOLE standing table, one row per mounted engine in bundle order —
+   *  `here` rows pickable, `not-here` rows greyed with the engine's own
+   *  sentence. The picker menu and the no-agent face read this rather than
+   *  {@link engines}, because an engine a person enabled and cannot start is a
+   *  row they are owed, not one that vanishes. */
+  readonly standings: Accessor<ReadonlyArray<AgentChoice>>
   /** Null until the first listing; a refused refresh keeps the last answer. */
   readonly chats: Accessor<Listed | null>
   readonly unreachable: Accessor<ReadonlyArray<Unreachable>>
@@ -37,8 +46,6 @@ export interface Roster {
   readonly askChats: () => void
 }
 
-const AgentsContext = createContext<Roster>()
-
 export function createAgents(): Roster {
   const engineCell = chatWire().cells.engines.use()
   const cell = chatWire().cells.agents.use()
@@ -46,7 +53,12 @@ export function createAgents(): Roster {
   const byNode = createMemo(() => new Map(rows().map(row => [row.id, row])))
   let active = true
   onCleanup(() => { active = false })
-  const engines = createMemo(() => engineCell.value() ?? [])
+  // THE WHOLE TABLE FIRST ({@link Roster.standings}), then the fold: a reader
+  // that greys an absence needs every row, and a reader that starts something
+  // needs only the ones this machine can start. One memo over the cell for
+  // each, so both answer from the same frame.
+  const standings = createMemo(() => engineCell.value() ?? [])
+  const engines = createMemo(() => standings().filter((engine) => engine.standing === "here"))
 
   /**
    * WHAT EVERY INSTALLED AGENT HAS STORED HERE, as this tab last heard it.
@@ -127,9 +139,11 @@ export function createAgents(): Roster {
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
 
 
-  return { rows, at: node => byNode().get(node), engines, chats,
+  return { rows, at: node => byNode().get(node), engines, standings, chats,
     unreachable, chatsRefusal, askChats }
 }
+
+const AgentsContext = createContext<Roster>()
 
 /** Each contribution carries the same activation-owned roster to its children. */
 export function AgentsProvider(props: { readonly value: Roster; readonly children: JSX.Element }) {

@@ -14,7 +14,7 @@
  * Starting needs BOTH halves: the pinned adapter (`OLAI_ACP_PI`, olai's to ship)
  * and a `pi` on the agent search path (the person's to install). Either missing
  * leaves an unavailable row, whose sentence names the missing prerequisite.
- * `INSTALL` could not: it would tell somebody whose adapter was unset to go
+ * A single `INSTALL` would tell somebody whose adapter was unset to go
  * and put `pi` on a PATH that would change nothing. So there are two, one per
  * probe, and the server half picks the one that failed.
  *

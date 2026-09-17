@@ -104,7 +104,7 @@ export interface Faced {
   /** Which agent this conversation is with, or `undefined` before one is
    *  bound. Carried rather than reached for: it is a fact about the SESSION,
    *  which is the list's to know and not a row's. */
-  readonly agent: AgentChoice | undefined
+  readonly agent: Pick<AgentChoice, "id" | "name"> | undefined
 }
 
 export function Speaker(props: Faced) {

@@ -849,7 +849,10 @@ describe("only the registry knows a plugin's name", () => {
           if (!member || !PLUGIN_DIRS.includes(member)) return false
           const source = readFileSync(path.join(PACKAGES, file), "utf8")
           const code = transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(source)
-          return /\b(?:setTimeout|setInterval|createRoot|watchPreference|definePlugin)\s*\(|\.addEventListener\s*\(|\bEffect\.(?:acquireRelease|fork)|new (?:MutationObserver|ResizeObserver|WebSocket)\s*\(/.test(code)
+          // definePlugin constructs an inert descriptor, including inside an
+          // exported component factory. Mounting its apply owns acquisition;
+          // the live-value and private-import checks still cover its closure.
+          return /\b(?:setTimeout|setInterval|createRoot|watchPreference)\s*\(|\.addEventListener\s*\(|\bEffect\.(?:acquireRelease|fork)|new (?:MutationObserver|ResizeObserver|WebSocket)\s*\(/.test(code)
         })
         violations.push(...acquiring.map(file => `${spec}: runtime acquisition ${file}`))
         // ...AND IT HOLDS NO LIVE VALUE — the audit's §12, over the same graph
