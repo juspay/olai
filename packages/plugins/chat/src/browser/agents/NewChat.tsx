@@ -16,14 +16,11 @@ export function NewChat() {
     <button type="button" class={`${ENTRY_SHAPE} w-full text-left text-paper/65`} data-testid={TESTID.chatNew}
       disabled={creation === undefined || creation?.pending() || agents.engines().length === 0} aria-busy={creation?.pending()}
       onClick={event => {
-        // AUTO-START ONLY WHEN THE TABLE IS UNAMBIGUOUS: exactly one `here`
-        // row and no `not-here` ones. A menu with a greyed row beside the one
-        // pickable engine is the honest question — it says what this serve
-        // has and what it is owed — and pressing it costs less than wondering
-        // why `pi` never appears.
-        const standings = agents.standings()
-        const only = agents.engines()[0]
-        if (standings.length === 1 && only !== undefined) start(only.id)
+        // One startable engine is no choice, regardless of how many missing
+        // engines the build ships. Their advice remains in the inspector.
+        const engines = agents.engines()
+        const only = engines[0]
+        if (engines.length === 1 && only !== undefined) start(only.id)
         else setMenu(event.currentTarget)
       }}>new chat</button>
     <Show when={menu()}>{anchor => <EngineMenu layer={LAYER.over} anchor={anchor()} engines={agents.standings()}

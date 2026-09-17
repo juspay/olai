@@ -31,18 +31,21 @@ server's current engine roster.
 
 A conversation belongs to one engine for its lifetime. The *start an agent*
 pill and *new chat* button appear when at least one engine is available. They
-start immediately only when the whole roster is one available engine.
-Otherwise the menu lists all enabled engines in bundle order: available engines
-are pickable; missing ones are greyed out with the reason and an installation
-link when supplied. Row-menu verbs and the command palette offer only available
-engines. A plain node page shows its selected engine beside the composer.
+start immediately when exactly one engine is available. With two or more, the
+menu lists all enabled engines in bundle order: available engines are pickable;
+missing ones are greyed out with their reason, without a link inside the
+disabled choice. Installation links remain in the plugins panel and no-agent
+face. Row-menu verbs and the command palette offer only available engines.
+A plain node page shows its selected engine beside the composer.
 
-A **fresh start may pick a different engine**. With exactly one enabled engine
-and that engine available, it starts immediately. Otherwise its menu lists the
-whole standing table in bundle order, with missing engines disabled. The row
-menu lists one **Fresh start — <engine>** entry per available engine. Picking
-one supersedes the conversation onto that engine: history follows the node
-across engines, both when it moves away from and back to an engine.
+A **fresh start may pick a different engine**, but only by an explicit choice.
+With at most one startable engine, the press asks for the node's current engine;
+if that engine has left, the refusal remains visible rather than silently
+migrating the node. With multiple startable engines, its menu puts the current
+engine first, then the rest of the standing table in bundle order, with missing
+engines disabled. The row menu lists one **Fresh start — <engine>** entry per
+available engine. Picking one supersedes the conversation onto that engine:
+history follows the node across engines in both directions.
 
 The list itself:
 
@@ -51,21 +54,28 @@ The list itself:
 - To turn chat off, set `on: no` on the chat node. An empty adapter path does not disable the conversation or suppress other engine probes.
 - `OLAI_AGENT_PATH` is where the probes look, and defaults to `PATH`. It is worth knowing about because **olai's PATH is not your shell's**: run as a systemd user service (the home-manager unit) it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set it and it REPLACES the search path. For pi it answers a second question too: the `pi` the probe finds there is handed to the pinned adapter as the one it wraps, so the pi the row runs is the pi the probe found rather than one the adapter resolved against its own environment. For opencode and omp it is the whole of the answer, because neither has an override variable of its own: putting the build you want on that path is the only way to point olai at it, which is the same gesture as installing it.
 
-With no agent available the plain node page still draws its explanation, and says which agents olai can talk to and where to get one — because a feature that is silently absent cannot be told apart from one that is broken. That list is the ENABLED ENGINES and each one's own sentence about how it is got, answered by the server: a serve started `on: no` on the unwanted engine nodes in `_olai/Settings.olai` says how to install opencode and does not offer a Claude Code it could not mount.
+With no engine selected or available, the plain node page lists the enabled
+engines this machine has not got, with each engine's own reason and installation
+link. A node bound to a missing engine instead shows just that engine's reason:
+another engine may be available, so a node-specific absence is not a claim that
+the whole machine has none. A withdrawn engine asks to be enabled again.
 
 The plugins panel files an enabled but missing engine under **Needs you**, with
-its toggle still on. It shows the same sentence and link as the disabled picker
-row and the no-agent face. Turning chat off removes this reading: nothing is
-probing, so the engine's extra face waits for chat to return.
+its toggle still on. It shows the same reason as the disabled picker row, with
+an installation link where supplied, as on the no-agent face. Turning chat off
+removes this reading: nothing is probing, so the engine's extra face waits for
+chat to return.
 
-**The explanation distinguishes two reasons for having no agent.** No engine rows enabled and no executable found need different remedies. The server knows which occurred and supplies the opening sentence:
+**The server distinguishes two global reasons for having no agent.** Its
+`offBecause` reading and log preserve the difference between no mounted engine
+and no installed executable:
 
-| what it says | what happened | what to do |
+| server reason | what happened | what to do |
 | --- | --- | --- |
-| *This serve has no agent engine* | no engine row is running — the file enables none, one was switched off at the plugins panel, or an engine's plugin failed to start | switch one on in the plugins panel, or edit the file / name an engine in it — every engine is on by default |
-| *No agent is installed for this panel* | every engine was asked and this machine has none of them | install one of the agents listed, or set `OLAI_AGENT_PATH` where olai should look |
+| `no-engine` | no engine row is running — the file enables none, one was switched off at the plugins panel, or an engine's plugin failed to start | enable one in the plugins panel or its configuration node |
+| `none-installed` | engines are mounted, but every probe reports absence | follow the engine's installation advice or set `OLAI_AGENT_PATH` where olai should look |
 
-The same sentence goes in the log, off the same value, so what you read on the screen and what you grep out of the journal are one account of one boot.
+A node's composer does not infer either global verdict from its selected engine.
 
 The conversation is the agent's own session for that directory. Opening a node agent reads its session property; restarting the server opens no conversation automatically ([below](#which-conversation-you-come-back-to)). A session id means nothing to the other agent, so this is not a nicety: asking the wrong one to open it gets a refusal. And (for the Claude agent) `claude --resume` in a terminal reaches the same conversations.
 

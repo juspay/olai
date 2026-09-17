@@ -4,7 +4,7 @@ import { QUIET_PILL } from "@olai/web/client/pill.ts"
 import { run } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
-
+import type { AgentChoice } from "olai-plugin-chat/wire"
 import { chatWire } from "../wire.ts"
 import { agentReadings } from "./reading.ts"
 import { useAgents } from "./answered.tsx"
@@ -53,20 +53,34 @@ export function FreshStart(props: {
   }
 
   const pressed = (event: MouseEvent): void => {
-    const only = agents.engines()[0]
-    if (agents.standings().length === 1 && only !== undefined) fresh(only.id)
-    else setMenu(event.currentTarget as HTMLElement)
+    if (agents.engines().length <= 1) {
+      // Preserve the node's engine. A withdrawal must refuse this request,
+      // never silently move its conversation onto a surviving engine.
+      fresh(props.agent.engine)
+      return
+    }
+    setMenu(event.currentTarget as HTMLElement)
+  }
+
+  /** Current engine first; all other standings retain bundle order. Opening
+   * the menu is not consent to move the node to whichever engine sorts first. */
+  const ordered = (): ReadonlyArray<AgentChoice> => {
+    const engines = agents.standings()
+    const current = engines.find(engine => engine.id === props.agent.engine)
+    return current === undefined
+      ? engines
+      : [current, ...engines.filter(engine => engine.id !== current.id)]
   }
 
   return <span class="relative">
     <button type="button" class={QUIET_PILL} data-testid={TESTID.chatFreshSession}
-      data-agent={props.agent.id} disabled={starting() || agents.engines().length === 0} aria-busy={starting()}
+      data-agent={props.agent.id} disabled={starting()} aria-busy={starting()}
       title={`memory is the subtree (${memoryOf(props.agent)}); the transcript becomes history`}
       onClick={pressed}>fresh start</button>
     <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatFreshSaid} class="mt-1 text-xs" />}</Show>
     <Show when={menu()}>
       {(anchor) => <EngineMenu layer={props.page ? LAYER.over : LAYER.row} anchor={anchor()}
-        engines={agents.standings()} pick={engine => { setMenu(null); fresh(engine) }} close={() => setMenu(null)} />}
+        engines={ordered()} pick={engine => { setMenu(null); fresh(engine) }} close={() => setMenu(null)} />}
     </Show>
   </span>
 }
