@@ -99,7 +99,7 @@ import { Deferred, Effect, Fiber, References, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
 import type { Conversing, Overheard, Sessions } from "./sessions.ts"
-import type { Installed } from "./agents/roster.ts"
+import { here, offBecause, type Installed, type Roster, type Standing } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import * as Deliveries from "./deliveries.ts"
@@ -128,16 +128,21 @@ export interface WakeScope {
   readonly pick: import("./json.ts").Json
 }
 
+/** The complete machine reading, without server-only spawn or protocol data. */
+export const said = (row: Standing): AgentChoice =>
+  row.standing === "here"
+    ? { id: row.id, name: row.name, standing: "here" }
+    : { id: row.id, name: row.name, standing: "not-here", missing: row.missing }
+
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */
 export interface PanelOptions {
   /** A scheduler may lend an already-running engine for a directory listing. */
   readonly runningSessions?: (agent: string) => Effect.Effect<ReadonlyArray<Stored>, AcpAgent.AgentGone> | null
   /**
-   * Which agents this machine has, already detected
-   * ({@link ./agents/roster.ts}). Detecting them is the caller's move — it is
-   * the caller that owns this process's environment — and what a detected one
-   * looks like is ours.
+   * The WHOLE standing table, already detected ({@link ./agents/roster.ts}).
+   * Detecting it is the caller's move — it is the caller that owns this
+   * process's environment — and what a detected one looks like is ours.
    *
    * ## A THUNK, and it used to be an array
    *
@@ -154,6 +159,16 @@ export interface PanelOptions {
    * has changed, because a thunk nobody re-reads is a snapshot with extra
    * steps.
    *
+   * ## THE WHOLE TABLE, and the folds are ours
+   *
+   * It used to answer `ReadonlyArray<Installed>` — the FILTERED reading —
+   * which is what made an absent engine invisible at the boundary: the caller
+   * knew why and could not say. What this file reads off it is still the
+   * `here` rows ({@link rowFor}, the listings fan-out, the one-agent
+   * shortcut); what it PUBLISHES is every row, because the picker is the one
+   * reader that greys an absence rather than dropping it, and the sentence a
+   * `not-here` row carries is the engine's own.
+   *
    * ## IT MAY NOW ANSWER EMPTY, where the array never could
    *
    * This said: *NEVER EMPTY — a caller that found nothing builds no chat at
@@ -166,7 +181,7 @@ export interface PanelOptions {
    * composed without an engine row shows. {@link Panel.enginesMoved} enters it
    * and leaves it again when a row comes back.
    */
-  readonly roster: () => ReadonlyArray<Installed>
+  readonly roster: () => Roster
   /**
    * ...AND EVERY ENGINE THIS BUILD HAS, by id, in the bundle's own order —
    * INSTALLED OR NOT, and read for exactly one thing.
@@ -177,11 +192,8 @@ export interface PanelOptions {
    * the first row is the one it had. `olai-plugin-chat` may not spell an engine, so
    * the answer arrives as data from the composition root.
    *
-   * NOTHING ELSE READS IT and nothing of it crosses the wire. What a person is
-   * told about an engine this machine has NOT installed is that engine's own
-   * face, hung in the tab's `engine.install` slot by its browser half —
-   * which is what makes a policy selecting only opencode, pi a panel with no Claude row on
-   * any face, with nothing in core knowing why.
+   * Absence explanations travel separately on the complete standing table,
+   * so this legacy-memory input owns no browser presentation.
    *
    * MAY BE EMPTY: a serve whose engine rows are all disabled builds no chat at
    * all, and a test that only wants a conversation has no engine list to give.
@@ -848,10 +860,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     /** The conversation's own tmp directory, for pictures pasted into it.
      *  Emptied when a conversation is left and when the chat stops. */
     const files = Attachments.make()
-    /** WHO a roster row is, as the browser hears it: the picker's rows. The
-     *  ADAPTER and the LEG stay on this side of the wire, because a browser that
-     *  knew what to spawn would be a browser that could ask for it. */
-    const said = (row: Installed): AgentChoice => ({ id: row.id, name: row.name })
 
     /**
      * WHAT AN AGENT HAS SAID ABOUT ITSELF before it has said anything: nothing.
@@ -1698,12 +1706,14 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       }
     }
 
-/** The roster row with that id, or `null` — the one place a name off the
+    /** The roster row with that id, or `null` — the one place a name off the
      *  wire is turned into something startable. A browser that asks for an
      *  agent this machine does not have is a STALE TAB rather than a fault, so
-     *  it is refused in words rather than crashed on. */
+     *  it is refused in words rather than crashed on. Only the `here` rows
+     *  resolve: a `not-here` row's id is one this machine cannot start, and
+     *  the greyed picker never sends it. */
     const rowFor = (id: string): Installed | null =>
-      options.roster().find((row) => row.id === id) ?? null
+      here(options.roster()).find((row) => row.id === id) ?? null
 
     /**
      * The agent for this row, started if it is not the one already talking —
@@ -1794,10 +1804,14 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      */
     const enginesMoved: Effect.Effect<void> = binding.withPermit(Effect.gen(function*() {
       const rows = options.roster()
+      const startable = here(rows)
       const at = talking
       // WHOSE ENGINE HAS LEFT — asked of the LIVE list rather than of anything
-      // remembered, because the list is the only thing that moved.
-      const orphaned = at !== null && !rows.some((row) => row.id === at.row.id)
+      // remembered, because the list is the only thing that moved. Only the
+      // `here` rows count: an engine that went from installed to not is a
+      // conversation this machine can no longer start, which is the same
+      // leaving as a plugin switched off.
+      const orphaned = at !== null && !startable.some((row) => row.id === at.row.id)
       if (at !== null && orphaned) {
         // THE SWAP'S OWN SEQUENCE, in the same order and for the same reasons —
         // the cached listings are about a conversation nobody can reach, the
@@ -1820,11 +1834,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // conversation stopped. It is the same face and the same `no-engine` word
       // a serve composed without an engine row shows, which is the invariant
       // this whole lane rests on — switched off and never named are one state.
-      if (rows.length === 0) {
+      const because = offBecause(rows)
+      if (because !== null) {
         move({
-          roster: [],
+          roster: rows.map(said),
           status: "off",
-          off: { kind: "no-engine" },
+          off: because,
           talking: null,
           model: null,
           trouble: null,
@@ -1897,7 +1912,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // decision is two answers to one question — and this one branches on the
       // length and then takes the element, which is exactly the shape that goes
       // wrong when a row leaves between the two.
-      const rows = options.roster()
+      //
+      // THE FOLD IS `here`, because "one installed agent is not a choice" is a
+      // question about what can be STARTED: a lone `not-here` row beside it is
+      // a picker that greys an option rather than a second choice, and a table
+      // of nothing but `not-here` rows is the `off` face, not a shortcut.
+      const rows = here(options.roster())
       const only = rows.length === 1 ? rows[0] ?? null : null
       if (only !== null) return only
       const held = yield* Effect.catchTag(
@@ -1967,7 +1987,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * rewritten by a question about it.
      */
     const listings = yield* Listings.make({
-      roster: options.roster,
+      // THE `here` FOLD: a listing fans out to agents this machine can start,
+      // and a `not-here` row has nothing stored to ask. The fold happens HERE
+      // rather than in `./listings.ts` because the table and its meaning are
+      // this file's to narrow — the listing module is handed startable rows.
+      roster: () => here(options.roster()),
       running: (row) => {
         const at = talking
         return at !== null && at.row.id === row.id ? at.agent.sessions : options.runningSessions?.(row.id) ?? null

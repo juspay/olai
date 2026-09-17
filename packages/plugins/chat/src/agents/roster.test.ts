@@ -1,39 +1,29 @@
 /**
  * Which of the engines this build has a machine offers, over values.
  *
- * The reading is a pure function of an environment, a probe
- * (`@olai/acp/engine`'s `Where`) and THE ENGINES IT IS HANDED, which is the
- * whole reason it is written that way: what a person is offered depends on two
- * variables, a filesystem and a bundle, and none of those is a thing to arrange
- * in order to distinguish an empty registry from unsuccessful probes.
+ * The roster is a pure function of a made-up environment and a made-up list of
+ * engines ({@link rosterOf} hands both in), so its whole behaviour — the row
+ * shapes, the fold that decides whether there is anything to talk to, what the
+ * live reading remembers and what a toggle un-remembers — is assertable without
+ * a serve, a filesystem or a plugin system.
  *
- * ## The engines here are MADE UP, and that is the phase
+ * ## THE TABLE, AND WHY THE ABSENCE IS A ROW
  *
- * This file used to assert what each of the three rows made of an environment —
- * the variable one, the PATH one, the pair — because the three were a table in
- * this directory. Each is a plugin now, with its own directory and its own
- * release clock, and each of those claims is asserted beside the plugin that
- * answers it (`packages/plugins/<engine>/src/server.test.ts`). What is left here
- * is what CORE decides, and the fakes below make that visible: the absence
- * reason, the order, and that a row is offered exactly when its own probe
- * answered.
- *
- * {@link onPath} gets its own tests against a real directory, because what it is
- * about is the disk: a file that is not executable, a directory with the right
- * name, an empty PATH entry. It is one line over `Bun.which` and the tests are
- * still here deliberately — what they assert is not that Bun works but that the
- * answers olai DEPENDS on are the ones it gives, which is a claim about this
- * feature rather than about that function.
+ * The roster used to drop an engine whose probe answered no, which is how a
+ * panel came to offer two engines while a third sat enabled and unexplained.
+ * The cases below pin the shape that closes that: every mounted engine has a
+ * row, the row says which arm it is in, and the absence carries the engine's
+ * own sentence for a person to read.
  */
 
-import type { Adapter, Engine, Leg, Where } from "@olai/acp/engine"
+import type { Adapter, Engine, Leg, NotHere, Where } from "@olai/acp/engine"
 import { describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
 
 import { AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
-import { detecting, type Installed, onPath, type Roster, rosterOf } from "./roster.ts"
+import { detecting, here, type Installed, offBecause, onPath, type Standing, rosterOf } from "./roster.ts"
 
 const CWD = "/vault"
 
@@ -47,7 +37,7 @@ const NO_LEG = {} as Leg
 
 /** One made-up engine, offered where `at` says so. Real engines each live in their own
  *  directory; what this file is about is what core does with any of them. */
-const engine = (id: string, at: (where: Where) => Adapter | null): Engine => ({
+const engine = (id: string, at: (where: Where) => Adapter | NotHere): Engine => ({
   id,
   name: `${id} (a name)`,
   leg: NO_LEG,
@@ -56,59 +46,57 @@ const engine = (id: string, at: (where: Where) => Adapter | null): Engine => ({
 })
 
 /** ...one that is always here, and one that is never. */
-const here = (id: string): Engine => engine(id, () => ({ command: `/bin/${id}`, args: [] }))
-const absent = (id: string): Engine => engine(id, () => null)
+const present = (id: string): Engine => engine(id, () => ({ command: `/bin/${id}`, args: [] }))
+const absent = (id: string): Engine => engine(id, () => missing(id))
 
-/** The rows off a roster that has some, for the cases that are about the ROWS.
+/** The sentence an absent engine hands back — its own, made up here, because
+ *  what is being asserted is that it TRAVELS rather than what it says. */
+const missing = (id: string): NotHere => ({
+  name: `${id} (a name)`,
+  where: null,
+  why: `no ${id} on this machine`,
+})
+
+/** The ids of a table's `here` rows, for the cases that are about the ROWS.
  *  A bench asserting the arm is a bench about the arm, and those are below. */
-const rowsIn = (found: Roster): ReadonlyArray<Installed> =>
-  found.kind === "here" ? found.installed : []
+const idsIn = (found: ReadonlyArray<Standing>): ReadonlyArray<string> =>
+  found.flatMap((row) => row.standing === "here" ? [row.installed.id] : [])
 
 describe("who is offered", () => {
-  test("an engine whose probe answers is a row, carrying what the probe said", () => {
+  test("an engine whose probe answers is a `here` row, carrying what the probe said", () => {
     const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [
       engine("one", (where) => ({ command: "/bin/one", args: ["--cwd", where.cwd] })),
     ])
-    expect(rowsIn(found).map((row) => row.id)).toEqual(["one"])
-    expect(rowsIn(found)[0]?.adapter).toEqual({ command: "/bin/one", args: ["--cwd", CWD] })
-  })
-
-  test("...and one whose probe says nothing is simply absent", () => {
-    // `null` from a probe is NOT A FAULT: a machine that is not running the tool
-    // has had nothing go wrong, and what a person is owed about it is the
-    // engine's own install sentence on the no-agent face rather than a row that
-    // would fail at every `session/new`.
-    expect(rosterOf({ env: {}, cwd: CWD, found: nowhere }, [absent("one")]))
-      .toEqual({ kind: "none", because: { kind: "none-installed" } })
-  })
-
-  test("every row carries the engine's own name and prompt channel, untouched", () => {
-    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [here("one")])
-    expect(rowsIn(found)[0]?.name).toBe("one (a name)")
-    expect(rowsIn(found)[0]?.prompt).toEqual({ kind: "first-turn" })
-  })
-
-  test("the probe is handed the SERVE's own lookup, not one of its own", () => {
-    // Where this process may look is a fact about the serve — olai's PATH is not
-    // your shell's — so an engine asks the `found` it is given and never
-    // resolves a name for itself.
-    const asked: Array<string> = []
-    const found = (word: string): string | null => {
-      asked.push(word)
-      return "/bin/x"
+    expect(idsIn(found)).toEqual(["one"])
+    const row = found[0]
+    expect(row?.standing).toBe("here")
+    if (row?.standing === "here") {
+      expect(row.installed.adapter).toEqual({ command: "/bin/one", args: ["--cwd", CWD] })
     }
-    rosterOf(
-      { env: {}, cwd: CWD, found },
-      [engine("one", (where) => where.found("one") === null ? null : { command: "x", args: [] })],
-    )
-    expect(asked).toEqual(["one"])
   })
 
-  test("no engines at all is a whole state, and it is the empty roster", () => {
+  test("...and one whose probe says no is a `not-here` row, carrying the engine's own sentence", () => {
+    // THE ABSENCE IS A ROW, not a dropped entry: the person's panel greys it,
+    // the plugins panel files it under Needs you, and the log names it. What
+    // travels is the engine's own whole sentence, untouched.
+    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [absent("one")])
+    expect(found).toHaveLength(1)
+    const row = found[0]
+    expect(row?.standing).toBe("not-here")
+    if (row?.standing === "not-here") {
+      expect(row.id).toBe("one")
+      expect(row.name).toBe("one (a name)")
+      expect(row.missing).toEqual(missing("one"))
+    }
+  })
+
+
+  test("no engines at all is an empty table, and the fold says which reason", () => {
     // A file policy or a build can leave every engine row
     // disabled. The panel draws the face that says so; nothing here refuses.
-    expect(rosterOf({ env: {}, cwd: CWD, found: () => "/bin/anything" }, []))
-      .toEqual({ kind: "none", because: { kind: "no-engine" } })
+    const found = rosterOf({ env: {}, cwd: CWD, found: () => "/bin/anything" }, [])
+    expect(found).toEqual([])
+    expect(offBecause(found)).toEqual({ kind: "no-engine" })
   })
 
   test("an empty adapter path does not disable other engines", () => {
@@ -122,7 +110,7 @@ describe("who is offered", () => {
         return { command: "/bin/one", args: [] }
       })],
     )
-    expect(found.kind).toBe("here")
+    expect(idsIn(found)).toEqual(["one"])
     expect(probed).toBe(true)
   })
 
@@ -132,11 +120,41 @@ describe("who is offered", () => {
     // the bundle's own rows before handing the list over, and this function
     // preserves whatever it was given (`@olai/server`'s `probes.ts` argues it).
     const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [
-      here("first"),
+      present("first"),
       absent("skipped"),
-      here("second"),
+      present("second"),
     ])
-    expect(rowsIn(found).map((row) => row.id)).toEqual(["first", "second"])
+    // THE WHOLE TABLE keeps the given order, absences included — the greyed row
+    // a picker draws sits where the engine sits in the bundle, not after it.
+    expect(found.map((row) => row.id)).toEqual(["first", "skipped", "second"])
+    expect(idsIn(found)).toEqual(["first", "second"])
+  })
+
+  test("`here` is the fold a startable-reader wants, over a mixed table", () => {
+    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [
+      present("first"),
+      absent("skipped"),
+      present("second"),
+    ])
+    expect(here(found).map((row) => row.id)).toEqual(["first", "second"])
+    expect(here(found).map((row) => row.name)).toEqual(["first (a name)", "second (a name)"])
+  })
+})
+
+describe("why there is nothing to talk to", () => {
+  test("a table with at least one `here` row folds to null", () => {
+    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [present("one"), absent("two")])
+    expect(offBecause(found)).toBeNull()
+  })
+
+  test("every engine absent is `none-installed`, the arm where the sentences are drawn", () => {
+    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [absent("one"), absent("two")])
+    expect(offBecause(found)).toEqual({ kind: "none-installed" })
+  })
+
+  test("an empty table is `no-engine`, the same word a build with none gives", () => {
+    expect(offBecause(rosterOf({ env: {}, cwd: CWD, found: nowhere }, [])))
+      .toEqual({ kind: "no-engine" })
   })
 })
 
@@ -197,13 +215,6 @@ describe("finding an executable on a search path", () => {
   })
 })
 
-describe("where the probes look", () => {
-  test("the search path is a variable of its own, so a service can be told", () => {
-    // olai's PATH is not your shell's — a home-manager unit inherits neither.
-    // The name is asserted because it is a thing a person types into a config.
-    expect(AGENT_PATH_ENV).toBe("OLAI_AGENT_PATH")
-  })
-})
 
 /**
  * THE LIVE READING — the same answer over a list that MOVES, which is what an
@@ -211,16 +222,18 @@ describe("where the probes look", () => {
  *
  * These are about {@link detecting}, and what makes it worth being its own door
  * rather than calling {@link roster} again is the two halves it keeps apart: the
- * BUILD's half follows the fibers, and the MACHINE's half deliberately does not.
+ * BUILD's half follows the fibers, and the MACHINE's half deliberately does not
+ * — until the person toggles a row, which is the one "look again" this door
+ * answers.
  */
 describe("a table that moves", () => {
-  test("an engine that leaves the list leaves the roster, and one that arrives enters it", () => {
+  test("an engine that leaves the list leaves the table, and one that arrives enters it", () => {
     const detect = detecting({}, CWD)
-    expect(rowsIn(detect([here("one"), here("two")])).map((row) => row.id)).toEqual(["one", "two"])
-    expect(rowsIn(detect([here("two")])).map((row) => row.id)).toEqual(["two"])
+    expect(idsIn(detect.read([present("one"), present("two")]))).toEqual(["one", "two"])
+    expect(idsIn(detect.read([present("two")]))).toEqual(["two"])
     // BOTH DIRECTIONS: a reading that only ever shrank would pass the first two
     // lines and be exactly wrong for somebody turning a plugin back on.
-    expect(rowsIn(detect([here("one"), here("two")])).map((row) => row.id)).toEqual(["one", "two"])
+    expect(idsIn(detect.read([present("one"), present("two")]))).toEqual(["one", "two"])
   })
 
   test("the last engine leaving is `no-engine`, the same word a build with none gives", () => {
@@ -228,8 +241,8 @@ describe("a table that moves", () => {
     // switched off and a row with `on: no` in `_olai/Settings.olai` are ONE state, so they are one
     // word — and the panel draws one face for both.
     const detect = detecting({}, CWD)
-    expect(detect([here("one")]).kind).toBe("here")
-    expect(detect([])).toEqual({ kind: "none", because: { kind: "no-engine" } })
+    expect(offBecause(detect.read([present("one")]))).toBeNull()
+    expect(offBecause(detect.read([]))).toEqual({ kind: "no-engine" })
   })
 
   test("each engine's own probe is asked once, however often the list moves", () => {
@@ -247,10 +260,10 @@ describe("a table that moves", () => {
     const one = counting("one")
     const two = counting("two")
     const detect = detecting({}, CWD)
-    detect([one, two])
-    detect([two])
-    detect([one, two])
-    detect([one, two])
+    detect.read([one, two])
+    detect.read([two])
+    detect.read([one, two])
+    detect.read([one, two])
     expect(asked).toEqual(["one", "two"])
   })
 
@@ -262,19 +275,68 @@ describe("a table that moves", () => {
     let asked = 0
     const missing = engine("gone", () => {
       asked += 1
-      return null
+      return { name: "gone", where: null, why: "no" }
     })
     const detect = detecting({}, CWD)
-    detect([missing])
-    detect([missing])
-    detect([missing])
+    detect.read([missing])
+    detect.read([missing])
+    detect.read([missing])
     expect(asked).toBe(1)
   })
 
   test("an empty adapter path still allows independently offered engines", () => {
     const detect = detecting({ [AGENT_ENV]: "" }, CWD)
-    expect(detect([here("one")]).kind).toBe("here")
-    const both = detect([here("one"), here("two")])
-    expect(both.kind === "here" && both.installed.map(one => one.id)).toEqual(["one", "two"])
+    expect(idsIn(detect.read([present("one")]))).toEqual(["one"])
+    expect(idsIn(detect.read([present("one"), present("two")]))).toEqual(["one", "two"])
+  })
+
+  test("forget re-probes exactly the id it is handed, and nothing else", () => {
+    // A TOGGLE IS A PERSON ASKING: turning a row off and on at the panel must
+    // re-read that engine on the way back — a person who has just installed
+    // `omp` and flipped its row is owed the new answer without a restart —
+    // while every other row keeps its cached answer, which is the frozen half
+    // the header refuses to give up.
+    const probed: Array<string> = []
+    const counting = (id: string, present: () => boolean): Engine =>
+      engine(id, () => {
+        probed.push(id)
+        return present() ? { command: `/bin/${id}`, args: [] } : { name: id, where: null, why: `no ${id}` }
+      })
+    let ompPresent = false
+    const omp = counting("omp", () => ompPresent)
+    const claude = counting("claude", () => true)
+    const detect = detecting({}, CWD)
+
+    expect(detect.read([omp, claude]).map((row) => row.standing)).toEqual(["not-here", "here"])
+    // ...and moving the table alone changes nothing: the cache holds.
+    expect(detect.read([omp, claude]).map((row) => row.standing)).toEqual(["not-here", "here"])
+    expect(probed).toEqual(["omp", "claude"])
+
+    // The executable arrives, the person toggles the row: the finalizer calls
+    // `forget` on the way out, so the re-registration on the way back probes.
+    ompPresent = true
+    detect.forget("omp")
+    const again = detect.read([omp, claude])
+    expect(again.map((row) => row.standing)).toEqual(["here", "here"])
+    // ...and ONLY that id: claude is still answered from the cache, one probe
+    // each for it across the whole case.
+    expect(probed).toEqual(["omp", "claude", "omp"])
+  })
+
+  test("forgetting an id nobody cached probes it when it next arrives", () => {
+    // The registration order the finalizer runs in: an engine may be forgotten
+    // before it is ever asked (a row switched off in the same beat it was
+    // switched on). `forget` on an absent id is a no-op, and the arrival asks.
+    let asked = 0
+    const arriving = engine("late", () => {
+      asked += 1
+      return { command: "/bin/late", args: [] }
+    })
+    const detect = detecting({}, CWD)
+    detect.forget("late")
+    detect.read([])
+    expect(asked).toBe(0)
+    expect(idsIn(detect.read([arriving]))).toEqual(["late"])
+    expect(asked).toBe(1)
   })
 })

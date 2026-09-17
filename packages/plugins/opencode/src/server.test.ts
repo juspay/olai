@@ -42,8 +42,11 @@ describe("finding opencode on a host", () => {
     expect(at?.command).toBe("/home/u/.local/bin/opencode")
   })
 
-  test("nothing of that name on the search path is no row at all", () => {
-    expect(ENGINE.at({ env: {}, cwd: CWD, found: () => null })).toBeNull()
+  test("nothing of that name on the search path is this engine's own sentence", () => {
+    // The ordinary state of most machines, and the answer names what to do
+    // rather than dropping the row: the roster publishes it, the picker draws
+    // it greyed.
+    expect(ENGINE.at({ env: {}, cwd: CWD, found: () => null })).toBe(INSTALL)
   })
 
   test("no variable is read: this engine is FOUND rather than shipped", () => {
@@ -52,15 +55,14 @@ describe("finding opencode on a host", () => {
     // search path, which is the same gesture as installing it.
     expect(
       ENGINE.at({ env: { OLAI_ACP_AGENT: "/adapter" }, cwd: CWD, found: () => null }),
-    ).toBeNull()
+    ).toBe(INSTALL)
   })
 
   test("what a person is told when this machine has no agent at all", () => {
     // THE PLUGIN'S WHOLE SENTENCE — core displays one and never composes one.
-    // Asserted off the CONSTANT rather than off the registration: it is spelled
-    // once here and spent once, by the browser half that hangs it in
-    // `engine.install`. It rode the server registration too for a revision,
-    // read by nothing, which is exactly one authored copy too many.
+    // Asserted off the CONSTANT rather than off a rendering: it is spelled
+    // once here and spent once, by the server half that hands it back as the
+    // probe's `NotHere` arm.
     expect(INSTALL).toEqual({
       name: "opencode",
       where: "https://opencode.ai",

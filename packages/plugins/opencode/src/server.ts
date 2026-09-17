@@ -20,11 +20,12 @@
  * `olai-plugin-chat` does the talking.
  */
 
+import { type Adapter } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
 import { name } from "./index.ts"
-import { NAME } from "./install.ts"
+import { INSTALL, NAME } from "./install.ts"
 import { OPENCODE } from "./leg.ts"
 
 /** The plugin's word, re-exported for the reason every tenant's server door
@@ -38,9 +39,12 @@ export { name } from "./index.ts"
 export const ENGINE: Registering = {
   name: NAME,
   leg: OPENCODE,
-  at: (where) => {
+  at: (where): Adapter | typeof INSTALL => {
     const bin = where.found("opencode")
-    if (bin === null) return null
+    // Nothing on the search path is the ORDINARY state of most machines, and
+    // the answer is this engine's own sentence rather than a dropped row —
+    // the roster publishes it, the picker draws it greyed.
+    if (bin === null) return INSTALL
     // `--cwd` rather than the child's own working directory, because opencode
     // reads it for WHICH SESSIONS THE DIRECTORY HAS as well as for where to
     // run: `session/list` ignores the `cwd` a request carries, so the one on

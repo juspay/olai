@@ -37,13 +37,12 @@ are pickable; missing ones are greyed out with the reason and an installation
 link when supplied. Row-menu verbs and the command palette offer only available
 engines. A plain node page shows its selected engine beside the composer.
 
-A **fresh start may pick a different engine**. With one engine installed it
-starts immediately on the node's own engine, exactly as before. With several,
-the fresh-start press opens the engine menu with the node's current engine
-first, and the row menu lists one fresh-start entry per installed engine,
-each labeled **Fresh start — <engine>**. Picking one supersedes the
-conversation onto that engine: the history of the conversation follows the
-node across engines, both when it moves away from and back to an engine.
+A **fresh start may pick a different engine**. With exactly one enabled engine
+and that engine available, it starts immediately. Otherwise its menu lists the
+whole standing table in bundle order, with missing engines disabled. The row
+menu lists one **Fresh start — <engine>** entry per available engine. Picking
+one supersedes the conversation onto that engine: history follows the node
+across engines, both when it moves away from and back to an engine.
 
 The list itself:
 

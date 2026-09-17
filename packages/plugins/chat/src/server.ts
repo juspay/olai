@@ -111,16 +111,17 @@ import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
 import { whyNoAgent } from "./adapter.ts"
-import { detecting } from "./agents/roster.ts"
+import { detecting, here, offBecause } from "./agents/roster.ts"
+import { said } from "./chat.ts"
 import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { seatingIn } from "./seating.ts"
+import { Config } from "./settings.ts"
+export { Config } from "./settings.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { closeAgent, type Binding, startAgentSession } from "./server/binding.ts"
-import { Config } from "./settings.ts"
-export { Config } from "./settings.ts"
 import { scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -217,6 +218,15 @@ export default definePlugin({
     const engines = new Map<string, Engine>()
     let engineChange: Deferred.Deferred<void> | null = null
     /**
+     * THE MACHINE'S ANSWERS, one detector for the life of the row — built here
+     * rather than inside the build fiber below, because the unregister
+     * finalizer needs it: forgetting a toggled id's cached answer is what makes
+     * off-then-on a re-probe, and the finalizer runs wherever the row's scope
+     * unwinds, not wherever the chat happened to be built
+     * (`./agents/roster.ts`'s `detecting` argues the halves and `forget`).
+     */
+    const detect = detecting(env.vars, vault.served)
+    /**
      * ...AND WHO IS TOLD WHEN IT MOVES, which is the half that was missing.
      *
      * The table was always live — the release below has always deleted the row —
@@ -262,6 +272,13 @@ export default definePlugin({
           () =>
             Effect.sync(() => {
               engines.delete(who)
+              // A TOGGLE IS A PERSON ASKING. The finalizer drops this id's
+              // cached probe answer BEFORE ringing the table's bell, so a row
+              // switched off and on again is RE-READ on the way back — the
+              // person who flipped it is the one "look again" the frozen
+              // machine half answers to (`./agents/roster.ts`'s `forget`
+              // argues both). Every other id keeps its cached answer.
+              detect.forget(who)
               enginesMoved()
             }),
         ).pipe(Effect.asVoid),
@@ -707,33 +724,45 @@ export default definePlugin({
        */
       const mounted = () => inBundleOrder(engines.values(), (one) => one.id, bundle.rank)
       /**
-       * ...AND WHICH OF THEM THIS MACHINE HAS, over the same moving list.
-       *
-       * ONE DETECTOR for the life of the process, so the machine's half is asked
-       * once per engine and never again while the build's half follows the
-       * fibers ({@link ./agents/roster.ts}'s `detecting` argues both).
+       * ...AND HOW THIS MACHINE ANSWERS FOR EACH, over the same moving list —
+       * the detector hoisted to `apply`'s scope, so the unregister finalizer
+       * and the build read ONE table ({@link ./agents/roster.ts}'s `detecting`
+       * argues the halves and the `forget` the finalizer spends).
        */
-      const detect = detecting(env.vars, vault.served)
-      let [discoveryDuration, found] = yield* Effect.timed(Effect.sync(() => detect(mounted())))
-      while (found.kind === "none") {
+      let [discoveryDuration, table] = yield* Effect.timed(Effect.sync(() => detect.read(mounted())))
+      // THE `off` GUARD, over the fold rather than the shape: the build waits
+      // for the first `here` row exactly as it waited for a nonempty array,
+      // because a table of only `not-here` rows is a panel with install
+      // sentences and no agent to talk to — same face, same wait.
+      while (offBecause(table) !== null) {
         // Arm before publishing or yielding, so an arriving engine cannot be
         // lost between the empty reading and the wait. This fiber is scoped:
         // turning chat off also cancels a build waiting for its first engine.
         engineChange = yield* Deferred.make<void>()
-        mine?.cells.engines.set([])
-        yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(found.because)), {
-          duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
-        })
+        mine?.cells.engines.set(table.map(said))
+        const because = offBecause(table)
+        if (because !== null) {
+          yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(because)), {
+            duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
+          })
+        }
         yield* Deferred.await(engineChange)
-        const next = yield* Effect.timed(Effect.sync(() => detect(mounted())))
+        const next = yield* Effect.timed(Effect.sync(() => detect.read(mounted())))
         discoveryDuration = next[0]
-        found = next[1]
+        table = next[1]
       }
       engineChange = null
-      const installed = found.installed
+      const installed = here(table)
 
+      // ...AND THE LOG NAMES BOTH HALVES of the reading, which is the point of
+      // publishing the whole table: `agents` was already there, and `missing`
+      // is what the journal never had — the sentence for every engine a person
+      // enabled and could not start, in the engine's own words.
       yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
         agents: installed.map((row) => row.id).join(", "),
+        missing: table
+          .flatMap((row) => row.standing === "not-here" ? [`${row.id}: ${row.missing.why}`] : [])
+          .join("; "),
         duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
       })
 
@@ -748,19 +777,18 @@ export default definePlugin({
           }
         },
         // BOTH HALVES OF THE TABLE, READ WHEN ASKED. What this hands over is the
-        // reading rather than an answer, so a row switched off at the panel
-        // leaves the picker and one switched on enters it — see
-        // `../chat.ts`'s `PanelOptions.roster`, and `enginesMoved` above for
-        // what tells the panel to look again.
+        // WHOLE reading — `here` rows and `not-here` rows both — so a row
+        // switched off at the panel leaves the picker, one switched on enters
+        // it, and an engine this machine has not got is GREYED with its own
+        // sentence rather than dropped. See `../chat.ts`'s `PanelOptions.roster`
+        // for the folds, and `enginesMoved` above for what tells the panel to
+        // look again.
         //
         // THE EMPTY ANSWER IS LEGAL HERE and was not: the guard above is what
         // refuses to BUILD a panel that never had an agent, and it still does.
         // What is new is that a panel which had one can watch its last engine
         // leave, and the state machine has the face for it.
-        roster: () => {
-          const now = detect(mounted())
-          return now.kind === "here" ? now.installed : []
-        },
+        roster: () => detect.read(mounted()),
         engines: () => mounted().map((one) => one.id),
         cwd: vault.served,
         tools: () => address,
@@ -831,6 +859,11 @@ export default definePlugin({
       yield* Effect.addFinalizer(() => Effect.sync(() => { filer = null }))
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
+        // ...AND THE MISSING, at the debug level the commands line lives at:
+        // same table, other arm, one line.
+        missing: table
+          .flatMap((row) => row.standing === "not-here" ? [`${row.id}: ${row.missing.why}`] : [])
+          .join("; "),
         mcp: address.url,
       })
     }))

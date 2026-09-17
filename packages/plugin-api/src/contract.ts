@@ -24,6 +24,7 @@
  * one-way.
  */
 import type { Effect } from "effect"
+import type { NotHere } from "@olai/acp/engine"
 /**
  * AN MCP SERVER TO SPAWN, in olai's terms — `olai-plugin-chat` renders it into what
  * ACP wants, the same way it does olai's own.
@@ -64,55 +65,47 @@ export interface StdioServer {
  * `where` is `null` for the ways of failing that never reached a file. A path
  * is what a reader most wants and is not always a thing that exists.
  *
- * `olai-plugin-chat` and each plugin spell this shape THEMSELVES, and the three
- * declarations are the arrangement rather than a duplication to tidy away. It
- * used to be that a plugin COULD NOT import this package — it held the registry
- * too, and the registry imports every plugin — and that premise left with the
- * registry ({@link ./plugin.ts}'s header argues the reversal); the three
- * spellings stayed, because `olai-plugin-chat` is a general package one floor down
- * that is handed a list and must not learn that a plugin system exists. So the
- * agreement is still proved where the two ends meet, which is now the
- * `chat/session-start` waterfall a server half pushes its thunk onto
- * ({@link ./services.ts}'s `SessionStart`) rather than a `probesOf` over a
- * compiled-in list. It is the same trade {@link ./browser.ts}'s four services
- * make in the other direction: a plugin re-declares only the part it reads, and
- * contravariance makes the narrower spelling the stronger claim.
+ * AN ENGINE PLUGIN takes the shape from `@olai/acp/engine` now (see the
+ * section below for the direction of that move), because it already opens
+ * that door for the leg and the adapter it hands `at()`. `olai-plugin-chat`
+ * still spells its own copy beside its servers, and the agreement is still
+ * proved where the two ends meet — the `chat/session-start` waterfall a
+ * server half pushes its thunk onto ({@link ./services.ts}'s `SessionStart`)
+ * rather than a `probesOf` over a compiled-in list. It is the same trade
+ * {@link ./browser.ts}'s four services make in the other direction: a plugin
+ * re-declares only the part it reads, and contravariance makes the narrower
+ * spelling the stronger claim.
  *
- * ## IT WENT TO `@olai/acp` FOR A REVISION, AND CAME BACK
+ * ## IT WENT TO `@olai/acp`, CAME BACK, AND WENT THERE AGAIN TO STAY
  *
  * The agents phase read it as a shape TWO WALLS needed — an engine plugin
  * saying how to get itself, and `olai-plugin-chat` saying what an absent MCP server
  * was — and moved it to the floor package under both. The second reader turned
- * out not to exist: an engine's install sentence is drawn by that engine's own
- * BROWSER half out of a slot, so no server-side registration ever needed the
- * shape, and `olai-plugin-chat` had gone on declaring its own copy the whole time
- * (`servers.ts`, the contravariant re-spelling this header argues for).
+ * out not to exist at the time: an engine's install sentence was drawn by that
+ * engine's own BROWSER half out of a slot, so no server-side registration
+ * needed the shape, and it came back here beside the probe that reads one.
  *
- * So it is back here, beside the probe that is its only reader, and
- * `@olai/acp`'s door is the poorer for one fewer word that was never the
- * protocol's. An engine plugin that wants the shape for its install sentence
- * takes it from HERE, which it already imports for `Agents`.
+ * The reader arrived — `Registering.at` now answers `Adapter | NotHere`, so
+ * the roster can publish a row for an engine this machine has not got, with
+ * the sentence attached, instead of dropping it — and with it the reason the
+ * first move was wrong in the other direction: an engine plugin answering
+ * `at()` may not import THIS package for the shape when it already opens
+ * `@olai/acp/engine` for the leg and the adapter. So the canonical spelling
+ * is the floor's again, `@olai/acp/engine`'s, and this file re-exports the
+ * name: the probe below keeps its reader, the wall keeps one spelling, and
+ * no cycle is made — this package already opens that door for
+ * `Engine`/`Registering`.
  *
- * `why` IS A WHOLE SENTENCE and nothing composes around it. The words belong to
- * whoever found out — the five ways a padi can fail are `olai-plugin-kolu`'s to
- * word, and where to get opencode is `olai-plugin-opencode`'s — because a
- * sentence built out of a core template with a plugin's noun dropped into it is
- * a debug log line on a screen. **Core displays a sentence and never composes
- * one.**
+ * `olai-plugin-chat` still spells its own copy beside its servers
+ * (`servers.ts`, the contravariant re-spelling the paragraph above argues
+ * for), which the re-export does not disturb.
  */
 
-/**
- * SOMETHING THIS HOST DOES NOT HAVE, and what a person is owed about it.
- *
- * `where` is where the thing WOULD be, in whichever way makes sense for it: the
- * file a probe asked for, or the page a person downloads it from. `null` for the
- * ways of being absent that name no place at all.
- */
-export interface NotHere {
-  readonly name: string
-  readonly where: string | null
-  readonly why: string
-}
+/** ...AND WHAT A PERSON IS OWED ABOUT IT — the floor's shape, re-exported so
+ *  this door's own readers (`Probed.missing` below) go on reaching it where
+ *  they already did. See `@olai/acp/engine`'s `NotHere` for the words: this
+ *  package adds none. */
+export type { NotHere } from "@olai/acp/engine"
 
 /** WHAT A PROBE FOUND — both halves at once, because they are one reading.
  *

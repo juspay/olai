@@ -43,9 +43,10 @@ const bench = async (options: {
   let nodes = [NODE]
   const chat = await run(make({
     cwd, scoping, fork: Effect.runFork,
-    roster: () => [{ id: "alpha", name: "alpha", adapter: {
-      command: options.command?.() ?? process.execPath, args: [join(import.meta.dirname, "fixtures/doorbell-agent.ts")],
-    }, leg: QUEUES, prompt: { kind: "first-turn" } }],
+    roster: () => [{ id: "alpha", name: "alpha", standing: "here" as const, installed: {
+      id: "alpha", name: "alpha", adapter: {
+        command: options.command?.() ?? process.execPath, args: [join(import.meta.dirname, "fixtures/doorbell-agent.ts")],
+      }, leg: QUEUES, prompt: { kind: "first-turn" } } }],
     engines: () => ["alpha"], tools: () => null,
     wake: options.wake ?? ((plugin) => plugin !== "agenda" ? WAKE : undefined),
     nodes: () => nodes, nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,

@@ -16,7 +16,15 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { QUEUES } from "./agents/legs.testlib.ts"
-import type { Installed } from "./agents/roster.ts"
+import type { Installed, Standing } from "./agents/roster.ts"
+
+/** One installed row, as the whole table now carries it — every fixture
+ *  here is a machine that HAS its engines, which is the case these suites
+ *  are about. */
+const seated = (row: Installed): Standing => ({
+  id: row.id, name: row.name, standing: "here", installed: row,
+})
+const seatedAll = (rows: ReadonlyArray<Installed>) => rows.map(seated)
 import { makePanel, type Panel } from "./chat.ts"
 import type { Change } from "./transcript.ts"
 
@@ -60,7 +68,7 @@ const texts = (change: Change): ReadonlyArray<string> => change.upserts.map(([, 
 test("a loaded conversation is published as one change, after the one that clears the last", async () => {
   const told: Array<Change> = []
   const chat: Panel = await run(makePanel({
-    roster: () => [ROW],
+    roster: () => [seated(ROW)],
     engines: () => [],
     cwd,
     tools: () => null,

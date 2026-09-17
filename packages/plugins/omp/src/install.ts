@@ -1,16 +1,17 @@
 /**
  * WHO THIS ENGINE IS, AND HOW A PERSON GETS IT — spelled once, spent once.
  *
- * THE BROWSER HALF IS THE ONE THAT SPENDS IT: {@link ./browser.tsx} hangs this
- * value in the `engine.install` slot, and `@olai/web` draws the row on the
- * face the panel shows when this machine has no agent at all. **The server half
- * does not touch it** — {@link ./server.ts} opens this module for {@link NAME}
- * and nothing else.
+ * THE SERVER HALF IS THE ONE THAT SPENDS IT: {@link ./server.ts}'s probe hands
+ * this value back as the `NotHere` arm of its answer, so the roster publishes
+ * a row for a machine that has not got this engine with the sentence attached —
+ * the picker draws it greyed, the plugins panel files it under Needs you, and
+ * the detection log names it. The browser half draws a mark and nothing else;
+ * the slot that carried this sentence is gone.
  *
- * A MODULE OF ITS OWN rather than lines inside `./browser.tsx`, because that
- * bench must not open the browser door: `packages/tests` runs under a process
- * with no browser in it, and a claim about two strings would drag SolidJS onto
- * its graph.
+ * A MODULE OF ITS OWN rather than lines inside `./server.ts`, because that
+ * bench must not open the server door: `packages/tests` runs under a process
+ * with no browser in it, and a claim about two strings would drag the plugin
+ * runtime onto its graph.
  *
  * IT IS A WHOLE SENTENCE and core composes no clause of it. **Core displays a
  * sentence and never composes one** — the reason there is no template with a
@@ -18,7 +19,7 @@
  * own package knows.
  */
 
-import type { NotHere } from "@olai/plugin-api"
+import type { NotHere } from "@olai/acp/engine"
 
 /** WHAT A PERSON READS. The engine's own name and not the plugin's word, and
  *  the two exist apart because they are different facts: the row is bound under

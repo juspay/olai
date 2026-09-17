@@ -25,12 +25,12 @@
  * behind it would fail at every `session/new`.
  */
 
-import { adapterFrom } from "@olai/acp/engine"
+import { type Adapter, adapterFrom } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
 import { name } from "./index.ts"
-import { NAME } from "./install.ts"
+import { ADAPTER_GONE, INSTALL, NAME } from "./install.ts"
 import { PI } from "./leg.ts"
 
 /** The plugin's word, re-exported for the reason every tenant's server door
@@ -58,14 +58,19 @@ const WRAPS = "PI_ACP_PI_COMMAND"
 export const ENGINE: Registering = {
   name: NAME,
   leg: PI,
-  at: (where) => {
+  at: (where): Adapter | typeof INSTALL => {
     // The ADAPTER first: like the claude row, it is shipped and not found, so
-    // the variable is the whole of its door.
+    // the variable is the whole of its door. Its absence is NOT a person's
+    // problem — the pin comes with olai on every documented start — so the
+    // sentence it answers is the one that says so, which is a DIFFERENT
+    // sentence from the one a machine without `pi` is owed. Two probes, two
+    // reasons, and a single `NotHere` cannot say which failed: this is the
+    // one row where the union's second arm earns a second author.
     const adapter = adapterFrom(where.env[PI_AGENT_ENV])
-    if (adapter === null) return null
+    if (adapter === null) return ADAPTER_GONE
     // ...and then the AGENT the adapter wraps — see the header.
     const bin = where.found("pi")
-    if (bin === null) return null
+    if (bin === null) return INSTALL
     return { ...adapter, env: { [WRAPS]: bin } }
   },
   // pi-acp carries no system-prompt field either, so the standing instruction

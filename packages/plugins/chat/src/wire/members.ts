@@ -1206,45 +1206,28 @@ export type Listed = typeof Listed.Type
  * `pi/` — so neither table can exist: `packages/bundle/src/fence.test.ts` holds as an
  * equality per package that no general package spells a plugin's name in code.
  *
- * ## ...and why nothing replaced it HERE
- *
- * A member carrying each engine's install sentence was the obvious answer and is
- * the weaker one. How a person GETS an engine is the same kind of fact as the
- * MARK it wears: a drawing about a plugin, which the plugin draws. So each
- * engine's browser half hangs its own row in `engine.install`
- * (`@olai/plugin-api`'s `SLOTS`), and the tab lists what the SLOT TABLE holds
- * rather than what this wire listed.
- *
- * That is strictly more honest than a member would have been, and the reason is
- * the tab following the roster: a serve started a policy selecting only opencode, pi never
- * fetches the Claude chunk, so no Claude row is drawn — where a list on this
- * cell would have had to be filtered by something, and a compiled-in record
- * would have gone on offering an engine this serve could not mount.
- *
- * ## WHAT DOES STILL CROSS, and why it is not a table
- *
- * {@link AgentChoice}: an id and a name per INSTALLED agent, on
- * {@link ChatState.roster}. That is a fact about this MACHINE — which agents are
- * here — and only the server can answer it. The `name` is the engine's own, out
- * of its `Registering.name`, and it is what the picker's row says and what the
- * header says beside the model.
- *
- * SO THE PICKER'S WORDS DO CROSS, and a slot for them would be a second author
- * for one string: `chat.agent.row` existed for exactly one revision and all
- * three engines hung the same markup around the same constant this cell was
- * already carrying. A general package DRAWING a word the server sent is not a
- * general package that knows it — the fence is about what core spells in code,
- * and core spells none of this.
+ * The server publishes one AgentChoice per mounted engine. A here row carries
+ * the name and id a picker spends; a not-here row also carries the engine's
+ * absence reason. The browser draws this data without a second installation
+ * catalog. Engine marks remain scoped browser contributions.
  */
 
 /**
- * ONE AGENT a conversation can be with — a row of the picker, and, once one is
- * chosen, who the header names beside the model.
+ * ONE AGENT a conversation can be with — a row of the picker, greyed or not,
+ * and, once one is chosen, who the header names beside the model.
  *
- * TWO FIELDS AND NO MORE. What to spawn, how to read its wire, where it was
- * found: all of that stays on the server (`../../plugins/chat/src/agents/roster.ts`),
- * because a browser that knew what to spawn would be a browser that could ask
- * for it. What crosses is a NAME to draw and an ID to send back.
+ * The here arm carries only identity and standing. Spawn commands, arguments
+ * and wire-reading legs stay on the server.
+ *
+ * ...AND A THIRD THING ON THE OTHER ARM: the sentence. An engine this machine
+ * has not got used to vanish from the roster entirely — no picker row, no
+ * readout, nothing — which is how a panel came to offer two engines while a
+ * third sat switched on and unexplained. The roster never drops a row now, so
+ * the wire carries the absence as a ROW: `standing: "not-here"` with the
+ * engine's own `missing` (`NotHere`, the same shape an absent MCP server's
+ * probe answers in — name, where, why — spelled here per the arrangement
+ * `@olai/plugin-api`'s contract documents). A picker draws it greyed and
+ * disabled, with the sentence; nothing composes a clause of it.
  *
  * The ICON is not here either, and that is the same decision read from the
  * other side: which mark to draw for an agent is a fact about the drawing, so
@@ -1253,13 +1236,30 @@ export type Listed = typeof Listed.Type
  * server sending an icon would be a server shipping artwork over a websocket to
  * be told what a shape is.
  */
-export const AgentChoice = Schema.Struct({
-  /** Stable and never shown: `claude`, `opencode`. What a picker sends back,
-   *  what a memory writes down, and what the client draws a mark by. */
-  id: Schema.String,
-  /** What a person reads. */
-  name: Schema.String,
-})
+export const AgentChoice = Schema.Union([
+  /** An agent this machine has, and can start. */
+  Schema.Struct({
+    /** Stable and never shown: `claude`, `opencode`. What a picker sends back,
+     *  what a memory writes down, and what the client draws a mark by. */
+    id: Schema.String,
+    /** What a person reads. */
+    name: Schema.String,
+    standing: Schema.Literal("here"),
+  }),
+  /** An engine this serve mounted that this machine has not got. Sent back
+   *  NOTHING: a greyed row cannot be picked, and an id nothing resolves is a
+   *  stale tab. What a person is owed is the sentence. */
+  Schema.Struct({
+    id: Schema.String,
+    name: Schema.String,
+    standing: Schema.Literal("not-here"),
+    missing: Schema.Struct({
+      name: Schema.String,
+      where: Schema.NullOr(Schema.String),
+      why: Schema.String,
+    }),
+  }),
+])
 export type AgentChoice = typeof AgentChoice.Type
 
 /**
@@ -1601,7 +1601,7 @@ export type Unopened = typeof Unopened.Type
  * ENGINE. They are facts about the SERVE — its enabled engine rows and a
  * set of probes that all answered no. What an
  * individual engine has to say for itself is still its own words in its own
- * package, drawn from the `engine.install` slot; this says which of two
+ * package, carried on its not-here standing; this says which of two
  * sentences to put ABOVE that list, and whether to draw the list at all.
  */
 export const OffBecause = Schema.Union([
@@ -1698,18 +1698,19 @@ export const ChatState = Schema.Struct({
   usage: Schema.NullOr(Usage),
   commands: Schema.Array(Command),
   /**
-   * WHICH agents this machine has, in the order the picker draws them.
+   * WHICH engines this serve mounted and what each is standing, in the order
+   * the picker draws them.
    *
    * Detected on the server when it started (the human's ruling: no list to
    * maintain, no path to set for an agent that is simply installed), and sent
-   * whole because it is what the picker IS. Empty only in {@link CHAT_OFF} —
-   * with no agent at all there is no chat, and the panel draws the face that
-   * says so and says how to install one, out of each engine plugin's own
-   * face (`@olai/web`'s `chat/NoAgent.tsx`, over the `engine.install` slot).
+   * WHOLE because it is what the picker IS — `here` rows pickable,
+   * `not-here` rows greyed with their own sentence, none dropped. The panel
+   * draws the face that says there is no agent at all out of {@link
+   * ChatState.off} plus the `not-here` rows' own sentences.
    */
   roster: Schema.Array(AgentChoice),
   /**
-   * WHO the panel is talking to, or that it is waiting to be told — see
+   * WHO the panel is talking to, or that it is waiting to be told which — see
    * {@link Talking}, which is where the three facts this used to be became one.
    *
    * A conversation is bound to ONE agent for its life (ruled 2026-08-21), and

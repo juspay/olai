@@ -23,25 +23,14 @@
  * and the protocol is the language rather than an integration. The leg beside
  * this ({@link ./leg.ts}) is the other half of that same sentence.
  *
- * ## WHAT IS NOT HERE
- *
- * The standing prompt's TEXT ({@link PromptChannel} carries only the channel it
- * rides), because that is one instruction versioned with the binary and not a
- * thing four engines should be free to say four ways. And the SPAWN: what to
- * do with an {@link Adapter} once you have one is `olai-plugin-chat`'s, which is the
- * package that speaks the protocol out loud.
- *
- * AND HOW TO GET THE ENGINE, which is the one that was here and went. A
- * `missing: NotHere` rode this registration for a revision, so an engine handed
- * over its install sentence twice: once here and once as the face its browser
- * half hangs in `engine.install`. Only the face was ever read — no serve, no
- * log line and no cell ever touched the field — so what it bought was a second
- * authored copy of one sentence and a `null` arm whose documented behaviour ("a
- * row with none is drawn nowhere") could not be observed, because the non-null
- * arm was drawn nowhere either. The sentence is spelled once, in the plugin's
- * own `install.ts`, and spent once, by the half that draws it. `NotHere` went
- * back with it, to `@olai/plugin-api`'s `contract.ts` — the door of the probe
- * that does read one.
+ * AND HOW TO GET THE ENGINE, which is the one that came back. `NotHere`
+ * lives below now ({@link NotHere}, beside the probe that answers one) and
+ * rides {@link Registering.at} in the same direction: an engine hands over
+ * EITHER the adapter to spawn OR the sentence a machine that has none is
+ * owed, so `null` — the arm that silently dropped a row from every face — is
+ * unspellable. `@olai/plugin-api`'s `contract.ts` re-exports the type for the
+ * probes that answer one there; this is the canonical spelling because both
+ * walls open this door and neither may open the other's package.
  */
 
 import type { Leg } from "./leg.ts"
@@ -63,7 +52,6 @@ export * from "./leg.ts"
  * The static name lives here so consumers need not import another plugin.
  */
 export const AGENT_ENV = "OLAI_ACP_AGENT"
-
 /**
  * WHAT TO SPAWN to reach one agent, or the absence of one.
  *
@@ -84,10 +72,44 @@ export interface Adapter {
 }
 
 /**
+ * SOMETHING THIS HOST DOES NOT HAVE, and what a person is owed about it.
+ *
+ * The CANONICAL spelling, moved from `@olai/plugin-api`'s `contract.ts` — where
+ * it sat beside the MCP-server probe that reads one — because a second reader
+ * arrived under the other wall: {@link Registering.at} answers with one when
+ * this machine has not got the engine, and an engine plugin may not open
+ * `@olai/plugin-api` for a type it already reads this door for. The package
+ * that cannot import this one re-exports the name, which keeps one spelling
+ * without a cycle; `olai-plugin-chat` goes on declaring its own contravariant
+ * copy beside its servers ({@link ./probes.ts}'s sibling arrangement).
+ *
+ * `where` is where the thing WOULD be, in whichever way makes sense for it: the
+ * file a probe asked for, or the page a person downloads it from. `null` for
+ * the ways of being absent that name no place at all.
+ *
+ * `why` is a WHOLE SENTENCE and nothing composes around it. The words belong to
+ * whoever found out — the five ways a padi can fail are `olai-plugin-kolu`'s to
+ * word, and where to get opencode is `olai-plugin-opencode`'s — because a
+ * sentence built out of a core template with a plugin's noun dropped into it is
+ * a debug log line on a screen. **Core displays a sentence and never composes
+ * one.**
+ */
+export interface NotHere {
+  readonly name: string
+  readonly where: string | null
+  readonly why: string
+}
+
+/**
  * An adapter out of one environment variable, or `null` for "not here".
  *
  * Split on whitespace: a path with a space in it is a thing somebody can work
  * around with a wrapper, and a shell is a thing nobody can take back.
+ *
+ * KEPT even though {@link Registering.at} answers `Adapter | NotHere` now:
+ * "the variable names a command line or it does not" is a question half of its
+ * own, and the two engines shipped rather than found ask it of their own
+ * variable before composing the sentence the other answer carries.
  */
 export const adapterFrom = (value: string | undefined): Adapter | null => {
   const words = (value ?? "").trim().split(/\s+/).filter((word) => word !== "")
@@ -159,13 +181,16 @@ export interface Registering {
   readonly name: string
   /** How to read this agent's wire — {@link ./leg.ts}. */
   readonly leg: Leg
-  /** How to start it HERE, or `null` when this machine has no install of it.
+  /** How to start it HERE, or what a person is owed about its absence.
    *
-   *  `null` IS NOT A FAULT. A machine that simply is not running the tool has
-   *  had nothing go wrong; what a person is owed in that case is
-   *  {@link missing}, which is a different sentence and is answered whether or
-   *  not anybody looked. */
-  readonly at: (where: Where) => Adapter | null
+   *  ONE ANSWER AND NO `null` ARM. A machine that simply is not running the
+   *  tool has had nothing go wrong — that is the {@link NotHere} arm, the
+   *  engine's own whole sentence (its `install.ts`, the same words its
+   *  browser half used to hang), and it is answered whether or not anybody
+   *  looked. `null` was the arm that made an absence invisible: the roster
+   *  dropped the row and no face, log line or cell could say why, which is
+   *  the defect this union exists to close. */
+  readonly at: (where: Where) => Adapter | NotHere
   /** Which channel this engine's standing prompt rides —
    *  {@link PromptChannel}. */
   readonly prompt: PromptChannel

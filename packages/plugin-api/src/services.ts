@@ -693,10 +693,13 @@ export const Wakes = serviceTag<Wakes>("wakes")
  * ## What a registration is, and what it deliberately is NOT
  *
  * {@link Registering} — a name a person reads, the leg that reads this agent's
- * wire, a probe that answers `Adapter | null` for this host, and the channel its
- * standing prompt rides. NOT how a person GETS it: that sentence rode this
- * registration for one revision and was read by nothing, because the face that
- * draws it is the engine's own browser half's (`engine.install`).
+ * wire, a probe that answers `Adapter | NotHere` for this host, and the channel
+ * its standing prompt rides. HOW A PERSON GETS ONE is in that answer now: the
+ * `NotHere` arm is the engine's own install sentence, spelled once in its
+ * `install.ts` and spent where the reading is published — the roster's row, the
+ * picker's greyed entry and the log's `missing` line — where for one revision
+ * it rode this registration read by nothing, beside a browser slot nobody has
+ * since kept.
  * The ID IS THE FIBER'S WORD and there is no field for one, so a plugin cannot
  * register under another's name.
  *
@@ -719,17 +722,16 @@ export interface Agents {
    * READ ONCE, WHEN THE CHAT IS BUILT, and the sentence that said otherwise is
    * worth keeping as a warning: it read "unloading it takes the row out of the
    * picker". The registry entry is genuinely scope-held and disappears from
-   * `Plugins.engines()` on unload — but `olai-plugin-chat` is handed a LIST at
-   * `Chat.make` and holds it for the life of the process, on purpose
-   * (`agents/roster.ts`'s "Once, at the start": re-deciding the roster under a
-   * reader would flip the panel's whole face while somebody was using it). So
-   * an engine plugin that unloads leaves its row in a chat already built, and a
-   * promise this door could not keep is worse than the bargain it can: **an
-   * engine offered mid-serve is offered by the next start.**
+   * the engines table on unload — and the roster re-reads that table on every
+   * move now (`olai-plugin-chat`'s `agents/roster.ts`'s `detecting`), so the
+   * row genuinely does leave the picker and re-enter when the plugin comes
+   * back. What stays frozen is the MACHINE's half: which engines are
+   * installed is asked once per id and held, because re-deciding it under a
+   * reader would flip the panel's whole face while somebody was using it.
    *
    * The BROWSER half is the half that does unwind — its faces are finalizers on
-   * its own scope, so a mark and an install sentence do leave the tab. The
-   * asymmetry is real and is the roster's, not this door's.
+   * its own scope, so a mark does leave the tab. The asymmetry is real and is
+   * the roster's, not this door's.
    */
   readonly register: (engine: Registering) => Effect.Effect<void, never, Scope.Scope>
 }
