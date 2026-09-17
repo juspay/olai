@@ -1,7 +1,6 @@
-import { TESTID } from "olai-plugin-plugin-inspector/testids"
-
 /** A binary on/off control. Segmented Off|On is for named alternatives; this
  *  panel has thirty binaries and the two-pill strip is a wall. */
+import { TESTID } from "olai-plugin-plugin-inspector/testids"
 export function Switch(props: {
   readonly label: string
   readonly session?: boolean

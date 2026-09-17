@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-theme/testids"
 /**
  * The named palettes, as chips: every chip is a theme, wearing the theme it
  * offers, and pressing one picks it.
@@ -22,7 +21,7 @@ import { TESTID } from "olai-plugin-theme/testids"
  *
  * There is still no "system" chip and no "auto": a theme is a pick.
  */
-
+import { TESTID } from "olai-plugin-theme/testids"
 import { createSelector, For } from "solid-js"
 
 import { PALETTES } from "@olai/appearance/palettes.ts"

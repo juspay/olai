@@ -3,28 +3,32 @@
  *
  * {@link open} is the socket: it answers with an {@link Opening} — a
  * {@link Repo}, a directory that is not a work tree, or a git that could not be
- * asked — and everything else is a method on the handle. Five questions and two
- * verbs, each a subprocess and each total: whether the repository can take a
- * commit right now, what has moved in it and how far ahead of its upstream it
+ * asked — and everything else is a method on the handle. SIX questions and
+ * FOUR verbs, each a subprocess and each total: whether the repository can take
+ * a commit right now, what has moved in it and how far ahead of its upstream it
  * is, which commit HEAD names, what THAT commit had in one of the repository's
- * files, what was last recorded under a caller's own audit filter — then commit
- * exactly these paths with exactly this message, and push the current branch.
- * What those answers MEAN is this plugin's `ledger/pending.ts`.
+ * files, what was last recorded under a caller's own audit filter, and where
+ * the branch stands against the upstream AFTER the fetch — then commit exactly
+ * these paths with exactly this message, fetch the upstream bare, integrate it
+ * (rebase the unpushed commits onto it, in a worktree of olai's own, and move
+ * the served tree), and push the current branch. What those answers MEAN is
+ * this plugin's `ledger/pending.ts`.
  *
- * The FIFTH is the newest, and it is one question split in two on purpose
- * (`perf-git-per-write`): a caller that reads a file out of history and keeps
- * what it read is keeping it about a COMMIT, so this socket hands out the
- * commit's name and takes it back rather than spelling `HEAD` inside the
- * command. `HEAD:<path>` is a question whose answer moves; `<sha>:<path>` is a
- * question about an object git has already frozen.
+ * THE INTEGRATION is {@link Repo.integrate}, and it is the one verb this file
+ * does not own end to end: it moves a ref and a working tree together, which
+ * no other verb here has had to do. The shape of the MOVE is the shape of
+ * {@link commit}'s — one uninterruptible region, a disposition on every exit —
+ * and everything a policy needs to know comes back as an {@link Integrated}
+ * arm: it happened, an uncommitted edit or an untracked file overlapped a path
+ * the upstream changed (nothing moved), the rebase conflicted (nothing moved),
+ * or it could not run at all. What those arms MEAN is the caller's.
  *
- * The WHOLE REPOSITORY is what those questions are about, and that is
- * `commit-whole-repo`'s correction: the survey used to be pathspec'd to the
- * served directory, so a person who edited a `README.md` one level up was told
- * nothing was waiting. Every path comes back in three spellings ({@link Dirty})
- * so no caller has to know where the served directory sits — which is the same
- * property this file always had, now that there is something outside it to
- * report.
+ * The FIFTH question is the newest, and it is one question split in two on
+ * purpose (`perf-git-per-write`): a caller that reads a file out of history
+ * and keeps what it read is keeping it about a COMMIT, so this socket hands
+ * out the commit's name and takes it back rather than spelling `HEAD` inside
+ * the command. `HEAD:<path>` is a question whose answer moves; `<sha>:<path>`
+ * is a question about an object git has already frozen.
  *
  * The THIRD arm is what `git-invisible` (#108) bought and what this file must
  * not give back. "Your notes are not a repository" and "this service has no git
@@ -67,10 +71,12 @@
  * `git status` refreshes the index and `git commit` writes it, and two fibers
  * doing both lose to `index.lock`. The permit is per `gitDir`, not per
  * handle, so a second {@link open} of the same repository cannot disarm it.
- * Only the two index touchers take it (`dirty` and `commit`). `push` is a
- * network verb with the ten-second budget, and `whyWaiting` must not queue
- * behind it; git's own ref lockfiles cover `commit` vs `push` on the refs.
- * `state` / `last` / `head` / `show` do not touch the index.
+ * Only the index TOUCHERS take it ({@link dirty}, {@link commit} and
+ * {@link integrate}, whose move spans `read-tree` and `update-ref`). `fetch`
+ * and `push` are network verbs with the ten-second budget, and `whyWaiting`
+ * must not queue behind them; git's own ref lockfiles cover `commit` vs
+ * `push` on the refs. `state` / `standing` / `last` / `head` / `show` do not
+ * touch the index.
  */
 
 import { Hung, run } from "@olai/child"
@@ -86,9 +92,10 @@ import type { How, Reason, RepoState } from "@olai/format"
 const BUDGET = 10_000
 
 /**
- * The INDEX GATE: one permit per git directory, held by {@link dirty} and
- * {@link commit} only. See the file header. Keyed on `gitDir` so two handles
- * of one repository share it; a handle-local semaphore would re-open the
+ * The INDEX GATE: one permit per git directory, held by {@link dirty},
+ * {@link commit} and {@link integrate} (whose move spans `read-tree` and
+ * `update-ref`). See the file header. Keyed on `gitDir` so two handles of one
+ * repository share it; a handle-local semaphore would re-open the
  * `index.lock` race the moment anyone called {@link open} twice.
  */
 const indexGates = new Map<string, Semaphore.Semaphore>()
@@ -282,10 +289,24 @@ export interface Repo {
    *  {@link Repo.head}'s answer is what used to be meant. */
   readonly show: (commit: string, path: string) => Effect.Effect<Shown>
   /** The last commit the caller's own audit filter claims, or `null` for a
-   *  repository that has none. */
+   *  repository that has none.
+   *
+   *  `--grep` does the filtering in git rather than here, so a repository with
+   *  a hundred thousand of somebody else's commits still costs one walk. */
   readonly last: (audit: Audit) => Effect.Effect<Recorded | null>
   /** Commit exactly these ABSOLUTE paths with exactly this message. */
   readonly commit: (what: CommitInput) => Effect.Effect<Done>
+  /** Fetch the current branch's upstream, bare — the only fetch this file ever
+   *  makes, and the one that makes {@link Repo.standing}'s `behind` readable. */
+  readonly fetch: Effect.Effect<Fetched>
+  /** Where the branch stands against the upstream it tracks, or `null` when it
+   *  tracks nothing. FRESH counts, never `git status`'s: `behind` is stale
+   *  until a fetch, and the fetch happens on the push path only. */
+  readonly standing: Effect.Effect<Standing | null>
+  /** Take in {@link Standing} — rebase the unpushed commits onto the upstream
+   *  in a worktree of olai's own, then move the served tree onto the result —
+   *  and say what happened. */
+  readonly integrate: (onto: Standing) => Effect.Effect<Integrated>
   /** Send the current branch to its upstream, and say what git said. */
   readonly push: Effect.Effect<Sent>
 }
@@ -319,6 +340,13 @@ export const open = (root: string): Effect.Effect<Opening> =>
         last: (audit: Audit) => last(root, audit),
         commit: (what: CommitInput) =>
           holdIndex(gitDir, commit(root, placing.placement, what)),
+        // NOT on the index gate, and deliberately: fetch is a network verb
+        // with the ten-second budget, and `integrate` decides its own gate
+        // where the move is made. `whyWaiting` must never queue behind either.
+        fetch: fetch(root),
+        standing: standing(root),
+        integrate: (onto: Standing) =>
+          integrate(root, placing.placement, onto),
         push: push(root),
       },
     }
@@ -1047,3 +1075,312 @@ const push = (root: string): Effect.Effect<Sent> =>
     }
     return { _tag: "Pushed", said: sent.said } as const
   })
+
+/** What the upstream held that this branch did not, once the fetch has run —
+ *  `null` when the current branch tracks nothing at all, which is a different
+ *  fact from "nothing behind" (the branch nobody has ever pushed has no
+ *  upstream to be behind). */
+export interface Standing {
+  /** Git's own full name for it — `refs/remotes/origin/main`. */
+  readonly upstream: string
+  /** The same ref as a reader would write — `origin/main`. */
+  readonly name: string
+  /** Commits here that the upstream does not have. */
+  readonly ahead: number
+  /** Commits the upstream has that this branch does not — the count {@link
+   *  integrate} will take in. Meaningless until the repository has been
+   *  fetched, which is why nothing else in this file ever asks for it: the
+   *  sweep must not put a fetch in front of a status. */
+  readonly behind: number
+}
+
+/** What the fetch said. */
+export type Fetched =
+  | { readonly _tag: "Fetched" }
+  | { readonly _tag: "Refused"; readonly said: string }
+
+/**
+ * Fetch the current branch's upstream, bare: no merge, no rebase, nothing
+ * else. The ONLY place this file ever fetches — see {@link Standing}, which
+ * is what the count becomes readable.
+ */
+const fetch = (root: string): Effect.Effect<Fetched> =>
+  Effect.gen(function*() {
+    const said = yield* git(root, ["fetch"])
+    if (!said.ok) {
+      yield* Effect.annotateLogs(
+        Effect.logWarning("olai git: the fetch was refused"),
+        { said: said.said },
+      )
+      return { _tag: "Refused", said: said.said } as const
+    }
+    return { _tag: "Fetched" } as const
+  })
+
+/**
+ * Where the branch stands against the upstream it tracks, read FRESH — the
+ * only two refs this file is ever asked to compare, and the one place the
+ * arithmetic is spelled.
+ *
+ * `null` when there is no upstream at all — the same `null` {@link tracking}
+ * answers with, for the same reason: a branch with nowhere to go is not a
+ * branch that has fallen behind. Neither rev-list call touches the index, and
+ * this is deliberately NOT on the gate.
+ */
+const standing = (root: string): Effect.Effect<Standing | null> =>
+  Effect.gen(function*() {
+    const ref = yield* git(root, ["rev-parse", "--symbolic-full-name", "@{upstream}"])
+    if (!ref.ok) return null
+    const upstream = ref.out.trim()
+    if (upstream === "") return null
+    const [behind, ahead] = (yield* git(
+      root,
+      ["rev-list", "--left-right", "--count", `${upstream}...HEAD`],
+    )).out.trim().split(/\s+/)
+    const name = upstream.replace(/^refs\/remotes\//, "")
+    return {
+      upstream,
+      name,
+      ahead: Number(ahead ?? 0),
+      behind: Number(behind ?? 0),
+    } as const
+  })
+
+/** What the integration said. `taken` is how many commits were brought in —
+ *  the `behind` count as it stood before the rebase, so the caller can say
+ *  what changed without re-asking. */
+export type Integrated =
+  | { readonly _tag: "Integrated"; readonly from: string; readonly to: string; readonly taken: number }
+  /** An uncommitted edit, or an untracked file, in a path the upstream
+   *  changed — nothing moved, and the caller decides what to say. `paths`
+   *  are the files git named, the ones the caller's sentence calls out. */
+  | { readonly _tag: "Overlapped"; readonly said: string; readonly paths: ReadonlyArray<string> }
+  /** The rebase met a content conflict and was aborted; nothing moved. */
+  | { readonly _tag: "Conflicted"; readonly said: string; readonly paths: ReadonlyArray<string> }
+  /** Everything else that tried: a worktree that would not be made, the
+   *  branch moving under the rebase, a git that hung. */
+  | { readonly _tag: "Refused"; readonly said: string }
+
+/**
+ * The paths a refusal names, out of git's OWN words — the ONE place the two
+ * refusal vocabularies are parsed, so the plumbing and the caller's sentence
+ * can never drift. A rebase conflict names its files on lines that start
+ * `CONFLICT`; a `read-tree` overlap names its path inside `Entry '<path>'
+ * not uptodate` or `Untracked working tree file '<path>'`, and has no
+ * `CONFLICT` line at all.
+ */
+const refusalPaths = (said: string): ReadonlyArray<string> =>
+  [...said.matchAll(
+    /CONFLICT \([^)]*\): ([^\n]+)|Entry '([^']+)' not uptodate|Untracked working tree file '([^']+)'/g,
+  )]
+    .map((match) => match[1] ?? match[2] ?? match[3])
+    .filter((one): one is string => one !== undefined)
+
+let integrations = 0
+
+/**
+ * Take in what the upstream has, and move the served tree onto the result —
+ * the one verb this file does not own end to end, because it moves a ref
+ * (`update-ref`) and the working tree (`read-tree`) in one uninterruptible
+ * step and the plumbing has never had to hold two of git's writes together.
+ *
+ * THE SEQUENCE, which is the whole of the decision:
+ *
+ *   1. a linked worktree of OLAI'S OWN, inside the git directory beside the
+ *      copies `/keptIndex` writes there: `worktree add --no-checkout --detach
+ *      <gitDir>/olai-integrate-<pid>-<n> <HEAD>`, then `reset --hard` inside
+ *      it. `--no-checkout` plus `reset --hard` is what keeps the project's
+ *      `post-checkout` hook from running, and the served tree's `status` does
+ *      not see the worktree at all. Next to nothing here is index-gated, but
+ *      THIS is: no olai commit may land between the rebase reading `HEAD` and
+ *      the ref moving. `fetch`, `standing` and `push` stay off the gate, as
+ *      `push` is today, so `whyWaiting` never queues behind the network.
+ *   2. the rebase, IN that worktree, config keys rather than flags so an older
+ *      git ignores them instead of refusing them: `updateRefs` off so no other
+ *      branch of the person's is moved, `rerere` off so a recorded resolution
+ *      can never be taken on olai's behalf — a conflict is a conversation,
+ *      every time — and `--no-verify` for the reason `/commit` skips its
+ *      hooks. Signing is NOT skipped, for the reason it is not skipped on
+ *      commit: the rebase honours `commit.gpgsign`, and where a key is
+ *      missing the commit before it would already have failed.
+ *   3. THE MOVE, one `Effect.uninterruptible` region so a stop cannot land
+ *      between `read-tree` and `update-ref`:
+ *      a. `read-tree -m -u` from the old HEAD to the rebased one IN THE SERVED
+ *         TREE. A two-tree merge: it updates the index and working tree for
+ *         every path that differs between the two commits, keeps a hand-staged
+ *         entry and an unstaged edit for every path that does not, and refuses
+ *         before writing anything when a path the upstream changed has local
+ *         changes (`Entry 'x' not uptodate. Cannot merge.`) or an untracked
+ *         file would be overwritten — both observed, with the tree untouched
+ *         afterwards. That refusal is the OVERLAP answer.
+ *      b. `update-ref -m "olai: integrated <upstream>" refs/heads/<branch>
+ *         <rebased> <old>`. The third argument is a compare-and-swap: a
+ *         commit typed in a terminal during the rebase makes this refuse
+ *         rather than being dropped from the branch.
+ *      c. when the compare-and-swap refuses, `read-tree -m -u` the other way
+ *         puts the tree back, and the outcome is a refusal with words.
+ *
+ * THE WORKTREE IS REMOVED ON EVERY EXIT from the worktree add onward —
+ * success, conflict, overlap, refusal, defect, interrupt — via
+ * `Effect.acquireUseRelease` on the model of `/keptIndex`: every exit,
+ * including when the row is switched off or the server stops. A rebase that
+ * CONFLICTS is aborted here, so no `rebase-merge` state survives anywhere the
+ * person can see, and the served tree was never touched at all.
+ *
+ * CRASH RESIDUE HAS AN OWNER TOO: at the start of every call, worktrees named
+ * `olai-integrate-<pid>-<n>` whose `pid` is not alive are removed with
+ * `git worktree remove --force` and `git worktree prune`. A live pid that is
+ * not this process is left alone.
+ *
+ * WHAT THIS COSTS a shutdown: a stop arriving inside an integrate waits out at
+ * most the uninterruptible move — five subprocesses at {@link BUDGET}:
+ * `rev-parse` for the rebased tip, `read-tree` to move the tree,
+ * `symbolic-ref` to name the branch, `update-ref` as the compare-and-swap,
+ * and a second `read-tree` only when the compare-and-swap refuses, to put the
+ * tree back — on top of the commit's own three. The rebase itself is
+ * interruptible and its abort is the worktree's removal.
+ */
+const integrate = (
+  root: string,
+  placed: Placement,
+  onto: Standing,
+): Effect.Effect<Integrated> =>
+  Effect.gen(function*() {
+    const head = yield* git(root, ["rev-parse", "--verify", "HEAD"])
+    if (!head.ok || head.out.trim() === "") {
+      return { _tag: "Refused", said: head.said } as const
+    }
+    const from = head.out.trim()
+    const worktreeName = `olai-integrate-${process.pid}-${++integrations}`
+    const worktree = join(placed.gitDir, worktreeName)
+
+    // CRASH RESIDUE WITH A DEAD OWNER: worktrees named `olai-integrate-<pid>-<n>`
+    // whose `pid` is not alive are removed at the start of every integrate,
+    // and the registry pruned. A live pid that is not this process is left
+    // alone — it is somebody else's in flight.
+    const sweep = yield* git(root, ["worktree", "list", "--porcelain"])
+    if (sweep.ok) {
+      for (const entry of sweep.out.split("\n")) {
+        const match = /^worktree (.*\/olai-integrate-(\d+)-(\d+))$/.exec(entry)
+        if (match === null) continue
+        const pid = match[2]
+        if (pid === undefined || pid === String(process.pid)) continue
+        if (isAlive(Number(pid))) continue
+        const at = match[1]
+        if (at === undefined) continue
+        yield* git(root, ["worktree", "remove", "--force", at])
+      }
+      yield* git(root, ["worktree", "prune"])
+    }
+
+    return yield* holdIndex(
+      placed.gitDir,
+      Effect.acquireUseRelease(
+        Effect.gen(function*() {
+          const added = yield* git(root, ["worktree", "add", "--no-checkout", "--detach", worktree, from])
+          // `-C`, never `--git-dir`: the checkout directory holds a `.git`
+          // file pointing at `.git/worktrees/<name>`, which is where the
+          // rebase's state lives, and `--git-dir` does not follow it.
+          if (!added.ok) return added
+          return yield* git(
+            root,
+            ["-C", worktree, "reset", "--hard", "--quiet", "HEAD"],
+          )
+        }),
+        (prepared) =>
+          Effect.gen(function*() {
+            if (!prepared.ok) {
+              return { _tag: "Refused", said: prepared.said } as const
+            }
+            const rebased = yield* git(root, [
+              "-C",
+              worktree,
+              "-c",
+              "rebase.updateRefs=false",
+              "-c",
+              "rebase.autoStash=false",
+              "-c",
+              "rerere.enabled=false",
+              "rebase",
+              "--no-verify",
+              onto.upstream,
+            ])
+            if (!rebased.ok) {
+              // A CONFLICT is told apart from a refusal, because what a person
+              // has to do is so different: a conflict names the file and is a
+              // conversation; a refusal is something to look at.
+              if (/CONFLICT \(content\)|CONFLICT \(modify\/delete\)|CONFLICT \(add\/add\)/.test(rebased.said)) {
+                yield* git(root, ["-C", worktree, "rebase", "--abort"])
+                yield* Effect.annotateLogs(
+                  Effect.logWarning("olai git: the take-in conflicted, nothing moved"),
+                  { said: rebased.said },
+                )
+                return { _tag: "Conflicted", said: rebased.said, paths: refusalPaths(rebased.said) } as const
+              }
+              // Everything else the rebase refused with is a refusal: the
+              // rebase could not run, or git hung at the budget.
+              return { _tag: "Refused", said: rebased.said } as const
+            }
+
+            // THE MOVE — uninterruptible, in one place, for the reason in the
+            // comment above. `read-tree` first, because a refusal there is the
+            // OVERLAP answer and leaves the tree where it was; then the ref
+            // compare-and-swap; then nothing, because the update is done.
+            return yield* Effect.uninterruptible(Effect.gen(function*() {
+              const to = (yield* git(root, ["-C", worktree, "rev-parse", "HEAD"])).out.trim()
+              if (to === "" || to === from) {
+                return { _tag: "Integrated", from, to: to === "" ? from : to, taken: 0 } as const
+              }
+              const moved = yield* git(root, ["read-tree", "-m", "-u", from, to])
+              if (!moved.ok) {
+                // A path the upstream changed has an uncommitted edit, or an
+                // untracked file would be overwritten: nothing moved, and the
+                // tree is exactly as it was. The served tree's `state` stays
+                // `Ready`, and what the caller does about it is ITS decision.
+                return { _tag: "Overlapped", said: moved.said, paths: refusalPaths(moved.said) } as const
+              }
+              const branch = (yield* git(root, ["symbolic-ref", "--short", "HEAD"])).out.trim()
+              const ref = branch === "" ? "HEAD" : `refs/heads/${branch}`
+              const set = yield* git(root, [
+                "update-ref",
+                "-m",
+                `olai: integrated ${onto.name}`,
+                ref,
+                to,
+                from,
+              ])
+              if (set.ok) {
+                return { _tag: "Integrated", from, to, taken: onto.behind } as const
+              }
+              // The compare-and-swap refused: the branch moved under us. The
+              // tree was already updated, so it is put BACK, and the outcome
+              // is a refusal with words rather than a branch that lost a
+              // commit typed in a terminal.
+              yield* git(root, ["read-tree", "-m", "-u", to, from])
+              return { _tag: "Refused", said: set.said } as const
+            }))
+          }),
+        () =>
+          Effect.gen(function*() {
+            yield* git(root, ["worktree", "remove", "--force", worktree])
+            yield* git(root, ["worktree", "prune"])
+          }),
+      ),
+    )
+  })
+
+/** Whether a pid belongs to a live process — the other half of the crash
+ *  residue sweep: a worktree whose owner is dead is garbage, one whose owner
+ *  is alive but is not us is somebody else's. `kill(pid, 0)` answers without
+ *  signalling. */
+const isAlive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    // `ESRCH` is the one certain "dead"; anything else — `EPERM` for a live
+    // process we may not signal, `EINVAL` for a pid out of range — is not a
+    // corpse to sweep.
+    return (error as NodeJS.ErrnoException).code !== "ESRCH"
+  }
+}

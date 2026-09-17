@@ -11,7 +11,7 @@
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
 
-import { type Attach, attaching } from "./attach.ts"
+import { type Attach, attaching, refusalFor } from "./attach.ts"
 
 const picture = (name: string, bytes: Uint8Array, type = "image/png") =>
   new File([bytes as BlobPart], name, { type })
@@ -102,4 +102,18 @@ test("a picture the clipboard did not name is named after its type", async () =>
   if (!Result.isSuccess(outcome)) return
   // ... and the server still has the last word on what it is called.
   expect(outcome.success.name).toBe("stored-pasted.webp")
+})
+
+test("a file the clipboard did not name is not called a picture unless it is one", async () => {
+  // It used to be: every unnamed file became `pasted.png`, so an unnamed zip
+  // or recording passed the gate as a picture. Now it meets the gate under the
+  // name it came with, and is refused before a byte is sent.
+  for (const [name, type] of [["", "video/mp4"], ["", "application/zip"], ["archive", "application/zip"]] as const) {
+    const server = spy()
+    const file = picture(name, body, type)
+    expect(refusalFor(file)).toMatch(/cannot be attached/)
+    const outcome = await Effect.runPromise(Effect.result(attaching(file, server.attach, 8)))
+    expect(Result.isFailure(outcome)).toBe(true)
+    expect(server.calls).toHaveLength(0)
+  }
 })

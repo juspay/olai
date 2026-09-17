@@ -39,3 +39,5 @@ export const useShowNode = (): ((id: string) => void) => showNodeFrom(provider.r
 
 /** ...and what the outline could not name. */
 export const declaringFailure = failureFrom(provider.read)
+
+export const focusedNode = () => provider.read()?.focused() ?? null

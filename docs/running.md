@@ -52,11 +52,11 @@ Unit-test shards place the longest estimated files first. The existing
 passing `0342dac6c` run and estimates other files at 0.1s. Git determines which
 files run; missing or stale timing hints affect balance, never coverage.
 
-A worktree launch builds the pinned adapters and odu on demand (`nix build .#acp-agent`, `.#codex-agent`, `.#odu-bin`) and `just install` runs `npm ci` in `acp/`. Each of those prints the command on stderr before it starts; `npm ci` then logs every fetch (`--loglevel=http`) because `nix develop -c` is not a TTY and npm would otherwise sit silent until it finished.
+A worktree launch builds and dev-shells everything on demand through `.#plugin-env`: the fold drives the per-plugin default.nix builds (each adapter and odu as a `file`/`dir` knob), and `just install` then runs `npm ci` in each plugin's declared tree (its `npmTrees`). Each of those prints the command on stderr before it starts; `npm ci` then logs every fetch (`--loglevel=http`) because `nix develop -c` is not a TTY and npm would otherwise sit silent until it finished.
 
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.olai` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `0` (the OS picks one), host `127.0.0.1`. A fixed `--port` is a deploy's word — the home-manager module passes `7714` ("olai" on a phone keypad). `--port 0` asks the OS every boot: a `just run` / `just serve` restart may land on a new port.
 
-If a directory that used to serve comes up EMPTY, its outlines predate the rename to `.olai`: [format.md](format.md) carries the one-line `git mv` to run on it. olai reads the one extension and migrates nothing for you.
+If a directory that used to serve comes up EMPTY, its outlines predate the rename to `.olai`: [format.md](format.md) carries the one-line `git mv` to run on it. The Olai row reads that extension and migrates nothing for you.
 
 It binds to loopback by default because the surface is unauthenticated: anyone who can reach the port can read every outline under the directory — and, since the keyboard editor arrived, change one.
 
@@ -203,11 +203,11 @@ inputs.olai.url = "github:juspay/olai";
 }
 ```
 
-The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`) and the pinned `odu` (put first on the server's own PATH, so the chat panel's CI probe resolves the build's binary and not a host's — [plugins/odu.md](plugins/odu.md)), so the service needs no ambient environment.
+The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`), the pinned `odu` (put first on the server's own PATH, so the chat panel's CI probe resolves the build's binary and not a host's — [plugins/odu.md](plugins/odu.md)) and the pinned `himalaya` (`OLAI_HIMALAYA`, the absolute path the mail row runs — [plugins/mail.md](plugins/mail.md)), so the service needs no ambient environment.
 
 `OLAI_ODU_BIN` is the one knob over the last of those: it names a **directory** whose `odu` the serve puts first on its PATH instead of the pin — how you test a development odu against a packaged olai — and the empty string is the explicit off switch (the probe then answers from the ambient PATH, and a PATH with no `odu` draws the row under the roster — [chat.md](chat.md#when-a-tool-server-does-not-arrive)). The three adapter knobs beside it (`OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`) name executable *files*; this one names the *directory* the way the pin's own `bin/` does.
 
-**The one thing a user service does NOT inherit is your PATH**, and that is where some agents live. Olai looks for the ones it knows when it starts — the self-contained pinned Claude Code and Codex adapters, the pinned pi-acp adapter, and the agents on its own search path: an `opencode`, a `pi` — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
+**The one thing a user service does NOT inherit is your PATH**, and that is where some agents live. Olai looks for the ones it knows when it starts — the self-contained pinned Claude Code and Codex adapters, the pinned pi-acp adapter, and the agents on its own search path: an `opencode`, a `pi`, an `omp` — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
 
 ```nix
   systemd.user.services.olai.Environment = [
@@ -255,7 +255,7 @@ Olai is a bundle: its shell, content readers and editors, and integrations are p
 
 **Content and navigation are plugins too.** `outlines` and `markdown` own their readers and editors independently. `navigation` owns routes, focus, history and the palette; `layout` supplies the frame. `files`, `pins`, `capture` and `trash` contribute their own browsing and actions. Disabling `files` removes its browser while vault-owned file metadata remains available to open content. Disabling a content provider removes its handlers and UI; unrelated editors retain their state. `vault-plugins` owns source discovery, approval and compiled chunks, and disabling it unloads the definitions it owns. Approval write reservations remain in force while that policy is absent.
 
-**The CONVERSATION is one** ([plugins/chat.md](plugins/chat.md)) — the panel, the transcript, the agents section, the door on an agent's row, *Ask agent* and the palette's `>`. It is on by default like the rest, and it is the row everything else on this list leans on: an engine, a doorbell and a mirror each name a door the chat row stands behind, so a serve that leaves chat out leaves those `waiting`, and the plugins panel says so per row.
+**The CONVERSATION is one** ([plugins/chat.md](plugins/chat.md)) — the panel, the transcript, the agents section, the door on an agent's row, pointer carries and the palette's `>`. It is on by default like the rest, and it is the row everything else on this list leans on: an engine, a doorbell and a mirror each name a door the chat row stands behind, so a serve that leaves chat out leaves those `waiting`, and the plugins panel says so per row.
 
 **The LEDGER is one** ([plugins/git.md](plugins/git.md)) — the pill, the commit panel, and the quiet-window loop. It is on by default. A serve that leaves it out still writes; nobody records the writes, and there is no pill.
 
@@ -263,7 +263,7 @@ Olai is a bundle: its shell, content readers and editors, and integrations are p
 
 **The MATCHER is one** ([plugins/search.md](plugins/search.md)) — the index the server keeps, the walk that ranks and caps a query's hits, and the search box in the header. It is on by default. Leaving `search` out keeps the grammar, the `search_nodes` tool and every box a person types into, and answers every one of them with no hits and the reason, in words. The filter that narrows the page in front of you is not on this row and goes on working.
 
-Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)).
+Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)), mail ([plugins/mail.md](plugins/mail.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)), pi ([plugins/pi.md](plugins/pi.md)) and Oh My Pi ([plugins/omp.md](plugins/omp.md)).
 
 Use one top-level node per row in `_olai/Settings.olai`. For example:
 
@@ -288,7 +288,7 @@ Memory is a separate machine-local record. The panel foot names `memory · $XDG_
 
 ### Settings declarations
 
-Each plugin's `Config` schema is the sole declaration of keys, defaults, validation and descriptions. `olai.yml` carries `id`, `name`, `section`, and optional `disabled`, `profiles`, `quiet` and `switchHint`; it carries no config block. The settings row reads the vault's revision, publishes a service, and owns no loader verbs. The composition root applies patches and waits for reconciliation. A changed config normally re-applies its row. A plugin may declare that it follows values live; Kolu does this for its `watch` child on the same revision, preserving its activation. It never reads `Kolu.olai`.
+Each plugin's `Config` schema is the sole declaration of keys, defaults, validation and descriptions. `olai.yml` carries `id`, `name`, `section`, and optional `disabled`, `profiles`, `quiet` and `switchHint`; it carries no config block. The settings row reads the vault's revision, publishes a service, and owns no loader verbs. The composition root applies patches and waits for reconciliation. A changed config normally re-applies its row. A plugin may declare that it follows values live; Kolu does this for its `watch` child on the same revision, preserving its activation. It never reads `Kolu.olai`. Mail also follows its `poll` property live (default `2m`; for example `30s`), under the `mail` node. It polls only while a conversation has **wake on new mail** switched on.
 
 The reader selects `Settings.olai` by case-folded basename, shallowest path first, then path order. Missing file, node or leaf uses defaults. An invalid leaf defaults and warns once; the input shows the refused file text in alarm, with the schema message and effective default beneath it; a broken line defaults all rows and names the broken file on the panel. Repair restores the reading. Boot enables the vault and reader profile first, then folds the first policy reading into the remaining row patches before enabling them. A row the file disables never applies. There is no second disk reader before the vault lock.
 
@@ -309,6 +309,11 @@ Environment readings follow the controls and stay read-only. Wrapper-provided ex
 | `OLAI_AGENT_PATH` | engine search path; empty searches nowhere |
 | `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI` | executable paths, normally wrapper-provided |
 | `OLAI_ODU_BIN` | directory prepended to the appliance's PATH |
+| `ODU_WEB_ORIGIN` | odu service origin this olai dials; default `http://127.0.0.1:18440` |
+| `OLAI_HIMALAYA` | the pinned `himalaya` the mail row runs, normally wrapper-provided |
+| `OLAI_MAIL_OAUTH_CLIENT` | the Google OAuth client id this serve connects a mailbox with |
+| `OLAI_MAIL_OAUTH_SECRET` | its client secret; secret |
+| `OLAI_MAIL_GOOGLE` | the Google origin this serve talks to; **loopback only** — anything else faults the row, because the POSTs carry the client secret |
 | `PADI_SOCKET` | local Kolu socket path |
 | `OLAI_ALLOWED_ORIGINS` | comma-separated browser origins |
 | `OLAI_HOSTNAME` | machine label override |
@@ -345,7 +350,6 @@ named; when it returns the plugin starts again. Shutdown closes every plugin,
 including one that declares no dependencies. Cancellation is cooperative:
 synchronous JavaScript and uninterruptible Effect work must finish themselves.
 
-
 ### Machine-local state
 
 Plugins have one machine-local door, `LocalState`. Core stores its opaque document outside the vault at `$XDG_STATE_HOME/olai/<plugin>/<hash>.json` (normally `~/.local/state/olai/<plugin>/<hash>.json`), where `hash` names the served directory's real path. A plugin never opens that path itself. Core keys the door with the plugin's own name and keeps one ordered write chain across plugin flips. A save completes when its file lands; a failed save is both logged and returned to the plugin so the gesture that caused it can say what did not stick without taking the serve down.
@@ -365,7 +369,6 @@ The browser e2e lifecycle scenarios exercise the work after the switch: journal 
 **The roster distinguishes seven states.** The panel draws a reason only for failure or waiting on a dependency. Running is the ordinary one, and it draws no sentence at all — the switch has already said it. The other six are all total absence and they differ in *why*: it was not asked for; this build ships it off until you name it (which is what `xyne-spaces` is; its off switch dims the knobs without adding prose); **a session-only switch**, used while the durable reader is unavailable; it was asked for and its **start failed** — in which case the row quotes what the plugin said, verbatim; it was asked for and is still waiting on something it needs; or — for a plugin the VAULT defines — it is waiting on YOU, which is the one absence whose answer is on this very panel (the source is drawn under the rows and the verb is beside it). Only the failure is a fault, and it is the one nothing else on screen would tell you about: an integration whose start failed draws nothing at all, exactly like one you turned off on purpose. The switch stays drawn on a row that failed, so a plugin whose start died on something you have since fixed can be told to try again.
 
 **The vault can select rows.** A top-level node titled with the row id in `_olai/Settings.olai` can set `on: yes` or `on: no`. The reader publishes that choice and the serve reconciles it through Cordis. Agent writes cannot change `on`, including removing its effect by moving or trashing the node. Behaviour knobs remain writable through the ordinary agent door. The panel switch writes `on` through the ordinary write door and waits for the revision and row reconciliation. Restart reads that choice from the file. The vault and settings-reader switches stay session-only, so the panel cannot lock its own reader off durably. When either provider is unavailable, every enable switch wears the session-only ring. A broken file must be repaired before a durable switch can write.
-
 
 ### Plugins the vault itself defines
 
@@ -420,7 +423,7 @@ captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
 
 **`--url` is required, on every call, with nothing underneath it.** No default, no environment variable, no remembered vault. That is the feature: an earlier design walked to a per-user socket path both ends agreed on because neither chose it, and a capture meant for one vault landed in another and answered exactly like a capture that had not. If you want a short spelling, make it an alias — then it is visibly your own choice.
 
-**It lands in the inbox the directory has**, wherever you keep one, and mints `_olai/Inbox.olai` when there is none — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same git policy. A refused capture leaves nothing behind, not even the inbox it would have minted.
+**It lands in the Inbox convention directly under `_olai/`**, matched by stem among node-holding claims, and mints it with the configured outline row’s suffix when there is none (default `_olai/Inbox.olai`) — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same git policy. A refused capture leaves nothing behind, not even the inbox it would have minted.
 
 **And it arrives dated**, so it is on the day's journal page as well as in the inbox — which is the half a capture made while nobody was looking actually needs. The stamp is written by the server, with its offset, so it names one instant on the vault's own clock. **A date AND the capture's born `todo` mark compose into due work** ([format.md](format.md#days)) — not an occurrence: the capture ticks that day's **Agenda** count when it lands, and from the next morning it shows **overdue**. Ruled 2026-08-29, keeping the composition deliberate: a capture you still owe is owed. If you do not owe it, the row is one `done` or one cleared date away from being off that list.
 
@@ -502,14 +505,14 @@ The plugins panel includes a **vault** switch. Turning it off clears the served 
 
 If another olai holds the directory, this process still serves its panel and MCP endpoint: the vault row is **failed**, with the lock holder's sentence, and vault-backed tools and resources leave the MCP catalog; direct calls to absent capabilities are refused. After the other owner stops, turn the failed vault row off and on to retry. A root that is not a directory likewise fails only the vault row.
 
-The vault row’s `Config` schema declares `format` with default `olai`. The bundle selects the row without a config block:
+The vault row’s `Config` schema declares `format` with default `outline-olai`. The bundle selects the row without a config block:
 
 ```yaml
 - id: vault
   name: olai-plugin-vault/server
 ```
 
-The plugins panel derives its inline format control from that schema. The row’s `Config` schema validates the choice before acquiring the directory; unsupported values fail that row. Only `olai` is supported now. This makes the codec selection the place for a future Org implementation, without adding Org or migrating any files today. A different storage backend would instead be another provider behind `Directory`. The write gate is created and released with the vault row; without that row, there is no gate.
+The plugins panel derives its inline format control from that schema. `format` names the row used to mint new outlines, default `outline-olai`; it is not a codec enum. If that row is absent, the directory stays readable and creating an outline refuses with the row's name before writing. Existing files are read through whichever live row claims their suffix. The write gate is created and released with the vault row; without that row, there is no gate.
 
 ### Browser shell selection
 

@@ -1,3 +1,6 @@
+/** The part of a published vault revision this plugin keeps. The Vault door
+ * deliberately lets each tenant narrow its opaque payload at its own edge. */
+
 import { type ImplementSurfaceDeps, inMemoryChannel } from "@kolu/surface/server"
 import {
   definePlugin,
@@ -31,9 +34,6 @@ const noDay = (date: string): OpFailure =>
 
 const noReading = (): OpFailure =>
   new UsageFailure({ reason: "the vault has not published a reading, so the journal is not ready" })
-
-/** The part of a published vault revision this plugin keeps. The Vault door
- * deliberately lets each tenant narrow its opaque payload at its own edge. */
 interface VaultRevision {
   readonly value: Reading
 }
@@ -121,9 +121,11 @@ export default definePlugin({
               if (!isDay(input.date)) return yield* Effect.fail(noDay(input.date))
               const at = yield* reading
               const file = dailyNotePathFor(
+                at.claims,
                 markdownIn(at.set).map((document) => document.path),
                 input.date,
               )
+              if (file === null) return yield* Effect.fail(new UsageFailure({reason: "the markdown row is off, so no document can be created"}))
               return yield* Effect.as(
                 Effect.mapError(ops.document(file), (failure) => failure as OpFailure),
                 { file },

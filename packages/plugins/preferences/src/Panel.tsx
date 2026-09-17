@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-preferences/testids"
 /**
  * What this browser is set to, in one place.
  *
@@ -49,7 +48,7 @@ import { TESTID } from "olai-plugin-preferences/testids"
  * it would be two nearly identical names for two different things, which is
  * worse than two words for one. This is the surface; that is the mechanism.
  */
-
+import { TESTID } from "olai-plugin-preferences/testids"
 import type { Contribution } from "@olai/plugin-api"
 import type { JSX } from "solid-js"
 import { For } from "solid-js"

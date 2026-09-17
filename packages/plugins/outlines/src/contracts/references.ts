@@ -37,18 +37,21 @@ import { createMemo, type Accessor } from "solid-js"
 import { serviceTag } from "@olai/plugin-api/contracts"
 
 export interface Declared {
+  /** Display title, separate from the resolved identity used for navigation. */
+  readonly title: (id: string) => string | null
   readonly named: (id: string) => string | null
   readonly want: (ids: ReadonlyArray<string>) => void
   readonly told: (id: string) => string | null | undefined
 }
 export interface References {
+  readonly focused: Accessor<string | null>
   readonly declare: (failure?: (message: string, ids: ReadonlyArray<string>) => void) => Declared
   readonly showNode: () => (id: string) => void
   readonly failure: Accessor<string | null>
 }
 export const references = serviceTag<References>("outlines.references")
 
-const absent: Declared = { named: () => null, want: () => {}, told: () => undefined }
+const absent: Declared = { title: () => null, named: () => null, want: () => {}, told: () => undefined }
 
 /** One declaration over whichever provider the caller is holding — re-made when
  *  the provider arrives or leaves, so a panel that outlived an outline row asks
@@ -58,7 +61,7 @@ export const declaredFrom = (
   failure?: (message: string, ids: ReadonlyArray<string>) => void,
 ): Declared => {
   const reader = createMemo(() => provider()?.declare(failure) ?? absent)
-  return { named: id => reader().named(id), want: ids => reader().want(ids), told: id => reader().told(id) }
+  return { title: id => reader().title(id), named: id => reader().named(id), want: ids => reader().want(ids), told: id => reader().told(id) }
 }
 
 /** ...and the press that shows one, which does nothing at all with no outline. */

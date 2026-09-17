@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-sidebar/testids"
 /**
  * The minimized desktop sidebar: a ~3rem icon rail.
  *
@@ -15,7 +14,7 @@ import { TESTID } from "olai-plugin-sidebar/testids"
  * directory back. It scrolls within itself in a window too short for five
  * buttons rather than clipping the last of them.
  */
-
+import { TESTID } from "olai-plugin-sidebar/testids"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
 import { PluginRailEntries } from "./Seats.tsx"
 

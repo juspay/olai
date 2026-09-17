@@ -1,10 +1,12 @@
+import { textOfDiff } from "./carried.ts"
+import { Grip, textCarry } from "./Grip.tsx"
 /**
  * A file the agent rewrote, in the transcript: trimmed, and expanded in place
  * on a click.
  *
  * This is the half of `chat-edit-diffs` that is NOT an outline. An olai write
  * shows up in the tree in front of you and is reported here as a node-level
- * story ({@link ./Wrote.tsx}); a direct edit to a `.md` or a source file shows
+ * story (the owning plugin’s `tool.reply` face); a direct edit to a `.md` or a source file shows
  * up nowhere at all, so until this drew, the answer to "what did it change" was
  * a terminal.
  *
@@ -31,7 +33,7 @@ import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 import { type DiffLine, diffOf } from "./diff.ts"
-import { isUnfolded, toggleFold } from "./folds.ts"
+import { useConversationUI } from "./ui.tsx"
 
 /** How many rows a trimmed diff shows. Enough for a small edit to be whole —
  *  which is most of them — and few enough that four rewritten files still read
@@ -67,6 +69,7 @@ export function Diff(props: {
   readonly id: string
   readonly diff: FileDiff
 }) {
+  const { isUnfolded, toggleFold } = useConversationUI().folds
   // Recomputed when the texts change and not on every render: an agent
   // rewriting a file reports the call twice, and the second report is the same
   // two texts with a status beside them.
@@ -82,15 +85,20 @@ export function Diff(props: {
   const more = () => Math.max(0, lines().length - TRIMMED)
   const shown = createMemo(() => (open() ? lines() : lines().slice(0, TRIMMED)))
 
+  const words = () => textOfDiff(props.diff.path, props.diff.oldText, props.diff.newText)
+  const carry = textCarry(words)
+
   return (
     <div
+      onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
       class="mt-1 min-w-0 overflow-hidden rounded border border-rule"
       data-testid={TESTID.chatDiff}
       data-path={props.diff.path}
       data-expanded={open()}
     >
-      <p class="flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
-        <span class="min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
+      <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
+        <Grip text={words()} carry={carry} />
+        <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
         </span>
         {/* A file that did not exist before is different news from one that was

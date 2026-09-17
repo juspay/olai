@@ -74,7 +74,8 @@
  * module reads bytes out of a named commit and parses them.
  */
 
-import { type Node, parseOutline } from "@olai/format"
+import { type Claims, type Node } from "@olai/format"
+import type { Ops } from "@olai/ops"
 import type { Shown } from "../git/git.ts"
 import { Effect, Result } from "effect"
 
@@ -152,10 +153,10 @@ const AT_ONCE = 8
  * question nobody will ask again, and holding one generation makes the bound on
  * this thing a sentence rather than an eviction policy.
  */
-export const remembering = (): Committed => {
+export const remembering = (ops: Pick<Ops, "parserFor">): Committed => {
   /** The sha every entry below was read out of, `null` before the first ask. */
   let generation: string | null = null
-  let copies = new Map<string, Copy>()
+  let copies = new Map<string, { readonly claims: Claims | undefined; readonly copy: Copy }>()
 
   return {
     at: (git, paths) =>
@@ -184,10 +185,14 @@ export const remembering = (): Committed => {
         const mine = copies
 
         const wanted = new Set(paths)
-        const missing = [...wanted].filter((path) => !mine.has(path))
+        const formats = new Map([...wanted].map(path => [path, ops.parserFor(path)]))
+        const missing = [...wanted].filter(path => {
+          const cached = mine.get(path)
+          return cached === undefined || cached.claims !== formats.get(path)?.claims
+        })
         const read = yield* Effect.all(
           missing.map((path) =>
-            Effect.map(git.show(commit, path), (shown) => [path, taken(path, shown)] as const)
+            Effect.map(git.show(commit, path), (shown) => [path, taken(formats.get(path) ?? null, path, shown)] as const)
           ),
           { concurrency: AT_ONCE },
         )
@@ -205,11 +210,11 @@ export const remembering = (): Committed => {
         // about a named commit, not about HEAD); what would be wrong is filing
         // them under somebody else's generation.
         if (generation === commit) {
-          for (const [path, one] of read) if (one.keep) mine.set(path, one.copy)
+          for (const [path, one] of read) if (one.keep) mine.set(path, { claims: formats.get(path)?.claims, copy: one.copy })
         }
 
         const found = new Map(read.map(([path, one]) => [path, one.copy] as const))
-        return answer(paths, (path) => mine.get(path) ?? found.get(path) ?? ABSENT)
+        return answer(paths, (path) => found.get(path) ?? mine.get(path)?.copy ?? ABSENT)
       }),
   }
 }
@@ -268,10 +273,11 @@ export interface Taken {
  * keyed by the path git was asked for even where the comparison files it under
  * another name (`./pending.ts`'s `Was`, which is the rename case).
  */
-export const taken = (path: string, shown: Shown): Taken => {
+export const taken = (parser: ReturnType<Ops["parserFor"]>, path: string, shown: Shown): Taken => {
   if (shown._tag === "Absent") return { copy: ABSENT, keep: true }
   if (shown._tag === "Unusable") return { copy: ABSENT, keep: false }
-  const parsed = parseOutline(path, shown.text)
+  if (parser === null) return { copy: ABSENT, keep: true }
+  const parsed = parser.format.parse(path, shown.text, parser.claims)
   return {
     copy: Result.isFailure(parsed)
       ? UNPARSED

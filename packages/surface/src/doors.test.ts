@@ -84,10 +84,12 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
       "chunkUrl",
       "heard",
       "isAttachable",
+      "isAttachmentPicture",
       "mediaHref",
       "mediaTarget",
       "ours",
       "pluginState",
+      "refusalIn",
       "sealPolicy",
       "spellsHost",
       "surface",
@@ -162,7 +164,7 @@ test("every module here is reachable from a door", () => {
   ) as { readonly exports: Readonly<Record<string, string>> }
   for (const target of Object.values(manifest.exports)) walk(target.replace("./src/", ""))
   const orphans = readdirSync(import.meta.dir)
-    .filter((file) => /\.tsx?$/.test(file) && !/\.(?:test|bench)\.tsx?$/.test(file))
+    .filter((file) => /\.tsx?$/.test(file) && !/\.(?:test|browsertest|bench)\.tsx?$/.test(file))
     .filter((file) => !reached.has(file))
   expect(orphans).toEqual([])
 })

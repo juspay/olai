@@ -148,3 +148,26 @@ describe("what opencode does not do", () => {
     expect(OPENCODE.listedIn(undefined)).toBeNull()
   })
 })
+
+// The e2e agent emits these same adapter fixtures.
+import { announced, wrapped } from "./testlib.ts"
+
+test("MCP display reads this adapter's announcement and completion", () => {
+  const reply = { id: "order", title: "order cabinets", file: "house.olai", sort: "done" }
+  const result = { content: [{ type: "text" as const, text: JSON.stringify(reply) }], structuredContent: reply }
+  const frame = { ...announced("olai", "outlines_done", { id: "order" }), name: OPENCODE.toolNameOf("olai_outlines_done:1") }
+  expect(OPENCODE.mcpCall(frame, ["olai"])).toEqual({ server: "olai", tool: "outlines_done" })
+  expect(OPENCODE.mcpCall(frame, ["foreign"])).toBeNull()
+  expect(OPENCODE.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toBeNull()
+  expect(OPENCODE.replyIn(wrapped(result).rawOutput)).toEqual(reply)
+  expect(OPENCODE.replyIn("permission denied")).toBeUndefined()
+  expect(OPENCODE.replyIn({ stdout: "foreign tool" })).toBeUndefined()
+  expect(OPENCODE.replyIn(wrapped({ content: [{ type: "text", text: "permission denied" }], isError: true }).rawOutput)).toBeUndefined()
+})
+
+test("display tolerates output-only adapters and rejects malformed output", () => {
+  expect(OPENCODE.replyIn({ output: JSON.stringify({ structuredContent: { file: "one.olai" } }) })).toEqual({ file: "one.olai" })
+  expect(OPENCODE.replyIn({ output: "refused" })).toBeUndefined()
+  expect(OPENCODE.replyIn({ metadata: { structuredContent: [] }, output: "[]" })).toBeUndefined()
+  expect(OPENCODE.mcpCall({ name: "bash", title: "olai_outlines_done" }, ["olai"])).toBeNull()
+})

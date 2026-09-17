@@ -1,5 +1,3 @@
-import { Terminals } from "./terminals.ts"
-import { terminalMetaIn } from "@olai/acp"
 /**
  * The ACP client: one subprocess, one protocol, no browser.
  *
@@ -66,7 +64,10 @@ import { terminalMetaIn } from "@olai/acp"
  * structured question — it has to guess, or write the question into prose and
  * hope.
  */
+import type { Advertised } from "@olai/plugin-api/services"
 
+import { Terminals } from "./terminals.ts"
+import { terminalMetaIn } from "@olai/acp"
 import { type Child, start as startChild } from "@olai/child"
 
 import {
@@ -108,7 +109,7 @@ import { emitter, reasonOf } from "@olai/log"
 import type { ChatServer } from "olai-plugin-chat/wire"
 import type { Reported } from "@olai/acp/engine"
 import type { AskAnswer } from "@olai/acp/wire"
-import { Clock, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
+import { Clock, Schema, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
 import { acceptsSetting, settingsIn } from "./agents/settings.ts"
@@ -119,12 +120,13 @@ import { Activity } from "./activity.ts"
 import { nativeActivity } from "@olai/acp"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
+import type { Models } from "./models.ts"
 import type { MemorySnapshot, Memory, MemoryFailure } from "./memory.ts"
 import { streamOver } from "./pipes.ts"
 import { handedIn, missingIn, type Probe, probed, type StdioServer } from "./probes.ts"
 import * as Questions from "./questions.ts"
 import { movedBy, rosterOf } from "./servers.ts"
-import { wroteIn } from "./wrote.ts"
+import { Json } from "./json.ts"
 
 /** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
  *  renders it into what the protocol wants. */
@@ -286,11 +288,13 @@ export interface Options {
    * `beforeEach` to stop one, which is a test reaching into the process to
    * silence a dependency it could not name.
    */
+  readonly advertised?: (server: string, tool: string) => Advertised | null
   readonly probes?: () => Effect.Effect<ReadonlyArray<Probe>>
   /** Where "which conversation is the panel's" is kept between one serve of
    *  this directory and the next ({@link ./memory.ts}). Handed in rather than
    *  built here for the reason the tool server is: this module is the one that
    *  speaks ACP, and where a machine keeps its state is not a protocol fact. */
+  readonly models?: Models
   readonly memory: Memory
   readonly onEvent: (event: AgentEvent) => void
 }
@@ -774,7 +778,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 detail: undefined,
                 progress: undefined,
                 diffs: undefined,
-                wrote: undefined,
+                called: undefined, row: undefined, reply: undefined,
                 locations: undefined,
                 parent: undefined,
                 spawned: undefined,
@@ -805,26 +809,36 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // handlers above need and what neither question they answer carries
           // ({@link ./calls.ts}).
           calls.heard(update.toolCallId, update._meta, notification.sessionId)
+          // Recognition belongs to the leg; ownership belongs to the live catalogue.
+          const recognized = options.leg.mcpCall({
+            title: update.title,
+            rawInput: update.rawInput,
+            _meta: update._meta,
+            name: calls.about(update.toolCallId, notification.sessionId).name,
+          }, given)
+          calls.recognized(update.toolCallId, recognized, notification.sessionId)
+          const call = calls.about(update.toolCallId, notification.sessionId).mcp ?? null
+          const ours = call === null ? null : options.advertised?.(call.server, call.tool) ?? null
+          const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput)
+          const reply = decoded !== undefined && isJson(decoded) ? decoded : undefined
+
           emit({
             _tag: "tool",
             id,
-            title: update.title ?? undefined,
+            title: ours?.title ?? update.title ?? undefined,
+            called: update.title ?? undefined,
+            row: ours?.owner,
+            reply,
             // NO CAST. The protocol's four words and the panel's are the same
             // four, and this is the one seam that says so: a fifth status on
             // either side stops compiling HERE, where a person can decide what
             // the panel should do with it, rather than riding a cast onto a row
             // whose look-up table has no entry for it.
             status: activity?.status(id, update.status ?? undefined) ?? update.status ?? undefined,
-            detail: detailOf(update.rawInput, update.rawOutput),
+            detail: detailOf(update.rawInput, ours === null ? update.rawOutput : undefined),
             progress: progressOf(update.content),
-            // The two vocabularies for what a call CHANGED, and a call is at
-            // most one of them: a direct file edit sends diff blocks, and a
-            // write through the ops layer answers with a reply olai wrote
-            // itself. Both are read structurally — `undefined` is "this report
-            // said nothing about that", which is the protocol's own rule for
-            // every other field here.
+            // Direct file changes remain protocol diff blocks.
             diffs: diffsOf(update.content, options.cwd),
-            wrote: wroteIn(update.rawOutput),
             locations: locationsOf(update.locations, options.cwd),
             // ... and WHO made the call, out of the same `_meta` the name came
             // from. A subagent's frames arrive on this one feed with nothing
@@ -1205,6 +1219,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           try: () =>
             startChild(options.command, [...options.args], {
               cwd: options.cwd,
+              processGroup: true,
               // The row's extra env OVER olai's own: the child wants
               // everything this process has PLUS what its adapter was told
               // (a `pi` the probe found on a search path this process's PATH
@@ -1515,12 +1530,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // Read INTO the mirror before anything is opened, because entering a
         // conversation writes the mirror back out ({@link entered}) — a recall
         // discarded here would be this boot forgetting what it had just read.
-        held = yield* recalled
-        const wanted = adopt(rememberedHere(), stored)
+        if (options.models === undefined) held = yield* recalled
+        const wanted = adopt(options.models === undefined ? rememberedHere() : null, stored)
         if (wanted !== undefined) {
           // The model goes with the conversation it was written down for. Adopt
           // the FALLBACK — the remembered one is gone — and there is nothing
           // remembered about the one we opened instead.
+          yield* readChoice(wanted.id)
           yield* load(at, wanted.id, wanted.title, modelFor(wanted.id))
           return
         }
@@ -1590,6 +1606,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  and a note about a different one leaves this boot with nothing
      *  remembered — which is the ordinary "adopt the newest" path, in an agent
      *  this panel has just been asked to talk to. */
+    const readChoice = (session: string): Effect.Effect<void> => Effect.gen(function*() {
+      if (options.models === undefined) return
+      const model = yield* said(options.models.read({ agent: options.id, session }),
+        why => `the model chosen for this conversation could not be read: ${why}`)
+      held = { agent: options.id, session, model }
+    })
+
     const rememberedHere = (): string | null =>
       held?.agent === options.id ? held.session : null
 
@@ -1604,7 +1627,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // are two writes to one file, arriving from a boot fiber and a protocol
         // callback. Unordered, the older of them can land last and the next
         // boot reads a memory that was true a moment before it was written.
-        yield* remembering.withPermit(Effect.asVoid(said(options.memory.remember(next), cost)))
+        yield* remembering.withPermit(Effect.asVoid(said(
+          options.models === undefined ? options.memory.remember(next)
+            : next.model === null ? Effect.void : options.models.write(next, next.model), cost)))
       })
 
     /**
@@ -2260,16 +2285,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       stopped = true
       const alongside = [...beside]
       beside.clear()
-      await Promise.all(alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))))
       const at = live
       if (at !== null) requestedStops.set(at.child, { reason, session: activeSession })
       live = null
       leaving()
       activeSession = null
-      await terminalCleanup
-      if (at === null) return
-      at.connection.close()
-      await at.child.stop()
+      // Close the protocol and process before joining requests waiting on it.
+      if (at !== null) at.connection.close()
+      await Promise.all([
+        at?.child.stop(), terminalCleanup,
+        ...alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))),
+      ])
     })
 
     const setSetting = (session: string, config: string, value: string | boolean) =>
@@ -2330,6 +2356,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // conversation carries nothing, because nothing here is a fact
             // about that one. The memory is one conversation deep, like the id
             // beside it.
+            yield* readChoice(id)
             yield* load(at, id, wanted?.title ?? null, modelFor(id))
           })
         ),
@@ -2616,12 +2643,14 @@ const detailOf = (input: unknown, output: unknown): string | undefined => {
  * and the conversation the panel comes back to and the row a person clicks stop
  * agreeing about which of two identical-looking rows is the newest.
  *
- * The undated rule is the load-bearing half: an agent that gave no timestamp
- * has said nothing about when, and reading that as "just now" would put it over
- * every conversation that did say — including, at a boot, over the one this
- * directory was actually in.
+ * GENERIC over just the field it reads, so the stored and the wire row — which
+ * differ in everything but the stamp — sort by the one rule. The undated rule
+ * is the load-bearing half: an agent that gave no timestamp has said nothing
+ * about when, and reading that as "just now" would put it over every
+ * conversation that did say — including, at a boot, over the one this directory
+ * was actually in.
  */
-export const newestFirst = (a: Stored, b: Stored): number =>
+export const newestFirst = <R extends { readonly updatedAt: string | null }>(a: R, b: R): number =>
   (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")
 
 /**
@@ -2683,3 +2712,5 @@ export const mcpServersOf = (
     env: Object.entries(one.env).map(([name, value]) => ({ name, value })),
   })),
 ]
+
+const isJson = Schema.is(Json)

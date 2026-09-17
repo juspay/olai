@@ -1,0 +1,26 @@
+import { expect, test } from "bun:test"
+import { createLandings, innermost, scopedLandings, type Receiver } from "./carry.ts"
+const receiver = (size = 10): Receiver => ({ lift: () => ({ left: 0, top: 0, right: size, bottom: size }), aim: () => {}, leave: () => {}, drop: async () => null })
+test("tables are app-owned; scoped registrations leave and stale cleanup cannot withdraw a replacement", () => {
+  const table = createLandings(), other = createLandings(), scope = scopedLandings(table)
+  const r = receiver(), release = scope.register(r)
+  const snapshot = table.lift({ kind: "test" })
+  expect(snapshot).toHaveLength(1)
+  expect(other.lift({ kind: "test" })).toEqual([])
+  scope.dispose()
+  expect(table.standing(snapshot[0]!.receiver)).toBe(false)
+  const next = scopedLandings(table)
+  next.register(r)
+  release()
+  expect(table.lift({ kind: "test" })).toHaveLength(1)
+  next.dispose()
+})
+test("unsupported payloads are skipped and the smallest containing box wins", () => {
+  const table = createLandings(), small = receiver(5)
+  table.register(receiver()); table.register(small)
+  table.register({ ...receiver(), lift: () => null })
+  const snapshot = table.lift({ kind: "test" })
+  expect(snapshot).toHaveLength(2)
+  expect(innermost(snapshot, 2, 2)?.receiver).toBe(small)
+  expect(innermost(snapshot, 12, 2)).toBeNull()
+})

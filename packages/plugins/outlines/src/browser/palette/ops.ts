@@ -49,8 +49,8 @@
 import type { Situated } from "@olai/format"
 import { NO_PINS } from "@olai/format"
 
-import type { Routing } from "olai-plugin-navigation/routes"
-import { subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
+import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
+import { subjectOfSituated, writeVerbs } from "../menu/verbs.ts"
 import type { PaletteItem } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
 
@@ -63,11 +63,11 @@ import { atOnce } from "@olai/web/client/settled.ts"
 export const opItems = (
   /** The app's URL grammar, handed in — `writeVerbs` asks the shelf through it
    *  (`../menu/verbs.ts`). */
-  routes: Routing,
+  routes: WorkspaceRouting,
   zoomed: Situated | undefined,
   /** How many records hang under the zoomed node, in the set — the number the
    *  archive's confirm names, carried on the page's own reading
-   *  (`@olai/format`'s `Zoomed.under`) rather than walked here. */
+   *  (`@olai/format`'s `Situated.under`) rather than walked here. */
   under: number | undefined,
 ): ReadonlyArray<PaletteItem> => {
   if (zoomed === undefined) return []
@@ -83,7 +83,7 @@ export const opItems = (
   // changed is why a palette would not have offered it anyway: it is a gesture
   // whose whole point is being on the ROW, and the node it would bind here is
   // the page.
-  return writeVerbs(routes, subjectOfZoom(zoomed), under, NO_PINS).flatMap((verb) =>
+  return writeVerbs(routes, subjectOfSituated(zoomed), under, NO_PINS).flatMap((verb) =>
     // AND THE SHELF'S VERB IS LEFT OUT, which is the one exclusion by NAME in
     // this file and needs its own sentence because of that. The palette
     // already carries a pin row, and that one is about the PAGE

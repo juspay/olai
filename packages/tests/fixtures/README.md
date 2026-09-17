@@ -7,13 +7,13 @@ only the corpus directories below it are.
 
 `outside.png` is the exception that proves it: a real picture sitting HERE,
 one directory above every served root, so that the traversal scenario in
-`features/documents.feature` refuses a URL because it climbs and not because
+`packages/plugins/markdown/e2e/features/documents.feature` refuses a URL because it climbs and not because
 there is nothing at the end of it. It is also the one picture in this tree that
 is NOT a member of any set — a picture is a served kind now, so every one under
 a corpus directory is listed, addressed and drawn.
 
 These directories are **read-only to a scenario**. A scenario that has to edit
-the files — everything in `features/it_stays_live.feature` — asks for
+the files — everything in `packages/plugins/vault/e2e/features/it_stays_live.feature` — asks for
 `@scratch:<name>` instead and is served a temp copy. By default that copy has
 a server of its own, thrown away with the scenario; a feature that opts in with
 `@share-scratch` shares one copy per worker and restores the fixture between
@@ -34,6 +34,17 @@ checks discovery of a first external outline without reloading.
 whose only outline is broken, then correct it or create healthy content beside it.
 `empty_vault_capture.feature` creates the Inbox through capture on desktop and
 through the phone header’s touch control.
+
+## `mail/` — nothing, and nothing is the point
+
+Only an ignored `.gitkeep` keeps this directory tracked, like `empty/`. The
+scenarios in `packages/plugins/mail/e2e/features/` are about a serve's GMAIL
+ACCOUNT — the header pill, the panel row, the record a restart reads back, the
+route Google redirects to — so what a serve is pointed at is a directory and no
+outline in it is ever opened. It is its own name rather than a corner of `empty/`
+for the reason a corpus is a name at all: `@scratch:mail` says which row's
+scenarios these are, the way `@scratch:odu-run` does for the CI chip, and the two
+sets of scenarios then move independently.
 
 ## `good/` — a set that validates
 
@@ -61,10 +72,10 @@ of each thing the view has to draw:
 | two `todo` leaves, one blocked and one not | `hinges` and `knobs` under `install` — the whole difference the mark column draws |
 | an `after` edge that is clear | `order` after `demo`, which is done — nothing left to wait for |
 | an `after` edge that must NOT block | `hinges` after `handles`, a bullet nobody marked: not work, so nothing to wait for |
-| a `doc` | `install` attaches `finishes.md` |
-| a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
+| a note link | `install` links to `finishes.md` |
+| a document no node links | `notes/palette.md` — still a page, still in the sidebar |
 | a document with YAML frontmatter | `notes/palette.md` again — the `---` block is off the page, off the title, out of the tag index, and its keys answer `prop:`. It carries a `date:` and a `#`-looking value on purpose: a property named `date` is not a day, and `#swatches` in the block is not a tag somebody wrote |
-| a nested outline | `Daily/2026-08.olai` — the sidebar's file tree, not a path string |
+| a nested outline | `Daily/2026-08.olai` — the sidebar's Outlines tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |
 | every mark the markdown pipeline draws, once each | `kitchen-sink.md` |
 | a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../`. The same file is a set member with a page of its own, which is the distinction those two rules keep: an `![](…)` is an embed off `/media/`, a `[…](…)` is a link to the picture's page |
@@ -76,7 +87,7 @@ of each thing the view has to draw:
 | an `.svg`, which is a document that can script | `art/diagram.svg` — a fixture with teeth, like `report.html`: it carries a script that tries to rename this document and mark it, and neither may ever happen. Drawn in an `<img>`, and answered by the media route with `default-src 'none'; sandbox` |
 | a cross-file mirror | `kitchen-herbs` (house.olai) mirrors `herbs` (garden.olai) |
 
-`report.html` carries a script that tries four things — write the app's `localStorage`, set a cookie on this app's origin, mark the app's own DOM, and navigate the tab away — and every one of them has to fail. It also rewrites its own paragraph, and that one has to SUCCEED: the file's own JavaScript runs now, and the paragraph is where both halves are read. It is a fixture with teeth on purpose: a preview is only worth having if a file the vault's owner did not write cannot use it as a way in, and a scenario that previewed inert markup would prove nothing about the file that matters. `features/html_previews.feature` reads the evidence that all four failed.
+`report.html` carries a script that tries four things — write the app's `localStorage`, set a cookie on this app's origin, mark the app's own DOM, and navigate the tab away — and every one of them has to fail. It also rewrites its own paragraph, and that one has to SUCCEED: the file's own JavaScript runs now, and the paragraph is where both halves are read. It is a fixture with teeth on purpose: a preview is only worth having if a file the vault's owner did not write cannot use it as a way in, and a scenario that previewed inert markup would prove nothing about the file that matters. `packages/plugins/hypertext/e2e/features/html_previews.feature` reads the evidence that all four failed.
 
 It carries a second probe of the same kind, about the one thing a sealed frame MAY fetch. Its pictures are `art/handle.png` (beside it, so it draws), `../outside.png` (the real picture one directory above every served root — the traversal), the same climb spelled `%2e%2e`, a remote host and a `data:` URI; and it opens with a `<base href="https://example.invalid/vault/">` trying to move every one of those to somebody else's server. Exactly one of the five may be drawn, none of the other four may reach the network, and the file's own base must lose to the seal's — the feature reads each as its own line. The sixth address a page can try, a file INSIDE the vault that is not a picture, is written by a scenario instead of living here: it is the only one the policy lets through to the server, so it 404s, and an ordinary console error in this shared fixture would blunt the assertion that the only complaints on these pages are refusals.
 
@@ -84,7 +95,7 @@ It carries a second probe of the same kind, about the one thing a sealed frame M
 is not there to be a plausible document but to be LOOKED AT, in a light theme
 and a dark one, by whoever is changing how markdown is set. Only the few of its
 claims that can go silently wrong are asserted
-(`features/documents.feature`) — the rest are for the eye.
+(`packages/plugins/markdown/e2e/features/documents.feature`) — the rest are for the eye.
 
 The mirror is why there are two files. Every `.olai` is an independent tree —
 a `parent` may not cross files — so showing the herb bed inside the kitchen
@@ -118,7 +129,7 @@ anything about the nodes' children.
 Deliberately plain: one outline, one parent, its children — one done, one under
 way, one carrying no mark at all — a grandchild and a pair of twins for the `@`
 list to have to tell apart, two documents beside them, and one thing put away.
-Everything `features/the_agent.feature` asks for is a property of that shape
+Everything `packages/plugins/chat/e2e/features/the_agent.feature` asks for is a property of that shape
 rather than of anything ornamental in it:
 
 | what | where |
@@ -134,12 +145,12 @@ rather than of anything ornamental in it:
 | two nodes of ONE title | `chase-supplier` under `install`, `chase-tiler` under `kitchen` — the pair a vault gets by copy-paste, and the reason a row says more than its title |
 | something put away | `_olai/Trash.olai`'s `tiles` — out of every list unless the query says `is:trashed` |
 
-The two documents are what `features/chat_at_completion.feature` completes
+The two documents are what `packages/plugins/chat/e2e/features/chat_at_completion.feature` completes
 against, and they are the smallest set that asks the question: one file whose
 name is enough to find it and one whose folder is part of what is written, in a
 corpus that also holds an outline, so the completion is over the whole served
 directory rather than over one kind of file. The nodes above them are what
-`features/chat_at_nodes.feature` completes against, for the same reason one
+`packages/plugins/chat/e2e/features/chat_at_nodes.feature` completes against, for the same reason one
 level in: a row with ancestors, a row found by something a reader cannot see on
 it, and two rows nothing but their place tells apart.
 
@@ -165,7 +176,7 @@ point, since a day is a query over the whole set.
 
 Beside them is the one filename that does mean something — a `Daily/YYYY/MM/`
 tree of documents, laid out the way the human's own vault is, for
-`features/daily_notes.feature`:
+`packages/plugins/journal/e2e/features/daily_notes.feature`:
 
 | what | where |
 |---|---|
@@ -199,7 +210,7 @@ between them rather than two names in one folder.
 | undated nodes, which no day may collect | `deck`, `trip`, `sweep` |
 
 **The dates are in 2019 on purpose.** A calendar is one of the few things whose
-behaviour depends on what day it *is*, and `features/journal_and_calendar.feature`
+behaviour depends on what day it *is*, and `packages/plugins/journal/e2e/features/journal_and_calendar.feature`
 has a scenario that asserts `/today` is empty. Dating the fixtures to a year
 that has already happened is what keeps that scenario honest on every day it
 will ever run. The one scenario that needs a note on TODAY writes one, under
@@ -209,7 +220,7 @@ while a page is open.
 
 ## `agenda/` — a set with something owed in it
 
-Two outlines whose dates are all in the past, for `features/agenda.feature`.
+Two outlines whose dates are all in the past, for `packages/plugins/journal/e2e/features/agenda.feature`.
 The agenda reads `date` and the mark TOGETHER, so this corpus is one of each
 pair they can make:
 
@@ -310,8 +321,8 @@ a key changes the whole namespace" looks like from a test suite.
 | an `int` | `records` — 189, 193, 200, and a 1000 that a string comparison would put inside `190..200`. NOT `pr`, deliberately: olai's own vault declares `pr-url` as text (the human, 2026-08-25), and a fixture teaching the opposite about the same word would be the one place in this repository that disagrees with the board it ships beside. |
 | a `date`, both stored widths | `dispatched` — an instant on `props`, a bare day on `chips` |
 | a `doc` | `brief` on `props`, naming `briefs/tp.md` |
-| a `path` | none — `brief` is the `doc` beside it, and the `path` this fixture used to carry became the kind below |
-| a kind a PLUGIN contributed | `worktree` on `props`, declared `{"type":"worktree"}` — `olai-plugin-odu`'s word, which is what licences the CI probe and the chip. Declared `path` it would be indistinguishable from `brief`, which is the defect the kind exists to end |
+| a `path` | `worktree` on `props` — a checkout path, one of the format's own kinds, not a live face |
+| a kind a PLUGIN contributed | `run` on `board-lane`, declared `{"type":"odu-run"}` — `olai-plugin-odu`'s word, which is what licences the CI chip. A path it is not: the value is a run id, and a chip that offered to open it would be offering a page that does not exist |
 | an UNDECLARED key on a typed board | `terminal` on `far` — prose, legal, untouched. Deliberately NOT declared here: `terminal` is `olai-plugin-kolu`'s kind, and this corpus is about the format's own vocabulary |
 
 The set validates as it stands, which is the point: a declaration never lands on
@@ -382,4 +393,4 @@ the result — so **this file is not edited by hand**: change the page and
 regenerate it, or the suite says which line wandered. Everything else — the key
 it names (`journal.agenda`), the shape both ends spell, the delivery, the
 once-a-day guard — is the source a person would paste.
-`features/the_morning_agenda.feature` is what it is for.
+`packages/plugins/vault-plugins/e2e/features/the_morning_agenda.feature` is what it is for.

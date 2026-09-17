@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The repeat picker: how often a dated node comes back, chosen on the row it
  * is about.
@@ -26,7 +25,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * one gesture what MCP needs two calls for, which is the deviation the
  * consistency rule forbids. One affordance in a person's hands, two ops underneath.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { REPEAT_RULES } from "@olai/format"
 import { For } from "solid-js"
 

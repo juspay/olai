@@ -1,3 +1,4 @@
+import { newChat } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -100,9 +101,13 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Duration, Effect } from "effect"
+import { Deferred, Duration, Effect, Semaphore } from "effect"
 
-import { type Cadence, cadence } from "./cadence.ts"
+import type { Conversing } from "./sessions.ts"
+import { forLocalState as modelsIn } from "./models.ts"
+import type { Ops as WriteGate } from "@olai/ops"
+import { makeFiler } from "./server/filer.ts"
+import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
 import { whyNoAgent } from "./adapter.ts"
@@ -110,20 +115,19 @@ import { detecting } from "./agents/roster.ts"
 import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
-import { forLocalState as memoryIn } from "./memory.ts"
 import { seatingIn } from "./seating.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
-import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
+import { closeAgent, type Binding, startAgentSession } from "./server/binding.ts"
 import { Config } from "./settings.ts"
 export { Config } from "./settings.ts"
-import { faultedIn, scopeThrough } from "./server/doorbell.ts"
+import { scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
 import type { ChatEntry, ChatState } from "./wire/members.ts"
-import { CHAT_OFF } from "./wire/members.ts"
 import { type Agents, NO_AGENT_ROSTER } from "./wire/agents.ts"
 import { faces, name, surface } from "./wire.ts"
+import { CHARTER } from "./charter.ts"
 
 /** The kinds this plugin teaches a vault — see {@link ./kinds.ts} for the word
  *  and the migration row an existing vault needs. */
@@ -148,24 +152,8 @@ interface VaultRevision {
   readonly value: {
     readonly set: Parameters<typeof documentAt>[0]
     readonly derived: Reading["derived"]
+    readonly claims: Reading["claims"]
   }
-}
-
-/** A frame's upserts and removes, written onto a collection in the ONE order
- *  that never shows a paragraph getting shorter: rows before pieces, because a
- *  row's upsert carries its text whole and supersedes every piece of it. */
-const applyFrame = <T>(
-  collection: {
-    upsert: (key: string, value: T) => void
-    remove: (key: string) => void
-  } | undefined,
-  change: {
-    readonly upserts: ReadonlyArray<readonly [string, T]>
-    readonly removes: ReadonlyArray<string>
-  },
-): void => {
-  for (const [key, entry] of change.upserts) collection?.upsert(key, entry)
-  for (const key of change.removes) collection?.remove(key)
 }
 
 /** A refusal off the write door, as the vault's own union — the one narrowing
@@ -357,8 +345,11 @@ export default definePlugin({
     /** The chat, once the listener has bound and an enabled engine is installed.
      *  Until then the build waits for engine registrations on this plugin's scope. */
     let chat: Chat.Chat | null = null
+    const ready = yield* Deferred.make<Chat.Chat>()
+    const streams = yield* readings(Deferred.await(ready))
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
+    let filer: { readonly full: Effect.Effect<void>; readonly settled: (agent: string) => Effect.Effect<void> } | null = null
     let sessionsRevision = 0
 
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
@@ -374,15 +365,6 @@ export default definePlugin({
      * member a fact lands on, in what order, and what a new subscriber is seeded
      * with — and the panel knows only that it published a change.
      */
-    const saying: Cadence = cadence({
-      onFrame: (frame) => {
-        applyFrame(mine?.collections.transcript, frame.rows)
-        applyFrame(mine?.collections.saying, frame.pieces)
-      },
-    })
-    // A window still open when this row unloads is a piece nothing will ever be
-    // published to. On this plugin's own scope, beside the thing it stops.
-    yield* Effect.addFinalizer(() => Effect.sync(() => saying.stop()))
 
     /**
      * THE ROSTER, ASSEMBLED AND PUBLISHED — the one place the two halves are put
@@ -410,15 +392,8 @@ export default definePlugin({
       state.session !== null && state.talking?.kind === "agent"
         ? { agent: state.talking.id, session: state.session.id }
         : null
-    let lastStatus: ChatState["status"] | undefined
-    /** Agent rows already in the transcript when the current turn started —
-     *  `replied` is the row THIS turn produced, not the newest agent row in the
-     *  whole conversation (a cancelled turn has no prose). */
-    let agentSeqAtTurn = -1
-    /** Doorbell rows already pushed, so a later mark on the same entry is not a
-     *  second digest. */
+    const turns = new Map<string, { status: ChatState["status"]; sequence: number }>()
     const deliveredIds = new Set<string>()
-    let deliveredFor: string | undefined
 
     /**
      * THE ONE SEAM ACROSS THE BOUNDARY — see `@olai/effect-cordis`'s `detached`.
@@ -436,8 +411,8 @@ export default definePlugin({
      */
     const ring = yield* detached
 
-    const publishState = (state: ChatState): void => {
-      mine?.cells.state.set(state)
+    const publishState = (state: ChatState, entries: ReadonlyMap<string, ChatEntry>, node: string | null): void => {
+      mine?.cells.engines.set(state.roster)
       // ... AND THE ROSTER WITH IT, because this is the one door every chat
       // frame comes through and the bindings move behind exactly these frames:
       // a session opening, a contract taught, a line written down at the end of
@@ -445,10 +420,14 @@ export default definePlugin({
       republishAgents()
       const who = whoOf(state)
       if (who !== null) {
+        const key = JSON.stringify([who.agent, who.session])
+        const previous = turns.get(key)
+        const lastStatus = previous?.status
+        let agentSeqAtTurn = previous?.sequence ?? -1
         if (state.status === "thinking" && lastStatus !== "thinking") {
           agentSeqAtTurn = Math.max(
             -1,
-            ...[...(chat?.entries().values() ?? [])]
+            ...[...entries.values()]
               .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
                 entry.kind === "agent"
               )
@@ -458,7 +437,8 @@ export default definePlugin({
         }
         if (lastStatus === "thinking" && state.status !== "thinking") {
           ring(seen({ kind: "turn", ...who, status: "done" }))
-          const produced = [...(chat?.entries().values() ?? [])]
+          if (filer !== null && node !== null) ring(filer.settled(who.agent))
+          const produced = [...entries.values()]
             .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
               entry.kind === "agent" && entry.seq > agentSeqAtTurn
             )
@@ -468,26 +448,21 @@ export default definePlugin({
             ring(seen({ kind: "replied", id: produced.id, ...who, text: produced.text }))
           }
         }
+        turns.set(key, { status: state.status, sequence: agentSeqAtTurn })
       }
-      lastStatus = state.status
     }
 
-    const publishTranscript = (change: Change): void => {
+    const publishTranscript = (state: ChatState, change: Change): void => {
       // Through the CADENCE, never straight onto the collection: a row that
       // grows reaches the wire as pieces on a clock rather than as itself once
       // per token.
-      saying.publish(change)
-      const who = chat === null ? null : whoOf(chat.state())
+      const who = whoOf(state)
       if (who === null) return
-      const whoKey = `${who.agent}/${who.session}`
-      if (deliveredFor !== whoKey) {
-        deliveredIds.clear()
-        deliveredFor = whoKey
-      }
       for (const [, entry] of change.upserts) {
         if (entry.kind === "user" && entry.rang !== undefined && entry.text !== "") {
-          if (deliveredIds.has(entry.id)) continue
-          deliveredIds.add(entry.id)
+          const key = JSON.stringify([who.agent, who.session, entry.id])
+          if (deliveredIds.has(key)) continue
+          deliveredIds.add(key)
           ring(seen({ kind: "delivered", id: entry.id, from: entry.rang, ...who, body: entry.text }))
         }
       }
@@ -518,11 +493,14 @@ export default definePlugin({
      *  ({@link ./kinds.ts}), so it moves with a revision, and the first key that
      *  carrier names is the one a writer should prefer — a vault's own migration
      *  row over the word this kind claims. */
+    const bindingPermit = yield* Semaphore.make(1)
     const binding: Binding = {
       boundAt: (node) => nodeAgents.nodeAt(node),
       key: () => nodeAgents.key(),
       write: (node, value) =>
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value }), asFailure),
+      remove: (node) =>
+        Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value: "" }), asFailure),
     }
 
     /** WHICH PLUGINS RING AT ALL — core's registry, read afresh at every use.
@@ -544,8 +522,8 @@ export default definePlugin({
       // told is the set's answer rather than the tab's, and an id nothing
       // declares refuses the send instead of quietly sending a message with no
       // subject.
-      send: ({ input }: { input: { scope: string | null; text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
-        withChat((open) => open.inConversation(input.scope, (panel) =>
+      send: ({ input }: { input: { conv: Conversing; scope: string | null; text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
+        withChat((open) => open.inConversation(input.conv, input.scope, (panel) =>
           Effect.flatMap(ops.reading, (at) => {
             const context = contextFor(at as Reading, input.context ?? [])
             if (context._tag === "Failure") return Effect.fail(context.failure)
@@ -560,38 +538,63 @@ export default definePlugin({
             )
           })
         )),
-      attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] }) =>
-        withChat((open) => open.attach(input)),
-      resend: ({ input }: { input: { scope: string | null; id: string } }) =>
-        withChat((open) => open.inConversation(input.scope, (panel) => panel.resend(input.id))),
-      cancel: ({ input }: { input: { scope: string | null } }) => withChat((open) => open.inConversation(input.scope, (panel) => panel.cancel)),
+      attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] & { conv: Conversing } }) =>
+        withChat((open) => open.inConversation(input.conv, input.uploadScope, (panel) => panel.attach(input))),
+      resend: ({ input }: { input: { conv: Conversing; scope: string | null; id: string } }) =>
+        withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.resend(input.id))),
+      cancel: ({ input }: { input: { conv: Conversing; scope: string | null } }) => withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.cancel)),
       setSetting: ({ input }: { input: { agent: string; session: string; config: string; value: string | boolean } }) =>
-        withChat((open) => open.setSetting(input.agent, input.session, input.config, input.value)),
+        withChat((open) => open.inConversation(input, undefined, panel => panel.setSetting(input.agent, input.session, input.config, input.value))),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
-        withChat((open) => open.setModel(input.agent, input.session, input.value)),
-      newSession: ({ input }: { input: { agent: string } }) =>
-        withChat((open) => open.newSession(input.agent)),
+        withChat((open) => open.inConversation(input, undefined, panel => panel.setModel(input.agent, input.session, input.value))),
+      newChat: ({ input }: { input: { agent: string } }) =>
+        withChat(open => {
+          const gate = ops.gate as WriteGate
+          return bindingPermit.withPermit(newChat({ current: vault.inbox.current, read: gate.read,
+            write: request => gate.run(request, "filer"),
+            start: (node, agent, committed) => Effect.gen(function*() {
+              // Ops has committed the new node, but revision delivery may still
+              // be queued. Seat against that committed reading, not the earlier
+              // roster used to paint the sidebar.
+              nodeAgents.seen(committed.derived)
+              return yield* startAgentSession(open, binding, { node, agent })
+            }),
+          }, input.agent))
+        }).pipe(Effect.tap(() => Effect.gen(function*() {
+          mine?.cells.sessionsRevision.set(++sessionsRevision)
+          if (filer !== null) yield* filer.full
+        }))),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
+      agentAbove: ({ input }: { input: { node: string } }) => Effect.sync(() => {
+        const id = nodeAgents.nearestAt(input.node, new Set(nodeAgents.nodes().map(node => node.id)))
+        const node = id === null ? null : nodeAgents.nodeAt(id)
+        return node === null ? null : { node: node.id, file: node.file, agent: node.engine, session: node.session }
+      }),
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
-        withChat((open) => startAgentSession(open, binding, input)).pipe(
+        withChat((open) => bindingPermit.withPermit(startAgentSession(open, binding, input))).pipe(
           // Publish after both the binding and its history link are written.
-          Effect.tap(() => Effect.sync(() => mine?.cells.sessionsRevision.set(++sessionsRevision))),
+          Effect.tap(() => Effect.gen(function*() {
+            mine?.cells.sessionsRevision.set(++sessionsRevision)
+            if (filer !== null) yield* filer.full
+          })),
         ),
-      assignSession: (
-        { input }: { input: { node: string; agent: string; session: string } },
-      ) => withChat((open) => assignSession(open, binding, input)),
-      chooseAgent: ({ input }: { input: { agent: string } }) =>
-        withChat((open) => open.chooseAgent(input.agent)),
-      loadSession: ({ input }: { input: { agent: string; id: string } }) =>
-        withChat((open) => open.loadSession(input.agent, input.id)),
-      reopen: ({ input }: { input: { scope: string | null } }) =>
-        withChat((open) => open.inConversation(input.scope, (panel) => panel.reopen)),
+      closeAgent: ({ input }: { input: { node: string } }) =>
+        bindingPermit.withPermit(closeAgent(binding, input)).pipe(
+          // Publish after the binding is gone: the seat closes and the roster
+          // repaints without the released agent.
+          Effect.tap(() => Effect.gen(function*() {
+            mine?.cells.sessionsRevision.set(++sessionsRevision)
+            if (filer !== null) yield* filer.full
+          })),
+        ),
+      reopen: ({ input }: { input: { conv: Conversing; scope: string | null } }) =>
+        withChat((open) => open.inConversation(input.conv, input.scope ?? undefined, (panel) => panel.state().unopened === null ? Effect.void : panel.reopen)),
       sessions: () => withChat((open) => open.sessions),
-      answer: ({ input }: { input: { id: string; answers: Parameters<Chat.Chat["answer"]>[1] } }) =>
-        withChat((open) => open.answer(input.id, input.answers)),
-      decline: ({ input }: { input: { id: string } }) =>
-        withChat((open) => open.answer(input.id, null)),
+      answer: ({ input }: { input: { conv: Conversing; id: string; answers: Parameters<Chat.Chat["answer"]>[1] } }) =>
+        withChat((open) => open.inConversation(input.conv, undefined, panel => panel.answer(input.id, input.answers))),
+      decline: ({ input }: { input: { conv: Conversing; id: string } }) =>
+        withChat((open) => open.inConversation(input.conv, undefined, panel => panel.answer(input.id, null))),
       // WHOSE doorbell a conversation may be pointed at — the gate, and the
       // sentence a refusal reaches a person in ({@link ./server/doorbell.ts}).
       scope: (
@@ -600,7 +603,7 @@ export default definePlugin({
             agent: string
             session: string
             plugin: string
-            file: string | null
+            pick: import("./json.ts").Json
           }
         },
       ) =>
@@ -621,6 +624,9 @@ export default definePlugin({
     yield* surfaces.register({
       surface,
       faces,
+      // THIS ROW'S PARAGRAPH FOR AN AGENT, on the same entry as its members so
+      // it leaves with the row (`./charter.ts` argues each sentence).
+      charter: CHARTER,
       deps: {
         cells: {
           // NO CHAT IS A STATE WITH A REASON, and the reason rides the same cell
@@ -628,29 +634,11 @@ export default definePlugin({
           // it already subscribes to, and a tab that has not heard yet holds
           // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than any
           // of the two reasons for having no agent.
-          state: { store: inMemoryStore<ChatState>(CHAT_OFF) },
+          engines: { store: inMemoryStore<ChatState["roster"]>([]) },
           sessionsRevision: { store: inMemoryStore<number>(0) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },
         },
-        collections: {
-          // Server-authored, one writer: `readAll` reads the transcript itself,
-          // so a fresh subscription is seeded from the same object every later
-          // upsert moves. There is no second copy to keep in step.
-          transcript: {
-            readAll: () => new Map(chat === null ? [] : chat.entries()),
-            upsert: () => {},
-            remove: () => {},
-          },
-          // The pieces of the row still being said — everything the cadence has
-          // PUT on the wire and not taken off again. Seeded with what is LIVE
-          // rather than empty: a tab subscribes to the two members one after the
-          // other, and a piece published in between belongs to neither.
-          saying: {
-            readAll: () => new Map(saying.onWire()),
-            upsert: () => {},
-            remove: () => {},
-          },
-        },
+        streams,
         procedures: { conversation },
       } satisfies ImplementSurfaceDeps<typeof surface.spec>,
       published: (bound) => {
@@ -677,7 +665,6 @@ export default definePlugin({
         // belonged to nobody until the next time a session opened.
         chat?.reread()
         republishAgents()
-        faulted(revision)
       })
     )
     yield* vault.unloaded(Effect.sync(() => {
@@ -688,15 +675,6 @@ export default definePlugin({
     /** A SCOPE ITS DOORBELL CANNOT WATCH — the walk, over this revision.
      *  {@link ./server/doorbell.ts} argues every clause of it; what is here is
      *  the two readings it does not take for itself. */
-    function faulted(snapshot: VaultRevision): void {
-      const open = chat
-      if (open === null) return
-      ring(Effect.flatMap(rings, (declared) =>
-        faultedIn(open, {
-          served: (file) => documentAt(snapshot.value.set, file) !== undefined,
-          declared,
-        })))
-    }
 
     /** Agent refusals belong in the transcript. Web gestures receive the
      *  same failure at their own surface and must not add a chat row. */
@@ -742,7 +720,7 @@ export default definePlugin({
         // lost between the empty reading and the wait. This fiber is scoped:
         // turning chat off also cancels a build waiting for its first engine.
         engineChange = yield* Deferred.make<void>()
-        mine?.cells.state.set({ ...CHAT_OFF, off: found.because })
+        mine?.cells.engines.set([])
         yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(found.because)), {
           duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
         })
@@ -760,6 +738,15 @@ export default definePlugin({
       })
 
       chat = yield* Chat.make({
+        onConversationClosed: state => {
+          const who = whoOf(state)
+          if (who === null) return
+          turns.delete(JSON.stringify([who.agent, who.session]))
+          for (const key of deliveredIds) {
+            const [agent, session] = JSON.parse(key) as [string, string, string]
+            if (agent === who.agent && session === who.session) deliveredIds.delete(key)
+          }
+        },
         // BOTH HALVES OF THE TABLE, READ WHEN ASKED. What this hands over is the
         // reading rather than an answer, so a row switched off at the panel
         // leaves the picker and one switched on enters it — see
@@ -782,6 +769,7 @@ export default definePlugin({
         // between conversations contributes nothing to the next one. The ORDER
         // is the build's, imposed here, because registration order is the order
         // two dynamic imports came back in and a person reads these lists.
+        advertised: tools.advertised,
         probes: () =>
           Effect.sync(() =>
             inBundleOrder(asking, (one) => one.who, bundle.rank).map((one) => ({
@@ -789,7 +777,7 @@ export default definePlugin({
               ask: one.ask,
             }))
           ),
-        memory: memoryIn(localState, mounted()[0]?.id ?? ""),
+        models: modelsIn(localState),
         scoping: yield* scopesIn(localState),
         wake: (plugin) => wakes.current().get(plugin),
         overheard: yield* sessionsIn(localState),
@@ -814,9 +802,11 @@ export default definePlugin({
             () => nodeAgents.keys().map((key) => ({ key, says: SEATS })),
             "chat-agent",
           ),
-        onState: publishState,
+        onState: () => {},
+        onConversationState: publishState,
         ...(nodeIdle === undefined ? {} : { idle: nodeIdle }),
-        onTranscript: publishTranscript,
+        onTranscript: () => {},
+        onConversationTranscript: publishTranscript,
         onLive: republishAgents,
         // THE SEAM'S OTHER SHAPE, for the one thing the scheduler interrupts
         // by name. Taken from the same `detached` as `ring`, and taken BEFORE
@@ -825,8 +815,20 @@ export default definePlugin({
         // second.
         fork: ring.held,
       })
+      yield* Deferred.succeed(ready, chat)
       yield* Effect.addFinalizer(() => chat === null ? Effect.void : chat.stop)
       yield* chat.start
+      const gate = ops.gate as WriteGate
+      filer = yield* makeFiler({
+        exclusive: work => bindingPermit.withPermit(work),
+        read: gate.read,
+        write: request => gate.run(request, "filer"),
+        key: nodeAgents.key,
+        current: vault.inbox.current,
+        assigned: chat.assigned,
+        log: line => Effect.logInfo(line),
+      }, vault.inbox, { all: chat.sessions, one: chat.sessionsFor })
+      yield* Effect.addFinalizer(() => Effect.sync(() => { filer = null }))
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         mcp: address.url,

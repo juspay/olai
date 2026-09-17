@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-vault/testids"
 /**
  * WHAT IS WRONG WITH THE DIRECTORY — over pages that are not.
  *
@@ -39,7 +38,7 @@ import { TESTID } from "olai-plugin-vault/testids"
  * them (./banner.ts, and the debate's finding 5 on why a knob is not a
  * receptacle).
  */
-
+import { TESTID } from "olai-plugin-vault/testids"
 import { For, Show } from "solid-js"
 
 import { Link } from "olai-plugin-navigation/routing"

@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/edit-history/testids.ts"
 /**
  * What ⌘Z just did, when it has something to say.
  *
@@ -16,7 +15,7 @@ import { TESTID } from "@olai/edit-history/testids.ts"
  * be a refusal a person can miss by looking away, which is the thing the
  * error rule is about.
  */
-
+import { TESTID } from "@olai/edit-history/testids.ts"
 import { Show } from "solid-js"
 
 import { LAYER } from "@olai/web/client/layer.ts"

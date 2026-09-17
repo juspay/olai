@@ -22,17 +22,10 @@
  *
  * ## What ends a trigger
  *
- * Nothing does, again deliberately — what is drawn is a function of the text
- * and the caret, so backspacing over the `@` shuts the list and typing it
- * again opens the same one. What each one WILL NOT swallow is the rest of the
- * message, and each has its own fence: a command ends at the first space, and
- * a name ends at any whitespace at all. The cap below is a second fence rather
- * than the first.
- *
- * That fence is why the node half of the `@` list takes a query of ONE TOKEN
- * where the grammar it is read by has quoting, `OR` and multi-word conjunctions
- * (`./nodes.ts`): a trigger that took a space would be a completion eating the
- * rest of somebody's sentence on the chance the next word was meant for it.
+ * A name query spans spaces up to the caret, so a visible multi-word title
+ * can be typed as it reads. A newline or tab ends it; accepting or dismissing
+ * it closes that offer in the draft. Only an explicit choice replaces text,
+ * and text after the caret is never part of the query.
  *
  * ## `@` here is not the outline's `@`
  *
@@ -60,8 +53,8 @@
  * words this box itself wrote, because it is asked which of the ids ALREADY
  * TAKEN from the list the message still says. Typing `@alice` arms nothing,
  * whatever the set declares — and the trigger, the read-back and the removal
- * are three questions about ONE walk (`namesOf`), so none of them can come to
- * disagree with the list that wrote a word.
+ * share the opening rule (`namesOf`). Queries may span spaces; completed
+ * node handles remain single words.
  *
  * The one rule that IS shared is where a sigil may open at all: `tagOpensAt`
  * is the format's own, asked here rather than respelled, because "an `@` in
@@ -84,15 +77,14 @@ export type Completing =
    *  completes is a name for something ({@link ./naming.ts}). */
   | { readonly kind: "name"; readonly from: number; readonly query: string }
 
-/**
- * Past this many characters after an `@`, this is prose with an address in it.
- *
- * Generous, because it is the SECOND fence and not the first: whitespace ends
- * the query outright, so prose can never run away into one. What this catches
- * is the other shape — one enormous unbroken token, a pasted URL, a base64 blob
- * — where two matchers would otherwise scan the whole directory and the whole
- * set on every keystroke of something that was never going to be a name.
- */
+/** A space makes a name query ambiguous with prose. Enter then needs an
+ *  explicit selection; Tab and clicks remain direct completion gestures. */
+export const requiresSelection = (found: Completing | null): boolean =>
+  found?.kind === "name" && found.query.includes(" ")
+
+/** Spaces no longer bound a query, so cap even a pasted sentence before it
+ *  reaches either matcher. This bounds work, not intent: the menu separately
+ *  requires a selection before Enter can replace a spaced query. */
 const NAME_CAP = 120
 
 export const completingIn = (text: string, caret: number): Completing | null =>
@@ -114,31 +106,14 @@ const commandIn = (text: string): Completing | null => {
     : { kind: "command", from: 0, query: text.slice(1) }
 }
 
-/**
- * The `@` the caret is inside, if what follows it could still be a name.
- *
- * The LAST name in the text before the caret, and only when it reaches the
- * caret — an earlier `@` is behind whitespace by construction, and whitespace
- * is exactly what would have ended it, so a name that stops short of the caret
- * is a name somebody has finished typing.
- *
- * Through {@link namesOf}, which is what makes "the two readers cannot disagree
- * with the list that wrote a word" a fact rather than a hope: the trigger, the
- * read-back and the removal are three questions about one walk. Written as its
- * own backwards scan, this file held two spellings of "where a word starts and
- * where it ends" and they agreed by coincidence of two regexes.
- */
+/** The last opening `@` before the caret, across spaces but not lines.
+ *  Completed handles are still read as individual words by `namesOf` below. */
 const nameIn = (text: string, caret: number): Completing | null => {
   const before = text.slice(0, Math.max(0, caret))
   const said = namesOf(before).at(-1)
   if (said === undefined) return null
-  // The QUERY is what was WRITTEN — the whole of it, not the name with what a
-  // sentence puts after it trimmed off. A caret after `@hinges,` asks the two
-  // lists about `hinges,`, which is a thing neither of them holds, so the list
-  // shuts on the comma; trimming here instead would re-open it over a word
-  // somebody has finished and offer to rewrite the punctuation out of it.
   const query = before.slice(said.at + 1)
-  return !/\s/.test(query) && query.length <= NAME_CAP
+  return !/[^\S ]/.test(query) && query.length <= NAME_CAP
     ? { kind: "name", from: said.at, query }
     : null
 }
@@ -166,28 +141,15 @@ export const tokenOf = (found: Completing): string =>
  * own sentence before sending and to the agent reading it after. A bare path
  * in a sentence is a word with a slash in it, and a bare id is a word.
  *
- * It buys a second thing here that it did not have to buy for a path: the word
- * stays COMPLETABLE. Backspace into `@hinges` and the same list comes back over
- * the same word, because the trigger is a function of the text (above) and the
- * text still has the `@` in it. A spelling that consumed the sigil — the id in
- * backticks, say, which is how the agent writes one in prose — would be a word
- * this box could no longer offer to fix, and it would be the only thing in the
- * message the panel had written that the panel could not read back
- * ({@link namedIn}).
- *
- * THE SPACE IS THE COMPOSER'S OWN habit, from the slash completion beside it
- * (`/review ` is what accepting a command writes): a message is prose and the
- * next thing typed is the next word. It is also what ends the trigger, since
- * whitespace is what the query stops at — so the list is gone the moment the
- * row is taken, with nothing to remember.
+ * The trailing space leaves the caret ready for the next word. The composer
+ * dismisses the accepted offer, so typing that word cannot reopen the list.
  *
  * That is the opposite of what the row editor's tag completion does, and the
  * two are right for their own reasons: a title is STORED verbatim, so a space
  * nobody typed is a space in somebody's git history. Nothing here is stored.
  *
  * WHAT IT NAMES GOES IN AS IT IS, including a path with a space in it. Such a
- * file is still offered — the query stops at whitespace, so it is found by the
- * segment before the space — and what is written is the path, unquoted. A
+ * file can be found by typing across the space too; the path is unquoted. A
  * quoting convention would be one only olai understands: the agent is handed
  * the sentence, not a syntax, and inventing punctuation for it to parse would
  * be worse than a sentence a reader can see the shape of. An id cannot hold a
@@ -225,8 +187,8 @@ export const inserted = (name: string, followed = " "): string =>
  *
  * The `@` it looks for is the trigger's own — the format's `tagOpensAt`, so a
  * word with an `@` inside it is a word here exactly as it is up there — and the
- * token it reads ends where a query ends, at whitespace. So this and the list
- * that wrote the word agree about what a word is by construction.
+ * completed handle it reads ends at whitespace. The query that found that
+ * handle may contain several words of its title.
  */
 export const namedIn = (
   text: string,
@@ -323,8 +285,8 @@ const markedAt = (text: string, at: number): number => {
 }
 
 /** Every `@word` in a message, in the order it says them — where a `@` OPENS a
- *  word (the format's own rule, the trigger's) and the word ends where a query
- *  ends, at whitespace, less whatever the sentence put after it. One walk, so
+ *  word (the format's own rule, the trigger's) and the handle ends at
+ *  whitespace, less whatever the sentence put after it. One walk, so
  *  the two readers above cannot come to disagree about what a word is. */
 const namesOf = (
   text: string,
@@ -361,9 +323,7 @@ const namesOf = (
  * because swallowing one would join two lines a person wrote apart, and a
  * trailing space at the end of a line is nothing anybody sees. The space is
  * still written when the caret is at the end of the message, where there is
- * nothing to give it up — and where it does the second job the trailing space
- * has, which is to end the trigger so the list does not come straight back
- * over the path it just wrote.
+ * nothing to give it up. The composer dismisses the accepted offer.
  *
  * AND NO SPACE AT ALL WHEN THE SENTENCE ALREADY PUT ONE OF ITS OWN MARKS
  * THERE. `look at @hin, then the doors`, completed with the caret against the

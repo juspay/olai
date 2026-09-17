@@ -6,7 +6,9 @@ Feature: Application completions wait until IME candidate selection has finished
       # A file to discuss
       """
     And I open the app
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I type "read @" into the chat
     And I start composing the IME text "日本" in the focused field
     Then the completion offers "日本語.md"

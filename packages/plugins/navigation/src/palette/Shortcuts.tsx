@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-navigation/testids"
 /**
  * The keys, on screen.
  *
@@ -28,18 +27,39 @@ import { TESTID } from "olai-plugin-navigation/testids"
  * costs a line and it means the next thing drawn over a modal does not have to
  * remember this one.
  */
-
+import { TESTID } from "olai-plugin-navigation/testids"
 import { For,onCleanup,onMount,Show } from "solid-js"
 
 import { SHORTCUTS } from "@olai/web/client/keys.ts"
+import type { AppChord } from "../slots.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 
+/** How a registered chord is written on the sheet — both platforms' spellings,
+ *  the way the app's own rows are. */
+export const spellChord = (chord: Pick<AppChord, "key" | "shift">): string => {
+  const shift = chord.shift === true ? "⇧" : ""
+  const key = chord.key.toUpperCase()
+  return `⌘${shift}${key} / Ctrl+${shift}${key}`
+}
+
+/** The heading the chords plugins registered sit under. */
+export const REGISTERED_GROUP = "Added by plugins"
+
 export function Shortcuts(props: {
   readonly open: boolean
   readonly onClose: () => void
+  /** The chords plugins registered in `app.keys` and the palette listens for. */
+  readonly more?: ReadonlyArray<AppChord>
 }) {
+  const groups = () => {
+    const more = props.more ?? []
+    return more.length === 0 ? SHORTCUTS : [
+      ...SHORTCUTS,
+      { group: REGISTERED_GROUP, keys: more.map((chord) => ({ keys: spellChord(chord), what: chord.said })) },
+    ]
+  }
   const topmost = topmostWhileOpen(() => props.open)
 
   // On the window, and registered once for the component's life rather than
@@ -73,7 +93,7 @@ export function Shortcuts(props: {
         <div
           class={`relative ${WITHIN.raised} max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-2xl border-0 bg-panel p-4 shadow-xl ring-1 ring-rule/40`}
         >
-          <For each={[...SHORTCUTS]}>
+          <For each={[...groups()]}>
             {(group) => (
               <section class="mb-4 last:mb-0">
                 <h2 class="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-muted">

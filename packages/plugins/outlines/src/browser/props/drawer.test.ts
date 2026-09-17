@@ -40,13 +40,12 @@ test("the mark is one line, with its instant when it has one", () => {
     })
 })
 
-test("a date is a line; a note, a document and the edges are not", () => {
+test("a date is a line; a note and the edges are not", () => {
   // What is in the system half is exactly the facts with nowhere else to show.
-  // `see` is a reference row under the note, `desc` is the note, `doc` is the
-  // document line — repeating any of them here would put two spellings of one
+  // `see` is a reference row under the note, `desc` is the note — repeating any of them here would put two spellings of one
   // fact on one screen.
   const node = nodeOf(
-    `{"id":"n","ord":"a0","title":"t","date":"2026-08-10","desc":"a note","doc":"x.md","see":["y"],"after":["z"]}`,
+    `{"id":"n","ord":"a0","title":"t","date":"2026-08-10","desc":"a note","see":["y"],"after":["z"]}`,
   )
   expect(systemEntries(node).map((entry) => entry.key)).toEqual(["id", "date"])
 })
@@ -130,4 +129,15 @@ test("a document's frontmatter is the same run, over the map", () => {
       system: false,
       listed: true,
     }])
+})
+
+test("row placement omits only the contributed kind; the page retains every property", () => {
+  const node = nodeOf('{"id":"n","ord":"a0","title":"node","custom":{"binding":"claude:session","plain":"visible"}}')
+  const placement = {
+    kind: (key: string) => key === "binding" ? "chat-agent-session" : "text",
+    at: (kind: string) => kind === "chat-agent-session" ? { inRows: false } : undefined,
+  }
+  expect(customEntries(customOf(node), placement).map(entry => entry.key)).toEqual(["plain"])
+  expect(customEntries(customOf(node)).map(entry => entry.key)).toEqual(["binding", "plain"])
+  expect(drawerEntries(node).filter(entry => !entry.system).map(entry => entry.key)).toEqual(["binding", "plain"])
 })

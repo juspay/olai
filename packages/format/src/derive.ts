@@ -31,7 +31,7 @@
  * optimisation held to it, and every rule it needs it calls here rather than
  * spelling again.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Order, Schema } from "effect"
 
 import { Tag } from "./address.ts"
@@ -73,6 +73,7 @@ export { Status } from "./node.ts"
  * the symptom would be a plausible tree rather than a failure.
  */
 export interface Derived {
+  readonly claims: Claims
   /**
    * Every record of the set, in corpus order — path order across files, line
    * order within one.
@@ -647,7 +648,7 @@ export const tagInto = (
   }
 }
 
-export const derive = (nodes: ReadonlyArray<Located>): Derived => {
+export const derive = (claims: Claims, nodes: ReadonlyArray<Located>): Derived => {
   // `Map.groupBy` is the language's own group-by-key, and grouping by file is
   // exactly that — a hand-rolled accumulator here would be a second spelling
   // of a built-in (the same note #198 took). The five tables below are not
@@ -671,7 +672,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     parentInto(children, located)
     nameInto(namedBy, located)
     tagInto(taggedBy, located)
-    dateInto(dated, located)
+    dateInto(claims, dated, located)
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
@@ -702,12 +703,13 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   const { status, mirrorsOf } = resolutions(nodes, byId)
   const { after, edgesTo } = orderings(byId, nodes)
   return {
+    claims,
     nodes,
     byId,
     children,
     status,
     after,
-    blocked: blockage(byId, status, after),
+    blocked: blockage(claims, byId, status, after),
     byFile,
     mirrorsOf,
     edgesTo,
@@ -1370,12 +1372,12 @@ const orderings = (
  * chances to disagree about what unfinished work is.
  */
 const inPlay = (
-  index: { readonly byId: ReadonlyMap<string, Located> },
+  index: { readonly claims: Claims; readonly byId: ReadonlyMap<string, Located> },
   status: ReadonlyMap<string, Status>,
   id: string,
 ): InTheWay | undefined => {
   const at = nodeNamed(index, id)
-  if (at === undefined || isPutAway(at.file)) {
+  if (at === undefined || isPutAway(index.claims, at.file)) {
     return undefined
   }
   const mark = status.get(at.node.id)
@@ -1386,7 +1388,7 @@ const inPlay = (
  *  — the target-side half of blockedness, shared by the index below and the
  *  reading beside it. */
 const waitingOn = (
-  index: { readonly byId: ReadonlyMap<string, Located> },
+  index: { readonly claims: Claims; readonly byId: ReadonlyMap<string, Located> },
   status: ReadonlyMap<string, Status>,
   targets: ReadonlyArray<string>,
 ): ReadonlyArray<InTheWay> =>
@@ -1430,11 +1432,12 @@ const waitingOn = (
  * about the file rather than about what is on anyone's plate.
  */
 const blockage = (
+  claims: Claims,
   byId: ReadonlyMap<string, Located>,
   status: ReadonlyMap<string, Status>,
   after: ReadonlyMap<string, ReadonlyArray<string>>,
 ): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
-  const view = { byId, status, after }
+  const view = { claims, byId, status, after }
   const blocked = new Map<string, ReadonlyArray<InTheWay>>()
   for (const id of after.keys()) {
     const found = blockageAt(view, id)
@@ -1459,7 +1462,7 @@ const blockage = (
  * patched view that draws a blocker a rebuilt one does not.
  */
 export const blockageAt = (
-  view: Pick<Derived, "byId" | "status" | "after">,
+  view: Pick<Derived, "claims" | "byId" | "status" | "after">,
   id: string,
 ): { readonly at: string; readonly waiting: ReadonlyArray<InTheWay> } | undefined => {
   const source = inPlay(view, view.status, id)
@@ -1618,7 +1621,7 @@ export const isMirrored = (derived: Pick<Derived, "mirrorsOf">, id: string): boo
  * way, because there is one function that decides that.
  */
 export const standingBefore = (
-  derived: Pick<Derived, "byId" | "status" | "after">,
+  derived: Pick<Derived, "claims" | "byId" | "status" | "after">,
   id: string,
 ): ReadonlyArray<InTheWay> =>
   waitingOn(derived, derived.status, derived.after.get(id) ?? [])
@@ -1722,8 +1725,13 @@ export const Row: Schema.Codec<Row> = Schema.Union([
  * close a loop it is also the guard, since a node is filed at zero before its
  * own walk and a second arrival reads that rather than recursing for ever.
  */
-export const under = (derived: Pick<Derived, "children">, id: string): number =>
-  descendants(derived, id, new Map())
+export const under = (
+  derived: Pick<Derived, "children">,
+  id: string,
+  /** Shared across a walk that counts many nodes, so the set is walked once
+   *  rather than once per node; a fresh one otherwise. */
+  memo: Map<string, number> = new Map(),
+): number => descendants(derived, id, memo)
 
 /** {@link under}, sharing one memo across a whole walk — which is what makes
  *  a row per node cost the tree once rather than once per row. */
@@ -1957,10 +1965,21 @@ export const Situated = Schema.Struct({
   progress: Schema.optional(Progress),
   /** The canonical parent chain, root first, `shows` excluded. */
   trail: Schema.Array(LocatedRegular),
+  /** How many records hang under it IN THE SET — a row's own {@link Row.under}.
+   *  Every reader of a situated node draws a `•••` or a palette over it, whose
+   *  Move to Trash names this count, so it is situated with the rest rather than
+   *  attached by each reader — the one a later reader forgot would be a menu
+   *  that quietly lost the verb. */
+  under: Schema.Int,
 })
 export type Situated = typeof Situated.Type
 
-export const situate = (derived: Derived, shows: LocatedRegular): Situated => {
+export const situate = (
+  derived: Derived,
+  shows: LocatedRegular,
+  /** {@link under}'s memo, for a caller situating many nodes in one walk. */
+  counted: Map<string, number> = new Map(),
+): Situated => {
   // Absent rather than present-and-undefined, for the reason a row's are
   // ({@link Row}'s `place`): these travel, and a key the wire drops on the way
   // out must not be a key the value was built with.
@@ -1972,6 +1991,7 @@ export const situate = (derived: Derived, shows: LocatedRegular): Situated => {
     blocked: blockersOf(derived, shows.node.id),
     ...(progress === undefined ? {} : { progress }),
     trail: ancestorsOf(derived, shows.node.id),
+    under: under(derived, shows.node.id, counted),
   }
 }
 

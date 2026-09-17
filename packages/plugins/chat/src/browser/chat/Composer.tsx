@@ -1,3 +1,5 @@
+import { onCleanup } from "solid-js"
+import { insertAt, type Insertion } from "./insertion.ts"
 /**
  * The input row: type, send, cancel.
  *
@@ -129,7 +131,7 @@ import { createSearch } from "../search.ts"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { useServed } from "../vault.ts"
 import { TESTID } from "../../testids.ts"
-import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
+import { useConversationUI } from "./ui.tsx"
 import { Attachments } from "./Attachments.tsx"
 import {
   type Completing,
@@ -156,17 +158,19 @@ export function Composer(props: {
   readonly chat: Chat
   /** The files attached and not yet sent. Made by the panel, because the
    *  panel is where a drop is caught and this row is where the chips go. */
+  readonly onInsert?: (insert: (text: Insertion) => void) => () => void
   readonly holding: Holding
 }) {
+  const { armedNodes, disarmNode, releaseArmed, restoreArmed } = useConversationUI().armed
   // Keep words, caret, chosen @ handles and the dismissed token together across remounts.
   // `taken` grants node context only while its word remains in the draft.
-  const { draft, setDraft, taken, setTaken, caret, setCaret, dismissed, setDismissed, recover } = createMessageDraft(() => {
+  const { draft, setDraft, taken, setTaken, caret, setCaret, dismissed, setDismissed, recover, retry, setRetry } = createMessageDraft(() => {
     const state = props.chat.state()
     const agent = agentIn(state)
     return agent === null || state.session === null
       ? null
       : JSON.stringify([agent.id, state.session.id])
-  })
+  }, props.chat.ui.messages)
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)
@@ -284,8 +288,8 @@ export function Composer(props: {
 
   // A DISMISSAL LASTS AS LONG AS THE THING IT WAS ABOUT. Escape shuts the list
   // over the word being typed and keeps it shut while that word goes on being
-  // typed — but the moment nothing is armed at all (a space typed, the `@`
-  // backspaced away, the caret moved out of the word) the memory goes with it.
+  // typed — but the moment nothing is armed (a newline or tab, the query cap
+  // exceeded, the `@` removed, or the caret moved outside the span), it clears.
   // Without this the token is only the KIND and the OFFSET, so a second `@`
   // typed where the first one was would come up already dismissed — a list
   // that never returns for the rest of the message, for a key pressed about
@@ -382,6 +386,7 @@ export function Composer(props: {
             if (offer.kind === "node") {
               setTaken((already) => new Set(already).add(offer.value))
             }
+            setDismissed(tokenOf(completing))
             rewrite(completed(draft(), completing, offer.value, caret()))
           },
         }))
@@ -449,6 +454,7 @@ export function Composer(props: {
     // that was refused.
     const held = releaseArmed()
     const recoverDraft = recover()
+    setRetry(false)
     setTaken(new Set<string>())
     setDraft("")
     // The caret goes with the words: an empty box's caret is at its start, and
@@ -498,7 +504,7 @@ export function Composer(props: {
    * `value` to the same string leaves the selection alone, and engines have
    * not always agreed. Neither claim is one to rest a caret on by reading, so
    * the caret is asserted where it can be — in a browser, after a completion
-   * taken mid-sentence (`features/chat_at_completion.feature`, which reads
+   * taken mid-sentence (`packages/plugins/chat/e2e/features/chat_at_completion.feature`, which reads
    * `selectionStart` back rather than believing this paragraph).
    *
    * IT TAKES THE CARET BACK, which matters for the row that was CLICKED: the
@@ -518,19 +524,23 @@ export function Composer(props: {
    * what the chip is read from anyway.
    */
   const rewrite = (next: Written) => {
-    if (input !== undefined) {
-      input.value = next.text
-      input.setSelectionRange(next.caret, next.caret)
-      input.focus()
-    }
-    // Batched for the reason the box's own `onInput` is: the two signals the
-    // list is a function of are being moved together, and two writes would ask
-    // the directory and the set the same question twice.
+    // Focus reads the caret into the shared draft too. Keep it in this batch:
+    // otherwise that notification can reapply the OLD text between the DOM
+    // rewrite and setDraft, moving a mid-sentence caret to the end.
     batch(() => {
+      if (input !== undefined) {
+        input.value = next.text
+        input.setSelectionRange(next.caret, next.caret)
+        input.focus()
+      }
       setDraft(next.text)
       setCaret(next.caret)
     })
   }
+
+  const insertCarried = (text: Insertion) => rewrite(insertAt(draft(), caret(), text))
+  const releaseInsert = props.onInsert?.(insertCarried)
+  onCleanup(() => releaseInsert?.())
 
   /**
    * The `×` on a chip: this message is not about that node.
@@ -594,7 +604,8 @@ export function Composer(props: {
     }
     // Enter sends. It does NOT need a "unless the menu is open" guard: the menu
     // takes the key in the capture phase and stops it propagating, so this
-    // handler does not run while it is up (see ./CompletionMenu.tsx). One
+    // handler does not run when a row is selected (see ./CompletionMenu.tsx).
+    // A spaced name query starts unselected so Enter can send literal prose. One
     // mechanism for one rule — a second one here would be a guard nobody could
     // test.
     //
@@ -621,12 +632,8 @@ export function Composer(props: {
     <div class="relative shrink-0 p-2">
       <Show when={open()}>
         <CompletionMenu
-          kind={found()?.kind ?? "command"}
+          completing={found()}
           rows={rows()}
-          // What is being asked, so the list starts at the top when it changes
-          // — the kind as well as the query, since `/` and `@` can both be
-          // armed with nothing typed after them and those are two questions.
-          asking={`${found()?.kind ?? ""}:${found()?.query ?? ""}`}
           asked={nodesNamed.answering() ?? undefined}
           within={() => input}
           onDismiss={dismiss}
@@ -953,11 +960,7 @@ export function Composer(props: {
           data-testid={TESTID.chatSend}
           onClick={() => void send()}
         >
-          {/* ALWAYS "send", because that is always what it does — one verb,
-              busy or idle. It used to read "queue" while a turn ran, back when
-              the panel really did hold the message; the AGENT holds it now, the
-              row says so, and what this button does never changes. */}
-          send
+          {retry() && draft().trim() ? "send again" : "send"}
         </button>
       </div>
     </div>

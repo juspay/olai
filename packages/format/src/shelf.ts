@@ -35,7 +35,7 @@
  * pure over the address itself and were never a reading of the set; the name
  * this file answers is the only one that was.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import { addressWritten, parseAddress, splitAddress } from "./address.ts"
@@ -161,7 +161,7 @@ export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(S
  * is answered on two sides) — and {@link Pinned.shows} carries the id so the
  * extra answers cost a reader nothing.
  */
-export const pinTargetIn = (title: string): string | undefined => {
+export const pinTargetIn = (claims: Claims, title: string): string | undefined => {
   const at = addressWritten(title)
   if (!at.startsWith("/")) return undefined
   // Cut the way this app writes a URL ({@link splitAddress}, the one spelling
@@ -169,7 +169,7 @@ export const pinTargetIn = (title: string): string | undefined => {
   // hand the two halves of what is left to the grammar — which is what decides
   // whether this names a node.
   const { pathname, fragment } = splitAddress(at.slice(1))
-  const address = parseAddress(pathname + (fragment === undefined ? "" : `#${fragment}`))
+  const address = parseAddress(claims, pathname + (fragment === undefined ? "" : `#${fragment}`))
   // A ROW names a node too — `Tasks.olai#a1b2c3` is what a hand writes when
   // it knows where the node lives — and what a pin draws is the node's NAME,
   // which the id half answers alone: the file half can go stale across a
@@ -194,7 +194,7 @@ export const pinTargetIn = (title: string): string | undefined => {
  * row `Pins.olai`'s own page still draws as an ordinary heading or note.
  */
 export const shelfOf = (derived: Derived): Shelf =>
-  shelfIn(derived, pinsIn(derived.byFile.keys()))
+  shelfIn(derived, pinsIn(derived.claims, derived.byFile.keys()))
 
 /**
  * The shelf of a NAMED file — {@link shelfOf} with the convention walk lifted
@@ -214,7 +214,7 @@ export const shelfIn = (derived: Derived, file: string | undefined): Shelf => {
   return rootsOf(derived, file).flatMap((located) => {
     const node = located.node
     const row = { id: node.id, title: node.title }
-    const target = pinTargetIn(node.title)
+    const target = pinTargetIn(derived.claims, node.title)
     if (target === undefined) return [row]
     // `nodeNamed` and not the index: an id may address a MIRROR, and what a
     // reader can be shown is the node standing at that placement — the same

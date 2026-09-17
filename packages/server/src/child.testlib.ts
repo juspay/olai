@@ -1,4 +1,3 @@
-import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 /**
  * A real olai as a CHILD PROCESS: how to start one, how to read its address,
  * and how to ask whether it stopped.
@@ -17,7 +16,7 @@ import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
  * event, a clock that throws with what the child said — is the socket's
  * default, so these tests stop re-earning it.
  */
-
+import { writeFixturePolicy, type FixturePolicy } from "@olai/bundle/testlib"
 import { type Child, start } from "@olai/child"
 import { findLogfmt } from "@olai/log/testlib"
 import * as fs from "node:fs"
@@ -110,6 +109,9 @@ export const startWeb = (options: {
     OLAI_ACP_CODEX: "",
     OLAI_ACP_PI: "",
     OLAI_AGENT_PATH: "",
+    // Same isolation as the in-process helper: omitting this env is not
+    // "derived and absent". odu defaults to `127.0.0.1:18440`.
+    ODU_WEB_ORIGIN: "http://127.0.0.1:1",
     // TIED TO THIS TEST PROCESS: a server arms the kernel's parent-death
     // signal only for a spawner that tied it, and this one does — `bun test`
     // killed mid-file is exactly the runner death #355 stopped leaking

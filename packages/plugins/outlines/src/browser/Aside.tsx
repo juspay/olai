@@ -1,12 +1,11 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What rides inline after a title, dim, and nothing else does.
  *
  * The quiet outline's ruling in one component: a folded row is its title, plus
  * at most ONE hot fact (`./hot.ts`) — and, when the row is collapsed, the count
  * of finished work it is holding back (`./hidden.ts`). Both are drawn in the
- * muted voice of a byline, both are `shrink-0` so an
- * ellipsizing title never eats them, and neither is a box, a pill or a column.
+ * muted voice of a byline, both are `shrink-0` so a
+ * long title wraps rather than eating them, and neither is a box, a pill or a column.
  *
  * A component rather than two `<Show>`s at the drawing site, because the RULE is
  * the thing: "one fact, and the fold's own count" is a claim about the row, and
@@ -17,7 +16,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * and argues why it is a comparison rather than a blanket rule. Here, in the one
  * place both values meet, is the only place that decision can be made at all.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Match, Show, Switch } from "solid-js"
 
 import { foldSays } from "@olai/web/client/hidden.ts"

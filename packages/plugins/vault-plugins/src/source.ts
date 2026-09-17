@@ -137,7 +137,7 @@ export const definedIn = (
     // once per file, of the one predicate (`isPutAway`) rather than of a
     // basename. A leftover `Archive.olai` is the other half of that predicate
     // and is skipped for the same reason — it is not a live definition either.
-    if (isPutAway(at.file)) continue
+    if (isPutAway(derived.claims, at.file)) continue
     const word = (customText(at.node, PLUGIN_KEY) ?? "").trim()
     if (word === "") continue
     claims.set(word, (claims.get(word) ?? 0) + 1)

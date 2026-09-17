@@ -37,6 +37,9 @@ import type { Leg, Meta } from "@olai/acp/engine"
  * than a special case.
  */
 export const SAYS_NOTHING: Leg = {
+  spelling: null,
+  mcpCall: () => null,
+  replyIn: () => undefined,
   toolNameIn: () => null,
   toolNameOf: () => null,
   allowedWithoutAsking: () => null,

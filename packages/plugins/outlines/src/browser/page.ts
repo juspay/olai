@@ -18,7 +18,7 @@
  * its own routes directly in `PageView`, so core never has to learn their page
  * vocabulary.
  */
-
+import type { Claims } from "@olai/format"
 import type {
   Agenda,
   DayGroup,
@@ -82,7 +82,7 @@ export const requestFor = (route: Route): FiledPageRequest | null => {
  * than an address. That caller is the `.html` preview: a reader clicks a link
  * inside somebody's saved page, the seal hands the path out, and the app has to
  * decide both whether it holds that file and which of its two page shapes the
- * file is (`../document/Hypertext.tsx`).
+ * file is (`olai-plugin-hypertext`’s `browser/Hypertext.tsx`).
  *
  * ASKED OF THE PATHS, which is what a browser still holds of the directory: one
  * head per served file, no records and no bodies (`@olai/surface`'s `heads`).
@@ -101,10 +101,11 @@ export const requestFor = (route: Route): FiledPageRequest | null => {
  * path could make was a zoom.
  */
 export const opensAt = (
+  claims: Claims,
   paths: ReadonlyArray<string>,
   path: string,
   at?: string,
-): Route | undefined => paths.includes(path) ? atElement(path, at ?? null) : undefined
+): Route | undefined => paths.includes(path) ? atElement(claims, path, at ?? null) : undefined
 
 /** The file the open page belongs to — the sidebar entry to light up. A zoomed
  *  node belongs to the file its CANONICAL record is in, whichever file the

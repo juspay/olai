@@ -1,4 +1,3 @@
-import { selectFixtureRows } from "@olai/bundle/testlib"
 /**
  * EVERY WRITE VARIANT IN THE BUNDLE HAS EXACTLY ONE OWNING ROW — every arm of
  * `WriteRequest` and every arm of `Edit`, claimed by exactly one plugin's
@@ -37,6 +36,7 @@ import { selectFixtureRows } from "@olai/bundle/testlib"
  * does not have, which is the same defect caught one step later and with no
  * second copy of the word anywhere.
  */
+import { selectFixtureRows } from "@olai/bundle/testlib"
 import { expect, test } from "bun:test"
 import { Effect, SchemaAST } from "effect"
 import { WriteRequest } from "@olai/format"

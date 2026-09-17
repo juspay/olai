@@ -1,13 +1,13 @@
 /**
- * THE TWO GESTURES THAT BIND A NODE TO A CONVERSATION — the only verbs on this
- * plugin's surface that are two acts rather than a pass-through.
+ * THE THREE GESTURES THAT BIND A NODE TO A CONVERSATION — the only verbs on
+ * this plugin's surface that are two acts rather than a pass-through.
  *
  * ## Why they are composed at all
  *
  * Every other verb here hands the call straight to the panel: what a chunk
  * MEANS, which row is still undelivered, which conversation a `reopen` was
  * refused about — all of it is the chat's own record, and a second opinion
- * anywhere else would be a second answer to what a message said. These two are
+ * anywhere else would be a second answer to what a message said. These are
  * different because each is HALF a chat verb and HALF a property write, and
  * until this lane the composition root was the only place both halves were in
  * hand. It is this module now.
@@ -25,6 +25,10 @@
  * then failed would be a session believing it had been assigned to a node that
  * never claimed it.
  *
+ * {@link closeAgent} is one act: the property taken OFF. Nothing has to be
+ * opened and nothing has to be recorded — releasing is not superseding, and
+ * the seat the property justified closes by the same reading that opened it.
+ *
  * ## AND THE REFUSAL IS READ HERE, against the roster rather than the tab
  *
  * A node already talking through a conversation keeps it, and *one agent, one
@@ -37,6 +41,7 @@
 import { type OpFailure, sessionValue, UsageFailure } from "@olai/format"
 import { Effect } from "effect"
 
+import type { Conversing } from "../sessions.ts"
 import type { Chat } from "../scoped.ts"
 
 /** WHAT A BINDING NEEDS BESIDES THE PANEL — the roster's reading of the node,
@@ -67,7 +72,33 @@ export interface Binding {
   readonly key: () => string
   /** ONE PROPERTY, WRITTEN, through the gate a keystroke goes through. */
   readonly write: (node: string, value: string) => Effect.Effect<void, OpFailure>
+  /** ONE PROPERTY, TAKEN OFF — the same door, spelled the op's own removal
+   *  way: an empty value removes the key exactly as `null` does. Refuses,
+   *  like any removal of a key that is not there, when no binding exists. */
+  readonly remove: (node: string) => Effect.Effect<void, OpFailure>
 }
+
+/** RELEASE a node agent: take the binding property off. Nothing else happens —
+ *  no supersession is recorded (releasing is not fresh-starting), the subtree
+ *  memory is untouched, and the conversation the node was in becomes an
+ *  unclaimed chat again, filed back into Chats by the next filer run, where
+ *  it lives on as its own filed node. The seat the property justified closes
+ *  by the same revision-driven reading that opened it, so this needs no chat
+ *  handle at all.
+ *
+ * Refuses when no node agent is bound: a close that would write the removal of
+ * a key that is not there is a gesture on something that is not on the node. */
+export const closeAgent = (
+  binding: Binding,
+  input: { readonly node: string },
+): Effect.Effect<void, OpFailure> =>
+  Effect.gen(function*() {
+    const at = binding.boundAt(input.node)
+    if (at === null) {
+      return yield* new UsageFailure({ reason: `no node agent is bound to this node to close` })
+    }
+    yield* binding.remove(input.node)
+  })
 
 /**
  * A NODE AGENT'S SESSION, STARTED — and, on a node that already had one, the
@@ -89,51 +120,14 @@ export const startAgentSession = (
   chat: Chat,
   binding: Binding,
   input: { readonly node: string; readonly agent: string },
-): Effect.Effect<void, OpFailure> =>
+): Effect.Effect<Conversing, OpFailure> =>
   Effect.gen(function*() {
     const was = binding.boundAt(input.node)
-    yield* chat.startAgentSession(input.node, input.agent)
-    const now = chat.state().session
-    if (now === null) {
-      return yield* new UsageFailure({
-        reason: `${input.agent} opened no conversation to bind to this node`,
-      })
+    const now = yield* chat.startAgentSession(input.node, input.agent)
+    yield* binding.write(input.node, sessionValue(now.agent, now.session))
+    if (was?.session != null && was.session !== now.session) {
+      yield* chat.replaced({ agent: was.engine, session: was.session }, now)
     }
-    yield* binding.write(input.node, sessionValue(input.agent, now.id))
-    if (was?.session != null && was.session !== now.id) {
-      yield* chat.replaced({ agent: was.engine, session: was.session }, now.id)
-    }
-  })
 
-/**
- * A CONVERSATION THAT ALREADY EXISTS, GIVEN A NODE — the migration gesture.
- *
- * THE VALUE IS WRITTEN WHOLE — engine and session — so a node that named another
- * engine is re-pointed rather than left naming one engine and another's
- * conversation.
- *
- * The mark goes AFTER the write and never refuses: the assignment has landed,
- * and a mark that could not be written costs the migration contract rather than
- * the binding.
- */
-export const assignSession = (
-  chat: Chat,
-  binding: Binding,
-  input: {
-    readonly node: string
-    readonly agent: string
-    readonly session: string
-  },
-): Effect.Effect<void, OpFailure> =>
-  Effect.gen(function*() {
-    const held = binding.boundAt(input.node)
-    if (held?.session != null) {
-      return yield* new UsageFailure({
-        reason: `“${held.title}” is already talking through a conversation — `
-          + `one agent, one current session. Give it a fresh session from the panel, `
-          + `or take the session off its \`${binding.key()}\` property first.`,
-      })
-    }
-    yield* binding.write(input.node, sessionValue(input.agent, input.session))
-    yield* chat.assignedTo(input.node, { agent: input.agent, session: input.session })
+    return now
   })

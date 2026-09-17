@@ -42,27 +42,9 @@
  * and reports the index as saving nothing where it saves the most. Size it with
  * OLAI_BENCH_FILES / OLAI_BENCH_RECORDS / OLAI_BENCH_DOCS.
  */
-
-import {
-  assemble,
-  bodiedDocument,
-  bodiedIn,
-  type Document,
-  documentHayOf,
-  hayOf,
-  isMirror,
-  matching,
-  matchingDocuments,
-  narrowableBy,
-  nodesIn,
-  parseFilter,
-  parseOutline,
-  reading,
-  type Reading,
-  type RegularNode,
-  type Verdict,
-  verdictOf,
-} from "@olai/format"
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { assemble, bodiedDocument, bodiedIn, type Document, documentHayOf, hayOf, isMirror, matching, matchingDocuments, narrowableBy, nodesIn, parseFilter, reading, type Reading, type RegularNode, type Verdict, verdictOf } from "@olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
 import {
   alternating,
   median,
@@ -120,18 +102,18 @@ const bodyOf = (random: () => number, at: number): string => {
 const random = seeded(20260824)
 const decoded = new Map<string, Result.Result<Document, Verdict>>()
 for (const [path, text] of corpus) {
-  decoded.set(path, Result.mapError(parseOutline(path, text), verdictOf))
+  decoded.set(path, Result.mapError(parseOutline(path, text, TEST_CLAIMS), verdictOf))
 }
 for (let at = 0; at < DOCS; at++) {
   const path = `notes/note${at}.md`
-  decoded.set(path, Result.succeed<Document>(bodiedDocument(path, bodyOf(random, at))))
+  decoded.set(path, Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, path, bodyOf(random, at))))
 }
 
-let read: Reading = reading(assemble(decoded))
+let read: Reading = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded))
 const records = read.derived.byId.size
 const prose = [...decoded.values()].reduce(
   (total, entry) =>
-    total + (Result.isSuccess(entry) && entry.success.kind === "document"
+    total + (Result.isSuccess(entry) && entry.success.holds === "text" && entry.success.kept
       ? entry.success.body.length
       : 0),
   0,
@@ -329,8 +311,8 @@ for (let which = 0; which < 40; which++) {
     /"title":"([^"]*)"/,
     `"title":"$1 edit ${which}"`,
   )
-  decoded.set(file, Result.mapError(parseOutline(file, text), verdictOf))
-  const next = reading(assemble(decoded), {
+  decoded.set(file, Result.mapError(parseOutline(file, text, TEST_CLAIMS), verdictOf))
+  const next = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded), {
     read,
     delta: { upserts: [[file, { nodes: nodesIn(decoded.get(file)) }]], removes: [] },
   })

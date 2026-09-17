@@ -1,4 +1,3 @@
-import type {} from "./slots.ts"
 /**
  * WHAT THE PLUGINS HANG IN THE APP'S BAR — every readout in the `app.header`
  * slot, in mount order, and the app knows none of them by name.
@@ -50,7 +49,7 @@ import type {} from "./slots.ts"
  * plugin deciding the breakpoint FOR itself, out of its own media query, would
  * be a second answer to the app's own.
  */
-
+import type {} from "./slots.ts"
 import { createMemo, For } from "solid-js"
 import { Dynamic } from "solid-js/web"
 

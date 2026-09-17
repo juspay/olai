@@ -2,16 +2,16 @@
  * CHAT'S ONE MACHINE-LOCAL DOCUMENT.
  *
  * Core gives this row one {@link LocalState} door, already keyed by the row's
- * name and served directory. Chat keeps three independently capped readings in
- * it. This adapter is the one owner of their shared snapshot: a writer replaces
- * one section under one permit and carries the other two, so a memory write can
- * never erase a doorbell pick or an overheard line.
+ * name and served directory. Chat keeps model choices, wake picks and heard records in
+ * it. Chat does not read the legacy conversation-selection note. A writer
+ * replaces one section under one permit and carries the others, so a model
+ * choice cannot erase a doorbell pick or an overheard line.
  */
 
 import type { LocalState, Refusal } from "@olai/plugin-api/services"
 import { Data, Effect, Semaphore } from "effect"
 
-export type LocalSection = "memory" | "wake" | "heard"
+export type LocalSection = "memory" | "models" | "wake" | "heard"
 
 /** A chat-local record could not be read or written. The panel renders this
  * tagged failure as a transcript row rather than losing the gesture quietly. */
@@ -26,7 +26,7 @@ export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
 export interface ChatLocalState {
   /** One section, or `null` when this machine has never written it. */
   readonly load: (section: LocalSection) => Record<string, unknown> | null
-  /** Replace one section and carry the other two in the same snapshot. */
+  /** Replace one section and carry the other sections in the same snapshot. */
   readonly save: (
     section: LocalSection,
     value: Record<string, unknown>,
@@ -51,6 +51,7 @@ export const openLocalState = (door: LocalState): Effect.Effect<ChatLocalState> 
     const loaded = object(yield* door.load)
     let snapshot: Record<LocalSection, Record<string, unknown>> = {
       memory: object(loaded["memory"]),
+      models: object(loaded["models"]),
       wake: object(loaded["wake"]),
       heard: object(loaded["heard"]),
     }
@@ -78,6 +79,7 @@ export const openLocalState = (door: LocalState): Effect.Effect<ChatLocalState> 
 export const ephemeralLocalState = (): ChatLocalState => {
   let snapshot: Record<LocalSection, Record<string, unknown>> = {
     memory: {},
+    models: {},
     wake: {},
     heard: {},
   }

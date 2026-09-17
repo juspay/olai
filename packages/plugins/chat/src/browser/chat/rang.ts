@@ -44,7 +44,7 @@
  *
  * ## Why a module
  *
- * {@link ./face.ts}'s reason, word for word: this is a precedence over text,
+ * This is a precedence over text,
  * every way of getting it wrong is a reader shown the wrong amount of somebody
  * else's sentence, and checking it should not require a browser and a plugin
  * ringing a real doorbell. The component keeps the DOM; the rule lives here

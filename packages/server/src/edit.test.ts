@@ -18,12 +18,14 @@
  * wrong is answerable here too, without a browser to press ⌘Z in.
  */
 
+const INBOX = `_olai/${INBOX_STEM}.olai`
+const PINS = `_olai/${PINS_STEM}.olai`
 import {
-  INBOX,
+  INBOX as INBOX_STEM,
   mintedInto,
   type OpFailure,
   type OutlineSet,
-  PINS,
+  PINS as PINS_STEM,
   type Reading,
 } from "@olai/format"
 import { readingOf, setOf } from "@olai/format/testlib"
@@ -50,7 +52,7 @@ const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading =>
 /** The request, or a refusal quoted well enough to fix the test without a
  *  debugger. */
 const asked = (edit: Edit, at: Reading = reading()): Request => {
-  const outcome = requestFor(at, edit)
+  const outcome = requestFor({ ...at, outlineRow: "outline-olai" }, edit)
   if (Result.isFailure(outcome)) {
     throw new Error(
       `expected \`${edit.verb}\` to resolve, and it refused: ` +
@@ -61,7 +63,7 @@ const asked = (edit: Edit, at: Reading = reading()): Request => {
 }
 
 const refused = (edit: Edit, at: Reading = reading()): OpFailure => {
-  const outcome = requestFor(at, edit)
+  const outcome = requestFor({ ...at, outlineRow: "outline-olai" }, edit)
   if (Result.isSuccess(outcome)) {
     throw new Error(`expected \`${edit.verb}\` to be refused, and it resolved`)
   }
@@ -130,10 +132,10 @@ test("a capture into a directory with NO inbox mints one under `_olai/`", () => 
   expect(asked({ verb: "capture", title: "buy milk" }))
     .toEqual({
       op: "create",
-      file: mintedInto(INBOX),
+      file: INBOX,
       seed: { title: "buy milk", mark: "todo" },
     })
-  expect(mintedInto(INBOX)).toBe("_olai/Inbox.olai")
+  expect(INBOX).toBe("_olai/Inbox.olai")
 })
 
 // …born `todo` under the one law the badge reads (the rows marked `todo` or
@@ -141,16 +143,16 @@ test("a capture into a directory with NO inbox mints one under `_olai/`", () => 
 // capture is visible to the count from the moment it lands. Minted by
 // `captureInto`, so the `capture` tool mints it the same way.
 
-test("an inbox the directory already keeps somewhere else is the one used", () => {
+test("an inbox the directory already keeps with a differently cased stem is used", () => {
   // The convention is the NAME, not the place: a directory that files its
   // inbox under `notes/` captures into the file it has rather than growing a
   // second one at the root.
-  const set = setOf({ "house.olai": HOUSE, "notes/inbox.olai": "" })
+  const set = setOf({ "house.olai": HOUSE, "_olai/inbox.olai": "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "add", file: "notes/inbox.olai", title: "buy milk", mark: "todo" })
+    .toEqual({ op: "add", file: "_olai/inbox.olai", title: "buy milk", mark: "todo" })
 })
 
-test("with two inboxes the shallower one wins, so the answer is stable", () => {
+test("a namesake outside _olai does not compete with its inbox", () => {
   const set = setOf({
     "deep/down/Inbox.olai": "",
     [INBOX]: "",
@@ -165,7 +167,7 @@ test("a file merely ENDING in the name is not an inbox", () => {
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
     .toEqual({
       op: "create",
-      file: mintedInto(INBOX),
+      file: INBOX,
       seed: { title: "buy milk", mark: "todo" },
     })
 })
@@ -176,7 +178,7 @@ test("a blank capture is left to the ops layer, which has the words for it", () 
   expect(asked({ verb: "capture", title: "   " }))
     .toEqual({
       op: "create",
-      file: mintedInto(INBOX),
+      file: INBOX,
       seed: { title: "   ", mark: "todo" },
     })
 })
@@ -197,26 +199,26 @@ test("a pin into a directory with NO shelf mints one under `_olai/`", () => {
   expect(asked({ verb: "pin", at: "/agenda?q=is%3Atodo" }))
     .toEqual({
       op: "create",
-      file: mintedInto(PINS),
+      file: PINS,
       seed: { title: "/agenda?q=is%3Atodo" },
     })
-  expect(mintedInto(PINS)).toBe("_olai/Pins.olai")
+  expect(PINS).toBe("_olai/Pins.olai")
 })
 
-test("…and a shelf the directory already has is found wherever it sits", () => {
+test("…and a shelf the directory already has is found by its stem under _olai", () => {
   // The MINT moved and the READING did not, which is what keeps every existing
   // vault pinning into the file it already has — at the root, or anywhere else.
-  for (const held of [PINS, "notes/pins.olai", "_olai/Pins.olai"]) {
+  for (const held of [PINS, "_olai/pins.olai", "_olai/Pins.olai"]) {
     const set = setOf({ "house.olai": HOUSE, [held]: "" })
     expect(asked({ verb: "pin", at: "/today" }, reading(set)))
       .toEqual({ op: "add", file: held, title: "/today" })
   }
 })
 
-test("a shelf the directory already keeps somewhere else is the one used", () => {
-  const set = setOf({ "house.olai": HOUSE, "notes/pins.olai": "" })
+test("a shelf the directory already keeps with a differently cased stem is used", () => {
+  const set = setOf({ "house.olai": HOUSE, "_olai/pins.olai": "" })
   expect(asked({ verb: "pin", at: "/today" }, reading(set)))
-    .toEqual({ op: "add", file: "notes/pins.olai", title: "/today" })
+    .toEqual({ op: "add", file: "_olai/pins.olai", title: "/today" })
 })
 
 test("a pin names NO anchor, so it lands last on the shelf", () => {
@@ -232,7 +234,7 @@ test("the address is carried VERBATIM — nothing on the way parses one", () => 
   // as the characters this app minted. What reads it back is the browser, at
   // view time, through the same bijection that wrote it.
   expect(asked({ verb: "pin", at: "/a b.olai" }))
-    .toEqual({ op: "create", file: mintedInto(PINS), seed: { title: "/a b.olai" } })
+    .toEqual({ op: "create", file: PINS, seed: { title: "/a b.olai" } })
 })
 
 test("a pin that carried a NAME lands as the link `Pins.olai` spells one with", () => {
@@ -247,7 +249,7 @@ test("a pin that carried a NAME lands as the link `Pins.olai` spells one with", 
   expect(asked({ verb: "pin", at: "/agenda?q=is%3Atodo", name: "What is late" }))
     .toEqual({
       op: "create",
-      file: mintedInto(PINS),
+      file: PINS,
       seed: { title: "[What is late](/agenda?q=is%3Atodo)" },
     })
 })
@@ -1344,4 +1346,12 @@ test("nothing takes a minted outline back either", () => {
 test("nothing takes an emptied trash back, and it says so by answering nothing", () => {
   const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
   expect(inverse({ verb: "emptyTrash" }, "_olai/Trash.olai", at)).toEqual([])
+})
+
+test("emptying refuses two Trash convention files even when one is empty", () => {
+  const at = reading(setOf({ "_olai/Trash.olai": ARCHIVED, "_olai/TRASH.olai": "" }))
+  const failure = refused({ verb: "emptyTrash" }, at)
+  expect(failure.message).toContain("ambiguous-convention")
+  expect(failure.message).toContain("_olai/Trash.olai")
+  expect(failure.message).toContain("_olai/TRASH.olai")
 })

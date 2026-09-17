@@ -1,11 +1,11 @@
-import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
-import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 /** A document route reads only document metadata/body. Outline absence does not
  * create an outline page subscription, editor context, filter or drag register. */
+import { servedDirectory } from "./vault.ts"
+import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
+import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 import { createMemo, Match, Show, Switch } from "solid-js"
 import { nameOf } from "./routing.ts"
 import { Empty } from "@olai/web/client/Empty.tsx"
-import { NAMED } from "olai-plugin-files/kinds"
 import { desktop, panelOpen } from "./shell.ts"
 import { samePageRequest } from "@olai/format"
 import type { DocumentPageRequest } from "@olai/format"
@@ -27,8 +27,8 @@ export function MarkdownPageView() {
   const here = useHere()
   const follow = useFollow()
   const route = () => panesOf(router.workspace())[here()]!.route
-  const file = () => documentFile(route())
-  const request = createMemo<DocumentPageRequest | null>(() => documentRequest(route()), null, {
+  const file = () => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? undefined : documentFile(claims, route()) })()
+  const request = createMemo<DocumentPageRequest | null>(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? null : documentRequest(claims, route()) })(), null, {
     equals: (a,b) => a === null || b === null ? a === b : samePageRequest(a,b),
   })
   const reading = client().streams.documentPage.use(request)
@@ -42,7 +42,7 @@ export function MarkdownPageView() {
     <DocumentReading value={page}>
       <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Reading…</p>}>
         {shows => <Switch fallback={<p data-testid={IDS_UI_PRIMITIVES.nothing}>No such document here.</p>}>
-          <Match when={only(shows(), "nothing")}>{missing => <Empty testid={IDS_UI_PRIMITIVES.nothing} line={`No ${NAMED[missing().sought].noun} named ${missing().requested} under the served directory.`} />}</Match>
+          <Match when={only(shows(), "nothing")}>{missing => <Empty testid={IDS_UI_PRIMITIVES.nothing} line={`No ${servedDirectory()?.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested} under the served directory.`} />}</Match>
           <Match when={only(shows(), "document")}>{doc => <DocumentPage file={doc().file} custom={doc().props} />}</Match>
         </Switch>}
       </Show>

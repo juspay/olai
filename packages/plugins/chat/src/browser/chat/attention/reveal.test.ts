@@ -1,6 +1,7 @@
+/** A conversation whose rows have landed, as `chat.entry` answers them. */
 import { expect, test } from "bun:test"
 
-import { wholeYet } from "./reveal.ts"
+import { wholeYet } from "./whole.ts"
 
 /** A conversation whose rows have landed, as `chat.entry` answers them. */
 const landed = (values: Record<string, string | undefined>) => (key: string) => values[key]

@@ -1,4 +1,3 @@
-import type {} from "olai-plugin-layout/slots"
 /**
  * EVERY PLUGIN'S TAB HALF, mounted around the page — and the app knows none of
  * them by name.
@@ -55,7 +54,7 @@ import type {} from "olai-plugin-layout/slots"
  * pure — no subscription of its own, nothing to hold once per tab — registers
  * nothing here and the fold skips it.
  */
-
+import type {} from "olai-plugin-layout/slots"
 import { createMemo, type JSX, Show } from "solid-js"
 
 import type { Hung, SlotFaces } from "@olai/plugin-api"

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-search/testids"
 /**
  * The line under a shortlist that says what it could not draw — one component,
  * because there is one reading and one sentence about it.
@@ -28,7 +27,7 @@ import { TESTID } from "olai-plugin-search/testids"
  * refusal is news). This is a READOUT beside the rows it counts: it is there to
  * be looked at, and the rows are what a screen reader is walking.
  */
-
+import { TESTID } from "olai-plugin-search/testids"
 import { Show } from "solid-js"
 
 

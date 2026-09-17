@@ -11,7 +11,7 @@
  * the prefix, a `_meta` from some other agent.
  *
  * The e2e suite drives the same two permission requests through a real agent
- * (`packages/tests/agent/fake-acp-agent.ts`, the `plan` and `permit` verbs) and
+ * (`packages/plugins/claude/e2e/fake/claude-agent-acp`, the `plan` and `permit` verbs) and
  * stays the regression net for the wiring.
  */
 
@@ -893,4 +893,47 @@ describe("what a listed conversation holds", () => {
     expect(listedIn({ claudeCode: { supersededBy: "" } })).toBeNull()
     expect(listedIn({ claudeCode: { supersededBy: 4 } })).toBeNull()
   })
+})
+
+// The e2e agent emits these same adapter fixtures.
+import { announced, wrapped } from "./testlib.ts"
+
+test("MCP display reads this adapter's announcement and completion", () => {
+  const reply = { id: "order", title: "order cabinets", file: "house.olai", sort: "done" }
+  const result = { content: [{ type: "text" as const, text: JSON.stringify(reply) }], structuredContent: reply }
+  const frame = { ...announced("olai", "outlines_done", { id: "order" }), name: CLAUDE.toolNameOf("olai_outlines_done:1") }
+  expect(CLAUDE.mcpCall(frame, ["olai"])).toEqual({ server: "olai", tool: "outlines_done" })
+  expect(CLAUDE.mcpCall(frame, ["foreign"])).toBeNull()
+  expect(CLAUDE.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toBeNull()
+  expect(CLAUDE.replyIn(wrapped(result).rawOutput)).toEqual(reply)
+  expect(CLAUDE.replyIn("permission denied")).toBeUndefined()
+  expect(CLAUDE.replyIn({ stdout: "foreign tool" })).toBeUndefined()
+  expect(CLAUDE.replyIn(wrapped({ content: [{ type: "text", text: "permission denied" }], isError: true }).rawOutput)).toBeUndefined()
+})
+
+test("the first text block is the reply, and only a record is a reply", () => {
+  expect(CLAUDE.replyIn([{ type: "text", text: "[]" }])).toBeUndefined()
+  expect(CLAUDE.replyIn([{ type: "text", text: "refused" }, { type: "text", text: "{}" }])).toBeUndefined()
+  expect(CLAUDE.replyIn({ structuredContent: { file: "one.olai" } })).toBeUndefined()
+  expect(CLAUDE.mcpCall({ name: "bash", title: "mcp__olai__outlines_done" }, ["olai"])).toBeNull()
+})
+
+// Sanitized shape from the real Claude session reported on PR #583: the SDK
+// stored tool_result.content as a string, forwarded unchanged by ACP. This
+// literal is independent of the fake so a fixture mistake cannot hide it.
+test("real Claude JSON-string writes retain file and story facts", () => {
+  const raw = '{"id":"sample","title":"sample (edited)","file":"Inbox.olai","summary":"updated","rev":2,"sort":"done","did":"outlines_update","root":"/served"}'
+  const reply = JSON.parse(raw)
+  expect(CLAUDE.replyIn(raw)).toEqual(reply)
+  expect(CLAUDE.replyIn([{ type: "text", text: raw }])).toEqual(reply)
+  for (const raw of ["permission denied", "{broken", "[]", "null", "42", '"text"', "true", undefined]) {
+    expect(CLAUDE.replyIn(raw)).toBeUndefined()
+  }
+})
+
+
+test("Claude preserves olai MCP refusal stories after the SDK drops structuredContent", () => {
+  const result = { isError: true, content: [{ type: "text" as const, text: "surface-mcp: `mail_inbox` was refused (usage): no Gmail account is connected to this serve — connect one in ⧉ plugins" }], structuredContent: { kind: "usage", reason: "ignored by the Claude SDK" } }
+  expect(CLAUDE.replyIn(wrapped(result).rawOutput)).toEqual({ kind: "usage", reason: "no Gmail account is connected to this serve — connect one in ⧉ plugins" })
+  expect(CLAUDE.replyIn("permission denied")).toBeUndefined()
 })

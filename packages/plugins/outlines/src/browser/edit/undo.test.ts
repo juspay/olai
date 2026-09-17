@@ -1,9 +1,8 @@
+/** An entry, distinguishable from the others by the id it names. */
 import type { Edit } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import { DEPTH, EMPTY, kept, recorded, type Stack, type Step, taken } from "./undo.ts"
-
-/** An entry, distinguishable from the others by the id it names. */
 const step = (id: string): Step => [{ verb: "remove", id }]
 
 const ids = (steps: ReadonlyArray<Step>): ReadonlyArray<string> =>

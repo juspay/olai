@@ -1,10 +1,9 @@
+/** The palette the files in `public/` are drawn in. The tab is painted from
+ *  whichever row is in force; the installer keeps a file. */
 import { describe, expect, test } from "bun:test"
 
 import { markSvg } from "./mark.ts"
 import { paletteNamed, PALETTES } from "./palettes.ts"
-
-/** The palette the files in `public/` are drawn in. The tab is painted from
- *  whichever row is in force; the installer keeps a file. */
 const INSTALL = paletteNamed("leaf")
 if (INSTALL === undefined) {
   throw new Error("unreachable: no row named leaf")

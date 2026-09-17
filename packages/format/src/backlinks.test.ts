@@ -5,14 +5,14 @@
  * asserted here is the meaning laid over them: which of the things a record can
  * do counts as a reference, which ids a node answers to, and who is left out.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { backlinksOf } from "./backlinks.ts"
 import { derive, type Derived } from "./derive.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
 
-const viewOf = (files: Record<string, string>): Derived => derive(recordsOf(setOf(files)))
+const viewOf = (files: Record<string, string>): Derived => derive(TEST_CLAIMS, recordsOf(setOf(files)))
 
 /** A referrer as this suite reads one: which record, and how it refers. */
 const said = (derived: Derived, id: string): ReadonlyArray<string> =>

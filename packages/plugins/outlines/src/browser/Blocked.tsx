@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What a node is waiting on, named in full — the `after` edges of the node
  * whose page you are reading.
@@ -20,7 +19,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  *
  * Drawn nowhere at all when nothing is in the way, which is nearly every node.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { InTheWay } from "@olai/format"
 
 import { NodeRefs } from "./NodeRefs.tsx"

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * ONE GLYPH COLUMN: what a node is, and the way into it, in a single cell.
  *
@@ -30,7 +29,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * the sentence naming what it waits on. A node with NO mark carries neither of
  * the inner two — which is still how a bullet is told from an unstarted task.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { InTheWay, Status } from "@olai/format"
 import { Show } from "solid-js"
 

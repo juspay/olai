@@ -36,7 +36,7 @@
  * OLAI_BENCH_FILES / OLAI_BENCH_RECORDS, like the four legs that share the
  * other vault.
  */
-
+import { TEST_CLAIMS } from "@olai/ops/testlib"
 import { addressOf, NO_KINDS, type PageRequest, type Reading } from "@olai/format"
 import { median, timed } from "@olai/format/testlib"
 
@@ -87,7 +87,7 @@ const changing = (path: string): Modelled =>
     one.parent !== null && one.mirror === null
   ) as Modelled
 
-const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null) })
+const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null) })
 
 /** The three, as the questions a tab actually holds open. */
 const QUESTIONS: ReadonlyArray<readonly [string, Question]> = [

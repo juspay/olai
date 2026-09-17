@@ -4,11 +4,11 @@ Feature: Directory features have independent browser lifetimes
   Sidebar presentation can leave while content and navigation continue.
 
   Scenario Outline: A directory feature can leave and return without replacing a draft
-    Given I rewrite "Pins.olai" as:
+    Given I rewrite "_olai/Pins.olai" as:
       """
       {"id":"lifetime-pin","ord":"a0","title":"/house.olai"}
       """
-    And I rewrite "Inbox.olai" as:
+    And I rewrite "_olai/Inbox.olai" as:
       """
       {"id":"lifetime-inbox","ord":"a0","title":"a captured task"}
       """
@@ -47,3 +47,26 @@ Feature: Directory features have independent browser lifetimes
       | capture |
       | trash   |
       | chat    |
+
+  Scenario: Files restores Reference and folder preferences when its activation returns
+    Given I open the outline "house.olai"
+    When I expand the reference section
+    And I expand the folder "notes"
+    Then Reference has its own open preference
+    And the document link "notes/palette.md" is shown
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "files" off
+    And I use the original browser tab
+    Then the directory feature "files" is absent in this tab
+    When I use the other browser tab
+    And I switch the plugin "files" on
+    And I use the original browser tab
+    Then the directory feature "files" is present in this tab
+    And the reference section is expanded
+    And Reference has its own open preference
+    And the document link "notes/palette.md" is shown
+    When I collapse the reference section
+    Then the reference section is collapsed
+    And Reference has no stored fold preference
+    And there should be no page errors

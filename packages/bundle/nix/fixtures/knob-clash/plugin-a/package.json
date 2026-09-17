@@ -1,0 +1,10 @@
+{
+  "name": "$plugin-a",
+  "version": "0.0.0",
+  "private": true,
+  "olai": {
+    "knobs": {
+      "OLAI_SAME_KNOB": { "kind": "file" }
+    }
+  }
+}

@@ -1739,3 +1739,21 @@ describe("what a dead agent is called", () => {
     ])
   })
 })
+
+
+test("tool names stay fixed while owner and reply accept later frames", () => {
+  const transcript = new Transcript()
+  transcript.tool("one", { status: "pending" })
+  transcript.tool("one", { title: "Read a node", called: "engine_read", row: "notes", reply: { file: "one.olai" } })
+  transcript.tool("one", { title: "working", called: "moving title", row: "replacement", reply: { file: "two.olai" } })
+  expect(asKind(rows(transcript)[0], "tool")).toMatchObject({ text: "Read a node", called: "engine_read", row: "replacement", reply: { file: "two.olai" } })
+})
+
+test("late ownership relabels once and keeps the first engine spelling", () => {
+  const transcript = new Transcript()
+  transcript.tool("late", { title: "engine_read", called: "engine_read" })
+  transcript.tool("late", { title: "Read a node", row: "notes", reply: { file: "one.olai" } })
+  expect(asKind(rows(transcript)[0], "tool")).toMatchObject({ text: "Read a node", called: "engine_read", row: "notes" })
+  transcript.tool("late", { title: "moving", called: "moving", row: "notes" })
+  expect(asKind(rows(transcript)[0], "tool")).toMatchObject({ text: "Read a node", called: "engine_read" })
+})

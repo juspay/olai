@@ -27,7 +27,7 @@
  *
  * The proof that the whole thing actually works in a BROWSER is not here and
  * cannot be: `bun test` has no DOM. It is
- * `features/it_stays_live.feature`'s scenario about an outline whose file name
+ * `packages/plugins/vault/e2e/features/it_stays_live.feature`'s scenario about an outline whose file name
  * carries a quote, which grips that file through this very helper — a real
  * Chromium parsing a real selector against a real attribute. This file is the
  * grammar; that scenario is the engine agreeing with it.
@@ -141,12 +141,15 @@ test("a token match escapes its value exactly as equality does", () => {
  * construction, which is the correct direction — a false alarm is a line a
  * human reads and answers, and a miss is this paragraph again in a year.
  *
- * WHAT IT SCANS is `step_definitions/` and `support/`, which is the SUITE — the
- * code a scenario drives, where every value in a selector arrived as a Gherkin
- * argument or was read back out of the page. Drivers outside this glob
- * (`wire.ts`, `shot.ts`) are not the suite: their ids are their own
- * literals, and nothing a reader typed ever reaches them. That is the
- * boundary, stated rather than left to be inferred from the glob.
+ * WHAT IT SCANS is the SUITE — the code a scenario drives, where every value in
+ * a selector arrived as a Gherkin argument or was read back out of the page.
+ * That is two places rather than one now: the harness's own `support/` and
+ * `step_definitions/`, and every plugin's `e2e/steps/`, because a step file
+ * lives in the row whose surface it drives. {@link SUITE} is that boundary, and
+ * it is a PATTERN over what the repository tracks rather than a directory walk,
+ * so a row that grows an `e2e/` is swept the day it lands. Drivers outside it
+ * (`wire.ts`, `shot.ts`) are not the suite: their ids are their own literals,
+ * and nothing a reader typed ever reaches them.
  *
  * Writing the first draft found a hole in the stripper itself, which is the
  * sort of thing a fence is for: it reported three of the four selectors below,
@@ -157,24 +160,16 @@ test("a token match escapes its value exactly as equality does", () => {
 const BUILT_BY_HAND =
   /\[(?:[a-zA-Z-]+|\$\{[^}]*\})[~^|*$]?=\s*(?:"\$\{[^}]*\}"|'\$\{[^}]*\}'|\$\{[^}]*\})\]/g;
 
-/**
- * Every selector still built by hand, and why each may be.
- *
- * All four sit inside a `page.evaluate` callback, which is serialised and run
- * in the browser where nothing importable exists to be called — and all four
- * interpolate a value from a CLOSED TABLE, a `PluginTestId` (the panel's ids
- * are `olai-plugin-chat`'s since chat became a row; they were `TestId`s while
- * the panel was `@olai/web`'s, and the property that matters here — a closed
- * union of kebab-case literals — is the same either side of that move) or a
- * diff line's `add`/`remove`/`same`, so there is no value with a quote in it
- * for them to meet. Listed by the TEXT they match rather than by line, so the list survives
- * an edit above them and still names exactly four things.
- */
+/** THE SUITE, as root-relative paths: the harness's steps and support, and
+ *  every row's own `e2e/` — steps and the selector tables built beside them. */
+const SUITE =
+  /^(?:packages\/tests\/(?:step_definitions|support)\/[^/]+\.ts|packages\/plugins\/[^/]+\/e2e\/.+\.ts)$/;
+
+/** The remaining browser-only selector interpolates a closed entry-kind
+ * vocabulary. Other evaluated gestures receive the already-escaped selector
+ * for their conversation, including its fold owner. */
 const BY_HAND: ReadonlyArray<string> = [
-  `step_definitions/chat_steps.ts: [data-kind="\${kind}"]`,
-  `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
-  `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
-  `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
+  `packages/plugins/chat/e2e/steps/chat_steps.ts: [data-kind="\${kind}"]`,
 ];
 
 // The FENCE'S OWN EDGE, and the reason this test is here rather than trusted:
@@ -219,16 +214,14 @@ test("the pattern leaves alone what carries no interpolated value", () => {
   }
 });
 
-test("no step builds an attribute selector by hand, but the four that must", () => {
+test("no step builds an attribute selector by hand, but the browser entry-kind check", () => {
   // `tracked` leaves the caller out of its own listing, which is what excludes
   // this file — it quotes the shape it hunts, in an assertion above.
   const found = tracked(import.meta.filename)
-    .filter((file) =>
-      /^packages\/tests\/(step_definitions|support)\/[^/]+\.ts$/.test(file)
-    )
+    .filter((file) => SUITE.test(file))
     .flatMap((file) =>
       [...withoutComments(read(file)).matchAll(BUILT_BY_HAND)].map((hit) =>
-        `${file.slice("packages/tests/".length)}: ${hit[0]}`
+        `${file}: ${hit[0]}`
       )
     )
     .sort();

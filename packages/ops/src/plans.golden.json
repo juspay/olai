@@ -13,7 +13,7 @@
   },
   {
     "what": "add into a path that is not an outline at all",
-    "sha": "c471a54a085e1117"
+    "sha": "bfe821b649bf5487"
   },
   {
     "what": "add under an id nothing declares — the did-you-mean",
@@ -329,6 +329,6 @@
   },
   {
     "what": "delete a page of the kinds olai only shows — refused",
-    "sha": "d85ef9665a875e58"
+    "sha": "59bbb47df2e81688"
   }
 ]

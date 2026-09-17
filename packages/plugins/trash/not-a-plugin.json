@@ -1,0 +1,27 @@
+{
+  "files": [
+    "src/browser.tsx",
+    "src/browser/PageView.tsx",
+    "src/browser/TrashPage.tsx",
+    "src/tools.ts"
+  ],
+  "git": [
+    "src/browser/question.ts",
+    "src/tools.ts"
+  ],
+  "navigation": [
+    "src/browser.tsx"
+  ],
+  "outlines": [
+    "src/tools.ts"
+  ],
+  "sidebar": [
+    "src/browser.tsx",
+    "src/browser/question.ts"
+  ],
+  "vault": [
+    "src/browser.tsx",
+    "src/server.ts",
+    "src/tools.ts"
+  ]
+}

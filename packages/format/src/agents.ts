@@ -253,7 +253,7 @@ export const sameAgents: (a: NodeAgents, b: NodeAgents) => boolean = Schema
  * declares no such key — every vault on a serve running no chat, and every vault
  * that has declared the key something else — pays one walk of its declarations
  * rather than one per record, and allocates nothing. That is
- * `olai-plugin-kolu`'s `claimantsIn` and `olai-plugin-odu`'s `worktreesIn`
+ * `olai-plugin-kolu`'s `claimantsIn` and `olai-plugin-odu`'s `boardedIn`
  * arrangement, one property over and deliberately the same shape.
  *
  * A WHOLE-SET WALK, deliberately and measured against the alternative: there is
@@ -302,7 +302,7 @@ export const agentsIn = (
 ): NodeAgents => {
   if (!declaresKind(declarations, word)) return NO_AGENTS
   return derived.nodes.flatMap((located) => {
-    if (isPutAway(located.file)) return []
+    if (isPutAway(derived.claims, located.file)) return []
     if (!isRegular(located)) return []
     const held = textDeclaredAs(declarations, located.node, word)
     const said = held === undefined ? null : sessionIn(held)
@@ -339,5 +339,5 @@ export const agentsIn = (
 export const seatableIn = (derived: Derived, node: string): boolean => {
   const located = derived.byId.get(node)
   if (located === undefined) return false
-  return !isPutAway(located.file) && isRegular(located)
+  return !isPutAway(derived.claims, located.file) && isRegular(located)
 }

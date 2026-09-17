@@ -1,0 +1,26 @@
+{
+  "alerts": [
+    "src/browser.tsx",
+    "src/browser/reminders/ReminderRow.tsx",
+    "src/browser/reminders/circuit.ts"
+  ],
+  "files": [
+    "src/browser/dates.ts"
+  ],
+  "markdown": [
+    "src/server.ts"
+  ],
+  "navigation": [
+    "src/browser.tsx"
+  ],
+  "search": [
+    "src/browser.tsx"
+  ],
+  "sidebar": [
+    "src/browser.tsx"
+  ],
+  "vault": [
+    "src/agenda.ts",
+    "src/server.ts"
+  ]
+}

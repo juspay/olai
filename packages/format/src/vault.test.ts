@@ -20,7 +20,7 @@
  * THEY RUN, so a fixture that quietly stops producing one fails a test rather
  * than a paragraph.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { agendaOf, owedIn } from "./agenda.ts"
@@ -33,7 +33,7 @@ import { datesOf, monthOf } from "./occasion.ts"
 /** The benches' own defaults (`patch.bench.ts`'s `OLAI_BENCH_FILES` /
  *  `OLAI_BENCH_RECORDS`), which is the only size a claim about "the 1,000-file
  *  vault" can be checked at. */
-const view = derive(recordsOf(setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))))
+const view = derive(TEST_CLAIMS, recordsOf(setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))))
 
 test("the vault is the directory the published numbers name", () => {
   expect(view.byFile.size).toBe(981)

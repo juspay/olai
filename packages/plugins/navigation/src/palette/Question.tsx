@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-navigation/testids"
 /**
  * A QUESTION, DRAWN — the words, and the two ways out of them.
  *
@@ -17,7 +16,7 @@ import { TESTID } from "olai-plugin-navigation/testids"
  * whichever kind is up, and the Tab trap that cycles them is the palette's
  * (there is one focus trap for this dialog, not one per panel).
  */
-
+import { TESTID } from "olai-plugin-navigation/testids"
 import { ALARM_PILL,QUIET_PILL } from "@olai/web/client/pill.ts"
 
 import type { Asking } from "./asking.ts"

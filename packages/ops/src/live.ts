@@ -6,6 +6,7 @@ import { NO_DIRECTORY, type Ops } from "./ops.ts"
 
 const refused = Effect.fail(NO_DIRECTORY)
 const noGate: Ops = {
+  parserFor: () => null,
   read: refused,
   run: () => refused,
   outlines: refused,
@@ -30,6 +31,7 @@ const noGate: Ops = {
 export const liveOps = (offered: () => Ops | undefined): Ops => {
   const current = () => offered() ?? noGate
   return {
+    parserFor: path => current().parserFor(path),
     read: Effect.suspend(() => current().read),
     run: (...args) => Effect.suspend(() => current().run(...args)),
     outlines: Effect.suspend(() => current().outlines),

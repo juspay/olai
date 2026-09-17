@@ -1,4 +1,4 @@
-import { TESTID } from "olai-plugin-outlines/testids"
+import { MENU_ITEM } from "@olai/ui-primitives/menu.ts"
 /**
  * What is INSIDE the open panel: the list, or the question one verb asks first
  * (`./Confirm.tsx`).
@@ -16,7 +16,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * behaves. That is the seam the primitive drew: the two used to be one file
  * and had no reason left to be.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createSignal, For, onCleanup, Show } from "solid-js"
 
@@ -73,7 +73,7 @@ export function Panel(props: {
                 // walk nobody can see is not a walk. It replaces the focus
                 // ring rather than joining it (`focus:outline-none`) —
                 // Chromium draws that one for pointer opens too.
-                class="cursor-pointer px-3 py-1.5 text-left text-ink hover:bg-rule focus:outline-none data-[highlighted]:bg-rule"
+                class={MENU_ITEM}
                 data-testid={TESTID.nodeMenuItem}
                 data-action={action.id}
                 closeOnSelect={!asks(action)}

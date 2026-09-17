@@ -1,0 +1,7 @@
+{
+  "packages/server/src/dieWithParent.test.ts": 4.6,
+  "packages/server/src/headless.test.ts": 20.1,
+  "packages/server/src/lock.test.ts": 7.7,
+  "packages/server/src/logLevel.test.ts": 4.8,
+  "packages/server/src/profiles.test.ts": 4.4
+}

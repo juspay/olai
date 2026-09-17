@@ -1,0 +1,1 @@
+../../packages/plugins/image/docs.md

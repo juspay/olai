@@ -76,7 +76,7 @@
  * green suite that means nothing, so the comparator is a function of two lists
  * and `./incremental.test.ts` hands it differences directly.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { Result } from "effect"
 
 import type { Document } from "./document.ts"
@@ -291,10 +291,10 @@ export const replay = (revisions: Iterable<Revision>): Report => {
         removed.delete(file)
       }
       held = revision
-      const set = assemble(decoded)
+      const set = assemble(TEST_CLAIMS, decoded)
       if (set.broken.length > 0) unreadable++
       const touched = [...changed, ...removed]
-      const verdict = validate(
+      const verdict = validate(TEST_CLAIMS,
         set,
         published === null ? undefined : {
           read: published,
@@ -313,7 +313,7 @@ export const replay = (revisions: Iterable<Revision>): Report => {
       // shares no index, no ledger and no carry with the arm above, so an
       // agreement between them is an agreement between two readings of the
       // directory rather than two readings of one table.
-      const whole = validate(set)
+      const whole = validate(TEST_CLAIMS, set)
       account.length = 0
       const found = parting(many, touched, whole, verdict)
       if (found !== null) divergences.push(found)
@@ -534,11 +534,9 @@ const raise = (
  * The `.md` and `.html` files a generated directory can hold.
  *
  * ONE OF THEM LIVES IN A DIRECTORY NAMED AFTER AN OUTLINE BESIDE IT
- * (`a/notes.md`, next to `a.olai` and `a/inner.olai`), because `doc` is
- * resolved against the outline's OWN directory and the two readings of a
- * relative path only part company there. The `.html` is in the list for the
- * narrowing the `doc` rule makes that a plain membership test would not: the
- * set holds it, and a `doc` may not point at it.
+ * (`a/notes.md`, next to `a.olai` and `a/inner.olai`), so relative links
+ * exercise resolution beside the writing outline. The `.html` also exercises
+ * a served body with a different file kind.
  */
 const DOCUMENTS = [
   "notes.md",
@@ -549,22 +547,19 @@ const DOCUMENTS = [
 ] as const
 
 /**
- * What a record's `doc` says, drawn from its ID rather than from the stream.
+ * What a record's title links to, drawn from its ID rather than from the stream.
  *
  * DETERMINISTIC PER RECORD, which is the whole reason this is a decoration and
  * not another arm of the generator: a file nobody edited has to come out byte
  * for byte identical every revision, or every revision would be a delta naming
  * every file and the narrowing would never be handed the case it exists for.
  *
- * TWO TARGETS, and both of them RESOLVE when the document pool holds the file:
- * one from every outline, one only from an outline in a subdirectory. A target
- * that could never resolve — `missing.md`, or a `doc` naming an outline or the
- * `.html` — would refuse the set for as long as the record lived, and a stream
- * that is refused forever never publishes a reading for the next validation to
- * follow. Those three are in the hand-written corners instead, where a
- * permanent refusal is the point rather than the end of the run.
+ * TWO TARGETS exercise relative resolution. `notes.md` resolves beside every
+ * writing outline; `../notes.md` resolves only from a subdirectory, since it
+ * escapes the served root when written in a root-level outline. Membership
+ * changes move backlinks without refusing the records containing these links.
  */
-const DOC_TARGETS = ["notes.md", "../notes.md"] as const
+const LINK_TARGETS = ["notes.md", "../notes.md"] as const
 
 /** A small stable hash of an id — enough to spread a pool of two dozen names
  *  over a handful of choices without a second random stream to keep in step. */
@@ -636,16 +631,16 @@ const claimsIn = (files: Corpus): ReadonlyMap<string, Claim> => {
  *     makes the ordering graph a DAG by construction;
  *   - `see` keeps whatever is declared, because nothing normalises it into the
  *     ordering graph and a loop of them is not a loop;
- *   - `doc` is attached to a twelfth of the records ({@link DOC_TARGETS}).
+ *   - a title link is added to a twelfth of the records ({@link LINK_TARGETS}).
  *
  * WHAT IT DOES NOT REPAIR is where the refusals come from, and they are the
  * ones a directory really produces: a target another file DELETES later, a
- * `doc` whose `.md` is removed from the pool, a file that stops parsing. Every
+ * file that stops parsing. Prose links whose targets disappear remain legal. Every
  * one of those is another file moving under a record nobody edited — which is
  * the very shape the narrowing has to get right.
  *
  * SO THE REFUSAL COUNT IS NOT A COVERAGE FIGURE, and nobody may quote it as
- * one. What this stream refuses is `unknown-target`, `missing-doc` and the
+ * one. What this stream refuses is `unknown-target`, `bad-record` and the
  * unreadable file, over and over and at size. What it CANNOT refuse is
  * everything the repair takes out: a parent loop, a foreign parent, a parent
  * that is a placement, a mirror inside its own subtree, an ordering loop in
@@ -689,7 +684,7 @@ const written = (
           else written[field] = held
         }
         if (spread(id) % 12 === 0) {
-          written["doc"] = DOC_TARGETS[spread(id) % DOC_TARGETS.length]
+          written["title"] = String(written["title"] ?? "") + " [document](" + (LINK_TARGETS[spread(id) % LINK_TARGETS.length]) + ")"
         }
       }
       const parent = written["parent"]
@@ -714,7 +709,7 @@ const written = (
  * order — the same corpora and the same edits the patcher is held to, put
  * through {@link written} as each file is emitted. What is added here is
  * everything the patcher has no reason to know about and the validator does:
- * the `.md` files a `doc` resolves against, an `.html` it may not, and a file
+ * the `.md` and `.html` files prose links resolve against, and a file
  * whose lines stop parsing and start again.
  */
 export const revisionsOf = (
@@ -725,8 +720,7 @@ export const revisionsOf = (
   let raw: Corpus = first
   const held = new Map<string, string>()
   // Three of the five to begin with, so the stream has documents to LOSE as
-  // well as gain — losing one is the arm where the `doc` rule falls back to the
-  // corpus, and a directory that only ever gained files would never reach it.
+  // well as gain: backlinks must withdraw when a target disappears.
   const documents = new Map<string, string>(
     DOCUMENTS.slice(0, 3).map((file) => [file, `# ${file}`]),
   )
@@ -789,8 +783,8 @@ export const edited = (
   // sweeps the tree for a suffix written out anywhere but `./kinds.ts`, and it
   // is the same rule for a harness as for a rule: the day a kind grows a second
   // extension, a `.endsWith` here goes on quietly reading half the vault.
-  const outlines = [...vault.keys()].filter((file) => fileKind(file) === "outline")
-  const documents = [...vault.keys()].filter((file) => fileKind(file) === "document")
+  const outlines = [...vault.keys()].filter((file) => TEST_CLAIMS.byKind.get(fileKind(TEST_CLAIMS, file) ?? "")?.holds === "nodes")
+  const documents = [...vault.keys()].filter((file) => fileKind(TEST_CLAIMS, file) === "markdown")
   let held = new Map(vault)
   const stream: Array<Revision> = [held]
   for (let at = 0; at < many; at++) {
@@ -798,7 +792,7 @@ export const edited = (
     const roll = random()
     if (roll < 0.12 && documents.length > 0) {
       // A `.md` leaves and comes back — the one edit here that can refuse the
-      // set, since a node in this vault really does attach a document.
+      // set, since a node in this vault really does link to a document.
       const file = pick(random, documents)
       if (next.has(file)) next.delete(file)
       else next.set(file, vault.get(file) ?? "")

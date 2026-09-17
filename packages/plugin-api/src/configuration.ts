@@ -1,13 +1,13 @@
 /** Static configuration protocol. Live readings are owned by the offering row. */
-import { customText, isRegular, UsageFailure, type WriteRequest, type Located, type Reading } from "@olai/format"
+import { type Claims, fileKind, stemOf, customText, isRegular, UsageFailure, type WriteRequest, type Located, type Reading } from "@olai/format"
 import { Schema, SchemaAST, type Stream } from "effect"
 import { serviceTag } from "@olai/effect-cordis"
 
 export const CONFIGURATION_FILE = "_olai/Settings.olai"
 export const configurationUnavailable = "Settings can be edited when the configuration reader is running"
 export const configurationBroken = (file: string | undefined): string => `Repair ${file ?? CONFIGURATION_FILE} before changing settings`
-export const configurationFileIn = (paths: Iterable<string>): string | undefined => [...paths]
-  .filter((path) => path.split("/").pop()?.toLowerCase() === "settings.olai")
+export const configurationFileIn = (claims: Claims, paths: Iterable<string>): string | undefined => [...paths]
+  .filter(path => stemOf(claims, path).toLowerCase() === "settings" && claims.byKind.get(fileKind(claims, path) ?? "")?.holds === "nodes")
   .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))[0]
 
 export type Control =
@@ -87,7 +87,7 @@ export const ConfigurationSource = serviceTag<ConfigurationSource>("configuratio
 
 /** The shared namespace walk, over the vault codec's already-decoded revision. */
 export const configurationNodes = (reading: Pick<Reading, "set" | "derived">) => {
-  const file = configurationFileIn(reading.set.documents.map((doc) => doc.path))
+  const file = configurationFileIn(reading.derived.claims, reading.set.documents.map((doc) => doc.path))
   const broken = file === undefined ? undefined : reading.set.broken.find((one) => one.file === file)
   const nodes = file === undefined || broken !== undefined ? [] : reading.derived.nodes.filter(isRegular).filter((one) => one.file === file)
   return { file, broken, nodes }
@@ -140,7 +140,6 @@ export const decodePolicy = (
   return { config, values }
 }
 
-
 export type EnvironmentReading =
   | { readonly key: string; readonly kind: "secret"; readonly set: boolean; readonly says: string }
   | { readonly key: string; readonly kind: "resource"; readonly set: boolean; readonly says: string; readonly value?: string; readonly source?: "wrapper" }
@@ -167,7 +166,6 @@ const publicResource = (value: string): string => {
   }
   catch { return value }
 }
-
 
 /** Resolve a declared leaf and build one ordinary write. Missing ancestors are
  * captured together, so validation cannot leave an empty section behind. */

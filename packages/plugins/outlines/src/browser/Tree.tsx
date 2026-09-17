@@ -1,4 +1,5 @@
-import { TESTID } from "olai-plugin-outlines/testids"
+import { useLicences } from "./reading.tsx"
+import { dressed } from "./faces.ts"
 /**
  * One outline, drawn.
  *
@@ -71,10 +72,10 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * (./settings/done.ts, already applied to the rows handed here). The date badge
  * stays on the title line.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
 
 import { Aside } from "./Aside.tsx"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
@@ -82,11 +83,8 @@ import { Glyph } from "./Glyph.tsx"
 import { useDragging } from "./drag/dragging.ts"
 import { Handle } from "./drag/Handle.tsx"
 import { useSelection } from "./select/selection.ts"
-import { DatePicker } from "./date/DatePicker.tsx"
-import { RepeatPicker } from "./date/RepeatPicker.tsx"
 import { RowForms, useRowForms } from "./date/memory.tsx"
-import { datePick, startsAt as dateStartsAt } from "./date/pick.ts"
-import { repeatPick, startsAt as repeatStartsAt } from "./date/repeat.ts"
+import { createDatePicking } from "./date/picking.tsx"
 
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
@@ -101,7 +99,7 @@ import { DescEditor, DraftSaid, keyHandler, TitleEditor } from "./edit/RowEditor
 import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
-import { focusedNode } from "./focus.ts"
+import { focusedNode, selectNode } from "./focus.ts"
 import { doneUnder } from "@olai/web/client/hidden.ts"
 import { hotOf } from "./hot.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
@@ -226,7 +224,7 @@ function Branch(props: {
   const folded = createFoldReading()
   const collapsed = createMemo(() => folded().has(foldIdOf(props.row)))
   // The RECORD a row shows, file and all — the file is what a note's relative
-  // picture and a `doc` are relative to, and for a mirror that is the file the
+  // picture and a link are relative to, and for a mirror that is the file the
   // node is DEFINED in rather than the one being read.
   const shown = () => (props.row.kind === "node" || props.row.kind === "mirror")
     ? props.row.shows
@@ -310,23 +308,35 @@ function Branch(props: {
    *  row's own owner, so a press in flight is disposed with the row. */
   const menu = createMenuDoor()
 
-  /** Is this row's date picker open? Local to the ROW rather than to either of
-   *  the two things that open it — the pill on the line, and the `•••` menu's
-   *  `Set date…` — because it is one picker and the menu panel is closed by the
-   *  time it has been chosen from (./date/DatePicker.tsx). */
-  const forms = useRowForms(props.row.key)
-  /** ...and one opener for both of them, so the two triggers cannot drift. */
-  const openPicker = (): void => {
-    forms.setDay(dateStartsAt(shown()?.node.date))
-  }
+  /**
+   * How tall this SECTION's pinned line is, as it is drawn now — the band a
+   * jump into its branch has to stop below (`../all.css`).
+   *
+   * MEASURED, not a constant. A title wraps (./NodeLine.tsx), so a heading is
+   * as many lines as its words need, and a reserve sized to one line put a
+   * jump behind the second. The observer is the row's own: it is started only
+   * while the row is a section and disconnected with it, whether the row stops
+   * being one or is disposed.
+   */
+  const [band, setBand] = createSignal<number>()
+  createEffect(() => {
+    const line = menu.at()
+    if (!section() || line === undefined) return
+    const seen = new ResizeObserver(() => setBand(line.getBoundingClientRect().height))
+    seen.observe(line)
+    onCleanup(() => seen.disconnect())
+  })
 
-  /** Is this row's REPEAT picker open? The date picker's arrangement one field
-   *  along, and separate from it on purpose: they are two writes at the gate,
-   *  and one signal holding "which panel" would make opening the second an act
-   *  that closes the first for a reason nobody asked for. */
-  const openRepeat = (): void => {
-    forms.setRule(repeatStartsAt(shown()?.node.repeat))
-  }
+  /** Is this row's date picker open, or its REPEAT picker? Local to the ROW
+   *  rather than to either of the two things that open each — the pill on the
+   *  line, and the `•••` menu's `Set date…` / `Set repeat…` — because each is
+   *  one picker and the menu panel is closed by the time it has been chosen
+   *  from (./date/picking.tsx). Two drafts rather than one "which panel": they
+   *  are two writes at the gate, and opening the second should not close the
+   *  first for a reason nobody asked for. */
+  const forms = useRowForms(props.row.key)
+  /** ...and one opener for each, so the two triggers cannot drift. */
+  const dates = createDatePicking(() => shown()?.node, forms)
 
   /**
    * Is this row being asked for an ADD-A-PROPERTY chip?
@@ -482,6 +492,10 @@ function Branch(props: {
   return (
     <li
       class="my-0.5"
+      // A section's branch carries its heading's measured height, which every
+      // jump target inside it reads as its scroll margin (`../all.css`).
+      classList={{ "olai-section": section() }}
+      style={section() && band() !== undefined ? { "--olai-pinned-band": `${band()}px` } : undefined}
       // The item's own box is scaffolding too — the indent strip beside a
       // child list, the margin left of a note — so a press there is a sweep
       // (./drag/sweeping.ts). Everything WITH words in it is a descendant and
@@ -507,6 +521,14 @@ function Branch(props: {
       // found rather than computed: a mirror of the node wears it too, and
       // either will do.
       data-focused={focused() ? "true" : undefined}
+      onFocusIn={event => {
+        // A nested row's focus bubbles through its ancestors. Only the row
+        // containing the actual control claims it; a portal keeps that claim
+        // while the reader moves into the palette or row menu.
+        if (!event.target.closest("[data-outline-fold]") && event.target.closest(`[data-testid="${TESTID.node}"]`) === event.currentTarget) {
+          selectNode(foldIdOf(props.row))
+        }
+      }}
       // The ids this row is waiting on, in the promised order — absent when
       // nothing is in its way. The dim beside it is a styling decision a
       // refactor may change; this is the fact a scenario asks about.
@@ -533,7 +555,12 @@ function Branch(props: {
         // its triangle (./touch.ts's arithmetic). `HELD` is the other half of
         // what the long press below does about the browser's own gesture, for
         // the platform that raises it without an event to prevent.
-        class={`group/row relative flex items-center py-1 ${HELD} ${GUTTER_GAP} ${
+        //
+        // `items-baseline`, not `items-center`: a long title WRAPS
+        // (./NodeLine.tsx), and centring would set the bullet and the fold
+        // triangle beside the middle of the paragraph rather than its first
+        // line. A day page's row was already aligned this way (./DatedRow.tsx).
+        class={`group/row relative flex items-baseline py-1 ${HELD} ${GUTTER_GAP} ${
           WAITING_DIM(props.row.blocked)
         } ${CONTEXT_DIM(narrowed, shownId())}`}
         // The phone's door to the `•••` menu: hold a finger on the row. Touch
@@ -551,6 +578,9 @@ function Branch(props: {
         // handlers are the whole of `LongPress`.
         onPointerDown={menu.hold.onPointerDown}
         onContextMenu={menu.hold.onContextMenu}
+        // THIS ROW OWNS ITS MENU, so a page-wide link menu (the tabs row's Open
+        // in new tab) leaves the links drawn inside it alone.
+        data-menu-owner="outline-row"
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
         // points at. One vocabulary, because "this is the one" is one thing to
@@ -614,6 +644,8 @@ function Branch(props: {
           <NodeMenu
             door={menu}
             actions={nodeMenuActions({
+              placement: { kind: (key, value) => useLicences()()(shown()?.file ?? props.row.at.file, key, value),
+                at: kind => dressed("outline.row.placement").get(kind) },
               routes,
               row: props.row,
               pins: pins(),
@@ -621,11 +653,15 @@ function Branch(props: {
               foldable: foldable(),
               go,
               record: undo.record,
-              pickDate: openPicker,
-              pickRepeat: openRepeat,
-              pickEdge: edges.open,
-              addProp: () => setAdding(true),
-              pickMove: () => moving.open({ record: props.row.at.node.id, place: props.row.key }),
+              panels: {
+                pickDate: dates.openDate,
+                pickRepeat: dates.openRepeat,
+                pickEdge: edges.open,
+                addProp: () => {
+                  setAdding(true)
+                },
+                pickMove: () => moving.open({ record: props.row.at.node.id, place: props.row.key }),
+              },
             })}
           />
           <Show
@@ -694,6 +730,8 @@ function Branch(props: {
           <Match when={shown()}>
             {(shows) => (
               <NodeLine
+                record={props.row.at.node.id}
+                node={shows().node.id}
                 title={shows().node.title}
                 from={shows().file}
                 status={props.row.status}
@@ -723,8 +761,8 @@ function Branch(props: {
                 // its target exactly as its glyph does.
                 took={<TookChip node={shows().node} />}
                 onEdit={clickTitle}
-                onPickDate={openPicker}
-                onPickRepeat={openRepeat}
+                onPickDate={dates.openDate}
+                onPickRepeat={dates.openRepeat}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -737,45 +775,14 @@ function Branch(props: {
         </Switch>
       </div>
 
-      {/* The date picker, in place under the line it was opened on — from the
-          pill on that line, or from the `•••` menu's `Set date…`. Indented
-          past the gutter like everything else a row says, and drawn whether
-          the row is collapsed or not: it is about THIS node, not about what is
-          under it. The id it names is the node the row SHOWS, so a pick at a
-          mirror lands on its target, exactly as the mark verbs do. */}
-      <Show when={forms.day() !== null ? shown() : undefined}>
-        {(shows) => (
-          <div class={PAST_CONTROLS}>
-            <DatePicker
-              submission={forms.dateSubmission}
-              date={shows().node.date}
-              day={forms.day() ?? ""}
-              onChange={forms.setDay}
-              onPick={(day) => applying(datePick(shows().node.id, day), undo.record)}
-              onClose={() => forms.setDay(null)}
-            />
-          </div>
-        )}
-      </Show>
-
-      {/* The repeat picker, on exactly the terms the date picker above has:
-          opened from that row's pill or from the `•••`, drawn under the line,
-          about the node the row SHOWS — a placement carries no rule of its own,
-          so one chosen at a mirror lands on its target as a mark does. */}
-      <Show when={forms.rule() !== null ? shown() : undefined}>
-        {(shows) => (
-          <div class={PAST_CONTROLS}>
-            <RepeatPicker
-              submission={forms.repeatSubmission}
-              repeat={shows().node.repeat}
-              rule={forms.rule() ?? ""}
-              onChange={forms.setRule}
-              onPick={(rule) => applying(repeatPick(shows().node.id, rule), undo.record)}
-              onClose={() => forms.setRule(null)}
-            />
-          </div>
-        )}
-      </Show>
+      {/* The date picker and the repeat picker, in place under the line they
+          were opened on — from the pill on that line, or from the `•••`.
+          Indented past the gutter like everything else a row says, and drawn
+          whether the row is collapsed or not: they are about THIS node, not
+          about what is under it. The node they name is the one the row SHOWS,
+          so a pick at a mirror lands on its target, exactly as the mark verbs
+          do (./date/picking.tsx). */}
+      <dates.Panels class={PAST_CONTROLS} />
 
       {/* The edge panel and whatever its writes said, in the same place and on
           the same terms as the picker above: opened from the `•••`, drawn under
@@ -813,7 +820,7 @@ function Branch(props: {
       </Show>
 
       {/* Indented past the gutter controls — which are wider where a finger is
-          what taps them, so the note and the document under it line up with the
+          what taps them, so the note and its asides line up with the
           title on either. The note control root is what "click away" uses. */}
       <Show when={!collapsed() && shown()}>
         {(shows) => (
@@ -830,6 +837,7 @@ function Branch(props: {
               when={typing("desc")}
               fallback={
                 <NodeBody
+                  record={props.row.at.node.id}
                   shows={shows()}
                   expanded={note.expanded()}
                   // The one line that says why a row with nothing of the query

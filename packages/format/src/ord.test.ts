@@ -1,10 +1,9 @@
-import { describe, expect, test } from "bun:test"
-
-import { ordBetween } from "./ord.ts"
-
 /** The one property that matters: whatever comes back sorts strictly between
  *  its neighbours, by PLAIN STRING COMPARISON — which is the sort the format
  *  promises and `derive` performs. */
+import { describe, expect, test } from "bun:test"
+
+import { ordBetween } from "./ord.ts"
 const between = (before: string | null, after: string | null): string => {
   const minted = ordBetween(before, after)
   if (minted === null) {

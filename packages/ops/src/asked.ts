@@ -40,7 +40,8 @@
  * been retired by that node; what was really being paid twice was the broken
  * map, and that is held.
  */
-
+import { isMarkdown } from "@olai/format"
+import type { Claims } from "@olai/format"
 import {
   brokenBy,
   type Document,
@@ -65,6 +66,7 @@ import {
  * front of every keystroke.
  */
 export interface Asked {
+  readonly claims: Claims
   /** The set every answer here is about. Carried so that a refusal composed
    *  from this value does not need the set handed in beside it. */
   readonly set: OutlineSet
@@ -94,7 +96,8 @@ export interface Asked {
   readonly markdown: (path: string) => Markdown | undefined
 }
 
-export const askedOf = (set: OutlineSet): Asked => ({
+export const askedOf = (claims: Claims, set: OutlineSet): Asked => ({
+  claims,
   set,
   get outlines() {
     return outlinePaths(set)
@@ -144,6 +147,7 @@ export const carried = (
     if (base.at(path) === undefined || base.broken.has(path)) return undefined
   }
   return {
+    claims: base.claims,
     set,
     get outlines() {
       return base.outlines
@@ -160,7 +164,7 @@ export const carried = (
     markdown: (path) => {
       const found = written.get(path)
       if (found === undefined) return base.markdown(path)
-      return found.kind === "document" ? found : undefined
+      return isMarkdown(found) ? found : undefined
     },
   }
 }

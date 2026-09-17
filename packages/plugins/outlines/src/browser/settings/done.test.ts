@@ -13,7 +13,7 @@
  * call them. The e2e feature is what says a pick survives a reload and
  * crosses tabs.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, zoom } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -151,7 +151,7 @@ test("on a contested key the STORED one wins — a sibling's fresh flip is never
 
 // ── which page a pick is about ─────────────────────────────────────────
 
-const derived = derive(
+const derived = derive(TEST_CLAIMS,
   nodesOfFiles({
     "house.olai": [
       `{"id":"kitchen","ord":"a0","title":"kitchen #home"}`,

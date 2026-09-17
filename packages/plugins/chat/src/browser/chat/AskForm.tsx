@@ -31,7 +31,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 import { AskControl } from "./AskControl.tsx"
-import { draftAnswers, draftOf, forgetDraft, setDraft } from "./drafts.ts"
+import { useConversationUI } from "./ui.tsx"
 import type { Chat } from "./state.ts"
 
 /** What the row says once it has stopped waiting. Three outcomes, three
@@ -47,6 +47,7 @@ export function AskForm(props: {
   readonly entry: AskEntry
   readonly chat: Chat
 }) {
+  const { draftAnswers, draftOf, forgetDraft, setDraft } = useConversationUI().drafts
   const ask = () => props.entry.ask
   const waiting = () => ask().outcome === null
 

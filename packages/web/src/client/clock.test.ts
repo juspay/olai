@@ -1,13 +1,12 @@
+/** An instant built from LOCAL parts, which is what these two functions read.
+ *  A UTC literal would make the suite pass or fail by the runner's time zone,
+ *  which is the very confusion this module exists to keep out of the app. */
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { stampOf } from "@olai/format"
 import { inZone } from "@olai/format/testlib"
 import { createRoot } from "solid-js"
 
 import { createToday, instantOf, isoDayOf, untilMidnight } from "./clock.ts"
-
-/** An instant built from LOCAL parts, which is what these two functions read.
- *  A UTC literal would make the suite pass or fail by the runner's time zone,
- *  which is the very confusion this module exists to keep out of the app. */
 const at = (
   year: number,
   month: number,

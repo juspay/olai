@@ -1,7 +1,6 @@
 import { TESTID } from "olai-plugin-trash/testids"
-import type { FileKind } from "@olai/format"
+
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { Glyph } from "olai-plugin-files/icons"
 
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
 import type { Route } from "olai-plugin-navigation/routes"
@@ -34,7 +33,6 @@ function DoorRow(props: {
 
 
 function FileAnatomy(props: {
-  readonly of: FileKind | null | undefined
   readonly name: string
   readonly broken: boolean
 }) {
@@ -48,7 +46,6 @@ function FileAnatomy(props: {
       <span class={CONTROL} aria-hidden="true" />
       {/* Which kind of file this is — the thing four characters of extension
           were carrying on their own (`./file/icons.tsx`). */}
-      <Show when={props.of ?? undefined}>{(of) => <Glyph of={of()} />}</Show>
       <span class="min-w-0 truncate">{props.name}</span>
       <Show when={props.broken}>
         {/* No margin of its own: the row has one gap and this is on it. */}
@@ -72,8 +69,7 @@ export function Trash() {
     >
       {/* Not a file: no glyph, like the parent — a file kind's drawing
           would lie about a page that is none of them. */}
-      <FileAnatomy of={null} name="Trash" broken={false} />
+      <FileAnatomy name="Trash" broken={false} />
     </DoorRow>
   )
 }
-

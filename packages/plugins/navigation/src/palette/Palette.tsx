@@ -1,9 +1,3 @@
-import type {} from "olai-plugin-search/box"
-import { paletteOnly } from "../faces.ts"
-import { TESTID } from "olai-plugin-navigation/testids"
-import type { AppCommand } from "olai-plugin-navigation/slots"
-import { type Navigation,paletteAdapters } from "../index.ts"
-import { readLocation } from "../locations.ts"
 /**
  * ⌘K command palette — the shell, jump-to-node search, and what it can WRITE.
  *
@@ -61,7 +55,13 @@ import { readLocation } from "../locations.ts"
  * one); a plugin's command answers its own refusal, which lands in the same
  * row.
  */
-
+import { fileClaims } from "../pages.ts"
+import type {} from "olai-plugin-search/box"
+import { paletteOnly } from "../faces.ts"
+import { TESTID } from "olai-plugin-navigation/testids"
+import type { AppCommand } from "olai-plugin-navigation/slots"
+import { type Navigation,paletteAdapters } from "../index.ts"
+import { readLocation } from "../locations.ts"
 import { Key } from "@solid-primitives/keyed"
 import {
 createEffect,
@@ -81,7 +81,7 @@ import { needlesFrom } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
-import { isEditingTarget,listKey,matchKey,paneKey } from "@olai/web/client/keys.ts"
+import { CHORDS,isEditingTarget,listKey,matchChord,matchKey,paneKey } from "@olai/web/client/keys.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 import { only } from "@olai/web/client/narrow.ts"
 import { paletteFaces } from "../faces.ts"
@@ -103,6 +103,7 @@ import { isLone } from "olai-plugin-navigation/workspace"
 import { type Asking } from "./asking.ts"
 import {
 boxOf,
+chordsIn,
 prefixesIn,
 type PalettePrefix,
 commandsIn,
@@ -291,6 +292,10 @@ export function Palette(props: {
   const prefixes = createMemo(() => prefixesIn(readLocation(paletteAdapters).flatMap(entry =>
     entry.value.prefix ? [{ owner: entry.owner, value: entry.value.prefix }] : [])))
   const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(paletteFaces("app.command"), prefixes()))
+  /** ...and the chords plugins registered, answered after the core table by
+   *  the same rule and refused where that table already answers (`./items.ts`'s
+   *  `chordsIn`). */
+  const chords = createMemo(() => chordsIn(paletteFaces("app.keys"), CHORDS))
 
   const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes()))
   const listing = () => box().kind === "filter"
@@ -573,24 +578,6 @@ export function Palette(props: {
    */
   const flipDone = (): void => { for(const adapter of adapters()) adapter.key?.("done") }
 
-  /**
-   * THE PAGE, PINNED OR UNPINNED — the one gesture behind two doors: the ⌘⇧P
-   * chord below, and the palette row that names it.
-   *
-   * It is about `router.route()` — the FOCUSED pane's address, filter and all
-   * — because that is what "this page" means in a workspace that may be split,
-   * and it is the same reading the sidebar lights an entry from (`../App.tsx`).
-   * Which of the two writes it is is the shelf's answer rather than a state
-   * here (`../pins/pinning.ts`), and WHETHER it writes at all before asking
-   * what to call it is `../pins/naming.ts`'s.
-   *
-   * ONE FUNCTION for both doors, because that second decision is one rule and
-   * a rule spelled at two call sites is a rule that eventually differs — the
-   * chord would go on asking after the row stopped, or the other way round.
-   * What genuinely differs between them is only WHERE THE ANSWER GOES, which
-   * is why that is the parameter: a chord has nothing on screen but the line
-   * under the header, and a row chosen in this palette has this box.
-   */
 
 
   /**
@@ -793,13 +780,20 @@ export function Palette(props: {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
-      const pane = paneKey(event)
+      const pane = paneKey(event, isEditingTarget(event.target))
       if (pane !== null && !isLone(router.workspace())) {
         event.preventDefault()
         router.stepFocus(pane === "focusLeft" ? -1 : 1)
         return
       }
       const match = matchKey(event)
+      const chord = match === null ? matchChord(event, chords()) : null
+      if (chord !== null) {
+        if (!chord.whileEditing && isEditingTarget(event.target)) return
+        event.preventDefault()
+        chord.press()
+        return
+      }
       if (match === null) {
         if (paletteOpen() && topmost() && event.key === "Escape") {
           event.preventDefault()
@@ -837,18 +831,6 @@ export function Palette(props: {
       if (match.action === "redo") (router as Navigation).focused()?.history?.redo()
       if (match.action === "closePane") router.close()
       if (match.action === "done") flipDone()
-      // The shelf, from wherever the reader is standing. Its answer goes to
-      // the line under the header rather than to this component's, which is
-      // the one this palette can draw and is not on screen when the chord is
-      // pressed with the modal shut (`../pins/pinning.ts`).
-      //
-      // A NARROWED page is the one press that asks first: the chord is live in
-      // the filter box, which is exactly where "keep this, narrowed like this"
-      // is meant — and it is the one address nothing in the set can name
-      // (`../pins/naming.ts`). Asking opens this palette with the box holding
-      // the question, so Enter alone still writes the bare pin the chord always
-      // wrote.
-      if (match.action === "pin") for(const adapter of adapters()) adapter.key?.("pin")
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))
@@ -856,7 +838,7 @@ export function Palette(props: {
 
   return (
     <>
-    <Shortcuts open={keys()} onClose={() => setKeys(false)} />
+    <Shortcuts open={keys()} onClose={() => setKeys(false)} more={chords()} />
     <Show when={paletteOpen()}>
       {/* On a phone this is a sheet under the header, not a card hanging in
           20vh of empty air: a `max-h-72` list under that padding sliced the
@@ -1013,6 +995,7 @@ export function Palette(props: {
                     {(item, index) => (
                       <li>
                         <Result
+                          claims={fileClaims()}
                           label={item().label}
 
                           from={item().from}

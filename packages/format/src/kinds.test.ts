@@ -1,26 +1,17 @@
-import { expect, test } from "bun:test"
-
-import {
-  bodyKind,
-  DOCUMENT_EXT,
-  FILE_KINDS,
-  fileKind,
-  type FileKind,
-  isFetched,
-  OUTLINE_EXT,
-  UNKEPT_KINDS,
-  SVG_EXT,
-  textKind,
-  unkept,
-} from "./kinds.ts"
-import { inboxIn } from "./node.ts"
-
 /** The table as pairs, with the keys still narrowed to what they are — plain
  *  `Object.entries` widens them to `string`, which would turn every sweep below
  *  into an assertion about strings rather than about the kinds. */
-const ENTRIES = Object.entries(FILE_KINDS) as ReadonlyArray<
-  readonly [FileKind, (typeof FILE_KINDS)[FileKind]]
->
+import { noClaimFor, unclaimedFileMessage } from "./kinds.ts"
+import { TEST_CLAIMS } from "@olai/format/testlib"
+import { expect, test } from "bun:test"
+
+import { bodyKind, fileKind, isFetched, textKind, unkept, mintExt } from "./kinds.ts"
+import { inboxIn } from "./node.ts"
+const ENTRIES = [...TEST_CLAIMS.byKind.entries()]
+const OUTLINE_EXT = mintExt(TEST_CLAIMS, "outline-olai")!
+const DOCUMENT_EXT = mintExt(TEST_CLAIMS, "markdown")!
+const SVG_EXT = TEST_CLAIMS.byKind.get("image")!.inert![0]!
+
 
 // What belongs to a served set is a statement about the FORMAT, not about
 // whatever happened to read the directory: the same answer decides which files
@@ -29,17 +20,17 @@ const ENTRIES = Object.entries(FILE_KINDS) as ReadonlyArray<
 // an answer, not a failure. The suffix is matched exactly as the registry
 // writes it, so a near miss is a miss.
 test("a served file is one of the registry's kinds, or none of the set's business", () => {
-  expect(fileKind("plan.olai")).toBe("outline")
-  expect(fileKind("sub/dir/plan.olai")).toBe("outline")
-  expect(fileKind("notes/cabinets.md")).toBe("document")
-  expect(fileKind("data/sales.csv")).toBe("csv")
-  expect(fileKind("reports/q3.pdf")).toBe("pdf")
+  expect(fileKind(TEST_CLAIMS, "plan.olai")).toBe("outline-olai")
+  expect(fileKind(TEST_CLAIMS, "sub/dir/plan.olai")).toBe("outline-olai")
+  expect(fileKind(TEST_CLAIMS, "notes/cabinets.md")).toBe("markdown")
+  expect(fileKind(TEST_CLAIMS, "data/sales.csv")).toBe("csv")
+  expect(fileKind(TEST_CLAIMS, "reports/q3.pdf")).toBe("pdf")
   // EVERY spelling of a picture is the one kind, which is what a kind with more
   // than one suffix is FOR: what olai does with a `.png` and a `.webp` is the
   // same thing, so they are one row of the table and one glyph and one face.
-  expect(fileKind("art/handle.png")).toBe("image")
-  expect(fileKind("art/shot.jpeg")).toBe("image")
-  expect(fileKind("art/diagram.svg")).toBe("image")
+  expect(fileKind(TEST_CLAIMS, "art/handle.png")).toBe("image")
+  expect(fileKind(TEST_CLAIMS, "art/shot.jpeg")).toBe("image")
+  expect(fileKind(TEST_CLAIMS, "art/diagram.svg")).toBe("image")
   // ...and the exact match is exact for the new kinds too: a camera's
   // `IMG_1234.JPG` is a file no kind claims, exactly as `a.OLAI` is. One rule
   // for the whole registry rather than a case-folded corner of it.
@@ -48,14 +39,14 @@ test("a served file is one of the registry's kinds, or none of the set's busines
       "README",
       "plan.json",
       "notes.md.txt",
-      "olai",
+      "outline-olai",
       ".md.bak",
       "a.OLAI",
       "IMG_1234.JPG",
       "sheet.CSV",
     ]
   ) {
-    expect({ path, kind: fileKind(path) }).toEqual({ path, kind: null })
+    expect({ path, kind: fileKind(TEST_CLAIMS, path) }).toEqual({ path, kind: null })
   }
 })
 
@@ -68,12 +59,12 @@ test("a served file is one of the registry's kinds, or none of the set's busines
 // kindness — "claim it too, just for a while" — is a one-line edit there, and
 // this is where the argument against it is written down.
 test("the extension olai used to have is not claimed, and nothing warns about it", () => {
-  expect(fileKind("plan.jsonl")).toBeNull()
+  expect(fileKind(TEST_CLAIMS, "plan.jsonl")).toBeNull()
   // The conventional names do not rescue it, which is the assumption worth
   // pinning: an old vault's archive is not an archive to this format, and its
   // inbox is not an inbox. They are files olai walks past.
-  expect(fileKind("Archive.jsonl")).toBeNull()
-  expect(inboxIn(["Inbox.jsonl"])).toBeUndefined()
+  expect(fileKind(TEST_CLAIMS, "Archive.jsonl")).toBeNull()
+  expect(inboxIn(TEST_CLAIMS, ["Inbox.jsonl"])).toBeUndefined()
 })
 
 // THE PROPERTY THE TABLE RESTS ON, and the one thing about it a reader cannot
@@ -85,7 +76,7 @@ test("the extension olai used to have is not claimed, and nothing warns about it
 // the directory (or be shadowed by them) with no other test in this repository
 // going red.
 test("no kind's suffix ends in another kind's, so the table's order decides nothing", () => {
-  const exts = Object.values(FILE_KINDS).flatMap((claim) => claim.exts)
+  const exts = [...TEST_CLAIMS.byKind.values()].flatMap((claim) => claim.exts)
   for (const one of exts) {
     for (const other of exts) {
       if (one === other) continue
@@ -106,7 +97,7 @@ test("every kind in the registry claims a file named for it", () => {
     // EVERY suffix of it, not just the first: a kind with more than one
     // spelling is a kind with more than one way to be missed.
     for (const ext of claim.exts) {
-      expect({ kind, ext, claims: fileKind(`a/b/thing${ext}`) })
+      expect({ kind, ext, claims: fileKind(TEST_CLAIMS, `a/b/thing${ext}`) })
         .toEqual({ kind, ext, claims: kind })
     }
   }
@@ -119,15 +110,15 @@ test("every kind in the registry claims a file named for it", () => {
 // would re-run the implementation and could only fail if somebody rewrote that
 // one line into something else.
 test("a bodied file is a claimed file that is not an outline, and nothing else", () => {
-  expect(bodyKind("notes/cabinets.md")).toBe("document")
-  expect(bodyKind("report.html")).toBe("hypertext")
-  expect(bodyKind("data/sales.csv")).toBe("csv")
-  expect(bodyKind("art/handle.png")).toBe("image")
-  expect(bodyKind("reports/q3.pdf")).toBe("pdf")
+  expect(bodyKind(TEST_CLAIMS, "notes/cabinets.md")).toBe("markdown")
+  expect(bodyKind(TEST_CLAIMS, "report.html")).toBe("hypertext")
+  expect(bodyKind(TEST_CLAIMS, "data/sales.csv")).toBe("csv")
+  expect(bodyKind(TEST_CLAIMS, "art/handle.png")).toBe("image")
+  expect(bodyKind(TEST_CLAIMS, "reports/q3.pdf")).toBe("pdf")
   // An outline is claimed and is NOT a body: it decodes to records, and the
   // page that draws one is a tree rather than a rendering.
-  expect(bodyKind("plan.olai")).toBeNull()
-  expect(bodyKind("README")).toBeNull()
+  expect(bodyKind(TEST_CLAIMS, "plan.olai")).toBeNull()
+  expect(bodyKind(TEST_CLAIMS, "README")).toBeNull()
 })
 
 // The narrower question the body wire asks, and the reason it is not
@@ -136,13 +127,13 @@ test("a bodied file is a claimed file that is not an outline, and nothing else",
 // as a body somebody could ask for would promise a megabyte of binary decoded
 // as UTF-8, which is neither the file nor an error.
 test("a file whose body is TEXT is the bodied ones something here can read", () => {
-  expect(textKind("notes/cabinets.md")).toBe("document")
-  expect(textKind("report.html")).toBe("hypertext")
-  expect(textKind("data/sales.csv")).toBe("csv")
-  expect(textKind("art/handle.png")).toBeNull()
-  expect(textKind("reports/q3.pdf")).toBeNull()
-  expect(textKind("plan.olai")).toBeNull()
-  expect(textKind("README")).toBeNull()
+  expect(textKind(TEST_CLAIMS, "notes/cabinets.md")).toBe("markdown")
+  expect(textKind(TEST_CLAIMS, "report.html")).toBe("hypertext")
+  expect(textKind(TEST_CLAIMS, "data/sales.csv")).toBe("csv")
+  expect(textKind(TEST_CLAIMS, "art/handle.png")).toBeNull()
+  expect(textKind(TEST_CLAIMS, "reports/q3.pdf")).toBeNull()
+  expect(textKind(TEST_CLAIMS, "plan.olai")).toBeNull()
+  expect(textKind(TEST_CLAIMS, "README")).toBeNull()
 })
 
 // WHICH FILES A BROWSER FETCHES ITSELF — the column the media route's allowlist
@@ -155,14 +146,14 @@ test("a file whose body is TEXT is the bodied ones something here can read", () 
 // page is handed the file's text on the wire, so serving the same bytes raw
 // would be a second way to read a file that already has a page.
 test("the files a browser fetches are the ones whose page points at them", () => {
-  expect(isFetched("report.html")).toBe(true)
-  expect(isFetched("art/handle.png")).toBe(true)
-  expect(isFetched(`art/diagram${SVG_EXT}`)).toBe(true)
-  expect(isFetched("reports/q3.pdf")).toBe(true)
-  expect(isFetched("data/sales.csv")).toBe(false)
-  expect(isFetched("notes/cabinets.md")).toBe(false)
-  expect(isFetched("plan.olai")).toBe(false)
-  expect(isFetched("README")).toBe(false)
+  expect(isFetched(TEST_CLAIMS, "report.html")).toBe(true)
+  expect(isFetched(TEST_CLAIMS, "art/handle.png")).toBe(true)
+  expect(isFetched(TEST_CLAIMS, `art/diagram${SVG_EXT}`)).toBe(true)
+  expect(isFetched(TEST_CLAIMS, "reports/q3.pdf")).toBe(true)
+  expect(isFetched(TEST_CLAIMS, "data/sales.csv")).toBe(false)
+  expect(isFetched(TEST_CLAIMS, "notes/cabinets.md")).toBe(false)
+  expect(isFetched(TEST_CLAIMS, "plan.olai")).toBe(false)
+  expect(isFetched(TEST_CLAIMS, "README")).toBe(false)
 })
 
 // What one loaded directory COSTS to hold, file by file, spelled as the answers
@@ -173,16 +164,16 @@ test("the files a browser fetches are the ones whose page points at them", () =>
 // this is here to pin. The four kinds olai only SHOWS are the ones that are not
 // kept, and they are the ones that can be megabytes.
 test("the shown kinds are the ones the set holds the path of and not the content", () => {
-  expect(unkept("report.html")).toBe(true)
-  expect(unkept("data/sales.csv")).toBe(true)
-  expect(unkept("art/handle.png")).toBe(true)
-  expect(unkept("reports/q3.pdf")).toBe(true)
-  expect(unkept("notes/cabinets.md")).toBe(false)
-  expect(unkept("plan.olai")).toBe(false)
+  expect(unkept(TEST_CLAIMS, "report.html")).toBe(true)
+  expect(unkept(TEST_CLAIMS, "data/sales.csv")).toBe(true)
+  expect(unkept(TEST_CLAIMS, "art/handle.png")).toBe(true)
+  expect(unkept(TEST_CLAIMS, "reports/q3.pdf")).toBe(true)
+  expect(unkept(TEST_CLAIMS, "notes/cabinets.md")).toBe(false)
+  expect(unkept(TEST_CLAIMS, "plan.olai")).toBe(false)
   // A file no kind claims is not in the set at all, so there is nothing the set
   // is declining to hold — and the server asks this of a KEY, which may be
   // anything a caller subscribed to.
-  expect(unkept("README")).toBe(false)
+  expect(unkept(TEST_CLAIMS, "README")).toBe(false)
 })
 
 // The two suffixes the ops layer mints paths with come off the table rather than
@@ -190,12 +181,12 @@ test("the shown kinds are the ones the set holds the path of and not the content
 // the one direction a type checker cannot see. Read as the STRINGS a refusal
 // message and a minted path will carry, because that is what a caller sees.
 test("the minting constants are the suffixes the walk claims", () => {
-  expect(fileKind(`a${OUTLINE_EXT}`)).toBe("outline")
-  expect(fileKind(`a${DOCUMENT_EXT}`)).toBe("document")
+  expect(fileKind(TEST_CLAIMS, `a${OUTLINE_EXT}`)).toBe("outline-olai")
+  expect(fileKind(TEST_CLAIMS, `a${DOCUMENT_EXT}`)).toBe("markdown")
   // The third spelled constant is the one a SECOND rule has to name and not
   // one anything mints: markdown may point at a picture and deliberately not
-  // at this one (`./documents.ts`'s `PICTURE_EXTENSIONS`).
-  expect(fileKind(`a${SVG_EXT}`)).toBe("image")
+  // at this one (`./documents.ts`’s `isPicture`).
+  expect(fileKind(TEST_CLAIMS, `a${SVG_EXT}`)).toBe("image")
 })
 
 // The arm of the sum that is a face and nothing else is built from THIS list
@@ -203,5 +194,12 @@ test("the minting constants are the suffixes the walk claims", () => {
 // here is an arm that cannot hold a file the sidebar lists. Derived from
 // `kept` over the bodied kinds, and asserted as the answer.
 test("the shown kinds are the bodied ones the set keeps no content of", () => {
-  expect([...UNKEPT_KINDS].sort()).toEqual(["csv", "hypertext", "image", "pdf"])
+  expect([...TEST_CLAIMS.byKind.values()].filter(claim => !claim.kept).map(claim => claim.kind).sort()).toEqual(["csv", "hypertext", "image", "pdf"])
+})
+
+
+test("unclaimed suffix wording never takes a dotted directory as a file suffix", () => {
+  expect(noClaimFor("dir.d/name")).toBe("no row claims a path without a suffix")
+  expect(noClaimFor("dir.d/name.org")).toBe("no row claims `.org`")
+  expect(unclaimedFileMessage("dir.d/name.org")).toBe("The directory holds nothing by the name dir.d/name.org. No row claims `.org`.")
 })

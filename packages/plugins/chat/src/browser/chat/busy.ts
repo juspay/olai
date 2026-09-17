@@ -16,8 +16,7 @@
  * move pixels rather than unify a spelling — the distinction {@link ./live.ts}
  * already draws for the dot they share.
  *
- * A module for {@link ./face.ts}'s reason, which is the reason half this
- * directory is split this way: this is a small precedence over a state that
+ * This module isolates a small precedence over a state that
  * arrives on a wire, and what it decides is which of three things somebody is
  * told is happening. Reaching it through a browser is not how anybody should
  * have to check that the panel does not say *working* over a form it is waiting

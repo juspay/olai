@@ -1,9 +1,8 @@
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * Core's local-state door: the last snapshot handed over is the one that lands,
  * a missing file is a fresh map, and an unreadable file is a warn.
  */
-
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"

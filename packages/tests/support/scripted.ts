@@ -2,9 +2,10 @@
  * What every scripted agent in this suite has in common — and nothing about
  * what any of them MEANS.
  *
- * There are two of them now (`agent/fake-acp-agent.ts`, shaped like the Claude
- * Code adapter, and `agent/opencode/opencode`, shaped like opencode), plus the
- * fake `kolu` next door, and the whole value of having two is that they are
+ * The engines each own an executable in their `e2e/fake/` (claude's
+ * `claude-agent-acp`, pi's `pi-acp`, codex's `codex-acp`), each scripted
+ * through the shared core in `agent/scripted-acp.ts`, plus the fake `kolu`
+ * next door, and the whole value of having more than one is that they are
  * INDEPENDENT WITNESSES to the same protocol: the frames, the `_meta`, the call
  * ids, the order of a permission's options are each file's own to get right,
  * and a shared implementation of any of them would let a fake agree with the
@@ -112,6 +113,10 @@ export const MARKER = {
   release: ".agent-release",
   /** Make the next `session/load` sit on the wire. */
   holdLoad: ".agent-hold-load",
+  /** Make the next replay of `an older conversation` arrive a line at a
+   *  time, the way a long history reaches the panel: over many frames, while
+   *  the panel is still opening it. */
+  slowReplay: ".agent-slow-replay",
   /** ... and the next session OPEN, whichever verb asked for it: the window
    *  between picking an agent and having a conversation. */
   holdOpen: ".agent-hold-open",
@@ -148,10 +153,12 @@ const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, m
 export const released = async (
   cwd: string,
   onTick?: () => void | Promise<void>,
+  stopped?: () => boolean,
 ): Promise<boolean> => {
   const marker = `${cwd}/${RELEASE}`;
   for (let waited = 0; waited < HOLD_LIMIT_MS; waited += 100) {
     await onTick?.();
+    if (stopped?.()) return true;
     if (existsSync(marker)) {
       rmSync(marker, { force: true });
       return true;

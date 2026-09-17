@@ -134,7 +134,9 @@
  * kept.
  */
 
-import type { BrokenFile } from "@olai/format"
+import { fileKind } from "@olai/format"
+import { claims as makeClaims, type Claims, type BrokenFile } from "@olai/format"
+import type { FileKindsState } from "../file-surface.ts"
 import type { Head, Manifest } from "../wire.ts"
 import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
@@ -165,6 +167,9 @@ import { sameMap } from "@olai/web/client/same.ts"
 export type Standing = "reading" | "never" | "loaded"
 
 export interface Directory {
+  readonly claims: Accessor<Claims>
+  readonly outlineRow: Accessor<string | undefined>
+  readonly kindOf: (path: string) => string | null
   /** Which of the three states this tab's directory is in — see
    *  {@link Standing}, and the header for the two arrival orders it is
    *  resolved from. */
@@ -189,6 +194,8 @@ export interface Directory {
    *  compare all the same — a reconnect re-seeds the fold, and a fresh list of
    *  the same files is exactly what that compare is for. */
   readonly paths: Accessor<ReadonlyArray<string>>
+  /** Reactive membership snapshot, replaced only when paths change. Never mutate. */
+  readonly members: Accessor<ReadonlySet<string>>
   /** The files that did not parse, by path — the sidebar marks them and a pane
    *  opened on one draws its errors instead of a tree.
    *
@@ -259,11 +266,10 @@ export interface HeadEntries {
  * `paths` and `broken` are what LEAVE — the values the two members above hand
  * out — so they are REBUILT rather than written into, and a frame that moves
  * neither hands back the pair it was already holding. `members` is this fold's
- * own working memory and is MUTATED in place: it is reachable from nowhere else
- * (the framework hands the accumulator back to `step` and to nobody), and
- * copying a set of the whole directory per frame would be the corpus-wide walk
- * this fold exists to retire, reintroduced one line down from where it was
- * removed.
+ * own working memory and is MUTATED in place, never exposed. The service
+ * builds a membership snapshot from `paths` only when that array changes.
+ * Copying the set per frame would
+ * reintroduce the corpus-wide walk this fold exists to retire.
  *
  * THE THREE ARE ONE VALUE and not three, because they move by one rule: what a
  * frame named. Split into three folds they would be three registrations walking
@@ -428,12 +434,14 @@ const holdingNothing = (): Held => ({
  * able to disagree about which files there are. What it buys instead is charged
  * ONCE PER LINK FLAP — a sort, one array, and the `sameList` in `./served.tsx`
  * that absorbs it — against a walk of the vault on every frame. Two smaller
- * charges come with the same choice: `members` is a third copy of the key set
- * for the life of the tab (the framework's `order`, this, and the sorted list),
+ * charges come with the same choice: the key set has four current copies
+ * (the framework's `order`, the fold's `members`, the sorted `paths`, and the
+ * service's membership snapshot). The fold keeps its working set
  * because the `fold` socket hands over the frame and not the `added`/`removed`
  * it computed; and registering ANY fold on `heads` makes the framework rebuild
  * its full-set frame per snapshot, which it skips for a collection nobody folds.
- * Both are per-reconnect or per-tab, and neither is per-frame.
+ * The membership snapshot is rebuilt only when paths change; ordinary
+ * content frames copy neither the sorted list nor that snapshot.
  *
  * NOT `./chat/order.ts`'S FOLD WITH A COMPARATOR SWAPPED IN, and the two were
  * held side by side before this was written. The transcript's order is a fact
@@ -461,6 +469,7 @@ const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
 export const createDirectory = (
   entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
+  fileKinds: Accessor<FileKindsState | null | undefined>,
 ): Directory => {
   // THE HEAD SET, FOLDED — the wire's own frames accumulated into the two
   // readings this app asks a directory for, instead of the whole set being
@@ -468,7 +477,18 @@ export const createDirectory = (
   // fold's own requirement: `./App.tsx` calls this inside the app's root, and
   // the registration is dropped by that owner's `onCleanup`.
   const held = entries.fold(SERVED_FILES)
+  const claims = createMemo(() => {
+    try { return makeClaims(fileKinds()?.claims ?? []) }
+    catch (error) {
+      console.warn("olai: invalid file-kind claims frame; using no claims", error)
+      return makeClaims([])
+    }
+  })
+  const heldPaths = createMemo(() => held()?.paths ?? NO_PATHS)
   return {
+    claims,
+    outlineRow: () => fileKinds()?.outlineRow,
+    kindOf: path => fileKind(claims(), path),
     // THE ONE PLACE THE TWO SOURCES ARE READ TOGETHER, which is the whole
     // reason the cell is handed in here rather than read by the shell: they are
     // two members on two channels, either can arrive first, and only a reader
@@ -506,7 +526,8 @@ export const createDirectory = (
       // state).
       return said !== undefined && holding !== undefined ? "loaded" : "reading"
     }),
-    paths: createMemo(() => held()?.paths ?? NO_PATHS),
+    paths: heldPaths,
+    members: createMemo(() => new Set(heldPaths())),
     // SEEDED with the empty map, which the `equals` requires: a comparator is
     // asked about the FIRST value too, and `sameMap` reads a size off both
     // sides. The ERRORS are compared as well as the keys, and by IDENTITY —

@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/ui-primitives/testids.ts"
 /**
  * How far the tasks under a node have got: `3/5`, right after its title.
  *
@@ -20,7 +19,7 @@ import { TESTID } from "@olai/ui-primitives/testids.ts"
  * One component, so a tree row, a day entry and that row's own page carry the
  * same fraction.
  */
-
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 import type { Progress } from "@olai/format"
 
 

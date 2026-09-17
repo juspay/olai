@@ -1,6 +1,6 @@
-import { TESTID } from "olai-plugin-sidebar/testids"
 /** Sidebar owns its container and child regions. Feature entries acquire and
  * withdraw independently; no notebook tree or reading belongs to this plugin. */
+import { TESTID } from "olai-plugin-sidebar/testids"
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 import { PluginEntries,PluginSections } from "./Seats.tsx"

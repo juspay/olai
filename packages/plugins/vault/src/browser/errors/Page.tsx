@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-vault/testids"
 /**
  * The whole page, for the one thing that leaves nothing else to draw: the
  * served DIRECTORY could not be read.
@@ -29,7 +28,7 @@ import { TESTID } from "olai-plugin-vault/testids"
  * them something real is still on screen: ./Banner.tsx over live pages, naming
  * the files that are broken, and ./Broken.tsx in one file's own place.
  */
-
+import { TESTID } from "olai-plugin-vault/testids"
 import type { Verdict } from "@olai/format"
 
 import { SHEET } from "olai-plugin-layout/sheet"

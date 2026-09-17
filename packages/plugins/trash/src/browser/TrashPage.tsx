@@ -1,5 +1,3 @@
-import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
-import { TESTID as IDS_TRASH } from "olai-plugin-trash/testids"
 /**
  * The trash: what was put away, kept whole, and the one way back out.
  *
@@ -53,7 +51,8 @@ import { TESTID as IDS_TRASH } from "olai-plugin-trash/testids"
  * does. "The Trash is empty." is not said over a filter — that is a claim about
  * the archive, and the bar makes the other one.
  */
-
+import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
+import { TESTID as IDS_TRASH } from "olai-plugin-trash/testids"
 import { isMirror,type Row,settles,shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo,Match,Show,Switch } from "solid-js"

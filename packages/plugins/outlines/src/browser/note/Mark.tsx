@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The pilcrow: a node has a note, and here is the door to it.
  *
@@ -25,9 +24,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * layers is the title line saying so (the tags brighten with it, `../styles.css`)
  * — and dim the rest of the time.
  */
-
-
-
+import { TESTID } from "olai-plugin-outlines/testids"
 export function NoteMark(props: {
   readonly open: boolean
   readonly onToggle: () => void

@@ -1,72 +1,6 @@
-/**
- * ONE SPAWNED AGENT'S OWN WORK — the shelf between the strip above the scroll
- * and the conversation, and what is behind both of the doors onto a subagent.
- *
- * The ruling this exists for (the human, with a screenshot of the panel
- * drowning): *when subagents run, their outputs go to chat interleaved. I don't
- * think this should be the case. Only main agent output comes in chat. But the
- * subagents are pinned at the top, and if the user clicks on them we can
- * perhaps preview their output somehow.* Five agents out is five agents' `cd …
- * && grep …` in one column, in one voice, and the main agent's own words off
- * the top of the screen. So the column is the main agent's ({@link
- * ./lanes.ts}'s `filedUnder`) and this is where the rest went.
- *
- * WHERE IT LIVES, and the three tests it was chosen against:
- *
- *   - **the conversation goes on underneath it.** It is a SIBLING of the
- *     transcript in the panel's own column, never over it: the transcript keeps
- *     its scroll, its follow-the-bottom, and the reveal that scrolls a blocked
- *     form into the middle of the pane ({@link ./attention/reveal.ts}) — all of
- *     which an overlay would have broken silently, since a form centred inside
- *     a pane that is underneath a sheet is a form nobody sees. It also SHRINKS
- *     rather than shoving: it takes a cap of the panel's height and gives the
- *     rest back, and the transcript keeps a floor, so opening a shelf can never
- *     be the thing that leaves a question with nowhere to be drawn.
- *   - **it does not steal the composer.** It is at the top of the panel, and
- *     the room between the last row and the box is spoken for — that is where
- *     the line saying the agent is working goes ({@link ./Busy.tsx}), because
- *     the reader's eye is at the bottom of the transcript where their own
- *     message just landed. A sheet growing from the bottom would cover the one
- *     and push away the other.
- *   - **it survives five agents at once.** The strip is the tab bar: it already
- *     wraps, it already says who is out and for how long, and it is the thing a
- *     person picks FROM. One shelf is open at a time, on purpose — five stacked
- *     shelves would be the transcript's own problem moved up the panel, which
- *     is the problem this feature exists to end.
- *
- * IT IS THE SAME DRAWING, not a second one. Every row in here is rendered by
- * {@link ./Row.tsx}, behind the same rail, with the same fold, the same diff and
- * the same clock as it would have had in the column — which is the whole point
- * of moving it rather than summarising it. What differs is one thing and it is
- * subtraction: the lane does not say its name over and over, because the shelf's
- * own head says it once.
- *
- * WHAT IS NOT IN HERE is that agent's QUESTIONS. A permission form or an
- * elicitation stayed in the transcript ({@link ./lanes.ts} argues why), and it
- * is not copied in here either: one decision drawn as two forms is one of them
- * pressed by somebody who cannot see the other. So a run with a question in it
- * reads as a gap in the calls, and the form is where a form belongs — in the
- * conversation, with the composer, the header and the app's own alerts all
- * pointing at it.
- *
- * ... WHICH IS WHY THIS SURFACE POINTS AT ONE TOO, and the reason is a promise
- * made one document over. `docs/chat.md` says that when the conversation is in
- * front of you, a form ARRIVING IS THE WHOLE OF IT — it lands where you are
- * already looking, the composer says so, and nothing rings, because a
- * notification about something already on your screen is nagging. This shelf
- * put a hole in that: a reader watching an agent work here has their eye on a
- * box that is deliberately not where forms are drawn, the panel counts as open
- * so nothing chimes, and the form lands in a transcript that has just been made
- * smaller. Everything still SAYS a question is waiting — the composer, Busy,
- * the header, the badge — but "where you are already looking" had stopped being
- * true, and that promise is exactly what the brief's own constraint is: the
- * losing case must be impossible rather than unlikely.
- *
- * So the shelf joins the surfaces that point. It draws the notice itself and
- * presses through to the SAME ask the attention banner raises
- * ({@link ./attention/reveal.ts}), which closes this and scrolls the waiting
- * form into the middle of the pane — one gesture, one piece of machinery, and
- * no second copy of the form anywhere.
+/** One spawned agent’s calls, using the transcript’s row renderer.
+ * Questions stay in the main transcript; the shelf links to their sole form.
+ * Page shelves grow in the pane scroll. Fold shelves bound their own scroll.
  */
 
 import { For, Show } from "solid-js"
@@ -74,14 +8,14 @@ import { For, Show } from "solid-js"
 import type { ChatEntry } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
 import type { Lane } from "./lanes.ts"
-import { reveal } from "./attention/reveal.ts"
-import { closePreview, previewing, togglePreview } from "./previewing.ts"
+import { useConversationUI } from "./ui.tsx"
 import { railOf } from "./rail.ts"
 import { Row } from "./Row.tsx"
 import { sentOf, whoOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
-export function Preview(props: { readonly chat: Chat }) {
+export function Preview(props: { readonly chat: Chat; readonly unbounded?: boolean }) {
+  const { previewing } = useConversationUI().previewing
   /** WHICH agent, and whether it is one this conversation still has. A key that
    *  named a row of the last conversation — or of a turn that has been cleared
    *  — reads as nothing here rather than as an empty shelf, which is the same
@@ -93,14 +27,16 @@ export function Preview(props: { readonly chat: Chat }) {
     return entry === undefined || whoOf(entry) === null ? null : { row, entry }
   }
   return (
-    <Show when={of()}>{(open) => <Shelf chat={props.chat} open={open()} />}</Show>
+    <Show when={of()}>{(open) => <Shelf chat={props.chat} open={open()} unbounded={props.unbounded} />}</Show>
   )
 }
 
 function Shelf(props: {
   readonly chat: Chat
+  readonly unbounded?: boolean
   readonly open: { readonly row: string; readonly entry: ChatEntry }
 }) {
+  const { closePreview, previewing, togglePreview } = useConversationUI().previewing
   const calls = () => props.chat.lanes().get(props.open.row) ?? EMPTY
   /** The lane every row in here is in — MINTED ONCE for the whole shelf rather
    *  than asked of {@link ./lanes.ts} per row, and with no label at all.
@@ -127,14 +63,8 @@ function Shelf(props: {
   }
   return (
     <section
-      // SHRINKABLE, and that is the load-bearing half of the geometry. Every
-      // other strip above the scroll is `shrink-0`, which is right for a line
-      // or two of standing fact; a shelf that took its cap unconditionally
-      // would, on a phone's half-height sheet, resolve the transcript to
-      // nothing — and the transcript is where every question a subagent asks
-      // is drawn. So the cap is a MAXIMUM, this box yields before the
-      // conversation does, and the pane below it keeps a floor of its own.
-      class="flex max-h-[45%] min-h-0 shrink flex-col border-b border-rule/70 bg-panel"
+      class="flex min-h-0 flex-col border-b border-rule/70 bg-panel"
+      classList={{ "max-h-96 shrink": !props.unbounded }}
       data-testid={TESTID.chatPreview}
       data-row={props.open.row}
       aria-label="what one agent is doing"
@@ -156,7 +86,7 @@ function Shelf(props: {
             // back. Pressing through to the same ask rather than scrolling from
             // here is what keeps one answer to "show me what is waiting".
             closePreview()
-            reveal()
+            props.chat.ui.reveal[1](true)
           }}
         >
           <span aria-hidden="true">◆</span>
@@ -187,10 +117,8 @@ function Shelf(props: {
             of one fan-out would give four shelves with one heading. */}
         <span class="min-w-0 truncate">{sentOf(props.open.entry)}</span>
       </p>
-      {/* ITS OWN SCROLL, so a long-running agent's fortieth call is reachable
-          without the shelf growing past its cap and without the conversation
-          under it moving. */}
-      <div class="olai-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pb-2 text-ink">
+      <div class="min-h-0 px-3 pb-2 text-ink"
+        classList={{ "olai-scroll flex-1 overflow-x-hidden overflow-y-auto": !props.unbounded }}>
         <Show
           when={calls().length > 0}
           fallback={

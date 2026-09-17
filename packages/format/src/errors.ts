@@ -104,6 +104,8 @@ const CATALOGUE = {
   // ── the whole set ───────────────────────────────────────────────────
   /** Two records claim the same `id`. */
   "duplicate-id": "set",
+  /** More than one node-holding file names the same directory convention. */
+  "ambiguous-convention": "set",
   /** `parent` names an id no record in the set declares. */
   "unknown-parent": "set",
   /** `parent` resolves, but in another file. Every `.olai` is an independent
@@ -130,8 +132,6 @@ const CATALOGUE = {
   /** A mirror is placed inside the subtree it shows, so expanding it never
    *  terminates. */
   "mirror-cycle": "set",
-  /** `doc` does not name an `.md` file under the served directory. */
-  "missing-doc": "set",
   /**
    * A PROPERTY does not fit what its key declares — or a declaration in
    * `_olai/Properties.olai` does not say a type this format knows

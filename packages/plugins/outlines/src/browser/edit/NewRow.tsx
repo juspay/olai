@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A row that does not exist yet.
  *
@@ -25,7 +24,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * commits one — so both spellings of the dot are `marks.tsx`'s: one place
  * a bullet's size is decided.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { DOT } from "@olai/web/client/marks.tsx"
 
 import { CONTROL, GUTTER_GAP, HOVER_CELL, HOVER_GUTTER } from "@olai/ui-primitives/touch.ts"

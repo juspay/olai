@@ -18,8 +18,8 @@ The shape follows from the pin carrying the code in compiled form:
   the claimant arriving second, the undated opener, the unreadable
   transcript, the cache keys, the refusal announcers through `say`.
 - **`regenerate.sh`** rebuilds `../patches/session-list-info.patch` from
-  `facts.js`: it downloads the pristine npm package at the version from
-  `acp/package-lock.json`, splices `facts.js` (with `export` removed) ahead
+  `../shim/package-lock.json` (this engine's own shim, since the split),
+  splices `facts.js` (with `export` removed) ahead
   of the class declaration, replaces the `listSessions` method with the one
   authored per the note in the script, and then `diff -u` computes the
   hunks — the patch committed is this script's print-out, because hunks

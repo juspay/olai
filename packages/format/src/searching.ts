@@ -42,7 +42,7 @@
  * vocabulary is where it belongs, and this one imports it like any other
  * caller. What is left here is exactly what a QUERY adds to it.
  */
-
+import type { Claims } from "./kinds.ts"
 import { fileKind } from "./kinds.ts"
 import { Schema } from "effect"
 
@@ -146,7 +146,7 @@ export type NodeHit = typeof NodeHit.Type
  * belongs with whatever draws it rather than riding in ahead of a caller.
  */
 export const DocumentHit = Schema.Struct({
-  at: AtDocument.check(Schema.makeFilter(at => fileKind(at.path) !== "outline", { expected: "a non-outline file" })),
+  at: AtDocument,
   /** The 1-based file line of the strongest body word match. Absent for
    * title/path/tag/operator matches and files whose body is not kept. */
   line: Schema.optionalKey(Schema.Int),
@@ -193,8 +193,8 @@ export const OutlineHit = Schema.Struct({
   matched: Schema.optionalKey(Schema.Literals(["title", "path"])),
 })
 export type OutlineHit = typeof OutlineHit.Type
-export const isOutlineHit = (hit: SearchHit): hit is OutlineHit =>
-  hit.at.kind === "document" && fileKind(hit.at.path) === "outline"
+export const isOutlineHit = (claims: Claims, hit: SearchHit): hit is OutlineHit =>
+  hit.at.kind === "document" && claims.byKind.get(fileKind(claims, hit.at.path) ?? "")?.holds === "nodes"
 
 export const SearchHit = Schema.Union([NodeHit, DocumentHit, OutlineHit])
 export type SearchHit = typeof SearchHit.Type
@@ -247,7 +247,7 @@ export const SearchRequest = Schema.Struct({
       "- `is:done` / `is:doing` / `is:todo` — the mark the node stores (never a derived one). `is:marked` is any of the three; `is:trashed` reaches what was put away.\n" +
       "- `is:mirrored` — the node is DRAWN SOMEWHERE ELSE as well: some placement shows it (chains followed), which is what `outlines_read` answers as `mirrors` and what putting a node on a curated list does to it. Asked of the NODE, never of the placement — a search never returns a placement. A copy filed in an `_olai/Trash.olai` still counts, since it is still where the node is drawn on the trash page.\n" +
       "- `is:blocked` — the node is WAITING: something it must come after is a task that is not finished. Derived, and the same derivation the app draws a blocked row with, so it reads the ORDERING GRAPH rather than the field — an edge spelled `blocks` on the other record counts, and a node can be blocked while carrying no `after` of its own (`has:after` is the question about the field). A node with no mark is not blocked (a bullet is not work), a target with no mark blocks nothing, and put-away work is out of it at both ends. `-is:blocked` takes the waiting ones back out.\n" +
-      "- `has:desc` / `has:date` / `has:created` / `has:changed` / `has:see` / `has:after` / `has:doc` / `has:repeat` — a field the record carries. `has:repeat` is what COMES BACK: a repeat rule needs a date to repeat from, so it selects inside `has:date`, and `has:date -has:repeat` is everything dated once. `has:created -has:changed` is a node nothing has been written to since it was captured.\n" +
+      "- `has:desc` / `has:date` / `has:created` / `has:changed` / `has:see` / `has:after` / `has:repeat` — a field the record carries. `has:repeat` is what COMES BACK: a repeat rule needs a date to repeat from, so it selects inside `has:date`, and `has:date -has:repeat` is everything dated once. `has:created -has:changed` is a node nothing has been written to since it was captured.\n" +
       "- `date:2026-08-10`, `date:2026-08`, `date:2026`, `date:2026-08-01..2026-08-14`, `date:..2026-08-10`, `date:2026-08-10..` — the two dates a journal reads: what the node is scheduled for, and when it was finished.\n" +
       "- `date:today`, `date:yesterday`, `date:tomorrow`, and `this-` / `last-` / `next-` with `week`, `month` or `year` (`date:last-week`) — the same operator, counted from the day the query is asked on, in the server's own time zone. A week runs MONDAY to Sunday. They go at either end of a range like any other value: `date:last-week..`, `date:..today`, `date:last-month..yesterday`.\n" +
       // THE UNITS ARE THE GRAMMAR'S OWN SENTENCE, interpolated rather than

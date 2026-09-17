@@ -35,7 +35,7 @@
  * for (the caller's value verbatim, instant and all). A single fixed today
  * would walk past both.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -54,7 +54,7 @@ import { dated, owed } from "./readings.ts"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
  *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 /** Work spread over days either side of the todays below, in two outlines so a
  *  count of NODES cannot be satisfied by a count of files — plus the shapes
@@ -220,7 +220,7 @@ test("every write leaves the counted door answering what the corpus walk does", 
 
   return Effect.gen(function*() {
     const store = yield* StoreModule.make({ root, codec, watch: false, settle: "10 millis" })
-    const ops = make({
+    const ops = make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
       context: steady(),

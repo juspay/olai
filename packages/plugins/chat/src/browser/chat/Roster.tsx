@@ -66,12 +66,9 @@
  * something else — an empty roster was "everything arrived" and is now "there
  * is nothing to report about", because servers are handed at session open.
  *
- * It does not reach the app header's agent toggle, which is the one piece of
- * chrome a shut panel cannot swallow. That bit is spent on `asking` and should
- * stay spent on it: a turn stopped on a question will never finish by itself,
- * so a person who cannot see it is stuck. A conversation short of a tool is not
- * stuck — the agent answers — so what it is owed is a place to be found, not an
- * interruption.
+ * Tool availability stays in this conversation's roster. Needs you reports
+ * blocked questions; a missing tool is explained here beside the conversation.
+
  */
 
 import type { ChatServer } from "olai-plugin-chat/wire"

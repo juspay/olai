@@ -1,5 +1,3 @@
-import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
-import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 /**
  * A node's properties, as a RUN OF CHIPS: `key value` pairs on one wrapping
  * line, the key small and muted, the value first-class — a compact byline under
@@ -152,7 +150,8 @@ import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
  * write made from a list of search results. One component per surface where a
  * node's facts are READ; a hit list is a list of doors onto nodes.
  */
-
+import { TESTID as IDS_OUTLINES } from "olai-plugin-outlines/testids"
+import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, For, Index, Show } from "solid-js"
 
@@ -247,8 +246,8 @@ export function PropsDrawer(props: {
    *
    * Required, and it is what makes a relative path resolvable: `brief
    * briefs/pda.md` on a record of `orchestrator/lanes.olai` names a different
-   * file from the same words on a record at the root, exactly as a `doc` field
-   * and a relative picture already do (`@olai/format`'s `docOf`). A default
+   * file from the same words on a record at the root, exactly as a relative link
+   * and a relative picture already do (`@olai/format`'s `pathedOf`). A default
    * would be this component guessing at the one fact only its caller has.
    */
   readonly from: string

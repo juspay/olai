@@ -66,7 +66,7 @@
  * day and unfinished, so a generator that could not fool the first walk cannot
  * fool the second either.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { type Agenda, type AgendaDay, agendaOf, owedIn, owedNow, owedOf } from "./agenda.ts"
@@ -80,6 +80,7 @@ import {
   walkedDays,
   walkedOn,
 } from "./fixtures.testlib.ts"
+import { timeOf } from "./occasion.ts"
 import { patch, type SetDelta } from "./patch.ts"
 
 // ── the corpora ────────────────────────────────────────────────────────
@@ -162,7 +163,7 @@ const corpusOf = (random: () => number): Record<string, string> => {
 }
 
 const viewOf = (corpus: Record<string, string>): Derived =>
-  derive(Object.entries(corpus).flatMap(([file, text]) => nodesOf(text, file)))
+  derive(TEST_CLAIMS, Object.entries(corpus).flatMap(([file, text]) => nodesOf(text, file)))
 
 /** ONE file rewritten, which is the delta a keystroke makes and the one the
  *  index is patched across. */
@@ -301,3 +302,11 @@ const agendaSaid = (agenda: Agenda): string => {
   return `late:\n${line(agenda.overdue)}\ntoday:\n${drawn(agenda.today)}\n` +
     `ahead:\n${line(agenda.upcoming)}\nowed: ${owed.overdue} late, ${owed.today} today`
 }
+
+test("a time is the five characters after either separator a date may be written with", () => {
+  // `T` is what olai writes; a space is what the format also accepts on disk,
+  // and a reader that knew only the first would say a hand-written time is none.
+  expect(timeOf("2026-09-08T14:00:00-04:00")).toBe("14:00")
+  expect(timeOf("2026-09-08 14:00")).toBe("14:00")
+  expect(timeOf("2026-09-08")).toBeUndefined()
+})

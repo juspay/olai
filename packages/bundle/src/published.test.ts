@@ -8,7 +8,7 @@
  * document's TEXT is in that document's own entry and nowhere else: not on the
  * manifest, not in an outline's slice, so nothing carries the corpus.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   assemble,
   type Document,
@@ -325,37 +325,6 @@ test("a file that arrives takes its place in the listing, not the end of it", ()
   expect(born.outlines.entries.get("wing.olai")?.rev).toBe(1)
 })
 
-// The other kind of bodied file, and the whole memory claim as a projection:
-// what the set holds for a `.html` is a path and a `null`, so what the wire
-// holds is a key and a `null`. The bytes are not here, they are not in the
-// entry the next revision builds, and they are not in the map a fresh
-// subscriber is snapshotted from — they are read when a reader opens the key
-// (`./bodies.ts`).
-test("a `.html` is a key of the collection with no body in it", () => {
-  const { documents } = publishedOf(
-    revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
-      {},
-      4,
-    ),
-    NOTHING_HELD,
-  )
-
-  expect([...documents.entries.keys()]).toEqual(["notes.md", "report.html"])
-  expect(documents.entries.get("report.html")).toEqual({
-    rev: 4,
-    text: null,
-    refused: false,
-  })
-  // The `.md` beside it is untouched by any of this: its text is the set's and
-  // travels the same way it always did.
-  expect(documents.entries.get("notes.md")).toEqual({
-    rev: 4,
-    text: "# hello",
-    refused: false,
-  })
-})
-
 // TWO FAILURE CLASSES, and they must not share a face. `set.broken` holds
 // every decode Result.fail — a frontmatter typo and an EACCES look the same
 // there, only the error code differs. `DocumentEntry.refused` is the READ
@@ -384,7 +353,7 @@ test("a parse-broken document is not refused, and an unreadable one is", () => {
 
   const unread = publishedOf(
     revision(
-      assemble(
+      assemble(TEST_CLAIMS,
         new Map<string, Result.Result<Document, Verdict>>([
           ["house.olai", Result.succeed(outlineOf(HOUSE, "house.olai"))],
           [
@@ -414,94 +383,18 @@ test("a parse-broken document is not refused, and an unreadable one is", () => {
   expect(unread.heads.entries.get("locked.md")?.broken).not.toBeNull()
 })
 
-// ── who publishes a body ───────────────────────────────────────────────
-
-// The split, and the two things it has to get right at once. A body the set
-// does not keep is NOT written to a key somebody may be showing — that would
-// blank the page and re-fill it a moment later, where the body reader replaces
-// it in one frame — and a key this revision INTRODUCES is written anyway,
-// because an upsert is also how the collection learns its membership changed.
-// A `.html` dropped into the directory that never reached the sidebar is what
-// the second half of this is written against.
-test("a bodyless entry is upserted only when its key is new", () => {
-  const first = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"])),
-    NOTHING_HELD,
-  )
-  // Born: the key is announced, `null` and all, which is how the sidebar learns
-  // there is a file — and the body is owed to whoever opens it.
-  expect(first.documents.upserts.map(([path]) => path)).toEqual([
-    "notes.md",
-    "report.html",
+test("unkept and byte files have heads but never enter markdown's collection", () => {
+  const first = publishedOf(revision(setOf({ "house.olai": HOUSE }, [
+    ["notes.md", "# hello"], "report.html", "data/sales.csv", "art/handle.png", "reports/q3.pdf",
+  ])), NOTHING_HELD)
+  expect([...first.documents.entries.keys()]).toEqual(["notes.md"])
+  expect([...first.heads.entries.keys()].sort()).toEqual([
+    "art/handle.png", "data/sales.csv", "house.olai", "notes.md", "report.html", "reports/q3.pdf",
   ])
-  expect(first.unread).toEqual(["report.html"])
-
-  // The same file, changed under a reader who has it open: the body reader
-  // publishes it, and the collection is told nothing in the meantime.
-  const second = publishedOf(
-    revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
-      { changed: ["report.html"] },
-      2,
-    ),
-    first,
-  )
-  expect(second.documents.upserts).toEqual([])
-  expect(second.unread).toEqual(["report.html"])
-  // The ENTRY is still there whichever half publishes it: `readAll` is what a
-  // fresh subscription reads, and a key missing from it is a file the sidebar
-  // stopped showing.
-  expect(second.documents.entries.get("report.html")).toEqual({
-    rev: 2,
-    text: null,
-    refused: false,
-  })
-
-  // A file that LEAVES is a remove like any other — nothing about a body the
-  // set does not keep changes what a departure is.
-  const gone = publishedOf(
-    revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]]),
-      { changed: [], removed: ["report.html"] },
-      3,
-    ),
-    second,
-  )
-  expect(gone.documents.removes).toEqual(["report.html"])
-  expect(gone.unread).toEqual([])
-})
-
-// …AND A BODY IS OWED ONLY WHERE THERE IS ONE TO READ. A picture and a `.pdf`
-// are bodied files the set keeps nothing of, exactly like a saved page, and
-// there is no text in either for this process to hand anybody: their pages
-// fetch the bytes themselves off `/media/`. So the KEY is announced — that is
-// what puts the file in the sidebar — and the path is not in `unread`, where
-// it would promise a body that, if a raw client ever held the key, would be
-// read off the disk and decoded as UTF-8. Which files those are is the
-// registry's `holds` column (`@olai/format`'s `textKind`), not a list here.
-test("a body is owed for the kinds this process can read, and no others", () => {
-  const born = publishedOf(
-    revision(
-      setOf({ "house.olai": HOUSE }, [
-        ["notes.md", "# hello"],
-        "report.html",
-        "data/sales.csv",
-        "art/handle.png",
-        "reports/q3.pdf",
-      ]),
-    ),
-    NOTHING_HELD,
-  )
-  // Every one of them is announced, so the sidebar lists all five.
-  expect(born.documents.upserts.map(([path]) => path)).toEqual([
-    "art/handle.png",
-    "data/sales.csv",
-    "notes.md",
-    "report.html",
-    "reports/q3.pdf",
-  ])
-  // …and exactly the ones whose body is TEXT are owed a read.
-  expect(born.unread).toEqual(["data/sales.csv", "report.html"])
+  const second = publishedOf(revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]]),
+    { changed: [], removed: ["report.html", "data/sales.csv", "art/handle.png", "reports/q3.pdf"] }, 2), first)
+  expect(second.documents.removes).toEqual([])
+  expect([...second.heads.removes].sort()).toEqual(["art/handle.png", "data/sales.csv", "report.html", "reports/q3.pdf"])
 })
 
 // ── the heads ──────────────────────────────────────────────────────────

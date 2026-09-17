@@ -1,3 +1,8 @@
+import { Landings } from "@olai/plugin-api"
+import { holdLandings } from "./landings.ts"
+/** Directory membership and folder preferences belong to files, independently
+ * of sidebar presentation. Content providers register creation controls. */
+import { holdKindDrawings } from "./drawings.ts"
 import { Edits, Wired } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
@@ -8,8 +13,6 @@ import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./shell.ts"
 import { DeleteFile } from "./file/DeleteFile.tsx"
 import { clearNewFileMemory,NewFile } from "./file/NewFile.tsx"
-/** Directory membership and folder preferences belong to files, independently
- * of sidebar presentation. Content providers register creation controls. */
 import { definePlugin,Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { navigation } from "olai-plugin-navigation/contract"
@@ -18,9 +21,12 @@ import { railEntries,regions } from "olai-plugin-sidebar/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Files } from "./Files.tsx"
 import { FileRail } from "./Rail.tsx"
-import { fileState,fileTypes } from "./contract.ts"
+import { fileState,fileTypes,fileKinds } from "./contract.ts"
 import { followFolders } from "./fold/folders.ts"
-export default definePlugin({name:"files", needs:[Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
+import { followReference } from "./fold/reference.ts"
+export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edits, fileAccess], apply:Effect.gen(function*(){
+    const landingTable = yield* Landings
+    yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
  // The served directory the tree is drawn from, held for this activation
  // (`./vault.ts`).
  const served = yield* fileAccess
@@ -39,6 +45,7 @@ export default definePlugin({name:"files", needs:[Wired, Offers, Edits, fileAcce
  // travel on `files.state` below rather than in a signal on a declared door.
  yield* Effect.acquireRelease(Effect.void,()=>Effect.sync(clearNewFileMemory))
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
+ yield* Effect.acquireRelease(Effect.sync(followReference), stop => Effect.sync(stop))
  yield* (yield* Offers).own("state",()=>({Delete:DeleteFile,New:NewFile}))
 })})
 export const components = {
@@ -50,8 +57,9 @@ export const components = {
  })}),
  sidebar: definePlugin({name:"sidebar", needs:[fileState,fileAccess, rendererSlots, navigation], apply:Effect.gen(function*(){
  const nav=yield* navigation, slots=yield* rendererSlots
+ yield* Effect.acquireRelease(Effect.sync(()=>holdKindDrawings(slots.read)),stop=>Effect.sync(stop))
  yield* slots.contribute(railEntries,FileRail)
- yield* slots.contribute(regions,{at:"files" as const,Body:props=><Files {...props} active={fileNamed(nav.route())??nav.focused()?.file} />},{children:[fileTypes]})
+ yield* slots.contribute(regions,{at:"files" as const,Body:props=><Files {...props} active={fileNamed(nav.route())??nav.focused()?.file} />},{children:[fileTypes,fileKinds]})
 })}) }
 
 export { surface } from "./surface.ts"

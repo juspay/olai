@@ -128,3 +128,28 @@ export const carry = async (
     .locator(awaiting)
     .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
 };
+
+/** A transcript grip or sidebar row uses the same pointer travel as a bullet. */
+export const carryPointer = async (world: OlaiWorld, from: At, to: At): Promise<void> => {
+  await world.page.mouse.move(from.x, from.y);
+  await world.page.mouse.down();
+  await world.page.mouse.move(to.x, to.y, { steps: 12 });
+};
+
+/** Keep a held pointer at the edge until a distant destination comes on screen. */
+export const aimAtVisible = async (world: OlaiWorld, target: Locator): Promise<void> => {
+  const viewport = world.viewport();
+  const box = await world.box(target, "carry destination");
+  const center = box.y + box.height / 2;
+  if (center < 100 || center > viewport.height - 60) {
+    await world.page.mouse.move(box.x + box.width / 2, center < 100 ? 4 : viewport.height - 4, { steps: 12 });
+    await world.waitUntil(async () => {
+      const current = await target.boundingBox();
+      if (!current) return false;
+      const y = current.y + current.height / 2;
+      return y >= 100 && y <= viewport.height - 60;
+    }, "edge scrolling to reveal the carry destination");
+  }
+  const visible = await world.box(target, "visible carry destination");
+  await world.page.mouse.move(visible.x + visible.width / 2, visible.y + visible.height / 2, { steps: 12 });
+};

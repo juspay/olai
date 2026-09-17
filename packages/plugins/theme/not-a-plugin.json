@@ -1,0 +1,11 @@
+{
+  "image": [
+    "src/chrome.ts"
+  ],
+  "preferences": [
+    "src/browser.tsx"
+  ],
+  "web-app": [
+    "src/chrome.ts"
+  ]
+}

@@ -8,7 +8,7 @@
  * the BIJECTION (`../routes.ts`), which is why a title that merely begins with
  * a slash reads as text.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { addressOf } from "@olai/format"
@@ -199,7 +199,7 @@ test("nothing to say, said the same way three times", () => {
 test("a landed row page is named by its file — the request the table answered held no row", () => {
   expect(requestFor(routeOf("/house.olai#install"))).toEqual({
     kind: "at",
-    address: addressOf("house.olai", null),
+    address: addressOf(TEST_CLAIMS, "house.olai", null),
   })
   expect(nameOf(routeOf("/house.olai#install"), undefined)).toBe("house.olai")
 })
@@ -208,6 +208,6 @@ test("a landed row page is named by its file — the request the table answered 
 // spelling, which `namesFor`'s pin half reliably asks about — the row arm
 // answers the node's live name, the same answer the bare spelling draws.
 test("the qualified spelling of a node answers the node's own live name", () => {
-  expect(shownIn(named("the herb bed"), atElement("garden.olai", "herbs"))).toBe("the herb bed")
+  expect(shownIn(named("the herb bed"), atElement(TEST_CLAIMS, "garden.olai", "herbs"))).toBe("the herb bed")
   expect(nameOf(routeOf("/garden.olai#herbs"), "the herb bed")).toBe("the herb bed")
 })

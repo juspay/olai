@@ -30,9 +30,9 @@
  */
 
 import type { ChatState } from "olai-plugin-chat/wire"
-import type { Notice } from "../../notify.ts"
+import type { Notice } from "olai-plugin-alerts/contract"
 import type { Asked } from "./asked.ts"
-import { previewText } from "../last.ts"
+import { previewText } from "../preview-text.ts"
 
 /** How much of the question's first line a banner is given. Two lines of a
  *  notification on every platform that draws one; past this the OS truncates
@@ -53,7 +53,7 @@ const UNNAMED = "olai"
  * there are no words at all.
  *
  * `openingLine` and NOT `firstLine`, which `@olai/format` already exports and
- * this client already draws documents with (`document/DocRef.tsx`): that one
+ * this client already draws documents with (the document body renderer): that one
  * strips frontmatter and heading marks and answers `""`, so two of the name in
  * one client is a name a reader resolves wrongly.
  *

@@ -1,11 +1,10 @@
+/** An instant with nothing round about it, so a stamp of it is legible in a
+ *  failure whatever zone the suite is running in. */
 import { expect, test } from "bun:test"
 
 import { dayOf } from "./occasion.ts"
 import { inZone, outlineOf, STAMP_SHAPE } from "./fixtures.testlib.ts"
 import { offsetOf, stampOf } from "./stamp.ts"
-
-/** An instant with nothing round about it, so a stamp of it is legible in a
- *  failure whatever zone the suite is running in. */
 const AT = new Date("2026-08-11T19:40:03Z")
 
 // ── the offset ─────────────────────────────────────────────────────────

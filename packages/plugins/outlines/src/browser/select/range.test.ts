@@ -1,12 +1,11 @@
-import type { Row } from "@olai/format"
-import { expect, test } from "bun:test"
-
-import { alongside, inside, parentKeyOf, spanning, topmost } from "./range.ts"
-
 /** A drawn row, as far as a selection is concerned: the place it sits in. Built
  *  by hand for the reason `../edit/order.test.ts` builds its own — what is
  *  under test is arithmetic over places, and `@olai/format` has its own suite
  *  for producing them. */
+import type { Row } from "@olai/format"
+import { expect, test } from "bun:test"
+
+import { alongside, inside, parentKeyOf, spanning, topmost } from "./range.ts"
 const row = (key: string): Row =>
   ({
     kind: "node",

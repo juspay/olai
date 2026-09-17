@@ -1,0 +1,90 @@
+@codex @scratch:chat
+Feature: Messages sent while Codex works steer its current turn
+  The Codex fixture advertises steering without a prompt queue and rejects
+  overlapping ordinary prompts. Mid-turn delivery must use steering.
+
+  Background:
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "house.olai"
+    And I open the "codex" agent on node "kitchen"
+    And the node agent's fold is ready
+
+  Scenario Outline: Normal sends reach the running turn and its busy indicators clear
+    When I ask the agent "hold"
+    Then the chat shows a running tool call
+    When I ask the agent "second message"
+    Then the agent's answer mentions "steered mid-turn: second message"
+    When I ask the agent "third message"
+    Then the agent's answer mentions "steered mid-turn: third message"
+    And the agent is working
+    And the header says the agent is working
+    When <ending>
+    Then the agent is idle
+    And the header has stopped saying the agent is working
+    And the panel does not say it is busy
+    When I ask the agent "hello"
+    Then the agent's answer mentions "hello"
+    And the agent is idle
+
+    Examples:
+      | ending                |
+      | the agent is released |
+      | I cancel the turn     |
+
+  Scenario: A refused steer keeps the message available for retry
+    When I ask the agent "refuse steering"
+    Then the agent is idle
+    When I ask the agent "hold"
+    Then the agent is working
+    When I ask the agent "done order"
+    Then the chat shows my message "done order" as "refused"
+    And node "order" is not done
+    When the agent is released
+    Then the agent is idle
+    When I send the undelivered message again
+    Then node "order" is done
+    And the agent is idle
+
+  Scenario: A steer arriving after completion starts a tracked normal turn
+    When I ask the agent "slow steering"
+    Then the agent is idle
+    When I ask the agent "slow"
+    Then the agent is working
+    When I ask the agent "done order"
+    And the agent is released
+    Then node "order" is done
+    And the agent is idle
+    And the header has stopped saying the agent is working
+    And the panel does not say it is busy
+
+  Scenario: Cancelling while a steer is in flight does not start another turn
+    When I ask the agent "slow steering"
+    Then the agent is idle
+    When I ask the agent "slow"
+    Then the agent is working
+    When I ask the agent "done order"
+    And I cancel the turn
+    Then the chat shows my message "done order" as "refused"
+    And the agent is idle
+    And node "order" is not done
+    And the panel does not say it is busy
+
+  Scenario: Codex's olai write has its title, outline, clickable story and one reply
+    When I ask the agent "done order"
+    Then the chat shows a tool call named "Mark done"
+    And the tool call says which outline it touched
+    And the chat says the write "marked done"
+    When I press the node "order" in the write
+    Then the node "order" is focused
+    When I unfold the tool call
+    Then the tool call is called "mcp.olai.outlines_done" underneath
+    And the tool call's reply is shown once
+
+  Scenario: Codex's olai read has a title and outline with no write story
+    When I drop row "order" into the conversation
+    And I ask the agent "context"
+    Then the chat shows a completed tool call
+    And the chat shows a tool call named "Read a node"
+    And the tool call says which outline it touched
+    And the chat shows no story under the call

@@ -1,8 +1,3 @@
-import { describe, expect, test } from "bun:test"
-
-import { AA, contrastRatio, relativeLuminance } from "./contrast.ts"
-import { PALETTES, type PaletteToken } from "./palettes.ts"
-
 /** The pairs this client actually paints — a foreground, and the background it
  *  lands on. Not every pair the eleven tokens could make: `muted` is never read
  *  on `rule`, and holding a palette to a combination no component draws would
@@ -13,6 +8,10 @@ import { PALETTES, type PaletteToken } from "./palettes.ts"
  *  badge on its pill; `text-paper` on the day being read (`bg-ink`); `text-ink`
  *  over the surface a row lights up with (`hover:bg-rule`). It is a claim
  *  about the components, so it lives here rather than with the arithmetic. */
+import { describe, expect, test } from "bun:test"
+
+import { AA, contrastRatio, relativeLuminance } from "./contrast.ts"
+import { PALETTES, type PaletteToken } from "./palettes.ts"
 const PAINTED: ReadonlyArray<readonly [PaletteToken, PaletteToken]> = [
   ["ink", "paper"],
   ["muted", "paper"],

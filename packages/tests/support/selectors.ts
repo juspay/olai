@@ -32,14 +32,9 @@
  * from its own caller: the name is never text a reader typed, and the thing
  * being escaped is the VALUE.
  *
- * `match` is the CSS attribute MATCHER, and the escaping is the same whichever
- * one it is — the value sits inside the same quoted string either way. Two of
- * the six exist here because two are used: plain equality, and `~=`, the
- * space-separated token match a step needs when the attribute lists several
- * things and the question is whether one of them is among them
- * (`data-blocked`). A union rather than a `string` so a typo is a type error
- * rather than a selector that matches nothing; the other four are absent for
- * this repository's usual reason, which is that nothing asks for them yet.
+ * `match` is the CSS attribute matcher: equality, a space-separated token,
+ * or a prefix (a filed agent's title and engine before its changing standing).
+ * Values share the same quoting for all three.
  *
  * A MODULE OF ITS OWN rather than a function in `./world.ts`, where the rest of
  * the selector vocabulary lives and where every caller still reaches it — the
@@ -49,7 +44,7 @@
  * invalid-installation error for its trouble. A rule with an edge in it that
  * can only be checked by driving a browser is a rule nobody checks, so the edge
  * is held next door in `../selectors.test.ts` and the browser's agreement is
- * held by a scenario (`features/it_stays_live.feature`, the outline whose file
+ * held by a scenario (`packages/plugins/vault/e2e/features/it_stays_live.feature`, the outline whose file
  * name carries a quote).
  *
  * FOUR SELECTORS IN THIS SUITE ARE NOT BUILT HERE, and each says so where it
@@ -61,7 +56,7 @@
  * over, and stays as it is for the same reason: its argument is a union of
  * kebab-case literals the type checker enforces, not text a reader typed.
  */
-export type Match = "=" | "~=";
+export type Match = "=" | "~=" | "^=";
 
 export const attr = (name: string, value: string, match: Match = "="): string =>
   `[${name}${match}"${

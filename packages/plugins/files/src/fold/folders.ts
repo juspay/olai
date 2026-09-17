@@ -1,5 +1,5 @@
 /**
- * Which folders of the directory this browser is keeping OPEN.
+ * Which folders this browser is keeping OPEN.
  *
  * The same memory as the outline tree's (./memory.ts) and the same doctrine —
  * a preference of this browser, never a byte on disk — with the set INVERTED,
@@ -65,6 +65,5 @@ export const toggleFolder = (path: string, live: ReadonlySet<string>): void => {
   pref.set(prunedFolders(next, live))
 }
 
-/** Follow it for as long as this document lives — a folder opened in another
- *  tab lands here, exactly as a fold does. */
-export const followFolders = (): (()=>void) => pref.follow()
+/** Follow folder preferences for this activation. */
+export const followFolders = pref.follow

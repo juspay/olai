@@ -24,5 +24,6 @@
     "effect": "4.0.0-rc.112",
     "@olai/plugin-api": "workspace:*",
     "@olai/store": "workspace:*"
-  }
+  },
+  "devDependencies": {}
 }

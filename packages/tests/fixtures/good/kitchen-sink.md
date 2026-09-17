@@ -9,7 +9,7 @@ the same size.
 
 It is also what the RHYTHM is checked against. The type and spacing scales are
 declared in `packages/web/src/client/theme/scale.ts`, the stylesheet is
-generated from them, and `features/documents.feature` walks every element of
+generated from them, and `packages/plugins/markdown/e2e/features/documents.feature` walks every element of
 this page — and of a note carrying the same surface — asserting each computed
 size, gap, pad and border is a value from those sets. So a drive-by `margin:
 6px` goes red here rather than going unnoticed. What no test can judge is
@@ -112,7 +112,6 @@ just serve /some/directory/of/outlines --port 7714 --host 127.0.0.1 && echo "tha
 | `id` | yes | unique across the loaded set | survives renames and moves |
 | `ord` | yes | fractional index, base62 | an insert, never a renumbering |
 | `desc` | no | the note, as markdown | interpreted only at view time |
-| `doc` | no | a relative `.md` beside the outline | validated on load |
 | `after` | no | edges, acyclic | counting normalized `blocks` |
 
 A table with a long cell, which is the case that decides whether a table may
@@ -120,7 +119,7 @@ overflow its column:
 
 | what | where |
 |---|---|
-| a rule that only exists so the view and the validator cannot disagree about what a relative picture resolves against, spelled once as `docOf` | `packages/format/src/documents.ts` |
+| a rule that only exists so the view and the validator cannot disagree about what a relative picture resolves against, spelled once as `pathedOf` | `packages/format/src/documents.ts` |
 | short | `here.ts` |
 
 ## Lists

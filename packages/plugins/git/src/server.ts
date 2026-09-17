@@ -27,12 +27,14 @@ import {
   detached,
   Ledger,
   Offers,
+  Ops,
   Surfaces,
   Vault,
   VaultViews,
 } from "@olai/plugin-api/services"
 import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
+import type { Ops as Gate } from "@olai/ops"
 import { type Committing, make } from "./ledger/pending.ts"
 import { faces, name, surface } from "./wire.ts"
 /** THIS ROW'S AGENT VERBS ({@link ./tools.ts}), handed to the host beside its
@@ -67,19 +69,21 @@ interface VaultRevision {
 
 export default definePlugin({
   name,
-  needs: [Offers, Surfaces, Vault, VaultViews],
+  needs: [Offers, Surfaces, Vault, VaultViews, Ops],
   config: Config,
   apply: (config: Config) =>
     Effect.gen(function*() {
     const offers = yield* Offers
     const surfaces = yield* Surfaces
     const vault = yield* Vault
+    const ops = (yield* Ops).gate as Gate
     const detach = yield* detached
 
     let at: Reading | null = null
     let mine: Ctx | undefined
     const settled = yield* SubscriptionRef.make(0)
     const commits: Committing = make({
+      ops,
       root: vault.served,
       at: Effect.sync(() => at),
       policy: config,

@@ -17,7 +17,7 @@
  * what an awkward set looks like — written by somebody who had not met the
  * corners the first one was grown against. What that file adds instead is the
  * dimension this one has no reason to carry: the DOCUMENTS beside the outlines,
- * which the patcher does not read and the validator's `doc` rule does.
+ * which the patcher does not read and the validator's declared-document rule does.
  *
  * The functions here take their randomness as a parameter
  * ({@link ./fixtures.testlib.ts}'s `seeded`), so a caller owns its own stream

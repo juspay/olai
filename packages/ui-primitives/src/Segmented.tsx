@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/ui-primitives/testids.ts"
 /**
  * A choice between two or three named things, drawn as one strip.
  *
@@ -22,7 +21,7 @@ import { TESTID } from "@olai/ui-primitives/testids.ts"
  * (`./Row.tsx`). Never HIDDEN: a policy a reader cannot see is one they cannot
  * ask anybody about.
  */
-
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 import { For } from "solid-js"
 
 

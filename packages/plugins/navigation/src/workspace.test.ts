@@ -8,7 +8,7 @@
  * package names a plugin, and the boot package spelled this one twice for a
  * claim it does not own.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import type { Route } from "./routes.ts"
@@ -36,6 +36,7 @@ import {
   panesOf,
   reorder,
   resizeTo,
+  savedLayout,
   splitOf,
   workspaceOf,
   WORKSPACE_PREFIX,
@@ -45,7 +46,7 @@ const house: Route = atFile("house.olai")
 const kitchen: Route = atNode("kitchen")
 const garden: Route = atFile("garden.olai")
 const trash: Route = { kind: "trash" }
-const doc: Route = atElement("notes/finishes.md", "beds")
+const doc: Route = atElement(TEST_CLAIMS, "notes/finishes.md", "beds")
 const filtered: Route = { ...atFile("house.olai"), filter: "is:done" }
 
 test("a lone page is exactly the address it always was", () => {
@@ -301,4 +302,40 @@ test("a one-level column is a=col, not a tree", () => {
   const back = workspaceOf(routes, href)
   expect(back.layout.kind).toBe("split")
   if (back.layout.kind === "split") expect(back.layout.axis).toBe("col")
+})
+
+
+test("layout addresses round trip pages, stripping widths, focus, axis and nesting", () => {
+  for (const address of [
+    "/s/house.olai/%23kitchen",
+    "/s/house.olai/%23kitchen?w=20,80&f=1",
+    "/s/house.olai/%23kitchen?a=col&w=0,100&f=1",
+    "/s/house.olai/%23kitchen?t=row(leaf,col(leaf))&w=30,(70)&f=1",
+    "/s/house.olai%3Fq%3Dis%253Atodo/%23missing",
+  ]) {
+    const parsed = routes.layoutIn(address)!
+    const href = routes.layoutHref(parsed)
+    expect(href).not.toContain("?")
+    const normalized = savedLayout(parsed)
+    expect(savedLayout(normalized)).toEqual(normalized)
+    const saved = routes.layoutIn(href)!
+    expect(saved).toEqual(normalized)
+    expect(panesOf(saved).map(({route}) => route)).toEqual(panesOf(parsed).map(({route}) => route))
+    expect(saved.focus).toBe(0)
+    expect(panesOf(saved).every(({width}) => width === undefined)).toBe(true)
+    expect(routes.layoutHref(saved)).toBe(href)
+  }
+  expect(routes.layoutIn("/house.olai")).toBeNull()
+  expect(routes.layoutIn("/#kitchen")).toBeNull()
+  expect(routes.layoutIn(routes.layoutHref(lone(house)))).not.toBeNull()
+})
+
+
+test("page routing and workspace segments still resolve files in s/", () => {
+  const file = atFile("s/notes.olai")
+  expect(routes.routeIn("/s/notes.olai")).toEqual(file)
+  expect(routes.routeOf("/s/notes.olai")).toEqual(file)
+  const workspace = routes.layoutIn("/s/s%2Fnotes.olai/house.olai")!
+  expect(panesOf(workspace).map(pane => pane.route)).toEqual([file, house])
+  expect(routes.layoutHref(workspace)).toBe("/s/s%2Fnotes.olai/house.olai")
 })

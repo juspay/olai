@@ -31,5 +31,8 @@
       "./slots",
       "./testids"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
   }
 }

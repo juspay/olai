@@ -1,3 +1,5 @@
+import { Grip, textCarry } from "./Grip.tsx"
+import { servedDirectory } from "../vault.ts"
 /**
  * An outline the agent rewrote with its own tools — drawn as nodes, never as
  * lines.
@@ -26,8 +28,8 @@ import { GLYPH, SAID } from "olai-plugin-outlines/changes"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
-import { isUnfolded, toggleFold } from "./folds.ts"
-import { outlineDiffOf } from "./outline.ts"
+import { useConversationUI } from "./ui.tsx"
+import { createOutlineDiff } from "./outline.ts"
 
 /** How many node rows a trimmed outline change shows. The text diff's number,
  *  because it is the same promise about the same panel. */
@@ -43,29 +45,35 @@ export function OutlineDiff(props: {
   readonly id: string
   readonly diff: FileDiff
 }) {
-  const read = createMemo(() => outlineDiffOf(props.diff))
+  const { isUnfolded, toggleFold } = useConversationUI().folds
+  const { read, line } = createOutlineDiff(servedDirectory, () => props.diff)
   const changes = createMemo(() => {
     const answer = read()
-    return answer._tag === "Changes" ? answer.changes : []
+    return answer?._tag === "Changes" ? answer.changes : []
   })
   /** Which side would not parse, or `null` when both did. */
   const unreadable = createMemo(() => {
     const answer = read()
-    return answer._tag === "Unreadable" ? answer.side : null
+    return answer?._tag === "Unreadable" ? answer.side : null
   })
   const open = createMemo(() => isUnfolded(props.id))
   const more = () => Math.max(0, changes().length - TRIMMED)
   const shown = createMemo(() => (open() ? changes() : changes().slice(0, TRIMMED)))
 
+  const words = () => changes().length ? [props.diff.path, ...changes().map(change => `${change.title} ${SAID[change.sort]}`)].join("\n") : null
+  const carry = textCarry(words)
+
   return (
     <div
+      onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
       class="mt-1 overflow-hidden rounded border border-rule"
       data-testid={TESTID.chatOutlineDiff}
       data-path={props.diff.path}
       data-expanded={open()}
     >
-      <p class="flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
-        <span class="min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
+      <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
+        <Grip text={words()} carry={carry} />
+        <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
         </span>
         <Show when={props.diff.oldText === null}>
@@ -73,6 +81,11 @@ export function OutlineDiff(props: {
         </Show>
       </p>
 
+      <Show when={read() !== undefined} fallback={
+        <p class="px-2 py-1 text-xs text-muted" data-testid={TESTID.chatOutlineUnreadable}>
+          {line()}
+        </p>
+      }>
       <Show
         when={unreadable() === null}
         fallback={
@@ -115,7 +128,7 @@ export function OutlineDiff(props: {
                       that names an address is spelled as written here, the
                       same contract a search row keeps (`../search/row.ts`). */}
                   <span class="min-w-0 truncate text-ink">
-                    <TitleHtml drawing={renderTitle(change.title, change.file)} />
+                    <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
                   </span>
                   <span class="ml-auto shrink-0 text-muted">{SAID[change.sort]}</span>
                 </li>
@@ -125,6 +138,7 @@ export function OutlineDiff(props: {
         </Show>
       </Show>
 
+      </Show>
       <Show when={more() > 0}>
         <button
           type="button"

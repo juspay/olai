@@ -16,10 +16,9 @@
  * late settings door expresses that dependency without making apply wait for
  * work that mountBundle must precede. Tenants wait on our offers in turn.
  *
- * The format is row config, not a choice hidden in directory acquisition.
- * Config validates the selected codec before any resource is acquired. Only
- * olai is supported today; an Org implementation belongs at that selection
- * seam, while replacing the store itself would mean another Directory provider.
+ * The format is row config: the row id used to mint new outlines. Files
+ * already present are decoded by their own claims. An absent minting row
+ * refuses a create without preventing the vault from serving other files.
  *
  * The gate is acquired after the store and on this same scope. It owns its
  * caches and count of accepted writes. Scope teardown withdraws the offers and
@@ -39,6 +38,7 @@
  * revision after a newer one. These are registrations and lifetimes we can undo;
  * a write already accepted is an emission and must finish, not be rolled back.
  */
+import { codecFor } from "@olai/ops"
 import { definePlugin } from "@olai/plugin-api"
 import { Directory, Kinds, Offers, Ops, opsEvents, Vault, VaultSettings, vaultEvents } from "@olai/plugin-api/services"
 import { make as makeOps, type VaultSettings as Settings } from "@olai/ops"
@@ -46,7 +46,7 @@ import { NodeServices } from "@effect/platform-node"
 import { Deferred, Effect, Stream } from "effect"
 import { opsDoor } from "./ops-door.ts"
 import { openDirectory } from "./directory.ts"
-import { codecs, Config } from "./format.ts"
+import { Config } from "./format.ts"
 
 import { name } from "./index.ts"
 export { name } from "./index.ts"
@@ -59,12 +59,15 @@ export default definePlugin({
   apply: (config: Config) => Effect.gen(function*() {
     const settings = (yield* VaultSettings) as Settings
     const offers = yield* Offers
-    const directory = yield* openDirectory(settings.root, codecs[config.format](settings.kinds), settings.runtime)
+    yield* offers.own("outline-row", () => config.format)
+    const directory = yield* openDirectory(settings.root, codecFor(settings.kinds, settings.claims), settings.runtime)
     const refusals = opsEvents()
     const gate = yield* Effect.acquireRelease(
       Effect.sync(() => makeOps({
         ...directory,
         kinds: settings.kinds,
+        claims: settings.claims,
+        format: config.format,
         ledger: settings.ledger,
         search: settings.search,
         onRefusal: (request, failure, writer) => refusals.tell({ op: request.op, failure, writer }),

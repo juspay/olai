@@ -47,7 +47,7 @@
  * imported — the server does not depend on the client, deliberately — so what
  * checks it still agrees is the browser test that compares it against the
  * paper an unpicked page actually paints
- * (`packages/tests/features/theming.feature`).
+ * (`packages/plugins/theme/e2e/features/theming.feature`).
  */
 
 import type { ManifestOptions } from "@kolu/surface-app/server"

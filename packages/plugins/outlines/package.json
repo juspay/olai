@@ -23,7 +23,8 @@
     "./slots": "./src/slots.ts",
     "./testids": "./src/testids.ts",
     "./wire": "./src/wire.ts",
-    "./projection": "./src/projection.ts"
+    "./projection": "./src/projection.ts",
+    "./carry": "./src/carry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -53,7 +54,8 @@
     "olai-plugin-markdown": "workspace:*",
     "olai-plugin-pins": "workspace:*",
     "olai-plugin-trash": "workspace:*",
-    "olai-plugin-search": "workspace:*"
+    "olai-plugin-search": "workspace:*",
+    "olai-plugin-chat": "workspace:*"
   },
   "olai": {
     "contracts": [
@@ -69,7 +71,11 @@
       "./slots",
       "./testids",
       "./surface",
-      "./wire"
+      "./wire",
+      "./carry"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
   }
 }

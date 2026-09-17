@@ -1,6 +1,3 @@
-import type {} from "./slots.ts"
-import { createMemo, For } from "solid-js"
-import { hung } from "./faces.ts"
 /**
  * THE SIDEBAR'S PLUGIN SECTIONS, under the app's own.
  *
@@ -23,6 +20,9 @@ import { hung } from "./faces.ts"
  * So `said` is the section's NAME rather than its heading: what the app has to
  * say whose a section is, in a `data-plugin` a scenario can find it by.
  */
+import type {} from "./slots.ts"
+import { createMemo, For } from "solid-js"
+import { hung } from "./faces.ts"
 export function PluginSections() {
   const sections = createMemo(() => hung("sidebar.section"))
   return (

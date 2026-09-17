@@ -1,6 +1,13 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  deadLink: "dead-link",
+  outlineLink: "outline-link",
+
+
+  outlinesStory: "outlines-story",
+  outlinesNudge: "outlines-nudge",
+  outlinesStoryRef: "outlines-story-ref",
   outlineTree: "outline-tree",
   node: "node",
   nodeTitle: "node-title",
@@ -8,6 +15,8 @@ export const TESTID = {
   date: "date",
   datePicker: "date-picker",
   datePickerDay: "date-picker-day",
+  datePickerTime: "date-picker-time",
+  datePickerNoTime: "date-picker-no-time",
   datePickerSet: "date-picker-set",
   datePickerCancel: "date-picker-cancel",
   datePickerNotice: "date-picker-notice",

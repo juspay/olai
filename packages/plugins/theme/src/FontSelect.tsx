@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-theme/testids"
 /**
  * The named typefaces, as a select: every option is a face, and picking one
  * puts it in force.
@@ -17,7 +16,7 @@ import { TESTID } from "olai-plugin-theme/testids"
  * Persistence, the storage event and the boot script are untouched by any of
  * that: this file only draws.
  */
-
+import { TESTID } from "olai-plugin-theme/testids"
 import { For } from "solid-js"
 
 import { FONT_GROUPS, typefaceNamed } from "@olai/fonts"

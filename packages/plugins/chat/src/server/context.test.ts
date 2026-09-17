@@ -120,6 +120,7 @@ test("an archived node resolves, with the archive it is in as its file", () => {
       id: "tiles",
       title: "the tiles nobody liked",
       file: "_olai/Trash.olai",
+      trashed: true,
       line: 1,
       path: [],
     },

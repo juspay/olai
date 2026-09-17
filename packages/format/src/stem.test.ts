@@ -46,11 +46,13 @@
  * exactly the moment the claim matters.
  */
 
+const OUTLINE_EXT = mintExt(TEST_CLAIMS, "outline-olai")!
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
 import type { NodeChange } from "./changes.ts"
 import { noteDateOf } from "./dates.ts"
-import { bareOf, OUTLINE_EXT, stemOf } from "./kinds.ts"
+import { bareOf, mintExt, stemOf } from "./kinds.ts"
 import { composed } from "./message.ts"
 
 /** `./message.ts`'s retired private `stemOf`: the basename, and the suffix taken
@@ -151,7 +153,7 @@ describe("the two suffix rules", () => {
 describe("the one rule they became", () => {
   test("is both of them on an outline, which is where they already agreed", () => {
     for (const [path, stem] of AGREE) {
-      expect(stemOf(path), path).toBe(stem)
+      expect(stemOf(TEST_CLAIMS, path), path).toBe(stem)
     }
   })
 
@@ -160,7 +162,7 @@ describe("the one rule they became", () => {
   // reading nobody had. Which one it is, is the row.
   test("and takes the side of whichever was right about the file, on every other", () => {
     for (const [path, spelled, found, unified] of DIVERGE) {
-      expect(stemOf(path), path).toBe(unified)
+      expect(stemOf(TEST_CLAIMS, path), path).toBe(unified)
       expect(
         unified === spelled || unified === found,
         `${path}: the merged rule invented an answer neither rule gave`,
@@ -186,7 +188,7 @@ describe("what each caller actually passes", () => {
       fields: [],
       sort: "done",
     }
-    expect(composed([change]).split("\n")[0]).toBe(
+    expect(composed(TEST_CLAIMS, [change]).split("\n")[0]).toBe(
       "olai: 1 edit to roadmap — a node done",
     )
   })
@@ -196,15 +198,15 @@ describe("what each caller actually passes", () => {
   // `DIVERGE`, where the rule that finds the dot is the one that is right. The
   // boundary cases are the ones a rewrite would break first.
   test("a daily note is read off a document, dots inside the name and all", () => {
-    expect(noteDateOf("2026-08-11.md")).toBe("2026-08-11")
-    expect(noteDateOf("Daily/2026/08/2026-08-12.md")).toBe("2026-08-12")
+    expect(noteDateOf(TEST_CLAIMS, "2026-08-11.md")).toBe("2026-08-11")
+    expect(noteDateOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md")).toBe("2026-08-12")
     // A name that is not a bare day, however many dots it carries.
-    expect(noteDateOf("notes.v2.md")).toBeNull()
+    expect(noteDateOf(TEST_CLAIMS, "notes.v2.md")).toBeNull()
     // And nothing that is not a document is asked at all — the guard, not the
     // stripping, is what answers for these.
-    expect(noteDateOf("2026-08-11.olai")).toBeNull()
-    expect(noteDateOf("2026-08-11.html")).toBeNull()
-    expect(noteDateOf("2026-08-11")).toBeNull()
+    expect(noteDateOf(TEST_CLAIMS, "2026-08-11.olai")).toBeNull()
+    expect(noteDateOf(TEST_CLAIMS, "2026-08-11.html")).toBeNull()
+    expect(noteDateOf(TEST_CLAIMS, "2026-08-11")).toBeNull()
   })
 })
 
@@ -219,23 +221,23 @@ describe("what each caller actually passes", () => {
  */
 describe("the suffix off a path, and the same off a name", () => {
   test("bareOf keeps every directory above the file", () => {
-    expect(bareOf("notes/plan.md")).toBe("notes/plan")
-    expect(bareOf("Daily/2026/08/2026-08-12.md")).toBe("Daily/2026/08/2026-08-12")
-    expect(bareOf("plan.olai")).toBe("plan")
-    expect(bareOf("report.html")).toBe("report")
+    expect(bareOf(TEST_CLAIMS, "notes/plan.md")).toBe("notes/plan")
+    expect(bareOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md")).toBe("Daily/2026/08/2026-08-12")
+    expect(bareOf(TEST_CLAIMS, "plan.olai")).toBe("plan")
+    expect(bareOf(TEST_CLAIMS, "report.html")).toBe("report")
     // A kind with several spellings takes off THE ONE THAT CLAIMED THE FILE,
     // which is the whole reason the walk answers with the suffix it matched
     // rather than only with the kind.
-    expect(bareOf("art/handle.png")).toBe("art/handle")
-    expect(bareOf("art/diagram.svg")).toBe("art/diagram")
+    expect(bareOf(TEST_CLAIMS, "art/handle.png")).toBe("art/handle")
+    expect(bareOf(TEST_CLAIMS, "art/diagram.svg")).toBe("art/diagram")
   })
 
   // Same rule about the END of the name: a suffix the registry does not claim
   // is part of the name, so nothing comes off at all.
   test("a file no kind claims is handed back whole, path and all", () => {
-    expect(bareOf("notes/README")).toBe("notes/README")
-    expect(bareOf("plan v1.2")).toBe("plan v1.2")
-    expect(bareOf("data/rows.tsv")).toBe("data/rows.tsv")
+    expect(bareOf(TEST_CLAIMS, "notes/README")).toBe("notes/README")
+    expect(bareOf(TEST_CLAIMS, "plan v1.2")).toBe("plan v1.2")
+    expect(bareOf(TEST_CLAIMS, "data/rows.tsv")).toBe("data/rows.tsv")
   })
 
   // The one relationship worth pinning, because it is what makes them one rule:
@@ -243,9 +245,9 @@ describe("the suffix off a path, and the same off a name", () => {
   // different number of characters off one name.
   test("a stem is this answer over the basename", () => {
     for (const path of ["notes/plan.md", "a/b/c.olai", "README", "x/y/plan v1.2", "r.html"]) {
-      expect({ path, stem: stemOf(path) }).toEqual({
+      expect({ path, stem: stemOf(TEST_CLAIMS, path) }).toEqual({
         path,
-        stem: bareOf(path.slice(path.lastIndexOf("/") + 1)),
+        stem: bareOf(TEST_CLAIMS, path.slice(path.lastIndexOf("/") + 1)),
       })
     }
   })

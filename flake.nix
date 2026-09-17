@@ -55,19 +55,27 @@
       packages = eachSystem ({ pkgs, b2n }:
         let
           olai = import ./default.nix { inherit pkgs b2n rev; };
-          # Per-system now: `nix/kolu.nix` takes a `pkgs`, because kolu's
+          bundle = olai.bundle;
           # `consumer.nix` builds the source copies rather than handing back a
-          # list for an overlay to build.
-          kolu = import ./nix/kolu.nix { inherit pkgs; };
+          # list for an overlay to build. `bundle` is the fold the default.nix
+          # above already composed; flake outputs read it once so two plugins
+          # (or a plugin and a root output) cannot collide.
+          overlap = builtins.attrNames
+            (builtins.intersectAttrs bundle.packages
+              { inherit (olai) olai olai-client olai-fonts base; });
+          clash = if overlap != [ ] then throw "flake packages: a plugin declares an output the root already names: ${builtins.concatStringsSep ", " overlap}" else null;
         in
-        kolu.packages // {
-          inherit (olai) olai olai-client olai-fonts kolu-mark odu-mark acp-agent codex-agent odu-bin;
-          odu = olai.odu-bin;
+        builtins.seq clash (bundle.packages // {
+          inherit (olai) olai olai-client olai-fonts base;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
           # lockfile-derived nix expression (`just regenerate-bun-nix`).
           bun2nix = b2n;
-        });
+          # The dev loop's generic env snippet, `export VAR="${VAR-default}"`
+          # over every declared knob; `serve`, `run` and `dev-bin` source it
+          # rather than hand-copying a plugin's lines.
+          plugin-env = bundle.devEnv;
+        }));
 
       # Two shells, and the second is the first plus browsers. Playwright's
       # browser set is ~600ms of cold `nix develop` that every non-e2e leg
@@ -97,11 +105,21 @@
       # Pure evaluation of the module under stubbed home-manager options —
       # systemd argv on Linux, launchd argv on Darwin. Wired into `just check`
       # as the `hm-module` recipe; not a full activation test.
-      checks = eachSystem ({ pkgs, ... }: {
-        hm-module = import ./nix/home/check.nix {
-          inherit pkgs;
-          module = ./nix/home/module.nix;
-        };
-      });
+      checks = eachSystem ({ pkgs, b2n }:
+        let
+          olai = import ./default.nix { inherit pkgs b2n rev; };
+          bundle = olai.bundle;
+        in
+        {
+          hm-module = import ./nix/home/check.nix {
+            inherit pkgs;
+            module = ./nix/home/module.nix;
+          };
+          # The registry fold's contract/collision refusals over fixture
+          # containers, asserted at eval time by packages/bundle/nix/fold-check.nix.
+          plugin-fold = import ./packages/bundle/nix/fold-check.nix {
+            inherit pkgs;
+          };
+        } // bundle.checks { tree = olai.base; });
     };
 }

@@ -5,7 +5,7 @@
  * A sentence rather than a layout, which is why this is a `bun test` and not a
  * scenario: what a browser adds is that the numbers are the ANSWER's own and
  * that the line is drawn where a reader looks, and both doors have a scenario
- * for that (`packages/tests/features/a_shortlist_says_its_total.feature`).
+ * for that (`packages/plugins/search/e2e/features/a_shortlist_says_its_total.feature`).
  * What is pinned HERE is the English — and, above all, the silence: a door that
  * drew everything it found says nothing, because "8 of 8" is a number somebody
  * has to read before they can ignore it (`../filter/count.ts` makes the same

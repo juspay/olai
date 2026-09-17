@@ -25,6 +25,8 @@
  * frame — both off the collection the write published, never an echo.
  */
 
+import { Show } from "solid-js"
+import { servedDirectory } from "../vault.ts"
 import { Result } from "effect"
 
 import { useUndo } from "../edit/undoing.ts"
@@ -39,8 +41,8 @@ export function NewOutline() {
   const router = useRouter()
 
   return (
-    <NewFile
-      making={MAKING_OUTLINE}
+    <Show when={servedDirectory()?.outlineRow()}>{row => <NewFile
+      making={MAKING_OUTLINE(row())}
       create={async (file) => {
         const started = router.workspace()
         const outcome = await applied({ verb: "outlineNew", file }, undo.record)
@@ -51,6 +53,6 @@ export function NewOutline() {
         if (router.workspace() === started) router.go(atFile(outcome.success.file))
         return null
       }}
-    />
+    />}</Show>
   )
 }

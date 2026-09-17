@@ -1,13 +1,13 @@
-import { writeFileSync, rmSync } from "node:fs"
-import { join } from "node:path"
-import { expect, test } from "bun:test"
-import { createSurfaceSocket } from "@kolu/surface-app/connect"
-import { SURFACE_WS_PATH } from "@kolu/surface-app"
 /** CORE'S OWN SURFACE, which is all this dial addresses: `plugins.set` is the
  *  HOST ROOT's member and its tag stays bare. It read `@olai/bundle`'s flat
  *  aggregate of every row until #546 deleted that door — a group with every
  *  row's members in it was never what this call needed, and the aggregate
  *  described a wire nothing serves once a member carried its owner. */
+import { writeFileSync, rmSync } from "node:fs"
+import { join } from "node:path"
+import { expect, test } from "bun:test"
+import { createSurfaceSocket } from "@kolu/surface-app/connect"
+import { SURFACE_WS_PATH } from "@kolu/surface-app"
 import { surface } from "@olai/surface"
 import { findSaid } from "@olai/log/testlib"
 import { Effect } from "effect"
@@ -344,3 +344,63 @@ test("shared write tags retain only their active content cases on the MCP catalo
     expect(await names()).toContain("capture_add")
   })
 })
+
+
+test("mail advertises exactly nine tools while running and withdraws them on every stop", async () => {
+  await withServing({ root: served(), plugins: ["vault", "ws", "mcp", "web-app", "chat", "mail"] }, async url => {
+    const names = async () => {
+      const response = await request(url)
+      const body = await response.json()
+      return body.result.tools.map((tool: { name: string }) => tool.name).filter((name: string) => name.startsWith("mail_")).sort()
+    }
+    const expected = ["archive", "attachment", "inbox", "label", "read", "search", "thread", "trash", "untrash"].map(n => `mail_${n}`)
+    for (let round = 0; round < 2; round++) {
+      expect(await names()).toEqual(expected)
+      await flip(url, "mail", false)
+      expect(await names()).toEqual([])
+      await flip(url, "mail", true)
+    }
+    expect(await names()).toEqual(expected)
+  })
+}, 30_000)
+
+/**
+ * A ROW'S SENTENCE LEAVES WITH THE ROW — the prose twin of the three verbs
+ * above, asked of the one paragraph that is about a panel.
+ *
+ * "A person reads your answer in olai's chat panel" was a static string in
+ * `@olai/surface` for one PR, so a serve with `mcp` and no `chat` told every
+ * host about a panel nobody had, and so did an external host dialling `/mcp`
+ * from a terminal. It rides `olai-plugin-chat`'s `Sibling.charter` now, and the
+ * mcp row composes `initialize`'s `instructions` from the rows STANDING at
+ * each host connection — so the claim is that the sentence is on the wire
+ * exactly when the panel is, read here through the same `initialize` a real
+ * host sends. The mcp row's own paragraphs are there in both states.
+ *
+ * AND THE WHOLE STAYS UNDER 2000 BYTES WITH EVERY ROW STANDING, held here
+ * rather than in `mcp/tools.test.ts` because that bench mounts a subset: Claude
+ * Code truncates server instructions at 2 KB silently, so the ceiling is only
+ * a ceiling over the text the full bundle actually composes.
+ */
+const initialize = async (url: string): Promise<string> => {
+  const response = await request(url, "initialize", {
+    protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "profiles.test", version: "0" },
+  })
+  expect(response.status).toBe(200)
+  return (await response.json()).result.instructions as string
+}
+
+test("the chat panel's sentence to an agent is on the wire exactly while chat is standing", async () => {
+  await withServing({ root: served(), profile: "web", policy: { without: "chat" } }, async url => {
+    const said = await initialize(url)
+    expect(said).toContain("NODES and whole FILES")
+    expect(said).toContain("`/#<id>` names a node")
+    expect(said).not.toContain("chat panel")
+  })
+  await withServing({ root: served(), profile: "web" }, async url => {
+    const said = await initialize(url)
+    expect(said).toContain("NODES and whole FILES")
+    expect(said).toContain("A person reads your answer in olai's chat panel")
+    expect(Buffer.byteLength(said, "utf8")).toBeLessThan(2000)
+  })
+}, 30_000)

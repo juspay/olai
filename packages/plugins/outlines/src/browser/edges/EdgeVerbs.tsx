@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The two edge verbs, drawn as controls — for the one place in this app that
  * has no `•••` to put them in.
@@ -19,7 +18,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * The LABELS are the menu's, out of the one table (`./relation.ts`), so the two
  * doors onto this write cannot end up called different things.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { For } from "solid-js"
 
 

@@ -61,8 +61,9 @@ test("a bracket opens a word too, which is what the format says", () => {
   expect(at("(@fin")).toEqual({ kind: "name", from: 1, query: "fin" })
 })
 
-test("whitespace ends it, so prose never runs away into a path", () => {
-  expect(at("read @notes and stop")).toBeNull()
+test("spaces keep narrowing a name, while a newline or tab ends it", () => {
+  expect(at("read @notes and stop")).toEqual({ kind: "name", from: 5, query: "notes and stop" })
+  expect(at("read @notes\tnext")).toBeNull()
   expect(at("read @notes\nnext line")).toBeNull()
 })
 
@@ -267,4 +268,14 @@ test("two names run together name neither, and that is the edges-only rule", () 
   expect(namedIn("@hinges,@order", TAKEN)).toEqual([])
   // A space is all it takes, and a space is what the completion writes.
   expect(namedIn("@hinges, @order", TAKEN)).toEqual(["hinges", "order"])
+})
+
+
+test("a multi-word title replaces only the query before the caret", () => {
+  const text = "discuss @Odu watcher scope, please"
+  const caret = text.indexOf(",")
+  expect(taking(text, caret, "odu-task")).toEqual({
+    text: "discuss @odu-task, please",
+    caret: "discuss @odu-task,".length,
+  })
 })

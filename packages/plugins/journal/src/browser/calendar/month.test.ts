@@ -1,11 +1,10 @@
+/** The grid's days, with the padding dropped — what the month actually holds. */
 import { expect, test } from "bun:test"
 
 import { dayNumber, monthGrid, monthLabel, WEEKDAY_HEADINGS } from "./month.ts"
 
 // The arithmetic these are drawn from is tested where it now lives
 // (`@olai/format`'s `calendar.test.ts`) — what is left here is the grid.
-
-/** The grid's days, with the padding dropped — what the month actually holds. */
 const days = (month: string): ReadonlyArray<string> =>
   monthGrid(month).filter((cell): cell is string => cell !== null)
 

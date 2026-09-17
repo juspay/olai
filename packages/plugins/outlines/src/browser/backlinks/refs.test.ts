@@ -13,14 +13,14 @@
  * is handed. What is asserted is still the client's half: the shaping into rows,
  * and the count a shut section says out loud.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { backlinksOf, derive } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { rowsOf } from "./refs.ts"
 
-const viewOf = (files: Record<string, string>) => derive(recordsOf(setOf(files)))
+const viewOf = (files: Record<string, string>) => derive(TEST_CLAIMS, recordsOf(setOf(files)))
 
 /** What refers to `id`, exactly as a node page's reading carries it. */
 const referringTo = (files: Record<string, string>, id: string) =>

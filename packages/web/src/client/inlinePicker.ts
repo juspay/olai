@@ -113,9 +113,25 @@ export interface InlinePicker<T> {
    *  is `./dismiss.ts`'s own division: it hands the caret back for the key and
    *  leaves it alone for a press. */
   readonly shut: () => void
+  /**
+   * The caret onto the control that opens the list, and nothing else.
+   *
+   * The dismissal's own answer to Escape and to a trigger press is the
+   * trigger; a TAKE is neither of those gestures but a keyboard can make it
+   * just as well (an `Enter` on a row), and a shut keyed that way would
+   * otherwise leave the caret on `<body>` — the element it was on is gone.
+   * The element is this module's (`setTrigger` is where it was told), so
+   * the only door for it is this one.
+   */
+  readonly focusTrigger: () => void
   /** The trigger's press: up over {@link Opening.opening}'s value, or away and
    *  the caret back where it came from. */
   readonly toggle: () => void
+  /** The list's own ELEMENT, exactly while it is on the page — for a caller
+   *  that must act on the list itself (scrolling a row back on view) rather
+   *  than on its rows, which stay the caller's. `undefined` while shut:
+   *  {@link setList} clears it with the DOM. */
+  readonly list: Accessor<HTMLElement | undefined>
   /** `ref` on the control that opens it — what a dismissal counts as inside as
    *  well as where the caret goes back to. */
   readonly setTrigger: (el: HTMLElement | undefined) => void
@@ -158,15 +174,17 @@ export const createInlinePicker = <T>(on: Opening<T>): InlinePicker<T> => {
   /** Two roots, because the list is a sibling of the button rather than a child
    *  of it — the header paragraph on the gestures has what that costs. */
   let trigger: HTMLElement | undefined
-  let list: HTMLElement | undefined
+  const [list, setBox] = createSignal<HTMLElement | undefined>(undefined)
 
-  dismissOn({ open, root: () => list, trigger: () => trigger, dismiss: shut })
+  dismissOn({ open, root: () => list(), trigger: () => trigger, dismiss: shut })
 
   return {
     open,
     showing,
     show,
     shut,
+    focusTrigger: () => trigger?.focus(),
+    list,
     toggle: () => {
       if (!open()) return show(on.opening())
       shut()
@@ -179,14 +197,14 @@ export const createInlinePicker = <T>(on: Opening<T>): InlinePicker<T> => {
       trigger = el
     },
     setList: (el) => {
-      list = el
+      setBox(el)
       // Solid never calls a ref with `undefined`, and this one lives inside the
       // `<Show>` that draws the list — so the disposal is what says the list is
       // gone. Without it a shut picker keeps its detached box and everything
       // that was in it, and `root()` answers a dismissal with an element that is
       // no longer on the page.
       onCleanup(() => {
-        list = undefined
+        setBox(undefined)
       })
     },
   }

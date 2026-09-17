@@ -1,5 +1,5 @@
-import { TESTID } from "@olai/ui-primitives/testids.ts"
 /** Frontmatter belongs to the document, including when no outline editor runs. */
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 import { customOrder, type Custom } from "@olai/format"
 import { For, Show } from "solid-js"
 

@@ -53,6 +53,10 @@
 # The order is not what makes any of that work — the runtime is reactive, and a
 # row that mounts late is picked up when its `apply` provides — but this file is
 # read by people, and the thing everything else waits on reads first.
+- id: alerts
+  name: olai-plugin-alerts
+  section: This tab
+  quiet: true
 - id: chat
   name: olai-plugin-chat/server
   section: Conversation
@@ -123,6 +127,9 @@
 - id: pi
   name: olai-plugin-pi/server
   section: Conversation
+- id: omp
+  name: olai-plugin-omp/server
+  section: Conversation
 # ...AND THE TENANTS: olai's judgement about somebody else's appliance.
 - id: kolu
   name: olai-plugin-kolu/server
@@ -137,6 +144,16 @@
 # mechanism doing exactly what it is for.
 - id: xyne-spaces
   name: olai-plugin-xyne-spaces/server
+  section: Appliances
+  disabled: true
+# OFF BY DEFAULT for the same reason, and it is the row that made the reason
+# general rather than about Spaces: a Gmail account needs an OAuth client this
+# machine may not have, and the plugin reads a MESSAGE STORE — a bar nobody asked
+# for, over somebody's whole mailbox. The row still declares the four
+# environment doors it wants, so a person learns what to set before switching it
+# on, and a policy selecting only mail is what turns it on.
+- id: mail
+  name: olai-plugin-mail/server
   section: Appliances
   disabled: true
 # TRANSPORTS — ordinary plugins, selected by profiles and vault policy.
@@ -163,6 +180,10 @@
   name: olai-plugin-layout
   section: This tab
   quiet: true
+- id: tabs
+  name: olai-plugin-tabs
+  section: This tab
+  quiet: true
 - id: sidebar
   name: olai-plugin-sidebar
   section: This tab
@@ -187,11 +208,6 @@
   quiet: true
 - id: outlines
   name: olai-plugin-outlines/server
-  section: Pages
-  quiet: true
-  profiles: [surface]
-- id: markdown
-  name: olai-plugin-markdown/server
   section: Pages
   quiet: true
   profiles: [surface]
@@ -236,4 +252,36 @@
   name: olai-plugin-vault-plugins/server
   section: Vault
   browser: olai-plugin-vault-plugins/browser
+  profiles: [surface]
+
+- id: outline-olai
+  name: olai-plugin-outline-olai/server
+  section: Files
+  quiet: true
+  profiles: [surface, test-minimal]
+  switchHint: Disabling this row unclaims outlines and prevents creating them; trash, inbox, pins and agenda become unavailable, and settings reading withdraws until it returns.
+- id: markdown
+  name: olai-plugin-markdown/server
+  section: Files
+  quiet: true
+  profiles: [surface]
+- id: hypertext
+  name: olai-plugin-hypertext/server
+  section: Files
+  quiet: true
+  profiles: [surface]
+- id: csv
+  name: olai-plugin-csv/server
+  section: Files
+  quiet: true
+  profiles: [surface]
+- id: image
+  name: olai-plugin-image/server
+  section: Files
+  quiet: true
+  profiles: [surface]
+- id: pdf
+  name: olai-plugin-pdf/server
+  section: Files
+  quiet: true
   profiles: [surface]

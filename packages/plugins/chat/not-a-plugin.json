@@ -1,0 +1,72 @@
+{
+  "alerts": [
+    "src/browser.tsx",
+    "src/browser/chat/attention/attention.ts"
+  ],
+  "capture": [
+    "src/browser/chat/Composer.tsx"
+  ],
+  "files": [
+    "src/browser/agents/Fold.tsx",
+    "src/browser/chat/Composer.tsx",
+    "src/browser/chat/DropTarget.tsx",
+    "src/browser/chat/holding.ts",
+    "src/browser/chat/naming.ts",
+    "src/chat.ts"
+  ],
+  "identity": [
+    "src/browser/chat/attention/watching.ts"
+  ],
+  "image": [
+    "src/agent.ts",
+    "src/browser/chat/Composer.tsx",
+    "src/browser/chat/attach.ts"
+  ],
+  "markdown": [
+    "src/browser/chat/Entry.tsx",
+    "src/browser/chat/ToolFrame.tsx"
+  ],
+  "mcp": [
+    "src/agent.ts",
+    "src/calls.ts",
+    "src/fixtures/lifecycle-agent.ts",
+    "src/server.ts"
+  ],
+  "navigation": [
+    "src/browser.tsx",
+    "src/browser/agents/AgentPalette.ts",
+    "src/browser/agents/new-chat.ts",
+    "src/browser/navigation.ts",
+    "src/browser/verbs.tsx"
+  ],
+  "outlines": [
+    "src/adapter.ts",
+    "src/browser/chat/NoAgent.tsx",
+    "src/browser/chat/Unopened.tsx"
+  ],
+  "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin.",
+  "search": [
+    "src/agents/roster.ts",
+    "src/browser/agents/AgentPalette.ts",
+    "src/browser/chat/Model.tsx",
+    "src/browser/chat/completion.ts",
+    "src/testids.ts"
+  ],
+  "settings": [
+    "src/agent.ts",
+    "src/agents/settings.ts",
+    "src/browser/agents/AgentLine.tsx",
+    "src/browser/chat/Model.tsx",
+    "src/chat.ts",
+    "src/server.ts",
+    "src/wire/members.ts"
+  ],
+  "sidebar": [
+    "src/browser.tsx"
+  ],
+  "vault": [
+    "src/browser/agents/AgentPalette.ts",
+    "src/browser/chat/outline.ts",
+    "src/server.ts"
+  ]
+}

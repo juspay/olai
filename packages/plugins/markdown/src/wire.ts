@@ -37,7 +37,7 @@ import { Effect, Schema } from "effect"
  * (`@olai/format`'s `kinds.ts` decides which kinds, `./server/bodies.ts`
  * does the reading), so this entry's `text` can be `null` — see
  * below. What is unchanged, and load-bearing, is that the server still holds
- * every served PATH and validates every `doc` against it (`docs/format.md`).
+ * every served PATH and validates every declared `doc` property against it (`docs/format.md`).
  *
  * `rev` is the set's revision at the moment this entry was published, for the
  * reason `olai-plugin-outlines`'s `OutlineEntry` carries one: a body now

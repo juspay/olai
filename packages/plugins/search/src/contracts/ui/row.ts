@@ -1,4 +1,4 @@
-import { isNodeHit, isOutlineHit, printAddress, type SearchHit } from "@olai/format"
+import { Slug, isNodeHit, printAddress, type SearchHit } from "@olai/format"
 
 import type { NodeProp } from "olai-plugin-search/ui/props.ts"
 import { documentProps, nodeProps } from "olai-plugin-search/ui/props.ts"
@@ -43,10 +43,6 @@ export const hitRow = (hit: SearchHit, query?: string): HitRow => {
       route: atNode(hit.id),
     }
   }
-  if (isOutlineHit(hit)) return {
-    id: printAddress(hit.at), label: hit.title, from: hit.at.path,
-    place: { file: hit.at.path }, props: [], route: atFile(hit.at.path),
-  }
   const path = hit.at.path
   return {
     id: printAddress(hit.at),
@@ -61,6 +57,8 @@ export const hitRow = (hit: SearchHit, query?: string): HitRow => {
     // the query's words light in it where they sit.
     from: path,
     props: documentProps(hit),
-    route: atFile(path, hit.line === undefined ? undefined : lineFragment(hit.line), query),
+    route: "line" in hit && hit.line !== undefined
+      ? { kind: "at", address: { kind: "heading", path: hit.at.path, slug: Slug.make(lineFragment(hit.line)) }, ...(query?.trim() ? { filter: query } : {}) }
+      : atFile(path),
   }
 }

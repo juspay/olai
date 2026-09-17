@@ -169,7 +169,7 @@ export const search = (
     ? []
     : matchingDocuments(bodiedIn(at.set), filter, scope, narrowed?.documents)
   const outlines = query.kind === "node" || query.kind === "document" ? [] : matchingOutlines(
-    at.set.documents.filter(d => d.kind === "outline"), filter, scope,
+    at.set.documents.filter(d => d.holds === "nodes"), filter, scope,
   )
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
   // Read ONCE for the answer rather than per hit: it is a fact about the

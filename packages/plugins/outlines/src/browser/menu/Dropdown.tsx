@@ -1,4 +1,4 @@
-import { TESTID } from "olai-plugin-outlines/testids"
+import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 /**
  * The PRIMITIVE and its wiring — everything about the `•••` menu that is
  * Kobalte's, and the whole of what a first paint does not download.
@@ -31,7 +31,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * `onCloseAutoFocus`). Close-focus is refused here and replaced by
  * {@link handBack}, because the primitive restores the trigger on every close
  * and a pointer that landed somewhere else must not be pulled back. Open-focus
- * is the content's `ref`. `features/menu_panel.feature` holds both ends so a
+ * is the content's `ref`. `packages/plugins/outlines/e2e/features/menu_panel.feature` holds both ends so a
  * Kobalte bump that changes them shows up as a passing suite rather than as a
  * surprise.
  *
@@ -98,7 +98,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  *     to have. Same left edge, same drop, one placement for both doors — and
  *     no media query in this file at all.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { DropdownMenu, type DropdownMenuContentProps } from "@kobalte/core/dropdown-menu"
 import { useMenuContext } from "@kobalte/core/menu"
 import type { PolymorphicProps } from "@kobalte/core/polymorphic"
@@ -305,7 +305,7 @@ export function Dropdown(props: {
         // `max-height`, which `fitViewport` would set, is a limit its
         // overflowing child ignores), and the scroll is what turns a cap into a
         // list somebody can still reach the end of.
-        class={`relative ${LAYER.row} min-w-[10.5rem] overflow-y-auto rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
+        class={`${MENU_PANEL} ${LAYER.row}`}
         // The primitive restores the trigger on every close. A KEY still
         // gets the caret back (`handBack`); a pointer that landed somewhere
         // else must not be pulled off it.

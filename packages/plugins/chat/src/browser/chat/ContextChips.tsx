@@ -15,7 +15,7 @@
  * shows you the row you armed — the answer to "is this the right node" being
  * the node itself, rather than a longer label.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
@@ -68,7 +68,7 @@ export function ContextChips(props: {
                     to resolve an address against either. `links` false
                     because the Reference is a <button>. */}
                 <TitleHtml
-                  drawing={renderTitle(node().title, "", { links: false })}
+                  drawing={renderTitle(servedDirectory()?.claims(), node().title, "", { links: false })}
                 />
               </Reference>
               <Show when={props.onRemove}>

@@ -5235,13 +5235,13 @@
       hasInstallScript = false;
     };
   };
-  "hono@4.13.1" = fetchurl
+  "hono@4.13.7" = fetchurl
     {
-      url = "https://registry.npmjs.org/hono/-/hono-4.13.1.tgz";
-      hash = "sha512-kdJoFVv2xmayw6cY09H7AbMJMt8Jn5jdlEdXsP7AGBdF2DIptVlKlOLKXP41yPip4/a3yQPv9gVcJYI8YY04dw==";
+      url = "https://registry.npmjs.org/hono/-/hono-4.13.7.tgz";
+      hash = "sha512-c8/gF9ac8Y78/agExVocyLevgR+JlpNB444Py0FSX8pJoPdYUfUzRcXtYEYGwt6l19qIlVZPN5Mfsw9jFShmQQ==";
     } // {
     manifest = {
-      tarballUrl = "https://registry.npmjs.org/hono/-/hono-4.13.1.tgz";
+      tarballUrl = "https://registry.npmjs.org/hono/-/hono-4.13.7.tgz";
       dependencies = { };
       peerDependencies = { };
       optionalDependencies = { };
@@ -7631,22 +7631,30 @@
       hasInstallScript = false;
     };
   };
+  "olai-plugin-alerts" = copyPathToStore ./packages/plugins/alerts;
   "olai-plugin-capture" = copyPathToStore ./packages/plugins/capture;
   "olai-plugin-chat" = copyPathToStore ./packages/plugins/chat;
   "olai-plugin-claude" = copyPathToStore ./packages/plugins/claude;
   "olai-plugin-codex" = copyPathToStore ./packages/plugins/codex;
+  "olai-plugin-csv" = copyPathToStore ./packages/plugins/csv;
   "olai-plugin-files" = copyPathToStore ./packages/plugins/files;
   "olai-plugin-git" = copyPathToStore ./packages/plugins/git;
+  "olai-plugin-hypertext" = copyPathToStore ./packages/plugins/hypertext;
   "olai-plugin-identity" = copyPathToStore ./packages/plugins/identity;
+  "olai-plugin-image" = copyPathToStore ./packages/plugins/image;
   "olai-plugin-journal" = copyPathToStore ./packages/plugins/journal;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
   "olai-plugin-layout" = copyPathToStore ./packages/plugins/layout;
+  "olai-plugin-mail" = copyPathToStore ./packages/plugins/mail;
   "olai-plugin-markdown" = copyPathToStore ./packages/plugins/markdown;
   "olai-plugin-mcp" = copyPathToStore ./packages/plugins/mcp;
   "olai-plugin-navigation" = copyPathToStore ./packages/plugins/navigation;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
+  "olai-plugin-omp" = copyPathToStore ./packages/plugins/omp;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
+  "olai-plugin-outline-olai" = copyPathToStore ./packages/plugins/outline-olai;
   "olai-plugin-outlines" = copyPathToStore ./packages/plugins/outlines;
+  "olai-plugin-pdf" = copyPathToStore ./packages/plugins/pdf;
   "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;
   "olai-plugin-pins" = copyPathToStore ./packages/plugins/pins;
   "olai-plugin-plugin-inspector" = copyPathToStore ./packages/plugins/plugin-inspector;
@@ -7654,6 +7662,7 @@
   "olai-plugin-search" = copyPathToStore ./packages/plugins/search;
   "olai-plugin-settings" = copyPathToStore ./packages/plugins/settings;
   "olai-plugin-sidebar" = copyPathToStore ./packages/plugins/sidebar;
+  "olai-plugin-tabs" = copyPathToStore ./packages/plugins/tabs;
   "olai-plugin-test-counter" = copyPathToStore ./packages/plugins/test-counter;
   "olai-plugin-test-layout" = copyPathToStore ./packages/plugins/test-layout;
   "olai-plugin-theme" = copyPathToStore ./packages/plugins/theme;

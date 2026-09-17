@@ -57,14 +57,10 @@
  * somebody typed. What tells them apart is the DOCUMENT: an outline has nodes
  * and no headings, a body has headings and no nodes, and which of the two a
  * path is, is the registry's answer and not a guess ({@link fileKind}). So the
- * kind of an element is read off the file it is in, which is also why
- * {@link DocumentPath} insists on a suffix the registry claims: a path with no
- * kind is a path this grammar cannot finish reading.
- *
- * That insistence is what lets the browser spell a content URL as `/` plus an
- * address with no prefix at all: every document names a file, every file
- * carries a suffix, and a computed page (`/today`, `/agenda`) spells none — so
- * the two vocabularies cannot collide (`@olai/web`'s `routes.ts`).
+ * kind of an element is read off the file's current claim. DocumentPath only
+ * checks relative-path structure; claimedOf and outlineAt admit membership
+ * where a Claims table is held. A brand says what the caller claims, not what
+ * the directory holds.
  *
  * ## Total, both ways
  *
@@ -85,39 +81,13 @@
 
 import { Schema } from "effect"
 
-import { type FileKind, fileKind, holdsBody } from "./kinds.ts"
+import { type Claims, fileKind, holdsBody } from "./kinds.ts"
 
-/**
- * A path that names a file the directory SERVES — `Tasks.olai`,
- * `notes/README.md`, relative to the served root.
- *
- * The rule is the registry's ({@link fileKind}): a suffix no kind claims is not
- * a document, so `notes` and `photo.tiff` are not paths this grammar can name —
- * while `photo.png` is one, since the day a picture became a kind with a page
- * of its own. The rule did not move; the table under it did.
- * That is not tidiness — it is the fact the whole grammar rests on, since the
- * suffix is what says whether a `#` after it is a heading or a node, and what
- * keeps an address apart from a computed page that spells no file.
- *
- * WHERE THAT RULE LIVES is {@link claimedKind}, and it is spent TWICE — as a
- * check on this schema, so a decoded path is judged by it, and as
- * {@link addressOf}'s guard, so a minted one is judged by the same sentence.
- * Both, rather than either, and PR 2 is what made it both: effect's `brand` is
- * NOMINAL — it narrows the type and adds no runtime check — so while the only
- * addresses in the process were minted in the browser's hot path (a URL per
- * drawn row) and read back by one parser, the guard was the whole rule and the
- * schema was a promise about where a value came from. An `Address` DECODES off
- * a wire now (a search hit carries one, `./searching.ts`), and a decode that
- * did not ask this question would be a path the grammar cannot finish reading,
- * arriving as one it can.
- *
- * The CONSTRUCTION side still does not go through the parser, and that is
- * unchanged and deliberate: `make` would run the check a second time for a
- * verdict {@link addressOf} has already reached, once per printed URL.
- */
+/** A structurally valid root-relative file path. This schema carries no
+ * suffix table; claimedOf and outlineAt admit paths against current Claims. */
 export const DocumentPath = Schema.String.check(
-  Schema.makeFilter((path: string) => claimedKind(path) !== null, {
-    expected: "a relative path to a file some kind of the registry claims",
+  Schema.makeFilter((path: string) => relativePath(path), {
+    expected: "a non-empty relative path with no parent segments",
   }),
 ).pipe(Schema.brand("DocumentPath"))
 export type DocumentPath = typeof DocumentPath.Type
@@ -159,9 +129,7 @@ export type AtDocument = typeof AtDocument.Type
 
 /** An outline already has the grammar's whole-file address. Narrow its path
  * for search without introducing a second spelling for that same address. */
-export const AtOutline = AtDocument.check(Schema.makeFilter(
-  (at) => claimedKind(at.path) === "outline", { expected: "a whole outline file" },
-))
+export const AtOutline = AtDocument
 export type AtOutline = typeof AtOutline.Type
 
 /** One node, by its id and nothing else — the location-free half of the
@@ -232,6 +200,7 @@ const slug = (text: string): Slug => text as Slug
  * document with nothing after the `#`, which names the document.
  */
 export const addressOf = (
+  claims: Claims,
   document: string | null,
   element: string | null,
 ): Address | null => {
@@ -239,7 +208,7 @@ export const addressOf = (
   if (document === null || document === "") {
     return named === null ? null : { kind: "node", id: nodeId(named) }
   }
-  const kind = claimedKind(document)
+  const kind = claimedKind(claims, document)
   if (kind === null) return null
   const path = documentPath(document)
   if (named === null) return { kind: "document", path }
@@ -252,7 +221,7 @@ export const addressOf = (
   // read, and an address into one landing on nothing is what a `.md` whose
   // heading was renamed already does — where reading them as NODE addresses
   // would be the grammar claiming a vault's pictures hold records.
-  return holdsBody(kind)
+  return holdsBody(claims, kind)
     ? { kind: "heading", path, slug: slug(named) }
     : { kind: "row", path, id: nodeId(named) }
 }
@@ -306,12 +275,12 @@ export const printAddress = (address: Address): string => {
  * drawn with no fragment at all. An unreadable PATH is different, and has to
  * be — there is nothing left to name.
  */
-export const parseAddress = (text: string): Address | null => {
+export const parseAddress = (claims: Claims, text: string): Address | null => {
   const cut = text.indexOf("#")
   const document = cut === -1 ? text : text.slice(0, cut)
   const element = cut === -1 ? "" : spelled(text.slice(cut + 1))
   const path = readPath(document)
-  return path === null ? null : addressOf(path, element)
+  return path === null ? null : addressOf(claims, path, element)
 }
 
 /**
@@ -488,12 +457,20 @@ const escaped = (address: string): string =>
  * as a URL on ANOTHER HOST, and an address that can leave the site is not an
  * address this may mint.
  */
-const claimedKind = (path: string): FileKind | null =>
-  path.split("/").every((segment) =>
-      segment !== "" && segment !== "." && segment !== ".."
-    )
-    ? fileKind(path)
-    : null
+const relativePath = (path: string): boolean =>
+  !path.includes("\\") && path.split("/").every(segment => segment !== "" && segment !== "." && segment !== "..")
+
+const claimedKind = (claims: Claims, path: string): string | null =>
+  relativePath(path) ? fileKind(claims, path) : null
+
+/** Admit membership only where the caller holds the table. */
+export const claimedOf = (claims: Claims, path: string): DocumentPath | null =>
+  claimedKind(claims, path) === null ? null : documentPath(path)
+
+export const outlineAt = (claims: Claims, at: AtDocument): AtOutline | null => {
+  const kind = claimedKind(claims, at.path)
+  return kind !== null && claims.byKind.get(kind)?.holds === "nodes" ? at : null
+}
 
 /**
  * Encoded per segment, so a path with a directory in it stays readable rather

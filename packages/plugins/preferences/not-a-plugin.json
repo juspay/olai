@@ -1,0 +1,8 @@
+{
+  "git": [
+    "src/Preferences.tsx"
+  ],
+  "theme": [
+    "src/Preferences.tsx"
+  ]
+}

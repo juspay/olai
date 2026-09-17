@@ -8,7 +8,7 @@ This page records what is specific to this engine. The shared conversation model
 
 `OLAI_ACP_CODEX` names the ACP adapter for this row. The packaged wrapper sets it to the Nix-built `codex-acp`; the development recipes resolve the same derivation. Set it to another command line to test another adapter, or to the empty string to omit only the Codex row.
 
-The adapter itself wraps the Codex app server. The plugin's `acp/` directory owns both its npm lock and Nix derivation, including the matching native Codex executable supplied through `CODEX_PATH`, so neither half drifts to an ambient install. This pin is separate from the patched Claude/Pi adapter bundle: their release clocks and platform rules do not force one another to rebuild. Authentication and Codex configuration continue to use Codex's own normal files and environment.
+The adapter itself wraps the Codex app server. The plugin's `acp/` directory owns both its npm lock and Nix derivation, including the matching native Codex executable supplied through `CODEX_PATH`, so neither half drifts to an ambient install. This pin is separate from the Claude and pi adapters, which each declare their pin in their own plugin's `default.nix` through `@olai/plugin-kit`'s `npm-adapter.nix` over the shared shim: their release clocks and platform rules do not force one another — or Codex — to rebuild. Authentication and Codex configuration continue to use Codex's own normal files and environment.
 
 Turn this row off with `on: no` on the `codex` node in `_olai/Settings.olai`, or its durable switch on `⧉`. The row stops probing and its browser contribution is withdrawn.
 
@@ -33,3 +33,5 @@ Olai pins `codex-acp` 1.10.0 with Codex CLI 0.153.3. This updates the bundled 0.
 The adapter and CLI are already in olai's Nix closure. Codex product and sign-in documentation lives at <https://developers.openai.com/codex>.
 
 The pinned codex-acp 1.10.0 already contains [native child sessions](https://github.com/agentclientprotocol/codex-acp/pull/419) and [background-terminal tasks](https://github.com/agentclientprotocol/codex-acp/pull/460). Olai negotiates AIR version 1 `nativeSubagentSessions` and `asyncTasks`. Its ACP SDK predates these session-update variants, so the `@olai/acp` extension channel negotiates capabilities, decodes typed activity values, and routes only the five known activity notifications around the SDK's closed update union; ordinary updates retain SDK validation. Tool IDs are scoped by session, and leaving a conversation clears its activity registry and fences late child events. No adapter patch is needed for activity display.
+
+The leg declares no MCP prefix. For display only it reads the MCP marker plus `rawInput.server` and `rawInput.tool`, and reads the reply from `rawOutput.result.structuredContent`. Dotted titles remain outside the approval boundary.

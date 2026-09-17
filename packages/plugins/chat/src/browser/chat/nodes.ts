@@ -20,7 +20,7 @@
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md), so the round trip is what a
  * completion costs now, and the door it goes through is the one the ⌘K palette,
  * the header box, the `((` widget and the edge panel already share
- * (`../search/nodes.ts`, which owns the debounce and the staleness rule for all
+ * (`../search.ts`, which owns the debounce and the staleness rule for all
  * five). What is left HERE is the row: what a person reads to choose it, what
  * taking it writes, and the one thing it has to explain about itself.
  *
@@ -34,19 +34,13 @@
  * SEARCHES — and it is the matcher's own answer rather than a cap this file
  * invented.
  *
- * ## ONE TOKEN, because a completion may not swallow the sentence
- *
- * The `@` query ends at whitespace (`./completion.ts`), and that fence does not
- * move for the grammar's sake. A query with spaces in it would be a completion
- * eating the rest of somebody's message on the chance that the next word was
- * meant for it — the exact failure that file's "what ends a trigger" section
- * exists to prevent. So what fits in one token works (`is:blocked`, `#home`,
- * `prop:pr`, a word) and what needs a space does not (`"kitchen remodel"`,
- * `a OR b`). The box for those is the one with no sentence around it.
+ * Multi-word titles and search expressions pass through unchanged. The
+ * composer owns the query boundary and closes an accepted or dismissed offer.
  *
  * An EMPTY query offers no node at all, and a query of one or two characters
  * offers none either — the floor every door onto the one search shares
- * (`../search/nodes.ts`'s `MIN_LENGTH`), because two characters match half an
+ * (the search plugin's `browser/kit/nodes.ts`, reached through `../search.ts`),
+ * because two characters match half an
  * outline by substring and a shortlist of eight of them is an answer to no
  * question. It is the one thing about this list that CHANGED when it stopped
  * matching locally: `@ca` used to offer node rows and now offers the files
@@ -127,7 +121,7 @@ export interface NodeMatch {
  *
  * Pure, and the whole of what this file still does: the order is the answer's
  * (`@olai/format`'s `ranked`, applied server-side), the cap was asked for on
- * the request (`../search/nodes.ts`), and where a node SITS is built out of
+ * the request (`../search.ts`), and where a node SITS is built out of
  * what the hit already carries — the file and the ancestor titles the ops layer
  * situates every hit with. Nothing is walked here and nothing is looked up.
  */

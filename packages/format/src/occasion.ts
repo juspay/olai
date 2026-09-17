@@ -35,7 +35,7 @@
  * `./derive.ts`, which folds {@link dateInto} over a set — so there is nowhere
  * for a second answer to "what puts a node on a day" to come from.
  */
-
+import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
 import {
@@ -70,9 +70,11 @@ export const monthOf = (value: string): string => value.slice(0, MONTH)
  * The TIME a datetime names, `HH:MM`, or nothing for a plain day.
  *
  * The same reading as the two above and written the same way: a slice, never a
- * parse. `2026-09-08T14:00` is a day and a time joined by a `T`, the format
- * validated it as ISO before it was stored, and the five characters after that
- * separator are the ones somebody wrote down. Seconds and an offset are past
+ * parse. `2026-09-08T14:00` is a day and a time joined by a `T` — or by the
+ * space the format also accepts in a `date` on disk (./parse.ts), which is the
+ * same time written by a different hand. The format validated it as ISO before
+ * it was stored, and the five characters after that separator are the ones
+ * somebody wrote down. Seconds and an offset are past
  * them and are not a time of day a page has any business printing.
  *
  * It exists because the agenda's spine drops the date pill on a future row —
@@ -81,7 +83,7 @@ export const monthOf = (value: string): string => value.slice(0, MONTH)
  * (./agenda.ts's `owedFact`).
  */
 export const timeOf = (value: string): string | undefined =>
-  value.length > DAY && value[DAY] === "T"
+  value.length > DAY && (value[DAY] === "T" || value[DAY] === " ")
     ? value.slice(DAY + 1, DAY + 1 + "HH:MM".length)
     : undefined
 
@@ -238,13 +240,14 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * reachability was not (docs/search.md).
  */
 export const dateInto = (
+  claims: Claims,
   byDay: Map<string, Array<Dated>>,
   located: Located,
 ): void => {
   // The narrowing the index's type promises, done once at the fold, exactly as
   // `tagInto` next door does it: a placement carries neither field, so this
   // drops nothing {@link datesOf} would not have answered empty for anyway.
-  if (!isRegular(located) || isPutAway(located.file)) return
+  if (!isRegular(located) || isPutAway(claims, located.file)) return
   for (const dated of datesOf(located.node)) {
     const day = dayOf(dated.date)
     const held = byDay.get(day)

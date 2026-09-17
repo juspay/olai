@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * MOVING one row to a new parent, as one thing a page holds: which row's picker
  * is open, where that row is drawn now, the write it sends, and the line that
@@ -34,7 +33,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * below is redrawn from the same snapshot every other reader is drawn from, and
  * a refusal leaves the row exactly where it was with the reason under it.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { createContext, type JSX, Show, useContext } from "solid-js"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { MovePicker } from "./MovePicker.tsx"

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The `•••` itself: the class both spellings of it wear, and the BUTTON it is
  * before this row has ever been asked for its menu.
@@ -26,7 +25,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * for each other: a class on one and not the other would be a flicker at the
  * press.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { MENU_CELL, MENU_REVEAL } from "@olai/ui-primitives/touch.ts"
 
 

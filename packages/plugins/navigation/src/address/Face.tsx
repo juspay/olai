@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-navigation/testids"
 /**
  * AN ADDRESS, DRAWN AS THE PAGE IT NAMES — the one face, wherever a title
  * turns out to be one.
@@ -64,15 +63,16 @@ import { TESTID } from "olai-plugin-navigation/testids"
  * whether the name it just handed over is a name somebody wrote or one the
  * address answered for itself.
  */
-
+import { TESTID } from "olai-plugin-navigation/testids"
 import { Show } from "solid-js"
 
-import type { Route } from "olai-plugin-navigation/routes"
+import type { AddressTarget } from "./address.ts"
+import { followLayout } from "../layout-press.ts"
 import { useRouter } from "olai-plugin-navigation/routing"
 
 
 export function Face(props: {
-  readonly route: Route
+  readonly target: AddressTarget
   /** What this address is CALLED — the name somebody wrote on it, or what the
    *  address itself is called (`./address.ts`'s `nameOf`). Resolved by the
    *  caller, because the two callers learn it from opposite sides of the wire. */
@@ -87,10 +87,25 @@ export function Face(props: {
   // inside. Printing a plugin's URL and asking whether its page takes a filter
   // are questions about the MOUNTED ROSTER, and this face used to ask them of
   // a module-scope table nobody had declared (`../routes.ts`'s header).
-  const routes = useRouter().routes
+  const router = useRouter()
+  const routes = router.routes
+  const href = () => {
+    const target = props.target
+    return target.kind === "page" ? routes.href(target.route) : routes.layoutHref(target.workspace)
+  }
+  const filter = () => {
+    const target = props.target
+    return target.kind === "page" ? routes.filterOf(target.route) : ""
+  }
   return (
     <>
-      <Mark />
+      <Show when={props.target.kind === "layout"} fallback={<Mark />}>
+        <svg data-layout-mark class="size-3.5 shrink-0" aria-hidden="true"
+          viewBox="0 0 16 16" fill="none" stroke="currentColor">
+          <rect x="1" y="2" width="6" height="12" rx="1" />
+          <rect x="9" y="2" width="6" height="12" rx="1" />
+        </svg>
+      </Show>
       <Show
         when={props.pressable === true}
         fallback={
@@ -105,14 +120,18 @@ export function Face(props: {
             (`../router.tsx`'s `followed`, `../pane/PageView.tsx`). A `<Link>`
             here would be a second answer to the same click. */}
         <a
-          href={routes.href(props.route)}
+          href={href()}
+          onClick={(event) => {
+            if (props.target.kind !== "layout") return
+            followLayout(router, props.target.workspace, event)
+          }}
           class="min-w-0 flex-1 truncate underline decoration-rule underline-offset-2 hover:decoration-accent"
           data-testid={TESTID.addressName}
         >
           {props.name}
         </a>
       </Show>
-      <Show when={routes.filterOf(props.route) !== ""}>
+      <Show when={filter() !== ""}>
         {/* INHERITS the row's ink, and that is the visibility: `text-muted`
             is contrast-tested on paper, desk, panel, pill — never on the
             sidebar's ink, which is where a pin actually sits. A long query
@@ -122,9 +141,9 @@ export function Face(props: {
         <span
           class="min-w-0 max-w-[55%] truncate rounded bg-current/15 px-1 font-mono text-[0.65rem]"
           data-testid={TESTID.addressFilter}
-          title={routes.filterOf(props.route)}
+          title={filter()}
         >
-          {routes.filterOf(props.route)}
+          {filter()}
         </span>
       </Show>
     </>

@@ -8,7 +8,7 @@
  * question of its own to ask carries it rather than sending on the first
  * press.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, zoom } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -27,7 +27,7 @@ const HOUSE = [
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE })))
+const derived = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE })))
 
 /** The zoomed page for an id, narrowed to the arm that IS a node — which is
  *  the only arm App hands the palette. */

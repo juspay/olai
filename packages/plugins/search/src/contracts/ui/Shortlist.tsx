@@ -49,7 +49,7 @@
  * a bundle of everything a list can be, which is the shape `RowPanel.tsx`
  * refused in the other direction.
  */
-
+import type { Claims } from "@olai/format"
 import type { Signal } from "solid-js"
 import type { NodeHit } from "@olai/format"
 import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "solid-js"
@@ -88,6 +88,7 @@ export interface ShortlistTestids {
 }
 
 export function Shortlist(props: {
+  readonly claims: Claims | undefined;
   /**
    * THE READING, HANDED IN — this door's one acquisition, made the caller's.
    *
@@ -339,6 +340,7 @@ export function Shortlist(props: {
               classList={{ "opacity-60": verdicts()[index] !== null }}
             >
               <Result
+                claims={props.claims}
                 label={row(index).label}
 
                 place={row(index).place}

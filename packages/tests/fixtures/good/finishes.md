@@ -1,8 +1,6 @@
 # Finishes
 
-The document `install` attaches with its `doc` field. `doc` is a relative path
-to a served `.md` file, and the validator rejects a set whose `doc` points at
-nothing.
+The document `install` links from its note. Relative links resolve beside the outline that names them.
 
 - Doors: **matte**, not gloss.
 - Handles: brushed brass[^brass].

@@ -9,6 +9,7 @@
     "./browser": "./src/browser.tsx",
     "./*": "./src/*",
     "./routing": "./src/routing.tsx",
+    "./layout-press": "./src/layout-press.ts",
     "./routes": "./src/routes.ts",
     "./workspace": "./src/workspace.ts",
     "./landing": "./src/landing.ts",
@@ -45,6 +46,7 @@
   "olai": {
     "contracts": [
       "./routing",
+      "./layout-press",
       "./routes",
       "./workspace",
       "./landing",
@@ -58,5 +60,8 @@
       "./address/Face.tsx",
       "./routes.testlib.ts"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
   }
 }

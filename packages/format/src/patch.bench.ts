@@ -71,7 +71,7 @@
  * and {@link lever} prints the edit it happened at rather than leaving a reader
  * to work out whether it ever did.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import {
   byCorpus,
   derive,
@@ -150,7 +150,7 @@ const edits = Array.from({ length: EDITS }, (_, which) => editOf(which))
 
 // ── the run ────────────────────────────────────────────────────────────
 
-const first = derive(flat(parsed))
+const first = derive(TEST_CLAIMS, flat(parsed))
 const records = first.nodes.length
 
 /** The view the layered arm ends on, which the oracle below is compared with
@@ -210,7 +210,7 @@ const rebuilt = edits.map(({ file, records: own }, which) => {
   const nodes = flat(held)
   let view: Derived | undefined
   const ms = timed(() => {
-    view = derive(nodes)
+    view = derive(TEST_CLAIMS, nodes)
   })
   said("rebuild", view as Derived, which)
   return ms
@@ -298,7 +298,7 @@ const patchedResidueMs = patching("patch+residue", true)
 // proves the patcher in GENERAL is the property test next door; this says only
 // that the arm just timed is still that patcher, and it reads `byId` because
 // `./overlay.ts` is what this run is here to size.
-const oracle = derive(flat(edits.reduce(
+const oracle = derive(TEST_CLAIMS, flat(edits.reduce(
   (held, { file, records: own }) => held.set(file, own),
   new Map(parsed),
 )))

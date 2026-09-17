@@ -9,11 +9,12 @@ olai serves a directory of outlines and Markdown files as a web app that people 
 | [running.md](running.md) | Serving a directory: `olai web` and its flags, the home-manager module, vault policy, the MCP endpoint at `/mcp`, quick capture, and identity behind a reverse proxy. |
 | [editing.md](editing.md) | Editing an outline by hand: keys, drag and drop, multi-select, drafts, undo, the sidebar, pinning, and writing a document. |
 | [search.md](search.md) | The query language and its operators (`is:`, `has:`, `date:`, `created:`, `changed:`, `prop:`, `-`, quoted phrases, `OR`), what a result row shows, and the in-page filter. |
-| [git.md](git.md) | The git integration: commit modes, automatic commits, the status pill, and the audit view. |
+| [git.md](git.md) | The git integration: commit modes, automatic commits, the status pill, integration before push, stops and Resume, and the audit view. |
 | [chat.md](chat.md) | The chat agent: which agents olai finds, binding a conversation to a node, ACP adapter overrides, node tools, pictures, and how a conversation wakes. |
 | [live-properties.md](live-properties.md) | Properties whose value updates on its own, how a plugin turns one on, and the two shapes a live face takes. |
 | [format.md](format.md) | The file format: record shapes, fields, status, references, days, the pinned shelf, which file types are served, and merge safety. |
 | [dynamic-plugins.md](dynamic-plugins.md) | Writing a plugin into the served directory itself: the definition shape, allowed imports, approval, and worked examples. |
+
 
 ## Plugins
 
@@ -21,7 +22,7 @@ Olai is a bundle of plugins running on [Cordis](https://github.com/cordiverse/co
 
 ### Engines
 
-The four ACP agents the chat panel can run. What a conversation is, for all of them, is in [chat.md](chat.md).
+The five ACP agents the chat panel can run. What a conversation is, for all of them, is in [chat.md](chat.md).
 
 | Page | What it covers |
 | --- | --- |
@@ -29,6 +30,7 @@ The four ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/codex.md](plugins/codex.md) | Codex: the pinned adapter and CLI, `OLAI_ACP_CODEX`, full-access policy, and visible mode-selection failures. |
 | [plugins/opencode.md](plugins/opencode.md) | opencode: the PATH probe, `--cwd`, tool naming, and the three things this wire lacks. |
 | [plugins/pi.md](plugins/pi.md) | pi: `OLAI_ACP_PI`, the queued mid-turn message, and the bridge that gives pi olai's tools. |
+| [plugins/omp.md](plugins/omp.md) | Oh My Pi: the PATH probe, `--approval-mode yolo`, the call dispatched through omp's own `write`, and the mid-turn send that replaces the turn. |
 
 ### Server and transport
 
@@ -50,8 +52,9 @@ The four ACP agents the chat panel can run. What a conversation is, for all of t
 | --- | --- |
 | [plugins/chat.md](plugins/chat.md) | The conversation as a row, the `chat-agent-session` kind, and the seats it reserves. |
 | [plugins/kolu.md](plugins/kolu.md) | Terminals from kolu: the Dock row, the live pane, the events feed, and the doorbell. |
-| [plugins/odu.md](plugins/odu.md) | CI from odu: the worktree chip, the run matrix, and the doorbell. |
+| [plugins/odu.md](plugins/odu.md) | CI from odu: the run chip, the run matrix, and the doorbell. |
 | [plugins/xyne-spaces.md](plugins/xyne-spaces.md) | Mirroring doorbell digests into a Xyne Spaces channel. |
+| [plugins/mail.md](plugins/mail.md) | Gmail: connecting an account, reading and filing mail from a conversation, and acting on threads. |
 | [plugins/journal.md](plugins/journal.md) | The calendar, the day page, and the agenda of dated tasks. |
 
 ### Browser UI
@@ -61,6 +64,7 @@ The four ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/ui-renderer.md](plugins/ui-renderer.md) | The Solid renderer and scope-owned extension locations. |
 | [plugins/layout.md](plugins/layout.md) | The root page layout: panels, header, banner, and viewer slots. |
 | [plugins/navigation.md](plugins/navigation.md) | Addresses, history, pane focus, and the command palette. |
+| [plugins/tabs.md](plugins/tabs.md) | Several pages open as tabs above the panes, each with its own Back and Forward. |
 | [plugins/sidebar.md](plugins/sidebar.md) | The directory column and the rail beside it, and their extension slots. |
 | [plugins/outlines.md](plugins/outlines.md) | Outline pages, node editing, and contextual commands. |
 | [plugins/markdown.md](plugins/markdown.md) | Document editing, frontmatter, and headings. |
@@ -68,9 +72,20 @@ The four ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/pins.md](plugins/pins.md) | The pinned shelf in the sidebar: ordering and the pin commands. |
 | [plugins/capture.md](plugins/capture.md) | Quick capture into the inbox, and its command palette prefix. |
 | [plugins/trash.md](plugins/trash.md) | Browsing trashed nodes, restoring them, and emptying the trash. |
+| [plugins/alerts.md](plugins/alerts.md) | Notification permission, sound and badges owned by a tab-only channel row. |
 | [plugins/preferences.md](plugins/preferences.md) | The preferences panel and the slot other plugins add controls to. |
 | [plugins/theme.md](plugins/theme.md) | Light and dark appearance, stored per browser and exposed in preferences. |
 | [plugins/plugin-inspector.md](plugins/plugin-inspector.md) | Plugin switches, activation reports, and retry. |
+
+### File kinds
+
+| Page | What it covers |
+| --- | --- |
+| [plugins/outline-olai.md](plugins/outline-olai.md) | Outline file claims, parsing, and canonical writing. |
+| [plugins/hypertext.md](plugins/hypertext.md) | Saved HTML page claims and sealed previews. |
+| [plugins/csv.md](plugins/csv.md) | Table file claims and reading tabular content. |
+| [plugins/image.md](plugins/image.md) | Picture file claims and media access. |
+| [plugins/pdf.md](plugins/pdf.md) | PDF file claims, browser viewing, and media access. |
 
 ### Test fixtures
 

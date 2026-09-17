@@ -170,3 +170,14 @@ describe("native session call identity", () => {
     expect(calls.about("wire-id", "child").name).toBe("KnownTool")
   })
 })
+
+test("MCP identity shares session keys and lifetime with call facts", () => {
+  const calls = new Calls({ ...NAMES_IN_META, nativeActivity: true })
+  calls.recognized("same", { server: "olai", tool: "outlines_read" }, "one")
+  calls.recognized("same", { server: "foreign", tool: "read" }, "two")
+  calls.recognized("same", null, "one")
+  expect(calls.about("same", "one").mcp).toEqual({ server: "olai", tool: "outlines_read" })
+  expect(calls.about("same", "two").mcp).toEqual({ server: "foreign", tool: "read" })
+  calls.forget()
+  expect(calls.about("same", "one").mcp).toBeUndefined()
+})

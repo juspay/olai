@@ -1,13 +1,24 @@
-import { Edits, Wired } from "@olai/plugin-api"
+import { Landings } from "@olai/plugin-api"
+import { holdLandings } from "./browser/landings.ts"
+/** Outlines owns editor history, selection/drag registers, page readings and
+ * browser preferences. These resources live in the provider activation, before
+ * and independently of any layout. Content and settings are separate consumers. */
+import type {} from "olai-plugin-chat/slots"
+import { fileOf, story } from "./browser/replyFace.tsx"
+
+import { fileKindKey } from "@olai/plugin-api/file-kinds"
+import { fileKinds } from "olai-plugin-files/contract"
+import { pages } from "olai-plugin-navigation/contract"
+import { KindGlyph } from "./glyph.tsx"
+import { TESTID as KIND_IDS } from "./testids.ts"
+import { holdServed } from "./browser/vault.ts"
+import { Edits, Wired, Slots } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
 import { holdEdits, writeEdit } from "./browser/writes.ts"
 import { slotContracts } from "./slots.ts"
 import { fileKind } from "@olai/format"
 import {Clocks} from "@olai/plugin-api"
-/** Outlines owns editor history, selection/drag registers, page readings and
- * browser preferences. These resources live in the provider activation, before
- * and independently of any layout. Content and settings are separate consumers. */
 import { definePlugin, Faces, Offers } from "@olai/plugin-api"
 import { holdFaces } from "./browser/faces.ts"
 import { holdLocations } from "./browser/locations.ts"
@@ -29,11 +40,11 @@ import { fileTypes, fileState } from "olai-plugin-files/contract"
 import { holdFileControls } from "./browser/files.tsx"
 import { NewOutline } from "./browser/outline/NewOutline.tsx"
 import { sections } from "olai-plugin-preferences/contract"
-import { name, browserState, datedRows, documentReferences, pageView, titles, propertyRoutes, type OutlinesBrowser } from "./index.ts"
+import { name, browserState, datedRows, pageView, titles, propertyRoutes, type OutlinesBrowser } from "./index.ts"
 import type { References } from "./contracts/references.ts"
 import { openOverlaySocket, overlayRoot } from "./browser/overlay.ts"
 import { createDeclared, declaringFailure, clearDeclared } from "./browser/declared.ts"
-import { useShowNode, clearFocus } from "./browser/focus.ts"
+import { useShowNode, clearFocus, focusedNode } from "./browser/focus.ts"
 import { createUndo, holdUndo } from "./browser/edit/undoing.ts"
 import { createReadings, holdReadings } from "./browser/reading.tsx"
 import { createAir, holdAir } from "./browser/drag/air.ts"
@@ -81,7 +92,9 @@ import { reachable } from "@olai/web/client/connection/reaching.ts"
  * chat panel wants the naming of a node and must not be taken away when this
  * row stops (`./contracts/references.ts`).
  */
-export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect.gen(function*() {
+export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slots], apply: Effect.gen(function*() {
+    const landingTable = yield* Landings
+    yield* Effect.acquireRelease(Effect.sync(() => holdLandings(landingTable)), stop => Effect.sync(stop))
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
   // WHICH VERBS THIS ROW WRITES, on the app's own table — declared through
@@ -96,7 +109,7 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
     yield* Effect.acquireRelease(Effect.sync(start), stop => Effect.sync(stop))
   }
   const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-    const references: References = { declare: createDeclared, showNode: useShowNode, failure: declaringFailure }
+    const references: References = { focused: focusedNode, declare: createDeclared, showNode: useShowNode, failure: declaringFailure }
     const undo = createUndo(edit => runAsync(writeEdit(edit)))
     const readings = createReadings()
     const fields = createFields()
@@ -113,11 +126,16 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
   const offers = yield* Offers
   yield* offers.own("browser-state", () => state.value)
   yield* offers.own("references", () => state.value.references)
+  yield* (yield* Slots).register("tool.reply", { fileOf, story })
 }) })
 
 import { documentProperties } from "./browser/document-properties.tsx"
 import { palette, messages } from "./browser/palette/adapter.tsx"
 export const components = {
+  glyph: definePlugin({ name: "glyph", needs: [rendererSlots], apply: Effect.gen(function*() {
+    const by = { holds: "nodes" } as const
+    yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: "outline", article: "an", testid: KIND_IDS.outlineLink }, { key: fileKindKey(by) })
+  }) }),
   palette, messages, "document-properties": documentProperties,
   /** The shell's geometry, DECLARED — a component of its own because content
    *  runs under another layout entirely (`olai-plugin-test-layout`), so a row
@@ -133,6 +151,8 @@ export const components = {
     yield* holdFaces(yield* Faces)
     // The app's URL grammar, for the routes this page prints and parses
     // (`./browser/routing.ts`).
+    const served = yield* fileAccess
+    yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     // ...and the clock a date badge is drawn against (`./browser/clock.ts`).
@@ -146,14 +166,16 @@ export const components = {
     // ...and the walks over the locations this page draws, from the same
     // renderer (`./browser/locations.ts`).
     yield* Effect.acquireRelease(Effect.sync(() => holdLocations(slots.read)), stop => Effect.sync(stop))
+    const Page = () => <OutlinePageView />
+    yield* slots.contribute(pages, { by: { holds: "nodes" }, edits: true, page: Page }, { key: fileKindKey({ holds: "nodes" }) })
     yield* slots.contribute(content, {
-      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || fileKind(route.address.path) === "outline")),
-      Page: () => <OutlinePageView />,
-    }, { children: [...Object.values(slotContracts), datedRows, documentReferences, pageView, titles, propertyRoutes] })
+      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || (served.kindOf(route.address.path) === null || served.claims().byKind.get(served.kindOf(route.address.path)!)?.holds === "nodes"))),
+      Page,
+    }, { children: [...Object.values(slotContracts), datedRows, pageView, titles, propertyRoutes] })
     yield* slots.contribute(datedRows, DatedRow)
     yield* slots.contribute(pageView, OutlinePageView)
     yield* slots.contribute(titles, NodeTitle)
-    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && fileKind(meaning.file) === "outline" ? atFile(meaning.file) : undefined)
+    yield* slots.contribute(propertyRoutes, meaning => meaning.kind === "document" && served.claims().byKind.get(served.kindOf(meaning.file) ?? "")?.holds === "nodes" ? atFile(meaning.file) : undefined)
   }) }),
   /** The file controls this row draws, DECLARED — a component of its own so a
    *  page with no files row mounted is a whole page (`./browser/files.tsx`). */

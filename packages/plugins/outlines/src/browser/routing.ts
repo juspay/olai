@@ -20,17 +20,21 @@
  * With no navigation row mounted the readings below answer the front page and
  * nothing, which is the reading a page drawn outside a router already had.
  */
+import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import {
   addressIn as addressWith,
+  targetIn as targetWith,
+  targetFace as targetFaceWith,
+  type AddressTarget,
   type Faced,
   nameOf as nameWith,
   titleFace as titleFaceWith,
 } from "olai-plugin-navigation/address/address.ts"
-import { HOME_ROUTE, hrefOfPlain, type MountedAppPage, type Routing } from "olai-plugin-navigation/routes"
+import { HOME_ROUTE, hrefOfPlain, type MountedAppPage } from "olai-plugin-navigation/routes"
 
-const provider = heldService<Routing>()
+const provider = heldService<WorkspaceRouting>()
 
 /** Told by `../browser.tsx`'s `content` component, for that activation. */
 export const holdRouting = provider.hold
@@ -77,4 +81,17 @@ export const titleFace = (title: string, route: Route, shows: string | undefined
 export const nameOf = (route: Route, shows: string | undefined): string => {
   const routes = provider.read()
   return routes === undefined ? hrefOfPlain(HOME_ROUTE) : nameWith(routes, route, shows)
+}
+
+
+export const targetIn = (title: string): AddressTarget | undefined => {
+  const routes = provider.read()
+  return routes === undefined ? undefined : targetWith(routes, title)
+}
+
+export const targetFace = (title: string, target: AddressTarget,
+  shows: (route: Route) => string | undefined): Faced => {
+  const routes = provider.read()
+  return routes === undefined ? { name: title, written: false }
+    : targetFaceWith(routes, title, target, shows)
 }

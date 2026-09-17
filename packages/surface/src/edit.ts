@@ -125,7 +125,7 @@
  * FILE: a document whole, or an outline emptied of records, gone for good
  * behind the same kind of confirm. Both are refused rather than widened when
  * they would take something a person cannot see — a record still in an
- * outline, a document a `doc` still names — so what either deletes is what
+ * outline, a document a link or declared property still names — so what either deletes is what
  * the person was reading when they said yes, and neither has an inverse
  * (git's story, said where these arms are declared).
  *
@@ -245,6 +245,7 @@ export const Edit = Schema.Union([
      *  needs a title — which is why the editor holds a new row as a DRAFT
      *  until it has one rather than writing a blank and filling it in. */
     title: Schema.String,
+    desc: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({
     verb: Schema.Literal("move"),

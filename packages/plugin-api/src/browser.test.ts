@@ -477,7 +477,6 @@ test("a slot nobody has hung a face in reads empty, whatever its cardinality", a
   expect(app.hung("app.header")).toEqual([])
   expect(app.hung("app.keys")).toEqual([])
   expect(app.dressed("outline.row.chip").size).toBe(0)
-  expect(app.hung("outline.row.door")).toEqual([])
   expect(app.only("app.panel")).toBe(null)
 })
 

@@ -43,14 +43,16 @@ default:
 [parallel]
 [metadata("ci")]
 [doc("Run all checks in the CI pipeline")]
-check: typecheck test e2e kolu-deps odu-deps odu-surface cordis-deps fmt-check nix bun-nix-fresh hm-module
+check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module plugin-fold
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
-# The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
-# tests (packages/plugins/pi/acp/mcp-bridge) resolve the SDK from ITS lockfile, not the root's
-# bun one — and `bun test` discovers them with everything else, so a fresh
-# machine's first `just test` needs both trees standing. It is the same
-# lockfile the FOD builds from; nothing here drifts.
+# Each plugin's `npmTrees` leg is its own — the pi engine's MCP bridge tests
+# (packages/plugins/pi/acp/mcp-bridge) resolve the SDK from ITS lockfile, not the root's
+# bun one, and `bun test` discovers them with everything else, so a fresh
+# machine's first `just test` needs both trees standing. Every plugin declares
+# its own `npmTrees` in its `default.nix`; the fold renders them into ONE
+# `devInstallScript`, exported here as `$OLAI_PLUGIN_INSTALL`, so this recipe
+# names no plugin directory by hand.
 # `npm ci` is announced on stderr before it starts, then run with
 # `--loglevel=http`: `nix develop -c` is not a TTY, so npm turns progress
 # off and notice-level is silent until "added N packages in 5m" — a cold
@@ -65,8 +67,9 @@ check: typecheck test e2e kolu-deps odu-deps odu-surface cordis-deps fmt-check n
 # under `set -u`). It is a whole argv — nix/kolu.nix derives it from one list
 # — so the expansion is deliberately unquoted.
 #
-# `@odu/run-client` rides the SAME script on a second line — one copier, two
-# pins (nix/odu.nix says why odu brings no script of its own). Cordis is a
+# `@odu/run-client`, `@odu/run-history` and `@odu/service-client` ride the SAME
+# script on a second line — one copier, two pins (nix/odu.nix says why odu
+# brings no script of its own). Cordis is a
 # third pin on a third line, four packages out of one repository
 # (nix/cordis.nix). Separate invocations rather than one concatenated argv so
 # a failure names which pin it was hydrating.
@@ -82,14 +85,10 @@ check: typecheck test e2e kolu-deps odu-deps odu-surface cordis-deps fmt-check n
 [doc("Install dependencies and generate pinned sources and assets")]
 install:
     {{ nix_shell }} sh -c 'bun install --frozen-lockfile \
-      && echo >&2 "cd acp && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund" \
-      && (cd acp && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund) \
+      && sh $OLAI_PLUGIN_INSTALL \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE \
-      && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_ODU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_CORDIS_HYDRATE \
-      && bun packages/bundle/generate.ts \
-      && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugins/kolu/src/browser/mark.generated.ts \
-      && install -m 644 "$OLAI_ODU_MARK_DIR/mark.generated.ts" packages/plugins/odu/src/browser/mark.generated.ts'
+      && bun packages/bundle/generate.ts'
 
 # Typecheck locally as one workspace run; Odu splits packages across up to
 # six available slots. Each slice retains its own install prerequisite.
@@ -213,39 +212,44 @@ test: install
 kolu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh kolu "$OLAI_KOLU_EXTERNALS"'
 
-# The same three questions about odu's one hydrated package, asked by the same
-# script. It gets two assertions it never had — every workspace manifest, and
-# the root `overrides` block — which is not a widening for its own sake:
-# `@odu/run-client` declares `effect` at this tree's pinned version, and an
-# override is how bun SILENTLY REWRITES one, so an unchecked one there makes
-# every manifest's honesty cosmetic in exactly the way it already did for kolu.
-[doc("Check dependency versions against the odu pin")]
-odu-deps:
-    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh @odu/run-client "$OLAI_ODU_MANIFEST"'
+# EVERY PLUGIN'S declared npm externals, asked the same three questions by
+# the same script, folded once through `OLAI_PLUGIN_EXTERNALS` so a future
+# pin (or a new plugin) lands here by composition rather than by a second
+# recipe. `@odu/run-client` declares `effect` at this tree's pinned version
+# (and an override is how bun SILENTLY REWRITES one); every other tenant's
+# manifest agreement is its own entry in the same JSON map, with the plugin's
+# name inside it so a failure still names its pin.
+[doc("Check dependency versions against every plugin's pin")]
+plugin-deps:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    JQ=$({{ nix_shell }} which jq | tail -1)
+    while IFS= read -r entry; do
+      name=$(printf '%s' "$entry" | "$JQ" -r '.name')
+      manifest=$(printf '%s' "$entry" | "$JQ" -r '.externals')
+      if [ "$manifest" != "{}" ]; then
+        {{ nix_shell }} sh -c "sh scripts/check-hydrated-deps.sh \"$name\" '$manifest'"
+      fi
+    done < <(printf '%s' "$OLAI_PLUGIN_EXTERNALS" | "$JQ" -c 'to_entries[] | {name: .key, externals: .value}')
 
-# The OTHER half of the same pin, asked of the BINARY rather than the manifest:
-# does the pinned `odu` still answer the tool surface a conversation is handed?
-#
-# `odu-deps` one recipe up reads what the pin DECLARES; this one starts what the
-# pin BUILDS and speaks MCP to it, through `probe.ts` itself. The two are not
-# the same question, and the gap between them is a real incident: the bump to
-# juspay/odu#105 renamed every verb `probe.ts` asks for, and `odu-deps`,
-# `typecheck`, `test` and `nix` were all green — the hydrated package's manifest
-# had not moved, and every `odu` under `bun test` is a fixture this repo wrote
-# spelling the OLD names. What went red was `e2e`, four scenarios deep, on a
-# strict-mode locator that found one missing-server row too many.
-#
-# So: its own leg, named for what it checks, failing with the probe's own
-# sentence. It is a `nix build` and a five-second handshake, and it is the
-# cheapest thing in `check` that can see a pin move.
+# EVERY PLUGIN'S SANDBOXED surface check, run as one `nix build` over the
+# fold's `checks` attrset. The odu plugin's row runs the real probe
+# (`packages/plugins/odu/src/surface.check.ts`) against the binary its own
+# `default.nix` bakes — the binary whose verbs juspay/odu#105 once renamed
+# wholesale, and which no `bun test` fixture can see. What went red then was
+# `e2e`, four scenarios deep, on a strict-mode locator that found one
+# missing-server row too many; this leg asks the same question directly, on
+# the binary the build actually baked. `plugins` (the fold's `symlinkJoin`)
+# holds every plugin's checks, so a new plugin's own `checks = { tree }` lands
+# here by composition.
 #
 # NO [metadata("ci")] OF ITS OWN, like every other leaf: `check` carries the
 # tag and odu expands its dependency list, so being named up there is the
 # whole of what puts this on the lane graph. A second tag would be a second
 # root for the same node.
-[doc("Verify the pinned Odu tool surface")]
-odu-surface:
-    {{ nix_shell }} sh -c 'bun scripts/check-odu-surface.ts "$(sh scripts/nix-out.sh .#odu-bin)/bin"'
+[doc("Verify every plugin's sandboxed surface check")]
+plugin-checks:
+    nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).plugins --no-link --accept-flake-config
 
 # ...and the same three questions about the four hydrated Cordis packages, over
 # the UNION of what they declare (nix/cordis.nix builds it): `cosmokit`,
@@ -286,27 +290,16 @@ build-client: install
 serve dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
-    # The chat panel defaults to the pinned Claude Code adapter, exactly as the
-    # packaged binary does — scripts/acp-agent.sh is the one place that is
-    # decided, and `OLAI_ACP_AGENT` overrides it (empty uses command discovery).
-    export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
-    # Codex is shipped from the pin inside its plugin, with a separate override
-    # so each engine has its own executable resource.
-    export OLAI_ACP_CODEX="$(sh scripts/acp-codex.sh)"
-    # The pi row's adapter, the other half of the same pin — a machine with a
-    # `pi` on the search path gets the row, every other machine gets nothing
-    # new (scripts/acp-pi.sh says why the roster probes for the agent).
-    export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
-    # The pinned odu on PATH, exactly as the packaged binary bakes into its
-    # wrapper (default.nix) — scripts/olai-path.sh composes the whole
-    # variable, so this can be the same one line the acp knobs are. An empty
-    # override is off, and off is a DRAWN row, not a quiet plugin.
-    # Two lines rather than one `export PATH="$(…)"`: the export builtin's
-    # own status is what `set -e` sees, and a failing build script must stop
-    # the serve here — continuing would splice an EMPTY PATH, and the next
-    # thing run reports `nix: command not found`.
-    PATH="$(sh scripts/olai-path.sh)"
-    export PATH
+    # EVERY PLUGIN KNOB arrives from the fold's `plugin-env` below — the dev
+    # loop's spelling of the same `export VAR="${VAR-default}"` the packaged
+    # wrapper bakes (`default.nix`), so unset means the pin and empty means
+    # off, exactly as a `nix run` would. That now covers the ACP adapters too:
+    # the Claude pin, codex, and pi each declare their knob in their own
+    # plugin's `default.nix`, so no engine's default is hand-copied here. An
+    # empty override is off, and off is a DRAWN row, not a quiet plugin. The
+    # PATH splice itself is inside packages/server/src/main.ts (the row the
+    # probe reads); the developer's own PATH is not touched.
+    . "$(sh scripts/nix-out.sh .#plugin-env)"
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
@@ -327,13 +320,11 @@ serve dir="docs" *args: build-client
 run dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
-    export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
-    export OLAI_ACP_CODEX="$(sh scripts/acp-codex.sh)"
-    export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
-    # The pinned odu on PATH, the same errand one recipe over — see `serve`
-    # for why the export is two lines.
-    PATH="$(sh scripts/olai-path.sh)"
-    export PATH
+    # Every plugin knob — the ACP rows included — arrives from the fold's
+    # `plugin-env` below, the same `export VAR="${VAR-default}"` `serve` sources
+    # (and the packaged wrapper bakes); no engine's pinned default is
+    # hand-copied here.
+    . "$(sh scripts/nix-out.sh .#plugin-env)"
     OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
@@ -342,8 +333,9 @@ run dir="docs" *args: build-client
 # node_modules meet outside the dev shell, and running it is what proves that
 # tree's module graph resolves — a typecheck cannot, because the dev tree has
 # packages the build's does not. The run re-uses the build's output (it
-# re-evaluates the flake, which is cheap and warm). No nix_shell prefix: this
-# recipe IS the outside-the-shell check.
+# re-evaluates the flake, which is cheap and warm). The recipe reads the
+# fold's `knobsTable` — a TAB-SEPARATED text rendering in the flake, no dev
+# shell needed — so a knob failure names the variable without shell quoting.
 [doc("Build and verify the Nix-packaged binary")]
 nix:
     #!/usr/bin/env bash
@@ -351,87 +343,86 @@ nix:
     out=$(sh scripts/nix-out.sh .#olai)
     echo >&2 "nix run .#olai -- --help"
     nix run .#olai --accept-flake-config -- --help > /dev/null
-    # The packaged DEFAULT AGENT, as a checked fact rather than a claim in a
-    # doc: `nix run` has to come with the pinned Claude Code adapter, so the
-    # wrapper must carry it and the thing it names must be runnable. Dropping
-    # the `--set-default` in default.nix, or renaming the flake attribute it
-    # points at, fails here rather than as a "no ACP agent" message in
-    # somebody's browser.
-    #
-    # The one-dash `${VAR-...}` is asserted too, and it is load-bearing: it
-    # substitutes only when the variable is UNSET, which is what makes an empty
-    # command skip the packaged default and leave search-path discovery in force.
-    agent=$(sed -n "s|.*OLAI_ACP_AGENT=\${OLAI_ACP_AGENT-'\(.*\)'}.*|\1|p" "$out/bin/olai")
-    if [ -z "$agent" ]; then
-      echo "the packaged binary does not bake OLAI_ACP_AGENT into its wrapper," >&2
-      echo "so \`nix run\` would start with no agent — every documented launch" >&2
-      echo "path is supposed to default to the pinned adapter. Wrapper:" >&2
-      cat "$out/bin/olai" >&2
-      exit 1
+    # EVERY DECLARED KNOB, asserted of the wrapper the build actually ships.
+    # The fold's `knobsTable` (read as raw text through
+    # `.#olai.passthru.knobsTable`) names each variable's kind (`file` or
+    # `dir`), path, and — for a `dir` — the executable it should hold.
+    table=$(nix eval --raw .#olai.passthru.knobsTable --accept-flake-config)
+    keys=""
+    while IFS=$'\t' read -r name kind path holds; do
+      keys="$keys $name"
+      # The one-dash `${VAR-...}` is asserted, and it is load-bearing: it
+      # substitutes only when the variable is UNSET, which is what makes an
+      # empty command skip the packaged default and leave search-path
+      # discovery in force.
+      default=$(sed -n "s|.*${name}=\${${name}-'\(.*\)'}.*|\1|p" "$out/bin/olai")
+      if [ -z "$default" ]; then
+        echo "the packaged binary does not bake ${name} into its wrapper," >&2
+        echo "so \`nix run\` would start with no answer for it. Wrapper:" >&2
+        cat "$out/bin/olai" >&2
+        exit 1
+      fi
+      if [ "$default" != "$path" ]; then
+        echo "the wrapper's baked ${name} does not match the fold's path:" >&2
+        echo "  wrapper: $default" >&2
+        echo "  fold:    $path" >&2
+        exit 1
+      fi
+      case "$kind" in
+        file)
+          if [ ! -x "$default" ]; then
+            echo "the wrapper's baked ${name} is not executable: $default" >&2
+            exit 1
+          fi
+          echo "packaged ${name}: $default"
+          ;;
+        dir)
+          if [ ! -d "$default" ] || [ -n "$holds" ] && [ ! -x "$default/$holds" ]; then
+            echo "the wrapper's pinned ${name} is not a directory holding ${holds:-the answer}: $default" >&2
+            exit 1
+          fi
+          echo "packaged ${name}: $default"
+          ;;
+      esac
+    done <<< "$table"
+    # The `OLAI_WRAPPER_DEFAULTS` `--run` must name exactly the declared set —
+    # the settings panel's 'wrapper-provided' label is this loop's answer.
+    # The names arrive from the fold, not from a hard-coded list, so the
+    # loop's own answer to "wrapper-provided?" is compositional.
+    keys=$(echo "$keys" | xargs)  # strip leading/trailing whitespace
+    if ! grep -qF "for key in $keys" "$out/bin/olai"; then
+        echo "the wrapper's OLAI_WRAPPER_DEFAULTS loop does not name the fold's knobs: $keys" >&2
+        cat "$out/bin/olai" >&2
+        exit 1
     fi
-    if [ ! -x "$agent" ]; then
-      echo "the wrapper's baked OLAI_ACP_AGENT is not executable: $agent" >&2
-      exit 1
-    fi
-    echo "packaged default agent: $agent"
-    # The shipped Codex adapter gets its own row and its own off/override
-    # variable; it must be baked into the same packaged wrapper.
-    codex=$(sed -n "s|.*OLAI_ACP_CODEX=\${OLAI_ACP_CODEX-'\(.*\)'}.*|\1|p" "$out/bin/olai")
-    if [ -z "$codex" ]; then
-      echo "the packaged binary does not bake OLAI_ACP_CODEX into its wrapper." >&2
-      cat "$out/bin/olai" >&2
-      exit 1
-    fi
-    if [ ! -x "$codex" ]; then
-      echo "the wrapper's baked OLAI_ACP_CODEX is not executable: $codex" >&2
-      exit 1
-    fi
-    echo "packaged codex adapter: $codex"
-    # THE OTHER SHIPPED ADAPTER, checked the same way: the pi row is a no-op
-    # on a machine without `pi`, but on one that has it the row spawns
-    # whatever this names, so it has to be there and be runnable.
-    pi=$(sed -n "s|.*OLAI_ACP_PI=\${OLAI_ACP_PI-'\(.*\)'}.*|\1|p" "$out/bin/olai")
-    if [ -z "$pi" ]; then
-      echo "the packaged binary does not bake OLAI_ACP_PI into its wrapper," >&2
-      echo "so the pi row would never be offered. Wrapper:" >&2
-      cat "$out/bin/olai" >&2
-      exit 1
-    fi
-    if [ ! -x "$pi" ]; then
-      echo "the wrapper's baked OLAI_ACP_PI is not executable: $pi" >&2
-      exit 1
-    fi
-    echo "packaged pi adapter: $pi"
-    # THE BAKED ODU, asserted the same way and for its own incident's sake:
-    # the odu plugin's probe resolves `odu` on the SERVER's PATH, so the
-    # wrapper's `--set-default OLAI_ODU_BIN` names the pin's bin dir and its
-    # `--run` splices it FIRST (default.nix) — a wrapper that stopped doing
-    # either would now answer the probe LOUDLY in every conversation instead
-    # of being silent (olai-plugin-odu's probe), which is a worse time to
-    # find out than this line. Extraction is the two adapter checks' own
-    # sed, keyed on the variable SPELLING rather than a store-name pattern:
-    # a different wrapping that still mentioned the store dir would lie to
-    # the pattern, and the variable spelling is the contract.
-    odu_dir=$(sed -n "s|.*OLAI_ODU_BIN=\${OLAI_ODU_BIN-'\(.*\)'}.*|\1|p" "$out/bin/olai")
-    if [ -z "$odu_dir" ]; then
-      echo "the packaged binary does not name an OLAI_ODU_BIN default," >&2
-      echo "so \`nix run\` would start with no odu resolvable — every documented" >&2
-      echo "launch path is supposed to carry the pinned one. Wrapper:" >&2
-      cat "$out/bin/olai" >&2
-      exit 1
-    fi
-    if ! grep -qF 'export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"' "$out/bin/olai"; then
-      echo "the wrapper names OLAI_ODU_BIN but never splices it onto PATH —" >&2
-      echo "the probe would resolve nothing. Wrapper:" >&2
-      cat "$out/bin/olai" >&2
-      exit 1
-    fi
-    if [ ! -x "$odu_dir/odu" ]; then
-      echo "the wrapper's pinned odu is not executable: $odu_dir/odu" >&2
-      exit 1
-    fi
-    echo "packaged odu: $odu_dir/odu"
+    # Each `dir` knob must have its PATH splice baked — the probe would
+    # resolve nothing without it. `grep -F` with the interpolation stripped:
+    # the literal text `export PATH="${<NAME>}""${PATH:+:$PATH}"` appears
+    # once per knob, scanned for its two halves separately so the grep
+    # pattern itself never has to escape a `$` the justfile would.
+    printf '%s' "$table" | cut -f1,2 | while IFS=$'\t' read -r name kind; do
+        if [ "$kind" = "dir" ]; then
+            # The literal text scanned for is `export PATH="${NAME}""${PATH:+:$PATH}"`;
+            # the bash string `\$` escapes every dollar so grep sees the file's
+            # own spelling rather than an interpolated value.
+            if ! grep -qF "export PATH=\"\${${name}}\"\"\${PATH:+:\$PATH}\"" "$out/bin/olai"; then
+                echo "the wrapper names $name but never splices it onto PATH —" >&2
+                echo "the probe would resolve nothing. Wrapper:" >&2
+                cat "$out/bin/olai" >&2
+                exit 1
+            fi
+        fi
+    done
 
+# The registry fold's contract/collision refusals, over fixture containers
+# (packages/bundle/nix/fixtures/<name>): an accepted case, several rejected
+# (unknown key, missing `.generated.` infix, a knob the manifest does not
+# declare, two plugins claiming one knob/dest/flake output, a knob the
+# manifest declares but the `default.nix` does not). Each refusal names BOTH
+# owners, asserted at eval time by the fold's `diagnostics`.
+[doc("Check the plugin registry fold (contracts and collisions)")]
+plugin-fold:
+    nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).plugin-fold --no-link --accept-flake-config
 # The home-manager module evaluates under a sample config (systemd argv on
 # Linux, launchd argv on Darwin). Cheap, no home-manager pin, no activation —
 # just the option shape and the service knobs. See nix/home/check.nix.
@@ -703,6 +694,15 @@ hm-module:
 # own paragraph gives; the referrers have four sizes of their own, named in
 # their row.
 
+# The plugin rows as a graph you can click: every row's server and browser
+# half, the components each declares, what they need, what they offer and
+# where they contribute, read off the sources by the TypeScript parser and
+# served on one page. `/graph.json` is recomputed per request, so edit a
+# plugin and reload.
+[doc("Serve an interactive graph of plugin rows, their needs, offers and locations")]
+cordis-graph port="4949": install
+    {{ nix_shell }} bun scripts/cordis-graph.ts {{ port }}
+
 [doc("Run performance benchmarks")]
 bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
@@ -724,29 +724,30 @@ bench: install
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees
 # used to drive one tree; this file lives in THIS worktree.
 #
-# THE ODU FACE OF “the same binary”: a wrapper that only changed the argv
+# THE ODU FACE OF "the same binary": a wrapper that only changed the argv
 # would be the ONE spawn shape with no odu answer of its own, and
-# isolateEnv deleting the host's OLAI_ODU_BIN (workers.ts) would make the
-# roster features host-dependent on exactly the loop the README hands
-# developers. The generated file therefore re-spells default.nix's own
-# shape: a set-default line for the pin's bin dir, the same three-arm
-# splice. `serve`/`run` ask scripts/olai-path.sh to compose the variable
-# on every run; this file is WRITTEN once per worktree, so it composes
-# the default at write time the way the nix wrapper does at build time —
-# one knob, every face is only true when this face answers too.
+# workers.ts deleting the host's odu knob would make the roster features
+# host-dependent on exactly the loop the README hands developers. The
+# generated file therefore re-spells default.nix's own shape: OLAI_DIST_DIR
+# spelled once, then the fold's `.#plugin-env` sourced — which carries every
+# declared knob (the pins' `-` defaults, the PATH splices, the mail face)
+# — so the wrapper defaults read off one manifest rather than three places
+# each writing their own.
 [doc("Create a worktree-local binary wrapper for e2e tests")]
 dev-bin:
     #!/usr/bin/env bash
     set -euo pipefail
     dir="{{ justfile_directory() }}/.olai-dev"
     mkdir -p "$dir"
-    # The same build-on-demand scripts/olai-path.sh's header spends a
-    # paragraph defending: here at WRITE time rather than each spawn.
-    odu_dir="$(sh scripts/nix-out.sh .#odu-bin)/bin"
+    # The wrapper the dev loop's e2e suite spawns: `OLAI_DIST_DIR` answers the
+    # built client, every OTHER knob the fold declares is `export
+    # VAR="${VAR-default}"` from the same `plugin-env` `serve` and `run`
+    # source. Every declared knob — the ACP adapters' and the mail plugin's
+    # alike — arrives from the same `plugin-env`.
+    plugin_env="$(sh scripts/nix-out.sh .#plugin-env)"
     printf '#!/usr/bin/env bash\n' > "$dir/bin"
     printf 'export OLAI_DIST_DIR="${OLAI_DIST_DIR-%s}"\n' "{{ dist }}" >> "$dir/bin"
-    printf 'export OLAI_ODU_BIN="${OLAI_ODU_BIN-%s}"\n' "$odu_dir" >> "$dir/bin"
-    printf '%s\n' 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi' >> "$dir/bin"
+    printf '. %s\n' "\"$plugin_env\"" >> "$dir/bin"
     printf 'exec bun %s/packages/server/src/main.ts "$@"\n' \
       "{{ justfile_directory() }}" >> "$dir/bin"
     chmod +x "$dir/bin"

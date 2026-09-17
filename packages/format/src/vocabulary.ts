@@ -226,7 +226,7 @@ const counting = (derived: Derived): ReadonlyArray<TagUse> => {
 const putAway = (derived: Derived): ReadonlySet<string> => {
   const away = new Set<string>()
   for (const file of derived.byFile.keys()) {
-    if (isPutAway(file)) away.add(file)
+    if (isPutAway(derived.claims, file)) away.add(file)
   }
   return away
 }

@@ -25,36 +25,28 @@
  * or a size, never the chip.
  */
 
-import { createSignal } from "solid-js"
-
-const [scope, setScope] = createSignal<string | null>(null)
-export const previewScope = (value: string | null): void => { setScope(value) }
 const key = (scope: string | null, name: string) => JSON.stringify([scope, name])
-
-/** How many files a tab remembers, and how much of them. Enough that a
- *  conversation's recent rows are all drawn in full; small enough that a tab
- *  left open for a week is not carrying a week of screenshots. */
 const KEPT = 24
 const KEPT_BYTES = 64 * 1024 * 1024
 
-const blobs = new Map<string, Blob>()
-
-/** Hold on to what was just sent. */
-export const remember = (name: string, blob: Blob, owner: string | null = scope()): void => {
-  // A file larger than the whole budget would evict everything and then sit
-  // there alone; the bare name is the better answer for one of those.
-  if (blob.size > KEPT_BYTES) return
-  blobs.set(key(owner, name), blob)
-  // Map iterates in insertion order, so the first key is the oldest.
-  while (blobs.size > KEPT || held() > KEPT_BYTES) {
-    const oldest = blobs.keys().next()
-    if (oldest.done === true) return
-    blobs.delete(oldest.value)
+/** One activation's bounded cache, with an explicit upload lifetime at each
+ * access. Two conversations never replace a global current scope. */
+export const createPreviews = () => {
+  const blobs = new Map<string, Blob>()
+  const held = () => [...blobs.values()].reduce((bytes, blob) => bytes + blob.size, 0)
+  return {
+    remember: (name: string, blob: Blob, scope: string | null): void => {
+      if (blob.size > KEPT_BYTES) return
+      blobs.set(key(scope, name), blob)
+      while (blobs.size > KEPT || held() > KEPT_BYTES) {
+        const oldest = blobs.keys().next()
+        if (oldest.done) return
+        blobs.delete(oldest.value)
+      }
+    },
+    previewOf: (name: string, scope: string | null): Blob | undefined => blobs.get(key(scope, name)),
   }
 }
-
-/** The Blob for a named attachment, if this tab is the one that sent it. */
-export const previewOf = (name: string): Blob | undefined => blobs.get(key(scope(), name))
 
 /**
  * How big it is, in the shortest true words.
@@ -81,10 +73,4 @@ export const sizeText = (bytes: number): string => {
   }
   const shown = size >= 10 || Number.isInteger(size) ? Math.round(size) : size.toFixed(1)
   return `${shown} ${units[unit]}`
-}
-
-const held = (): number => {
-  let bytes = 0
-  for (const blob of blobs.values()) bytes += blob.size
-  return bytes
 }

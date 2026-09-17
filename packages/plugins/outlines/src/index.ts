@@ -1,13 +1,3 @@
-import { serviceTag, location } from "@olai/plugin-api/contracts"
-export { name } from "./name.ts"
-
-import type { Undo } from "@olai/edit-history/undoing.ts"
-import type { Client } from "./client.ts"
-import type { References } from "./contracts/references.ts"
-import type { Air } from "./browser/drag/air.ts"
-import type { Fields } from "./browser/drag/fields.ts"
-import type { Readings } from "./browser/reading.tsx"
-
 /**
  * WHAT THIS ROW OWNS IN A TAB — the state a consumer that names
  * {@link browserState} is handed.
@@ -24,6 +14,15 @@ import type { Readings } from "./browser/reading.tsx"
  * contract door actually EVALUATES (`scanImports` elides a type-only import),
  * which is the difference between naming a shape and reaching for a value.
  */
+import { serviceTag, location } from "@olai/plugin-api/contracts"
+export { name } from "./name.ts"
+
+import type { Undo } from "@olai/edit-history/undoing.ts"
+import type { Client } from "./client.ts"
+import type { References } from "./contracts/references.ts"
+import type { Air } from "./browser/drag/air.ts"
+import type { Fields } from "./browser/drag/fields.ts"
+import type { Readings } from "./browser/reading.tsx"
 export interface OutlinesBrowser {
   /** This row's sibling client, on whichever wire is current. */
   readonly client: () => Client
@@ -48,7 +47,6 @@ import type { DayEntry } from "@olai/format"
 import type { JSX } from "solid-js"
 export interface DatedRowProps { readonly dated: DayEntry; readonly trail: "over" | "under"; readonly pill?: string }
 export const datedRows = location<(props: DatedRowProps) => JSX.Element>("outlines.dated-row", "one")
-export const documentReferences = location<(props: {readonly file: string; readonly inline?: boolean}) => JSX.Element>("outlines.document-reference", "one")
 import type { Shown } from "@olai/format"
 import type { Drawn } from "./contracts/page.ts"
 export interface PageBodyProps { readonly page: Shown; readonly drawn: Drawn; readonly held: Drawn; readonly today: string }

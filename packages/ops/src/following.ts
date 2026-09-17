@@ -85,14 +85,14 @@
  * order, which is what makes a bad batch fail at an INDEX rather than as one
  * illegible report about a file nobody wrote.
  */
-
+import { encoded } from "./encode.ts"
 import {
   bodiedDocument,
   type Document,
   following,
   type OpFailure,
-  parseOutline,
-  serializeOutline,
+
+
   ValidationFailure,
   verdictOf,
 } from "@olai/format"
@@ -135,30 +135,12 @@ export const folding = (from: Scope): Folding => {
   return (made) => {
     const written: Array<Document> = []
     for (const planned of made.files) {
-      const text = serializeOutline(planned.nodes)
-      const read = parseOutline(planned.file, text)
-      if (Result.isFailure(read)) {
-        // Unreachable through any request: these records came out of the
-        // planner and went through the format's own writer, so a file that
-        // does not parse back is a defect in one of those two rather than
-        // anything a caller sent. It is a refusal and not a throw because the
-        // batch's promise is that nothing lands — a defect that took the
-        // process down would be a promise kept the expensive way — and it
-        // carries the parser's own rows so the defect is diagnosable.
-        return Result.fail(
-          new ValidationFailure({
-            reason:
-              `\`${planned.file}\` did not read back after being planned, so the ` +
-              `batch was abandoned and nothing was written. This is a defect in ` +
-              `olai rather than in the call.`,
-            verdict: verdictOf(read.failure),
-          }),
-        )
-      }
-      written.push(read.success)
+      const read = encoded(at.claims, planned.file, planned.nodes)
+      if (Result.isFailure(read)) return Result.fail(read.failure)
+      written.push(read.success.outline)
     }
     for (const document of made.documents ?? []) {
-      written.push(bodiedDocument(document.file, document.text))
+      written.push(bodiedDocument(at.claims, document.file, document.text))
     }
 
     // THE VIEW PATCHED RATHER THAN DERIVED, and the SET built beside it out of
@@ -188,7 +170,7 @@ export const folding = (from: Scope): Folding => {
     for (const document of written) wrote.set(document.path, document)
     const asked = carried(base, next.set, wrote)
     if (asked === undefined) {
-      base = askedOf(next.set)
+      base = askedOf(next.claims, next.set)
       wrote = new Map()
     }
     // `typed` is REBUILT rather than carried, where `asked` above is carried:
@@ -197,6 +179,7 @@ export const folding = (from: Scope): Folding => {
     // declaration ({@link ../plan.ts}'s `typedIn`).
     at = {
       ...next,
+      outlineRow: at.outlineRow,
       context: at.context,
       asked: asked ?? base,
       // The VOCABULARY is carried, where the typing is rebuilt: what a plugin

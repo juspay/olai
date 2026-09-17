@@ -1,5 +1,14 @@
+import { createCarry } from "@olai/web/client/carry.ts"
+import { landings } from "./landings.ts"
+import type { CarriedPath } from "./carry.ts"
+/** A DOOR at the foot of the column: Trash. It is not a row of the tree above
+ *  it — it opens a file that tree does not draw — and the quiet ink is what
+ *  says so, since a door drawn in the list's own ink would read as one more
+ *  file. Inbox used to sit here; it moved up beside Agenda (human,
+ *  2026-08-20). */
+
 import { TESTID } from "olai-plugin-files/testids"
-import { type BrokenFile,type FileKind,fileKind,inboxIn,inOlaiDir,isTrashed,stemOf } from "@olai/format"
+import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
@@ -13,9 +22,10 @@ Switch,
 import { servedDirectory } from "./vault.ts"
 
 
+import { createReferenceFold } from "./fold/reference.ts"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { Glyph } from "olai-plugin-files/icons"
-import { ROW_TESTID } from "olai-plugin-files/kinds"
+import { Glyph } from "./glyphs.tsx"
+import { drawingOf } from "./drawings.ts"
 import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
 import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
 
@@ -30,12 +40,6 @@ import { vaultEntries } from "olai-plugin-sidebar/contract"
 import { fileTypes } from "./contract.ts"
 
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
-
-/** A DOOR at the foot of the column: Trash. It is not a row of the tree above
- *  it — it opens a file that tree does not draw — and the quiet ink is what
- *  says so, since a door drawn in the list's own ink would read as one more
- *  file. Inbox used to sit here; it moved up beside Agenda (human,
- *  2026-08-20). */
 const DOOR = `${ENTRY} text-paper/65`
 
 /** A directory row: folds, does not navigate. Same SHAPE and ink as a file —
@@ -44,7 +48,10 @@ const DOOR = `${ENTRY} text-paper/65`
  *  carry it. */
 const DIR = `${ENTRY_SHAPE} ${ROW_GAP}`
 
+const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
+
 interface TreeView {
+  readonly closeDrawer: () => void
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
   /** Directories the reader has unfolded, and this browser remembers. Absent =
@@ -84,11 +91,23 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // preference: the outlines olai named for itself do not sit among the
   // reader's own — the column's FOOT is their home (the vault group below),
   // the way the Trash has always had its own there.
-  const tree = createMemo(() =>
-    fileTree(
-      served().filter((file) => !isTrashed(file) && !inOlaiDir(file)),
-    ),
-  )
+  const tree = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : fileTree(claims, served().filter(file => !isTrashed(claims, file) && !inOlaiDir(file)), "nodes")
+  })
+
+  const references = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : served().filter(file => {
+      const kind = fileKind(claims, file)
+      return !inOlaiDir(file) && kind !== null && claims.byKind.get(kind)?.holds !== "nodes"
+    })
+  })
+  const referenceTree = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : fileTree(claims, references(), "reference")
+  })
+  const reference = createReferenceFold(() => props.active, file => references().includes(file))
 
   // THE VAULT'S OWN FILES — the `_olai/` outlines, every one the directory
   // holds except the archive (which the `isTrashed` rule above already
@@ -96,9 +115,10 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // same list the tree reads is the `inboxIn` argument one memo down: no
   // records are walked here, and path-only membership equality (`./served.tsx`)
   // is what keeps this answer from minting on a frame.
-  const vault = createMemo(() =>
-    served().filter((file) => !isTrashed(file) && inOlaiDir(file))
-  )
+  const vault = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? [] : served().filter(file => !isTrashed(claims, file) && inOlaiDir(file))
+  })
 
   // WHICH FILE THE INBOX IS, read off the same resolver the server captures
   // through (`@olai/format`'s `inboxIn`) — never a path this column composes,
@@ -116,19 +136,23 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // PATHS, and a browser holds every one of those already: it is the same list
   // the tree above is built from, and one more pass over it is not a vault
   // walk.
-  const inbox = createMemo(() => inboxIn(served()))
+  const inbox = createMemo(() => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? undefined : inboxIn(claims, served())
+  })
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
   // TREE — one answer to "what folders are there", the walk that decides what is
   // on screen — and asked on the click rather than memoised, because that is the
   // only moment anybody wants it.
-  const toggle = (path: string) => toggleFolder(path, dirsIn(tree()))
+  const toggle = (path: string) => toggleFolder(path, dirsIn([...tree(), ...referenceTree()]))
 
   const view: TreeView = {
+    closeDrawer: () => props.onClose(),
     isActive,
     get broken() {
-      return servedDirectory()!.broken()
+      return (servedDirectory()?.broken() ?? NO_BROKEN)
     },
     expanded: openFolders,
     openAncestry,
@@ -137,6 +161,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
 
   return <>
           <section class={REGION} data-testid={TESTID.sidebarFiles}>
+            <div class="mb-1 px-2 text-xs text-paper/65">Outlines</div>
             <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
               <Key each={tree()} by="key">
                 {(row) => <Entry row={row()} view={view} />}
@@ -159,6 +184,21 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
               <For each={props.slots.read(fileTypes)}>{({ value: kind }) => <kind.Create />}</For>
             </div>
           </section>
+
+          <Show when={references().length > 0}>
+            <section class={REGION} data-testid={TESTID.reference} data-count={references().length}>
+              <button type="button" class={`${ENTRY} w-full text-paper/65`} data-testid={TESTID.referenceToggle} aria-expanded={reference.open()} onClick={reference.toggle}>
+                <span class={`${CONTROL} text-paper/55`} aria-hidden="true"><svg class="size-2.5 shrink-0 transition-transform duration-100" classList={{ "-rotate-90": !reference.open() }} viewBox="0 0 10 10" fill="currentColor"><path d="M2 3.25 L8 3.25 L5 7.25 Z" /></svg></span>
+                <Glyph of="folder" />
+                <span>Reference</span><span class="ml-auto font-mono text-xs">{references().length}</span>
+              </button>
+              <Show when={reference.open()}>
+                <ul class="m-0 list-none p-0" data-testid={TESTID.referenceList}>
+                  <Key each={referenceTree()} by="key">{row => <Entry row={row()} view={view} />}</Key>
+                </ul>
+              </Show>
+            </section>
+          </Show>
 
           {/* THE COLUMN'S FOOT — the vault's own furniture, under ONE
               special parent named after the house itself: the `_olai/`
@@ -196,7 +236,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
                       <VaultFile
                         file={file()}
                         isActive={isActive}
-                        broken={servedDirectory()!.broken()}
+                        broken={(servedDirectory()?.broken() ?? NO_BROKEN)}
                       />
                     )}
                   </Key>
@@ -239,7 +279,7 @@ function DoorRow(props: {
  *  agreeing about one anatomy is not two lists that remembered the same
  *  four elements by luck, it is one. */
 function FileAnatomy(props: {
-  readonly of: FileKind | null | undefined
+  readonly of: string | null | undefined
   readonly name: string
   readonly broken: boolean
 }) {
@@ -289,8 +329,12 @@ function VaultFile(props: {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
 }) {
-  const of = fileKind(props.file)
-  const unreadable = () => of === "outline" && props.broken.has(props.file)
+  const name = () => {
+    const claims = servedDirectory()?.claims()
+    return claims === undefined ? props.file : stemOf(claims, props.file)
+  }
+  const of = () => servedDirectory()?.kindOf(props.file) ?? null
+  const unreadable = () => servedDirectory()?.claims().byKind.get(of() ?? "")?.holds === "nodes" && props.broken.has(props.file)
   return (
     <DoorRow
       route={atFile(props.file)}
@@ -299,7 +343,7 @@ function VaultFile(props: {
       broken={unreadable()}
       title={props.file}
     >
-      <FileAnatomy of={of} name={stemOf(props.file)} broken={unreadable()} />
+      <FileAnatomy of={of()} name={name()} broken={unreadable()} />
     </DoorRow>
   )
 }
@@ -431,25 +475,26 @@ function File(props: {
   readonly row: Extract<FileRow, { kind: "file" }>
   readonly view: TreeView
 }) {
+  const carry = createCarry(() => ({ kind: "files.path", path: props.row.file } satisfies CarriedPath), landings, { onLift: props.view.closeDrawer })
   // Only the ⚠ is asked of the kind here, and it is not one of `./file/kinds.ts`
   // answers: a file that could not be READ is a fact about this row's file, and
   // only an outline's unreadability costs the reader a tree.
-  const outline = props.row.of === "outline"
+  const outline = () => servedDirectory()?.claims().byKind.get(props.row.of)?.holds === "nodes"
 
   return (
-    <li class="mb-0.5">
+    <li class="mb-0.5" onPointerDown={carry.grab} onContextMenu={carry.heldMenu} draggable={false} onDragStart={event => event.preventDefault()} on:click={{ capture: true, handleEvent: carry.click }}>
       <Link
         route={atFile(props.row.file)}
         class={ENTRY}
-        testid={ROW_TESTID[props.row.of]}
+        testid={drawingOf(props.row.of)?.testid ?? TESTID.fileLink}
         current={props.view.isActive(props.row.file)}
-        broken={outline && props.view.broken.has(props.row.file)}
+        broken={outline() && props.view.broken.has(props.row.file)}
         title={props.row.file}
       >
         <FileAnatomy
           of={props.row.of}
           name={props.row.name}
-          broken={outline && props.view.broken.has(props.row.file)}
+          broken={outline() && props.view.broken.has(props.row.file)}
         />
       </Link>
     </li>

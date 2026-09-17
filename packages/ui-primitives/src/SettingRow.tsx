@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/ui-primitives/testids.ts"
 /**
  * One preference: what it is called, the control that sets it, and what the
  * choice in force MEANS.
@@ -49,7 +48,7 @@ import { TESTID } from "@olai/ui-primitives/testids.ts"
  * a policy selecting only kolu* exactly as much as a reader tabbing onto a frozen git one
  * is owed who set it; what changed is only whether the control will move.
  */
-
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 import { type JSX, Show } from "solid-js"
 
 

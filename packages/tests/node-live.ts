@@ -1,4 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 /**
  * NODE AGENTS, against the PINNED ADAPTER — `panel-live.ts`'s other half.
  *
@@ -8,7 +7,7 @@ import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
  * and door that are the query over it, the panel following it, and the two
  * gestures that make and remake it. None of that existed when `panel-live.ts`
  * was written, and none of it has ever met the real adapter: every scenario in
- * `features/node_agents.feature` drives the SCRIPTED agent, whose
+ * `packages/plugins/chat/e2e/features/node_agents.feature` drives the SCRIPTED agent, whose
  * `session/new` answers `fake-session-1` every time — so the one thing those
  * scenarios cannot assert is a node that changes which conversation it names,
  * which is exactly what *fresh session* is.
@@ -36,6 +35,7 @@ import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
  *   bash node-live.sh                  # …or, against a server you started:
  *   BASE=http://127.0.0.1:PORT VAULT=/path/to/vault bun node-live.ts
  */
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 import { chromium } from "playwright"
 
 import { selector } from "@olai/web/testlib"

@@ -1,6 +1,10 @@
 /**
  * The fixtures every test in this package is written against: JSONL text in,
- * exactly the records a real load produces out.
+ * schema-checked records with their actual source lines out.
+ *
+ * The default reader is a small fixture builder, not a production format
+ * parser. Tests of decoding inject the owning row's parser explicitly; the
+ * format leaf imports no plugin, even through its test helpers.
  *
  * Fixtures go through `parseOutline` rather than being written as record
  * literals, because line numbers are part of the answer — sibling ties break
@@ -24,7 +28,7 @@
  * `bun test` collects only `*.test.ts`.
  */
 
-import { Result } from "effect"
+import { Result, Schema } from "effect"
 
 import { type Agenda, type AgendaDay, UPCOMING_DAYS } from "./agenda.ts"
 import { type DayGroup, groupedOn } from "./dates.ts"
@@ -33,12 +37,31 @@ import type { OutlineError } from "./errors.ts"
 import { unkept } from "./kinds.ts"
 import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } from "./node.ts"
 import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
-import { parseOutline } from "./parse.ts"
+import { Node } from "./node.ts"
+import { outlineDocument } from "./document.ts"
+
+import { TEST_CLAIMS } from "./claims.testlib.ts"
+export { TEST_CLAIMS, NO_CLAIMS } from "./claims.testlib.ts"
 import { pointingOf } from "./pointing.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
 import { type Reading, validate } from "./validate.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
+
+/** Fixture-only JSON records; production format parsing is tested in its owning row. */
+export const parseOutline = (file: string, text: string, claims: import("./kinds.ts").Claims): Result.Result<Outline, ReadonlyArray<OutlineError>> => {
+  const nodes: Located[] = []
+  for (const [i, line] of text.split("\n").entries()) {
+    if (!line.trim()) continue
+    let value: unknown
+    try { value = JSON.parse(line) }
+    catch { return Result.fail([{ file, line: i + 1, code: "not-json", message: "fixture line is not JSON" }]) }
+    const decoded = Schema.decodeUnknownResult(Node)(value)
+    if (Result.isFailure(decoded)) return Result.fail([{ file, line: i + 1, code: "bad-record", message: "fixture line is not a record" }])
+    nodes.push({ file, line: i + 1, node: decoded.success })
+  }
+  return Result.succeed(outlineDocument(claims, file, nodes))
+}
 
 /** The default fixture file name. Named once so a test that cares about paths
  *  can say so, and one that does not need never mention it. */
@@ -46,8 +69,8 @@ export const FIXTURE_FILE = "a.olai"
 
 /** One file's worth of JSONL, parsed — or a diagnostic good enough to fix the
  *  fixture without opening the parser. */
-export const outlineOf = (contents: string, file = FIXTURE_FILE): Outline => {
-  const parsed = parseOutline(file, contents)
+export const outlineOf = (contents: string, file = FIXTURE_FILE, parse = parseOutline): Outline => {
+  const parsed = parse(file, contents, TEST_CLAIMS)
   if (Result.isFailure(parsed)) throw new Error(unparsable(file, contents, parsed.failure))
   return parsed.success
 }
@@ -79,10 +102,11 @@ export const nodesOf = (
  */
 export const decodedOf = (
   files: Record<string, string>,
+  parse = parseOutline,
 ): Map<string, Result.Result<Document, Verdict>> =>
   new Map(
     Object.entries(files).map(
-      ([file, contents]) => [file, Result.succeed<Document>(outlineOf(contents, file))],
+      ([file, contents]) => [file, Result.succeed<Document>(outlineOf(contents, file, parse))],
     ),
   )
 
@@ -94,13 +118,14 @@ export const setOf = (
    *  be named bare, because a load can never produce one carrying text. */
   documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
   broken: Record<string, string> = {},
+  parse = parseOutline,
 ): OutlineSet =>
-  assemble(
+  assemble(TEST_CLAIMS,
     new Map<string, Result.Result<Document, Verdict>>([
-      ...decodedOf(files),
+      ...decodedOf(files, parse),
       ...documents.map((document) => {
         const [file, said] = typeof document === "string" ? [document, ""] : document
-        const bodyless = unkept(file)
+        const bodyless = unkept(TEST_CLAIMS, file)
         // THROWN, like an unparsable outline above and for the same reason: a
         // fixture that says a `.html` holds text is a test written against a
         // set nobody can serve, and quietly dropping the text would let it pass
@@ -114,7 +139,7 @@ export const setOf = (
         }
         return [
           file,
-          Result.succeed<Document>(bodiedDocument(file, bodyless ? null : said)),
+          Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, bodyless ? null : said)),
         ] as const
       }),
       ...Object.entries(broken).map(
@@ -123,7 +148,7 @@ export const setOf = (
         // one file's worth of judgement, from the parser rather than from the
         // set's rules.
         ([file, contents]) =>
-          [file, Result.fail(verdictOf(failureOf(contents, file)))] as const,
+          [file, Result.fail(verdictOf(failureOf(contents, file, parse)))] as const,
       ),
     ]),
   )
@@ -141,9 +166,11 @@ export const setOf = (
  * a reader is handed it. A test that starts from TEXT is the one place the two
  * halves are put together deliberately.
  */
-export const readingOf = (set: OutlineSet): Reading => ({
+export const readingOf = (set: OutlineSet, table = TEST_CLAIMS): Reading & { readonly outlineRow: string } => ({
+  outlineRow: "outline-olai",
+  claims: table,
   set,
-  derived: derive(recordsOf(set)),
+  derived: derive(table, recordsOf(set)),
   // …and the third member, built the same way: the set's own links, filed
   // backwards (`./pointing.ts`). A `Reading` is what a page is drawn from, so a
   // fixture that left this out would be a reading whose document pages had no
@@ -172,7 +199,7 @@ export const validatedOf = (
   documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
   broken: Record<string, string> = {},
 ): OutlineSet => {
-  const answered = validate(setOf(files, documents, broken))
+  const answered = validate(TEST_CLAIMS, setOf(files, documents, broken))
   if (Result.isFailure(answered)) {
     throw new Error("a validation answers with a set, whatever it finds")
   }
@@ -185,8 +212,9 @@ export const validatedOf = (
 export const failureOf = (
   contents: string,
   file = FIXTURE_FILE,
+  parse = parseOutline,
 ): ReadonlyArray<OutlineError> => {
-  const parsed = parseOutline(file, contents)
+  const parsed = parse(file, contents, TEST_CLAIMS)
   if (Result.isSuccess(parsed)) {
     throw new Error(
       `fixture \`${file}\` parses, so it cannot stand in for a file that does not:\n` +
@@ -679,7 +707,7 @@ export const recordsOf = (set: OutlineSet): ReadonlyArray<Located> =>
  *  for each date it carries — the deleted `dates.ts`'s `datedNodes`. */
 export const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
   derived.nodes.flatMap((located) =>
-    isMirror(located.node) || isPutAway(located.file)
+    isMirror(located.node) || isPutAway(TEST_CLAIMS, located.file)
       ? []
       : datesOf(located.node).map((dated) => ({
         at: located as LocatedRegular,

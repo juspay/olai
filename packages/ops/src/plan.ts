@@ -25,6 +25,16 @@
  */
 
 import {
+  proseIn,
+  addressOf,
+  referrersTo,
+  deadLinksIn,
+  deadLinkSaid,
+  markdownAt,
+  outlineCalled,
+  TRASH,
+  claimedOf,
+  outlineAt as admitOutline,
   ancestorsOf,
   BATCH_AT_MOST,
   type BatchedRequest,
@@ -41,8 +51,8 @@ import {
   type KindVocabulary,
   derive,
   type Derived,
-  docOf,
-  DOCUMENT_EXT,
+  mintExt,
+  type Claims,
   didYouMean,
   drawingPath,
   fileKind,
@@ -63,14 +73,12 @@ import {
   nothing,
   type OpFailure,
   ordBetween,
-  OUTLINE_EXT,
   pinsIn,
   propertiesIn,
   type Reading,
   type RegularNode,
   REPEAT_GRAMMAR,
   resolvedDoc,
-  retargetRelative,
   type Settled,
   settles,
   shadowFor,
@@ -93,6 +101,8 @@ import {
   wrongDeclaration,
   type WriteRequest as Request,
 } from "@olai/format"
+
+import { unclaimedPath } from "./refusals.ts"
 import { Result } from "effect"
 
 import { type Asked, askedOf } from "./asked.ts"
@@ -193,7 +203,7 @@ const planTitle = (scope: Scope, request: Extract<Request, { op: "title" }>): Pl
   // inside {@link planEdit} because a note or a date is not a vocabulary.
   const located = regularAt(scope, request.id)
   if (Result.isFailure(located)) return Result.fail(located.failure)
-  if (request.pinned && (located.success.file !== pinsIn(scope.derived.byFile.keys())
+  if (request.pinned && (located.success.file !== pinsIn(scope.claims, scope.derived.byFile.keys())
     || located.success.node.parent !== undefined)) {
     return Result.fail(new UsageFailure({ reason: "this row is no longer pinned — reopen the pin you want to rename" }))
   }
@@ -293,6 +303,7 @@ const planRepeat = (scope: Scope, request: Extract<Request, { op: "repeat" }>): 
  * hold rather than twenty.
  */
 export interface Scope extends Reading {
+  readonly outlineRow: string
   readonly context: Context
   /**
    * WHAT THIS VAULT DECLARES ABOUT ITS PROPERTY KEYS, and the two readings the
@@ -408,10 +419,12 @@ export const scoping = (
   at: Reading,
   context: Context,
   kinds: KindVocabulary,
+  outlineRow: string,
 ): Scope => ({
   ...at,
+  outlineRow,
   context,
-  asked: askedOf(at.set),
+  asked: askedOf(at.claims, at.set),
   typed: typedIn(at, kinds),
 })
 
@@ -522,7 +535,7 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
-        reason: `\`${file}\` ${notLoadedBecause(file)} — writing it would drop that. ` +
+        reason: `\`${file}\` ${notLoadedBecause(scope.claims, file)} — writing it would drop that. ` +
           `Fix the file first.`,
         verdict: verdictOf(broken),
       }),
@@ -1636,8 +1649,7 @@ interface Recurrence {
  * something particular to the occurrence that just ended: the edges (`after`
  * naming tasks that are already done would be a new task born blocked on
  * history), the children (a subtree is where that occurrence's work was
- * recorded), the document (`doc` is a path, and two nodes naming one file would
- * both be editing the same text), and the properties (a `pr` or a `stage` is a
+ * recorded), and the properties (a `pr` or a `stage` is a
  * fact about the occurrence that carried it). A person who wants any of them
  * forward puts it there; nothing here guesses.
  *
@@ -1944,7 +1956,7 @@ const stillStanding = (
   file: string,
   node: RegularNode,
 ): string | undefined => {
-  if (isTrashed(file)) return undefined
+  if (isTrashed(scope.claims, file)) return undefined
   const open = unfinishedWithin(scope.derived, node.id)
   if (open.length === 0) return undefined
 
@@ -2063,7 +2075,7 @@ const sweepingOpenWork = (
   file: string,
   node: RegularNode,
 ): OpFailure | undefined => {
-  if (isTrashed(file)) return undefined
+  if (isTrashed(scope.claims, file)) return undefined
   const open = unfinishedWithin(scope.derived, node.id)
   if (open.length === 0) return undefined
 
@@ -2115,7 +2127,7 @@ const staleDoneAbove = (
   file: string,
   parent: string | undefined,
 ): ReadonlyArray<LocatedRegular> => {
-  if (parent === undefined || isTrashed(file)) return NOTHING_ABOVE
+  if (parent === undefined || isTrashed(scope.claims, file)) return NOTHING_ABOVE
   const at = scope.derived.byId.get(parent)
   if (at === undefined || isMirror(at.node)) return NOTHING_ABOVE
   const chain = [...ancestorsOf(scope.derived, parent), at as LocatedRegular]
@@ -2381,7 +2393,7 @@ const propKey = (key: string): OpFailure | undefined => {
  *
  * `file` is the outline the properties LAND IN, and exactly one of the seven
  * kinds reads it: a `doc` value is a path relative to the outline that names
- * it, the same arithmetic the `doc` FIELD is resolved with. An edit resolves
+ * it, using the same arithmetic as a relative prose link. An edit resolves
  * the node to get it; a capture already knows, because where it lands is what
  * the capture ops decided before they built anything.
  *
@@ -2425,7 +2437,7 @@ const typedProps = (
  *  declaration door ask, and a second spelling of the convention would be
  *  a second answer about which file types the vocabulary. */
 const isPropertiesFile = (scope: Scope, file: string): boolean =>
-  propertiesIn([...scope.derived.byFile.keys(), file]) === file
+  propertiesIn(scope.claims, [...scope.derived.byFile.keys(), file]) === file
 
 /** This node's current claim, taken out so editing its own type or
  *  renaming its key is not reported as declaring the key twice, and so
@@ -2870,9 +2882,8 @@ const stale = (
  * Everything down to the placement is one path, because every rule up to there
  * is about the SET rather than about a file. The plan is where they part, and
  * the cross-file arm is {@link planTrash}'s machinery reused rather than
- * re-derived — {@link liftSubtree} for what the source keeps and what travels,
- * {@link carryingDoc} for the `doc` a record names, which is relative to the
- * outline that names it. Both arms are ONE plan over the files they touch, so
+ * re-derived — {@link liftSubtree} for what the source keeps and what travels.
+ * Both arms are ONE plan over the files they touch, so
  * the whole set is valid after or nothing moved.
  *
  * NOTHING IS RE-STAMPED beyond what a same-file move already stamps: the record
@@ -2897,7 +2908,7 @@ const planMove = (
   const crosses = destination !== file
 
   if (crosses) {
-    const trash = notThroughTheTrash(node, file, destination)
+    const trash = notThroughTheTrash(scope.claims, node, file, destination)
     if (trash !== null) return Result.fail(trash)
   }
 
@@ -3057,19 +3068,20 @@ const movesTo = (
  * neighbours in the trash is either of those gestures.
  */
 const notThroughTheTrash = (
+  claims: Claims,
   node: Node,
   from: string,
   to: string,
 ): OpFailure | null => {
   const named = isMirror(node) ? node.id : node.title
-  if (isTrashed(to)) {
+  if (isTrashed(claims, to)) {
     return new UsageFailure({
       reason: `that would move \`${named}\` INTO \`${to}\`, and \`outlines_move\` does not ` +
         `put things away: \`outlines_trash\` is what moves a node and everything under it ` +
         `there, recording the outline it left so \`trash_restore\` can find its way back.`,
     })
   }
-  if (isTrashed(from)) {
+  if (isTrashed(claims, from)) {
     return new UsageFailure({
       reason: `\`${named}\` is in \`${from}\`, and what is put away comes back out ` +
         `through \`trash_restore\` — the op that tidies the scaffold above it and ` +
@@ -3088,14 +3100,12 @@ const notThroughTheTrash = (
  * point of the shape those two helpers were split into. {@link liftSubtree}
  * answers "what does the source keep, and what travels" once for every op that
  * moves a subtree between files, so `archive`, `unarchive` and this cannot come
- * to disagree about what a subtree IS. {@link carryingDoc} rewrites the one
- * FIELD that is relative to the outline naming it: a `doc` is a path from the
- * `.olai` that carries it, so a record that changes file has to re-aim it or the
- * write gate sees an attachment that is not there.
+ * to disagree about what a subtree IS. Prose travels verbatim, including its
+ * relative links; a new directory may change where they resolve.
  *
  * A `doc`-TYPED PROPERTY is the same arithmetic and is deliberately NOT rewritten
  * here (raised adjacent on review, grok). Its value is resolved against the
- * naming outline exactly as the field is (`@olai/format`'s `wrongDoc`), so a
+ * declared basis (`@olai/format`'s `wrongDoc`), so a
  * record changing directory changes what it points at — and the write gate
  * refuses that with `bad-prop`, naming the key and what the path resolved to,
  * rather than writing a dangling one. Teaching a mover to rewrite it means
@@ -3123,7 +3133,6 @@ const crossing = (
   ords: ReadonlyArray<{ id: string; ord: string }>,
 ): ReadonlyArray<FilePlan> => {
   const { keeps, descendants } = liftSubtree(scope, at.file, at.node.id)
-  const retarget = (record: Node) => carryingDoc(record, at.file, landing.file)
   return [
     { file: at.file, nodes: keeps },
     {
@@ -3131,8 +3140,8 @@ const crossing = (
       nodes: withOrds(
         [
           ...recordsOf(scope, landing.file),
-          retarget(moved),
-          ...descendants.map(retarget),
+          moved,
+          ...descendants,
         ],
         ords,
       ),
@@ -3332,8 +3341,9 @@ const planMerge = (
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
 
-  const archive = TRASH_FILE
-  if (isTrashed(file)) {
+  const archive = outlineCalled(scope.claims, scope.asked.outlines, TRASH) ?? TRASH_FILE(scope.claims, scope.outlineRow)
+  if (archive === null) return Result.fail(new UsageFailure({ reason: `the ${scope.outlineRow} row is off, so no outline can be created` }))
+  if (isTrashed(scope.claims, file)) {
     return Result.fail(
       new UsageFailure({
         reason: `\`${node.title}\` is in \`${file}\` — an archive is read rather than ` +
@@ -3521,11 +3531,6 @@ const carriedOff = (scope: Scope, node: RegularNode): string | undefined => {
   const mark = scope.derived.status.get(node.id)
   if (mark !== undefined) kept.push(`its \`${mark}\` mark`)
   if (node.date !== undefined) kept.push("its date")
-  // The ATTACHED DOCUMENT is the same class as the mark and was quiet for one
-  // review: a node carries one `doc`, so the survivor's own answer stands and
-  // this one leaves the live outline with the record. A reader who put a file
-  // on that row is owed the sentence exactly as much as one who ticked it off.
-  if (node.doc !== undefined) kept.push(`its document \`${node.doc}\``)
   if (targetsOf(node).length > 0) kept.push("its edges")
   if (kept.length === 0) return undefined
   const said = kept.length === 1
@@ -3557,21 +3562,20 @@ const planCreate = (
   scope: Scope,
   request: Extract<Request, { op: "create" }>,
 ): Planned => {
-  const file = outlinePath(request.file)
-  if (file === null) {
-    return Result.fail(
-      new UsageFailure({
-        reason:
-          `\`${request.file}\` is not a relative \`.olai\` path under the served ` +
-          `directory (no absolute path, no \`..\`, no \`.\`, the name must end ` +
-          `in \`.olai\`, and no directory in it starts with \`.\` or is ` +
-          `\`node_modules\` — the serve's walk prunes those, so a file under ` +
-          `one is never part of the set)`,
-      }),
-    )
+  const claim = scope.claims.byKind.get(scope.outlineRow)
+  if (claim === undefined) return Result.fail(new UsageFailure({ reason: `the ${scope.outlineRow} row is off, so no outline can be created` }))
+  if (claim.holds !== "nodes") return Result.fail(new UsageFailure({ reason: `the ${scope.outlineRow} row does not hold outlines` }))
+  if (creatable(request.file, "") === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative file path under the served directory (no absolute path, no \`..\`, no \`.\`, and no directory the serve's walk prunes).` }))
+  const path = claimedOf(scope.claims, request.file)
+  if (path === null) return Result.fail(unclaimedPath(request.file, scope.asked.outlines))
+  if (admitOutline(scope.claims, { kind: "document", path }) === null) {
+    const actual = scope.claims.byKind.get(fileKind(scope.claims, path)!)!
+    return Result.fail(new UsageFailure({ reason: `\`${path}\` is ${actual.article} ${actual.noun}; this verb takes an outline` }))
   }
+  const file = outlinePath(scope.claims, scope.outlineRow, path)
+  if (file === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative path using ${mintExt(scope.claims, scope.outlineRow)} under the served directory.` }))
 
-  if (scope.asked.at(file)?.kind === "outline") {
+  if (scope.asked.at(file)?.holds === "nodes") {
     return Result.fail(
       new UsageFailure({
         reason:
@@ -3654,14 +3658,20 @@ const planCreate = (
  * Absolute paths (leading `/`) and Windows-style backslash separators never
  * become a segment that could be joined under the root by accident.
  */
-export const outlinePath = (raw: string): string | null => creatable(raw, OUTLINE_EXT)
+export const outlinePath = (claims: Claims, row: string, raw: string): string | null => {
+  const ext = mintExt(claims, row)
+  return ext === null || claims.byKind.get(row)?.holds !== "nodes" ? null : creatable(raw, ext)
+}
 
 /** The same judgment for the other kind of file a call may mint: one relative
  *  `.md` under the served root. One rule, two extensions — the two create ops
  *  must not differ in what a path may smuggle, and both take their suffix from
  *  the format, because a mint that admits a name `fileKind` will not claim
  *  writes a file nothing ever reads back. */
-export const documentPath = (raw: string): string | null => creatable(raw, DOCUMENT_EXT)
+export const documentPath = (claims: Claims, raw: string): string | null => {
+  const ext = mintExt(claims, "markdown")
+  return ext === null ? null : creatable(raw, ext)
+}
 
 const creatable = (raw: string, extension: string): string | null => {
   if (raw === "" || raw.startsWith("/") || raw.includes("\\") || raw.includes("\0")) {
@@ -3720,8 +3730,9 @@ const planTrash = (
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
 
-  const archive = TRASH_FILE
-  if (isTrashed(file)) {
+  const archive = outlineCalled(scope.claims, scope.asked.outlines, TRASH) ?? TRASH_FILE(scope.claims, scope.outlineRow)
+  if (archive === null) return Result.fail(new UsageFailure({ reason: `the ${scope.outlineRow} row is off, so no outline can be created` }))
+  if (isTrashed(scope.claims, file)) {
     return Result.fail(
       new UsageFailure({ reason: `\`${node.title}\` is already in \`${archive}\`` }),
     )
@@ -3736,7 +3747,7 @@ const planTrash = (
   // The root is re-parented onto the scaffold; everything under it keeps the
   // `parent` it had, so the subtree arrives shaped exactly as it left.
   const { existing, scaffold, buried } = buriedIn(scope, archive, node, file)
-  const moved = descendants.map((record) => carryingDoc(record, file, archive))
+  const moved = descendants
 
   return Result.succeed({
     files: [
@@ -3791,21 +3802,8 @@ const buriedIn = (
   return {
     existing,
     scaffold,
-    buried: carryingDoc(
-      { ...withParent(node, parent), ord: appendedOrd([existing, scaffold], parent) },
-      source,
-      archive,
-    ),
+    buried: { ...withParent(node, parent), ord: appendedOrd([existing, scaffold], parent) },
   }
-}
-
-/** A `doc` is relative to the outline that names it, so a node that changes
- *  file has to rewrite the field or the write gate sees a missing attachment.
- *  Mirrors carry none. */
-const carryingDoc = (node: Node, from: string, to: string): Node => {
-  if (isMirror(node) || node.doc === undefined) return node
-  const doc = retargetRelative(from, to, node.doc)
-  return doc === node.doc ? node : { ...node, doc }
 }
 
 /**
@@ -3998,7 +3996,7 @@ const planUntrash = (
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
 
-  if (!isTrashed(file)) {
+  if (!isTrashed(scope.claims, file)) {
     return Result.fail(
       new UsageFailure({
         reason: `\`${node.title}\` is in \`${file}\`, which is not the trash — ` +
@@ -4056,15 +4054,14 @@ const planUntrash = (
   }
 
   const already = recordsOf(scope, destination)
-  const retarget = (record: Node) => carryingDoc(record, file, destination)
-  const reparented: Node = retarget({
+  const reparented: Node = {
     ...withParent(node, parent),
     ord: appendedOrd([already], parent),
-  })
+  }
 
   const landingNodes: ReadonlyArray<Node> = [
     reparented,
-    ...descendants.map(retarget),
+    ...descendants,
   ]
   // A ROOT landing in Properties is a declaration — the same fence a
   // capture or a move asks, so an untrash cannot mint a vocabulary the
@@ -4117,7 +4114,7 @@ const untrashLanding = (
   if (request.parent !== undefined || request.file !== undefined) {
     const named = landsIn(scope, request)
     if (Result.isFailure(named)) return named
-    if (isTrashed(named.success.file)) {
+    if (isTrashed(scope.claims, named.success.file)) {
       return Result.fail(
         new UsageFailure({
           reason: `that would put \`${node.title}\` back into \`${named.success.file}\` — ` +
@@ -4147,7 +4144,7 @@ const untrashLanding = (
 
   const source = titles[0]!
   const rest = titles.slice(1)
-  const live = scope.asked.outlines.filter((candidate) => !isTrashed(candidate))
+  const live = scope.asked.outlines.filter((candidate) => !isTrashed(scope.claims, candidate))
   if (!live.includes(source)) {
     return Result.fail(
       new UsageFailure({
@@ -4301,8 +4298,8 @@ const bareScaffold = (node: Node): boolean => {
  *   - and it destroys no more than it says. The records leave through the same
  *     gate every other write goes through and are committed by whichever door
  *     commits everything else, so what git holds afterwards is exactly what git
- *     had already recorded — no more, and no less. A `doc` an archived node
- *     named is a FILE and stays: a document is not a node, nothing in this
+ *     had already recorded — no more, and no less. A document an archived node
+ *     linked is a FILE and stays: a document is not a node, nothing in this
  *     vocabulary names bytes, and a `.md` nobody points at is a thing a person
  *     can see.
  *
@@ -4338,11 +4335,11 @@ const planEmpty = (
   const named = landsIn(scope, { file })
   if (Result.isFailure(named)) return Result.fail(named.failure)
 
-  if (!isTrashed(file)) {
+  if (!isTrashed(scope.claims, file)) {
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${file}\` is not the trash, and \`trash_empty\` empties \`${TRASH_FILE}\` ` +
+          `\`${file}\` is not the trash, and \`trash_empty\` empties \`${TRASH_FILE(scope.claims, scope.outlineRow) ?? TRASH}\` ` +
           `— the one file \`outlines_trash\` writes. Nothing here deletes out of a ` +
           `live outline; \`outlines_trash\` is how a node leaves one.`,
       }),
@@ -4443,8 +4440,8 @@ const planEmpty = (
  *   - **the two STAMPS are the copy's own**, exactly as they are on a captured
  *     node ({@link capturedNode}): `created` is now, and there is no `changed`
  *     on a record nobody has written to yet. Every other field — the mark and
- *     its instant, the date, the rule, the note, the properties, the attached
- *     `doc` — comes across verbatim.
+ *     its instant, the date, the rule, the note and the properties — comes
+ *     across verbatim.
  *
  * THE ORDS BELOW THE ROOT ARE COPIED VERBATIM, and that falls out of the ids
  * being fresh: each copied child sits among copied siblings only, so the keys
@@ -5414,8 +5411,8 @@ const planUnmirror = (
  * named for, asked of the format's registry rather than of which list the path
  * turned up in. So a `.html` is not found here, and the sentence a caller gets
  * is the one below, naming `markdown_create` and the nearest document. That is
- * the whole of why the page for one has no Edit control (`@olai/web`'s
- * `document/faces.tsx`): the affordance would be a door onto this refusal.
+ * why its kind row's page offers no Edit control: that affordance would
+ * lead to this refusal.
  *
  * TWO refusals are its own:
  *
@@ -5440,6 +5437,7 @@ const planWriteDocument = (
   if (document === undefined) {
     return Result.fail(
       noSuchDocument(
+        scope.claims,
         // THE CONTEXT's set, not the scope's, though they are the same value: the
         // near-miss list is a reading of the whole directory, so it goes through
         // the one thing here that answers about the directory ({@link ./asked.ts}).
@@ -5493,7 +5491,10 @@ const planCreateDocument = (
   scope: Scope,
   request: Extract<Request, { op: "create-doc" }>,
 ): Planned => {
-  const file = documentPath(request.file)
+  if (!scope.claims.byKind.has("markdown")) return Result.fail(new UsageFailure({ reason: "the markdown row is off, so no document can be created" }))
+  if (creatable(request.file, "") === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative file path under the served directory (no absolute path, no \`..\`, no \`.\`, and no directory the serve's walk prunes).` }))
+  if (claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
+  const file = documentPath(scope.claims, request.file)
   if (file === null) {
     return Result.fail(
       new UsageFailure({
@@ -5527,43 +5528,28 @@ const planCreateDocument = (
   })
 }
 
-/**
- * WHO KEEPS THIS DOCUMENT'S NAME — the records a delete of it would strand.
- *
- * TWO DOORS IN, because two things in the format resolve a value to a served
- * `.md`: a record's `doc` FIELD ({@link docOf}, relative to the record's own
- * outline) and a value of a key DECLARED `doc` ({@link resolvedDoc}, relative
- * to wherever the key's `base` says). Both are the validator's own
- * resolutions, asked of the same derivation it derived, so the gate that
- * would refuse the RECORDS' files on the next load is the gate refusing HERE,
- * moved earlier — before any bytes are staged rather than after, with the
- * question still answering WHO rather than WHAT BROKE.
- *
- * The walk is {@link namingByProp}'s shape, deliberately: one sweep of the
- * nodes, one row per naming record per means, in the `id (key, file:line)`
- * spelling the reader already meets in `outlines_unmirror`'s and `trash_empty`'s
- * refusals. What is NOT here is every other way a path can be named. A
- * `path`-declared value promised its SHAPE only; a markdown link going dead
- * is markdown being markdown (format.md's addressing says so); a pin landing
- * a dead row is format.md's Pins, quoted in the refusal itself. Only a `doc`
- * — either door — promised that its value names something that exists, and
- * the refusal is exactly that promise, held.
+/** Live prose links and declared document properties that hold a file.
+ * The reverse index names referring documents; the format attributes outline
+ * references to their records and leaves trashed records out.
  */
 const namingDocument = (
   scope: Scope,
   file: string,
-): ReadonlyArray<{ at: Located; via: string }> => {
-  // The second door is paid for only where a vault declares a `doc` key —
-  // most vaults declare none, and for those the field walk below is the whole
-  // price. Field first because it is the one every vault can have.
-  const found: Array<{ at: Located; via: string }> = []
+): ReadonlyArray<{ name: string; site: string; via: string }> => {
+  // The link reading and the property fence are independent references.
+  const address = addressOf(scope.claims, file, null)
+  const found: Array<{ name: string; site: string; via: string }> = address === null ? [] :
+    referrersTo(address, scope.pointing, scope.derived).map(ref => ({
+      name: ref.at?.node.id ?? ref.face.path,
+      site: ref.at === undefined ? ref.face.path : `${ref.at.file}:${ref.at.line}`,
+      via: "link",
+    }))
   let keyed: Set<string> | undefined
   for (const [key, declared] of scope.typed.declarations) {
     if (declared.type.kind === "doc") (keyed ??= new Set()).add(key)
   }
   for (const at of scope.derived.nodes) {
     if (isMirror(at.node)) continue
-    if (docOf(at) === file) found.push({ at, via: "doc" })
     if (keyed === undefined || at.node.custom === undefined) continue
     const custom: Record<string, string | ReadonlyArray<string>> = at.node.custom
     for (const [key, value] of Object.entries(custom)) {
@@ -5575,7 +5561,7 @@ const namingDocument = (
           // The bare KEY — "agent", not `` `agent` `` — so the refusal can
           // decide what to spell around it, as {@link namingByProp}'s `fields`
           // already hands its caller the same shape.
-          found.push({ at, via: key })
+          found.push({ name: at.node.id, site: `${at.file}:${at.line}`, via: key })
           break
         }
       }
@@ -5609,10 +5595,9 @@ const namingDocument = (
  *   - an outline still carrying RECORDS. This is a delete, not a move:
  *     `outlines_trash` is how a record leaves an outline, and what empties one
  *     entirely is nobody's verb to guess;
- *   - a document still NAMED — a `doc` field, or a `doc`-declared value,
- *     naming it ({@link namingDocument}). Deleting under them would break
- *     THEIR files' `doc-resolves` row, which is the same row the gate would
- *     print on the next load, said about the same edges;
+ *   - a document still NAMED by a live prose link or a declared `doc`
+ *     property ({@link namingDocument}). Deleting would strand the link or
+ *     violate the property fence;
  *   - a file the SET holds no contents for — an outline whose lines did not
  *     parse, a document that would not read. Overwriting bytes nobody has
  *     seen is {@link writable}'s own refusal, and a delete is the
@@ -5631,15 +5616,16 @@ const namingDocument = (
 const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): Planned => {
   // The FORMAT's registry, not the body's: a `.olai` is the one kind with no
   // body at all, which is exactly why `bodyKind` cannot classify this.
-  const kind = fileKind(request.file)
-  if (kind !== null && kind !== "outline" && kind !== "document") {
+  const kind = fileKind(scope.claims, request.file)
+  const claim = kind === null ? undefined : scope.claims.byKind.get(kind)
+  if (claim !== undefined && !claim.kept) {
     return Result.fail(
       new UsageFailure({
         reason:
           // The registry names the kind, so grammar is all this asks: an
           // article is a rule of ENGLISH, read the naive way, and not a
           // column on the claim table for one letter.
-          `\`${request.file}\` is ${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} — olai only SHOWS files of this kind ` +
+          `\`${request.file}\` is ${claim.article} ${claim.noun} — olai only SHOWS files of this kind ` +
           `and never writes one, and that extends to removing one: it belongs to ` +
           `whatever put it there`,
       }),
@@ -5676,7 +5662,7 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
   const may = writable(scope, request.file)
   if (Result.isFailure(may)) return Result.fail(may.failure)
 
-  if (kind === "outline") {
+  if (claim?.holds === "nodes") {
     const held = recordsOf(scope, request.file)
     if (held.length > 0) {
       return Result.fail(
@@ -5698,10 +5684,10 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
       return Result.fail(
         new UsageFailure({
           reason:
-            `\`${request.file}\` is still named by ${capped(outgoing, ({ at, via }) =>
-              `\`${at.node.id}\` (\`${via}\`, ${at.file}:${at.line})`)} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
+            `\`${request.file}\` is still named by ${capped(outgoing, ({ name, site, via }) =>
+              `\`${name}\` (\`${via}\`${site === name ? "" : `, ${site}`})`)} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
             `pointing at nothing. Re-point ${outgoing.length === 1 ? "it" : "them"}, or delete the ` +
-            `naming record first.`,
+            `naming link or record first.`,
         }),
       )
     }
@@ -5907,5 +5893,26 @@ export const VERBS: ReadonlyArray<Request["op"]> = Object.keys(PLANNERS) as Read
   Request["op"]
 >
 
-export const plan = (scope: Scope, request: Request): Planned =>
-  (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)
+export const plan = (scope: Scope, request: Request): Planned => {
+  if (request.op !== "create" && request.op !== "create-doc" && "file" in request && typeof request.file === "string"
+    && claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
+  const planned = (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)
+  if (Result.isFailure(planned) || !["title", "desc", "add", "create", "doc", "create-doc"].includes(request.op)) return planned
+  const next = planned.success
+  const served = new Set([...scope.set.documents.map(one => one.path), ...next.files.map(one => one.file), ...(next.documents ?? []).map(one => one.file)])
+  const nudges: string[] = []
+  const compare = (file: string, text: string | ReadonlyArray<string>, before: string | ReadonlyArray<string>) => {
+    const previous = new Set(deadLinksIn(file, before, served).map(one => one.written))
+    nudges.push(...deadLinksIn(file, text, served).filter(one => !previous.has(one.written)).map(deadLinkSaid))
+  }
+  for (const file of next.files) {
+    for (const node of file.nodes) {
+      if (isMirror(node)) continue
+      const before = scope.derived.byId.get(node.id)?.node
+      if (before !== undefined && !isMirror(before) && before.title === node.title && before.desc === node.desc) continue
+      compare(file.file, [node.title, node.desc ?? ""], before === undefined || isMirror(before) ? "" : [before.title, before.desc ?? ""])
+    }
+  }
+  for (const document of next.documents ?? []) compare(document.file, proseIn(document.text), proseIn(markdownAt(scope.set, document.file)?.body ?? ""))
+  return nudges.length === 0 ? planned : Result.succeed({ ...next, nudge: [next.nudge, ...new Set(nudges)].filter(Boolean).join(" ") })
+}

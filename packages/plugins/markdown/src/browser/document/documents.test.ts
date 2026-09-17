@@ -1,7 +1,7 @@
 /**
  * The fold that decides what a document consumer can draw.
  *
- * `text ?? ""` is how a `doc` line went blank for a file that had something
+ * `text ?? ""` is how a document reader went blank for a file that had something
  * to say: a refusal is not an empty body. {@link isServed} is the switch the
  * faces use, so it is pinned here rather than only by the screens that draw
  * it.

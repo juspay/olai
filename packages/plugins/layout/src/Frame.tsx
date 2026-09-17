@@ -1,8 +1,3 @@
-import { TipFloor } from "@olai/web/client/Tip.tsx"
-import { TESTID as LAYOUT_TESTID } from "./testids.ts"
-import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
-import { For } from "solid-js"
-import { contentStatus,overlays,sidebar } from "./index.ts"
 /**
  * The whole app: a header of the app's own chrome, a sidebar of the directory,
  * and one or more panes, each a full page.
@@ -23,7 +18,11 @@ import { contentStatus,overlays,sidebar } from "./index.ts"
  * pane. What each PANE shows is a subscription of its own
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
-
+import { TipFloor } from "@olai/web/client/Tip.tsx"
+import { TESTID as LAYOUT_TESTID } from "./testids.ts"
+import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
+import { For } from "solid-js"
+import { contentStatus,overlays,sidebar,strip } from "./index.ts"
 import {
 createEffect,
 createSignal,
@@ -37,7 +36,7 @@ import { PluginsMounted } from "./Mounted.tsx"
 import { PluginPanel } from "./Seats.tsx"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { desktop } from "./layout/live.ts"
-import { panelOpen,sidebarOpen,toggleSidebar } from "./layout/live.ts"
+import { sidebarOpen,toggleSidebar } from "./layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { RouterProvider } from "olai-plugin-navigation/routing"
@@ -109,7 +108,6 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
         <div
           class="flex-1"
           classList={{
-            "lg:pr-[var(--width-panel)]": panelOpen(),
             "min-h-0": split(),
           }}
         >
@@ -117,6 +115,9 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     class="relative md:grid"
                     classList={{
                       [SHELL_SPLIT]: split(),
+                      // Split columns own scrolling. In particular, sticky
+                      // children after a resize must not extend document overflow.
+                      "md:overflow-clip": split(),
                       "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0,
                       [SHELL_LONE]: !split(),
                     }}
@@ -146,6 +147,15 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     </Show>
                     </>}</For>
                     <div class="min-w-0 bg-paper">
+                      {/* THE SEAT ABOVE THE PANES (`./index.ts`'s `strip`), on a
+                          desktop. Not sticky: on a lone page the document
+                          scrolls, and every sticky row a page draws already
+                          holds its place under the bar alone. */}
+                      <Show when={desktop() && props.slots.read(strip).length > 0}>
+                        <div data-testid={LAYOUT_TESTID.mainStrip} class="h-[var(--height-strip)]">
+                          <For each={props.slots.read(strip)}>{({value: Strip})=><Strip/>}</For>
+                        </div>
+                      </Show>
                       <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
                       <Show when={props.slots.read(contentStatus).every(({value})=>value.ready())}><Panes/></Show>
                     </div>

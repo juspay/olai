@@ -24,7 +24,7 @@
  * for is the format's own: a `Map` of parents would be a second answer to what
  * "inside" means, in the one test that exists to hold this file to the first.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { derive } from "./derive.ts"
@@ -63,7 +63,7 @@ const HOUSE = [
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 const AWAY = `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`
 
-const derived = derive(
+const derived = derive(TEST_CLAIMS,
   nodesOfFiles({
     "house.olai": HOUSE,
     "garden.olai": GARDEN,

@@ -1,0 +1,10 @@
+{
+  "name": "$forgetful",
+  "version": "0.0.0",
+  "private": true,
+  "olai": {
+    "knobs": {
+      "OLAI_PROMISED_NEVER_SET": { "kind": "file" }
+    }
+  }
+}

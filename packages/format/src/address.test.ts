@@ -1,3 +1,7 @@
+/** The four arms, spelled out — through the schemas' own constructors, since
+ *  the halves of an address are branded and a test that cast around them would
+ *  be reading a different type from the one the app holds. */
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import {
@@ -13,10 +17,6 @@ import {
   printAddress,
   Slug,
 } from "./address.ts"
-
-/** The four arms, spelled out — through the schemas' own constructors, since
- *  the halves of an address are branded and a test that cast around them would
- *  be reading a different type from the one the app holds. */
 const document = (path: string): Address => ({
   kind: "document",
   path: DocumentPath.make(path),
@@ -56,13 +56,13 @@ const CANONICAL: ReadonlyArray<readonly [string, Address]> = [
 
 test("every address survives being written and read back", () => {
   for (const [, address] of CANONICAL) {
-    expect(parseAddress(printAddress(address))).toEqual(address)
+    expect(parseAddress(TEST_CLAIMS, printAddress(address))).toEqual(address)
   }
 })
 
 test("every canonical spelling reads back as itself", () => {
   for (const [written, address] of CANONICAL) {
-    expect(parseAddress(written)).toEqual(address)
+    expect(parseAddress(TEST_CLAIMS, written)).toEqual(address)
     expect(printAddress(address)).toBe(written)
   }
 })
@@ -73,8 +73,8 @@ test("every canonical spelling reads back as itself", () => {
 // the fragment itself says: an outline has rows and no headings, a body has
 // headings and no rows.
 test("an element of an outline is a row, an element of a body is a heading", () => {
-  expect(parseAddress("Tasks.olai#a1b2c3")).toEqual(row("Tasks.olai", "a1b2c3"))
-  expect(parseAddress("README.md#a1b2c3")).toEqual(heading("README.md", "a1b2c3"))
+  expect(parseAddress(TEST_CLAIMS, "Tasks.olai#a1b2c3")).toEqual(row("Tasks.olai", "a1b2c3"))
+  expect(parseAddress(TEST_CLAIMS, "README.md#a1b2c3")).toEqual(heading("README.md", "a1b2c3"))
 })
 
 // The document half of a row address is a fact that can go stale — the node
@@ -83,7 +83,7 @@ test("an element of an outline is a row, an element of a body is a heading", () 
 // qualified form is what a LANDING needs and the bare form is what a
 // permalink needs. The two are deliberately NOT one arm.
 test("a doc-qualified node keeps its file, and a bare one prints bare", () => {
-  const qualified = parseAddress("Tasks.olai#a1b2c3")
+  const qualified = parseAddress(TEST_CLAIMS, "Tasks.olai#a1b2c3")
   expect(qualified).toEqual(row("Tasks.olai", "a1b2c3"))
   expect(printAddress(qualified as Address)).toBe("Tasks.olai#a1b2c3")
   expect(printAddress(node("a1b2c3"))).toBe("#a1b2c3")
@@ -92,13 +92,13 @@ test("a doc-qualified node keeps its file, and a bare one prints bare", () => {
 // One constructor, so the arm a pair of halves lands on is decided in one
 // place rather than once per caller.
 test("the halves name the same places the written forms do", () => {
-  expect(addressOf("Tasks.olai", null)).toEqual(document("Tasks.olai"))
-  expect(addressOf(null, "a1b2c3")).toEqual(node("a1b2c3"))
-  expect(addressOf("README.md", "install")).toEqual(heading("README.md", "install"))
-  expect(addressOf("Tasks.olai", "a1b2c3")).toEqual(row("Tasks.olai", "a1b2c3"))
+  expect(addressOf(TEST_CLAIMS, "Tasks.olai", null)).toEqual(document("Tasks.olai"))
+  expect(addressOf(TEST_CLAIMS, null, "a1b2c3")).toEqual(node("a1b2c3"))
+  expect(addressOf(TEST_CLAIMS, "README.md", "install")).toEqual(heading("README.md", "install"))
+  expect(addressOf(TEST_CLAIMS, "Tasks.olai", "a1b2c3")).toEqual(row("Tasks.olai", "a1b2c3"))
   // An empty element is a document with nothing after the `#`, which names the
   // document — not a failure.
-  expect(addressOf("README.md", "")).toEqual(document("README.md"))
+  expect(addressOf(TEST_CLAIMS, "README.md", "")).toEqual(document("README.md"))
 })
 
 // ── what is not an address ─────────────────────────────────────────────
@@ -128,7 +128,7 @@ test("text that names no place is not an address", () => {
       "%ZZ/notes.md",
     ]
   ) {
-    expect(parseAddress(text)).toBeNull()
+    expect(parseAddress(TEST_CLAIMS, text)).toBeNull()
   }
 })
 
@@ -143,30 +143,30 @@ test("text that names no place is not an address", () => {
 // whose heading was renamed does — where reading it as a NODE address would be
 // the grammar claiming a vault's pictures hold records.
 test("every kind with a page has an address, and an element on one is a heading", () => {
-  expect(parseAddress("photo.png")).toEqual(document("photo.png"))
-  expect(parseAddress("art/diagram.svg")).toEqual(document("art/diagram.svg"))
-  expect(parseAddress("data/sales.csv")).toEqual(document("data/sales.csv"))
-  expect(parseAddress("reports/q3.pdf")).toEqual(document("reports/q3.pdf"))
-  expect(parseAddress("reports/q3.pdf#summary"))
+  expect(parseAddress(TEST_CLAIMS, "photo.png")).toEqual(document("photo.png"))
+  expect(parseAddress(TEST_CLAIMS, "art/diagram.svg")).toEqual(document("art/diagram.svg"))
+  expect(parseAddress(TEST_CLAIMS, "data/sales.csv")).toEqual(document("data/sales.csv"))
+  expect(parseAddress(TEST_CLAIMS, "reports/q3.pdf")).toEqual(document("reports/q3.pdf"))
+  expect(parseAddress(TEST_CLAIMS, "reports/q3.pdf#summary"))
     .toEqual(heading("reports/q3.pdf", "summary"))
 })
 
 // An unreadable ELEMENT is not an unreadable address: the document is still
 // named, and it draws exactly as it would have drawn with no fragment at all.
 test("an element nothing could have written names no element", () => {
-  expect(parseAddress("README.md#%ZZ")).toEqual(document("README.md"))
-  expect(parseAddress("README.md#")).toEqual(document("README.md"))
+  expect(parseAddress(TEST_CLAIMS, "README.md#%ZZ")).toEqual(document("README.md"))
+  expect(parseAddress(TEST_CLAIMS, "README.md#")).toEqual(document("README.md"))
 })
 
 // Totality is the promise the address bar, a `Pins.olai` title and an href in
 // somebody's note are all read on: a throw during render is a blank page.
 test("parsing answers for any string at all, and never throws", () => {
   for (const text of ["%", "%2", "#%", "a#b#c", "🌱.md", "?q=is:done", "//"]) {
-    expect(() => parseAddress(text)).not.toThrow()
+    expect(() => parseAddress(TEST_CLAIMS, text)).not.toThrow()
   }
   // A second `#` is part of the element, not a second cut: the printer escapes
   // every `#` inside a name, so the one this grammar wrote is the first one.
-  expect(parseAddress("README.md#a%23b")).toEqual(heading("README.md", "a#b"))
+  expect(parseAddress(TEST_CLAIMS, "README.md#a%23b")).toEqual(heading("README.md", "a#b"))
   expect(printAddress(node("a#b"))).toBe("#a%23b")
 })
 
@@ -196,7 +196,7 @@ test("the plain-path fast path prints what the walk would have printed", () => {
     "🌱.md",
   ]
   for (const name of names) {
-    const address = addressOf(name, null)
+    const address = addressOf(TEST_CLAIMS, name, null)
     if (address === null) continue
     expect(printAddress(address)).toBe(walked(name))
   }
@@ -240,7 +240,7 @@ test("an address the link's grammar cannot carry is ESCAPED, not refused", () =>
   // written form still reads back as the same path.
   const title = pinTitle("/notes/plan%20(old).olai", "The old plan")
   expect(title).toBe("[The old plan](/notes/plan%20%28old%29.olai)")
-  expect(parseAddress(addressWritten(title ?? "").slice(1)))
+  expect(parseAddress(TEST_CLAIMS, addressWritten(title ?? "").slice(1)))
     .toEqual(document("notes/plan (old).olai"))
 })
 

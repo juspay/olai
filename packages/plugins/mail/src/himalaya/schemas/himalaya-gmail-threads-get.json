@@ -1,0 +1,185 @@
+{
+  "$defs": {
+    "GmailMessageHeader": {
+      "description": "A single header of a Gmail message part.",
+      "properties": {
+        "name": {
+          "description": "The name of the header.",
+          "type": "string"
+        },
+        "value": {
+          "description": "The value of the header.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "GmailMessageHeaderOutput": {
+      "description": "One RFC 5322 header of a Gmail message.\n\nHeaders are a list rather than a map, a message being free to repeat a\nname and their order being meaningful.",
+      "properties": {
+        "name": {
+          "description": "The header name.",
+          "type": "string"
+        },
+        "value": {
+          "description": "Its value.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "GmailMessagePartBody": {
+      "description": "The body of a single MIME part of a Gmail message.",
+      "properties": {
+        "attachmentId": {
+          "default": null,
+          "description": "The id of an external attachment, retrievable via a separate\n`users.messages.attachments.get` request.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "data": {
+          "default": null,
+          "description": "The body data as a base64url-encoded string; absent when the\ndata lives in an external attachment.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "default": 0,
+          "description": "The number of bytes of the message part data.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "GmailMessagePayload": {
+      "description": "A single MIME part of a Gmail message.\n\nThe top-level part is exposed as the payload of a [`GmailMessage`];\nmultipart containers nest their children in `parts`.",
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GmailMessagePartBody"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The body of the part, which may be empty for container MIME\nparts."
+        },
+        "filename": {
+          "default": "",
+          "description": "The filename of the attachment; empty when the part is not an\nattachment.",
+          "type": "string"
+        },
+        "headers": {
+          "default": [],
+          "description": "The headers of the part, such as To, From or Subject.",
+          "items": {
+            "$ref": "#/$defs/GmailMessageHeader"
+          },
+          "type": "array"
+        },
+        "mimeType": {
+          "default": null,
+          "description": "The MIME type of the part.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "partId": {
+          "default": null,
+          "description": "The immutable id of the message part.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parts": {
+          "default": [],
+          "description": "The child parts of a container MIME part.",
+          "items": {
+            "$ref": "#/$defs/GmailMessagePayload"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "GmailThreadMessageOutput": {
+      "description": "One message of a Gmail thread.\n\nThe thread id is left out, since it is the id of the enclosing\n[`GmailThreadGetOutput`].",
+      "properties": {
+        "headers": {
+          "items": {
+            "$ref": "#/$defs/GmailMessageHeaderOutput"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label-ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "payload": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GmailMessagePayload"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "snippet": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label-ids",
+        "headers"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Gmail thread and its messages, rendered as an indented list or,\nunder `--json`, as a structured object instead of a wrapped human\nstring.",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "messages": {
+      "items": {
+        "$ref": "#/$defs/GmailThreadMessageOutput"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "messages"
+  ],
+  "title": "GmailThreadGetOutput",
+  "type": "object"
+}

@@ -1,6 +1,6 @@
-import type { AppCommand } from "olai-plugin-navigation/slots"
 /** Generic palette rows and prefix grammar. Feature providers own the words,
  * character, write behavior and continuation of every contributed prefix. */
+import type { AppChord, AppCommand } from "olai-plugin-navigation/slots"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import type {Hung } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"
@@ -160,6 +160,41 @@ export const commandsIn = (
       continue
     }
     held.set(one.face.prefix, `the plugin "${one.plugin}"`)
+    kept.push(one.face)
+  }
+  return kept
+}
+
+/**
+ * THE CHORDS PLUGINS REGISTERED IN `app.keys`, as the palette's key handler
+ * answers them — every one whose key and Shift nothing answers yet, in the
+ * order they arrived.
+ *
+ * `reserved` is the core table (`@olai/web`'s `CHORDS`), and it wins: a chord a
+ * plugin registers over one of those is refused out loud rather than quietly
+ * shadowing the app's own key, which is {@link commandsIn}'s rule for prefixes
+ * read for keys. Between two plugins the first keeps it.
+ */
+export const chordsIn = (
+  entries: ReadonlyArray<Hung<AppChord>>,
+  reserved: ReadonlyArray<{ readonly key: string; readonly shift?: boolean; readonly action: string }> = [],
+): ReadonlyArray<AppChord> => {
+  const spelled = (key: string, shift: boolean | undefined) => `${shift === true ? "shift+" : ""}${key.toLowerCase()}`
+  const held = new Map<string, string>(
+    reserved.map((chord) => [spelled(chord.key, chord.shift), `the app's own "${chord.action}" chord`] as const),
+  )
+  const kept: Array<AppChord> = []
+  for (const one of entries) {
+    const at = spelled(one.face.key, one.face.shift)
+    const already = held.get(at)
+    if (already !== undefined) {
+      console.warn(
+        `olai: the plugin "${one.plugin}" registers the chord "${at}" ("${one.face.said}"), `
+          + `which ${already} already answers — that chord is not listened for, and the key does what it did before.`,
+      )
+      continue
+    }
+    held.set(at, `the plugin "${one.plugin}"`)
     kept.push(one.face)
   }
   return kept

@@ -154,7 +154,7 @@ export interface SetDelta {
  */
 export const patch = (derived: Derived, delta: SetDelta): Derived => {
   const grouped = regrouped(derived, delta)
-  return patched(derived, delta, grouped) ?? derive(flattened(grouped.byFile))
+  return patched(derived, delta, grouped) ?? derive(derived.claims, flattened(grouped.byFile))
 }
 
 /**
@@ -238,6 +238,7 @@ export const patched = (
   const blocked = blockage(edit, { byId, status, after, edgesTo }, dirty, rewritten)
 
   return {
+    claims: derived.claims,
     get nodes() {
       return nodes()
     },
@@ -1014,7 +1015,7 @@ const dating = (edit: Edit): Journal => {
   // is paid at all — a keystroke in an outline nobody scheduled anything in,
   // which is most outlines.
   const moved = refiled(edit, "byDay", {
-    into: dateInto,
+    into: (map, located) => dateInto(edit.before.claims, map, located),
     at: (one) => one.at,
   })
   // Whether the KEYS moved is the only thing that costs the sort. A day that
@@ -1357,7 +1358,7 @@ const blockage = (
   const blocked = carrying(edit.before, "blocked")
   for (const key of keys) {
     blocked.delete(key)
-    const found = blockageAt(view, key)
+    const found = blockageAt({ ...view, claims: edit.before.claims }, key)
     if (found !== undefined) blocked.set(found.at, found.waiting)
   }
   return blocked.sealed()

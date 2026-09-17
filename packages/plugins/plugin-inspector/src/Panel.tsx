@@ -1,7 +1,3 @@
-import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
-import { approveDefinition } from "./approval.ts"
-import { TESTID } from "olai-plugin-plugin-inspector/testids"
-import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 /**
  * WHAT THIS INSTANCE IS RUNNING — one row per plugin the build has, and the
  * panel is its own now rather than a section at the foot of preferences.
@@ -46,6 +42,13 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * knobs need no additional gesture. The row's switch expresses off states;
  * a dashed ring records a session-only switch without repeating the legend.
  *
+ * AND A ROW WHOSE PLUGIN HAS MORE TO SAY DRAWS ITS OWN FACE — below the row's
+ * sentence, above the confirm, because that is the order a person reads in
+ * (`./slots.ts`'s `plugins.row`). The same face answers `needs()`, which the
+ * walk here passes straight into `./rows.ts`, so a plugin that is running,
+ * faultless and still waiting on somebody is filed under Needs you with the
+ * broken rows rather than sitting among the healthy ones.
+ *
  * THE LABEL IS THE NAME, VERBATIM — not prettified into `Kolu`. It is the
  * settings namespace, the namespace its members are composed under and the docs
  * slug, and a label that title-cased it would be the one spelling of a plugin's
@@ -86,7 +89,10 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
  * state belong to the inspector, so navigation withdrawal drops the links
  * without forgetting what this reader opened.
  */
-
+import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
+import { approveDefinition } from "./approval.ts"
+import { TESTID } from "olai-plugin-plugin-inspector/testids"
+import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 
 import {
@@ -103,6 +109,7 @@ import { TESTID as PRIMITIVE } from "@olai/ui-primitives/testids.ts"
 
 import type { BrowserManagement } from "@olai/surface/management"
 import type { InspectorState } from "./state.ts"
+import type { PluginsRowFace } from "./slots.ts"
 import { Switch } from "./Switch.tsx"
 import { Control } from "./Control.tsx"
 
@@ -124,6 +131,12 @@ import {
 export function Panel(props: {
   readonly state: InspectorState
   readonly management: BrowserManagement
+  /** WHAT EACH ROW'S OWN PLUGIN HUNG ON IT — what `plugins.row` holds right
+   *  now, keyed by the contributing plugin. A READER rather than the table: the
+   *  hold belongs to the component that draws the panel (`./browser.tsx`'s
+   *  `tools`), and this file only asks, so a face arriving while the panel is
+   *  open is drawn and a face that leaves takes its own drawing with it. */
+  readonly rows: () => ReadonlyMap<string, PluginsRowFace>
   /** Register this surface with the click-away, since it is portalled and so is
    *  not a descendant of the control that opened it. */
   readonly inside: (el: HTMLElement | undefined) => void
@@ -140,9 +153,22 @@ export function Panel(props: {
   const plugins = (): PluginRoster => roster() ?? NO_ROSTER
   const rows = createMemo(() => pluginRows(plugins()))
   const frozen = () => configurationFrozen(plugins(), props.management.changing())
+  /** WHAT EVERY ROW'S OWN PLUGIN HUNG — one map per publication of the table,
+   *  so the grouping below, the row lookups and the drawings all read the same
+   *  answer rather than rebuilding it per field getter. */
+  const rowFaces = createMemo(() => props.rows())
   // Many controls read the same roster. Derive its groups once per publication,
   // not once per field getter while the browser is trying to settle a press.
-  const groups = createMemo(() => pluginGroups(plugins(), (name) => props.management.look(name), props.management.reports()))
+  // The fourth argument is the one reading of a FACE the walk makes, asked
+  // before anything is drawn (`./rows.ts`'s `needsYou`): a face's own `needs`
+  // is live state its plugin holds, so it is called here, inside the memo,
+  // where a change to it is tracked.
+  const groups = createMemo(() => pluginGroups(
+    plugins(),
+    (name) => props.management.look(name),
+    props.management.reports(),
+    (name) => rowFaces().get(name)?.needs() === true,
+  ))
   let element: HTMLElement | undefined
   let active = true
   onCleanup(() => { active = false })
@@ -280,6 +306,7 @@ export function Panel(props: {
                 <span class="text-muted" data-group-count>{groupCount(group.rows)}</span>
               </summary>
               <For each={group.rows.map(plugin => plugin.name)}>{name => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!}
+                face={rowFaces().get(name)}
                 panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}</For>
             </details>
           </section>
@@ -328,6 +355,9 @@ function Environment(props: { readonly values: ReadonlyArray<EnvironmentReading>
 
 function PluginRow(props: {
   readonly plugin: BuiltPlugin
+  /** WHAT THIS ROW'S OWN PLUGIN HUNG — `undefined` where it hung nothing, and
+   *  then the row draws exactly what it drew before this slot existed. */
+  readonly face: PluginsRowFace | undefined
   readonly panel: {
     readonly state: InspectorState
     readonly management: BrowserManagement
@@ -369,6 +399,16 @@ function PluginRow(props: {
           </p>
         )}
       </Show>
+      {/* WHAT THE ROW'S OWN PLUGIN SAYS AND OFFERS — below the row's own
+          sentence, above the confirm a press raises, because the order is the
+          order a person reads in: what the serve is doing, then what they have
+          to do about it, then what leaving would cost.
+
+          The FACE owns both halves of its drawing, sentence and verbs alike:
+          the row's `rowCopy` speaks for the serve's reading of the build, and a
+          connected account is the plugin's own business with a person. Nothing
+          is drawn where the plugin hung no face — which is most rows. */}
+      <Show when={props.face}>{(face) => face().body()}</Show>
       <Show when={props.confirming() === plugin().name && cost()}>
         {(said) => (
           <div

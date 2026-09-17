@@ -155,6 +155,18 @@ export const MENU_REVEAL =
 /** Past the glyph — where a day's row puts its note. */
 export const PAST_BULLET = "ml-8 md:ml-5"
 
+/**
+ * Where a day's row hangs its `•••`: OUTSIDE the row, left of the glyph, so the
+ * glyph and everything `PAST_BULLET` indents stay exactly where they were.
+ *
+ * Above md it is a flex item one {@link MENU_CELL} wide (`w-4`) pulled left by
+ * that width plus the one `GUTTER_GAP` after it (`1 + 0.25 = 1.25rem`), so the
+ * gap lands the glyph back on the row's own left edge. Below md it is
+ * `contents`: the menu's root is out of flow there (a zero-width absolute box —
+ * `NodeMenu.tsx`) and a box of its own would still be a flex item, taking a gap.
+ */
+export const HANGING_MENU = "contents md:inline-flex md:h-5 md:items-center md:-ml-5"
+
 /** Past the hover strip AND the glyph — where a tree's row puts its note, and
  *  its one aside about a mirror it would not expand. */
 export const PAST_CONTROLS = "ml-16 md:ml-15"

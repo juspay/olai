@@ -7,7 +7,7 @@
  * reach cheaply, which is what this file is for; `packages/tests` proves the
  * same two reach a screen.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { addressOf, printAddress } from "./address.ts"
@@ -27,7 +27,7 @@ const VAULT = (): OutlineSet =>
   setOf(
     {
       "house.olai": [
-        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doc":"notes/plan.md"}`,
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","desc":"[document](notes/plan.md)"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","done":"2026-08-10T09:00:00+05:30",` +
         `"desc":"quoted in [the brief](../brief.md)"}`,
         "",
@@ -192,7 +192,7 @@ test("a note is not a file, so a leading --- block is prose in one", () => {
   // AS A NOTE, the block is prose: the `#home` in it is a tag somebody wrote,
   // and the `[…](…)` is a link this note points along. Nothing skipped.
   expect(tagsIn(text).map(String)).toEqual(["#home", "@alice"])
-  expect(linksIn("house.olai", text).map(printAddress)).toEqual(["brief.md"])
+  expect(linksIn(TEST_CLAIMS, "house.olai", text).map(printAddress)).toEqual(["brief.md"])
 
   // AS A DOCUMENT, the same six lines index neither — the block is the file's
   // own record, and what it holds is a PROPERTY. One text, two readings, and
@@ -230,7 +230,7 @@ test("a scoped query selects no documents", () => {
 // body match is the weakest hit there is.
 test("both kinds come back in one ranked order", () => {
   const set = VAULT()
-  const derived = derive(recordsOf(set))
+  const derived = derive(TEST_CLAIMS, recordsOf(set))
   // `plan` is the WHOLE title of one document and a word in the middle of no
   // record's — so the document leads, and the record whose note holds it is
   // last, because a note is the weakest field a record has.
@@ -242,26 +242,26 @@ test("both kinds come back in one ranked order", () => {
   )
   expect(
     ranked.map((one) => (one.kind === "node" ? one.at.node.id : String(one.at.path))),
-  ).toEqual(["notes/plan.md"])
+  ).toEqual(["notes/plan.md", "kitchen"])
 })
 
 // ── what points at an address ──────────────────────────────────────────
 
 const referringTo = (set: OutlineSet, path: string): ReadonlyArray<string> => {
-  const derived = derive(recordsOf(set))
+  const derived = derive(TEST_CLAIMS, recordsOf(set))
   // THE LINKS INDEX, which is what a reading carries and what this reads: it is
   // built out of the set's own documents by the same fold `validate` runs
   // (`./pointing.ts`), so the case is asking the question the page asks.
-  const address = addressOf(path, null)!
+  const address = addressOf(TEST_CLAIMS, path, null)!
   return referrersTo(address, pointingOf(set.documents), derived).map((one) =>
     one.at === undefined ? String(one.face.path) : one.at.node.title
   )
 }
 
-// A `doc` field is a link a record MADE, and the answer names the RECORD rather
+// A note link is a link a record MADE, and the answer names the RECORD rather
 // than the outline it sits in: a link is always some record's, and naming the
 // file would be the coarser answer offered because it was the easier one.
-test("a `doc` attachment is a reference from the record that wrote it", () => {
+test("a note link is a reference from the record that wrote it", () => {
   expect(referringTo(VAULT(), "notes/plan.md")).toEqual(["kitchen remodel #home"])
 })
 
@@ -300,7 +300,7 @@ test("a document linking its own heading is not its own referrer", () => {
 // standing rule, read once more over the other kind of referrer.
 test("a referrer written in an archive is left out", () => {
   const set = setOf(
-    { "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"was here","doc":"brief.md"}\n` },
+    { "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"was here","desc":"[document](brief.md)"}\n` },
     [["brief.md", "# Brief\n"]],
   )
   expect(referringTo(set, "brief.md")).toEqual([])

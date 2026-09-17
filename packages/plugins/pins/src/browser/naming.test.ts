@@ -27,7 +27,7 @@ const NARROWED = { kind: "trash", filter: "is:todo" } as const
 const pinned = (over: Partial<Pin> = {}): Pin => ({
   id: "p1",
   title: "/trash?q=is%3Atodo",
-  route: NARROWED,
+  target: { kind: "page", route: NARROWED },
   name: "Trash",
   at: "/trash?q=is%3Atodo",
   bare: "Trash",
@@ -119,4 +119,16 @@ test("a name the link cannot hold is refused HERE, where the title is spelled", 
   // The server's own sentence, from the function that spells both titles — so
   // the two faces cannot refuse in two different words.
   if (Result.isFailure(outcome)) expect(outcome.failure).toContain("]")
+})
+
+
+test("layouts require a written name on creation and rename", () => {
+  const at = "/s/house.olai/%23missing"
+  const naming = { kind: "layout", at, panes: "house.olai · /#missing" } as const
+  expect(askingFor(naming).question).toBe("a name for this layout — Escape backs out")
+  expect(wrote(naming, " Planning ")).toEqual({ verb: "pin", at, name: "Planning" })
+  const pin = pinned({ at, target: { kind: "layout", workspace: routes.layoutIn(at)! } })
+  for (const request of [naming, { kind: "rename", pin } as const]) {
+    expect(namedEdit(request, "  ")).toEqual(Result.fail("a layout needs a name"))
+  }
 })

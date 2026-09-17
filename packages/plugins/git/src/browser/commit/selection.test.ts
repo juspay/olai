@@ -15,7 +15,7 @@
  *     server composes with — so unticking a file rewrites the suggestion and
  *     the two faces cannot word one commit differently.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import type { Pending } from "@olai/format"
 import { NOTHING_PENDING } from "@olai/format"
 import { expect, test } from "bun:test"
@@ -55,7 +55,7 @@ const over = <A>(
 ): A =>
   createRoot((dispose) => {
     const [pending, setPending] = createSignal(value)
-    const answer = use(createSelection(pending), setPending)
+    const answer = use(createSelection(() => TEST_CLAIMS, pending), setPending)
     dispose()
     return answer
   })

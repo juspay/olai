@@ -5,8 +5,33 @@
 # here is backed by `base`, which needs it.
 { pkgs ? import ./nix/ekapkgs.nix { }, b2n, rev ? "dev" }:
 let
-  kolu = import ./nix/kolu.nix { inherit pkgs; };
-  odu = import ./nix/odu.nix { inherit pkgs b2n; };
+  pins = import ./npins;
+
+  # THE REGISTRY FOLD. `packages/bundle/default.nix` reads `packages/plugins/`,
+  # imports every plugin's `default.nix`, validates the contracts with
+  # `kit.contract`, and folds them — `hydrate`, `externals`, `koluSeeds`,
+  # `koluPins`, `packages`, `checks`, `knobs`, the wrapper's makeWrapper args
+  # and the dev loop's export snippet. The root names NO plugin; it reads one
+  # fold output for everything a plugin contributes. `container = ./packages/plugins`
+  # so `install -m 644` lines in `hydrateScript` resolve from the staged tree's
+  # own root (`packages/plugins/<name>/...`).
+  bundle = import ./packages/bundle {
+    inherit pkgs pins b2n;
+    # `containerDir`/`containerInTree` both name `packages/plugins` (readDir
+    # at eval, install path at run time, relative to the build's source).
+    #
+    # Every knob the fold bakes into the `olai` wrapper comes from a plugin's
+    # own `default.nix` — `OLAI_HIMALAYA` among them, owned by the mail
+    # plugin, so there is no hand-written exception left to spare.
+  };
+  # The framework's pin: `nix/kolu.nix` takes `extraSeeds` and `pinnedSources`
+  # from the fold (each plugin's contribution), and computes the closure for
+  # the six seed names every olai source imports.
+  kolu = import ./nix/kolu.nix {
+    inherit pkgs;
+    extraSeeds = bundle.koluSeeds;
+    pinnedSources = bundle.koluPins;
+  };
   cordis = import ./nix/cordis.nix { inherit pkgs; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
@@ -15,21 +40,12 @@ let
   # running code from a server that has since been replaced). Imported from the
   # npins path rather than from the staged derivation: reading a nix file out
   # of a built store path would be import-from-derivation.
-  stamp = import ((import ./npins).kolu + "/packages/surface-app/nix/commit-stamp.nix") { };
+  stamp = import (pins.kolu + "/packages/surface-app/nix/commit-stamp.nix") { };
 
   # The hosted typefaces, already converted to woff2 — @olai/fonts owns both
   # the catalog and the derivation that realises it, so this is the whole of
   # what the client build needs to be told about fonts.
   olai-fonts = import ./packages/fonts { inherit pkgs; };
-
-  # Each tenant's own logo, out of that tenant's pin, already a TypeScript
-  # module — `@olai/plugin-kit` is the transform, the plugin's `default.nix`
-  # names the file. `nix build .#kolu-mark` / `.#odu-mark` is the command
-  # that answers "what does the pin currently say the logo is", which
-  # matters because the generated file is gitignored and a pin bump therefore
-  # shows no diff of its own.
-  kolu-mark = import ./packages/plugins/kolu { inherit pkgs; };
-  odu-mark = import ./packages/plugins/odu { inherit pkgs; };
 
   src = pkgs.lib.fileset.toSource {
     root = ./.;
@@ -93,7 +109,7 @@ let
     # dev shell run the same copier over the same list.
     # ...and `@odu/run-client` beside them, through the SAME script: the copier
     # takes (src, dest) pairs and knows nothing about which repo a source came
-    # from, which is why odu needs no second one (nix/odu.nix).
+    # from, which is why odu needs no second one.
     # ...and CORDIS on a third line, four packages out of one pin
     # (nix/cordis.nix): the runtime the server's plugin composition is built
     # on, hydrated as raw TypeScript like everything else olai pins.
@@ -103,19 +119,15 @@ let
     # rather than in buildPhase for the mark's reason one line down — the
     # generated files are gitignored, so they are never in the store copy of the
     # tree, and a packaged build cannot ship a stale one.
-    # ...and kolu's MARK on a fourth line, which is the same errand for an asset
-    # rather than for sources. It must run here rather than in buildPhase
-    # because `bun packages/web/src/build.ts` bundles it as a module: the
-    # generated file is gitignored and `fileset.toSource` above takes tracked
-    # content only, so it is never in the store copy of the tree and a packaged
-    # build is structurally incapable of shipping a stale working-tree logo.
+    # THE WEB ROWS AND THE NUMERIC TOKEN TABLES, for the mark's own reason
+    # one line up — generated sources the browser bundle reads as modules
+    # (fileset.toSource above takes tracked content only, so a store copy of
+    # the tree never has them and a packaged build cannot ship a stale one).
     postBunNodeModulesInstallPhase = ''
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
-      sh ${kolu.hydrateScript} ${odu.hydrateArgs}
       sh ${kolu.hydrateScript} ${cordis.hydrateArgs}
+      sh ${bundle.hydrateScript}
       bun packages/bundle/generate.ts
-      install -m 644 ${kolu-mark}/mark.generated.ts packages/plugins/kolu/src/browser/mark.generated.ts
-      install -m 644 ${odu-mark}/mark.generated.ts packages/plugins/odu/src/browser/mark.generated.ts
     '';
 
     buildPhase = ''
@@ -153,59 +165,42 @@ let
   olai-client = pkgs.runCommand "olai-client"
     { meta.description = "olai browser bundle (static assets)"; }
     "cp -r ${base}/packages/web/dist $out";
+  # THE WRAPPER'S PLUGIN KNOBS, folded once. `bundle.wrapperArgs` is the
+  # makeWrapper text the fold's knob-shell renders for every declared knob —
+  # one `--run` recording which knobs the wrapper defaulted (the settings
+  # panel's 'wrapper-provided' label), one `--set-default` per knob (unset →
+  # the pin, empty → the off switch), one `--run` per `dir` knob splicing the
+  # directory onto PATH. The ACP adapters are plugins now — claude, pi and
+  # codex each own a `default.nix` declaring their knob — so every knob,
+  # engine and mail alike (OLAI_ACP_AGENT, OLAI_ACP_CODEX, OLAI_ACP_PI,
+  # OLAI_ODU_BIN, OLAI_HIMALAYA), arrives here by composition; nothing is
+  # hand-written any more.
 
-  # The ACP agent the chat panel talks to, pinned rather than looked up: a
-  # nix-built olai needs nothing ambient, and two machines run the same adapter.
-  acp-agent = pkgs.callPackage ./nix/acp-agent.nix { };
-
-  # Codex owns a separate pin and derivation: its adapter and native CLI move
-  # on one release clock, independently of the patched Claude/Pi bundle above.
-  codex-agent = pkgs.callPackage ./packages/plugins/codex/acp { };
-
-  # The pinned odu BINARY, the second half of what the odu pin vendors
-  # (nix/odu.nix): the chat probe resolves `odu` on the SERVER's PATH, so a
-  # packaged olai puts it there itself rather than asking a host to have one —
-  # the acp-agent line's own argument, one integration over.
-  odu-bin = odu.bin;
-
-  # THE ODU KNOB THE WRAPPER READS, documented beside it because the wrapper
-  # is generated text: `OLAI_ODU_BIN` names a DIRECTORY to put first on the
-  # server's PATH. Unset, it answers the pin — every packaged start resolves
-  # the build's own `odu`; set to a directory, it answers that one (an
-  # operator testing a development odu against a packaged olai); set to the
-  # empty string, it is the explicit off switch — the probe then answers
-  # from the ambient PATH, and a PATH with no odu draws the plugin's missing
-  # row rather than nothing. `--set-default` is what makes the empty answer
-  # reachable: it substitutes only when the variable is UNSET, so an empty
-  # value survives it. A set-but-not-a-directory value is skipped with a
-  # stderr line (the row then says the rest) — a serve that refuses to boot
-  # over one mis-set variable is the worse failure for the systemd unit.
-  # scripts/olai-path.sh is the dev loop's spelling of the same knob; the
-  # e2e suite's servers are this wrapper, so it is also the suite's spelling.
+  # Every plugin's package output arrives through the fold: `bundle.packages`
+  # merges each plugin's `packages.*` (mail's `himalaya-bin` among them), and
+  # the flake reads `bundle.packages // { inherit (olai) … }`, so no plugin
+  # needs a root line to reach the flake.
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
+      passthru.knobs = bundle.knobs;
+      passthru.knobsTable = bundle.knobsTable;
       meta = {
         description = "olai — outliner over flat-record JSONL";
         mainProgram = "olai";
       };
     } ''
     mkdir -p $out/bin
-    # The compose-not-splice rule olai-path.sh teaches, and every face owns:
-    # an unguarded `:$PATH` with PATH unset earns every spawned server a
-    # trailing colon — the empty PATH element, the working directory
-    # smuggled onto it. scripts/olai-path.sh writes it the same way.
+    # THE COMPOSE-NOT-SPLICE RULE, repeated wherever PATH is put together: an
+    # unguarded `:$PATH` with PATH unset earns every spawned server a trailing
+    # colon — the empty PATH element, the working directory smuggled onto it
+    # (juspay/kolu#2146's shape).
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
-      --run 'export OLAI_WRAPPER_DEFAULTS=""; for key in OLAI_ACP_AGENT OLAI_ACP_CODEX OLAI_ACP_PI OLAI_ODU_BIN; do if [[ ! -v "$key" ]]; then export OLAI_WRAPPER_DEFAULTS="$OLAI_WRAPPER_DEFAULTS''${OLAI_WRAPPER_DEFAULTS:+,}$key"; fi; done' \
-      --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
-      --set-default OLAI_ACP_CODEX "${codex-agent}/bin/codex-acp" \
-      --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \
-      --set-default OLAI_ODU_BIN "${odu-bin}/bin" \
-      --run 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN''${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi'
+      ${bundle.wrapperArgs}
   '';
 in
 {
-  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent codex-agent odu-bin;
+  inherit olai olai-client olai-fonts base bundle;
 }

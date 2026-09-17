@@ -1,5 +1,3 @@
-import { TARGET } from "@olai/ui-primitives/touch.ts"
-
 /**
  * The quiet pill button: a bordered verb beside something louder.
  *
@@ -25,6 +23,7 @@ import { TARGET } from "@olai/ui-primitives/touch.ts"
  * them would move pixels, which is a different change from unifying a
  * spelling.
  */
+import { TARGET } from "@olai/ui-primitives/touch.ts"
 export const QUIET_PILL =
   "rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
 

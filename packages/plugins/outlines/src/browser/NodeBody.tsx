@@ -31,11 +31,7 @@
  *      sight ("no need to wrap desc either. just take full width") and
  *      `./touch.ts` keeps the argument for why a measure was wrong here.
  *
- * `see` follows as the references it is. The node's DOC is the one thing here
- * that is not part of the open state: a document attached to a node is a second
- * surface rather than a fact about it, and a node with a `doc` and no note has
- * no pilcrow to open — so folding it away would put a whole document out of
- * reach from the tree.
+ * `see` follows the note. Links in the note open material on its own page.
  *
  * ## Closed, which is two shapes and not one
  *
@@ -71,28 +67,34 @@
  * caller's layout — a tree row indents past its toggle, a day entry past its
  * own — so this contributes its children to a container it does not own.
  */
-
-import { customOf, docOf, type LocatedRegular } from "@olai/format"
+import {
+  deadLinkSaid,
+  customOf,
+  type LocatedRegular,
+} from "@olai/format"
+import { useReading } from "./reading.tsx"
+import { TESTID } from "olai-plugin-outlines/testids"
 import { createMemo, Show } from "solid-js"
 
-import { PluginDoors } from "./Doors.tsx"
-import { documentReferences } from "../index.ts"
-import { readLocation } from "./locations.ts"
+import { PluginFolds } from "./Folds.tsx"
 import { For } from "solid-js"
 import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"
 import { measuredAt, plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
+import { useLicences } from "./reading.tsx"
+import { dressed } from "./faces.ts"
 import { customEntries, drawerEntries } from "olai-plugin-outlines/property-values"
 import { PropsDrawer, type SetProp } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
 
 export function NodeBody(props: {
+  readonly record?: string
   /** The record being shown — for a mirror, the node it stands for, which is
-   *  also the file its note's pictures and its `doc` are relative to. */
+   *  also the file its note's pictures and links are relative to. */
   readonly shows: LocatedRegular
-  /** This is the node's own page. Forces the note full and the document inline;
+  /** This is the node's own page. Forces the note full;
    *  row expansion does not apply to the subject. */
   readonly zoomed?: boolean
   /** Row is open. Ignored when zoomed. */
@@ -139,6 +141,9 @@ export function NodeBody(props: {
   readonly addingProp?: boolean
   readonly onAddingPropEnd?: () => void
 }) {
+  const reading = useReading()
+  const dead = () => reading()?.deadLinks?.[props.shows.node.id] ?? []
+  const licences = useLicences()
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
   /**
@@ -171,6 +176,7 @@ export function NodeBody(props: {
   })
 
   return (
+    <>
     <Show
       when={zoomed()}
       fallback={
@@ -183,7 +189,10 @@ export function NodeBody(props: {
               (`drawerEntries`). Above the clamped note line, because these are
               the node's facts and that line is the start of its story. */}
           <PropsDrawer
-            entries={customEntries(customOf(props.shows.node))}
+            entries={customEntries(customOf(props.shows.node), {
+              kind: (key, value) => licences()(props.shows.file, key, value),
+              at: kind => dressed("outline.row.placement").get(kind),
+            })}
             from={props.shows.file}
             onSet={props.onProp}
             adding={props.addingProp}
@@ -197,7 +206,7 @@ export function NodeBody(props: {
               kind (`@olai/plugin-api`'s slot table argues it where the slot is
               declared). Each answers NOTHING on nearly every row, and what that
               costs is a map read in a table the plugin subscribes to once. */}
-          <PluginDoors node={props.shows.node.id} />
+          <PluginFolds node={props.shows.node.id} record={props.record} />
 
           {/* CLOSED: one clamped dim line under the title, which is either the
               top of the note (`Cozy`) or the window a filter found this row
@@ -242,6 +251,7 @@ export function NodeBody(props: {
                     tabindex={0}
                     title="write in this note"
                     onClick={(event) => {
+                      if (event.target instanceof Element && event.target.closest("a")) return
                       event.stopPropagation()
                       // Already open: the click is the caret's. Folding back is
                       // what the pilcrow does, and what clicking AWAY does
@@ -249,6 +259,7 @@ export function NodeBody(props: {
                       props.onEdit?.()
                     }}
                     onKeyDown={(event) => {
+                      if (event.target instanceof Element && event.target.closest("a")) return
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault()
                         props.onEdit?.()
@@ -265,12 +276,6 @@ export function NodeBody(props: {
               </Show>
               <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
             </div>
-          </Show>
-
-          {/* A doc reference is not part of the fold: it is always a line under
-              the node when the node carries one (see this file's header). */}
-          <Show when={docOf(props.shows)}>
-            {(doc) => <DocRef file={doc()} />}
           </Show>
         </>
       }
@@ -296,7 +301,6 @@ export function NodeBody(props: {
       />
       {/* ... and on the node's OWN page too, under the same facts: a page about
           one node is the page its agent's door most belongs on. */}
-      <PluginDoors node={props.shows.node.id} />
       <Show when={props.shows.node.desc}>
         {(desc) => (
           <Note
@@ -307,13 +311,8 @@ export function NodeBody(props: {
         )}
       </Show>
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
-      <Show when={docOf(props.shows)}>
-        {(doc) => <DocRef file={doc()} inline />}
-      </Show>
     </Show>
+    <For each={dead()}>{link => <div data-testid={TESTID.deadLink} class="text-xs text-alarm opacity-80">{deadLinkSaid(link)}</div>}</For>
+    </>
   )
-}
-
-function DocRef(props: { readonly file: string; readonly inline?: boolean }) {
- return <For each={readLocation(documentReferences)}>{entry => entry.value(props)}</For>
 }

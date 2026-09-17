@@ -1,3 +1,6 @@
+/** What the built sheet's palette section says. Generated once — it is a pure
+ *  function of the table — and asked questions, rather than each question
+ *  regenerating it. */
 import { describe, expect, test } from "bun:test"
 
 import { customProperty, paletteBlock, paletteCss, selectorFor } from "./css.ts"
@@ -10,10 +13,6 @@ import {
   THEME_STORAGE_KEY,
 } from "./palettes.ts"
 import { TAG_INK } from "./tagInk.ts"
-
-/** What the built sheet's palette section says. Generated once — it is a pure
- *  function of the table — and asked questions, rather than each question
- *  regenerating it. */
 const css = paletteCss()
 
 describe("the generated palette blocks", () => {

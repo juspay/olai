@@ -67,26 +67,9 @@
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
  */
-
-import {
-  addressOf,
-  bodiedDocument,
-  bodyKind,
-  type BrokenFile,
-  type Document,
-  type KindVocabulary,
-  type MovingRequest,
-  type NarrowingRequest,
-  NO_KINDS,
-  type OutlineError,
-  type PageRequest,
-  parseOutline,
-  type Reading,
-  stillHolds,
-  taping,
-  type Verdict,
-  verdictOf,
-} from "@olai/format"
+import { TEST_CLAIMS } from "./claims.testlib.ts"
+import { addressOf, bodiedDocument, bodyKind, type BrokenFile, type Document, type KindVocabulary, type MovingRequest, type NarrowingRequest, NO_KINDS, type OutlineError, type PageRequest, type Reading, stillHolds, taping, type Verdict, verdictOf } from "@olai/format"
+import { parseOutline } from "olai-plugin-outline-olai/format"
 import { seeded } from "@olai/format/testlib"
 import { Result } from "effect"
 
@@ -243,9 +226,9 @@ const decodeOne = (
   file: string,
   text: string,
 ): Result.Result<Document, Verdict> =>
-  bodyKind(file) === null
-    ? Result.mapError(parseOutline(file, text), verdictOf)
-    : Result.succeed<Document>(bodiedDocument(file, text))
+  bodyKind(TEST_CLAIMS, file) === null
+    ? Result.mapError(parseOutline(file, text, TEST_CLAIMS), verdictOf)
+    : Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, text))
 
 /**
  * A CORPUS OF REVISIONS, drawn from the vocabulary a directory actually has —
@@ -537,7 +520,7 @@ const published = (
   changed: ReadonlyArray<string>,
   removed: ReadonlyArray<string>,
 ): Result.Result<Reading, Verdict> =>
-  codecFor(NO_KINDS).validate(
+  codecFor(NO_KINDS, { current: TEST_CLAIMS }).validate(
     decoded,
     previous === undefined ? undefined : { value: previous, changed, removed },
   )
@@ -906,7 +889,7 @@ const keyed = (now: () => string, key: (which: Asked) => string): Standing => {
  */
 export const tabsOver = (at: Reading): ReadonlyArray<Tab> => {
   const files = at.set.documents.map((one) => one.path).filter((path) =>
-    bodyKind(path) === null
+    bodyKind(TEST_CLAIMS, path) === null
   )
   const first = files[0] as string
   const second = files[1] as string
@@ -915,7 +898,7 @@ export const tabsOver = (at: Reading): ReadonlyArray<Tab> => {
   /** A page request naming one served file — through the format's own address
    *  grammar, so the harness cannot ask a question no browser could
  ask. */
-  const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null) })
+  const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null) })
   const one: Question = { which: "page", request: pageAt(first) }
   const two: Question = { which: "page", request: pageAt(second) }
   return [
@@ -934,7 +917,7 @@ export const tabsOver = (at: Reading): ReadonlyArray<Tab> => {
         { which: "page", request: { kind: "day", date: day } },
         { which: "page", request: { kind: "agenda", today: day } },
         { which: "page", request: { kind: "trash" } },
-        { which: "page", request: { kind: "at", address: addressOf(null, node) } },
+        { which: "page", request: { kind: "at", address: addressOf(TEST_CLAIMS, null, node) } },
         { which: "moving", request: { record: node, to: [first, "nowhere"] } },
         { which: "narrowing", request: { page: pageAt(first), text: "is:todo" } },
       ],

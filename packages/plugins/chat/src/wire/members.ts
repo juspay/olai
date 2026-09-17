@@ -1,4 +1,3 @@
-import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
 /**
  * Chat, on the wire.
  *
@@ -48,7 +47,10 @@ import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
  * always agree, and a send that failed never leaves a message on screen that
  * was never sent.
  */
+import { Json } from "../json.ts"
+export { Json } from "../json.ts"
 
+import { Conversing, SessionSetting, PlanStep, TerminalView } from "./session.ts"
 import {
   AskAnswer,
   AskChoice,
@@ -64,7 +66,6 @@ import {
   isOpFailure,
   kindOf,
   OpFailure,
-  Sort,
   UsageFailure,
 } from "@olai/format"
 import { Schema } from "effect"
@@ -148,6 +149,8 @@ export type Ask = typeof Ask.Type
  * the file itself, rather than the bytes riding the prompt.
  */
 export const NodeContext = Schema.Struct({
+  /** Judged by the sender against its claims snapshot; old transcript rows omit it. */
+  trashed: Schema.optionalKey(Schema.Boolean),
   id: Found.fields.id,
   title: Found.fields.title,
   /** Root-relative, like every other `file:line` olai spells. */
@@ -158,45 +161,6 @@ export const NodeContext = Schema.Struct({
   path: Found.fields.path,
 })
 export type NodeContext = typeof NodeContext.Type
-
-/**
- * What an olai WRITE did to a node, which is the other half of the same
- * feature and deliberately not a diff.
- *
- * A `.olai` diff is one enormous line per node with everything on it changing
- * at once — the commit panel's own rule, and the reason `@olai/format`
- * classifies a change into a {@link Sort} instead. So a tool call that went
- * through the ops layer carries the node-level story: the same word the commit
- * panel draws (*marked done*, *note rewritten*, *moved*), the node it is about,
- * and whatever the rollup had to say about it.
- *
- * The `sort` is the reply's own (`@olai/ops`' `Applied.sort`), derived there
- * from the two readings the write is made of — never re-derived here and never
- * read out of the summary's prose. It is `null` for a write that changed no
- * record, where there is no honest word for what happened.
- */
-export const Wrote = Schema.Struct({
-  sort: Schema.NullOr(Sort),
-  /** The node the write was about, by ID — the reply's own `Applied.id`, which
-   *  is the one thing in this row that names a node rather than describing one.
-   *
-   *  It is here so the row can be a REFERENCE: an olai write is the shape a
-   *  transcript actually contains most often, and until this crossed the wire
-   *  the panel could say *marked done · order the new cabinets* and still have
-   *  nothing to point at. `null` for a reply that carried no id, which is a
-   *  payload this layer reads defensively rather than a case olai produces. */
-  id: Schema.NullOr(Schema.String),
-  /** The node the write was about, by title — as the reply names it. */
-  title: Schema.String,
-  /** Which outline it lives in now, root-relative. `null` for a reply that
-   *  named none — one spelling of absent across the three fields that can be,
-   *  rather than a second empty for this one to mean it with. */
-  file: Schema.NullOr(Schema.String),
-  /** What the rollup noticed — advice on a write that LANDED, never a reason
-   *  anything failed. `null` when there was nothing to say. */
-  nudge: Schema.NullOr(Schema.String),
-})
-export type Wrote = typeof Wrote.Type
 
 /**
  * A call that SENT AN AGENT OUT, and what is known about the agent.
@@ -648,7 +612,7 @@ export type AgentEntry = typeof AgentEntry.Type
  *
  * Carries what it CHANGED in whichever of the two vocabularies applies: a
  * {@link FileDiff} per file it rewrote directly, or the node-level
- * {@link Wrote} story of a write that went through the ops layer — and, when
+ * owning plugin’s story of a write that went through the ops layer — and, when
  * a subagent made it, which `Agent` call it was made inside, or, when it
  * STARTED one, what is known about the agent it started ({@link Spawned}).
  */
@@ -663,6 +627,9 @@ export const ToolEntry = Schema.Struct({
   /** The arguments and the result, as the agent reported them. Folded away by
    *  default — it is detail, not conversation. */
   detail: Schema.optionalKey(Schema.String),
+  called: Schema.optionalKey(Schema.String),
+  row: Schema.optionalKey(Schema.String),
+  reply: Schema.optionalKey(Json),
   /** What the call is SAYING as it runs — the protocol's incremental content
    *  blocks. Separate from `detail` because it is the live half: a call that
    *  has been running for thirty seconds has something to show, and its
@@ -674,17 +641,6 @@ export const ToolEntry = Schema.Struct({
    *  call whose whole content is the change, and the outline is not where it
    *  shows up. See {@link FileDiff}. */
   diffs: Schema.optionalKey(Schema.Array(FileDiff)),
-  /** What this call WROTE through the ops layer, as a node-level story rather
-   *  than as a diff. See {@link Wrote}.
-   *
-   *  Independent of `diffs` rather than exclusive with it, because the two are
-   *  read off different halves of a report — the content blocks and the tool
-   *  result — and a report says nothing about the half it does not carry. In
-   *  practice a call is one or the other: a tool cannot both go through the ops
-   *  layer and rewrite a file, since the agent has no filesystem channel here
-   *  and olai's own tools take no bytes. A row that somehow carried both would
-   *  draw both, which is the honest thing to do about a call that did both. */
-  wrote: Schema.optionalKey(Wrote),
   /** The files the call is working in, as `path` or `path:line`. The protocol's
    *  follow-along locations, which is what lets a reader see WHERE an agent is
    *  without unfolding anything. */
@@ -1192,11 +1148,13 @@ export const SessionInfo = Schema.Struct({
    *  could not read. The list draws no number for `null`, which is the
    *  answer's losing direction and never a zero drawn instead of it. */
   messageCount: Schema.NullOr(Schema.Number),
-  /** The conversation that replaced this one, by id — or `null` when nothing
-   *  says one did. An adapter says it when its transcripts make the link (see
-   *  {@link ../../plugins/chat/src/events.ts}'s `Stored`); a `/clear` sibling is where a
-   *  person meets it. */
-  supersededBy: Schema.NullOr(Schema.String),
+  /** The conversation that replaced this one, as the pair `{agent, session}`
+   *  ({@link Conversing}) — the engine's id and the id IT calls it by — or
+   *  `null` when nothing says one did. An adapter says it when its transcripts
+   *  make the link (see {@link ../../plugins/chat/src/events.ts}'s `Stored`); a
+   *  `/clear` sibling is where a person meets it, and a fresh start names it
+   *  even when the new conversation lives on ANOTHER engine. */
+  supersededBy: Schema.NullOr(Conversing),
 })
 export type SessionInfo = typeof SessionInfo.Type
 
@@ -1622,83 +1580,8 @@ export const Unopened = Schema.Struct({
  * at most once per serve, and putting it here would republish a sentence that
  * never changes on every frame of every conversation.
  */
-export const Wake = Schema.Struct({
-  /**
-   * WHOSE doorbell — one of the roster's built plugin names, as DATA. This file
-   * spells no plugin's name; the value is walked out of the registry at the
-   * composition root, exactly as `./plugins.ts`' rows are.
-   *
-   * It is `name` and not `plugin`, and that is not a style choice: this cell
-   * declares `arrayKey: "name"` (`./index.ts`), which reaches EVERY array at
-   * every depth and merges by POSITION any whose elements do not carry it. An
-   * element field called anything else would make two frames' rows silently
-   * swap identity when a person scoped a second plugin.
-   */
-  name: Schema.String,
-  /** The file a person picked to filter by — root-relative and `/`-spelled, the
-   *  one spelling every path on this wire uses. What it MEANS is the plugin's
-   *  business; core stores it, draws it and hands it back. */
-  file: Schema.String,
-  /**
-   * How many of this plugin's sentences this end is holding for this
-   * conversation, and has not let in yet.
-   *
-   * Zero nearly always. It is nonzero while a turn is running — a doorbell's
-   * message waits for the turn boundary rather than joining the turn, so that it
-   * cannot spend the interruption a person has not spent — and while nobody is
-   * in the conversation at all. The strip draws it because the panel's own rule
-   * is that the alternative to holding words out of sight is not dropping them,
-   * it is showing them.
-   *
-   * The NUMERAL is core's; the NOUN is the plugin's, and comes off the roster
-   * (`./plugins.ts`' `wake.waiting`). Core supplies no word for what is waiting.
-   */
-  waiting: Schema.Int,
-  /**
-   * THIS DOORBELL IS NOT WATCHING THE FILE IT NAMES, and which of the two ways
-   * that can be true — or `null`, which is every ordinary row.
-   *
-   * The control must stop drawing as ON, and that is the whole of what this
-   * field is for. A doorbell that derives nothing derives nothing FOREVER, so
-   * the conversation goes quiet in a way that is indistinguishable from a
-   * conversation with nothing to report — and a picker still saying `lanes.olai`
-   * over that silence is the panel asserting something untrue.
-   *
-   * TWO CAUSES, because a person has a different thing to do about each and the
-   * strip is where they look:
-   *
-   *   - `gone` — the file was renamed, moved or deleted out from under a scope
-   *     somebody set. It is not in the served set at all.
-   *   - `unwatchable` — the file is right there, and its KIND is not one this
-   *     plugin's doorbell can derive anything from (`./plugins.ts`'s
-   *     `BuiltPlugin.wake.kinds`). A `.md` under a wake that reads nodes is the
-   *     case this arm was added for: the picker used to offer one.
-   *
-   * CORE'S OWN VOCABULARY, and the one place around this feature where that is
-   * so. Everything else on the strip is the plugin's words arriving as data,
-   * because a sentence about somebody's terminals is a sentence core cannot
-   * write. Neither of these is about terminals: one is A FILE CORE STORES AND
-   * NO LONGER FINDS and the other is A FILE CORE STORES AGAINST A DECLARATION
-   * IT WAS HANDED — core's facts about core's own record, and there is no
-   * plugin better placed to say either. What the plugin says is the sentence
-   * that goes into the CONVERSATION (`@olai/plugin-api`'s
-   * `PluginServerHalf.wake.faults`), and core carries whichever
-   * one applies verbatim.
-   *
-   * NULLABLE AND NOT AN OPTIONAL KEY, though the record behind it writes the
-   * word-or-absent (`olai-plugin-chat`'s `Scoped.fault`): a face draws one of three
-   * things, and an absent key would be a fourth state for it to have an opinion
-   * about. It rides here rather than on the `plugins` cell for the reason
-   * `file` and `waiting` do — it moves per conversation, not per serve.
-   */
-  fault: Schema.NullOr(Schema.Literals(["gone", "unwatchable"])),
-})
+export const Wake = Schema.Struct({ name: Schema.String, pick: Json, waiting: Schema.Int })
 export type Wake = typeof Wake.Type
-
-/** WHY a doorbell is not watching — {@link Wake.fault}'s own union, named so
- *  that the browser's join and the record that persists it are one word rather
- *  than three spellings of two literals. */
-export type WakeFault = NonNullable<Wake["fault"]>
 
 export type Unopened = typeof Unopened.Type
 

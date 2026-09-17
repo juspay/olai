@@ -1,8 +1,8 @@
-import { slotCatalog } from "@olai/plugin-api/slots"
 /** Vault-defined source, approval, compilation and chunks belong to this
  * provider. The host grants an owned loader; this policy decides what may be
  * loaded. Withdrawing this scope closes its definitions and HTTP integration,
  * while writes already accepted by the vault remain durable. */
+import { slotCatalog } from "@olai/plugin-api/slots"
 import { definePlugin, HostLoading, Ops, Offers, Surfaces, Vault, BundleModules } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
 import type { Ops as Gate } from "@olai/ops"
@@ -53,7 +53,7 @@ approve: ({ input }) =>
               }
               const current = yield* Effect.catch(gate.read, () => Effect.succeed(null))
               const at = current?.derived.byId.get(one.node)
-              if (isPutAway(one.file) || (at !== undefined && isPutAway(at.file))) {
+              if (current !== null && (isPutAway(current.claims, one.file) || (at !== undefined && isPutAway(current.claims, at.file)))) {
                 return yield* Effect.fail(
                   new NotFoundFailure({
                     reason:

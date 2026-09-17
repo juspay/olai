@@ -5,9 +5,7 @@
  * door onto everything else, and it is drawn only where there IS something
  * else. That list is short and it is exactly what `./NodeBody.tsx` draws when a
  * row is open: the NOTE, and the `see` references under it. Nothing else on a
- * node hangs off the mark — a `doc` is a line drawn whether the row is open or
- * not (a document put out of reach behind a fold would be a whole surface
- * hidden by a keystroke), and the custom properties are the run above, drawn on
+ * node hangs off the mark. The custom properties are the run above, drawn on
  * every row since `props-doors-autoshow`.
  *
  * ## Why it is a module and not a line in each row

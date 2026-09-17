@@ -17,6 +17,7 @@ export const TESTID = {
   paneResize: "pane-resize",
   paneTabs: "pane-tabs",
   paneTab: "pane-tab",
+  mainStrip: "main-strip",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

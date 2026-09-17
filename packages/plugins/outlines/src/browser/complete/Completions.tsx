@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The shortlist under a caret — one box for all three widgets.
  *
@@ -38,7 +37,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * chosen by the arrows and Enter (`./completing.tsx`), and a pointer press is
  * defaulted-away by the row itself so a click cannot blur the line being typed.
  */
-
+import { servedDirectory } from "../vault.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Popper } from "@kobalte/core/popper"
 import { createSignal, Index, Show } from "solid-js"
 import { Portal } from "solid-js/web"
@@ -136,6 +136,7 @@ export function Completions(props: { readonly listing: Listing }) {
             {(choice, index) => (
               <li>
                 <Result
+        claims={servedDirectory()?.claims()}
                   label={choice().label}
                   hint={choice().hint}
                   place={choice().place}

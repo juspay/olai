@@ -15,7 +15,7 @@
  * pre-check that quietly stopped noticing marks would fail a sentence rather
  * than a statistic.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
 import { expect, test } from "bun:test"
 
 import {
@@ -69,7 +69,7 @@ const directory = (): {
   }
 }
 
-const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null) })
+const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(TEST_CLAIMS, path, null) })
 
 test("two tabs on one question at one revision are handed the same object", () => {
   const { first, path } = directory()

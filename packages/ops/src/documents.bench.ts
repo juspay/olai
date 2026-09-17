@@ -35,7 +35,8 @@ import {
   nothing,
   type OutlineSet,
 } from "@olai/format"
-import { alternating, runtimeSaid, setOf } from "@olai/format/testlib"
+import { alternating, runtimeSaid } from "@olai/format/testlib"
+import { setOf } from "./fixtures.testlib.ts"
 
 import { documents } from "./query.ts"
 

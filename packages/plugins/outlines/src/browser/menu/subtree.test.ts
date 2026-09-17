@@ -10,7 +10,7 @@
  * asserted where it is produced — `@olai/format`'s `derive.test.ts`, including
  * the case that decides the split: hiding what is done must not shrink it.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -33,7 +33,7 @@ const GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
+const derived = derive(TEST_CLAIMS, recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
 const rows = rowsOf(derived, "house.olai")
 
 /** One row of the fixture, by id. `flatten` with nothing folded is "every row

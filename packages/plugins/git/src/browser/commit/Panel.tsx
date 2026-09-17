@@ -37,7 +37,7 @@
  * change is called, which is what keeps the panel's vocabulary and the commit
  * log's from being kept in step by hand.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { isReady } from "@olai/format"
 import { Show } from "solid-js"
 
@@ -53,6 +53,7 @@ import {
   verbatim,
   waitingIn,
   WHO,
+  wroteOf,
   willRecord,
 } from "./said.ts"
 import { Others } from "./Others.tsx"
@@ -75,7 +76,7 @@ export function Panel(props: {
 }) {
   const pending = () => props.commit.pending()
   const ready = () => isReady(pending().repo)
-  const selection = createSelection(pending, preparation.dropped)
+  const selection = createSelection(() => servedDirectory()?.claims(), pending, preparation.dropped)
 
   /**
    * The draft: the composed suggestion until somebody types, and theirs
@@ -188,7 +189,7 @@ export function Panel(props: {
       <Show when={pending().wrote.length > 0}>
         <p class="text-xs text-muted" data-testid={TESTID.commitWriters}>
           {pending().wrote.map((wrote, at) =>
-            `${at > 0 ? " · " : ""}${WHO[wrote.writer] ?? wrote.writer} ${wrote.ops}`
+            `${at > 0 ? " · " : ""}${wroteOf(wrote.writer, wrote.ops)}`
           ).join("")}
         </p>
       </Show>

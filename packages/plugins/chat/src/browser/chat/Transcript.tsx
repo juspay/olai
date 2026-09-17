@@ -42,7 +42,7 @@
  * this feature forced. The shelf draws tool rows too; every tool row asks for
  * the elapsed reading in its own body; and that lookup THROWS outside the
  * provider. So the provider went up, to the panel that mounts the strip, the
- * shelf and this pane ({@link ./Panel.tsx}) — which is also what
+ * shelf and this pane ({@link ../agents/Fold.tsx}) — which is also what
  * {@link ./elapsing.tsx} always claimed it was: ONE clock for the panel. Two
  * providers would be two timers and two subscriptions to a chat cell that moves
  * several times a turn.
@@ -92,12 +92,13 @@ import { useShowNode } from "../references.ts"
 import { useFollow } from "olai-plugin-navigation/routing"
 import { selector } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "../../testids.ts"
-import { revealed, revealing, wholeYet } from "./attention/reveal.ts"
+import { wholeYet } from "./attention/whole.ts"
 import { declaringFailure } from "../references.ts"
 import { laneOf } from "./lanes.ts"
 import { NEAR } from "./near.ts"
-import { previewing } from "./previewing.ts"
+import { useConversationUI } from "./ui.tsx"
 import { railOf, sameRail } from "./rail.ts"
+import { createPrevious } from "./previous.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { Row } from "./Row.tsx"
@@ -111,11 +112,16 @@ import type { Chat } from "./state.ts"
  *  for, spelled off the panel's own declared handles rather than off a class. */
 const WAITING_ASK = `${selector(TESTID.chatAsk)}[data-asking="true"]`
 
-export function Transcript(props: { readonly chat: Chat }) {
+export function Transcript(props: { readonly chat: Chat; readonly unbounded?: boolean }) {
+  const [revealing, setRevealing] = props.chat.ui.reveal
+  const revealed = () => setRevealing(false)
+  const { previewing } = useConversationUI().previewing
   const show = useShowNode()
   const follow = useFollow()
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
+  let outer: HTMLElement | undefined
+  const scrollPane = () => props.unbounded ? outer : pane
   /** Should new text pull the view down with it? True until the reader scrolls
    *  away from the bottom, and true again the moment they come back. */
   let following = true
@@ -124,18 +130,42 @@ export function Transcript(props: { readonly chat: Chat }) {
    *  assignment returns, so a boolean around the write cannot see it. */
   let assignedTop = Number.NaN
 
-  const atBottom = (): boolean =>
-    pane !== undefined &&
-    pane.scrollHeight - pane.scrollTop - pane.clientHeight < NEAR
+  const atBottom = (): boolean => {
+    const host = scrollPane()
+    return host !== undefined && host.scrollHeight - host.scrollTop - host.clientHeight < NEAR
+  }
 
   const jump = (): void => {
-    if (pane === undefined) return
-    pane.scrollTop = pane.scrollHeight
-    assignedTop = pane.scrollTop
+    const host = scrollPane()
+    if (host === undefined) return
+    host.scrollTop = host.scrollHeight
+    assignedTop = host.scrollTop
+  }
+  const scrolled = () => {
+    const host = scrollPane()
+    if (host === undefined) return
+    // Browser anchoring can move the scroll forward before ResizeObserver
+    // sees new rows. While following, that forward move is not a reader
+    // scrolling away. An upward move still releases following immediately.
+    if (Number.isFinite(assignedTop) && (Math.abs(host.scrollTop - assignedTop) < 1
+      || (following && host.scrollTop > assignedTop))) {
+      if (following && !atBottom()) jump()
+      return
+    }
+    following = atBottom()
   }
 
   onMount(() => {
     if (content === undefined || pane === undefined) return
+    if (props.unbounded) {
+      let parent = pane.parentElement
+      while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
+      outer = parent ?? document.documentElement
+      const target = outer === document.documentElement ? window : outer
+      target.addEventListener("scroll", scrolled, { passive: true })
+      onCleanup(() => target.removeEventListener("scroll", scrolled))
+      jump()
+    }
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
     // event for it. New text is followed from here. The jump's own `scroll`
     // arrives later and is recognised by `assignedTop`, not by a flag.
@@ -156,6 +186,12 @@ export function Transcript(props: { readonly chat: Chat }) {
     // that is owed is honoured whenever the geometry moves — and it was only
     // ever watching half the geometry.
     grown.observe(pane)
+    if (props.unbounded && outer !== undefined) {
+      grown.observe(outer)
+      const resized = () => { if (following) jump() }
+      window.addEventListener("resize", resized)
+      onCleanup(() => window.removeEventListener("resize", resized))
+    }
     onCleanup(() => grown.disconnect())
   })
 
@@ -246,23 +282,17 @@ export function Transcript(props: { readonly chat: Chat }) {
    * into the list by position. That is the cheaper shape as well as the
    * honester one: `<For>` only keeps a signal per row for the index when the
    * mapper asks for one, and every conversation would pay for that whether or
-   * not an agent was ever spawned. This rebuilds on exactly the ticks the
+   * not an agent was ever spawned. This walks on exactly the ticks the
    * ORDER moves on — a row arriving or leaving — and on none of the frames
    * that merely grow a row, which is a fact about {@link ./order.ts}'s fold
-   * rather than a hope about this memo: the list it hands back on a frame that
+   * rather than a hope about this walk: the list it hands back on a frame that
    * moved nothing is the very array it handed back last time, so nothing here
    * wakes.
+   *
+   * And when it does walk, it wakes only the rows whose neighbour moved
+   * ({@link ./previous.ts}) — one per appended row, not every row on screen.
    */
-  const previousOf = createMemo(() => {
-    const order = props.chat.rows()
-    const previous = new Map<string, string>()
-    for (let at = 1; at < order.length; at++) {
-      const key = order[at]
-      const before = order[at - 1]
-      if (key !== undefined && before !== undefined) previous.set(key, before)
-    }
-    return previous
-  })
+  const previousOf = createPrevious(() => props.chat.rows())
 
   /**
    * What the transcript calls the row under a key — which for the one lane this
@@ -330,44 +360,16 @@ export function Transcript(props: { readonly chat: Chat }) {
       // (`./DropTarget.tsx`) becomes the scrollport, carrying the composer
       // away with the rows. `overscroll-contain` stops a wheel at the end of
       // this pane from moving the page beside it.
-      class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-2 text-ink"
+      style={{ "max-height": props.unbounded ? undefined : "24rem" }}
+      class="min-w-0 px-3 py-2 text-ink"
       classList={{
-        // A FLOOR, and ONLY WHILE A SHELF IS TAKING ROOM. What can squeeze this
-        // pane is above it — a preview of one agent's calls — and the promise
-        // that matters is that a question a subagent asked is drawn HERE, in
-        // the column, because a form behind a click is a turn that hangs
-        // forever. A pane squeezed to nothing is a click of a different kind.
-        //
-        // UNCONDITIONAL IT COSTS MORE THAN IT BUYS, which the phone measured:
-        // this pane's basis is `0` (`flex-1`), so flexbox never SHRINKS it — it
-        // simply gets no free space — and a floor turns that into the container
-        // OVERFLOWING instead, which pushes the composer off the bottom of a
-        // handset. That is the same failure one surface further along: a person
-        // who cannot reach the box cannot answer the form either, and it fired
-        // on every phone whether or not anything was open.
-        //
-        // So it is scoped to the one arrangement it was written for. The shelf
-        // is capped and yields first, and on the sheet opening one goes to the
-        // full snap, so by the time this applies there is room for both.
-        // Exclusive with `min-h-0`: both set the same property, and Tailwind
-        // will not promise which wins if they share the class list.
+        "olai-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain": !props.unbounded,
         "min-h-0": previewing() === null,
         "min-h-[7rem]": previewing() !== null,
       }}
       data-testid={TESTID.chatTranscript}
       ref={pane}
-      onScroll={() => {
-        if (pane === undefined) return
-        // Same top we assigned: our jump's late event, or growth that left
-        // the top alone. If a follow is still owed and we are no longer at
-        // the bottom, more content landed after the assignment — re-jump
-        // rather than decide the reader left.
-        if (Number.isFinite(assignedTop) && Math.abs(pane.scrollTop - assignedTop) < 1) {
-          if (following && !atBottom()) jump()
-          return
-        }
-        following = atBottom()
-      }}
+      onScroll={props.unbounded ? undefined : scrolled}
       // A press the chips decline is still a press on the agent's markdown, and
       // an anchor in there is an address in this vault: a `.md` link the
       // renderer resolved (`../markdown/rewrite.ts`) or an app path the agent
@@ -409,8 +411,9 @@ export function Transcript(props: { readonly chat: Chat }) {
              *  lane to the list instead — and a lane is a fresh object every
              *  time it is computed, so one row arriving would re-run the
              *  attribute effects of every row already on screen. */
+            const previousKey = previousOf(key)
             const above = createMemo(() => {
-              const previous = previousOf().get(key)
+              const previous = previousKey()
               return previous === undefined
                 ? undefined
                 : props.chat.entry(previous)()

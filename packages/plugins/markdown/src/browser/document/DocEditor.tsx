@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-markdown/testids"
 /**
  * A document, being written: the page's edit mode.
  *
@@ -32,7 +31,7 @@ import { TESTID } from "olai-plugin-markdown/testids"
  * appears the moment the served text stops matching what this editor read —
  * so save-time is never the first anyone hears of a conflict.
  */
-
+import { TESTID } from "olai-plugin-markdown/testids"
 import { createMemo, onMount, Show } from "solid-js"
 
 import { useHistory } from "../history.ts"
@@ -48,6 +47,7 @@ export function DocEditor(props: {
   readonly served: string
   /** Leave the editor, whichever door: a commit that landed, or a Cancel. */
   readonly onDone: (draft: DocumentDraft) => void
+  readonly onNudge: (text: string | null) => void
   readonly draft: DocumentDraft
 }) {
   const undo = useHistory()
@@ -84,8 +84,7 @@ export function DocEditor(props: {
         setSaid(outcome.text)
         return
       }
-      // Landed. A document write has no rollup to remark, so there is nothing
-      // an `aside` would say that leaving does not show.
+      props.onNudge(outcome?.tone === "aside" ? outcome.text : null)
       props.onDone(draft)
     } finally {
       setBusy(false)

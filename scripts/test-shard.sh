@@ -16,9 +16,12 @@ if [[ -z "${ODU_SHARD_INDEX+x}" && -z "${ODU_SHARD_TOTAL+x}" ]]; then
   exit
 fi
 
-# Keep scheduling beside execution. These are the >2s files from the passing
-# 0342dac6c run; rounded seconds suffice. Other files average ~0.07s, estimated
-# at 0.1s. Git determines coverage, so absent/stale estimates cannot skip tests.
+# Per-member heavy-test weights live in each workspace's `test-weights.json`
+# (a `{ "key": seconds }` map), keyed by the REPO-RELATIVE path as produced by
+# `git ls-files` — so no path translation is needed when partitioning. The
+# default for files with no weight is 0.1s (an average ~0.07s plus margin).
+# Members with no heavy tests simply omit the file. Git determines coverage,
+# so absent/stale estimates cannot skip tests.
 exec bun - <<'JS'
 const index = Number(process.env.ODU_SHARD_INDEX)
 const total = Number(process.env.ODU_SHARD_TOTAL)
@@ -26,23 +29,31 @@ if (!/^(0|[1-9][0-9]*)$/.test(process.env.ODU_SHARD_INDEX ?? "") ||
     !/^[1-9][0-9]*$/.test(process.env.ODU_SHARD_TOTAL ?? "") ||
     !Number.isSafeInteger(index) || !Number.isSafeInteger(total) || index >= total)
   throw new Error("invalid ODU_SHARD_INDEX / ODU_SHARD_TOTAL")
-const seconds = {
-  "packages/child/src/child.test.ts": 3.9,
-  "packages/format/src/splice.test.ts": 3.0,
-  "packages/ops/src/standing.equivalence.test.ts": 2.6,
-  "packages/plugins/chat/src/deliveries.test.ts": 16.3,
-  "packages/plugins/chat/src/scoped.test.ts": 12.7,
-  "packages/plugins/chat/src/teaching.send.test.ts": 5.4,
-  "packages/plugins/chat/src/wake-lifetime.test.ts": 25.4,
-  "packages/plugins/git/src/git/git.test.ts": 20.1,
-  "packages/plugins/git/src/ledger/pending.test.ts": 2.5,
-  "packages/plugins/navigation/src/scroll.test.ts": 3.4,
-  "packages/plugins/outlines/src/browser/settled.browsertest.ts": 3.5,
-  "packages/server/src/dieWithParent.test.ts": 4.6,
-  "packages/server/src/headless.test.ts": 20.1,
-  "packages/server/src/lock.test.ts": 7.7,
-  "packages/server/src/logLevel.test.ts": 4.8,
-  "packages/server/src/profiles.test.ts": 4.4
+let seconds = {}
+// merged value = { member, seconds }; carrying the owning member makes a
+// collision across two members report both names instead of just the loser.
+const membersOut = Bun.spawnSync(["sh", "scripts/workspace-members.sh"])
+for (const dir of membersOut.stdout.toString().split("\n")) {
+  if (!dir) continue
+  const weightsFile = `${dir}/test-weights.json`
+  if (!(await Bun.file(weightsFile).exists())) continue
+  let weights
+  try {
+    weights = JSON.parse(await Bun.file(weightsFile).text())
+  } catch (e) {
+    throw new Error(`${weightsFile}: ${e.message}`)
+  }
+  if (typeof weights !== "object" || weights === null || Array.isArray(weights))
+    throw new Error(`${weightsFile} must be a JSON object of { "repo/relative/path": seconds }`)
+  for (const [file, secs] of Object.entries(weights)) {
+    if (typeof secs !== "number")
+      throw new Error(`${weightsFile}: weight for "${file}" must be a number`)
+    if (file in seconds)
+      throw new Error(`test "${file}" has a weight in both ${seconds[file].member} and ${dir}`)
+    if (!file.startsWith(dir + "/"))
+      throw new Error(`${weightsFile}: weight for "${file}" is not under ${dir}/`)
+    seconds[file] = { member: dir, seconds: secs }
+  }
 }
 const tracked = Bun.spawnSync(["git", "ls-files", "-z"])
 if (tracked.exitCode) throw new Error(tracked.stderr.toString())
@@ -61,7 +72,7 @@ function partition(files, total, cost) {
   }
   return shards
 }
-const shard = partition(files, total, file => seconds[file] ?? 0.1)[index]
+const shard = partition(files, total, file => seconds[file]?.seconds ?? 0.1)[index]
 console.log(`test shard ${index + 1}/${total}: ${shard.files.length} files, estimated ${shard.seconds.toFixed(1)}s`)
 for (const condition of [false, true]) {
   const selected = shard.files.filter(file => browser(file) === condition).sort()

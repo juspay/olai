@@ -1,6 +1,3 @@
-import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
-import { slotContracts } from "./slots.ts"
-import { PanelHandle } from "./layout/Handle.tsx"
 /**
  * Layout occupies the renderer's root. Geometry observers are resources of that
  * entry's integration, so removing either the entry or renderer drains them.
@@ -10,6 +7,9 @@ import { PanelHandle } from "./layout/Handle.tsx"
  * The frame consumes navigation and content contributions. Each content
  * provider owns its own models and editor state.
  */
+import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
+import { slotContracts } from "./slots.ts"
+import { PanelHandle } from "./layout/Handle.tsx"
 import { definePlugin,Faces,Offers } from "@olai/plugin-api"
 import { holdFaces } from "./faces.ts"
 import { holdRouting } from "./routing.ts"
@@ -21,7 +21,7 @@ import { content,navigation,paletteAdapters } from "olai-plugin-navigation/contr
 import { rendererSlots,root } from "olai-plugin-ui-renderer/contract"
 import { createRoot,ErrorBoundary } from "solid-js"
 import Frame from "./Frame.tsx"
-import { contentStatus,name,overlays,type Shell,sidebar,tools } from "./index.ts"
+import { contentStatus,name,overlays,type Shell,sidebar,strip,tools } from "./index.ts"
 import { trackDesktop } from "./layout/media-owner.ts"
 import {
   desktop, panelOpen, panelSnap, panelWidth, resetPanelWidths, setPanelOpen, setPanelSnap,
@@ -58,13 +58,13 @@ export default definePlugin({
       console.error(error)
       return <Fault text={String(error)} />
     }}><Frame slots={slots} router={router} /></ErrorBoundary>, {
-      children: [sidebar, tools, contentStatus, overlays, content, paletteAdapters, ...Object.values(slotContracts), ...Object.values(navigationSlots)],
+      children: [sidebar, tools, contentStatus, overlays, strip, content, paletteAdapters, ...Object.values(slotContracts), ...Object.values(navigationSlots)],
       activate: Effect.gen(function*() {
         for (const start of [trackVisibleViewport, trackDesktop, followLayout]) {
           yield* Effect.acquireRelease(Effect.sync(start), (stop) => Effect.sync(stop))
         }
         yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => {
-          publishLayoutCss()
+          publishLayoutCss(() => slots.read(strip).length > 0)
           return dispose
         })), (dispose) => Effect.sync(dispose))
       }),

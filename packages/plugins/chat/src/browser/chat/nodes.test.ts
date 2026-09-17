@@ -9,7 +9,7 @@
  * of that is the SERVER's now (`search-server-side`), so it is asked where it
  * is decided: the grammar and the ranking in `@olai/format`'s `filter.test.ts`,
  * the cap, the scope and the situating in `@olai/ops`' `query.test.ts`, and
- * that the box reaches them at all in `features/chat_at_nodes.feature`, which
+ * that the box reaches them at all in `packages/plugins/chat/e2e/features/chat_at_nodes.feature`, which
  * is a browser's question.
  *
  * What is left here is the ROW, and it is worth its own test for the reason it

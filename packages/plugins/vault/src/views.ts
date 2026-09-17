@@ -51,10 +51,12 @@
 import type { VaultViews } from "@olai/plugin-api/services"
 import { NO_LEDGER, NO_SEARCH, type Ledger as OpsLedger, type Search as OpsSearch } from "@olai/ops"
 import { Effect } from "effect"
+import { openFileKinds } from "./file-kinds.ts"
 
 /** One vault activation's pair of optional views: what its settings read, and
  *  the door its providers register through. */
 export interface Views {
+  readonly fileKinds: ReturnType<typeof openFileKinds>
   /** Where a write is recorded, or the refusal for a serve with no history. */
   readonly ledger: () => OpsLedger
   /** ...and what a query is answered by. */
@@ -129,6 +131,7 @@ export const openViews = (): Views => {
   const ledger = holding<OpsLedger>("ledger")
   const search = holding<OpsSearch>("matcher")
   return {
+    fileKinds: openFileKinds(),
     ledger: () => ledger.read() ?? NO_LEDGER,
     search: () => search.read() ?? NO_SEARCH,
     door: {

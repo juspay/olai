@@ -1,7 +1,7 @@
 # The plugin system
 
-olai integrates with tools it does not own — kolu, odu, xyne-spaces, ACP coding
-agents — and with most of its own features, through **plugins**. A plugin is a
+olai integrates with tools it does not own — kolu, odu, xyne-spaces, Gmail,
+ACP coding agents — and with most of its own features, through **plugins**. A plugin is a
 package the bundle mounts at runtime. General olai packages may know a plugin's
 name and nothing else about it.
 
@@ -37,6 +37,7 @@ olai packages.
 | **kolu** | runs coding agents in terminals, serves them over MCP |
 | **odu** | runs CI |
 | **xyne-spaces** | mirrors a conversation into a bound channel |
+| **mail** | connects a Gmail account, through the pinned Himalaya |
 
 kolu and odu were once "extracted into their own packages" and still left this
 behind:
@@ -85,9 +86,10 @@ export default definePlugin({
   needs: [Slots, Clocks, Wired],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
-    yield* slots.register("outline.row.chip", WORKTREE_KIND, CiChip)
-    yield* slots.register("outline.row.pane", WORKTREE_KIND, RunMatrix)
+    yield* slots.register("outline.row.chip", RUN_KIND, CiChip)
+    yield* slots.register("outline.row.pane", RUN_KIND, RunMatrix)
     yield* slots.register("delivery.mark", OduMark)
+    // Outlines similarly registers tool.reply: { fileOf, story }, owned by chat.
     yield* slots.register("app.mount", (props) => /* one subscription per tab */)
   }),
 })
@@ -193,7 +195,7 @@ terms that need an example.
 
 | Word | What it means |
 | --- | --- |
-| **plugin** | one integration: two halves, one shape, each a `definePlugin` over an Effect. Two kinds exist — a **tenant** (olai's judgement about an outside appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP coding agent the chat panel can seat: claude, codex, opencode, pi). The system does not distinguish them |
+| **plugin** | one integration: two halves, one shape, each a `definePlugin` over an Effect. Two kinds exist — a **tenant** (olai's judgement about an outside appliance: kolu, odu, xyne-spaces, mail) and an **engine** (an ACP coding agent the chat panel can seat: claude, codex, opencode, pi, omp). The system does not distinguish them |
 | **name** | the plugin's one word, e.g. `"kolu"`. Also its row id, wire prefix, fiber name, settings namespace and docs address |
 | **row** | one entry in `packages/bundle/olai.yml`: an `id` and the module the loader mounts. Profiles apply `disabled` patches over that catalogue |
 | **fiber** | one mounted plugin. Callers see four words — `running`, `waiting`, `failed`, `off`; the engine's six internal states stay inside `@olai/effect-cordis` |
@@ -295,11 +297,11 @@ word, and the registry prefixes it with the plugin's name:
 
 ```ts
 export const kinds = [{
-  kind: "worktree",                      // BARE — the registry prefixes it
-  takes: `\`${WORKTREE_TYPE}\` (a path to a checkout, no whitespace)`,
-  admits: isPathShaped,                  // does this value fit
+  kind: "run",                           // BARE — the registry prefixes it
+  takes: `\`${RUN_TYPE}\` (an odu run id)`,
+  admits: isRunIdShaped,                 // does this value fit
 }] as const
-// kolu: terminal → kolu-terminal        odu: worktree → odu-worktree
+// kolu: terminal → kolu-terminal        odu: run → odu-run
 ```
 
 - The prefix stops two plugins colliding on a word, and limits a plugin's
@@ -344,7 +346,7 @@ editable.
 | Dressing | When it draws |
 | --- | --- |
 | **block** | always owns a row: a terminal somebody wrote down is worth a row when nothing is happening |
-| **chip** | only while there is something to say: a worktree with no CI running looks unchanged |
+| **chip** | only while there is something to say: a run id the service does not know reads `unknown run`; a row with no `odu-run` looks unchanged |
 | **pane** | opens below the row when a chip is pressed |
 
 ### row actions
@@ -490,7 +492,7 @@ a plugin import it.
 | Fact | Detail |
 | --- | --- |
 | What is generated | [`generate.ts`](../../packages/bundle/generate.ts) writes, from the rows: the browser's row table with a dynamic `import()` per plugin, the stylesheet chain, and the merged testid table with its pairwise disjointness proof |
-| Where it lives | all three are gitignored and produced by `just install` and by the nix build in its own sandbox, beside the tenants' marks, so a packaged build cannot ship a stale copy |
+| Where it lives | all three are gitignored and produced by `just install` and by the nix build in its own sandbox, beside the tenants' marks, so a packaged build cannot ship a stale copy. On the Nix side each plugin whose tree gets a generated file — a mark, a probe — declares it in its own `default.nix`'s `generated` map, and the fold writes it into that plugin's directory |
 | What it replaced | the browser kept two hand-written `as const` arrays for one release, held equal to the rows by a `rosters.test.ts`. That test recorded the duplication rather than removing it, and it is deleted with the lists |
 | Why the specifier is a literal | it makes each plugin its own JS chunk: a plugin the roster does not name is never fetched, never evaluated and registers nothing. kolu's terminal emulator is 336 KB a machine not running kolu never downloads |
 
@@ -551,7 +553,7 @@ names as a property of the pin rather than a revision that goes stale.
 ### What a browser client promises across a reconnect
 
 Established by reading the pinned sources and proved by
-`packages/tests/features/filter_live_recovery.feature` and
+`packages/plugins/outlines/e2e/features/filter_live_recovery.feature` and
 `content_capabilities.feature`.
 
 - **Object identity holds.** `redial` returns the same connection object, and
@@ -816,6 +818,11 @@ docs line, step 4), and no general package changes at all.
   shortcut.
 - Never declare `@olai/bundle` (it imports you), or `@olai/effect-cordis` and
   `cordis` (the engine, one package's business).
+- A plugin with slow tests records its relative share in its own
+  `test-weights.json` at the package root — a `{ "<repo-relative path>":
+  seconds }` map — because sharding is the harness's and the timings are the
+  tests'. A plugin that gets slow enough to matter adds its own file rather
+  than rebalancing someone else's.
 
 ### 1. `src/wire.ts`
 
@@ -908,7 +915,11 @@ appliance olai has a judgement about. Smaller shape, same rules.
   machine has no agent at all (`engine.install`, which takes a `NotHere` value
   rather than a drawing). Core keeps the shape of each — the sixteen-unit box,
   the list, the order — and neither crosses the wire, so a row selection naming
-  other engines draws a panel with nothing of yours in it.
+  other engines draws a panel with nothing of yours in it. Chat also owns
+  `tool.reply`: outlines supplies `{ fileOf, story }` through that slot,
+  registered after its resources so the face withdraws first. The face owns
+  its interactions; the slot does not require chat to supply node navigation. Display ownership
+  comes from the optional MCP catalogue through `Tools`, resolved per call.
 - Put the install sentence in a `src/install.ts` your browser half opens: a
   `NotHere` (`@olai/plugin-api`) whose `why` is a whole sentence core composes no
   clause of.
@@ -922,11 +933,49 @@ appliance olai has a judgement about. Smaller shape, same rules.
 - If olai ships an adapter for it, the volatile packaging belongs in
   `packages/plugins/<name>/acp/`: patches and their rigs always, plus a
   standalone lock and derivation when the adapter has its own release and
-  platform clock (Codex). The older Claude/Pi pair still shares the root `acp/`
-  shim and the rows in `nix/acp-agent.nix`; that directory's README says why.
+  platform clock (Codex). A **shipped adapter is a plugin's own `acp/`** with
+  its own shim and lock: the plugin's `default.nix` declares the adapter via
+  `@olai/plugin-kit`'s `npmAdapter` (or a standalone `acp/default.nix`, as
+  Codex keeps), and the root never names a plugin's adapter directly. The
+  shared `acp/` shim's *why one lockfile* argument lives in each engine's
+  `patches/README.md`.
 - **The order of the engine rows is load-bearing**, unlike a tenant's: it is the
   order the picker draws and the install screen lists, and the first row is what
   a conversation note naming no agent is read as being about.
+
+### 7. If the plugin ships a binary, a pin or a generated file: `default.nix`
+
+An optional `packages/plugins/<name>/default.nix` is the plugin's Nix half,
+folded by `packages/bundle/default.nix`; a plugin without one simply has no Nix
+half (thirty-six of forty-one). It is `{ pkgs, pins, kit, b2n ? null }: { ... }`
+and returns a contract attrset, every key optional and any other key refused by
+name:
+
+| Key | Meaning |
+| --- | --- |
+| `hydrate` | sources copied into `node_modules/<dest>` after `bun install` |
+| `externals` | the npm externals those sources need at the root |
+| `koluSeeds` / `koluPins` | the kolu seeds this plugin's source imports and their closure grafts |
+| `generated` | files written into the plugin's own tree; the path must contain `.generated.` |
+| `npmTrees` | directories `just install` runs `npm ci` in, for a node_modules a test resolves |
+| `knobs` | the executable variables the packaged wrapper bakes as `--set-default` (the engine rows: `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`, `OLAI_ODU_BIN`) |
+| `packages` | flake outputs this plugin contributes (`claude-agent`, `pi-agent`, `codex-agent`, `odu-bin`, …) |
+| `checks` | checks that need the built tree, as `checks.<system>.plugin-<name>-<check>` |
+
+This is the engine's binary door: an engine's adapter is built by its own
+`default.nix` reaching `@olai/plugin-kit`'s `npmAdapter` (or by
+`acp/default.nix`, as Codex keeps), and a generated mark or pin is that
+plugin's `generated`/`packages` entry. Nothing outside the plugin's directory
+names any of it.
+
+### 8. If the plugin is an engine: `e2e/fake/`
+
+An engine's scripted e2e fake lives in its own directory, at
+`packages/plugins/<name>/e2e/fake/`: an `index.ts` descriptor (whose type is
+`@olai/tests`' `./harness/fake.ts`) plus the executable(s) the harness spawns.
+`packages/tests/agent/` keeps only the engine-agnostic core
+(`scripted-acp.ts`); the harness reaches the fakes through the generated
+`@olai/bundle/e2e-fakes` roster, never by name.
 
 Then run `bun test packages/bundle` and let the fence tell you what you got
 wrong. It will be specific.
@@ -945,6 +994,10 @@ Every claim on this page is a test. If you break one, the failure names the file
 | --- | --- |
 | `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests); no general package **spells** a plugin name in production code; a plugin imports the interface, never the registry, and does import the interface; the services door pulls in no browser component; `packages/plugins/` holds the plugins and nothing else, both directions; and **no module another package can open holds a live value** — no module-scope `let`, no Solid signal or `heldService`/`heldFaces` created at module load, no state-bearing IIFE or instance of a locally declared class, no `const` the module writes into. It walks every cross-package subpath, and for general packages the implementation behind them too, since a `let` one import away is state the door does not show. A plugin's contract doors get the same walk; its `./browser` does not, because the bundle opens that to mount the plugin rather than to read values out of it. Allowed exceptions are named with a reason each (the audit's §12). Fixtures hold every prohibited shape beside the legitimate one it is easiest to confuse with, aliases and namespace imports included |
 | `scripts/prove-fence.sh` | that the fence and the mechanics lint go red when they should. Not a `just check` leg: it mutates tracked files and restores them, and `check` runs its legs in parallel. Run it when the fence changes — a fence that stopped running looks exactly like a fence that is passing |
+| `packages/bundle/src/fence.test.ts`, the describe *a plugin stays in its directory, outside the source graph too* | the Nix side of the same rule: no `*.nix`, `justfile`, `shell.nix`, root `default.nix`/`flake.nix`, `scripts/*` or `packages/tests/support/**`/`packages/tests/agent/**` file outside `packages/plugins/` contains the path `packages/plugins/`, and none spells a plugin's word as an identifier, path segment, tag literal or variable. A plugin's word is recorded in two shapes — the bare casing-folded word (code only: comments stripped) and the env-shaped knob `<name>#knob` drawn from its `olai.knobs` manifest (raw text: a comment naming `OLAI_ODU_BIN` is a spelling) — so an `odu` allowance can never mask a planted `OLAI_ODU_BIN`. `scripts/prove-fence.sh`'s three mutations (a `packages/plugins/odu` path in `default.nix`, `OLAI_ODU_BIN` in the `justfile`, `"@pi"` in `hooks.ts`) must all go red |
+| `packages/bundle/src/knobs.test.ts` | every plugin manifest with `olai.knobs` has those keys equal to the resource keys its `./server` module's `environment` declares, a plugin without one declares no `OLAI_*` executable resource, and every `olai.knobs` value is `file` or `dir` — one fact, three readers |
+| `checks.plugin-fold` (`packages/bundle/nix/fold-check.nix`) | evaluates the fold over fixture containers under `packages/bundle/nix/fixtures/` and refuses, each by name: a plugin with no `default.nix` is accepted; an unknown key, a generated path without `.generated.`, two plugins claiming one knob, one flake name or one hydrate destination, and a knob/message mismatch each name both plugin and rule |
+| the `plugin-checks` recipe (and `checks.<system>.plugin-<name>-<check>`) | the per-plugin checks that need the built tree, exposed by the fold (`plugin-odu-surface` probes the pinned binary); run by `just nix` (and its assertions lane) against the fold, not against hand-written names |
 | `packages/bundle/src/mechanics.test.ts` | olai hand-writes no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim: the shared reading the two files above stand on (workspace members, manifests, sources, module graph), written once |
 | `packages/bundle/src/report.test.ts` | what became of each row on a real runtime — a row nothing mounted reads `off`, a failed `apply` reads `failed` and carries the plugin's own message verbatim, a row short of a named service reads `waiting`. These are the words the panel's five are composed from |
@@ -969,6 +1022,8 @@ Every claim on this page is a test. If you break one, the failure names the file
 
 A plugin can provide a service of its own, and another plugin can declare that it
 needs it, with no core edit in between.
+
+The vault also offers `vault.outline-row`, the configured mint row id, to server consumers. It is owned by the vault configuration activation; the browser receives the same id in the file-kinds cell. Non-Markdown page metadata (`bodyPage`: head, revision and referrers) travels through `vault.files`, independently of Markdown's own `documentPage` stream. `bodies.get` is browser-only and refuses kept or fetched files. Claims carry the serving policy: hypertext declares `serving: "sealed-frame"`; image declares `picture` and its per-suffix `inert` policy. The media handler consumes those declarations, never a MIME-to-kind lookup.
 
 ### The mechanism (12b)
 
@@ -1018,6 +1073,55 @@ in [plugins the vault defines](../dynamic-plugins.md#a-worked-example-the-mornin
 compiled from that page by `olai-plugin-vault-plugins`' `worked.test.ts`.
 
 ---
+
+### File-kind ownership
+
+`vault.file-kinds` is minted in vault setup, before the store opens. A row
+registers one atomic claim; the registry stamps its fiber binding as `kind`.
+All suffix collisions are checked before publication. Failure installs nothing,
+and cleanup withdraws only the departing owner's claim. Revalidation brings
+new claims into the set and removes withdrawn claims; published readings retain
+the immutable Claims value used for validation. Claim policy fields are defined
+once by the inert `ClaimData` schema; the server claim adds its parser, and the
+registration input omits the registry-owned id. Cleanup tokens remain separate
+from snapshots, because snapshot construction copies claims.
+
+The browser consumes the vault's `file-kinds` cell, containing serializable
+claims and `outlineRow`. Reconnection resubscribes for a fresh snapshot.
+`files.kinds` and `navigation.pages` belong to their readers and accept scoped
+contributions keyed by row id or by `holds`, with the row id taking priority.
+Glyph and page are independent components. Outlines contributes both once for
+`holds: "nodes"`; a format row requires no browser half. A body page declares
+every live service its moved face reads. Their static helpers own no registry.
+Glyph contribution lists are derived under the sidebar activation, once per
+location change, and released with it; individual glyph lookups do not copy the
+list. Page contribution lists likewise change with the location rather than
+with the selected address.
+
+
+The file-kind lifecycle is checked at these boundaries:
+
+| Guarantee | Enforcement | Evidence |
+|---|---|---|
+| The registry stamps the owner | vault `file-kinds.ts`, provision bound to the registering fiber | vault `file-kinds.test.ts`: forged kind ignored |
+| A refused claim installs nothing | synchronous construction before publication | same test: nine-suffix loser and winner cleanup |
+| Departed claims remove files and media access | registration finalizer and vault revalidation | `file_kinds.feature`: PDF off/on |
+| A later probe cannot keep a withdrawn claim | codec reads the table per call | ops `codec.test.ts`: withdrawal between probes |
+| A Reading retains its validating table | immutable Claims on Reading | ops `codec.test.ts`: old snapshot unchanged |
+| Formats cannot fetch their own registry | pure three-argument parse | bundle `fence.test.ts`: format has no FileKinds access |
+| Git and chat use the selected format | Ops parser door and vault outlineDiff | git `committed.test.ts`, bundle import fence |
+| An absent vault leaves an unreadable diff | scoped browser request and cancellation | chat `outline-diff.browsertest.ts` |
+| Reconnect takes fresh claims | file-kinds cell and directory memo | vault `directory.browsertest.ts`, offline scenario in `file_kinds.feature` |
+| Glyph and page degrade independently | separate row components | bundle `file-kind-component.test.ts`, Files/Navigation scenarios |
+| Withdrawing a location releases its acquisitions | scoped contributions | bundle `file-kind-locations.test.ts` |
+| An absent mint row writes nothing | planner refuses before staging | mint scenario in `file_kinds.feature` |
+| Callers receive no implicit Claims table | required codec argument, test-only empty table | typecheck and suffix sweep |
+| Two hosts own separate tables | table created inside vault setup | server `vault.test.ts`: two hosts, separate claims |
+| Only claiming rows spell suffix literals | census of server registrations | tests `kinds.test.ts` |
+
+The registry-driven generated-record round trip in server
+`file-kind-formats.test.ts` discovers every registering row; future formats
+inherit record identity and canonical-byte checks.
 
 ## Phase 18: shell and content capabilities
 
@@ -1072,7 +1176,7 @@ The vault is an ordinary plugin row, not a host facility.
 | Consumers | capability providers acquire `Directory` and `Ops` through their declared needs; `makeOps` runs inside the vault row after the store is acquired |
 | The write gate | owns its caches and accepted-write count; its finalizer rejects fresh calls and drains accepted writes before releasing the watcher and lock. A server without the vault has no domain gate. Domain surface handlers leave with their providers, while permanent management stays available |
 | Boundary | vault owns file-access projection and publishes revisions to dependents. Content providers register their own readings and operations through `Surfaces`; the host routes those declarations without importing the store or a domain projection. Machine-local facilities arrive through generic host services, runtime path configuration is passed to the vault capability, and the provider owns lock-file sweeping and resource release |
-| Config | the row's `Config` schema declares `format` with default `olai`, and `olai.yml` selects the row without a `config:` block. The codec table is where another format would be added; Org is not implemented. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer, avoiding the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise |
+| Config | the row's `Config` schema declares `format` with default `outline-olai`, and `olai.yml` selects the row without a `config:` block. Further formats register their own claims and codecs through `vault.file-kinds`; there is no codec catalogue. The Effect bridge decodes row config before user `apply`, inside the same contained activation as every other initializer, avoiding the pinned Cordis constructor-validation path that could leave an invalid row pending and reject an unobserved loader promise |
 | Failure and disabling | the switch stays available and explains its cost: disabling clears served collections and removes vault-defined plugins, while transports remain. A lock conflict or non-directory root lands as a failed row carrying its own failure sentence, so the panel can retry once the cause is fixed. `runtime.test.ts` opens the test-minimal profile and reads its store through `Directory` |
 
 ### Transport plugins and profiles
@@ -1212,7 +1316,9 @@ stable files through a generated catalog.
 | web-app | install metadata and icons |
 | Markdown | its renderer preload |
 | layout | viewport, geometry, deployment naming |
-| chat | alerts, notification permission listeners, audio, attention state |
+| alerts | notification channel and permission listeners, audio, badge and tab-attention writer |
+| chat | question attention state; consumes `alerts.channel` on its attention component |
+| journal | daily reminder record, owed subscription and `due` press claim; consumes `alerts.channel` on its reminders component |
 
 - The runtime does not import this build graph. Clock factories belong to the
   renderer and timers to their consuming scopes. Late asynchronous completions
@@ -1228,6 +1334,10 @@ stable files through a generated catalog.
 
 ## See also
 
+- `just cordis-graph` — every row's two halves, their components, needs, offers
+  and location contributions, read off the sources and served as a clickable
+  graph. An edge from A to B means a component of A needs a service or location
+  B owns; the side panel names which, per component.
 - [`packages/bundle/README.md`](../../packages/bundle/README.md) — the same
   subject at implementation depth.
 - [architecture.md](overview.md) — how every package fits, plugins included.

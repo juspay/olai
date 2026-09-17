@@ -1,10 +1,10 @@
-import { Config as ProcessConfig } from "./process-policy.ts"
 /** Serve-owned serialization of live policy publications and loader updates.
  * The provider only publishes. Losing it cancels the subscription, never a
  * patch already accepted by this worker, and never rolls row options back. */
+import { Config as ProcessConfig } from "./process-policy.ts"
 import { ROWS } from "@olai/bundle"
 import { BUNDLE_NAMES, configsOf, offered, patchBundleRow, patchBundleRows, profilePatch, serviceChanges } from "@olai/bundle/bundle"
-import { BundleModules, ConfigurationSource, Env, Ops as WriteDoor } from "@olai/plugin-api/services"
+import { BundleModules, ConfigurationSource, FileKinds, Env, Ops as WriteDoor } from "@olai/plugin-api/services"
 import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, configurationNode, policyEdit, decodePolicy, environmentReadings, type Configuration, type PolicyRow } from "@olai/plugin-api/configuration"
 import { UsageFailure, type OpFailure, type WriteRequest } from "@olai/format"
 import type { Ops } from "@olai/ops"
@@ -20,7 +20,14 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
   const progress = yield* SubscriptionRef.make(0)
   const processed = new WeakMap<ConfigurationSource, number>()
   let observed: ConfigurationSource | undefined
-  const persistent = (id: string) => offered(host, ConfigurationSource) !== undefined && !sessionOwners().includes(id)
+  const settingsClaim = () => {
+    const kinds = offered(host, FileKinds)?.current()
+    const file = offered(host, ConfigurationSource)?.current().file ?? CONFIGURATION_FILE
+    return kinds === undefined ? undefined : [...kinds.values()].find(claim => claim.exts.some(ext => file.endsWith(ext)))
+  }
+  const readerOwners = () => [...sessionOwners(), settingsClaim()?.kind]
+  const readable = () => offered(host, FileKinds) === undefined || settingsClaim() !== undefined
+  const persistent = (id: string) => offered(host, ConfigurationSource) !== undefined && readable() && !readerOwners().includes(id)
   const modules = yield* offered(host, BundleModules)!.read
   const declarations = new Map(modules.map(one => [one.name, (one.exports as { default: Plugin }).default.config]))
   declarations.set("olai", ProcessConfig)
@@ -53,7 +60,7 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     const returning = active !== publication.source
     active = publication.source
     current = publication.source === undefined ? undefined : publication.value
-    const session = new Set(sessionOwners())
+    const session = new Set(readerOwners())
     if (current !== undefined) {
       const rows = new Map(current.rows)
       for (const [id, row] of rows) if (session.has(id) && row.on !== undefined) {
@@ -126,5 +133,5 @@ export const followConfiguration = (host: Parameters<typeof patchBundleRow>[0], 
     yield* awaitRevision(source, written.rev)
     return true
   }))
-  return { defaults, environment, persistent, set, configure, close: Effect.andThen(Fiber.interrupt(subscriptions), Fiber.interrupt(patches)), ready: Deferred.await(ready), current: () => active === offered(host, ConfigurationSource) ? current : undefined }
+  return { defaults, environment, persistent, set, configure, close: Effect.andThen(Fiber.interrupt(subscriptions), Fiber.interrupt(patches)), ready: Deferred.await(ready), current: () => readable() && active === offered(host, ConfigurationSource) ? current : undefined }
 })

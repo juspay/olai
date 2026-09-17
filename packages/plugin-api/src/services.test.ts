@@ -1,4 +1,3 @@
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE SERVICES' OWN BENCH — what a registration does to the table it writes
  * into, and what it does when the composition root refuses it.
@@ -15,7 +14,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * for a Cordis context: there is none to reach for, in this package or in any
  * other but one.
  */
-
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Fiber, Layer, Logger, type Scope } from "effect"
 
@@ -56,7 +55,7 @@ const WAKING = {
   subject: "terminal activity",
   from: "terminals from",
   waiting: { one: "line", many: "lines" },
-  kinds: ["outline"] as readonly [string, ...Array<string>],
+  walks: "nodes" as const,
   faults: { gone: "the file left", unwatchable: "not an outline" },
 }
 
@@ -458,8 +457,8 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
           yield* (yield* Offers).offer(Deliveries, (plugin) => {
             asked.push(plugin)
             return {
-              scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai`, current: () => true }],
-              ringing: (file) => [{ agent: "a", session: "s", file, current: () => true }],
+              scopes: () => [{ agent: "a", session: "s", pick: `${plugin}.olai`, current: () => true }],
+
               deliver: () => Effect.void,
               notify: () => Effect.void,
             }
@@ -473,7 +472,7 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
         name,
         needs: [Deliveries],
         apply: Effect.gen(function*() {
-          for (const scope of (yield* Deliveries).scopes()) seen.push(scope.file)
+          for (const scope of (yield* Deliveries).scopes()) seen.push(String(scope.pick))
         }),
       })
     yield* mountPlugin(plugins.host, looking("kolu"))
@@ -732,12 +731,12 @@ test("a plugin that offers a door core keeps is refused, and only that plugin fa
         name: "odu",
         needs: [Kinds],
         apply: Effect.gen(function*() {
-          yield* (yield* Kinds).register({ kind: "worktree", takes: "a checkout", admits: () => true })
+          yield* (yield* Kinds).register({ kind: "run", takes: "a run id", admits: () => true })
         }),
       }),
     )
     expect((yield* teaching.report).state).toBe("running")
-    expect([...plugins.kinds().keys()]).toEqual(["odu-worktree"])
+    expect([...plugins.kinds().keys()]).toEqual(["odu-run"])
   })))
 })
 
@@ -810,8 +809,8 @@ test("the door a plugin stands behind is the door its dependents are handed", as
             // STAMPED BY THE OFFERING ROW'S PROVISION with the word the registry
             // bound the CONSUMER under — the keying survives the hand-over,
             // which is the property that would be worth nothing if it did not.
-            scopes: () => [{ agent: "a", session: "s", file: `${who}.olai`, current: () => true }],
-            ringing: () => [],
+            scopes: () => [{ agent: "a", session: "s", pick: `${who}.olai`, current: () => true }],
+
             deliver: () => Effect.void,
               notify: () => Effect.void,
           }))
@@ -824,7 +823,7 @@ test("the door a plugin stands behind is the door its dependents are handed", as
         name: "kolu",
         needs: [Deliveries],
         apply: Effect.gen(function*() {
-          for (const scope of (yield* Deliveries).scopes()) seen.push(scope.file)
+          for (const scope of (yield* Deliveries).scopes()) seen.push(String(scope.pick))
         }),
       }),
     )
@@ -919,7 +918,6 @@ test("a plugin that comes back stands behind its door again", async () => {
     expect((yield* mirror.report).state).toBe("running")
   })))
 })
-
 
 test("offer preserves a lifecycle defect when the service already has an owner", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
@@ -1144,4 +1142,29 @@ test("a synchronous replay failure cannot prevent later subscribers or publicati
     yield* events.door("neighbour").revision((value: string) => Effect.sync(() => { seen.push(value) }))
     yield* events.published("second")
     expect(seen).toEqual(["first", "second"])
+  }))))
+
+test("the vault Inbox registry reads absence, owns updates, and withdraws with its provider", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const vault = vaultEvents("/tmp")
+    const reader = vault.door("chat").inbox
+    const seen: Array<string | null> = []
+    expect(reader.current()).toBeNull()
+    yield* reader.changed(file => Effect.sync(() => { seen.push(file) }))
+    const release = yield* Deferred.make<void>()
+    const registered = yield* Deferred.make<void>()
+    const provider = yield* Effect.forkScoped(Effect.scoped(Effect.gen(function*() {
+      const update = yield* vault.door("capture").inbox.register("Inbox.olai")
+      yield* update("notes/Inbox.olai")
+      yield* Deferred.succeed(registered, undefined)
+      yield* Deferred.await(release)
+    })))
+    yield* Deferred.await(registered)
+    expect(reader.current()).toBe("notes/Inbox.olai")
+    yield* Deferred.succeed(release, undefined)
+    yield* Fiber.join(provider)
+    expect(reader.current()).toBeNull()
+    expect(seen).toEqual([null, "Inbox.olai", "notes/Inbox.olai", null])
+    yield* Effect.scoped(vault.door("capture-again").inbox.register("Inbox.olai"))
+    expect(reader.current()).toBeNull()
   }))))

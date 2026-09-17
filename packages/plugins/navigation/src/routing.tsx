@@ -5,7 +5,7 @@ import { type Accessor,createContext,createMemo,type JSX,useContext } from "soli
 import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route,type Routing } from "./routes.ts"
-import type { Workspace } from "./workspace.ts"
+import type { Workspace,WorkspaceRouting } from "./workspace.ts"
 export interface Router {
   /**
    * THE ROUTE OPERATIONS THAT READ THE MOUNTED ROSTER — printing a URL,
@@ -24,7 +24,7 @@ export interface Router {
    * the door is the pure grammar: the constructors, the address reading, and
    * `hrefOfPlain` for a route this app's own grammar spells whole.
    */
-  readonly routes: Routing
+  readonly routes: WorkspaceRouting
   readonly workspace: () => Workspace
   /** The focused pane's route — what the palette, the filter chord and
    *  anything that does not name a pane act on. */
@@ -71,6 +71,8 @@ export interface Router {
   /** The same pane, at a different address — history replaced, scroll left. */
   readonly replace: (route: Route) => void
   readonly replaceIn: (index: number, route: Route) => void
+  /** Replace the whole workspace in one history push, without landings. */
+  readonly open: (workspace: Workspace) => void
   readonly openRight: (from: number, route: Route, forceNew?: boolean) => void
   readonly close: (index?: number) => void
   readonly focus: (index: number) => void
@@ -79,6 +81,27 @@ export interface Router {
   readonly expand: (index: number) => void
   readonly resize: (widths: ReadonlyArray<number>) => void
   readonly reorder: (from: number, to: number) => void
+  /**
+   * WHICH TAB THE HISTORY BELONGS TO, or `null` for the window's own.
+   *
+   * A row that keeps several workspaces open names a LANE for the one in front,
+   * and from then on Back and Forward walk only that lane's entries: a
+   * traversal that reaches another lane's entry keeps travelling the same way,
+   * or returns to where it started when there is none of this lane's beyond it
+   * (`./lanes.ts`). The lane is this document's: an entry written before a
+   * reload belongs to nobody. With `null` in force every entry is everyone's,
+   * which is the router with no tabs at all.
+   */
+  readonly lane: Accessor<string | null>
+  /** The name of the entry under the reader — what the scroll memory keys the
+   *  place it was left at by. */
+  readonly entryKey: () => string
+  /** Name the lane the current entry belongs to; given `to`, also replace the
+   *  entry with `to.workspace`, reusing `to.key` if given so the scroll memory
+   *  finds that entry's place. Not a history event. Returns the entry's key. */
+  readonly switchLane: (lane: string | null, to?: { readonly workspace: Workspace; readonly key?: string }) => string
+  /** Entries of this lane are dead from now on: a traversal passes over them. */
+  readonly forgetLane: (lane: string) => void
 }
 
 const RouterContext = createContext<Router>()

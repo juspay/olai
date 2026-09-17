@@ -8,7 +8,7 @@
  * answers are only interesting when a mirror is involved and a mirror is
  * exactly what a hand-built row would get to declare for itself.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, rowsUnder, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -30,7 +30,7 @@ const GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const derived = derive(
+const derived = derive(TEST_CLAIMS,
   recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
 )
 

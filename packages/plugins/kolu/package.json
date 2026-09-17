@@ -19,18 +19,27 @@
     "./appliance/wire": "./src/client/wire/index.ts",
     "./appliance/testlib": "./src/client/testlib/index.ts",
     "./appliance/drivers/foreignResize": "./src/client/drivers/foreignResize.ts",
-    "./appliance/drivers/makeBusyTerminal": "./src/client/drivers/makeBusyTerminal.ts"
+    "./appliance/drivers/makeBusyTerminal": "./src/client/drivers/makeBusyTerminal.ts",
+    "./e2e/fake": "./e2e/fake/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "//": "THE KOLU TENANT \u2014 everything that says `kolu`, on this side of the wall. THE DIAL is this package's `./appliance` door at `src/client/`. `./src/appliance/` is what KOLU renders (the Dock row a `terminal` property wears, the live pane, the fleet a tab holds once, the words the readout says) and was `@olai/kolu-ui` until the appliance fold; `./src/browser/` is what OLAI says about kolu in olai's own chrome; the rest is the judgement \u2014 what an absent padi MEANS, which vault file is kolu's, which property kind wears the terminal door \u2014 which used to be spread across `olai-plugin-chat`, `@olai/server` and `@olai/web` under kolu-shaped filenames in general packages.",
-  "//devDependencies": "@types/node is for the `ChildProcess` type `probe.ts` names \u2014 `@kolu/detect`'s probe takes Node's own \u2014 and for the fixture executables `probe.test.ts` writes. It came with the probe from `olai-plugin-chat`, which is where that same line used to sit.",
+  "//devDependencies": "@types/node is for the `ChildProcess` type `probe.ts` names \u2014 `@kolu/detect`'s probe takes Node's own \u2014 and for the fixture executables `probe.test.ts` writes. It came with the probe from `olai-plugin-chat`, which is where that same line used to sit. playwright is the geometry harness's camera: shots.ts launches its own chromium (a script, not a scenario), pinned to the version of `pkgs.playwright-driver` in the pinned nixpkgs \u2014 the same pin `@olai/tests` carries for the suite, so the two never drift. The FOUR geometry build tools (`@babel/core`, `babel-preset-solid`, `@babel/preset-typescript`, `@tailwindcss/cli`) are here at `@olai/web`'s pinned versions so `e2e/geometry/build.ts` resolves them from THIS package's own manifest via `createRequire(import.meta.url)` rather than reaching into web's directory \u2014 the driver is this tenant's evidence, and a test package may declare what it builds with.",
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@olai/appearance": "workspace:*",
     "olai-plugin-chat": "workspace:*",
     "olai-plugin-layout": "workspace:*",
-    "olai-plugin-outlines": "workspace:*"
+    "olai-plugin-outlines": "workspace:*",
+    "@olai/tests": "workspace:*",
+    "playwright": "1.61.1",
+    "@tailwindcss/cli": "^4.3.3",
+    "@babel/core": "^7.25.0",
+    "@babel/preset-typescript": "^7.25.0",
+    "babel-preset-solid": "^1.9.0",
+    "olai-plugin-vault": "workspace:*"
   },
   "//dependencies": "The dial (`./appliance` at `src/client/`), the vault's own vocabulary, SolidJS and the emulator. `@olai/format` is here because the three vault walks are \u2014 and `src/faces.test.ts` is what keeps it OUT of `src/appliance/`, which is the wall `@olai/kolu-ui`'s own manifest used to keep by not declaring it; it \u2014 `claimants.ts`, `config.ts` and `doorbell.ts` read outline records, which is precisely why they may not live in `src/client/` (`./appliance`; interfaces parametric in the node type so a compiler holds it to that) and why they no longer live in `@olai/server` (a general package with an appliance in a filename). It is a devDependency nowhere: the walks are product. `solid-js` is a runtime dependency because this package owns every face kolu wears \u2014 the Dock row and the live pane in `./src/appliance/`, the padi pill and the tab's mount in `./src/browser/`. `@xterm/*` came in with the fold and is ordinary npm rather than a hydrated pin: the emulator is this appliance's, and `@olai/web` has no business declaring a terminal renderer. `effect` came in with the fold too and was UNDECLARED until an audit of this round found it: three of the folded files import it (`appliance/props/KoluUi.tsx`, `appliance/props/LivePane.tsx`, `appliance/props/fleet.tsx`), `@olai/kolu-ui` never declared it either, and it resolved only by walking up to the root \u2014 a walk-up `bunfig.toml` reserves for the HYDRATED `@kolu/*` sources, not for a first-class runtime import of a member's own code. Every other olai package that imports `effect` declares it; these were the exceptions. `scripts/check-hydrated-deps.sh` now holds this manifest to the pin's version like every other. `@olai/plugin-api` is HERE now, and its arrival is the phase: it used to import this package, so a dependency back would have been a cycle the manifests could not express \u2014 the registry that named every plugin has moved to `@olai/bundle`, and what is left in `plugin-api` is the interface, which names no plugin at all. `./server` imports it for real (the services this plugin`s `inject` declares, and the declaration merging that types `ctx.vault`); the manifest is still a plain `as const` proved by the registry`s `satisfies`, because a structural agreement checked at the one place both ends are in hand is the stronger claim. `@olai/web` is absent for the same reason a hop further out: the pill needs the bar's geometry, the app's popover, and every one of those arrives as a VALUE (src/browser/app.ts declares the shapes structurally and argues why) rather than as an import that would be a cycle. `@olai/surface` is absent for the same reason one more hop.",
   "dependencies": {
@@ -43,7 +52,8 @@
     "solid-js": "^1.9.0",
     "@olai/surface": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
-    "olai-plugin-plugin-inspector": "workspace:*"
+    "olai-plugin-plugin-inspector": "workspace:*",
+    "@olai/web": "workspace:*"
   },
   "olai": {
     "contracts": [

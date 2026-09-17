@@ -1,0 +1,20 @@
+{
+  "identity": [
+    "src/appliance/link.ts",
+    "src/appliance/testlib/fake-service.ts",
+    "src/appliance/wire/index.ts",
+    "src/browser/RunMatrix.tsx",
+    "src/browser/words.ts",
+    "src/doorbell.ts"
+  ],
+  "mcp": [
+    "src/probe.ts"
+  ],
+  "vault": [
+    "src/server.ts"
+  ],
+  "chat": [
+    "src/browser/Wake.tsx"
+  ],
+  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls."
+}

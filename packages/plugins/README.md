@@ -28,10 +28,10 @@ same the file’s row selection word:
   [the Cordis plan](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/cordis-for-olai.md),
   and the point of each is the same: what a serve HAS is a row list.
 - **ENGINES** — an ACP agent the chat panel can seat: `claude`, `codex`,
-  `opencode`, `pi`. Each hands over a `Leg` (how to read that agent's wire), a probe that
-  finds it on this host, and the channel its standing prompt rides — and, on its
-  browser half, the mark it wears and the whole sentence for a machine that has
-  not installed it. It composes NO surface: what it
+  `opencode`, `pi`, `omp`. Each hands over a `Leg` (how to read that agent's
+  wire), a probe that finds it on this host, and the channel its standing prompt
+  rides — and, on its browser half, the mark it wears and the whole sentence for
+  a machine that has not installed it. It composes NO surface: what it
   contributes to a tab already travels on the chat cell, which is core's. One
   directory each because they share no release clock — the Claude adapter's pin
   moved five times in a month and opencode's has never moved — and because
@@ -54,6 +54,18 @@ claim holds this directory to the registry's own roster in **both** directions,
 read off two independent sources — the roster, and a `readdir` of this directory
 — so a plugin left outside it and a general package dropped inside it are each a
 red test. `scripts/prove-fence.sh`'s mutation 13 is that claim's falsifier.
+
+**A plugin with a Nix half declares it in its own `default.nix`.** A plugin
+who ships a binary, a pin or a generated file (the tenants and the three
+engines with adapters) names those facts there, in the fold's contract
+(`hydrate`, `externals`, `koluSeeds`, `koluPins`, `generated`, `npmTrees`,
+`knobs`, `packages`, `checks`). The root never reads a plugin's file directly:
+`packages/bundle/default.nix` imports each directory's `default.nix` where one
+exists, validates every result against `@olai/plugin-kit`'s `contract`, and
+folds them into one attrset the wrapper and `.#plugin-env` consume. A general
+package may know the container holds directories and the shape of that
+contract, and nothing about any particular plugin — the Nix twin of the
+import rule below.
 
 The whole checklist for adding one is
 [docs/architecture/plugin-system.md §9](../../docs/architecture/plugin-system.md).

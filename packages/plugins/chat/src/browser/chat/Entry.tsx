@@ -54,7 +54,7 @@
  * have broken a rail over there with nothing to catch it. The list owns the
  * gap now, because the list is what has rows to put gaps between.
  */
-
+import { servedDirectory } from "../vault.ts"
 import { SAYING_MS } from "olai-plugin-chat/wire"
 import type { ChatEntry, Delivery } from "olai-plugin-chat/wire"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
@@ -402,6 +402,7 @@ export function Entry(props: {
               what is inside it belongs to no component at all. */
           <div ref={said}>
             <Markdown
+            claims={servedDirectory()?.claims()}
               source={shown()}
               from={AGENT_WROTE_IT}
               live={agent().streaming === true}

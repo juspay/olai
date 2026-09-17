@@ -151,7 +151,7 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     // A record never refers to ITSELF: a node whose note says `@` its own id is
     // talking about the page it is on, and a `see` onto one of its own
     // placements is the same sentence through a mirror.
-    if (at.node.id === id || isPutAway(at.file)) {
+    if (at.node.id === id || isPutAway(derived.claims, at.file)) {
       return
     }
     // A REFERRER IS A REGULAR NODE. `taggedBy` says so in its TYPE, so this
@@ -192,9 +192,9 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
  * The two arms are the two kinds of thing that can hold a link, and the
  * difference is real rather than a convenience: a `.md` writes a link in its
  * prose and has no record to attribute it to, while an outline's link is
- * always SOME record's — the node that attached the document, wrote the `see`,
+ * always SOME record's — the node that wrote the `see`,
  * or put the link in its note. Saying "house.olai points here" where the honest
- * answer is "the node `kitchen` attaches it" would be the coarser answer
+ * answer is "the node `kitchen` links to it" would be the coarser answer
  * offered because it was the easier one.
  */
 export const Referrer = Schema.Struct({
@@ -211,7 +211,7 @@ export type Referrer = typeof Referrer.Type
  * WHO POINTS AT AN ADDRESS — every document's forward `links`, read backwards.
  *
  * This is the half of the design that made a document's page possible to write
- * at all. A `doc` attachment, a `see`, a link in a note and a link in a body
+ * at all. A `see`, a link in a note and a link in a body
  * all point ONE WAY on disk, so "what is talking about this document?" was a
  * question nothing could answer without walking the whole directory, and
  * nothing asked it. The faces answer it now, because every document carries the
@@ -263,7 +263,7 @@ export const referrersTo = (
   pointing: Pointing,
   /** The records, for attributing an outline's link to the one that wrote it.
    *  `byFile` is the index that makes it a lookup rather than a corpus walk. */
-  derived: Pick<Derived, "byFile">,
+  derived: Pick<Derived, "byFile" | "claims">,
 ): ReadonlyArray<Referrer> => {
   // WRITTEN and compared, because a canonical spelling is what the grammar
   // promises: two addresses that name one place print one string, so nothing
@@ -289,7 +289,7 @@ export const referrersTo = (
   }
   const found: Array<Referrer> = []
   for (const face of pointingAt(pointing, address)) {
-    if (face.path === here || isPutAway(face.path)) continue
+    if (face.path === here || isPutAway(derived.claims, face.path)) continue
     const records = derived.byFile.get(face.path)
     // A face with no records behind it is a BODY — the link is the document's
     // own, and there is nothing finer to name.
@@ -299,7 +299,7 @@ export const referrersTo = (
     }
     for (const located of records) {
       if (!isRegular(located)) continue
-      if (!recordLinks(located).some(points)) continue
+      if (!recordLinks(derived.claims, located).some(points)) continue
       found.push({ face, at: located })
     }
   }

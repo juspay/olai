@@ -13,9 +13,8 @@
     "./tools": "./src/tools.ts",
     "./making": "./src/file/making.ts",
     "./testids": "./src/testids.ts",
-    "./icons": "./src/contracts/icons.tsx",
-    "./kinds": "./src/contracts/kinds.ts",
-    "./completing": "./src/contracts/completing.ts"
+    "./completing": "./src/contracts/completing.ts",
+    "./carry": "./src/carry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -43,10 +42,12 @@
     "contracts": [
       "./making",
       "./testids",
-      "./icons",
-      "./kinds",
       "./surface",
-      "./completing"
+      "./completing",
+      "./carry"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
   }
 }

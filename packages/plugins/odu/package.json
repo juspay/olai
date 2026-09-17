@@ -15,7 +15,8 @@
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css",
     "./appliance": "./src/appliance/index.ts",
-    "./appliance/wire": "./src/appliance/wire/index.ts"
+    "./appliance/wire": "./src/appliance/wire/index.ts",
+    "./appliance/testlib": "./src/appliance/testlib/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -29,18 +30,26 @@
     "effect": "4.0.0-rc.112",
     "solid-js": "^1.9.0",
     "@olai/surface": "workspace:*",
-    "@olai/ui-primitives": "workspace:*"
+    "@olai/ui-primitives": "workspace:*",
+    "@olai/web": "workspace:*"
   },
   "devDependencies": {
     "@olai/surface": "workspace:*",
     "olai-plugin-chat": "workspace:*",
     "olai-plugin-layout": "workspace:*",
-    "olai-plugin-outlines": "workspace:*"
+    "olai-plugin-outlines": "workspace:*",
+    "@olai/tests": "workspace:*",
+    "olai-plugin-vault": "workspace:*"
   },
   "//devDependencies": "@olai/surface for its `./testlib` door ONLY \u2014 the schema walk that holds this cell`s `arrayKey` declaration honest (src/wire.test.ts). Deliberately not a runtime dependency, and it could not be one: surface sits ABOVE the plugin packages now, so a real dependency here would be the cycle the composition is shaped to make unrepresentable. A testlib is the one thing that can travel the other way, because nothing it touches ships.",
   "olai": {
     "contracts": [
       "./testids"
-    ]
+    ],
+    "knobs": {
+      "OLAI_ODU_BIN": {
+        "kind": "dir"
+      }
+    }
   }
 }

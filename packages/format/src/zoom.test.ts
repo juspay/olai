@@ -1,3 +1,7 @@
+/** The page's crumbs as a plain list of ids — a breadcrumb trail is an order,
+ *  and the order is the whole of what these tests are about. */
+
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { ancestorsOf, derive, type Row } from "./derive.ts"
@@ -5,13 +9,10 @@ import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { zoom, type Zoomed } from "./zoom.ts"
 
 const zoomOf = (contents: string, id: string): Zoomed =>
-  zoom(derive(nodesOf(contents)), id)
+  zoom(derive(TEST_CLAIMS, nodesOf(contents)), id)
 
 const zoomOfFiles = (files: Record<string, string>, id: string): Zoomed =>
-  zoom(derive(nodesOfFiles(files)), id)
-
-/** The page's crumbs as a plain list of ids — a breadcrumb trail is an order,
- *  and the order is the whole of what these tests are about. */
+  zoom(derive(TEST_CLAIMS, nodesOfFiles(files)), id)
 const crumbs = (zoomed: Zoomed): ReadonlyArray<string> =>
   zoomed.kind === "node" ? zoomed.trail.map((crumb) => crumb.node.id) : []
 
@@ -47,7 +48,7 @@ test("a root has no crumbs", () => {
 // sets its own error messages quote. A renderer that hung would be a worse way
 // to learn about it than a chain that stops.
 test("a parent cycle stops rather than looping", () => {
-  const derived = derive(
+  const derived = derive(TEST_CLAIMS,
     nodesOf(
       `{"id":"a","parent":"b","ord":"a0","title":"a"}\n` +
         `{"id":"b","parent":"a","ord":"a0","title":"b"}`,
@@ -57,7 +58,7 @@ test("a parent cycle stops rather than looping", () => {
 })
 
 test("a chain through a missing parent stops at the last crumb that exists", () => {
-  const derived = derive(
+  const derived = derive(TEST_CLAIMS,
     nodesOf(
       `{"id":"top","ord":"a0","title":"top"}\n` +
         `{"id":"middle","parent":"gone","ord":"a0","title":"middle"}\n` +

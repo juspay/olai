@@ -28,16 +28,17 @@ While an input method is composing text, its keys select and confirm candidates.
 | **Escape** | drop what you were typing |
 | **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
 | **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
-| **⌘⇧P** / **Ctrl+⇧P** | pin this page to the sidebar, or unpin it |
 | **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again |
 | **Alt+click** | open a link in the pane to the right |
 | **Alt+Shift+click** | open it in a new pane to the right |
-| **Alt+←** / **Alt+→** | move focus to the neighbouring pane |
+| **Alt+←** / **Alt+→** | move focus to the neighbouring pane — not while typing, where it stays the text field's word jump; Escape first |
 | **⌘⇧W** / **Ctrl+⇧W** | close the focused pane |
 
 Nothing has a mode: the title becomes an input in the same place, at the same size, and the row you are in is toned so you can see where the caret went. What you type is the SOURCE — `**bold**` and `#tags` as they are written — and the rendering comes back the moment you leave. A note is the same trade one line down.
 
 **What has no key is in the row's `•••` menu**, and it has two doors. On a pointer device, hover a row and the `•••` appears in the gutter left of the collapse triangle. A phone has no hover and no room for it, so there the door is the row itself: **hold a finger on a row** and the same menu opens under it, with the same verbs. Nothing in it is a mouse's alone. Tall menus scroll internally; when a menu opens upward, it reserves the app bar so its first entries remain visible. A finger that MOVES is scrolling the page, not pressing — the menu comes up only for one that stays put — and the tap that lifting it would otherwise leave behind is dropped, so a press never also opens the row for editing or follows its bullet.
+
+**A row on the agenda or a day's page has the same menu.** Its `•••` hangs just left of the bullet, so nothing on the page shifts to make room, and on a phone you hold a finger on the row as anywhere else. It is the same menu asked about the same node: complete it, change its date or repeat, link it or make it wait, pin it, duplicate it or move it to the Trash, and the row moves when the file does — to another day, or off the page. What only a row in an outline has is left out: there is nothing under the row to fold or copy as text, **Move to…** follows a place in a tree, and the row's properties are read-only there, so **Add property…** is not offered. The date and repeat pills there still only *say* things — on the agenda the pill is usually "3 days late" rather than a date — so **Change date…** in the menu is the way to reschedule.
 
 ## A row is its title
 
@@ -189,6 +190,12 @@ Nothing here is a mode. What is open is decided by the text and where the caret 
 
 ## Dragging a row
 
+Let go over an open conversation to arm the row there without moving it, including
+across files and panes. Let go of a transcript row between outline rows to create
+a node at the drop line's depth: first line title, rest note; undo removes it.
+The cross-file refusal applies to moving rows between outlines. A conversation
+is not an outline: a row from `lanes.olai` can land on an `orchestrator.olai` agent.
+
 **Drag a bullet and the row goes with everything under it.** The bullet is the handle, the way it is in Workflowy — press it and travel, and a line appears where the row would land. Press it without travelling and it is still the link it always was, into that node's own page.
 
 That line answers two questions at once, because the gesture asks two: **which gap** it sits in, and **how far in** it starts. Those are different placements that look the same on screen — the last child of the branch above and the next sibling of that branch's parent sit on the same line — so the line moves sideways as you do, and where it starts is the depth you are asking for. Let go and that is where the row is.
@@ -205,7 +212,7 @@ Two panes showing **different files** cannot, and the pane says so before you le
 
 **Hold a row near the top or bottom of the window and the page comes to you.** An outline is longer than a screen nearly always, so a drag that could only reach what happened to be visible when you pressed would be most of the gesture missing. The nearer the edge, the faster it moves; move away and it stops. The line that says where the row would land is re-read as the page goes, so it is always about where the pointer is *on the page*. (This one is the *window* scrolling, so it is a lone page's; a split gives each pane its own scroller, and there the reach of a drag is what that column is showing.)
 
-**With a finger, hold the bullet first.** Press it, wait for the row to lift, and then it follows your thumb — the same drop line, the same landing. Until that moment nothing is claimed: a finger that moves before the row lifts is scrolling the page, exactly as it always was, and that is true whether it started on a bullet or anywhere else. The bullet is the handle on every device, which is why holding a finger *there* no longer opens the row's ••• menu — holding the row anywhere else still does.
+**With a finger, hold the bullet first.** Press it, wait for the row to lift, and then it follows your thumb — the same drop line, the same landing. Until that moment nothing is claimed: a finger that moves before the row lifts is scrolling the page, exactly as it always was, and that is true whether it started on a bullet or anywhere else. The bullet is the handle on every device, which is why holding a finger *there* no longer opens the row's ••• menu — holding the row elsewhere still does, except inside its conversation. Conversation text reserves the hold for carrying words; streaming rows also keep the outline menu closed, but cannot be carried until they settle.
 
 ## Picking several rows
 
@@ -251,7 +258,9 @@ A node's `date` is what it is scheduled for ([format.md](format.md)), and it is 
 
 **A dated row's own pill is the control.** Press the date beside the title and the picker opens on it. A row with no date has no pill to press, so its way in is the ••• menu: **Set date…** on a row with none, **Change date…** on one that has one. From the keyboard it is `!` and a day in words (above), which sends the same edit.
 
-What you get is your browser's own date picker, and what is written is the day you picked, exactly as it is written — `2026-09-01`, ten characters, never a timestamp this app invented on the way. **Enter** sets it, **Escape** and **Cancel** leave without writing, and ⌘Z takes a pick back like any other edit. Empty the box and the button becomes **Clear date**, which is the ••• menu's own verb and the same write: one way to say "no date", whichever door you came through.
+What you get is your browser's own date picker, and what is written is the day you picked, exactly as it is written — `2026-09-01`, ten characters, never a timestamp this app invented on the way. **Enter** sets it, **Escape** and **Cancel** leave without writing, and ⌘Z takes a pick back like any other edit. Empty the box and the button becomes **Clear date**, which is the ••• menu's own verb and the same write: one way to say "no date", whichever door you came through — a time still in the time box goes with it, since a time on no day is not a date.
+
+**The time of day is optional, and beside the day.** Leave the time box empty and the node is scheduled for the day. Fill it and what is written is one instant, spelled the way a mark stamps one: the day, the time you typed, `:00` seconds and your browser's offset *at that moment* — `2026-09-01T09:30:00-04:00`, and `2026-12-01T09:30:00-05:00` in December, because a zone that moves its clocks keeps two offsets a year. The zone is the browser's — where you are sitting as you choose the time — which is not always the clock a mark's instant is stamped by: a `done` is stamped by the machine serving the directory. A node already scheduled for a time opens with both boxes filled; change either and press **Set date**. **No time** empties the time box, and the button then reads **Clear time**: pressing it keeps the day and takes the time off.
 
 An unsubmitted date or repeat choice stays with its row and pane when plugins rebuild the page or you switch phone pane tabs. Filtering that same outline does not change its ownership. Leaving the page, cancelling, or collapsing the parent discards the draft; opening the picker again starts from the stored value. Two panes of the same outline keep independent choices.
 
@@ -259,7 +268,9 @@ A pending submission stays disabled across pane switches, and a refused choice k
 
 On a phone, picker labels wrap and controls fit the space left by the row's indentation, including nested rows and long repeat options.
 
-A node scheduled for a time of day rather than a bare day keeps whatever it says on disk until you pick — the box shows the day that time falls on, and the panel says what picking one would replace, because a picker picks days.
+The boxes show the day and time the file says, not that instant converted into your zone, and a value you have not changed is not rewritten — pressing over the same day and time writes nothing, so seconds a hand wrote survive a look. A time written in another zone, or with no zone at all, looks like any other in the boxes, so the panel says so — and once you change the day or time, it quotes exactly what pressing will write, with the offset of the moment you chose.
+
+**The panel says so before it writes something other than what the boxes show.** A time your zone skips — half past two on the morning the clocks go forward — is written as the moment it becomes (`03:30`, with the new offset), and the sentence under the boxes quotes that value first. A box left half-typed — an hour with no minutes, from the arrow keys or a Backspace — is not read as "no time": the button stays dead, the panel says the time is not finished, and **No time** is still there to empty it.
 
 The row moves the moment the file says so: a task given a day that has gone is above now on the agenda’s spine and on that day's page, without a reload and without this page deciding anything for itself.
 
@@ -287,7 +298,7 @@ Everywhere else, the new occurrence is simply a dated node: on the agenda, on it
 
 A node's **properties** are named facts on it ([format.md](format.md)) — `pr`, `agent`, `isbn`, whatever a reader wants to be able to ask about later. They live in the record's one open field, `custom`, and they are drawn under the node's title as a **run of chips**: one small bordered pill per fact, the key mono and muted, the value first-class. One wrapping line, reading like a byline under a headline. Never a grid and never a form — a table under every open row turns an outline into a spreadsheet.
 
-**They are shown on the row automatically, open or not.** A fact behind a fold is a fact nobody reads, and a property is a short fact by rule — the display's job is to make five of them cost one line rather than five, not to hide them. So what a pilcrow opens is the **note** and the `see` references under it, and nothing else; a node whose only body is properties wears no ¶ at all, because there is nothing behind one.
+**Ordinary property chips are shown on the row automatically, open or not.** A kind can opt its chip out of row view through outlines-owned placement. Chat does this for the session binding: the aside supplies its standing, and the ordinary property remains editable in the zoomed drawer. A fact behind a fold is a fact nobody reads, and a property is a short fact by rule — the display's job is to make five of them cost one line rather than five, not to hide them. So what a pilcrow opens is the **note** and the `see` references under it, and nothing else; a node whose only body is properties wears no ¶ at all, because there is nothing behind one.
 
 **They are drawn in the file's own order, never alphabetical.** A record olai wrote is alphabetical on disk — the writer canonicalises so that two files meaning the same thing are byte for byte the same — but that is the writer's doing rather than the drawer's. A record a hand or an agent edited keeps its keys in the order the person thought about them in, `agent` then `brief` then `worktree`, and the run reads it back the way it was written.
 
@@ -389,7 +400,22 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 ## What the sidebar leaves out, and the one door under it
 
-**The file tree does not draw `_olai/`** — the outlines olai names for itself — and they are not hidden either: they have a home of their own at the foot of the column, nested under one special parent named for the house itself — **olai** — beside the Trash door that also lives there (ruled 2026-08-31: one mechanism, one parent, one door for the vault's own furniture; the Trash's top-level entry was absorbed into it). The parent is no page and no fold — the rows under it are the doors — and each opens the ordinary outline it is. The pinned shelf above the tree already IS `Pins.olai`, **Inbox** sits beside Agenda at the top of the column (human, 2026-08-20) — the group keeps the last mile: the inspectable remainder, a click each, without rows in the tree stacked on top of your own outlines. The rule replaced a **Prefs** switch — Hidden outlines, on this panel for the same files — with the group, because inspectability you have to set is inspectability you have to know to ask for.
+The outline is the map; files are the territory it points at. **Outlines** lists only node-holding files and their folders; **Reference** holds every other served file, grouped by folder and collapsed by default, with a count of files beside its name.
+
+Reference remembers its fold state in this browser. Opening a document or other reference file opens the section and its folder chain and marks the file's row. A mixed folder appears in both trees and shares one folder preference. Empty folders are omitted; a directory with only outlines has no Reference header. The new-file doors remain under Outlines, and a new document appears in Reference immediately.
+
+Opening a document, including a newly created one, reveals its row under
+Reference and expands its folder ancestry. This visibility follows selection;
+it does not write the saved Reference preference. Returning to an outline
+restores the fold the reader chose. Clicking the Reference header can collapse
+it even while its file stays open. This temporary collapse lasts until
+navigation or reload: reopening the page with a reference file selected
+reveals the section again. Collapsing clears the stored open preference,
+so an outline page still starts with Reference collapsed. New outline and New document remain below
+Outlines; new documents are listed in Reference.
+
+
+**Neither Outlines nor Reference draws `_olai/`** — the outlines olai names for itself — and they are not hidden either: they have a home of their own at the foot of the column, nested under one special parent named for the house itself — **olai** — beside the Trash door that also lives there (ruled 2026-08-31: one mechanism, one parent, one door for the vault's own furniture; the Trash's top-level entry was absorbed into it). The parent is no page and no fold — the rows under it are the doors — and each opens the ordinary outline it is. The pinned shelf above the tree already IS `Pins.olai`, **Inbox** sits beside Agenda at the top of the column (human, 2026-08-20) — the group keeps the last mile: the inspectable remainder, a click each, without rows in the tree stacked on top of your own outlines. The rule replaced a **Prefs** switch — Hidden outlines, on this panel for the same files — with the group, because inspectability you have to set is inspectability you have to know to ask for.
 
 **It is a drawing rule and nothing else.** Those files are in the directory either way: search finds them, an agent's `outlines_index` lists them, the Trash page and the shelf read them, and git records them like anything else. What changes is one list of rows in the directory column.
 
@@ -401,23 +427,23 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 ## Pinning a page to the sidebar
 
-A **shelf of doors** in the directory column, between the calendar and the file tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
+A **shelf of doors** in the directory column, between the calendar and the outline tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
 
-**Three ways on, and they are one gesture over one address.** A row's `•••` offers **Pin to sidebar**, and offers **Unpin from sidebar** on a row already up there — one entry with two labels, because the shelf already knows which way this node's answer goes. `⌘⇧P` / `Ctrl+⇧P` does the same for the PAGE you are on, and it is live while you are typing a filter, which is exactly when "pin this, narrowed like this" is the thing you mean. `⌘K`'s **Pin this page** row is that chord for a hand on the mouse.
+**Two ways on, with one gesture over one address.** A row's `•••` offers **Pin to sidebar**, or **Unpin from sidebar** if it is already pinned. `⌘K`'s **Pin this page** acts on the focused pane's page, including its filter.
 
 **A pinned page keeps its query.** `/agenda` filtered to `is:todo` is pinned as that whole address, drawn with the query beside its name, and clicking it lands on the agenda WITH the filter in the box — which is what makes a pin the way a saved search is spelled here ([search.md](search.md)).
 
 ### Naming one, where the thought arrives
 
-**A NARROWED page is asked what to call it, and nothing else is.** Every other address already has a name that is read live — a node's own title, a file's filename, the word *Agenda* — and a copy of one stored beside the pin is exactly the stale second answer this convention exists to avoid. A QUERY is the part nothing in the directory can name: three saved searches on the agenda are three rows called *Agenda* until somebody says otherwise. So `⌘⇧P` on a page you have narrowed, and the `⌘K` row that says **Pin this page…**, ask for a name first; a page with no query, and every unpin, still writes in one press.
+**A narrowed page is asked what to call it.** Every other address already has a name that is read live — a node's own title, a file's filename, the word *Agenda* — and a copy of one stored beside the pin is exactly the stale second answer this convention exists to avoid. A QUERY is the part nothing in the directory can name: three saved searches on the agenda are three rows called *Agenda* until somebody says otherwise. So the `⌘K` row that says **Pin this page…** asks for a name first; a page with no query, and every unpin, still writes in one press.
 
 **It is asked in the palette's own box**, the way `+ a line` already asks for a line: the words you type are the name, the box wears the name it would take otherwise (*Agenda*) where a placeholder goes, and **Enter** writes it. Three keys, and each of them is worth knowing:
 
 - **Enter with nothing pins it unnamed** — the bare address this app has always written, one keystroke from where your hand already is. Nothing derived is ever stored, so *Agenda* on the shelf goes on being read live.
 - **Enter with words pins it named**, as one write: the row's title becomes `[What is late](/agenda?q=is%3Atodo)`, which is the markdown link you would have typed into `Pins.olai` yourself.
-- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture. Backing out is not a mode, either: the chord works again on the next press.
+- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture. Backing out is not a mode, either: the palette command works again.
 
-**A question owns the modal while it is up.** `⌘⇧P` pressed again over its own question does nothing at all — the question that press would ask is already on screen, and asking it a second time would hand the box back its opening words over the name you are half-way through typing. It is the same rule the caret, Tab and Escape already keep there: a question is answered or backed out of, and nothing pressed elsewhere becomes its answer or writes past it.
+**A question owns the modal while it is up.** The command list is replaced by the naming question. Answer it or press Escape to back out.
 
 **And a pin already on the shelf is renamed from the shelf.** Hovering a row shows a `✎` beside its `×`; pressing it asks the same question, holding the name it has now, and **Enter with nothing takes the name off** — the row goes back to a bare address, drawn by whatever it points at. Renaming is an ordinary title edit on that row (`outlines_title`, the op an agent sends), so `⌘Z` takes it back like anything else.
 
@@ -434,6 +460,27 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 **And the file reads like an outline.** Open `Pins.olai` and its rows are the same faces the shelf draws — the pin mark, the name, the query — because a title that names a place is drawn as that place wherever it appears, not just in the sidebar. On a named pin the label is the link; click anywhere else on the line and the editor shows the title as it really is, which is the same thing every markdown title does.
 
 **It is a file, and that is the feature.** The shelf is a `Pins.olai` in the served directory — wherever you keep one; olai mints `_olai/Pins.olai` the first time you pin something and never moves a shelf you already have. One ordinary node per pin, whose title is the address ([format.md](format.md#pins)). Open it like any outline and edit it; a name is a markdown link around the address (`[What is late](/agenda?q=is%3Atodo)`), which is exactly the row the app writes when you type one; commit it with everything else. An agent adds, reorders, renames and removes pins with `outlines_add`, `outlines_move`, `outlines_title` and `outlines_trash` — the same four ops the gestures above resolve to — so what you keep on that shelf is something you can hand to one.
+
+### Pinning a layout
+
+With multiple panes open, `⌘K` also offers **Pin this layout…**, with the pane names underneath. It always asks for a name; empty Enter says **a layout needs a name** and keeps the question open. Escape writes nothing.
+
+A layout pin has a split mark and a tooltip listing its pages. Clicking it opens the layout in a new olai tab in front, including with Alt or Shift held ([Keeping several pages open](#keeping-several-pages-open)); with the tabs plugin switched off it replaces the whole workspace in one history push instead, and Back restores the previous workspace. ⌘/Ctrl-click and middle-click open its address in a new browser tab. Only pages are saved: the layout reopens with equal widths and the first pane focused.
+
+The command becomes **Unpin this layout** when those pages are already pinned, regardless of widths or focus. Shelf rename and remove work as for page pins, including undo; layout renames also require a name. Handwritten bare layout addresses are accepted and display the pane names, falling back to an unresolved node's address.
+
+## Keeping several pages open
+
+On a desktop, a strip of tabs sits above the page. Each tab holds one page, or a whole split of panes, and the tab in front is the page you are looking at: the address bar shows it, and the sidebar, Back and every pane gesture act on it. The sidebar, the chat panel and the palette are shared by every tab. A tab you leave keeps its page, its filter and where it was scrolled.
+
+- **A new tab.** Right-click a link — a door in the sidebar, a link in a document — and choose **Open in new tab**; the tab opens behind the one in front. **+** at the end of the strip, or `⌘⇧O` / `Ctrl+⇧O`, opens a tab on the front page. A pinned layout on the shelf opens in a new tab.
+- **Switching.** Press a tab, or use `⌘⇧.` and `⌘⇧,` (`Ctrl+⇧.` and `Ctrl+⇧,`) for the next and previous tab.
+- **Closing.** The × on a tab, a middle-click, or `⌘⇧X` / `Ctrl+⇧X` for the tab in front. Right-click a tab for **Duplicate tab** and **Close other tabs**. Closing the last tab leaves one on the front page.
+- **Reordering.** Drag a tab along the strip.
+
+Back and Forward move within the tab in front, and a closed tab's pages are gone from them. The open tabs are remembered in this browser, so a reload brings them back, though each tab's Back starts fresh. Opening olai at an address shows that address in the tab that was in front. Two browser windows do not share changes as they happen: the one that changes the set last is the one remembered.
+
+On a phone there is no strip. Open in new tab shows the page straight away, and the tabs from your desk are kept for when you return to it. The details, and what changes when plugins are switched off, are in [plugins/tabs.md](plugins/tabs.md).
 
 ## From the ⌘K palette
 
@@ -481,7 +528,7 @@ Either way the row is **born `todo`**: the badge reads marks and nothing else, s
 
 ## Starting an outline
 
-**The sidebar's `+ New outline`** asks for a path — relative, under the served directory — and mints the file there. Enter creates it, Escape puts the box away, and the page it lands on is the new outline's, with the same *write the first line* the empty-outline page has always offered.
+**`+ New outline` below the Outlines tree** asks for a path — relative, under the served directory — and mints the file there. Enter creates it, Escape puts the box away, and the page it lands on is the new outline's, with the same *write the first line* the empty-outline page has always offered.
 
 Both new-file boxes show **Creating…** while their write is pending. You can type the next filename, but Enter does not submit another write until the first finishes. Its response cannot clear the newer name or put an old refusal under it. Escape dismisses the box without undoing an already submitted creation; reopening it starts a new draft. Plugin changes preserve each box’s filename, refusal and pending state independently, including changes made in another tab.
 
@@ -515,7 +562,7 @@ A save is ONE op at the same gate as everything else: validated, published on it
 
 **The file can move underneath you, and nothing is clobbered either way.** Edit the same document in vim while the editor is open and the editor says so the moment the disk moves; a Save after that is refused, in the ops layer's own words, with your text kept exactly where you typed it. The refusal has two doors out and both are yours: take what you need and Cancel, or press **Overwrite what is there**, which is the same write minus the guard and means exactly what it says. An agent gets the identical story — its `markdown_write` takes a `was`, and the refusal is the same sentence.
 
-**Two ways to a document that does not exist.** The sidebar's **+ New document** asks for a path — relative, with the `.md` optional the way `+ New outline`'s `.olai` is ([above](#starting-an-outline)), and otherwise judged by the same rules an agent's `markdown_create` is judged by — and the day page's **+ day note** mints that day's note, filed where your vault already keeps them: the convention is read off the newest existing daily note's own path (`Daily/2026/08/2026-08-12.md` puts September's first note at `Daily/2026/09/2026-09-01.md`), never configured. The button is shown on any day without a note, whether or not that day has dated entries, and is gone once the note exists. Clicking a calendar day never writes: every cell navigates to `/d/<date>`, and an empty day is the page that says so. Either door lands in the new document's editor, and the sidebar lists the file on the same frame.
+**Two ways to a document that does not exist.** The sidebar's **+ New document** asks for a path — relative, with the `.md` optional the way `+ New outline`'s `.olai` is ([above](#starting-an-outline)), and otherwise judged by the same rules an agent's `markdown_create` is judged by — and the day page's **+ day note** mints that day's note, filed where your vault already keeps them: the convention is read off the newest existing daily note's own path (`Daily/2026/08/2026-08-12.md` puts September's first note at `Daily/2026/09/2026-09-01.md`), never configured. The button is shown on any day without a note, whether or not that day has dated entries, and is gone once the note exists. Clicking a calendar day never writes: every cell navigates to `/d/<date>`, and an empty day is the page that says so. Either door lands in the new document's editor, and Reference lists and reveals the file on the same frame.
 
 ## Deleting a file
 
@@ -525,7 +572,7 @@ Beside **Edit** on a document page's header, and beside the *write the first lin
 
 **There is no file-level trash, and that is the sentence the question says.** A record's undo story is the Trash's — a `Put back` puts the subtree back with its ids. A file's undo story is git's: the delete rides the same gate and the same commit door as every other write ([git.md](git.md)), so the bytes are recoverable to exactly the extent git had already recorded them. A directory served `commit: off`, or one whose file was never committed, keeps nothing. ⌘Z does not take a delete back either — what would take it back is a git command, and this app does not shell one for you.
 
-**The verb is guarded, and each refusal says what to settle first.** An outline that still holds records is refused, naming them — this is a delete, not a move: [the Trash](#the-trash) is how a record leaves an outline, and nobody's verb guesses at emptying. A document a `doc` field (or a property declared `doc` in `_olai/Properties.olai`) still names is refused, naming the records that name it — deleting under them would break THEIR files too, which is the finding the validator would show you next. A file olai only shows — a `.html`, a `.csv`, a picture, a `.pdf` — is never offered the control, and an agent's `files_delete` is refused the same way: those files belong to whatever put them there. And a broken file nobody could read is refused too: dropping bytes that never made it into the set is not a delete, it is a loss.
+**The verb is guarded, and each refusal says what to settle first.** An outline that still holds records is refused, naming them — this is a delete, not a move: [the Trash](#the-trash) is how a record leaves an outline, and nobody's verb guesses at emptying. A document named by a live title or note link, another document’s body, or a property declared `doc` in `_olai/Properties.olai` is refused, naming its referrers — deleting under them would strand links or violate a declared property fence. A file olai only shows — a `.html`, a `.csv`, a picture, a `.pdf` — is never offered the control, and an agent's `files_delete` is refused the same way: those files belong to whatever put them there. And a broken file nobody could read is refused too: dropping bytes that never made it into the set is not a delete, it is a loss.
 
 An agent's `files_delete` is the same op at the same gate — minted paths and refusals alike — which is the consistency rule doing what it always does: nothing this face can reach is out of an agent's reach.
 

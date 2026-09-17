@@ -1,13 +1,13 @@
+/**
+ * The configurations. One node per record, properties under `custom`
+ * (the outline codec maps `-- foo: bar` to that).
+ */
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { DEFAULT_WATCH } from "olai-plugin-kolu/appliance"
 import { readingOf, setOf as vaultSet, nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { configurationFileIn } from "@olai/plugin-api/configuration"
 import { watchConfigIn, watchReadingIn } from "./config.ts"
-
-/**
- * The configurations. One node per record, properties under `custom`
- * (the outline codec maps `-- foo: bar` to that).
- */
 const rec = (
   title: string,
   fields: Record<string, string>,
@@ -27,14 +27,14 @@ const rec = (
 const setOf = (files: Record<string, string>, file?: string) =>
   watchConfigIn(
     nodesOfFiles(files),
-    file === undefined ? (configurationFileIn(Object.keys(files)) ?? null) : file,
+    file === undefined ? (configurationFileIn(TEST_CLAIMS, Object.keys(files)) ?? null) : file,
   )
 
 // ── The convention's door ─────────────────────────────────────────────────
 
 test("the finder names the file by basename and case-folded, shallowest first", () => {
   expect(
-    configurationFileIn([
+    configurationFileIn(TEST_CLAIMS, [
       "pieces/week-34/settings.olai",
       "_olai/Settings.olai",
       "mocca.olai",
@@ -43,7 +43,7 @@ test("the finder names the file by basename and case-folded, shallowest first", 
 })
 
 test("the finder names nothing a korrekt file does not answer to", () => {
-  expect(configurationFileIn(["mocca.olai", "_olai/Pins.olai"])).toBeUndefined()
+  expect(configurationFileIn(TEST_CLAIMS, ["mocca.olai", "_olai/Pins.olai"])).toBeUndefined()
 })
 
 test("a set with no `settings.olai` says the defaults", () => {
@@ -186,7 +186,7 @@ test("the convention is by NAME, the way the shelf's is: a silent front-runner d
   // one there finds it, not a layout the code knew to skip. Before
   // `configurationFileIn` the walk dodged the silent one, silently.
   expect(
-    configurationFileIn(["Settings.olai", "_olai/Settings.olai"]),
+    configurationFileIn(TEST_CLAIMS, ["Settings.olai", "_olai/Settings.olai"]),
   ).toBe("Settings.olai")
   const reading = setOf({
     "Settings.olai": `{"id":"k","ord":"a0","title":"kolu notes"}`,

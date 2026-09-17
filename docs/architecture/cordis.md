@@ -85,6 +85,7 @@ Decide whose departure should end a resource, then build the shared helper aroun
 | Case | Rule | Example |
 | --- | --- | --- |
 | Reusable implementation | A factory may cross a package boundary if each caller gets its own independent state. | [heldWrites](../../packages/web/src/client/writes.ts), [heldFiles](../../packages/plugins/vault/src/browser/state.ts) |
+| Carry landings | The host supplies one `Landings` table per app; activation scopes release component-owned receiver registrations, and carries recheck snapshot membership before release. A receiver captures the indicated work before `leave` clears the visit; cleanup does not wait for its asynchronous write. | [carry contracts](../../packages/plugin-api/src/carry.ts) |
 | Per-app state | Each browser app gets its own `Edits` registry. Two apps must not route edits through one module-level table. | [browser host](../../packages/plugin-api/src/browser.ts) |
 | Per-setup state | Each vault setup builds its own optional ledger and search tables with `openViews()`. A second host must not overwrite the first host's providers. | [VaultViews](../../packages/plugins/vault/src/views.ts) |
 
@@ -217,7 +218,7 @@ The application shell is itself built from plugins:
 
 A shorter implementation is better only if the same things still own the same resources for the same lifetimes.
 
-Before accepting a refactor, list which owners, dependencies and lifetimes change, then re-check optional availability, cleanup order, single-owner claims and reconnection behavior.
+Before accepting a refactor, list which owners, dependencies and lifetimes change, then re-check optional availability, cleanup order, single-owner claims and reconnection behavior. `just cordis-graph` draws the current graph of rows, needs and owners from the sources, so the before and after can be compared by eye.
 
 | Change | Effect on ownership |
 | --- | --- |
@@ -247,3 +248,44 @@ Assumptions pinned to the current Cordis version:
 - The bridge relies on specific pinned behavior, including how the provision disposer hands over and the exact wording of the duplicate-owner error.
 - The [assumption inventory](../../packages/effect-cordis/README.md#where-the-pins-instability-lives) and [pin configuration](../../nix/cordis.nix) record these dependencies and their limits.
 - Update the inventory when the bridge or upstream pin changes, and keep these private runtime assumptions out of feature plugins.
+
+Pointer carries share the component-owned gesture in
+[`lifting.ts`](../../packages/web/src/client/lifting.ts): travel/hold recognition,
+scroll claims, cancellation, and click suppression have one lifetime. Carriers
+supply the work begun at lift; receiver routing remains in `carry.ts`, and outline
+placement rules remain in outlines. Each plugin still declares `Landings` and
+holds its own activation scope. This shares static mechanics, not live plugin
+state or a new global gesture owner.
+
+### Mail tool calls
+
+Mail's MCP tools close over activation-local resources instead of calling sibling procedures. They enter the Effect bridge's exported `gate` before touching the runner, label cache or attachment directory. Withdrawal closes that gate and joins interrupted calls before resource cleanup. The runner's interruption finalizer kills and joins its child process; the attachment directory closes before the generated token config. A retained tool closure therefore cannot restart work after the row leaves. Account refresh calls share the runner but do not spend the tools' four spawn permits.
+
+The mail implementation separates invocation policy (`tools.ts`: schemas,
+activation gate, logging and reply decoration) from mailbox operations
+(`mailbox.ts`: account checks, Himalaya commands, label cache and serialized
+writes). This is an internal boundary within one activation, not a new service
+or owner. The mailbox is acquired before the gate; closing the activation still
+cuts and joins calls before removing attachments and token configuration.
+Account readiness has one definition, checked again before each spawn. Command
+failures are translated where the command is known, so an attachment 404 does
+not become a missing-thread refusal.
+
+Text-only agent adapters share `@olai/surface`'s pure `refusalIn` decoder. Each
+engine retains its own SDK envelope extraction. The server's MCP tests parse
+real formatted refusals and compare them with structured details, tying the
+compatibility check to the formatter's release cycle.
+
+### Mail inbox watcher
+
+Mail acquires `Deliveries` and registers its words with `Wakes`. It hangs a `conversation.wake` switch in chat's strip; chat stores an opaque JSON pick, writes it only through the browser face, and hands back a recipient whose authority ends when the choice is replaced, cleared or evicted. Mail re-reads recipients at delivery time. No vault property can opt a conversation in.
+
+The watcher, OAuth refresh and mailbox operations belong to the mail activation. The poll fiber stops before the shared mailbox's attachment directory and Himalaya config close. History calls have their own sequential cadence; thread metadata uses the mailbox's four spawn permits. The persisted history cursor advances only after delivery thunks have been accepted. A separate cadence component depends on `ConfigurationSource` and the activation's `mail.poll` service; it withdraws before the timer owner.
+
+Chat owns the wake strip location, persistence and queue counts. Each plugin owns its face and the meaning of its pick. Kolu and odu acquire `vault.files` for their picker faces and use their own server vault readings to filter recipients. The static `file-wakes` helper supplies nearest-ancestor precedence and file-fault accounting without sharing live state between plugins. Their local-state doors retain which broken picks have already been announced, so a restart does not repeat the warning.
+
+### Agent charter at MCP `initialize`
+
+A row's sentence to an agent rides its own `Sibling.charter`, beside the `tools` it brings, and leaves with the row. The MCP row composes `initialize`'s `instructions` at each host connection from the rows standing then — its own transport and address-grammar paragraphs first, then every standing row's charter in roster order — over the same reading the tool list and `surface://` resources come from. Core keeps no self-description of plugin behaviour: "a person reads your answer in olai's chat panel" is chat's paragraph, absent on a serve that runs MCP without chat and to an external host that has no panel. It was a static string in `@olai/surface` for one PR, imported by the MCP row; a static import may carry a contract, but this one asserted another row's live behaviour, which is the tools table in `@olai/ops` again in words.
+
+The limit is the wire's and is stated: MCP has `tools/list_changed` and no `instructions_changed`, so a host already connected keeps what its own `initialize` said, and a host connecting after a roster move is told the roster it gets. `@kolu/surface-mcp` reads `instructions` as a function per `initialize` (juspay/kolu#2253); `reroster` carries no text of its own. The composed whole with every row standing stays under Claude Code's silent 2 KB truncation, held by `@olai/server`'s `profiles.test.ts`, which also reads both states of chat's paragraph.

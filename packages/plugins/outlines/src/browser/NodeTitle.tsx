@@ -46,11 +46,11 @@
  * itself is the link, so the press that edits is anywhere else on the line;
  * `../Tree.tsx`'s `clickTitle` is what keeps those two presses apart.
  */
-
+import { servedDirectory } from "./vault.ts"
 import { createMemo, Show } from "solid-js"
 
 import { shownIn } from "olai-plugin-navigation/address/address.ts"
-import { addressIn, titleFace } from "./routing.ts"
+import { targetIn, targetFace } from "./routing.ts"
 import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { useNames } from "./reading.tsx"
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
@@ -74,14 +74,14 @@ export function NodeTitle(props: {
   /** The place this title names, for the titles that name one. Cheap for every
    *  other title in the directory: the test short-circuits on the first
    *  character (`./address/address.ts`). */
-  const address = createMemo(() => addressIn(props.title))
+  const address = createMemo(() => targetIn(props.title))
   /** The drawing, and NOT a fresh identity per recompute: a filtered page
    *  re-runs this memo on every keystroke, and a title whose HTML has not
    *  changed must not push a new value through to the element — which is what
    *  a memo over an object does by default (`===`). */
   const drawing = createMemo(
     () =>
-      renderTitle(props.title, props.from, {
+      renderTitle(servedDirectory()?.claims(), props.title, props.from, {
         links: props.links,
         needles: props.needles,
       }),
@@ -90,7 +90,7 @@ export function NodeTitle(props: {
   )
   return (
     <Show when={address()} fallback={<TitleHtml drawing={drawing()} />}>
-      {(route) => {
+      {(target) => {
         /** WHAT THIS FACE SAYS AND WHAT IT MAY BE, from the one reading both
          *  faces make of a title (`./address/address.ts`) — and the set's half
          *  of it read off the names this PAGE was sent with (`./reading.tsx`).
@@ -99,7 +99,7 @@ export function NodeTitle(props: {
          *  the server now, the shelf's on its own member and this one on the
          *  reading of the page the row is drawn in. */
         const face = createMemo(() =>
-          titleFace(props.title, route(), shownIn(names(), route()))
+          targetFace(props.title, target(), route => shownIn(names(), route))
         )
         return (
           // The needles are deliberately not carried into a face: what a filter
@@ -109,7 +109,7 @@ export function NodeTitle(props: {
           // row (`./filter/why.ts`).
           <span class="flex min-w-0 flex-1 items-center gap-1.5">
             <Face
-              route={route()}
+              target={target()}
               name={face().name}
               // A WRITTEN name is what may be pressed, and whether this caller
               // may hold an anchor at all is its own half of that answer.

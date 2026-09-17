@@ -1,4 +1,3 @@
-import { TESTID } from "@olai/markdown-ui/testids.ts"
 /**
  * `#tags` in a title, styled.
  *
@@ -33,7 +32,7 @@ import { TESTID } from "@olai/markdown-ui/testids.ts"
  * and needs no rule about them. If that ever stops being true, the fast path
  * has widened, and ./plain.test.ts's sweep is what says so.
  */
-
+import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { litBy, type Lit, mayHoldTag, tagText, titleParts } from "@olai/format"
 import type { Element, ElementContent, Root } from "hast"
 

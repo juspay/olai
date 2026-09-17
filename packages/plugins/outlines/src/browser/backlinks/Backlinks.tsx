@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * WHAT REFERS TO THIS NODE, under a zoomed node's heading — the one place in
  * this app a reference is read backwards.
@@ -45,7 +44,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * shape the `see` and `blocked by` rows have — and a record that does both
  * appears in both, which is what it is doing.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { type Backlink, printAddress } from "@olai/format"
 import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 

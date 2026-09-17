@@ -22,7 +22,7 @@
  * header's, which is the argument `trash/question.ts`'s header spends.
  *
  * AND WHAT THE SENTENCE CANNOT SAY IS WHAT STILL NAMES IT. A non-empty
- * outline, a document a `doc` still points at: those are facts about the
+ * outline, a document a live link or declared property still points at: those are facts about the
  * SET, and a question drawn in a tab would be one reading behind the write.
  * So they are not the question's words — they are the PLANNER's refusal,
  * drawn on the page the person is standing on, in the same words an agent

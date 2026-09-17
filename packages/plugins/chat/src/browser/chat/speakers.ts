@@ -13,7 +13,7 @@
  *
  * ## Why the rule is a module and not a `switch` inside the drawing
  *
- * {@link ./face.ts}'s reason, word for word. Every way of getting this wrong
+ * Every way of getting this wrong
  * puts SOMEBODY ELSE'S face over a sentence — the person's mark on a plugin's
  * doorbell, an agent's on a person's own words — which is the one class of
  * mistake a transcript may not make, and checking it should not require a

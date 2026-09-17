@@ -257,7 +257,18 @@ export const Clock = serviceTag<Clock>("clock")
  * so one plugin throwing on a revision cannot take the later ones down with it
  * — nor the owned fiber that published it.
  */
+/** One scoped owner publishes the Inbox convention; absence never waits on a plugin.
+ * The vault owns the registry, while the registering scope owns its entry. */
+export interface InboxRegistry {
+  readonly current: () => string | null
+  readonly register: (file: string | null) => Effect.Effect<
+    (file: string | null) => Effect.Effect<void>, never, Scope.Scope>
+  readonly changed: (handler: (file: string | null) => Effect.Effect<void>) =>
+    Effect.Effect<void, never, Scope.Scope>
+}
+
 export interface Vault {
+  readonly inbox: InboxRegistry
   /** The directory, resolved — what every path answer downstream is relative
    *  to. */
   readonly served: string
@@ -316,6 +327,7 @@ export const Directory = serviceTag<Directory>("directory")
 /** Core supplies these after mounting declarations. Floor-specific values are
  * opaque here; the provider checks them against @olai/ops’s typed half. */
 export interface VaultSettings {
+  readonly claims: unknown
   readonly runtime: unknown
   readonly root: string
   readonly kinds: unknown
@@ -331,9 +343,40 @@ export const vaultEvents = (served: string) => {
   let latest: unknown | null = null
   const revisions = broadcast<unknown>("a vault revision")
   const quieted = broadcast<void>("the vault going quiet")
+  const inboxChanges = broadcast<string | null>("the Inbox path changing")
+  const inboxGate = Semaphore.makeUnsafe(1)
+  let inbox: { readonly owner: symbol; file: string | null } | null = null
+  const inboxFor = (plugin: string): InboxRegistry => ({
+    current: () => inbox?.file ?? null,
+    register: (file) => Effect.gen(function*() {
+      const owner = Symbol(plugin)
+      yield* Effect.acquireRelease(
+        inboxGate.withPermit(Effect.gen(function*() {
+          if (inbox !== null) return yield* Effect.die(new Error("The Inbox already has an owner"))
+          inbox = { owner, file }
+          yield* inboxChanges.tell(file)
+        })),
+        () => inboxGate.withPermit(Effect.gen(function*() {
+          if (inbox?.owner !== owner) return
+          inbox = null
+          yield* inboxChanges.tell(null)
+        })),
+      )
+      return (next: string | null) => inboxGate.withPermit(Effect.gen(function*() {
+        if (inbox?.owner !== owner || inbox.file === next) return
+        inbox.file = next
+        yield* inboxChanges.tell(next)
+      }))
+    }),
+    changed: (handler) => inboxGate.withPermit(Effect.gen(function*() {
+      yield* inboxChanges.listen(plugin)(handler)
+      yield* contained(plugin, "the Inbox path", Effect.suspend(() => handler(inbox?.file ?? null)))
+    })),
+  })
   return {
     door: (plugin: string): Vault => ({
       served,
+      inbox: inboxFor(plugin),
       revision: ((handler: (snapshot: unknown) => Effect.Effect<void>) => delivery.withPermit(Effect.gen(function*() {
         yield* revisions.listen(plugin)(handler)
         if (latest !== null) {
@@ -499,6 +542,36 @@ export interface Sibling {
    * brought it.
    */
   readonly tools?: ReadonlyArray<unknown>
+  /**
+   * THIS ROW'S SENTENCE TO AN AGENT — one paragraph of what the row IS to a
+   * caller as an application rather than as a set of verbs, and, like
+   * {@link tools}, present only while the row is standing.
+   *
+   * The prose twin of `tools`. `olai-plugin-mcp` composes the two the same
+   * way: `initialize`'s `instructions` is its own transport paragraph followed
+   * by every standing row's charter, read off the roster at each host
+   * connection, so a sentence leaves with its row for the reason a verb does.
+   * A row that is off has no verbs on the list and no sentence in the text.
+   *
+   * IT WAS ONE STATIC STRING IN `@olai/surface`, and that was the tools table
+   * in `@olai/ops` again in words: core asserting that a person reads the
+   * answer in a chat panel, that a backticked id there is pressable, that a
+   * link is followed in place — every one of them `olai-plugin-chat`'s
+   * behaviour, on a serve that may run `mcp` with no `chat` row at all
+   * (`@olai/server`'s `mcp/face.test.ts` mounts exactly that), and to an
+   * external host that dials `/mcp` with no panel anywhere. A charter an agent
+   * can disprove teaches that the rest of the text is decoration; this field is
+   * what lets the sentence be true, because the row that makes it true is the
+   * one that says it.
+   *
+   * ABSENT ON MOST ROWS, and that is the ordinary case: a row whose whole
+   * contribution is verbs is already described by them. Only a row that owns a
+   * fact about where an agent's words LAND — who reads them, what is pressable
+   * — has a paragraph to add, and it is one paragraph: Claude Code truncates
+   * server instructions at 2 KB, silently, and the composed whole is held
+   * under that by `@olai/server`'s `profiles.test.ts`.
+   */
+  readonly charter?: string
   /** This plugin's `ImplementSurfaceDeps`, against its own spec. */
   readonly deps: unknown
   /** This plugin's OWN ctx, handed back the moment its sibling is implemented.
@@ -1151,6 +1224,9 @@ export interface ToolServer {
   readonly token: string
 }
 
+/** Static display contract; the catalogue provider owns the live lookup. */
+export interface Advertised { readonly title: string; readonly owner: string }
+
 /**
  * THE VAULT'S OWN MCP TOOL SERVER, once the listener has bound.
  *
@@ -1173,6 +1249,10 @@ export interface ToolServer {
  * guarded by a loud throw.
  */
 export interface Tools {
+  /** Deliberately carried by Tools rather than a second optional broker.
+   * Null means no catalogue is serving, or the server/tool is not ours.
+   * Resolve per call so withdrawal and replacement take effect immediately. */
+  readonly advertised: (server: string, tool: string) => Advertised | null
   readonly server: Effect.Effect<ToolServer>
   /**
    * ...AND A CREDENTIAL FOR ONE SESSION.
@@ -1443,6 +1523,8 @@ export interface PluginsConfig {
     forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
   ) => MintedTicket | null
+  /** Optional live display lookup; absence means no tool is recognized as ours. */
+  readonly advertisedFor?: Tools["advertised"]
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *
@@ -1631,6 +1713,7 @@ export const openPlugins = (
       // asked per session and a caller has somewhere to put the absence: a root
       // with no MCP face seats a session with no remaining write rule, which is
       // the state it was already in ({@link PluginsConfig.ticketFor}).
+      advertised: (server, tool) => config.advertisedFor?.(server, tool) ?? null,
       ticket: (forbidden, writer) => config.ticketFor?.(forbidden, writer) ?? NO_TICKET,
     }))
 
@@ -1779,3 +1862,17 @@ export const SERVICE_KEYS: ReadonlyArray<string> = SERVICES.map((one) => one.cor
 export type { SlotKey } from "./slots.ts"
 
 export { HostLoading, openLoading, type Catalog, type OwnedLoader } from "./loading.ts"
+
+/** Rows supply policy and (for nodes) a pure parser, never the identity stamped
+ * by the registry. The policy is the same inert contract format and wire readers use. */
+export type FileClaim = Omit<import("@olai/format").Claim, "kind">
+export type ComposedClaim = import("@olai/format").Claim
+
+/** Owned by vault setup. Each row may acquire one claim for its scope. A
+ * conflicting kind or overlapping suffix defects without installing anything. */
+export interface FileKinds {
+  readonly current: () => ReadonlyMap<string, ComposedClaim>
+  readonly changes: Stream.Stream<void>
+  readonly register: (claim: FileClaim) => Effect.Effect<void, never, Scope.Scope>
+}
+export const FileKinds = serviceTag<FileKinds>("vault.file-kinds")

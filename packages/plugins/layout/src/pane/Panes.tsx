@@ -1,5 +1,3 @@
-import { TESTID } from "olai-plugin-layout/testids"
-import type {Navigation} from "olai-plugin-navigation/contract"
 /**
  * The pane list, as a row of pages or a strip of tabs.
  *
@@ -13,7 +11,8 @@ import type {Navigation} from "olai-plugin-navigation/contract"
  * One pane is a plain page: no header, no ring, no rail. Closing the
  * second-to-last returns to that.
  */
-
+import { TESTID } from "olai-plugin-layout/testids"
+import type {Navigation} from "olai-plugin-navigation/contract"
 import { createSignal,For,Index,onCleanup,Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
@@ -29,9 +28,9 @@ panesOf,
 type Pane,
 } from "olai-plugin-navigation/workspace"
 import { desktop } from "../layout/live.ts"
-import { SHELL_LONE,SHELL_SPLIT } from "../layout/sheet.ts"
+import { PANES_LONE,PANES_SPLIT } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
-import { labelOf } from "./label.ts"
+import { labelOf } from "../routing.ts"
 
 export { PANE_MIN_PX,PANE_RAIL_PX } from "./geometry.ts"
 
@@ -47,8 +46,8 @@ export function Panes() {
       // takes its height from the pair below, not from a lone page's.
       class="flex min-w-0 flex-col bg-paper"
       classList={{
-        [SHELL_SPLIT]: split(),
-        [SHELL_LONE]: !split(),
+        [PANES_SPLIT]: split(),
+        [PANES_LONE]: !split(),
       }}
     >
       <Show when={split() && !desktop()}>
@@ -123,16 +122,20 @@ function Column(props: {
   const focused = () => router.workspace().focus === props.index
   return (
     <div
-      class="flex min-h-0 min-w-0 flex-col overflow-y-auto"
+      class="flex min-h-0 min-w-0 flex-col"
       style={{ "flex-grow": String(props.grow), "flex-basis": "0" }}
       classList={{
         "ring-2 ring-inset ring-accent": focused(),
       }}
     >
       <Header index={props.index} pane={props.pane} />
-      <PaneProvider index={props.index}>
-        {(router as Navigation).page(()=>props.index)}
-      </PaneProvider>
+      {/* Pane chrome stays outside the reading's scroll owner. Node-page
+          headings and composers pin within this one content scroller. */}
+      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <PaneProvider index={props.index}>
+          {(router as Navigation).page(()=>props.index)}
+        </PaneProvider>
+      </div>
     </div>
   )
 }

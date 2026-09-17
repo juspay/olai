@@ -53,7 +53,8 @@ export const askRow = (
     ask: { fields: [], outcome: settled ? { how: "answered", answers: [] } : null },
   } as unknown as ChatEntry)
 
-export interface Live {
+export interface Live<T> {
+  readonly value: T
   /** How many times a row's value has been pulled since this began — the whole
    *  measurement: a walk of the transcript per token shows up here as rows ×
    *  tokens. */
@@ -68,7 +69,7 @@ export interface Live {
 }
 
 /** Mount `watch` over a conversation this returns the handle to. */
-export const live = (watch: (chat: Chat) => void): Live => {
+export const live = <T>(watch: (chat: Chat) => T): Live<T> => {
   const keysHeld: Array<string> = []
   const [keys, setKeys] = createSignal<ReadonlyArray<string>>(keysHeld)
   const rows = new Map<
@@ -83,11 +84,9 @@ export const live = (watch: (chat: Chat) => void): Live => {
       return rows.get(key)?.[0]()
     },
   } as unknown as Chat
-  const stop = createRoot((dispose) => {
-    watch(chat)
-    return dispose
-  })
+  const [stop, value] = createRoot((dispose) => [dispose, watch(chat)] as const)
   return {
+    value,
     reads: () => reads,
     stop,
     add: (key, entry) => {

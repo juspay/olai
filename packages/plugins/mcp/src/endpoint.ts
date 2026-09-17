@@ -1,11 +1,11 @@
+/** MCP protocol acquisition belongs to the plugin's activation scope. Core
+ * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
 import type { SurfaceSpec } from "@kolu/surface/define"
 import type { AgentBinding } from "./binding.ts"
 import type { Tool } from "@olai/ops"
 import { siblingsOf, type Row } from "./bundle.ts"
 import { currentLogin, mcpTransport, mcpRoute } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
-/** MCP protocol acquisition belongs to the plugin's activation scope. Core
- * supplies the composed, writer-bound face; this plugin owns the HTTP carrier. */
 import { type ClientOrConnection, type McpSibling, serveSurfaceAsMcp, type ServedSurfaceMcp } from "@kolu/surface-mcp"
 import { hostFaces, hostSurface } from "@olai/surface/host"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
@@ -39,7 +39,7 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
       ...policy, get root() { return policy.root }, login: currentLogin, doorAt: policy.doorAt,
     }))
   const booted = bundle()
-  const served = yield* serveFace({ siblings: booted, client: policy.client, transport })
+  const served = yield* serveFace({ siblings: booted, client: policy.client, rows, transport })
   /**
    * THE ROSTER, FOLLOWED IN PLACE.
    *
@@ -122,10 +122,10 @@ export const endpoint = (shared: TransportSurface, policy: AgentBinding) => Effe
 
 /** What this server calls itself. The version is the binary's, spelled here
  *  because the adapter has no other way to learn it. */
-const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
+export const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
 
 /**
- * What a host is told olai IS, at `initialize`.
+ * What a host is told olai IS, at `initialize` — THIS ROW'S paragraphs of it.
  *
  * Load-bearing prose, not a greeting: an agent that has met a hundred MCP
  * servers arrives assuming a filesystem, and what it has to unlearn here is
@@ -158,6 +158,60 @@ const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  * one the set already serves, what is named is a whole file — its records, or
  * its existence — rather than any part of one, and nothing about either
  * reaches outside this directory.
+ *
+ * ## The second paragraph: only what is true whatever rows are standing
+ *
+ * The address grammar — `/#<id>` a node anywhere, `/<path>` a document or an
+ * outline, `/<path>#<element>` a row or a heading — is `@olai/format`'s
+ * `address.ts` (the table at its head), and a tool's `at` is that address
+ * without the leading `/`, read off `search_nodes`' own hits. That an address
+ * is the app's own with no host or port to know is a fact about the grammar
+ * too: nothing in it is an origin. And `<row>_<verb>` with an absent row's
+ * verbs absent is `./tools.ts`' `scopedToolName` and the adapter's per-row
+ * ownership (juspay/kolu#2234). Every sentence here holds on a serve with
+ * only `mcp` standing and for an external host with no panel anywhere.
+ *
+ * ## What is NOT here: a row's sentence rides its row
+ *
+ * A paragraph about WHERE an agent's words land — that a person reads them in
+ * a chat panel beside the outline, that a backticked id there is pressable
+ * and a fenced one is a quotation, that a link is followed in place — sat in
+ * this text for one PR, imported from `@olai/surface` as a static string. Each
+ * of those is `olai-plugin-chat`'s behaviour, and a serve may run this row
+ * with no `chat` row at all (`@olai/server`'s `mcp/face.test.ts` mounts
+ * exactly that): core was asserting a plugin's panel to a host that had none.
+ * The rule this file already states over `INSTRUCTIONS` — nothing an agent
+ * can disprove — was broken by the paragraph that cited it.
+ *
+ * So a row's paragraph is the row's, on the same sibling entry as its tools
+ * (`Sibling.charter`), and {@link instructionsFor} composes the text from the
+ * rows STANDING — the seam `bundle()` already reads verbs and resources off,
+ * one field over. A sentence leaves with its row for the reason a verb does.
+ *
+ * READ PER `initialize`, NOT AT BOOT. The adapter takes `instructions` as a
+ * thunk and calls it on each host connection, so a host that connects after
+ * a roster move is told the roster it actually gets. A host ALREADY connected
+ * is not: MCP has no `instructions_changed`, and its tool list is re-read on
+ * `list_changed` while its instructions stay what `initialize` said. That is
+ * the wire's limit and it is written down here rather than hidden — the same
+ * RECONNECT-PER-ROSTER-CHANGE contract `Surfaces` documents for a socket
+ * (`@olai/plugin-api`'s `services.ts`). The alternative, `reroster` carrying a
+ * new text, would have re-composed a value nobody could be sent.
+ *
+ * THE COMPOSED WHOLE STAYS UNDER 2000 BYTES with every row standing, and
+ * `@olai/server`'s `profiles.test.ts` holds the boundary over the full bundle.
+ * Claude Code truncates server instructions at 2 KB — silently, so an overrun
+ * would cut the last row's paragraph mid-sentence and nobody would see it —
+ * and bills the text on every turn, so what is spent here is spent per message
+ * for the life of a session. That is why nothing here names `/today`, a pin,
+ * a mark or a search operator: each is a plugin's, taught at the point of use
+ * by the tool that owns it (`outlines_index` carries the pin grammar), and a
+ * sentence here about it would be spent on every turn and sometimes false.
+ *
+ * WHO READS IT: Codex and Claude Code honour `instructions`. opencode fetches
+ * it and drops it (anomalyco/opencode#7373), so an agent there is exactly as
+ * untaught as before — a known gap, recorded in `docs/plugins/mcp.md`, and not
+ * one this row can close from its side of the wire. pi is unverified.
  */
 const INSTRUCTIONS =
   "olai serves a directory of outlines and the documents beside them. Everything here " +
@@ -167,7 +221,22 @@ const INSTRUCTIONS =
   "removes a document or an emptied outline — guarded, and not to be put back, so a " +
   "path you are not sure of is a refusal you want. There is no filesystem under this " +
   "— no shell, no grep, no path outside the served directory, and no way to name part " +
-  "of a file — and that is deliberate."
+  "of a file — and that is deliberate.\n\n" +
+  "An address is the app's own — there is no host or port to know: `/#<id>` names a " +
+  "node wherever it lives, `/<path>` a document or an outline, `/<path>#<element>` a " +
+  "row of that outline or a heading of that document. A tool's `at` (`#a1b2c3`, " +
+  "`notes/plan.md`) is the same address without the leading `/`. Tools are named " +
+  "`<row>_<verb>`; a row that is off has no verbs here, and a verb you do not see is " +
+  "simply not available."
+
+/**
+ * THE WHOLE TEXT A HOST IS HANDED — this row's paragraphs, then every standing
+ * row's own, in roster order. Composed per call for the reason `bundle()` is:
+ * the roster it describes moves. Exported for the bench that reads it beside
+ * the served answer; the face itself reads it through {@link FaceOptions.rows}.
+ */
+export const instructionsFor = (rows: ReadonlyArray<Row>): string =>
+  [INSTRUCTIONS, ...rows.map(row => row.charter).filter((one): one is string => one !== undefined && one !== "")].join("\n\n")
 
 /**
  * THE ROOT OF THE BUNDLE — core's own surface, granting an agent NOTHING.
@@ -244,6 +313,18 @@ export interface FaceOptions {
    * it is a function.
    */
   readonly client: () => ClientOrConnection | Promise<ClientOrConnection>
+  /**
+   * THE STANDING ROSTER, read per `initialize` for the charter sentences.
+   *
+   * A thunk, and the same one the caller built `siblings` from: the adapter
+   * calls it on each host connection (`instructions` is a function to it),
+   * so a host that dials after a roster move is told the roster `siblings`
+   * has by then been rerostered to. The two are handed separately rather
+   * than this face building the bundle from `rows` itself because the bundle
+   * needs the bespoke-tool policy and this reading needs nothing but the
+   * rows; a bench passes the same `rows()` to both.
+   */
+  readonly rows: () => ReadonlyArray<Row>
   /** Where the protocol goes. The HTTP route in the binary, an
    *  `InMemoryTransport` half in a test. Injectable is the whole reason a
    *  test can read this face without a listener. */
@@ -282,7 +363,7 @@ export const serveFace = (
         surfaces: options.siblings,
         client: options.client,
         serverInfo: SERVER_INFO,
-        instructions: INSTRUCTIONS,
+        instructions: () => instructionsFor(options.rows()),
         ...(options.transport === undefined ? {} : { transport: options.transport }),
       })
     ),

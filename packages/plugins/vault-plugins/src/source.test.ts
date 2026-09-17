@@ -4,7 +4,7 @@
  * A reading is a function of a revision, so every claim here is made against a
  * vault written out as text and nothing else: no host, no compiler, no mount.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { TRASH_FILE } from "@olai/format"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import { describe, expect, test } from "bun:test"
@@ -176,7 +176,7 @@ describe("a node that was put away is not a definition", () => {
   test("moved to `_olai/Trash.olai` is gone", () => {
     expect(
       definedIn(
-        readingOfVault(new Map([[TRASH_FILE, records]])).derived,
+        readingOfVault(new Map([[TRASH_FILE(TEST_CLAIMS, "outline-olai")!, records]])).derived,
         NOTHING_BUILT,
       ),
     ).toEqual([])
@@ -187,7 +187,7 @@ describe("a node that was put away is not a definition", () => {
       readingOfVault(
         new Map([
           ["plugins.olai", records],
-          [TRASH_FILE, [
+          [TRASH_FILE(TEST_CLAIMS, "outline-olai")!, [
             `{"id":"q","ord":"a0","title":"Put away","custom":{"plugin":"swatch"}}`,
             `{"id":"t","ord":"a0","parent":"q","title":"server.ts","desc":"export default 2"}`,
           ].join("\n")],

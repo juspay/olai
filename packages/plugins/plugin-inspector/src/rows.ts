@@ -1,4 +1,3 @@
-import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 /** Pure readings of the roster, independent of this tab's mounted controls.
  * The panel walks the build: no plugin names or configuration keys belong here.
  * Enablement is visible in the switch. Only failures and waits add a reason;
@@ -7,7 +6,7 @@ import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/co
  * Drafts and pending requests belong to the mounted controls, while section
  * state belongs to the inspector activation. Neither is another policy store.
  */
-
+import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import type { RowReport } from "@olai/plugin-api"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
@@ -196,10 +195,28 @@ export type PluginGroup = {
   readonly rows: ReadonlyArray<BuiltPlugin>
 }
 
+/**
+ * DOES THIS ROW STOP WITHOUT A PERSON?
+ *
+ * Three arms the ROSTER answers — a serve that failed, is still settling, or
+ * cannot start for want of a door nobody offers — and the browser's own reports
+ * beside them (the serve can be perfectly healthy while the half that draws in
+ * this tab failed or waits).
+ *
+ * ...and ONE ARM ONLY THE ROW'S OWN PLUGIN CAN ANSWER, which is why this takes
+ * a reader rather than reading a table: some plugins are running, faultless and
+ * still of no use until somebody does something only that plugin knows about —
+ * a mail row with no account connected is the case the slot was minted for. The
+ * reader is a PARAMETER and never a module variable, so this file stays a
+ * function of what the panel handed it, and a caller with no faces at all (a
+ * test, a tab that hung none) asks nothing.
+ */
 const needsYou = (
   plugin: BuiltPlugin,
   reports: ReadonlyMap<string, RowReport>,
+  needs: (plugin: string) => boolean,
 ): boolean => {
+  if (needs(plugin.name)) return true
   const state = pluginState(plugin)
   if (state === "failed" || state === "pending" || state === "waiting") return true
   for (const [name, report] of reports) {
@@ -215,22 +232,36 @@ const sectionOf = (plugin: BuiltPlugin, look: PluginLook): string =>
 /**
  * THE PANEL'S WALK, grouped.
  *
- * Needs-you first (failed, pending, waiting, a browser that failed or waits).
- * Then YAML sections in roster order. Vault-defined rows that are not in
- * Needs you sit in {@link THIS_VAULT}, after the built-in catalogue, because
- * that is where they arrive on the cell.
+ * Needs-you first (failed, pending, waiting, a browser that failed or waits, or
+ * a row whose own plugin says it needs a person — {@link needsYou}). Then YAML
+ * sections in roster order. Vault-defined rows that are not in Needs you sit in
+ * {@link THIS_VAULT}, after the built-in catalogue, because that is where they
+ * arrive on the cell.
  *
  * A group of only `optIn` rows is hidden — fixtures nobody asked for. A quiet
  * group whose every row is running and silent starts collapsed.
+ *
+ * `needs` is the panel's reader over the faces its rows hung
+ * (`olai-plugin-plugin-inspector`'s `plugins.row`), passed in rather than
+ * reached for: this file is a function of the roster, the look and the reports,
+ * a build with no faces is the default answer below, and nothing here has ever
+ * heard of a renderer.
  */
 export const pluginGroups = (
   roster: PluginRoster,
   look: (name: string) => PluginLook,
   reports: ReadonlyMap<string, RowReport> = new Map(),
+  needs: (plugin: string) => boolean = () => false,
 ): ReadonlyArray<PluginGroup> => {
   const rows = pluginRows(roster)
-  const attention = rows.filter((plugin) => needsYou(plugin, reports))
-  const rest = rows.filter((plugin) => !needsYou(plugin, reports))
+  // ONE PASS, so each row is asked once whether it needs a person. Two filters
+  // asking the same question took two answers from `needs`, which is LIVE state
+  // the row's own plugin holds (`olai-plugin-plugin-inspector`'s `plugins.row`):
+  // a face that answered differently between the passes would put its row in
+  // both groups, or in neither.
+  const attention: BuiltPlugin[] = []
+  const rest: BuiltPlugin[] = []
+  for (const plugin of rows) (needsYou(plugin, reports, needs) ? attention : rest).push(plugin)
   const groups: PluginGroup[] = []
   if (attention.length > 0) {
     groups.push({ label: NEEDS_YOU, needs: true, collapsed: false, rows: attention })

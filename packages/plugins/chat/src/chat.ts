@@ -88,6 +88,7 @@
  *     landed — so the whole path from browser to agent stays a string, and the
  *     one place that knows otherwise is the module that owns that directory.
  */
+import type { Advertised } from "@olai/plugin-api/services"
 
 import { type AgentChoice, type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
 import { type OpFailure } from "@olai/format"
@@ -102,14 +103,15 @@ import type { Installed } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import * as Deliveries from "./deliveries.ts"
-import type { AgentEvent } from "./events.ts"
+import type { AgentEvent, Stored } from "./events.ts"
 import { lastSaid } from "./heard.ts"
 import * as Listings from "./listings.ts"
+import type { Models } from "./models.ts"
 import * as Memory from "./memory.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
-import type { Fault, Faulted, Scoped, Scopes } from "./scopes.ts"
+import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
@@ -123,13 +125,14 @@ export interface WakeScope {
   readonly current: () => boolean
   readonly agent: string
   readonly session: string
-  readonly file: string
-  readonly under?: string
+  readonly pick: import("./json.ts").Json
 }
 
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */
 export interface PanelOptions {
+  /** A scheduler may lend an already-running engine for a directory listing. */
+  readonly runningSessions?: (agent: string) => Effect.Effect<ReadonlyArray<Stored>, AcpAgent.AgentGone> | null
   /**
    * Which agents this machine has, already detected
    * ({@link ./agents/roster.ts}). Detecting them is the caller's move — it is
@@ -199,6 +202,7 @@ export interface PanelOptions {
   /** This directory's remembered conversation. The scheduler supplies one
    * shared instance so it can route boot before any panel starts; a standalone
    * panel builds the ordinary state-home implementation itself. */
+  readonly models?: Models
   readonly memory?: Memory.Memory
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
@@ -211,6 +215,7 @@ export interface PanelOptions {
    *  whose integrations are fibers answers a different list per conversation, so
    *  this side holds no copy of one. Omitting it is a chat that asks this
    *  machine nothing. */
+  readonly advertised?: (server: string, tool: string) => Advertised | null
   readonly probes?: () => Effect.Effect<ReadonlyArray<Probe>>
   /**
    * WHERE THE DOORBELL PICKS ARE KEPT — which conversations somebody pointed a
@@ -360,14 +365,18 @@ export interface Panel {
    */
   readonly assigned: (to: Conversing) => Effect.Effect<void>
   /**
-   * ... and OLAI REPLACED ONE WITH ANOTHER — write down which conversation took
-   * this one's place, for the *fresh session* affordance.
+   * ... and OLAI REPLACED ONE WITH ANOTHER — write down WHICH conversation took
+   * this one's place, as the full `{agent, session}` pair, for the *fresh
+   * session* affordance. Fresh start may hand the node to another engine, so
+   * the pair is what the successor is named by: an id with no engine could
+   * not say whose.
    *
    * Same shape and same silence as {@link Panel.assigned}, and what a lost write
-   * costs here is one old session appearing under Unassigned as a conversation
-   * nobody claims, which somebody can see and nothing acts on.
+   * costs here is one old session coming back as a conversation nobody claims
+   * — re-filed into Chats and offered back to the node that had just left it,
+   * which somebody can see and nothing acts on.
    */
-  readonly replaced: (to: Conversing, by: string) => Effect.Effect<void>
+  readonly replaced: (to: Conversing, by: Conversing) => Effect.Effect<void>
   /**
    * THE SET MOVED — ask {@link PanelOptions.agentAt} again, and publish if the
    * answer changed.
@@ -452,6 +461,7 @@ export interface Panel {
    *  refuses, because the answer is PARTIAL rather than absent when one agent
    *  is broken: its conversations are missing and it is named, and the other's
    *  are still on the screen. */
+  readonly liveSessions: (agent: string) => Effect.Effect<ReadonlyArray<Stored>, AcpAgent.AgentGone> | null
   readonly sessions: Effect.Effect<Listed>
   /** Answer the question `id`, or — with `null` — decline it. Both refuse if
    *  that question has stopped waiting, which is a thing two open tabs can
@@ -488,26 +498,11 @@ export interface Panel {
    * second place a plugin roster had to be kept.
    */
   readonly doorFor: (plugin: string) => {
-    /**
-     * The conversations THIS plugin's doorbell was pointed at, each with the
-     * file a person picked. SYNCHRONOUS, because the blob it feeds is built in
-     * a plain `.map` and read from a watcher sink with no Effect around it.
-     *
-     * A ROW WHOSE DOORBELL CANNOT WATCH WHAT IT NAMES IS NOT ON THIS LIST
-     * ({@link Panel.faults}) — the file is gone, or it is served and is not a
-     * kind this plugin reads — and that omission is the boundary between the
-     * two things a quiet conversation can mean, kept by construction rather
-     * than by care. There is nothing to derive and nothing to ring about; and
-     * anything else a plugin does per scope — a heartbeat saying it is alive and the subject is
-     * quiet, most of all — must not fire for a conversation whose scope is
-     * broken, because "alive and quiet" and "watching nothing" are the two
-     * sentences this whole feature exists to keep apart. Neither end has to
-     * remember that: the row is simply not here.
-     */
+    /** This plugin's opaque picks, with authority for the exact stored choice. */
     readonly scopes: () => ReadonlyArray<WakeScope>
     /** Which scopes hear a claim at one node. A single panel has only manual
      * whole-file scopes; the scheduler above adds nearest-node precedence. */
-    readonly ringing: (file: string, node: string) => ReadonlyArray<WakeScope>
+
     /**
      * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION.
      *
@@ -541,87 +536,11 @@ export interface Panel {
   readonly scope: (
     to: { readonly agent: string; readonly session: string },
     plugin: string,
-    file: string | null,
+    pick: import("./json.ts").Json,
   ) => Effect.Effect<ReadonlyArray<Scoped>, OpFailure>
   /** Refresh this panel after the shared picks changed, dropping deliveries
    * for every replaced, cleared or evicted pick. */
   readonly refreshWakes: (left: ReadonlyArray<Scoped>) => void
-  /**
-   * WHICH SCOPED FILES A DOORBELL CAN STILL WATCH — asked of every published
-   * revision, and answered with the conversations whose doorbell JUST BROKE.
-   *
-   * ## The defect this exists to make impossible
-   *
-   * A person scopes a conversation to `lanes.olai`. Somebody renames the file.
-   * The doorbell derives per revision and walks a file that is not there, so it
-   * derives nothing — forever — while the strip goes on drawing the control as
-   * ON. Nothing is wrong anywhere a person can see, and the conversation is
-   * silent in exactly the way a conversation with nothing to report is silent.
-   * QUIET-AND-FINE AND QUIET-BECAUSE-BROKEN MUST NOT LOOK ALIKE, and after the
-   * hand-run fleet watch is retired this is the only thing standing between
-   * them.
-   *
-   * ## THE SECOND WAY IN, and it is the same silence by a different door
-   *
-   * The file is right there and is not something that doorbell can read: a
-   * `.md` under a wake that derives its set from a file's NODES. The picker
-   * offered every served file until the kinds were declared
-   * (`@olai/plugin-api`'s `PluginServerHalf.wake.kinds`), so this is a state a
-   * record on disk can be in and a gesture cannot reach any more — and a
-   * picker-only fix would have left it exactly as silent as the rename was.
-   * Same walk, same one signal, same row off the plugin's door; a different
-   * cause and therefore a different sentence.
-   *
-   * ## WHO DETECTS AND WHO SPEAKS
-   *
-   * Core detects, because core owns both halves of both questions: the served
-   * set is a fact about the vault, WHICH KINDS a doorbell can watch is a
-   * declaration its plugin handed the composition root, and the pick is a row
-   * in this package's own record. Core says NOTHING, because a sentence about
-   * somebody's terminals is a sentence core may not compose — what goes into
-   * the conversation is the string the plugin DECLARED for that cause
-   * (`@olai/plugin-api`'s `PluginServerHalf.wake.faults`),
-   * carried verbatim through the door {@link Panel.doorFor} already hands out.
-   * This member is the join between those two and composes nothing itself.
-   *
-   * ## A JUDGEMENT rather than the paths that went missing
-   *
-   * The caller holds a revision and can answer "can this doorbell watch this
-   * path" in a binary search plus a lookup; it cannot hand over a list of what
-   * broke without either a second member here or a walk of the whole directory
-   * per revision. The picks are the small side — at most a few dozen — so the
-   * walk is over them and the judgement comes in. That is `@olai/format`'s
-   * `conventions.ts` argument, spent here for its reason rather than copied.
-   *
-   * ## Exactly once, and quiet on the way back
-   *
-   * What comes back is the fine→faulted edge only ({@link ./scopes.ts}'s
-   * `Scoped.fault`): a second revision with the same fault standing answers
-   * with nothing, and a restart with the mark already on the record answers
-   * with nothing, so a rename is one sentence rather than one per revision or
-   * one per boot. A file that COMES RIGHT unmarks the row, the plugin's door
-   * starts listing it again, and nobody is told — one signal per fault, and the
-   * strip is where the recovery shows.
-   *
-   * ## It cannot fail, because nobody is standing at the screen
-   *
-   * The caller is a revision connector, not a gesture. A record that will not
-   * take the mark is one warning and no rows — the discipline the boot read
-   * keeps ({@link ./scopes.ts}) and the exact opposite of {@link Panel.scope},
-   * which refuses because somebody is waiting to hear whether their pick stuck.
-   * Nothing is marked when the write fails, so the same edge is still there for
-   * the next revision to find.
-   */
-  readonly faults: (
-    /** What is wrong with one row's file for one row's doorbell — the served
-     *  set and the plugin's declared kinds, asked as one question, answered
-     *  `null` for the file that doorbell can watch. */
-    judge: (plugin: string, file: string) => Fault | null,
-    /** Whether a fault on this plugin's row can be SAID. A row nobody can be
-     *  told about is left unmarked, so the one signal is not spent by a serve
-     *  that has no doorbell to lose. */
-    sayable: (plugin: string) => boolean,
-  ) => Effect.Effect<ReadonlyArray<Faulted & { readonly current: () => boolean }>>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
   readonly recordRefusal: (
@@ -654,9 +573,9 @@ const sameWake = (
     const was = b[at]
     return was !== undefined
       && row.name === was.name
-      && row.file === was.file
+      && JSON.stringify(row.pick) === JSON.stringify(was.pick)
       && row.waiting === was.waiting
-      && row.fault === was.fault
+
   })
 /**
  * How long an agent may say NOTHING after a cancel before the panel says so.
@@ -804,7 +723,7 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
  * that the turn was over, and nothing came back — which is what an agent that
  * cannot reach a model looks like from the other side of a pipe, and there is
  * no frame anywhere that says so out loud. The sentence a person meets is
- * asserted where they would meet it (`features/choosing_an_agent.feature`,
+ * asserted where they would meet it (`packages/plugins/chat/e2e/features/choosing_an_agent.feature`,
  * against a scripted agent that answers exactly the way opencode does with no
  * key).
  *
@@ -864,11 +783,10 @@ const assignLost = (failure: Memory.MemoryFailure): string =>
   `a chat was assigned to a node agent and that it was ASSIGNED could not be written down ` +
   `(${failure.why}) — the pointer landed, and the session will be taught the ordinary ` +
   `contract rather than the one that asks it to bank what it knows`
-
 const replaceLost = (failure: Memory.MemoryFailure): string =>
   `a node agent was given a fresh session and what it replaced could not be written down ` +
-  `(${failure.why}) — the new session is bound, and the old one will show under Unassigned ` +
-  `as a conversation no node claims`
+  `(${failure.why}) — the new session is bound, and the old one comes back as a chat ` +
+  `no node claims, re-filed into Chats`
 
 export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, never> =>
   Effect.gen(function*() {
@@ -902,7 +820,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     // build with no engine rows is a note that resolves to nothing, which is a
     // chat that was never built.
     const memory = options.memory
-      ?? Memory.forLocalState(ephemeralLocalState(), options.engines()[0] ?? "")
+      ?? Memory.volatile()
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is
@@ -920,7 +838,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         cwd: options.cwd,
         tools: options.tools,
         probes: options.probes,
+        advertised: options.advertised,
         memory,
+        models: options.models,
         onEvent,
       }).pipe(Effect.annotateLogs({ ...logContext, purpose }))
 
@@ -1051,7 +971,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     let state: ChatState = {
       ...CHAT_OFF,
       uploadScope: files.scope(),
-      status: "booting",
+      status: "idle",
+      talking: { kind: "asking" },
       roster: options.roster().map(said),
     }
     /** The agent this panel is talking to and the row it came from, or `null`
@@ -1166,7 +1087,37 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  whole, when the turn ended. */
     const publish = (change: Change) => {
       if (!says(change)) return
+      if (replaying) return
       options.onTranscript(change)
+    }
+
+    /**
+     * WHETHER A REPLAY IS BEING HELD — and a replay is published ONCE, when it
+     * has arrived, rather than as it arrives.
+     *
+     * A `session/load` re-sends the whole conversation before it answers
+     * ({@link ./agent.ts}), and published as it came, every tab drew that
+     * history a few rows a frame: a long conversation typed itself out again
+     * and the pane followed it down the screen for seconds. Nobody is reading a
+     * conversation that has not finished opening, so the rows are built here
+     * and handed over whole at `replayEnded`, which is one frame for every
+     * reader — the shape a tab that joins afterwards already gets from its
+     * snapshot.
+     *
+     * The CLEAR that starts a replay is not held: the conversation being left
+     * goes at once, and what is held is only what replaces it. So the change
+     * that ends the hold is every row there is and no removes — nothing was
+     * published since the transcript was empty. Whatever else lands in
+     * between (a `gone` and its notice, a settle) is in the transcript by then
+     * and goes out with it.
+     *
+     * `replayEnded` is emitted on EVERY way out of a load — answered, refused,
+     * or the agent dying mid-replay — so a hold cannot outlive its load.
+     */
+    let replaying = false
+    const landed = (): void => {
+      replaying = false
+      publish({ upserts: [...transcript.entries()], removes: [], appends: [] })
     }
 
     const move = (next: Partial<ChatState>) => {
@@ -1482,16 +1433,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // ({@link ../../surface/src/index.ts}).
         .map((row) => ({
           name: row.plugin,
-          file: row.file,
+          pick: row.pick,
           waiting: counted.get(row.plugin) ?? 0,
-          // THE FAULT TRAVELS, AND SO DOES ITS CAUSE, so the control can stop
-          // drawing as enabled and can say which of the two things happened
-          // ({@link Panel.faults}). NULLABLE on the wire where the record carries
-          // the word-or-absent: the wire is a decoded value a browser reads per
-          // frame, and an optional key there would be one more state for a face
-          // to have an opinion about. The two unions are held equal by this
-          // line and by the type checker rather than by a shared literal.
-          fault: row.fault ?? null,
+
         }))
     }
 
@@ -1529,7 +1473,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             detail: event.detail,
             progress: event.progress,
             diffs: event.diffs,
-            wrote: event.wrote,
+            called: event.called,
+            row: event.row,
+            reply: event.reply,
             locations: event.locations,
             parent: event.parent,
             spawned: event.spawned,
@@ -1711,6 +1657,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           return
         case "replayStarted":
           publish(transcript.clear())
+          replaying = true
           watched()
           // Emptying the rows is one of the three things that can change how
           // many questions are open, so it is one of the three that recounts.
@@ -1721,7 +1668,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           move({ asking: asking() })
           return
         case "replayEnded":
-          publish(transcript.settle())
+          transcript.settle()
+          landed()
           // ... and the strip with it, for the reason the two turn boundaries
           // below recount: settling STRANDS, an agent is strandable where a
           // background task is not, and a replayed conversation whose last turn
@@ -2022,7 +1970,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       roster: options.roster,
       running: (row) => {
         const at = talking
-        return at !== null && at.row.id === row.id ? at.agent.sessions : null
+        return at !== null && at.row.id === row.id ? at.agent.sessions : options.runningSessions?.(row.id) ?? null
       },
       // UNDER {@link binding}, the permit that says one agent is bound at a
       // time — because this is the other place a subprocess is started, and a
@@ -2056,6 +2004,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // whose list this panel is changing.
             return { stored: yield* at.agent.sessions, keep: false }
           }
+          const borrowed = options.runningSessions?.(row.id)
+          if (borrowed != null) return { stored: yield* borrowed, keep: false }
           const probe = yield* spawn(row, () => {}, "session list")
           // STOPPED whichever way the question went, INTERRUPTION included. A
           // probe left running is the same stray process one line up, arrived
@@ -3103,7 +3053,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // ... AND WHOSE CONVERSATION IT WAS, which is the way OUT of this face
         // and used to be dropped exactly here. A node agent's *fresh session*
         // is drawn only where the header knows the node
-        // ({@link ./browser/chat/NodeSessions.tsx}), the node is `bound`, and
+        // ({@link ./browser/agents/History.tsx}), the node is `bound`, and
         // `bound` was written only where a conversation OPENED — so the one
         // face that needs the way out was the one face with no node on it. The
         // gesture is unchanged and so is its warning: what changes is that it
@@ -3237,6 +3187,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
     const stopWithReason = (reason: AcpAgent.StopReason) => Effect.gen(function*() {
       closing = true
+      // End the transport before joining work which may be waiting on it.
+      const at = talking
+      talking = null
+      if (at !== null) yield* at.agent.stopWithReason(reason)
       // EVERY turn, not the newest ({@link ./turns.ts}).
       const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
       for (const fiber of running) yield* Fiber.interrupt(fiber)
@@ -3250,9 +3204,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       const alongside = [...beside]
       beside.clear()
       for (const fiber of alongside) yield* Fiber.interrupt(fiber)
-      const at = talking
-      talking = null
-      if (at !== null) yield* at.agent.stopWithReason(reason)
       // Registered as a finalizer of the serve scope, so this is also what
       // takes the pasted pictures with the server when it shuts down. Behind
       // the same permit as everything else that touches the directory: a
@@ -3275,8 +3226,27 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // way everything else in this record is: behind a gesture that has
       // already been answered, logging what it could not write rather than
       // taking the gesture away from somebody ({@link ./sessions.ts}).
-      assigned: (to) => noting(options.overheard?.assign(to), assignLost),
-      replaced: (to, by) => noting(options.overheard?.supersede(to, by), replaceLost),
+      assigned: (to) => Effect.gen(function*() {
+        if (options.overheard?.at(to)?.wakesCleared === true) return
+        // Filing gives a conversation a new, asleep home. Old manual wake
+        // picks are not authority to wake that new node (or its trash).
+        for (const row of options.scoping?.rows() ?? []) {
+          if (row.agent !== to.agent || row.session !== to.session) continue
+          const cleared = yield* Effect.result(options.scoping!.set(to, row.plugin, null))
+          if (cleared._tag === "Failure") { yield* Effect.logWarning(cleared.failure.message); return }
+        }
+        yield* noting(options.overheard?.assign(to, true), assignLost)
+      }),
+      // THE REPLACED ENGINE'S CACHED LISTING IS STALE NOW, and nothing else
+      // will invalidate it: a fresh start on a node that already had one never
+      // switches `talking` (the seat opens the new conversation in the slot
+      // already running the node's engine), so the agent whose session this
+      // just stopped being current would serve its old rows for up to fifteen
+      // seconds. Forget it here so the next listing re-asks.
+      replaced: (to, by) => Effect.gen(function*() {
+        listings.forget(to.agent)
+        yield* noting(options.overheard?.supersede(to, by), replaceLost)
+      }),
       // THE SET'S ANSWER, ASKED AGAIN. `move` is what publishes, and it is
       // guarded on the value rather than called unconditionally: this runs per
       // revision, the state cell is what the whole panel redraws from, and a
@@ -3364,6 +3334,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // a listing comes through, so the migration list, the panel's *past
       // sessions* and the picker's own superseded line cannot come to disagree
       // about which conversations a node agent has had.
+      liveSessions: (agent) => talking !== null && talking.row.id === agent ? talking.agent.sessions : null,
       sessions: Effect.map(
         listings.all,
         (listed) => succeeded(listed, options.overheard?.rows() ?? []),
@@ -3387,21 +3358,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       doorFor: (plugin) => {
         const scopes = (): ReadonlyArray<WakeScope> =>
           (options.scoping?.rows() ?? [])
-            // ... AND NOT A ROW THAT IS NOT BEING WATCHED. There is nothing to watch,
-            // so there is nothing for this plugin to derive — and everything a
-            // plugin does PER SCOPE stops with it, which is the point: a
-            // heartbeat that fired for a broken scope would be the panel saying
-            // "alive and quiet" about a doorbell that is watching nothing. The
-            // filter is how those two are kept apart by construction rather
-            // than by every caller remembering ({@link Panel.faults}).
-            .filter((row) => row.plugin === plugin && row.fault === undefined)
+            .filter((row) => row.plugin === plugin)
             // The `plugin` column goes on the way out: a door is already
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
             .map((row) => options.scoping!.recipient(row))
         return {
           scopes,
-          ringing: (file) => scopes().filter((scope) => scope.file === file),
           deliver: (to, say, how) => deliverTo(to, say, plugin, how),
         }
       },
@@ -3426,7 +3389,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
        * draws next comes through the one publisher every other chat verb
        * publishes through.
        */
-      scope: (to, plugin, file) =>
+      scope: (to, plugin, pick) =>
         Effect.gen(function*() {
           const scoping = options.scoping ?? null
           if (scoping === null) {
@@ -3454,7 +3417,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // A failed write preserves the choice and costs only a re-derivation.
           held.dropped(to, plugin)
           const left = yield* Effect.mapError(
-            scoping.set(to, plugin, file),
+            scoping.set(to, plugin, pick),
             (failure) => new BusyFailure({ reason: failure.why }),
           )
           // ... AND SO DOES A WRITE THAT PUSHED SOMEBODY ELSE OUT. The cap
@@ -3467,52 +3430,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           move({ wake: wakeOf() })
           return left
         }),
-      /**
-       * A revision, judged against the picks. See {@link Panel.faults} for what
-       * it is for; what is here is the three things this package owns about it.
-       *
-       * IT ANSWERS EMPTY FOR A PANEL WITH NO SCOPE TABLE, rather than refusing:
-       * a serve composed without plugins has no picks to break, and a caller
-       * driving this off every revision has nowhere to put a refusal for a
-       * question that was never applicable.
-       *
-       * A WRITE THAT FAILS IS A WARNING AND NO ROWS. Nobody is standing at the
-       * screen — this is a revision and not a gesture — so it takes the boot
-       * read's arm and not {@link Panel.scope}'s. Nothing is marked when the
-       * write fails ({@link ./scopes.ts}), so the same edge is still there next
-       * revision and the only cost is a delay.
-       *
-       * ...AND THE STRIP IS REPUBLISHED, through the one publisher every other
-       * chat verb publishes through: {@link wakeOf} reads the same rows this
-       * just marked, so the control stops drawing as enabled in the same frame
-       * the sentence goes out. Unconditionally, and not only when something
-       * fell — a HEALED row moves the cell too, and it is the arm with nothing
-       * else to announce it.
-       */
-      faults: (served, sayable) =>
-        Effect.gen(function*() {
-          const scoping = options.scoping ?? null
-          if (scoping === null) return []
-          const fell = yield* Effect.result(scoping.faults(served, sayable))
-          if (fell._tag === "Failure") {
-            yield* Effect.logWarning(
-              `a doorbell's file is no longer served and the record would not take the mark ` +
-                `(${fell.failure.why}) — the conversation is not told yet, and the next ` +
-                `revision tries again`,
-            )
-            return []
-          }
-          // ONLY WHEN THE ROWS ACTUALLY MOVED, and this guard is not an economy.
-          // This runs on EVERY published revision — every keystroke somebody
-          // saves anywhere in the vault — and the chat cell declares no
-          // `equals`, so an unconditional `move` here would ship a whole
-          // `ChatState` (roster, commands, servers, usage, watching, wake) to
-          // every open tab on every revision, for a value that is the same
-          // value. `watched()` above keeps the same discipline for the same
-          // reason.
-          if (!sameWake(wakeOf(), state.wake)) move({ wake: wakeOf() })
-          return fell.success.map((row) => ({ ...row, ...scoping.recipient(row) }))
-        }),
+
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
           publish(transcript.refuse(`\`${tool}\` was refused`, failure))

@@ -1,10 +1,3 @@
-import { location as slotContract } from "@olai/plugin-api"
-import { afterEach, expect, test } from "bun:test"
-import { definePlugin, Offers, serviceTag, Slots, Wired, locations, location, slotFacade, slotLocation } from "@olai/plugin-api"
-import type { SlotDefinition } from "@olai/plugin-api/slots"
-import { Effect } from "effect"
-import { app, browserReports, composeTo as compose } from "./runtime.ts"
-
 /**
  * THE HOST, NOT THE FURNITURE — and so the two slot names this bench needs are
  * its own.
@@ -27,6 +20,12 @@ import { app, browserReports, composeTo as compose } from "./runtime.ts"
  * `JSX.Element` here would put a UI runtime on the graph of a test about
  * fibers.
  */
+import { location as slotContract } from "@olai/plugin-api"
+import { afterEach, expect, test } from "bun:test"
+import { definePlugin, Offers, serviceTag, Slots, Wired, locations, location, slotFacade, slotLocation } from "@olai/plugin-api"
+import type { SlotDefinition } from "@olai/plugin-api/slots"
+import { Effect } from "effect"
+import { app, browserReports, composeTo as compose } from "./runtime.ts"
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions {
     "bench.seat": SlotDefinition<() => string, "app">

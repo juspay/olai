@@ -1,4 +1,3 @@
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE VOCABULARY FOLLOWS THE FIBERS — the loader surface's other half, benched
  * where the join is made.
@@ -32,8 +31,7 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * composition root's `store.refresh("verified")` and is proved end to end, where
  * a person presses the switch and the values change under them.
  */
-
-
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import type { PropKind } from "@olai/plugin-api"
 import {
   definePlugin,

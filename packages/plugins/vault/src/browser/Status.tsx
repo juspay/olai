@@ -1,3 +1,6 @@
+/** The served directory is HANDED IN by the component that declared
+ *  `vault.files`, rather than read out of a module signal this row's other
+ *  activation happened to have set (`./state.ts`). */
 import { Show } from "solid-js"
 import { NOTHING_WRONG } from "@olai/format"
 import { client } from "../client.ts"
@@ -5,9 +8,6 @@ import { Page } from "./errors/Page.tsx"
 import { Banner } from "./errors/Banner.tsx"
 import { troubleIn } from "./errors/banner.ts"
 import type { Directory } from "./state.ts"
-/** The served directory is HANDED IN by the component that declared
- *  `vault.files`, rather than read out of a module signal this row's other
- *  activation happened to have set (`./state.ts`). */
 export function Status(props: { readonly served: Directory }) {
  const errors=client().cells.errors.use()
  const problems=()=>errors.value()??NOTHING_WRONG

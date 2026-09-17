@@ -1,22 +1,6 @@
-/**
- * ONE STORED CONVERSATION, as a row — the same row wherever conversations are
- * listed.
- *
- * There is one list of stored conversations in this app now: the chats no node
- * claims (`../agents/Unassigned.tsx`), with a node agent's own past sessions
- * ({@link ./NodeSessions.tsx}) as the one other place a row of this kind is
- * drawn. Both draw the same four facts — what the conversation is called, how
- * big it is, when it was last touched, and which conversation replaced it — so
- * both draw them through here.
- *
- * It was the session picker's own `Row`, and it moved out for the reason it was
- * extracted from that component in the first place, one altitude up: the second
- * list would otherwise have been a second idea of what a conversation row says,
- * and the one a person met second would be the one that looked wrong.
- *
- * It takes what it draws and what to do about a click, and knows nothing about
- * groups, lists or agents.
- */
+/** A row in a node agent's past-session list: title, available count and date,
+ * replacement link, selection and the caller's open gesture. The list itself
+ * belongs to the fold/page history line. */
 
 import { Show } from "solid-js"
 

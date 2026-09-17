@@ -105,7 +105,7 @@ export const createArrival = <T>(what: string, fetch: () => Promise<T>): Arrival
    * which is a loop, and it would be one per caller rather than one here.
    *
    * That it behaves that way from inside a real computation is held where it
-   * can be: `features/menu_arrives.feature`'s third scenario reads this from a
+   * can be: `packages/plugins/outlines/e2e/features/menu_arrives.feature`'s third scenario reads this from a
    * `<Show>` in a browser, holds the chunk up, and lands it — the panel
    * appearing IS the memo re-running. A unit test cannot say it, because
    * `bun test` resolves Solid's server build, where a memo is computed once

@@ -36,7 +36,7 @@
  * is a question about the set, so it is answerable with a value and testable
  * without a server, an agent or a socket.
  */
-
+import { isTrashed } from "@olai/format"
 import {
   isMirror,
   type LocatedRegular,
@@ -89,5 +89,5 @@ const nodeContextFor = (
     at.derived,
     located as LocatedRegular,
   )
-  return Result.succeed({ id: found, title, file, line, path })
+  return Result.succeed({ id: found, title, file, line, path, ...(isTrashed(at.claims, file) ? { trashed: true } : {}) })
 }

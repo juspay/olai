@@ -43,8 +43,8 @@
  * because the door has to say how full the file is while somebody is
  * somewhere else.
  */
-
-import { Schema } from "effect"
+import { mintExt, type Claims } from "./kinds.ts"
+import { Result, Schema } from "effect"
 
 import { type Derived, nodesOf, unfinishedWork } from "./derive.ts"
 import { INBOX, inboxIn, isRegular, mintedInto } from "./node.ts"
@@ -91,9 +91,9 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
  * THE FILE is found the way the capture is (`inboxIn` over
  * {@link outlinePaths}), not over `derived.byFile`. `byFile` is a grouping of
  * parsed records: an empty outline and a torn one have no entry, so a
- * shallowest empty `Inbox.olai` beside a populated `_olai/Inbox.olai` would
- * send the door and every future capture to the empty file and the count to
- * the deeper one. The set's paths are the list capture already walks.
+ * matching empty or torn inbox must still participate in convention lookup.
+ * Two matches directly under `_olai/` have no winner, even when only one
+ * holds records. The set's paths are the list capture already walks.
  *
  * THE NUMBER is the one law over that file (`./inbox.ts`'s header): the
  * regular records carrying an unfinished mark, at any depth. There is no
@@ -101,7 +101,7 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
  * and its line says what it is.
  */
 export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld =>
-  inboxHeldIn(derived, inboxIn(outlinePaths(set)))
+  inboxHeldIn(derived, inboxIn(derived.claims, outlinePaths(set)))
 
 /**
  * How full a NAMED file is — {@link inboxHeldOf} with the convention walk
@@ -200,19 +200,23 @@ export type Capturing = Omit<Capture, "after" | "mark">
  * this function out of reach of the one face that has no store.
  */
 export const captureInto = (
+  claims: Claims,
+  outlineRow: string,
   paths: ReadonlyArray<string>,
   capture: Capturing,
-): WriteRequest => {
+): Result.Result<WriteRequest, OpFailure> => {
   // THE MARK IS MINTED HERE, once, for every door and both arms (ruled,
   // human 2026-08-29): a capture is born `todo`, because `inboxHeldOf`'s one
   // law counts the marked rows and an unmarked capture would land invisible
   // to it. It can override nothing — {@link Capturing} cannot spell a mark at
   // all.
   const minted = { ...capture, mark: "todo" as const }
-  const inbox = inboxIn(paths)
-  return inbox === undefined
-    ? { op: "create", file: mintedInto(INBOX), seed: minted }
-    : { op: "add", file: inbox, ...minted }
+  const inbox = inboxIn(claims, paths)
+  if (inbox !== undefined) return Result.succeed({ op: "add", file: inbox, ...minted })
+  const ext = mintExt(claims, outlineRow)
+  if (ext === null) return Result.fail(new UsageFailure({ reason: `the ${outlineRow} row is off, so no outline can be created` }))
+  if (claims.byKind.get(outlineRow)?.holds !== "nodes") return Result.fail(new UsageFailure({ reason: `the ${outlineRow} row does not hold outlines` }))
+  return Result.succeed({ op: "create", file: mintedInto(`${INBOX}${ext}`), seed: minted })
 }
 
 // ── what a capture IS, at whichever door takes one ──────────────────────

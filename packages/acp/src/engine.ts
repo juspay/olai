@@ -52,9 +52,10 @@ export * from "./leg.ts"
  * Which executable speaks ACP, and what "none" means.
  *
  * **The default is the pinned Claude Code adapter, on every documented way of
- * starting olai** (`nix/acp-agent.nix`), baked into the packaged binary's
- * wrapper with `--set-default`; the dev-loop recipes resolve the same
- * derivation on demand. So a person who follows any documented path gets a
+ * starting olai** (the claude plugin's own `default.nix` declares the
+ * `OLAI_ACP_AGENT` knob), baked into the packaged binary's wrapper with
+ * `--set-default`; the dev-loop recipes resolve the same derivation on
+ * demand. So a person who follows any documented path gets a
  * working chat panel and never has to know this variable exists.
  *
  * It names the adapter resource. An empty value makes that engine unavailable;

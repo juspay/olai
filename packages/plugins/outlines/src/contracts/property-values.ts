@@ -27,7 +27,7 @@
  * ## What is NOT in the system half
  *
  * `see` and `after` are drawn as reference rows under the note, `desc` is the
- * note, `doc` is the document line, `title` is the row. Repeating any of them
+ * note and `title` is the row. Repeating any of them
  * here would put two spellings of one fact on one screen, and the second one
  * would be the dumb one. What is in the system half is exactly the facts that
  * have nowhere else to show.
@@ -155,12 +155,19 @@ const said = (key: string, value: string): Entry => ({
  * is. The rule that a list value is drawn as its members joined lives here,
  * once, and both kinds spend it.
  */
-export const customEntries = (custom: Custom): ReadonlyArray<Entry> => {
+export const customEntries = (custom: Custom, placement?: {
+  readonly kind: (key: string, value: string) => string | undefined
+  readonly at: (kind: string) => { readonly inRows: boolean } | undefined
+}): ReadonlyArray<Entry> => {
   return customOrder(custom).flatMap((key) => {
     const value = custom[key]
     if (value === undefined) return []
     const listed = typeof value !== "string"
     const values = listed ? value : [value]
+    if (placement !== undefined && values.length > 0 && values.every(value => {
+      const kind = placement.kind(key, value)
+      return kind !== undefined && placement.at(kind)?.inRows === false
+    })) return []
     return [{ key, value: values.join(", "), values, system: false, listed }]
   })
 }

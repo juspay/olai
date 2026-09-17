@@ -1,5 +1,3 @@
-import { selectFixtureRows } from "./fixture.testlib.ts"
-import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * MOUNTING A BUNDLE RETURNS WHEN THE ROWS HAVE APPLIED — the fence for the whole
  * ordering answer, and the one claim in this package that is about a moment
@@ -38,7 +36,8 @@ import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
  * row ids beforehand. What that leaves `mountBundle` to do is exactly the settle,
  * which is what the case is for.
  */
-
+import { selectFixtureRows } from "./fixture.testlib.ts"
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"

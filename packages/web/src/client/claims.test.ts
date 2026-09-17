@@ -306,14 +306,16 @@ test("a row's line is marked in exactly the module that reads it and the tree th
 // SAME FILE apart, which is a view this app can draw and therefore a place its
 // identifiers stop being unique. A `Row.key` is a chain from the roots of ITS
 // page (the two row gestures measure through one door, `drag/lines.ts`), and the
-// two element landings scroll under their own pane's root (`document/faces.tsx`
+// two element landings scroll under their own pane's root (the kind row’s page component
 // for the heading, `OutlinePage.tsx` for the row). A sixth file spelling it is
 // a new reader, which is a new answer to "which page is this in".
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
   expect(filesSpelling(/data-pane/)).toEqual([
     "plugins/layout/src/pane/Panes.tsx",
+    "plugins/markdown/src/browser/BodyPage.tsx",
     "plugins/markdown/src/browser/PageView.tsx",
-    "plugins/markdown/src/browser/document/faces.tsx",
+    "plugins/markdown/src/browser/document/Rendered.tsx",
+    "plugins/navigation/src/PageView.tsx",
     "plugins/outlines/src/browser/OutlinePage.tsx",
     "plugins/outlines/src/browser/PageView.tsx",
     "plugins/outlines/src/browser/drag/lines.ts"
@@ -426,9 +428,11 @@ test("address recognition has one door: parseAddress( is called only in routes.t
 // has just re-imported the menu.
 test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
   expect(filesSpelling(/@kobalte\/core\/dropdown-menu/)).toEqual([
+    "plugins/chat/src/browser/agents/EngineMenu.tsx",
     "plugins/outlines/src/browser/menu/Confirm.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
-    "plugins/outlines/src/browser/menu/Panel.tsx"
+    "plugins/outlines/src/browser/menu/Panel.tsx",
+    "plugins/tabs/src/Menu.tsx"
   ])
 })
 
@@ -543,8 +547,12 @@ test("every dynamic import() the client spells takes a literal the bundler can r
   expect(offenders).toEqual([])
   expect(filesSpelling(/\bimport\s*\(/)).toEqual([
     "markdown-ui/src/chunk.ts",
+    "plugins/chat/src/browser/agents/FreshStart.tsx",
+    "plugins/chat/src/browser/agents/NewChat.tsx",
+    "plugins/chat/src/browser/agents/Standing.tsx",
     "plugins/kolu/src/appliance/props/LivePane.tsx",
     "plugins/outlines/src/browser/menu/chunk.ts",
+    "plugins/tabs/src/chunk.ts",
     "web/src/client/wire.ts"
   ])
 })
@@ -583,10 +591,12 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 // there, in `packages/plugins/chat/src/browser/claims.test.ts`.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
+    "plugins/chat/src/browser/agents/EngineMenu.tsx",
     "plugins/chat/src/browser/chat/CompletionMenu.tsx",
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/Shortcuts.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
+    "plugins/tabs/src/Menu.tsx",
     "web/src/client/dismiss.ts",
     "web/src/client/topmost.ts"
   ])
@@ -597,4 +607,8 @@ test("comment stripping preserves MIME strings and the code following them", () 
   expect(code).toContain('"image/*"')
   expect(code).toContain('"data-row-key"')
   expect(code).not.toContain("a real comment")
+})
+
+test("transcript grips belong to chat", () => {
+  expect(filesSpelling(/data-grip/)).toEqual(["plugins/chat/src/browser/chat/Grip.tsx"])
 })

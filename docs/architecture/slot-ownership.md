@@ -6,11 +6,11 @@ The permanent plugin API defines only the generic location reference type and th
 
 | Owner | Compatibility locations |
 | --- | --- |
-| Outlines | `outline.row.chip`, `.pane`, `.block`, `.door`, `.action` and property contexts |
+| Outlines | `outline.row.chip`, `.placement`, `.aside`, `.fold`, `.pane`, `.block`, `.action`, `outline.page.head`, `.foot` and property contexts |
 | Navigation | `app.route`, `app.keys`, `app.command`, `app.palette` |
-| Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount` |
+| Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount`, `layout.strip` |
 | Sidebar | `sidebar.entry`, `sidebar.section` |
-| Chat | `delivery.mark`, `engine.install` |
+| Chat | `conversation.wake`, `delivery.mark`, `tool.reply`, `engine.install` |
 | Search | `search.box.below` |
 
 ## Declaring and registering
@@ -49,6 +49,7 @@ Each builtin appliance acquires its shared subscriptions inside its own activati
 | Kolu | Terminal blocks and header | One fleet |
 | Odu | Chip and matrix | One run collection |
 | Spaces | Header | One link cell |
+| Mail | Header pill and its own plugins-panel row | One account cell |
 
 - Each contribution provides that state to its own subtree only.
 - They do not wrap unrelated content in `app.mount`. Its compatibility renderer belongs to Layout.

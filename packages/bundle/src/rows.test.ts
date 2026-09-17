@@ -43,7 +43,7 @@ test("the built-in default is the rows that did not opt out", () => {
  * A serve without chat has no panel, no transcript, no agents section and no
  * conversation anywhere, and every engine and every tenant sits `waiting`
  * behind the doors it offers. That is a legitimate serve and there is a
- * scenario for it (`features/the_doorbell_rings.feature`) — reached by an
+ * scenario for it (`packages/plugins/chat/e2e/features/the_doorbell_rings.feature`) — reached by an
  * operator disabling the chat row through the file or its panel switch. A `disabled: true` left on
  * this row by somebody debugging would ship that serve as the DEFAULT, and
  * every claim about it would still pass: the rule above would simply agree that
@@ -66,10 +66,12 @@ test("policy defaults belong to schemas; no YAML row carries config", () => {
   for (const row of ROWS) expect(row).not.toHaveProperty("config")
 })
 
-test("the chat row is on by default, and reads first", () => {
+test("alerts precedes its consumers, and chat is on by default", () => {
   expect(DEFAULT_BUNDLE_NAMES).toContain("chat")
   expect(ROWS.find((row) => row.id === "chat")?.disabled).toBeUndefined()
-  expect(ROWS[0]?.id).toBe("chat")
+  expect(ROWS[0]?.id).toBe("alerts")
+  expect(DEFAULT_BUNDLE_NAMES).toContain("alerts")
+  expect(ROWS.find(row => row.id === "alerts")?.browserOnly).toBe(true)
   // ...and an omitted flag leaves it that way, which is the other half: the
   // default is what a person gets by typing nothing.
 })
@@ -123,7 +125,7 @@ test("profiles select only catalogue rows and preserve build defaults", () => {
     const patches = profilePatch(profile)
     expect(patches.every(patch => BUNDLE_NAMES.includes(patch.id))).toBe(true)
     const on = ROWS.filter(row => !(patches.find(patch => patch.id === row.id)?.disabled ?? row.disabled)).map(row => row.id)
-    expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "settings", "mcp", "outlines", "markdown", "files", "pins", "capture", "trash", "vault-plugins"] : ["vault", "settings"])
+    expect<ReadonlyArray<string>>(on).toEqual(profile === "web" ? DEFAULT_BUNDLE_NAMES : profile === "surface" ? ["vault", "settings", "mcp", "outlines", "files", "pins", "capture", "trash", "vault-plugins", "outline-olai", "markdown", "hypertext", "csv", "image", "pdf"] : ["vault", "settings", "outline-olai"])
   }
 })
 
@@ -149,4 +151,9 @@ test("maintained fixtures require an explicit selection and never select each ot
       expect(enabled("layout")).toBe(profile === "web")
     }
   }
+})
+
+test("the outline format row's switch explains its withdrawal consequences", () => {
+  const row = ROWS.find(row => row.id === "outline-olai")
+  expect(row?.switchHint).toBe("Disabling this row unclaims outlines and prevents creating them; trash, inbox, pins and agenda become unavailable, and settings reading withdraws until it returns.")
 })

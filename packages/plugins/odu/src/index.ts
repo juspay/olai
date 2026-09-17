@@ -3,12 +3,12 @@
  *
  * ## What lives here, and what deliberately does not
  *
- * `@olai/odu-client` is the only package that names `@odu/*`: it resolves a
- * `worktree` value into a checkout, sweeps for a coordinator on each one, and
- * projects odu's own pipeline state into olai's shapes. It does not move.
+ * `olai-plugin-odu/appliance` is the only package that names `@odu/*`: it
+ * dials the per-user service, holds boarded run ids, and projects odu's own
+ * pipeline state into olai's shapes. It does not move.
  *
  * What lives here is everything else that says `odu` — the CI chip and the run
- * matrix a live worktree wears, the words a run comes to, the per-node ink,
+ * matrix a boarded run wears, the words a run comes to, the per-node ink,
  * the one subscription a tab holds, and the run events that reach the feed.
  * Those used to be a folder under `@olai/web`, and the header on that folder
  * argued the arrangement plainly: *"a folder rather than a package because it

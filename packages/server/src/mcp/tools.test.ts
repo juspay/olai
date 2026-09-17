@@ -1,4 +1,4 @@
-import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
+import { refusalIn } from "@olai/surface"
 /**
  * The tool surface, through a real MCP client.
  *
@@ -26,7 +26,8 @@ import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
  * harnesses in `packages/tests` read every tool answer that way too, and this is
  * the unit-level fence under them.
  */
-
+import { TEST_CLAIMS } from "olai-plugin-outline-olai/testlib"
+import { capabilitiesOver, CONTENT_ROWS } from "../capabilities.testlib.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -63,7 +64,7 @@ import { bespokeFrom } from "olai-plugin-mcp/testlib"
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
-const codec = codecFor(NO_KINDS)
+const codec = codecFor(NO_KINDS, { current: TEST_CLAIMS })
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -151,7 +152,7 @@ const withTools = <A>(
       settle: "10 millis",
     })
     const refusals: Array<string> = []
-    const ops = makeOps({
+    const ops = makeOps({claims: { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
       // The ops layer's own fixture context — deterministic ids and one fixed
@@ -203,7 +204,7 @@ const withTools = <A>(
     // `surface/outlines/ops/node` — which the scoped dispatch does without
     // anything here consulting a route.
     const rows = (): ReadonlyArray<Row> =>
-      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [] }))
+      wired.bound.rows.map(row => ({ name: row.name, surface: row.surface, resources: row.resources ?? {}, tools: row.tools ?? [], charter: row.charter }))
     // Minted per call for the reason `binding.ts` mints it per call: the roster
     // it describes moves, and a bundle held across a recompose would carry a
     // client for a row that has left.
@@ -234,6 +235,7 @@ const withTools = <A>(
         push: ops.push,
       })),
       client: panel,
+      rows,
       transport: serverSide,
     })
 
@@ -287,7 +289,16 @@ const call = async (
 ): Promise<Answer> => {
   const result = await client.callTool({ name, arguments: args }) as {
     structuredContent?: Record<string, unknown>
+    content?: Array<{ type: string; text?: string }>
     isError?: boolean
+  }
+  // The actual olai formatter AND pinned surface-mcp framing, not a copied
+  // sentence. Every refusal kind exercised in this suite checks the fallback.
+  if (result.isError && typeof result.structuredContent?.kind === "string") {
+    const text = result.content?.find(block => block.type === "text")?.text
+    const reason = result.structuredContent.reason
+    if (typeof reason !== "string") throw new Error("a structured refusal must carry its reason")
+    expect(refusalIn(text ?? "")).toEqual({ kind: result.structuredContent.kind, reason })
   }
   return {
     structured: result.structuredContent ?? {},
@@ -335,7 +346,8 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
 
     // The whole surface, spelled out — because what is NOT here is the design:
     // no shell, no grep, no directory walk, no read or write that names a
-    // byte. The four document tools are the closest thing to file access the
+    // byte range. The vault reads a whole unkept text body on request; it
+    // still refuses kept, byte-holding and unclaimed paths. The four document tools are the closest thing to file access the
     // surface has, and they are still the ops layer's: a whole `.md` at both
     // ends — out of the served snapshot, and back through the same validate →
     // stage → rename → commit gate — never a byte range, never a path the set
@@ -393,6 +405,8 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "vault-plugins_run",
       "vault-plugins_stop",
     ])
+
+    expect(tools.find(tool => tool.name === "file-access_bodies_get")).toBeUndefined()
 
     // The discriminator the tool NAME already decides is not a field the agent
     // has to fill in. Subtracted from the SCHEMA now rather than from the
@@ -630,6 +644,14 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     // part of a file. Those are what make this a charter rather than a tour.
     expect(said).toContain("no path outside the served directory")
     expect(said).toContain("no way to name part of a file")
+
+    // NO PANEL SENTENCE HERE, and that is the claim rather than an omission:
+    // this fixture mounts no `chat` row, and "a person reads your answer in
+    // olai's chat panel" is that row's paragraph, riding its sibling entry the
+    // way its verbs do. `../profiles.test.ts` reads both states of it over a
+    // real serve, and holds the 2 KB ceiling over the FULL bundle; what this
+    // bench can say is that the mcp row's own text never speaks for the panel.
+    expect(said).not.toContain("chat panel")
   })
 })
 
@@ -1252,7 +1274,7 @@ test("files_delete refuses a kind the app only shows", async () => {
   await withTools(VAULT, async ({ client, read }) => {
     const refused = await call(client, "files_delete", { file: "saved/page.html" })
     expect(refused.isError).toBe(true)
-    expect(refused.structured["reason"]).toContain("hypertext")
+    expect(refused.structured["reason"]).toContain("a page")
     expect(read("saved/page.html")).toBe("<p>from the web</p>")
   })
 })
@@ -2897,15 +2919,15 @@ test("a capture lands in a minted inbox, dated and attributed", async () => {
   })
 })
 
-test("…and into the inbox the directory already keeps, wherever that is", async () => {
+test("…and into the inbox the directory already keeps, by stem under _olai", async () => {
   await withTools(
-    { "a.olai": HOUSE, "notes/inbox.olai": "" },
+    { "a.olai": HOUSE, "_olai/inbox.olai": "" },
     async ({ client, set }) => {
       const answered = await call(client, "capture_add", { title: "buy milk" })
       expect(answered.isError).toBe(false)
-      expect(answered.structured["file"]).toBe("notes/inbox.olai")
+      expect(answered.structured["file"]).toBe("_olai/inbox.olai")
       // Nothing was minted beside it.
-      expect([...outlinePaths(await set())].sort()).toEqual(["a.olai", "notes/inbox.olai"])
+      expect([...outlinePaths(await set())].sort()).toEqual(["_olai/inbox.olai", "a.olai"])
     },
   )
 })

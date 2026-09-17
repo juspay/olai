@@ -3,7 +3,7 @@ Feature: Plugins depend on doors
   The Spaces mirror consumes chat.seating. Its reading disappears with its
   provider and returns on reactivation, without importing the provider package.
 
-  @rows:vault,chat,claude,xyne-spaces,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @rows:vault,olai,chat,claude,xyne-spaces,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A mirror follows its seating provider off and back on
     Given I open the app
     And I mark the page
@@ -20,7 +20,7 @@ Feature: Plugins depend on doors
     And the page has not reloaded
     And there should be no page errors
 
-  @rows:vault,xyne-spaces,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @rows:vault,olai,xyne-spaces,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: A mirror waiting at startup activates when chat first arrives
     Given I open the app
     When I open the plugins panel
@@ -29,11 +29,13 @@ Feature: Plugins depend on doors
     Then the plugins panel says nothing more about "xyne-spaces"
     And there should be no page errors
 
-  @rows:vault,chat,claude,identity,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @rows:vault,olai,chat,claude,identity,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: The transcript follows the shared viewer when identity leaves and returns
     Given I am the Tailscale user "ada@example.com"
     And I open the app
-    And the agent panel is open
+    And I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "the viewer is shared"
     Then the agent's answer mentions "you said: the viewer is shared"
     And my transcript speaker is "ada@example.com"
@@ -47,7 +49,7 @@ Feature: Plugins depend on doors
     Then my transcript speaker is "ada@example.com"
     And there should be no page errors
 
-  @git:repo @rows:vault,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  @git:repo @rows:vault,olai,git,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: An MCP client records the transport writer without chat
     Given I open the app
     And a terminal agent is connected to the served directory
@@ -56,17 +58,18 @@ Feature: Plugins depend on doors
     Then the last commit is "olai: record the transport write" by "mcp"
     And there should be no page errors
 
-  # `search` is in this selection because the case asserts chat has NO browser
-  # warning once identity arrives, and chat's `matcher` component names
-  # `search.readings` the same way `speaker` names `identity.viewer`. A serve
-  # short of the matcher would leave a second, unrelated warning standing and
-  # this case would be asserting the wrong absence.
-  @rows:vault,chat,claude,search,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  # `search` and `alerts` are in this selection because the case asserts chat
+  # has NO browser warning once identity arrives. Its matcher and attention
+  # components name search.readings and alerts.channel; leaving either out
+  # would assert an unrelated absence alongside identity.viewer.
+  @rows:vault,olai,alerts,chat,claude,search,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
   Scenario: The speaker waits visibly while the conversation remains usable
     Given I am the Tailscale user "ada@example.com"
     And I open the app
+    And I open the outline "house.olai"
     And I mark the page
-    And the agent panel is open
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
     When I ask the agent "identity can arrive later"
     Then the agent's answer mentions "you said: identity can arrive later"
     And my transcript speaker is "you"

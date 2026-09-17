@@ -69,11 +69,24 @@
  */
 
 export const TESTID = {
+  chatGrip: "chat-grip",
+  agentStart: "agent-start",
+  agentEngineMenu: "agent-engine-menu",
+  agentStanding: "agent-standing",
+  agentFold: "agent-fold",
+  agentPageHead: "agent-page-head",
+  agentPageFoot: "agent-page-foot",
+  agentPlainComposer: "agent-plain-composer",
+  agentPlainInput: "agent-plain-input",
+  agentPlainEngine: "agent-plain-engine",
+  agentPlainSend: "agent-plain-send",
   // ── the sidebar's agents roster, and the door on an agent's row ───────
   /** The AGENTS section of the sidebar — the roster, which is the query
    *  `prop:agent-session`. Drawn only when the directory has a node agent, on the
    *  shelf's rule exactly: an empty roster is nothing at all rather than an
    *  empty box, so its presence is the fact a scenario asserts. */
+  agentNeedsYou: "chat-agent-needs-you",
+  agentNeedRow: "chat-agent-need-row",
   agentRoster: "agent-roster",
   /** One node agent on it. `data-agent` is the NODE's own id and
    *  `data-standing` is how it stands — the two facts a scenario needs, and
@@ -153,6 +166,12 @@ export const TESTID = {
   /** ... and why one did not happen: an engine this machine does not have, an
    *  agent that would not start, a record the ops layer will not write. */
   chatFreshSaid: "chat-fresh-said",
+  /** *Close the agent* — release this node's agent back to the unclaimed
+   *  chats. The conversation stays stored and is filed back under Chats;
+   *  nothing is deleted. */
+  chatCloseAgent: "chat-close-agent",
+  /** ... and why one did not happen: the node had no agent to close. */
+  chatCloseSaid: "chat-close-said",
 
   // ── the panel itself: the toggle, the dock, the two minimized faces ──
   /** The header's agent toggle on desktop. Always on screen there;
@@ -179,6 +198,15 @@ export const TESTID = {
   // ── the panel's header, and the conversation drawn under it ───────
   chatTitle: "chat-title",
   chatModel: "chat-model",
+  /** Where a person types to narrow the open model list — the first thing in
+   *  it whenever the agent offers models at all (`./browser/chat/model-filter.ts`
+   *  is the rule it runs). Its own id rather than a role alone because where a
+   *  scenario types must not move when the list around it is re-worded. */
+  chatModelFilter: "chat-model-filter",
+  /** The sentence the list draws when the query matches nothing, NAMING the
+   *  query. A row the cursor cannot take, so `Enter` over it is spent on
+   *  nothing — which is what a scenario asserts of it. */
+  chatModelNone: "chat-model-none",
   /** WHO this conversation is with, beside the model — the agent's name, with
    *  its mark in front of it. `data-agent` is the id, so a scenario can say
    *  which agent without reading a brand name off the screen. */
@@ -232,23 +260,24 @@ export const TESTID = {
   /** The header's SESSIONS pill: this node agent's own conversations, and the
    *  fresh one that ends the current one. Drawn only where the panel's
    *  conversation belongs to a node agent — the `chats` list that stood here
-   *  retired into the sidebar's story (`./browser/chat/NodeSessions.tsx`). */
+   *  retired into the sidebar's story (`./browser/agents/History.tsx`). */
   chatSessions: "chat-sessions",
   /** ... and the list it opens. */
   chatSessionList: "chat-session-list",
   /** ONE STORED CONVERSATION, wherever conversations are listed
-   *  (`./browser/chat/Conversation.tsx`): a row of Unassigned, or one of a node agent's
-   *  past sessions. `data-session-id` and `data-agent` are the pair that names
-   *  one, and `data-current` says whether it is the one the panel is in. */
+   *  (`./browser/chat/Conversation.tsx`): a filed conversation, or one of a
+   *  node agent's past sessions. `data-session-id` and `data-agent` are the
+   *  pair that names one, and `data-current` says whether it is the one the
+   *  panel is in. */
   chatSession: "chat-session",
   /** The line under such a row that says WHICH conversation replaced this
    *  one — with a `data-successor` of its id, because the successor need not
    *  be on the screen (it is drawn only when it is), and the sentence alone
    *  would be a claim nothing could pick out of two sharing a title. */
   chatSessionSuperseded: "chat-session-superseded",
-  /** The heading over one agent's rows in the unassigned list. Drawn only where
-   *  more than one agent has conversations here — one agent is a heading over
-   *  the whole list. */
+  /** The heading over one agent's rows in the stored-conversations list. Drawn
+   *  only where more than one agent has conversations here — one agent is a
+   *  heading over the whole list. */
   chatSessionAgent: "chat-session-agent",
   /** One agent in that list that could not be asked what it has stored, with
    *  its reason. Its OWN name and not the whole call's refusal
@@ -566,14 +595,11 @@ export const TESTID = {
    *  line by line: every row below is a change, so a trimmed view shows the
    *  top of the old file rather than an edit. */
   chatDiffWholesale: "chat-diff-wholesale",
-  /** What an olai WRITE did, in the commit panel's own words — never a diff.
-   *  `data-sort` is the format's classification (`done`, `noted`, `moved`, …),
-   *  or `unchanged` for a write that moved no record. */
-  chatWrote: "chat-wrote",
-  /** What the rollup noticed about that write. Advice on a write that LANDED,
-   *  never a reason anything failed — the transcript's own copy of the aside a
-   *  keystroke already gets under its row. */
-  chatNudge: "chat-nudge",
+  /** The owning reply's file, adapter spelling and single-copy JSON fold. */
+  chatToolText: "chat-tool-text",
+  chatToolFile: "chat-tool-file",
+  chatToolCalled: "chat-tool-called",
+  chatToolReply: "chat-tool-reply",
   /** The composer PROMISING that what you send now waits its turn at the
    *  agent and is got to when the running turn is over — drawn while a turn is
    *  running, and only for an agent that advertised the queue it is a promise
@@ -680,7 +706,6 @@ export const TESTID = {
    *  for the pane, because one call carries every message's ids
    *  (`@olai/web`'s `client/declared.ts`). */
   chatRefsFailure: "chat-refs-failure",
-  prefsAllowNotify: "prefs-allow-notify",
 } as const
 
 /**

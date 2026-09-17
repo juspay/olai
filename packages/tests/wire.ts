@@ -539,7 +539,7 @@ const chat = async (
     throw new Error(
       `the chat session needs an agent and this panel has none (data-status=${status}). ` +
         "Pass AGENT=<path to an ACP agent> — e.g. " +
-        "AGENT=$PWD/agent/fake-acp-agent.ts SESSION=chat bash wire.sh",
+        "AGENT=$PWD/../plugins/claude/e2e/fake/claude-agent-acp SESSION=chat bash wire.sh",
     )
   }
   await mark("the app opens and the panel is opened")

@@ -105,10 +105,10 @@ test("PIN (profile): cucumber.js asks workerCount(); it does not hardcode 1", ()
 });
 
 test("PIN (spawn shape): fingerprints differ when the server would start differently", () => {
-  const base = { stored: false, agent: true, opencode: false, pi: false, kolu: false };
+  const base = { stored: false, agent: true, fakes: [] as string[] };
   expect(spawnFingerprint(base)).toBe(spawnFingerprint({ ...base }));
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, kolu: true }),
+    spawnFingerprint({ ...base, fakes: ["kolu"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, git: "repo" }),
@@ -120,15 +120,22 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
     spawnFingerprint({ ...base, agent: false }),
   );
   // Which AGENTS a server finds decides whether its panel asks which one a
-  // conversation is with, so two servers that differ in it are two servers.
+  // conversation is with, so two servers that differ in it are two servers —
+  // whichever word the difference is, and in whichever order it was asked.
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, opencode: true }),
+    spawnFingerprint({ ...base, fakes: ["opencode"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, pi: true }),
+    spawnFingerprint({ ...base, fakes: ["pi"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, codex: true }),
+    spawnFingerprint({ ...base, fakes: ["omp"] }),
+  );
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, fakes: ["codex"] }),
+  );
+  expect(spawnFingerprint({ ...base, fakes: ["pi", "omp"] })).toBe(
+    spawnFingerprint({ ...base, fakes: ["omp", "pi"] }),
   );
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, rowsOn: "xyne-spaces" }),
@@ -143,6 +150,7 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
   try {
     // The HOST's padi, as a developer running kolu really has it.
     process.env.PADI_SOCKET = "/run/user/1000/padi.sock";
+    process.env.ODU_WEB_ORIGIN = "127.0.0.1:18440";
     const env = isolateEnv(root, {
       GIT_DIR: "/home/someone/notes/.git",
       GIT_WORK_TREE: "/home/someone/notes",
@@ -160,6 +168,12 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     expect(
       isolateEnv(root, { PADI_SOCKET: "/tmp/scenario/padi.sock" }).PADI_SOCKET,
     ).toBe("/tmp/scenario/padi.sock");
+    // odu's client defaults to :18440 when the env is merely absent, so the
+    // host's origin is replaced with a port nobody is answering on.
+    expect(env.ODU_WEB_ORIGIN).toBe("http://127.0.0.1:1");
+    expect(
+      isolateEnv(root, { ODU_WEB_ORIGIN: "http://127.0.0.1:9999" }).ODU_WEB_ORIGIN,
+    ).toBe("http://127.0.0.1:9999");
     expect(env.GIT_DIR).toBeUndefined();
     expect(env.GIT_WORK_TREE).toBeUndefined();
     expect(env.XDG_CACHE_HOME).toBe(path.join(root, "cache"));
@@ -181,6 +195,7 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     expect(env.HOME).toBe(process.env.HOME);
   } finally {
     delete process.env.PADI_SOCKET;
+    delete process.env.ODU_WEB_ORIGIN;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

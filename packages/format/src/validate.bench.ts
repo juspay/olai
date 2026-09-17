@@ -41,14 +41,14 @@
  *     and buys the corpus back: all three cycle walks run, exactly as the full
  *     validator runs them. The row that says what this did NOT buy;
  *   - a DOCUMENT DELETED — one `.md` leaving, which is the other fallback: a
- *     `doc` that resolved may not any more and there is no index from a
+ *     declared `doc` property that resolved may not any more and there is no index from a
  *     resolved path back to the records that name it.
  *
  * THE LAST COLUMN says how many of the row's edits made the narrowing walk the
  * corpus for SOME rule, and it conflates two fallbacks that cost nothing like
  * each other — which the rows themselves then tell apart. An edge added walks
  * the three cycle graphs and buys back the whole of what the narrowing saved;
- * a document deleted walks the records asking each one whether it has a `doc`,
+ * a document deleted walks the records asking each one whether it has a declared `doc` property,
  * which is a tenth of a millisecond over twenty thousand of them. Both are
  * `walked: true`; only one of them is a row that says "this did not help".
  *
@@ -65,7 +65,7 @@
  * one carries — at zero. Size it with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
  * OLAI_BENCH_EDITS / OLAI_BENCH_DOCS.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
 import {
   median,
@@ -88,7 +88,6 @@ import {
   markdownPaths,
   reportAfterCycles,
   reportDeclarations,
-  reportDocs,
   reportDuplicateIds,
   reportMirrorCycles,
   reportOf,
@@ -118,7 +117,7 @@ const paths = [...corpus.keys()].sort(byPath)
 
 /** The `.md` files beside the outlines. Nothing points at them and that is the
  *  point: `markdownPaths` walks every document in the directory whether or not
- *  a single `doc` names one, which is the corpus-sized reading the full arm
+ *  a single declared `doc` property names one, which is the corpus-sized reading the full arm
  *  makes that has nothing to do with records. */
 const documents = Array.from({ length: DOCS }, (_, at) => `doc/note${at}.md`)
 
@@ -131,11 +130,11 @@ const decoded = new Map<string, Result.Result<Document, Verdict>>([
       [file, Result.succeed<Document>(outlineOf(corpus.get(file) as string, file))] as const,
   ),
   ...documents.map(
-    (file) => [file, Result.succeed<Document>(bodiedDocument(file, "# note"))] as const,
+    (file) => [file, Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, "# note"))] as const,
   ),
 ])
 
-const setOfHeld = (): OutlineSet => assemble(decoded)
+const setOfHeld = (): OutlineSet => assemble(TEST_CLAIMS, decoded)
 
 // ── the edits ──────────────────────────────────────────────────────────
 
@@ -233,7 +232,6 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   reportUnknownTargets(danglingIn(view), view, errors)
   reportAfterCycles(all, view, errors)
   reportMirrorCycles(all, view, errors)
-  reportDocs(all, known, errors)
   reportDeclarations(view, NO_KINDS, errors)
   reportPropValues(all, typed, errors)
   return errors
@@ -254,7 +252,7 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
   // files in it, under the previous row's name.
   restore()
   let set = setOfHeld()
-  let view = derive(recordsIn(set))
+  let view = derive(TEST_CLAIMS, recordsIn(set))
   let ledger: Ledger = {
     errors: whole(set, view),
     known: markdownPaths(set),
@@ -337,7 +335,7 @@ const spelling = (error: OutlineError): string =>
  *  here because that one is private to the validator and this file is timing
  *  what comes after it. */
 const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
-  set.documents.flatMap((document) => (document.kind === "outline" ? document.nodes : []))
+  set.documents.flatMap((document) => (document.holds === "nodes" ? document.nodes : []))
 
 /** Put the directory back the way the rows expect to find it. */
 const restore = (): void => {
@@ -346,12 +344,12 @@ const restore = (): void => {
     decoded.set(file, Result.succeed<Document>(outlineOf(corpus.get(file) as string, file)))
   }
   for (const file of documents) {
-    decoded.set(file, Result.succeed<Document>(bodiedDocument(file, "# note")))
+    decoded.set(file, Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, file, "# note")))
   }
 }
 
 restore()
-const first = derive(recordsIn(setOfHeld()))
+const first = derive(TEST_CLAIMS, recordsIn(setOfHeld()))
 console.log(
   `${first.nodes.length} records, ${paths.length} outlines, ${documents.length} documents,` +
     ` ${EDITS} edits per row`,

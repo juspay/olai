@@ -91,7 +91,7 @@ const INDEXES = Object.keys(READ) as ReadonlyArray<Index>
  * DERIVATION, which is {@link INDEXES} and {@link LISTS} above.
  */
 const BESIDE: {
-  readonly [K in Exclude<keyof Reading, "set" | "derived">]: (
+  readonly [K in Exclude<keyof Reading, "set" | "derived" | "claims">]: (
     at: Reading,
   ) => ReadonlyMap<string, unknown>
 } = {
@@ -129,10 +129,10 @@ const tableIn = (at: Reading, which: Table): ReadonlyMap<string, unknown> =>
  * nothing. That is not hypothetical: `perf-agenda-history-walk` added
  * {@link Derived.days} while this was written against the maps alone, and the
  * calendar's binary search met an `undefined` array the moment the two met.
- * `Exclude<keyof Derived, Index>` is what makes the next one a typecheck
+ * `Exclude<keyof Derived, Index | "claims">` is what makes the next one a typecheck
  * failure here instead.
  */
-const LISTS: { readonly [K in Exclude<keyof Derived, Index>]: null } = {
+const LISTS: { readonly [K in Exclude<keyof Derived, Index | "claims">]: null } = {
   nodes: null,
   days: null,
 }
@@ -321,7 +321,9 @@ export const taping = (
   // a spread of a prepared object: a spread READS every getter it copies, which
   // would mint a wrapper per table on every run and undo the laziness two loops
   // up.
-  const reading = { set, derived: view as unknown as Derived } as Record<string, unknown>
+  // The entire Claims snapshot is an identity dependency of every taped reading.
+  Object.defineProperty(view, "claims", { enumerable: true, get: () => at.claims })
+  const reading = { claims: at.claims, set, derived: view as unknown as Derived } as Record<string, unknown>
   for (const which of Object.keys(BESIDE) as ReadonlyArray<keyof typeof BESIDE>) {
     let held: Taped<unknown> | undefined
     Object.defineProperty(reading, which, {
@@ -348,6 +350,7 @@ export const taping = (
  * questions pays each of them once.
  */
 export const stillHolds = (tape: Tape, was: Reading, now: Reading): boolean => {
+  if (was.claims !== now.claims) return false
   if (was === now) return true
   for (const which of tape.lists) {
     if (!carriedList(was.derived, now.derived, which)) return false

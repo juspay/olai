@@ -39,7 +39,7 @@
  * The design, with the alternatives that lost, is
  * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-in-place.md.
  */
-
+import { isMarkdown } from "./document.ts"
 import type { Outline } from "./document.ts"
 import { Schema } from "effect"
 
@@ -325,7 +325,7 @@ const isDayReading = (field: HasField): field is DayReading =>
  *  field of the RECORD, the days are the JOURNAL's — and the field test is the
  *  honest reading of the rule. What the overlap means to somebody writing a
  *  query is docs/search.md's to say. */
-const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "doc", "repeat"] as const
+const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
 /** Is this word one of them? The guard {@link hasClause} reads, and the reason
@@ -2171,7 +2171,7 @@ const sourceOffsets = (
 const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean => {
   switch (value) {
     case "trashed":
-      return isTrashed(at.file)
+      return isTrashed(derived.claims, at.file)
     // THE ONE DERIVED VALUE, and it is the index the views draw from rather
     // than a second reading of `after`: the same answer that puts the `blocked
     // by` line on a node's page and the dim on a row, so a query cannot find a
@@ -2273,7 +2273,7 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
  * check the access at the site that performs it, which is what a `satisfies`
  * on the list was standing in for: that one constrained `date` to be a key of
  * the record, a coincidence of spelling this reading does not depend on since
- * it goes through `datesOf`, and left `doc` and `desc` free to be read as
+ * it goes through `datesOf`, and left `desc` free to be read as
  * stamps.
  *
  * `date` is ./dates.ts's `datesOf`, which is the same two the JOURNAL reads:
@@ -2800,7 +2800,7 @@ export function* selecting(
 ): Generator<Matched> {
   for (const at of candidates) {
     if (isLeftoverArchive(at.file)) continue
-    if (!putAway && isTrashed(at.file)) continue
+    if (!putAway && isTrashed(derived.claims, at.file)) continue
     const match = matchOf(derived, at, filter)
     if (match !== null) yield { at, match }
   }
@@ -3224,7 +3224,7 @@ const documentHay = (
     // `title`, and would say a word was found in a document's prose when what
     // held it was a property — two answers to "why is this here", from one
     // block, in one row.
-    body: document.kind === "document" ? [proseIn(document.body).toLowerCase()] : [],
+    body: isMarkdown(document) ? [proseIn(document.body).toLowerCase()] : [],
   }
   foldedDocuments.set(document, now)
   return now
@@ -3368,7 +3368,7 @@ const documentHolds = (props: Custom, clause: Clause): boolean =>
 /** A landing for a selected body hit, using the matcher's fold and scoring.
  * Called after capping; newline counts also survive length-changing case folds. */
 export const documentLineOf = (document: Bodied, filter: Filter, field: DocumentField | null): number | undefined => {
-  if (field !== "body" || document.kind !== "document") return undefined
+  if (field !== "body" || !isMarkdown(document)) return undefined
   const hay = documentHay(document).body[0] ?? ""
   let strongest = -1
   let offset: number | undefined

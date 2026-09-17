@@ -39,7 +39,7 @@
  * document whose renderer never came would otherwise be a page of source with
  * no explanation.
  */
-
+import type { Claims } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
@@ -48,7 +48,10 @@ import { escapeHtml } from "./tags.ts"
 import { busyMark, waitingMark } from "./waiting.ts"
 
 export function Markdown(props: {
+  readonly claims: Claims | undefined
   readonly source: string
+  /** Immutable directory membership: identity changes only with its contents. */
+  readonly members?: ReadonlySet<string>
   readonly from: string
   readonly class?: string
   readonly testid?: string
@@ -63,10 +66,10 @@ export function Markdown(props: {
   const html = createMemo(() =>
     markdownReady()
       ? props.live === true
-        ? renderStreaming(props.source, props.from)
+        ? renderStreaming(props.claims, props.source, props.from)
         : props.landing !== undefined
-          ? renderLineLanding(props.source, props.from, props.landing.line, props.landing.needles)
-          : renderMarkdown(props.source, props.from)
+          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles, props.members)
+          : renderMarkdown(props.claims, props.source, props.from, props.members)
       : undefined
   )
   /** Is this block still WAITING on the renderer — the arrival's own answer

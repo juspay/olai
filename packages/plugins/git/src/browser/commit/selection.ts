@@ -24,7 +24,7 @@
  * other dirty `roadmap.olai` at the repository root are two rows and two ticks.
  */
 
-import { composed, type NodeChange, type Other, type Pending } from "@olai/format"
+import { type Claims, composed, type NodeChange, type Other, type Pending } from "@olai/format"
 import { type Accessor, createSignal, type Signal } from "solid-js"
 
 export interface Selection {
@@ -63,6 +63,7 @@ export interface Selection {
  * by pressing the button.
  */
 export const createSelection = (
+  claims: Accessor<Claims | undefined>,
   pending: Accessor<Pending>,
   excluded: Signal<ReadonlySet<string>> = createSignal<ReadonlySet<string>>(new Set()),
 ): Selection => {
@@ -107,6 +108,9 @@ export const createSelection = (
     paths,
     changes,
     others,
-    message: () => composed(changes(), others()),
+    message: () => {
+      const current = claims()
+      return current === undefined ? "" : composed(current, changes(), others())
+    },
   }
 }

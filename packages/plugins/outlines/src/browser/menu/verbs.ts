@@ -53,7 +53,8 @@ import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
 import { pinnedAt } from "olai-plugin-pins/values"
 import { customEntries } from "olai-plugin-outlines/property-values"
-import { atNode, hrefOfPlain, type Routing } from "olai-plugin-navigation/routes"
+import { atNode, hrefOfPlain } from "olai-plugin-navigation/routes"
+import type { WorkspaceRouting as Routing } from "olai-plugin-navigation/workspace"
 import { trashQuestion } from "olai-plugin-trash/questions"
 
 /**
@@ -82,18 +83,27 @@ export const subjectOfRow = (row: Row): Subject => ({
   status: row.status,
 })
 
+/** The node a subject SHOWS, by id — or the record itself, for a placement
+ *  that draws nothing. `@olai/format`'s `shownRecord` asked of a subject rather
+ *  than a row, so what a plugin's press is handed is one rule wherever the menu
+ *  hangs. */
+export const shownIdOf = (subject: Subject): string =>
+  subject.shows?.node.id ?? subject.record.id
+
 /**
- * The subject a ZOOMED PAGE is — what the palette asks about.
+ * The subject a SITUATED node is — a ZOOMED PAGE, which the palette asks
+ * about, and a DATED ROW on a day page or the agenda, whose `•••` asks about it.
  *
- * A zoom always lands on a regular node however it was addressed
- * (`@olai/format`'s `zoom` follows the chain), so the record and what it shows
- * are the same node here, and the placement verb is correctly never offered:
- * the reader is looking at the node, not at a line standing for it.
+ * Both land on a regular node however it was reached (`@olai/format`'s `zoom`
+ * follows the chain, and a day collects records rather than placements), so the
+ * record and what it shows are the same node here, and the placement verb is
+ * correctly never offered: the reader is looking at the node, not at a line
+ * standing for it.
  */
-export const subjectOfZoom = (zoomed: Situated): Subject => ({
-  record: zoomed.shows.node,
-  shows: zoomed.shows,
-  status: zoomed.status,
+export const subjectOfSituated = (situated: Situated): Subject => ({
+  record: situated.shows.node,
+  shows: situated.shows,
+  status: situated.status,
 })
 
 /**
@@ -221,6 +231,7 @@ export const writeVerbs = (
    *  because it is a second reading, and one of them no longer comes from the
    *  browser's copy of anything. */
   shelf: Shelf,
+  placement?: Parameters<typeof customEntries>[1],
 ): ReadonlyArray<Verb> => {
   const verbs: Array<Verb> = []
   // The node this subject draws: the mark it carries, the date it has. A
@@ -372,7 +383,7 @@ export const writeVerbs = (
     // here: each has a verb of its own — the mark section above, `Change
     // date…`, the two edge verbs below — and `outlines_prop` refuses every one of
     // them by name.
-    if (customEntries(customOf(shown.node)).length === 0) {
+    if (customEntries(customOf(shown.node), placement).length === 0) {
       verbs.push({
         id: "prop-add",
         label: "Add property…",

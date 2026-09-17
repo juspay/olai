@@ -69,7 +69,7 @@
  * `./vocabulary.bench.ts` next door: nothing memoises a day reading per
  * derivation, so asking one view twice costs what asking a new one costs.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { type Agenda, agendaOf, type Owed, owedNow, owedOf } from "./agenda.ts"
 import { datedAnswer, datedIn, datedOn, type DayGroup } from "./dates.ts"
 import { derive, type Derived, owingOn } from "./derive.ts"
@@ -108,7 +108,7 @@ const PER_ROUND = 20
 /** The vault, through the REAL assembly (`setOf`) rather than a flatten written
  *  here: path order is a promise of the format's own, and a bench that spells it
  *  again is a bench that can come to measure a corpus in an order no app holds. */
-const view = derive(
+const view = derive(TEST_CLAIMS,
   recordsOf(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS })))),
 )
 
@@ -145,7 +145,7 @@ const agendaSaid = (agenda: Agenda): string => {
  *  is built and kept. */
 const folded = (derived: Derived): string => {
   const byDay = new Map<string, Array<Dated>>()
-  for (const located of derived.nodes) dateInto(byDay, located)
+  for (const located of derived.nodes) dateInto(TEST_CLAIMS, byDay, located)
   const days: Array<string> = []
   const owedByDay = new Map<string, number>()
   for (const [day, own] of byDay) {

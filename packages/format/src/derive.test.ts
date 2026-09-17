@@ -1,3 +1,7 @@
+/** The reading of `byFile`, under a name the fixture builder below has not
+   *  already taken — that one turns TEXT into records, this one asks a
+   *  derivation what one file holds. */
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import {
@@ -7,9 +11,6 @@ import {
   countedChildren,
   derive,
   type Derived,
-  /** The reading of `byFile`, under a name the fixture builder below has not
-   *  already taken — that one turns TEXT into records, this one asks a
-   *  derivation what one file holds. */
   nodesOf as recordsOf,
   type Progress,
   progressOf,
@@ -36,13 +37,13 @@ import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { isMirror, type Located, type RegularNode, storedMarker } from "./node.ts"
 
 const statusesOf = (contents: string): ReadonlyMap<string, Status> =>
-  derive(nodesOf(contents)).status
+  derive(TEST_CLAIMS, nodesOf(contents)).status
 
 const ids = (nodes: ReadonlyArray<Located>): ReadonlyArray<string> =>
   nodes.map((located) => located.node.id)
 
 test("the nearest selected node may be the node itself or its closest ancestor", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"root","ord":"a","title":"root"}\n` +
       `{"id":"middle","parent":"root","ord":"a","title":"middle"}\n` +
       `{"id":"leaf","parent":"middle","ord":"a","title":"leaf"}`,
@@ -188,7 +189,7 @@ test("a parent says what it stores, whatever hangs under it", () => {
 // is hidden or what is blocked.
 test("the rollup counts the child tasks, and only the child tasks", () => {
   const progress = (contents: string, id: string): Progress | undefined =>
-    progressOf(derive(nodesOf(contents)), id)
+    progressOf(derive(TEST_CLAIMS, nodesOf(contents)), id)
 
   expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
@@ -397,7 +398,7 @@ test("took says nothing the record cannot support, and never goes under zero", (
 // list, so a second walk over the same edges would be a second answer to "is a
 // bullet unfinished".
 test("the unfinished ones are the tasks in the subtree that are not done", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
@@ -417,7 +418,7 @@ test("the unfinished ones are the tasks in the subtree that are not done", () =>
 // The bullet in the middle is walked THROUGH — it is not a task itself, and
 // the task under it is still a task.
 test("it descends the whole branch, through bullets and finished work alike", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"root","ord":"a","title":"root"}\n` +
       `{"id":"near","parent":"root","ord":"a","title":"near","todo":true}\n` +
       `{"id":"note","parent":"root","ord":"b","title":"a note"}\n` +
@@ -435,7 +436,7 @@ test("it descends the whole branch, through bullets and finished work alike", ()
 // where its own row keeps it on screen, so it neither counts here nor is
 // walked into — and that holds for a mirror of a whole BRANCH too.
 test("a mirror is never counted and never walked through", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"here","ord":"a","title":"here"}\n` +
       `{"id":"place","parent":"here","ord":"a","mirror":"there"}\n` +
       `{"id":"there","ord":"b","title":"there","todo":true}\n` +
@@ -448,7 +449,7 @@ test("a mirror is never counted and never walked through", () => {
 // Every walk here answers over a set the validator would reject, this one
 // included: a parent loop must not hang the write that asks about it.
 test("a parent loop is walked once", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","parent":"b","ord":"a","title":"a","todo":true}\n` +
       `{"id":"b","parent":"a","ord":"a","title":"b","todo":true}`,
   ))
@@ -478,7 +479,7 @@ test("a mirror reports its target's mark, through as many hops as it takes", () 
 // a bullet has no box either, because there is no mark to show.
 test("a mirror row draws its target's mark, whichever of them it is", () => {
   const rows = rowsOf(
-    derive(nodesOfFiles({
+    derive(TEST_CLAIMS, nodesOfFiles({
       "a.olai": `{"id":"working","ord":"a","title":"working","doing":"2026-08-11"}\n` +
         `{"id":"waiting","ord":"b","title":"waiting","todo":"2026-08-11"}\n` +
         `{"id":"finished","ord":"c","title":"finished","done":"2026-08-11"}\n` +
@@ -508,7 +509,7 @@ test("a mirror child does not count toward the rollup of the node it sits under"
     `{"id":"p","ord":"a","title":"p"}\n` +
     `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
     `{"id":"m","parent":"p","ord":"b","mirror":"elsewhere"}`
-  const derived = derive(nodesOf(contents))
+  const derived = derive(TEST_CLAIMS, nodesOf(contents))
   expect(derived.status.get("m")).toBe("todo")
   expect(progressOf(derived, "p")).toEqual({ done: 1, total: 1 })
 
@@ -522,7 +523,7 @@ test("a mirror child does not count toward the rollup of the node it sits under"
 // sort. Anything that treated it as a number would put `a10` after `a2`, and
 // an insert between two siblings would land in the wrong place.
 test("siblings sort by string comparison of ord, never numerically", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"two","parent":"p","ord":"a2","title":"two"}\n` +
       `{"id":"ten","parent":"p","ord":"a10","title":"ten"}\n` +
@@ -535,7 +536,7 @@ test("siblings sort by string comparison of ord, never numerically", () => {
 // decides, rather than whatever the engine's sort happens to do, so two loads
 // of the same file render in the same order.
 test("equal ords break on line, not on sort stability", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"later","parent":"p","ord":"m","title":"later"}\n` +
       `{"id":"earlier","parent":"p","ord":"m","title":"earlier"}`,
@@ -548,12 +549,12 @@ test("equal ords break on line, not on sort stability", () => {
 // the first one. `byId` and that error therefore have to pick the same record,
 // or a set with one duplicate would report a second, invented dangling edge.
 test("a duplicated id resolves to the record that claimed it first", () => {
-  const within = derive(nodesOf(
+  const within = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"first"}\n{"id":"x","ord":"b","title":"second"}`,
   ))
   expect(within.byId.get("x")?.line).toBe(1)
 
-  const across = derive(nodesOfFiles({
+  const across = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"x","ord":"a","title":"first"}`,
     "b.olai": `{"id":"x","ord":"a","title":"second"}`,
   }))
@@ -575,7 +576,7 @@ test("a file's records come back in line order, whatever order the set is in", (
   })
   // Handed over backwards: the promise is about what the index MEANS, not
   // about the order the caller happened to build its list in.
-  const derived = derive([...nodes].reverse())
+  const derived = derive(TEST_CLAIMS, [...nodes].reverse())
   // A placement is a RECORD, so it is here — this index is about what the file
   // holds, and `ord` order is a different list (`siblingsOf` sorts for that).
   expect(ids(recordsOf(derived, "a.olai"))).toEqual(["a1", "a2", "m"])
@@ -598,7 +599,7 @@ const waiting = (
 
 /** The same, for a set written as one file. */
 const waitingIn = (contents: string, id: string): ReadonlyArray<string> =>
-  waiting(derive(nodesOf(contents)), id)
+  waiting(derive(TEST_CLAIMS, nodesOf(contents)), id)
 
 // The rule, and the whole of it: `a after b` holds `a` up while `b` is a task
 // nobody has SETTLED — with the four marks there are, while it is doing or
@@ -634,7 +635,7 @@ test("an after target blocks while it is a task nobody has settled", () => {
  * disagree.
  */
 test("a cancelled node is waiting on nothing, and stands in nobody's way", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","cancelled":"2026-08-25T15:40:03-04:00","after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +
       `{"id":"c","ord":"c","title":"c","todo":true,"after":["a"]}`,
@@ -667,7 +668,7 @@ test("a cancelled node is waiting on nothing, and stands in nobody's way", () =>
  * standing in the way.
  */
 test("a cancelled task is not unfinished work in the branch below a node", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"top","ord":"a","title":"top","todo":true}\n` +
       `{"id":"fin","parent":"top","ord":"a","title":"fin","done":"2026-08-10"}\n` +
       `{"id":"off","parent":"top","ord":"b","title":"off","cancelled":"2026-08-25"}\n` +
@@ -682,7 +683,7 @@ test("a cancelled task is not unfinished work in the branch below a node", () =>
   expect(unfinishedWithin(derived, "top").map((at) => at.node.id)).toEqual(["deep"])
 
   // With the branch's own leaf settled too, nothing is left standing.
-  const settled = derive(nodesOf(
+  const settled = derive(TEST_CLAIMS, nodesOf(
     `{"id":"top","ord":"a","title":"top","todo":true}\n` +
       `{"id":"off","parent":"top","ord":"a","title":"off","cancelled":"2026-08-25"}\n` +
       `{"id":"deep","parent":"off","ord":"a","title":"deep","cancelled":true}`,
@@ -732,7 +733,7 @@ test("a node that is done or unmarked is waiting on nothing", () => {
 // `blocks` is sugar for the same edge written from the other end, normalised
 // in ONE place (`derive`) so the acyclicity rule and this read one graph.
 test("blocks is the same edge, and both halves land in one answer", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","todo":true,"after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +
       `{"id":"c","ord":"c","title":"c","doing":true,"blocks":["a"]}`,
@@ -752,7 +753,7 @@ test("blocks is the same edge, and both halves land in one answer", () => {
 // and a repeat there says one node is in the way twice.
 test("an edge named twice, however it is spelled, is one edge", () => {
   // The FIELD, repeating a target, which is what a hand or a merge writes.
-  const repeated = derive(nodesOf(
+  const repeated = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b","b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}`,
   ))
@@ -761,7 +762,7 @@ test("an edge named twice, however it is spelled, is one edge", () => {
 
   // BOTH SPELLINGS of one arrow, each written once. Neither record is wrong,
   // and `a after b` is what the pair means.
-  const both = derive(nodesOf(
+  const both = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","todo":true,"after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true,"blocks":["a"]}`,
   ))
@@ -771,7 +772,7 @@ test("an edge named twice, however it is spelled, is one edge", () => {
   // TWO IDS STANDING AT ONE NODE: naming a placement names the node it shows,
   // so an `after` naming both is naming one target — and the pair is one edge
   // only because both ends are resolved before they are compared.
-  const mirrored = derive(nodesOfFiles({
+  const mirrored = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b-here"]}\n` +
       `{"id":"b-here","ord":"b","mirror":"b"}`,
     "b.olai": `{"id":"b","ord":"a","title":"b","doing":true}`,
@@ -781,7 +782,7 @@ test("an edge named twice, however it is spelled, is one edge", () => {
 
   // The ORDER a repeat is dropped in is the order the set first named it:
   // what survives is the whole list, minus the second saying of one thing.
-  const ordered = derive(nodesOf(
+  const ordered = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","todo":true,"after":["c","b","c"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +
       `{"id":"c","ord":"c","title":"c","todo":true}`,
@@ -793,7 +794,7 @@ test("an edge named twice, however it is spelled, is one edge", () => {
 // it would wait forever, and it is not blocked either, because the archive is
 // read as history rather than as a plate. Both ends, one rule.
 test("archived work neither blocks nor is blocked", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["put-away"]}`,
     "_olai/Trash.olai":
       `{"id":"put-away","ord":"a","title":"put away half-finished","doing":true}\n` +
@@ -809,7 +810,7 @@ test("archived work neither blocks nor is blocked", () => {
 // from live readings, so it neither blocks nor is blocked, and a leftover
 // mirror does not make a live node `is:mirrored`.
 test("leftover Archive.olai work neither blocks nor is blocked", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
     "Archive.olai":
       `{"id":"old","ord":"a","title":"leftover half-finished","doing":true}\n` +
@@ -821,7 +822,7 @@ test("leftover Archive.olai work neither blocks nor is blocked", () => {
 })
 
 test("a leftover Archive.olai mirror does not make a node is:mirrored", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "house.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
     "Archive.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
   }))
@@ -847,7 +848,7 @@ test("standingBefore asks the same question of a node that is not work yet", () 
 
   // The one place they part: an unmarked source. It is waiting on nothing, and
   // there is unfinished work in front of it all the same.
-  const bullet = derive(nodesOf(
+  const bullet = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}`,
   ))
@@ -856,7 +857,7 @@ test("standingBefore asks the same question of a node that is not work yet", () 
 
   // And everywhere else they agree, because the TARGET side is one function:
   // a bullet, a done node and an archived one stand in nobody's way.
-  const clear = derive(nodesOfFiles({
+  const clear = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"a","ord":"a","title":"a","after":["note","fin","gone"]}\n` +
       `{"id":"note","ord":"b","title":"a note"}\n` +
       `{"id":"fin","ord":"c","title":"fin","done":"2026-08-10"}`,
@@ -874,7 +875,7 @@ test("standingBefore asks the same question of a node that is not work yet", () 
   // `c` …"). It is the same promise `Derived.blocked` makes for the one
   // blocker a row has space to draw — a node's own `after` as it writes them,
   // then whatever `blocks` points back at it.
-  const both = derive(nodesOf(
+  const both = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +
       `{"id":"c","ord":"c","title":"c","todo":true,"blocks":["a"]}`,
@@ -890,7 +891,7 @@ test("standingBefore asks the same question of a node that is not work yet", () 
 test("an archive beside any outline is an archive", () => {
   expect(
     waiting(
-      derive(nodesOfFiles({
+      derive(TEST_CLAIMS, nodesOfFiles({
         "work/plans.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
         "_olai/Trash.olai": `{"id":"old","ord":"a","title":"old","doing":true}`,
       })),
@@ -903,7 +904,7 @@ test("an archive beside any outline is an archive", () => {
 // and what it means is the node standing there. Followed at either end, so the
 // blocker a reader is handed is a node with a title to show.
 test("an edge naming a mirror means the node it shows", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["m"]}\n` +
       `{"id":"b","ord":"b","title":"the real one","doing":true}\n` +
       `{"id":"m","ord":"c","mirror":"b"}\n` +
@@ -926,7 +927,7 @@ test("an edge naming a mirror means the node it shows", () => {
 // the file landed first — so what a pill linked to depended on where in the
 // directory somebody had written an unrelated edge.
 test("a node's own after targets come before anything that blocks it", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"early","ord":"a","title":"early","doing":true,"blocks":["subject"]}\n` +
       `{"id":"own","ord":"b","title":"own","doing":true}\n` +
       `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
@@ -939,7 +940,7 @@ test("a node's own after targets come before anything that blocks it", () => {
   // filed. That is where the two rules meet: the collapse keeps the position
   // the FIRST saying earned, rather than moving the pair to where the `blocks`
   // was read or naming `own` twice with `early` between the two.
-  const paired = derive(nodesOf(
+  const paired = derive(TEST_CLAIMS, nodesOf(
     `{"id":"early","ord":"a","title":"early","doing":true,"blocks":["subject"]}\n` +
       `{"id":"own","ord":"b","title":"own","doing":true,"blocks":["subject"]}\n` +
       `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
@@ -952,7 +953,7 @@ test("a node's own after targets come before anything that blocks it", () => {
 // mirror row (which says what its target says, the way its status does) and
 // the node's own page.
 test("a row, a mirror row and a page all say what the node is waiting on", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"first","ord":"a","title":"first","doing":true}\n` +
       `{"id":"second","ord":"b","title":"second","todo":true,"after":["first"]}\n` +
       `{"id":"m","ord":"c","mirror":"second"}`,
@@ -973,7 +974,7 @@ test("a row, a mirror row and a page all say what the node is waiting on", () =>
 // is keyed by the node while `status` is keyed by every record, and the row is
 // where those two key domains have to meet.
 test("a mirror row carries both halves of the waiting glyph", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"first","ord":"a","title":"first","doing":true}\n` +
       `{"id":"second","ord":"b","title":"second","todo":true,"after":["first"]}`,
     "b.olai": `{"id":"m","ord":"a","mirror":"second"}`,
@@ -991,7 +992,7 @@ test("a mirror row carries both halves of the waiting glyph", () => {
 // A row that draws no node is waiting on nothing — there is no node there to
 // be held up — and asking is not an error.
 test("a dangling row is waiting on nothing", () => {
-  const rows = rowsOf(derive(nodesOf(`{"id":"m","ord":"a","mirror":"gone"}`)), FIXTURE_FILE)
+  const rows = rowsOf(derive(TEST_CLAIMS, nodesOf(`{"id":"m","ord":"a","mirror":"gone"}`)), FIXTURE_FILE)
   expect(rows[0]?.blocked).toEqual([])
 })
 
@@ -999,7 +1000,7 @@ test("a dangling row is waiting on nothing", () => {
 // first — but the derivation still runs against it, because that report is
 // drawn over a tree. Each of them is waiting on the other, and nothing hangs.
 test("an after loop derives without hanging", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"a","doing":true,"after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true,"after":["a"]}`,
   ))
@@ -1013,7 +1014,7 @@ test("an after loop derives without hanging", () => {
 // has to resolve it too, or a set nobody can start anywhere in loads clean and
 // says so on two rows for ever. `validate.test.ts` holds the other half.
 test("a loop closing through a mirror is one loop in the graph", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"x","ord":"a","title":"x","doing":true,"after":["m"]}\n` +
       `{"id":"y","ord":"b","title":"y","doing":true,"after":["x"]}`,
     "b.olai": `{"id":"m","ord":"a","mirror":"y"}`,
@@ -1035,7 +1036,7 @@ test("a loop closing through a mirror is one loop in the graph", () => {
 // second chance to disagree about where a chain ends, and a placement filed
 // under one node while it shows another is exactly what this exists to find.
 test("a mirror is filed under the node its chain ends at, not the hop before", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"x","ord":"a","title":"the real one"}`,
     "b.olai": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"x"}`,
   }))
@@ -1047,7 +1048,7 @@ test("a mirror is filed under the node its chain ends at, not the hop before", (
 // that shows itself is not standing in for anything. `status` leaves all three
 // out; so does this, for the same reason.
 test("a chain that shows no node, and a node that shows itself, are filed nowhere", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"gone","ord":"a","mirror":"nobody"}\n` +
       `{"id":"loop","ord":"b","mirror":"loop"}\n` +
       `{"id":"plain","ord":"c","title":"plain"}`,
@@ -1057,7 +1058,7 @@ test("a chain that shows no node, and a node that shows itself, are filed nowher
 
 // A duplicated id is one node — `byId` says so — so it is one entry here too.
 test("a node's mirrors are listed once each", () => {
-  const derived = derive(nodesOfFiles({
+  const derived = derive(TEST_CLAIMS, nodesOfFiles({
     "a.olai": `{"id":"x","ord":"a","title":"x"}`,
     "b.olai": `{"id":"m","ord":"a","mirror":"x"}`,
     "c.olai": `{"id":"m","ord":"a","mirror":"x"}`,
@@ -1070,7 +1071,7 @@ test("a node's mirrors are listed once each", () => {
 // forward reading and the reverse one cannot disagree about whether two
 // records mean one edge.
 test("the ordering graph reversed says who was waiting on a node", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x","doing":true,"blocks":["e"]}\n` +
       `{"id":"m","ord":"b","mirror":"x"}\n` +
       `{"id":"a","ord":"c","title":"a","todo":true,"after":["m"]}\n` +
@@ -1092,7 +1093,7 @@ test("the ordering graph reversed says who was waiting on a node", () => {
 // could have gone on counting the repeat, and then "who is waiting on x" and
 // "what is x waiting on" would disagree about how many edges two records mean.
 test("a target named twice is one edge, read forwards and backwards", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x","doing":true}\n` +
       `{"id":"a","ord":"b","title":"a","todo":true,"after":["x","x"]}`,
   ))
@@ -1108,7 +1109,7 @@ test("a target named twice is one edge, read forwards and backwards", () => {
 // edges at the node the placement shows, where a refusal about the PLACEMENT
 // could never find them.
 test("a record is filed under the id it wrote, not the node that id means", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x"}\n` +
       `{"id":"m","ord":"b","mirror":"x"}\n` +
       `{"id":"a","ord":"c","title":"a","after":["m"],"see":["m"]}\n` +
@@ -1127,7 +1128,7 @@ test("a record is filed under the id it wrote, not the node that id means", () =
 // One field naming an id twice is still one field: a reader listing it twice
 // would be reporting the shape of the file rather than what it means.
 test("a field naming the same id twice is named once", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x"}\n` +
       `{"id":"a","ord":"b","title":"a","after":["x","x"],"see":["x"]}`,
   ))
@@ -1140,7 +1141,7 @@ test("a field naming the same id twice is named once", () => {
 // REFERENCE — is asked at the read (`./backlinks.ts`), so that minting a node
 // does not have to re-walk every note in the directory.
 test("a tag is filed under the tag as written, in prose of either kind", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x"}\n` +
       `{"id":"a","ord":"b","title":"about @x"}\n` +
       `{"id":"b","ord":"c","title":"b","desc":"and @x again, and @alice"}`,
@@ -1155,7 +1156,7 @@ test("a tag is filed under the tag as written, in prose of either kind", () => {
 // used to be sigil-stripped, so a topic and a mention spelled the same word
 // were one entry and neither reader could tell them apart.
 test("a `#topic` and an `@person` spelled alike are two keys", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"a","ord":"b","title":"ask @herbs"}\n` +
       `{"id":"b","ord":"c","title":"filed under #herbs"}`,
@@ -1167,7 +1168,7 @@ test("a `#topic` and an `@person` spelled alike are two keys", () => {
 })
 
 test("a record writing one tag twice is one entry of it", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x"}\n` +
       `{"id":"a","ord":"b","title":"@x and @x","desc":"still @x"}`,
   ))
@@ -1175,14 +1176,14 @@ test("a record writing one tag twice is one entry of it", () => {
 })
 
 test("a mirror tags nothing, having no prose to tag with", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"x","ord":"a","title":"x"}\n{"id":"m","ord":"b","mirror":"x"}`,
   ))
   expect(derived.taggedBy.size).toBe(0)
 })
 
 test("the alphabet is the title's own, and a sigil inside a word starts nothing", () => {
-  const derived = derive(nodesOf(
+  const derived = derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","ord":"a","title":"write to sam@herbs.example"}\n` +
       `{"id":"b","ord":"b","title":"filed under #herbs"}\n` +
       `{"id":"c","ord":"c","title":"(@herbs) and @work/olai"}`,
@@ -1207,7 +1208,7 @@ test("a mirror row is drawn with its target's children", () => {
       `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
       `{"id":"m","ord":"a","mirror":"p"}`,
   )
-  const rows = rowsOf(derive(nodes), "a.olai")
+  const rows = rowsOf(derive(TEST_CLAIMS, nodes), "a.olai")
   const mirror = drawn(rows, 0)
   expect(mirror.kind).toBe("mirror")
   // `at` is the record occupying the place; `shows` is what is drawn there —
@@ -1238,7 +1239,7 @@ test("a mirror of a mirror shows the node at the end of the chain, with its chil
       `{"id":"hop","ord":"b","mirror":"p"}\n` +
       `{"id":"far","ord":"a","mirror":"hop"}`,
   )
-  const far = drawn(rowsOf(derive(nodes), "a.olai"), 0)
+  const far = drawn(rowsOf(derive(TEST_CLAIMS, nodes), "a.olai"), 0)
   expect(far.at.node.id).toBe("far")
   expect(far.kind).toBe("mirror")
   // Through both hops, to the node that actually carries a title…
@@ -1259,7 +1260,7 @@ test("one node reached through two places has two keys", () => {
       `{"id":"c","parent":"p","ord":"a","title":"c"}\n` +
       `{"id":"m","ord":"a","mirror":"p"}`,
   )
-  const rows = shape(rowsOf(derive(nodes), "a.olai"))
+  const rows = shape(rowsOf(derive(TEST_CLAIMS, nodes), "a.olai"))
   expect(rows).toEqual(["/m mirror", "/m/c node", "/p node", "/p/c node"])
   expect(new Set(rows).size).toBe(rows.length)
 })
@@ -1269,7 +1270,7 @@ test("one node reached through two places has two keys", () => {
 // refused the set, and the reader is looking at it to find out why.
 test("a mirror with no target is a dangling row with no children", () => {
   const nodes = nodesOf(`{"id":"m","ord":"a","mirror":"gone"}`)
-  const rows = rowsOf(derive(nodes), "a.olai")
+  const rows = rowsOf(derive(TEST_CLAIMS, nodes), "a.olai")
   expect(rows.map(stubbed)).toEqual(["dangling gone"])
   // Nothing to draw, so the row carries no `shows` at all — a view switching
   // on `kind` never has a placeholder to test for.
@@ -1284,7 +1285,7 @@ test("a dangling row names where the chain died, not the first hop", () => {
   const nodes = nodesOf(
     `{"id":"a","ord":"a","mirror":"b"}\n{"id":"b","ord":"b","mirror":"c"}`,
   )
-  const rows = rowsOf(derive(nodes), "a.olai")
+  const rows = rowsOf(derive(TEST_CLAIMS, nodes), "a.olai")
   expect(rows.map(stubbed)).toEqual(["dangling c", "dangling c"])
   expect(rows.map((row) => row.at.node.id)).toEqual(["a", "b"])
 })
@@ -1294,14 +1295,14 @@ test("a dangling row names where the chain died, not the first hop", () => {
 // drawn, and the row names the id it closed on rather than the first hop.
 test("a mirror chain that closes on itself is a cycle naming where it closed", () => {
   const itself = nodesOf(`{"id":"m","ord":"a","mirror":"m"}`)
-  expect(rowsOf(derive(itself), "a.olai").map(stubbed)).toEqual(["cycle m"])
+  expect(rowsOf(derive(TEST_CLAIMS, itself), "a.olai").map(stubbed)).toEqual(["cycle m"])
 
   // Two mirrors showing each other: from `m1` the chain runs m1 → m2 → m1, so
   // that place closed on `m1`, and the place at `m2` on `m2`.
   const pair = nodesOf(
     `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,
   )
-  const rows = rowsOf(derive(pair), "a.olai")
+  const rows = rowsOf(derive(TEST_CLAIMS, pair), "a.olai")
   expect(rows.map(stubbed)).toEqual(["cycle m1", "cycle m2"])
   expect(rows.every((row) => row.children.length === 0)).toBe(true)
 
@@ -1312,7 +1313,7 @@ test("a mirror chain that closes on itself is a cycle naming where it closed", (
       `{"id":"b","ord":"b","mirror":"c"}\n` +
       `{"id":"c","ord":"c","mirror":"b"}`,
   )
-  expect(rowsOf(derive(into), "a.olai").map(stubbed))
+  expect(rowsOf(derive(TEST_CLAIMS, into), "a.olai").map(stubbed))
     .toEqual(["cycle b", "cycle b", "cycle c"])
 })
 
@@ -1325,7 +1326,7 @@ test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
   const nodes = nodesOf(
     `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"a"}`,
   )
-  const rows = rowsOf(derive(nodes), "a.olai")
+  const rows = rowsOf(derive(TEST_CLAIMS, nodes), "a.olai")
   expect(shape(rows)).toEqual(["/a node", "/a/m cycle"])
   // And it says which ancestor it closed on, which is what a view would
   // otherwise have to guess from the mirror's own id.
@@ -1338,7 +1339,7 @@ test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
       `{"id":"b","parent":"a","ord":"a","title":"b"}\n` +
       `{"id":"m","parent":"b","ord":"b","mirror":"a"}`,
   )
-  const deepRows = rowsOf(derive(deep), "a.olai")
+  const deepRows = rowsOf(derive(TEST_CLAIMS, deep), "a.olai")
   expect(shape(deepRows)).toEqual(["/a node", "/a/b node", "/a/b/m cycle"])
   expect(deepRows[0]?.children[0]?.children.map(stubbed)).toEqual(["cycle a"])
 })
@@ -1355,7 +1356,7 @@ test("roots are the requested file's own top-level nodes, in ord order", () => {
   })
   // One `Derived` for every file: it carries the nodes it was built from, so
   // the rows of two files cannot be drawn from two different revisions.
-  const derived = derive(nodes)
+  const derived = derive(TEST_CLAIMS, nodes)
   expect(shape(rowsOf(derived, "a.olai")))
     .toEqual(["/first node", "/first/kid node", "/second node"])
   expect(shape(rowsOf(derived, "b.olai"))).toEqual(["/elsewhere node"])
@@ -1371,7 +1372,7 @@ const HOUSEWORK = `{"id":"kitchen","ord":"a0","title":"kitchen","doing":true}\n`
   `{"id":"handles","parent":"install","ord":"a0","title":"handles","doing":true}`
 
 test("hiding what is done drops the done rows and keeps the rest", () => {
-  const rows = rowsOf(derive(nodesOf(HOUSEWORK)), FIXTURE_FILE)
+  const rows = rowsOf(derive(TEST_CLAIMS, nodesOf(HOUSEWORK)), FIXTURE_FILE)
   expect(shape(rows)).toEqual([
     "/kitchen node",
     "/kitchen/demo node",
@@ -1390,7 +1391,7 @@ test("hiding what is done drops the done rows and keeps the rest", () => {
 // is what the toggle is for.
 test("a stored done hides the whole subtree under it, bullets included", () => {
   const rows = rowsOf(
-    derive(
+    derive(TEST_CLAIMS,
       nodesOf(
         `{"id":"finished","ord":"a0","title":"finished","done":"2026-08-10"}\n` +
           `{"id":"one","parent":"finished","ord":"a0","title":"one","done":true}\n` +
@@ -1410,7 +1411,7 @@ test("a stored done hides the whole subtree under it, bullets included", () => {
 // is left hid exactly what was left.
 test("a parent nobody marked is not hidden, however finished its children are", () => {
   const rows = rowsOf(
-    derive(
+    derive(TEST_CLAIMS,
       nodesOf(
         `{"id":"agents","ord":"a0","title":"agents"}\n` +
           `{"id":"chat","parent":"agents","ord":"a0","title":"chat","done":true}\n` +
@@ -1440,7 +1441,7 @@ test("a parent nobody marked is not hidden, however finished its children are", 
 // about the one written after it.
 test("done-hidden drops a mirror of a done node with the subtree it draws", () => {
   const rows = rowsOf(
-    derive(nodesOfFiles({
+    derive(TEST_CLAIMS, nodesOfFiles({
       "a.olai": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
         `{"id":"how","parent":"finished","ord":"a","title":"how it went"}\n` +
         `{"id":"open","ord":"b","title":"open","doing":true}`,
@@ -1462,7 +1463,7 @@ test("done-hidden drops a mirror of a done node with the subtree it draws", () =
 // Hidden, never touched: the rows handed in are the same rows afterwards, so
 // the switch cannot be mistaken for an edit.
 test("hiding leaves the rows it was given alone", () => {
-  const rows = rowsOf(derive(nodesOf(HOUSEWORK)), FIXTURE_FILE)
+  const rows = rowsOf(derive(TEST_CLAIMS, nodesOf(HOUSEWORK)), FIXTURE_FILE)
   const before = shape(rows)
   withoutDone(rows)
   expect(shape(rows)).toEqual(before)
@@ -1472,7 +1473,7 @@ test("hiding leaves the rows it was given alone", () => {
 // keeps asking the question of everything under and beside it — the courtesy
 // is the path, not the page.
 test("a kept place is drawn — and nothing the path did not name comes back with it", () => {
-  const rows = rowsOf(derive(nodesOf(HOUSEWORK)), FIXTURE_FILE)
+  const rows = rowsOf(derive(TEST_CLAIMS, nodesOf(HOUSEWORK)), FIXTURE_FILE)
   const keep = new Set([rows[0]!.children[0]!.key]) // /kitchen/demo
   expect(shape(withoutDone(rows, keep))).toEqual([
     "/kitchen node",
@@ -1488,7 +1489,7 @@ test("a kept place is drawn — and nothing the path did not name comes back wit
 
 test("a kept DONE ANCESTOR re-asks the question of every child — done children under it stay hidden", () => {
   const rows = rowsOf(
-    derive(
+    derive(TEST_CLAIMS,
       nodesOf(
         `{"id":"finished","ord":"a0","title":"finished","done":"2026-08-10"}\n` +
           `{"id":"one","parent":"finished","ord":"a0","title":"one","done":true}\n` +
@@ -1508,7 +1509,7 @@ test("a kept DONE ANCESTOR re-asks the question of every child — done children
 
 test("the reservation is keyed on the PLACE — a kept node leaves its other mirrors hidden", () => {
   const rows = rowsOf(
-    derive(nodesOfFiles({
+    derive(TEST_CLAIMS, nodesOfFiles({
       "a.olai": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
         `{"id":"open","ord":"b","title":"open","doing":true}`,
       "b.olai": `{"id":"m-finished","ord":"a","mirror":"finished"}\n` +
@@ -1672,7 +1673,7 @@ test("a cyclic set derives without hanging", () => {
   )
   expect(parents.get("a")).toBe("doing")
   expect(parents.get("b")).toBeUndefined()
-  expect(progressOf(derive(nodesOf(
+  expect(progressOf(derive(TEST_CLAIMS, nodesOf(
     `{"id":"a","parent":"b","ord":"a","title":"a","doing":true}\n` +
       `{"id":"b","parent":"a","ord":"b","title":"b"}`,
   )), "b")).toEqual({ done: 0, total: 1 })
@@ -1709,7 +1710,7 @@ const UNDER_GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const UNDER = derive(
+const UNDER = derive(TEST_CLAIMS,
   nodesOfFiles({ "house.olai": UNDER_HOUSE, "garden.olai": UNDER_GARDEN }),
 )
 
@@ -1790,7 +1791,7 @@ test("the ancestry walk climbs whatever index it is handed", () => {
   expect(ids(ancestryOver(walkOver(standing), "sink"))).toEqual(["house", "kitchen"])
   // The same walk bound to the derivation is the export everything else uses,
   // and it must answer identically about the set it was derived from.
-  expect(ids(ancestorsOf(derive(standing), "sink"))).toEqual(["house", "kitchen"])
+  expect(ids(ancestorsOf(derive(TEST_CLAIMS, standing), "sink"))).toEqual(["house", "kitchen"])
 })
 
 test("…so a record that has not been written yet has an ancestry", () => {
@@ -1800,7 +1801,7 @@ test("…so a record that has not been written yet has an ancestry", () => {
   expect(ids(ancestryOver(walkOver(planned), "sink"))).toEqual(["shed"])
   // ...and the standing derivation still says what it always said, which is the
   // whole reason the fence has to ask both sides.
-  expect(ids(ancestorsOf(derive(nodesOf(HOUSE)), "sink"))).toEqual(["house", "kitchen"])
+  expect(ids(ancestorsOf(derive(TEST_CLAIMS, nodesOf(HOUSE)), "sink"))).toEqual(["house", "kitchen"])
 })
 
 test("the stopping rules travelled with the walk, not with the derivation", () => {

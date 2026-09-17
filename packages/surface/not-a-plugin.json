@@ -1,0 +1,28 @@
+{
+  "//mcp": "The surface-mcp protocol brand in the pure refusal decoder is wire vocabulary, not a dependency on the mcp plugin.",
+  "mcp": [
+    "src/refusal.ts"
+  ],
+  "capture": [
+    "src/edit.ts"
+  ],
+  "csv": [
+    "src/attach.ts"
+  ],
+  "files": [
+    "src/projection.ts"
+  ],
+  "pdf": [
+    "src/attach.ts"
+  ],
+  "search": [
+    "src/media.ts"
+  ],
+  "trash": [
+    "src/edit.ts"
+  ],
+  "vault": [
+    "src/plugins.ts",
+    "src/seal.ts"
+  ]
+}

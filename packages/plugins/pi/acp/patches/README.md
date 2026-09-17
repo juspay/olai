@@ -4,18 +4,22 @@
 
 One patch applies to the pinned `pi-acp` 0.0.33 — to its **compiled**
 `dist/index.js`, because npm is the only channel the adapter ships through
-(`nix/acp-agent.nix` says why that pin is npm-shaped). It is applied by that
-derivation's `postInstall`, so every documented way of starting olai —
-`nix run`, the packaged binary, `just serve`, `just run`, the e2e suite's
-`OLAI_BIN` — gets the same agent.
+(`default.nix` beside this plugin reaches `@olai/plugin-kit`'s
+`npm-adapter.nix` for exactly the reason that pin is npm-shaped). It is
+applied by that derivation's `postInstall`, so every documented way of
+starting olai — `nix run`, the packaged binary, `just serve`, `just run`, the
+e2e suite's `OLAI_BIN` — gets the same agent.
 
 **It sits in this plugin's directory rather than beside the shim**, and that
 is the agents phase: an engine is a plugin now, with its own release clock,
 so its adapter's patches and the sources they are generated from travel with
 it. What is still shared is the npm SHIM (`acp/package.json` and its
-lockfile) — one lockfile, two adapters, one fixed-output derivation — and
-`acp/README.md` says why. The Claude Code adapter's two patches are one
-directory over, in `packages/plugins/claude/acp/patches/`.
+lockfile, carried in the fold as `acpShim`) — one lockfile, the Claude and pi
+adapters, one fixed-output derivation — and `default.nix` names that shim in
+its call to `npm-adapter.nix`; the why-one-lockfile argument lives in
+`packages/plugins/claude/acp/patches/README.md`, beside that shim. The Claude
+Code adapter's two patches are one directory over, in
+`packages/plugins/claude/acp/patches/`.
 
 ---
 
@@ -43,7 +47,8 @@ pi-acp 0.0.33 (its `dist/index.js` was read, not guessed at):
 The patch therefore has two halves, one small each:
 
 1. **The spawn hands over what the request handed.** When the env wrapper
-   (see `nix/acp-agent.nix`) armed `PI_ACP_MCP_EXTENSION` and the request
+   (see `default.nix` beside this plugin — its `npm-adapter.nix` env lines)
+   armed `PI_ACP_MCP_EXTENSION` and the request
    came with `mcpServers` — both, never one — the spawn becomes
    `pi --mode rpc --no-themes -e <bridge>` and the child's env gains
    `PI_ACP_MCP_SERVERS`, the request's own JSON. No servers, no

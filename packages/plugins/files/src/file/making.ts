@@ -1,5 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
-import { TESTID } from "olai-plugin-files/testids"
 /**
  * The two files a person can start from the sidebar, as values: what each door
  * is called, and the names a browser test finds it by.
@@ -16,15 +14,12 @@ import { TESTID } from "olai-plugin-files/testids"
  * asked for, and a rename to serve a refactor in this package would be a break
  * in the other one for nothing.
  */
-
-import type { FileKind } from "@olai/format"
-
-
-
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-files/testids"
 export interface Making {
   /** Which kind of file this door mints — the tree's own glyph, so a row that
    *  makes an outline looks like the outlines above it. */
-  readonly of: FileKind
+  readonly of: string
   /** The affordance's own words, in the sidebar. */
   readonly label: string
   /** What the empty box suggests — a path, because a file's name IS its
@@ -47,28 +42,28 @@ export interface Making {
   }
 }
 
-export const MAKING_OUTLINE: Making = {
-  of: "outline",
+export const MAKING_OUTLINE = (row: string): Making => ({
+  of: row,
   label: "+ New outline",
   placeholder: "notes/plan",
   aria:
-    "path of the new outline, relative to the served directory — the .olai suffix is added if you leave it off",
+    "path of the new outline, relative to the served directory — the configured row’s suffix is added if you leave it off",
   testids: {
     open: TESTID.newOutline,
     path: TESTID.newOutlinePath,
     said: TESTID.newOutlineSaid,
   },
-}
+})
 
-export const MAKING_DOCUMENT: Making = {
-  of: "document",
+export const MAKING_DOCUMENT = (row: string): Making => ({
+  of: row,
   label: "+ New document",
   placeholder: "notes/idea",
   aria:
-    "path of the new document, relative to the served directory — the .md suffix is added if you leave it off",
+    "path of the new document, relative to the served directory — the document suffix is added if you leave it off",
   testids: {
     open: TESTID.newDocument,
     path: TESTID.newDocumentPath,
     said: TESTID.newDocumentSaid,
   },
-}
+})

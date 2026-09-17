@@ -1,5 +1,3 @@
-import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * A labelled row of links to other nodes — what one of a node's EDGES looks
  * like when it is drawn out rather than hinted at.
@@ -25,7 +23,8 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * by each caller: an empty labelled row is not a thing any relation wants, and
  * a guard per caller is a guard the next one forgets.
  */
-
+import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
+import { TESTID } from "olai-plugin-outlines/testids"
 import { Key } from "@solid-primitives/keyed"
 import { type JSX, Show } from "solid-js"
 

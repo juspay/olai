@@ -43,7 +43,7 @@ const Id = Schema.String.annotate({
 
 const Title = Schema.String.annotate({
   description:
-    "The node's title, verbatim. Inline tags live here — `#topic` and `@person`, two namespaces over the same alphabet.",
+    "The node's title, verbatim. Inline tags live here — `#topic` and `@person`, two namespaces over the same alphabet. A relative link resolves beside the file this node lives in, not beside the reader; the answer names any link that lands on nothing served.",
 })
 
 /**
@@ -88,7 +88,7 @@ const Anchor = {
 const CAPTURE = {
   title: Title,
   desc: Schema.optionalKey(
-    Schema.String.annotate({ description: "The note. Markdown, stored verbatim." }),
+    Schema.String.annotate({ description: "The note. Markdown, stored verbatim. A relative link resolves beside the file this node lives in, not beside the reader; the answer names any link that lands on nothing served." }),
   ),
   date: Schema.optionalKey(
     Schema.String.annotate({
@@ -410,7 +410,7 @@ export const DescRequest = Schema.Struct({
   op: Schema.Literal("desc"),
   id: Id,
   /** `null` removes the note. */
-  desc: Schema.NullOr(Schema.String),
+  desc: Schema.NullOr(Schema.String).annotate({ description: "A relative link resolves beside the file this node lives in, not beside the reader; the answer names any link that lands on nothing served." }),
   /** `null` is a real answer here — "expects no note at all" — which is why
    *  the CHECK is on the field being present rather than on its content. */
   was: Schema.optionalKey(
@@ -936,7 +936,7 @@ export const CreateDocumentRequest = Schema.Struct({
  * empties one is nobody's verb to guess. A document still NAMED — a `doc`
  * field, or a value of a `doc`-declared property — is refused, naming the
  * records that name it: deleting under them would break THEIR files, which is
- * the `missing-doc` / `bad-prop` ruling the validator would reach anyway, said
+ * the reference guard and the declared-property fence, said
  * before any bytes are staged rather than after. And a file the SET holds no
  * contents for — an outline its lines did not parse, a document that would not
  * read — is refused with the validator's own rows: deleting from a set that is
@@ -961,7 +961,7 @@ export const DeleteRequest = Schema.Struct({
       "Path of the file to delete, exactly as the served set lists it — a `.md` document " +
       "(any content) or an `.olai` outline holding NO records. Refused, naming what to " +
       "settle first, for a path the set does not hold, an outline still carrying records, " +
-      "a document a `doc` field or a `doc`-declared property still names, a file the set " +
+      "a document a link or a `doc`-declared property still names, a file the set " +
       "could not load, and any of the kinds olai only shows (`.html`, `.csv`, pictures, " +
       "`.pdf`). The delete is not undoable in olai: what survives is whatever git had " +
       "already recorded.",
@@ -1129,7 +1129,7 @@ export const UpdateRequest = Schema.Struct({
   title: Schema.optionalKey(Title),
   desc: Schema.optionalKey(
     Schema.NullOr(Schema.String).annotate({
-      description: "The note, replaced whole. Markdown, stored verbatim; `null` removes it.",
+      description: "The note, replaced whole. Markdown, stored verbatim; `null` removes it. A relative link resolves beside the file this node lives in, not beside the reader; the answer names any link that lands on nothing served.",
     }),
   ),
   date: Schema.optionalKey(

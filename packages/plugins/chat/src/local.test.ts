@@ -23,6 +23,7 @@ describe("chat's one machine-local document", () => {
 
     expect(record).toEqual({
       memory: { session: "sess-2" },
+      models: {},
       wake: { scopes: [{ plugin: "kolu" }] },
       heard: { heard: [{ session: "sess-1" }] },
     })
@@ -46,6 +47,7 @@ describe("chat's one machine-local document", () => {
 
     expect(record).toEqual({
       memory: {},
+      models: {},
       wake: { scopes: [{ plugin: "kolu" }] },
       heard: { heard: [{ session: "sess-1" }] },
     })

@@ -40,7 +40,7 @@
  * is not one.
  */
 
-import { allowingOurs, type Leg, namedExactly } from "@olai/acp/engine"
+import { mcpCallBy, allowingOurs, type Leg, namedExactly } from "@olai/acp/engine"
 
 // ── which tool a call is ───────────────────────────────────────────────
 
@@ -108,7 +108,8 @@ export const toolNameOf = (toolCallId: string): string | null => {
  * plan-mode exit there — one rule, read off the option's own `kind`, is right
  * on both.
  */
-export const allowedWithoutAsking = allowingOurs((server) => `${server}_`)
+export const spelling = (server: string) => `${server}_`
+export const allowedWithoutAsking = allowingOurs(spelling)
 
 // ── the leg ────────────────────────────────────────────────────────────
 
@@ -124,6 +125,9 @@ export const allowedWithoutAsking = allowingOurs((server) => `${server}_`)
  * floor, a `_meta` subscription nothing subscribes to.
  */
 export const OPENCODE: Leg = {
+  spelling,
+  mcpCall: mcpCallBy(spelling),
+  replyIn,
   // NOTHING is read off a frame — there is no `_meta` on this wire, and the
   // `title` moves — so nothing about a call is remembered either: the name is
   // in the key the question arrives under (`olai-plugin-chat`'s `calls.ts`).
@@ -179,4 +183,17 @@ export const OPENCODE: Leg = {
   // until this phase it nevertheless sat on the path every opencode
   // conversation's model name was read through.
   models: { config: "model", nameIn: namedExactly },
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
+
+export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined {
+  const outer = record(rawOutput)
+  const structured = record(record(outer?.["metadata"])?.["structuredContent"])
+  if (structured !== undefined) return structured
+  const output = outer?.["output"]
+  if (typeof output !== "string") return undefined
+  try { return record(record(JSON.parse(output))?.["structuredContent"]) } catch { return undefined }
 }

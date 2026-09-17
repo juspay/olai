@@ -122,19 +122,29 @@ test("a headless serve commits a quiet directory and pushes it, with no tab open
  * other mode. These two are that ruling as a real serve — a child process over
  * a real repository whose upstream somebody else has moved.
  */
-const diverged = (dirs: { readonly root: string; readonly bare: string }): void => {
+const diverged = (dirs: { readonly root: string; readonly bare: string }, conflict = ""): void => {
   const theirs = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-theirs-")))
   gitIn(theirs)("clone", "--quiet", dirs.bare, ".")
   gitIn(theirs)("config", "user.email", "them@example.com")
   gitIn(theirs)("config", "user.name", "them")
   fs.writeFileSync(path.join(theirs, "theirs.md"), "somebody else's work\n")
+  if (conflict !== "") {
+    // The other side edits the ONE line of the seeded file...
+    fs.writeFileSync(path.join(theirs, "garden.olai"), conflict)
+  }
   gitIn(theirs)("add", "-A")
   gitIn(theirs)("commit", "--quiet", "-m", "theirs")
   gitIn(theirs)("push", "--quiet")
   fs.rmSync(theirs, { recursive: true, force: true })
   // ... and this side has a commit of its own, so the branch is genuinely
-  // unshared and genuinely cannot be sent.
-  fs.writeFileSync(path.join(dirs.root, "notes.md"), "the herb bed needs splitting\n")
+  // unshared. `conflict` edits the SAME line of the seeded file this side
+  // then edits too, which is what makes the take-in a stop rather than a
+  // clean one — the pick lands on a line both sides changed.
+  if (conflict !== "") {
+    fs.writeFileSync(path.join(dirs.root, "garden.olai"), "the herb bed needs splitting\n")
+  } else {
+    fs.writeFileSync(path.join(dirs.root, "notes.md"), "the herb bed needs splitting\n")
+  }
   gitIn(dirs.root)("add", "-A")
   gitIn(dirs.root)("commit", "--quiet", "-m", "olai: earlier")
 }
@@ -161,9 +171,14 @@ const served = (): { readonly root: string; readonly bare: string; readonly stat
  *  product decision. */
 const AFTER_BOOT = 15_000
 
+/** The conflicting pair, shared by the boot tests: the other machine edits
+ *  the seeded line, and so does this side. */
+const CONFLICT = "theirs own the garden\n"
 test("a boot under push: auto re-earns git's words about a branch it cannot send", async () => {
   const dirs = served()
-  diverged(dirs)
+  // The conflicting take-in, so the re-earned words are the CONFLICT's own —
+  // a boot that takes in a plain divergence is a boot that succeeds.
+  diverged(dirs, CONFLICT)
   const web = startWeb({
     root: dirs.root,
     policy: {"commit": "manual", "push": "auto"}, extra: [],
@@ -171,19 +186,24 @@ test("a boot under push: auto re-earns git's words about a branch it cannot send
   })
   try {
     await web.address()
-    // The refusal, in git's own words, on the server's own log — which is the
-    // same `sent()` that puts it on the cell every open tab reads.
+    // The take-in's refusal, in git's own words, on the server's own log —
+    // which is the same `said()` that puts it on the cell every open tab
+    // reads. The abort means the SERVED tree keeps this side's commit.
     const said = await until(
       () => web.said(),
-      (all) => all.includes("the branch was not pushed"),
+      (all) => all.includes("the take-in conflicted"),
       AFTER_BOOT,
     )
-    expect(said).toContain("the branch was not pushed")
-    expect(said).toContain("rejected")
+    expect(said).toContain("the take-in conflicted")
+    expect(said).toContain("CONFLICT")
     // Never a force and never a pull: the remote is exactly where the other
     // machine left it, and this side's commit is still unshared.
     expect(gitIn(dirs.bare)("log", "--format=%s", "-1").trim()).toBe("theirs")
     expect(gitIn(dirs.root)("log", "--format=%s", "-1").trim()).toBe("olai: earlier")
+    // The served tree is the one that kept this side's commit — the take-in
+    // failed before any move, and no markers leaked into the served directory.
+    expect(fs.readFileSync(path.join(dirs.root, "garden.olai"), "utf8"))
+      .toBe("the herb bed needs splitting\n")
   } finally {
     web.kill()
     await web.exited()
@@ -205,8 +225,41 @@ test("a boot under push: off attempts nothing, however far behind the branch is"
     // a directory whose pushes are somebody's own button press has not asked
     // this process to make one.
     await Bun.sleep(3_000)
-    expect(web.said()).not.toContain("the branch was not pushed")
+    // Not one of the verbs a take-in-and-push would have run: no fetch, no
+    // integration, no push — a bare remote left exactly where the other
+    // machine put it, and nothing said over the pipes.
+    expect(web.said()).not.toContain("olai git:")
     expect(gitIn(dirs.bare)("log", "--format=%s", "-1").trim()).toBe("theirs")
+  } finally {
+    web.kill()
+    await web.exited()
+    for (const at of Object.values(dirs)) fs.rmSync(at, { recursive: true, force: true })
+  }
+}, AFTER_BOOT + 15_000)
+
+test("a boot under push: auto takes in a divergence and pushes, with no tab open", async () => {
+  const dirs = served()
+  diverged(dirs)
+  const web = startWeb({
+    root: dirs.root,
+    policy: {"commit": "manual", "push": "auto"}, extra: [],
+    env: { XDG_STATE_HOME: dirs.state },
+  })
+  try {
+    await web.address()
+    // The push lands — poll for the remote's own record of it rather than
+    // sleeping "long enough": the awaited condition is the branch moving,
+    // and a poll either sees it happen or times out with the child's words.
+    const tip = await until(
+      () => gitIn(dirs.bare)("log", "--format=%s", "-1", "main").trim(),
+      (top) => top === "olai: earlier",
+      AFTER_BOOT,
+    )
+    expect(tip).toBe("olai: earlier")
+    // The other side's commit is under this side's — a rebase took it in
+    // rather than a force overwriting it.
+    expect(gitIn(dirs.bare)("log", "--format=%s", "-2", "main")
+      .replace(/\n/g, " | ")).toContain("theirs")
   } finally {
     web.kill()
     await web.exited()

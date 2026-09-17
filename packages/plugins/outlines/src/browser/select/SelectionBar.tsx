@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * What is picked, and the one verb the keyboard cannot ask for.
  *
@@ -46,7 +45,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * that quietly took three of four rows is the silent failure the error
  * rule is about.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { createMemo, type JSX, Match, Show, Switch } from "solid-js"
 
 import { createConfirming } from "@olai/web/client/confirming.ts"

@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * The second step: the question, and the two ways out of it.
  *
@@ -23,7 +22,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * with the arrow keys the list is walked with — and what closes the menu when
  * the verb goes ahead, since that is what an item does when it is chosen.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { onMount } from "solid-js"
 

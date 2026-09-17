@@ -28,5 +28,9 @@
     "contracts": [
       "./surface"
     ]
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*",
+    "@olai/web": "workspace:*"
   }
 }

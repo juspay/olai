@@ -1,4 +1,3 @@
-import { TESTID } from "olai-plugin-outlines/testids"
 /**
  * Where a node sits, and the way back up.
  *
@@ -16,7 +15,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
  * repeating it above every node would be the same fact twice on one screen.
  * What is left is the ancestry alone, which is what the crumbs are for.
  */
-
+import { TESTID } from "olai-plugin-outlines/testids"
 import type { LocatedRegular } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"

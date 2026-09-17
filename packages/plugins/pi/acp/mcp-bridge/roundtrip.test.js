@@ -28,9 +28,9 @@ import { describe, expect, test } from "bun:test";
 import { registerServerTools } from "./wire.mjs";
 import { serverToClientPlan } from "./naming.js";
 
-/** One module out of the PIN'S own tree — `acp/node_modules/…`, five
- *  directories up, which is where `npm ci` under the shim puts it. */
-const pinned = (spec) => new URL(`../../../../../acp/node_modules/${spec}`, import.meta.url);
+/** One module out of the PIN'S own tree — the pi shim's `node_modules`, one
+ *  directory up, which is where `npm ci` in `acp/shim/` puts it. */
+const pinned = (spec) => new URL(`../shim/node_modules/${spec}`, import.meta.url);
 
 const { Client } = await import(pinned("@modelcontextprotocol/sdk/dist/esm/client/index.js").href);
 const { McpServer } = await import(pinned("@modelcontextprotocol/sdk/dist/esm/server/mcp.js").href);
@@ -60,7 +60,7 @@ const makeServer = () => {
       description: "read a node",
       inputSchema: { node: z.string().describe("the node's name") },
     },
-    async (args) => ({ content: [{ type: "text", text: `# the node ${args.node} answered the wire` }] }),
+    async (args) => ({ content: [{ type: "text", text: `# the node ${args.node} answered the wire` }], structuredContent: { title: args.node, file: "house.olai" } }),
   );
   return server;
 };
@@ -88,6 +88,8 @@ describe("the MCP round trip through pi's table", () => {
     // and the call round-trips — the model's call id passes through
     // untouched and the tool's whole content arrives as the result text:
     const result = await def.execute("tc-1", { node: "install" });
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.details).toEqual({ title: "install", file: "house.olai" });
     expect(result.content).toEqual([{ type: "text", text: "# the node install answered the wire" }]);
 
     await client.close();
@@ -106,6 +108,8 @@ describe("the MCP round trip through pi's table", () => {
     const pi = fakePi();
     await registerServerTools(pi, Type, client, serverToClientPlan("kolu", { name: "kolu", command: "x" }));
     const result = await pi.registered.get("kolu_list_terminals").execute("tc-2", {});
+    expect(result.details).toBeUndefined();
+    expect(result.structuredContent).toBeUndefined();
     expect(result.content[0].text).toContain("the tool answered an error");
     expect(result.content[0].text).toContain("no session here");
 

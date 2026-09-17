@@ -6,7 +6,7 @@
  * and the strip are no longer in the same component. A file dragged at this
  * panel is aimed at the CONVERSATION, so the drop target is the panel's whole
  * body ({@link ./DropTarget.tsx}) — and the chips it lands in are a two-line
- * strip at the bottom of it. One owner above both: `Panel.tsx` makes this and
+ * strip at the bottom of it. One owner above both: the conversation component makes this and
  * hands it to each.
  *
  * Four gestures arrive here and there is deliberately one way through: paste
@@ -82,9 +82,10 @@ const bin = () => {
   const [sending, setSending] = createSignal(0)
   return { pending, setPending, sending, setSending }
 }
-const held = new Map<string, ReturnType<typeof bin>>()
+export const createHoldingMemory = () => new Map<string, ReturnType<typeof bin>>()
 
 export const createHolding = (chat: Chat): Holding => {
+  const held = chat.ui.holding
   // A drawer mount is not an upload lifetime. The server's token survives
   // remounts and node switches, but changes when its temporary files go away,
   // even if a restart reopens the same durable harness session.

@@ -1,0 +1,6 @@
+{
+  "files": [
+    "src/probe.ts",
+    "src/store.ts"
+  ]
+}

@@ -145,7 +145,7 @@ export const markOf = (counted: Owed | undefined): Mark => {
     owed,
     count: face === "overdue" ? owed.overdue : owed.today,
     ...PAINT[face],
-    said: face === "quiet" ? undefined : said(owed),
+    said: face === "quiet" ? undefined : `Agenda — ${phraseOf(owed)}`,
   }
 }
 
@@ -175,8 +175,8 @@ export const unchanged = (before: Mark, after: Mark): boolean =>
  *  never the word *due* for the today half, which is work on today rather than
  *  work that has slipped. Both numbers, whichever one the chip went on to
  *  print. */
-const said = (owed: Owed): string => {
+export const phraseOf = (owed: Owed): string => {
   const late = owed.overdue > 0 ? [`${owed.overdue} overdue`] : []
   const on = owed.today > 0 ? [`${owed.today} on today`] : []
-  return `Agenda — ${[...late, ...on].join(", ")}`
+  return [...late, ...on].join(", ")
 }

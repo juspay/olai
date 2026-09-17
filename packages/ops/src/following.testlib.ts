@@ -25,19 +25,9 @@
  *
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
-
-import {
-  apart,
-  assemble,
-  bodiedDocument,
-  type Document,
-  type OutlineError,
-  parseOutline,
-  reading,
-  serializeOutline,
-  type SetDelta,
-  type Verdict,
-} from "@olai/format"
+import { TEST_CLAIMS } from "./claims.testlib.ts"
+import { apart, assemble, bodiedDocument, type Document, type OutlineError, reading, type SetDelta, type Verdict } from "@olai/format"
+import { parseOutline, serializeOutline } from "olai-plugin-outline-olai/format"
 import { Result } from "effect"
 
 import { askedOf } from "./asked.ts"
@@ -59,7 +49,7 @@ export const assembling = (from: Scope): Folding => {
     const upserts: Array<SetDelta["upserts"][number]> = []
     for (const planned of made.files) {
       const text = serializeOutline(planned.nodes)
-      const read = parseOutline(planned.file, text)
+      const read = parseOutline(planned.file, text, TEST_CLAIMS)
       if (Result.isFailure(read)) {
         // The live fold answers a refusal here, naming the defect. This arm is
         // driven only by plans the live one accepted, so reaching it means the
@@ -71,15 +61,15 @@ export const assembling = (from: Scope): Folding => {
       upserts.push([planned.file, { nodes: read.success.nodes }])
     }
     for (const document of made.documents ?? []) {
-      files.set(document.file, Result.succeed(bodiedDocument(document.file, document.text)))
+      files.set(document.file, Result.succeed(bodiedDocument(TEST_CLAIMS, document.file, document.text)))
     }
 
-    const next = reading(assemble(files), { read: at, delta: { upserts, removes: [] } })
+    const next = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, files), { read: at, delta: { upserts, removes: [] } })
     // THE ASKING, FRESH — one per op, which is what the carried arm replaces.
     // The TYPING is fresh on both arms and so is not what this differential is
     // about: it is a map read off the view each op leaves, which is exactly what
     // the sequencer does with it too.
-    at = { ...next, context: at.context, asked: askedOf(next.set), typed: typedIn(next, at.typed.kinds) }
+    at = { ...next, outlineRow: at.outlineRow, context: at.context, asked: askedOf(TEST_CLAIMS, next.set), typed: typedIn(next, at.typed.kinds) }
     return Result.succeed(at)
   }
 }

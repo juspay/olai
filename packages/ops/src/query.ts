@@ -29,6 +29,12 @@
  */
 
 import {
+  proseIn,
+  deadLinksIn,
+  deadLinksOf,
+  deadLinkFields,
+  type Claims,
+  claimedOf,
   ancestorTitles,
   backlinksOf,
   blockersOf,
@@ -113,6 +119,7 @@ import {
   titleParts,
   UsageFailure,
 } from "@olai/format"
+
 import { Result } from "effect"
 
 import { askedOf } from "./asked.ts"
@@ -710,6 +717,7 @@ export const detail = (
   derived: Derived,
   id: string,
   fields?: ReadonlyArray<string> | undefined,
+  served?: ReadonlySet<string>,
 ): Result.Result<Detail | null, OpFailure> => {
   let wants: Wants | undefined
   if (fields !== undefined) {
@@ -743,6 +751,7 @@ export const detail = (
   const blockedBy = waitingFor(derived, id)
   return Result.succeed({
     ...foundOf(derived, located),
+    ...(served === undefined ? {} : deadLinkFields(deadLinksOf(located, served))),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `outlines_repeat`.
@@ -1067,11 +1076,13 @@ export const subtree = (
     }
   }
 
+  const served = new Set(at.set.documents.map(one => one.path))
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
     const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
+      ...deadLinkFields(deadLinksOf(located, served)),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
       ...(wantsNotes && located.node.desc !== undefined
         ? { desc: located.node.desc }
@@ -1096,6 +1107,7 @@ export const subtree = (
     const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
+      ...deadLinkFields(deadLinksOf(located, served)),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
       ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
@@ -1117,10 +1129,10 @@ export const subtree = (
   // over in the planner, because the write that places a node at a file's
   // top level asks the identical question and owes the identical answer
   // ({@link outlineAt}).
-  const outline = outlineAt(askedOf(at.set), arm.file)
+  const outline = outlineAt(askedOf(at.claims, at.set), arm.file)
   if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const broken = brokenIn(at.set, arm.file)
-  if (broken !== undefined) return Result.fail(notLoaded(arm.file, broken))
+  if (broken !== undefined) return Result.fail(notLoaded(at.claims, arm.file, broken))
   // The top level, once: `siblingsOf` is the file's own records in `ord`
   // order, mirrors included. Regulars are the roots the walk descends;
   // mirrors are named on the answer as `placed`. Two calls would walk and
@@ -1234,7 +1246,10 @@ export const outlines = (
  * omission, and the right one here too: an inbox nobody can read is still the
  * inbox, and `create`-ing a second one over it would be the worse answer.
  */
-export const paths = (set: OutlineSet): PathsAnswer => ({ paths: outlinePaths(set) })
+export const paths = (claims: Claims, outlineRow: string, set: OutlineSet): PathsAnswer => ({
+  paths: outlinePaths(set), outlineRow,
+  claims: [...claims.byKind.values()].map(({ format: _format, ...claim }) => claim),
+})
 
 // ── the documents ──────────────────────────────────────────────────────
 
@@ -1243,7 +1258,7 @@ export const paths = (set: OutlineSet): PathsAnswer => ({ paths: outlinePaths(se
  * over the other kind of file.
  *
  * WHAT COUNTS AS A DOCUMENT is not decided here: `markdownIn` is the floor's
- * one answer, shared with the validator that checks a `doc` reference and the
+ * one answer, shared with the validator that checks a declared `doc` property and the
  * planner that refuses a `markdown_write`, so what this lists and what those
  * two accept cannot come apart. A `.html` is out of all three — the set keeps
  * its path and not its bytes — and a listing that named one would be offering
@@ -1298,16 +1313,17 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
  * file, then read it.
  */
 export const document = (
+  claims: Claims,
   set: OutlineSet,
   file: string,
 ): Result.Result<DocumentBody, OpFailure> => {
   const entry = markdownAt(set, file)
   if (entry === undefined) {
     return Result.fail(
-      noSuchDocument(set, file, "`markdown_index` says what is"),
+      noSuchDocument(claims, set, file, "`markdown_index` says what is"),
     )
   }
   const broken = brokenIn(set, file)
-  if (broken !== undefined) return Result.fail(notLoaded(file, broken))
-  return Result.succeed({ file, text: entry.body })
+  if (broken !== undefined) return Result.fail(notLoaded(claims, file, broken))
+  return Result.succeed({ file, text: entry.body, ...deadLinkFields(deadLinksIn(file, proseIn(entry.body), new Set(set.documents.map(one => one.path)))) })
 }

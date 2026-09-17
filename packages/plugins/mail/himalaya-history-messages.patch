@@ -1,0 +1,39 @@
+Retain arrival thread ids and labels alongside existing message ids.
+Upstream: https://github.com/pimalaya/himalaya/issues/752
+Remove when the Himalaya pin retains these fields; mail-surface checks the schema.
+
+--- a/src/gmail/history/list.rs
++++ b/src/gmail/history/list.rs
+@@ -61,6 +61,11 @@
+             .into_iter()
+             .map(|record| GmailHistoryRecordOutput {
+                 id: record.id,
++                messages_added_details: record.messages_added.iter().map(|entry| GmailHistoryMessageOutput {
++                    id: entry.message.id.clone(),
++                    thread_id: entry.message.thread_id.clone(),
++                    label_ids: entry.message.label_ids.clone(),
++                }).collect(),
+                 messages_added: message_ids(record.messages_added),
+                 messages_deleted: message_ids(record.messages_deleted),
+                 labels_added: label_changes(record.labels_added),
+@@ -145,6 +150,7 @@
+ pub(crate) struct GmailHistoryRecordOutput {
+     id: String,
+     messages_added: Vec<String>,
++    messages_added_details: Vec<GmailHistoryMessageOutput>,
+     messages_deleted: Vec<String>,
+     labels_added: Vec<GmailHistoryLabelOutput>,
+     labels_removed: Vec<GmailHistoryLabelOutput>,
+@@ -176,3 +182,12 @@
+         })
+         .collect()
+ }
++
++/// Message identity and labels at the time of arrival.
++#[derive(Serialize, JsonSchema)]
++#[serde(rename_all = "kebab-case")]
++pub(crate) struct GmailHistoryMessageOutput {
++    id: String,
++    thread_id: Option<String>,
++    label_ids: Vec<String>,
++}

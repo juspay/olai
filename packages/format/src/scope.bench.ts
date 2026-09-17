@@ -38,7 +38,7 @@
  * its root, a small subtree deep inside one, and — as the control — no scope at
  * all, which is the same walk before and after and had better report as one.
  */
-
+import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter, type Scope } from "./filter.ts"
 import { median, timed } from "./fixtures.testlib.ts"
@@ -98,7 +98,7 @@ const vault = (): ReadonlyArray<Located> => {
   return records
 }
 
-const set: Derived = derive(vault())
+const set: Derived = derive(TEST_CLAIMS, vault())
 
 /** One arm: the same queries over the same scope, one walk each. */
 const asking = (

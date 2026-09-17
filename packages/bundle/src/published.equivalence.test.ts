@@ -448,7 +448,7 @@ test("independent capability projections preserve the complete revision corpus",
     outlines = outlineProjection(snapshot, outlines)
     documents = documentProjection(snapshot, documents)
     heads = headProjection(snapshot, heads)
-    return { outlines: outlines.change, documents: documents.change, heads: heads.change, unread: documents.unread }
+    return { outlines: outlines.change, documents: documents.change, heads: heads.change }
   }
   holds(differential(CORNERS, CORNER_STEPS, project),
     { upserts: 20, removes: 3, reused: 10, rebuilt: 10, minted: 8 })
