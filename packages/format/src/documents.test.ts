@@ -14,6 +14,7 @@ import {
   isPicture,
   linksIn,
   pictureOf,
+  proseLinks,
   resolveRelative,
 } from "./documents.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
@@ -313,4 +314,38 @@ test("serving policy follows claim data instead of a suffix or MIME roster", () 
   expect(servingOf(table, "a.preview")).toEqual({ sealed: true, inert: false })
   expect(servingOf(table, "a.drawing")).toEqual({ sealed: false, inert: true })
   expect(servingOf(table, "a.html")).toEqual({ sealed: false, inert: false })
+})
+
+// ── one scanner for prose, shared by the faces and the readings ────────
+//
+// What a piece of PROSE is, when the question is what it says: the literal
+// code is not prose, and neither a link the browser draws as code nor a
+// dead-link report may treat it as one. Moved here with the scanner itself,
+// from the module it replaced (`prose-links.ts`).
+
+test("code examples contain no prose links but adjacent text does", () => {
+  const code = ["`[x](inline.md)`", "``[x](back`tick.md)``", "```md\n[x](fenced.md)\n```", "~~~\n[x](tilde.md)\n~~~", "    [x](indented.md)", "    - [x](indented-list.md)"].join("\n")
+  expect(proseLinks(code)).toEqual([])
+  expect(proseLinks(`${code}\n[real](real.md)`)).toEqual(["real.md"])
+  expect(proseLinks("`unclosed [real](real.md)")).toHaveLength(1)
+})
+
+test("list continuation links are prose while code within the list remains literal", () => {
+  const text = "- Item\n    [continued](continued.md)\n\n      [code](code.md)\n\nOutside [link](outside.md)"
+  expect(proseLinks(text)).toEqual(["continued.md", "outside.md"])
+})
+
+test("literal lines in a list fence do not swallow links after its indented closer", () => {
+  for (const marker of ["```", "~~~"]) {
+    const text = `123. Item\n     ${marker}\n[example](ignored.md)\n- literal list marker\n     ${marker}\n\n[after](after.md)`
+    expect(proseLinks(text)).toEqual(["after.md"])
+  }
+})
+
+// The same scanner, asked at the ADDRESS grain: a link to a real document is
+// a reference from its writer, and literal code is not prose.
+test("linksIn reads the prose, never the code", () => {
+  expect(named("notes/plan.md", "`[x](missed.md)` `[y](also-missed.md)`\n\n[real](real.md)"))
+    .toEqual(["notes/real.md"])
+  expect(named("notes/plan.md", "```md\n[x](fenced.md)\n```\n\n[seen](seen.md)")).toEqual(["notes/seen.md"])
 })

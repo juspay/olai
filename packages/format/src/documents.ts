@@ -391,6 +391,62 @@ const UTF8 = new TextEncoder()
 export const bytesOf = (text: string): number => UTF8.encode(text).length
 
 /**
+ * BLOCK CONTEXT, LOCALLY — the lines that are a fenced or indented code block,
+ * replaced with blank lines so the link scan below never sees inside one.
+ *
+ * List continuation indentation belongs to prose; four further spaces
+ * introduce code within that item. Blank lines retain the list context.
+ * Block context is local to this Markdown source, never shared across fields.
+ */
+const withoutCodeBlocks = (text: string): string => {
+  let listIndent: number | undefined
+  let fence: { marker: string; length: number } | undefined
+  return text.split("\n").map(line => {
+    // List continuation indentation belongs to prose; four further spaces
+    // introduce code within that item. Blank lines retain the list context.
+    const indent = /^( *)/.exec(line)![1]!.length
+    // Literal fence contents cannot change the list context of its closer.
+    if (fence === undefined) {
+      const item = /^( *)(?:[-+*]|\d+[.)]) +/.exec(line)
+      if (item && indent < (listIndent ?? 0) + 4) listIndent = item[0].length
+      else if (line.trim() !== "" && listIndent !== undefined && indent < listIndent) listIndent = undefined
+    }
+    const content = listIndent === undefined ? line : line.slice(Math.min(indent, listIndent))
+    const match = /^(?: {0,3}> ?)* {0,3}(`{3,}|~{3,})(.*)$/.exec(content)
+    if (fence !== undefined) {
+      if (match && match[1]![0] === fence.marker && match[1]!.length >= fence.length && match[2]!.trim() === "") fence = undefined
+      return ""
+    }
+    if (match && (match[1]![0] !== "`" || !match[2]!.includes("`"))) {
+      fence = { marker: match[1]![0]!, length: match[1]!.length }
+      return ""
+    }
+    return /^( {4}|\t)/.test(content) ? "" : content
+  }).join("\n")
+}
+
+/**
+ * INLINE CODE has its own delimiter rules, independent of block indentation —
+ * the mirror half of {@link withoutCodeBlocks}, applied AFTER it so a span
+ * split across nothing a fence let through is still removed.
+ */
+const withoutCodeSpans = (lines: string): string => {
+  let prose = ""
+  for (let i = 0; i < lines.length;) {
+    if (lines[i] === "\\") { prose += lines.slice(i, i + 2); i += 2; continue }
+    if (lines[i] !== "`") { prose += lines[i++]; continue }
+    let end = i
+    while (lines[end] === "`") end++
+    const marker = lines.slice(i, end)
+    let close = lines.indexOf(marker, end)
+    while (close !== -1 && (lines[close - 1] === "`" || lines[close + marker.length] === "`")) close = lines.indexOf(marker, close + marker.length)
+    if (close === -1) { prose += marker; i = end }
+    else { prose += " "; i = close + marker.length }
+  }
+  return prose
+}
+
+/**
  * EVERY ADDRESS A PIECE OF PROSE POINTS AT, in the order it writes them and
  * never twice.
  *
@@ -415,9 +471,13 @@ export const bytesOf = (text: string): number => UTF8.encode(text).length
  * A SCAN, NOT A PARSE, and the boundary is worth naming: this package holds no
  * markdown parser and deliberately does not gain one here (`./derive.ts` makes
  * the same refusal about tags, for the same reason — it is the floor the write
- * gate stands on). So a `[…](…)` inside a fenced code block is a link to this
- * function and is drawn as text by the browser. That direction is the safe one:
- * the cost is a backlink nobody wrote, never a page that will not render.
+ * gate stands on). What the scan DOES know is literal code — a tight or loose
+ * code span, a fenced or indented block — and it removes it BEFORE the links
+ * are read, so a `[…](…)` inside one is not a link at all. That is one
+ * scanner, shared by the faces, the references index and the dead-link
+ * reading: a link in a fence is drawn as text by the browser, and drawing a
+ * backlink or a dead link where the browser draws nothing would be the two
+ * readings of one text.
  *
  * NEVER TWICE, and the container says so: a note that links the same document
  * three times points at it once. What reads this wants the EDGES.
@@ -428,7 +488,11 @@ export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArr
   if (!text.includes("](")) return NO_LINKS
   let found: Array<Address> | undefined
   let seen: Set<string> | undefined
-  for (const href of writtenLinks(text)) {
+  // THE PROSE, ONCE — literal code taken out before a single link is read
+  // (the two readers that used to skip it themselves are gone; this is the
+  // one place the markdown syntax decision lives).
+  const prose = withoutCodeSpans(withoutCodeBlocks(text))
+  for (const href of writtenLinks(prose)) {
     const address = linkTo(claims, from, href)
     if (address === null) continue
     const written = printAddress(address)
@@ -451,9 +515,11 @@ export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArr
  * directory and every note in it, which is exactly the input that is not
  * this app's to trust.
  *
- * The scan still does not parse: the label may not hold a `]`, and a
- * `[…](…)` inside a fence is still a link to this function. What it now
- * reads, that the pattern would not, is a filename with a space in it —
+ * The scan still does not parse: the label may not hold a `]`, and code
+ * removal is the CALLER's — {@link linksIn} strips literal code before it
+ * asks this, while {@link bracketSpacedLinks} reads the raw text, which is
+ * exactly the split a renderer's rewrite needs. What it now reads, that the
+ * pattern would not, is a filename with a space in it —
  * CommonMark's angle-bracketed destination, and the space left raw, which
  * is the spelling people write. An optional title is still dropped: a
  * space that opens `"…"` / `'…'` / `(…)` is markdown's title, not part of
@@ -466,6 +532,18 @@ export const writtenLinks = (text: string): ReadonlyArray<string> => {
   })
   return found
 }
+
+/**
+ * THE TARGETS OF LINKS IN RENDERED PROSE — the same scan as
+ * {@link writtenLinks}, with literal code already removed. This is the
+ * scanner every reading of what prose SAYS goes through: {@link linksIn}
+ * resolves these to addresses, and the dead-link reading
+ * (`./dead-links.ts`) asks which of them name nothing served. One scanner,
+ * because a link in a fence is drawn as text by the browser and no reading
+ * may treat it as a link.
+ */
+export const proseLinks = (text: string): ReadonlyArray<string> =>
+  text.includes("](") ? writtenLinks(withoutCodeSpans(withoutCodeBlocks(text))) : []
 
 /**
  * Rewrite a `[…](…)` whose destination holds a space into the angle-bracket

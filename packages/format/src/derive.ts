@@ -260,15 +260,15 @@ export interface Derived {
    * that knew about `_olai/Trash.olai` would be the format's storage rule wired
    * into a fold that is about what prose says.
    *
-   * SOME KEYS CAN NEVER BECOME REFERENCES, and that is a decision rather than
-   * an oversight. Every `#topic` is one — the mention reading takes only the
-   * `@` half — and so is `@work/olai`, whose `/` is a tag alphabet's own
-   * letter while an id ({@link ./node.ts ID_SHAPE}) is minted and chosen
-   * without one. They are left in: filtering by id shape at the fold would be
-   * this index knowing about ids, which is exactly what keying it by the
-   * written tag exists to avoid — and since the completion asks this index for
-   * the whole vocabulary, the keys that are nobody's id are half of what it
-   * is FOR.
+   * ONE KIND OF KEY CAN NEVER BECOME A REFERENCE, and that is a decision
+   * rather than an oversight: every `#topic` is one — the mention reading takes
+   * only the `@` half (they are two namespaces over one alphabet, because
+   * this format writes a person and a topic with two sigils). An `@`-key names
+   * an id whenever the set claims one, and nothing else is asked at the fold —
+   * filtering by id shape here would be this index knowing about ids, which is
+   * exactly what keying it by the written tag exists to avoid — and since the
+   * completion asks this index for the whole vocabulary, the keys that are
+   * nobody's id are half of what it is FOR.
    *
    * NOTHING READS THE KEYS IN ORDER, unlike the three indexes above, and the
    * patcher spends exactly that — it adds and drops keys in place rather than
