@@ -6,7 +6,7 @@
  * separate from OLAI_ACP_AGENT gives each engine its own executable resource.
  * Enablement belongs to the engine’s node in the vault configuration file.
  */
-import { type Adapter, adapterFrom } from "@olai/acp/engine"
+import { type Adapter, adapterFrom, type NotHere } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -25,7 +25,7 @@ export const ENGINE: Registering = {
   // absent or empty pin is an absence rather than a fault — answered with this
   // engine's own sentence ({@link ./install.ts}'s `INSTALL`) so the roster
   // publishes the row rather than dropping it. Never falls through to PATH.
-  at: (where): Adapter | typeof INSTALL => adapterFrom(where.env[CODEX_AGENT_ENV]) ?? INSTALL,
+  at: (where): Adapter | NotHere => adapterFrom(where.env[CODEX_AGENT_ENV]) ?? INSTALL,
   // ACP has no system-prompt field. The shared standing instruction therefore
   // rides visibly with the first prompt, as it does for every other engine.
   prompt: { kind: "first-turn" },

@@ -29,7 +29,7 @@
  * enablement decides which rows run, independently of executable discovery.
  */
 
-import { type Adapter, adapterFrom, AGENT_ENV } from "@olai/acp/engine"
+import { type Adapter, adapterFrom, AGENT_ENV, type NotHere } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -63,7 +63,7 @@ export const ENGINE: Registering = {
   // ENGINE'S OWN ({@link ./install.ts}'s `INSTALL`, the same words that used
   // to ride the browser slot), handed back rather than dropped so the roster
   // can publish the row.
-  at: (where): Adapter | typeof INSTALL => adapterFrom(where.env[AGENT_ENV]) ?? INSTALL,
+  at: (where): Adapter | NotHere => adapterFrom(where.env[AGENT_ENV]) ?? INSTALL,
   // ACP has no system prompt on any wire, this one included, so the standing
   // instruction rides the first turn — where a person can read what their agent
   // was told. `@olai/acp/engine`'s `PromptChannel` argues it, and `olai-plugin-chat`

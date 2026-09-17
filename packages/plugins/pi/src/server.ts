@@ -25,7 +25,7 @@
  * behind it would fail at every `session/new`.
  */
 
-import { type Adapter, adapterFrom } from "@olai/acp/engine"
+import { type Adapter, adapterFrom, type NotHere } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -58,7 +58,7 @@ const WRAPS = "PI_ACP_PI_COMMAND"
 export const ENGINE: Registering = {
   name: NAME,
   leg: PI,
-  at: (where): Adapter | typeof INSTALL => {
+  at: (where): Adapter | NotHere => {
     // The ADAPTER first: like the claude row, it is shipped and not found, so
     // the variable is the whole of its door. Its absence is NOT a person's
     // problem — the pin comes with olai on every documented start — so the

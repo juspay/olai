@@ -31,7 +31,7 @@
  * `olai-plugin-chat` does the talking.
  */
 
-import { type Adapter } from "@olai/acp/engine"
+import { type Adapter, type NotHere } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -50,7 +50,7 @@ export { name } from "./index.ts"
 export const ENGINE: Registering = {
   name: NAME,
   leg: OMP,
-  at: (where): Adapter | typeof INSTALL => {
+  at: (where): Adapter | NotHere => {
     const bin = where.found("omp")
     // Nothing on the search path is the ORDINARY state of most machines, and
     // the answer is this engine's own sentence rather than a dropped row —

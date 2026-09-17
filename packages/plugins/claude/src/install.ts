@@ -8,12 +8,6 @@
  * the detection log names it. The browser contributes its mark and its own
  * inspector row; both read the published standing rather than a second sentence.
  *
- * IT WAS SPENT TWICE for one revision: `Registering.missing`, on the `Agents`
- * registration, beside the browser's copy. No serve, log line or cell ever read
- * that field, so what the second spending bought was a second authored source
- * for one sentence. `./server.test.ts` asserts these words off THIS constant,
- * which is the thing with a reader.
- *
  * A MODULE OF ITS OWN rather than lines inside `./server.ts`, because that
  * bench must not open the server door: `packages/tests` runs under a process
  * with no browser in it, and a claim about two strings would drag the plugin
