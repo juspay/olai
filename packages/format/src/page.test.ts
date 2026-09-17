@@ -29,7 +29,7 @@ import { Schema } from "effect"
 
 import { addressOf } from "./address.ts"
 import { agendaOf } from "./agenda.ts"
-import { backlinksOf, referrersTo } from "./backlinks.ts"
+import { referencesOf } from "./backlinks.ts"
 import { dailyNotesOn, datedOn } from "./dates.ts"
 import { derive, type Derived, nodesOf, rowsOf } from "./derive.ts"
 import type { Document, Face } from "./document.ts"
@@ -366,18 +366,21 @@ test("an outline's rows are `rowsOf`, exactly", () => {
     .toEqual(rowsOf(SET, "house.olai"))
 })
 
-test("a node page is `zoom` plus `backlinksOf`, exactly", () => {
+test("a node page is `zoom` plus the one references reading, exactly", () => {
   const shows = readAt(node("herbs"))
   expect(shows.kind === "node" ? shows.zoomed : undefined).toEqual(zoom(SET, "herbs"))
+  // The page's reading is the one source of the answer: the fixtures' faces
+  // carry no links or tags, so nothing refers — which is what the page says
+  // and what the same reading says.
+  const reading = readingAt(SET, facesOf(FILES))
   expect(shows.kind === "node" ? shows.backlinks : undefined)
-    .toEqual(backlinksOf(SET, "herbs"))
+    .toEqual(referencesOf(reading, addressOf(TEST_CLAIMS, "", "herbs")!))
 })
-
 test("a zoomed MIRROR resolves to the node it stands for, as `zoom` does", () => {
   expect(readAt(node("herbs-here"))).toEqual({
     kind: "node",
     zoomed: zoom(SET, "herbs-here"),
-    backlinks: backlinksOf(SET, "herbs"),
+    backlinks: referencesOf(readingAt(SET, facesOf(FILES)), addressOf(TEST_CLAIMS, "", "herbs")!),
   })
 })
 
@@ -396,7 +399,7 @@ test("the trash is `rowsOf` per archive plus `nodesOf`, exactly", () => {
     .toBe(nodesOf(ARCHIVED, "_olai/Trash.olai").length)
 })
 
-test("a document page is `referrersTo`, exactly", () => {
+test("a document page is the one references reading, whole-document", () => {
   const faces: ReadonlyArray<Face> = [
     { path: "notes/finishes.md", title: "finishes", links: [], tags: [], props: {} },
     {
@@ -410,7 +413,7 @@ test("a document page is `referrersTo`, exactly", () => {
   const reading = readingAt(SET, faces)
   const shows = pageOf(reading, at("notes/finishes.md")).shows
   expect(shows.kind === "document" ? shows.referrers : undefined)
-    .toEqual(referrersTo(addressOf(TEST_CLAIMS, "notes/finishes.md", null)!, reading.pointing, SET))
+    .toEqual(referencesOf(reading, addressOf(TEST_CLAIMS, "notes/finishes.md", null)!))
 })
 
 test("a document page carries the frontmatter its face already has", () => {

@@ -27,7 +27,7 @@
 import {
   proseIn,
   addressOf,
-  referrersTo,
+  referencesOf,
   deadLinksIn,
   deadLinkSaid,
   markdownAt,
@@ -5538,12 +5538,17 @@ const namingDocument = (
 ): ReadonlyArray<{ name: string; site: string; via: string }> => {
   // The link reading and the property fence are independent references.
   const address = addressOf(scope.claims, file, null)
-  const found: Array<{ name: string; site: string; via: string }> = address === null ? [] :
-    referrersTo(address, scope.pointing, scope.derived).map(ref => ({
-      name: ref.at?.node.id ?? ref.face.path,
-      site: ref.at === undefined ? ref.face.path : `${ref.at.file}:${ref.at.line}`,
-      via: "link",
-    }))
+  const found: Array<{ name: string; site: string; via: string }> =
+    address === null ? [] :
+      referencesOf(scope, address).map(ref => ({
+        // A document-key source is a reference the file's index filed under
+        // the document — a RECORD that linked it, or a BODY (a `.md`) whose
+        // prose did. The record is the node that wrote the reference; the
+        // body is itself.
+        name: "file" in ref.source ? ref.source.node.id : ref.source.path,
+        site: "file" in ref.source ? `${ref.source.file}:${ref.source.line}` : ref.source.path,
+        via: "link",
+      }))
   let keyed: Set<string> | undefined
   for (const [key, declared] of scope.typed.declarations) {
     if (declared.type.kind === "doc") (keyed ??= new Set()).add(key)

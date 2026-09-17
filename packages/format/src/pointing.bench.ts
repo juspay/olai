@@ -46,7 +46,7 @@
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { addressOf } from "./address.ts"
-import { referrersTo } from "./backlinks.ts"
+import { referencesOf } from "./backlinks.ts"
 import { alternating, median, runtimeSaid, seeded, timed, timesSaid } from "./fixtures.testlib.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import {
@@ -119,15 +119,15 @@ const unpointed = addressOf(TEST_CLAIMS, "nobody-points-here.md", null)!
 
 // ── the arms ───────────────────────────────────────────────────────────
 
-const readIndex = (pointing: Pointing, at: Reading, which = open): number =>
-  which.reduce((held, address) => held + referrersTo(address, pointing, at.derived).length, 0)
+const readIndex = (at: Reading, which = open): number =>
+  which.reduce((held, address) => held + referencesOf(at, address).length, 0)
 
 const readScan = (at: Reading, which = open): number =>
   which.reduce((held, address) => held + scannedReferrers(address, faces, at.derived).length, 0)
 
 /** The answers are compared before anything is timed: two arms that disagree
  *  are not two arms of one comparison. */
-const drawn = readIndex(first.at.pointing, first.at)
+const drawn = readIndex(first.at)
 if (drawn !== readScan(first.at)) {
   throw new Error("the two read arms disagree, so there is nothing to compare")
 }
@@ -135,13 +135,13 @@ if (drawn !== readScan(first.at)) {
 const ROUNDS = 9
 
 const [scan, index] = alternating(
-  [() => readScan(first.at), () => readIndex(first.at.pointing, first.at)],
+  [() => readScan(first.at), () => readIndex(first.at)],
   ROUNDS,
 )
 const [scanCold, indexCold] = alternating(
   [
     () => readScan(first.at, [unpointed]),
-    () => readIndex(first.at.pointing, first.at, [unpointed]),
+    () => readIndex(first.at, [unpointed]),
   ],
   ROUNDS,
 )
@@ -169,7 +169,7 @@ const carried = pairs.filter((pair) =>
  *  here. A directory whose pages have a handful of referrers each sees the
  *  `unpointed` row; one whose every page has dozens sees the `read` row. */
 const density = bodies
-  .map((path) => referrersTo(addressOf(TEST_CLAIMS, path, null)!, first.at.pointing, first.at.derived).length)
+  .map((path) => referencesOf(first.at, addressOf(TEST_CLAIMS, path, null)!).length)
   .sort((one, other) => one - other)
 
 console.log(

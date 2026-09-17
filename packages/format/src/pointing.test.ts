@@ -37,7 +37,7 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { addressOf, printAddress } from "./address.ts"
-import { referrersTo } from "./backlinks.ts"
+import { referencesOf } from "./backlinks.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import { seeded } from "./fixtures.testlib.ts"
@@ -136,7 +136,7 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
     const faces = facesIn(set)
     for (const address of every === 1 ? addressesIn(set) : sampledAddresses(set, every)) {
       asked++
-      const found = referrersTo(address, at.pointing, at.derived)
+      const found = referencesOf(at, address)
       const walked = scannedReferrers(address, faces, at.derived)
       if (found.length > 0) hits++
       if (!sameReferrers(found, walked)) {
@@ -151,20 +151,22 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
   return { divergences, stale, revisions: revisionsSeen, asked, hits, carried, keys }
 }
 
-/** Two answers, compared the way a page would tell them apart: which document,
- *  and which record inside it, IN ORDER — the promise both arms make. */
-const said = (found: ReadonlyArray<{ face: { path: string }; at?: { node: { id: string } } }>) =>
-  found.map((one) => `${one.face.path}${one.at === undefined ? "" : `#${one.at.node.id}`}`).join(",")
+/** Two answers, compared the way a page would tell them apart: which record or
+ *  body, and with which ways, IN ORDER — the promise both arms make. */
+const said = (found: ReadonlyArray<{ source: { node?: { id: string }; path?: string }; ways: ReadonlyArray<string> }>) =>
+  found.map((one) =>
+    `${"path" in one.source ? one.source.path : one.source.node?.id}${one.ways.join("+")}`
+  ).join(",")
 
 const sameReferrers = (
-  found: ReadonlyArray<{ face: { path: string }; at?: { node: { id: string } } }>,
-  walked: ReadonlyArray<{ face: { path: string }; at?: { node: { id: string } } }>,
+  found: ReadonlyArray<{ source: { node?: { id: string }; path?: string }; ways: ReadonlyArray<string> }>,
+  walked: ReadonlyArray<{ source: { node?: { id: string }; path?: string }; ways: ReadonlyArray<string> }>,
 ): boolean => {
   if (said(found) !== said(walked)) return false
   // …and the FACES themselves, not only which files they name: a referrer row
   // draws a title, and an index that carried the right paths with a stale face
   // on one of them would pass the line above.
-  return found.every((one, at) => sameFaceValue(one.face, walked[at]?.face))
+  return found.every((one, at) => sameFaceValue(one.source, walked[at]?.source))
 }
 
 const sameFaceValue = (one: unknown, other: unknown): boolean =>
@@ -260,8 +262,8 @@ const readingOfVault = (files: Record<string, string>): Reading =>
 const pointedAt = (at: Reading, path: string, element: string | null = null): string => {
   const address = addressOf(TEST_CLAIMS, path === "" ? null : path, element)
   if (address === null) return ""
-  return referrersTo(address, pointingOf(TEST_CLAIMS, at.set.documents), at.derived)
-    .map((one) => (one.at === undefined ? String(one.face.path) : `${one.face.path}#${one.at.node.id}`))
+  return referencesOf(at, address)
+    .map((one) => ("path" in one.source ? String(one.source.path) : `${one.source.file}#${one.source.node.id}`))
     .join(",")
 }
 

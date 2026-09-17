@@ -38,24 +38,30 @@
  * staying open while a reference is added elsewhere is exactly the live update
  * this feature is for.
  *
- * TWO ROWS RATHER THAN ONE LIST, because there are two ways to refer and they
- * are not the same claim: a `see` is an edge somebody wrote with a verb, and a
- * mention is a word in a sentence. Each row is `../NodeRefs.tsx` — the same
- * shape the `see` and `blocked by` rows have — and a record that does both
- * appears in both, which is what it is doing.
+ * A ROW PER WAY, because there are two ways to refer and they are not the
+ * same claim: a `see` is an edge somebody wrote with a verb, and a mention is
+ * a word in a sentence — and a LINK written in a body or a note is a third.
+ * Each row is the same shape the `see` and `blocked by` rows have, and a
+ * record that does several appears in several, which is what it is doing. A
+ * reference whose source is a DOCUMENT (a body's prose) draws as the file
+ * link it is — the shape the markdown plugin's referrers give it.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
-import { type Backlink, printAddress } from "@olai/format"
+import { type Reference, printAddress } from "@olai/format"
+import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
-
 import { only } from "@olai/web/client/narrow.ts"
-import { NodeRefs } from "../NodeRefs.tsx"
+
+import { type NodeRef } from "../ref.ts"
+import { NodeTitle } from "../NodeTitle.tsx"
+import { NodeRefLink } from "../NodeRefs.tsx"
 import { useReading } from "../reading.tsx"
 
-import { useHere, useRouter } from "olai-plugin-navigation/routing"
-import type { Route } from "olai-plugin-navigation/routes"
+import { useHere, useRouter, Link } from "olai-plugin-navigation/routing"
+import { atFile, type Route } from "olai-plugin-navigation/routes"
 import { panesOf } from "olai-plugin-navigation/workspace"
-import { rowsOf } from "./refs.ts"
+import { TARGET } from "@olai/ui-primitives/touch.ts"
+import { rowsOf, type DocRef } from "./refs.ts"
 import { REFERRINGS } from "./way.ts"
 
 let opened = new WeakMap<Route, Map<string, boolean>>()
@@ -93,7 +99,7 @@ export function Backlinks(props: {
  */
 function Section(props: {
   readonly id: string
-  readonly found: () => ReadonlyArray<Backlink>
+  readonly found: () => ReadonlyArray<Reference>
 }) {
   const router = useRouter()
   const pane = useHere()()
@@ -143,21 +149,54 @@ function Section(props: {
 }
 
 function Rows(props: {
-  readonly found: ReadonlyArray<Backlink>
+  readonly found: ReadonlyArray<Reference>
 }) {
   const rows = createMemo(() => rowsOf(props.found))
   return (
     <For each={REFERRINGS}>
       {(referring) => (
-        <NodeRefs
-          label={referring.label}
-          refs={rows()[referring.way]}
-          testid={referring.refs}
-        />
+        <Show when={rows()[referring.way].length > 0}>
+          <div
+            class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
+            data-testid={referring.refs}
+          >
+            <span class="text-muted">{referring.label}</span>
+            <Key each={rows()[referring.way]} by={keyOf}>
+              {(row) => (
+                <Show when={"id" in row()} fallback={docLink(row() as DocRef)}>
+                  <NodeRefLink to={row() as NodeRef} class={REF} testid={TESTID.nodeRef}>
+                    <NodeTitle title={(row() as NodeRef).title} from={(row() as NodeRef).from} links={false} />
+                  </NodeRefLink>
+                </Show>
+              )}
+            </Key>
+          </div>
+        </Show>
       )}
     </For>
   )
 }
+
+/** ONE LINK TO A DOCUMENT: a body's prose wrote the reference, so the row is
+ *  the file it lives in — the same shape the markdown plugin's referrers draw
+ *  a document arm (`../document/Referrers.tsx`). */
+function docLink(row: DocRef) {
+  return (
+    <Link
+      route={atFile(row.path)}
+      class={REF}
+      testid={TESTID.nodeRef}
+      title={`open ${row.path}`}
+    >
+      <span data-ref={row.path}>{row.path}</span>
+    </Link>
+  )
+}
+
+const keyOf = (row: NodeRef | DocRef): string => ("id" in row ? `node:${row.id}` : `doc:${row.path}`)
+
+const REF =
+  `inline-flex ${TARGET} items-center text-accent no-underline hover:underline md:min-h-0`
 
 /** The summary line: a count in a sentence rather than a bare number, because
  *  it is the whole of what a shut section says and "Referenced by 3" beside a

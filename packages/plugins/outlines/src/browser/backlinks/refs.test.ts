@@ -3,28 +3,26 @@
  * it is drawn as.
  *
  * What COUNTS as a reference is `@olai/format`'s (`backlinks.test.ts` holds the
- * four rulings); what is asserted here is the shape the client needs — a record
- * doing both things appearing in both rows, and the count being records rather
+ * rulings); what is asserted here is the shape the client needs — a record
+ * doing both things appearing in both rows, and the count being sources rather
  * than links, because that number is the whole of what a shut section says.
  *
  * WHO REFERS is the page's own reading now — the server walks it with the same
- * `backlinksOf` and sends it with the node page (`@olai/format`'s `page.ts`) —
+ * `referencesOf` and sends it with the node page (`@olai/format`'s `page.ts`) —
  * so this file calls that function directly, which is exactly what the browser
  * is handed. What is asserted is still the client's half: the shaping into rows,
  * and the count a shut section says out loud.
  */
-import { TEST_CLAIMS } from "@olai/format/testlib"
-import { backlinksOf, derive } from "@olai/format"
-import { recordsOf, setOf } from "@olai/format/testlib"
+import type { Reference } from "@olai/format"
+import { referencesOf } from "@olai/format"
+import { readingOf, setOf } from "@olai/format/testlib"
+import { NodeId } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { rowsOf } from "./refs.ts"
 
-const viewOf = (files: Record<string, string>) => derive(TEST_CLAIMS, recordsOf(setOf(files)))
-
-/** What refers to `id`, exactly as a node page's reading carries it. */
-const referringTo = (files: Record<string, string>, id: string) =>
-  backlinksOf(viewOf(files), id)
+const viewOf = (files: Record<string, string>, documents: ReadonlyArray<string | readonly [file: string, text: string]> = []) =>
+  readingOf(setOf(files, documents))
 
 const HOUSE = {
   "house.olai": [
@@ -36,13 +34,17 @@ const HOUSE = {
   "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
 }
 
+/** What refers to `id`, exactly as a node page's reading carries it. */
+const referringTo = (files: Record<string, string>, id: string, documents: ReadonlyArray<string | readonly [file: string, text: string]> = []): ReadonlyArray<Reference> =>
+  referencesOf(viewOf(files, documents), { kind: "node", id: NodeId.make(id) })
+
 test("the rows are keyed by the way, and a record doing both is in each", () => {
   const rows = rowsOf(referringTo(HOUSE, "herbs"))
-  expect(rows.see.map((ref) => ref.id)).toEqual(["order", "both"])
-  expect(rows.mention.map((ref) => ref.id)).toEqual(["install", "both"])
+  expect(rows.see.filter((ref) => "id" in ref).map((ref) => ref.id)).toEqual(["order", "both"])
+  expect(rows.mention.filter((ref) => "id" in ref).map((ref) => ref.id)).toEqual(["install", "both"])
 })
 
-test("the count is the RECORDS referring, not the links they are drawn as", () => {
+test("the count is the SOURCES referring, not the links they are drawn as", () => {
   // THREE, not four: `both` points and mentions, and it is one thing referring.
   // This is the number the shut section says out loud.
   expect(referringTo(HOUSE, "herbs")).toHaveLength(3)
@@ -60,4 +62,15 @@ test("a link carries the referrer's own title and the outline it is written in",
 
 test("a node nothing refers to draws nothing", () => {
   expect(referringTo(HOUSE, "kitchen")).toEqual([])
+})
+
+test("a body's link is a doc row, named by the file it was written in", () => {
+  const rows = rowsOf(referringTo(
+    {
+      "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
+    },
+    "herbs",
+    [["notes.md", "# notes\n\n[the herb bed](#herbs) is outside"]],
+  ))
+  expect(rows.link).toEqual([{ kind: "doc", path: "notes.md" }])
 })

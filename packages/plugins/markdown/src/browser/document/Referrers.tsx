@@ -8,14 +8,13 @@
  * not, because a document had no identity below the file and nothing carried
  * what a file points AT (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md).
  *
- * It does now: every document travels with its FACE, and a face carries the
- * addresses its content points at (`@olai/format`'s `Face`). So this is a
- * lookup over the faces the tab is already holding — no walk of the corpus, no
- * body fetched, and nothing asked of the server that was not already on its
- * way.
+ * It does now: every document travels with its FACE (`@olai/format`'s
+ * `Face`), and the ONE reading answers who points where — the same
+ * `referencesOf` the node page's backlinks ask, over the set the server
+ * holds. Nothing here walks the corpus or fetches a second body.
  *
  * TWO KINDS OF ROW, because there are two kinds of referrer and they are not
- * the same claim (`@olai/format`'s `referrersTo`): a RECORD that linked this
+ * the same claim (`@olai/format`'s `referencesOf`): a RECORD that linked this
  * document in its title or note, drawn as the node it is and opening its
  * page; and a DOCUMENT whose body links here, drawn as the file it is. Saying
  * "house.olai points here" where the honest answer is "the node `kitchen`
@@ -24,7 +23,7 @@
  *
  * THE WHOLE FILE is what it asks about, never one heading of it: what points
  * at `README.md#install` is pointing at this document, and a section that
- * split the two would answer half the question twice (`referrersTo` reads it
+ * split the two would answer half the question twice (`referencesOf` reads it
  * that way round).
  *
  * COLLAPSED, and the collapse is the browser's — a `<details>`, the shape
@@ -37,7 +36,7 @@
 import type { Claims, PageReading } from "@olai/format"
 import type { Accessor } from "solid-js"
 import { TESTID } from "olai-plugin-markdown/testids"
-import type { Referrer } from "@olai/format"
+import type { Reference } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Show } from "solid-js"
 
@@ -80,7 +79,7 @@ export function Referrers(props: {
  * signal one level up would outlive the keyed block and carry one document's
  * answer onto the next, which is what the key is for.
  */
-function Section(props: { readonly found: ReadonlyArray<Referrer>; readonly claims: Claims | undefined; readonly href: (route: Route) => string }) {
+function Section(props: { readonly found: ReadonlyArray<Reference>; readonly claims: Claims | undefined; readonly href: (route: Route) => string }) {
   const [open, setOpen] = createSignal(false)
   /** The referrers as the ROWS they draw — the arm decided once per row rather
    *  than once per fact the arm decides (see {@link rowOf}). */
@@ -163,26 +162,26 @@ interface Row {
  * it is the shape of the answer.
  *
  * THE KEY CARRIES ITS NAMESPACE, because a path and a node id are both strings
- * and `referrersTo` names each POINTING document once and each of its records
- * once (its index says which documents those are, and the records of one are
- * walked once) — so within an arm the key is unique by construction, and across
- * the arms only the prefix says so. A key that collided would hand one element to the framework
- * twice, which is the crash `../edges/named.ts` argues at length.
+ * and `referencesOf` names each referencing source once (it collects into a map
+ * keyed by the record or the face) — so within an arm the key is unique by
+ * construction, and across the arms only the prefix says so. A key that collided
+ * would hand one element to the framework twice, which is the crash
+ * `../edges/named.ts` argues at length.
  */
-const rowOf = (one: Referrer): Row =>
-  one.at === undefined
+const rowOf = (one: Reference): Row =>
+  "path" in one.source
     ? {
-      key: `doc:${one.face.path}`,
-      opens: atFile(one.face.path),
-      calls: one.face.title,
-      callsFrom: one.face.path,
+      key: `doc:${one.source.path}`,
+      opens: atFile(one.source.path),
+      calls: one.source.title,
+      callsFrom: one.source.path,
     }
     : {
-      key: `node:${one.at.node.id}`,
-      opens: atNode(one.at.node.id),
-      calls: one.at.node.title,
-      callsFrom: one.at.file,
-      where: one.face.path,
+      key: `node:${one.source.node.id}`,
+      opens: atNode(one.source.node.id),
+      calls: one.source.node.title,
+      callsFrom: one.source.file,
+      where: one.source.file,
     }
 
 /** The summary line: a count in a sentence rather than a bare number, because

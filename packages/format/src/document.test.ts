@@ -11,13 +11,14 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { addressOf, printAddress } from "./address.ts"
-import { referrersTo } from "./backlinks.ts"
+import { referencesOf } from "./backlinks.ts"
 import { pointingOf } from "./pointing.ts"
 import { linksIn } from "./documents.ts"
 import { derive, tagsIn } from "./derive.ts"
 import { matching, matchingDocuments, parseFilter, rankedTogether } from "./filter.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
 import { bodiedIn, markdownIn, type OutlineSet } from "./set.ts"
+import { reading } from "./validate.ts"
 
 /** The day every query below is asked on — a constant, so nothing here is a
  *  different test tomorrow. */
@@ -248,14 +249,13 @@ test("both kinds come back in one ranked order", () => {
 // ── what points at an address ──────────────────────────────────────────
 
 const referringTo = (set: OutlineSet, path: string): ReadonlyArray<string> => {
-  const derived = derive(TEST_CLAIMS, recordsOf(set))
-  // THE LINKS INDEX, which is what a reading carries and what this reads: it is
-  // built out of the set's own documents by the same fold `validate` runs
-  // (`./pointing.ts`), so the case is asking the question the page asks.
+  // THE READING called the way the PAGE calls it: `referencesOf` over the set's
+  // own pointing index — the pair `validate` puts on a `Reading` — so the case
+  // is asking the question the page asks, whole-document and with the body's
+  // sources named as the file they are.
   const address = addressOf(TEST_CLAIMS, path, null)!
-  return referrersTo(address, pointingOf(TEST_CLAIMS, set.documents), derived).map((one) =>
-    one.at === undefined ? String(one.face.path) : one.at.node.title
-  )
+  return referencesOf(reading(TEST_CLAIMS, set), address)
+    .map((one) => ("path" in one.source ? String(one.source.path) : one.source.node.title))
 }
 
 // A note link is a link a record MADE, and the answer names the RECORD rather

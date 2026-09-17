@@ -54,6 +54,7 @@ export const TESTID = {
   backlinksSummary: "backlinks-summary",
   backlinkSeeRefs: "backlink-see-refs",
   backlinkMentionRefs: "backlink-mention-refs",
+  backlinkLinkRefs: "backlink-link-refs",
   edgeVerb: "edge-verb",
   edgePanel: "edge-panel",
   edgeHeld: "edge-held",

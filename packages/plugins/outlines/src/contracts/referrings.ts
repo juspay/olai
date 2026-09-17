@@ -1,6 +1,6 @@
 /**
- * The two WAYS a record can refer to this node, as values: what each row is
- * called on screen, and what it is called to the browser tests.
+ * The WAYS a record or a document can refer to a node, as values: what each
+ * row is called on screen, and what it is called to the browser tests.
  *
  * `../edges/relation.ts` for the other direction, and for the same reason that
  * file gives: `EdgeRefs.tsx` was once two components spelling their own label
@@ -13,9 +13,9 @@
  *
  * KEYED BY `Way`, which is `@olai/format`'s own closed list — so the table is
  * total BY CONSTRUCTION and, unlike `relation.ts`'s, the closure is enforced
- * ACROSS the package boundary: a third way added where the rulings live
+ * ACROSS the package boundary: a fourth way added where the rulings live
  * (`format/src/backlinks.ts`) is a compile error here, at the one place that
- * would otherwise have gone on drawing two rows out of three.
+ * would otherwise have gone on drawing three rows out of four.
  *
  * PURE, and no component — `relation.ts`'s rule, for its reason: what a row is
  * called has to be decidable somewhere a test can ask without a browser.
@@ -39,14 +39,14 @@ export interface Referring {
    *  projection spelled per caller is one that drifts. */
   readonly refs: TestId
 }
-
 const REFERRING: Record<Way, Referring> = {
   see: { way: "see", label: "sees this", refs: TESTID.backlinkSeeRefs },
   mention: { way: "mention", label: "mentions this", refs: TESTID.backlinkMentionRefs },
+  link: { way: "link", label: "links this", refs: TESTID.backlinkLinkRefs },
 }
 
 /**
- * Both of them, in the order the section draws them — the format's own order
+ * All of them, in the order the section draws them — the format's own order
  * ({@link WAYS}: the edge first, the prose after it), READ rather than
  * re-declared.
  *

@@ -547,20 +547,18 @@ export type {
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
-/** What REFERS to a node: the `see` edges that land on it and the notes and
- *  titles that write its `@id`, out of the two reverse indexes `derive` keeps.
- *  The reading rather than the indexes, because every question about what a
- *  reference MEANS — whether a placement is one, whether the archive counts, and
- *  which ids this node answers to — is asked there. `WAYS` is the closed list of
- *  how one record can refer to another, in the order a referrer says them, and
- *  `Way` is the SCHEMA read off it — which is what the answer vocabulary
- *  carries (`Reference`) and what a browser keys its rows by, rather than
- *  either of them being a second spelling of the list. */
-export { backlinksOf, referrersTo, Way, WAYS } from "./backlinks.ts"
-export type { Backlink, Referrer } from "./backlinks.ts"
+/** THE ONE READING that answers "who refers to here" — {@link referencesOf},
+ *  out of the pointing index the fold keeps ({@link ./pointing.ts}) and asked
+ *  with one address from the node page, the document page and the ops layer
+ *  alike. `WAYS` is the closed list of how one place can refer to another, in
+ *  the order a referrer says them, and `Way` is the SCHEMA read off it — which
+ *  is what the answer vocabulary (`Reference`) carries, rather than it being a
+ *  second spelling of the list. */
+export { referencesOf, Way, WAYS } from "./backlinks.ts"
+export type { Reference } from "./backlinks.ts"
 /** WHICH DOCUMENTS POINT WHERE — the set's own forward links, filed backwards
  *  and kept that way (`perf-doc-backlinks-index`). It rides on the {@link Reading}
- *  and it is what `referrersTo` reads; the type is exported because that
+ *  and it is what `referencesOf` reads; the type is exported because that
  *  function takes one, and the fold and the patch are not — a caller holding a
  *  reading holds the index, and a caller building one goes through `validate`
  *  or `reading`, which is where the two are kept in step. */
@@ -862,7 +860,6 @@ export {
   type Projectable,
   ProjectedRoots,
   ProjectedSubtree,
-  Reference,
   type Stamps,
   Subtree,
   SubtreeAnswer,
@@ -1232,6 +1229,7 @@ export type { OutlineFormat } from "./format.ts"
 export { mintExt, parserFor } from "./kinds.ts"
 export { claimedOf, outlineAt } from "./address.ts"
 export { ID_SHAPE, MENTION_ALPHABET } from "./node.ts"
+export { isMarkdown } from "./document.ts"
 
 export { ClaimData, FileKind } from "./kinds.ts"
 

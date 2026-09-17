@@ -120,7 +120,7 @@
  */
 
 import { type Address, printAddress } from "./address.ts"
-import { type Document, type Face, faceOf, sameFace } from "./document.ts"
+import { type Document, type Face, faceOf, sameFace, isOutline } from "./document.ts"
 import { type Editable, overlay } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 import { type Located } from "./node.ts"
@@ -409,7 +409,7 @@ const moved = (
       // two revisions' `nodes` arrays differ by identity exactly when a record
       // changed, at no comparison cost; only a plain equality would be a walk.
       const faces = sameFace(one, other)
-      const records = one.holds === "nodes"
+      const records = isOutline(one) && isOutline(other)
         ? one.nodes !== other.nodes
         : false
       if (!faces || records) {

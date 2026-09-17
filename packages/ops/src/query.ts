@@ -36,7 +36,8 @@ import {
   type Claims,
   claimedOf,
   ancestorTitles,
-  backlinksOf,
+  addressOf,
+  referencesOf,
   blockersOf,
   bodiedIn,
   brokenBy,
@@ -714,11 +715,12 @@ const shapedOf = (
 }
 
 export const detail = (
-  derived: Derived,
+  at: Reading,
   id: string,
   fields?: ReadonlyArray<string> | undefined,
   served?: ReadonlySet<string>,
 ): Result.Result<Detail | null, OpFailure> => {
+  const derived = at.derived
   let wants: Wants | undefined
   if (fields !== undefined) {
     // CHECKED BEFORE THE RECORD IS EVER LOOKED UP: an id the set does not
@@ -747,11 +749,10 @@ export const detail = (
   const took = tookOf(node)
   const placements = placementsOf(derived, id)
   const placed = placedUnder(derived, id)
-  const referencedBy = referrersOf(derived, id)
+  const referencedBy = referrersOf(at, id)
   const blockedBy = waitingFor(derived, id)
   return Result.succeed({
     ...foundOf(derived, located),
-    ...(served === undefined ? {} : deadLinkFields(deadLinksOf(located, served))),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `outlines_repeat`.
@@ -818,15 +819,19 @@ const waitingFor = (derived: Derived, id: string): ReadonlyArray<Found> =>
  * What refers to this node — the browser's own "referenced by" section, in the
  * shape a read answers in.
  *
- * SITUATED, which is this layer's whole contribution: `backlinksOf` says WHICH
- * records refer and how ({@link `@olai/format`}, where the four rulings about
- * what counts as a reference are argued and tested), and `foundOf` turns each
- * of them into the same answer every other list here is made of — so a referrer
- * arrives with its title, its place, its ancestors and its mark, and nothing
- * has to be read a second time to say what it is.
+ * ONE READING, `@olai/format`'s {@link referencesOf}: the node page, the
+ * document page and this field answer the SAME list from the SAME function,
+ * and what counts as a reference — the `see` edge, an `@id` in prose, a link
+ * onto the node or one of its placements; a placement itself never — is argued
+ * and tested there, not resolved again per door. The wire is the reference
+ * itself: a record sits in `source` with its file and line, a body is the
+ * face, and `ways` says how it said the target.
  */
-const referrersOf = (derived: Derived, id: string): ReadonlyArray<Reference> =>
-  backlinksOf(derived, id).map((one) => ({ ...foundOf(derived, one.at), ways: one.ways }))
+const referrersOf = (at: Reading, id: string): ReadonlyArray<Reference> =>
+  // The grammar's own node address, off the two halves — the same route the
+  // node page takes; `referencesOf` answers an id nothing claims with an empty
+  // list, which is what `detail` wants for one it is about to refuse above.
+  referencesOf(at, addressOf(at.claims, null, id)!)
 
 /**
  * The placements UNDER a node, in sibling order — the list side of a mirror.

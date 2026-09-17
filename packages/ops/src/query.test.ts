@@ -59,10 +59,9 @@ import {
 const nodeHits = (answer: SearchAnswer): ReadonlyArray<NodeHit> =>
   answer.hits.filter(isNodeHit)
 
-/** The derivation these walks are asked of: the half of a fixture READING they
- *  read. Production never builds one — `validate` pairs the set with the view
- *  it judged, and every caller is handed the pair. */
-const derivedOf = (set: OutlineSet): Derived => readingOf(set).derived
+/** THE READING these walks are asked of — the fixture READING production's
+ *  `validate` pairs the set with, and the one every read below answers from. */
+const derivedOf = (set: OutlineSet): Reading => readingOf(set)
 
 /** The day every search below is asked on. A search takes one because the
  *  grammar's relative words count from it (`date:yesterday`); in the server it
@@ -115,13 +114,12 @@ const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure =>
  * says "or else" and the door lifts it. The UNWRAP and the diagnostic are the
  * two lines above, which is where `walked`/`refusedWalk` already live for it.
  */
-const read = (of: Derived, id: string, fields?: ReadonlyArray<string>): Detail | null =>
+const read = (of: Reading, id: string, fields?: ReadonlyArray<string>): Detail | null =>
   succeeded(detail(of, id, fields), "`outlines_read` to answer")
 
 /** The one that REFUSED — {@link read}'s other arm. */
-const refusedRead = (of: Derived, id: string, fields: ReadonlyArray<string>): OpFailure =>
+const refusedRead = (of: Reading, id: string, fields: ReadonlyArray<string>): OpFailure =>
   failed(detail(of, id, fields), "`outlines_read`")
-
 /**
  * The two ARMS of an answer that is not the `{ missing }` one — a diagnostic
  * rather than a cast at each assertion.
@@ -341,31 +339,33 @@ describe("what refers to a node", () => {
    * answered one describe up as `mirrors`.
    */
   test("a `see` is a reference and an ordering edge is not", () => {
-    expect(read(at(), "git")?.referencedBy).toEqual([
-      {
-        id: "sticky",
-        title: "the header scrolls away",
+    expect(read(at(), "git")?.referencedBy).toEqual([{
+      source: {
+        node: {
+          id: "sticky",
+          title: "the header scrolls away",
+          ord: "a0",
+          doing: true,
+          after: ["git"],
+          see: ["git"],
+          parent: "bugs",
+        },
         file: "roadmap.olai",
         line: 5,
-        status: "doing",
-        path: ["Bugs"],
-        parent: "bugs",
-        see: ["git"],
-        after: ["git"],
-        ways: ["see"],
       },
-    ])
+      ways: ["see"],
+    }])
   })
 
   test("a word in a title or a note refers too, and one record is one referrer", () => {
-    const at = derivedOf(setOf({
+    const view = derivedOf(setOf({
       "a.olai": [
         `{"id":"git","ord":"a0","title":"two git indicators"}`,
         `{"id":"said","ord":"a1","title":"about @git","desc":"and @git again"}`,
         `{"id":"both","ord":"a2","title":"see @git","see":["git"]}`,
       ].join("\n"),
     }))
-    expect(read(at, "git")?.referencedBy?.map((one) => `${one.id} ${one.ways.join("+")}`))
+    expect(read(view, "git")?.referencedBy?.map((one) => `${"node" in one.source ? one.source.node.id : one.source.path} ${one.ways.join("+")}`))
       .toEqual(["said mention", "both see+mention"])
   })
 
@@ -586,7 +586,7 @@ describe("the caller shapes the rows", () => {
   const timed = () => readingOf(TIMED())
 
   test("a child row carries EXACTLY what was named — each kind, nothing else", () => {
-    const lane = read(timed().derived, "lane", [
+    const lane = read(timed(), "lane", [
       "title",
       "status",
       "done",
@@ -636,7 +636,7 @@ describe("the caller shapes the rows", () => {
     // The read is "one node in full": the lever on a full read's cost was
     // never its own row. Pinning it as a fact: the note, the place, the
     // stamps are all still there.
-    const lane = read(timed().derived, "lane", ["status"])
+    const lane = read(timed(), "lane", ["status"])
     expect(lane).toMatchObject({ file: "steps.olai", line: 1, path: [], tags: [] })
     expect(lane?.children[0]).toEqual({ id: "one", status: "done" })
   })
@@ -644,13 +644,13 @@ describe("the caller shapes the rows", () => {
   test("the whole map, and one key of it, are two different asks", () => {
     // `custom` is the whole held map — through `heldCustom` either way, so a
     // key holding nothing is absent exactly as it is on the line on disk.
-    const whole = read(timed().derived, "lane", ["custom"])?.children[0]
+    const whole = read(timed(), "lane", ["custom"])?.children[0]
     expect(whole).toEqual({ id: "one", custom: { agent: "claude-opus", took: "4m" } })
-    const one = read(timed().derived, "lane", ["custom.agent"])?.children[0]
+    const one = read(timed(), "lane", ["custom.agent"])?.children[0]
     expect(one).toEqual({ id: "one", custom: { agent: "claude-opus" } })
     // Asked for a key the node does not carry: absent, never an empty map —
     // the same spelling of nothing the full rows use.
-    const absent = read(timed().derived, "lane", ["custom.pr"])?.children[0]
+    const absent = read(timed(), "lane", ["custom.pr"])?.children[0]
     expect(absent).toEqual({ id: "one" })
   })
 
@@ -680,7 +680,7 @@ describe("the caller shapes the rows", () => {
       { id: "stamped-free", title: "done before instants", status: "done" },
     ] as const
     // The child list of a `outlines_read` …
-    expect(read(readingOf(SPAN()).derived, "lane", ["title", "status", "took"])?.children)
+    expect(read(readingOf(SPAN()), "lane", ["title", "status", "took"])?.children)
       .toEqual(expected)
     // …and every row of a `outlines_subtree`: one derivation, one vocabulary,
     // two doors — the timings ask the parameter was born for. (The walk's
@@ -696,13 +696,13 @@ describe("the caller shapes the rows", () => {
     }
     // And the row cannot disagree with the node's own FULL read: the one
     // `tookOf` answers both shapes, the same number either way.
-    expect(read(readingOf(SPAN()).derived, "done-one")?.took).toBe(240)
+    expect(read(readingOf(SPAN()), "done-one")?.took).toBe(240)
   })
 
   test("an asked-for field is dropped from the DESCS as well — the walk is shape, not prose", () => {
     // The note dials: `desc` named is the note whole, `withDesc` has nothing
     // left to say — and the two together are their own refusal below.
-    const lane = read(timed().derived, "lane", ["desc"])
+    const lane = read(timed(), "lane", ["desc"])
     expect(lane?.children[0]).toEqual({ id: "one", desc: "the forensics" })
   })
 
@@ -793,13 +793,13 @@ describe("the caller shapes the rows", () => {
     }
     expect(refusal.message).toContain("`custom.<key>`")
     // The same words at the OTHER read, since the question is one.
-    const refused = refusedRead(timed().derived, "lane", ["florp"])
+    const refused = refusedRead(timed(), "lane", ["florp"])
     expect(refused._tag).toBe("UsageFailure")
     expect(refused.message).toBe(refusal.message)
     // The id beside it is never REACHED: the request is refused before the
     // set is consulted — a missing id with a bad field is refused, not
     // answered {missing}.
-    expect(refusedRead(timed().derived, "gone", ["florp"])._tag).toBe("UsageFailure")
+    expect(refusedRead(timed(), "gone", ["florp"])._tag).toBe("UsageFailure")
   })
 
   test("`fields` + `withDesc` is one dial spelled twice — refused, saying which", () => {
@@ -852,7 +852,7 @@ describe("the caller shapes the rows", () => {
       checkKeys(child)
       for (const grand of child.children) checkKeys(grand)
     }
-    expect(read(timed().derived, "lane")?.children[0]).toMatchObject({
+    expect(read(timed(), "lane")?.children[0]).toMatchObject({
       id: "one",
       file: "steps.olai",
       line: 2,
@@ -977,7 +977,7 @@ describe("a whole outline, walked", () => {
     })
     expect(rootIds(walked(readingOf(set), { file: "out.olai" })))
       .toEqual(["first", "second"])
-    expect(outlines(set, derivedOf(set))[0]).toEqual({
+    expect(outlines(set, derivedOf(set).derived)[0]).toEqual({
       file: "out.olai",
       nodes: 2,
       roots: ["Second", "First"],
@@ -1124,7 +1124,7 @@ describe("the directory", () => {
    *  on a fact a sibling test owns. */
   test("every file gets its row, in order, counted and titled by its own nodes", () => {
     const set = DIRECTORY()
-    expect(outlines(set, derivedOf(set))).toEqual([
+    expect(outlines(set, derivedOf(set).derived)).toEqual([
       // In PATH order, which is the set's ({@link ../../format/src/set.ts}'s
       // `assemble` puts it there) and what the sidebar shows.
       { file: "empty.olai", nodes: 0, roots: [] },
@@ -1401,7 +1401,7 @@ const HOUSE = (): OutlineSet =>
 const HERBS = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 
 describe("which of these ids the set declares", () => {
-  const asked = (...ids: ReadonlyArray<string>) => named(derivedOf(HOUSE()), { ids }).named
+  const asked = (...ids: ReadonlyArray<string>) => named(derivedOf(HOUSE()).derived, { ids }).named
 
   test("an id the set declares comes back with the node it names", () => {
     expect(asked("order")).toEqual([{ asked: "order", id: "order", title: "order the cabinets" }])
@@ -1444,7 +1444,7 @@ describe("which of these ids the set declares", () => {
   })
 
   test("nothing asked is nothing answered", () => {
-    expect(named(derivedOf(HOUSE()), { ids: [] })).toEqual({ named: [] })
+    expect(named(derivedOf(HOUSE()).derived, { ids: [] })).toEqual({ named: [] })
   })
 })
 
@@ -1483,7 +1483,7 @@ describe("where these ids are, and which of these files the set has", () => {
       { id: "echo", file: "house.olai" },
       { id: "nowhere", file: "house.olai" },
     ])
-    expect(named(derivedOf(HOUSE()), { ids: ["nowhere"] }).named).toEqual([])
+    expect(named(derivedOf(HOUSE()).derived, { ids: ["nowhere"] }).named).toEqual([])
   })
 
   test("an id no record carries is not in the answer at all", () => {
@@ -1557,7 +1557,7 @@ describe("which tags the set already uses", () => {
   // this shape — a field dropped between the reading and the answer would fail
   // nothing over there.
   test("the answer is the shortlist, ranked, in the envelope the wire carries", () => {
-    expect(tags(derivedOf(HOUSE()), { sigil: "#", query: "ho", limit: 8 }))
+    expect(tags(derivedOf(HOUSE()).derived, { sigil: "#", query: "ho", limit: 8 }))
       .toEqual({
         tags: [
           { name: "home", count: 2 },
@@ -1568,7 +1568,7 @@ describe("which tags the set already uses", () => {
   })
 
   test("the sigil asked with is the only namespace answered", () => {
-    expect(tags(derivedOf(HOUSE()), { sigil: "@", query: "", limit: 8 }))
+    expect(tags(derivedOf(HOUSE()).derived, { sigil: "@", query: "", limit: 8 }))
       .toEqual({ tags: [{ name: "alice", count: 1 }] })
   })
 
