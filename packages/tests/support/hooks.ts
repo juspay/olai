@@ -50,8 +50,10 @@
  *
  * EVERY ONE OF THESE TAGS SHAPES A RESOURCE THIS MODULE CREATES, and it has to
  * be read before the creation. `@git:…` and `@rows:…` decide how the server is
- * SPAWNED — the repository it is pointed at, the plugins it composes — which is
- * decided once, in `serverFor`/`ownCopy`, before any step runs. `@phone`,
+ * SPAWNED — the repository it is pointed at, the plugins it composes — and
+ * `@agent-path:empty` decides WHERE IT LOOKS for the agents it will report on,
+ * which is a directory this module makes and hands over as a variable; all of
+ * it is decided once, in `serverFor`/`ownCopy`, before any step runs. `@phone`,
  * `@zone:`, `@alerts` and `@paints` decide how the browser CONTEXT is made and
  * what init script is in place before the app's first paint; `@wire` arms a
  * listener on the page before the first socket opens. A cucumber `Before` hook
@@ -470,6 +472,31 @@ const ROWS_TAG = /^@rows:([a-z0-9,-]+)$/;
 const ROWS_ON_TAG = /^@rows-on:([a-z0-9,-]+)$/;
 const ROWS_OFF_TAG = /^@rows-off:([a-z0-9,-]+)$/;
 
+/**
+ * `@agent-path:empty`: this scenario owns the directory olai looks for agents
+ * in, and it starts out EMPTY — so an engine whose executable is found rather
+ * than shipped is `not-here` on the first paint, and the scenario can INSTALL
+ * it (a symlink into that directory) under the server that is already running.
+ *
+ * A TAG rather than a step, for `@git:`'s reason: what the first paint says is
+ * the whole subject, so the directory has to exist and be on the child's
+ * `OLAI_AGENT_PATH` before the server boots. A step could only create it after
+ * the child was spawned, so it would have to kill and respawn — a restart in
+ * the middle of the one scenario whose claim is that the tab, the page and the
+ * process all survive the installation.
+ *
+ * The directory is PREPENDED to the path the roster composes rather than
+ * replacing it (see {@link startServerChild}): the fakes a scenario's engine
+ * tags voted for are still found, so `@omp @agent-path:empty` is a scenario
+ * with omp installed AND somewhere to install another engine.
+ *
+ * It needs a PRIVATE server (`@scratch:`, not `@share-scratch`): what this
+ * machine has got is decided at spawn and changed mid-scenario, so a sibling
+ * scenario sharing the process would inherit an installation no feature of its
+ * own mentions. The directory dies with the scenario.
+ */
+const AGENT_PATH_TAG = /^@agent-path:(empty)$/;
+
 
 /**
  * `@avatar-template`: this scenario's server was started with an avatar URL
@@ -732,6 +759,10 @@ interface Spawn {
    *  `env` merges its own variables — nothing here spells one engine's
    *  switch, which is the whole of section 13.3. */
   readonly fakes: ReadonlyArray<string>;
+  /** A directory of the SCENARIO's own to look for agents in, ahead of the
+   *  roster's — `@agent-path:empty`'s, created before this spawn and written
+   *  into while the child runs. Prepended rather than substituted: see
+   *  {@link AGENT_PATH_TAG} for why both halves have to be reachable. */
   readonly agentSearchPath?: string;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
@@ -848,11 +879,19 @@ const startServerChild = async (
         // string is "look on no path at all", so a developer's own agent
         // cannot decide a scenario. A fake with a searchPath joins it only
         // when its tag is on.
-        OLAI_AGENT_PATH: spawnOptions.agentSearchPath ?? FAKES.filter(
-          (fake) => fake.searchPath !== undefined && agentOn(fake, spawnOptions),
-        )
-          .map((fake) => fake.searchPath!)
-          .join(path.delimiter),
+        //
+        // A scenario's OWN directory (`@agent-path:empty`) goes FIRST and
+        // JOINS rather than replaces, which is the whole of what the fakes'
+        // join above means: a scenario that installs an engine into a
+        // directory of its own is not a scenario that has taken every other
+        // engine's fake off this machine, and a path that substituted would
+        // have said so — silently, on a serve whose tags asked for them.
+        OLAI_AGENT_PATH: [
+          ...(spawnOptions.agentSearchPath === undefined ? [] : [spawnOptions.agentSearchPath]),
+          ...FAKES.filter(
+            (fake) => fake.searchPath !== undefined && agentOn(fake, spawnOptions),
+          ).map((fake) => fake.searchPath!),
+        ].join(path.delimiter),
         // FIRST, so a real fake on the developer's PATH does not decide a
         // scenario: every `path` the roster ships is ahead of the host's, and
         // the broken git goes ahead of even that, for exactly the same reason.
@@ -1508,6 +1547,9 @@ Before(
       const asked = ROWS_OFF_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1]!];
     })[0];
+    const ownsAgentPath = scenario.pickle.tags.some((tag) =>
+      AGENT_PATH_TAG.test(tag.name),
+    );
     const pinned = Object.keys(this.gitPolicy).length > 0;
     // Policy scenarios name their repository condition so a refusal has an explicit cause.
     if (pinned && this.gitMode === undefined) {
@@ -1571,6 +1613,29 @@ Before(
           `rather than @corpus:${asked.corpus}.`,
       );
     }
+    // ...and the same rule ONE STEP STRICTER for the agent search directory,
+    // which is the only one of these a scenario CHANGES while its server runs:
+    // a feature-shared scratch would hand the installation to every sibling
+    // scenario on this worker, so this one wants a private copy rather than
+    // merely a written one (`@node-idle-fast`'s rule, for the same reason —
+    // what the process finds is this scenario's alone).
+    if (ownsAgentPath) {
+      if (asked.mode !== "own") {
+        throw new Error(
+          "@agent-path:empty gives a scenario the directory its server looks " +
+            `for agents in, and it installs into it mid-scenario, so the copy ` +
+            `must be private: tag it @scratch:${asked.corpus} (and @own-scratch ` +
+            "when the feature shares its scratch).",
+        );
+      }
+      // Beside the scratch copy rather than inside it, the rule `scratchState`
+      // keeps and for its reason: the served tree is an outline corpus a
+      // `@git:repo` scenario surveys, and an engine's executable is not one of
+      // its files. Removed in `After` with the copy and the server.
+      this.agentSearchPath = fs.mkdtempSync(
+        path.join(os.tmpdir(), `olai-agent-path-w${workerId()}-`),
+      );
+    }
 
     // THE PADI FIRST, and before the server that will dial it. A server
     // spawned against a socket nobody is listening on reports `absent` — a
@@ -1630,6 +1695,11 @@ Before(
         fastNodeIdle: this.fastNodeIdle,
         agent: this.hasAgent,
         fakes: this.fakes,
+        // THE FIRST BOOT gets it, not just the restart: what this scenario is
+        // about is the first paint of an engine this machine has not got.
+        ...(this.agentSearchPath === undefined
+          ? {}
+          : { agentSearchPath: this.agentSearchPath }),
         ...(this.padi === undefined ? {} : { padiSocket: this.padi.socket }),
         ...(this.odu === undefined ? {} : { oduOrigin: this.odu.origin }),
         // THE MAIL ROW'S THREE, and here the difference between them matters:
@@ -1847,6 +1917,15 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
   this.mailGoogle = undefined;
   await this.mailHimalaya?.stop();
   this.mailHimalaya = undefined;
+  // ...and the agent search directory this scenario was given, for the same
+  // reason: it is a temp directory of this scenario's with an engine installed
+  // into it, and the only process that was looking at it is going down below.
+  // Before the shared-scratch return, so it cannot be skipped by a tag
+  // combination the guard above is the only thing refusing.
+  if (this.agentSearchPath !== undefined) {
+    fs.rmSync(this.agentSearchPath, { recursive: true, force: true });
+    this.agentSearchPath = undefined;
+  }
 
   // A feature-shared scratch outlives the scenario: After drains in-flight
   // writes (a blur-on-close, a last key still staging), puts the fixture

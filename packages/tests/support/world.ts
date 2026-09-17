@@ -1473,7 +1473,17 @@ export class OlaiWorld extends World {
    *  restart reproduces the same boot. The ONE shape the spawn and the
    *  fingerprint read, so neither names an engine. */
   fakes: ReadonlyArray<string> = [];
-  /** An owned scratch directory for install/uninstall scenarios. */
+  /** THE DIRECTORY THIS SCENARIO OWNS on its server's agent search path
+   *  (`@agent-path:empty`), created before the first boot and empty then — so
+   *  an engine that is FOUND rather than shipped is `not-here` on the first
+   *  paint, and a step can install one into it (a symlink to a fake's
+   *  executable) while the server runs. Ahead of the roster's own paths rather
+   *  than instead of them, so a scenario's engine tags still answer.
+   *
+   *  Carried on the world for the reason every other spawn-shaping tag is: a
+   *  restart mid-scenario has to reproduce this boot, installation and all
+   *  (`hooks.ts`'s `startOwnServer`). Undefined is every other scenario,
+   *  whose server looks for agents only where the roster put its fakes. */
   agentSearchPath?: string;
   /** Read the roster's vote list into the word list the restarter replays.
    *  Nothing else is set: the spawn reads `fakes` and the fingerprint reads

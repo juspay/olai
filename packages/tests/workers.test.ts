@@ -143,6 +143,17 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, rowsOff: "journal" }),
   );
+  // ...and the directory a scenario INSTALLS an engine into: a server already
+  // looking at one scenario's has been handed a fake the next one never
+  // installed, so the two may not share a process.
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, agentSearchPath: "/tmp/olai-agent-path-w0-abc" }),
+  );
+  expect(
+    spawnFingerprint({ ...base, agentSearchPath: "/tmp/olai-agent-path-w0-abc" }),
+  ).not.toBe(
+    spawnFingerprint({ ...base, agentSearchPath: "/tmp/olai-agent-path-w0-def" }),
+  );
 });
 
 test("PIN (env): a spawned server does not inherit the host's padi or cache", () => {
