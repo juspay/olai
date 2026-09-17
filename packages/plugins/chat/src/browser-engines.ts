@@ -1,29 +1,14 @@
-/** Static contract and inert component factory. Live readings and rendering
- * arrive through chat's scoped service, never through a private UI import. */
-import type { Accessor, JSX } from "solid-js"
+/** The engine's inspector face crosses a declared, scoped service.
+ *
+ * This door describes the face; it neither constructs plugin definitions nor
+ * reads chat's wire. Chat owns the standing and the drawing over it. Each
+ * engine owns the component that registers that drawing, so its slot claim is
+ * stamped with its own identity and withdraws when either owner leaves.
+ */
 import { serviceTag } from "@olai/plugin-api/contracts"
-import { definePlugin, Slots } from "@olai/plugin-api"
-import { Effect } from "effect"
-import type {} from "olai-plugin-plugin-inspector/slots"
-import type { AgentChoice } from "./wire.ts"
+import type { PluginsRowFace } from "olai-plugin-plugin-inspector/slots"
 
 export interface EnginesService {
-  readonly standing: (engine: string) => Accessor<AgentChoice | null>
-  readonly missing: (engine: string) => JSX.Element
+  readonly row: (engine: string) => PluginsRowFace
 }
 export const chatEngines = serviceTag<EnginesService>("chat.engines")
-
-/** The loader binds this component and its registration to the calling engine. */
-export const engineRow = (engine: string) => definePlugin({
-  name: "row",
-  needs: [chatEngines, Slots],
-  apply: Effect.gen(function*() {
-    const engines = yield* chatEngines
-    const slots = yield* Slots
-    const standing = engines.standing(engine)
-    yield* slots.register("plugins.row", {
-      needs: () => standing()?.standing === "not-here",
-      body: () => engines.missing(engine),
-    })
-  }),
-})

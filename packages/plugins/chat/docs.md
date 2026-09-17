@@ -93,11 +93,11 @@ Reverse withdrawal removes page consumers before the fold's location owner.
 Engine absence is data on the roster, not a separate browser slot. One sentence
 component draws its mark, reason and optional link in the picker, no-agent face
 and engine-owned inspector row. Chat's declared browser `chat.engines` service
-shares the live reading and renderer. The static
-`olai-plugin-chat/browser-engines` door exports `engineRow(name)`; its inert
-descriptor acquires that service and registers the row under the calling
-engine's identity. The component waits for chat and the inspector slot, and
-withdraws before chat releases its renderer.
+supplies `row(engine): PluginsRowFace`, built over one activation-owned standing
+index. The static `olai-plugin-chat/browser-engines` door contains only its tag
+and interface. Each engine defines its own `row` component and registers the
+supplied face under its own identity. The component waits for chat and the
+inspector slot, and withdraws before chat releases its renderer.
 
 Optional dependencies remain in separate scoped components. Navigation and its
 existing palette control supply route changes and choice reset on dismissal;

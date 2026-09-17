@@ -913,11 +913,12 @@ appliance olai has a judgement about. Smaller shape, same rules.
   unregisters. Readers do not probe. Switching an engine off and on forgets
   just its answer. The published roster retains every mounted engine in bundle
   order with `standing: "here"` or `"not-here"`; only here rows can start.
-- `src/browser.tsx` registers the engine's mark (`delivery.mark`) and exports
-  `components = { row: engineRow(name) }` from chat's browser-engines door.
-  This component consumes chat's declared `engines` service and the inspector's
-  `plugins.row` slot under the engine's own identity. Missing engines belong in
-  **Needs you**; when chat is absent the component pends.
+- `src/browser.tsx` registers the engine's mark (`delivery.mark`) and defines
+  its own optional `row` component. It consumes the `chat.engines` service's
+  `row(name)` face and registers it in `plugins.row` under the engine's own
+  identity. The imported door contains only a tag and interface, never a
+  component factory. Missing engines belong in **Needs you**; when chat is
+  absent the component pends.
 - Put the absence sentence in `src/install.ts`, spent by the server probe:
   a `NotHere` whose `why` is a whole sentence the reader does not compose.
   The wire carries this reading to one shared sentence component used by the

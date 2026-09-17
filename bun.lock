@@ -313,6 +313,7 @@
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-outlines": "workspace:*",
+        "olai-plugin-plugin-inspector": "workspace:*",
         "olai-plugin-search": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
@@ -322,8 +323,6 @@
       "devDependencies": {
         "@olai/tests": "workspace:*",
         "@types/node": "^22.0.0",
-        "olai-plugin-omp": "workspace:*",
-        "olai-plugin-plugin-inspector": "workspace:*",
         "olai-plugin-sidebar": "workspace:*",
       },
     },

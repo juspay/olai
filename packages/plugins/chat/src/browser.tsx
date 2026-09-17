@@ -87,7 +87,7 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, agents, readings: createAgentReadings(agents), folding: createFolding() }
+      return { dispose, agents, engines: enginesService(agents.standings), readings: createAgentReadings(agents), folding: createFolding() }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
@@ -125,12 +125,12 @@ export default definePlugin({
     yield* slots.register("outline.row.action", node => rowVerbs(node, state.agents))
     // THE STANDING TABLE, AS A DECLARED BROWSER SERVICE — one row per mounted
     // engine, live, keyed to this activation's own roster cell
-    // (`./browser/engines.ts` argues the shape). Published the way
+    // (`./browser/engines.tsx` argues the shape). Published the way
     // `alerts.channel` is: an `own` service under this plugin's namespace, so
     // an engine plugin that draws its row in the plugins panel holds it for
     // exactly as long as chat's fiber is up — chat off means nothing is
     // probing, and the row component pends rather than guessing.
-    yield* (yield* Offers).own("engines", () => enginesService(state.agents.standings))
+    yield* (yield* Offers).own("engines", () => state.engines)
   }),
 })
 
