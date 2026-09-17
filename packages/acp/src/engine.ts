@@ -69,8 +69,15 @@ export interface Adapter {
 /**
  * SOMETHING THIS HOST DOES NOT HAVE, and what a person is owed about it.
  *
- * Owned beside Registering.at and re-exported by plugin-api for other probes.
- * Keeping the canonical shape here preserves ACP's leaf dependency boundary.
+ * OWNED HERE AND NOWHERE ELSE, beside the {@link Registering.at} that answers
+ * one: this is the shape an ENGINE hands back, and an engine already opens this
+ * door for its leg and its adapter, so it needs no second one. A probe about
+ * something that is not an ACP engine — an MCP server, a padi — spells the same
+ * three fields itself (`@olai/plugin-api`'s `Probed.missing`) rather than
+ * importing this name, because contravariance makes the narrower spelling the
+ * stronger claim and a package that speaks the protocol has no business owning
+ * another subject's absence. Keeping the canonical shape here also preserves
+ * ACP's leaf dependency boundary.
  *
  * `where` is where the thing WOULD be, in whichever way makes sense for it: the
  * file a probe asked for, or the page a person downloads it from. `null` for

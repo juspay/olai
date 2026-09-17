@@ -24,7 +24,6 @@
  * one-way.
  */
 import type { Effect } from "effect"
-import type { NotHere } from "@olai/acp/engine"
 /**
  * AN MCP SERVER TO SPAWN, in olai's terms — `olai-plugin-chat` renders it into what
  * ACP wants, the same way it does olai's own.
@@ -65,47 +64,50 @@ export interface StdioServer {
  * `where` is `null` for the ways of failing that never reached a file. A path
  * is what a reader most wants and is not always a thing that exists.
  *
- * AN ENGINE PLUGIN takes the shape from `@olai/acp/engine` now (see the
- * section below for the direction of that move), because it already opens
- * that door for the leg and the adapter it hands `at()`. `olai-plugin-chat`
- * still spells its own copy beside its servers, and the agreement is still
- * proved where the two ends meet — the `chat/session-start` waterfall a
- * server half pushes its thunk onto ({@link ./services.ts}'s `SessionStart`)
- * rather than a `probesOf` over a compiled-in list. It is the same trade
- * {@link ./browser.ts}'s four services make in the other direction: a plugin
- * re-declares only the part it reads, and contravariance makes the narrower
- * spelling the stronger claim.
+ * IT IS SPELLED HERE, STRUCTURALLY, and that is the arrangement rather than a
+ * duplication to tidy away. The shape an ENGINE plugin answers `at()` with is
+ * `@olai/acp/engine`'s `NotHere` — that package is the floor under the leg and
+ * the adapter an engine already opens, so the canonical spelling of an absent
+ * ENGINE lives there. This door's reader is a different subject: an MCP server,
+ * a padi, a mail probe, none of which is an ACP engine and none of which should
+ * make a package speaking a protocol the owner of its words. So {@link Probed}
+ * names the three fields inline, `olai-plugin-chat` names them again beside its
+ * servers (`servers.ts`), and the agreement is proved where the two ends meet —
+ * the `chat/session-start` waterfall a server half pushes its thunk onto
+ * ({@link ./services.ts}'s `SessionStart`) rather than a `probesOf` over a
+ * compiled-in list. It is the same trade {@link ./browser.ts}'s four services
+ * make in the other direction: a reader re-declares only the part it reads, and
+ * CONTRAVARIANCE makes the narrower spelling the stronger claim — a probe may
+ * answer with anything that has these three fields, including an engine's own
+ * `NotHere`, and nothing here has to import it to accept one.
  *
- * ## IT WENT TO `@olai/acp`, CAME BACK, AND WENT THERE AGAIN TO STAY
+ * ## IT WENT TO `@olai/acp`, CAME BACK, AND IS NOT COMING BACK AGAIN
  *
  * The agents phase read it as a shape TWO WALLS needed — an engine plugin
  * saying how to get itself, and `olai-plugin-chat` saying what an absent MCP server
  * was — and moved it to the floor package under both. The second reader turned
  * out not to exist at the time: an engine's install sentence was drawn by that
  * engine's own BROWSER half out of a slot, so no server-side registration
- * needed the shape, and it came back here beside the probe that reads one.
+ * needed the shape, and the declaration came back here beside the probe that
+ * reads one.
  *
- * The reader arrived — `Registering.at` now answers `Adapter | NotHere`, so
- * the roster can publish a row for an engine this machine has not got, with
- * the sentence attached, instead of dropping it — and with it the reason the
- * first move was wrong in the other direction: an engine plugin answering
- * `at()` may not import THIS package for the shape when it already opens
- * `@olai/acp/engine` for the leg and the adapter. So the canonical spelling
- * is the floor's again, `@olai/acp/engine`'s, and this file re-exports the
- * name: the probe below keeps its reader, the wall keeps one spelling, and
- * no cycle is made — this package already opens that door for
- * `Engine`/`Registering`.
+ * The engine-side reader has since arrived — `Registering.at` answers
+ * `Adapter | NotHere` now, so the roster publishes a row for an engine this
+ * machine has not got with the sentence attached instead of dropping it — and
+ * it reaches the shape at `@olai/acp/engine`, which it already imports for the
+ * leg and the adapter. This file re-exported that name for a revision, which
+ * made a package of plugin CONTRACTS the second door onto a shape it does not
+ * own: an MCP probe's absence would have been typed by the engine wall, and a
+ * rename on the protocol side would have moved a word in every padi. The three
+ * fields below are the whole claim, so there is no import and no re-export.
  *
- * `olai-plugin-chat` still spells its own copy beside its servers
- * (`servers.ts`, the contravariant re-spelling the paragraph above argues
- * for), which the re-export does not disturb.
+ * `why` IS A WHOLE SENTENCE and nothing composes around it. The words belong to
+ * whoever found out — the five ways a padi can fail are `olai-plugin-kolu`'s to
+ * word, and where to get opencode is `olai-plugin-opencode`'s — because a
+ * sentence built out of a core template with a plugin's noun dropped into it is
+ * a debug log line on a screen. **Core displays a sentence and never composes
+ * one.**
  */
-
-/** ...AND WHAT A PERSON IS OWED ABOUT IT — the floor's shape, re-exported so
- *  this door's own readers (`Probed.missing` below) go on reaching it where
- *  they already did. See `@olai/acp/engine`'s `NotHere` for the words: this
- *  package adds none. */
-export type { NotHere } from "@olai/acp/engine"
 
 /** WHAT A PROBE FOUND — both halves at once, because they are one reading.
  *
@@ -117,9 +119,19 @@ export type { NotHere } from "@olai/acp/engine"
 export interface Probed {
   /** The server to hand a session, or `null` where there is none to hand. */
   readonly server: StdioServer | null
-  /** What a person is owed about the one they did not get, or `null` where an
-   *  absence is the ordinary case and no fault. */
-  readonly missing: NotHere | null
+  /**
+   * WHAT A PERSON IS OWED about the one they did not get, or `null` where an
+   * absence is the ordinary case and no fault.
+   *
+   * `where` is where the thing WOULD be, in whichever way makes sense for it:
+   * the file a probe asked for, or the page a person downloads it from. `null`
+   * for the ways of being absent that name no place at all.
+   */
+  readonly missing: {
+    readonly name: string
+    readonly where: string | null
+    readonly why: string
+  } | null
 }
 
 /**

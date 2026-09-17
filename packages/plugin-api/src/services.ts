@@ -1773,7 +1773,6 @@ export type {
   ConversationSeen,
   Deliveries as DeliveryDoor,
   MintedTicket,
-  NotHere,
   Probed,
   PropKind,
   PropWrite,

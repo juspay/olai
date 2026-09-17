@@ -33,7 +33,7 @@ import { Effect, Scope, type Stream } from "effect"
 
 import { BrowserMount } from "./mount.ts"
 import { ownService, type OwnServices } from "./owned.ts"
-import { kindWordOf, type NotHere } from "./contract.ts"
+import { kindWordOf } from "./contract.ts"
 import { slotReference, type SlotDefinitions, type SlotKey } from "./slots.ts"
 import type {
   AppClocks,
