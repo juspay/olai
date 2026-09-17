@@ -289,7 +289,7 @@ export const repointed = (
  * together they sit: {@link bySource} sorts the key by their corpus order,
  * which is the order the records were walked in.
  */
-export const fileAt = (into: Map<string, Array<Source>>, key: string, entry: Source): void => {
+const fileAt = (into: Map<string, Array<Source>>, key: string, entry: Source): void => {
   const held = into.get(key)
   if (held === undefined) {
     into.set(key, [entry])

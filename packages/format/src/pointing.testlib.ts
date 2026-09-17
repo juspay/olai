@@ -37,7 +37,7 @@ import { TEST_CLAIMS } from "@olai/format/testlib"
 import { type Address, addressOf } from "./address.ts"
 import type { Reference, Way } from "./backlinks.ts"
 import { tagsIn, type Derived } from "./derive.ts"
-import { type Document, type Face, faceOf } from "./document.ts"
+import { type Document, type Face, faceOf, type FaceHead } from "./document.ts"
 import { linksIn, recordLinks } from "./documents.ts"
 import { seeded } from "./fixtures.testlib.ts"
 import { fileKind } from "./kinds.ts"
@@ -87,7 +87,7 @@ export const scannedReferrers = (
       if (records === undefined) {
         // A BODY: its prose names the node with a link or an `@`.
         const ways = bodyWays(face, asked)
-        if (ways.length > 0) add(face, ...ways)
+        if (ways.length > 0) add(headOf(face), ...ways)
         continue
       }
       for (const located of records) {
@@ -109,7 +109,7 @@ export const scannedReferrers = (
       if (!face.links.some(points)) continue
       const records = derived.byFile.get(face.path)
       if (records === undefined) {
-        add(face, "link")
+        add(headOf(face), "link")
         continue
       }
       for (const located of records) {
@@ -193,6 +193,9 @@ const recordWays = (located: Located, asked: ReadonlySet<string>): ReadonlyArray
  *  files, so the two arms are compared over one shape rather than over a face
  *  on one side and a whole document on the other. */
 export const facesIn = (set: OutlineSet): ReadonlyArray<Face> => set.documents.map(faceOf)
+
+/** A body source's head — the wire's reference shape (backlinks.ts). */
+const headOf = (face: Face): FaceHead => ({ path: face.path, title: face.title })
 
 // ── what to ask about ──────────────────────────────────────────────────
 

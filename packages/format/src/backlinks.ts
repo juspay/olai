@@ -83,9 +83,9 @@
 
 import { Schema } from "effect"
 
-import { type Address, addressOf } from "./address.ts"
+import { type Address, addressOf, DocumentPath } from "./address.ts"
 import { byCorpus, tagText, type Derived } from "./derive.ts"
-import { Face } from "./document.ts"
+import { Face, type FaceHead } from "./document.ts"
 import { isPutAway, isRegular, LocatedRegular } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { type Pointing, pointingAt, type Source } from "./pointing.ts"
@@ -146,8 +146,10 @@ export type Way = typeof Way.Type
 export const Reference = Schema.Struct({
   /** The referring record, or the document whose body wrote it. Always a
    *  REGULAR node when it is a record — a mirror can carry neither an edge nor
-   *  prose, so no entry ever names one. */
-  source: Schema.Union([LocatedRegular, Face]),
+   *  prose, so no entry ever names one. A document source is its {@link FaceHead}
+   *  — the path and title the rows draw — never the full face, whose body-only
+   *  halves (`links`, `tags`, `props`) no consumer of this wire reads. */
+  source: Schema.Union([LocatedRegular, Schema.Struct({ path: DocumentPath, title: Schema.String })]),
   ways: Schema.Array(Way),
 })
 export type Reference = typeof Reference.Type
@@ -228,7 +230,7 @@ const nodeRefs = (
     const key: object = source.at ?? source.face
     const held = found.get(key)
     if (held === undefined) {
-      found.set(key, { source: source.at ?? source.face, ways: source.ways })
+      found.set(key, { source: source.at ?? headOf(source.face), ways: source.ways })
       return
     }
     // THE SAME SOURCE THROUGH TWO KEYS (`#id` and `@id`): the ways merge, in
@@ -268,7 +270,7 @@ const documentRefs = (
     // away is on the Trash and nowhere else.
     if (source.face.path === address.path || isPutAway(at.derived.claims, source.face.path)) continue
     if (source.at !== undefined && !isRegular(source.at)) continue
-    found.push({ source: source.at ?? source.face, ways: source.ways })
+    found.push({ source: source.at ?? headOf(source.face), ways: source.ways })
   }
   return found.length === 0 ? NOTHING_REFERS : found
 }
@@ -289,5 +291,8 @@ const byReference = (one: Reference, other: Reference): number => {
   return byCorpus(one.source as LocatedRegular, other.source as LocatedRegular)
 }
 
-const pathOf = (source: LocatedRegular | Face): string =>
+const pathOf = (source: LocatedRegular | FaceHead): string =>
   "path" in source ? source.path : source.file
+
+/** A document source's head — the path and title a reference row draws. */
+const headOf = (face: Face): FaceHead => ({ path: face.path, title: face.title })

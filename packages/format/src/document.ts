@@ -166,6 +166,19 @@ export const Face = Schema.Struct({
 export type Face = typeof Face.Type
 
 /**
+ * A document source's HEAD — its path and its title — the only two facts
+ * about a referring document that the reference reading's consumers read
+ * (`./backlinks.ts`'s `Reference`). The full {@link Face} travels on the
+ * pointing index, which is a read-side structure; the WIRE carries this
+ * projection so that a `Reference` cannot grow a consumer that reaches for a
+ * body-only half of a face (`links`, `tags`, `props`) it was never sent.
+ */
+export interface FaceHead {
+  readonly path: DocumentPath
+  readonly title: string
+}
+
+/**
  * A document's face, on its own — what is known about a file once its CONTENT
  * is set aside.
  *

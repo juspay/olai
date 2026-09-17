@@ -15,10 +15,13 @@
  * one half would be quoting the good one. The walk cost a page and nothing per
  * write; the index costs a page much less and every revision something.
  *
- *   - `read` — answering "who points here" once. The `scan` arm is that walk as
- *     it stood (`./pointing.testlib.ts`, one copy, shared with the
- *     differential); the `index` arm is one lookup and then the same walk of
- *     the files that really do point here.
+ *   - `read` — answering "who points here" once, BOTH arms printed so the
+ *     trade is stated whole. The `scan` arm is the walk as it stood
+ *     (`./pointing.testlib.ts`, one copy, shared with the differential); the
+ *     `index` arm is the same question off the carried map, `pointingAt` —
+ *     one lookup, and the entry found is already the record-granular answer
+ *     (which record wrote it, and where in the body), because the fold files
+ *     one entry per source with its `at` rather than one per file.
  *   - `read (unpointed)` — the same question about a page NOTHING points at,
  *     which is most pages in most directories. It is the row that shows the
  *     shape of the change rather than one corpus's constant: the scan's cost is
@@ -29,13 +32,12 @@
  *     what a first load costs; `carry` is {@link repointed} over the two sets,
  *     which is the step a revision actually takes.
  *
- * WHAT THE READ ARM STILL PAYS, said here so the ratio is read for what it is:
- * an outline that points here is opened and its records asked which of THEM
- * wrote the link (`recordLinks`, the same function that built the face). That
- * walk is the old code's too and this index does not remove it — what it
- * removes is opening every OTHER file in the directory. On a corpus where every
- * body is pointed at by dozens of outlines, that record walk is most of what is
- * left, which is why the `unpointed` row is beside it.
+ * WHAT THE READ ARM NO LONGER PAYS, said here so the ratio is read for what it
+ * is: the walk that opened an outline and asked its records which of THEM
+ * wrote the link (`recordLinks`) is AT THE FOLD — it names the `at` the index
+ * carries, so a read is lookups over the map, however many sources answer.
+ * What a revision still pays is the fold's own cost ({@link repointed}) and
+ * nothing per page.
  *
  * THE VAULT IS GENERATED (`./pointing.testlib.ts`'s `linkyVault`) rather than
  * read, so the figure is reproducible and is about a stated shape: outlines
