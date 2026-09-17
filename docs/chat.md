@@ -32,8 +32,15 @@ server's current engine roster.
 A conversation belongs to one engine for its lifetime. Row and new-chat start
 controls ask which engine when several are available and start immediately
 when there is only one. A plain node page shows its selected engine beside the
-composer. The choice belongs to that conversation; a fresh start uses the
-node's existing engine. The agent line names the engine and confirmed model.
+composer.
+
+A **fresh start may pick a different engine**. With one engine installed it
+starts immediately on the node's own engine, exactly as before. With several,
+the fresh-start press opens the engine menu with the node's current engine
+first, and the row menu lists one fresh-start entry per installed engine,
+each labeled **Fresh start — <engine>**. Picking one supersedes the
+conversation onto that engine: the history of the conversation follows the
+node across engines, both when it moves away from and back to an engine.
 
 The list itself:
 
@@ -651,15 +658,24 @@ plugin rebuild. Releasing one reading does not stop another fold or tab reading
 the same conversation, and does not cancel ongoing work.
 
 The fold begins with the agent line: engine, model, context usage, working cue,
-**fresh start**, and **open the page ›**. Its transcript is bounded; the composer
-and activity controls remain below it. Zooming into the node puts the agent line
-under the title and above the property drawer, the subtree below the drawer, and
-the conversation and composer after the subtree. The page's transcript is
-unbounded and the containing pane scrolls. Head and foot share one reading per
-page; two panes remain independent readers. The session property is omitted
-from outline rows and remains editable in the zoomed drawer, with its ordinary
-folding behavior. Phone and desktop use these same faces; there is no chat sheet
-or fixed right dock.
+**fresh start**, **close the agent**, and **open the page ›**. Its transcript is
+bounded; the composer and activity controls remain below it. Zooming into the
+node puts the agent line under the title and above the property drawer, the
+subtree below the drawer, and the conversation and composer after the subtree.
+The page's transcript is unbounded and the containing pane scrolls. Head and
+foot share one reading per page; two panes remain independent readers. The
+session property is omitted from outline rows and remains editable in the
+zoomed drawer, with its ordinary folding behavior. Phone and desktop use these
+same faces; there is no chat sheet or fixed right dock.
+
+**Close the agent** releases a node's agent: the `chat-agent-session` property
+is taken off, the seat closes, and the conversation becomes an unclaimed chat
+again — stored, transcript and history intact, filed back under Chats by the
+next filer run. The filer files it under a NEW node in Chats bound to that
+conversation; the original node is plain again — closing never supersedes
+anything and never deletes anything. The same verb appears in the row menu as
+**Close the agent**, and there is no confirmation dialog on either face: the
+row's return to the plain **start an agent** pill is the acknowledgement.
 
 ### Starting an agent
 
@@ -673,10 +689,9 @@ A refusal stays on the row and creates no false binding.
 A zoomed plain node carries a dashed composer: **ask about <title>…**. Sending
 starts its agent and delivers the draft to that conversation. The subtree
 remains visible throughout. A bound node instead uses **fresh start** to replace
-its conversation.
+its conversation, or **close the agent** to release it back to the unclaimed chats.
 
 ### Needs you, Chats, and the palette
-
 **Needs you** lists agents waiting for answers before agents that are not
 running, newest activity first within each group. A row shows its question count
 or **not running**. The region disappears when empty. **Chats** lists every
@@ -777,11 +792,13 @@ usable.
 ### Fresh start and past sessions
 
 **Fresh start** is on the agent line. Its tooltip says memory is the subtree and
-the transcript becomes history. It opens a new session with the node's engine,
-then rewrites the binding and records the replacement link. Its button stays
-disabled until the answer arrives, preventing repeated presses from replacing
-twice. A refusal leaves the existing conversation, questions and draft intact
-and permits retry. A removed node refuses before opening another conversation.
+the transcript becomes history. It opens a new session — with the node's own
+engine when there is one, with the engine picked from the menu when there are
+several — then rewrites the binding and records the replacement link. Its
+button stays disabled until the answer arrives, preventing repeated presses
+from replacing twice. A refusal leaves the existing conversation, questions
+and draft intact and permits retry. A removed node refuses before opening
+another conversation.
 
 The line above the transcript offers that agent's **past sessions ↑**, with the
 available last-touched time and message count. Choosing one opens it in the same

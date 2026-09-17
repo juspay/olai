@@ -365,14 +365,18 @@ export interface Panel {
    */
   readonly assigned: (to: Conversing) => Effect.Effect<void>
   /**
-   * ... and OLAI REPLACED ONE WITH ANOTHER — write down which conversation took
-   * this one's place, for the *fresh session* affordance.
+   * ... and OLAI REPLACED ONE WITH ANOTHER — write down WHICH conversation took
+   * this one's place, as the full `{agent, session}` pair, for the *fresh
+   * session* affordance. Fresh start may hand the node to another engine, so
+   * the pair is what the successor is named by: an id with no engine could
+   * not say whose.
    *
    * Same shape and same silence as {@link Panel.assigned}, and what a lost write
-   * costs here is one old session appearing under Unassigned as a conversation
-   * nobody claims, which somebody can see and nothing acts on.
+   * costs here is one old session coming back as a conversation nobody claims
+   * — re-filed into Chats and offered back to the node that had just left it,
+   * which somebody can see and nothing acts on.
    */
-  readonly replaced: (to: Conversing, by: string) => Effect.Effect<void>
+  readonly replaced: (to: Conversing, by: Conversing) => Effect.Effect<void>
   /**
    * THE SET MOVED — ask {@link PanelOptions.agentAt} again, and publish if the
    * answer changed.
@@ -779,11 +783,10 @@ const assignLost = (failure: Memory.MemoryFailure): string =>
   `a chat was assigned to a node agent and that it was ASSIGNED could not be written down ` +
   `(${failure.why}) — the pointer landed, and the session will be taught the ordinary ` +
   `contract rather than the one that asks it to bank what it knows`
-
 const replaceLost = (failure: Memory.MemoryFailure): string =>
   `a node agent was given a fresh session and what it replaced could not be written down ` +
-  `(${failure.why}) — the new session is bound, and the old one will show under Unassigned ` +
-  `as a conversation no node claims`
+  `(${failure.why}) — the new session is bound, and the old one comes back as a chat ` +
+  `no node claims, re-filed into Chats`
 
 export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, never> =>
   Effect.gen(function*() {
@@ -3234,7 +3237,16 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         }
         yield* noting(options.overheard?.assign(to, true), assignLost)
       }),
-      replaced: (to, by) => noting(options.overheard?.supersede(to, by), replaceLost),
+      // THE REPLACED ENGINE'S CACHED LISTING IS STALE NOW, and nothing else
+      // will invalidate it: a fresh start on a node that already had one never
+      // switches `talking` (the seat opens the new conversation in the slot
+      // already running the node's engine), so the agent whose session this
+      // just stopped being current would serve its old rows for up to fifteen
+      // seconds. Forget it here so the next listing re-asks.
+      replaced: (to, by) => Effect.gen(function*() {
+        listings.forget(to.agent)
+        yield* noting(options.overheard?.supersede(to, by), replaceLost)
+      }),
       // THE SET'S ANSWER, ASKED AGAIN. `move` is what publishes, and it is
       // guarded on the value rather than called unconditionally: this runs per
       // revision, the state cell is what the whole panel redraws from, and a

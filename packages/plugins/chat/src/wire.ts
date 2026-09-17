@@ -232,6 +232,19 @@ export const surface = defineSurface({
         output: Conversing,
         error: ChatFailure,
       },
+      /** RELEASE a node's agent: the binding property is taken off, the seat
+       *  closes, and the conversation becomes an unclaimed chat again — the
+       *  next filer run files it back under Chats, as its own filed node. The
+       *  original node is plain again. Nothing is superseded — the
+       *  transcript, its history and the subtree stay. */
+      closeAgent: {
+        input: Schema.Struct({
+          /** The node whose agent is being released — the id the roster
+           *  answers with. Refuses when no node agent is bound there. */
+          node: Schema.String,
+        }),
+        error: ChatFailure,
+      },
       /** Try the OPEN that was refused again — the one the panel is holding a
        *  {@link ChatState.unopened} for, whichever it was.
        *
@@ -370,6 +383,7 @@ export const faces = {
     "conversation.setSetting": "tool",
     "conversation.newChat": "tool",
     "conversation.startAgentSession": "tool",
+    "conversation.closeAgent": "tool",
     "conversation.agentAbove": "tool",
     "conversation.reopen": "tool",
     "conversation.sessions": "tool",

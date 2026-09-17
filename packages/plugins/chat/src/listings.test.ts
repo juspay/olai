@@ -116,7 +116,7 @@ describe("asking every installed agent", () => {
     expect(listed.sessions.map((row) => [row.id, row.messageCount, row.supersededBy]))
       .toEqual([
         ["newer", 3, null],
-        ["older", 47, "newer"],
+        ["older", 47, { agent: "one", session: "newer" }],
       ])
   })
 

@@ -166,6 +166,12 @@ export const TESTID = {
   /** ... and why one did not happen: an engine this machine does not have, an
    *  agent that would not start, a record the ops layer will not write. */
   chatFreshSaid: "chat-fresh-said",
+  /** *Close the agent* — release this node's agent back to the unclaimed
+   *  chats. The conversation stays stored and is filed back under Chats;
+   *  nothing is deleted. */
+  chatCloseAgent: "chat-close-agent",
+  /** ... and why one did not happen: the node had no agent to close. */
+  chatCloseSaid: "chat-close-said",
 
   // ── the panel itself: the toggle, the dock, the two minimized faces ──
   /** The header's agent toggle on desktop. Always on screen there;
@@ -259,18 +265,19 @@ export const TESTID = {
   /** ... and the list it opens. */
   chatSessionList: "chat-session-list",
   /** ONE STORED CONVERSATION, wherever conversations are listed
-   *  (`./browser/chat/Conversation.tsx`): a row of Unassigned, or one of a node agent's
-   *  past sessions. `data-session-id` and `data-agent` are the pair that names
-   *  one, and `data-current` says whether it is the one the panel is in. */
+   *  (`./browser/chat/Conversation.tsx`): a filed conversation, or one of a
+   *  node agent's past sessions. `data-session-id` and `data-agent` are the
+   *  pair that names one, and `data-current` says whether it is the one the
+   *  panel is in. */
   chatSession: "chat-session",
   /** The line under such a row that says WHICH conversation replaced this
    *  one — with a `data-successor` of its id, because the successor need not
    *  be on the screen (it is drawn only when it is), and the sentence alone
    *  would be a claim nothing could pick out of two sharing a title. */
   chatSessionSuperseded: "chat-session-superseded",
-  /** The heading over one agent's rows in the unassigned list. Drawn only where
-   *  more than one agent has conversations here — one agent is a heading over
-   *  the whole list. */
+  /** The heading over one agent's rows in the stored-conversations list. Drawn
+   *  only where more than one agent has conversations here — one agent is a
+   *  heading over the whole list. */
   chatSessionAgent: "chat-session-agent",
   /** One agent in that list that could not be asked what it has stored, with
    *  its reason. Its OWN name and not the whole call's refusal
