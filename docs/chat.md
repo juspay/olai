@@ -32,8 +32,18 @@ server's current engine roster.
 A conversation belongs to one engine for its lifetime. Row and new-chat start
 controls ask which engine when several are available and start immediately
 when there is only one. A plain node page shows its selected engine beside the
-composer. The choice belongs to that conversation; a fresh start uses the
-node's existing engine. The agent line names the engine and confirmed model.
+composer.
+
+A **fresh start may pick a different engine**. With one engine installed it
+starts immediately on the node's own engine, exactly as before. With several,
+the fresh-start press opens the engine menu with the node's current engine
+first, and picking one supersedes the conversation onto that engine: the
+lineage carries the `(agent, session)` pair end to end, so the history the new
+session replaces is matched by BOTH whose it was and which one it was, and
+survives a fresh start that changes engines. The history of a conversation
+follows the node across engines — the transcript of a session that ran on
+Codex still appears among a Claude node's past sessions.
+
 
 The list itself:
 
@@ -651,15 +661,26 @@ plugin rebuild. Releasing one reading does not stop another fold or tab reading
 the same conversation, and does not cancel ongoing work.
 
 The fold begins with the agent line: engine, model, context usage, working cue,
-**fresh start**, and **open the page ›**. Its transcript is bounded; the composer
-and activity controls remain below it. Zooming into the node puts the agent line
-under the title and above the property drawer, the subtree below the drawer, and
-the conversation and composer after the subtree. The page's transcript is
-unbounded and the containing pane scrolls. Head and foot share one reading per
-page; two panes remain independent readers. The session property is omitted
-from outline rows and remains editable in the zoomed drawer, with its ordinary
-folding behavior. Phone and desktop use these same faces; there is no chat sheet
-or fixed right dock.
+**fresh start**, **close the agent**, and **open the page ›**. Its transcript is
+bounded; the composer and activity controls remain below it. Zooming into the
+node puts the agent line under the title and above the property drawer, the
+subtree below the drawer, and the conversation and composer after the subtree.
+The page's transcript is unbounded and the containing pane scrolls. Head and
+foot share one reading per page; two panes remain independent readers. The
+session property is omitted from outline rows and remains editable in the
+zoomed drawer, with its ordinary folding behavior. Phone and desktop use these
+same faces; there is no chat sheet or fixed right dock.
+
+**Close the agent** releases a node's agent: the `chat-agent-session` property
+is taken off, the seat closes, and the conversation goes back under
+Unassigned — stored, transcript and history intact, assignable back to any
+node. Assigning it back re-opens the same conversation on the same node agent;
+closing never supersedes anything and never deletes anything. The same verb
+appears in the row menu as **Close the agent**, where the engine rows of a
+multiple-engine fresh start also appear (**Fresh start** beside the current
+engine, **Fresh start — <engine>** for the others), and there is no
+confirmation dialog on either face: the standing's return to **no session
+bound** is the acknowledgement.
 
 ### Starting an agent
 
@@ -673,7 +694,7 @@ A refusal stays on the row and creates no false binding.
 A zoomed plain node carries a dashed composer: **ask about <title>…**. Sending
 starts its agent and delivers the draft to that conversation. The subtree
 remains visible throughout. A bound node instead uses **fresh start** to replace
-its conversation.
+its conversation, or **close the agent** to release it back to Unassigned.
 
 ### Needs you, Chats, and the palette
 
