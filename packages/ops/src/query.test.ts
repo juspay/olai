@@ -372,6 +372,26 @@ describe("what refers to a node", () => {
   test("a node nobody has written about says nothing rather than an empty list", () => {
     expect(read(at(), "sticky")).not.toHaveProperty("referencedBy")
   })
+
+  test("a document's body can refer to a node too, and is one source like a record", () => {
+    // `@git` in a `.md`'s prose is a mention, a `[git](#git)` a link — the
+    // body has no finer grain than itself, so either way the source is the
+    // document's face and the reading answers it the same way it answers a
+    // record. This is the half the browser already draws on a node's page and
+    // the reason `outlines_read` answers the SAME list: an agent asking who
+    // points at a node sees the documents that point at it, not a narrower
+    // answer than the page.
+    const view = derivedOf(setOf(
+      {
+        "a.olai": [`{"id":"git","ord":"a0","title":"two git indicators"}`].join("\n"),
+      },
+      [["note.md", "# Note\n\nabout @git and [git](#git)"]],
+    ))
+    expect(read(view, "git")?.referencedBy?.map((one) =>
+      // A face source carries a `path`; a record's a `file` and a `node`.
+      `${"path" in one.source ? one.source.path : one.source.node.id} ${one.ways.join("+")}`
+    )).toEqual(["note.md mention+link"])
+  })
 })
 describe("placements", () => {
   /** WHERE ELSE this node is drawn — the id half of `outlines_unmirror`, and the
