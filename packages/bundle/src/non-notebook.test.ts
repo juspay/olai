@@ -41,4 +41,10 @@ test("a non-notebook capability runs headless through the ordinary host and retu
   yield* setRow(plugins.host, fixture, true)
   mounted = mount()
   expect(yield* call("read")).toBe(0)
-}))))
+}))), { timeout: 15_000 })
+// A BUDGET, and the same one `./published.equivalence.test.ts` gives its
+// differential: this test MOUNTS A ROW through the real loader, so its first
+// import pays a cold transpile of the plugin roster — 0.7s warm, and 21.8s on a
+// CI fleet running six e2e shards beside it, which the 5s default is not a
+// budget for (`test[2-of-2]` failed on exactly this, twice in one run: the
+// shard and the whole-leaf node that re-runs it).
