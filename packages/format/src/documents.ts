@@ -452,16 +452,9 @@ const withoutCodeSpans = (lines: string): string => {
  * three times points at it once. What reads this wants the EDGES.
  */
 export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArray<Address> => {
-  // The cheap negative first: nearly every note in a directory holds no link
-  // at all, and this is asked of every record and every body of the set.
-  if (!text.includes("](")) return NO_LINKS
   let found: Array<Address> | undefined
   let seen: Set<string> | undefined
-  // THE PROSE, ONCE — literal code taken out before a single link is read
-  // (the two readers that used to skip it themselves are gone; this is the
-  // one place the markdown syntax decision lives).
-  const prose = withoutCodeSpans(withoutCodeBlocks(text))
-  for (const href of writtenLinks(prose)) {
+  for (const href of proseLinks(text)) {
     const address = linkTo(claims, from, href)
     if (address === null) continue
     const written = printAddress(address)
@@ -485,7 +478,7 @@ export const linksIn = (claims: Claims, from: string, text: string): ReadonlyArr
  * this app's to trust.
  *
  * The scan still does not parse: the label may not hold a `]`, and code
- * removal is the CALLER's — {@link linksIn} strips literal code before it
+ * removal is the CALLER's — {@link proseLinks} strips literal code before it
  * asks this, while {@link bracketSpacedLinks} reads the raw text, which is
  * exactly the split a renderer's rewrite needs. What it now reads, that the
  * pattern would not, is a filename with a space in it —
