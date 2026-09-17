@@ -50,7 +50,7 @@
 import { Json } from "../json.ts"
 export { Json } from "../json.ts"
 
-import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
+import { Conversing, SessionSetting, PlanStep, TerminalView } from "./session.ts"
 import {
   AskAnswer,
   AskChoice,
@@ -1148,11 +1148,13 @@ export const SessionInfo = Schema.Struct({
    *  could not read. The list draws no number for `null`, which is the
    *  answer's losing direction and never a zero drawn instead of it. */
   messageCount: Schema.NullOr(Schema.Number),
-  /** The conversation that replaced this one, by id — or `null` when nothing
-   *  says one did. An adapter says it when its transcripts make the link (see
-   *  {@link ../../plugins/chat/src/events.ts}'s `Stored`); a `/clear` sibling is where a
-   *  person meets it. */
-  supersededBy: Schema.NullOr(Schema.String),
+  /** The conversation that replaced this one, as the pair `{agent, session}`
+   *  ({@link Conversing}) — the engine's id and the id IT calls it by — or
+   *  `null` when nothing says one did. An adapter says it when its transcripts
+   *  make the link (see {@link ../../plugins/chat/src/events.ts}'s `Stored`); a
+   *  `/clear` sibling is where a person meets it, and a fresh start names it
+   *  even when the new conversation lives on ANOTHER engine. */
+  supersededBy: Schema.NullOr(Conversing),
 })
 export type SessionInfo = typeof SessionInfo.Type
 

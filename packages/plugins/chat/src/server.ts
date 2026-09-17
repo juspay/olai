@@ -118,7 +118,7 @@ import { forLocalState as sessionsIn } from "./sessions.ts"
 import { seatingIn } from "./seating.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
-import { type Binding, startAgentSession } from "./server/binding.ts"
+import { closeAgent, type Binding, startAgentSession } from "./server/binding.ts"
 import { Config } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { scopeThrough } from "./server/doorbell.ts"
@@ -499,6 +499,8 @@ export default definePlugin({
       key: () => nodeAgents.key(),
       write: (node, value) =>
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value }), asFailure),
+      remove: (node) =>
+        Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value: "" }), asFailure),
     }
 
     /** WHICH PLUGINS RING AT ALL — core's registry, read afresh at every use.
@@ -572,6 +574,15 @@ export default definePlugin({
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
         withChat((open) => bindingPermit.withPermit(startAgentSession(open, binding, input))).pipe(
           // Publish after both the binding and its history link are written.
+          Effect.tap(() => Effect.gen(function*() {
+            mine?.cells.sessionsRevision.set(++sessionsRevision)
+            if (filer !== null) yield* filer.full
+          })),
+        ),
+      closeAgent: ({ input }: { input: { node: string } }) =>
+        bindingPermit.withPermit(closeAgent(binding, input)).pipe(
+          // Publish after the binding is gone: the seat closes and the roster
+          // repaints without the released agent.
           Effect.tap(() => Effect.gen(function*() {
             mine?.cells.sessionsRevision.set(++sessionsRevision)
             if (filer !== null) yield* filer.full

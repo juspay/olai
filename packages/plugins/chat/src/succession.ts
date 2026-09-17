@@ -14,8 +14,8 @@
  * one and re-points the property at the new one — a supersession olai MADE,
  * with nothing on either agent's disk to say so. Without it written down, a
  * node agent's own previous session comes back as a conversation nobody claims:
- * it would sit under Unassigned inviting somebody to assign it to the node it
- * already belonged to, which is the one node that would refuse it.
+ * re-filed into Chats, offered back to the node it already belonged to, which
+ * is the one node that would refuse it.
  *
  * So the record keeps it ({@link ./sessions.ts}'s `Overheard.superseded`) and
  * this puts it on the rows, at the one door every reader of the listing comes
@@ -39,8 +39,8 @@
  * that was itself a `/clear` remainder — the row already names the successor
  * its agent reported — then give that node a fresh session. The re-pointing is
  * dropped, the walk back from the new session finds nothing, and the
- * conversation the node just let go of comes back under Unassigned, offering
- * itself to the one node that would refuse it.
+ * conversation the node just let go of comes back as a chat nobody claims,
+ * offered to the one node that would refuse it.
  *
  * WHAT IT COSTS is the drawn line in the rare disagreement: a conversation olai
  * re-pointed away from AND somebody later cleared in a terminal says *superseded
@@ -49,18 +49,22 @@
  * own history — and the terminal's sibling is still its own row, claimed by
  * nobody, which is what it is.
  *
- * ## MATCHED ON THE PAIR, never on the session alone
+ * ## MATCHED ON THE PAIR, because a fresh start may change engine
  *
- * A session id means nothing to the wrong agent, and a listing spans every
- * installed one, so a row is only ever wearing the link written down against
- * its own agent — the rule {@link ./sessions.ts} keeps everywhere.
+ * The link olai writes down NAMES ITS SUCCESSOR'S FULL PAIR — the engine and
+ * the id it calls it by — and the walk follows that pair, never assuming the
+ * successor runs on the engine of the row it came from. A fresh start may hand
+ * the node to another engine, and the chain stays one chain across the swap;
+ * a walk that matched on the id alone could follow a Claude row's link to a
+ * Codex row and back.
  *
  * PURE, over the two lists, so what a lineage says is decided in a unit test
  * rather than by opening a picker.
  */
 
 import type { Listed, SessionInfo } from "olai-plugin-chat/wire"
-import type { Overheard } from "./sessions.ts"
+import { chatKey } from "./lineage.ts"
+import type { Conversing, Overheard } from "./sessions.ts"
 
 /**
  * The listing, wearing the supersessions olai made — the same value where there
@@ -86,20 +90,28 @@ export const succeeded = (
     const link = links.find(
       (row) => row.agent === session.agent && row.session === session.id,
     )
-    let next = link?.superseded ?? session.supersededBy
-    const seen = new Set<string>([session.id])
+    // THE LINK IS THE WIRE'S PAIR ALREADY — one spelling, `Conversing` — so
+    // there is nothing to convert: olai's own recorded link wins where there
+    // is one, and a row nothing re-pointed keeps its agent-reported row.
+    let next: Conversing | null = link?.superseded ?? session.supersededBy
+    const seen = new Set<string>([chatKey(session.agent, session.id)])
     // An unused fresh session has no transcript, so the harness never lists
     // it. Follow olai's recorded replacements across those missing rows. Stop
     // at a stored session or the current (possibly still unused) endpoint;
-    // neither needs a synthetic, unopenable row in the picker.
-    while (next !== null && !seen.has(next)) {
-      seen.add(next)
-      if (listed.sessions.some((row) => row.agent === session.agent && row.id === next)) break
-      const after = links.find((row) => row.agent === session.agent && row.session === next)?.superseded
+    // neither needs a synthetic, unopenable row in the picker. The follow is
+    // ON THE PAIR too, so a chain that stepped onto another engine walks on.
+    while (next !== null && !seen.has(chatKey(next.agent, next.session))) {
+      seen.add(chatKey(next.agent, next.session))
+      const at = next
+      if (listed.sessions.some((row) => row.agent === at.agent && row.id === at.session)) break
+      const after = links.find((row) => row.agent === at.agent && row.session === at.session)?.superseded
       if (after === undefined) break
       next = after
     }
-    return next === session.supersededBy ? session : { ...session, supersededBy: next }
+    const same = (next === null && session.supersededBy === null) ||
+      (next !== null && session.supersededBy !== null
+        && next.agent === session.supersededBy.agent && next.session === session.supersededBy.session)
+    return same ? session : { ...session, supersededBy: next }
   })
   return { ...listed, sessions }
 }
