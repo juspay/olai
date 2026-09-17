@@ -20,11 +20,10 @@ Feature: A node's engine is the one its panel acts on
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
     And I remember this conversation as "opencode kitchen"
-    When opencode is no longer installed
-    And the server stops
-    And the server starts again on the same port
-    And I open the app
-    And I unfold node agent "kitchen"
+    And I mark the page
+    When I open the plugins panel
+    And I switch the plugin "opencode" off
+    And I close the plugins panel
     # ONE engine answers now, so the press takes no menu — and what it sends is
     # this node's OWN engine, which is gone. The refusal is the whole point: a
     # press that sent the survivor instead would migrate somebody's node onto
@@ -33,6 +32,7 @@ Feature: A node's engine is the one its panel acts on
     And I start a fresh session
     Then the fresh-session control refuses "opencode" and allows retry
     And node "kitchen" still binds remembered conversation "opencode kitchen" in "house.olai"
+    And the page has not reloaded
     And there should be no page errors
 
   @scratch:chat

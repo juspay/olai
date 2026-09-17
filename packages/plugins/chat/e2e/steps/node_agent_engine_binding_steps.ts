@@ -7,11 +7,11 @@
  * binding, and a composer that tells a person their machine has no engine
  * while another one is running are the same defect at three faces.
  *
- * The steps that press and restart are the general vocabulary's
- * (`./node_agents_steps.ts`, `./chat_steps.ts`); what is here is the reading
- * each claim needs and the one fixture state no gesture can reach — a node
- * that NAMES an engine and has no conversation with it, which is what a
- * hand-written outline and a refused start both leave behind.
+ * The steps that press and toggle belong to the existing workflow vocabulary;
+ * this file supplies the readings and an engine-only persisted binding.
+ * A hand-written outline may name an engine without a conversation. That
+ * state must draw the named engine's reason rather than fall back to the
+ * machine's first available engine.
  */
 import assert from "node:assert/strict";
 import { Given, Then } from "@olai/tests/harness/runner.ts";

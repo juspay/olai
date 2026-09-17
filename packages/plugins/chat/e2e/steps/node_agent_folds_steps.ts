@@ -48,7 +48,12 @@ Given("I open the {string} agent on node {string}", async function(this: OlaiWor
     await this.press(pill);
     const menu = this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu));
     await this.waitUntil(async () => await menu.isVisible() || await fold(this, node).isVisible(), "a choice or the new conversation", HYDRATION_TIMEOUT);
-    if (await menu.isVisible()) await menu.getByRole("menuitem", { name: new RegExp(engine, "i") }).click();
+    if (await menu.isVisible()) {
+      // Scenarios name an engine by id or by its full display name. Neither
+      // may substring-match another engine's absence sentence.
+      await menu.locator(attr("data-engine", engine))
+        .or(menu.getByRole("menuitem", { name: engine, exact: true })).click();
+    }
   } else {
     const trigger = this.within(node, NODE_MENU);
     if (await trigger.isVisible()) await trigger.click({ force: true });
