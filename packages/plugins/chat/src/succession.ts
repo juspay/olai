@@ -95,6 +95,7 @@ export const succeeded = (
     // is one, and a row nothing re-pointed keeps its agent-reported row.
     let next: Conversing | null = link?.superseded ?? session.supersededBy
     const seen = new Set<string>([chatKey(session.agent, session.id)])
+    // An unused fresh session has no transcript, so the harness never lists
     // it. Follow olai's recorded replacements across those missing rows. Stop
     // at a stored session or the current (possibly still unused) endpoint;
     // neither needs a synthetic, unopenable row in the picker. The follow is

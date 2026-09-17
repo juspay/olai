@@ -53,7 +53,6 @@ import type { Agents, Conversing, SessionInfo } from "olai-plugin-chat/wire"
  *  to disagree about a slash. */
 export const chatKey = (agent: string, session: string): string => `${agent}/${session}`
 
-
 /**
  * THE CONVERSATIONS THIS ONE REPLACED, newest first — the node agent's *past
  * sessions*.

@@ -671,13 +671,14 @@ same faces; there is no chat sheet or fixed right dock.
 **Close the agent** releases a node's agent: the `chat-agent-session` property
 is taken off, the seat closes, and the conversation becomes an unclaimed chat
 again — stored, transcript and history intact, filed back under Chats by the
-next filer run. Claiming that filed conversation re-opens the same conversation
-on the same node agent; closing never supersedes anything and never deletes
-anything. The same verb appears in the row menu as **Close the agent**, where
-the engine rows of a multiple-engine fresh start also appear (**Fresh start**
-beside the current engine, **Fresh start — <engine>** for the others), and
-there is no confirmation dialog on either face: the row's return to the plain
-**start an agent** pill is the acknowledgement.
+next filer run. The filer files it under a NEW node in Chats bound to that
+conversation; the original node is plain again — closing never supersedes
+anything and never deletes anything. The same verb appears in the row menu as
+**Close the agent**, and there is no confirmation dialog on either face: the
+row's return to the plain **start an agent** pill is the acknowledgement.
+
+### Starting an agent
+
 Hover or focus a plain row to reveal **start an agent** in its aside. One engine
 starts immediately; several offer their names in a small menu. The row menu
 retains **Start an agent session**, including for keyboard and phone long-press
