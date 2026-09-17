@@ -57,6 +57,7 @@ import { surface, faces, resources } from "./surface.ts"
  *  row still advertised them; declaring them here is what makes switching the
  *  row off take its tools along. */
 import { tools } from "./tools.ts"
+import { CHARTER } from "./charter.ts"
 import { name } from "./name.ts"
 export { name } from "./name.ts"
 import type { Projection } from "@olai/surface/projection"
@@ -165,7 +166,9 @@ export default definePlugin({
         ops: { outlines: () => gate.outlines, node: ({ input }) => gate.node(input), subtree: ({ input }) => gate.subtree(input), run: ({ input }) => runWrite(gate, input) },
       },
     }
-    yield* (yield* Surfaces).register({ surface, faces, resources, tools, writes: ["surface/ops/run"], deps, published: value => { ctx = value as typeof ctx } })
+    // THIS ROW'S PARAGRAPH FOR AN AGENT, on the same entry as its verbs so it
+    // leaves with the row (`./charter.ts` argues the one sentence).
+    yield* (yield* Surfaces).register({ surface, faces, resources, tools, charter: CHARTER, writes: ["surface/ops/run"], deps, published: value => { ctx = value as typeof ctx } })
   }),
 })
 

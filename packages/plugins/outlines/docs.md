@@ -59,3 +59,8 @@ The browser activation registers its `tool.reply` face. Chat owns the frame, fil
 The reference service preserves both the resolved node ID and its title from
 `nodes.named`. Navigation reads the ID; chat context chips read the title. Both
 share the same scoped, batched lookup and withdraw with the provider.
+
+## What the row tells an agent
+
+Beside its tools, the outlines sibling carries one `charter` paragraph that the MCP row composes into `initialize`'s `instructions` while this row stands ([mcp.md](mcp.md), "What `initialize` says"): a node's note is read by a person — `Note.tsx` draws it as markdown under the title and as the node's page — so an agent writes it as well-formed markdown for that reader, never a raw tool result or a wall of text. The tool line on `outlines_desc` says the note is stored verbatim; this says who reads it back. `src/charter.ts` argues the sentence, and the paragraph leaves the wire with the row.
+

@@ -26,6 +26,7 @@
   "markdown": [
     "src/browser/Note.tsx",
     "src/browser/document-properties.tsx",
+    "src/charter.ts",
     "src/tools.ts"
   ],
   "navigation": [

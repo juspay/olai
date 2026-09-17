@@ -60,11 +60,14 @@ an address is the app's own with no host or port to know, and that tools are
 named `<row>_<verb>` with an absent row's verbs absent. After them, in roster
 order, comes every standing row's **charter**: the one paragraph a row tells an
 agent about itself as an application, carried on its `Sibling.charter` beside
-the `tools` it brings. Today one row has one — chat's, that a person reads the
-answer in the panel beside the outline, that a backticked id in prose is
-pressable and a fenced one is a quotation, that a link to an app address is
-followed in place ([chat.md](../chat.md), "Pointing back at a node", is the
-person's side of that contract).
+the `tools` it brings. Two rows have one today. Outlines': that a node's note
+(`desc`) is read by a person, drawn as markdown under the title and as the
+node's page, so it is written as well-formed markdown for that reader — never a
+raw tool result or a wall of text. Chat's: that a person reads the answer in
+the panel beside the outline, that a backticked id in prose is pressable and a
+fenced one is a quotation, that a link to an app address is followed in place
+([chat.md](../chat.md), "Pointing back at a node", is the person's side of
+that contract).
 
 **A sentence leaves with its row, like a verb.** It was one static paragraph in
 `@olai/surface` for one PR, and that was core speaking for a plugin: a serve
