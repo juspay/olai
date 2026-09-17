@@ -25,7 +25,7 @@ import { Effect } from "effect"
 import { CHAT_OFF } from "../wire/members.ts"
 import { SESSION_TYPE } from "../kinds.ts"
 import type { Chat } from "../scoped.ts"
-import { type Binding, startAgentSession } from "./binding.ts"
+import { closeAgent, type Binding, startAgentSession } from "./binding.ts"
 
 /** Every member no gesture here reaches. A DEATH rather than a refusal: a case
  *  that called one would be asking about something this module does not own,
@@ -100,20 +100,26 @@ const chatOpening = (opens: ReadonlyArray<string>): {
   return { chat, assigned, replaced }
 }
 
-/** The two readings a binding reaches, as a recorder: what the vault says this
- *  node is bound to, and every property write that landed. */
+/** The readings a binding reaches, as recorders: what the vault says this node
+ *  is bound to, what the WRITE landed, and what the REMOVE took off. */
 const binding = (
   bound: { readonly engine: string; readonly session: string | null; readonly title: string } | null,
-): Binding & { readonly wrote: ReadonlyArray<{ node: string; value: string }> } => {
+): Binding & {
+  readonly wrote: ReadonlyArray<{ node: string; value: string }>
+  readonly removed: ReadonlyArray<string>
+} => {
   const wrote: Array<{ node: string; value: string }> = []
+  const removed: Array<string> = []
   return {
     wrote,
+    removed,
     boundAt: () => bound,
     // The key the roster would resolve on a vault that has declared nothing —
     // the word this kind claims (`../kinds.ts`). It is spent by the refusal
     // below and by nothing else, which is why this stub records no key.
     key: () => SESSION_TYPE,
     write: (node, value) => Effect.sync(() => void wrote.push({ node, value })),
+    remove: (node) => Effect.sync(() => void removed.push(node)),
   }
 }
 
@@ -181,5 +187,29 @@ test("an open that produced no conversation refuses, and writes no property", as
     Effect.flip(startAgentSession(it.chat, at, { node: "a", agent: "claude" })),
   )
   expect(said.reason).toContain("opened no conversation")
+  expect(at.wrote).toEqual([])
+})
+
+// ── closing a node agent ───────────────────────────────────────────────
+
+/** CLOSING TAKES THE BINDING PROPERTY OFF AND NOTHING ELSE — no fresh
+ *  session, so no supersession, and no write. The conversation the node was
+ *  in goes under Unassigned with its transcript intact; the seat closes by the
+ *  same reading that opened it. */
+test("closing a bound node takes the binding property off and supersedes nothing", async () => {
+  const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
+  await Effect.runPromise(closeAgent(at, { node: "a" }))
+  expect(at.removed).toEqual(["a"])
+  expect(at.wrote).toEqual([])
+})
+
+/** ... AND A NODE WITH NO BINDING REFUSES, because the removal of a key that
+ *  is not there is the one gesture a close must not invent: nothing is on the
+ *  node, so nothing is written and nothing is said to have happened. */
+test("closing an unbound node refuses, and nothing is written", async () => {
+  const at = binding(null)
+  const said = await Effect.runPromise(Effect.flip(closeAgent(at, { node: "a" })))
+  expect(said.reason).toContain("no node agent")
+  expect(at.removed).toEqual([])
   expect(at.wrote).toEqual([])
 })

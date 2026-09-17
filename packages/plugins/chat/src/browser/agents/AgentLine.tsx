@@ -8,6 +8,7 @@ import { Model } from "../chat/Model.tsx"
 import { usageOf } from "../chat/usage.ts"
 import { LIVE_DOT } from "../chat/live.ts"
 import { busyIn } from "../chat/busy.ts"
+import { CloseAgent } from "./CloseAgent.tsx"
 import { FreshStart } from "./FreshStart.tsx"
 import type { Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
@@ -27,6 +28,11 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     </Show>
     <span class="flex-1" />
     <Show when={!props.page}><Link route={atNode(props.node)}>open the page ›</Link></Show>
-    <Show when={agents.at(props.node)}>{agent => <FreshStart agent={agent()} />}</Show>
+    <Show when={agents.at(props.node)}>
+      {agent => <>
+        <FreshStart agent={agent()} page={props.page} />
+        <CloseAgent node={props.node} />
+      </>}
+    </Show>
   </div>
 }

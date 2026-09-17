@@ -18,6 +18,16 @@ test("rowVerbs offers only writing start entries, one per installed engine", () 
   ])
   expect(rowVerbs("one", roster(undefined, []))).toEqual([])
   expect(rowVerbs("one", roster(node)).map(verb => verb.label)).toEqual(["Start an agent session"])
-  expect(rowVerbs("one", roster({ ...node, session: "existing" }))).toEqual([])
   expect(rowVerbs("one", roster(node, []))).toEqual([])
+})
+
+test("a node talking through a conversation offers fresh start per engine, then close", () => {
+  const bound: NodeAgentRow = { ...node, session: "existing" }
+  expect(rowVerbs("one", roster(bound)).map(({ id, writes, label }) => ({ id, writes, label }))).toEqual([
+    { id: "fresh-start-claude", writes: true, label: "Fresh start — Claude" },
+    { id: "fresh-start-codex", writes: true, label: "Fresh start — Codex" },
+    { id: "close-agent", writes: true, label: "Close the agent" },
+  ])
+  // close is still reachable from the agent line — the row menu stays silent.
+  expect(rowVerbs("one", roster(bound, []))).toEqual([])
 })

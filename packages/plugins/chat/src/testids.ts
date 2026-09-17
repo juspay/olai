@@ -166,6 +166,11 @@ export const TESTID = {
   /** ... and why one did not happen: an engine this machine does not have, an
    *  agent that would not start, a record the ops layer will not write. */
   chatFreshSaid: "chat-fresh-said",
+  /** *Close the agent* — release this node back to Unassigned. The
+   *  conversation stays stored and can be assigned back; nothing is deleted. */
+  chatCloseAgent: "chat-close-agent",
+  /** ... and why one did not happen: the node had no agent to close. */
+  chatCloseSaid: "chat-close-said",
 
   // ── the panel itself: the toggle, the dock, the two minimized faces ──
   /** The header's agent toggle on desktop. Always on screen there;
