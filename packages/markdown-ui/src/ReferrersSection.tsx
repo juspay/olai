@@ -167,11 +167,15 @@ export interface ReferrersSectionProps {
   readonly summaryTestid: AnyTestId
   /** The testid each row's anchor wears. One per row, whatever the row opens. */
   readonly linkTestid: AnyTestId
-  /** The summary line — a count in a sentence rather than a bare number,
-   *  because it is the whole of what a shut section says. */
-  readonly summary: (total: number) => string
   readonly memory: ReferrerMemory | undefined
 }
+
+/** THE SUMMARY LINE — the count in a sentence rather than a bare number,
+ *  because it is the whole of what a shut section says and "Referenced by 3"
+ *  beside a heading reads as a score. The section's own vocabulary, same as
+ *  the way labels: nothing here is the caller's to spell. */
+const said = (total: number): string =>
+  `Referenced by ${total} ${total === 1 ? "thing" : "things"}`
 
 /** The section, minted PER PLACE by the caller's keyed `<Show>`, so the open
  *  signal is born with the place and dies with it. */
@@ -208,15 +212,15 @@ export function ReferrersSection(props: ReferrersSectionProps) {
       }}
     >
       {/* THE WHOLE OF WHAT A SHUT SECTION SAYS — the count in a sentence,
-          drawn from the caller's `summary` because the summary line is the
-          section's own vocabulary. The `<summary>` is what a `<details>`
-          shows while shut; the rows live behind the `open` `<Show>` below. */}
+          the section's own vocabulary, same as the way labels. The `<summary>`
+          is what a `<details>` shows while shut; the rows live behind the
+          `open` `<Show>` below. */}
       <summary
         data-testid={props.summaryTestid}
         class="cursor-pointer select-none text-muted hover:text-ink"
         data-count={props.found.length}
       >
-        {props.summary(props.found.length)}
+        {said(props.found.length)}
       </summary>
       <Show when={open()}>
         {/* A row per WAY, out of ONE shared table — never a label written here

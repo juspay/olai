@@ -110,47 +110,37 @@ function Section(props: {
         mention: TESTID.backlinkMentionRefs,
         link: TESTID.backlinkLinkRefs,
       })}
-      row={rowOf(props.found())}
+      row={rowOf}
       stillShown={stillShown}
       memoryKey={key}
       testid={TESTID.backlinks}
       summaryTestid={TESTID.backlinksSummary}
       linkTestid={TESTID.nodeRef}
-      summary={said}
       memory={memory}
     />
   )
 }
-
 /** ONE row per reference — the record as the node it is, the body as the file
  *  it is; the per-way split is the shared section's. */
-const rowOf =
-  (found: ReadonlyArray<Reference>) =>
-  (one: Reference): ReferrerRow =>
-    "path" in one.source
-      ? {
-        key: `doc:${one.source.path}`,
-        opens: hrefOf(atFile(one.source.path)),
-        calls: one.source.title,
-        callsFrom: one.source.path,
-        title: `open ${one.source.path}`,
-        ref: one.source.path,
-      }
-      : (() => {
-        const record = refOf(one.source)
-        return {
-          key: `node:${record.id}`,
-          opens: hrefOf(atNode(record.id)),
-          calls: record.title,
-          callsFrom: record.from,
-          where: record.from,
-          title: `open ${record.title}`,
-          ref: record.id,
-        }
-      })()
-
-/** The summary line: a count in a sentence rather than a bare number, because
- *  it is the whole of what a shut section says and "Referenced by 3" beside a
- *  heading reads as a score. */
-const said = (total: number): string =>
-  `Referenced by ${total} ${total === 1 ? "thing" : "things"}`
+const rowOf = (one: Reference): ReferrerRow => {
+  if ("path" in one.source) {
+    return {
+      key: `doc:${one.source.path}`,
+      opens: hrefOf(atFile(one.source.path)),
+      calls: one.source.title,
+      callsFrom: one.source.path,
+      title: `open ${one.source.path}`,
+      ref: one.source.path,
+    }
+  }
+  const record = refOf(one.source)
+  return {
+    key: `node:${record.id}`,
+    opens: hrefOf(atNode(record.id)),
+    calls: record.title,
+    callsFrom: record.from,
+    where: record.from,
+    title: `open ${record.title}`,
+    ref: record.id,
+  }
+}

@@ -122,7 +122,6 @@ function Section(props: {
       testid={TESTID.documentReferrers}
       summaryTestid={TESTID.documentReferrersSummary}
       linkTestid={TESTID.documentReferrer}
-      summary={said}
       memory={memory}
     />
   )
@@ -149,8 +148,3 @@ const rowOf =
         where: one.source.file,
         ref: one.source.node.id,
       }
-
-/** The summary line: a count in a sentence rather than a bare number, because
- *  it is the whole of what a shut section says. */
-const said = (total: number): string =>
-  `Referenced by ${total} ${total === 1 ? "thing" : "things"}`
