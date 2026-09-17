@@ -38,7 +38,8 @@ import { isRegular, type Located } from "./node.ts"
  *  it. A schema's worth of vocabulary, kept as a plain list here because the
  *  wire's schema lives beside the reading ({@link ./backlinks.ts}); this
  *  module files under the SAME closure and has no Schemas of its own. */
-export type Way = "see" | "mention" | "link"
+export const WAYS = ["see", "mention", "link"] as const
+export type Way = (typeof WAYS)[number]
 
 /**
  * ONE TARGET A DOCUMENT WRITES TO — the key it files under, the way it was

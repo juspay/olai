@@ -111,8 +111,13 @@ import type { Reading } from "./validate.ts"
  * belongs beside them; a second `Schema.Literals(["see", "mention", "link"])`
  * on the answer would be that closure respelled where nothing argues it, free
  * to gain a fourth member on one side only.
+ *
+ * THE LIST ITSELF lives in ./imports.ts now, READ rather than re-declared:
+ * the fold files under the same ways this schema spells, so the words are
+ * one fact — the list here was the second copy and both headers used to
+ * argue the other was wrong.
  */
-export const WAYS = ["see", "mention", "link"] as const
+import { WAYS } from "./imports.ts"
 export const Way = Schema.Literals(WAYS)
 export type Way = typeof Way.Type
 

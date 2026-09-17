@@ -550,11 +550,12 @@ export type { Zoomed } from "./zoom.ts"
 /** THE ONE READING that answers "who refers to here" — {@link referencesOf},
  *  out of the pointing index the fold keeps ({@link ./pointing.ts}) and asked
  *  with one address from the node page, the document page and the ops layer
- *  alike. `WAYS` is the closed list of how one place can refer to another, in
- *  the order a referrer says them, and `Way` is the SCHEMA read off it — which
- *  is what the answer vocabulary (`Reference`) carries, rather than it being a
- *  second spelling of the list. */
-export { referencesOf, Way, WAYS } from "./backlinks.ts"
+ *  alike. `Way` is the SCHEMA the answer vocabulary (`Reference`) carries; the
+ *  list it spells is {@link WAYS}, the closed list of how one place can refer
+ *  to another, re-exported from the module that OWNS it ({@link ./imports.ts})
+ *  because the fold files under the same words. */
+export { referencesOf, Way } from "./backlinks.ts"
+export { WAYS } from "./imports.ts"
 export type { Reference } from "./backlinks.ts"
 /** WHICH DOCUMENTS POINT WHERE — the set's own forward links, filed backwards
  *  and kept that way (`perf-doc-backlinks-index`). It rides on the {@link Reading}
