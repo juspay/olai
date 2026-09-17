@@ -62,6 +62,17 @@ Then(
   },
 );
 
+/** ... and the same claim for a node that is NOT in the roster — the plain
+ *  half of the release: a node whose binding is off is not offered as an
+ *  agent any more. Waited for, because the row leaves on a revision. */
+Then(
+  "the agents roster has no row for {string}",
+  async function (this: OlaiWorld, node: string) {
+    await this.showSidebar();
+    await rowFor(this, node).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  },
+);
+
 Then("the agents roster is not drawn", async function (this: OlaiWorld) {
   await this.showSidebar();
   await this.page.locator(ROSTER).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
@@ -523,6 +534,29 @@ When("I start a fresh session", async function (this: OlaiWorld) {
   const fresh = this.chat(FRESH);
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
+});
+
+/** PRESS THE FRESH SESSION AND NAME THE ENGINE — the multi-engine form of the
+ *  same gesture: with several engines installed the pill opens the engine
+ *  menu, and this step picks one from it by the name a person sees. Relies on
+ *  the menu being a real Kobalte menu of `menuitem` rows, so it is the engine
+ *  `{string}` is expected to appear as. */
+When("I start a fresh session with {string}", async function (this: OlaiWorld, engine: string) {
+  const fresh = this.chat(FRESH);
+  await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await fresh.first().click();
+  await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).click();
+});
+
+/** PRESS THE CLOSE sentinel in the agent line — the gesture that takes the
+ *  node's binding property off, so the seat closes and the conversation goes
+ *  back under Unassigned. The node becomes a PLAIN row again, so the release
+ *  is read where a plain row shows it: the start pill replacing the fold. */
+When("I press the close-agent control", async function (this: OlaiWorld) {
+  const close = this.chat(selector(PLUGIN_TESTID.chatCloseAgent));
+  await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await close.click();
+  await startFor(this, "install").waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 /** A conversation no node claims has no sessions control at all — the header
