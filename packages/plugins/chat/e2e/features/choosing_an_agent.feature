@@ -39,10 +39,13 @@ Feature: Choosing a node agent's engine
     And the header draws that agent's own mark
     And the chat input takes typing
 
-  @scratch:chat @rows-off:codex,pi,opencode,omp
-  Scenario: One enabled and available engine starts without a choice
-    When I press the agent start pill on "kitchen"
+  @scratch:chat
+  Scenario: One installed agent is not a choice
+    When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
+    # Every olai before this one. Asking a one-row question is friction with no
+    # answer behind it — what a person gets instead is the header saying who
+    # they are talking to, which is the part they did not have.
     And the header names the agent "claude"
 
   @opencode @scratch:chat

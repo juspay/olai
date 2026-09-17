@@ -1,6 +1,5 @@
 @scratch:chat
 Feature: A new chat has an Inbox node from its first message
-  @rows-off:codex,pi,opencode,omp
   Scenario Outline: Chats starts and unfolds a new conversation on <screen>
     Given I open the outline "house.olai"
     When I press new chat in Chats
@@ -71,21 +70,18 @@ Feature: A new chat has an Inbox node from its first message
     And I switch the plugin "capture" off
     And I press "Escape"
     And I press new chat in Chats
-    And I choose new chat engine "Claude Code"
     Then new chat says "the Inbox is unavailable; no conversation was created"
     And the Inbox contains no chat children
     When I open the plugins panel
     And I switch the plugin "capture" on
     And I press "Escape"
     And I press new chat in Chats
-    And I choose new chat engine "Claude Code"
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
 
   Scenario: A held creation cannot be spent twice across the two faces
     Given I open the outline "house.olai"
     When the next agent boot will hang
     And I press new chat in Chats
-    And I choose new chat engine "Claude Code"
     Then new chat in Chats is starting
     When I press the palette shortcut
     And I type "Agents" into the palette
@@ -110,7 +106,6 @@ Feature: A new chat has an Inbox node from its first message
     Given I open the outline "house.olai"
     When the agent refuses to new a conversation
     And I press new chat in Chats
-    And I choose new chat engine "Claude Code"
     Then the refused new chat leaves a plain Inbox node as "new-chat"
     And no agent fold is open
     When the agent will new a conversation again
@@ -131,7 +126,6 @@ Feature: A new chat has an Inbox node from its first message
     Then the chat shows a question
     When I type "kept while another node starts" into the question's "note" box
     And I press new chat in Chats
-    And I choose new chat engine "Claude Code"
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
     And the panel has a different conversation from "waiting"
     And the agent "install" stands "needs-you"
