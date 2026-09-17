@@ -50,7 +50,7 @@
 import { Json } from "../json.ts"
 export { Json } from "../json.ts"
 
-import { SessionSetting, PlanStep, TerminalView } from "./session.ts"
+import { Conversing, SessionSetting, PlanStep, TerminalView } from "./session.ts"
 import {
   AskAnswer,
   AskChoice,
@@ -1120,23 +1120,6 @@ export const Conversation = Schema.Struct({
 export type Conversation = typeof Conversation.Type
 
 /**
- * WHICH conversation took this one's place — the engine's own word and the id
- * it calls it by.
- *
- * The id alone means nothing to the wrong agent (asking opencode to load a
- * Claude id gets a refusal), which is why THIS is the unit lineage is matched
- * on: a fresh start may name a successor on ANOTHER engine, and the link has
- * to say whose before it can say which.
- */
-export const Chatting = Schema.Struct({
-  /** One of the enabled engines' ids — an engine plugin's own word. */
-  agent: Schema.String,
-  /** The successor's id, as THAT agent calls it. */
-  id: Schema.String,
-})
-export type Chatting = typeof Chatting.Type
-
-/**
  * One of the stored conversations, as a list of them draws one — and WHOSE it is.
  *
  * The agent is on the ROW rather than on a group around it, because it is a
@@ -1165,13 +1148,13 @@ export const SessionInfo = Schema.Struct({
    *  could not read. The list draws no number for `null`, which is the
    *  answer's losing direction and never a zero drawn instead of it. */
   messageCount: Schema.NullOr(Schema.Number),
-  /** The conversation that replaced this one, as a pair — the engine's id and
-   *  the id IT calls it by — or `null` when nothing says one did. An adapter
-   *  says it when its transcripts make the link (see
-   *  {@link ../../plugins/chat/src/events.ts}'s `Stored`); a `/clear` sibling is where a
-   *  person meets it, and a fresh start names it even when the new conversation
-   *  lives on ANOTHER engine. */
-  supersededBy: Schema.NullOr(Chatting),
+  /** The conversation that replaced this one, as the pair `{agent, session}`
+   *  ({@link Conversing}) — the engine's id and the id IT calls it by — or
+   *  `null` when nothing says one did. An adapter says it when its transcripts
+   *  make the link (see {@link ../../plugins/chat/src/events.ts}'s `Stored`); a
+   *  `/clear` sibling is where a person meets it, and a fresh start names it
+   *  even when the new conversation lives on ANOTHER engine. */
+  supersededBy: Schema.NullOr(Conversing),
 })
 export type SessionInfo = typeof SessionInfo.Type
 

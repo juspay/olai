@@ -3237,16 +3237,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         }
         yield* noting(options.overheard?.assign(to, true), assignLost)
       }),
-      // THE OTHER HALF OF THE SWAP'S CACHE RULE ({@link using}), reached
-      // through a different door: a fresh start on a node that already had
-      // one NEVER switches `talking` — the seat opens the new conversation in
-      // the slot that was already running the node's engine — so a listing
-      // kept about the REPLACED agent (the one whose session this just stopped
-      // being current) is stale the moment this lands, and would serve the old
-      // row back until its fifteen seconds were up. The listing the panel and
-      // the roster draw from is `listings.all`; forgetting the replaced agent
-      // here keeps the row's lineage walk honest across the whole time it is a
-      // fresh start, on either engine.
+      // THE REPLACED ENGINE'S CACHED LISTING IS STALE NOW, and nothing else
+      // will invalidate it: a fresh start on a node that already had one never
+      // switches `talking` (the seat opens the new conversation in the slot
+      // already running the node's engine), so the agent whose session this
+      // just stopped being current would serve its old rows for up to fifteen
+      // seconds. Forget it here so the next listing re-asks.
       replaced: (to, by) => Effect.gen(function*() {
         listings.forget(to.agent)
         yield* noting(options.overheard?.supersede(to, by), replaceLost)

@@ -15,6 +15,11 @@ Feature: Closing a node's agent releases it back to an unclaimed chat
     When I press the close-agent control
     Then no agent fold is open
     And the agents roster holds 0 agents
+    # The close's own filer run files the freed conversation before any
+    # restart could — this row appears because `closeAgent` publishes a full
+    # filing, not because a boot's filing happened to pick it up.
+    And the Inbox has 1 filed conversations
+    And the agents roster holds 1 agents
     When the server stops
     And the server starts again on the same port
     And I open the app

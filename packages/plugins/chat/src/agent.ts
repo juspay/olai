@@ -2643,12 +2643,14 @@ const detailOf = (input: unknown, output: unknown): string | undefined => {
  * and the conversation the panel comes back to and the row a person clicks stop
  * agreeing about which of two identical-looking rows is the newest.
  *
- * The undated rule is the load-bearing half: an agent that gave no timestamp
- * has said nothing about when, and reading that as "just now" would put it over
- * every conversation that did say — including, at a boot, over the one this
- * directory was actually in.
+ * GENERIC over just the field it reads, so the stored and the wire row — which
+ * differ in everything but the stamp — sort by the one rule. The undated rule
+ * is the load-bearing half: an agent that gave no timestamp has said nothing
+ * about when, and reading that as "just now" would put it over every
+ * conversation that did say — including, at a boot, over the one this directory
+ * was actually in.
  */
-export const newestFirst = (a: Stored, b: Stored): number =>
+export const newestFirst = <R extends { readonly updatedAt: string | null }>(a: R, b: R): number =>
   (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")
 
 /**

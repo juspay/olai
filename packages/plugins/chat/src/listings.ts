@@ -178,7 +178,7 @@ export const make = (where: Where): Effect.Effect<Listings> =>
         title: entry.title,
         updatedAt: entry.updatedAt,
         messageCount: entry.messageCount,
-        supersededBy: entry.supersededBy === null ? null : { agent: row.id, id: entry.supersededBy },
+        supersededBy: entry.supersededBy === null ? null : { agent: row.id, session: entry.supersededBy },
       })),
       unreachable: [],
     })
@@ -254,15 +254,14 @@ export const make = (where: Where): Effect.Effect<Listings> =>
  * conversations, newest first, with the unreachable rows keeping the order
  * they were asked in.
  *
- * The sort is the SAME rule `agent.ts`'s `newestFirst` is — one agent's list
- * is sorted there, this merge is sorted here, and the two answers are what a
- * boot adopts and what a person clicks. They must not be able to disagree
- * about which of two identical-looking rows is the newest. It is spelled out
- * here rather than imported because the merged rows are the WIRE shape
- * (`SessionInfo`, carrying the successor as a `{agent, id}` pair) while the
- * per-agent rows are the stored shape (`Stored`, carrying a bare id) — the
- * comparator only reads `updatedAt`, but the two lists' rows are not the same
- * type.
+ * The sort is the SAME rule `agent.ts`'s `newestFirst`, and it is IMPORTED
+ * rather than repeated: one agent's list is sorted there, this merge is sorted
+ * here, and the two answers are what a boot adopts and what a person clicks.
+ * They must not be able to disagree about which of two identical-looking rows
+ * is the newest — a tie-break drifted in one of the two copies is exactly the
+ * bug the import rules out. The comparator is generic over the one field it
+ * reads, so the stored and the wire row share it even though they differ in
+ * everything else.
  *
  * The UNREACHABLE keep the roster's order, which is the order they were asked
  * in — there is nothing else to sort them by, and a list of refusals that
@@ -272,8 +271,6 @@ export const make = (where: Where): Effect.Effect<Listings> =>
  * agent, and the one a reader is most likely to reach for.
  */
 export const asOneList = (answers: ReadonlyArray<Listed>): Listed => ({
-  sessions: answers.flatMap((answer) => answer.sessions).sort(
-    (a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
-  ),
+  sessions: answers.flatMap((answer) => answer.sessions).sort(newestFirst),
   unreachable: answers.flatMap((answer) => answer.unreachable),
 })

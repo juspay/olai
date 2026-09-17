@@ -90,11 +90,11 @@ export const succeeded = (
     const link = links.find(
       (row) => row.agent === session.agent && row.session === session.id,
     )
-    let next: Conversing | null = link?.superseded ?? (session.supersededBy === null
-      ? null
-      : { agent: session.supersededBy.agent, session: session.supersededBy.id })
+    // THE LINK IS THE WIRE'S PAIR ALREADY — one spelling, `Conversing` — so
+    // there is nothing to convert: olai's own recorded link wins where there
+    // is one, and a row nothing re-pointed keeps its agent-reported row.
+    let next: Conversing | null = link?.superseded ?? session.supersededBy
     const seen = new Set<string>([chatKey(session.agent, session.id)])
-    // An unused fresh session has no transcript, so the harness never lists
     // it. Follow olai's recorded replacements across those missing rows. Stop
     // at a stored session or the current (possibly still unused) endpoint;
     // neither needs a synthetic, unopenable row in the picker. The follow is
@@ -108,12 +108,9 @@ export const succeeded = (
       next = after
     }
     const same = (next === null && session.supersededBy === null) ||
-      (next !== null && session.supersededBy !== null &&
-        next.agent === session.supersededBy.agent && next.session === session.supersededBy.id)
-    return same ? session : {
-      ...session,
-      supersededBy: next === null ? null : { agent: next.agent, id: next.session },
-    }
+      (next !== null && session.supersededBy !== null
+        && next.agent === session.supersededBy.agent && next.session === session.supersededBy.session)
+    return same ? session : { ...session, supersededBy: next }
   })
   return { ...listed, sessions }
 }

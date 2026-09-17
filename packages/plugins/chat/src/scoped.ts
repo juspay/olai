@@ -932,7 +932,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               title: row.title,
               updatedAt: row.updatedAt,
               messageCount: row.messageCount,
-              supersededBy: row.supersededBy === null ? null : { agent, id: row.supersededBy },
+              supersededBy: row.supersededBy === null ? null : { agent, session: row.supersededBy },
             })),
             unreachable: [],
           }, panelOptions.overheard?.rows() ?? []),

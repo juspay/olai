@@ -29,6 +29,15 @@ const show = (agent: { node: string; file: string }) => {
 }
 
 export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction> => {
+  /** THE START GESTURE, SHARED BY BOTH HALVES: start a session on a node with
+   *  a given engine, and on success mark the node read and unfold it. The
+   *  start and fresh-start maps are the same act on different labels. */
+  const startOn = (engine: { readonly id: string }) => async (node: string) => {
+    const outcome = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }))
+    if (Result.isFailure(outcome)) return outcome.failure.message
+    agentReadings()?.visit(node)
+    unfold(node)
+  }
   const bound = roster.at(node)
   if (bound?.session == null) {
     // A bare row, or one naming only an engine: the start gesture for each
@@ -39,29 +48,20 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
     return engines.map(engine => ({
       id: `start-agent-${engine.id}`, writes: true,
       label: engines.length === 1 ? "Start an agent session" : `Start an agent session — ${engine.name}`,
-      run: async (node: string) => {
-        const outcome = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }))
-        if (Result.isFailure(outcome)) return outcome.failure.message
-        agentReadings()?.visit(node)
-        unfold(node)
-      },
+      run: startOn(engine),
     }))
   }
   // A node already talking through a conversation: fresh start — one entry per
   // installed engine, the label naming the engine only where there is a
-  // choice — and CLOSE, releasing the node back to Unassigned.
+  // choice — and CLOSE, releasing the node's agent back to the unclaimed
+  // chats (the conversation is filed back under Chats by the next filer run).
   const engines = roster.engines()
   if (engines.length === 0) return []
   return [
     ...engines.map(engine => ({
       id: `fresh-start-${engine.id}`, writes: true,
       label: engines.length === 1 ? "Fresh start" : `Fresh start — ${engine.name}`,
-      run: async (node: string) => {
-        const outcome = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }))
-        if (Result.isFailure(outcome)) return outcome.failure.message
-        agentReadings()?.visit(node)
-        unfold(node)
-      },
+      run: startOn(engine),
     })),
     {
       id: "close-agent", writes: true, label: "Close the agent",

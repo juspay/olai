@@ -4,9 +4,10 @@
  * The claim: a *fresh session* is a replacement nobody else records — no
  * `/clear` happened, so no adapter has anything to say about it — and without
  * this overlay the conversation it replaced comes back as a chat no node
- * claims. What the cases hold besides is the direction the two answers
- * outrank each other in: the agent read its own transcripts, olai read a file
- * it wrote, and where they disagree the agent wins.
+ * claims, re-filed into Chats and offered back to the node that had just left
+ * it. What the cases hold besides is the direction the two answers outrank
+ * each other in: the agent read its own transcripts, olai read a file it
+ * wrote, and where they disagree the agent wins.
  */
 
 import { expect, test } from "bun:test"
@@ -35,7 +36,7 @@ test("a session olai replaced names the one that replaced it", () => {
     { agent: "claude", session: "old", superseded: { agent: "claude", session: "fresh" } },
   ]
   const out = succeeded(listed(chat("fresh"), chat("old")), heard)
-  expect(out.sessions.map((row) => row.supersededBy)).toEqual([null, { agent: "claude", id: "fresh" }])
+  expect(out.sessions.map((row) => row.supersededBy)).toEqual([null, { agent: "claude", session: "fresh" }])
 })
 
 test("olai's own link wins where the two disagree", () => {
@@ -46,8 +47,8 @@ test("olai's own link wins where the two disagree", () => {
   const heard: ReadonlyArray<Overheard> = [
     { agent: "claude", session: "old", superseded: { agent: "claude", session: "fresh" } },
   ]
-  const out = succeeded(listed(chat("old", { supersededBy: { agent: "claude", id: "cleared" } })), heard)
-  expect(out.sessions[0]?.supersededBy).toEqual({ agent: "claude", id: "fresh" })
+  const out = succeeded(listed(chat("old", { supersededBy: { agent: "claude", session: "cleared" } })), heard)
+  expect(out.sessions[0]?.supersededBy).toEqual({ agent: "claude", session: "fresh" })
 })
 
 test("a note is worn only by the agent it was written against", () => {
@@ -92,10 +93,10 @@ test("olai's own re-pointing wins over a `/clear` link the agent reported", () =
     { agent: "claude", session: "middle", superseded: { agent: "claude", session: "fresh" } },
   ]
   const out = succeeded(
-    listed(chat("fresh"), chat("middle", { supersededBy: { agent: "claude", id: "cleared" } }), chat("cleared")),
+    listed(chat("fresh"), chat("middle", { supersededBy: { agent: "claude", session: "cleared" } }), chat("cleared")),
     heard,
   )
-  expect(out.sessions.find((row) => row.id === "middle")?.supersededBy).toEqual({ agent: "claude", id: "fresh" })
+  expect(out.sessions.find((row) => row.id === "middle")?.supersededBy).toEqual({ agent: "claude", session: "fresh" })
 })
 
 test("unused intermediate sessions do not hide earlier stored history", () => {
@@ -105,7 +106,7 @@ test("unused intermediate sessions do not hide earlier stored history", () => {
     { agent: "claude", session: "also-unused", superseded: { agent: "claude", session: "current" } },
   ]
   const out = succeeded(listed(chat("old")), heard)
-  expect(out.sessions).toEqual([chat("old", { supersededBy: { agent: "claude", id: "current" } })])
+  expect(out.sessions).toEqual([chat("old", { supersededBy: { agent: "claude", session: "current" } })])
 })
 
 test("a stored intermediate transcript remains a separate history row", () => {
@@ -114,7 +115,7 @@ test("a stored intermediate transcript remains a separate history row", () => {
     { agent: "claude", session: "middle", superseded: { agent: "claude", session: "current" } },
   ]
   expect(succeeded(listed(chat("old"), chat("middle")), heard).sessions.map((row) => row.supersededBy))
-    .toEqual([{ agent: "claude", id: "middle" }, { agent: "claude", id: "current" }])
+    .toEqual([{ agent: "claude", session: "middle" }, { agent: "claude", session: "current" }])
 })
 
 test("missing-session traversal stays within its harness and terminates on corrupt cycles", () => {
@@ -122,11 +123,11 @@ test("missing-session traversal stays within its harness and terminates on corru
     { agent: "claude", session: "old", superseded: { agent: "claude", session: "missing" } },
     { agent: "opencode", session: "missing", superseded: { agent: "opencode", session: "wrong" } },
   ]
-  expect(succeeded(listed(chat("old")), heard).sessions[0]?.supersededBy).toEqual({ agent: "claude", id: "missing" })
+  expect(succeeded(listed(chat("old")), heard).sessions[0]?.supersededBy).toEqual({ agent: "claude", session: "missing" })
   expect(succeeded(listed(chat("old")), [...heard,
     { agent: "claude", session: "missing", superseded: { agent: "claude", session: "loop" } },
     { agent: "claude", session: "loop", superseded: { agent: "claude", session: "missing" } },
-  ]).sessions[0]?.supersededBy).toEqual({ agent: "claude", id: "missing" })
+  ]).sessions[0]?.supersededBy).toEqual({ agent: "claude", session: "missing" })
 })
 
 test("a fresh start that changed engine links the old row to the new engine's session", () => {
@@ -142,5 +143,5 @@ test("a fresh start that changed engine links the old row to the new engine's se
     heard,
   )
   expect(out.sessions.find((row) => row.id === "old")?.supersededBy)
-    .toEqual({ agent: "codex", id: "codex-fresh" })
+    .toEqual({ agent: "codex", session: "codex-fresh" })
 })

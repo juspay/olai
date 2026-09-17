@@ -8,10 +8,11 @@ import { fold } from "./folding.ts"
 import { TESTID } from "../../testids.ts"
 
 /** The node's close gesture: take the binding property off, so the seat
- *  closes and the conversation goes back under Unassigned. Nothing is
- *  superseded and nothing is deleted — the transcript, its history and the
- *  subtree memory stay — so assigning the conversation back re-opens the same
- *  node agent. The pending owner guards physical repeat presses. */
+ *  closes and the conversation becomes an unclaimed chat again — the next
+ *  filer run files it back under Chats. Nothing is superseded and nothing is
+ *  deleted — the transcript, its history and the subtree memory stay — so the
+ *  node can claim the same conversation back. The pending owner guards
+ *  physical repeat presses. */
 export function CloseAgent(props: { readonly node: string }) {
   const saying = createSaying()
   const [closing, setClosing] = createSignal(false)
@@ -36,8 +37,7 @@ export function CloseAgent(props: { readonly node: string }) {
 
   return <span class="relative">
     <button type="button" class={QUIET_PILL} data-testid={TESTID.chatCloseAgent}
-      disabled={closing()} aria-busy={closing()}
-      title="close the agent: the conversation goes to Unassigned, stored and assignable back to any node — nothing is deleted"
+      title="close the agent: the conversation goes back to the unclaimed chats, filed under Chats — nothing is deleted"
       onClick={close}>close</button>
     <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatCloseSaid} class="mt-1 text-xs" />}</Show>
   </span>

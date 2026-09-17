@@ -6,7 +6,7 @@ import type { SessionInfo, Listed } from "olai-plugin-chat/wire"
 import { vaultEvents } from "@olai/plugin-api/services"
 import { makeFiler, claimed, fileListed, noteOf, type Filing } from "./filer.ts"
 
-const row = (id: string, supersededBy: { readonly agent: string; readonly id: string } | null = null): SessionInfo => ({
+const row = (id: string, supersededBy: { readonly agent: string; readonly session: string } | null = null): SessionInfo => ({
   id, agent: "claude", title: id, messageCount: 2, updatedAt: "2026-09-10T12:34:00Z", supersededBy,
 })
 const listed = (...sessions: SessionInfo[]): Listed => ({ sessions, unreachable: [] })
@@ -35,7 +35,7 @@ const fixture = (files: Record<string, string> = {}) => {
 
 test("Chats gets its own write, then only unclaimed heads; repeating mints nothing", async () => {
   const it = fixture()
-  const sessions = listed(row("head"), row("old", { agent: "claude", id: "head" }), row("other"))
+  const sessions = listed(row("head"), row("old", { agent: "claude", session: "head" }), row("other"))
   await Effect.runPromise(fileListed(it.filing, "Inbox.olai", sessions))
   expect(it.writes.map(write => write.op)).toEqual(["create", "add", "add"])
   expect(it.assigned).toEqual(["head", "other"])
@@ -71,7 +71,7 @@ test("a refused row preserves its neighbours and retries alone", async () => {
 test("trash claims its chain; an existing Chats root is reused", async () => {
   const it = fixture({ "Inbox.olai": '{"id":"chats","title":"Renamed","ord":"a0"}',
     "_olai/Trash.olai": '{"id":"put-away","title":"Old","ord":"a0","custom":{"chat-agent-session":"claude:gone"}}' })
-  await Effect.runPromise(fileListed(it.filing, "Inbox.olai", listed(row("gone"), row("past", { agent: "claude", id: "gone" }), row("new"))))
+  await Effect.runPromise(fileListed(it.filing, "Inbox.olai", listed(row("gone"), row("past", { agent: "claude", session: "gone" }), row("new"))))
   expect(it.writes).toHaveLength(1)
   expect(it.assigned).toEqual(["new"])
 })
@@ -224,7 +224,7 @@ test("a claude row superseded by a listed codex session is not a head", async ()
   const it = fixture()
   const sessions = listed(
     { ...row("codex-current"), agent: "codex" },
-    row("claude-old", { agent: "codex", id: "codex-current" }),
+    row("claude-old", { agent: "codex", session: "codex-current" }),
   )
   await Effect.runPromise(fileListed(it.filing, "Inbox.olai", sessions))
   expect(it.writes).toHaveLength(2)

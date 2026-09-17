@@ -56,8 +56,11 @@ export const ensureChats = (filing: Pick<Filing, "read" | "write">, file: string
 export const fileListed = (filing: Filing, file: string, listed: Listed): Effect.Effect<void> => filing.exclusive(Effect.gen(function*() {
   for (const row of listed.unreachable) yield* filing.log(`filer: ${row.agent}: ${row.why}`)
   if (filing.current() !== file) return
-  const heads = listed.sessions.filter(row => row.supersededBy === null
-    || !listed.sessions.some(next => next.agent === row.supersededBy!.agent && next.id === row.supersededBy!.id))
+  const heads = listed.sessions.filter(row => {
+    const by = row.supersededBy
+    return by === null
+      || !listed.sessions.some(next => next.agent === by.agent && next.id === by.session)
+  })
   const initial = yield* Effect.result(filing.read)
   if (initial._tag === "Failure") { yield* filing.log(`filer: ${initial.failure.message}`); return }
   const held = claimed(initial.success, listed.sessions)

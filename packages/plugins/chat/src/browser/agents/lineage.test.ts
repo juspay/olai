@@ -36,8 +36,8 @@ const unassignedIn = (sessions: Parameters<typeof claimedIn>[0], agents: Paramet
 
 const CHAIN: ReadonlyArray<SessionInfo> = [
   chat("third"),
-  chat("second", { supersededBy: { agent: "claude", id: "third" } }),
-  chat("first", { supersededBy: { agent: "claude", id: "second" } }),
+  chat("second", { supersededBy: { agent: "claude", session: "third" } }),
+  chat("first", { supersededBy: { agent: "claude", session: "second" } }),
 ]
 
 const bound = (session: string | null, engine = "claude"): Agents => [{
@@ -68,14 +68,14 @@ test("the conversation itself is not one of its own past sessions", () => {
 test("a session the list does not hold still has its predecessors", () => {
   // The conversation opened a moment ago is not in an answer taken before it,
   // and the walk is over links pointing AT an id rather than over a row.
-  const listed = [chat("second", { supersededBy: { agent: "claude", id: "fresh" } }), chat("first")]
+  const listed = [chat("second", { supersededBy: { agent: "claude", session: "fresh" } }), chat("first")]
   expect(pastOf(listed, "claude", "fresh").map((row) => row.id)).toEqual(["second"])
 })
 
 test("a link is followed only inside the agent that wrote it", () => {
   // A session id is one agent's own space. An opencode row naming a claude id
   // is not this chain's predecessor, however the strings compare.
-  const mixed = [chat("second", { agent: "opencode", supersededBy: { agent: "opencode", id: "third" } }), ...CHAIN]
+  const mixed = [chat("second", { agent: "opencode", supersededBy: { agent: "opencode", session: "third" } }), ...CHAIN]
   expect(pastOf(mixed, "opencode", "third").map((row) => row.id)).toEqual(["second"])
 })
 
@@ -84,8 +84,8 @@ test("a cycle ends the walk rather than spinning", () => {
   // conversation minted after it — but the links come off a wire and off a
   // state file, and a shorter history is the safe way to be wrong.
   const looped = [
-    chat("a", { supersededBy: { agent: "claude", id: "b" } }),
-    chat("b", { supersededBy: { agent: "claude", id: "a" } }),
+    chat("a", { supersededBy: { agent: "claude", session: "b" } }),
+    chat("b", { supersededBy: { agent: "claude", session: "a" } }),
   ]
   expect(pastOf(looped, "claude", "a").map((row) => row.id)).toEqual(["b"])
 })
@@ -97,7 +97,7 @@ test("a link walked from a fresh engine finds the chain the previous engine left
   // engine walking and the engine that wrote the link are two different ones.
   const listed = [
     chat("codex-current", { agent: "codex" }),
-    chat("claude-old", { supersededBy: { agent: "codex", id: "codex-current" } }),
+    chat("claude-old", { supersededBy: { agent: "codex", session: "codex-current" } }),
   ]
   expect(pastOf(listed, "codex", "codex-current").map((row) => row.id)).toEqual(["claude-old"])
 })

@@ -1,14 +1,13 @@
 /**
  * WHICH CONVERSATIONS A NODE AGENT HAS HAD, and which ones nobody has claimed.
  *
- * Two readings of one walk, and they are the two halves of migration: a chat
- * that no node claims is a row under **Unassigned**, and a chat some node
- * claims is that agent's session — its CURRENT one, or one of the ones before
- * it. Neither is a fact either wire carries: the `agents` cell says which
- * conversation each node's property names (one id, the current one), and
- * `chat.sessions` says what every installed agent has stored, each row saying
- * which conversation replaced it where somebody said so (`@olai/surface`'s
- * `SessionInfo`). The lineage is the join, and this module is the rule for it.
+ * Two readings of one walk: a chat some node claims is that agent's session —
+ * its CURRENT one, or one of the ones before it. Neither is a fact either wire
+ * carries: the `agents` cell says which conversation each node's property
+ * names (one id, the current one), and `chat.sessions` says what every
+ * installed agent has stored, each row saying which conversation replaced it
+ * where somebody said so (`@olai/surface`'s `SessionInfo`). The lineage is the
+ * join, and this module is the rule for it.
  *
  * ## A CHAIN, because `/clear` leaves one
  *
@@ -30,25 +29,24 @@
  * formally, so every step of the walk carries the engine — the same rule the row
  * that draws a successor keeps (`./browser/chat/Conversation.tsx`), and the same one
  * the record keeps a package away. The LINK ITSELF NAMES THE PAIR it points at
- * (`{agent, id}` on the wire), so the walker never assumes the successor runs
- * on the engine it is walking FOR: fresh start may hand the node to another
+ * (the wire's `Conversing`), so the walker never assumes the successor runs on
+ * the engine it is walking FOR: fresh start may hand the node to another
  * engine, and the chain stays one chain across the swap.
  *
  * ## WHAT IS NOT HERE
  *
  * Nothing is inferred. Two rows sharing a title are two conversations; a chain
  * exists where somebody SENT the link and nowhere else. And a node agent whose
- * property names no session claims nothing at all — an unbound node agent has
- * no history, which is exactly what makes Unassigned the doorway to it.
+ * property names no session claims nothing at all.
  *
  * PURE over the two lists: the browser and scheduler must agree which node
- * owns a historical session. This decides what a
- * person is offered to migrate, and reaching it through a browser is not how
- * anybody should have to check that a conversation a node already claims is not
- * offered to be claimed again.
+ * owns a historical session. This decides what the picker offers, and reaching
+ * it through a browser is not how anybody should have to check that a
+ * conversation a node already claims is not offered to be claimed again.
  */
 
-import type { Agents, Chatting, SessionInfo } from "olai-plugin-chat/wire"
+import type { Agents, Conversing, SessionInfo } from "olai-plugin-chat/wire"
+
 /** ... and that pair as ONE STRING, for the places a key is wanted: the set a
  *  walk marks off, and the signal saying which row has its search open. Spelled
  *  here so the faces that key by it and the walks that match on it cannot come
@@ -84,7 +82,7 @@ export const pastOf = (
 ): ReadonlyArray<SessionInfo> => {
   const past: Array<SessionInfo> = []
   const seen = new Set<string>([chatKey(agent, session)])
-  let at: Chatting = { agent, id: session }
+  let at: Conversing = { agent, session }
   for (;;) {
     // The LINK names its successor's full pair: the row that was replaced by
     // `at` is the one whose `supersededBy` pair IS `at`, whoever wrote it. A
@@ -94,14 +92,14 @@ export const pastOf = (
       (row) =>
         row.supersededBy !== null &&
         row.supersededBy.agent === at.agent &&
-        row.supersededBy.id === at.id,
+        row.supersededBy.session === at.session,
     )
     if (before === undefined) return past
     const key = chatKey(before.agent, before.id)
     if (seen.has(key)) return past
     seen.add(key)
     past.push(before)
-    at = { agent: before.agent, id: before.id }
+    at = { agent: before.agent, session: before.id }
   }
 }
 
@@ -126,14 +124,14 @@ export const pastOf = (
 export const successorIn = (
   sessions: ReadonlyArray<SessionInfo>,
   session: SessionInfo,
-): SessionInfo | undefined =>
-  session.supersededBy === null
+): SessionInfo | undefined => {
+  const by = session.supersededBy
+  return by === null
     ? undefined
     : sessions.find(
-        (row) =>
-          row.agent === session.supersededBy!.agent &&
-          row.id === session.supersededBy!.id,
+        (row) => row.agent === by.agent && row.id === by.session,
       )
+}
 
 /**
  * EVERY CONVERSATION SOME NODE CLAIMS — the current sessions and their chains,

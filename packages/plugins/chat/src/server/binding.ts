@@ -80,10 +80,12 @@ export interface Binding {
 
 /** RELEASE a node agent: take the binding property off. Nothing else happens —
  *  no supersession is recorded (releasing is not fresh-starting), the subtree
- *  memory is untouched, and the conversation the node was in comes back under
- *  Unassigned, assignable to any node again. The seat the property justified
- *  closes by the same revision-driven reading that opened it, so this needs no
- *  chat handle at all.
+ *  memory is untouched, and the conversation the node was in becomes an
+ *  unclaimed chat again, filed back into Chats by the next filer run — the row
+ *  it files under carries the binding value, so the node can claim the same
+ *  conversation back. The seat the property justified closes by the same
+ *  revision-driven reading that opened it, so this needs no chat handle at
+ *  all.
  *
  * Refuses when no node agent is bound: a close that would write the removal of
  * a key that is not there is a gesture on something that is not on the node. */

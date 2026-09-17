@@ -1,10 +1,9 @@
-import { createSignal, Show } from "solid-js"
+import { createSignal, lazy, Show } from "solid-js"
 import { memoryOf } from "@olai/format"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
 import { run } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
-import { lazy, Suspense } from "solid-js"
 import type { AgentChoice } from "olai-plugin-chat/wire"
 import { chatWire } from "../wire.ts"
 import { agentReadings } from "./reading.ts"
@@ -83,10 +82,8 @@ export function FreshStart(props: {
       onClick={pressed}>fresh start</button>
     <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatFreshSaid} class="mt-1 text-xs" />}</Show>
     <Show when={menu()}>
-      {(anchor) => <Suspense fallback={null}>
-        <EngineMenu layer={props.page ? LAYER.over : LAYER.row} anchor={anchor()}
-          engines={ordered()} pick={engine => { setMenu(null); fresh(engine) }} close={() => setMenu(null)} />
-      </Suspense>}
+      {(anchor) => <EngineMenu layer={props.page ? LAYER.over : LAYER.row} anchor={anchor()}
+        engines={ordered()} pick={engine => { setMenu(null); fresh(engine) }} close={() => setMenu(null)} />}
     </Show>
   </span>
 }

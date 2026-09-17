@@ -129,9 +129,9 @@ const binding = (
  *
  * Nothing else records it: no `/clear` happened, so no adapter has anything to
  * say about this supersession (`../succession.ts`). Without the mark the node
- * agent's own previous conversation comes back under Unassigned, inviting
- * somebody to assign it to the node it already belonged to — which is the one
- * node that would refuse it.
+ * agent's own previous conversation comes back as a chat no node claims,
+ * re-filed into Chats and offered back to the node that had just left it —
+ * which is the one node that would refuse it.
  */
 test("a fresh session on a bound node re-points the property and records what it replaced", async () => {
   const it = chatOpening(["fake-session-2"])
@@ -194,8 +194,9 @@ test("an open that produced no conversation refuses, and writes no property", as
 
 /** CLOSING TAKES THE BINDING PROPERTY OFF AND NOTHING ELSE — no fresh
  *  session, so no supersession, and no write. The conversation the node was
- *  in goes under Unassigned with its transcript intact; the seat closes by the
- *  same reading that opened it. */
+ *  in becomes an unclaimed chat with its transcript intact — the next filer
+ *  run files it back under Chats; the seat closes by the same reading that
+ *  opened it. */
 test("closing a bound node takes the binding property off and supersedes nothing", async () => {
   const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
   await Effect.runPromise(closeAgent(at, { node: "a" }))

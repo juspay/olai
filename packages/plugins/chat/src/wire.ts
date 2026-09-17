@@ -233,9 +233,10 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       /** RELEASE a node's agent: the binding property is taken off, the seat
-       *  closes, and the conversation goes back under Unassigned. Nothing is
-       *  superseded — the transcript, its history and the subtree stay — so
-       *  assigning the conversation back re-opens the same node agent. */
+       *  closes, and the conversation becomes an unclaimed chat again — the
+       *  next filer run files it back under Chats, and the node can claim the
+       *  same conversation back. Nothing is superseded — the transcript, its
+       *  history and the subtree stay. */
       closeAgent: {
         input: Schema.Struct({
           /** The node whose agent is being released — the id the roster

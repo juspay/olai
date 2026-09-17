@@ -37,13 +37,10 @@ composer.
 A **fresh start may pick a different engine**. With one engine installed it
 starts immediately on the node's own engine, exactly as before. With several,
 the fresh-start press opens the engine menu with the node's current engine
-first, and picking one supersedes the conversation onto that engine: the
-lineage carries the `(agent, session)` pair end to end, so the history the new
-session replaces is matched by BOTH whose it was and which one it was, and
-survives a fresh start that changes engines. The history of a conversation
-follows the node across engines — the transcript of a session that ran on
-Codex still appears among a Claude node's past sessions.
-
+first, and the row menu lists one fresh-start entry per installed engine,
+each labeled **Fresh start — <engine>**. Picking one supersedes the
+conversation onto that engine: the history of the conversation follows the
+node across engines, both when it moves away from and back to an engine.
 
 The list itself:
 
@@ -672,18 +669,15 @@ zoomed drawer, with its ordinary folding behavior. Phone and desktop use these
 same faces; there is no chat sheet or fixed right dock.
 
 **Close the agent** releases a node's agent: the `chat-agent-session` property
-is taken off, the seat closes, and the conversation goes back under
-Unassigned — stored, transcript and history intact, assignable back to any
-node. Assigning it back re-opens the same conversation on the same node agent;
-closing never supersedes anything and never deletes anything. The same verb
-appears in the row menu as **Close the agent**, where the engine rows of a
-multiple-engine fresh start also appear (**Fresh start** beside the current
-engine, **Fresh start — <engine>** for the others), and there is no
-confirmation dialog on either face: the standing's return to **no session
-bound** is the acknowledgement.
-
-### Starting an agent
-
+is taken off, the seat closes, and the conversation becomes an unclaimed chat
+again — stored, transcript and history intact, filed back under Chats by the
+next filer run. Claiming that filed conversation re-opens the same conversation
+on the same node agent; closing never supersedes anything and never deletes
+anything. The same verb appears in the row menu as **Close the agent**, where
+the engine rows of a multiple-engine fresh start also appear (**Fresh start**
+beside the current engine, **Fresh start — <engine>** for the others), and
+there is no confirmation dialog on either face: the row's return to the plain
+**start an agent** pill is the acknowledgement.
 Hover or focus a plain row to reveal **start an agent** in its aside. One engine
 starts immediately; several offer their names in a small menu. The row menu
 retains **Start an agent session**, including for keyboard and phone long-press
@@ -694,10 +688,9 @@ A refusal stays on the row and creates no false binding.
 A zoomed plain node carries a dashed composer: **ask about <title>…**. Sending
 starts its agent and delivers the draft to that conversation. The subtree
 remains visible throughout. A bound node instead uses **fresh start** to replace
-its conversation, or **close the agent** to release it back to Unassigned.
+its conversation, or **close the agent** to release it back to the unclaimed chats.
 
 ### Needs you, Chats, and the palette
-
 **Needs you** lists agents waiting for answers before agents that are not
 running, newest activity first within each group. A row shows its question count
 or **not running**. The region disappears when empty. **Chats** lists every
@@ -798,11 +791,13 @@ usable.
 ### Fresh start and past sessions
 
 **Fresh start** is on the agent line. Its tooltip says memory is the subtree and
-the transcript becomes history. It opens a new session with the node's engine,
-then rewrites the binding and records the replacement link. Its button stays
-disabled until the answer arrives, preventing repeated presses from replacing
-twice. A refusal leaves the existing conversation, questions and draft intact
-and permits retry. A removed node refuses before opening another conversation.
+the transcript becomes history. It opens a new session — with the node's own
+engine when there is one, with the engine picked from the menu when there are
+several — then rewrites the binding and records the replacement link. Its
+button stays disabled until the answer arrives, preventing repeated presses
+from replacing twice. A refusal leaves the existing conversation, questions
+and draft intact and permits retry. A removed node refuses before opening
+another conversation.
 
 The line above the transcript offers that agent's **past sessions ↑**, with the
 available last-touched time and message count. Choosing one opens it in the same
