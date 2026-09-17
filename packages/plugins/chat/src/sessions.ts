@@ -31,11 +31,15 @@
  *     the transcript of a chat somebody assigned is indistinguishable from the
  *     transcript of one olai opened for a node.
  *   - {@link Overheard.superseded} — the conversation that replaced this one,
- *     WHERE OLAI ITSELF DID THE REPLACING. The adapter reports a `/clear` in
- *     its own corner of `session/list` ({@link ./events.ts}'s `Stored`) and
- *     says nothing about a re-pointing olai made, so without this a node
- *     agent's own previous session would come back as a conversation nobody
- *     claims ({@link ./succession.ts}).
+ *     as the FULL PAIR `{agent, session}`, WHERE OLAI ITSELF DID THE
+ *     REPLACING. The adapter reports a `/clear` in its own corner of
+ *     `session/list` ({@link ./events.ts}'s `Stored`) and says nothing about
+ *     a re-pointing olai made, so without this a node agent's own previous
+ *     session would come back as a conversation nobody claims
+ *     ({@link ./succession.ts}). It names the pair because fresh start may
+ *     hand the node to another engine: the conversation on the other engine
+ *     is the one that took this one's place, and an id with no engine could
+ *     not say whose.
  *   - {@link Overheard.said} — the last thing this agent said WHILE OLAI WAS
  *     WATCHING. The panel runs one conversation at a time, so an agent that is
  *     not the open one has no transcript here to read a line off; without this,
@@ -164,10 +168,12 @@ export interface Overheard extends Conversing {
   readonly assigned?: boolean
   /** Inherited manual wakes were cleared when this conversation was filed. */
   readonly wakesCleared?: true
-  /** The conversation that REPLACED this one, where olai made the replacement —
-   *  a session id, with this row's own agent. Absent for every conversation
-   *  nothing has replaced, and for a `/clear` the adapter already reports. */
-  readonly superseded?: string
+  /** The conversation that REPLACED this one, as the PAIR `{agent, session}`,
+   *  where olai made the replacement — fresh start may hand the node to
+   *  another engine, and the successor is whoever the node runs now. Absent
+   *  for every conversation nothing has replaced, and for a `/clear` the
+   *  adapter already reports. */
+  readonly superseded?: Conversing
   /** The last line olai heard from it. Absent until olai has heard one. */
   readonly said?: Said
 }
@@ -218,7 +224,7 @@ export interface Sessions {
    * DIFFERENT one, the newer wins, because a session replaced twice was
    * replaced last by the one that is bound now.
    */
-  readonly supersede: (to: Conversing, by: string) => Effect.Effect<void, MemoryFailure>
+  readonly supersede: (to: Conversing, by: Conversing) => Effect.Effect<void, MemoryFailure>
   /**
    * ... and write down the last line this conversation's agent said.
    *
@@ -277,7 +283,7 @@ const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
       ...(one["taught"] === true ? { taught: true } : {}),
       ...(one["assigned"] === true ? { assigned: true } : {}),
       ...(one["wakesCleared"] === true ? { wakesCleared: true as const } : {}),
-      ...supersededIn(one["superseded"]),
+      ...supersededIn(one["superseded"], agent),
       ...saidIn(one["said"]),
     })
   }
@@ -295,12 +301,22 @@ const saidIn = (value: unknown): { readonly said?: Said } => {
   return text === null || at === null ? {} : { said: { text, at } }
 }
 
-/** The successor a row names, or nothing at all — read by the same `word` every
- *  other name in this file is, so an empty string names no conversation and is
- *  absent rather than a link to nowhere. */
-const supersededIn = (value: unknown): { readonly superseded?: string } => {
-  const by = word(value)
-  return by === null ? {} : { superseded: by }
+/** The successor a row names, or nothing at all. A freshly written row spells
+ *  it as the pair `{agent, session}`; an OLDER olai's file spells the
+ *  successor as a bare id, which can only be a same-engine link — the engine
+ *  was pinned to the row in the old shape — so that arm reads it as the row's
+ *  own agent. Either way the same `word` answers, so an empty string names no
+ *  conversation and is absent rather than a link to nowhere. */
+const supersededIn = (value: unknown, agent: string): { readonly superseded?: Conversing } => {
+  if (typeof value === "string") {
+    const by = word(value)
+    return by === null ? {} : { superseded: { agent, session: by } }
+  }
+  if (typeof value !== "object" || value === null) return {}
+  const one = value as Record<string, unknown>
+  const byAgent = word(one["agent"])
+  const bySession = word(one["session"])
+  return byAgent === null || bySession === null ? {} : { superseded: { agent: byAgent, session: bySession } }
 }
 
 /** The same conversation — the PAIR, never the session alone. */
@@ -374,7 +390,10 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
       supersede: (to, by) =>
         write(
           to,
-          (row) => (row?.superseded === by ? undefined : { ...row, ...to, superseded: by }),
+          (row) =>
+            row?.superseded?.agent === by.agent && row?.superseded?.session === by.session
+              ? undefined
+              : { ...row, ...to, superseded: by },
         ),
       said: (to, said) =>
         write(to, (row) => (row?.said?.text === said.text ? undefined : { ...row, ...to, said })),

@@ -152,15 +152,33 @@ describe("what olai writes back", () => {
 
   test("what olai replaced a session WITH is written on the session left behind", async () => {
     const heard = await run(forDirectory(HERE))
-    await run(heard.supersede(IN, "sess-2"))
-    expect((await run(forDirectory(HERE))).at(IN)?.superseded).toBe("sess-2")
+    await run(heard.supersede(IN, { agent: "claude", session: "sess-2" }))
+    expect((await run(forDirectory(HERE))).at(IN)?.superseded).toEqual({ agent: "claude", session: "sess-2" })
   })
 
   test("a session replaced twice names the conversation that is bound now", async () => {
     const heard = await run(forDirectory(HERE))
-    await run(heard.supersede(IN, "sess-2"))
-    await run(heard.supersede(IN, "sess-3"))
-    expect(heard.at(IN)?.superseded).toBe("sess-3")
+    await run(heard.supersede(IN, { agent: "claude", session: "sess-2" }))
+    await run(heard.supersede(IN, { agent: "claude", session: "sess-3" }))
+    expect(heard.at(IN)?.superseded).toEqual({ agent: "claude", session: "sess-3" })
+  })
+
+  test("a fresh start that kept the engine away writes the successor pair down", async () => {
+    // THE cross-engine arm of the write: the node was claude, the successor
+    // runs codex, and the row left behind names the CODEC pair — because the
+    // chain is walked across engines, and an id with no engine could not say
+    // whose.
+    const heard = await run(forDirectory(HERE))
+    await run(heard.supersede(IN, { agent: "codex", session: "codex-fresh" }))
+    expect((await run(forDirectory(HERE))).at(IN)?.superseded).toEqual({ agent: "codex", session: "codex-fresh" })
+  })
+
+  test("an older olai's bare-id link is read as this row's own engine", async () => {
+    // The LEGACY arm: a file written before the successor carried its engine
+    // spells the link as a bare id, which can only be a same-engine link — the
+    // engine was pinned to the row in the old shape.
+    already(HERE, [{ agent: "claude", session: "sess-1", superseded: "sess-2" }])
+    expect((await run(forDirectory(HERE))).at(IN)?.superseded).toEqual({ agent: "claude", session: "sess-2" })
   })
 
   test("the marks sit beside each other on one row rather than replacing it", async () => {
@@ -169,12 +187,12 @@ describe("what olai writes back", () => {
     const heard = await run(forDirectory(HERE))
     await run(heard.assign(IN))
     await run(heard.teach(IN))
-    await run(heard.supersede(IN, "sess-2"))
+    await run(heard.supersede(IN, { agent: "claude", session: "sess-2" }))
     expect((await run(forDirectory(HERE))).at(IN)).toEqual({
       ...IN,
       assigned: true,
       taught: true,
-      superseded: "sess-2",
+      superseded: { agent: "claude", session: "sess-2" },
     })
   })
 

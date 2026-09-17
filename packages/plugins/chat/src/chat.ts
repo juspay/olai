@@ -365,14 +365,17 @@ export interface Panel {
    */
   readonly assigned: (to: Conversing) => Effect.Effect<void>
   /**
-   * ... and OLAI REPLACED ONE WITH ANOTHER — write down which conversation took
-   * this one's place, for the *fresh session* affordance.
+   * ... and OLAI REPLACED ONE WITH ANOTHER — write down WHICH conversation took
+   * this one's place, as the full `{agent, session}` pair, for the *fresh
+   * session* affordance. Fresh start may hand the node to another engine, so
+   * the pair is what the successor is named by: an id with no engine could
+   * not say whose.
    *
    * Same shape and same silence as {@link Panel.assigned}, and what a lost write
    * costs here is one old session appearing under Unassigned as a conversation
    * nobody claims, which somebody can see and nothing acts on.
    */
-  readonly replaced: (to: Conversing, by: string) => Effect.Effect<void>
+  readonly replaced: (to: Conversing, by: Conversing) => Effect.Effect<void>
   /**
    * THE SET MOVED — ask {@link PanelOptions.agentAt} again, and publish if the
    * answer changed.

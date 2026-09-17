@@ -96,7 +96,8 @@ export const startAgentSession = (
     const now = yield* chat.startAgentSession(input.node, input.agent)
     yield* binding.write(input.node, sessionValue(now.agent, now.session))
     if (was?.session != null && was.session !== now.session) {
-      yield* chat.replaced({ agent: was.engine, session: was.session }, now.session)
+      yield* chat.replaced({ agent: was.engine, session: was.session }, now)
     }
+
     return now
   })

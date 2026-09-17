@@ -166,7 +166,11 @@ export const make = (where: Where): Effect.Effect<Listings> =>
       return where.now() - had.at < KEEP_FOR_MS ? had.sessions : null
     }
 
-    /** One agent answered, in the rows the picker draws. */
+    /** One agent answered, in the rows the picker draws. The stored row's bare
+     *  successor id is lifted to the WIRE pair here, at the one door every
+     *  listing reader comes through: the engine the successor runs on is the
+     *  row we asked — a bare id could not say whose, and fresh start may hand
+     *  the chain to another engine at the NEXT link. */
     const found = (row: Installed, stored: ReadonlyArray<Stored>): Listed => ({
       sessions: stored.map((entry): SessionInfo => ({
         id: entry.id,
@@ -174,7 +178,7 @@ export const make = (where: Where): Effect.Effect<Listings> =>
         title: entry.title,
         updatedAt: entry.updatedAt,
         messageCount: entry.messageCount,
-        supersededBy: entry.supersededBy,
+        supersededBy: entry.supersededBy === null ? null : { agent: row.id, id: entry.supersededBy },
       })),
       unreachable: [],
     })
@@ -246,18 +250,19 @@ export const make = (where: Where): Effect.Effect<Listings> =>
   })
 
 /**
- * Several agents' answers as one.
+ * THE ROSTER'S ANSWERS, AS ONE LIST — every installed agent's stored
+ * conversations, newest first, with the unreachable rows keeping the order
+ * they were asked in.
  *
- * The ORDER of the conversations is the whole of what a merge decides, and it
- * is the order one agent's list has always been in — so a directory with two
- * agents in it reads as one history rather than as two piles. Which agent a row
- * belongs to is on the row ({@link SessionInfo}), which is what lets the panel
- * group them again for drawing without the sort having to know it will.
- *
- * IT IS {@link ./agent.ts}'s OWN COMPARATOR, imported rather than restated:
- * one agent's list is sorted there, this merge is sorted here, and the two
- * answers are what a boot adopts and what a person clicks. They must not be
- * able to disagree about which of two identical-looking rows is the newest.
+ * The sort is the SAME rule `agent.ts`'s `newestFirst` is — one agent's list
+ * is sorted there, this merge is sorted here, and the two answers are what a
+ * boot adopts and what a person clicks. They must not be able to disagree
+ * about which of two identical-looking rows is the newest. It is spelled out
+ * here rather than imported because the merged rows are the WIRE shape
+ * (`SessionInfo`, carrying the successor as a `{agent, id}` pair) while the
+ * per-agent rows are the stored shape (`Stored`, carrying a bare id) — the
+ * comparator only reads `updatedAt`, but the two lists' rows are not the same
+ * type.
  *
  * The UNREACHABLE keep the roster's order, which is the order they were asked
  * in — there is nothing else to sort them by, and a list of refusals that
@@ -267,6 +272,8 @@ export const make = (where: Where): Effect.Effect<Listings> =>
  * agent, and the one a reader is most likely to reach for.
  */
 export const asOneList = (answers: ReadonlyArray<Listed>): Listed => ({
-  sessions: answers.flatMap((answer) => answer.sessions).sort(newestFirst),
+  sessions: answers.flatMap((answer) => answer.sessions).sort(
+    (a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
+  ),
   unreachable: answers.flatMap((answer) => answer.unreachable),
 })

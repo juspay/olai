@@ -45,14 +45,14 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     { readonly node: string | null; readonly agent: string; readonly session: string }
   >
   readonly replaced: ReadonlyArray<
-    { readonly agent: string; readonly session: string; readonly by: string }
+    { readonly agent: string; readonly session: string; readonly by: { readonly agent: string; readonly session: string } }
   >
 } => {
   const assigned: Array<
     { readonly node: string | null; readonly agent: string; readonly session: string }
   > = []
   const replaced: Array<
-    { readonly agent: string; readonly session: string; readonly by: string }
+    { readonly agent: string; readonly session: string; readonly by: { readonly agent: string; readonly session: string } }
   > = []
   let at = -1
   const chat = {
@@ -71,7 +71,7 @@ const chatOpening = (opens: ReadonlyArray<string>): {
       node: string,
       to: { readonly agent: string; readonly session: string },
     ) => Effect.sync(() => void assigned.push({ node, ...to })),
-    replaced: (to: { readonly agent: string; readonly session: string }, by: string) =>
+    replaced: (to: { readonly agent: string; readonly session: string }, by: { readonly agent: string; readonly session: string }) =>
       Effect.sync(() => void replaced.push({ ...to, by })),
     reread: () => {},
     send: () => elsewhere,
@@ -133,7 +133,7 @@ test("a fresh session on a bound node re-points the property and records what it
   await Effect.runPromise(startAgentSession(it.chat, at, { node: "a", agent: "claude" }))
   expect(at.wrote).toEqual([{ node: "a", value: "claude:fake-session-2" }])
   expect(it.replaced).toEqual([
-    { agent: "claude", session: "fake-session-1", by: "fake-session-2" },
+    { agent: "claude", session: "fake-session-1", by: { agent: "claude", session: "fake-session-2" } },
   ])
 })
 
@@ -155,6 +155,20 @@ test("a fresh session that comes back as the same conversation supersedes nothin
   const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
   await Effect.runPromise(startAgentSession(it.chat, at, { node: "a", agent: "claude" }))
   expect(it.replaced).toEqual([])
+})
+
+/** THE CROSS-ENGINE GESTURE: fresh start on a claude-bound node, picking
+ *  codex. The property re-points to the CODEC session, and the supersession
+ *  written down names the CODEC pair — the chain is walked across engines, so
+ *  the link has to say whose before it can say which. */
+test("a fresh session on another engine re-points the property and records the codex pair", async () => {
+  const it = chatOpening(["fake-session-2"])
+  const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
+  await Effect.runPromise(startAgentSession(it.chat, at, { node: "a", agent: "codex" }))
+  expect(at.wrote).toEqual([{ node: "a", value: "codex:fake-session-2" }])
+  expect(it.replaced).toEqual([
+    { agent: "claude", session: "fake-session-1", by: { agent: "codex", session: "fake-session-2" } },
+  ])
 })
 
 /** AN OPEN THAT LANDED ON NO CONVERSATION WRITES NOTHING, which is the arm the

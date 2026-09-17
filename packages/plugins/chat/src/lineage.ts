@@ -24,12 +24,15 @@
  * the design's own promise: the panel's *past sessions* is populated from day
  * one rather than starting empty and filling as somebody clears.
  *
- * ## MATCHED ON THE PAIR, never on the session alone
+ * ## MATCHED ON THE PAIR, because a fresh start may change engine
  *
  * A session id belongs to one agent's own space and two agents can collide
  * formally, so every step of the walk carries the engine — the same rule the row
  * that draws a successor keeps (`./browser/chat/Conversation.tsx`), and the same one
- * the record keeps a package away.
+ * the record keeps a package away. The LINK ITSELF NAMES THE PAIR it points at
+ * (`{agent, id}` on the wire), so the walker never assumes the successor runs
+ * on the engine it is walking FOR: fresh start may hand the node to another
+ * engine, and the chain stays one chain across the swap.
  *
  * ## WHAT IS NOT HERE
  *
@@ -45,27 +48,13 @@
  * offered to be claimed again.
  */
 
-import type { Agents, SessionInfo } from "olai-plugin-chat/wire"
-/**
- * THE PAIR THAT NAMES A CONVERSATION, spelled once for this client.
- *
- * A session id belongs to one agent's own space and two agents can collide
- * formally — asking opencode to load a Claude id gets a refusal — so neither
- * half names a conversation alone. It is the rule the wire keeps
- * (`@olai/surface`'s `SessionInfo`) and the record a package away keeps
- * (`olai-plugin-chat`'s `Conversing`), and this is that rule where the browser can
- * hold it.
- */
-export interface Chatting {
-  readonly agent: string
-  readonly session: string
-}
-
+import type { Agents, Chatting, SessionInfo } from "olai-plugin-chat/wire"
 /** ... and that pair as ONE STRING, for the places a key is wanted: the set a
  *  walk marks off, and the signal saying which row has its search open. Spelled
  *  here so the faces that key by it and the walks that match on it cannot come
  *  to disagree about a slash. */
 export const chatKey = (agent: string, session: string): string => `${agent}/${session}`
+
 
 /**
  * THE CONVERSATIONS THIS ONE REPLACED, newest first — the node agent's *past
@@ -95,17 +84,24 @@ export const pastOf = (
 ): ReadonlyArray<SessionInfo> => {
   const past: Array<SessionInfo> = []
   const seen = new Set<string>([chatKey(agent, session)])
-  let at = session
+  let at: Chatting = { agent, id: session }
   for (;;) {
+    // The LINK names its successor's full pair: the row that was replaced by
+    // `at` is the one whose `supersededBy` pair IS `at`, whoever wrote it. A
+    // walk that matched on the id alone could follow a Claude row's link to a
+    // Codex row and back — the pair is what keeps the chain one chain.
     const before = sessions.find(
-      (row) => row.agent === agent && row.supersededBy === at,
+      (row) =>
+        row.supersededBy !== null &&
+        row.supersededBy.agent === at.agent &&
+        row.supersededBy.id === at.id,
     )
     if (before === undefined) return past
     const key = chatKey(before.agent, before.id)
     if (seen.has(key)) return past
     seen.add(key)
     past.push(before)
-    at = before.id
+    at = { agent: before.agent, id: before.id }
   }
 }
 
@@ -133,7 +129,11 @@ export const successorIn = (
 ): SessionInfo | undefined =>
   session.supersededBy === null
     ? undefined
-    : sessions.find((row) => row.agent === session.agent && row.id === session.supersededBy)
+    : sessions.find(
+        (row) =>
+          row.agent === session.supersededBy!.agent &&
+          row.id === session.supersededBy!.id,
+      )
 
 /**
  * EVERY CONVERSATION SOME NODE CLAIMS — the current sessions and their chains,

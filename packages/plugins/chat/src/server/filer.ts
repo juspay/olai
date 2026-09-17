@@ -57,7 +57,7 @@ export const fileListed = (filing: Filing, file: string, listed: Listed): Effect
   for (const row of listed.unreachable) yield* filing.log(`filer: ${row.agent}: ${row.why}`)
   if (filing.current() !== file) return
   const heads = listed.sessions.filter(row => row.supersededBy === null
-    || !listed.sessions.some(next => next.agent === row.agent && next.id === row.supersededBy))
+    || !listed.sessions.some(next => next.agent === row.supersededBy!.agent && next.id === row.supersededBy!.id))
   const initial = yield* Effect.result(filing.read)
   if (initial._tag === "Failure") { yield* filing.log(`filer: ${initial.failure.message}`); return }
   const held = claimed(initial.success, listed.sessions)

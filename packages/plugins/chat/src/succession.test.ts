@@ -32,10 +32,10 @@ const listed = (...sessions: ReadonlyArray<SessionInfo>): Listed => ({
 
 test("a session olai replaced names the one that replaced it", () => {
   const heard: ReadonlyArray<Overheard> = [
-    { agent: "claude", session: "old", superseded: "fresh" },
+    { agent: "claude", session: "old", superseded: { agent: "claude", session: "fresh" } },
   ]
   const out = succeeded(listed(chat("fresh"), chat("old")), heard)
-  expect(out.sessions.map((row) => row.supersededBy)).toEqual([null, "fresh"])
+  expect(out.sessions.map((row) => row.supersededBy)).toEqual([null, { agent: "claude", id: "fresh" }])
 })
 
 test("olai's own link wins where the two disagree", () => {
@@ -44,17 +44,17 @@ test("olai's own link wins where the two disagree", () => {
   // TRANSCRIPT, olai says what became of the AGENT — and the one reader of this
   // field is walking a node agent's own history.
   const heard: ReadonlyArray<Overheard> = [
-    { agent: "claude", session: "old", superseded: "fresh" },
+    { agent: "claude", session: "old", superseded: { agent: "claude", session: "fresh" } },
   ]
-  const out = succeeded(listed(chat("old", { supersededBy: "cleared" })), heard)
-  expect(out.sessions[0]?.supersededBy).toBe("fresh")
+  const out = succeeded(listed(chat("old", { supersededBy: { agent: "claude", id: "cleared" } })), heard)
+  expect(out.sessions[0]?.supersededBy).toEqual({ agent: "claude", id: "fresh" })
 })
 
 test("a note is worn only by the agent it was written against", () => {
   // A session id means nothing to the wrong agent, and the listing spans every
   // installed one.
   const heard: ReadonlyArray<Overheard> = [
-    { agent: "opencode", session: "old", superseded: "fresh" },
+    { agent: "opencode", session: "old", superseded: { agent: "opencode", session: "fresh" } },
   ]
   const out = succeeded(listed(chat("old")), heard)
   expect(out.sessions[0]?.supersededBy).toBeNull()
@@ -72,7 +72,7 @@ test("what olai overheard about a conversation nobody stores changes nothing", (
   // The record outlives the agent's own list: a session deleted from disk is a
   // note about a row that is not there, and the answer is the rows there are.
   const heard: ReadonlyArray<Overheard> = [
-    { agent: "claude", session: "gone", superseded: "fresh" },
+    { agent: "claude", session: "gone", superseded: { agent: "claude", session: "fresh" } },
   ]
   expect(succeeded(listed(chat("fresh")), heard).sessions.map((row) => row.id)).toEqual(["fresh"])
 })
@@ -89,42 +89,58 @@ test("olai's own re-pointing wins over a `/clear` link the agent reported", () =
   // the only one that answers that question: `/clear` says what happened to a
   // transcript, and a re-pointing says what happened to the agent.
   const heard: ReadonlyArray<Overheard> = [
-    { agent: "claude", session: "middle", superseded: "fresh" },
+    { agent: "claude", session: "middle", superseded: { agent: "claude", session: "fresh" } },
   ]
   const out = succeeded(
-    listed(chat("fresh"), chat("middle", { supersededBy: "cleared" }), chat("cleared")),
+    listed(chat("fresh"), chat("middle", { supersededBy: { agent: "claude", id: "cleared" } }), chat("cleared")),
     heard,
   )
-  expect(out.sessions.find((row) => row.id === "middle")?.supersededBy).toBe("fresh")
+  expect(out.sessions.find((row) => row.id === "middle")?.supersededBy).toEqual({ agent: "claude", id: "fresh" })
 })
 
 test("unused intermediate sessions do not hide earlier stored history", () => {
   const heard: ReadonlyArray<Overheard> = [
-    { agent: "claude", session: "old", superseded: "unused" },
-    { agent: "claude", session: "unused", superseded: "also-unused" },
-    { agent: "claude", session: "also-unused", superseded: "current" },
+    { agent: "claude", session: "old", superseded: { agent: "claude", session: "unused" } },
+    { agent: "claude", session: "unused", superseded: { agent: "claude", session: "also-unused" } },
+    { agent: "claude", session: "also-unused", superseded: { agent: "claude", session: "current" } },
   ]
   const out = succeeded(listed(chat("old")), heard)
-  expect(out.sessions).toEqual([chat("old", { supersededBy: "current" })])
+  expect(out.sessions).toEqual([chat("old", { supersededBy: { agent: "claude", id: "current" } })])
 })
 
 test("a stored intermediate transcript remains a separate history row", () => {
   const heard: ReadonlyArray<Overheard> = [
-    { agent: "claude", session: "old", superseded: "middle" },
-    { agent: "claude", session: "middle", superseded: "current" },
+    { agent: "claude", session: "old", superseded: { agent: "claude", session: "middle" } },
+    { agent: "claude", session: "middle", superseded: { agent: "claude", session: "current" } },
   ]
   expect(succeeded(listed(chat("old"), chat("middle")), heard).sessions.map((row) => row.supersededBy))
-    .toEqual(["middle", "current"])
+    .toEqual([{ agent: "claude", id: "middle" }, { agent: "claude", id: "current" }])
 })
 
 test("missing-session traversal stays within its harness and terminates on corrupt cycles", () => {
   const heard: ReadonlyArray<Overheard> = [
-    { agent: "claude", session: "old", superseded: "missing" },
-    { agent: "opencode", session: "missing", superseded: "wrong" },
+    { agent: "claude", session: "old", superseded: { agent: "claude", session: "missing" } },
+    { agent: "opencode", session: "missing", superseded: { agent: "opencode", session: "wrong" } },
   ]
-  expect(succeeded(listed(chat("old")), heard).sessions[0]?.supersededBy).toBe("missing")
+  expect(succeeded(listed(chat("old")), heard).sessions[0]?.supersededBy).toEqual({ agent: "claude", id: "missing" })
   expect(succeeded(listed(chat("old")), [...heard,
-    { agent: "claude", session: "missing", superseded: "loop" },
-    { agent: "claude", session: "loop", superseded: "missing" },
-  ]).sessions[0]?.supersededBy).toBe("missing")
+    { agent: "claude", session: "missing", superseded: { agent: "claude", session: "loop" } },
+    { agent: "claude", session: "loop", superseded: { agent: "claude", session: "missing" } },
+  ]).sessions[0]?.supersededBy).toEqual({ agent: "claude", id: "missing" })
+})
+
+test("a fresh start that changed engine links the old row to the new engine's session", () => {
+  // THE cross-engine overlay: the node ran claude, fresh start handed it to
+  // codex, and the claude row's link names the CODEC pair. The stored codex
+  // row carries a bare `supersededBy: null` (nothing on its disk says olai
+  // made the swap), so the overlay is the only thing that links the two.
+  const heard: ReadonlyArray<Overheard> = [
+    { agent: "claude", session: "old", superseded: { agent: "codex", session: "codex-fresh" } },
+  ]
+  const out = succeeded(
+    listed(chat("old"), chat("codex-fresh", { agent: "codex" })),
+    heard,
+  )
+  expect(out.sessions.find((row) => row.id === "old")?.supersededBy)
+    .toEqual({ agent: "codex", id: "codex-fresh" })
 })

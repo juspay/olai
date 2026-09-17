@@ -925,8 +925,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           why: "the settled node agent is no longer running" }] })
         return Effect.match(live, {
           onFailure: gone => ({ sessions: [], unreachable: [{ agent, why: gone.why }] }),
-          onSuccess: rows => succeeded({ sessions: rows.map(row => ({ ...row, agent })), unreachable: [] },
-            panelOptions.overheard?.rows() ?? []),
+          onSuccess: rows => succeeded({
+            sessions: rows.map(row => ({
+              id: row.id,
+              agent,
+              title: row.title,
+              updatedAt: row.updatedAt,
+              messageCount: row.messageCount,
+              supersededBy: row.supersededBy === null ? null : { agent, id: row.supersededBy },
+            })),
+            unreachable: [],
+          }, panelOptions.overheard?.rows() ?? []),
         })
       }),
       sessions: listSessions,
