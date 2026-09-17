@@ -550,8 +550,9 @@ When("I start a fresh session with {string}", async function (this: OlaiWorld, e
 
 /** PRESS THE CLOSE sentinel in the agent line — the gesture that takes the
  *  node's binding property off, so the seat closes and the conversation goes
- *  back under Unassigned. The node becomes a PLAIN row again, so the release
- *  is read where a plain row shows it: the start pill replacing the fold. */
+ *  back to the unclaimed chats (filed under Chats by the next filer run). The
+ *  node becomes a PLAIN row again, so the release is read where a plain row
+ *  shows it: the start pill replacing the fold. */
 When("I press the close-agent control", async function (this: OlaiWorld) {
   const close = this.chat(selector(PLUGIN_TESTID.chatCloseAgent));
   await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
