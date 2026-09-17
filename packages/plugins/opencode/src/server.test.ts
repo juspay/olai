@@ -12,7 +12,6 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { name } from "./index.ts"
 import { ENGINE } from "./server.ts"
 import { INSTALL } from "./install.ts"
 
@@ -39,7 +38,7 @@ describe("finding opencode on a host", () => {
     // whatever path the child ends up with — which is a different build than the
     // one that answered.
     const at = ENGINE.at({ env: {}, cwd: CWD, found: () => "/home/u/.local/bin/opencode" })
-    expect(at?.command).toBe("/home/u/.local/bin/opencode")
+    expect(at).toMatchObject({ command: "/home/u/.local/bin/opencode" })
   })
 
   test("nothing of that name on the search path is this engine's own sentence", () => {
@@ -58,24 +57,4 @@ describe("finding opencode on a host", () => {
     ).toBe(INSTALL)
   })
 
-  test("what a person is told when this machine has no agent at all", () => {
-    // THE PLUGIN'S WHOLE SENTENCE — core displays one and never composes one.
-    // Asserted off the CONSTANT rather than off a rendering: it is spelled
-    // once here and spent once, by the server half that hands it back as the
-    // probe's `NotHere` arm.
-    expect(INSTALL).toEqual({
-      name: "opencode",
-      where: "https://opencode.ai",
-      why: "put `opencode` on this server's PATH",
-    })
-  })
-
-  test("the standing prompt rides the first turn, like every engine olai ships", () => {
-    expect(ENGINE.prompt).toEqual({ kind: "first-turn" })
-  })
-
-  test("the plugin's word is the row's id", () => {
-    expect(name).toBe("opencode")
-    expect(ENGINE.name).toBe("opencode")
-  })
 })

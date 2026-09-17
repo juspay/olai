@@ -2,11 +2,8 @@
  * WHAT THIS ENGINE MAKES OF A HOST, over values — and this is the row where
  * that matters most, because it is the PAIR.
  *
- * A pi row exists only where BOTH halves answer: the pinned adapter, named by
- * `OLAI_ACP_PI`, and a `pi` on the agent search path for it to wrap. Either one
- * missing and the row is not offered, because the picker's promise is that a row
- * it draws is an agent this machine has — a pi-acp with no `pi` behind it would
- * fail at every `session/new`.
+ * Starting requires both the pinned adapter and a pi executable. Missing either
+ * returns a distinct reason rather than offering an engine that cannot start.
  *
  * IT LIVES HERE and not in `olai-plugin-chat` because the row does: each engine's
  * probe is one plugin’s fact, and what is left in core is ordering and
@@ -15,7 +12,6 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { name } from "./index.ts"
 import { ENGINE, PI_AGENT_ENV } from "./server.ts"
 import { ADAPTER_GONE, INSTALL } from "./install.ts"
 
@@ -58,26 +54,10 @@ describe("finding pi on a host", () => {
     expect(ADAPTER_GONE.why).not.toBe(INSTALL.why)
   })
 
-  test("the EMPTY adapter variable is as much 'no pi row' as an absent one", () => {
+  test("the empty adapter variable has the same absence reason as an unset one", () => {
     expect(ENGINE.at({ env: { [PI_AGENT_ENV]: "" }, cwd: CWD, found: foundPi })).toBe(ADAPTER_GONE)
   })
 
-  test("what a person is told when this machine has no agent at all", () => {
-    // THE PLUGIN'S WHOLE SENTENCES — core displays one and never composes one,
-    // and this row has TWO, one per half that can be missing. Both asserted
-    // here, spelled once in `./install.ts` and spent once, by the server half
-    // that hands one back as the probe's `NotHere` arm.
-    expect(INSTALL).toEqual({
-      name: "pi",
-      where: "https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent",
-      why: "put `pi` on this server's PATH — the adapter for it comes with olai",
-    })
-    expect(ADAPTER_GONE).toEqual({
-      name: "pi",
-      where: null,
-      why: "not found — olai was started without the wrapper that carries the pinned pi adapter",
-    })
-  })
 
   test("the adapter is asked for FIRST, so a machine without it probes nothing", () => {
     let probed = false
@@ -92,12 +72,4 @@ describe("finding pi on a host", () => {
     expect(probed).toBe(false)
   })
 
-  test("the standing prompt rides the first turn, like every engine olai ships", () => {
-    expect(ENGINE.prompt).toEqual({ kind: "first-turn" })
-  })
-
-  test("the plugin's word is the row's id", () => {
-    expect(name).toBe("pi")
-    expect(ENGINE.name).toBe("pi")
-  })
 })

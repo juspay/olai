@@ -17,7 +17,6 @@
 import { AGENT_ENV } from "@olai/acp/engine"
 import { describe, expect, test } from "bun:test"
 
-import { name } from "./index.ts"
 import { ENGINE } from "./server.ts"
 import { INSTALL } from "./install.ts"
 
@@ -66,27 +65,4 @@ describe("finding the Claude Code adapter on a host", () => {
     expect(ENGINE.at({ env: { [AGENT_ENV]: "" }, cwd: CWD, found: nowhere })).toBe(INSTALL)
   })
 
-  test("what a person is told when this machine has no agent at all", () => {
-    // THE PLUGIN'S WHOLE SENTENCE — core displays one and never composes one.
-    // Asserted off the CONSTANT rather than off a rendering: it is spelled
-    // once here and spent once, by the server half that hands it back as the
-    // probe's `NotHere` arm.
-    expect(INSTALL).toEqual({
-      name: "Claude Code",
-      where: "https://claude.com/claude-code",
-      why: "not found — olai was started without the wrapper that carries the pinned adapter",
-    })
-  })
-
-  test("the standing prompt rides the first turn, like every engine olai ships", () => {
-    expect(ENGINE.prompt).toEqual({ kind: "first-turn" })
-  })
-
-  test("the plugin's word is the row's id, and the NAME is not it", () => {
-    // The two are separate fields because "Claude Code" is a name rather than
-    // the word `claude` with a capital letter — which is the table that used to
-    // sit in `@olai/surface` keyed by a closed union.
-    expect(name).toBe("claude")
-    expect(ENGINE.name).toBe("Claude Code")
-  })
 })

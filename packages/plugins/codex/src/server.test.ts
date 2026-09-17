@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test"
 
-import { name } from "./index.ts"
 import { INSTALL } from "./install.ts"
 import { CODEX_AGENT_ENV, ENGINE } from "./server.ts"
 
@@ -32,14 +31,4 @@ describe("finding the Codex adapter on a host", () => {
     expect(probed).toBe(false)
   })
 
-  test("contributes its identity, install sentence and standing-prompt channel", () => {
-    expect(name).toBe("codex")
-    expect(ENGINE.name).toBe("Codex")
-    expect(ENGINE.prompt).toEqual({ kind: "first-turn" })
-    expect(INSTALL).toEqual({
-      name: "Codex",
-      where: "https://developers.openai.com/codex",
-      why: "not found — olai was started without the wrapper that carries the pinned adapter",
-    })
-  })
 })

@@ -14,14 +14,9 @@
  *
  * ## Why it lives in `@olai/acp`
  *
- * Because both ends of it are forbidden the other's package. A plugin may not
- * import `olai-plugin-chat` (chat sits a floor BELOW the plugin system: it is handed a
- * list, and `@olai/server` is what meets a plugin), and `olai-plugin-chat` may not
- * import a plugin (that is the fence). The shape they both spell therefore has
- * to be under both of them — and `@olai/acp` is where it belongs on merit
- * rather than by elimination: an engine is *an ACP agent and how to reach it*,
- * and the protocol is the language rather than an integration. The leg beside
- * this ({@link ./leg.ts}) is the other half of that same sentence.
+ * Engine plugins register these data and chat owns their detection and use.
+ * Neither the protocol nor chat knows which engine plugins the bundle mounts.
+ * The shared shape belongs below both owners, at the protocol boundary.
  *
  * AND HOW TO GET THE ENGINE, which is the one that came back. `NotHere`
  * lives below now ({@link NotHere}, beside the probe that answers one) and
@@ -74,14 +69,8 @@ export interface Adapter {
 /**
  * SOMETHING THIS HOST DOES NOT HAVE, and what a person is owed about it.
  *
- * The CANONICAL spelling, moved from `@olai/plugin-api`'s `contract.ts` — where
- * it sat beside the MCP-server probe that reads one — because a second reader
- * arrived under the other wall: {@link Registering.at} answers with one when
- * this machine has not got the engine, and an engine plugin may not open
- * `@olai/plugin-api` for a type it already reads this door for. The package
- * that cannot import this one re-exports the name, which keeps one spelling
- * without a cycle; `olai-plugin-chat` goes on declaring its own contravariant
- * copy beside its servers ({@link ./probes.ts}'s sibling arrangement).
+ * Owned beside Registering.at and re-exported by plugin-api for other probes.
+ * Keeping the canonical shape here preserves ACP's leaf dependency boundary.
  *
  * `where` is where the thing WOULD be, in whichever way makes sense for it: the
  * file a probe asked for, or the page a person downloads it from. `null` for
