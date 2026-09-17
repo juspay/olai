@@ -207,6 +207,17 @@ export function ReferrersSection(props: ReferrersSectionProps) {
         props.memory?.remember(props.memoryKey, now)
       }}
     >
+      {/* THE WHOLE OF WHAT A SHUT SECTION SAYS — the count in a sentence,
+          drawn from the caller's `summary` because the summary line is the
+          section's own vocabulary. The `<summary>` is what a `<details>`
+          shows while shut; the rows live behind the `open` `<Show>` below. */}
+      <summary
+        data-testid={props.summaryTestid}
+        class="cursor-pointer select-none text-muted hover:text-ink"
+        data-count={props.found.length}
+      >
+        {props.summary(props.found.length)}
+      </summary>
       <Show when={open()}>
         {/* A row per WAY, out of ONE shared table — never a label written here
             beside a testid picked by hand, which is the fragmentation the
