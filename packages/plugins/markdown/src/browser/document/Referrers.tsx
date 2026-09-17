@@ -65,7 +65,7 @@ export function Referrers(props: {
   readonly file: string
   readonly reading: Accessor<PageReading | undefined>
   readonly claims: Claims | undefined
-  readonly memory: ReferrerMemory
+  readonly memory: ReferrerMemory | undefined
   readonly href: (route: Route) => string
 }) {
   const reading = props.reading
@@ -97,7 +97,7 @@ function Section(props: {
   readonly claims: Claims | undefined
   readonly href: (route: Route) => string
   readonly reading: Accessor<PageReading | undefined>
-  readonly memory: ReferrerMemory
+  readonly memory: ReferrerMemory | undefined
 }) {
   const pane = useHere()()
   const key = JSON.stringify([pane, `referrers:${props.file}`])
