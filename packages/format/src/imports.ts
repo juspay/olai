@@ -29,7 +29,7 @@
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { writtenTags } from "./derive.ts"
 import { type Face } from "./document.ts"
-import { linksIn } from "./documents.ts"
+import { recordContributions } from "./documents.ts"
 import { type Claims } from "./kinds.ts"
 import { isRegular, type Located } from "./node.ts"
 
@@ -92,18 +92,13 @@ export const contributionsOf = (
   }
   for (const located of records) {
     if (!isRegular(located)) continue
-    for (const id of located.node.see ?? []) {
-      const address = addressOf(claims, null, id)
-      if (address === null) continue
-      found.push({ key: printAddress(address), way: "see", at: located, address })
-    }
-    for (const address of linksIn(claims, located.file, located.node.title)) {
-      found.push({ key: printAddress(address), way: "link", at: located, address })
-    }
-    if (located.node.desc !== undefined) {
-      for (const address of linksIn(claims, located.file, located.node.desc)) {
-        found.push({ key: printAddress(address), way: "link", at: located, address })
-      }
+    // THE RECORD'S WRITTEN TARGETS are ONE walk ({@link ./documents.ts}'s
+    // `recordContributions`, the same one {@link recordLinks} dedupes for
+    // the faces): the `see` under the id it names, and the links under the
+    // addresses they land on — kept apart here because the index files them
+    // apart, the way the walk's own doc says.
+    for (const written of recordContributions(claims, located)) {
+      found.push({ key: printAddress(written.address), way: written.way, at: located, address: written.address })
     }
     for (const tag of writtenTags(located.node)) {
       if (tag.charAt(0) !== "@") continue

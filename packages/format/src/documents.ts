@@ -589,10 +589,16 @@ const NO_LINKS: ReadonlyArray<Address> = []
  *
  * The forward half of a reference, per record — and it is a function of its own
  * because it is read BOTH WAYS: {@link outlineDocument} folds it into an
- * outline's face, and `./backlinks.ts` reads it backwards to say which record
- * of a file the reference was written in. Two walks of the same fields would be
+ * outline's face, and the references FOLD reads it to say which record of a
+ * file an index entry's `at` came from. Two walks of the same fields would be
  * two answers to "does this node point there", and the page would draw one of
  * them while the face claimed the other.
+ *
+ * The WAYS are kept apart because the fold needs them apart: {@link
+ * recordContributions} is this walk in the index's own vocabulary, so the
+ * fold files a `see` under the id it names and a link under the address it
+ * lands on — and here that is one list, deduped, which is the DRAWING's
+ * answer. One walk, two projections.
  *
  * Three things a record can point at, and one it deliberately cannot:
  *
@@ -612,16 +618,29 @@ const NO_LINKS: ReadonlyArray<Address> = []
  * carrying no prose and no edge fields; what it shows is the node's, and the
  * node is where the reference is written.
  */
-export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Address> => {
-  if (isMirror(located.node)) return NO_LINKS
-  const found: Array<Address> = []
+export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Address> =>
+  recordContributions(claims, located).map((one) => one.address).filter(isAddress)
+
+const isAddress = (address: Address | undefined): address is Address => address !== undefined
+
+/** One record's written targets, in the fold's own vocabulary — what the index
+ *  reads ({@link ./imports.ts}'s `contributionsOf`), in the order the record
+ *  writes them. {@link recordLinks} is its deduped {@link Contribution.address}
+ *  projection; the fold keeps the `way` and the target address for the way the
+ *  index files under. */
+export const recordContributions = (
+  claims: Claims,
+  located: Located,
+): ReadonlyArray<{ readonly way: "see" | "link"; readonly address: Address; readonly at: Located }> => {
+  const found: Array<{ readonly way: "see" | "link"; readonly address: Address; readonly at: Located }> = []
+  if (isMirror(located.node)) return found
   for (const id of located.node.see ?? []) {
     const address = addressOf(claims, null, id)
-    if (address !== null) found.push(address)
+    if (address !== null) found.push({ way: "see", address, at: located })
   }
-  found.push(...linksIn(claims, located.file, located.node.title))
+  for (const address of linksIn(claims, located.file, located.node.title)) found.push({ way: "link", address, at: located })
   if (located.node.desc !== undefined) {
-    found.push(...linksIn(claims, located.file, located.node.desc))
+    for (const address of linksIn(claims, located.file, located.node.desc)) found.push({ way: "link", address, at: located })
   }
   return found
 }
