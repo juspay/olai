@@ -23,16 +23,16 @@
  * an engine supplies a probe and a leg to chat, not a sibling conversation.
  */
 import type {} from "olai-plugin-chat/slots"
-import { chatEngines } from "olai-plugin-chat/browser-engines"
+import { chatEngines as engines } from "olai-plugin-chat/browser-engines"
 import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { OmpMark } from "./browser/Mark.tsx"
 import { name } from "./index.ts"
 
 export { name }
-export const components = { row: definePlugin({ name: "row", needs: [chatEngines, Slots],
+export const components = { row: definePlugin({ name: "row", needs: [engines, Slots],
   apply: Effect.gen(function*() {
-    yield* (yield* Slots).register("plugins.row", (yield* chatEngines).row(name))
+    yield* (yield* Slots).register("plugins.row", (yield* engines).row(name))
   }),
 }) }
 
