@@ -721,6 +721,16 @@ nothing for Cucumber's import of it to start.
 
 `@no-agent` clears the explicit adapter paths and the engine discovery search path. Engine rows remain enabled, but none can find an executable, so the panel explains how to install one. Disabling engine rows through file policy is a separate scenario.
 
+`@agent-path:empty` gives a private `@scratch:<corpus>` scenario an initially
+empty directory at `world.agentSearchPath`. The harness creates it before the
+first server boot, includes its path in the spawn fingerprint, preserves it
+across explicit restarts, and removes it with the scenario. A step may install
+an executable there and toggle its engine without restarting the server.
+The directory is **prepended** to the search paths of the tagged fakes, not
+substituted for them: a scenario can retain its already installed engines
+while adding another. It is refused on shared scratch because the next
+scenario must not inherit an installation it never requested.
+
 `@agent-stored` is the second knob: with it, the agent answers `session/list` with two stored conversations, so boot loads one and replays it. Without it, nothing is stored and boot opens a fresh session. The two boot paths, chosen by a property of the machine the agent woke up on rather than by anything the client says. Whichever way it boots, the list is the live half too: a session that has carried a turn in this process is something `session/list` names from that moment, the transcript a real agent's disk picked up while it was running — a fresh vault is a vault whose list is empty, not one whose agent cannot say so. Every ask can be COUNTED: arm it by writing the empty `.agent-list-asks` and the fake appends one line per call from then on — refused or not, the asking is the asking — so a scenario can note the count and say the answer naming a conversation is where asking stops, which is what `the list-asks have not grown` asserts. Existence is the arming and nothing counts unarmed, because the commit pill counts the whole repository: a counter that rode into every served directory unasked would add one to every count the suite asserts.
 
 `.agent-says-nothing` is the same idiom over what an agent ADVERTISES: armed, the next handshake carries neither the queue capability nor the steering one, which is the panel's face for an agent it has been told nothing about — no promise that a message sent mid-turn will be got to, and no `interrupt` control to press. It is a dot-file rather than a tag because the handshake happens once, before the client has said anything, so a scenario arms it and restarts. What it must NOT change is the sending: the words still go at once, the row still says it is waiting, and the agent still gets to them.

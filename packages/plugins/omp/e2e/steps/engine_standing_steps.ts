@@ -67,8 +67,8 @@ Then("the engine picker offers what this machine has and greys omp", async funct
   await choices.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   // BUNDLE ORDER, ABSENCE INCLUDED: the greyed row sits where the engine sits
   // on the list, not after the ones that answered.
-  assert.deepEqual(await drawn(this), [["claude", null], ["codex", null], ["omp", "true"]])
-  for (const name of ["Claude Code", "Codex"]) {
+  assert.deepEqual(await drawn(this), [["claude", null], ["opencode", null], ["omp", "true"]])
+  for (const name of ["Claude Code", "opencode"]) {
     assert.equal(await choices.getByRole("menuitem", { name, exact: true }).isEnabled(), true)
   }
   const absent = choices.locator(greyed)
@@ -120,7 +120,7 @@ Then("the omp inspector row no longer needs installation", async function(this: 
 
 Then("the engine picker offers every engine in bundle order", async function(this: OlaiWorld) {
   await this.waitUntil(async () => (await drawn(this)).length === 3, "all three engine choices")
-  assert.deepEqual(await drawn(this), [["claude", null], ["codex", null], ["omp", null]])
+  assert.deepEqual(await drawn(this), [["claude", null], ["opencode", null], ["omp", null]])
 })
 
 Then("the engine recovery kept the same server process", function(this: OlaiWorld) {

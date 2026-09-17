@@ -1,4 +1,4 @@
-@scratch:chat @rows-off:opencode,pi @agent-path:empty
+@scratch:chat @rows-off:codex,pi @agent-path:empty
 Feature: Enabled engines explain what this machine is missing
   Background:
     Given I note this scenario's serving process
@@ -10,7 +10,10 @@ Feature: Enabled engines explain what this machine is missing
   # this machine has not got is a row with a sentence rather than a row that
   # was dropped. With one startable engine the press starts it and there is no
   # menu to read, which is a different scenario and is chat's own.
-  @codex
+  # Opencode comes from a tagged fake's search directory. It must stay
+  # available beside the scenario-owned empty directory: replacing rather
+  # than prepending the composed path would lose it and prevent this menu.
+  @opencode
   Scenario: Installing an engine and toggling it refreshes the same tab
     When I press the agent start pill on "kitchen"
     Then the engine picker offers what this machine has and greys omp
@@ -32,7 +35,7 @@ Feature: Enabled engines explain what this machine is missing
     And the page has not reloaded
     And there should be no page errors
 
-  @codex
+  @opencode
   Scenario: Chat withdrawal removes the scoped engine advice and return restores it
     When I press new chat in Chats
     Then the engine picker offers what this machine has and greys omp

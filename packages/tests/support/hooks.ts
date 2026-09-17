@@ -1917,16 +1917,6 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
   this.mailGoogle = undefined;
   await this.mailHimalaya?.stop();
   this.mailHimalaya = undefined;
-  // ...and the agent search directory this scenario was given, for the same
-  // reason: it is a temp directory of this scenario's with an engine installed
-  // into it, and the only process that was looking at it is going down below.
-  // Before the shared-scratch return, so it cannot be skipped by a tag
-  // combination the guard above is the only thing refusing.
-  if (this.agentSearchPath !== undefined) {
-    fs.rmSync(this.agentSearchPath, { recursive: true, force: true });
-    this.agentSearchPath = undefined;
-  }
-
   // A feature-shared scratch outlives the scenario: After drains in-flight
   // writes (a blur-on-close, a last key still staging), puts the fixture
   // back under the still-running server, and asks it to re-read, so the
@@ -1962,6 +1952,13 @@ After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenari
   if (this.ownServer) {
     killChild(this.ownServer);
     live.delete(this.ownServer);
+  }
+  // The scenario's search directory outlives the server that probes it,
+  // just like the served tree. The private-scratch guard above rules out
+  // returning through the shared-scratch branch with an owned directory.
+  if (this.agentSearchPath !== undefined) {
+    fs.rmSync(this.agentSearchPath, { recursive: true, force: true });
+    this.agentSearchPath = undefined;
   }
   if (this.served) {
     fs.rmSync(this.served, { recursive: true, force: true });
