@@ -732,6 +732,7 @@ interface Spawn {
    *  `env` merges its own variables — nothing here spells one engine's
    *  switch, which is the whole of section 13.3. */
   readonly fakes: ReadonlyArray<string>;
+  readonly agentSearchPath?: string;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
   /** `true` makes the scratch copy a repository — see {@link GIT_TAG}. */
@@ -847,7 +848,7 @@ const startServerChild = async (
         // string is "look on no path at all", so a developer's own agent
         // cannot decide a scenario. A fake with a searchPath joins it only
         // when its tag is on.
-        OLAI_AGENT_PATH: FAKES.filter(
+        OLAI_AGENT_PATH: spawnOptions.agentSearchPath ?? FAKES.filter(
           (fake) => fake.searchPath !== undefined && agentOn(fake, spawnOptions),
         )
           .map((fake) => fake.searchPath!)
@@ -1080,6 +1081,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       fastNodeIdle: world.fastNodeIdle,
       agent: world.hasAgent,
       fakes: world.fakes,
+      agentSearchPath: world.agentSearchPath,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
       // ... and the same git POLICY, for the same reason: a restart that came

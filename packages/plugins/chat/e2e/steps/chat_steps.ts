@@ -2737,10 +2737,7 @@ Then("the panel says this serve enabled no agent engine", async function (this: 
 });
 
 Then("the panel offers no way to install one", async function (this: OlaiWorld) {
-  // An engine's install sentence is its OWN browser half's, out of the
-  // `engine.install` slot — so a serve that mounted no engine fetched no
-  // half and has nothing to list. Drawing an empty list, or a heading over one,
-  // would be core inventing a row for a plugin that is not here.
+  // With no mounted engine, the standing table has no install advice to draw.
   await this.waitUntil(
     async () => (await this.chat(CHAT_INSTALL).count()) === 0,
     "the no-agent face to list no engine at all",
@@ -3547,14 +3544,8 @@ Then(
   async function (this: OlaiWorld, id: string) {
     const row = this.chat(`${CHAT_INSTALL}${attr("data-agent", id)}`);
     await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // ...AND IT SAYS HOW, which is the whole of what this face is for and the
-    // half an id alone cannot see. The sentence is the ENGINE PLUGIN's own —
-    // the `NotHere` it hung in the `engine.install` slot, spelled once in
-    // that plugin's `install.ts` and spent once, here — so a row drawn with an
-    // id and no words would be the face reporting on nothing. Not the exact
-    // words: they are that plugin's to change, and core composes no clause of
-    // them. What IS core's is every stroke around them, which is why this
-    // reads the row's text rather than looking for an anchor.
+    // The engine's probe supplies its sentence on the standing table.
+    // This checks that advice is visible without pinning the engine's wording.
     assert.ok(
       oneLine(await row.innerText()).length > 0,
       `the install row for "${id}" is empty — the engine's own sentence did not draw`,

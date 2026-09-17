@@ -533,7 +533,10 @@ Then(
 When("I start a fresh session", async function (this: OlaiWorld) {
   const fresh = this.chat(FRESH);
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const engine = await this.chatLine().locator(selector(PLUGIN_TESTID.chatAgent)).getAttribute("data-agent");
   await fresh.first().click();
+  const menu = this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu));
+  await menu.locator(`[data-engine="${engine}"]:not([aria-disabled="true"])`).click();
 });
 
 /** PRESS THE FRESH SESSION AND NAME THE ENGINE — the multi-engine form of the

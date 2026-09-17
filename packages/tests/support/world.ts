@@ -1473,6 +1473,8 @@ export class OlaiWorld extends World {
    *  restart reproduces the same boot. The ONE shape the spawn and the
    *  fingerprint read, so neither names an engine. */
   fakes: ReadonlyArray<string> = [];
+  /** An owned scratch directory for install/uninstall scenarios. */
+  agentSearchPath?: string;
   /** Read the roster's vote list into the word list the restarter replays.
    *  Nothing else is set: the spawn reads `fakes` and the fingerprint reads
    *  `fakes`, and the harness's `hooks.ts` never spells an engine's name
