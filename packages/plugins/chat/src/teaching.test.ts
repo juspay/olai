@@ -34,12 +34,6 @@ test("it says the subtree is the memory, and how much of it there is", () => {
   expect(law).toContain("14 rows")
 })
 
-test("... and that the transcript is history rather than memory", () => {
-  const [, law] = teachingFor(SPACES)
-  expect(law).toContain("HISTORY")
-  expect(law).toContain("maintain it as you learn or the situation changes")
-})
-
 test("a node agent with nothing under it yet is told so, not told it has zero", () => {
   const [, law] = teachingFor({ ...SPACES, memory: 0 })
   expect(law).toContain("nothing under it yet")
@@ -79,8 +73,6 @@ test("... and is ordered to BANK what it knows rather than to write as it learns
   expect(law).toContain("NOW your memory")
   expect(law).toContain("WRITE INTO IT")
   expect(law).toContain("reconcile it with what is still relevant")
-  // The same law underneath, in the same words: the transcript is history.
-  expect(law).toContain("HISTORY")
   expect(law).toContain("14 rows")
 })
 
@@ -94,7 +86,7 @@ test("it is the same two lines in the same order, however the session arrived", 
 test("... and both end on the SAME standing law, word for word", () => {
   // The half that must not differ: what the law says is the whole contract, and
   // two spellings of it is two contracts.
-  const law = "This transcript is HISTORY, not memory —"
+  const law = "Keep your memory current"
   const [, opened] = teachingFor(SPACES, "opened")
   const [, assigned] = teachingFor(SPACES, "assigned")
   expect((opened as string).slice((opened as string).indexOf(law)))

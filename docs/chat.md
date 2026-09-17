@@ -734,8 +734,8 @@ a conversation driven only from a terminal does not update it.
 ### An agent-associated session is taught what it is
 
 The first accepted message carries a preamble naming the node and its subtree
-as memory, and the transcript as history. The same words appear under your
-message as a notice. This uses the ordinary prompt seam because ACP has no
+as memory, with instructions to keep that knowledge current and organized.
+The same words appear under your message as a notice. This uses the ordinary prompt seam because ACP has no
 system-prompt field, and costs no separate turn. Teaching is recorded per
 session and survives restarts. A refused send marks and displays no teaching.
 A missing or trashed node teaches nothing. If recording the teaching fails,
@@ -743,20 +743,15 @@ the next message can repeat it; the transcript does not claim a record the
 machine could not retain.
 
 A filed session gets the assigned-session contract: it was moved here and must
-reconcile the subtree with the current knowledge and active work from its
-conversation now. A session opened for a node gets the
-ordinary contract. Neither requires copying or converting the engine's session
-files.
+reconcile the subtree with useful current knowledge from its conversation.
+A session opened for a node gets the ordinary contract. Neither requires copying
+or converting the engine's session files.
 
-Both contracts ask the agent to maintain current memory: concise entries grouped
-by topic under clear headings, reusing the existing structure where it fits.
-Changed facts replace existing entries; duplicates are merged and obsolete
-memory is removed. Keep current facts, preferences, decisions still in force,
-and active work with its status and next steps. Historical detail belongs only
-where it explains a current constraint or decision, not as appended session
-logs or copied transcripts. A fresh session needs enough to understand the
-current state and continue, rather than everything any previous session knew.
-These are instructions to the agent, not an automatic subtree reorganization.
+Both contracts ask the agent to keep memory current and organized by topic:
+update existing entries as understanding changes, consolidate duplicates, and
+remove obsolete information. Store useful knowledge, not a running account of
+conversations or actions. These are instructions to the agent, not an automatic
+subtree reorganization.
 
 ## Moving the chats you already have
 
