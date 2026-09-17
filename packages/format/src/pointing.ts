@@ -99,8 +99,8 @@
  *
  * ## What it costs
  *
- * A REBUILD is one walk of every reference of every file — the walks
- * `backlinksOf` and `referrersTo` used to make per read — and it happens where
+ * A REBUILD is one walk of every reference of every file — the walks the
+ * reverse readings used to make per read — and it happens where
  * a derivation is rebuilt: a first load, or a validation with nothing behind it.
  *
  * A PATCH costs the files that MOVED. The two sets are both in path order, so

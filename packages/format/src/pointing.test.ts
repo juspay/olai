@@ -5,7 +5,7 @@
  * Two claims, and they are separate:
  *
  *   1. **THE ANSWERS.** For every address a directory can be asked about, at
- *      every revision, `referrersTo` over the index is the very list the SCAN
+ *      every revision, `referencesOf` over the index is the very list the SCAN
  *      produced (`./pointing.testlib.ts`'s reference arm, which is that
  *      function as it was written before `perf-doc-backlinks-index`). Same
  *      referrers, same order, same attribution — a `.md` body's link coming

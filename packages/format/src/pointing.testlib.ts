@@ -2,10 +2,10 @@
  * THE LINKS INDEX, HELD TO THE WALK IT REPLACED — the reference arm, the
  * corpora that move links, and the addresses to ask about.
  *
- * `./pointing.ts` is an INDEX where `referrersTo` was a scan, and the claim it
- * makes is an equivalence: the same referrers, in the same order, for every
- * address, at every revision. So what holds it is a differential and not a
- * table of expectations, which is the arrangement `./patch.ts` has with
+ * `./pointing.ts` is an INDEX where the reverse reading was a scan, and the
+ * claim it makes is an equivalence: the same referrers, in the same order, for
+ * every address, at every revision. So what holds it is a differential and not
+ * a table of expectations, which is the arrangement `./patch.ts` has with
  * `derive` one value over.
  *
  * TWO ARMS AND ONE COPY OF EACH. The reference arm below is the walk as it

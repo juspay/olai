@@ -305,6 +305,8 @@ The reverse reading — **what refers to this** — comes out of ONE index kept 
 
 The browser keeps an opened referenced-by section open when plugins rebuild the same pane and node. Navigating away starts a new visit; the section is collapsed by default.
 
+**A link onto one HEADING is a reference to the whole document.** `[x](finishes.md#finishes)` files under the document key exactly as `[x](finishes.md)` does — because what points at a heading is pointing at the page a reader opens from it, and the section answers the question once instead of splitting it per slug. The same page answers both: `referencesOf` reads the document key and its headings together, so the count and the list are what a link to any part of the file draws.
+
 **The prose index files BOTH sigils, and this section reads half of it.** `taggedBy` is keyed by the tag as WRITTEN, so `#herbs` and `@herbs` are two keys — which is what lets one index answer two questions that have nothing to do with each other: what refers to a node (the `@` half, here) and what vocabulary the set uses (both halves, which is the tag completion's list — `format/src/vocabulary.ts`, asked of the server since `vault-in-browser`). A `#herbs` is never a reference, however exactly it spells somebody's id.
 
 **Three things are deliberately not references, and each is already answered elsewhere:**

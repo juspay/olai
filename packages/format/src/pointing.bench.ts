@@ -8,11 +8,11 @@
  * laptop sample this repository has already retired once.
  *
  * THE COST THE ROADMAP NAMED (`perf-doc-backlinks-index`) is a page's, and it
- * was paid on every published revision: `referrersTo` tested every link of
- * every face in the directory, per revision, per tab sitting on any `.md` or
- * `.html` page. So the arms are the two halves of what a revision costs that
- * page, and BOTH are printed — because this index is a TRADE and printing one
- * half would be quoting the good one. The walk cost a page and nothing per
+ * was paid on every published revision: the reverse reading tested every link
+ * of every face in the directory, per revision, per tab sitting on any `.md`
+ * or `.html` page. So the arms are the two halves of what a revision costs
+ * that page, and BOTH are printed — because this index is a TRADE and printing
+ * one half would be quoting the good one. The walk cost a page and nothing per
  * write; the index costs a page much less and every revision something.
  *
  *   - `read` — answering "who points here" once. The `scan` arm is that walk as

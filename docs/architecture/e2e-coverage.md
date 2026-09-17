@@ -258,3 +258,32 @@ Recorded 2026-09-14. The tabs row is new, so every scenario below is new; none r
 - `attention.feature` runs a scripted Claude conversation to a question, so the dot follows the real roster and fold state.
 - `pins.feature` and `withdrawal.feature` switch the row through the plugins panel, which rebuilds the tab's contributions and releases the lane.
 
+
+## Perfect backlinks (#615)
+
+The pointing index grew markdown links as a third way, and the whole-document
+rules that come with them. The browser's two referenced-by sections are now
+one shared component in `@olai/markdown-ui`, holding open state per pane and
+place in the plugin's own scope; the feature files below exercise what a
+person sees both halves agreeing on.
+
+- `outlines` `backlinks.feature` adds four body scenarios: an `@mention` in a
+  document's prose reaches a node's page and leaves when the prose drops it;
+  a `[x](#id)` link in the body draws under "links this"; a link inside a code
+  fence is text, not a reference; and a record note linking a node's id draws
+  one way and follows to the node's page.
+- `markdown` `documents.feature` adds seven: a link in another document's
+  prose arrives and leaves live; a heading link counts as a reference to the
+  whole document; a plugin rebuild keeps the open section open (the promise
+  `docs/format.md` makes for both pages); a picture's page says which
+  documents show it (path order); a pdf's page says which document links it; a
+  referrer put away is on the Trash and nowhere else; and the last document
+  referrer going takes the section with it.
+- `ops` `query.test.ts` pins a document's body as one source like a record,
+  and a node read reporting the dead links its note names against the served
+  set — regression for item 1's refactor dropping `deadLinks` from
+  `outlines_read`.
+- The unmentionable-id validator (an id that does not survive `#tag` noise) is
+  covered by existing units: `ID_SHAPE` is the mention alphabet in `node.test.ts`
+  and "an id that is not mentionable is a bad-id" in
+  `packages/plugins/outline-olai/src/parse.test.ts`.
