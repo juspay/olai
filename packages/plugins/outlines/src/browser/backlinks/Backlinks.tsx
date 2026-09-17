@@ -43,7 +43,7 @@ import {
   ReferrersSection,
   type ReferrerRow,
 } from "@olai/markdown-ui/ReferrersSection.tsx"
-import { useBacklinksMemory } from "./memory.ts"
+import { backlinksMemory } from "./memory.ts"
 import { useReading } from "../reading.tsx"
 import { useHere } from "olai-plugin-navigation/routing"
 import { atFile, atNode } from "olai-plugin-navigation/routes"
@@ -90,7 +90,7 @@ function Section(props: {
   // that is what there is): a remount of the same pane and node — a rebuild —
   // must find the same key, and the answer that was left under it.
   const key = JSON.stringify([pane, `backlinks:${props.id}`])
-  const memory = useBacklinksMemory()
+  const memory = backlinksMemory.read()
   // The "still shown" answer the shared section's own forget rule reads at the
   // leaving moment, untracked: the same node is still zoomed AND it still has
   // references (a rebuild in place keeps the reader's answer), or the answer

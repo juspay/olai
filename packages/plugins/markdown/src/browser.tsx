@@ -33,7 +33,7 @@ import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./browser/shell.ts"
 import { EmbeddedDocument } from "./browser/EmbeddedDocument.tsx"
 import { createReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
-import { holdReferrersMemory } from "./browser/memory.ts"
+import { referrersMemory } from "./browser/memory.ts"
 import { openCreated, clearMinted } from "./browser/document/minted.ts"
 import { documentFile } from "./browser/document-route.ts"
 import { MarkdownPageView } from "./browser/PageView.tsx"
@@ -70,7 +70,7 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
   // takes every section's memory off the screen with it
   // (`./browser/memory.ts`, `./index.ts`'s `referrerMemory`).
   const memory = createReferrerMemory()
-  yield* Effect.acquireRelease(Effect.sync(() => holdReferrersMemory(memory)), stop => Effect.sync(stop))
+  yield* Effect.acquireRelease(Effect.sync(() => referrersMemory.hold(memory)), stop => Effect.sync(stop))
   const offers = yield* Offers
   yield* offers.own("browser-state", () => state.value)
   // WHAT A ROW THAT MINTS A DOCUMENT DOES WITH THE ANSWER — offered rather than

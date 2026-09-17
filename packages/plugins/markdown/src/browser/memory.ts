@@ -13,13 +13,11 @@
  * which is the state this row's own document page and the outline's backlinks
  * both draw as a fresh (collapsed) section rather than waiting through.
  */
-import { heldService } from "@olai/ui-primitives/held.ts"
-import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+import { referrerMemoryChannel } from "@olai/ui-primitives/referrer-memory.ts"
 
-const provider = heldService<ReferrerMemory>()
-
-/** Told by `../browser.tsx`'s `content` component, for that activation. */
-export const holdReferrersMemory = provider.hold
-
-/** ...and read by this row's faces — the shared section's memory. */
-export const useReferrersMemory = provider.read
+/** ONE channel, minted here because the activation (`../browser.tsx`) HOLDS
+ *  through it while this row's faces READ through it: two different modules,
+ *  so the channel is the package-private fact that connects them. The factory
+ *  is `@olai/ui-primitives/referrer-memory.ts`'s — a package calls it once,
+ *  and a hold clears by identity when the activation that made it stops. */
+export const referrersMemory = referrerMemoryChannel()

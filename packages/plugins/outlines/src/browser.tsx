@@ -41,7 +41,7 @@ import { holdFileControls } from "./browser/files.tsx"
 import { NewOutline } from "./browser/outline/NewOutline.tsx"
 import { sections } from "olai-plugin-preferences/contract"
 import { referrerMemory } from "olai-plugin-markdown/contract"
-import { holdBacklinksMemory } from "./browser/backlinks/memory.ts"
+import { backlinksMemory } from "./browser/backlinks/memory.ts"
 import { name, browserState, datedRows, pageView, titles, propertyRoutes, type OutlinesBrowser } from "./index.ts"
 import type { References } from "./contracts/references.ts"
 import { openOverlaySocket, overlayRoot } from "./browser/overlay.ts"
@@ -210,7 +210,7 @@ export const components = {
    *  (`./browser/backlinks/memory.ts`, the `document-properties` pattern). */
   backlinks: definePlugin({ name: "backlinks", needs: [referrerMemory], apply: Effect.gen(function*() {
     const memory = yield* referrerMemory
-    yield* Effect.acquireRelease(Effect.sync(() => holdBacklinksMemory(memory)), stop => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => backlinksMemory.hold(memory)), stop => Effect.sync(stop))
   }) }),
   preferences: definePlugin({ name: "preferences", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
     yield* (yield* rendererSlots).contribute(sections, PreferenceRows)

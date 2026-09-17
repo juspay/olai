@@ -46,6 +46,7 @@
  * memory answers only the question the element cannot: "was this left open
  * the last time it was mounted?"
  */
+import { heldService } from "./held.ts"
 export interface ReferrerMemory {
   /** The remembered open states, keyed by the caller's (pane, place) key, or
    *  nothing when the section has never been touched on this place. */
@@ -71,3 +72,14 @@ export const createReferrerMemory = (): ReferrerMemory => {
     forget: (key) => { opened.delete(key) },
   }
 }
+
+/** ONE channel between a host's `browser.tsx` and the pages that draw the
+ *  section — a FACTORY, not a place: a package calls it once in a module of
+ *  its own and binds the returned `hold`/`read` where its activation and its
+ *  faces can reach them, so two packages get two channels and a hold clears
+ *  by identity when the activation that made it stops. Why it is a factory
+ *  rather than a module-scope holder is `@olai/ui-primitives/held.ts`'s
+ *  whole header — and why it is HERE, in a general package, is the same
+ *  reason `heldService` itself is: nothing is minted until somebody calls it,
+ *  which is the shape `@olai/bundle`'s fence blesses by name. */
+export const referrerMemoryChannel = () => heldService<ReferrerMemory>()

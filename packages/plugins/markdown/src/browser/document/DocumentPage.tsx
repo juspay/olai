@@ -16,7 +16,7 @@ import { isServed, useDocument } from "./documents.tsx"
 import { Rendered } from "./Rendered.tsx"
 import { consumeMinted } from "./minted.ts"
 import { keepDraft, takeDraft } from "./drafts.ts"
-import { useReferrersMemory } from "../memory.ts"
+import { referrersMemory } from "../memory.ts"
 
 import { useHere, useRouter } from "olai-plugin-navigation/routing"
 import { panesOf } from "olai-plugin-navigation/workspace"
@@ -150,7 +150,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           be blank on exactly the saved page whose bytes never cross the
           wire. */}
       <Show when={nudge()}>{text => <div data-testid={TESTID.documentNudge} class="text-xs text-alarm">{text()}</div>}</Show>
-      <Referrers file={props.file} reading={reading} claims={servedDirectory()?.claims()} href={router.routes.href} memory={useReferrersMemory()!} />
+      <Referrers file={props.file} reading={reading} claims={servedDirectory()?.claims()} href={router.routes.href} memory={referrersMemory.read()!} />
     </section>
   )
 }

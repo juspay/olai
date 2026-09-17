@@ -17,15 +17,13 @@
  * nothing — the delivery of that absence is `../browser.tsx`, the same way
  * `document-properties` already withdraws its integration.
  */
-import { heldService } from "@olai/ui-primitives/held.ts"
-import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+import { referrerMemoryChannel } from "@olai/ui-primitives/referrer-memory.ts"
 
-const provider = heldService<ReferrerMemory>()
-
-/** Told by `../browser.tsx`'s `backlinks` component, for that activation. */
-export const holdBacklinksMemory = provider.hold
-
-/** ...and read by this package's backlinks. `undefined` is a serve with no
- *  markdown row mounted: the section draws collapsed, which is the same
- *  nothing the memory had to say. */
-export const useBacklinksMemory = provider.read
+/** ONE channel, minted here because the activation (`../browser.tsx`) HOLDS
+ *  through it while this package's backlinks READ through it: two different
+ *  modules, so the channel is the package-private fact that connects them. The
+ *  factory is `@olai/ui-primitives/referrer-memory.ts`'s — a package calls it
+ *  once, and a hold clears by identity when the activation that made it stops.
+ *  `undefined` is a serve with no markdown row mounted: the section draws
+ *  collapsed, which is the same nothing the memory had to say. */
+export const backlinksMemory = referrerMemoryChannel()
