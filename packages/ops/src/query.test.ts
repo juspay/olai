@@ -373,6 +373,24 @@ describe("what refers to a node", () => {
     expect(read(at(), "sticky")).not.toHaveProperty("referencedBy")
   })
 
+/** The question `outlines_desc` and the subtree rows answer too, and the one
+ *  detail's little brother used to lose: a note naming nothing served is a
+ *  finding an AGENT wants back from the read it can act on. */
+test("a node read reports the dead links its note names, against the served set", () => {
+  const set = setOf({
+    "projects/olai.olai": [
+      `{"id":"link-test","ord":"a0","title":"Links","desc":"[x](nix-flakes.md)"}`,
+    ].join("\n"),
+  }, ["notes/nix-flakes.md"])
+  const served = new Set(set.documents.map((one) => one.path))
+  const answered = succeeded(
+    detail(derivedOf(set), "link-test", undefined, served),
+    "`outlines_read` to answer",
+  )
+  expect(answered?.deadLinks?.map((one) => one.resolved)).toEqual(["projects/nix-flakes.md"])
+  expect(answered?.deadLinks?.[0]?.suggest).toEqual(["../notes/nix-flakes.md"])
+})
+
   test("a document's body can refer to a node too, and is one source like a record", () => {
     // `@git` in a `.md`'s prose is a mention, a `[git](#git)` a link — the
     // body has no finer grain than itself, so either way the source is the

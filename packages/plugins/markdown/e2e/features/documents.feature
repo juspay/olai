@@ -426,6 +426,7 @@ Feature: Documents
   # and leaves when the prose drops it.
   @scratch:good
   Scenario: A link in another document's prose arrives and leaves live
+    Given I open the document "finishes.md"
     When I rewrite "notes/palette.md" as:
       """
       # Palette
@@ -449,8 +450,8 @@ Feature: Documents
   # A link ONTO ONE HEADING is a reference to the whole document: what points
   # at `finishes.md#finishes` is pointing at the page a reader opens, so the
   # section names the source once instead of splitting the question per slug.
-  @scratch:good
   Scenario: A heading link is a reference to the whole document
+    Given I open the document "finishes.md"
     When I rewrite "notes/palette.md" as:
       """
       # Palette
@@ -467,6 +468,7 @@ Feature: Documents
   # for both pages, and the half that was only ever tested on one.
   @scratch:good
   Scenario: A plugin rebuild keeps the document's referrers open
+    Given I open the document "finishes.md"
     When I open what points at the document
     Then what points at the document is "install the cabinets"
     When I open another browser tab
@@ -512,6 +514,7 @@ Feature: Documents
   # holds its link, but the page hears only the live half.
   @scratch:good
   Scenario: A referrer put away is on the Trash and nowhere else
+    Given I open the document "finishes.md"
     When I rewrite "_olai/Trash.olai" as:
       """
       {"id":"old-notes","ord":"a0","title":"the old finishes notes","desc":"[finishes](finishes.md)"}
@@ -522,9 +525,9 @@ Feature: Documents
     And there should be no page errors
 
   # The last referrer going takes the whole section with it — a document
-  # nothing points at draws no section, exactly as a node nobody refers to.
   @scratch:good
   Scenario: The last document referrer going takes the section with it
+    Given I open the document "finishes.md"
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}

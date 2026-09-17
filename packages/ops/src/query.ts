@@ -753,6 +753,12 @@ export const detail = (
   const blockedBy = waitingFor(derived, id)
   return Result.succeed({
     ...foundOf(derived, located),
+    // MISSING TARGETS, READ OFF THE SAME PROSE — a write that names nothing
+    // served is a finding a reader reports, and `outlines_read` answers it
+    // exactly where `outlines_desc` and the subtree rows do (dead-links
+    // feature). The set is asked HERE rather than carried: `served` is the
+    // caller's copy of the directory, which is the reading's own.
+    ...(served === undefined ? {} : deadLinkFields(deadLinksOf(located, served))),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `outlines_repeat`.
