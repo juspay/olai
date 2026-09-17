@@ -109,6 +109,34 @@ export interface ReferrerRow {
   readonly ref?: string
 }
 
+/** ONE row built from a reference, THE row shape both pages draw — a record
+ *  opens its node page, a body opens its file. The callers only differ in HOW
+ *  they spell a route, which is why the openers are passed in: this general
+ *  package must not name `olai-plugin-navigation` (its header says so). The
+ *  per-way split stays the section's own. */
+export const referrerRowOf = (one: Reference, open: {
+  readonly file: (path: string) => string
+  readonly node: (id: string) => string
+}): ReferrerRow =>
+  "path" in one.source
+    ? {
+      key: `doc:${one.source.path}`,
+      opens: open.file(one.source.path),
+      calls: one.source.title,
+      callsFrom: one.source.path,
+      title: `open ${one.source.path}`,
+      ref: one.source.path,
+    }
+    : {
+      key: `node:${one.source.node.id}`,
+      opens: open.node(one.source.node.id),
+      calls: one.source.node.title,
+      callsFrom: one.source.file,
+      where: one.source.file,
+      title: `open ${one.source.node.title}`,
+      ref: one.source.node.id,
+    }
+
 /** One way a row is drawn, as a value — ONE table, shared by every page that
  *  draws this section. The labels are the section's own vocabulary (a reader's
  *  sentence on a row: "sees this", "mentions this", "links this"), the same

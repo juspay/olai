@@ -52,7 +52,7 @@ import type { Accessor } from "solid-js"
 import { TESTID } from "olai-plugin-markdown/testids"
 import { createMemo, Show, untrack } from "solid-js"
 
-import { makeReferrerWays, ReferrersSection, type ReferrerRow } from "@olai/markdown-ui/ReferrersSection.tsx"
+import { makeReferrerWays, referrerRowOf, ReferrersSection, type ReferrerRow } from "@olai/markdown-ui/ReferrersSection.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { atFile, atNode, type Route } from "olai-plugin-navigation/routes"
 import { useHere } from "olai-plugin-navigation/routing"
@@ -116,7 +116,7 @@ function Section(props: {
         mention: TESTID.documentMentionRefs,
         link: TESTID.documentLinkRefs,
       })}
-      row={rowOf(props.href)}
+      row={(one) => referrerRowOf(one, { file: (path) => props.href(atFile(path)), node: (id) => props.href(atNode(id)) })}
       stillShown={stillShown}
       memoryKey={key}
       testid={TESTID.documentReferrers}
@@ -127,24 +127,4 @@ function Section(props: {
   )
 }
 
-/** ONE row per reference — a record opens its node page, a document its own.
- *  The per-way split is the shared section's. */
-const rowOf =
-  (href: (route: Route) => string) =>
-  (one: Reference): ReferrerRow =>
-    "path" in one.source
-      ? {
-        key: `doc:${one.source.path}`,
-        opens: href(atFile(one.source.path)),
-        calls: one.source.title,
-        callsFrom: one.source.path,
-        ref: one.source.path,
-      }
-      : {
-        key: `node:${one.source.node.id}`,
-        opens: href(atNode(one.source.node.id)),
-        calls: one.source.node.title,
-        callsFrom: one.source.file,
-        where: one.source.file,
-        ref: one.source.node.id,
-      }
+

@@ -40,6 +40,7 @@ import type { PageReading } from "@olai/format"
 
 import {
   makeReferrerWays,
+  referrerRowOf,
   ReferrersSection,
   type ReferrerRow,
 } from "@olai/markdown-ui/ReferrersSection.tsx"
@@ -49,7 +50,6 @@ import { useHere } from "olai-plugin-navigation/routing"
 import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { hrefOf } from "../routing.ts"
 import { servedDirectory } from "../vault.ts"
-import { refOf, type NodeRef } from "../ref.ts"
 
 export function Backlinks(props: {
   /** The node the page is about — canonical, since a zoom resolves a mirror's
@@ -110,7 +110,7 @@ function Section(props: {
         mention: TESTID.backlinkMentionRefs,
         link: TESTID.backlinkLinkRefs,
       })}
-      row={rowOf}
+      row={(one) => referrerRowOf(one, { file: (path) => hrefOf(atFile(path)), node: (id) => hrefOf(atNode(id)) })}
       stillShown={stillShown}
       memoryKey={key}
       testid={TESTID.backlinks}
@@ -119,28 +119,4 @@ function Section(props: {
       memory={memory}
     />
   )
-}
-/** ONE row per reference — the record as the node it is, the body as the file
- *  it is; the per-way split is the shared section's. */
-const rowOf = (one: Reference): ReferrerRow => {
-  if ("path" in one.source) {
-    return {
-      key: `doc:${one.source.path}`,
-      opens: hrefOf(atFile(one.source.path)),
-      calls: one.source.title,
-      callsFrom: one.source.path,
-      title: `open ${one.source.path}`,
-      ref: one.source.path,
-    }
-  }
-  const record = refOf(one.source)
-  return {
-    key: `node:${record.id}`,
-    opens: hrefOf(atNode(record.id)),
-    calls: record.title,
-    callsFrom: record.from,
-    where: record.from,
-    title: `open ${record.title}`,
-    ref: record.id,
-  }
 }
