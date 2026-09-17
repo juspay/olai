@@ -18,6 +18,7 @@ import {
   proseLinks,
   resolveRelative,
 } from "./documents.ts"
+import { nodesOf } from "./fixtures.testlib.ts"
 const nodeOf = (line: string, file: string) => {
   const [located] = nodesOf(`${line}\n`, file)
   if (located === undefined) throw new Error("the fixture parsed to no nodes")

@@ -162,8 +162,10 @@ test("the records a write reads stop being the directory's", () => {
   // whole claim — the set carries their documents across by identity and the
   // patcher carries their groupings across by identity, so there is nothing
   // left to establish about them that the reading handed in did not already
-  // say.
-  expect([small.carriedReads, large.carriedReads]).toEqual([0, 0])
+  // say. The writes that DID move — the re-filed file's records, read into
+  // the new side of the fold — are counted and are the same two whether the
+  // directory is fifty files or five hundred, which is the door's promise.
+  expect([small.carriedReads, large.carriedReads]).toEqual([2, 2])
 })
 
 

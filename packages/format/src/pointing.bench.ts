@@ -155,12 +155,12 @@ const pairs = readings.slice(1).map((one, at) => ({
   now: one.set,
   before: (readings[at] as { readonly at: Reading }).at.pointing,
 }))
-const carries = pairs.map((pair) => timed(() => repointed(pair.before, pair.was.documents, pair.now.documents)))
-const rebuilds = pairs.map((pair) => timed(() => pointingOf(pair.now.documents)))
+const carries = pairs.map((pair) => timed(() => repointed(pair.before, TEST_CLAIMS, pair.was.documents, pair.now.documents)))
+const rebuilds = pairs.map((pair) => timed(() => pointingOf(TEST_CLAIMS, pair.now.documents)))
 
 /** …and how many of those edits handed the index straight on, uncloned. */
 const carried = pairs.filter((pair) =>
-  repointed(pair.before, pair.was.documents, pair.now.documents) === pair.before
+  repointed(pair.before, TEST_CLAIMS, pair.was.documents, pair.now.documents) === pair.before
 ).length
 
 /** How thickly the corpus points at its own bodies — printed because the read

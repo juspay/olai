@@ -100,7 +100,7 @@ const readingAt = (
   claims: TEST_CLAIMS,
   set: { documents: faces, broken } as unknown as OutlineSet,
   derived,
-  pointing: pointingOf(faces as unknown as ReadonlyArray<Document>),
+  pointing: pointingOf(TEST_CLAIMS, faces as unknown as ReadonlyArray<Document>),
 })
 
 const readAt = (

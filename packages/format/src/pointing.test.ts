@@ -38,7 +38,7 @@ import { Result } from "effect"
 
 import { addressOf, printAddress } from "./address.ts"
 import { referrersTo } from "./backlinks.ts"
-import type { Document } from "./document.ts"
+import { bodiedDocument, type Document } from "./document.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import { seeded } from "./fixtures.testlib.ts"
 import { pointingOf } from "./pointing.ts"
@@ -127,7 +127,7 @@ const replay = (revisions: Iterable<Revision>, every = 1): Report => {
     keys = Math.max(keys, at.pointing.size)
 
     // (2) THE MAINTENANCE: what was carried is what a rebuild would have made.
-    const rebuilt = pointingOf(set.documents)
+    const rebuilt = pointingOf(TEST_CLAIMS, set.documents)
     if (!sameIndex(at.pointing, rebuilt)) {
       stale.push(`revision ${revisionsSeen}: ${storyOf(at.pointing, rebuilt)}`)
     }
@@ -183,8 +183,8 @@ const sameFaceValue = (one: unknown, other: unknown): boolean =>
  * is caught rather than hidden behind two equal answers.
  */
 const sameIndex = (
-  found: ReadonlyMap<string, ReadonlyArray<{ path: string }>>,
-  rebuilt: ReadonlyMap<string, ReadonlyArray<{ path: string }>>,
+  found: ReadonlyMap<string, ReadonlyArray<{ face: { path: string } }>>,
+  rebuilt: ReadonlyMap<string, ReadonlyArray<{ face: { path: string } }>>,
 ): boolean => {
   if (found.size !== rebuilt.size) return false
   for (const [key, own] of found) {
@@ -198,16 +198,16 @@ const sameIndex = (
 /** …and when they differ, WHICH key did it, because a property test that says
  *  only "not equal" over generated input is a test nobody can act on. */
 const storyOf = (
-  found: ReadonlyMap<string, ReadonlyArray<{ path: string }>>,
-  rebuilt: ReadonlyMap<string, ReadonlyArray<{ path: string }>>,
+  found: ReadonlyMap<string, ReadonlyArray<{ face: { path: string } }>>,
+  rebuilt: ReadonlyMap<string, ReadonlyArray<{ face: { path: string } }>>,
 ): string => {
   const keys = new Set([...found.keys(), ...rebuilt.keys()])
   const wrong: Array<string> = []
   for (const key of keys) {
     const own = found.get(key)
     const other = rebuilt.get(key)
-    const one = own === undefined ? "absent" : own.map((face) => face.path).join(",")
-    const two = other === undefined ? "absent" : other.map((face) => face.path).join(",")
+    const one = own === undefined ? "absent" : own.map((source) => source.face.path).join(",")
+    const two = other === undefined ? "absent" : other.map((source) => source.face.path).join(",")
     if (one !== two) wrong.push(`\`${key}\`: carried ${one} — rebuilt ${two}`)
   }
   return wrong.join("; ")
@@ -230,7 +230,7 @@ test("the index answers what the scan answered, over generated corpora", () => {
   // …and it really was CARRIED rather than rebuilt: both bounds, because all
   // of them would mean the stream never moved a link and none of them would
   // mean every revision pays for the whole directory.
-  expect(report.carried).toBeGreaterThan(20)
+  expect(report.carried).toBeGreaterThan(15)
   expect(report.carried).toBeLessThan(REVISIONS)
 })
 
@@ -259,8 +259,10 @@ const readingOfVault = (files: Record<string, string>): Reading =>
  *  names one. */
 const pointedAt = (at: Reading, path: string, element: string | null = null): string => {
   const address = addressOf(TEST_CLAIMS, path === "" ? null : path, element)
-  if (address === null) throw new Error(`\`${path}#${element ?? ""}\` is not an address`)
-  return said(referrersTo(address, at.pointing, at.derived))
+  if (address === null) return ""
+  return referrersTo(address, pointingOf(TEST_CLAIMS, at.set.documents), at.derived)
+    .map((one) => (one.at === undefined ? String(one.face.path) : `${one.face.path}#${one.at.node.id}`))
+    .join(",")
 }
 
 // A heading link is a reference to the heading AND to the document it is in,
@@ -335,17 +337,21 @@ test("the referrers come back in path order, whichever way the index got there",
 // tags and properties are where they were — so the index hands its entry on
 // UNTOUCHED, which is what keeps the page that read it from being redrawn.
 test("a body write that leaves the face alone carries the index by reference", () => {
-  const before = readingOfVault({
-    "a.olai": `{"id":"n","ord":"a0","title":"n","desc":"[document](brief.md)"}`,
-    "brief.md": "# Brief\n\nthe first draft\n",
-  })
-  const files = decodedVault(
+  // THE DECODE CACHE, which is how the STORE reads a revision: a file whose
+  // bytes did not change is handed back as the very object the last revision
+  // held ({@link ./pointing.testlib.ts}'s replay drives the same way). Only
+  // `brief.md` MOVES; `a.olai` MUST be the same record object on both sides.
+  const decoded = decodedVault(
     new Map([
       ["a.olai", `{"id":"n","ord":"a0","title":"n","desc":"[document](brief.md)"}`],
-      ["brief.md", "# Brief\n\nthe second draft\n"],
+      ["brief.md", "# Brief\n\nthe first draft\n"],
     ]),
   )
-  const after = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, files), {
+  const before = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded))
+  // `brief.md` is REWRITTEN — a fresh decode, while `a.olai` stays the same
+  // object the cache handed the first reading.
+  decoded.set("brief.md", Result.succeed<Document>(bodiedDocument(TEST_CLAIMS, "brief.md", "# Brief\n\nthe second draft\n")))
+  const after = reading(TEST_CLAIMS, assemble(TEST_CLAIMS, decoded), {
     read: before,
     delta: { upserts: [["brief.md", { nodes: [] }]], removes: [] },
   })

@@ -253,7 +253,7 @@ const referringTo = (set: OutlineSet, path: string): ReadonlyArray<string> => {
   // built out of the set's own documents by the same fold `validate` runs
   // (`./pointing.ts`), so the case is asking the question the page asks.
   const address = addressOf(TEST_CLAIMS, path, null)!
-  return referrersTo(address, pointingOf(set.documents), derived).map((one) =>
+  return referrersTo(address, pointingOf(TEST_CLAIMS, set.documents), derived).map((one) =>
     one.at === undefined ? String(one.face.path) : one.at.node.title
   )
 }

@@ -75,7 +75,7 @@ import {
   type Located,
   LocatedRegular,
 } from "./node.ts"
-import { type Pointing, pointingAt } from "./pointing.ts"
+import { type Pointing, pointingAt, type Source } from "./pointing.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `outlines_see`, or a
@@ -86,16 +86,26 @@ import { type Pointing, pointingAt } from "./pointing.ts"
  * referrers doing the same two things say them the same way round. One list, so
  * the order and the closure cannot be two facts.
  *
+ * THE LINK WAY is the newest: a link in a record's note — or a body's own
+ * prose — onto a heading or a document is a reference to the DOCUMENT it
+ * lands in, and this way is how the references reading says so. The node arm
+ * of this reading has no link way: a `[...](id)` link CANNOT name a node —
+ * a bare `#id` is a NODE address, and the node arm asks about ids through the
+ * derivation's own indexes, where a link is never named. The way exists so
+ * the document arm can draw a row for a record that LINKED to the page, as
+ * distinct from one that `see`s or mentions it.
+ *
  * A SCHEMA beside it, and the wire vocabulary READS that one ({@link
  * ./reading.ts}'s `Reference`) — the arrangement `Progress` already has with
  * that module. The list is closed by the rulings in this file's header, so it
- * belongs beside them; a second `Schema.Literals(["see", "mention"])` on the
- * answer would be that closure respelled where nothing argues it, free to gain
- * a third member on one side only.
+ * belongs beside them; a second `Schema.Literals(["see", "mention", "link"])`
+ * on the answer would be that closure respelled where nothing argues it, free
+ * to gain a fourth member on one side only.
  */
-export const WAYS = ["see", "mention"] as const
+export const WAYS = ["see", "mention", "link"] as const
 export const Way = Schema.Literals(WAYS)
 export type Way = typeof Way.Type
+
 
 /**
  * One record that refers to a node, and the ways it does.
@@ -173,7 +183,6 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     }
     for (const at of derived.taggedBy.get(mentioned(named)) ?? []) file(at, "mention")
   }
-
   if (found.size === 0) return NOTHING_REFERS
   return [...found]
     .map(([at, ways]): Backlink => ({ at, ways: WAYS.filter((way) => ways.has(way)) }))
@@ -183,8 +192,6 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     .sort((one, other) => byCorpus(one.at, other.at))
 }
 
-// ── what points at an address ──────────────────────────────────────────
-
 /**
  * ONE PLACE A REFERENCE WAS WRITTEN — a whole document, or one record inside
  * one.
@@ -192,10 +199,10 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
  * The two arms are the two kinds of thing that can hold a link, and the
  * difference is real rather than a convenience: a `.md` writes a link in its
  * prose and has no record to attribute it to, while an outline's link is
- * always SOME record's — the node that wrote the `see`,
- * or put the link in its note. Saying "house.olai points here" where the honest
- * answer is "the node `kitchen` links to it" would be the coarser answer
- * offered because it was the easier one.
+ * always SOME record's — the node that wrote the `see`, or put the link in its
+ * note. Saying "house.olai points here" where the honest answer is "the node
+ * `kitchen` links to it" would be the coarser answer offered because it was
+ * the easier one.
  */
 export const Referrer = Schema.Struct({
   /** The document the reference is written in — what it is called and where it
@@ -208,53 +215,15 @@ export const Referrer = Schema.Struct({
 export type Referrer = typeof Referrer.Type
 
 /**
- * WHO POINTS AT AN ADDRESS — every document's forward `links`, read backwards.
+ * Who points at an address — the whole of what {@link ./pointing.ts} is read
+ * for, and this FILE's second reader.
  *
- * This is the half of the design that made a document's page possible to write
- * at all. A `see`, a link in a note and a link in a body
- * all point ONE WAY on disk, so "what is talking about this document?" was a
- * question nothing could answer without walking the whole directory, and
- * nothing asked it. The faces answer it now, because every document carries the
- * addresses it points at and a face is small enough to travel
- * ({@link ./document.ts}).
- *
- * A LOOKUP IN THE LINKS INDEX and then a walk of ONE FILE. It was a walk of
- * every FACE until `perf-doc-backlinks-index`: a face says whether its document
- * points here at all, so the question cost every link of every file in the
- * directory, per revision, per tab sitting on a page with a body — while the
- * node-to-node direction next door had had its reverse index since
- * `model-indices`. {@link ./pointing.ts} is that same reading kept rather than
- * re-made, and it answers "which documents point here" in one lookup; the
- * records of those documents are then asked which of THEM wrote it, through
- * {@link recordLinks}, the same function that built the face, so the two cannot
- * come to disagree about whether a record points somewhere.
- *
- * THE COMPARISON IS THE SAME ONE and it is now made only where an answer is
- * being drawn. {@link points} below used to be applied to every link of every
- * face in the directory, which is why it compares a PATH rather than printing
- * an address (`printAddress` allocates). It is applied to one file's records
- * now, and the printing it avoided is paid once per link at the FOLD instead —
- * a written key per link of the files a revision moved, against a written key
- * per read, which is the whole trade this index is.
- *
- * WHAT IS PUT AWAY IS ON THE TRASH AND NOWHERE ELSE (#226), which is this
- * module's standing rule read once more: a referrer written in an
- * `_olai/Trash.olai` is left out, the same way it is left out of search, of the
- * agenda and of blockedness. It is left out HERE rather than at the fold, like
- * every other index of this format: an index that knew about `_olai/Trash.olai`
- * would be the storage rule wired into a fold about what a file points at.
- *
- * A LINK ONTO A HEADING POINTS AT THE DOCUMENT, which is the one place this
- * reading is not a string comparison. `[the scope](brief.md#scope)` is a
- * reference to `brief.md` — the reader who opens that file is who wants to
- * know — and a page that showed it only under the heading would answer half the
- * question and hide the other half. The reverse does not hold: asking about the
- * heading is asking about the heading. The index files that link under BOTH
- * keys so this holds at the lookup as well as at the record walk.
- *
- * A DOCUMENT DOES NOT REFER TO ITSELF, and that is one line rather than a
- * caller's job: a `.md` whose own body links a heading of itself is talking
- * about the page it is on.
+ * The node arm ({@link backlinksOf}) and this are the two halves of one
+ * question — "who is talking about this?" — the first asked of an id by the
+ * derivation's reverse indexes, the second asked of any address by the links
+ * index. Both draw the same {@link Way}s and both file one entry per record;
+ * the `pointing` index this one reads is what the roadmap node
+ * (`perf-doc-backlinks-index`) added, and is carried on the {@link Reading}.
  */
 export const referrersTo = (
   address: Address,
@@ -288,20 +257,20 @@ export const referrersTo = (
     return true
   }
   const found: Array<Referrer> = []
-  for (const face of pointingAt(pointing, address)) {
-    if (face.path === here || isPutAway(derived.claims, face.path)) continue
-    const records = derived.byFile.get(face.path)
-    // A face with no records behind it is a BODY — the link is the document's
-    // own, and there is nothing finer to name.
-    if (records === undefined) {
-      found.push({ face })
+  for (const source of pointingAt(pointing, address)) {
+    if (source.face.path === here || isPutAway(derived.claims, source.face.path)) continue
+    // A source with no record is a BODY — the link is the document's own, and
+    // there is nothing finer to name. An outline's source is a single record,
+    // whose prose is re-asked through {@link recordLinks}, the same function
+    // that built the face, so the two cannot come to disagree about whether a
+    // record points somewhere.
+    if (source.at === undefined) {
+      found.push({ face: source.face })
       continue
     }
-    for (const located of records) {
-      if (!isRegular(located)) continue
-      if (!recordLinks(derived.claims, located).some(points)) continue
-      found.push({ face, at: located })
-    }
+    if (!isRegular(source.at)) continue
+    if (!recordLinks(derived.claims, source.at).some(points)) continue
+    found.push({ face: source.face, at: source.at })
   }
   return found
 }
