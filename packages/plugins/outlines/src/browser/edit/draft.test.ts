@@ -1,15 +1,17 @@
 import { UsageFailure } from "@olai/format"
+import type { Anchor } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import {
   after,
   before,
-  besideOf,
   commitOf,
   type Draft,
   type Editing,
   emptyPending,
   emptyPendingOf,
+  besideOf,
+  ghostOf,
   kept,
   landed,
   parked,
@@ -18,9 +20,11 @@ import {
   refused,
   sameAnchor,
   sameSlot,
+  seatKept,
   slotOf,
   stillAt,
   typed,
+  walked,
 } from "./draft.ts"
 
 const editing = (over: Partial<Editing> = {}): Editing => ({
@@ -199,6 +203,97 @@ test("a new row that landed becomes the row it created", () => {
     saved: "measure",
     was: { row: "d1", field: "new" },
   })
+})
+
+// ── the line that is being typed, on either side of the reply ──────────
+
+test("a landed line is the same ghost at the same address", () => {
+  // The reply and the frame carrying the row arrive in either order, and the
+  // ghost stands in for the row in between: the same draft, and the same
+  // ADDRESS — which is the one thing the two sides of the reply do not spell
+  // the same way, and the thing the `<input>` is keyed by. A landed line is not
+  // dressed as a pending: what it says, where it goes and the node it names all
+  // stay on the draft, where the rest of the editor reads them.
+  const line = pending({ text: "measure the alcove" })
+  expect(ghostOf(line)).toEqual({ draft: line, slot: "d1" })
+  const landedLine = landed(line, "n7")
+  expect(ghostOf(landedLine)).toEqual({ draft: landedLine, slot: "d1" })
+  expect(ghostOf(landedLine)!.draft).toBe(landedLine)
+})
+
+test("a row with a place of its own is not a ghost", () => {
+  // `follow` has filled the place in, so the row is on screen and the editor is
+  // the row's own — a second line for it would be two.
+  const drawn = landed(pending({ text: "measure" }), "n7")
+  expect(ghostOf({ ...drawn, place: "/kitchen/measure" })).toBeNull()
+  expect(ghostOf(editing())).toBeNull()
+  expect(ghostOf(null)).toBeNull()
+})
+
+test("an editor a key opened on a row it has not drawn yet is not a ghost", () => {
+  // A split and a merge open theirs on the row the write answered with
+  // (`editing.tsx`'s `opening`), and carry no address they were typed at:
+  // there is no box to keep, and nothing to draw a ghost from.
+  expect(ghostOf({
+    kind: "row",
+    row: "n7",
+    id: "n7",
+    place: null,
+    field: "title",
+    text: " the handles",
+    saved: " the handles",
+  })).toBeNull()
+})
+
+test("a landed row is drawn at the seat the write recorded", () => {
+  // `commit` records where a pending was TYPED, keyed by the row the write
+  // made, and that record is the whole of how the line stays put: the row it
+  // names is not drawn yet, so walking the placings is what says where the line
+  // belongs — the same answer the pending itself gave a moment earlier.
+  expect(seatKept("n7", new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]])))
+    .toEqual({ kind: "before", id: "kitchen" })
+})
+
+test("the keep-walk goes back through a chain, and past a row that IS drawn", () => {
+  // Two writes over one line leave two placings behind...
+  expect(seatKept("n8", new Map<string, Anchor>([
+    ["n8", { kind: "after", id: "n7" }],
+    ["n7", { kind: "under", id: "kitchen" }],
+  ]))).toEqual({ kind: "under", id: "kitchen" })
+  // ...and a row the frame has already drawn does NOT end it, which is the
+  // whole difference from `walked`: stopping there draws the line in that
+  // row's own list, which is the input a person is typing in made again.
+  expect(seatKept("n7", new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]])))
+    .toEqual({ kind: "before", id: "kitchen" })
+  // Nothing recorded is `null`, and the editor draws it against the row it
+  // became for the frame before `follow` fills the place in.
+  expect(seatKept("n7", new Map())).toBeNull()
+})
+
+test("a page's start line is nobody's row, landed or not", () => {
+  // `first` has no row to sit beside, so a start line draws its own draft at a
+  // seat of `null` — which is what `StartLine` matches on.
+  expect(besideOf({ kind: "first", file: "empty.olai" })).toBeNull()
+  expect(besideOf(seatKept("n1", new Map<string, Anchor>([["n1", { kind: "first", file: "empty.olai" }]]))!))
+    .toBeNull()
+})
+
+test("a placing that points back at itself is not a walk without end", () => {
+  // A superseded write can leave a chain that closes on itself; both walks stop
+  // rather than spinning, and the anchor names what it named.
+  const loop = new Map<string, Anchor>([["n7", { kind: "after", id: "n7" }]])
+  expect(seatKept("n7", loop)).toEqual({ kind: "after", id: "n7" })
+  expect(walked({ kind: "after", id: "n7" }, loop, new Set())).toEqual({ kind: "after", id: "n7" })
+})
+
+test("the find-walk stops at a row the page draws", () => {
+  // A pending's anchor IS a row on screen, so the walk ends there rather than
+  // following the placings a LANDED line leaves behind (`seatKept`).
+  expect(walked(
+    { kind: "after", id: "n7" },
+    new Map<string, Anchor>([["n7", { kind: "before", id: "kitchen" }]]),
+    new Set(["n7"]),
+  )).toEqual({ kind: "after", id: "n7" })
 })
 
 test("the next row follows the ROW, not the node it shows", () => {

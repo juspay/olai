@@ -42,9 +42,12 @@
  * has begun and a reader sorting rows is already looking there.
  *
  * A title is EDITABLE where a caller says so (`onEdit`), and the line itself is
- * what a click lands on: in a tree the title is replaced by an input in place
- * (./edit/RowEditor.tsx), so this component draws the read face of the same spot
- * rather than knowing anything about the editor.
+ * what a click lands on. What the caret replaces is the TITLE CELL and nothing
+ * else (`titleEditor`, ./edit/RowEditor.tsx): a row being typed in keeps its
+ * pilcrow, its aside and its chips exactly where they were, because they are
+ * about the title rather than about whether it is being written. This component
+ * draws the place and knows nothing about the editor; whoever holds the caret
+ * hands over what to draw in it.
  *
  * The note itself is NOT on this line. It hangs under the title in the open
  * state (./NodeBody.tsx), and the pilcrow here is the door to it.
@@ -138,6 +141,25 @@ export function NodeLine(props: {
   /** Clicking the REPEAT pill opens that picker — `onPickDate` one field
    *  along, absent in the same places for the same reason. */
   readonly onPickRepeat?: () => void
+  /**
+   * How to draw the title while it is being TYPED, or absent for the read face
+   * (`./edit/RowEditor.tsx`'s `TitleEditor`, handed over by who owns the
+   * caret).
+   *
+   * A TITLE CELL, not a line: the editor is drawn where `<NodeTitle>` would be
+   * and NOTHING else about the line changes — the pilcrow, the aside, the
+   * plugin's own face, the date and the ⏱ after them all stay exactly where
+   * they are. Replacing the whole line instead (which is what a `<Switch>` one
+   * level up did) unmounted every one of them: a row with a note and a chip
+   * blinked its furniture in and out on every click between its title and its
+   * note.
+   *
+   * A THUNK, and that is not decoration: a component prop is read as a getter,
+   * so an element handed over directly would be MADE AGAIN every time anything
+   * around it re-read it — and the `<input>` a person is typing in made again
+   * is the caret they were typing with. The `<Show>` below is where "once per
+   * editing session" is decided, and it is the only reader. */
+  readonly titleEditor?: () => JSX.Element
 }) {
   return (
     <>
@@ -159,7 +181,21 @@ export function NodeLine(props: {
           data-testid={TESTID.nodeTitle}
         >
           {props.children}
-          <NodeTitle title={props.title} from={props.from} needles={props.needles} />
+          <Show
+            when={props.titleEditor}
+            fallback={
+              <NodeTitle title={props.title} from={props.from} needles={props.needles} />
+            }
+          >
+            {/* The editor is MADE here and nowhere else: reading the thunk is
+                what creates the component, and this child runs once per editing
+                session (`<Show>`'s own contract — its condition compares
+                truthiness, so a keystroke does not re-run it), which is what
+                keeps the `<input>` — and the caret in it — across every
+                character typed. The double call is that: the accessor, then the
+                thunk behind it. */}
+            {(draw) => draw()()}
+          </Show>
         </span>
         {/* The pilcrow hugs the TITLE, because it is about the title — "there
             is more of this" — and the facts follow it. */}
