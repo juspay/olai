@@ -19,7 +19,7 @@
  *     date derivations (`datedDays`, `datedOn`, and the daily-note pair
  *     `dailyNoteDays` / `dailyNotesOn`), the forward reading of those same
  *     dates (`isOverdue`, `agendaOf`) and the document rules (`pathedOf`,
- *     `isPicture`, `isAsset`, `bodiedOf`) — so a reader and the validator agree on
+ *     `isPicture`, `isAsset`) — so a reader and the validator agree on
  *     sibling order, mirror expansion, one node's ancestry, what is standing in
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
@@ -264,7 +264,6 @@ export {
   writtenAddress,
 } from "./address.ts"
 export {
-  bodiedOf,
   bracketSpacedLinks,
   bytesOf,
   firstLine,
@@ -272,8 +271,8 @@ export {
   isPicture,
   servingOf,
   /** The path in this directory a relative reference names, whatever kind of
-   *  file it is — the same arithmetic and refusals as the two above with no
-   *  suffix allowlist at the end, for the caller that can ask the directory
+   *  file it is — the same arithmetic and refusals as the picture rule, with
+   *  no suffix allowlist at the end, for the caller that can ask the directory
    *  itself whether it serves the answer. */
   pathedOf,
   pictureOf,
@@ -547,20 +546,19 @@ export type {
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
-/** What REFERS to a node: the `see` edges that land on it and the notes and
- *  titles that write its `@id`, out of the two reverse indexes `derive` keeps.
- *  The reading rather than the indexes, because every question about what a
- *  reference MEANS — whether a placement is one, whether the archive counts, and
- *  which ids this node answers to — is asked there. `WAYS` is the closed list of
- *  how one record can refer to another, in the order a referrer says them, and
- *  `Way` is the SCHEMA read off it — which is what the answer vocabulary
- *  carries (`Reference`) and what a browser keys its rows by, rather than
- *  either of them being a second spelling of the list. */
-export { backlinksOf, referrersTo, Way, WAYS } from "./backlinks.ts"
-export type { Backlink, Referrer } from "./backlinks.ts"
+/** THE ONE READING that answers "who refers to here" — {@link referencesOf},
+ *  out of the pointing index the fold keeps ({@link ./pointing.ts}) and asked
+ *  with one address from the node page, the document page and the ops layer
+ *  alike. `Way` is the SCHEMA the answer vocabulary (`Reference`) carries; the
+ *  list it spells is {@link WAYS}, the closed list of how one place can refer
+ *  to another, re-exported from the module that OWNS it ({@link ./imports.ts})
+ *  because the fold files under the same words. */
+export { referencesOf, Way } from "./backlinks.ts"
+export { WAYS } from "./imports.ts"
+export type { Reference } from "./backlinks.ts"
 /** WHICH DOCUMENTS POINT WHERE — the set's own forward links, filed backwards
  *  and kept that way (`perf-doc-backlinks-index`). It rides on the {@link Reading}
- *  and it is what `referrersTo` reads; the type is exported because that
+ *  and it is what `referencesOf` reads; the type is exported because that
  *  function takes one, and the fold and the patch are not — a caller holding a
  *  reading holds the index, and a caller building one goes through `validate`
  *  or `reading`, which is where the two are kept in step. */
@@ -862,7 +860,6 @@ export {
   type Projectable,
   ProjectedRoots,
   ProjectedSubtree,
-  Reference,
   type Stamps,
   Subtree,
   SubtreeAnswer,
@@ -1231,7 +1228,7 @@ export type { OutlineFormat } from "./format.ts"
 
 export { mintExt, parserFor } from "./kinds.ts"
 export { claimedOf, outlineAt } from "./address.ts"
-export { ID_SHAPE } from "./node.ts"
+export { ID_SHAPE, MENTION_ALPHABET } from "./node.ts"
 export { isMarkdown } from "./document.ts"
 
 export { ClaimData, FileKind } from "./kinds.ts"

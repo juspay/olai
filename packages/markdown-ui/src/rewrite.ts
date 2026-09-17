@@ -21,7 +21,9 @@
  *     which is the document's own directory by luck, and the wrong
  *     place on `/d/<date>`, where a note is drawn under an address that is not
  *     a file at all. So it is resolved beside the file the link was WRITTEN in
- *     (`@olai/format`'s `bodiedOf`) and spelled as this app's own document
+ *     (a relative name, checked against the served directory and resolved
+ *     beside the file that wrote it — `@olai/format`'s `relativeTo` half) and
+ *     spelled as this app's own document
  *     route. Nothing else is touched: a fragment stays a fragment, a relative
  *     path to anything that is not a document is left exactly as written, and
  *     a `http:`/`https:` link still goes where it says — in a new tab, so
@@ -154,9 +156,8 @@ const resolvePicture = (element: Element, claims: Claims | undefined, from: stri
 }
 
 /**
- * Point an `<a>` at a served document's own page, when that is what it names.
+ * The one thing this decides that the path resolver does not is the FRAGMENT. A
  *
- * The one thing this decides that `bodiedOf` does not is the FRAGMENT. A
  * vault writes `[the bed](garden.md#beds)`, and the path and the anchor are two
  * different questions: the path is a file to resolve, the anchor is what to do
  * once the page is there. So it is cut off before the arithmetic and put back

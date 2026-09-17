@@ -21,6 +21,7 @@
     "@olai/plugin-api": "workspace:*",
     "@olai/surface": "workspace:*",
     "@olai/web": "workspace:*",
+    "@olai/markdown-ui": "workspace:*",
     "olai-plugin-chat": "workspace:*",
     "olai-plugin-kolu": "workspace:*",
     "olai-plugin-odu": "workspace:*",

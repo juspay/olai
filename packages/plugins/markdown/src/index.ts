@@ -63,6 +63,18 @@ export const documentBodies = location<(props: {readonly file: string}) => JSX.E
  */
 export interface DocumentActions { readonly openCreated: (file: string, router: Router) => void }
 export const documentEditing = serviceTag<DocumentActions>("markdown.editing")
+import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+/** THE REFERRERS SECTION'S OPEN-STATE MEMORY, as this plugin's activation
+ *  mints it — ONE service for every page that draws the shared section, which
+ *  is this row's own document page, the outline page that draws a node's
+ *  backlinks, and the four body-page hosts. OFFERED behind this key for the
+ *  activation's whole scope and withdrawn with it (`../browser.tsx` mints it
+ *  in its `createRoot` and offers it here), so a consumer that names it is
+ *  seen `waiting` until it is held. The outline's backlinks and the body-page
+ *  hosts name it in a component of their own `needs`; the value leaves this
+ *  package only as the declared service, never as a module variable
+ *  (`@olai/ui-primitives/held.ts`'s three rules). */
+export const referrerMemory = serviceTag<ReferrerMemory>("markdown.referrer-memory")
 import type { Custom, PageReading } from "@olai/format"
 import type { Accessor } from "solid-js"
 export interface PropertiesProps { readonly custom: Custom; readonly from: string; readonly reading: Accessor<PageReading | undefined> }

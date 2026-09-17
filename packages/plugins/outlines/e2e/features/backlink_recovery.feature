@@ -19,7 +19,7 @@ Feature: Backlink navigation follows replacement sources
       """
       {"id":"backlink-source","ord":"a0","title":"a mention of @backlink-target"}
       """
-    Then the page says it is referenced by 1 nodes
+    Then the page says it is referenced by 1 things
     And the referenced-by "mentions this" row reads "a mention of @backlink-target"
     And the referenced-by section draws no "sees this" row
     When I follow the referenced-by link to "backlink-source"
@@ -27,7 +27,7 @@ Feature: Backlink navigation follows replacement sources
     And the breadcrumbs are "source.olai"
     When I go back
     Then the zoomed node is "backlink-target"
-    And the page says it is referenced by 1 nodes
+    And the page says it is referenced by 1 things
     And the page has not reloaded
     And there should be no page errors
 
@@ -40,7 +40,7 @@ Feature: Backlink navigation follows replacement sources
       {"id":"backlink-source","parent":"replacement-root","ord":"a0","title":"relocated source","see":["backlink-target"]}
       {"id":"source-child","parent":"backlink-source","ord":"a0","title":"source work"}
       """
-    Then the page says it is referenced by 1 nodes
+    Then the page says it is referenced by 1 things
     When I open the referenced-by section
     Then the referenced-by "sees this" row reads "relocated source"
     When I follow the referenced-by link to "backlink-source"

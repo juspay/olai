@@ -7,13 +7,14 @@ import { expect, test } from "bun:test"
 import { printAddress } from "./address.ts"
 import {
   bytesOf,
-  bodiedOf,
   bracketSpacedLinks,
   firstLine,
   isAsset,
   isPicture,
   linksIn,
+  pathedOf,
   pictureOf,
+  proseLinks,
   resolveRelative,
 } from "./documents.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
@@ -75,38 +76,6 @@ test("only a relative picture is drawn at all", () => {
   }
 })
 
-// A link between two `.md` files is the way a vault of Markdown points at
-// itself, and it lands beside the file that WROTE it — the same arithmetic a
-// picture already uses, which is why they are one resolver.
-test("a relative link to a document resolves beside the file that names it", () => {
-  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
-    .toBe("projects/deck.md")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
-  // A note is written in an OUTLINE, and a link in one resolves the same way.
-  expect(bodiedOf(TEST_CLAIMS, "house.olai", "finishes.md")).toBe("finishes.md")
-})
-
-// A space in the filename is still a filename. The arithmetic is the same as
-// a name without one: join onto the writer, clamp `..`, and a `.md` is a
-// document.
-test("a relative link to a document whose name has spaces resolves beside the file that names it", () => {
-  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../the brief.md"))
-    .toBe("the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "the brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "./the brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "house.olai", "the brief.md")).toBe("the brief.md")
-})
-
-// Markdown's portable spelling of a space in a destination is `%20`. A vault
-// that encoded the name is still pointing at the file, not at a file whose
-// name contains the percent sign.
-test("a percent-encoded space in a document link names the file, not the encoding", () => {
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "the%20brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "house.olai", "the%20brief.md")).toBe("the brief.md")
-  expect(bodiedOf(TEST_CLAIMS, "Daily/2026/08/2026-08-12.md", "../../../the%20brief.md"))
-    .toBe("the brief.md")
-})
 
 const named = (from: string, prose: string) =>
   linksIn(TEST_CLAIMS, from, prose).map(printAddress)
@@ -160,12 +129,11 @@ test("a raw-space destination is wrapped so a CommonMark parser will read it", (
     .toBe("see [the brief](<the brief.md>)")
   expect(bracketSpacedLinks("see [the brief](brief.md)")).toBe("see [the brief](brief.md)")
 })
-
 // Everything this must not reinterpret. A link with a scheme goes where it
 // says, an absolute path is not this app's to resolve, a fragment is the
-// platform's, and a relative path to something that has no page is somebody
-// pointing at something else.
-test("only a relative link to a file with a page is a document link", () => {
+// platform's, and a string that names no path at all is somebody pointing at
+// something else.
+test("anything else is not a path this app resolves", () => {
   for (const href of [
     "https://example.com/a.md",
     "//example.com/a.md",
@@ -174,25 +142,41 @@ test("only a relative link to a file with a page is a document link", () => {
     "/finishes.md",
     "#beds",
     "",
-    "garden.olai",
-    "README",
     "the%ZZ.md",
     "%2Fsecret.md",
   ]) {
-    expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", href)).toBeNull()
+    expect(pathedOf("notes/palette.md", href)).toBeNull()
   }
 })
 
+// THE WIDENING of the link rule, and it is the whole of what changed here: a
+// `[…](…)` names whichever served file it resolves to, whatever kind page it
+// carries. An outline is a document with a page and a reading of its own; a
+// `.pdf` is a body; a picture is a file the picture kind claims. The reader's
+// resolver asks no kind question, because the set gives every file a page.
+test("a relative link names any served file, not only a body", () => {
+  expect(pathedOf("notes/palette.md", "garden.olai")).toBe("notes/garden.olai")
+  expect(pathedOf("notes/palette.md", "../garden.olai")).toBe("garden.olai")
+  expect(pathedOf("notes/palette.md", "../../README")).toBe("README")
+  // …and where the WIDER rule lands: a link names the file whatever kind
+  // page it carries, because the set serves every file.
+  expect(named("notes/palette.md", "[the garden](garden.olai)"))
+    .toEqual(["notes/garden.olai"])
+  expect(named("notes/palette.md", "![the handle](../art/handle.png)"))
+    .toEqual(["art/handle.png"])
+})
+
 // A PICTURE IS ONE NOW, and it is the one answer here that changed with the
-// viewers rather than being added beside them. This rule has always been "a
-// file whose content is a BODY", asked of the registry — so the day a picture
-// became a kind with a page, a `[shot](art/handle.png)` in somebody's notes
-// became a link olai can follow, and the picture's page is what it opens.
-// Nothing here widened: the registry did, and this read it.
+// viewers rather than being added beside them. The set serves every file, so
+// a `[shot](art/handle.png)` in somebody's notes becomes a link olai can
+// follow, and the picture's page is what it opens.
 test("a relative link to a picture, a csv or a pdf is one too", () => {
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "../art/handle.png")).toBe("art/handle.png")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "sales.csv")).toBe("notes/sales.csv")
-  expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "../q3.pdf")).toBe("q3.pdf")
+  // The kind half of that question is the RENDERER's, answered where the
+  // directory cannot be asked: only a body has a page of its own (a `.pdf`
+  // is a body, an outline is a tree, a picture is not a page).
+  expect(pathedOf("notes/palette.md", "../art/handle.png")).toBe("art/handle.png")
+  expect(pathedOf("notes/palette.md", "sales.csv")).toBe("notes/sales.csv")
+  expect(pathedOf("notes/palette.md", "../q3.pdf")).toBe("q3.pdf")
 })
 
 // The suffixes MARKDOWN may name, which is the registry's picture kind minus
@@ -313,4 +297,38 @@ test("serving policy follows claim data instead of a suffix or MIME roster", () 
   expect(servingOf(table, "a.preview")).toEqual({ sealed: true, inert: false })
   expect(servingOf(table, "a.drawing")).toEqual({ sealed: false, inert: true })
   expect(servingOf(table, "a.html")).toEqual({ sealed: false, inert: false })
+})
+
+// ── one scanner for prose, shared by the faces and the readings ────────
+//
+// What a piece of PROSE is, when the question is what it says: the literal
+// code is not prose, and neither a link the browser draws as code nor a
+// dead-link report may treat it as one. Moved here with the scanner itself,
+// from the module it replaced (`prose-links.ts`).
+
+test("code examples contain no prose links but adjacent text does", () => {
+  const code = ["`[x](inline.md)`", "``[x](back`tick.md)``", "```md\n[x](fenced.md)\n```", "~~~\n[x](tilde.md)\n~~~", "    [x](indented.md)", "    - [x](indented-list.md)"].join("\n")
+  expect(proseLinks(code)).toEqual([])
+  expect(proseLinks(`${code}\n[real](real.md)`)).toEqual(["real.md"])
+  expect(proseLinks("`unclosed [real](real.md)")).toHaveLength(1)
+})
+
+test("list continuation links are prose while code within the list remains literal", () => {
+  const text = "- Item\n    [continued](continued.md)\n\n      [code](code.md)\n\nOutside [link](outside.md)"
+  expect(proseLinks(text)).toEqual(["continued.md", "outside.md"])
+})
+
+test("literal lines in a list fence do not swallow links after its indented closer", () => {
+  for (const marker of ["```", "~~~"]) {
+    const text = `123. Item\n     ${marker}\n[example](ignored.md)\n- literal list marker\n     ${marker}\n\n[after](after.md)`
+    expect(proseLinks(text)).toEqual(["after.md"])
+  }
+})
+
+// The same scanner, asked at the ADDRESS grain: a link to a real document is
+// a reference from its writer, and literal code is not prose.
+test("linksIn reads the prose, never the code", () => {
+  expect(named("notes/plan.md", "`[x](missed.md)` `[y](also-missed.md)`\n\n[real](real.md)"))
+    .toEqual(["notes/real.md"])
+  expect(named("notes/plan.md", "```md\n[x](fenced.md)\n```\n\n[seen](seen.md)")).toEqual(["notes/seen.md"])
 })

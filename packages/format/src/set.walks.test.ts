@@ -80,9 +80,9 @@ const vault = (files: number) => {
  *  the set. */
 const written = (path: string, title: string) => {
   // The id is the path with the characters an id may not hold taken out
-  // ({@link ./node.ts}'s `ID_SHAPE`) — this fixture is about paths, and every
-  // record still needs an id nothing else claims.
-  const id = path.replace(/[^A-Za-z0-9_-]/g, "-")
+  // ({@link ./node.ts}'s `ID_SHAPE`, the mention alphabet) — this fixture is
+  // about paths, and every record still needs an id nothing else claims.
+  const id = path.replace(/[^A-Za-z0-9_/-]/g, "-")
   const read = parseOutline(path, `{"id":"${id}","ord":"a0","title":"${title}"}`, TEST_CLAIMS)
   if (Result.isFailure(read)) throw new Error(`${path} does not parse`)
   return read.success

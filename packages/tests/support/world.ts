@@ -68,7 +68,7 @@ import { PLUGIN_TESTID } from "@olai/bundle/testids";
 // suite can ask the rows it is already driving — which is the equality above,
 // read from the other end: the boot package's line in that table is empty now,
 // and these two are the suite's, recorded. `ROW_TESTID` is which row one KIND
-// of file draws; `REFERRINGS` is the outline's word for a reference.
+// of file draws; the referrers' labels are the shared section's own.
 import { TESTID as KIND_OUTLINES } from "olai-plugin-outlines/testids";
 import { TESTID as KIND_MARKDOWN } from "olai-plugin-markdown/testids";
 import { TESTID as KIND_HYPERTEXT } from "olai-plugin-hypertext/testids";
@@ -80,7 +80,7 @@ const ROW_TESTID = {
   hypertext: KIND_HYPERTEXT.hypertextLink, csv: KIND_CSV.csvLink,
   image: KIND_IMAGE.imageLink, pdf: KIND_PDF.pdfLink,
 };
-import { REFERRINGS } from "olai-plugin-outlines/testlib";
+import { makeReferrerWays } from "@olai/markdown-ui/ReferrersSection.tsx";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "olai-plugin-kolu/appliance/testlib";
 import type { LiveOdu } from "olai-plugin-odu/appliance/testlib";
@@ -382,9 +382,9 @@ export const DOCUMENT_REFERRERS = selector(TESTID.documentReferrers);
  * whose `see` lands here, or the ones whose title or note writes this node's
  * `@id`. Each holds `NODE_REF` links exactly as the forward rows do.
  *
- * Through the client's own table (`backlinks/way.ts`), which is what pairs a
- * way with its label and its testid: a suite that mapped a reader's word to a
- * testid here would be that pairing spelled a third time, and `EdgeRefs.tsx`'s
+ * Through the shared section's own pairing — the `makeReferrerWays` table the
+ * caller and this suite both draw from (`@olai/markdown-ui`), so neither side
+ * spells a way's label next to its testid itself, and `EdgeRefs.tsx`'s
  * header says what a second spelling of it costs. THROWS on a label no row
  * carries — one rule, said once: a helper handing back `undefined` for the
  * caller to re-check is the same refusal written twice, and the second writer
@@ -429,8 +429,18 @@ export const rowReads = async (
 export const detailsOpen = async (locator: Locator): Promise<boolean> =>
   await locator.first().evaluate((el) => (el as HTMLDetailsElement).open);
 
+/** One row of the node page's section, found by the label a READER sees —
+ *  the labels are the shared section's own (`@olai/markdown-ui`), paired with
+ *  the outline's testids by the same `makeReferrerWays` the section's caller
+ *  uses, so a suite mapping a word to a testid HERE is the pairing spelled
+ *  one more time than the component draws it. */
+const REFERRING_ROWS = makeReferrerWays({
+  see: KIND_OUTLINES.backlinkSeeRefs,
+  mention: KIND_OUTLINES.backlinkMentionRefs,
+  link: KIND_OUTLINES.backlinkLinkRefs,
+})
 export const backlinkRow = (label: string): string => {
-  const drawn = REFERRINGS.find((one) => one.label === label);
+  const drawn = REFERRING_ROWS.find((one) => one.label === label);
   if (drawn === undefined) {
     throw new Error(`the referenced-by section draws no \`${label}\` row`);
   }

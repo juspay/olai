@@ -362,6 +362,13 @@ A node carries two lists of other nodes ([format.md](format.md)): `see`, which i
 
 Both are facts about the node a row SHOWS, so choosing one at a mirror writes the node it stands for — a placement carries no edges of its own.
 
+
+## What points at a node, and at a document
+
+The reverse of the edge rows is drawn as a **referenced-by** section — on a node's page it is the *referenced by* fold under the note, on a document's page the *what points at it* fold under the body, and the two are the same component and the same list ([format.md](format.md#references)). What counts is what the format counts: a `see`, an `@mention` in a title, a note or a document's body, and a markdown link to the node's id or to the file — a link onto one heading counts as a link to the whole document, a picture shown with `![](…)` is a link too, and a link inside a code fence is text. The sources are drawn in path order with their way (`see`, *mentions*, *links*), a record that refers twice is one row, and what is on the Trash is nowhere here.
+
+The section is collapsed until opened, and once opened it survives a plugin rebuild of the same page — the promise the node page and the document page keep together. Navigating away starts a new visit; the fold closes again. The document's `×` on an edge row is this section's only writable gesture — the list itself is derived, exactly as blocked-by is, and there is nothing in it to edit.
+
 ## Taking an edit back
 
 **⌘Z takes back the last edit you made on this outline** — and it is not a restore. When a key moves a row, ticks something off, or commits what you retyped, the server records what would REVERSE it (the parent and neighbour the row had, the mark it replaced, the words it replaced) and ⌘Z sends that, through the same gate, judged against the outline as it is now.

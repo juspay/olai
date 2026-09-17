@@ -1,18 +1,24 @@
 /**
- * What refers to a node, read out of the indexes that were built forwards.
+ * WHAT REFERS TO A PLACE, read out of the indexes that were built forwards.
  *
- * Every reference in this format points ONE way on disk. A node writes
- * `see: ["herbs"]`, or writes `@herbs` in its title or its note, and the herb
- * bed's own record says nothing about either — so "who is talking about this?"
- * was a question nothing could answer without walking the whole directory, and
- * nothing asked it.
+ * Every reference in this format points ONE WAY on disk. A record writes
+ * `see: ["herbs"]` or `@herbs` in its title or its note; a body writes
+ * `@herbs` in its prose or links `[x](#herbs)`; a note links a document or
+ * one of its headings — and the thing all of them talk about says nothing
+ * back. "Who is talking about this?" was a question nothing could answer
+ * without walking the whole directory, and nothing asked it.
  *
- * The two reverse indexes {@link ./derive.ts} keeps are what makes it a lookup:
- * {@link Derived.namedBy} carries what records SAY with their fields (`see`
- * among them) and {@link Derived.taggedBy} carries what their prose tagged.
- * This module is the READING over the pair — which is where every question that
- * is about MEANING rather than about storage is asked, and there are four of
- * them.
+ * This module is the one reading over the two indexes that make it a lookup:
+ * {@link ./pointing.ts} carries what every file POINTS AT (its links, its `@`
+ * tags, its records' `see`s and the links in their notes — everything the
+ * fold reads at build time), and {@link ./derive.ts}'s reverse indexes
+ * (`namedBy`, `taggedBy`) are what the pointing index was built from. Every
+ * page that asks "who refers" — a node, a document, a heading, a body — asks
+ * THIS function, and every wire that carries the answer carries ONE shape.
+ *
+ * ONE SHAPE, and it is {@link Reference}: the thing that wrote the reference,
+ * and the way(s) it did. A record and a document are the two kinds of source,
+ * and the union is the whole of it — a `.md` has no finer grain than itself.
  *
  * ## What counts, and what deliberately does not
  *
@@ -26,10 +32,17 @@
  * What turns a tag into a reference is the id existing, and that question is
  * asked HERE rather than in the index, so that minting a node does not have to
  * re-read every note in the directory to find the mentions that just became
- * references ({@link Derived.taggedBy}).
+ * references.
  *
- * **A `#topic` never counts, whatever it spells.** The index behind this reads
- * both sigils, under keys that keep them, so a set with a node called `herbs`
+ * **A LINK counts, whatever it names.** A record's note writing `[x](#herbs)`
+ * is as much a sentence about the herb bed as a `see` is; a body writing
+ * `[x](brief.md)` or `[x](brief.md#scope)` names a document, and pointing at
+ * a heading is pointing at the document it is in. {@link ./pointing.ts}
+ * files every link under everything it names; this reading says what each
+ * entry means.
+ *
+ * **A `#topic` never counts, whatever it spells.** The index behind this files
+ * both sigils under keys that keep them, so a set with a node called `herbs`
  * and a `#herbs` topic written across a dozen titles has two things there and
  * this section draws one of them. Sigil-stripped keys would have made that
  * ambiguity unreachable rather than decided.
@@ -49,13 +62,18 @@
  * itself (the `after` row). Collecting the other end here would say the same
  * edge a second time on the same page, under a word that means something else.
  *
- * ## Two rules it inherits rather than invents
+ * ## Three rules it inherits rather than invents
  *
  * **A reference to a PLACEMENT of this node is a reference to this node.** A
  * `see` naming a mirror of `herbs` draws the herb bed's title and opens the
  * herb bed's page ({@link nodeNamed}, which every forward reader resolves
  * through), so the reverse reading has to agree — the ids asked about are this
  * node's and every mirror standing for it.
+ *
+ * **A record never refers to itself, and neither does a document.** A node
+ * whose note says `@` its own id is talking about the page it is on, and a
+ * `see` onto one of its own placements is the same sentence through a mirror;
+ * a document whose prose links itself is a file pointing at its own page.
  *
  * **What is put away is on the Trash and nowhere else** (#226). A referrer
  * written in an `_olai/Trash.olai` is left out, the same way it is left out of
@@ -65,17 +83,13 @@
 
 import { Schema } from "effect"
 
-import type { Address } from "./address.ts"
-import { byCorpus, type Derived, tagText } from "./derive.ts"
-import { Face } from "./document.ts"
-import { recordLinks } from "./documents.ts"
-import {
-  isPutAway,
-  isRegular,
-  type Located,
-  LocatedRegular,
-} from "./node.ts"
-import { type Pointing, pointingAt } from "./pointing.ts"
+import { type Address, addressOf, DocumentPath } from "./address.ts"
+import { byCorpus, tagText, type Derived } from "./derive.ts"
+import { Face, type FaceHead } from "./document.ts"
+import { isPutAway, isRegular, LocatedRegular } from "./node.ts"
+import { byPath } from "./paths.ts"
+import { type Pointing, pointingAt, type Source } from "./pointing.ts"
+import type { Reading } from "./validate.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `outlines_see`, or a
@@ -86,222 +100,199 @@ import { type Pointing, pointingAt } from "./pointing.ts"
  * referrers doing the same two things say them the same way round. One list, so
  * the order and the closure cannot be two facts.
  *
+ * THE LINK WAY is the newest: a link in a record's note — or a body's own
+ * prose — onto a node, a heading or a document is a reference to what it lands
+ * on, and this way is how the references reading says so. The ways exist so a
+ * row can tell "this record wrote an edge" from "this record named the node in
+ * prose" from "this file links to the page".
+ *
  * A SCHEMA beside it, and the wire vocabulary READS that one ({@link
- * ./reading.ts}'s `Reference`) — the arrangement `Progress` already has with
- * that module. The list is closed by the rulings in this file's header, so it
- * belongs beside them; a second `Schema.Literals(["see", "mention"])` on the
- * answer would be that closure respelled where nothing argues it, free to gain
- * a third member on one side only.
+ * ./reading.ts}`s `Reference` — the arrangement `Progress` already has with
+ * that module). The list is closed by the rulings in this file's header, so it
+ * belongs beside them; a second `Schema.Literals(["see", "mention", "link"])`
+ * on the answer would be that closure respelled where nothing argues it, free
+ * to gain a fourth member on one side only.
+ *
+ * THE LIST ITSELF lives in ./imports.ts now, READ rather than re-declared:
+ * the fold files under the same ways this schema spells, so the words are
+ * one fact — the list here was the second copy and both headers used to
+ * argue the other was wrong.
  */
-export const WAYS = ["see", "mention"] as const
+import { WAYS } from "./imports.ts"
 export const Way = Schema.Literals(WAYS)
 export type Way = typeof Way.Type
 
 /**
- * One record that refers to a node, and the ways it does.
+ * ONE PLACE A REFERENCE WAS WRITTEN — a whole document, or one record inside
+ * one — and the ways that place says the target.
  *
- * ONE ENTRY PER RECORD, so a node that both `see`s this one and names it in its
- * note is one referrer with two ways — {@link Naming}'s rule, and for its
- * reason: what asks this wants to know which records to draw.
+ * The two arms are the two kinds of thing that can hold a reference, and the
+ * difference is real rather than a convenience: a `.md` writes a link in its
+ * prose and has no record to attribute it to, while an outline's reference is
+ * always SOME record's — the node that wrote the `see`, put the link in its
+ * note, or wrote the `@id` in its title. Saying "house.olai points here" where
+ * the honest answer is "the node `kitchen` links it" would be the coarser
+ * answer offered because it was the easier one.
  *
- * The ways come in {@link WAYS} order rather than in the order they were
- * discovered.
+ * THE ONE WIRE SHAPE: the node page's backlinks and the document page's
+ * referrers used to be two schemas (`Backlink`, `Referrer`) for one question,
+ * and every consumer had to know which door it was standing at. They are this
+ * now, whichever page asked.
+ *
+ * ONE ENTRY PER SOURCE, so a record that both `see`s this node, names it in a
+ * note and links it is one reference with three ways. The ways come in
+ * {@link WAYS} order rather than in the order they were discovered.
  */
-export const Backlink = Schema.Struct({
-  /** The referring record — always a REGULAR node, since a mirror can carry
-   *  neither an edge nor prose. */
-  at: LocatedRegular,
+export const Reference = Schema.Struct({
+  /** The referring record, or the document whose body wrote it. Always a
+   *  REGULAR node when it is a record — a mirror can carry neither an edge nor
+   *  prose, so no entry ever names one. A document source is its {@link FaceHead}
+   *  — the path and title the rows draw — never the full face, whose body-only
+   *  halves (`links`, `tags`, `props`) no consumer of this wire reads. */
+  source: Schema.Union([LocatedRegular, Schema.Struct({ path: DocumentPath, title: Schema.String })]),
   ways: Schema.Array(Way),
 })
-export type Backlink = typeof Backlink.Type
+export type Reference = typeof Reference.Type
 
-/** The answer for a node nobody talks about, which is most of them: ONE list,
+/** The answer for a place nothing refers to, which is most of them: ONE list,
  *  shared, for {@link targetsOf}'s reason — a page asks this per frame. */
-const NOTHING_REFERS: ReadonlyArray<Backlink> = []
-
-/** How prose NAMES the node called `id` — the key {@link Derived.taggedBy}
- *  files that under, spelled through the format's own {@link tagText} so this
- *  reading cannot come to disagree with the fold about what an `@` tag looks
- *  like written down. */
-const mentioned = (id: string): string => tagText({ sigil: "@", tag: id })
+const NOTHING_REFERS: ReadonlyArray<Reference> = []
 
 /**
- * Everything that refers to `id`, in corpus order.
+ * THE ONE READING: everything that refers to an address, in path order, as
+ * {@link Reference}s — the node page's backlinks, the document page's
+ * referrers, and `outlines_read`'s `referencedBy` alike.
  *
- * A LOOKUP rather than a walk: two index reads per id this node answers to,
- * which is one plus however many placements it has. Nothing here scans the
- * corpus, which is what lets a page ask it on every frame the store publishes.
+ * A LOOKUP rather than a walk: two index reads for a document address, and a
+ * handful per node (one per id the node answers to, times the two keyspaces —
+ * the node's own and the `@` prose half). Nothing here scans the corpus, which
+ * is what lets a page ask it on every frame the store publishes.
+ *
+ * THE NODE ARM reads the pointing index under `#<id>` and `@<id>` for the node
+ * and every placement standing for it — the sees, the links and the mentions
+ * all file there at the fold ({@link ./imports.ts}). The derivation's own
+ * reverse indexes built the same answers and are read by other doors
+ * (`namedBy` by the refusal that asks "does anything point at this record",
+ * `taggedBy` by the tag vocabulary); nothing about the two of them is spelled
+ * again here.
  *
  * AN ID NOTHING CLAIMS HAS NO REFERRERS, and that line is the whole of where
  * the existence question is asked. `@alice` files under `@alice` whether or not
- * anybody is called that ({@link Derived.taggedBy}), so without this the tag
- * would be a reference to a node that is not there — and a caller asking about
- * a node it has in hand pays one map read for it.
+ * anybody is called that, so without this the tag would be a reference to a
+ * node that is not there — and a caller asking about a node it has in hand
+ * pays one map read for it.
  *
- * THE `@` HALF OF THAT INDEX AND NOTHING ELSE, which is what {@link mentioned}
- * spells: the index files both sigils under keys that carry them, and a
- * `#herbs` is a topic somebody wrote rather than a sentence about the node
- * called `herbs`. Prose refers to a node by NAMING it, and `@` is how this
- * format names one.
+ * THE DOCUMENT, HEADING AND ROW ARMS are one index key: {@link ./pointing.ts}
+ * files a link onto a heading or a row under BOTH the element and the document,
+ * so asking about a document is a lookup under its path and asking about a
+ * heading or a row is a lookup under the exact key — the page that draws one
+ * normalises to the whole document first (`./page.ts`'s `shownOf`), which is
+ * why the two answers cannot drift.
  */
-export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlink> => {
+export const referencesOf = (
+  at: Pick<Reading, "claims" | "derived" | "pointing">,
+  address: Address,
+): ReadonlyArray<Reference> => {
+  if (address.kind === "node") return nodeRefs(at, address.id)
+  return documentRefs(at, address)
+}
+
+/**
+ * The node arm: every source under the node's own ids — `#<id>`, `@<id>`, and
+ * the same pair for every placement standing for it — gathered, merged by
+ * source, and ruled.
+ *
+ * The ways are the INDEX's own: the fold files a `see` under the id it names,
+ * a link from a note or a body's prose under the id it links, and a `@id`
+ * prose half — so a source that both sees and mentions the node carries both
+ * ways when its two keys are merged here.
+ */
+const nodeRefs = (
+  at: Pick<Reading, "claims" | "derived" | "pointing">,
+  id: string,
+): ReadonlyArray<Reference> => {
+  const { derived, pointing } = at
+  // AN ID NOTHING CLAIMS HAS NO REFERRERS — see {@link referencesOf}.
   if (!derived.byId.has(id)) return NOTHING_REFERS
-  const found = new Map<LocatedRegular, Set<Way>>()
-  const file = (at: Located, way: Way): void => {
-    // A record never refers to ITSELF: a node whose note says `@` its own id is
-    // talking about the page it is on, and a `see` onto one of its own
-    // placements is the same sentence through a mirror.
-    if (at.node.id === id || isPutAway(derived.claims, at.file)) {
+  /** Per source — the record object, or the face for a body — the ways it
+   *  says the node. Keyed by object identity; a Map is the identity hash. */
+  const found = new Map<object, Reference>()
+
+  const file = (source: Source): void => {
+    // A record never refers to ITSELF: a node whose note says `@` its own id
+    // is talking about the page it is on, and a `see` onto one of its own
+    // placements is the same sentence through a mirror. What is put away is
+    // on the Trash and nowhere else.
+    if (isPutAway(derived.claims, source.face.path)) return
+    if (source.at !== undefined) {
+      if (source.at.node.id === id || !isRegular(source.at)) return
+    }
+    const key: object = source.at ?? source.face
+    const held = found.get(key)
+    if (held === undefined) {
+      found.set(key, { source: source.at ?? headOf(source.face), ways: source.ways })
       return
     }
-    // A REFERRER IS A REGULAR NODE. `taggedBy` says so in its TYPE, so this
-    // is asked only of the naming side, where `Located` is honest because
-    // `mirror` is one of the fields that index files — and asked through the
-    // format’s own guard, so this narrows the way every other consumer does.
-    // It can never drop a `see`: a mirror carries no edge fields.
-    if (!isRegular(at)) return
-    const ways = found.get(at)
-    if (ways === undefined) found.set(at, new Set([way]))
-    else ways.add(way)
+    // THE SAME SOURCE THROUGH TWO KEYS (`#id` and `@id`): the ways merge, in
+    // {@link WAYS} order, however many keys the source answered through.
+    const merged = WAYS.filter((one) => held.ways.includes(one) || source.ways.includes(one))
+    if (merged.length !== held.ways.length) found.set(key, { source: held.source, ways: merged })
   }
-
-  // This node, and every placement standing for it — the ids a forward reader
-  // resolves through, read backwards.
+  // THIS NODE, AND EVERY PLACEMENT STANDING FOR IT — the ids a forward reader
+  // resolves through, read backwards. The fold files under `#<id>` the sees
+  // and links, and under `@<id>` the mentions.
   for (const named of [id, ...(derived.mirrorsOf.get(id) ?? [])]) {
-    for (const naming of derived.namedBy.get(named) ?? []) {
-      if (naming.fields.includes("see")) file(naming.at, "see")
-    }
-    for (const at of derived.taggedBy.get(mentioned(named)) ?? []) file(at, "mention")
+    const node = addressOf(at.claims, null, named)
+    if (node === null) continue
+    for (const source of pointingAt(pointing, node)) file(source)
+    for (const source of pointing.get(tagText({ sigil: "@", tag: named })) ?? []) file(source)
   }
-
-  if (found.size === 0) return NOTHING_REFERS
-  return [...found]
-    .map(([at, ways]): Backlink => ({ at, ways: WAYS.filter((way) => ways.has(way)) }))
-    // Sorted rather than merged: both indexes promise corpus order on their
-    // own, but this reads up to two of them per placement and the union of
-    // several ordered lists is not one. A referrer count is a handful.
-    .sort((one, other) => byCorpus(one.at, other.at))
+  return [...found.values()]
+    // Sorted rather than merged: the index promises path order per key, and
+    // the node arm reads up to four keys per placement. A referrer count is a
+    // handful.
+    .sort(byReference)
 }
 
-// ── what points at an address ──────────────────────────────────────────
-
 /**
- * ONE PLACE A REFERENCE WAS WRITTEN — a whole document, or one record inside
- * one.
- *
- * The two arms are the two kinds of thing that can hold a link, and the
- * difference is real rather than a convenience: a `.md` writes a link in its
- * prose and has no record to attribute it to, while an outline's link is
- * always SOME record's — the node that wrote the `see`,
- * or put the link in its note. Saying "house.olai points here" where the honest
- * answer is "the node `kitchen` links to it" would be the coarser answer
- * offered because it was the easier one.
+ * The document, heading and row arms: everything under the address's own key,
+ * with the face-level rulings.
  */
-export const Referrer = Schema.Struct({
-  /** The document the reference is written in — what it is called and where it
-   *  is, which is what a row draws. */
-  face: Face,
-  /** The RECORD that wrote it, for an outline. Absent for a document's body,
-   *  which has no records. */
-  at: Schema.optionalKey(LocatedRegular),
-})
-export type Referrer = typeof Referrer.Type
-
-/**
- * WHO POINTS AT AN ADDRESS — every document's forward `links`, read backwards.
- *
- * This is the half of the design that made a document's page possible to write
- * at all. A `see`, a link in a note and a link in a body
- * all point ONE WAY on disk, so "what is talking about this document?" was a
- * question nothing could answer without walking the whole directory, and
- * nothing asked it. The faces answer it now, because every document carries the
- * addresses it points at and a face is small enough to travel
- * ({@link ./document.ts}).
- *
- * A LOOKUP IN THE LINKS INDEX and then a walk of ONE FILE. It was a walk of
- * every FACE until `perf-doc-backlinks-index`: a face says whether its document
- * points here at all, so the question cost every link of every file in the
- * directory, per revision, per tab sitting on a page with a body — while the
- * node-to-node direction next door had had its reverse index since
- * `model-indices`. {@link ./pointing.ts} is that same reading kept rather than
- * re-made, and it answers "which documents point here" in one lookup; the
- * records of those documents are then asked which of THEM wrote it, through
- * {@link recordLinks}, the same function that built the face, so the two cannot
- * come to disagree about whether a record points somewhere.
- *
- * THE COMPARISON IS THE SAME ONE and it is now made only where an answer is
- * being drawn. {@link points} below used to be applied to every link of every
- * face in the directory, which is why it compares a PATH rather than printing
- * an address (`printAddress` allocates). It is applied to one file's records
- * now, and the printing it avoided is paid once per link at the FOLD instead —
- * a written key per link of the files a revision moved, against a written key
- * per read, which is the whole trade this index is.
- *
- * WHAT IS PUT AWAY IS ON THE TRASH AND NOWHERE ELSE (#226), which is this
- * module's standing rule read once more: a referrer written in an
- * `_olai/Trash.olai` is left out, the same way it is left out of search, of the
- * agenda and of blockedness. It is left out HERE rather than at the fold, like
- * every other index of this format: an index that knew about `_olai/Trash.olai`
- * would be the storage rule wired into a fold about what a file points at.
- *
- * A LINK ONTO A HEADING POINTS AT THE DOCUMENT, which is the one place this
- * reading is not a string comparison. `[the scope](brief.md#scope)` is a
- * reference to `brief.md` — the reader who opens that file is who wants to
- * know — and a page that showed it only under the heading would answer half the
- * question and hide the other half. The reverse does not hold: asking about the
- * heading is asking about the heading. The index files that link under BOTH
- * keys so this holds at the lookup as well as at the record walk.
- *
- * A DOCUMENT DOES NOT REFER TO ITSELF, and that is one line rather than a
- * caller's job: a `.md` whose own body links a heading of itself is talking
- * about the page it is on.
- */
-export const referrersTo = (
-  address: Address,
-  /** Which documents point at this address at all ({@link ./pointing.ts}) —
-   *  the set's own links, filed backwards and kept that way. */
-  pointing: Pointing,
-  /** The records, for attributing an outline's link to the one that wrote it.
-   *  `byFile` is the index that makes it a lookup rather than a corpus walk. */
-  derived: Pick<Derived, "byFile" | "claims">,
-): ReadonlyArray<Referrer> => {
-  // WRITTEN and compared, because a canonical spelling is what the grammar
-  // promises: two addresses that name one place print one string, so nothing
-  // here has to know how the arms are shaped.
-  // NO STRING IS BUILT for the arms that name a file, and that is what keeps
-  // the record walk below cheap on a file that holds a lot of them: a path IS
-  // the comparison for those arms, and it is the arm a page asks about.
-  const here = address.kind === "node" ? null : address.path
-  const points = (link: Address): boolean => {
-    if (address.kind === "node") return link.kind === "node" && link.id === address.id
-    if (link.kind === "node" || link.path !== address.path) return false
-    // A LINK ONTO A HEADING POINTS AT THE DOCUMENT (below); asking about the
-    // heading is asking about the heading, and asking about a row is asking
-    // about that row — a page of this app never asks the row's question today,
-    // and the arm is spelled so the day it does costs nothing.
-    if (address.kind === "heading") {
-      return link.kind === "heading" && link.slug === address.slug
-    }
-    if (address.kind === "row") {
-      return link.kind === "row" && link.id === address.id
-    }
-    return true
+const documentRefs = (
+  at: Pick<Reading, "claims" | "derived" | "pointing">,
+  address: Exclude<Address, { readonly kind: "node" }>,
+): ReadonlyArray<Reference> => {
+  const sources = pointingAt(at.pointing, address)
+  if (sources.length === 0) return NOTHING_REFERS
+  const found: Array<Reference> = []
+  for (const source of sources) {
+    // The document this page is about never refers to itself, and what is put
+    // away is on the Trash and nowhere else.
+    if (source.face.path === address.path || isPutAway(at.derived.claims, source.face.path)) continue
+    if (source.at !== undefined && !isRegular(source.at)) continue
+    found.push({ source: source.at ?? headOf(source.face), ways: source.ways })
   }
-  const found: Array<Referrer> = []
-  for (const face of pointingAt(pointing, address)) {
-    if (face.path === here || isPutAway(derived.claims, face.path)) continue
-    const records = derived.byFile.get(face.path)
-    // A face with no records behind it is a BODY — the link is the document's
-    // own, and there is nothing finer to name.
-    if (records === undefined) {
-      found.push({ face })
-      continue
-    }
-    for (const located of records) {
-      if (!isRegular(located)) continue
-      if (!recordLinks(derived.claims, located).some(points)) continue
-      found.push({ face, at: located })
-    }
-  }
-  return found
+  return found.length === 0 ? NOTHING_REFERS : found
 }
+
+/** Path order over two references: by file, and by CORPUS ORDER within a file —
+ *  the promise {@link byCorpus} makes, with a BODY's entry ordered ahead of the
+ *  file's records: the body IS the file, so its entry is the FILE's. The file
+ *  half is {@link byPath} — the same order the directory is read in — so a
+ *  `wing.olai` and a `wing/held.olai` cannot come out in the wrong-< order.
+ *  Two files can never tie, which is {@link byPath}'s promise. */
+const byReference = (one: Reference, other: Reference): number => {
+  const side = byPath(pathOf(one.source), pathOf(other.source))
+  if (side !== 0) return side
+  const oneRecord = "file" in one.source
+  const otherRecord = "file" in other.source
+  if (oneRecord !== otherRecord) return oneRecord ? 1 : -1
+  if (!oneRecord) return 0
+  return byCorpus(one.source as LocatedRegular, other.source as LocatedRegular)
+}
+
+const pathOf = (source: LocatedRegular | FaceHead): string =>
+  "path" in source ? source.path : source.file
+
+/** A document source's head — the path and title a reference row draws. */
+const headOf = (face: Face): FaceHead => ({ path: face.path, title: face.title })

@@ -2,63 +2,54 @@
  * WHAT REFERS TO THIS NODE, under a zoomed node's heading — the one place in
  * this app a reference is read backwards.
  *
- * Every reference points one way on disk: a node writes `see: ["herbs"]`, or
- * writes `@herbs` in its title or its note, and the herb bed's own record says
- * nothing about either. The forward halves are drawn (the `see` row under a
- * note, the `@` tag in a title); this is the reverse, and until it existed the
- * only way to find what talked about a node was to search for its id by hand.
+ * The section itself is the shared one (`@olai/markdown-ui`'s
+ * `ReferrersSection`), which both this page and a document's page draw — the
+ * same wire shape, the same collapse, the same labels, the same rows, and the
+ * same open-state memory: ONE store, minted by the MARKDOWN plugin's
+ * activation, offered behind `markdown.referrer-memory`, and read here
+ * through this package's own copy of it (`./memory.ts`), installed by
+ * `../browser.tsx`'s `backlinks` component — which sits `waiting` while that
+ * row is off, so an outline with no markdown row draws the section without
+ * its memory rather than this page turning off with it.
+ *
+ * What is left HERE is what only this page knows:
+ *
+ *   - WHICH references to draw, off the node page's own reading —
+ *     `@olai/format`'s `referencesOf`, answered by the server as
+ *     `shows.node.backlinks` (one entry per source, with the ways it refers);
+ *   - the ROWS, shaped per way — a record opens its node page, a body opens
+ *     its file, and the two are different routes this plugin knows how to
+ *     spell (`olai-plugin-navigation`);
+ *   - the testids each row answers to (`../contracts/referrings.ts` is gone —
+ *     the labels are the shared section's, and only the testids are this
+ *     page's);
+ *   - the KEY this section remembers its open state under — (pane, node) —
+ *     and the "still shown" answer that decides the forget.
  *
  * DERIVED, and therefore READ-ONLY: there is no `×` here, for `../NodeRefs.tsx`'s
  * own reason — half of these entries are words in somebody else's sentence, and
  * an affordance that could not take those back would be an affordance that did
  * nothing for half the list. What removes a reference is editing the record
  * that makes it, which is one click away on every row.
- *
- * COLLAPSED, and the collapse is the browser's — a `<details>`, the shape
- * `../document/Toc.tsx` already uses, so it works before this app's JavaScript
- * has an opinion about it and is announced without an `aria-expanded` to keep
- * in step. The default is shut because a reference is context rather than
- * content: what the node IS is its title, its note and what hangs under it, and
- * a vault where everything points at one hub node would otherwise open that
- * node with a wall of links above its own children.
- *
- * ...AND THE ROWS ARE NOT BUILT WHILE IT IS SHUT, which the `<details>` alone
- * does not give: that element renders its children whether or not it is open,
- * so on the hub node this feature is for — a curated list several hundred
- * records point at — every frame the store published was minting several
- * hundred refs and diffing several hundred anchors nobody could see. The
- * element's own `toggle` drives a signal, and the rows live behind it; the
- * SUMMARY needs only the count, which is a length.
- *
- * KEYED ON THE NODE, for the reason the contents is: `open` is an attribute the
- * browser then owns, so a page reused from `/#a` to `/#b` would carry the
- * reader's answer about the first node onto the second. A different node is a
- * different element by construction — and the signal is reset with it, since it
- * is created inside the keyed block. It is NOT keyed on the count: the section
- * staying open while a reference is added elsewhere is exactly the live update
- * this feature is for.
- *
- * TWO ROWS RATHER THAN ONE LIST, because there are two ways to refer and they
- * are not the same claim: a `see` is an edge somebody wrote with a verb, and a
- * mention is a word in a sentence. Each row is `../NodeRefs.tsx` — the same
- * shape the `see` and `blocked by` rows have — and a record that does both
- * appears in both, which is what it is doing.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
-import { type Backlink, printAddress } from "@olai/format"
-import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
-
+import { type Reference } from "@olai/format"
+import { createMemo, Show, untrack } from "solid-js"
 import { only } from "@olai/web/client/narrow.ts"
-import { NodeRefs } from "../NodeRefs.tsx"
+import type { PageReading } from "@olai/format"
+
+import {
+  makeReferrerWays,
+  referrerRowOf,
+  ReferrersSection,
+  type ReferrerRow,
+} from "@olai/markdown-ui/ReferrersSection.tsx"
+import { backlinksMemory } from "./memory.ts"
 import { useReading } from "../reading.tsx"
-
-import { useHere, useRouter } from "olai-plugin-navigation/routing"
-import type { Route } from "olai-plugin-navigation/routes"
-import { panesOf } from "olai-plugin-navigation/workspace"
-import { rowsOf } from "./refs.ts"
-import { REFERRINGS } from "./way.ts"
-
-let opened = new WeakMap<Route, Map<string, boolean>>()
+import { useHere } from "olai-plugin-navigation/routing"
+import { atFile, atNode } from "olai-plugin-navigation/routes"
+import { hrefOf } from "../routing.ts"
+import { servedDirectory } from "../vault.ts"
 
 export function Backlinks(props: {
   /** The node the page is about — canonical, since a zoom resolves a mirror's
@@ -78,91 +69,54 @@ export function Backlinks(props: {
     // It carries both rules at once: a node nobody refers to draws NOTHING (the
     // absence is the answer, as it is for every relation row on this page), and
     // a page reused from `/#a` to `/#b` gets a NEW element rather than the
-    // reader's answer about the first node. Two nested `Show`s said the same
-    // thing in two places and left the second free to stop keying.
+    // reader's answer about the first node.
     <Show when={found().length > 0 ? props.id : undefined} keyed>
-      <Section id={props.id} found={found} />
+      {(id) => <Section id={id} found={found} reading={reading} />}
     </Show>
   )
 }
 
-/**
- * The section itself, its own component so that the open state is MINTED WITH
- * IT: a signal declared one level up would outlive the keyed block and carry
- * one node's answer onto the next, which is the very thing the key is for.
- */
+/** The section, its own component so that the open state is MINTED WITH IT:
+ *  a signal declared one level up would outlive the keyed block and carry
+ *  one node's answer onto the next, which is the very thing the key is for. */
 function Section(props: {
   readonly id: string
-  readonly found: () => ReadonlyArray<Backlink>
+  readonly found: () => ReadonlyArray<Reference>
+  readonly reading: () => PageReading | undefined
 }) {
-  const router = useRouter()
   const pane = useHere()()
-  const route = panesOf(router.workspace())[pane]?.route
-  const key = JSON.stringify([pane, props.id])
-  const saved = route === undefined ? undefined : opened.get(route)
-  const initiallyOpen = saved?.get(key) ?? false
-  saved?.delete(key)
-  const [open, setOpen] = createSignal(initiallyOpen)
-  onCleanup(() => {
-    const now = panesOf(router.workspace())[pane]?.route
-    if (route?.kind !== "at" || now?.kind !== "at" || props.found().length === 0) return
-    if ((route.address === null ? null : printAddress(route.address))
-      !== (now.address === null ? null : printAddress(now.address))) return
-    const states = opened.get(now) ?? new Map<string, boolean>()
-    states.set(key, open())
-    opened.set(now, states)
-  })
+  // The KEY is (pane, node) — the pane INDEX, which revs on the layout clock
+  // when a pane is reordered or closed (the shared section's header says why
+  // that is what there is): a remount of the same pane and node — a rebuild —
+  // must find the same key, and the answer that was left under it.
+  const key = JSON.stringify([pane, `backlinks:${props.id}`])
+  const memory = backlinksMemory.read()
+  // The "still shown" answer the shared section's own forget rule reads at the
+  // leaving moment, untracked: the same node is still zoomed AND it still has
+  // references (a rebuild in place keeps the reader's answer), or the answer
+  // goes.
+  const stillShown = () => {
+    const shows = untrack(props.reading)?.shows
+    const page = shows === undefined ? undefined : only(shows, "node")
+    const zoomed = page?.zoomed
+    return zoomed !== undefined && zoomed.kind === "node" && zoomed.shows.node.id === props.id && props.found().length > 0
+  }
   return (
-    <details
-      ref={(element) => { element.open = initiallyOpen }}
-      class="mt-3 border-t border-rule pt-2"
-      data-testid={TESTID.backlinks}
-      data-count={props.found().length}
-      // The element's own state, read back rather than commanded: `<details>`
-      // opens itself on a press, on a keyboard activation and on a browser's
-      // find-in-page, and a component that set `open` from a signal would be
-      // fighting all three.
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary
-        class="cursor-pointer text-sm text-muted select-none"
-        data-testid={TESTID.backlinksSummary}
-      >
-        {said(props.found().length)}
-      </summary>
-      <Show when={open()}>
-        {/* A row per WAY, out of the one table that says what each is called
-            (./way.ts) — never a label written here beside a testid picked by
-            hand, which is the fragmentation ../edges/EdgeRefs.tsx exists to
-            have stopped one direction over. An empty row draws nothing, which
-            is `NodeRefs`' own rule rather than a guard per way. */}
-        <Rows found={props.found()} />
-      </Show>
-    </details>
+    <ReferrersSection
+      found={props.found()}
+      claims={servedDirectory()?.claims()}
+      ways={makeReferrerWays({
+        see: TESTID.backlinkSeeRefs,
+        mention: TESTID.backlinkMentionRefs,
+        link: TESTID.backlinkLinkRefs,
+      })}
+      row={(one) => referrerRowOf(one, { file: (path) => hrefOf(atFile(path)), node: (id) => hrefOf(atNode(id)) })}
+      stillShown={stillShown}
+      memoryKey={key}
+      testid={TESTID.backlinks}
+      summaryTestid={TESTID.backlinksSummary}
+      linkTestid={TESTID.nodeRef}
+      memory={memory}
+    />
   )
 }
-
-function Rows(props: {
-  readonly found: ReadonlyArray<Backlink>
-}) {
-  const rows = createMemo(() => rowsOf(props.found))
-  return (
-    <For each={REFERRINGS}>
-      {(referring) => (
-        <NodeRefs
-          label={referring.label}
-          refs={rows()[referring.way]}
-          testid={referring.refs}
-        />
-      )}
-    </For>
-  )
-}
-
-/** The summary line: a count in a sentence rather than a bare number, because
- *  it is the whole of what a shut section says and "Referenced by 3" beside a
- *  heading reads as a score. */
-const said = (total: number): string =>
-  `Referenced by ${total} ${total === 1 ? "node" : "nodes"}`
-
-export const clearBacklinks = (): void => { opened = new WeakMap() }

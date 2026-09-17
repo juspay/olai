@@ -1,10 +1,9 @@
 /** Missing relative targets are a reading of a revision, never a verdict. */
 import { Schema } from "effect"
-import { pathedOf } from "./documents.ts"
+import { pathedOf, proseLinks } from "./documents.ts"
 import { isMirror, type Located } from "./node.ts"
 import { basenameOf } from "./paths.ts"
 import { nearestId } from "./suggest.ts"
-import { proseLinks } from "./prose-links.ts"
 
 export const DeadLink = Schema.Struct({
   written: Schema.String,

@@ -222,8 +222,8 @@ test("a link that is not a relative document is left exactly as written", () => 
 })
 
 // A PICTURE IS A PAGE NOW, so a link to one is rewritten like a link to a
-// document — same rule, unchanged, asked of a registry that claims more kinds
-// (`@olai/format`'s `bodiedOf`). The EMBED is untouched: `![](…)` still
+// document — same rule, unchanged, named by whatever a relative path resolves
+// to (`@olai/format`'s `relativeTo`). The EMBED is untouched: `![](…)` still
 // resolves through markdown's own picture rule and still becomes a `/media/`
 // URL, which is the distinction this pair holds.
 test("a relative link to a picture opens that picture's page", () => {

@@ -5,7 +5,7 @@
  * This is `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` §3's table, written down as
  * a value: an address goes in, and what the page draws comes out. Every arm is
  * built from the reading functions this package already had — `rowsOf`, `zoom`,
- * `datedOn`, `dailyNotesOn`, `agendaOf`, `backlinksOf`, `referrersTo` — and not
+ * `datedOn`, `dailyNotesOn`, `agendaOf`, `referencesOf` — and not
  * one of them was rewritten. They are simply CALLED on the side that holds the
  * set, and their answer put on the wire (§2: "nothing gets rewritten; it gets
  * called on the other side").
@@ -94,9 +94,9 @@ import { DeadLink, deadLinksOf } from "./dead-links.ts"
 import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
-import { Address } from "./address.ts"
+import { Address, addressOf } from "./address.ts"
 import { Agenda, type AgendaDay, agendaOf } from "./agenda.ts"
-import { Backlink, backlinksOf, Referrer, referrersTo } from "./backlinks.ts"
+import { Reference, referencesOf } from "./backlinks.ts"
 import { Custom, customOf } from "./custom.ts"
 import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
@@ -195,7 +195,7 @@ export const Shown = Schema.Union([
     zoomed: Zoomed,
     /** What refers to this node, in corpus order — empty for an id nothing
      *  points at, and for the three arms of {@link Zoomed} that show no node. */
-    backlinks: Schema.Array(Backlink),
+    backlinks: Schema.Array(Reference),
   }),
   /**
    * One document, drawn whole. It carries the PATH and never the body: a body
@@ -210,9 +210,11 @@ export const Shown = Schema.Union([
    */
   Schema.Struct({
     kind: Schema.Literal("document"),
+    /** The document this page is about — what its referrers point at. */
     file: Schema.String,
-    /** Who points at this document — the "referred to by" list. */
-    referrers: Schema.Array(Referrer),
+    /** Who points at this document — the "referred to by" list, whole-document
+     *  and in the same shape the node page's backlinks take. */
+    referrers: Schema.Array(Reference),
     /** The named facts the file writes about itself — a `.md`'s frontmatter. */
     props: Custom,
   }),
@@ -594,7 +596,12 @@ export const shownOf = (at: Reading & { readonly outlineRow?: string }, request:
     return {
       kind: "node",
       zoomed,
-      backlinks: zoomed.kind === "node" ? backlinksOf(derived, zoomed.shows.node.id) : [],
+      // The CANONICAL node — a zoom resolves a mirror's chain before it draws
+      // anything — asked of the same one reading the document arm uses, so the
+      // node's page and a document's page answer one question in one shape.
+      backlinks: zoomed.kind === "node"
+        ? referencesOf(at, addressOf(at.claims, null, zoomed.shows.node.id)!)
+        : [],
     }
   }
 
@@ -611,7 +618,13 @@ export const shownOf = (at: Reading & { readonly outlineRow?: string }, request:
     return {
       kind: "document",
       file,
-      referrers: referrersTo(address, at.pointing, derived),
+      // WHOLE-DOCUMENT, and deliberately: a link onto a heading or a row is a
+      // link to the document it lands in (`./backlinks.ts` rules it, and the
+      // index double-files heading and row links under the document key), so a
+      // page about a document asks about the document — never about the heading
+      // the URL happened to arrive at. One normalisation, here, where the
+      // reading is; the browser adds no second one.
+      referrers: referencesOf(at, { kind: "document", path: file }),
       // TOTAL, like the face: empty is the honest none, not an omitted field.
       props: face.props,
     }
@@ -824,11 +837,13 @@ function* referencedIn(shows: Shown): Generator<LocatedRegular> {
         yield* inWay(shows.zoomed.blocked)
         yield* waitedOnIn(shows.zoomed.children)
       }
-      for (const backlink of shows.backlinks) yield backlink.at
+      for (const backlink of shows.backlinks) {
+        if ("file" in backlink.source) yield backlink.source
+      }
       return
     case "document":
       for (const referrer of shows.referrers) {
-        if (referrer.at !== undefined) yield referrer.at
+        if ("file" in referrer.source) yield referrer.source
       }
       return
     case "day":
