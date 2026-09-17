@@ -20,7 +20,7 @@ What you type sits on the right, in a tinted bubble. What the agent answers sits
 
 ## Which agent
 
-Chat speaks [ACP](https://agentclientprotocol.com), and it talks to whichever agents this machine has. It finds them itself: pinned **Claude Code** and **Codex** adapters, which come with olai — `nix run`, the packaged binary and `just serve` all bake them in, so there is nothing to install or put on PATH — an **opencode** on the server's own PATH, and **pi**, whose adapter is pinned and shipped but whose agent is found the way opencode is: a `pi` on the server's agent search path is the machine saying it has one, and without it there is no pi row. **omp** is that same arrangement a second time and nothing more: an `omp` on that search path is the machine saying it has Oh My Pi, one probe finds it, and — because omp ships both its own ACP server and its own MCP client — olai pins nothing, patches nothing and bridges nothing.
+Chat speaks [ACP](https://agentclientprotocol.com). Its engine plugins find pinned **Claude Code** and **Codex** adapters shipped with olai; **opencode** and **omp** on the server's agent search path; and **pi**, whose shipped adapter also needs a `pi` executable on that path. An enabled engine that is missing stays visible with its own explanation rather than silently disappearing.
 
 Each engine is a plugin: [claude](plugins/claude.md), [codex](plugins/codex.md),
 [opencode](plugins/opencode.md), [pi](plugins/pi.md), and
@@ -29,10 +29,13 @@ node in `_olai/Settings.olai`, or using the plugins panel switch, removes its
 probe and choices without disabling the other engines. Choices follow the
 server's current engine roster.
 
-A conversation belongs to one engine for its lifetime. Row and new-chat start
-controls ask which engine when several are available and start immediately
-when there is only one. A plain node page shows its selected engine beside the
-composer.
+A conversation belongs to one engine for its lifetime. The *start an agent*
+pill and *new chat* button appear when at least one engine is available. They
+start immediately only when the whole roster is one available engine.
+Otherwise the menu lists all enabled engines in bundle order: available engines
+are pickable; missing ones are greyed out with the reason and an installation
+link when supplied. Row-menu verbs and the command palette offer only available
+engines. A plain node page shows its selected engine beside the composer.
 
 A **fresh start may pick a different engine**. With one engine installed it
 starts immediately on the node's own engine, exactly as before. With several,
@@ -44,12 +47,17 @@ node across engines, both when it moves away from and back to an engine.
 
 The list itself:
 
-- **found once, when the server starts.** An agent installed while olai is running is offered by the next start. Enabling or disabling an already-discovered engine plugin updates its availability while the serve runs.
-- `OLAI_ACP_AGENT` points at a different ACP agent for the Claude row — that override has always meant *read this the way you read Claude Code*, and it still does. `OLAI_ACP_CODEX` and `OLAI_ACP_PI` are the Codex and pi halves of the same arrangement: which adapter chat spawns is a pin olai bakes in or a person overrides, never whatever `npx` would have fetched today. Empty `OLAI_ACP_CODEX` omits that row; empty `OLAI_ACP_AGENT` makes only its engine unavailable.
+- **Probed once per engine activation, not per reader.** After installing a CLI into the server's search path, switch its plugin off and on to ask again without restarting olai. Other engines keep their cached readings.
+- `OLAI_ACP_AGENT` points at a different ACP agent for the Claude row. `OLAI_ACP_CODEX` and `OLAI_ACP_PI` name the Codex and pi adapters. An empty adapter variable makes that engine unavailable, with an explanation; it does not remove the enabled engine's row. Pi distinguishes an unset adapter from a missing `pi` executable.
 - To turn chat off, set `on: no` on the chat node. An empty adapter path does not disable the conversation or suppress other engine probes.
 - `OLAI_AGENT_PATH` is where the probes look, and defaults to `PATH`. It is worth knowing about because **olai's PATH is not your shell's**: run as a systemd user service (the home-manager unit) it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set it and it REPLACES the search path. For pi it answers a second question too: the `pi` the probe finds there is handed to the pinned adapter as the one it wraps, so the pi the row runs is the pi the probe found rather than one the adapter resolved against its own environment. For opencode and omp it is the whole of the answer, because neither has an override variable of its own: putting the build you want on that path is the only way to point olai at it, which is the same gesture as installing it.
 
 With no agent available the plain node page still draws its explanation, and says which agents olai can talk to and where to get one — because a feature that is silently absent cannot be told apart from one that is broken. That list is the ENABLED ENGINES and each one's own sentence about how it is got, answered by the server: a serve started `on: no` on the unwanted engine nodes in `_olai/Settings.olai` says how to install opencode and does not offer a Claude Code it could not mount.
+
+The plugins panel files an enabled but missing engine under **Needs you**, with
+its toggle still on. It shows the same sentence and link as the disabled picker
+row and the no-agent face. Turning chat off removes this reading: nothing is
+probing, so the engine's extra face waits for chat to return.
 
 **The explanation distinguishes two reasons for having no agent.** No engine rows enabled and no executable found need different remedies. The server knows which occurred and supplies the opening sentence:
 

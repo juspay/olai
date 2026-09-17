@@ -906,28 +906,26 @@ appliance olai has a judgement about. Smaller shape, same rules.
   agent's wire, each a pure function with a unit test, each safe to lose in one
   direction — an agent matching none of them means the person is asked.
 - `src/server.ts` registers `{ name, leg, at, prompt }` on `Agents`: what a
-  person reads, the leg, a probe answering `Adapter | null` for this host, and
-  the channel the standing prompt rides. Not the install sentence: it rode this
-  registration once and nothing read it, because the component that draws it is
-  the browser half's.
-- `src/browser.tsx` registers two components, both drawings about this engine:
-  its mark (`delivery.mark`) and its sentence on the screen shown when the
-  machine has no agent at all (`engine.install`, which takes a `NotHere` value
-  rather than a drawing). Core keeps the shape of each — the sixteen-unit box,
-  the list, the order — and neither crosses the wire, so a row selection naming
-  other engines draws a panel with nothing of yours in it. Chat also owns
-  `tool.reply`: outlines supplies `{ fileOf, story }` through that slot,
-  registered after its resources so the face withdraws first. The face owns
-  its interactions; the slot does not require chat to supply node navigation. Display ownership
-  comes from the optional MCP catalogue through `Tools`, resolved per call.
-- Put the install sentence in a `src/install.ts` your browser half opens: a
-  `NotHere` (`@olai/plugin-api`) whose `why` is a whole sentence core composes no
-  clause of.
-- **There is no slot for the picker's row**, and the omission is deliberate:
-  those words are your engine's `name`, which the server already sends per
-  installed agent on the chat cell, so a slot would give one string two authored
-  sources. A slot is for what core cannot compose — a `<g>`, a sentence about
-  installing your tool — not a name it was handed.
+  person reads, the leg, a probe answering `Adapter | NotHere` for this host,
+  and the channel the standing prompt rides. Absence is a whole reason, not
+  `null`; an engine with multiple prerequisites says which one is missing.
+- Chat owns detection, caching each machine answer until that engine
+  unregisters. Readers do not probe. Switching an engine off and on forgets
+  just its answer. The published roster retains every mounted engine in bundle
+  order with `standing: "here"` or `"not-here"`; only here rows can start.
+- `src/browser.tsx` registers the engine's mark (`delivery.mark`) and exports
+  `components = { row: engineRow(name) }` from chat's browser-engines door.
+  This component consumes chat's declared `engines` service and the inspector's
+  `plugins.row` slot under the engine's own identity. Missing engines belong in
+  **Needs you**; when chat is absent the component pends.
+- Put the absence sentence in `src/install.ts`, spent by the server probe:
+  a `NotHere` whose `why` is a whole sentence the reader does not compose.
+  The wire carries this reading to one shared sentence component used by the
+  disabled picker row, no-agent face and inspector row.
+- **There is no slot for picker words.** The server supplies both the engine's
+  name and its absence reason. A slot would introduce a second author for the
+  same fact. Chat also owns `tool.reply`: outlines supplies `{ fileOf, story }`
+  through that slot, with the face withdrawn before its resources.
 - Its `testids` table is legitimately empty: an engine draws inside core's own
   elements, under core's ids, with `data-agent` carrying its word.
 - If olai ships an adapter for it, the volatile packaging belongs in

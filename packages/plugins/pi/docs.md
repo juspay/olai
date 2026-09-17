@@ -6,12 +6,16 @@ This page is one engine's own account of itself. What a conversation IS — how 
 
 ## How olai finds it
 
-Two probes, and either one missing is no row at all — the picker's promise is that a row it draws is an agent this machine has, and a bridge with no `pi` behind it would fail at every conversation open.
+Two probes, with different absence reasons: an unset or empty `OLAI_ACP_PI` means the adapter is unavailable; otherwise a missing `pi` means the CLI is not on this server's agent search path. The enabled engine stays visible but disabled in the picker, and its plugins row moves to **Needs you** with the same sentence and installation link.
 
 - **the adapter** is `svkozak/pi-acp`, pinned and baked into the packaged binary's wrapper beside the Claude Code one. `OLAI_ACP_PI` names it, and that variable is this row's whole door. A floating `npx -y pi-acp` is never run: the npm world would hand back a different build every day, and the wire facts this engine is written against are one revision's.
 - **the agent** is a runnable `pi` on the **agent search path**. The one the probe found is handed to the adapter as its own `PI_ACP_PI_COMMAND`, so the `pi` the row runs is the `pi` the probe found — without that, the adapter's own lookup would resolve the word against a third path, its child's, which is olai's and not your shell's. `OLAI_AGENT_PATH` is where to say where to look.
 
 Turn this row off with `on: no` on the `pi` node in `_olai/Settings.olai`, or its durable switch on `⧉`. The row stops probing and its browser contribution is withdrawn.
+
+After installing `pi` on the configured search path, switch this plugin off and
+on to probe again without restarting olai. Ordinary readers reuse the answer.
+Changing the service's environment itself still requires restarting it.
 
 ## What is only true of this wire
 

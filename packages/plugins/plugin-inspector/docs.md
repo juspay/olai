@@ -25,6 +25,14 @@ plugin hung no face is drawn exactly as it was. The table is held by the
 integration that draws the panel, so a face lives exactly as long as the surface
 it is drawn on.
 
+Enabled engines whose adapter or CLI is missing also use this face. Their
+toggles stay on, but their rows move to **Needs you** with the same reason and
+installation link as the disabled chat-picker entry. Chat owns the probe and
+offers its live reading through a declared browser service; each engine's
+component owns its own row contribution. Installing the CLI and switching that
+engine off and on refreshes just its reading. With chat disabled the component
+pends and draws no stale diagnosis.
+
 Its provider owns panel visibility and the source versions the reader has
 acknowledged. A separate integration consumes `browser-management` and
 `ui-renderer.slots`, contributing through `layout.tools`. Removing the shell

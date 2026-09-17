@@ -87,11 +87,14 @@ its own. Conversation UI state is keyed by engine/session within the activation,
 so drafts, refusals, question state and dismissed completions do not leak across
 conversations.
 
-Chat also declares `engine.install`, `delivery.mark` and `conversation.wake`. The fold registration
+Chat declares `delivery.mark` and `conversation.wake`. The fold registration
 owns these shared child locations once; page faces consume the same locations.
 Reverse withdrawal removes page consumers before the fold's location owner.
-An engine contributes its installation sentence and a delivering plugin its
-mark; chat renders these contributions without inventing either.
+Engine absence is data on the roster, not a separate browser slot. One sentence
+component draws its mark, reason and optional link in the picker, no-agent face
+and engine-owned inspector row. Chat's declared browser `engines` service shares
+that live reading; each engine's optional `row` component waits for chat and the
+inspector slot, then contributes under its own plugin identity.
 
 Optional dependencies remain in separate scoped components. Navigation and its
 existing palette control supply route changes and choice reset on dismissal;
