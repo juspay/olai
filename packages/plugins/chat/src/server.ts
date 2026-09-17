@@ -111,8 +111,7 @@ import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
 import { whyNoAgent } from "./adapter.ts"
-import { detecting, here, offBecause } from "./agents/roster.ts"
-import { said } from "./chat.ts"
+import { choiceOf, detecting, here, offBecause } from "./agents/roster.ts"
 import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
@@ -734,35 +733,46 @@ export default definePlugin({
       // for the first `here` row exactly as it waited for a nonempty array,
       // because a table of only `not-here` rows is a panel with install
       // sentences and no agent to talk to — same face, same wait.
-      while (offBecause(table) !== null) {
+      //
+      // ONE FOLD PER READING, HELD. The condition and the sentence logged under
+      // it are the same question about the same table: folding twice per pass
+      // left a `because !== null` branch inside a loop whose own condition had
+      // just said it was not, which is a guard a reader has to prove dead.
+      let because = offBecause(table)
+      while (because !== null) {
         // Arm before publishing or yielding, so an arriving engine cannot be
         // lost between the empty reading and the wait. This fiber is scoped:
         // turning chat off also cancels a build waiting for its first engine.
         engineChange = yield* Deferred.make<void>()
-        mine?.cells.engines.set(table.map(said))
-        const because = offBecause(table)
-        if (because !== null) {
-          yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(because)), {
-            duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
-          })
-        }
+        mine?.cells.engines.set(table.map(choiceOf))
+        yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(because)), {
+          duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
+        })
         yield* Deferred.await(engineChange)
         const next = yield* Effect.timed(Effect.sync(() => detect.read(mounted())))
         discoveryDuration = next[0]
         table = next[1]
+        because = offBecause(table)
       }
       engineChange = null
       const installed = here(table)
 
       // ...AND THE LOG NAMES BOTH HALVES of the reading, which is the point of
-      // publishing the whole table: `agents` was already there, and `missing`
-      // is what the journal never had — the sentence for every engine a person
-      // enabled and could not start, in the engine's own words.
+      // publishing the whole table: `agents` was already there, and the
+      // absences are what the journal never had — the sentence for every engine
+      // a person enabled and could not start, in the engine's own words.
+      //
+      // AUTHORED ONCE AND SPREAD CONDITIONALLY, for two reasons that are one
+      // reason. Both lines below say this about the same table, so one `const`
+      // is one sentence; and a fully installed serve logged `missing=""` — a
+      // field that reads as a fact about an engine and is only a join over
+      // nothing. A serve with every engine here now says nothing about
+      // absences, which is what is true of it.
+      const absent = table.flatMap((row) => row.standing === "not-here" ? [`${row.id}: ${row.missing.why}`] : [])
+      const missing = absent.length === 0 ? {} : { missing: absent.join("; ") }
       yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
         agents: installed.map((row) => row.id).join(", "),
-        missing: table
-          .flatMap((row) => row.standing === "not-here" ? [`${row.id}: ${row.missing.why}`] : [])
-          .join("; "),
+        ...missing,
         duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
       })
 
@@ -860,10 +870,8 @@ export default definePlugin({
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         // ...AND THE MISSING, at the debug level the commands line lives at:
-        // same table, other arm, one line.
-        missing: table
-          .flatMap((row) => row.standing === "not-here" ? [`${row.id}: ${row.missing.why}`] : [])
-          .join("; "),
+        // same table, other arm, the annotation authored above.
+        ...missing,
         mcp: address.url,
       })
     }))

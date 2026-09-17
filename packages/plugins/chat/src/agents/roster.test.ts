@@ -3,9 +3,10 @@
  *
  * The roster is a pure function of a made-up environment and a made-up list of
  * engines ({@link rosterOf} hands both in), so its whole behaviour — the row
- * shapes, the fold that decides whether there is anything to talk to, what the
- * live reading remembers and what a toggle un-remembers — is assertable without
- * a serve, a filesystem or a plugin system.
+ * shapes, the fold that decides whether there is anything to talk to, the fold
+ * that decides what crosses the wire, what the live reading remembers and what
+ * a toggle un-remembers — is assertable without a serve, a filesystem or a
+ * plugin system.
  *
  * ## THE TABLE, AND WHY THE ABSENCE IS A ROW
  *

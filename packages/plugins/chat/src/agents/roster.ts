@@ -1,24 +1,115 @@
 /**
- * One standing per mounted engine, in the caller's bundle order.
+ * WHICH ENGINES THIS SERVE MOUNTED, how this machine answers for each of them,
+ * and how to start the ones it has.
  *
- * Engine plugins provide probes as data; chat's activation owns detection.
- * The machine half stays frozen under a reader: refreshing a panel must not
- * re-probe PATH or change capability while a CLI is being replaced.
- * The build half follows mounted fibers. Unregistering forgets that engine's
- * cached answer before announcing the change, so off/on is a person's request
- * to look again without invalidating unrelated engines.
+ * One row per mounted engine, over a list this package is HANDED. A row says
+ * who an agent is (an id, a name a person reads) and then either what to spawn
+ * — which leg reads its wire, which channel its standing prompt rides — or the
+ * SENTENCE a machine that has not got it is owed. Everything else in this
+ * package takes the answer: {@link ../chat.ts} publishes the whole table so the
+ * panel can ask which one a conversation is for, {@link ../memory.ts} writes the
+ * chosen id down beside the conversation, and {@link ../agent.ts} spawns what
+ * the row says.
  *
- * Publish the whole reading. Missing engines carry their own reason rather
- * than disappearing at the boundary. `here` projects startable engines;
- * `offBecause` distinguishes no mounted engines from none installed.
+ * ## THE TABLE IS GONE, and that is the phase
  *
- * OLAI_AGENT_PATH replaces PATH, including the empty string ("look nowhere").
- * A service's PATH is not a login shell's PATH. Engines use the lookup they
- * are handed rather than resolving against their own environment.
+ * There was a `KINDS` array here — three rows, each naming a leg and a probe —
+ * beside `@olai/surface`'s `AGENTS` record, which made every agent id a CLOSED
+ * UNION that only a core PR could widen. Adding another engine was an edit in two
+ * general packages, and a bump of ONE adapter's pin was an edit in a file the
+ * other two shared.
+ *
+ * Each engine is a PLUGIN now — `packages/plugins/claude/`, `codex/`, `opencode/`,
+ * `pi/`, `omp/`, one row each in `olai.yml` — and what arrives here is whatever
+ * those plugins registered on the `Agents` service (`@olai/plugin-api`'s
+ * `services.ts`). This package never learns that a plugin system exists: it is
+ * handed `ReadonlyArray<Engine>` by the composition root, exactly as it is
+ * handed the session-start thunks, and an id it has no entry for is the same
+ * absence a missing binary is.
+ *
+ * ## Found, rather than configured
+ *
+ * The roster is DETECTED (the human's ruling, 2026-08-21): olai looks for each
+ * engine it has, and what it finds is what you can choose between. There is no
+ * list to maintain and no path to set for an agent that is simply installed.
+ * Finding nothing is a state with a face of its own — the panel says so, out of
+ * each row's own sentence — because a chat panel that silently is not there
+ * cannot be told apart from one that is broken.
+ *
+ * HOW each engine is found is the engine's own file rather than a row here: one
+ * is a variable the packaged wrapper bakes a pin into, one is a name on the
+ * agent search path, and one is both at once. That asymmetry used to be three
+ * paragraphs in this header explaining three rows of one table; it is five
+ * `server.ts` headers in five directories, each beside the leg it belongs to.
+ *
+ * ## PUBLISH THE WHOLE READING, and never drop a row
+ *
+ * A probe answers `Adapter | NotHere` and BOTH arms become a row
+ * ({@link Standing}). The second arm used to be `null` and a `null` row was
+ * dropped here, which is how a panel came to offer two engines while a third sat
+ * enabled, installed-adjacent and unexplained: the fact was computed in the one
+ * fiber that could compute it and thrown away at the boundary, where no consumer
+ * downstream could recover it. So the table keeps every row and the readers
+ * NARROW it on purpose — {@link here} for "startable", {@link offBecause} for
+ * "why there is nothing to talk to", {@link choiceOf} for what crosses the wire.
+ *
+ * ## The shared engine search path
+ *
+ *   - **`OLAI_AGENT_PATH` is where the probes look**, defaulting to `PATH`. It
+ *     exists because olai's PATH is not your shell's: run as a systemd user
+ *     service (the home-manager unit) it inherits neither your profile nor your
+ *     login shell, so an `opencode` you can run in a terminal is not necessarily
+ *     one this process can see — the same trap an optional server's probe
+ *     documents from the other side ({@link ../probes.ts}, and the plugin whose
+ *     probe it is). Set, it REPLACES the search path rather than adding to it,
+ *     so it can also say "look nowhere": the empty string finds no agent, which
+ *     is what the e2e suite spawns a server with when a scenario is not about
+ *     the roster.
+ *   - **An engine resolves a name with the lookup it is HANDED**
+ *     ({@link Where.found}), never against its own idea of an environment.
+ *     Where this process may look is a fact about the SERVE, and a plugin that
+ *     answered it for itself would be answering a question core has decided.
+ *
+ * ## TWO HALVES, AND ONLY ONE OF THEM WAS EVER MEANT TO MOVE
+ *
+ * The MACHINE's half stays frozen under a reader, and that is a deliberate
+ * refusal rather than a defect left in place: which agents are INSTALLED is what
+ * decides whether the panel has an agent at all, and re-deciding it under a
+ * reader would flip the panel's whole face — from a conversation to install
+ * instructions and back — because somebody's `$HOME/.local/bin` was being
+ * written to, or because a CLI was mid-upgrade and its file was briefly not
+ * there. An agent installed while olai runs is offered when a person asks again,
+ * which is the same bargain `OLAI_ACP_AGENT` has always made.
+ *
+ * The BUILD's half moves. Which engine PLUGINS are mounted is a fact about the
+ * fibers, and a fiber can be turned off at the panel — so a row that leaves
+ * leaves the picker and a row that arrives enters it, with no restart.
+ *
+ * ## {@link detecting} IS WHAT LETS BOTH BE TRUE AT ONCE
+ *
+ * A live reading over a frozen probe. The detector holds what each engine id
+ * answered — the whole {@link Standing}, absences included, because "not here,
+ * and here is why" is an ANSWER and re-asking it is the re-probing this
+ * arrangement exists to avoid — so recomputing the list when the table moves
+ * costs a walk over a map rather than a walk over `PATH`, and the machine's half
+ * is frozen by construction rather than by everybody remembering not to re-probe.
+ *
+ * WHAT "LOOK AGAIN" IS, and who may say it: the cache is not for the life of the
+ * process, because turning an engine plugin off and on again is a PERSON asking
+ * for a fresh answer about that engine. {@link Detection.forget} drops exactly
+ * one id's row, and the only caller is the UNREGISTER finalizer in
+ * `../server.ts`'s `AgentsDoor`, which spends it BEFORE ringing `enginesMoved`
+ * so the row is re-probed on the way back rather than answered from the cache.
+ * Nothing else calls it, on purpose: no clock, file watcher or second plugin is
+ * a person, and an engine nobody touched keeps the answer it gave — what changed
+ * was one fiber, not the disk.
+ *
+ * What the cache must not do is outlive the PROCESS, and it cannot: it is closed
+ * over by the detector the composition root builds once.
  */
 
 import { type Adapter, type Engine, type Leg, type NotHere, type PromptChannel, type Where } from "@olai/acp/engine"
-import type { OffBecause } from "olai-plugin-chat/wire"
+import type { AgentChoice, OffBecause } from "olai-plugin-chat/wire"
 import { AGENT_PATH_ENV } from "../adapter.ts"
 
 /** An agent that is installed: who it is, what to spawn, and how to read what
@@ -99,6 +190,34 @@ export const offBecause = (roster: Roster): OffBecause | null => {
 }
 
 /**
+ * ...AND THE ROW AS THE BROWSER HEARS IT — the third fold, and the only one
+ * that crosses a wall.
+ *
+ * THE SERVER'S EXECUTION DETAILS STAY HERE: the adapter, the leg and the
+ * prompt channel belong to opening a conversation, not to drawing a choice.
+ * A browser sends back the engine's ID, never a command to execute. What
+ * crosses is that ID, a NAME to draw and — on the `not-here` arm — the
+ * engine's own sentence about what prevents it from starting.
+ *
+ * IT LIVES HERE, beside {@link here} and {@link offBecause}, because it is the
+ * same kind of thing: one reader's narrowing of one table, and the third place
+ * that decides what an arm MEANS. It was `said` in `../chat.ts` for a revision,
+ * which cost twice over — `said` in this package already means what an agent
+ * last uttered (`../heard.ts`'s `lastSaid`, `NodeAgentRow.said`, the
+ * transcript's `SaidLine`), and `../server.ts` had to import a panel
+ * constructor to reach a five-line mapping it wanted for the engines cell
+ * before any panel exists.
+ *
+ * The MARK is not here either, and that is this decision read from the other
+ * side: which glyph to draw for an engine is a fact about the drawing, so the
+ * browser keeps the marks and looks them up by id.
+ */
+export const choiceOf = (row: Standing): AgentChoice =>
+  row.standing === "here"
+    ? { id: row.id, name: row.name, standing: "here" }
+    : { id: row.id, name: row.name, standing: "not-here", missing: row.missing }
+
+/**
  * Every mounted engine's standing, in the order it was given.
  *
  * PURE over {@link Where} and the engines handed in, which makes each row's
@@ -132,17 +251,24 @@ export const rosterOf = (
 
 /** One probe's answer, as a row of the table. THE ONE PLACE the union is
  *  split: `installed` rides the `here` arm and `missing` the `not-here` one,
- *  and every other reader folds ({@link here}, {@link offBecause}) rather than
- *  re-deriving what a probe's answer means. */
+ *  and every other reader folds ({@link here}, {@link offBecause},
+ *  {@link choiceOf}) rather than re-deriving what a probe's answer means.
+ *
+ *  IT KEYS ON `why`, which is the field that carries the MEANING of the arm it
+ *  belongs to: an absence is a sentence, and this package owns the reading that
+ *  a sentence is what a `not-here` row is made of. Keying on `command` instead
+ *  sniffed the OTHER package's shape — `@olai/acp`'s `Adapter`, whose fields are
+ *  a spawn's business and not this table's — so a protocol-side field rename
+ *  would have silently filed every installed engine as absent. */
 const standingOf = (engine: Engine, at: Adapter | NotHere): Standing =>
-  "command" in at
-    ? {
+  "why" in at
+    ? { id: engine.id, name: engine.name, standing: "not-here", missing: at }
+    : {
       id: engine.id,
       name: engine.name,
       standing: "here",
       installed: { id: engine.id, name: engine.name, adapter: at, leg: engine.leg, prompt: engine.prompt },
     }
-    : { id: engine.id, name: engine.name, standing: "not-here", missing: at }
 
 /**
  * The roster of the machine this process is on — the one impure door, and the

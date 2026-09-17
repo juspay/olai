@@ -90,7 +90,7 @@
  */
 import type { Advertised } from "@olai/plugin-api/services"
 
-import { type AgentChoice, type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
+import { type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
 import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
@@ -99,7 +99,7 @@ import { Deferred, Effect, Fiber, References, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
 import type { Conversing, Overheard, Sessions } from "./sessions.ts"
-import { here, offBecause, type Installed, type Roster, type Standing } from "./agents/roster.ts"
+import { choiceOf, here, offBecause, type Installed, type Roster } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import * as Deliveries from "./deliveries.ts"
@@ -127,12 +127,6 @@ export interface WakeScope {
   readonly session: string
   readonly pick: import("./json.ts").Json
 }
-
-/** The complete machine reading, without server-only spawn or protocol data. */
-export const said = (row: Standing): AgentChoice =>
-  row.standing === "here"
-    ? { id: row.id, name: row.name, standing: "here" }
-    : { id: row.id, name: row.name, standing: "not-here", missing: row.missing }
 
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */
@@ -981,7 +975,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       uploadScope: files.scope(),
       status: "idle",
       talking: { kind: "asking" },
-      roster: options.roster().map(said),
+      roster: options.roster().map(choiceOf),
     }
     /** The agent this panel is talking to and the row it came from, or `null`
      *  while it is talking to none — before the first choice, and in the beat
@@ -1837,7 +1831,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       const because = offBecause(rows)
       if (because !== null) {
         move({
-          roster: rows.map(said),
+          roster: rows.map(choiceOf),
           status: "off",
           off: because,
           talking: null,
@@ -1847,7 +1841,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         return
       }
       move({
-        roster: rows.map(said),
+        roster: rows.map(choiceOf),
         // COMING BACK is `idle` and not the status it left: `off` is the only
         // state the panel can be in that a returning row invalidates, and what
         // is true afterwards is a panel with a picker and no conversation, which

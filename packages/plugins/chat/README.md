@@ -8,23 +8,17 @@ It sits BESIDE `@olai/ops` rather than above or below it. A conversation and an 
 
 ## Which agent, and when it starts
 
-The roster is detected rather than configured: every mounted engine contributes one row, in bundle order, with `standing: "here"` or `standing: "not-here"`. A missing row carries the engine probe's `NotHere` sentence, including which of pi's two prerequisites is absent. Start controls, the no-agent face, and the plugins panel read the same server answer.
+The roster is DETECTED rather than configured (ruled 2026-08-21): olai looks for each agent its engine plugins know — the pinned Claude Code and Codex adapters, an `opencode` on its own search path, the pinned pi adapter paired with a `pi` found there, and an `omp` found the same way opencode is — and what it finds is what you can choose between. Every mounted engine contributes one row, in bundle order, with `standing: "here"` or `standing: "not-here"`, and a missing row carries the engine probe's own `NotHere` sentence — including which of pi's two prerequisites is the one that is absent. Nothing is dropped at the boundary, so the start controls, the no-agent face and the plugins panel all read one server answer rather than three readings of it. Finding nothing has a face of its own: the panel draws, says so, and says how to install one, out of each row's own words.
 
-The state machine in `chat.ts` holds one conversation with one ACP process.
-`scoped.ts` acquires node-bound sessions lazily on the first press or wake and
-owns their subprocesses and resources. Boot starts no conversation.
+The state machine in `chat.ts` still holds one conversation with one ACP process. `scoped.ts` is the scheduler above it: node-bound conversations get one Effect scope each, are acquired lazily on the first press or wake, and may run concurrently. The working set is capped by `DEFAULT_CAPACITY`; an idle, unwatched, non-foreground scope is reaped after `DEFAULT_IDLE` and a later wake respawns it from the durable session. Closing the scope releases the panel, ACP process, optional MCP servers, attachments, inbox and per-session tool credential together. Boot starts no conversation. Unassigned conversations keep the ordinary single foreground panel. Where an unassigned conversation's choice comes from, in order:
 
-Start controls exist when at least one engine is here. Exactly one here row and
-no missing rows starts immediately; otherwise the menu shows the whole table,
-with missing engines disabled and explained. Row-menu verbs and the palette
-continue to offer only here engines.
+- **one STARTABLE agent is not a choice.** The panel talks to it and says which it is, in the header. Asking a one-row question is friction with no answer behind it, and every olai before this one was in exactly that state. The count is of engines that can be STARTED, not of rows: a greyed `not-here` row beside the one installed engine is an explanation rather than a second option, so a build that ships five engines onto a machine with one of them still starts on a single press.
+- **the note this directory left** (`memory.ts`) names the agent the panel was last talking to, so a restart comes back to the conversation it was in rather than to a question. A note written before there was a roster names no agent, and reads as the one there was.
+- **otherwise the panel ASKS**, and holds no conversation until somebody answers. There is no default remembered across conversations; the question is per chat.
 
-Chat owns detection for its activation. Readers reuse the cached machine answer;
-unregistering an engine forgets only that id, so switching it off and on probes
-again. Chat publishes the whole reading and offers its browser `engines` service
-through a declared, activation-owned provider. Each engine's `row` component
-consumes that service and contributes only to its own inspector row. A missing
-engine is filed under **Needs you**; with chat off the component pends.
+A menu opens when two or more engines are startable, and it draws the WHOLE table: the startable rows pickable, the rest greyed, unpickable and carrying their own sentence — where the reason is prose rather than a link, because a disabled menu item is skipped by the roving tabindex and a link nobody can reach by keyboard is a link for a mouse only. The no-agent face and the plugins panel's inspector row keep their links. A node already bound to an engine keeps that engine first in its own menu and, when nothing else is startable, starts the engine it is BOUND to — so a withdrawn engine refuses in words instead of silently migrating the conversation to whichever engine survived. Row-menu verbs and the palette go on offering only startable engines.
+
+Chat owns detection for its activation. Readers reuse the cached machine answer; unregistering an engine forgets only that id, so switching it off and on probes again. Chat publishes the whole reading and offers its browser `engines` service as a tag and an interface — `row(engine)` hands back the face for one engine's inspector row, built over one memoised reading of the published standings. Each engine's browser half registers that face for its own row and contributes nothing else. A missing engine is filed under **Needs you**; with chat off the component pends.
 
 `OLAI_AGENT_PATH` is where the probes look, defaulting to `PATH`, because olai's PATH is not your shell's: run as a home-manager user unit it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set, it REPLACES the search path — including when it is set to the empty string, which is "look nowhere" and is what the e2e suite spawns with when a scenario is not about the roster.
 
@@ -66,7 +60,7 @@ The TRANSCRIPT is still not persisted on this side, and that is the part that ha
 | file | what it owns |
 |---|---|
 | `adapter.ts` | which executable the `claude` row of the roster is: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty falls through to command discovery; the vault’s `chat.on` property turns the panel off. Both variable NAMES live here, and the sentence a person reads when nothing was found |
-| `agents/roster.ts` | WHICH agents this machine has, and how to start each: one table, probed once when the server starts. `OLAI_AGENT_PATH` is where the probes look, because olai's PATH is not your shell's |
+| `agents/roster.ts` | WHICH engines this serve mounted and how this machine answers for each: one table that never drops a row, with `here`, `offBecause` and `choiceOf` as its folds. Each engine is probed once and the answer held until somebody switches that row off and on, which is the only "look again" there is. `OLAI_AGENT_PATH` is where the probes look, because olai's PATH is not your shell's |
 | `agents/legs.testlib.ts` | MADE-UP legs, for this package's own benches. The real ones left with their engines (see *The legs* above), and a bench that borrowed one would be a claim about core pinned to one adapter's release clock |
 | `agents/models.ts` | the model picker, which is ACP's own `configOptions` and so belongs to neither: which entry is the model, what the agent calls each value, whether two model strings name one model, and the picker's own word for one |
 | `agent.ts` | the ACP client: one subprocess, one protocol. The subprocess socket is `@olai/child`'s; this file races the handshake against it. Nothing else in olai spells `session/prompt`. Also `adopt` — which stored conversation a boot opens in — and `fromElsewhere` — whether a leftover notification is about a conversation this panel has left. Both pure, both exported for their own tests |
