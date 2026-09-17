@@ -74,13 +74,13 @@ export const TESTID = {
   agentEngineMenu: "agent-engine-menu",
   /** A not-here engine's row in the picker menu (`EngineMenu`): present,
    *  greyed, `aria-disabled`, carrying the shared sentence line
-   *  (`./browser/agents/Missing.tsx`). `data-engine` is the engine's id, so a
+   *  (`./browser/agents/EngineAbsence.tsx`). `data-engine` is the engine's id, so a
    *  scenario names one row rather than reading which of the menu's entries
    *  happened to be disabled. */
   agentEngineMissing: "agent-engine-missing",
   /** The same sentence line on the PLUGINS PANEL's row for an engine whose
    *  executable this machine has not got — the face each engine plugin hangs
-   *  through `engineRow` (`./browser.tsx`'s `components`), filed under
+   *  through its own `row` component, filed under
    *  **Needs you** by its own `needs`. `data-engine` is the engine's id. */
   engineMissing: "engine-missing",
   agentStanding: "agent-standing",
@@ -331,7 +331,7 @@ export const TESTID = {
    *  none installed, or chat switched off. The panel is NOT hidden in that
    *  state: this is what it says instead, and it says how to install one. */
   chatNoAgent: "chat-no-agent",
-  /** One agent it tells you how to install. `data-agent` is its id. */
+  /** One missing engine's advice, here or on its node's composer. `data-engine` is its id. */
   chatInstall: "chat-install",
   /** Drawn in the transcript's place when the agent is RUNNING and would not
    *  open a conversation. The panel's third body, and the one that is about a

@@ -18,6 +18,7 @@ import { createNodeConversation } from "./conversation.ts"
 import { AgentLine } from "./AgentLine.tsx"
 import { Conversation } from "./Fold.tsx"
 import { NoAgent } from "../chat/NoAgent.tsx"
+import { EngineAbsence } from "./EngineAbsence.tsx"
 
 export interface PageSession {
   readonly chat: Accessor<Chat | null>
@@ -118,6 +119,10 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const agents = useAgents()
   const [chosen, choose] = createSignal<string>()
   const engine = () => agents.at(props.node)?.engine ?? chosen() ?? agents.engines()[0]?.id
+  const missing = () => {
+    const selected = agents.standings().find(one => one.id === engine())
+    return selected?.standing === "not-here" ? selected.missing : null
+  }
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.index)?.shows
     return page?.kind === "node" && page.zoomed.kind === "node" && page.zoomed.shows.node.id === props.node
@@ -127,7 +132,11 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   return <Show when={metadata()}>{node =>
     <div class={`sticky bottom-0 ${LAYER.row} rounded border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} data-testid={TESTID.agentPlainComposer}>
       <Show when={agents.engines().some(one => one.id === engine())} fallback={
-        <NoAgent off={{ kind: agents.standings().length === 0 ? "no-engine" : "none-installed" }} />
+        <Show when={engine()} fallback={<NoAgent off={null} />}>{id =>
+          <Show when={missing()} fallback={
+            <p class="m-0 text-sm text-muted">This node's engine is not enabled here. Enable it in the plugins panel.</p>
+          }>{reason => <EngineAbsence id={id()} missing={reason()} testid={TESTID.chatInstall} />}</Show>
+        }</Show>
       }>
         <textarea class="min-h-20 w-full resize-y bg-transparent text-sm outline-none" data-testid={TESTID.agentPlainInput}
           aria-label={`ask about ${node().title}`} placeholder={`ask about ${node().title}…`}

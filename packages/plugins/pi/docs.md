@@ -6,7 +6,7 @@ This page is one engine's own account of itself. What a conversation IS — how 
 
 ## How olai finds it
 
-Two probes, with different absence reasons: an unset or empty `OLAI_ACP_PI` means the adapter is unavailable; otherwise a missing `pi` means the CLI is not on this server's agent search path. The enabled engine stays visible but disabled in the picker, and its plugins row moves to **Needs you** with the same sentence and installation link.
+Two probes, with different absence reasons: an unset or empty `OLAI_ACP_PI` means the adapter is unavailable; otherwise a missing `pi` means the CLI is not on this server's agent search path. Its enabled plugins row moves to **Needs you** with the reason and installation link where supplied. Whenever an engine menu opens, pi appears disabled with that same reason, without a link inside the disabled choice.
 
 - **the adapter** is `svkozak/pi-acp`, pinned and baked into the packaged binary's wrapper beside the Claude Code one. `OLAI_ACP_PI` names it, and that variable is this row's whole door. A floating `npx -y pi-acp` is never run: the npm world would hand back a different build every day, and the wire facts this engine is written against are one revision's.
 - **the agent** is a runnable `pi` on the **agent search path**. The one the probe found is handed to the adapter as its own `PI_ACP_PI_COMMAND`, so the `pi` the row runs is the `pi` the probe found — without that, the adapter's own lookup would resolve the word against a third path, its child's, which is olai's and not your shell's. `OLAI_AGENT_PATH` is where to say where to look.

@@ -1,9 +1,44 @@
-/** No available engine is ordinary state, explained from the same standing
- * table as the picker and inspector rather than a second installation list. */
+/**
+ * What the panel says when this machine has no agent to talk to — and how to
+ * get one.
+ *
+ * The panel draws in this state rather than disappearing. A feature that is
+ * silently absent cannot be told from one that is broken, or one a reader has
+ * not found yet. An empty conversation needs advice, not merely an empty list.
+ * Serving the directory does not depend on an agent, so this is ordinary
+ * capability state, not an error that should take the rest of the page away.
+ *
+ * ## The sentence belongs to the engine; the drawing belongs to chat
+ *
+ * An engine knows which prerequisite its probe could not find. It supplies
+ * a whole NotHere, not a noun for this component to drop into a template.
+ * Chat composes no clause of that reason. Conversely, the list, the mark's
+ * box, and whether a name is a link are facts about this face, not five engine
+ * packages' copies of the same Tailwind markup. EngineAbsence owns that line
+ * once, shared with the inspector and the disabled picker choice.
+ *
+ * The rows come from the server's whole standing table, not from browser
+ * registration or a compiled-in catalogue of engines. A serve that did not
+ * mount an engine has no probe result for it and no advice to list here.
+ * A missing browser chunk cannot erase a machine diagnosis the server made.
+ *
+ * ## Absence has a subject
+ *
+ * No enabled engine and no installed executable need different remedies.
+ * When the caller has the server's OffBecause decision, it supplies it; null
+ * means this face has no global verdict to announce, not permission to guess.
+ * The node composer must not call one missing selection "none installed":
+ * other engines may be here. That composer draws the selected engine's own
+ * EngineAbsence instead, and uses this face only without an engine to select.
+ *
+ * Even without a global verdict, the missing rows give actionable advice.
+ * The heading names engines this machine has not got, and an empty table draws
+ * neither invented rows nor a heading over nothing.
+ */
 import { For, Match, Show, Switch } from "solid-js"
 import type { OffBecause } from "olai-plugin-chat/wire"
 import { useAgents } from "../agents/answered.tsx"
-import { Missing } from "../agents/Missing.tsx"
+import { EngineAbsence } from "../agents/EngineAbsence.tsx"
 import { TESTID } from "../../testids.ts"
 
 export function NoAgent(props: { readonly off: OffBecause | null }) {
@@ -26,10 +61,10 @@ export function NoAgent(props: { readonly off: OffBecause | null }) {
       </Match>
     </Switch>
     <Show when={missing().length > 0}>
-      <p class="m-0 mb-2 text-ink">Agents olai can talk to:</p>
+      <p class="m-0 mb-2 text-ink">Enabled engines this machine has not got:</p>
       <ul class="m-0 mb-4 flex list-none flex-col gap-2 p-0">
         <For each={missing()}>{engine => <li>
-          <Missing id={engine.id} missing={engine.missing} testid={TESTID.chatInstall} />
+          <EngineAbsence id={engine.id} missing={engine.missing} testid={TESTID.chatInstall} />
         </li>}</For>
       </ul>
     </Show>

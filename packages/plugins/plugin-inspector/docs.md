@@ -26,8 +26,8 @@ integration that draws the panel, so a face lives exactly as long as the surface
 it is drawn on.
 
 Enabled engines whose adapter or CLI is missing also use this face. Their
-toggles stay on, but their rows move to **Needs you** with the same reason and
-installation link as the disabled chat-picker entry. Chat owns the probe and
+toggles stay on, but their rows move to **Needs you** with the same reason as
+the disabled chat-picker entry and a live installation link. Chat owns the probe and
 offers its live reading through a declared browser service; each engine's
 component owns its own row contribution. Installing the CLI and switching that
 engine off and on refreshes just its reading. With chat disabled the component

@@ -1,6 +1,6 @@
 # opencode, in the chat panel
 
-The ACP engine olai **finds**. Put [opencode](https://opencode.ai) on this server's agent search path and the panel offers it. When it is missing, the enabled engine stays visible: a disabled picker row and a **Needs you** plugins row both say how to install it, with the same link. After installing it, switch the plugin off and on to probe again without restarting olai. Olai ships no pin or adapter override for it; `OLAI_AGENT_PATH` (defaulting to the server's `PATH`) selects the build.
+The ACP engine olai **finds**. Put [opencode](https://opencode.ai) on this server's agent search path and the panel offers it. When it is missing, its enabled plugins row moves to **Needs you** with installation advice and a link. Whenever an engine menu opens, opencode appears disabled with the same reason but no link inside the disabled choice. After installing it, switch the plugin off and on to probe again without restarting olai. Olai ships no pin or adapter override for it; `OLAI_AGENT_PATH` (defaulting to the server's `PATH`) selects the build.
 
 This page is one engine's own account of itself. What a conversation IS — how you choose an agent, what a turn looks like, which conversation you come back to, what the servers strip says — is the same for every engine and is [chat.md](../chat.md).
 

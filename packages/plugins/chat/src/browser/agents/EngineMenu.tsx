@@ -6,7 +6,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 import type { AgentChoice } from "../../wire.ts"
 import { TESTID } from "../../testids.ts"
-import { Missing } from "./Missing.tsx"
+import { EngineAbsence } from "./EngineAbsence.tsx"
 
 /** HOW A GREYED ROW IS PAINTED — the item classes without the pointer and the
  *  hover band, so a row that cannot be picked does not glow under a cursor it
@@ -17,10 +17,9 @@ export default function EngineMenu(props: {
   /** A sidebar menu must clear its chrome; row menus keep their row layer. */
   readonly layer?: typeof LAYER.row | typeof LAYER.over
   readonly anchor: HTMLElement
-  /** THE WHOLE STANDING TABLE, in bundle order — `here` rows pickable,
-   *  `not-here` rows greyed with the engine's own sentence. The caller hands
-   *  the table rather than the fold (`useAgents().engines()`), because the one
-   *  thing this menu is for is the CHOICE a person can see they are missing. */
+  /** The whole standing table, in the caller's order — `here` rows pickable,
+   *  `not-here` rows greyed with the engine's own sentence. Fresh start puts
+   *  the node's current engine first; other callers preserve bundle order. */
   readonly engines: ReadonlyArray<AgentChoice>
   readonly pick: (engine: string) => void
   readonly close: () => void
@@ -46,7 +45,7 @@ export default function EngineMenu(props: {
               onSelect={() => props.pick(engine.id)}>{engine.name}</DropdownMenu.Item>
           : <DropdownMenu.Item class={`${MENU_ITEM_OFF} max-w-sm`} disabled
               data-testid={TESTID.agentEngineMissing} data-engine={engine.id}>
-              <Missing id={engine.id} missing={engine.missing} />
+              <EngineAbsence id={engine.id} missing={engine.missing} linked={false} />
             </DropdownMenu.Item>
         }</For>
       </DropdownMenu.Content>

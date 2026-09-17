@@ -90,9 +90,10 @@ conversations.
 Chat declares `delivery.mark` and `conversation.wake`. The fold registration
 owns these shared child locations once; page faces consume the same locations.
 Reverse withdrawal removes page consumers before the fold's location owner.
-Engine absence is data on the roster, not a separate browser slot. One sentence
-component draws its mark, reason and optional link in the picker, no-agent face
-and engine-owned inspector row. Chat's declared browser `chat.engines` service
+Engine absence is data on the roster, not a separate browser slot. One
+`EngineAbsence` component draws its mark and reason in the picker, no-agent
+face, node composer and engine-owned inspector row. Installation links appear
+only outside disabled menu choices. Chat's declared browser `chat.engines` service
 supplies `row(engine): PluginsRowFace`, built over one activation-owned standing
 index. The static `olai-plugin-chat/browser-engines` door contains only its tag
 and interface. Each engine defines its own `row` component and registers the

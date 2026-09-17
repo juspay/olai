@@ -9,7 +9,7 @@ import { createMemo, Show, type Accessor } from "solid-js"
 import type { EnginesService } from "../browser-engines.ts"
 import type { AgentChoice } from "../wire.ts"
 import { TESTID } from "../testids.ts"
-import { Missing } from "./agents/Missing.tsx"
+import { EngineAbsence } from "./agents/EngineAbsence.tsx"
 
 export const enginesService = (standings: Accessor<ReadonlyArray<AgentChoice>>): EnginesService => {
   const byEngine = createMemo(() => new Map(standings().map(row => [row.id, row])))
@@ -23,7 +23,7 @@ export const enginesService = (standings: Accessor<ReadonlyArray<AgentChoice>>):
         needs: () => missing() !== null,
         body: () => <Show when={missing()}>{reason =>
           <p class="text-xs leading-relaxed text-muted">
-            <Missing id={engine} missing={reason()} testid={TESTID.engineMissing} />
+            <EngineAbsence id={engine} missing={reason()} testid={TESTID.engineMissing} />
           </p>
         }</Show>,
       }
