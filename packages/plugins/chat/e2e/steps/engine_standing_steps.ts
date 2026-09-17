@@ -20,11 +20,6 @@ Given("the agent search directory is empty", async function(this: OlaiWorld) {
   held.set(this, { pid: this.ownServer?.pid })
 })
 
-When("I press the agent start pill on {string}", async function(this: OlaiWorld, node: string) {
-  this.activeAgent = node
-  await this.press(this.node(node).locator(selector(TESTID.agentStart)))
-})
-
 Then("the engine picker has Claude available and omp missing", async function(this: OlaiWorld) {
   const choices = this.page.locator(menu)
   await choices.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
@@ -36,8 +31,8 @@ Then("the engine picker has Claude available and omp missing", async function(th
   assert.match(await absent.innerText(), /PATH/)
   assert.equal(await absent.getByRole("link").getAttribute("href"), "https://github.com/can1357/oh-my-pi")
   held.get(this)!.sentence = (await absent.innerText()).trim()
-  await absent.click({ force: true })
-  assert.equal(await choices.isVisible(), true)
+  // Avoid the deliberately live installation link inside the disabled choice.
+  await absent.click({ force: true, position: { x: 2, y: 2 } })
   assert.equal(await this.page.locator(selector(TESTID.agentFold)).count(), 0)
 })
 

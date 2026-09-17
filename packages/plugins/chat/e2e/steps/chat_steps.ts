@@ -3539,20 +3539,6 @@ Then("the header draws that agent's own mark", async function (this: OlaiWorld) 
   );
 });
 
-Then(
-  "the panel tells me how to install {string}",
-  async function (this: OlaiWorld, id: string) {
-    const row = this.chat(`${CHAT_INSTALL}${attr("data-agent", id)}`);
-    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // The engine's probe supplies its sentence on the standing table.
-    // This checks that advice is visible without pinning the engine's wording.
-    assert.ok(
-      oneLine(await row.innerText()).length > 0,
-      `the install row for "${id}" is empty — the engine's own sentence did not draw`,
-    );
-  },
-);
-
 Then("the composer says a message would queue", async function (this: OlaiWorld) {
   await this.chat(CHAT_QUEUES)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });

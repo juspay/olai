@@ -1381,7 +1381,7 @@ const chatOffering = definePlugin({
  * What it registers is the whole of what an engine registers and nothing else:
  * a name a person reads, a leg (opaque here — this file asserts on the ROSTER
  * and never reads a wire), a probe that answers "not on this host", and the
- * channel every engine olai ships rides. It is `at: () => null` deliberately: a
+ * channel every engine olai ships rides. It answers `NotHere` deliberately: a
  * plugin that CONTRIBUTED is `running` whether or not the machine turned out to
  * have the agent, which is the distinction the panel's row and the chat's roster
  * keep apart.
@@ -1395,7 +1395,7 @@ const engineCalled = (name: string) => ({
       yield* (yield* Agents).register({
         name: ` (a name)`,
         leg: {} as Leg,
-        at: () => null,
+        at: () => ({ name, where: null, why: "fixture executable is absent" }),
         prompt: { kind: "first-turn" },
       })
     }),
