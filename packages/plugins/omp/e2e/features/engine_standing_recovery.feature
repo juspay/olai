@@ -1,13 +1,19 @@
-@scratch:chat @rows-off:codex,pi,opencode
+@scratch:chat @rows-off:opencode,pi @agent-path:empty
 Feature: Enabled engines explain what this machine is missing
   Background:
-    Given the agent search directory is empty
+    Given I note this scenario's serving process
     And I open the outline "house.olai"
     And I mark the page
 
+  # TWO ENGINES ANSWER, so the picker opens: a menu is what a person is shown
+  # when there is a choice to make, and the third row is in it because an engine
+  # this machine has not got is a row with a sentence rather than a row that
+  # was dropped. With one startable engine the press starts it and there is no
+  # menu to read, which is a different scenario and is chat's own.
+  @codex
   Scenario: Installing an engine and toggling it refreshes the same tab
     When I press the agent start pill on "kitchen"
-    Then the engine picker has Claude available and omp missing
+    Then the engine picker offers what this machine has and greys omp
     When I press "Escape"
     And I open the plugins panel
     Then the omp inspector row carries the picker's absence under Needs you
@@ -17,7 +23,7 @@ Feature: Enabled engines explain what this machine is missing
     Then the omp inspector row no longer needs installation
     When I close the plugins panel
     And I press the agent start pill on "kitchen"
-    Then the engine picker has both engines available in bundle order
+    Then the engine picker offers every engine in bundle order
     When I choose new chat engine "Oh My Pi"
     And the node agent's fold is ready
     And I ask the agent "hello after installation"
@@ -26,9 +32,10 @@ Feature: Enabled engines explain what this machine is missing
     And the page has not reloaded
     And there should be no page errors
 
+  @codex
   Scenario: Chat withdrawal removes the scoped engine advice and return restores it
     When I press new chat in Chats
-    Then the engine picker has Claude available and omp missing
+    Then the engine picker offers what this machine has and greys omp
     When I press "Escape"
     And I open the plugins panel
     And I switch the plugin "chat" off
@@ -43,7 +50,7 @@ Feature: Enabled engines explain what this machine is missing
 
   @no-agent
   Scenario: An all-missing table still explains each enabled engine
-    When I open the plain node composer for "kitchen"
+    When I open the plain node composer for "install"
     Then the plain node composer has no available engine
     And the no-agent face explains the missing "omp" engine
     And the no-agent face explains the missing "claude" engine
