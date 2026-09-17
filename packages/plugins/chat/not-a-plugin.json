@@ -44,6 +44,10 @@
     "src/browser/chat/NoAgent.tsx",
     "src/browser/chat/Unopened.tsx"
   ],
+  "//preferences": "teaching.ts asks agents to remember user preferences in ordinary prose; it does not reference the preferences plugin.",
+  "preferences": [
+    "src/teaching.ts"
+  ],
   "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin.",
   "search": [
     "src/agents/roster.ts",
