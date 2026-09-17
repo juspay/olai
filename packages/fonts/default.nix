@@ -23,8 +23,8 @@ let
 
   sources = builtins.fromJSON (builtins.readFile ./src/hosted.json);
 
-  # `pkg` is an attribute PATH so a nested set can be named the way nixpkgs
-  # nests it (`ibm-plex.mono`). An unknown one fails eval here, by name.
+  # `pkg` is an attribute PATH so a nested set can be named the way the
+  # package set nests it (`ibm-plex.mono`). An unknown one fails eval here, by name.
   packageAt = path: lib.getAttrFromPath (lib.splitString "." path) pkgs;
 
   filesOf = source:
@@ -35,10 +35,11 @@ pkgs.runCommand "olai-fonts"
 {
   nativeBuildInputs = [ pkgs.woff2 ];
 
-  # The sources, as one whitespace-separated list the builder loops over. A
-  # list attribute reaches the environment that way, and every entry is a
-  # store path with no space in it.
-  faces = lib.concatMap filesOf sources;
+  # One whitespace-separated string, not a list: corepkgs sets
+  # __structuredAttrs by default, so a list env var becomes a bash array
+  # and `$faces` is only the first path (olai-fonts then shipped a single
+  # Literata-Regular.woff2). Every entry is a store path with no space in it.
+  faces = lib.concatStringsSep " " (lib.concatMap filesOf sources);
 
   meta.description = "olai's hosted typefaces, as woff2";
 } ''

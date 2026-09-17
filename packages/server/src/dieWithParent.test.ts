@@ -36,8 +36,9 @@ import { DIE_WITH_PARENT, parentTie } from "./dieWithParent.ts"
 import { served } from "./serve.testlib.ts"
 
 /** Hang detector only: what is being told apart is "under a second" from
- *  "never". */
-const BOUND_MS = 10_000
+ *  "never". 10s was enough on a quiet box; on a loaded odu host the
+ *  wrapper-started web can take longer to print `message=serving`. */
+const BOUND_MS = 30_000
 
 /** How long a process that should NOT have died is watched before it counts as
  *  having survived. Long enough to cover the self-TERM, which #355's check
