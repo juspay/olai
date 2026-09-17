@@ -7,6 +7,7 @@ const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", sta
 const roster = (bound?: NodeAgentRow, installed = engines): Roster => ({
   at: () => bound, engines: () => installed, rows: () => bound ? [bound] : [],
   standings: () => installed,
+  only: () => installed.length === 1 ? installed[0]! : null,
   chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {},
 })
 const node: NodeAgentRow = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null }

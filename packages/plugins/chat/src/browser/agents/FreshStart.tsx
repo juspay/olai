@@ -53,7 +53,7 @@ export function FreshStart(props: {
   }
 
   const pressed = (event: MouseEvent): void => {
-    if (agents.engines().length <= 1) {
+    if (agents.only() !== null || agents.engines().length === 0) {
       // Preserve the node's engine. A withdrawal must refuse this request,
       // never silently move its conversation onto a surviving engine.
       fresh(props.agent.engine)

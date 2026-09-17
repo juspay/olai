@@ -99,6 +99,11 @@ index. The static `olai-plugin-chat/browser-engines` door contains only its tag
 and interface. Each engine defines its own `row` component and registers the
 supplied face under its own identity. The component waits for chat and the
 inspector slot, and withdraws before chat releases its renderer.
+The activation-owned roster publishes `only` beside `engines` and `standings`:
+exactly one startable engine, irrespective of missing siblings. Sidebar,
+outline start, fresh start and command palette read that same memo. Fresh start
+uses it only to decide whether to open a menu; its direct request always names
+the node's current engine.
 
 Optional dependencies remain in separate scoped components. Navigation and its
 existing palette control supply route changes and choice reset on dismissal;

@@ -18,9 +18,8 @@ export function NewChat() {
       onClick={event => {
         // One startable engine is no choice, regardless of how many missing
         // engines the build ships. Their advice remains in the inspector.
-        const engines = agents.engines()
-        const only = engines[0]
-        if (engines.length === 1 && only !== undefined) start(only.id)
+        const only = agents.only()
+        if (only !== null) start(only.id)
         else setMenu(event.currentTarget)
       }}>new chat</button>
     <Show when={menu()}>{anchor => <EngineMenu layer={LAYER.over} anchor={anchor()} engines={agents.standings()}

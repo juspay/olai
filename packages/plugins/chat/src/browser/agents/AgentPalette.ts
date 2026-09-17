@@ -25,9 +25,9 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     }))
     return [{ id: "new-chat", label: "new chat", place: "Agents", search: "agents new chat", taking: atOnce,
       action: { kind: "run", run: async () => {
-        const only = agents.engines()[0]
-        if (only === undefined) return { keepOpen: true, said: { tone: "alarm", text: "no agent engine is available" } }
-        if (agents.engines().length === 1) return start(only.id)
+        const only = agents.only()
+        if (only !== null) return start(only.id)
+        if (agents.engines().length === 0) return { keepOpen: true, said: { tone: "alarm", text: "no agent engine is available" } }
         choose(true)
         return { keepOpen: true }
       } } }, ...byActivity(agents.rows()).map((row): PaletteItem => ({

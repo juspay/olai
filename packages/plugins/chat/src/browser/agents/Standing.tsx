@@ -40,9 +40,8 @@ export function Standing(props: { readonly node: string; readonly record?: strin
             event.stopPropagation()
             // Availability decides the gesture, not how many engine plugins
             // shipped. Missing engines remain visible when a menu is needed.
-            const engines = roster.engines()
-            const only = engines[0]
-            if (engines.length === 1 && only !== undefined) void start(only.id)
+            const only = roster.only()
+            if (only !== null) void start(only.id)
             else setMenu(event.currentTarget)
           }}><AgentMark id={roster.engines()[0]?.id ?? ""} />start an agent</button>
       }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>

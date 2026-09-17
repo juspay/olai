@@ -38,6 +38,9 @@ export interface Roster {
    *  {@link engines}, because an engine a person enabled and cannot start is a
    *  row they are owed, not one that vanishes. */
   readonly standings: Accessor<ReadonlyArray<AgentChoice>>
+  /** The sole startable engine, or null when starting needs a choice (or is
+   * impossible). Missing siblings never turn a one-engine gesture into a menu. */
+  readonly only: Accessor<AgentChoice | null>
   /** Null until the first listing; a refused refresh keeps the last answer. */
   readonly chats: Accessor<Listed | null>
   readonly unreachable: Accessor<ReadonlyArray<Unreachable>>
@@ -59,6 +62,10 @@ export function createAgents(): Roster {
   // each, so both answer from the same frame.
   const standings = createMemo(() => engineCell.value() ?? [])
   const engines = createMemo(() => standings().filter((engine) => engine.standing === "here"))
+  const only = createMemo((): AgentChoice | null => {
+    const available = engines()
+    return available.length === 1 ? available[0]! : null
+  })
 
   /**
    * WHAT EVERY INSTALLED AGENT HAS STORED HERE, as this tab last heard it.
@@ -139,7 +146,7 @@ export function createAgents(): Roster {
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
 
 
-  return { rows, at: node => byNode().get(node), engines, standings, chats,
+  return { rows, at: node => byNode().get(node), engines, standings, only, chats,
     unreachable, chatsRefusal, askChats }
 }
 
