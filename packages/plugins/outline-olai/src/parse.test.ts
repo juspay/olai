@@ -173,12 +173,17 @@ test("a record with no mirror is judged as a node, and misses its title by name"
 })
 
 // Ids reach URLs, wire keys and `#tag`-adjacent text, so their shape is
-// checked rather than assumed.
-test("an id that is not a slug is a bad-id", () => {
+// checked rather than assumed — and the shape IS the mention alphabet
+// (`MENTION_ALPHABET`): an id nobody can write as `@<id>` is an id the
+// backlinks reading can never draw.
+test("an id that is not mentionable is a bad-id", () => {
   expect(codes(errorsOf(`{"id":"a b","ord":"a","title":"t"}`))).toEqual(["bad-id"])
   expect(codes(errorsOf(`{"id":"","ord":"a","title":"t"}`))).toEqual(["bad-id"])
-  // The slug alphabet, in full — letters, digits, `_` and `-`.
+  expect(codes(errorsOf(`{"id":"dot.ted","ord":"a","title":"t"}`))).toEqual(["bad-id"])
+  // The alphabet, in full — letters, digits, `_`, `-` and `/`, the last
+  // shared with the tag grammar so `@work/olai` can name an id.
   expect(outlineOf(`{"id":"A_z-09","ord":"a","title":"t"}`).nodes.length).toBe(1)
+  expect(outlineOf(`{"id":"work/olai","ord":"a","title":"t"}`).nodes.length).toBe(1)
 })
 
 // The four marks are exclusive. A merge that kept both sides of an edit is

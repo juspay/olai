@@ -47,7 +47,7 @@ In canonical order (writes always re-serialize the whole record in this order; a
 
 | field | required | meaning |
 |---|---|---|
-| `id` | both shapes | Stable identity: a chosen slug (`[A-Za-z0-9_-]+`) or a minted short string. Unique across the whole loaded set; survives renames and moves. |
+| `id` | both shapes | Stable identity: a chosen slug (`[A-Za-z0-9_/-]+` — the mention alphabet, so every id a title or note can name as `@<id>` is legal) or a minted short string. Unique across the whole loaded set; survives renames and moves. A `/` inside an id is its own letter, exactly as it is inside a tag name, and the validator refuses an id outside the alphabet — an id nobody can mention is an id the backlinks reading can never draw. |
 | `parent` | no | Parent id, same file. Absent at top level. |
 | `ord` | both shapes | Sibling order: a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; never a float. |
 | `title` | regular nodes | Verbatim text. Inline tags live here and are extracted at view time — `#topic` and `@person`, two sigils over the same alphabet (`[A-Za-z0-9_/-]+`, so `#work/olai` is one tag) and two NAMESPACES: `#alice` and `@alice` are different tags. `@` is claimed only where a word starts, so `srid@srid.ca` is an address; `#` is claimed anywhere, unchanged since the format's first day. Rendered as **inline-only** markdown (bold, links, code — no block elements) through the same sanitised pipeline a note uses. |

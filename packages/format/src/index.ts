@@ -1231,8 +1231,7 @@ export type { OutlineFormat } from "./format.ts"
 
 export { mintExt, parserFor } from "./kinds.ts"
 export { claimedOf, outlineAt } from "./address.ts"
-export { ID_SHAPE } from "./node.ts"
-export { isMarkdown } from "./document.ts"
+export { ID_SHAPE, MENTION_ALPHABET } from "./node.ts"
 
 export { ClaimData, FileKind } from "./kinds.ts"
 

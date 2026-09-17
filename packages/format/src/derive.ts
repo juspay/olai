@@ -36,6 +36,7 @@ import { Order, Schema } from "effect"
 
 import { Tag } from "./address.ts"
 import {
+  MENTION_ALPHABET,
   isLeftoverArchive,
   isPutAway,
   isTrashed,
@@ -260,13 +261,14 @@ export interface Derived {
    * into a fold that is about what prose says.
    *
    * SOME KEYS CAN NEVER BECOME REFERENCES, and that is a decision rather than
-   * an oversight. Every `#topic` is one, and so is `@work/olai`: a tag's
-   * alphabet takes `/` so that `#work/olai` is one tag, and an id's
-   * ({@link ID_SHAPE}) does not. They are left in: filtering by id SHAPE at the
-   * fold would be this index knowing about ids, which is exactly what keying it
-   * by the written tag exists to avoid — and since the completion asks this
-   * index for the whole vocabulary, the keys that are nobody's id are half of
-   * what it is FOR.
+   * an oversight. Every `#topic` is one — the mention reading takes only the
+   * `@` half — and so is `@work/olai`, whose `/` is a tag alphabet's own
+   * letter while an id ({@link ./node.ts ID_SHAPE}) is minted and chosen
+   * without one. They are left in: filtering by id shape at the fold would be
+   * this index knowing about ids, which is exactly what keying it by the
+   * written tag exists to avoid — and since the completion asks this index for
+   * the whole vocabulary, the keys that are nobody's id are half of what it
+   * is FOR.
    *
    * NOTHING READS THE KEYS IN ORDER, unlike the three indexes above, and the
    * patcher spends exactly that — it adds and drops keys in place rather than
@@ -2079,6 +2081,13 @@ export const nodeNamed = (
 export const TAG_SIGILS = ["#", "@"] as const
 export type TagSigil = (typeof TAG_SIGILS)[number]
 
+/** What this index files a mention under — and where the tag grammar and the
+ *  id rule get the alphabet — is `./node.ts`'s one {@link
+ *  ./node.ts MENTION_ALPHABET}. Nothing is spelled here: a heartbeat where
+ *  the id rule and the tag grammar drifted apart would be an id nobody can
+ *  mention and a completion offering ids its own trigger cannot see, two ways
+ *  to learn the same lesson. */
+
 /** One tag, split the way this format reads one: which sigil started it, and
  *  the name after it. */
 export interface TitleTag {
@@ -2145,10 +2154,11 @@ export const mayHoldTag = (text: string): boolean =>
 /**
  * A fresh `/g` regex for an inline tag in a title.
  *
- * A sigil followed by letters, digits, `_`, `-` or `/` — the last so
- * `#work/olai` is one tag. A bare sigil is text. Returned new each call so `/g`
- * state is never shared across walks (the client styles tags by walking HAST
- * text nodes with the same alphabet, and must not re-declare it).
+ * A sigil followed by {@link MENTION_ALPHABET}'s letters — the last of them,
+ * `/`, is there so `#work/olai` is one tag. A bare sigil is text. Returned
+ * new each call so `/g` state is never shared across walks (the client styles
+ * tags by walking HAST text nodes with the same alphabet, and must not
+ * re-declare it).
  *
  * THE TWO SIGILS ARE NOT MATCHED THE SAME WAY, and the asymmetry is about what
  * people write rather than about tidiness: `@` sits inside ordinary words all
@@ -2158,11 +2168,12 @@ export const mayHoldTag = (text: string): boolean =>
  * had since the format's first day, unchanged, because narrowing it would
  * restyle titles in sets that are already written.
  */
-export const titleTagRe = (): RegExp => /#[A-Za-z0-9_/-]+|(?<![^\s([{])@[A-Za-z0-9_/-]+/g
+export const titleTagRe = (): RegExp =>
+  new RegExp(`#[${MENTION_ALPHABET}]+|(?<![^\\s([{])@[${MENTION_ALPHABET}]+`, "g")
 
 /**
- * Whether `text` is a tag NAME and nothing else — the alphabet above, asked as
- * a question.
+ * Whether `text` is a tag NAME and nothing else — {@link MENTION_ALPHABET}
+ * asked as a question.
  *
  * It exists because a client COMPLETING a tag has to know where one stops
  * while it is still half-typed, and this file already says the alphabet must
@@ -2170,7 +2181,8 @@ export const titleTagRe = (): RegExp => /#[A-Za-z0-9_/-]+|(?<![^\s([{])@[A-Za-z0
  * being started, which is exactly when a completion is wanted, and it is
  * {@link titleTagRe}'s business that a bare sigil is not yet a tag.
  */
-export const isTagName = (text: string): boolean => /^[A-Za-z0-9_/-]*$/.test(text)
+export const isTagName = (text: string): boolean =>
+  new RegExp(`^[${MENTION_ALPHABET}]*$`).test(text)
 
 /**
  * Whether a sigil sitting at `at` STARTS a tag rather than sitting inside a
