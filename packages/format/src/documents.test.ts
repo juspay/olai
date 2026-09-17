@@ -13,11 +13,11 @@ import {
   isAsset,
   isPicture,
   linksIn,
+  pathedOf,
   pictureOf,
   proseLinks,
   resolveRelative,
 } from "./documents.ts"
-import { nodesOf } from "./fixtures.testlib.ts"
 const nodeOf = (line: string, file: string) => {
   const [located] = nodesOf(`${line}\n`, file)
   if (located === undefined) throw new Error("the fixture parsed to no nodes")
@@ -161,12 +161,11 @@ test("a raw-space destination is wrapped so a CommonMark parser will read it", (
     .toBe("see [the brief](<the brief.md>)")
   expect(bracketSpacedLinks("see [the brief](brief.md)")).toBe("see [the brief](brief.md)")
 })
-
 // Everything this must not reinterpret. A link with a scheme goes where it
 // says, an absolute path is not this app's to resolve, a fragment is the
-// platform's, and a relative path to something that has no page is somebody
-// pointing at something else.
-test("only a relative link to a file with a page is a document link", () => {
+// platform's, and a string that names no path at all is somebody pointing at
+// something else.
+test("anything else is not a path this app resolves", () => {
   for (const href of [
     "https://example.com/a.md",
     "//example.com/a.md",
@@ -175,8 +174,6 @@ test("only a relative link to a file with a page is a document link", () => {
     "/finishes.md",
     "#beds",
     "",
-    "garden.olai",
-    "README",
     "the%ZZ.md",
     "%2Fsecret.md",
   ]) {
@@ -184,12 +181,39 @@ test("only a relative link to a file with a page is a document link", () => {
   }
 })
 
+// THE WIDENING of the link rule, and it is the whole of what changed here: a
+// `[…](…)` names whichever served file it resolves to, whatever kind page it
+// carries. An outline is a document with a page and a reading of its own; a
+// `.pdf` is a body; a picture is a file the picture kind claims. `bodiedOf`
+// still keeps its own list — it is the RENDERER's half, asked where the
+// directory cannot be — but a link is read by the reader, and the reader
+// knows the set gives every file a page.
+test("a relative link names any served file, not only a body", () => {
+  expect(pathedOf("notes/palette.md", "garden.olai")).toBe("notes/garden.olai")
+  expect(pathedOf("notes/palette.md", "../garden.olai")).toBe("garden.olai")
+  expect(pathedOf("notes/palette.md", "../../README")).toBe("README")
+})
+
+test("bodiedOf refuses a file with no body, where pathedOf does not", () => {
+  for (const href of [
+    "garden.olai",
+    "README",
+  ]) {
+    expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", href)).toBeNull()
+    expect(pathedOf("notes/palette.md", href)).not.toBeNull()
+  }
+  // …and where the WIDER rule lands: a link names the file whatever kind
+  // page it carries, because the set serves every file.
+  expect(named("notes/palette.md", "[the garden](garden.olai)"))
+    .toEqual(["notes/garden.olai"])
+  expect(named("notes/palette.md", "![the handle](../art/handle.png)"))
+    .toEqual(["art/handle.png"])
+})
+
 // A PICTURE IS ONE NOW, and it is the one answer here that changed with the
-// viewers rather than being added beside them. This rule has always been "a
-// file whose content is a BODY", asked of the registry — so the day a picture
-// became a kind with a page, a `[shot](art/handle.png)` in somebody's notes
-// became a link olai can follow, and the picture's page is what it opens.
-// Nothing here widened: the registry did, and this read it.
+// viewers rather than being added beside them. The set serves every file, so
+// a `[shot](art/handle.png)` in somebody's notes becomes a link olai can
+// follow, and the picture's page is what it opens.
 test("a relative link to a picture, a csv or a pdf is one too", () => {
   expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "../art/handle.png")).toBe("art/handle.png")
   expect(bodiedOf(TEST_CLAIMS, "notes/palette.md", "sales.csv")).toBe("notes/sales.csv")

@@ -458,15 +458,15 @@ const withoutCodeSpans = (lines: string): string => {
  *
  * The three things a link here can name are the three the address grammar has:
  *
- *   - `../projects/deck.md` — another document of this directory, resolved
- *     beside the file the link was written in ({@link bodiedOf}, whose refusals
- *     are this function's refusals).
+ *   - `../projects/deck.md` — any relative path: another document, an
+ *     outline, a `.pdf` a page draws, a picture a page opens ({@link pathedOf}'s
+ *     refusals are this function's).
  *   - `notes/README.md#install` — a heading inside one. The fragment is cut off
  *     BEFORE the path is resolved, because `#` is the grammar's punctuation and
  *     `README.md#install` is not a filename.
  *   - `#a1b2c3` — a node, wherever it lives. It is the one link with no
- *     document half, and {@link bodiedOf} refuses it (there is no file there to
- *     resolve), so it is read straight as the address it is.
+ *     document half, and there is no file there to resolve, so it is read
+ *     straight as the address it is.
  *
  * A SCAN, NOT A PARSE, and the boundary is worth naming: this package holds no
  * markdown parser and deliberately does not gain one here (`./derive.ts` makes
@@ -665,11 +665,20 @@ export const recordLinks = (claims: Claims, located: Located): ReadonlyArray<Add
 }
 
 /** What one written link names, or `null` — the grammar's three arms, told
- *  apart by where the `#` is. */
+ *  apart by where the `#` is.
+ *
+ * THE PATH HALF IS WIDE on purpose: any relative path a file of the set could
+ * hold is a document address, whatever suffix it carries, because the set
+ * gives EVERY file a page. An outline is a document with a page and a
+ * reading of its own, a `.pdf` is a body whose page draws it, and `![](…)`,
+ * which {@link eachTarget} reads as a link with an empty label, names the
+ * same document an `[…](…)` would. `bodiedOf` stays for the renderer's half
+ * of the same question — what a rewritten `href` is allowed to point at —
+ * and it is NOT asked here. */
 const linkTo = (claims: Claims, from: string, href: string): Address | null => {
   const cut = href.indexOf("#")
   if (cut === 0) return addressOf(claims, null, href.slice(1))
   const path = cut === -1 ? href : href.slice(0, cut)
-  const resolved = bodiedOf(claims, from, path)
+  const resolved = pathedOf(from, path)
   return resolved === null ? null : addressOf(claims, resolved, cut === -1 ? null : href.slice(cut + 1))
 }
