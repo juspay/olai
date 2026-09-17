@@ -6,6 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "//exports": "The three-door rule separates owners, not just files. `./server` is the leg, the probe for `opencode` on the agent search path, and its absence sentence — no Solid on a process-only graph. `./browser` carries the transcript mark (genuinely this plugin's drawing) and its own inspector-row registration; the row reads chat's scoped standing, not a static installation value. The root is wire identity, not a sibling surface. `./testids` and `./all.css` are bundle contracts; the testlib and executable fake are this engine's protocol benches.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
@@ -19,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE OPENCODE ENGINE \u2014 the leg that reads its wire, the probe that finds it on this host, and the mark it wears. The plainest of the three: plain ACP over stdio, no pin of olai's, no adapter to ship, and a leg that is mostly `null`s \u2014 each of which was a request that would otherwise be sent and refused.",
+  "//dependencies": "`@olai/acp/engine` is the floor below this engine and chat: the leg, adapter and registration shapes let their server halves remain independent. The browser deliberately imports `olai-plugin-chat`'s slot and `browser-engines` contracts; it owns its row registration and acquires the live reading through the declared service. `@olai/plugin-api` supplies the Agents tag and slot service. `effect` owns apply and its lifetime; `solid-js` draws the mark and the acquired row.",
   "dependencies": {
     "olai-plugin-chat": "workspace:*",
     "@olai/acp": "workspace:*",

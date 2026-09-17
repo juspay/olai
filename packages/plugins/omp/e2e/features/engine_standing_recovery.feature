@@ -1,4 +1,4 @@
-@scratch:chat @rows-off:codex,pi @agent-path:empty
+@scratch:chat @rows-off:codex,pi
 Feature: Enabled engines explain what this machine is missing
   Background:
     Given I note this scenario's serving process
@@ -13,7 +13,7 @@ Feature: Enabled engines explain what this machine is missing
   # Opencode comes from a tagged fake's search directory. It must stay
   # available beside the scenario-owned empty directory: replacing rather
   # than prepending the composed path would lose it and prevent this menu.
-  @opencode
+  @opencode @agent-path:empty
   Scenario: Installing an engine and toggling it refreshes the same tab
     When I press the agent start pill on "kitchen"
     Then the engine picker offers what this machine has and greys omp
@@ -55,6 +55,5 @@ Feature: Enabled engines explain what this machine is missing
   Scenario: An all-missing table still explains each enabled engine
     When I open the plain node composer for "install"
     Then the plain node composer has no available engine
-    And the no-agent face explains the missing "omp" engine
-    And the no-agent face explains the missing "claude" engine
+    And the no-agent face explains multiple missing engines including omp
     And there should be no page errors

@@ -225,6 +225,7 @@ export default definePlugin({
      * (`./agents/roster.ts`'s `detecting` argues the halves and `forget`).
      */
     const detect = detecting(env.vars, vault.served)
+    const mounted = () => inBundleOrder(engines.values(), (one) => one.id, bundle.rank)
     /**
      * ...AND WHO IS TOLD WHEN IT MOVES, which is the half that was missing.
      *
@@ -247,12 +248,19 @@ export default definePlugin({
      * failure there is contained and named with this plugin's word, like every
      * other detached edge in this row.
      *
+     * The engine table is not a conversation frame. Publish before fan-out
+     * stops a subprocess; a child frame must not put its old roster back while
+     * that stop is in flight.
+     *
      * NOTHING BEFORE THE CHAT IS BUILT: `chat` is null until the serve is up,
      * and an engine that registered before then is simply in the table the build
      * reads. There is no lost signal to catch up on.
      */
     const enginesMoved = (): void => {
-      if (chat !== null) ring(chat.enginesMoved)
+      if (chat !== null) ring(
+        Effect.sync(() => mine?.cells.engines.set(detect.read(mounted()).map(choiceOf)))
+          .pipe(Effect.andThen(chat.enginesMoved)),
+      )
       else if (engineChange !== null) ring(Deferred.succeed(engineChange, undefined))
     }
     yield* offers.offer(AgentsDoor, (who) => ({
@@ -428,11 +436,8 @@ export default definePlugin({
     const ring = yield* detached
 
     const publishState = (state: ChatState, entries: ReadonlyMap<string, ChatEntry>, node: string | null): void => {
-      mine?.cells.engines.set(state.roster)
-      // ... AND THE ROSTER WITH IT, because this is the one door every chat
-      // frame comes through and the bindings move behind exactly these frames:
-      // a session opening, a contract taught, a line written down at the end of
-      // a turn.
+      // Node bindings move behind conversation frames: a session opening,
+      // a contract taught, or a line written down at the end of a turn.
       republishAgents()
       const who = whoOf(state)
       if (who !== null) {
@@ -720,9 +725,7 @@ export default definePlugin({
        * a person reads this list, and one that reshuffles between boots is a
        * list nobody can read twice. The sort is cheap and this is asked when the
        * table moves rather than per frame.
-       */
-      const mounted = () => inBundleOrder(engines.values(), (one) => one.id, bundle.rank)
-      /**
+       *
        * ...AND HOW THIS MACHINE ANSWERS FOR EACH, over the same moving list —
        * the detector hoisted to `apply`'s scope, so the unregister finalizer
        * and the build read ONE table ({@link ./agents/roster.ts}'s `detecting`
@@ -799,7 +802,6 @@ export default definePlugin({
         // What is new is that a panel which had one can watch its last engine
         // leave, and the state machine has the face for it.
         roster: () => detect.read(mounted()),
-        engines: () => mounted().map((one) => one.id),
         cwd: vault.served,
         tools: () => address,
         // WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation — the
@@ -853,6 +855,7 @@ export default definePlugin({
         // second.
         fork: ring.held,
       })
+      mine?.cells.engines.set(detect.read(mounted()).map(choiceOf))
       yield* Deferred.succeed(ready, chat)
       yield* Effect.addFinalizer(() => chat === null ? Effect.void : chat.stop)
       yield* chat.start

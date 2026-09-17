@@ -2,8 +2,10 @@
  * WHAT THIS ENGINE MAKES OF A HOST, over values — and this is the row where
  * that matters most, because it is the PAIR.
  *
- * Starting requires both the pinned adapter and a pi executable. Missing either
- * returns a distinct reason rather than offering an engine that cannot start.
+ * A pi row is startable only where BOTH halves answer: the pinned adapter,
+ * named by OLAI_ACP_PI, and a pi executable for it to wrap. A pi-acp with no
+ * pi behind it would fail at every session/new. Either absence therefore
+ * stays visible with its distinct reason, but cannot be offered as startable.
  *
  * IT LIVES HERE and not in `olai-plugin-chat` because the row does: each engine's
  * probe is one plugin’s fact, and what is left in core is ordering and

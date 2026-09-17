@@ -142,7 +142,7 @@ export interface Installed {
  * with nothing is a row nobody can even see was owed.
  */
 export type Standing =
-  | { readonly id: string; readonly name: string; readonly standing: "here"; readonly installed: Installed }
+  | { readonly standing: "here"; readonly installed: Installed }
   | { readonly id: string; readonly name: string; readonly standing: "not-here"; readonly missing: NotHere }
 
 /**
@@ -214,7 +214,7 @@ export const offBecause = (roster: Roster): OffBecause | null => {
  */
 export const choiceOf = (row: Standing): AgentChoice =>
   row.standing === "here"
-    ? { id: row.id, name: row.name, standing: "here" }
+    ? { id: row.installed.id, name: row.installed.name, standing: "here" }
     : { id: row.id, name: row.name, standing: "not-here", missing: row.missing }
 
 /**
@@ -236,18 +236,7 @@ export const choiceOf = (row: Standing): AgentChoice =>
 export const rosterOf = (
   where: Where,
   engines: ReadonlyArray<Engine>,
-  /**
-   * HOW ONE ENGINE IS DETECTED — a seam, defaulting to asking the engine
-   * itself.
-   *
-   * It exists for exactly one caller ({@link detecting}, which answers from a
-   * table it keeps) and it is a PARAMETER rather than that caller reimplementing
-   * this loop, because the loop is where the ORDER and the row shape are decided
-   * and neither is a thing to have twice. The default is the behaviour every
-   * existing caller had; nothing about a one-shot reading changed.
-   */
-  detected: (engine: Engine) => Standing = (engine) => standingOf(engine, engine.at(where)),
-): Roster => engines.map(detected)
+): Roster => engines.map(engine => standingOf(engine, engine.at(where)))
 
 /** One probe's answer, as a row of the table. THE ONE PLACE the union is
  *  split: `installed` rides the `here` arm and `missing` the `not-here` one,
@@ -264,8 +253,6 @@ const standingOf = (engine: Engine, at: Adapter | NotHere): Standing =>
   "why" in at
     ? { id: engine.id, name: engine.name, standing: "not-here", missing: at }
     : {
-      id: engine.id,
-      name: engine.name,
       standing: "here",
       installed: { id: engine.id, name: engine.name, adapter: at, leg: engine.leg, prompt: engine.prompt },
     }
@@ -333,7 +320,7 @@ export const detecting = (vars: Record<string, string | undefined>, cwd: string)
   const where: Where = { env: vars, cwd, found: (name) => onPath(name, searchPath(vars)) }
   return {
     read: (engines) =>
-      rosterOf(where, engines, (engine) => {
+      engines.map((engine) => {
         const cached = asked.get(engine.id)
         if (cached !== undefined) return cached
         const standing = standingOf(engine, engine.at(where))

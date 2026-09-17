@@ -6,6 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "//exports": "The three-door rule separates owners, not just files. `./server` is the leg, the pair of probes (the pinned adapter from OLAI_ACP_PI and pi from the search path), and their absence sentences — no Solid on a process-only graph. `./browser` carries the transcript mark (genuinely this plugin's drawing) and its own inspector-row registration; the row reads chat's scoped standing, not a static installation value. The root is wire identity, not a sibling surface. `./testids` and `./all.css` are bundle contracts; the testlib and executable fake are this engine's protocol benches.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
@@ -19,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE PI ENGINE \u2014 the leg that reads pi-acp's wire, the pair of halves that make a pi row (a pinned adapter olai ships, an agent the machine has), and the mark it wears. `acp/` beside this manifest is the adapter's own pin and the patch it carries, which travelled here with the phase: the pin and the patches of an engine live in that engine's directory.",
+  "//dependencies": "`@olai/acp/engine` is the floor below this engine and chat: the leg, adapter and registration shapes let their server halves remain independent. The browser deliberately imports `olai-plugin-chat`'s slot and `browser-engines` contracts; it owns its row registration and acquires the live reading through the declared service. `@olai/plugin-api` supplies the Agents tag and slot service. `effect` owns apply and its lifetime; `solid-js` draws the mark and the acquired row.",
   "dependencies": {
     "olai-plugin-chat": "workspace:*",
     "@olai/acp": "workspace:*",

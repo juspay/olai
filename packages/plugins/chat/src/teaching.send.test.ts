@@ -33,15 +33,8 @@ import { join } from "node:path"
 import type { NodeAgent } from "@olai/format"
 import type { ChatEntry, ChatState } from "olai-plugin-chat/wire"
 import { QUEUES } from "./agents/legs.testlib.ts"
-import type { Installed, Standing } from "./agents/roster.ts"
-
-/** One installed row, as the whole table now carries it — every fixture
- *  here is a machine that HAS its engines, which is the case these suites
- *  are about. */
-const seated = (row: Installed): Standing => ({
-  id: row.id, name: row.name, standing: "here", installed: row,
-})
-const seatedAll = (rows: ReadonlyArray<Installed>) => rows.map(seated)
+import type { Installed } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
 import { type LocalHarness, localHarness } from "./local.testlib.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
@@ -121,7 +114,6 @@ const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
   let published: ChatState | null = null
   const chat = await run(makeChat({
     roster: () => [seated(ROW)],
-    engines: () => [],
     cwd,
     tools: () => null,
     overheard: await run(sessionsIn(local.forDirectory(cwd))),

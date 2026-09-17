@@ -40,14 +40,7 @@ import { join } from "node:path"
 
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed, Standing } from "./agents/roster.ts"
-
-/** One installed row, as the whole table now carries it — every fixture
- *  here is a machine that HAS its engines, which is the case these suites
- *  are about. */
-const seated = (row: Installed): Standing => ({
-  id: row.id, name: row.name, standing: "here", installed: row,
-})
-const seatedAll = (rows: ReadonlyArray<Installed>) => rows.map(seated)
+import { seated } from "./agents/roster.testlib.ts"
 import { makePanel } from "./chat.ts"
 import type { ChatState } from "./wire/members.ts"
 
@@ -126,8 +119,7 @@ const panelOver = async (initial: ReadonlyArray<Installed>) => {
   let table: ReadonlyArray<Installed> = initial
   const states: Array<ChatState> = []
   const panel = await run(makePanel({
-    roster: () => [...seatedAll(table)],
-    engines: () => table.map((row) => row.id),
+    roster: () => table.map(seated),
     cwd,
     tools: () => null,
     onState: (state) => void states.push(state),
@@ -234,7 +226,6 @@ test("losing the last available engine retains missing rows and recovers on inst
   let table: ReadonlyArray<Standing> = [seated(CLAUDE), missing]
   const panel = await run(makePanel({
     roster: () => table,
-    engines: () => table.map(row => row.id),
     cwd, tools: () => null, onState: () => {}, onTranscript: () => {},
   }))
   try {

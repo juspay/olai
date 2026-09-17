@@ -15,15 +15,8 @@ import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { type Agent, make } from "./agent.ts"
 import type { Leg } from "@olai/acp/engine"
 import { QUEUES } from "./agents/legs.testlib.ts"
-import type { Installed, Standing } from "./agents/roster.ts"
-
-/** One installed row, as the whole table now carries it — every fixture
- *  here is a machine that HAS its engines, which is the case these suites
- *  are about. */
-const seated = (row: Installed): Standing => ({
-  id: row.id, name: row.name, standing: "here", installed: row,
-})
-const seatedAll = (rows: ReadonlyArray<Installed>) => rows.map(seated)
+import type { Installed } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat } from "./chat.ts"
 import type { Memory } from "./memory.ts"
 
@@ -247,7 +240,6 @@ describe("a message that queues behind a running turn", () => {
     const chat = await run(
       makeChat({
         roster: () => [seated(row)],
-        engines: () => [],
         cwd,
         tools: () => null,
         onState: () => {},
@@ -314,7 +306,6 @@ describe("a message that queues behind a running turn", () => {
     }
     const chat = await Effect.runPromise(makeChat({
       roster: () => [seated(row)],
-      engines: () => [],
       cwd,
       tools: () => null,
       onState: () => {},

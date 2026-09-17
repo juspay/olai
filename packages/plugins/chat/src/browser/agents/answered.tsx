@@ -24,6 +24,8 @@ import { run } from "@olai/web/client/run.ts"
 import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
 
+import type { NotHere } from "@olai/acp/engine"
+
 /** The shared roster, installed engines and stored history answer. */
 export interface Roster {
   readonly rows: Accessor<ReadonlyArray<Row>>
@@ -41,6 +43,8 @@ export interface Roster {
   /** The sole startable engine, or null when starting needs a choice (or is
    * impossible). Missing siblings never turn a one-engine gesture into a menu. */
   readonly only: Accessor<AgentChoice | null>
+  /** One indexed absence reading shared by the composer and inspector faces. */
+  readonly missing: (engine: string | undefined) => NotHere | null
   /** Null until the first listing; a refused refresh keeps the last answer. */
   readonly chats: Accessor<Listed | null>
   readonly unreachable: Accessor<ReadonlyArray<Unreachable>>
@@ -62,6 +66,9 @@ export function createAgents(): Roster {
   // each, so both answer from the same frame.
   const standings = createMemo(() => engineCell.value() ?? [])
   const engines = createMemo(() => standings().filter((engine) => engine.standing === "here"))
+  const missing = createMemo(() => new Map(standings().map(row =>
+    [row.id, row.standing === "not-here" ? row.missing : null],
+  )))
   const only = createMemo((): AgentChoice | null => {
     const available = engines()
     return available.length === 1 ? available[0]! : null
@@ -146,7 +153,9 @@ export function createAgents(): Roster {
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
 
 
-  return { rows, at: node => byNode().get(node), engines, standings, only, chats,
+  return { rows, at: node => byNode().get(node), engines, standings, only,
+    missing: engine => engine === undefined ? null : missing().get(engine) ?? null,
+    chats,
     unreachable, chatsRefusal, askChats }
 }
 

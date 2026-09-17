@@ -176,29 +176,6 @@ export interface PanelOptions {
    * and leaves it again when a row comes back.
    */
   readonly roster: () => Roster
-  /**
-   * ...AND EVERY ENGINE THIS BUILD HAS, by id, in the bundle's own order —
-   * INSTALLED OR NOT, and read for exactly one thing.
-   *
-   * WHICH AGENT A NOTE NAMING NONE IS ABOUT ({@link ./memory.ts}'s `before`) is
-   * the FIRST row: a note written before olai remembered which agent a
-   * conversation belonged to was written by an olai that had exactly one, and
-   * the first row is the one it had. `olai-plugin-chat` may not spell an engine, so
-   * the answer arrives as data from the composition root.
-   *
-   * Absence explanations travel separately on the complete standing table,
-   * so this legacy-memory input owns no browser presentation.
-   *
-   * MAY BE EMPTY: a serve whose engine rows are all disabled builds no chat at
-   * all, and a test that only wants a conversation has no engine list to give.
-   *
-   * A THUNK for {@link roster}'s reason, though it is read once — at
-   * construction, for the memory's default. Both halves of one table read the
-   * same way is one fewer thing for a reader to check: the day this is asked a
-   * second time it is already right, where an array would have been a snapshot
-   * nobody noticed had gone stale.
-   */
-  readonly engines: () => ReadonlyArray<string>
   /** Where to start it: the served directory, exactly. An agent keys its
    *  stored sessions by the directory it was started in, which is what makes
    *  them findable at all — and it is what olai's own note of WHICH of them
@@ -817,14 +794,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * because those are facts about a session only the thing holding one can
      * act on. One writer per field, and the write is the agent's.
      */
-    // THE SECOND ARGUMENT is which agent a note that names NONE is about, and
-    // it is the build's FIRST ENGINE ROW rather than a constant in that module:
-    // a note written before olai remembered which agent a conversation belonged
-    // to was written by an olai that had exactly one, and the first row is the
-    // one it had. `olai-plugin-chat` may not spell an engine, so the answer arrives
-    // off the same ordered list the picker is drawn from. The empty string on a
-    // build with no engine rows is a note that resolves to nothing, which is a
-    // chat that was never built.
     const memory = options.memory
       ?? Memory.volatile()
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })

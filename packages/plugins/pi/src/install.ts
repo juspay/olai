@@ -55,4 +55,3 @@ export const INSTALL: NotHere = {
   where: "https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent",
   why: "put `pi` on this server's PATH — the adapter for it comes with olai",
 }
-

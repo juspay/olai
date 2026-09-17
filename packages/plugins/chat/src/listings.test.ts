@@ -18,15 +18,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { AgentGone } from "./agent.ts"
-import type { Installed, Standing } from "./agents/roster.ts"
-
-/** One installed row, as the whole table now carries it — every fixture
- *  here is a machine that HAS its engines, which is the case these suites
- *  are about. */
-const seated = (row: Installed): Standing => ({
-  id: row.id, name: row.name, standing: "here", installed: row,
-})
-const seatedAll = (rows: ReadonlyArray<Installed>) => rows.map(seated)
+import type { Installed } from "./agents/roster.ts"
 import { clock } from "./clock.testlib.ts"
 import type { Stored } from "./events.ts"
 import { KEEP_FOR_MS, type Listings, make, type Where } from "./listings.ts"

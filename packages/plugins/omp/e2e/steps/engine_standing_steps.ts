@@ -131,11 +131,11 @@ Then("no engine installation advice is drawn in the inspector", async function(t
   await this.pluginsPanel().locator(missing).waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT })
 })
 
-/** One enabled engine's own account of itself on the no-agent face — named,
- *  because the claim is that EVERY enabled engine gets a row of its own rather
- *  than one sentence about the machine. */
-Then("the no-agent face explains the missing {string} engine", async function(this: OlaiWorld, engine: string) {
-  const row = this.page.locator(`${selector(TESTID.chatNoAgent)} ${selector(TESTID.chatInstall)}${attr("data-engine", engine)}`)
-  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
-  assert.match(await row.innerText(), /— .+/)
+/** Plural advice without coupling this engine's bench to a sibling's name. */
+Then("the no-agent face explains multiple missing engines including omp", async function(this: OlaiWorld) {
+  const advice = `${selector(TESTID.chatNoAgent)} ${selector(TESTID.chatInstall)}`
+  await this.page.locator(`${advice}${attr("data-engine", "omp")}`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  const rows = this.page.locator(advice)
+  assert.ok(await rows.count() > 1, "each missing engine gets its own advice")
+  for (const sentence of await rows.allInnerTexts()) assert.match(sentence, /— .+/)
 })

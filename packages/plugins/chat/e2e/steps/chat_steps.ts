@@ -101,7 +101,6 @@ import {
   CHAT_DELIVERY,
   CHAT_DROP,
   CHAT_ENTRY,
-  CHAT_INSTALL,
   CHAT_INTERRUPT,
   CHAT_LANE,
   CHAT_LANE_DOOR,
@@ -113,7 +112,6 @@ import {
   CHAT_MODEL_FILTER,
   CHAT_MODEL_NONE,
   CHAT_NEW,
-  CHAT_NO_AGENT,
   CHAT_QUEUED,
   CHAT_QUEUES,
   CHAT_PREVIEW,
@@ -2686,64 +2684,6 @@ Then(
     );
   },
 );
-
-// ── no agent at all ────────────────────────────────────────────────────
-
-Then("the panel says there is no agent", async function (this: OlaiWorld) {
-  await this.chat(CHAT_NO_AGENT)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-});
-
-Then(
-  "the panel explains how to configure one, naming {string}",
-  async function (this: OlaiWorld, variable: string) {
-    const said = oneLine(await this.chat(CHAT_NO_AGENT).innerText());
-    assert.ok(
-      said.includes(variable),
-      `the no-agent message does not name \`${variable}\`, so it says a feature is ` +
-        `missing without saying what would bring it back. It reads: ${said}`,
-    );
-  },
-);
-
-/**
- * WHICH OF THE TWO, and the reason these are two steps rather than one with a
- * parameter: what a person is owed differs per cause, so what a scenario should
- * be able to say is that THIS cause produced THIS sentence — and a step taking
- * the sentence as an argument would let a scenario assert whichever words
- * happened to be there.
- *
- * The claim is deliberately about a PHRASE rather than the whole copy: the words
- * are core's to reword (both causes are facts about the SERVE, not about an
- * engine), and what must not change is that the face commits to one of them.
- * Before this, it hedged across two guesses, one of them unreachable.
- */
-const saysNoAgentBecause = async (world: OlaiWorld, phrase: string, why: string): Promise<void> => {
-  const said = oneLine(await world.chat(CHAT_NO_AGENT).innerText());
-  assert.ok(
-    said.toLowerCase().includes(phrase.toLowerCase()),
-    `the no-agent face does not say ${why}. A face that will not name which of ` +
-      `the two ways of having no agent this is leaves a person guessing at the ` +
-      `one thing they could do about it. It reads: ${said}`,
-  );
-};
-
-Then("the panel says no engine is installed", async function (this: OlaiWorld) {
-  await saysNoAgentBecause(this, "installed", "that no offered engine is installed");
-});
-
-Then("the panel says this serve enabled no agent engine", async function (this: OlaiWorld) {
-  await saysNoAgentBecause(this, "no agent engine", "that this serve composed no engine plugin");
-});
-
-Then("the panel offers no way to install one", async function (this: OlaiWorld) {
-  // With no mounted engine, the standing table has no install advice to draw.
-  await this.waitUntil(
-    async () => (await this.chat(CHAT_INSTALL).count()) === 0,
-    "the no-agent face to list no engine at all",
-    HYDRATION_TIMEOUT,
-  );
-});
 
 // ── a conversation the agent would not open ────────────────────────────
 //

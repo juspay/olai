@@ -723,8 +723,8 @@ nothing for Cucumber's import of it to start.
 
 `@agent-path:empty` gives a private `@scratch:<corpus>` scenario an initially
 empty directory at `world.agentSearchPath`. The harness creates it before the
-first server boot, includes its path in the spawn fingerprint, preserves it
-across explicit restarts, and removes it with the scenario. A step may install
+first server boot, preserves it across explicit restarts, and removes it with
+the scenario. A step may install
 an executable there and toggle its engine without restarting the server.
 The directory is **prepended** to the search paths of the tagged fakes, not
 substituted for them: a scenario can retain its already installed engines

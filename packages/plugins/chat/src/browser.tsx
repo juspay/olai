@@ -87,7 +87,7 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, agents, engines: enginesService(agents.standings), readings: createAgentReadings(agents), folding: createFolding() }
+      return { dispose, agents, engines: enginesService(agents.missing), readings: createAgentReadings(agents), folding: createFolding() }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))

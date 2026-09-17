@@ -14,6 +14,8 @@
  * sentence and never composes one** — the reason there is no template with a
  * noun dropped into it: what an engine is and how you get it are facts only its
  * own package knows.
+ * The missing adapter comes from olai's wrapper, not the product download
+ * page, so this reason has no installation link.
  */
 import type { NotHere } from "@olai/acp/engine"
 
@@ -21,6 +23,6 @@ export const NAME = "Codex"
 
 export const INSTALL: NotHere = {
   name: NAME,
-  where: "https://developers.openai.com/codex",
+  where: null,
   why: "not found — olai was started without the wrapper that carries the pinned adapter",
 }

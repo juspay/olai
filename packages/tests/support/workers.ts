@@ -90,18 +90,6 @@ export const spawnFingerprint = (opts: {
    * unique per scenario by construction.
    */
   readonly padiSocket?: string;
-  /**
-   * THE SCENARIO'S OWN AGENT SEARCH DIRECTORY (`@agent-path:empty`), if it
-   * asked for one — the empty directory prepended to the composed fake search
-   * path, so a scenario can INSTALL an engine under a running server.
-   *
-   * Part of the key for the padi socket's reason one field up, and the same
-   * construction: a server looking at one scenario's install directory has
-   * already been handed a fake the next scenario never installed, so it must
-   * not be reused. The directory is a fresh temp path per scenario, so this
-   * field makes the fingerprint unique by itself.
-   */
-  readonly agentSearchPath?: string;
   /** WHICH ODU SERVICE this server was pointed at (`@odu-service:<fleet>`). */
   readonly oduOrigin?: string;
   /**
@@ -144,8 +132,7 @@ export const spawnFingerprint = (opts: {
   // or the harness's own un-routable default, and `doors` whether the two
   // credential values were handed over.
   `,himalaya=${opts.himalaya ?? "(unset)"},google=${opts.mailGoogle ?? "-"},maildoors=${opts.mailDoors === true ? 1 : 0}` +
-  `,extra=${opts.rowsOn ?? "-"},without=${opts.rowsOff ?? "-"}` +
-  `,agentpath=${opts.agentSearchPath ?? "-"}`;
+  `,extra=${opts.rowsOn ?? "-"},without=${opts.rowsOff ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp

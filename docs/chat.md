@@ -55,8 +55,8 @@ The list itself:
 - `OLAI_AGENT_PATH` is where the probes look, and defaults to `PATH`. It is worth knowing about because **olai's PATH is not your shell's**: run as a systemd user service (the home-manager unit) it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set it and it REPLACES the search path. For pi it answers a second question too: the `pi` the probe finds there is handed to the pinned adapter as the one it wraps, so the pi the row runs is the pi the probe found rather than one the adapter resolved against its own environment. For opencode and omp it is the whole of the answer, because neither has an override variable of its own: putting the build you want on that path is the only way to point olai at it, which is the same gesture as installing it.
 
 With no engine selected or available, the plain node page lists the enabled
-engines this machine has not got, with each engine's own reason and installation
-link. A node bound to a missing engine instead shows just that engine's reason:
+engines this machine has not got, with each engine's own reason and an installation
+link where one helps. A node bound to a missing engine instead shows just that engine's reason:
 another engine may be available, so a node-specific absence is not a claim that
 the whole machine has none. A withdrawn engine asks to be enabled again.
 
@@ -66,16 +66,18 @@ an installation link where supplied, as on the no-agent face. Turning chat off
 removes this reading: nothing is probing, so the engine's extra face waits for
 chat to return.
 
-**The server distinguishes two global reasons for having no agent.** Its
-`offBecause` reading and log preserve the difference between no mounted engine
-and no installed executable:
+**Read the sentence, not just the empty composer:**
 
-| server reason | what happened | what to do |
+| what the page says | what happened | what to do |
 | --- | --- | --- |
-| `no-engine` | no engine row is running — the file enables none, one was switched off at the plugins panel, or an engine's plugin failed to start | enable one in the plugins panel or its configuration node |
-| `none-installed` | engines are mounted, but every probe reports absence | follow the engine's installation advice or set `OLAI_AGENT_PATH` where olai should look |
+| “This panel has no agent.” | no engine is selected or available; without a list below it, no mounted engine has supplied installation advice | check which engines are enabled in the plugins panel |
+| “Enabled engines this machine has not got:” | the enabled engines below have reported their own absences | follow their advice, or set `OLAI_AGENT_PATH` where olai should look, then switch the engine off and on |
+| “This node's engine is not enabled here. Enable it in the plugins panel.” | this node names an engine that is not mounted | enable that engine again |
 
-A node's composer does not infer either global verdict from its selected engine.
+Detection logs use the same probe readings: a missing engine beside a runnable
+one is logged with the same reason the page draws, not a second explanation
+that can drift. The server also distinguishes no mounted engine from none
+installed. A node's composer cannot infer that global verdict from its selected engine.
 
 The conversation is the agent's own session for that directory. Opening a node agent reads its session property; restarting the server opens no conversation automatically ([below](#which-conversation-you-come-back-to)). A session id means nothing to the other agent, so this is not a nicety: asking the wrong one to open it gets a refusal. And (for the Claude agent) `claude --resume` in a terminal reaches the same conversations.
 

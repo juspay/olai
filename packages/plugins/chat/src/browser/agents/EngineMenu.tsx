@@ -8,11 +8,6 @@ import type { AgentChoice } from "../../wire.ts"
 import { TESTID } from "../../testids.ts"
 import { EngineAbsence } from "./EngineAbsence.tsx"
 
-/** HOW A GREYED ROW IS PAINTED — the item classes without the pointer and the
- *  hover band, so a row that cannot be picked does not glow under a cursor it
- *  is pretending to answer. */
-const MENU_ITEM_OFF = "px-3 py-1.5 text-left text-muted focus:outline-none"
-
 export default function EngineMenu(props: {
   /** A sidebar menu must clear its chrome; row menus keep their row layer. */
   readonly layer?: typeof LAYER.row | typeof LAYER.over
@@ -43,7 +38,7 @@ export default function EngineMenu(props: {
         <For each={props.engines}>{engine => engine.standing === "here"
           ? <DropdownMenu.Item class={MENU_ITEM} data-engine={engine.id}
               onSelect={() => props.pick(engine.id)}>{engine.name}</DropdownMenu.Item>
-          : <DropdownMenu.Item class={`${MENU_ITEM_OFF} max-w-sm`} disabled
+          : <DropdownMenu.Item class={`${MENU_ITEM} max-w-sm data-[disabled]:cursor-default data-[disabled]:text-muted data-[disabled]:hover:bg-transparent`} disabled
               data-testid={TESTID.agentEngineMissing} data-engine={engine.id}>
               <EngineAbsence id={engine.id} missing={engine.missing} linked={false} />
             </DropdownMenu.Item>

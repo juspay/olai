@@ -15,6 +15,11 @@
  * The cases below pin the shape that closes that: every mounted engine has a
  * row, the row says which arm it is in, and the absence carries the engine's
  * own sentence for a person to read.
+ *
+ * {@link onPath} gets its own tests against a real directory, because what it
+ * is about is the disk: a file that is not executable, a directory with the
+ * right name, an empty PATH entry. This bench does not assert that Bun works;
+ * it pins the answers olai depends on when deciding what a person can start.
  */
 
 import type { Adapter, Engine, Leg, NotHere, Where } from "@olai/acp/engine"
@@ -23,8 +28,8 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
 
-import { AGENT_ENV } from "../adapter.ts"
-import { detecting, here, offBecause, onPath, type Standing, rosterOf } from "./roster.ts"
+import { AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
+import { choiceOf, detecting, here, offBecause, onPath, type Standing, rosterOf } from "./roster.ts"
 
 const CWD = "/vault"
 
@@ -64,15 +69,18 @@ const idsIn = (found: ReadonlyArray<Standing>): ReadonlyArray<string> =>
   found.flatMap((row) => row.standing === "here" ? [row.installed.id] : [])
 
 describe("who is offered", () => {
-  test("an engine whose probe answers is a `here` row, carrying what the probe said", () => {
-    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [
-      engine("one", (where) => ({ command: "/bin/one", args: ["--cwd", where.cwd] })),
+  test("a here row carries the engine's name, prompt and serve-resolved adapter", () => {
+    // Only the serve's lookup knows this path; the host must not decide it.
+    const found = rosterOf({ env: {}, cwd: CWD, found: word => `/serve/bin/${word}` }, [
+      engine("one", (where) => ({ command: where.found("one")!, args: ["--cwd", where.cwd] })),
     ])
     expect(idsIn(found)).toEqual(["one"])
     const row = found[0]
     expect(row?.standing).toBe("here")
     if (row?.standing === "here") {
-      expect(row.installed.adapter).toEqual({ command: "/bin/one", args: ["--cwd", CWD] })
+      expect(row.installed.adapter).toEqual({ command: "/serve/bin/one", args: ["--cwd", CWD] })
+      expect(row.installed.name).toBe("one (a name)")
+      expect(row.installed.prompt).toEqual({ kind: "first-turn" })
     }
   })
 
@@ -91,10 +99,9 @@ describe("who is offered", () => {
     }
   })
 
-
   test("no engines at all is an empty table, and the fold says which reason", () => {
-    // A file policy or a build can leave every engine row
-    // disabled. The panel draws the face that says so; nothing here refuses.
+    // A file policy or a build can leave every engine row disabled. Nothing
+    // was probed, so no engine-owned install advice can be invented.
     const found = rosterOf({ env: {}, cwd: CWD, found: () => "/bin/anything" }, [])
     expect(found).toEqual([])
     expect(offBecause(found)).toEqual({ kind: "no-engine" })
@@ -127,7 +134,7 @@ describe("who is offered", () => {
     ])
     // THE WHOLE TABLE keeps the given order, absences included — the greyed row
     // a picker draws sits where the engine sits in the bundle, not after it.
-    expect(found.map((row) => row.id)).toEqual(["first", "skipped", "second"])
+    expect(found.map(choiceOf).map(row => row.id)).toEqual(["first", "skipped", "second"])
     expect(idsIn(found)).toEqual(["first", "second"])
   })
 
@@ -152,14 +159,13 @@ describe("why there is nothing to talk to", () => {
     const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [absent("one"), absent("two")])
     expect(offBecause(found)).toEqual({ kind: "none-installed" })
   })
-
-  test("an empty table is `no-engine`, the same word a build with none gives", () => {
-    expect(offBecause(rosterOf({ env: {}, cwd: CWD, found: nowhere }, [])))
-      .toEqual({ kind: "no-engine" })
-  })
 })
 
 describe("finding an executable on a search path", () => {
+  test("the public override keeps its documented spelling", () => {
+    expect(AGENT_PATH_ENV).toBe("OLAI_AGENT_PATH")
+  })
+
   const at = mkdtempSync(join(tmpdir(), "olai-roster-"))
   const first = join(at, "first")
   const second = join(at, "second")
@@ -215,7 +221,6 @@ describe("finding an executable on a search path", () => {
     expect(onPath("nosuchagent", [first, second].join(delimiter))).toBeNull()
   })
 })
-
 
 /**
  * THE LIVE READING — the same answer over a list that MOVES, which is what an

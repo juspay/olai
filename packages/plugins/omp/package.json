@@ -6,6 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "//exports": "The three-door rule separates owners, not just files. `./server` is the leg, the probe for `omp` on the agent search path, and its absence sentence — no Solid on a process-only graph. `./browser` carries the transcript mark (genuinely this plugin's drawing) and its own inspector-row registration; the row reads chat's scoped standing, not a static installation value. The root is wire identity, not a sibling surface. `./testids` and `./all.css` are bundle contracts. `./testlib` shares frames between the leg bench and executable e2e fake: two copied fixtures agreeing about the wire would be witnesses to nothing.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
@@ -19,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE OH-MY-PI ENGINE \u2014 the leg that reads its wire, the probe that finds it on this host, and the mark it wears. The opencode shape in every structural respect: found rather than shipped, no pin, no adapter, no patches, no bridge \u2014 and its own MCP client, which is what makes the row one probe. What is NOT the opencode shape is inside the leg: this agent dispatches olai's MCP tools through its own `write` tool over an `xd://` pseudo-path, so the display reading and the reply reading are this file's own.",
+  "//dependencies": "`@olai/acp/engine` is the floor below this engine and chat: the leg, adapter and registration shapes let their server halves remain independent. The browser deliberately imports `olai-plugin-chat`'s slot and `browser-engines` contracts; it owns its row registration and acquires the live reading through the declared service. `@olai/plugin-api` supplies the Agents tag and slot service. `effect` owns apply and its lifetime; `solid-js` draws the mark and the acquired row.",
   "dependencies": {
     "olai-plugin-chat": "workspace:*",
     "@olai/acp": "workspace:*",

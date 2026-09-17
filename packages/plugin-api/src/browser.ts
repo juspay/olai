@@ -78,11 +78,25 @@ export type ListSlot = SlotsKeyedBy<"nothing">
 /** ...and the one the APP keys, which is what makes it the only one. */
 export type SingleSlot = SlotsKeyedBy<"app">
 
-/** Each location declares its face type. Context-sensitive outline faces take
- * the drawer's context; other contributions close over their scoped services.
- * Structured entries such as sidebar sections and verbs leave layout to the
- * location owner. */
-
+/**
+ * WHAT GOES IN EACH SLOT.
+ *
+ * The three `outline.row.*` faces take the drawer's context, which is the one
+ * thing they cannot close over: a chip is drawn per value and has to be told
+ * WHICH value ({@link ./plugin.ts}'s `BlockContext`). Everything else closes
+ * over the services its own `apply` injected rather than taking the whole
+ * furniture as a prop.
+ *
+ * `app.mount` is the exception and it is structural rather than a contract
+ * the app owes: a mount WRAPS, so it must be handed what it wraps.
+ *
+ * SOME CONTRIBUTIONS ARE NOT FACES, and the split is working rather than
+ * eroding: a menu verb is words and a press, a chord is a key and a press, a
+ * sidebar section is a heading and a body. In each the box is core's — the
+ * menu's row and where in the list it sits, the shortcut list's spelling of
+ * the chord, the sidebar's region and its height budget — and what core cannot
+ * write is the words and what the press does.
+ */
 export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly face: infer F} ? F : never }
 
 /** The transport-shaped part of a standing page reading. Kept structural so

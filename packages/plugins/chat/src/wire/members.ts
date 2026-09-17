@@ -1910,11 +1910,9 @@ export const CHAT_OFF: ChatState = {
   settings: [],
   plan: [],
   status: "off",
-  // NOT TOLD YET, which is this constant's other job: a page holds it before the
-  // first frame lands. A serve that HAS decided there is no agent sends one of
-  // {@link OffBecause}'s two arms over the top of it, so the panel's opening
-  // sentence says what happened rather than guessing between the ways it could
-  // have.
+  // NOT TOLD YET: the first frame may carry the server's global verdict.
+  // A node composer exists before a panel does and cannot infer that verdict
+  // from its selected engine; it reads the published engine standings instead.
   off: null,
   session: null,
   uploadScope: null,

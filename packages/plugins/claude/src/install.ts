@@ -39,11 +39,11 @@ export const NAME = "Claude Code"
  * true everywhere except where they are standing, which is the shape of an
  * error message that reads as correct and helps nobody.
  *
- * `where` is the page, because that is where this one is got if it really is
- * absent.
+ * `where` is null: installing the product does not restore olai's missing
+ * wrapper. The adapter is olai's to provide, not the user's to download.
  */
 export const INSTALL: NotHere = {
   name: NAME,
-  where: "https://claude.com/claude-code",
+  where: null,
   why: "not found — olai was started without the wrapper that carries the pinned adapter",
 }

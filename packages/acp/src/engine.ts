@@ -18,14 +18,11 @@
  * Neither the protocol nor chat knows which engine plugins the bundle mounts.
  * The shared shape belongs below both owners, at the protocol boundary.
  *
- * AND HOW TO GET THE ENGINE, which is the one that came back. `NotHere`
- * lives below now ({@link NotHere}, beside the probe that answers one) and
- * rides {@link Registering.at} in the same direction: an engine hands over
- * EITHER the adapter to spawn OR the sentence a machine that has none is
- * owed, so `null` — the arm that silently dropped a row from every face — is
- * unspellable. `@olai/plugin-api`'s `contract.ts` re-exports the type for the
- * probes that answer one there; this is the canonical spelling because both
- * walls open this door and neither may open the other's package.
+ * An engine hands over EITHER the adapter to spawn OR the sentence a machine
+ * without it is owed, so `null` — the arm that silently dropped a row from
+ * every face — is unspellable. This is the engine contract's canonical
+ * `NotHere`; non-ACP probes declare their own structural absence below their
+ * own boundary rather than depending on the engine protocol.
  */
 
 import type { Leg } from "./leg.ts"

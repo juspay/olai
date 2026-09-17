@@ -14,7 +14,7 @@ Feature: Closing a node's agent releases it back to an unclaimed chat
   Scenario: Closing from the agent line releases the node and returns the conversation to the unclaimed chats
     When I press the close-agent control
     Then no agent fold is open
-    And the agents roster holds 0 agents
+    And the agents roster has no row for "install"
     # The close's own filer run files the freed conversation before any
     # restart could — this row appears because `closeAgent` publishes a full
     # filing, not because a boot's filing happened to pick it up.
@@ -33,7 +33,7 @@ Feature: Closing a node's agent releases it back to an unclaimed chat
     When I open the node menu of "install"
     And I choose "Close the agent" from the node menu
     Then no agent fold is open
-    And the agents roster holds 0 agents
+    And the agents roster has no row for "install"
 
   Scenario: A closed agent stays plain across reload and server restart
     When I press the close-agent control
