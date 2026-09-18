@@ -528,6 +528,7 @@ When("I start a fresh session", async function (this: OlaiWorld) {
   const fresh = this.chat(FRESH);
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
+  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
 });
 
 /** PRESS THE FRESH SESSION AND NAME THE ENGINE — the multi-engine form of the
@@ -540,6 +541,7 @@ When("I start a fresh session with {string}", async function (this: OlaiWorld, e
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
   await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).click();
+  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
 });
 
 /** PRESS THE CLOSE sentinel in the agent line — the gesture that takes the
@@ -886,4 +888,27 @@ Then("node {string} still binds remembered conversation {string} in {string}", a
 
 When("I begin opening the past session {string}", async function(this: OlaiWorld, title: string) {
   await this.chat(PAST_SESSION, { hasText: title }).click();
+});
+
+When("I request a fresh session without confirming", async function (this: OlaiWorld) {
+  await this.chat(FRESH).first().click();
+  await this.page.getByRole("group", { name: "Confirm fresh start", exact: true }).waitFor({ state: "visible" });
+});
+
+When("I cancel the fresh session", async function (this: OlaiWorld) {
+  await this.page.getByRole("group", { name: "Confirm fresh start", exact: true }).getByRole("button", { name: "Cancel", exact: true }).click();
+});
+
+When("I confirm the fresh session", async function (this: OlaiWorld) {
+  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
+});
+
+Then("the fresh-session confirmation is absent", async function (this: OlaiWorld) {
+  await this.page.getByRole("group", { name: "Confirm fresh start", exact: true }).waitFor({ state: "hidden" });
+});
+
+When("I request a fresh session with {string} without confirming", async function (this: OlaiWorld, engine: string) {
+  await this.chat(FRESH).first().click();
+  await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).click();
+  await this.page.getByRole("group", { name: "Confirm fresh start", exact: true }).waitFor({ state: "visible" });
 });

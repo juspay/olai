@@ -817,7 +817,12 @@ usable.
 ### Fresh start and past sessions
 
 **Fresh start** is on the agent line. Its tooltip says memory is the subtree and
-the transcript becomes history. It opens a new session — with the node's own
+the transcript becomes history. Every fresh start asks for confirmation before
+replacing the current conversation, including the row menu and choosing another
+engine. Cancel or Escape on the agent line leaves the current conversation intact. The question explains
+that the transcript remains in past sessions. On the agent line, a change to
+the bound conversation dismisses an unanswered confirmation.
+It opens a new session — with the node's own
 engine when there is one, with the engine picked from the menu when there are
 several — then rewrites the binding and records the replacement link. Its
 button stays disabled until the answer arrives, preventing repeated presses

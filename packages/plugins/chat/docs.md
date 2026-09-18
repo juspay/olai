@@ -236,3 +236,10 @@ which pane receives focus. Pointer and hold mechanics use the same component-own
 Kolu and odu draw their file pickers; mail draws its switch. Chat does not inspect a pick. It persists at most 32 choices, rejects agent writes, and revokes queued deliveries when a choice is cleared or replaced.
 
 Delivery-only plugins receive node conversation addresses from `Deliveries.scopes()` with `pick: null`. Those recipients expire when the node binding changes; they expose no file or subtree. Registered wake plugins receive only explicit conversation picks.
+
+Fresh Start asks before replacing the current conversation, on both the agent
+line and the row menu. The agent line owns its confirmation state and disarms
+it when the bound node/engine/session changes. Row actions carry an optional
+static confirmation sentence through the outlines slot contract; the existing
+row menu owns that question and its dismissal. Session work still runs through
+the chat wire service and retains its existing ownership and cleanup.
