@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "FIVE, and the split is the tree's three-door rule with nothing added. `./server` is what the row mounts: the leg, the probe that looks for `omp` on the agent search path, and the install sentence \u2014 no `solid-js` anywhere on that graph. `./browser` is the chunk the tab fetches when the roster names this plugin, and it carries TWO things and only one of them is a face: the MARK this engine wears in a transcript's speaker column (a `<g>`, which is genuinely this plugin's drawing), and its INSTALL SENTENCE for the panel's no-agent face (a `NotHere` VALUE \u2014 core draws every stroke of that row and this package writes every word of it). The ROOT is the wire identity and nothing more \u2014 this plugin composes no sibling surface. `./testids` is the table this row contributes to the merged catalogue (empty, and that is a state), and `./all.css` is the stylesheet `@olai/bundle`'s generator points Tailwind at. `./testlib` is shared FIXTURES \u2014 the adapter frames the leg bench and the executable e2e fake both stage \u2014 and it is a door rather than a copy for the reason the other engines' are: two fakes that agree with each other about what a frame looks like are witnesses to nothing.",
+  "//exports": "The three-door rule separates owners, not just files. `./server` is the leg, the probe for `omp` on the agent search path, and its absence sentence — no Solid on a process-only graph. `./browser` carries the transcript mark (genuinely this plugin's drawing) and its own inspector-row registration; the row reads chat's scoped standing, not a static installation value. The root is wire identity, not a sibling surface. `./testids` and `./all.css` are bundle contracts. `./testlib` shares frames between the leg bench and executable e2e fake: two copied fixtures agreeing about the wire would be witnesses to nothing.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
@@ -20,8 +20,9 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE OH-MY-PI ENGINE \u2014 the leg that reads its wire, the probe that finds it on this host, and the mark it wears. The opencode shape in every structural respect: found rather than shipped, no pin, no adapter, no patches, no bridge \u2014 and its own MCP client, which is what makes the row one probe. What is NOT the opencode shape is inside the leg: this agent dispatches olai's MCP tools through its own `write` tool over an `xd://` pseudo-path, so the display reading and the reply reading are this file's own.",
-  "//dependencies": "`@olai/acp/engine` is the shape both ends spell \u2014 the leg, the adapter, the registration \u2014 and it is a floor package under both this plugin and `olai-plugin-chat`, which is what lets neither import the other. `@olai/plugin-api` is the door: the `Agents` tag its `./server` registers into, and the slot service its `./browser` hangs a mark in. `effect` because a plugin's `apply` is one. `solid-js` because the mark is a component.",
+  "//dependencies": "`@olai/acp/engine` is the floor below this engine and chat: the leg, adapter and registration shapes let their server halves remain independent. The browser deliberately imports `olai-plugin-chat`'s slot and `browser-engines` contracts; it owns its row registration and acquires the live reading through the declared service. `@olai/plugin-api` supplies the Agents tag and slot service. `effect` owns apply and its lifetime; `solid-js` draws the mark and the acquired row.",
   "dependencies": {
+    "olai-plugin-chat": "workspace:*",
     "@olai/acp": "workspace:*",
     "@olai/surface": "workspace:*",
     "@olai/plugin-api": "workspace:*",
@@ -32,7 +33,6 @@
   "//devDependencies": "The protocol SDK for `PermissionOption`, in the leg's OWN bench alone: the leg itself names none of the SDK's types (`@olai/acp/engine` carries the ones a leg's signatures need), and the fixtures that stage a permission request do. Type-only, so no SDK code and no zod enter this package's closure.",
   "devDependencies": {
     "@agentclientprotocol/sdk": "^1.3.0",
-    "olai-plugin-chat": "workspace:*",
     "@olai/tests": "workspace:*"
   },
   "olai": {

@@ -53,26 +53,23 @@ export function FreshStart(props: {
   }
 
   const pressed = (event: MouseEvent): void => {
-    const engines = agents.engines()
-    if (engines.length <= 1) {
-      // ONE engine: the existing single-engine gesture, unchanged — start it
-      // immediately on the engine the node runs.
+    if (agents.only() !== null || agents.engines().length === 0) {
+      // Preserve the node's engine. A withdrawal must refuse this request,
+      // never silently move its conversation onto a surviving engine.
       fresh(props.agent.engine)
       return
     }
     setMenu(event.currentTarget as HTMLElement)
   }
 
-  /** The engine the node runs first, then the rest in roster order — picking
-   *  nothing changes the node's engine, and the current one's row is the press
-   *  somebody already read. */
+  /** Current engine first; all other standings retain bundle order. Opening
+   * the menu is not consent to move the node to whichever engine sorts first. */
   const ordered = (): ReadonlyArray<AgentChoice> => {
-    const engines = agents.engines()
-    if (engines.length <= 1) return engines
-    const current = engines.find((engine) => engine.id === props.agent.engine)
+    const engines = agents.standings()
+    const current = engines.find(engine => engine.id === props.agent.engine)
     return current === undefined
       ? engines
-      : [current, ...engines.filter((engine) => engine.id !== current.id)]
+      : [current, ...engines.filter(engine => engine.id !== current.id)]
   }
 
   return <span class="relative">

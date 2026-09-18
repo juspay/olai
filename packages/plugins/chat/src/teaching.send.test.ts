@@ -34,6 +34,7 @@ import type { NodeAgent } from "@olai/format"
 import type { ChatEntry, ChatState } from "olai-plugin-chat/wire"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
 import { type LocalHarness, localHarness } from "./local.testlib.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
@@ -112,8 +113,7 @@ const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
   const entries = new Map<string, ChatEntry>()
   let published: ChatState | null = null
   const chat = await run(makeChat({
-    roster: () => [ROW],
-    engines: () => [],
+    roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
     overheard: await run(sessionsIn(local.forDirectory(cwd))),

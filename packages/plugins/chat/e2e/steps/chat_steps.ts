@@ -101,7 +101,6 @@ import {
   CHAT_DELIVERY,
   CHAT_DROP,
   CHAT_ENTRY,
-  CHAT_INSTALL,
   CHAT_INTERRUPT,
   CHAT_LANE,
   CHAT_LANE_DOOR,
@@ -113,7 +112,6 @@ import {
   CHAT_MODEL_FILTER,
   CHAT_MODEL_NONE,
   CHAT_NEW,
-  CHAT_NO_AGENT,
   CHAT_QUEUED,
   CHAT_QUEUES,
   CHAT_PREVIEW,
@@ -2687,67 +2685,6 @@ Then(
   },
 );
 
-// ── no agent at all ────────────────────────────────────────────────────
-
-Then("the panel says there is no agent", async function (this: OlaiWorld) {
-  await this.chat(CHAT_NO_AGENT)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-});
-
-Then(
-  "the panel explains how to configure one, naming {string}",
-  async function (this: OlaiWorld, variable: string) {
-    const said = oneLine(await this.chat(CHAT_NO_AGENT).innerText());
-    assert.ok(
-      said.includes(variable),
-      `the no-agent message does not name \`${variable}\`, so it says a feature is ` +
-        `missing without saying what would bring it back. It reads: ${said}`,
-    );
-  },
-);
-
-/**
- * WHICH OF THE TWO, and the reason these are two steps rather than one with a
- * parameter: what a person is owed differs per cause, so what a scenario should
- * be able to say is that THIS cause produced THIS sentence — and a step taking
- * the sentence as an argument would let a scenario assert whichever words
- * happened to be there.
- *
- * The claim is deliberately about a PHRASE rather than the whole copy: the words
- * are core's to reword (both causes are facts about the SERVE, not about an
- * engine), and what must not change is that the face commits to one of them.
- * Before this, it hedged across two guesses, one of them unreachable.
- */
-const saysNoAgentBecause = async (world: OlaiWorld, phrase: string, why: string): Promise<void> => {
-  const said = oneLine(await world.chat(CHAT_NO_AGENT).innerText());
-  assert.ok(
-    said.toLowerCase().includes(phrase.toLowerCase()),
-    `the no-agent face does not say ${why}. A face that will not name which of ` +
-      `the two ways of having no agent this is leaves a person guessing at the ` +
-      `one thing they could do about it. It reads: ${said}`,
-  );
-};
-
-Then("the panel says no engine is installed", async function (this: OlaiWorld) {
-  await saysNoAgentBecause(this, "installed", "that no offered engine is installed");
-});
-
-Then("the panel says this serve enabled no agent engine", async function (this: OlaiWorld) {
-  await saysNoAgentBecause(this, "no agent engine", "that this serve composed no engine plugin");
-});
-
-Then("the panel offers no way to install one", async function (this: OlaiWorld) {
-  // An engine's install sentence is its OWN browser half's, out of the
-  // `engine.install` slot — so a serve that mounted no engine fetched no
-  // half and has nothing to list. Drawing an empty list, or a heading over one,
-  // would be core inventing a row for a plugin that is not here.
-  await this.waitUntil(
-    async () => (await this.chat(CHAT_INSTALL).count()) === 0,
-    "the no-agent face to list no engine at all",
-    HYDRATION_TIMEOUT,
-  );
-});
-
 // ── a conversation the agent would not open ────────────────────────────
 //
 // The panel's third body, and the one that is about a LIVE agent: it answered,
@@ -3541,26 +3478,6 @@ Then("the header draws that agent's own mark", async function (this: OlaiWorld) 
     "the mark drawn beside the agent's name",
   );
 });
-
-Then(
-  "the panel tells me how to install {string}",
-  async function (this: OlaiWorld, id: string) {
-    const row = this.chat(`${CHAT_INSTALL}${attr("data-agent", id)}`);
-    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // ...AND IT SAYS HOW, which is the whole of what this face is for and the
-    // half an id alone cannot see. The sentence is the ENGINE PLUGIN's own —
-    // the `NotHere` it hung in the `engine.install` slot, spelled once in
-    // that plugin's `install.ts` and spent once, here — so a row drawn with an
-    // id and no words would be the face reporting on nothing. Not the exact
-    // words: they are that plugin's to change, and core composes no clause of
-    // them. What IS core's is every stroke around them, which is why this
-    // reads the row's text rather than looking for an anchor.
-    assert.ok(
-      oneLine(await row.innerText()).length > 0,
-      `the install row for "${id}" is empty — the engine's own sentence did not draw`,
-    );
-  },
-);
 
 Then("the composer says a message would queue", async function (this: OlaiWorld) {
   await this.chat(CHAT_QUEUES)

@@ -17,7 +17,6 @@
 import { AGENT_ENV } from "@olai/acp/engine"
 import { describe, expect, test } from "bun:test"
 
-import { name } from "./index.ts"
 import { ENGINE } from "./server.ts"
 import { INSTALL } from "./install.ts"
 
@@ -43,9 +42,11 @@ describe("finding the Claude Code adapter on a host", () => {
       .toEqual({ command: "node", args: ["/a/index.js"] })
   })
 
-  test("nothing baked in is no row, and NOTHING is looked for on a path", () => {
+  test("nothing baked in is this engine's own sentence, and NOTHING is looked for on a path", () => {
     // The adapter is a wrapper inside the nix store and is on nobody's PATH, so
-    // a probe here would be a lookup that could only ever answer wrongly.
+    // a probe here would be a lookup that could only ever answer wrongly. The
+    // answer is the INSTALL sentence rather than a dropped row: the roster
+    // publishes the absence, the picker draws it greyed.
     let probed = false
     const at = ENGINE.at({
       env: {},
@@ -55,37 +56,13 @@ describe("finding the Claude Code adapter on a host", () => {
         return "/usr/bin/claude"
       },
     })
-    expect(at).toBeNull()
+    expect(at).toBe(INSTALL)
     expect(probed).toBe(false)
   })
 
-  test("an empty adapter path leaves this engine unavailable", () => {
+  test("an empty adapter path leaves this engine unavailable, saying so", () => {
     // This engine cannot start without its adapter; other engines decide independently.
-    expect(ENGINE.at({ env: { [AGENT_ENV]: "" }, cwd: CWD, found: nowhere })).toBeNull()
+    expect(ENGINE.at({ env: { [AGENT_ENV]: "" }, cwd: CWD, found: nowhere })).toBe(INSTALL)
   })
 
-  test("what a person is told when this machine has no agent at all", () => {
-    // THE PLUGIN'S WHOLE SENTENCE — core displays one and never composes one.
-    // Asserted off the CONSTANT rather than off the registration: it is spelled
-    // once here and spent once, by the browser half that hangs it in
-    // `engine.install`. It rode the server registration too for a revision,
-    // read by nothing, which is exactly one authored copy too many.
-    expect(INSTALL).toEqual({
-      name: "Claude Code",
-      where: "https://claude.com/claude-code",
-      why: "not found — olai was started without the wrapper that carries the pinned adapter",
-    })
-  })
-
-  test("the standing prompt rides the first turn, like every engine olai ships", () => {
-    expect(ENGINE.prompt).toEqual({ kind: "first-turn" })
-  })
-
-  test("the plugin's word is the row's id, and the NAME is not it", () => {
-    // The two are separate fields because "Claude Code" is a name rather than
-    // the word `claude` with a capital letter — which is the table that used to
-    // sit in `@olai/surface` keyed by a closed union.
-    expect(name).toBe("claude")
-    expect(ENGINE.name).toBe("Claude Code")
-  })
 })

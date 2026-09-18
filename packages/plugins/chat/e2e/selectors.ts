@@ -43,8 +43,6 @@ export const CHAT_CHOOSE_AGENT = selector(TESTID.chatChooseAgent);
 /** The way out of the picker `+ new` raised — absent when the panel is asking
  *  because it HAS no conversation. */
 export const CHAT_CHOOSE_CANCEL = selector(TESTID.chatChooseCancel);
-/** One agent the no-agent face tells you how to install. */
-export const CHAT_INSTALL = selector(TESTID.chatInstall);
 /** The composer PROMISING that a message sent now waits its turn at the agent
  *  and is got to when the running turn is over — drawn while a turn runs, for
  *  an agent whose queue is a fact olai has rather than a guess. */
@@ -81,7 +79,6 @@ export const CHAT_ROSTER_OWN = selector(TESTID.chatRosterOwn);
 export const CHAT_MISSING = selector(TESTID.chatMissing);
 export const CHAT_MISSING_SERVER = selector(TESTID.chatMissingServer);
 export const CHAT_MISSING_WHY = selector(TESTID.chatMissingWhy);
-export const CHAT_NO_AGENT = selector(TESTID.chatNoAgent);
 export const CHAT_UNOPENED = selector(TESTID.chatUnopened);
 export const CHAT_UNOPENED_WHY = selector(TESTID.chatUnopenedWhy);
 export const CHAT_REOPEN = selector(TESTID.chatReopen);

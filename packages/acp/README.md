@@ -22,7 +22,7 @@ What may cross the boundary is machine-checked rather than agreed by comment: `s
 
 ## Why an ENGINE'S shape lives here
 
-`./engine` is the third door and it has the most readers, which is what it is for. An ACP engine is a PLUGIN — `olai-plugin-claude`, `olai-plugin-opencode`, `olai-plugin-pi`, one directory and one row each — and the shape it registers is spelled by two ends that are forbidden each other: a plugin may not import `olai-plugin-chat` (chat sits a floor BELOW the plugin system: it is handed a list, and `@olai/server` is what meets a plugin), and `olai-plugin-chat` may not import a plugin (that is the fence). The shape they both spell therefore has to be under both of them.
+`./engine` is the shared contract between an engine plugin and chat's detection owner. `Registering.at(where)` returns an `Adapter` or `NotHere`, never an unexplained null. This package owns both data shapes and is the only door onto them: a probe about something that is not an ACP engine — an MCP server, a padi — spells the three fields itself (`@olai/plugin-api`'s `Probed.missing`), so no package speaking the protocol becomes the owner of another subject's absence. An engine with multiple prerequisites supplies the reason for the one that is missing. Chat caches the reading until the engine unregisters and publishes every mounted engine's standing, so browser consumers need no separate installation catalog.
 
 This package is where it belongs on merit rather than by elimination: an engine is *an ACP agent and how to reach one*, and the protocol is the language rather than an integration. A `Leg` is a reading of one speaker's spelling of that language, which is the same kind of thing `asks.ts` and `diffs.ts` are one degree less specifically.
 

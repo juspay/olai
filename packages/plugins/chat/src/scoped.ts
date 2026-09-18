@@ -10,6 +10,7 @@ import { Deferred, Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effec
 import { AgentGone, type StopReason } from "./agent.ts"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
+import { here } from "./agents/roster.ts"
 import * as Memory from "./memory.ts"
 import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
@@ -164,7 +165,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const closing = new Map<NodeSlot, Deferred.Deferred<void>>()
     const readers = new Map<string, Set<ReadingObserver>>()
     const readerNodes = new Map<ReadingObserver, string>()
-    let knownEngines = new Set(options.roster().map(row => row.id))
+    let knownEngines = new Set(here(options.roster()).map(row => row.id))
     const readingKey = (to: Conversing) => JSON.stringify([to.agent, to.session])
     const listeners = (state: ReturnType<Panel["state"]>) => {
       const agent = agentIn(state)
@@ -786,7 +787,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * and an order is one less thing to reason about.
        */
       enginesMoved: Effect.gen(function*() {
-        const present = new Set(options.roster().map(row => row.id))
+        const present = new Set(here(options.roster()).map(row => row.id))
         const returned = new Set([...present].filter(id => !knownEngines.has(id)))
         knownEngines = present
         yield* root.enginesMoved

@@ -76,7 +76,7 @@ Then("the page transcript is unbounded and its composer is on screen", async fun
   assert.equal(await this.chat(CHAT_TRANSCRIPT).evaluate(el => getComputedStyle(el).maxHeight), "none");
 });
 Then("the plain node composer has no available engine", async function(this: OlaiWorld) {
-  assert.ok((await this.page.locator(plain).innerText()).includes("No agent engine is available."));
+  await this.page.locator(plain).locator(selector(PLUGIN_TESTID.chatNoAgent)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.equal(await this.page.locator(send).count(), 0);
 });
 

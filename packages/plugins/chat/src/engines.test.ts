@@ -39,7 +39,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { QUEUES } from "./agents/legs.testlib.ts"
-import type { Installed } from "./agents/roster.ts"
+import type { Installed, Standing } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 import { makePanel } from "./chat.ts"
 import type { ChatState } from "./wire/members.ts"
 
@@ -118,8 +119,7 @@ const panelOver = async (initial: ReadonlyArray<Installed>) => {
   let table: ReadonlyArray<Installed> = initial
   const states: Array<ChatState> = []
   const panel = await run(makePanel({
-    roster: () => [...table],
-    engines: () => table.map((row) => row.id),
+    roster: () => table.map(seated),
     cwd,
     tools: () => null,
     onState: (state) => void states.push(state),
@@ -216,6 +216,33 @@ test("the last engine leaving is the off face, and a returning one leaves it", a
   expect(last().off).toBeNull()
   expect(last().roster.map((one) => one.id)).toEqual(["codex"])
   expect(last().talking).toEqual({ kind: "asking" })
+})
+
+test("losing the last available engine retains missing rows and recovers on installation", async () => {
+  const missing: Standing = {
+    id: "other", name: "Other", standing: "not-here",
+    missing: { name: "Other", why: "install the executable", where: null },
+  }
+  let table: ReadonlyArray<Standing> = [seated(CLAUDE), missing]
+  const panel = await run(makePanel({
+    roster: () => table,
+    cwd, tools: () => null, onState: () => {}, onTranscript: () => {},
+  }))
+  try {
+    table = [missing]
+    await run(panel.enginesMoved)
+    expect(panel.state().status).toBe("off")
+    expect(panel.state().off).toEqual({ kind: "none-installed" })
+    expect(panel.state().roster).toEqual([missing])
+
+    table = [seated(installed("other"))]
+    await run(panel.enginesMoved)
+    expect(panel.state().status).toBe("idle")
+    expect(panel.state().off).toBeNull()
+    expect(panel.state().roster).toEqual([{ id: "other", name: "other", standing: "here" }])
+  } finally {
+    await run(panel.stop)
+  }
 })
 
 /**

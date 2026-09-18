@@ -7,6 +7,7 @@ import { join } from "node:path"
 import { namedExactly } from "@olai/acp/engine"
 import { makePanel } from "./chat.ts"
 import type { Installed } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 
 import { make, type Agent } from "./agent.ts"
 import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
@@ -150,7 +151,7 @@ for (const stored of [false, true]) {
           models: { config: "model", nameIn: namedExactly } },
       }
       const panel = await run(makePanel({
-        roster: () => [row], engines: () => [], cwd, tools: () => null,
+        roster: () => [seated(row)], cwd, tools: () => null,
         onState: () => {}, onTranscript: () => {},
       }))
       try {

@@ -17,6 +17,7 @@ import { join } from "node:path"
 
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 import { makePanel, type Panel } from "./chat.ts"
 import type { Change } from "./transcript.ts"
 
@@ -60,8 +61,7 @@ const texts = (change: Change): ReadonlyArray<string> => change.upserts.map(([, 
 test("a loaded conversation is published as one change, after the one that clears the last", async () => {
   const told: Array<Change> = []
   const chat: Panel = await run(makePanel({
-    roster: () => [ROW],
-    engines: () => [],
+    roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
     scoping: null,

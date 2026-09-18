@@ -3,9 +3,12 @@ import { rowVerbs } from "./verbs.tsx"
 import type { Roster } from "./agents/answered.tsx"
 import type { AgentChoice, NodeAgentRow } from "../wire.ts"
 
-const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude" }, { id: "codex", name: "Codex" }]
+const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", standing: "here" }, { id: "codex", name: "Codex", standing: "here" }]
 const roster = (bound?: NodeAgentRow, installed = engines): Roster => ({
   at: () => bound, engines: () => installed, rows: () => bound ? [bound] : [],
+  standings: () => installed,
+  only: () => installed.length === 1 ? installed[0]! : null,
+  missing: () => null,
   chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {},
 })
 const node: NodeAgentRow = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null }

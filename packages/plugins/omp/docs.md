@@ -1,6 +1,6 @@
 # Oh My Pi, in the chat panel
 
-The ACP engine olai **finds**. Put [`omp`](https://github.com/can1357/oh-my-pi) on this server's PATH and the panel offers it; take it off and the row is gone. Olai ships no pin for it, bakes nothing in, and has no override variable of its own — the way to point olai at a different build is to put that build on the search path, which is the same gesture as installing it.
+The ACP engine olai **finds**. Put [`omp`](https://github.com/can1357/oh-my-pi) on this server's agent search path and the panel offers it. When it is missing, its enabled plugins row moves to **Needs you** with installation advice and a link. Whenever an engine menu opens, omp appears disabled with the same reason but no link inside the disabled choice. After installing it, switch the plugin off and on to probe again without restarting olai. Olai ships no pin or adapter override for it; `OLAI_AGENT_PATH` (defaulting to the server's `PATH`) selects the build.
 
 omp ships its own ACP server (`omp acp`) and its own MCP client, so this row is the opencode shape: one probe, no adapter, no patches and no bridge.
 

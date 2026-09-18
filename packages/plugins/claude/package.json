@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "FIVE, and the split is the tree's three-door rule with nothing added. `./server` is what the row mounts: the leg, the probe that finds this adapter on a host, and the install sentence \u2014 no `solid-js` anywhere on that graph, because a process that renders nothing must not pull a UI runtime. `./browser` is the chunk the tab fetches when the roster names this plugin, and it carries exactly one face: the mark this engine wears in a transcript's speaker column, which used to be a `MARKS` table inside `@olai/web` keyed by engine id. The ROOT is the wire identity and nothing more \u2014 this plugin composes no sibling surface, because an engine has nothing to publish that is not already on the chat cell. `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
+  "//exports": "The three-door rule separates owners, not just files. `./server` is the leg, the pinned-adapter probe and its absence sentence — no Solid on a process-only graph. `./browser` carries the transcript mark, once a core MARKS table, and its own inspector-row registration; the row reads chat's scoped standing, not a second diagnosis. The root is wire identity, not a sibling surface: the engine has nothing to publish outside the chat cell. `./testids` and `./all.css` are bundle contracts; the testlib and executable fake are this engine's protocol benches.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",
@@ -20,8 +20,9 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE CLAUDE CODE ENGINE \u2014 the leg that reads its wire, the two model bets its picker needs, the adapter olai ships pinned, and the mark it wears. One directory, one row, one release clock: this adapter's pin moved five times in a month and no other engine's did, which is the whole argument for a plugin per engine rather than one roster plugin.",
-  "//dependencies": "`@olai/acp/engine` is the shape both ends spell \u2014 the leg, the adapter, the registration \u2014 and it is a floor package under both this plugin and `olai-plugin-chat`, which is what lets neither import the other. `@olai/plugin-api` is the door: the `Agents` tag its `./server` registers into, and the slot service its `./browser` hangs a mark in. `effect` because a plugin's `apply` is one. `solid-js` because the mark is a component.",
+  "//dependencies": "`@olai/acp/engine` is the floor below this engine and chat: the leg, adapter and registration shapes let their server halves remain independent. The browser deliberately imports `olai-plugin-chat`'s slot and `browser-engines` contracts; it owns its row registration and acquires the live reading through the declared service. `@olai/plugin-api` supplies the Agents tag and slot service. `effect` owns apply and its lifetime; `solid-js` draws the mark and the acquired row.",
   "dependencies": {
+    "olai-plugin-chat": "workspace:*",
     "@olai/acp": "workspace:*",
     "@olai/surface": "workspace:*",
     "@olai/plugin-api": "workspace:*",
@@ -32,7 +33,6 @@
   "//devDependencies": "The protocol SDK for `PermissionOption`, in the leg's OWN bench alone: the leg itself names none of the SDK's types any more (`@olai/acp/engine` carries the ones a leg's signatures need), and the fixtures that stage a permission request do. Type-only, so no SDK code and no zod enter this package's closure \u2014 the claim `@olai/acp`'s manifest test makes about itself, kept here by the same instrument.",
   "devDependencies": {
     "@agentclientprotocol/sdk": "^1.3.0",
-    "olai-plugin-chat": "workspace:*",
     "@olai/tests": "workspace:*"
   },
   "olai": {

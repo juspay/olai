@@ -16,11 +16,13 @@ export function NewChat() {
     <button type="button" class={`${ENTRY_SHAPE} w-full text-left text-paper/65`} data-testid={TESTID.chatNew}
       disabled={creation === undefined || creation?.pending() || agents.engines().length === 0} aria-busy={creation?.pending()}
       onClick={event => {
-        const only = agents.engines()[0]
-        if (agents.engines().length === 1 && only !== undefined) start(only.id)
+        // One startable engine is no choice, regardless of how many missing
+        // engines the build ships. Their advice remains in the inspector.
+        const only = agents.only()
+        if (only !== null) start(only.id)
         else setMenu(event.currentTarget)
       }}>new chat</button>
-    <Show when={menu()}>{anchor => <EngineMenu layer={LAYER.over} anchor={anchor()} engines={agents.engines()}
+    <Show when={menu()}>{anchor => <EngineMenu layer={LAYER.over} anchor={anchor()} engines={agents.standings()}
       close={() => setMenu(null)} pick={start} />}</Show>
     <Show when={creation?.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-xs" />}</Show>
   </li>

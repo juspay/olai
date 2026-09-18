@@ -38,12 +38,14 @@ export function Standing(props: { readonly node: string; readonly record?: strin
           data-testid={TESTID.agentStart} data-agent={props.node} disabled={starting()}
           onClick={event => {
             event.stopPropagation()
-            const only = roster.engines()[0]
-            if (roster.engines().length === 1 && only !== undefined) void start(only.id)
+            // Availability decides the gesture, not how many engine plugins
+            // shipped. Missing engines remain visible when a menu is needed.
+            const only = roster.only()
+            if (only !== null) void start(only.id)
             else setMenu(event.currentTarget)
           }}><AgentMark id={roster.engines()[0]?.id ?? ""} />start an agent</button>
       }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>
-      <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.engines()}
+      <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.standings()}
         close={() => setMenu(null)} pick={agent => void start(agent)} />}</Show>
       <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-xs" />}</Show>
     </span>

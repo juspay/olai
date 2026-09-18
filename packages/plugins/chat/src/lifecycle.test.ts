@@ -16,6 +16,7 @@ import { type Agent, make } from "./agent.ts"
 import type { Leg } from "@olai/acp/engine"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat } from "./chat.ts"
 import type { Memory } from "./memory.ts"
 
@@ -238,8 +239,7 @@ describe("a message that queues behind a running turn", () => {
     }
     const chat = await run(
       makeChat({
-        roster: () => [row],
-        engines: () => [],
+        roster: () => [seated(row)],
         cwd,
         tools: () => null,
         onState: () => {},
@@ -305,8 +305,7 @@ describe("a message that queues behind a running turn", () => {
       prompt: { kind: "first-turn" },
     }
     const chat = await Effect.runPromise(makeChat({
-      roster: () => [row],
-      engines: () => [],
+      roster: () => [seated(row)],
       cwd,
       tools: () => null,
       onState: () => {},

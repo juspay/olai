@@ -29,11 +29,11 @@
  * enablement decides which rows run, independently of executable discovery.
  */
 
-import { adapterFrom, AGENT_ENV } from "@olai/acp/engine"
+import { type Adapter, adapterFrom, AGENT_ENV, type NotHere } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
-import { NAME } from "./install.ts"
+import { INSTALL, NAME } from "./install.ts"
 import { CLAUDE } from "./leg.ts"
 import { name } from "./index.ts"
 
@@ -57,9 +57,13 @@ export const ENGINE: Registering = {
   leg: CLAUDE,
   // SHIPPED, NOT FOUND, which is why the probe is a variable read and not a
   // PATH lookup: the adapter is a wrapper inside the nix store and is on
-  // nobody's PATH. `null` is a hand-rolled start that went through neither
-  // the packaged binary nor the justfile — an absence, not a fault.
-  at: (where) => adapterFrom(where.env[AGENT_ENV]),
+  // nobody's PATH. `null` from `adapterFrom` is a hand-rolled start that went
+  // through neither the packaged binary nor the justfile — an absence, not a
+  // fault — and the sentence a machine in that state is owed is THIS
+  // ENGINE'S OWN ({@link ./install.ts}'s `INSTALL`, the same words that used
+  // to ride the browser slot), handed back rather than dropped so the roster
+  // can publish the row.
+  at: (where): Adapter | NotHere => adapterFrom(where.env[AGENT_ENV]) ?? INSTALL,
   // ACP has no system prompt on any wire, this one included, so the standing
   // instruction rides the first turn — where a person can read what their agent
   // was told. `@olai/acp/engine`'s `PromptChannel` argues it, and `olai-plugin-chat`

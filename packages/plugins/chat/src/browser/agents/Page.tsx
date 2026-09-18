@@ -17,6 +17,8 @@ import { agentReadings } from "./reading.ts"
 import { createNodeConversation } from "./conversation.ts"
 import { AgentLine } from "./AgentLine.tsx"
 import { Conversation } from "./Fold.tsx"
+import { NoAgent } from "../chat/NoAgent.tsx"
+import { EngineAbsence } from "./EngineAbsence.tsx"
 
 export interface PageSession {
   readonly chat: Accessor<Chat | null>
@@ -117,6 +119,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const agents = useAgents()
   const [chosen, choose] = createSignal<string>()
   const engine = () => agents.at(props.node)?.engine ?? chosen() ?? agents.engines()[0]?.id
+  const missing = () => agents.missing(engine())
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.index)?.shows
     return page?.kind === "node" && page.zoomed.kind === "node" && page.zoomed.shows.node.id === props.node
@@ -125,7 +128,13 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const send = () => { const id = engine(); if (id !== undefined) void props.page.start(id) }
   return <Show when={metadata()}>{node =>
     <div class={`sticky bottom-0 ${LAYER.row} rounded border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} data-testid={TESTID.agentPlainComposer}>
-      <Show when={agents.engines().some(one => one.id === engine())} fallback={<p class="m-0 text-xs text-muted">No agent engine is available.</p>}>
+      <Show when={agents.engines().some(one => one.id === engine())} fallback={
+        <Show when={engine()} fallback={<NoAgent />}>{id =>
+          <Show when={missing()} fallback={
+            <p class="m-0 text-sm text-muted">This node's engine is not enabled here. Enable it in the plugins panel.</p>
+          }>{reason => <EngineAbsence id={id()} missing={reason()} testid={TESTID.chatInstall} />}</Show>
+        }</Show>
+      }>
         <textarea class="min-h-20 w-full resize-y bg-transparent text-sm outline-none" data-testid={TESTID.agentPlainInput}
           aria-label={`ask about ${node().title}`} placeholder={`ask about ${node().title}…`}
           value={props.page.draft()} onInput={event => props.page.setDraft(event.currentTarget.value)}

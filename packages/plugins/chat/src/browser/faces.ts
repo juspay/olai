@@ -1,11 +1,11 @@
 /**
  * WHAT OTHER PLUGINS HUNG, as this half reads it.
  *
- * The panel is the reader of two slots six other plugins register into: the
- * MARK a delivered sentence wears in a transcript (`delivery.mark`), and
- * each engine's INSTALL SENTENCE on the face drawn when this machine has no ACP
- * agent at all (`engine.install`). Both used to be walks in `@olai/web` —
- * `plugins/marks.ts` and `plugins/agents.ts` — because the panel was core's.
+ * The panel is the reader of two slots other plugins register into: the
+ * MARK a delivered sentence wears in a transcript (`delivery.mark`), and the
+ * reply a tool call's row draws (`tool.reply`). Both used to be walks in
+ * `@olai/web` — `plugins/marks.ts` and `plugins/agents.ts` — because the
+ * panel was core's.
  *
  * A HOLDER for `../browser/wire.ts`'s reason exactly: the door arrives as a
  * service this half NAMED, so the moment it is in hand is inside the `apply`,

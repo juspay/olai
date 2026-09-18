@@ -17,7 +17,6 @@ export const TEST_SLOTS = [
   slotContract<unknown>("app.palette","nothing"),
   slotContract<unknown>("app.mount","plugin"),
   slotContract<unknown>("delivery.mark","plugin"),
-  slotContract<unknown>("engine.install","plugin"),
 ]
 
 declare module "./slots.ts" {
@@ -38,6 +37,5 @@ declare module "./slots.ts" {
     "app.palette": SlotDefinition<any,"nothing">
     "app.mount": SlotDefinition<any,"plugin">
     "delivery.mark": SlotDefinition<any,"plugin">
-    "engine.install": SlotDefinition<any,"plugin">
   }
 }

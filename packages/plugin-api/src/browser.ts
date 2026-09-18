@@ -33,7 +33,7 @@ import { Effect, Scope, type Stream } from "effect"
 
 import { BrowserMount } from "./mount.ts"
 import { ownService, type OwnServices } from "./owned.ts"
-import { kindWordOf, type NotHere } from "./contract.ts"
+import { kindWordOf } from "./contract.ts"
 import { slotReference, type SlotDefinitions, type SlotKey } from "./slots.ts"
 import type {
   AppClocks,
@@ -83,33 +83,17 @@ export type SingleSlot = SlotsKeyedBy<"app">
  *
  * The three `outline.row.*` faces take the drawer's context, which is the one
  * thing they cannot close over: a chip is drawn per value and has to be told
- * WHICH value ({@link ./plugin.ts}'s `BlockContext`). Everything else takes
- * nothing at all, and that is the change the services made — a header readout
- * used to be handed the whole furniture as a prop, and now closes over the
- * services its own `apply` injected.
+ * WHICH value ({@link ./plugin.ts}'s `BlockContext`). Everything else closes
+ * over the services its own `apply` injected rather than taking the whole
+ * furniture as a prop.
  *
- * `app.mount` is the one exception and it is structural rather than a contract
+ * `app.mount` is the exception and it is structural rather than a contract
  * the app owes: a mount WRAPS, so it must be handed what it wraps.
  *
- * ## ONE OF THEM IS NOT A FACE, and the asymmetry is the rule working
- *
- * `engine.install` holds a {@link NotHere} — a name, a place and a whole
- * sentence — where every other row holds a function that draws. The split the
- * whole table is under is *core keeps the SHAPE, the plugin brings the words*,
- * and for the no-agent row the shape is entirely core's: the list, the mark
- * beside it, and whether the name is an `<a href>` or a plain `<span>`. A face
- * there put core's own Tailwind vocabulary inside three tenant packages, in
- * three byte-identical files that would drift from `@olai/web` the first time
- * core restyled a link — and it made every future engine copy the markup to say
- * one sentence.
- *
- * A mark stays a face because a `<g>` is genuinely the plugin's drawing. This is
- * the difference between the two, made in the type.
- *
- * FOUR OF THEM ARE NOT FACES NOW, and the count is the split working rather than
+ * SOME CONTRIBUTIONS ARE NOT FACES, and the split is working rather than
  * eroding: a menu verb is words and a press, a chord is a key and a press, a
- * sidebar section is a heading and a body. In each of the three the box is core's
- * — the menu's row and where in the list it sits, the shortcut list's spelling of
+ * sidebar section is a heading and a body. In each the box is core's — the
+ * menu's row and where in the list it sits, the shortcut list's spelling of
  * the chord, the sidebar's region and its height budget — and what core cannot
  * write is the words and what the press does.
  */
@@ -223,9 +207,9 @@ export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly 
 /**
  * A SECTION IN THE SIDEBAR — `sidebar.section`.
  *
- * A heading and a body rather than one face, which is the `engine.install`
- * shape and is here for that shape's reason: the region's box, the heading's
- * type and the column's height budget are core's, and a face would have to carry
+ * A heading and a body rather than one face, and the reason is the shape of
+ * the box: the region's box, the heading's type and the column's height
+ * budget are core's, and a face would have to carry
  * core's classes into every tenant to sit right in it — three byte-identical
  * copies drifting from `@olai/web` the first time the sidebar is restyled.
  *
@@ -233,7 +217,6 @@ export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly 
  * a toggle) cannot have one yet. The day one does, the heading grows a face
  * beside `said` and the argument above is what that change has to answer.
  */
-
 
 /**
  * A KEYBOARD CHORD — `app.keys`.
@@ -354,9 +337,9 @@ export const Slots = serviceTag<Slots>("ui-renderer.legacy-slots")
  * two shapes said so: `Slots` had a `register` and no `hung`, {@link App} had
  * `hung` and no `register`, and the asymmetry was the whole design. It survives
  * — neither of those two shapes has grown the other half — but the CLAIM under
- * it does not: `delivery.mark` and `engine.install` are read by the chat
- * panel, and the chat panel is becoming a plugin. Six plugins register a mark
- * and the reader of all six is about to be a seventh, which no shape in this
+ * it does not: `delivery.mark` and `tool.reply` are read by the chat
+ * panel, and the chat panel is a plugin. Six plugins register a mark
+ * and the reader of all six is a seventh, which no shape in this
  * file could spell.
  *
  * A THIRD TAG rather than three fields on {@link Slots}, and the reason is what a

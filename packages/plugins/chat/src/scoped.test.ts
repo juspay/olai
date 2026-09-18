@@ -17,6 +17,7 @@ import { join } from "node:path"
 
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { volatile } from "./memory.ts"
 import { make } from "./scoped.ts"
@@ -92,8 +93,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     // runtime this scheduler stopped reaching for. A bench chooses it here,
     // where the choice is visible, and `logging()`'s carries the collector.
     fork,
-    roster: () => [installed("alpha"), installed("beta")],
-    engines: () => ["alpha", "beta"],
+    roster: () => [seated(installed("alpha")), seated(installed("beta"))],
     cwd,
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
@@ -226,8 +226,7 @@ test("boot opens no conversation, even with an old remembered session", async ()
   const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
   const chat = await logged(make({
     fork: (work) => Effect.runFork(under(work)),
-    roster: () => roster,
-    engines: () => roster.map(row => row.id),
+    roster: () => roster.map(seated),
     cwd,
     memory,
     probes: () => Effect.succeed([{
@@ -330,8 +329,7 @@ test("a shutdown during an explicit opening leaves no scope, no ticket and no pr
   const minting = Promise.withResolvers<void>()
   const chat = await run(make({
     fork,
-    roster: () => [installed("alpha")],
-    engines: () => ["alpha"],
+    roster: () => [seated(installed("alpha"))],
     cwd,
     memory,
     tools: () => null,
@@ -407,8 +405,7 @@ test(`a shutdown that lands mid-acquisition during ${path} leaves nothing behind
   const minting = Promise.withResolvers<void>()
   const chat = await run(make({
     fork,
-    roster: () => [installed("alpha")],
-    engines: () => ["alpha"],
+    roster: () => [seated(installed("alpha"))],
     cwd,
     tools: () => null,
     nodeAt: (id) => id === node.id ? node : null,
@@ -456,8 +453,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
   const chat = await run(make({
     fork,
     scoping: await run(scopesIn(ephemeralLocalState())),
-    roster: () => [installed("alpha"), installed("beta")],
-    engines: () => ["alpha", "beta"],
+    roster: () => [seated(installed("alpha")), seated(installed("beta"))],
     cwd,
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
@@ -533,8 +529,7 @@ test("agent switches, disabled plugins and listing probes have distinct exit rea
   const { run, fork, said } = logging()
   let roster = [installed("alpha"), installed("beta")]
   const panel = await run(makePanel({
-    roster: () => roster,
-    engines: () => roster.map(row => row.id),
+    roster: () => roster.map(seated),
     cwd,
     tools: () => null,
     onState: () => {},
@@ -573,8 +568,7 @@ test("node wake picks are off by default, independent, durable and clear the liv
   const two = { agent: "beta", session: "two-session" }
   const chat = await run(make({
     fork, scoping, cwd,
-    roster: () => [installed("alpha"), installed("beta")],
-    engines: () => ["alpha", "beta"],
+    roster: () => [seated(installed("alpha")), seated(installed("beta"))],
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     seatableAt: (id) => nodes.some((node) => node.id === id),
@@ -638,7 +632,7 @@ test("filing clears old manual wakes and trash releases a running node", async (
   const scoping = await run(scopesIn(local))
   const overheard = await run(sessionsIn(local))
   const chat = await run(make({
-    fork: Effect.runFork, roster: () => [installed("alpha")], engines: () => ["alpha"], cwd,
+    fork: Effect.runFork, roster: () => [seated(installed("alpha"))], cwd,
     tools: () => null, nodeAt: () => present ? node : null, seatableAt: () => present,
     nodes: () => present ? [node] : [], wake: () => ACTIVATION,
     nearestAt: () => present ? node.id : null, agentAt: () => present ? node : null,

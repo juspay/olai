@@ -36,6 +36,7 @@ import { join } from "node:path"
 import type { Leg } from "@olai/acp/engine"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
+import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
 import { SLOTS } from "./deliveries.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
@@ -139,8 +140,7 @@ const panel = async (
   options: { readonly scoping?: Scopes; readonly start?: boolean } = {},
 ): Promise<Panel> => {
   const chat = await run(makeChat({
-    roster: () => [ROW],
-    engines: () => [],
+    roster: () => [seated(ROW)],
     cwd,
     tools: () => null,
     scoping: options.scoping ?? null,

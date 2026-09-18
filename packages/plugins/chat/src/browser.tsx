@@ -45,7 +45,9 @@ import { holdReferences } from "./browser/references.ts"
 import { holdServed } from "./browser/vault.ts"
 import { deployment as appDeployment } from "olai-plugin-layout/contract"
 import { holdDeployment } from "./browser/deployment.ts"
+import { enginesService } from "./browser/engines.tsx"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
+
 
 /** THE WIRE IDENTITY, on this door too — and `surface` is the load-bearing
  *  half of it. The tab builds its sibling map out of what each browser half
@@ -85,7 +87,7 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, agents, readings: createAgentReadings(agents), folding: createFolding() }
+      return { dispose, agents, engines: enginesService(agents.missing), readings: createAgentReadings(agents), folding: createFolding() }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
@@ -95,7 +97,7 @@ export default definePlugin({
 
     yield* Effect.acquireRelease(Effect.sync(trackCamera), stop => Effect.sync(stop))
     yield* slots.register("outline.row.fold", props => <AgentsProvider value={state.agents}><Fold {...props} /></AgentsProvider>, {
-      children: [slotContracts["conversation.wake"], slotContracts["tool.reply"], slotContracts["delivery.mark"], slotContracts["engine.install"]],
+      children: [slotContracts["conversation.wake"], slotContracts["tool.reply"], slotContracts["delivery.mark"]],
     })
     yield* slots.register("outline.page.head", props => <AgentsProvider value={state.agents}><PageHead {...props} /></AgentsProvider>)
     // The fold registration above owns the shared conversation locations for
@@ -120,8 +122,15 @@ export default definePlugin({
     // THE VERBS ON A ROW'S `•••`, as a READING rather than a list — the count
     // is one per installed engine plus the ask, and the roster that decides it
     // arrives after this fiber does (`./browser/verbs.tsx` argues both).
-    yield* slots.register("outline.row.action", node => rowVerbs(node,state.agents))
-
+    yield* slots.register("outline.row.action", node => rowVerbs(node, state.agents))
+    // THE STANDING TABLE, AS A DECLARED BROWSER SERVICE — one row per mounted
+    // engine, live, keyed to this activation's own roster cell
+    // (`./browser/engines.tsx` argues the shape). Published the way
+    // `alerts.channel` is: an `own` service under this plugin's namespace, so
+    // an engine plugin that draws its row in the plugins panel holds it for
+    // exactly as long as chat's fiber is up — chat off means nothing is
+    // probing, and the row component pends rather than guessing.
+    yield* (yield* Offers).own("engines", () => state.engines)
   }),
 })
 

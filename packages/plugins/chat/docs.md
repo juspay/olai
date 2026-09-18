@@ -87,11 +87,23 @@ its own. Conversation UI state is keyed by engine/session within the activation,
 so drafts, refusals, question state and dismissed completions do not leak across
 conversations.
 
-Chat also declares `engine.install`, `delivery.mark` and `conversation.wake`. The fold registration
+Chat declares `delivery.mark` and `conversation.wake`. The fold registration
 owns these shared child locations once; page faces consume the same locations.
 Reverse withdrawal removes page consumers before the fold's location owner.
-An engine contributes its installation sentence and a delivering plugin its
-mark; chat renders these contributions without inventing either.
+Engine absence is data on the roster, not a separate browser slot. One
+`EngineAbsence` component draws its mark and reason in the picker, no-agent
+face, node composer and engine-owned inspector row. Installation links appear
+only outside disabled menu choices. Chat's declared browser `chat.engines` service
+supplies `row(engine): PluginsRowFace`, built over one activation-owned standing
+index. The static `olai-plugin-chat/browser-engines` door contains only its tag
+and interface. Each engine defines its own `row` component and registers the
+supplied face under its own identity. The component waits for chat and the
+inspector slot, and withdraws before chat releases its renderer.
+The activation-owned roster publishes `only` beside `engines` and `standings`:
+exactly one startable engine, irrespective of missing siblings. Sidebar,
+outline start, fresh start and command palette read that same memo. Fresh start
+uses it only to decide whether to open a menu; its direct request always names
+the node's current engine.
 
 Optional dependencies remain in separate scoped components. Navigation and its
 existing palette control supply route changes and choice reset on dismissal;
