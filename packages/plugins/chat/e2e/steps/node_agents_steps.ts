@@ -912,3 +912,8 @@ When("I request a fresh session with {string} without confirming", async functio
   await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).click();
   await this.page.getByRole("group", { name: "Confirm fresh start", exact: true }).waitFor({ state: "visible" });
 });
+
+When("I open the fresh-session engine menu", async function (this: OlaiWorld) {
+  await this.chat(FRESH).first().click();
+  await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).waitFor({ state: "visible" });
+});
