@@ -180,7 +180,9 @@ Feature: The second pane
     When I alt-click the zoom of "mint"
     Then there are 2 panes
     And pane 1 is focused
-    And pane 1 is already drawing the outline "garden.olai"
+    # Establish the neighbour before testing the sidebar click's own wait.
+    # Alt-click only waits for its gesture's frame, not the page subscription.
+    And the focused pane is drawing the outline "garden.olai"
     When I focus pane 0
     Then pane 0 is already drawing the outline "house.olai"
     When I click the outline "garden.olai"

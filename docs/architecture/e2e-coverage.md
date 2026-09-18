@@ -287,3 +287,11 @@ person sees both halves agreeing on.
   covered by existing units: `ID_SHAPE` is the mention alphabet in `node.test.ts`
   and "an id that is not mentionable is a bad-id" in
   `packages/plugins/outline-olai/src/parse.test.ts`.
+
+The general title-editing gesture lets Playwright resolve the current click
+position and then moves the editor caret to the end; pointer-placement cases
+keep their own precise gestures. Row-menu selection scrolls the live entry
+before resolving it again for the click, so roster updates cannot leave the
+scroll action holding a detached element. The split-pane sidebar-wait scenario
+waits for its neighbour precondition, while retaining the immediate assertion
+that the sidebar action itself has drawn its destination.
