@@ -12,6 +12,10 @@ Feature: A fresh start may pick a different engine
     When I remember this conversation as "first"
 
   Scenario: With two engines, fresh start opens the engine menu and can pick the other one
+    When I request a fresh session with "Codex" without confirming
+    Then the panel is in the remembered conversation "first"
+    When I cancel the fresh session
+    Then the panel is in the remembered conversation "first"
     When I start a fresh session with "Codex"
     Then the panel has a different conversation from "first"
     And the panel header names the node agent "install the cabinets"
@@ -68,6 +72,11 @@ Feature: A fresh start may pick a different engine
 
   Scenario: The row menu fresh-starts onto the other engine
     When I open the node menu of "install"
+    And I choose "Fresh start — Codex" from the node menu
+    Then the node menu asks "Start a fresh conversation for “install the cabinets”? This replaces the current conversation. Its transcript remains in past sessions."
+    And the panel is in the remembered conversation "first"
+    When I choose "Cancel" from the node menu
+    And I choose "Fresh start — Codex" from the node menu
     And I choose "Fresh start — Codex" from the node menu
     Then the node agent's fold is ready
     And the panel has a different conversation from "first"

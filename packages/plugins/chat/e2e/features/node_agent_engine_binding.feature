@@ -7,7 +7,7 @@ Feature: A node's engine is the one its panel acts on
     Given I open the outline "house.olai"
     When I open the "codex" agent on node "kitchen"
     And the node agent's fold is ready
-    And I start a fresh session
+    And I open the fresh-session engine menu
     # Codex is SECOND in bundle order, so first here is the hoist and not the
     # list: the press a person is most likely to mean is another conversation
     # with the agent they are already talking to, and it is the one their eye

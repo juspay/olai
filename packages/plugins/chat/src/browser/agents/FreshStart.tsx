@@ -1,6 +1,6 @@
 import { createSignal, lazy, Show } from "solid-js"
 import { memoryOf } from "@olai/format"
-import { QUIET_PILL } from "@olai/web/client/pill.ts"
+import { ALARM_PILL, QUIET_PILL } from "@olai/web/client/pill.ts"
 import { run } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
@@ -10,6 +10,8 @@ import { agentReadings } from "./reading.ts"
 import { useAgents } from "./answered.tsx"
 import type { Row } from "./roster.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
+import { createConfirming } from "@olai/web/client/confirming.ts"
+import { freshStartQuestion } from "./fresh-start.ts"
 import { TESTID } from "../../testids.ts"
 
 /** The engine menu, loaded on the first press that needs it — the same lazy
@@ -24,16 +26,28 @@ export function FreshStart(props: {
   readonly page?: boolean
 }) {
   const saying = createSaying()
-  const [starting, setStarting] = createSignal(false)
   const [menu, setMenu] = createSignal<HTMLElement | null>(null)
   const agents = useAgents()
+  const confirm = createConfirming(() => JSON.stringify([props.agent.id, props.agent.engine, props.agent.session]))
+  const starting = () => confirm.where() === "working"
+  const [chosen, setChosen] = createSignal("")
+  let trigger: HTMLButtonElement | undefined
+  const ask = (engine: string): void => {
+    if (starting() || confirm.where() === "asking") return
+    setChosen(engine)
+    confirm.ask()
+  }
+  const cancel = (): void => {
+    confirm.drop()
+    trigger?.focus()
+  }
 
   /** The fresh start itself, on whichever engine the press named. */
   const fresh = (engine: string): void => {
-    if (starting()) return
+    if (starting() || confirm.where() !== "asking") return
+    confirm.begin()
     const reading = agentReadings()
     const node = props.agent.id
-    setStarting(true)
     saying.say(undefined)
     run(
       chatWire().procedures.conversation.startAgentSession({
@@ -41,11 +55,11 @@ export function FreshStart(props: {
         agent: engine,
       }),
       (failure) => {
-        setStarting(false)
+        confirm.done()
         saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })
       },
       () => {
-        setStarting(false)
+        confirm.done()
         if (agentReadings() === reading) reading?.visit(node)
         // The completed history revision refreshes this tab and its siblings.
       },
@@ -53,10 +67,11 @@ export function FreshStart(props: {
   }
 
   const pressed = (event: MouseEvent): void => {
+    if (starting() || confirm.where() === "asking") return
     if (agents.only() !== null || agents.engines().length === 0) {
       // Preserve the node's engine. A withdrawal must refuse this request,
       // never silently move its conversation onto a surviving engine.
-      fresh(props.agent.engine)
+      ask(props.agent.engine)
       return
     }
     setMenu(event.currentTarget as HTMLElement)
@@ -73,14 +88,26 @@ export function FreshStart(props: {
   }
 
   return <span class="relative">
-    <button type="button" class={QUIET_PILL} data-testid={TESTID.chatFreshSession}
+    <button ref={trigger} type="button" class={QUIET_PILL} data-testid={TESTID.chatFreshSession}
       data-agent={props.agent.id} disabled={starting()} aria-busy={starting()}
       title={`memory is the subtree (${memoryOf(props.agent)}); the transcript becomes history`}
       onClick={pressed}>fresh start</button>
+    <Show when={confirm.where() === "asking"}>
+      <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-xs"
+        onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); cancel() } }}>
+        <span>{freshStartQuestion(props.agent.title)}</span>
+        <span class="mt-2 flex gap-2">
+          <button type="button" class={ALARM_PILL} onClick={() => fresh(chosen())}>Start fresh conversation</button>
+          <button type="button" class={QUIET_PILL}
+            ref={element => queueMicrotask(() => { if (element.isConnected) element.focus() })}
+            onClick={cancel}>Cancel</button>
+        </span>
+      </span>
+    </Show>
     <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatFreshSaid} class="mt-1 text-xs" />}</Show>
     <Show when={menu()}>
       {(anchor) => <EngineMenu layer={props.page ? LAYER.over : LAYER.row} anchor={anchor()}
-        engines={ordered()} pick={engine => { setMenu(null); fresh(engine) }} close={() => setMenu(null)} />}
+        engines={ordered()} pick={engine => { setMenu(null); ask(engine) }} close={() => setMenu(null)} />}
     </Show>
   </span>
 }

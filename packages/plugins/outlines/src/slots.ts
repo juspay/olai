@@ -12,6 +12,8 @@ export interface RowAction {
   readonly id: string
   /** The words on the row. */
   readonly label: string
+  /** Ask this question before running the action. */
+  readonly confirm?: string
   /**
    * Does it change the DIRECTORY? A verb that arms a composer, opens a panel or
    * moves this tab says `false` and sits with core's reads; one that writes a

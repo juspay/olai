@@ -34,3 +34,16 @@ test("a node talking through a conversation offers fresh start per engine, then 
   // close is still reachable from the agent line — the row menu stays silent.
   expect(rowVerbs("one", roster(bound, []))).toEqual([])
 })
+
+test("only fresh-start row actions require confirmation, for one engine or several", () => {
+  for (const installed of [engines, engines.slice(0, 1)]) {
+    const verbs = rowVerbs("one", roster({ ...node, session: "existing" }, installed))
+    for (const verb of verbs) {
+      if (verb.id.startsWith("fresh-start-")) {
+        expect(verb.confirm).toContain("This replaces the current conversation.")
+        expect(verb.confirm).toContain("“One”")
+      } else expect(verb.confirm).toBeUndefined()
+    }
+    for (const verb of rowVerbs("one", roster(undefined, installed))) expect(verb.confirm).toBeUndefined()
+  }
+})
