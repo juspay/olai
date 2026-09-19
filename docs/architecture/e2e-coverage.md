@@ -295,3 +295,38 @@ before resolving it again for the click, so roster updates cannot leave the
 scroll action holding a detached element. The split-pane sidebar-wait scenario
 waits for its neighbour precondition, while retaining the immediate assertion
 that the sidebar action itself has drawn its destination.
+
+## Browsing tools
+
+`browsing.feature` uses a scripted MCP executable and the existing ACP fixture.
+The lifecycle workflow verifies the engine's received server list, two distinct
+0700 conversation output directories and their removal on withdrawal, same-node
+fresh sessions with the row off and on, and socket reconnection without another
+probe. A second workflow verifies that a malformed executable response becomes
+a visible sentence and that a fresh session retries after repair.
+
+Pure judgement tests pin every probe sentence and compatible-tool decision without
+starting subprocesses. Unit tests withdraw the row while its probe child is hung, assert that the child
+is joined before scratch disappears, and call a stale registration snapshot to
+prove that it cannot hand a server over. They also cover private directories,
+failed probes leaving no conversation directories, missing tools, timeout, early
+exit with bounded stderr diagnostics, non-executable and absent knobs, unexpected
+preparation defects, transport cancellation, pagination, notifications and malformed
+JSON shapes. Private pure protocol tests cover partial-line framing, bounds,
+message parsing, initialization order and immutable pagination state. The sandboxed Nix surface check asks the real pinned executable for
+its tool list without launching Chromium. Live web browsing and live model
+behavior are not exercised by CI.
+
+The same-node toggle case exposed a product race: a reconnecting reader for the
+old binding could enqueue `session/load` while fresh-start was still opening.
+It then replaced the new session, forcing a second load of that unprompted id.
+The persistent ACP fixture correctly refuses such unsaved sessions. Chat now
+records successful replacements on the node slot and checks that record inside
+the node's opening permit. Superseded readers route to their own history scope
+after releasing the live permit. `scoped.test.ts` covers a completed fresh start
+with a lagging binding, a fresh start and late reader queued behind a third
+opener, a held history load that leaves live opens available, and explicit navigation
+to a superseded session while the binding still lags. Subscriptions and explicit
+loads share the same permit-protected routing function. Deferreds and
+immediate forks establish ordering without sleeps; both stale-reader cases fail
+against the previous implementation. The same-node off/on workflow now passes end to end.

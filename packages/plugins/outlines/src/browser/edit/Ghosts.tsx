@@ -10,21 +10,31 @@
 import { Key } from "@solid-primitives/keyed"
 import { createMemo } from "solid-js"
 
-import type { Pending } from "./draft.ts"
+import type { Ghost, Pending } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { NewRow } from "./NewRow.tsx"
 import { keyHandler } from "./RowEditor.tsx"
 
 export function Ghosts(props: {
   readonly parked: ReadonlyArray<Pending>
-  readonly live: Pending | undefined
+  readonly live: Ghost | undefined
 }) {
   // One keyed list preserves the input when its slot changes from parked to
   // active. Removing from one list and adding to another loses browser focus.
-  const drafts = createMemo(() => props.live === undefined ? props.parked : [...props.parked.filter((draft) => draft.slot !== props.live!.slot), props.live])
+  //
+  // A PARKED blank is a ghost too, and its address is the one thing the two
+  // have to agree about: the slot it minted (`./draft.ts`'s `Ghost`). That is
+  // what makes this list's KEY the same key either side of a landing.
+  const drafts = createMemo(() => {
+    const live = props.live
+    const parked = props.parked
+      .filter((draft) => live === undefined || draft.slot !== live.slot)
+      .map((draft): Ghost => ({ draft, slot: draft.slot }))
+    return live === undefined ? parked : [...parked, live]
+  })
   return (
     <Key each={drafts()} by="slot">
-      {(draft) => <GhostRow draft={draft()} active={props.live?.slot === draft().slot} />}
+      {(line) => <GhostRow line={line()} active={props.live?.slot === line().slot} />}
     </Key>
   )
 }
@@ -33,14 +43,14 @@ export function Ghosts(props: {
  *  (Enter spent the draft, a mirror took its place), and reading the
  *  `<Show>`/`<Key>` accessor then is the stale-value throw. */
 function GhostRow(props: {
-  readonly draft: Pending
+  readonly line: Ghost
   readonly active?: boolean
 }) {
   const editor = useEditor()
-  const slot = props.draft.slot
+  const slot = props.line.slot
   return (
     <NewRow
-      draft={props.draft}
+      line={props.line}
       active={props.active}
       onActivate={props.active === false ? () => editor.resume(slot) : undefined}
       onParkedInput={(text) => editor.typeParked(slot, text)}

@@ -31,7 +31,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
-import { isoDayOf } from "@olai/web/testlib"
+import { isoDayOf, selector } from "@olai/web/testlib"
 // HOW LONG THE OUTLINE WAITS BEFORE IT COMMITS is the outline row's number, and
 // a step that asserts "not yet" has to outwait the one the client actually
 // uses. It was re-exported by `@olai/web/testlib`, which put
@@ -39,7 +39,7 @@ import { isoDayOf } from "@olai/web/testlib"
 // entirely that row's — the equality `@olai/bundle`'s `fence.test.ts` holds.
 import { IDLE_COMMIT } from "../../src/testlib.ts"
 
-import type { Locator } from "@olai/tests/harness/playwright.ts";
+import type { ElementHandle, Locator } from "@olai/tests/harness/playwright.ts";
 
 import { leavingTheLine, nothingIsBeingTyped } from "@olai/tests/harness/caret.ts";
 import { pressed, typed } from "@olai/tests/harness/settling.ts";
@@ -51,6 +51,7 @@ import {
   expectBefore,
   NEW_ROW,
   NODE,
+  NODE_MENU,
   NODE_TITLE,
   nodeSelector,
   POLL_TIMEOUT,
@@ -638,12 +639,16 @@ Then(
 
 const idTitled = async (world: OlaiWorld, title: string): Promise<string | null> =>
   world.page.locator(NODE).evaluateAll((rows, selectors) => {
-    // Read one DOM snapshot. Between separate count/textContent awaits, an
-    // idle save can swap the title span for its editor and strand the locator.
+    // Read one DOM snapshot. Between separate count/innerText awaits, an idle
+    // save can land and redraw the row under the locator.
     for (const row of rows) {
-      const shown = row.querySelector(selectors.shown);
-      const typing = row.querySelector<HTMLTextAreaElement>(selectors.typing);
-      const text = shown === null ? typing?.value : shown.textContent;
+      // The row's OWN cell, and the editor INSIDE it: a row's descendants are
+      // whole child rows, so an editor looked for anywhere under it can answer
+      // with a child's (`../browser/NodeLine.tsx` draws both states in the one
+      // cell for exactly this kind of reason — one place to read a title).
+      const cell = row.querySelector(selectors.shown);
+      const field = cell?.querySelector(selectors.typing);
+      const text = field instanceof HTMLInputElement ? field.value : cell?.textContent;
       if (text?.includes(selectors.title)) return row.getAttribute("data-node-id");
     }
     return null;
@@ -1141,3 +1146,358 @@ Then("the remembered parked input still holds the caret", async function (this: 
   assert.ok(input);
   assert.equal(await input.evaluate((element) => element.isConnected && document.activeElement === element), true);
 });
+
+// ── the facts a row draws after its title ──────────────────────────────
+
+/** The pilcrow that opens a row's note, and the chip a plugin hangs on it —
+ *  the two ends of one claim, and the two the report named by sight: opening a
+ *  title editor used to take BOTH of them off the line. */
+const NOTE_MARK = selector(TESTID.noteMark);
+const AGENT_CHIP = selector(TESTID.agentStart);
+
+/** What is written down about them: the ELEMENT itself, and where it sat.
+ *  Both halves, because they are two different failures — an element that was
+ *  REMADE in the same place passes a box check and is still the blink this
+ *  exists to catch (the chip is a button with state of its own, and remaking
+ *  it is a pointer's hover and a plugin's own fetch both lost), and an element
+ *  that survived while the line laid out around it has moved. */
+type Sat = {
+  readonly what: string;
+  readonly element: ElementHandle<HTMLElement | SVGElement>;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+};
+const facts = new WeakMap<OlaiWorld, ReadonlyArray<Sat>>();
+
+const WHAT_FACTS: ReadonlyArray<readonly [string, string]> = [
+  ["the title cell", NODE_TITLE],
+  ["the note mark", NOTE_MARK],
+  ["the plugin chip", AGENT_CHIP],
+];
+
+When("I write down where the facts of {string} sit", async function (this: OlaiWorld, id: string) {
+  const row = this.node(id);
+  const written: Array<Sat> = [];
+  for (const [what, control] of WHAT_FACTS) {
+    const element = await row.locator(control).first().elementHandle();
+    assert.ok(element !== null, `${what} of "${id}" is not on the line to write down`);
+    const box = await element.boundingBox();
+    assert.ok(box !== null, `${what} of "${id}" has no box`);
+    written.push({ what, element, box });
+  }
+  facts.set(this, written);
+});
+
+/** What is no longer true about them, or `null` when nothing changed. */
+const movedOf = async (world: OlaiWorld, id: string): Promise<string | null> => {
+  const written = facts.get(world);
+  assert.ok(written !== undefined, "no `I write down where the facts of … sit` came first");
+  for (const one of written) {
+    if (!(await one.element.evaluate((element) => element.isConnected))) {
+      return `${one.what} was taken off the line and made again`;
+    }
+    const box = await one.element.boundingBox();
+    if (box === null) return `${one.what} has no box any more`;
+    for (const edge of ["x", "y", "width", "height"] as const) {
+      const written = one.box[edge];
+      if (Math.abs(box[edge] - written) > 1) {
+        return `${one.what} moved: its ${edge} was ${written} and is ${box[edge]}`;
+      }
+    }
+  }
+  return null;
+};
+
+Then("the facts of {string} sit where they sat", async function (this: OlaiWorld, id: string) {
+  await this.waitUntil(
+    async () => (await movedOf(this, id)) === null,
+    `the facts of "${id}" to sit where they sat`,
+  ).catch(async () => {
+    assert.fail(`"${id}": ${await movedOf(this, id)}`);
+  });
+});
+
+/** The editor is drawn IN the title cell — the cell rather than the line, which
+ *  is the whole of what keeps everything after it still (`../browser/NodeLine.tsx`). */
+Then("the title of {string} is being typed", async function (this: OlaiWorld, id: string) {
+  await this.node(id).locator(NODE_TITLE).first().locator(TITLE_EDITOR)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+// ── which row the ring is on ───────────────────────────────────────────
+
+/** The ring that says "this is the row" (`../browser/focus.ts`, one signal for
+ *  the whole app). A row's ring is a `data-` fact rather than a colour, which
+ *  is what makes "which row is pointed at" a question a scenario can ask. */
+Then("no row is pointed at", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(`${NODE}[data-focused="true"]`).count()) === 0,
+    "no row to wear the ring a reference puts on the row it points at",
+  );
+});
+
+Then("the row being typed is the one pointed at", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      await this.page.evaluate(
+        ([editor, node]) => {
+          const field = document.activeElement;
+          const row = field === null ? null : field.closest(node);
+          return row !== null && row.getAttribute("data-focused") === "true";
+        },
+        [TITLE_EDITOR, NODE] as [string, string],
+      ),
+    "the line being typed to hold the caret AND the ring, as one row",
+  );
+});
+
+// ── the boxes a landing must not move ─────────────────────────────────
+
+/** A line's GLYPH CELL and the caret's box: the two things a person sees move
+ *  when a blank and a row are laid out differently — the bullet drops and the
+ *  caret changes height (`../browser/edit/NewRow.tsx` draws the blank with the
+ *  row's own `ROW_LINE` and its `GLYPH_BOX`, which is the whole of why they do
+ *  not).
+ *
+ * ONE selector for the glyph in both states, because it is one cell: the blank
+ * wears `new-row-glyph` and the row's is the link its bullet is drawn in
+ * (`../browser/Glyph.tsx`), and a scenario that had to name them separately
+ * would be free to compare two different things. */
+const GLYPH = `${selector(TESTID.newRowGlyph)}, ${selector(TESTID.zoom)}`;
+
+type LineBox = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
+const lineBoxes = new WeakMap<OlaiWorld, { readonly glyph: LineBox; readonly field: LineBox }>();
+
+const readyBox = async (world: OlaiWorld, where: Locator, what: string): Promise<LineBox> => {
+  await where.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const box = await where.boundingBox();
+  assert.ok(box !== null, `${what} has no box`);
+  return box;
+};
+
+When("I write down the boxes of the line being typed", async function (this: OlaiWorld) {
+  const blank = this.page.locator(NEW_ROW).first();
+  lineBoxes.set(this, {
+    glyph: await readyBox(this, blank.locator(GLYPH).first(), "the bullet of the line being typed"),
+    field: await readyBox(this, blank.locator(TITLE_EDITOR).first(), "the caret of the line being typed"),
+  });
+});
+
+Then("the row it became stands in the same boxes", async function (this: OlaiWorld) {
+  const written = lineBoxes.get(this);
+  assert.ok(written !== undefined, "no boxes were written down first");
+  const id = await caretRow(this);
+  const row = this.node(id);
+  const now = {
+    glyph: await readyBox(this, row.locator(GLYPH).first(), `the bullet of "${id}"`),
+    field: await readyBox(this, row.locator(TITLE_EDITOR).first(), `the caret of "${id}"`),
+  };
+  // X, Y AND HEIGHT, and not the width: a blank's field is the rest of its LINE
+  // (`./RowEditor.tsx`'s `fillsLine`) while a row's title is as wide as its own
+  // words, so the two boxes are deliberately different shapes whose LEFT edges
+  // and baselines are the same pixels.
+  //
+  // EVERY difference is collected before the assertion, because they are one
+  // answer — the two lines are laid out by different rules — and the first
+  // number a loop happened to reach says less than all of them.
+  const WHAT = { glyph: "bullet", field: "caret" } as const;
+  const moved: Array<string> = [];
+  for (const which of ["glyph", "field"] as const) {
+    for (const edge of ["x", "y", "height"] as const) {
+      const was = written[which][edge];
+      const is = now[which][edge];
+      if (Math.abs(is - was) > 1) {
+        moved.push(`the ${WHAT[which]}'s ${edge} was ${was} in the blank and is ${is} on the row`);
+      }
+    }
+  }
+  assert.deepStrictEqual(moved, [], `the line moved when it landed: ${moved.join("; ")}`);
+});
+
+// ── what a row hides until a hand is on it ─────────────────────────────
+
+/** The controls a row keeps at `opacity: 0` until the pointer is on it — the
+ *  `•••` and whatever a plugin hung beside it (`@olai/ui-primitives/touch.ts`'s
+ *  `MENU_REVEAL` and `HOVER_REVEAL`, whose contract IS the opacity). */
+const HIDDEN_UNTIL_HOVERED: ReadonlyArray<readonly [string, string]> = [
+  ["the •••", NODE_MENU],
+  ["the plugin chip", AGENT_CHIP],
+];
+
+/** The row the CARET is in, by id — a line a keystroke made has an id nobody
+ *  chose, so the row these steps are about is named by where the caret is. */
+const caretRow = async (world: OlaiWorld): Promise<string> => {
+  const id = await world.page.evaluate((editor) => {
+    const field = document.activeElement;
+    return field !== null && field.matches(editor)
+      ? field.closest("[data-node-id]")?.getAttribute("data-node-id") ?? null
+      : null;
+  }, TITLE_EDITOR);
+  assert.ok(id !== null, "the caret is not in a row's title");
+  return id;
+};
+
+/** What each of them is at, as opacity, and `null` where the row has none
+ *  (a plugin that is off draws no chip). */
+const revealsOf = async (
+  world: OlaiWorld,
+  id: string,
+): Promise<ReadonlyArray<readonly [string, number | null]>> => {
+  const out: Array<readonly [string, number | null]> = [];
+  for (const [what, control] of HIDDEN_UNTIL_HOVERED) {
+    const where = world.within(id, control);
+    out.push([
+      what,
+      (await where.count()) === 0
+        ? null
+        : await where.evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity)),
+    ]);
+  }
+  return out;
+};
+
+When("the pointer is off every row", async function (this: OlaiWorld) {
+  // A corner of the page no row can be under. `I click the title of …` leaves
+  // the pointer ON the row it pressed, which is a hand on that row and would
+  // be ordinary hover chrome — the report's state is a hand nowhere.
+  await this.page.locator("body").hover({ position: { x: 2, y: 2 } });
+  await this.waitForFrame();
+});
+
+Then("the row being typed hides its furniture", async function (this: OlaiWorld) {
+  const id = await caretRow(this);
+  await this.waitUntil(async () => {
+    const reveals = await revealsOf(this, id);
+    return reveals.every(([, opacity]) => opacity === null || opacity < 0.1);
+  }, `the ••• and the chip of "${id}" to stay hidden while its title is typed`).catch(async () => {
+    assert.fail(`"${id}": ${JSON.stringify(await revealsOf(this, id))} — the caret is not a hand`);
+  });
+});
+
+When("I hover the row being typed", async function (this: OlaiWorld) {
+  await this.node(await caretRow(this)).hover();
+  await this.waitForFrame();
+});
+
+Then("the row being typed shows its furniture", async function (this: OlaiWorld) {
+  const id = await caretRow(this);
+  await this.waitUntil(async () => {
+    const reveals = await revealsOf(this, id);
+    return reveals.some(([, opacity]) => opacity !== null) &&
+      reveals.every(([, opacity]) => opacity === null || opacity > 0.5);
+  }, `the ••• and the chip of "${id}" to be revealed by a hand on the row`).catch(async () => {
+    assert.fail(`"${id}": ${JSON.stringify(await revealsOf(this, id))}`);
+  });
+});
+
+// ── the line that is saving ────────────────────────────────────────────
+
+/**
+ * WATCH THE LINE, frame by frame — because what a scenario about a save has to
+ * claim is about the WHOLE of it, and no single read can make that claim: by
+ * the time a step looks, the hole the write's reply used to open has closed,
+ * and what is on screen is a perfectly ordinary editor.
+ *
+ * `requestAnimationFrame` rather than a timer: one callback per frame, after
+ * that frame's DOM update and before it is painted, which is exactly the moment
+ * "what did the reader see" is decided. It stops by itself on a page that is
+ * not being drawn, and the step below stops it on purpose.
+ */
+When("I watch the line being typed", async function (this: OlaiWorld) {
+  await this.page.evaluate((editor) => {
+    const seen: Array<{ editors: number; focused: boolean }> = []
+    const look = () => {
+      seen.push({
+        editors: document.querySelectorAll(editor).length,
+        focused: document.activeElement?.matches(editor) ?? false,
+      })
+      frame = requestAnimationFrame(look)
+    }
+    let frame = requestAnimationFrame(look)
+    Object.assign(window, { __lineWatch: { seen, stop: () => cancelAnimationFrame(frame) } })
+  }, TITLE_EDITOR)
+});
+
+/**
+ * What the watch saw. TWO claims, and they are the two halves of one promise —
+ * the line a person is typing in is never taken away from them: there is always
+ * an editor, and the caret is always in it.
+ *
+ * A frame with an editor but the caret OUTSIDE it is the quieter half of the
+ * bug and the one that costs a keystroke: the input is on the page, the words
+ * are in it, and what is typed goes to `<body>`.
+ */
+Then("the line being typed never stopped being an editor", async function (this: OlaiWorld) {
+  const seen = await this.page.evaluate(() => {
+    const held = (window as unknown as {
+      readonly __lineWatch?: {
+        readonly seen: Array<{ editors: number; focused: boolean }>
+        readonly stop: () => void
+      }
+    }).__lineWatch
+    if (held === undefined) return null
+    held.stop()
+    return held.seen
+  })
+  assert.ok(
+    seen !== null,
+    "nothing was watching the line: `I watch the line being typed` has to come before this",
+  );
+  assert.ok(seen.length > 0, "the watch saw no frames at all, so it claims nothing");
+  const gone = seen.filter((one) => one.editors === 0);
+  assert.strictEqual(
+    gone.length,
+    0,
+    `the line was not an editor for ${gone.length} of ${seen.length} frames — the caret was on ` +
+      `the document body and anything typed there went nowhere`,
+  );
+  const lost = seen.filter((one) => one.editors > 0 && !one.focused);
+  assert.strictEqual(
+    lost.length,
+    0,
+    `the caret was outside every editor for ${lost.length} of ${seen.length} frames — the ` +
+      `line was on screen and what was typed went past it`,
+  );
+});
+
+/**
+ * THE OTHER END OF THE SEAM: the editor holding the caret is drawn by a ROW
+ * (`[data-node-id]`) rather than by a ghost, and it holds the words that were
+ * typed. Waited for, because the row the write made arrives on a frame of its
+ * own — this is where the watch above must still find an editor.
+ */
+Then(
+  "the line being typed has become the row holding {string}",
+  async function (this: OlaiWorld, text: string) {
+    await this.waitUntil(
+      async () =>
+        await this.page.evaluate(
+          ([editor, ghost, wanted]) => {
+            const field = document.activeElement as HTMLInputElement | null
+            return field !== null && field.matches(editor) && field.closest(ghost) === null &&
+              field.value === wanted
+          },
+          [TITLE_EDITOR, NEW_ROW, text] as [string, string, string],
+        ),
+      `the line being typed to be drawn as a row holding ${JSON.stringify(text)}`,
+    )
+  },
+);
+
+/**
+ * Which row is being POINTED at — asked of a row that should not be, which is
+ * the half a blank drawn inside that row's own `<li>` used to get wrong: the
+ * blank's input bubbles its focus through the row it will follow, so the ring
+ * landed on the line ABOVE wherever the reader was looking
+ * (`./Tree.tsx`'s `onFocusIn`).
+ */
+Then(
+  "the row {string} is not pointed at",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectAttributeAbsent(nodeSelector(this.nodeId(id)), "data-focused", `node "${id}"`);
+  },
+);

@@ -285,3 +285,7 @@
   section: Files
   quiet: true
   profiles: [surface]
+
+- id: browsing
+  name: olai-plugin-browsing/server
+  section: Integrations

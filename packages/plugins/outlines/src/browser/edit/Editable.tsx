@@ -228,11 +228,20 @@ function EditablePage(props: EditableProps) {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
-      // A structural reply can select a newly minted row before its page
-      // revision arrives. There is then no input to hear Escape: the old
-      // editor has left, and focus is on the document. Cancel only this
-      // focused pane's deferred row editor, so the late frame cannot reopen
-      // it and turn the next Undo into native input undo.
+      // A STRUCTURAL REPLY CAN LEAVE THE CARET IN A ROW WITH NO BOX AT ALL.
+      // `opening` puts it on the row the write answered with, whose `place` is
+      // `null` until the frame draws that row — and for a SPLIT or a MERGE the
+      // editor the key was pressed in has already gone, so there is nothing to
+      // hear the key and focus is on the document. Left alone, Escape does
+      // nothing, the late frame reopens the editor, and the next Undo is spent
+      // by the platform's own input history instead of the write stack
+      // (`../e2e/features/split_reply_lifetime.feature` is both scenarios).
+      //
+      // NOT the line a person is typing in, and it does not need to be: a
+      // `new` draft that LANDED keeps the ghost it was typed in
+      // (`./editing.tsx`'s seat), so its own `<input>` is still on screen,
+      // still focused, and hears the key for itself. The `kind` here is what
+      // says so — a pending is not this case either.
       if (!event.defaultPrevented && event.key === "Escape"
         && router.workspace().focus === pane
         && (event.target === document.body || event.target === document.documentElement)

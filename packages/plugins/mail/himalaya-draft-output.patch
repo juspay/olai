@@ -1,0 +1,101 @@
+Structured identities for Gmail draft writes; retain the human output.
+Drop when the pin publishes these fields and schemas.
+
+--- a/src/gmail/drafts/create.rs
++++ b/src/gmail/drafts/create.rs
+@@ -8,7 +8,8 @@
+     drafts::{GmailDraft, create::GmailDraftCreate},
+     messages::{GmailMessage, encode_raw},
+ };
+-use pimalaya_cli::printer::{Message, Printer};
++use pimalaya_cli::printer::Printer;
++use super::GmailDraftWriteOutput;
+ 
+ use crate::{gmail::client::GmailClient, shared::message::arg::MessageArg};
+ 
+@@ -42,9 +43,12 @@
+         }
+         .response;
+ 
+-        printer.out(Message::new(format!(
+-            "Gmail draft `{}` successfully created",
+-            draft.id
+-        )))
++        let message = draft.message.ok_or_else(|| anyhow::anyhow!("Gmail draft response has no message"))?;
++        printer.out(GmailDraftWriteOutput {
++            id: draft.id,
++            message_id: message.id,
++            thread_id: message.thread_id,
++            action: "created",
++        })
+     }
+ }
+--- a/src/gmail/drafts/update.rs
++++ b/src/gmail/drafts/update.rs
+@@ -8,7 +8,8 @@
+     drafts::{GmailDraft, update::GmailDraftUpdate},
+     messages::{GmailMessage, encode_raw},
+ };
+-use pimalaya_cli::printer::{Message, Printer};
++use pimalaya_cli::printer::Printer;
++use super::GmailDraftWriteOutput;
+ 
+ use crate::{gmail::client::GmailClient, shared::message::arg::MessageArg};
+ 
+@@ -45,9 +46,12 @@
+         }
+         .response;
+ 
+-        printer.out(Message::new(format!(
+-            "Gmail draft `{}` successfully updated",
+-            draft.id
+-        )))
++        let message = draft.message.ok_or_else(|| anyhow::anyhow!("Gmail draft response has no message"))?;
++        printer.out(GmailDraftWriteOutput {
++            id: draft.id,
++            message_id: message.id,
++            thread_id: message.thread_id,
++            action: "updated",
++        })
+     }
+ }
+--- a/src/gmail/drafts.rs
++++ b/src/gmail/drafts.rs
+@@ -56,3 +56,20 @@
+         }
+     }
+ }
++
++/// Identity of a created or replaced Gmail draft.
++#[derive(serde::Serialize, schemars::JsonSchema)]
++#[serde(rename_all = "kebab-case")]
++pub(crate) struct GmailDraftWriteOutput {
++    id: String,
++    message_id: String,
++    thread_id: Option<String>,
++    #[serde(skip)]
++    action: &'static str,
++}
++
++impl std::fmt::Display for GmailDraftWriteOutput {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        write!(f, "Gmail draft `{}` successfully {}", self.id, self.action)
++    }
++}
+--- a/src/json_schema.rs
++++ b/src/json_schema.rs
+@@ -206,6 +206,14 @@
+             crate::gmail::drafts::get::GmailDraftGetOutput
+         );
+         insert!(
++            "himalaya-gmail-drafts-create",
++            crate::gmail::drafts::GmailDraftWriteOutput
++        );
++        insert!(
++            "himalaya-gmail-drafts-update",
++            crate::gmail::drafts::GmailDraftWriteOutput
++        );
++        insert!(
+             "himalaya-gmail-threads-list",
+             Paginated<crate::gmail::threads::list::ThreadsTable>
+         );

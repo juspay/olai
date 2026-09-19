@@ -101,6 +101,7 @@ import { createFoldReading } from "./fold/reading.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
 import { focusedNode, selectNode } from "./focus.ts"
 import { doneUnder } from "@olai/web/client/hidden.ts"
+import { isEditingTarget } from "@olai/web/client/keys.ts"
 import { hotOf } from "./hot.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { NoteMark } from "./note/Mark.tsx"
@@ -126,6 +127,7 @@ import {
   HOVER_REVEAL,
   PAST_CONTROLS,
   ROOT_RAIL,
+  ROW_LINE,
   ROW_TITLE,
 } from "@olai/ui-primitives/touch.ts"
 import { applying } from "./writes.ts"
@@ -391,15 +393,33 @@ function Branch(props: {
     const draft = editor.draft()
     return draft?.kind === "row" ? draft : undefined
   }
-  const pending = () => {
-    const held = editor.draft()
-    return held?.kind === "new" ? held : undefined
-  }
   const live = (kind: "after" | "before" | "under") => {
     const at = editor.where().pending
     if (at?.kind !== kind || at.id !== props.row.at.node.id) return undefined
-    return pending()
+    // The line itself, which may be a pending OR the row it became a moment
+    // ago — the same seat, the same editor, and the same words
+    // (`./edit/draft.ts`'s `ghostOf`). Only the row that matched reads it.
+    return editor.live() ?? undefined
   }
+  /**
+   * The caret, as `../NodeLine.tsx` draws it: this row's title cell is an
+   * editor while its title is the one being typed, and the rendered title any
+   * other time — the cell, so that everything after it stays put.
+   *
+   * A THUNK, made once per row and READ once per editing session: reading it is
+   * what creates the component, and a component made again is the `<input>` a
+   * person is typing in made again (`../NodeLine.tsx`'s `titleEditor`).
+   */
+  const titleCell = () => (
+    <TitleEditor
+      text={typing("title")?.text ?? ""}
+      caret={typing("title")?.caret}
+      section={section()}
+      onInput={editor.type}
+      onKey={keyHandler("line", editor.press)}
+      onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "title" }, left)}
+    />
+  )
   const parked = (kind: "after" | "before" | "under") =>
     editor.ghosts().filter((g) => {
       const at = editor.displayAt(g.at)
@@ -471,6 +491,13 @@ function Branch(props: {
     // through `./router.tsx`'s `followed`). The caret is still one press away
     // — anywhere else on the line — which is how the label gets edited.
     if (followed(routes, event) !== null || followedSplit(routes, event) !== null) return
+    // …and a press inside the EDITOR belongs to the editor, now that the input
+    // is drawn in the title's own cell (`./NodeLine.tsx`'s `titleEditor`): the
+    // line's own handler covers the whole row, filler included, so without this
+    // a click in the middle of the text would re-open the draft the click was
+    // already in and put the caret where it was measured — the browser's own
+    // answer to a press in a field, thrown away and recomputed.
+    if (isEditingTarget(event.target)) return
     if (event.shiftKey) {
       selection.extend(props.row.key)
       return
@@ -525,6 +552,14 @@ function Branch(props: {
         // A nested row's focus bubbles through its ancestors. Only the row
         // containing the actual control claims it; a portal keeps that claim
         // while the reader moves into the palette or row menu.
+        //
+        // A LINE THAT IS NOT A ROW YET is drawn INSIDE the `<li>` of the row it
+        // will follow (`./edit/Ghosts.tsx`), so its input bubbles through that
+        // row — which claimed the focus and put the ring on the row ABOVE the
+        // one being typed. Nothing here is the anchor's to claim: the caret is
+        // in a line that has no row to light up, and the ghost draws its own
+        // (`./edit/NewRow.tsx`).
+        if (event.target.closest(`[data-testid="${TESTID.newRow}"]`) !== null) return
         if (!event.target.closest("[data-outline-fold]") && event.target.closest(`[data-testid="${TESTID.node}"]`) === event.currentTarget) {
           selectNode(foldIdOf(props.row))
         }
@@ -560,7 +595,7 @@ function Branch(props: {
         // (./NodeLine.tsx), and centring would set the bullet and the fold
         // triangle beside the middle of the paragraph rather than its first
         // line. A day page's row was already aligned this way (./DatedRow.tsx).
-        class={`group/row relative flex items-baseline py-1 ${HELD} ${GUTTER_GAP} ${
+        class={`group/row ${ROW_LINE} ${HELD} ${
           WAITING_DIM(props.row.blocked)
         } ${CONTEXT_DIM(narrowed, shownId())}`}
         // The phone's door to the `•••` menu: hold a finger on the row. Touch
@@ -711,22 +746,13 @@ function Branch(props: {
               </span>
             )}
           </Match>
-          {/* The caret, where the title was. One `<Show>` rather than a
-              second row: the editor takes the title's own cell, so nothing
-              in the gutter moves and the line does not jump under the
-              pointer that opened it. */}
-          <Match when={typing("title")}>
-            {(draft) => (
-              <TitleEditor
-                text={draft().text}
-                caret={draft().caret}
-                section={section()}
-                onInput={editor.type}
-                onKey={keyHandler("line", editor.press)}
-                onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "title" }, left)}
-              />
-            )}
-          </Match>
+          {/* The caret, where the title was. The title CELL and not the line:
+              everything after it — the pilcrow, the aside, the plugin's own
+              faces, the date, the ⏱ — is drawn by the SAME `NodeLine` in both
+              states, so opening the editor moves nothing and unmounts nothing.
+              A `<Switch>` that replaced the whole line with the input did, and
+              the furniture of a row with a note and a chip blinked in and out
+              on every click between its title and its note. */}
           <Match when={shown()}>
             {(shows) => (
               <NodeLine
@@ -763,6 +789,7 @@ function Branch(props: {
                 onEdit={clickTitle}
                 onPickDate={dates.openDate}
                 onPickRepeat={dates.openRepeat}
+                titleEditor={typing("title") === undefined ? undefined : titleCell}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">

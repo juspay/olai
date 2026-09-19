@@ -331,10 +331,16 @@ export const markRegion = async (
         const title = element.closest(".olai-md");
         return title !== null && title !== element;
       };
+      // ...AND WHAT A PLUGIN HUNG IS THE PLUGIN'S. A face on a row leaves when
+      // ITS plugin leaves — that is the plugin going, not the row being
+      // rebuilt — and the scene this census is aimed at is exactly a plugin
+      // switching off (`./Asides.tsx` puts the plugin's name on every face it
+      // draws, which is the only way to tell the two apart from out here).
+      const ofAPlugin = (element: Element): boolean => element.closest("[data-plugin]") !== null;
       for (const root of roots) {
         serialise(root);
         root.querySelectorAll("*").forEach((element) => {
-          if (!insideTitle(element)) serialise(element);
+          if (!insideTitle(element) && !ofAPlugin(element)) serialise(element);
         });
       }
       const slot = { serial, announced: 0 };

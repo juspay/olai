@@ -32,7 +32,8 @@
  *      for. `./run.ts` reads both streams and prefers the JSON error.
  *
  * The table covers account verification, thread reads and writes, label lookup
- * and attachment downloads. Each verb lands with its fake and surface check.
+ * and attachment downloads. No send verb is permitted: the person sends.
+ * The fake refuses every command absent from this table. Each verb lands with its fake and surface check.
  */
 
 /** What `himalaya --version` prints first: the version, then the build's
@@ -73,6 +74,8 @@ export const GMAIL = {
   threadsModify: { id: "threads.modify", path: ["gmail", "threads", "modify"], says: "add or remove labels across a thread" },
   threadsTrash: { id: "threads.trash", path: ["gmail", "threads", "trash"], says: "move a thread to Gmail Trash" },
   threadsUntrash: { id: "threads.untrash", path: ["gmail", "threads", "untrash"], says: "restore a thread from Gmail Trash" },
+  draftsCreate: { id: "drafts.create", path: ["gmail", "drafts", "create"], says: "create a draft for the person to send" },
+  draftsUpdate: { id: "drafts.update", path: ["gmail", "drafts", "update"], says: "replace a draft for the person to send" },
   labelsList: { id: "labels.list", path: ["gmail", "labels", "list"], says: "the mailbox label ids and displayed names" },
   attachmentsGet: { id: "attachments.get", path: ["gmail", "attachments", "get"], says: "save one message attachment to a file" },
 } as const satisfies Record<string, GmailVerb>
