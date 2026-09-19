@@ -844,6 +844,7 @@ const withHoldingChat = async (check: (bench: {
   to: { agent: string; session: string }
   scope: () => Scope.Scope
   tickets: () => number
+  run: ReturnType<typeof logging>["run"]
   opened: () => number
 }) => Promise<void>) => {
   const { run, fork, said } = logging()
@@ -867,7 +868,7 @@ const withHoldingChat = async (check: (bench: {
   try {
     await run(chat.start)
     await check({
-      chat, to: { agent: "alpha", session: "remembered" },
+      chat, run, to: { agent: "alpha", session: "remembered" },
       scope: () => { const scope = Scope.makeUnsafe(); scopes.push(scope); return scope },
       tickets: () => tickets,
       opened: () => said.filter(line => line.message.includes("conversation opened")).length,
@@ -885,14 +886,14 @@ const acrossHeldDeadlines = async (check: () => void) => {
   }
 }
 
-test("holding an unopened conversation never acquires a process", () => withHoldingChat(async ({ chat, to, scope, tickets, opened }) => {
+test("holding an unopened conversation never acquires a process", () => withHoldingChat(async ({ chat, run, to, scope, tickets, opened }) => {
   await run(chat.holding(to).pipe(Effect.provideService(Scope.Scope, scope())))
   await acrossHeldDeadlines(() => expect(chat.live().size).toBe(0))
   expect(tickets()).toBe(0)
   expect(opened()).toBe(0)
 }), 10_000)
 
-test("a live conversation survives hold deadlines, then reaps and a stale hold cannot wake it", () => withHoldingChat(async ({ chat, to, scope, tickets, opened }) => {
+test("a live conversation survives hold deadlines, then reaps and a stale hold cannot wake it", () => withHoldingChat(async ({ chat, run, to, scope, tickets, opened }) => {
   const page = scope()
   const tab = scope()
   await run(chat.reading(to, { state: () => {}, transcript: () => {} }).pipe(Effect.provideService(Scope.Scope, page)))
@@ -910,7 +911,7 @@ test("a live conversation survives hold deadlines, then reaps and a stale hold c
   expect(opened()).toBe(1)
 }), 10_000)
 
-test("a hold registered before a later wake counts once the slot exists", () => withHoldingChat(async ({ chat, to, scope, tickets }) => {
+test("a hold registered before a later wake counts once the slot exists", () => withHoldingChat(async ({ chat, run, to, scope, tickets }) => {
   const first = scope()
   const second = scope()
   // Reusing the Effect still creates independent observers for each owner.
