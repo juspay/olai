@@ -304,7 +304,8 @@ prove that it cannot hand a server over. They also cover private directories,
 failed probes leaving no conversation directories, missing tools, timeout, early
 exit with bounded stderr diagnostics, non-executable and absent knobs, unexpected
 preparation defects, transport cancellation, pagination, notifications and malformed
-JSON shapes. The sandboxed Nix surface check asks the real pinned executable for
+JSON shapes. Private pure protocol tests cover partial-line framing, bounds,
+message parsing, initialization order and immutable pagination state. The sandboxed Nix surface check asks the real pinned executable for
 its tool list without launching Chromium. Live web browsing and live model
 behavior are not exercised by CI.
 

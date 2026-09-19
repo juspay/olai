@@ -4,6 +4,6 @@
   ],
   "//mcp": "The shared stdio protocol helper, not the MCP transport plugin.",
   "mcp": [
-    "src/stdio-mcp.ts"
+    "src/stdio-mcp-protocol.ts"
   ]
 }
