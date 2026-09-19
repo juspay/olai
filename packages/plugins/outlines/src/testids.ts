@@ -82,6 +82,7 @@ export const TESTID = {
   titleEditor: "title-editor",
   descEditor: "desc-editor",
   newRow: "new-row",
+  newRowGlyph: "new-row-glyph",
   completions: "completions",
   completionItem: "completion-item",
   completionItemPlace: "completion-item-place",

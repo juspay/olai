@@ -70,11 +70,13 @@ import type { Selection } from "../select/selection.ts"
 import { client } from "../../client.ts"
 import {
   after,
-  besideOf,
   before,
+  besideOf,
   commitOf,
   emptyPending,
   emptyPendingOf,
+  ghostOf,
+  type Ghost,
   IDLE_COMMIT,
   type Beside,
   type Draft,
@@ -86,10 +88,13 @@ import {
   reaimed,
   refused,
   sameSlot,
+  seatKept,
+  seatOf,
   type Slot,
   slotOf,
   stillAt,
   typed,
+  walked,
 } from "./draft.ts"
 import { flatten, reanchored, refound, seated } from "./order.ts"
 import type { Standing } from "./order.ts"
@@ -98,8 +103,20 @@ import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
 export interface Editor {
-  /** Consume the range inherited from a previous instance of this editor. */
+  /** Consume the range inherited from a previous instance of this editor — one
+   *  box of the same draft handing its selection to the next, after a rebuild.
+   *  CONSUMING, unlike {@link Editor.takeForwarded}, which is the other way a
+   *  box comes by a range it did not read itself. */
   readonly takeRange: (slot: Slot | undefined) => EditorRange | undefined
+  /** The range the editor a LANDED line was typed in left behind, when this box
+   *  opens at that same address — the ghost unmounting and the row's own editor
+   *  opening are one update, so the caret has only the address to travel on
+   *  (`./draft.ts`'s `Editing.was`).
+   *
+   *  IT IS NOT CONSUMED: more than one box can open at that address inside the
+   *  one update that draws the row, and the record belongs to the address
+   *  rather than to whichever box read it first. */
+  readonly takeForwarded: (was: Slot) => EditorRange | undefined
   /** Record the browser selection for a later rebuild of the same draft. */
   readonly rememberRange: (range: EditorRange) => void
   /** Keep Escape's completion dismissal with its draft; a fresh edit resets it. */
@@ -117,6 +134,12 @@ export interface Editor {
    *  Enter parks each one rather than collapsing it. The live draft is not
    *  in this list; a row reads both to draw every ghost at its anchor. */
   readonly ghosts: Accessor<ReadonlyArray<Pending>>
+  /** The LIVE line, as the editor drawing it needs it — the pending being
+   *  typed, or the row it became while that row is a frame away from being
+   *  drawn (`./draft.ts`'s `ghostOf`). {@link where}'s `pending` is the same
+   *  line's SEAT, as three primitives every row may compare; this is the line
+   *  itself, and only the row that matched reads it. */
+  readonly live: Accessor<Ghost | null>
   /** Put the caret in a parked empty draft. Clicking a ghost that is already
    *  on screen is how a skeleton gets filled in. */
   readonly resume: (slot: string) => void
@@ -209,7 +232,11 @@ export interface Where {
   readonly place: string | null
   /** The row a NEW line is drawn against, after or before it. One field, so
    *  a live draft cannot be both. `null` when there is no pending draft, or
-   *  it belongs to a page's start line (`under` / `first`). */
+   *  it belongs to a page's start line (`under` / `first`).
+   *
+   *  A line whose write has LANDED answers with the same seat: the row exists
+   *  on disk and the page has not drawn it yet, and until it does the ghost
+   *  stands exactly where the row will (`./draft.ts`'s `ghostOf`). */
   readonly pending: Beside | null
   readonly field: "title" | "desc" | null
 }
@@ -350,16 +377,9 @@ export const createEditor = (
     page.frames()
     return new Set(flatten(page.rows(), new Set()).map((row) => row.at.node.id))
   })
-  const displayAt = (at: Anchor): Anchor => {
-    const seen = new Set<string>()
-    while ("id" in at && !present().has(at.id) && !seen.has(at.id)) {
-      seen.add(at.id)
-      const previous = memory.placements().get(at.id)
-      if (previous === undefined) break
-      at = previous
-    }
-    return at
-  }
+  /** The walk itself is `./draft.ts`'s (`walked`): the same rule a blank's
+   *  seat is read by, and the same one a start line matches its anchor with. */
+  const displayAt = (at: Anchor): Anchor => walked(at, memory.placements(), present())
   createEffect(() => {
     const held = memory.placements()
     const next = new Map([...held].filter(([id]) => !present().has(id)))
@@ -371,9 +391,34 @@ export const createEditor = (
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
-      return { place: null, pending: besideOf(displayAt(held.at)), field: null }
+      return { place: null, pending: seatOf(held, memory.placements(), present()), field: null }
     }
-    return { place: held.place, pending: null, field: held.field }
+    // A LINE THAT LANDED KEEPS ITS SEAT — and it keeps it by a different rule
+    // from the blank above, which is why the two call different walks: a
+    // pending's anchor names a row the page draws, while a landed line's seat
+    // is where its ghost was, and the row it is waiting for must not end the
+    // walk (`./draft.ts`'s `seatKept` carries that argument). The frame can
+    // beat the reply, and a seat that moved onto that row would draw the line
+    // in the row's own list — a different `<Key>` over a different array
+    // (`../Tree.tsx`), which is the `<input>` a person is typing in destroyed
+    // and made again. `follow` moves the caret onto the row itself in this same
+    // frame, and THAT is what ends the ghost.
+    //
+    // WHAT NOTHING RECORDS IS DRAWABLE ANYWAY, after the one row that is
+    // certainly where it went: this line was typed against the row it made, and
+    // "the floor of that row" is where the next one goes. The placings are
+    // dropped the moment the page draws the row (`../Tree.tsx` records them,
+    // the effect below drops them), so this is the frame before `follow` fills
+    // the place in — the ghost stands where the row is, for the length of one
+    // frame, rather than vanishing for it.
+    const blank = ghostOf(held)
+    if (blank === null) return { place: held.place, pending: null, field: held.field }
+    const at = seatKept(held.row, memory.placements()) ?? { kind: "after", id: held.row }
+    // `field` is what a WALK of the tree is gated on (`drawn`, below), and it
+    // is the one thing the two halves of this answer differ about: a line with
+    // no row behind it is nothing to walk for, while a line whose row the
+    // frame is about to draw is exactly what `follow` walks the tree to find.
+    return { place: null, pending: besideOf(at), field: held.field }
   }, NOWHERE, {
     equals: (a, b) =>
       a.place === b.place && a.field === b.field &&
@@ -1292,12 +1337,33 @@ export const createEditor = (
   }
 
   return {
+    // A REBUILD CONSUMES. One editor instance hands the selection it was
+    // holding to its successor, and the record goes with it.
     takeRange: (slot) => {
-      if (retainedRange === undefined || slot === undefined || !sameSlot(retainedRange.slot, slot)) return undefined
+      if (retainedRange === undefined || slot === undefined || !sameSlot(retainedRange.slot, slot)) {
+        return undefined
+      }
       const range = retainedRange
       retainedRange = undefined
       return range
     },
+    // A LANDING HANDS OVER, and is the opposite contract: `was` is the address
+    // the draft was TYPED at ({@link ./draft.ts}'s `Editing.was`), and the box
+    // that opens there is a NEW one at the same seat — the ghost unmounting and
+    // the row's own editor opening are one update, so the caret a person left
+    // mid-word has nothing but that address to travel on. Read from
+    // `memory.range` rather than `retainedRange` because this is not a rebuild:
+    // the `<input>` that remembered it is still attached, and its last word
+    // (`rememberRange`, DOM-driven) is the current one.
+    //
+    // AND LEFT WHERE IT IS: more than one box can open at that address inside
+    // the one update that draws the row (the ghost's list and the row's are
+    // two, `../Tree.tsx`), and the first of them to take the caret must not
+    // leave the last — the one that ends up with the focus — with nothing. The
+    // field that opens writes this record itself the moment it takes the
+    // selection, so a stale entry cannot outlive the swap.
+    takeForwarded: (was) =>
+      memory.range !== undefined && sameSlot(memory.range.slot, was) ? memory.range : undefined,
     rememberRange: (range) => { memory.range = range },
     completionDismissal: (slot) => {
       if (slot === undefined || memory.completion.slot === undefined
@@ -1309,6 +1375,7 @@ export const createEditor = (
     },
     draft,
     ghosts,
+    live: () => ghostOf(draft()),
     resume,
     resuming,
     displayAt,

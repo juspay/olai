@@ -78,6 +78,30 @@ export const selectNode = (id: string): void => {
   setFocused(id)
 }
 
+/**
+ * NOTHING is the row any more — the third state of the same signal, and a
+ * state a CARET can be in.
+ *
+ * A line that is not yet a row is a place the reader is typing in: a ghost
+ * under the row it will follow, or a page's first line. There is no row to
+ * light up for it — the line draws its own chrome (`./edit/NewRow.tsx`) — and
+ * saying so is what this call is for.
+ *
+ * It was missing, and the ring simply STAYED on whatever row was last
+ * selected: a person typing a new line watched two lines claim to be the one,
+ * and the row above lost its ring the moment the new row appeared — at the
+ * landing, which is the one moment this whole arrangement exists to keep
+ * still (`./Tree.tsx`'s `onFocusIn` claimed the row the ghost is drawn in
+ * before it learnt to ignore one; nothing replaced it after that).
+ *
+ * `clearFocus` below is the other reader of the same signal and is NOT this:
+ * it abandons a scroll that has not happened yet, and a caret arriving in a
+ * line has nothing to abandon.
+ */
+export const clearNode = (): void => {
+  setFocused(null)
+}
+
 /** The row the last point or landing selected, WITHIN one root — the whole
  *  DOM for a press, one pane for a landing, so a file opened in two columns
  *  scrolls the one the landing belongs to. It is found rather than computed,

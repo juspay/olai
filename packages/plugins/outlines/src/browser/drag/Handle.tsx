@@ -34,6 +34,7 @@ import { TESTID } from "olai-plugin-outlines/testids"
 import type { Row } from "@olai/format"
 import type { JSX } from "solid-js"
 
+import { GLYPH_BOX } from "@olai/ui-primitives/touch.ts"
 
 import { useDragging } from "./dragging.ts"
 
@@ -44,7 +45,7 @@ export function Handle(props: {
   const dragging = useDragging()
   return (
     <span
-      class="inline-flex items-center md:cursor-grab"
+      class={`${GLYPH_BOX} md:cursor-grab`}
       data-testid={TESTID.dragHandle}
       // `./dragging.ts`'s `HANDLE`, written out for the reason `../Tree.tsx`
       // writes `data-row-key` out — and held to that name by
