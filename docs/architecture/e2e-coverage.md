@@ -297,7 +297,8 @@ fresh sessions with the row off and on, and socket reconnection without another
 probe. A second workflow verifies that a malformed executable response becomes
 a visible sentence and that a fresh session retries after repair.
 
-Unit tests withdraw the row while its probe child is hung, assert that the child
+Pure judgement tests pin every probe sentence and compatible-tool decision without
+starting subprocesses. Unit tests withdraw the row while its probe child is hung, assert that the child
 is joined before scratch disappears, and call a stale registration snapshot to
 prove that it cannot hand a server over. They also cover private directories,
 failed probes leaving no conversation directories, missing tools, timeout, early
