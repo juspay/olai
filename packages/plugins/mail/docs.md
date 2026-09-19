@@ -2,7 +2,7 @@
 
 Read and act on Gmail in an olai conversation, with your vault as the context. Gmail stays the record of the mail; the vault records what you decided about it.
 
-Turn the `mail` plugin on, connect an account, and ask an agent to read threads, archive, move mail to Trash, apply labels mark it read, or draft a reply. The connection survives restarts. Live thread properties on nodes and waking on new mail are still to come.
+Turn the `mail` plugin on, connect an account, and ask an agent to read threads, archive, move mail to Trash, apply labels, mark it read, or draft a reply. The connection survives restarts. Live thread properties on nodes and waking on new mail are still to come.
 
 Olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), which is built into every olai release. There is nothing to install. The plugin is called `mail` rather than `gmail` because Himalaya also speaks IMAP and JMAP, and a second kind of mailbox should not need a rename.
 
