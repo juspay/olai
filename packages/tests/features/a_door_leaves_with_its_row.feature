@@ -14,11 +14,11 @@ Feature: A reading leaves with the row that offered it, and comes back
 
   These are the moments a unit bench cannot make, because the claim is about a
   BROWSER HALF being torn down and stood back up under a page somebody is
-  looking at. Each scenario switches ONE row and asserts about a different row's
+  looking at. Each scenario switches providers and asserts about a different row's
   page.
 
   @scratch:chat @node-idle-fast
-  Scenario: Withdrawing outlines disposes its folds and restoring it restores the readings
+  Scenario: Outlines owns folds while tabs independently holds their live conversations
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     And I mark the page
@@ -31,13 +31,21 @@ Feature: A reading leaves with the row that offered it, and comes back
     And I switch the plugin "outlines" off
     And I close the plugins panel
     Then no agent fold is open
-    And the agent "kitchen" stands "asleep"
+    # The tab still owns a state-only reading even though its fold has left.
+    And the agent "kitchen" remains "idle" across two idle deadlines
+    When I open the plugins panel
+    And I switch the plugin "tabs" off
+    And I close the plugins panel
+    Then the agent "kitchen" stands "asleep"
     When I open the plugins panel
     And I switch the plugin "outlines" on
     And I close the plugins panel
     And the node agent's fold is ready
     Then the agent's answer names the node "order"
-    When I ask the agent "after the outline returned"
+    When I open the plugins panel
+    And I switch the plugin "tabs" on
+    And I close the plugins panel
+    And I ask the agent "after the outline returned"
     Then the agent has answered "after the outline returned" exactly once
     And the page has not reloaded
     And there should be no page errors

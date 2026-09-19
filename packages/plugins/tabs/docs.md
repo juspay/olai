@@ -122,6 +122,8 @@ Every tab, front or background, keeps already-live conversations under its panes
 awake. An unfolded conversation on an outline or the agent's own node page
 qualifies, using the same current-conversation predicate as the needs-you dot.
 Closing the last matching tab or folding the conversation releases the hold.
+The hold is independent of the mounted page: withdrawing outlines removes its
+folds while an open tab can still keep the conversation live.
 
 The `keep` component needs `tabs.state`, `chat.state`, and navigation. Tabs owns
 which node IDs are wanted; chat owns state-only wire readings, shares overlapping
