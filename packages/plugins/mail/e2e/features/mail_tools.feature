@@ -298,7 +298,6 @@ Feature: Reading and acting on Gmail in a conversation
     And the mail draft "draft_1" message file is under the runtime directory
     And the mail draft "draft_1" message file is gone
     And the fake mailbox has received no send calls
-    And the fake mailbox has received no send calls
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Reply draft uses sender only and preserves threading
