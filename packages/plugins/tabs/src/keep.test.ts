@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import type { Attention, AttentionRow } from "olai-plugin-chat/attention"
-import { atFile, atNode, NO_PAGES, routingOver } from "olai-plugin-navigation/routes"
+import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { hrefOfWorkspace } from "olai-plugin-navigation/workspace"
+import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
 import { keptChats } from "./keep.ts"
 
-const routes = routingOver(() => undefined, () => NO_PAGES)
+const routes = routingIn()
 const rows: ReadonlyArray<AttentionRow> = [
   { id: "one", file: "house.olai", standing: "idle" },
   { id: "two", file: "yard.olai", standing: "asleep" },

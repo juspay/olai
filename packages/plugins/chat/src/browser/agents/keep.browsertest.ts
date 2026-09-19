@@ -10,7 +10,7 @@ test("holds compose, follow bindings, never wake, and release with either owner"
     { id: "sleep", engine: "alpha", session: "sleeping", standing: "asleep" as const },
     { id: "new", engine: "alpha", session: null, standing: "unbound" as const },
   ]
-  const [rows, setRows] = createSignal<Parameters<typeof createKeeps>[0] extends { rows: () => infer R } ? R : never>(initial)
+  const [rows, setRows] = createSignal<ReturnType<Parameters<typeof createKeeps>[0]["rows"]>>(initial)
   const [ids, setIds] = createSignal<ReadonlySet<string>>(new Set(["one", "sleep", "new", "missing"]))
   let dispose = () => {}
   const keep = createRoot(stop => {

@@ -66,3 +66,26 @@ Feature: Open tabs keep their live conversations awake
     Then there are 2 tabs
     And the agent "install" remains "asleep" across two idle deadlines
     And there should be no page errors
+
+  Scenario: A background split holds its node page even when the outline conversation is folded
+    When I fold node agent "install"
+    And I alt-click the zoom of "install"
+    Then there are 2 panes
+    And the node page conversation is ready for "install"
+    When I choose "Open in new tab" from the menu of the outline link "yard.olai"
+    And I press tab 1
+    Then the agent "install" remains "idle" across two idle deadlines
+    When I close tab 0 with its button
+    Then the agent "install" stands "asleep"
+    And there should be no page errors
+
+  Scenario: Closing one of two matching background tabs preserves the remaining hold
+    When I choose "Duplicate" from the menu of tab 0
+    Then there are 2 tabs
+    When I choose "Open in new tab" from the menu of the outline link "yard.olai"
+    And I press tab 2
+    And I close tab 0 with its button
+    Then the agent "install" remains "idle" across two idle deadlines
+    When I close tab 0 with its button
+    Then the agent "install" stands "asleep"
+    And there should be no page errors
