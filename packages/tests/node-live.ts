@@ -248,6 +248,7 @@ ok(
 )
 await shot("4-sessions")
 await p.locator(selector("chat-fresh-session")).click()
+await p.getByRole("button", { name: "Start fresh conversation", exact: true }).click()
 // THE ONE CLAIM THE SCRIPTED AGENT CANNOT MAKE: its `session/new` answers one
 // id for ever, so a node re-pointed by a fresh session names the conversation
 // it already named. A real adapter mints a new one, and the property MOVING is
@@ -309,6 +310,7 @@ await shot("6-trap")
 await p.locator(selector("chat-sessions")).click()
 await drawn("chat-fresh-session")
 await p.locator(selector("chat-fresh-session")).click()
+await p.getByRole("button", { name: "Start fresh conversation", exact: true }).click()
 ok("...and taking it opens a conversation", await gone("chat-unopened", 120_000))
 const third = await until(bindingOnDisk, (held) => held !== STRANGER)
 ok(

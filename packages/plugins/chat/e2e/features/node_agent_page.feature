@@ -88,7 +88,12 @@ Feature: A node's page holds its memory and conversation
     And the agent has answered "page first session" exactly once
     When I remember this conversation as "first"
     Then the page has fresh start above its fold history
-    When I start a fresh session
+    When I request a fresh session without confirming
+    Then the panel is in the remembered conversation "first"
+    When I cancel the fresh session
+    Then the panel is in the remembered conversation "first"
+    When I request a fresh session without confirming
+    And I confirm the fresh session
     Then the panel has a different conversation from "first"
     And the chat is empty
     When I ask the agent "page current session"

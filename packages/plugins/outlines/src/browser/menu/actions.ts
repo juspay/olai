@@ -314,6 +314,7 @@ export const subjectMenuActions = (args: {
       const entry = {
         id: `${plugin}:${verb.id}`,
         label: verb.label,
+        ...(verb.confirm === undefined ? {} : { confirm: verb.confirm }),
         run: async () => {
           const refusal = await verb.run(shown)
           if (typeof refusal === "string") return { tone: "alarm" as const, text: refusal }

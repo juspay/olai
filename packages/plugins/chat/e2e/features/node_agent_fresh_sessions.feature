@@ -12,7 +12,12 @@ Feature: Fresh node sessions have distinct identities and durable history
     When I remember this conversation as "first"
 
   Scenario: A fresh chat on an existing node can be sent to and both sessions revisited
-    When I start a fresh session
+    When I request a fresh session without confirming
+    Then the panel is in the remembered conversation "first"
+    When I cancel the fresh session
+    Then the panel is in the remembered conversation "first"
+    When I request a fresh session without confirming
+    And I confirm the fresh session
     Then the panel has a different conversation from "first"
     And the panel header names the node agent "install the cabinets"
     And the chat is empty
@@ -212,3 +217,26 @@ Feature: Fresh node sessions have distinct identities and durable history
     Then the list-asks have grown
     And the Inbox has 1 filed conversations
     And no further agent process has started
+
+  Scenario: Escape dismisses confirmation and preserves an unsent draft
+    When I type "keep this draft" into the chat
+    And I request a fresh session without confirming
+    And I press "Escape"
+    Then the fresh-session confirmation is absent
+    And the panel is in the remembered conversation "first"
+    And the chat input reads "keep this draft"
+    When I request a fresh session without confirming
+    And I cancel the fresh session
+    Then the chat input reads "keep this draft"
+
+  Scenario: A replacement from another tab disarms the old confirmation
+    When I request a fresh session without confirming
+    And I open another browser tab
+    And I unfold node agent "install"
+    And the node agent's fold is ready
+    And I start a fresh session
+    Then the panel has a different conversation from "first"
+    When I remember this conversation as "replacement"
+    And I use the original browser tab
+    Then the panel is in the remembered conversation "replacement"
+    And the fresh-session confirmation is absent
