@@ -359,7 +359,10 @@ When(
     const startingNode = label.startsWith("Start an agent session") ? this.menuNode : null;
     // A tall menu scrolls independently of the outline. Reveal the item in
     // that scrollport before the page's sticky-cover check hit-tests it.
-    await item.scrollIntoViewIfNeeded({ timeout: POLL_TIMEOUT });
+    // Roster updates may replace an entry while Playwright waits for scroll
+    // stability. Scroll the currently resolved entry, then let press resolve
+    // and hit-test the live locator again before it actually clicks.
+    await item.evaluate(element => element.scrollIntoView({ block: "nearest", inline: "nearest" }));
     await this.waitForFrame();
     await this.press(item);
     if (startingNode !== null) {

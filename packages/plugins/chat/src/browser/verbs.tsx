@@ -12,6 +12,8 @@ import { focusedNode } from "./references.ts"
 import { navigation } from "./navigation.ts"
 import { chatWire } from "./wire.ts"
 
+import { freshStartQuestion } from "./agents/fresh-start.ts"
+
 const NO_AGENT = "no agent above this row — start one"
 const target = async (node: string | null) => {
   if (node === null) return NO_AGENT
@@ -60,6 +62,7 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
   return [
     ...engines.map(engine => ({
       id: `fresh-start-${engine.id}`, writes: true,
+      confirm: freshStartQuestion(bound.title),
       label: engines.length === 1 ? "Fresh start" : `Fresh start — ${engine.name}`,
       run: startOn(engine),
     })),

@@ -355,7 +355,9 @@ A row action (`outline.row.action`) is a menu item a plugin adds to an outline
 row. Its `run(node)` may return a refusal sentence, which the menu shows beside
 the originating row; a successful action returns nothing. A plugin can therefore
 explain an expected failure, such as a full node-agent pool, without depending on
-core's presentation types.
+core's presentation types. An optional `confirm` sentence asks the row menu to
+show its existing confirmation controls before calling `run`; cancellation or
+dismissing the menu does not invoke the action.
 
 ### chrome and mount
 

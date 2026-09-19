@@ -91,10 +91,9 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 When(
   "I click the title of {string}",
   async function (this: OlaiWorld, id: string) {
-    // The END of the title, not Playwright's centre. A click now puts the
-    // caret where it landed (`client/edit/point.ts`), so a press in the
-    // middle of "choose the handles" would make the next Enter a SPLIT
-    // rather than an add — and a hundred scenarios mean "open this row".
+    // Open this row for editing at its end. The click enters the editor;
+    // the explicit End below puts the caret where these editing workflows
+    // expect it, without retaining a pixel offset across layout changes.
     //
     // A `#tag` at that end is a FILTER, not a caret (`Tree.tsx`'s `onATag`).
     // `kitchen remodel #home` is the one that taught this: the last pixels
@@ -107,7 +106,6 @@ When(
     if (box === null) {
       throw new Error(`the title of ${JSON.stringify(id)} has no box`);
     }
-    const truncated = await title.evaluate(element => element.scrollWidth > element.clientWidth);
     const tagged = (await title.locator(TAG).count()) > 0;
     if (tagged) {
       const line = title.locator("xpath=..");
@@ -125,18 +123,18 @@ When(
         },
       });
     } else {
-      await title.click({
-        position: { x: Math.max(box.width - 2, 0), y: box.height / 2 },
-      });
+      // Let Playwright calculate the point after layout settles. A stored
+      // width can put the click beyond the title after fonts or rows update.
+      await title.click();
     }
     await this.waitForFrame();
     await this.page
       .locator(TITLE_EDITOR)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // An ellipsis hides the title's end. This gesture means editing at the
-    // end; the separate near-start step tests the pointer's caret placement.
-    if (truncated) await this.page.locator(TITLE_EDITOR).first().press("ControlOrMeta+End");
+    // This general editing step means the end, including truncated titles.
+    // The near-start step separately tests pointer caret placement.
+    await this.page.locator(TITLE_EDITOR).first().press("ControlOrMeta+End");
   },
 );
 
