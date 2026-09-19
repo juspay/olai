@@ -421,6 +421,23 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
   const ok = (value: unknown): Answered => ({ code: 0, stdout: JSON.stringify(value), stderr: "" })
   const flag = (name: string) => args[args.indexOf(name) + 1]
   const values = (name: string) => args.flatMap((arg, i) => arg === name ? [args[i + 1] ?? ""] : [])
+  if (verb.id === "drafts.create" || verb.id === "drafts.update") {
+    const id = verb.id === "drafts.update" ? args[0]! : `draft_${readdirSync(directory).filter(file => /^draft-.*\.json$/.test(file)).length + 1}`
+    const saved = path.join(directory, `draft-${id}.json`)
+    if (verb.id === "drafts.update" && !existsSync(saved)) return failed("404 draft not found")
+    const file = args[args.indexOf("--") + 1]
+    if (!args.includes("--") || !file || !existsSync(file)) return failed("draft message must be a file after --")
+    const raw = readFileSync(file, "utf8")
+    const [head, ...body] = raw.split("\r\n\r\n")
+    const headers = Object.fromEntries(head!.replace(/\r\n[ \t]+/g, " ").split("\r\n").map(line => {
+      const at = line.indexOf(":")
+      const value = line.slice(at + 1).trim().replace(/(\?=)\s+(=\?UTF-8\?B\?)/gi, "$1$2").replace(/=\?UTF-8\?B\?([^?]+)\?=/gi, (_, base64: string) => Buffer.from(base64, "base64").toString("utf8"))
+      return [line.slice(0, at), value]
+    }))
+    const record = { id, headers, body: Buffer.from(body.join("\r\n\r\n"), "base64").toString("utf8"), args, file }
+    writeFileSync(saved, JSON.stringify(record))
+    return ok({ id, "message-id": `message_${id}`, "thread-id": args.includes("--thread-id") ? flag("--thread-id") : null })
+  }
   const originals = [...THREADS]
   for (const file of readdirSync(directory).filter(file => /^thread-[0-9a-f]+\.json$/.test(file))) {
     const saved = JSON.parse(readFileSync(path.join(directory, file), "utf8")) as typeof THREADS[number]

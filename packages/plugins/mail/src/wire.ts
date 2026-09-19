@@ -47,7 +47,8 @@ export const name = "mail"
  * WHAT THIS PLUGIN ASKS GOOGLE FOR, verbatim — and the ruling it carries.
  *
  * `gmail.modify` covers reading a mailbox, labelling, archiving (a label
- * removal), trashing and untrashing. It does NOT cover permanent delete, which
+ * removal), trashing, untrashing and writing drafts. It technically permits
+ * sending too: the verb table, not this scope, forbids sending. It does NOT cover permanent delete, which
  * needs the whole `https://mail.google.com/` scope; permanent delete is
  * therefore not offered at all (PR 4 of the plan says so in its own words)
  * rather than widening every account's consent screen for a verb this product

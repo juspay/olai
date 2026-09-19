@@ -31,8 +31,12 @@ let
     # Upstream: https://github.com/pimalaya/himalaya/issues/750
     # History JSON also drops added-message thread IDs and labels.
     # Upstream: https://github.com/pimalaya/himalaya/issues/752
+    # Draft writes need structured IDs under --json.
+    # Upstream: https://github.com/pimalaya/himalaya/issues/756
+    # PR: https://github.com/pimalaya/himalaya/pull/757
+    # Drop the draft patch when the pin publishes draft write identities and schemas.
     # Drop each patch when the pin retains its fields; mail-surface checks the schemas.
-    patches = (old.patches or [ ]) ++ [ ./himalaya-thread-payload.patch ./himalaya-history-messages.patch ];
+    patches = (old.patches or [ ]) ++ [ ./himalaya-thread-payload.patch ./himalaya-history-messages.patch ./himalaya-draft-output.patch ];
   });
 in
 {

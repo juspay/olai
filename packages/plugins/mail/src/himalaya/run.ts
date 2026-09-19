@@ -16,7 +16,9 @@
  * ## The temporary directory, and why the config is rewritten rather than edited
  *
  * `mkdtemp` per activation, mode 0700 (which is what `mkdtemp` gives), holding
- * one `config.toml` written mode 0600. Every access token refresh rewrites the
+ * one `config.toml` written mode 0600. Draft message files also use 0600,
+ * live for exactly one call and are removed after its child exits, including
+ * failure, timeout and interruption. `close` still sweeps this one directory. Every access token refresh rewrites the
  * file whole: it is a couple of hundred bytes of derived text, and an editor
  * that had to update one key in place would be a second way for the file and the
  * token in memory to disagree. The directory is removed when the plugin's scope
@@ -56,10 +58,11 @@
  * reader that only looked at stderr would say about every refusal there is.
  */
 
+import { randomUUID } from "node:crypto"
 import { spawn } from "node:child_process"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 
 import { Effect } from "effect"
 
@@ -116,6 +119,7 @@ const configRoot = (env: Record<string, string | undefined>): string => {
 }
 
 export interface Run {
+  readonly message?: string
   readonly verb: GmailVerb
   /** The verb's own arguments, in the order its `--help` lists them. */
   readonly args?: ReadonlyArray<string>
@@ -251,7 +255,20 @@ export const makeHimalaya = (input: {
         if (exe === undefined) return yield* Effect.fail(new MailRefusal({ reason: NO_BINARY }))
         if (!holding) return yield* Effect.fail(new MailRefusal({ reason: NO_ACCOUNT }))
         const at = yield* Effect.promise(() => configPath())
-        const done = yield* execute(exe, himalayaArgv(at, call.verb.path, call.args ?? []), childEnv)
+        const done = yield* Effect.acquireUseRelease(
+          Effect.tryPromise({
+            try: async () => {
+              if (call.message === undefined) return undefined
+              const file = join(dirname(at), `message-${randomUUID()}.eml`)
+              try { await writeFile(file, call.message, { mode: 0o600, flag: "wx" }) }
+              catch (error) { await rm(file, { force: true }); throw error }
+              return file
+            },
+            catch: error => new MailRefusal({ reason: `could not write draft message: ${String(error)}` }),
+          }),
+          file => execute(exe, himalayaArgv(at, call.verb.path, [...call.args ?? [], ...file ? ["--", file] : []]), childEnv),
+          file => file ? Effect.promise(() => rm(file, { force: true })) : Effect.void,
+        )
         if (done.code !== 0) {
           return yield* Effect.fail(new MailRefusal({ reason: refusedWith(exe, done) }))
         }
