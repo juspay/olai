@@ -154,3 +154,23 @@ test("draft replacements serialize and replies share the existing thread permit"
   for (const [i, verb] of verbs.entries()) if (verb === "drafts.update") expect(verbs[i - 1]).toBe("threads.get")
   expect(verbs.filter(v => v === "drafts.update")).toHaveLength(2)
 })))
+
+test("reply defaults use the last message and Reply-To, with explicit overrides and no double Re", () => run(h => Effect.gen(function*() {
+  const { writeFileSync, readFileSync } = yield* Effect.promise(() => import("node:fs"))
+  const { THREADS } = yield* Effect.promise(() => import("./appliance/testlib/fixtures.ts"))
+  const thread = structuredClone(THREADS[2]!)
+  const last = thread.messages.at(-1)!
+  last.headers.push({ name: "Reply-To", value: "reply@example.com" })
+  last.headers.find(header => header.name === "Subject")!.value = "Re: Invoice"
+  writeFileSync(`${h.root}/thread-${thread.id}.json`, JSON.stringify(thread))
+  const reply: any = yield* h.call("draft", { thread: thread.id, body: "Thanks" })
+  expect(reply).toMatchObject({ to: ["reply@example.com"], subject: "Re: Invoice" })
+  expect(JSON.parse(readFileSync(`${h.root}/draft-${reply.draft}.json`, "utf8")).headers["In-Reply-To"]).toBe("<a32@example.com>")
+  const explicit: any = yield* h.call("draft", { thread: thread.id, to: ["other@example.com"], cc: ["copy@example.com"], subject: "Another subject", body: "Thanks" })
+  expect(explicit).toMatchObject({ to: ["other@example.com"], cc: ["copy@example.com"], subject: "Another subject" })
+  last.headers = last.headers.filter(header => header.name !== "Message-ID")
+  writeFileSync(`${h.root}/thread-${thread.id}.json`, JSON.stringify(thread))
+  h.calls.length = 0
+  expect((yield* Effect.result(h.call("draft", { thread: thread.id, body: "Thanks" })))).toMatchObject({ _tag: "Failure", failure: { reason: "this thread's last message has no Message-ID to reply to" } })
+  expect(h.calls.map(c => c.verb.id)).toEqual(["threads.get"])
+})))

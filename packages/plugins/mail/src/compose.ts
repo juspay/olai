@@ -17,7 +17,7 @@ export const headerValue = (value: string): string => {
 }
 // Each encoded word fits RFC 2047's 75-character limit, split on code points.
 const encoded = (value: string): string => {
-  if (!/[^\x20-\x7e]/.test(value)) return value
+  if (!/[^\x20-\x7e]/.test(value) && value.length <= 70) return value
   const chunks: string[] = []
   let chunk = ""
   for (const char of value) {
@@ -39,13 +39,13 @@ export const recipient = (value: string): string => {
   let name = match[1]!.trim()
   if (name.startsWith('"') && name.endsWith('"')) name = name.slice(1, -1).replace(/\\(["\\])/g, "$1")
   if (!name || /[<>]/.test(name)) refuse(`malformed mail address: ${value}`)
-  const display = /[^\x20-\x7e]/.test(name) ? encoded(name) : `"${name.replace(/["\\]/g, "\\$&")}"`
+  const display = /[^\x20-\x7e]/.test(name) || name.length > 70 ? encoded(name) : `"${name.replace(/["\\]/g, "\\$&")}"`
   return `${display} <${address}>`
 }
 /** Validate caller-supplied data before fetching reply metadata. */
 export const validateDraft = (args: DraftArgs): void => {
   const recipients = [...args.to ?? [], ...args.cc ?? [], ...args.bcc ?? []]
-  if (recipients.length > 50) refuse("mail drafts allow at most 50 recipients")
+  if (recipients.length + (args.thread && args.to === undefined ? 1 : 0) > 50) refuse("mail drafts allow at most 50 recipients")
   recipients.forEach(recipient)
   if (args.subject !== undefined) headerValue(args.subject)
   if (!args.body.trim()) refuse("mail draft body cannot be empty")
@@ -57,8 +57,8 @@ export const validateDraft = (args: DraftArgs): void => {
 }
 export const compose = (args: DraftArgs & { from: string; to: ReadonlyArray<string>; subject: string; inReplyTo?: string; references?: string }): string => {
   validateDraft(args)
-  const headers = [`From: ${recipient(args.from)}`, `To: ${args.to.map(recipient).join(", ")}`]
-  for (const [name, values] of [["Cc", args.cc], ["Bcc", args.bcc]] as const) if (values?.length) headers.push(`${name}: ${values.map(recipient).join(", ")}`)
+  const headers = [`From: ${recipient(args.from)}`, `To: ${args.to.map(recipient).join(",\r\n ")}`]
+  for (const [name, values] of [["Cc", args.cc], ["Bcc", args.bcc]] as const) if (values?.length) headers.push(`${name}: ${values.map(recipient).join(",\r\n ")}`)
   headers.push(`Subject: ${encoded(headerValue(args.subject))}`)
   if (args.inReplyTo) headers.push(`In-Reply-To: ${headerValue(args.inReplyTo)}`)
   if (args.references) headers.push(`References: ${headerValue(args.references)}`)

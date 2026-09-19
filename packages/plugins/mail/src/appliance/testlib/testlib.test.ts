@@ -446,3 +446,15 @@ test("history retains arrival labels and thread ids, pages, and expires", async 
     expect((await run(fake, himalayaArgv(config, GMAIL.historyList.path, args))).stdout).toContain("404")
   } finally { await fake.stop() }
 })
+
+test("neither messages send nor drafts send is in the table or accepted by the fake", async () => {
+  const { fake, config } = await startedFake({ mailbox: true, profile: { email: EMAIL } })
+  try {
+    expect(fake.speaks.some(verb => verb.endsWith(".send"))).toBe(false)
+    for (const group of ["messages", "drafts"]) {
+      const answer = await run(fake, himalayaArgv(config, ["gmail", group, "send"], ["draft_1"]))
+      expect(answer.code).toBe(2)
+      expect(answer.stderr).toContain("unrecognized subcommand")
+    }
+  } finally { await fake.stop() }
+})
