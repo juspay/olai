@@ -287,3 +287,16 @@ person sees both halves agreeing on.
   covered by existing units: `ID_SHAPE` is the mention alphabet in `node.test.ts`
   and "an id that is not mentionable is a bad-id" in
   `packages/plugins/outline-olai/src/parse.test.ts`.
+
+## Browser MCP
+
+`browser.feature` uses a scripted MCP executable and the existing ACP fixture.
+One lifecycle workflow verifies the engine's received server list, scoped scratch
+permissions and removal, withdrawal from subsequent sessions, a fresh probe on
+return, and continued handoff after socket reconnection without another probe.
+A second workflow verifies a malformed executable response becomes a visible
+sentence and repairing it is picked up by the next conversation. Unit tests
+cover missing tools, timeout, early exit, non-executable and absent knobs, plus
+transport cancellation and malformed JSON shapes. The sandboxed Nix surface
+check asks the real pinned executable for its tool list without launching
+Chromium. Live web browsing and live model behavior are not exercised by CI.

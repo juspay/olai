@@ -16,5 +16,13 @@
     "src/server.ts",
     "src/source.ts",
     "src/tools.ts"
+  ],
+  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
+  "browser": [
+    "src/runtime.ts",
+    "src/server.ts",
+    "src/source.ts",
+    "src/surface.ts",
+    "src/tools.ts"
   ]
 }

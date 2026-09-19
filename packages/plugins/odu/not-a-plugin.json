@@ -16,5 +16,9 @@
   "chat": [
     "src/browser/Wake.tsx"
   ],
-  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls."
+  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls.",
+  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
+  "browser": [
+    "src/wire.ts"
+  ]
 }

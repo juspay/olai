@@ -5,5 +5,12 @@
   "vault": [
     "src/bind.ts",
     "src/imports.ts"
+  ],
+  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
+  "browser": [
+    "src/build.ts",
+    "src/imports.ts",
+    "src/index.ts",
+    "src/shared.ts"
   ]
 }

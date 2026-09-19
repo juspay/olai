@@ -22,5 +22,10 @@
   "vault": [
     "src/agenda.ts",
     "src/server.ts"
+  ],
+  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
+  "browser": [
+    "src/browser/wire.ts",
+    "src/wire.ts"
   ]
 }

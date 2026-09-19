@@ -876,3 +876,12 @@ Needs you order; with none waiting it opens no fold.
 Agency, where agents create child agents, and relocation of the scheduler
 behind its eventual plugin boundary remain separate work. This change retains
 the existing scope lifecycle and tool boundaries.
+
+## Web browser tools
+
+New conversations also receive the default-on [browser plugin](plugins/browser.md)'s
+Playwright MCP server when its executable answers the per-conversation probe.
+Every ACP engine gets the same headless, isolated browser handoff. Failed probes
+show the plugin's explanation in chat; an empty `OLAI_BROWSER_MCP` omits it.
+Screenshots and downloads use plugin-owned temporary scratch, removed when the
+row stops, rather than the vault or the agent's working directory.

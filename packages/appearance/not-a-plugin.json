@@ -8,5 +8,9 @@
   "theme": [
     "src/css.ts",
     "src/palettes.ts"
+  ],
+  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
+  "browser": [
+    "src/sizes.ts"
   ]
 }
