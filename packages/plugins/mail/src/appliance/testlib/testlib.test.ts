@@ -392,12 +392,13 @@ test("rewrite moves what the token endpoint answers, on the same origin", async 
 
 test("every structured fake answer validates against the built Himalaya schemas", async () => {
   const { default: Ajv } = await import("ajv/dist/2020.js")
-  const { readFileSync, mkdtempSync, rmSync } = await import("node:fs")
+  const { readFileSync, writeFileSync, mkdtempSync, rmSync } = await import("node:fs")
   const { tmpdir } = await import("node:os")
   const { join } = await import("node:path")
   const { mailAnswer } = await import("./fake-himalaya.ts")
   const { GMAIL } = await import("../../himalaya/verbs.ts")
   const directory = mkdtempSync(join(tmpdir(), "mail-schema-test-"))
+  writeFileSync(join(directory, "message.eml"), "To: r@example.com\r\nSubject: Hello\r\n\r\naGVsbG8=\r\n")
   const ajv = new Ajv({ strict: false, validateFormats: false })
   try {
     for (const [verb, args] of [
@@ -405,6 +406,8 @@ test("every structured fake answer validates against the built Himalaya schemas"
       [GMAIL.threadsGet, ["a3", "--format", "full"]],
       [GMAIL.threadsGet, ["a2", "--format", "metadata"]],
       [GMAIL.labelsList, []],
+      [GMAIL.draftsCreate, ["--", join(directory, "message.eml")]],
+      [GMAIL.draftsUpdate, ["draft_1", "--thread-id", "a2", "--", join(directory, "message.eml")]],
       [GMAIL.historyList, ["--start-history-id", "100", "--label-id", "INBOX", "--history-type", "messageAdded", "-s", "500"]],
     ] as const) {
       const schema = JSON.parse(readFileSync(new URL(`../../himalaya/schemas/himalaya-gmail-${verb.id.replace(".", "-")}.json`, import.meta.url), "utf8"))

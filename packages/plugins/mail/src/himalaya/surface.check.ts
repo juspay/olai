@@ -218,9 +218,9 @@ for (const verb of GMAIL_VERBS) {
   }
 }
 
-// Mutations and attachment saves answer a JSON string, not structured output,
-// so upstream publishes schemas only for the five readers below.
-const schemas = ["profile-get", "threads-list", "threads-get", "labels-list", "history-list"]
+// Draft writes publish structured identities alongside the read schemas.
+// Other mutations and attachment saves still answer a JSON string.
+const schemas = ["profile-get", "threads-list", "threads-get", "labels-list", "history-list", "drafts-create", "drafts-update"]
 const temporary = mkdtempSync(join(tmpdir(), "olai-mail-surface-"))
 try {
   const dumped = ask(["json-schema", "--dir", temporary])
