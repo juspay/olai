@@ -10,7 +10,7 @@
 import type { NodeAgent, OpFailure } from "@olai/format"
 import { collector } from "@olai/log/testlib"
 import { afterEach, beforeEach, expect, test } from "bun:test"
-import { Deferred, Effect, Exit, Fiber, References, Scope } from "effect"
+import { Deferred, Effect, Exit, Fiber, References, Scope, Stream } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
