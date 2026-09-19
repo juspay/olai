@@ -1,4 +1,4 @@
-import { Effect, Schema, Semaphore } from "effect"
+import { Effect, Result, Schema, Semaphore } from "effect"
 import type { AccountMachine } from "./account.ts"
 import { openAttachments } from "./attachments.ts"
 import type { Himalaya, Run } from "./himalaya/run.ts"
@@ -8,6 +8,12 @@ import { GMAIL } from "./himalaya/verbs.ts"
 import { makeLabels } from "./labels.ts"
 import { addressList, compose, validateDraft, type DraftArgs } from "./compose.ts"
 import { MailRefusal } from "./wire.ts"
+
+const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.String, "thread-id": Schema.NullOr(Schema.String) })
+// Empty defaults are a reply-policy refusal; malformed nonempty headers still
+// use the composer's address syntax refusal. Explicit recipients bypass this.
+const replyAddresses = (header: string) => header.trim() ? addressList(header)
+  : Result.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
 
 /** Mailbox operations and caches share the owning mail activation's scope.
  * Tool schemas, transcript decoration and the invocation gate belong to tools.ts. */
@@ -90,7 +96,6 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     for (const m of answer.messages) attachments.remember(m.id, m.attachments)
     return answer
   })
-  const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.String, "thread-id": Schema.NullOr(Schema.String) })
   const draft = (args: DraftArgs) => {
     const work = Effect.gen(function*() {
       const address = yield* ready
@@ -109,12 +114,10 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
         references = [header("References"), inReplyTo].filter(Boolean).join(" ")
         if (to === undefined) {
           const fromHeader = header("From") ?? ""
-          if (!fromHeader.trim()) return yield* Effect.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
-          const from = yield* Effect.fromResult(addressList(fromHeader))
+          const from = yield* Effect.fromResult(replyAddresses(fromHeader))
           const mine = from.some(sender => sender.toLowerCase() === address.toLowerCase())
           const recipients = mine ? header("To") ?? "" : header("Reply-To") || fromHeader
-          if (!recipients.trim()) return yield* Effect.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
-          to = yield* Effect.fromResult(addressList(recipients))
+          to = yield* Effect.fromResult(replyAddresses(recipients))
         }
         const original = header("Subject") ?? ""
         subject ??= /^re:/i.test(original) ? original : `Re: ${original}`

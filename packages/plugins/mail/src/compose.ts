@@ -89,7 +89,7 @@ export const addressList = (value: string) => Result.gen(function*() {
 export const validateDraft = (args: DraftArgs) => Result.gen(function*() {
   const recipients = [...args.to ?? [], ...args.cc ?? [], ...args.bcc ?? []]
   if (recipients.length + (args.thread && args.to === undefined ? 1 : 0) > 50) return yield* refuse("mail drafts allow at most 50 recipients")
-  yield* Result.all(recipients.map(recipient))
+  yield* Result.all(recipients.map(mailbox))
   if (args.subject !== undefined) yield* headerValue(args.subject)
   if (!args.body.trim()) return yield* refuse("mail draft body cannot be empty")
   if (Buffer.byteLength(args.body, "utf8") > 256 * 1024) return yield* refuse("mail draft body exceeds 256 KiB")
@@ -100,8 +100,8 @@ export const validateDraft = (args: DraftArgs) => Result.gen(function*() {
 })
 export const compose = (args: DraftArgs & { from: string; to: ReadonlyArray<string>; subject: string; inReplyTo?: string; references?: string }) => Result.gen(function*() {
   yield* validateDraft(args)
-  const headers = [`From: ${yield* recipient(args.from)}`, `To: ${(yield* Result.all(args.to.map(recipient))).join(",\r\n ")}`]
-  for (const [name, values] of [["Cc", args.cc], ["Bcc", args.bcc]] as const) if (values?.length) headers.push(`${name}: ${(yield* Result.all(values.map(recipient))).join(",\r\n ")}`)
+  const headers = [`From: ${yield* recipient(args.from)}`]
+  for (const [name, values] of [["To", args.to], ["Cc", args.cc], ["Bcc", args.bcc]] as const) if (values?.length) headers.push(`${name}: ${(yield* Result.all(values.map(recipient))).join(",\r\n ")}`)
   headers.push(`Subject: ${subjectHeader(yield* headerValue(args.subject))}`)
   if (args.inReplyTo) headers.push(`In-Reply-To: ${yield* headerValue(args.inReplyTo)}`)
   if (args.references) headers.push(`References: ${(yield* headerValue(args.references)).trim().split(/\s+/).join("\r\n ")}`)

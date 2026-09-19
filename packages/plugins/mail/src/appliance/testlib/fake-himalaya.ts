@@ -421,18 +421,6 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
   const ok = (value: unknown): Answered => ({ code: 0, stdout: JSON.stringify(value), stderr: "" })
   const flag = (name: string) => args[args.indexOf(name) + 1]
   const values = (name: string) => args.flatMap((arg, i) => arg === name ? [args[i + 1] ?? ""] : [])
-  const originals = [...THREADS]
-  for (const file of readdirSync(directory).filter(file => /^thread-[0-9a-f]+\.json$/.test(file))) {
-    const saved = JSON.parse(readFileSync(path.join(directory, file), "utf8")) as typeof THREADS[number]
-    if (!originals.some(t => t.id === saved.id)) originals.push(saved)
-  }
-  const threads = originals.map(original => {
-    const file = path.join(directory, `thread-${original.id}.json`)
-    return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as typeof original : structuredClone(original)
-  })
-  if (stale) {
-    threads[0]!.messages[0]!["label-ids"].push("Label_deleted", "SYSTEM_UNKNOWN")
-  }
   if (verb.id === "drafts.create" || verb.id === "drafts.update") {
     const id = verb.id === "drafts.update" ? args[0]! : `draft_${readdirSync(directory).filter(file => /^draft-.*\.json$/.test(file)).length + 1}`
     const saved = path.join(directory, `draft-${id}.json`)
@@ -449,6 +437,18 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     const record = { id, headers, body: Buffer.from(body.join("\r\n\r\n"), "base64").toString("utf8"), args, file }
     writeFileSync(saved, JSON.stringify(record))
     return ok({ id, "message-id": `message_${id}`, "thread-id": args.includes("--thread-id") ? flag("--thread-id") : null })
+  }
+  const originals = [...THREADS]
+  for (const file of readdirSync(directory).filter(file => /^thread-[0-9a-f]+\.json$/.test(file))) {
+    const saved = JSON.parse(readFileSync(path.join(directory, file), "utf8")) as typeof THREADS[number]
+    if (!originals.some(t => t.id === saved.id)) originals.push(saved)
+  }
+  const threads = originals.map(original => {
+    const file = path.join(directory, `thread-${original.id}.json`)
+    return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as typeof original : structuredClone(original)
+  })
+  if (stale) {
+    threads[0]!.messages[0]!["label-ids"].push("Label_deleted", "SYSTEM_UNKNOWN")
   }
   if (verb.id === "history.list") {
     if (!args.includes("--start-history-id") || flag("--label-id") !== "INBOX" || flag("--history-type") !== "messageAdded") return failed("history requires a start id and the inbox messageAdded filters")
