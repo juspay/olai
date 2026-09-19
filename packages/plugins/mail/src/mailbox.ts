@@ -108,9 +108,13 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
         if (!inReplyTo) return yield* Effect.fail(new MailRefusal({ reason: "this thread's last message has no Message-ID to reply to" }))
         references = [header("References"), inReplyTo].filter(Boolean).join(" ")
         if (to === undefined) {
-          const from = yield* Effect.fromResult(addressList(header("From") ?? ""))
+          const fromHeader = header("From") ?? ""
+          if (!fromHeader.trim()) return yield* Effect.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
+          const from = yield* Effect.fromResult(addressList(fromHeader))
           const mine = from.some(sender => sender.toLowerCase() === address.toLowerCase())
-          to = yield* Effect.fromResult(addressList(mine ? header("To") ?? "" : header("Reply-To") || header("From") || ""))
+          const recipients = mine ? header("To") ?? "" : header("Reply-To") || fromHeader
+          if (!recipients.trim()) return yield* Effect.fail(new MailRefusal({ reason: "this thread names no one to reply to; pass `to`" }))
+          to = yield* Effect.fromResult(addressList(recipients))
         }
         const original = header("Subject") ?? ""
         subject ??= /^re:/i.test(original) ? original : `Re: ${original}`

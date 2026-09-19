@@ -225,3 +225,24 @@ test("composer defects remain defects through the mailbox boundary", async () =>
     expect(Cause.pretty(exit.cause)).toContain("composer defect")
   }
 })
+
+
+test("empty reply defaults explain how to supply recipients, without writing", () => run(h => Effect.gen(function*() {
+  const { writeFileSync } = yield* Effect.promise(() => import("node:fs"))
+  const { THREADS } = yield* Effect.promise(() => import("./appliance/testlib/fixtures.ts"))
+  const thread = structuredClone(THREADS.find(thread => thread.id === "a6")!)
+  const last = thread.messages.at(-1)!
+  const file = `${h.root}/thread-${thread.id}.json`
+  const headers = last.headers
+  for (const value of [undefined, "", "   "]) {
+    last.headers = headers.filter(header => header.name !== "To")
+    if (value !== undefined) last.headers.push({ name: "To", value })
+    writeFileSync(file, JSON.stringify(thread))
+    h.calls.length = 0
+    const refused = yield* Effect.result(h.call("draft", { thread: thread.id, body: "Following up" }))
+    expect(refused).toMatchObject({ _tag: "Failure", failure: { reason: "this thread names no one to reply to; pass `to`" } })
+    expect(h.calls.map(call => call.verb.id)).toEqual(["threads.get"])
+    const supplied: any = yield* h.call("draft", { thread: thread.id, to: ["ravi@example.com"], body: "Following up" })
+    expect(supplied.to).toEqual(["ravi@example.com"])
+  }
+})))
