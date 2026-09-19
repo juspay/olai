@@ -34,6 +34,7 @@ test("header injection, malformed addresses and invalid bounds are refusals", ()
 })
 
 test("default address lists handle quoted commas, escaped quotes and encoded display names", () => {
+  expect(Result.getOrThrow(addressList("<bare@example.com>"))).toEqual(["bare@example.com"])
   expect(Result.getOrThrow(addressList('"Doe, Jane" <jane@example.com>, =?UTF-8?B?UmVuw6ll?= <r@example.com>'))).toEqual(["jane@example.com", "r@example.com"])
   expect(Result.getOrThrow(addressList('"Doe, \\"Jane\\"" <jane@example.com>, b@example.com'))).toEqual(["jane@example.com", "b@example.com"])
   for (const value of ['a@example.com,', '"unclosed <a@example.com>', 'a@example.com\r\nBcc: b@example.com', 'a@example.com,,b@example.com']) expect(addressList(value)._tag).toBe("Failure")

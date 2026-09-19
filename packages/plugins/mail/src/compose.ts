@@ -52,7 +52,7 @@ const mailbox = (value: string) => Result.gen(function*() {
     || !domain.split(".").every(label => /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label))) return yield* refuse(`malformed mail address: ${value}`)
   let name = match?.[1]?.trim()
   if (name?.startsWith('"') && name.endsWith('"')) name = name.slice(1, -1).replace(/\\(["\\])/g, "$1")
-  if (match && (!name || /[<>]/.test(name))) return yield* refuse(`malformed mail address: ${value}`)
+  if (name && /[<>]/.test(name)) return yield* refuse(`malformed mail address: ${value}`)
   return { address, name }
 })
 export const recipient = (value: string) => Result.gen(function*() {
