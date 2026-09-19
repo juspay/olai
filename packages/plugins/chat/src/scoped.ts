@@ -112,7 +112,10 @@ export interface Options extends PanelOptions {
 
 interface NodeSlot {
   uses: number
-  switching: boolean
+  /** Mute intermediate frames during a fresh-start transaction, including a
+   * failed one. This is not routing history: superseded records only successful
+   * replacements and remains meaningful after notification delivery resumes. */
+  mutingReaders: boolean
   /** Successful replacements, keyed by engine and session; owned by this slot. */
   readonly superseded: Set<string>
   openingFor: Conversing | null
@@ -451,20 +454,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                   slot.generation++
                 }
                 if (active.kind === "node" && active.slot === slot) panelOptions.onState(state)
-                if (!slot.switching) for (const reader of readingListeners(slot) ?? []) reader.state(state)
+                if (!slot.mutingReaders) for (const reader of readingListeners(slot) ?? []) reader.state(state)
                 onLive?.()
               },
               onTranscript: (change) => {
                 options.onConversationTranscript?.(slot.state, change)
                 if (active.kind === "node" && active.slot === slot) panelOptions.onTranscript(change)
-                if (!slot.switching) for (const reader of readingListeners(slot) ?? []) reader.transcript(change)
+                if (!slot.mutingReaders) for (const reader of readingListeners(slot) ?? []) reader.transcript(change)
               },
             }),
             (made) => made.stopWithReason(slot?.closeReason ?? "scope released"),
           ).pipe(Effect.provideService(Scope.Scope, scope), Effect.annotateLogs({ node }))
           slot = {
             uses: 1,
-            switching: false,
+            mutingReaders: false,
             superseded: new Set(),
             openingFor: null,
             readingFor: null,
@@ -897,9 +900,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               }
               const before = [...slot.panel.entries()].map(([id]) => id)
               yield* Effect.acquireUseRelease(
-                Effect.sync(() => { slot.switching = true }),
+                Effect.sync(() => { slot.mutingReaders = true }),
                 () => slot.panel.newSession(agent),
-                () => Effect.sync(() => { slot.switching = false }),
+                () => Effect.sync(() => { slot.mutingReaders = false }),
               )
               const session = slot.panel.state().session
               if (session === null) return yield* new UsageFailure({
