@@ -115,3 +115,17 @@ ordinary navigation (`Router.open`). The strip is the `strip` component, contrib
 layout's `layout.strip` seat and waiting for `layout.shell`; the link menu is
 the `links` component, contributed to `layout.overlays`; the needs-you dot is
 the `attention` component, waiting for `chat.state`.
+
+## Chats under a tab stay awake
+
+Every tab, front or background, keeps already-live conversations under its panes
+awake. An unfolded conversation on an outline or the agent's own node page
+qualifies, using the same current-conversation predicate as the needs-you dot.
+Closing the last matching tab or folding the conversation releases the hold.
+
+The `keep` component needs `tabs.state`, `chat.state`, and navigation. Tabs owns
+which node IDs are wanted; chat owns state-only wire readings, shares overlapping
+claims, and follows the roster's session and engine changes. Either plugin's
+withdrawal cleans up the holds; browser disconnection releases their server
+readers. Sleeping and unbound agents are never woken by a background tab,
+including restored tabs after a server restart.

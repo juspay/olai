@@ -16,6 +16,8 @@ import type {} from "olai-plugin-navigation/slots"
 import type {} from "olai-plugin-outlines/slots"
 import type {} from "olai-plugin-sidebar/slots"
 import { slotContracts } from "./slots.ts"
+import { createKeeps } from "./browser/agents/keep.ts"
+import { createChatState } from "./browser/chat/state.ts"
 import type { Attention } from "./attention.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
@@ -87,7 +89,7 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, agents, engines: enginesService(agents.missing), readings: createAgentReadings(agents), folding: createFolding() }
+      return { dispose, agents, keep: createKeeps(agents, createChatState), engines: enginesService(agents.missing), readings: createAgentReadings(agents), folding: createFolding() }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))

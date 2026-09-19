@@ -27,6 +27,8 @@ export interface AttentionRow {
 }
 
 export interface Attention {
+  /** Keep already-live conversations read until release; never wake sleeping rows. */
+  readonly keep: (nodes: Accessor<ReadonlySet<string>>) => () => void
   readonly agents: {
     readonly rows: Accessor<ReadonlyArray<AttentionRow>>
     readonly at: (node: string) => AttentionRow | undefined

@@ -25,6 +25,7 @@ import { navigation } from "olai-plugin-navigation/contract"
 import type {} from "olai-plugin-navigation/slots"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 
+import { keptChats } from "./keep.ts"
 import { needingYou } from "./attention.ts"
 import { chordsOf } from "./chords.ts"
 import type { TabsState } from "./contract.ts"
@@ -79,6 +80,26 @@ export const components = {
       yield* Effect.acquireRelease(
         Effect.sync(() => createRoot((dispose) => {
           const release = tabs.dot(needingYou(chat, router.routes, tabs.tabs))
+          return () => {
+            release()
+            dispose()
+          }
+        })),
+        (stop) => Effect.sync(stop),
+      )
+    }),
+  }),
+  /** Tabs own which conversations; chat owns their small wire readings. */
+  keep: definePlugin({
+    name: "keep",
+    needs: [tabsState, chatState, navigation],
+    apply: Effect.gen(function* () {
+      const tabs = yield* tabsState
+      const chat = yield* chatState
+      const router = yield* navigation
+      yield* Effect.acquireRelease(
+        Effect.sync(() => createRoot((dispose) => {
+          const release = chat.keep(keptChats(chat, router.routes, tabs.tabs))
           return () => {
             release()
             dispose()

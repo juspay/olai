@@ -23,6 +23,7 @@ import { volatile } from "./memory.ts"
 import { make } from "./scoped.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
+import { readings } from "./server/readings.ts"
 import { makePanel } from "./chat.ts"
 
 const ACTIVATION = {}
@@ -791,3 +792,48 @@ test("explicit navigation to a superseded session uses history despite a lagging
     expect(second.session).not.toBe(first.session)
   })
 })
+
+
+test("a state-only wire reader survives idle deadlines and releases the scope when it leaves", async () => {
+  const { run, fork } = logging()
+  let node: NodeAgent = { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 1 }
+  const reader = Scope.makeUnsafe()
+  const chat = await run(make({
+    fork, cwd,
+    roster: () => [seated(installed("alpha"))],
+    tools: () => null,
+    nodeAt: id => id === node.id ? node : null,
+    seatableAt: id => id === node.id,
+    nodes: () => [node],
+    wake: () => undefined,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: to => to.agent === node.engine && to.session === node.session ? node : null,
+    ticket: () => ({ bearer: "state-only", release: () => {} }),
+    idle: "200 millis",
+    onState: () => {}, onTranscript: () => {},
+  }))
+  try {
+    await run(chat.start)
+    await run(chat.startAgentSession("one", "alpha"))
+    const session = chat.state().session!.id
+    node = { ...node, session }
+    chat.reread()
+    let ready = false
+    await run(Effect.gen(function*() {
+      const source = yield* readings(Effect.succeed(chat))
+      yield* Effect.forkScoped(Stream.runForEach(source.state.source({ agent: "alpha", session }), state =>
+        Effect.sync(() => { ready = state.session?.id === session && state.status === "idle" })))
+    }).pipe(Effect.provideService(Scope.Scope, reader)))
+    await until("the state-only reader to open", () => ready)
+    // Three deadlines, asserting continuously so a reap/reopen cannot hide.
+    for (let n = 0; n < 30; n++) {
+      await run(Effect.sleep("20 millis"))
+      expect(chat.live().get("one")?.status).toBe("idle")
+    }
+    await run(Scope.close(reader, Exit.void))
+    await until("the state-only reader's scope to reap", () => !chat.live().has("one"))
+  } finally {
+    await run(Scope.close(reader, Exit.void))
+    await run(chat.stop)
+  }
+}, 10_000)

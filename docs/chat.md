@@ -855,7 +855,17 @@ node share its scope without evicting each other. Historical conversations use
 the same capacity and idle-reaping policy. Idle sessions can be reaped after
 fifteen minutes; working sessions, unanswered questions and live background
 work prevent reaping. Capacity pressure can evict an eligible idle scope, not
-one still doing work.
+one still doing work or held by a reader.
+
+Every open app tab keeps its current conversations read, including background
+tabs and every pane of a split. An unfolded conversation or its own node page
+qualifies. Tabs declares a dependency on `chat.state` and supplies the node IDs;
+chat resolves its roster and owns a shared, state-only wire subscription per
+conversation. It follows session and engine changes without reading transcripts
+or saying collections. Closing the last matching tab, folding the conversation,
+withdrawing either owner, or losing the browser connection releases the hold.
+Asleep and unbound rows are skipped: restoring background tabs after a server
+restart does not wake agents. A mounted fold or node page still opens them.
 
 Doorbells are chosen per conversation. Kolu and Odu begin off, with a file
 picker and clear control. Saved choices can wake an offscreen or reaped agent;

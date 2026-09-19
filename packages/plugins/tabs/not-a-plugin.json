@@ -1,6 +1,7 @@
 {
   "chat": [
     "src/attention.ts",
+    "src/keep.ts",
     "src/browser.tsx"
   ],
   "//layout": "Saved-layout vocabulary names a workspace address, not the layout plugin.",
