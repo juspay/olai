@@ -288,21 +288,30 @@ person sees both halves agreeing on.
   and "an id that is not mentionable is a bad-id" in
   `packages/plugins/outline-olai/src/parse.test.ts`.
 
-## Browser MCP
+## Browsing tools
 
-`browser.feature` uses a scripted MCP executable and the existing ACP fixture.
-One lifecycle workflow verifies the engine's received server list, scoped scratch
-permissions and removal, withdrawal from newly opened node conversations, a fresh probe on
-return, and continued handoff after socket reconnection without another probe.
-A second workflow verifies a malformed executable response becomes a visible
-sentence and repairing it is picked up by the next conversation. Unit tests
-cover missing tools, timeout, early exit, non-executable and absent knobs, plus
-transport cancellation and malformed JSON shapes. The sandboxed Nix surface
-check asks the real pinned executable for its tool list without launching
-Chromium. Live web browsing and live model behavior are not exercised by CI.
+`browsing.feature` uses a scripted MCP executable and the existing ACP fixture.
+The lifecycle workflow verifies the engine's received server list, two distinct
+0700 conversation output directories and their removal on withdrawal, same-node
+fresh sessions with the row off and on, and socket reconnection without another
+probe. A second workflow verifies that a malformed executable response becomes
+a visible sentence and that a fresh session retries after repair.
 
-The toggle workflow opens different nodes before and after withdrawal. A same-node
-fresh reset immediately after a roster change reached the scripted agent's
-refusal to load an unprompted session, even with the existing fresh-session
-readiness wait. That combined reset path remains unvalidated here; the failure
-and repair scenario does exercise a same-node fresh reset without a roster change.
+Unit tests withdraw the row while its probe child is hung, assert that the child
+is joined before scratch disappears, and call a stale registration snapshot to
+prove that it cannot hand a server over. They also cover private directories,
+failed probes leaving no conversation directories, missing tools, timeout, early
+exit with bounded stderr diagnostics, non-executable and absent knobs, unexpected
+preparation defects, transport cancellation, pagination, notifications and malformed
+JSON shapes. The sandboxed Nix surface check asks the real pinned executable for
+its tool list without launching Chromium. Live web browsing and live model
+behavior are not exercised by CI.
+
+The same-node toggle case exposed a product race: a reconnecting reader for the
+old binding could enqueue `session/load` while fresh-start was still opening.
+It then replaced the new session, forcing a second load of that unprompted id.
+The persistent ACP fixture correctly refuses such unsaved sessions. Chat now
+serializes those opens on the node's opening permit and routes an overtaken old
+reader to its own history scope. `scoped.test.ts` reproduces the interleaving with
+a held probe and proves the new session remains current; the test fails against
+the previous implementation. The same-node off/on workflow now passes end to end.

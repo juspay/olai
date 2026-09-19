@@ -736,25 +736,44 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return panel
         }
         readerNodes.set(observer, place.node.id)
-        return yield* working(place.node.id, place.history ? to : undefined, ({ slot }) =>
-          Effect.gen(function*() {
-
-            yield* slot.opening.withPermit(Effect.gen(function*() {
-              const state = slot.panel.state()
-              if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
-                // An agent's refusal is conversation state, not a broken wire.
-                // Keep the reader so Unopened can show it and retry explicitly.
-                slot.openingFor = to
-                yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
-                  Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
-                )
-              }
-              if (!place.history) yield* flush(slot)
-            }))
-            observer.state(slot.panel.state())
-            observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
-            return slot.panel
+        return yield* working(place.node.id, place.history ? to : undefined, ({ slot }) => {
+          // A reconnect may still name the old binding while fresh-start is
+          // opening its replacement. Remember that overlap BEFORE waiting:
+          // binding persistence follows the open, so its old value alone cannot
+          // authorize loading the old session over the one just minted.
+          const overtaken = slot.switching
+          const seed = (panel: Panel) => {
+            observer.state(panel.state())
+            observer.transcript({ ...empty, upserts: [...panel.entries()] })
+            return panel
+          }
+          return slot.opening.withPermit(Effect.gen(function*() {
+            const state = slot.panel.state()
+            if (overtaken && !place.history && state.session !== null
+              && (state.session.id !== to.session || agentIn(state)?.id !== to.agent)) {
+              // History has its own process and credential. A late reader can
+              // refuse an unsaved old session without touching the new one.
+              return yield* working(place.node.id, to, ({ slot: history }) =>
+                history.opening.withPermit(Effect.gen(function*() {
+                  const current = history.panel.state()
+                  if (current.session?.id !== to.session || agentIn(current)?.id !== to.agent || current.status === "gone") {
+                    yield* Effect.catch(history.panel.loadSession(to.agent, to.session), () => Effect.void)
+                  }
+                  return seed(history.panel)
+                })))
+            }
+            if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
+              // An agent's refusal is conversation state, not a broken wire.
+              // Keep the reader so Unopened can show it and retry explicitly.
+              slot.openingFor = to
+              yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
+                Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
+              )
+            }
+            if (!place.history) yield* flush(slot)
+            return seed(slot.panel)
           }))
+        })
       })
 
     return {
@@ -872,7 +891,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             reason: `node ${node} is no longer available for an agent session`,
           }))
           : working(node, undefined, ({ slot }) =>
-            Effect.gen(function*() {
+            slot.opening.withPermit(Effect.gen(function*() {
               activate(slot)
               options.onConversationClosed?.(slot.state)
               const before = [...slot.panel.entries()].map(([id]) => id)
@@ -893,7 +912,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               }
               yield* flush(slot)
               return { agent, session: session.id }
-            })),
+            }))),
       chooseAgent: (agent) => {
         activateRoot()
         return root.chooseAgent(agent)

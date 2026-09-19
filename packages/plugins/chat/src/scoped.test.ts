@@ -10,7 +10,7 @@
 import type { NodeAgent } from "@olai/format"
 import { collector } from "@olai/log/testlib"
 import { afterEach, beforeEach, expect, test } from "bun:test"
-import { Effect, Exit, References, Scope } from "effect"
+import { Deferred, Effect, Exit, Fiber, References, Scope } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -661,6 +661,69 @@ test("filing clears old manual wakes and trash releases a running node", async (
     expect(recipient.current()).toBe(false)
   } finally {
     await run(Scope.close(scope, Exit.void))
+    await run(chat.stop)
+  }
+})
+
+
+test("a reader overtaken by fresh-start cannot load its old session over the replacement", async () => {
+  const { run, fork } = logging()
+  let node: NodeAgent = {
+    id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2,
+  }
+  const reached = await run(Deferred.make<void>())
+  const release = await run(Deferred.make<void>())
+  let delay = false
+  const tab = Scope.makeUnsafe()
+  const chat = await run(make({
+    fork,
+    roster: () => [seated(installed("alpha"))],
+    cwd,
+    tools: () => null,
+    probes: () => Effect.succeed([{
+      name: "fixture",
+      ask: Effect.gen(function*() {
+        if (delay) {
+          yield* Deferred.succeed(reached, undefined)
+          yield* Deferred.await(release)
+        }
+        return { server: null, missing: null }
+      }),
+    }]),
+    nodeAt: id => id === node.id ? node : null,
+    seatableAt: id => id === node.id,
+    nodes: () => [node],
+    wake: () => undefined,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: to => to.agent === node.engine && to.session === node.session ? node : null,
+    ticket: () => ({ bearer: "ticket-one", release: () => {} }),
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+  try {
+    await run(chat.start)
+    const first = await run(chat.startAgentSession(node.id, node.engine))
+    node = { ...node, session: first.session }
+    delay = true
+    await run(Effect.scoped(Effect.gen(function*() {
+      const fresh = yield* Effect.forkChild(chat.startAgentSession(node.id, node.engine))
+      yield* Deferred.await(reached)
+      const oldReader = yield* Effect.forkChild(chat.reading(first, {
+        state: () => {}, transcript: () => {},
+      }).pipe(Effect.provideService(Scope.Scope, tab)))
+      // Give the reader its turn while the fresh probe deliberately holds the
+      // opening. Both calls used to queue on different permits and race here.
+      yield* Effect.sleep("20 millis")
+      yield* Deferred.succeed(release, undefined)
+      const second = yield* Fiber.join(fresh)
+      node = { ...node, session: second.session }
+      const history = yield* Fiber.join(oldReader)
+      expect(second.session).not.toBe(first.session)
+      expect(history.state().session?.id).toBe(first.session)
+      expect(chat.state().session?.id).toBe(second.session)
+    })))
+  } finally {
+    await run(Scope.close(tab, Exit.void))
     await run(chat.stop)
   }
 })
