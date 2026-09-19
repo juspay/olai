@@ -62,7 +62,7 @@ import { randomUUID } from "node:crypto"
 import { spawn } from "node:child_process"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 
 import { Effect } from "effect"
 
@@ -259,7 +259,7 @@ export const makeHimalaya = (input: {
           Effect.tryPromise({
             try: async () => {
               if (call.message === undefined) return undefined
-              const file = join(directory!, `message-${randomUUID()}.eml`)
+              const file = join(dirname(at), `message-${randomUUID()}.eml`)
               try { await writeFile(file, call.message, { mode: 0o600, flag: "wx" }) }
               catch (error) { await rm(file, { force: true }); throw error }
               return file

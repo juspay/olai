@@ -448,7 +448,7 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     }))
     const record = { id, headers, body: Buffer.from(body.join("\r\n\r\n"), "base64").toString("utf8"), args, file }
     writeFileSync(saved, JSON.stringify(record))
-    return ok({ id, "message-id": "d01", "thread-id": args.includes("--thread-id") ? flag("--thread-id") : null })
+    return ok({ id, "message-id": `message_${id}`, "thread-id": args.includes("--thread-id") ? flag("--thread-id") : null })
   }
   if (verb.id === "history.list") {
     if (!args.includes("--start-history-id") || flag("--label-id") !== "INBOX" || flag("--history-type") !== "messageAdded") return failed("history requires a start id and the inbox messageAdded filters")

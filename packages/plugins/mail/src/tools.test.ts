@@ -113,11 +113,11 @@ test("drafts create, reply and replace, retaining MIME and account identity", ()
   const { readFileSync } = yield* Effect.promise(() => import("node:fs"))
   const saved = (id: string) => JSON.parse(readFileSync(`${h.root}/draft-${id}.json`, "utf8"))
   const created: any = yield* h.call("draft", { to: ["ravi@example.com"], cc: ["copy@example.com"], bcc: ["blind@example.com"], subject: "Café ☕", body: "Literal \\n text\nand a line" })
-  expect(created).toMatchObject({ address: "you@gmail.com", draft: "draft_1", message: "d01", thread: null, subject: "Café ☕", updated: false })
+  expect(created).toMatchObject({ address: "you@gmail.com", draft: "draft_1", message: "message_draft_1", thread: null, subject: "Café ☕", updated: false })
   expect(saved(created.draft).headers).toMatchObject({ From: "you@gmail.com", To: "ravi@example.com", Cc: "copy@example.com", Bcc: "blind@example.com", Subject: "Café ☕" })
   expect(saved(created.draft).body).toBe("Literal \\n text\nand a line")
   const reply: any = yield* h.call("draft", { thread: "a2", body: "Count me in" })
-  expect(reply).toMatchObject({ thread: "a2", to: ["Ravi <ravi@example.com>"], cc: [], subject: "Re: Nix meetup" })
+  expect(reply).toMatchObject({ thread: "a2", to: ["ravi@example.com"], cc: [], subject: "Re: Nix meetup" })
   expect(saved(reply.draft).headers).toMatchObject({ "In-Reply-To": "<a21@example.com>", References: "<earlier@example.com> <a21@example.com>" })
   expect(saved(reply.draft).args).toContain("--thread-id")
   const updated: any = yield* h.call("draft_update", { draft: created.draft, to: ["new@example.com"], subject: "Replacement", body: "New text" })
@@ -174,3 +174,54 @@ test("reply defaults use the last message and Reply-To, with explicit overrides 
   expect((yield* Effect.result(h.call("draft", { thread: thread.id, body: "Thanks" })))).toMatchObject({ _tag: "Failure", failure: { reason: "this thread's last message has no Message-ID to reply to" } })
   expect(h.calls.map(c => c.verb.id)).toEqual(["threads.get"])
 })))
+
+test("self follow-ups use the last message To list, case-insensitively, and preserve threading on replacement", () => run(h => Effect.gen(function*() {
+  const reply: any = yield* h.call("draft", { thread: "a6", body: "Following up" })
+  expect(reply.to).toEqual(["ravi@example.com", "jane@example.com"])
+  const updated: any = yield* h.call("draft_update", { draft: reply.draft, thread: "a6", body: "Following up again" })
+  expect(updated).toMatchObject({ thread: "a6", updated: true, to: reply.to })
+  const create = h.calls.find(c => c.verb.id === "drafts.create")!
+  const update = h.calls.find(c => c.verb.id === "drafts.update")!
+  expect(h.calls.find(c => c.verb.id === "threads.get")!.args).toContain("To")
+  for (const call of [create, update]) {
+    expect(call.args).toContain("--thread-id")
+    expect(call.message).toContain("In-Reply-To: <a62@example.com>")
+    expect(call.message).toContain("To: ravi@example.com,\r\n jane@example.com")
+  }
+})))
+
+test("default Reply-To lists strip encoded names and count all addresses before writing", () => run(h => Effect.gen(function*() {
+  const { writeFileSync } = yield* Effect.promise(() => import("node:fs"))
+  const { THREADS } = yield* Effect.promise(() => import("./appliance/testlib/fixtures.ts"))
+  const thread = structuredClone(THREADS[1]!)
+  const header = { name: "Reply-To", value: '"Doe, Jane" <jane@example.com>, =?UTF-8?B?UmVuw6ll?= <r@example.com>' }
+  thread.messages[0]!.headers.push(header)
+  const save = () => writeFileSync(`${h.root}/thread-${thread.id}.json`, JSON.stringify(thread))
+  save()
+  const reply: any = yield* h.call("draft", { thread: thread.id, cc: ["copy@example.com"], body: "Hello" })
+  expect(reply).toMatchObject({ to: ["jane@example.com", "r@example.com"], cc: ["copy@example.com"] })
+  header.value = Array.from({ length: 51 }, (_, i) => `r${i}@example.com`).join(", ")
+  save()
+  h.calls.length = 0
+  const refused = yield* Effect.result(h.call("draft", { thread: thread.id, body: "Hello" }))
+  expect(refused).toMatchObject({ _tag: "Failure", failure: { reason: "mail drafts allow at most 50 recipients" } })
+  expect(h.calls.map(c => c.verb.id)).toEqual(["threads.get"])
+  header.value = Array.from({ length: 50 }, (_, i) => `r${i}@example.com`).join(", ")
+  save()
+  const fifty: any = yield* h.call("draft", { thread: thread.id, body: "Hello" })
+  expect(fifty.to).toHaveLength(50)
+  expect(fifty.message).not.toBe(reply.message)
+})))
+
+test("composer defects remain defects through the mailbox boundary", async () => {
+  const { Cause, Exit } = await import("effect")
+  const exit = await Effect.runPromiseExit(Effect.scoped(Effect.gen(function*() {
+    const mailbox = yield* openMailbox({ binary: "/unused", useToken: () => Effect.void, close: async () => {}, run: () => Effect.die("must not spawn") }, { current: () => connected, usable: () => true })
+    return yield* mailbox.draft({ to: ["r@example.com"], subject: "Hi", get body(): string { throw new TypeError("composer defect") } })
+  })))
+  expect(Exit.isFailure(exit)).toBe(true)
+  if (Exit.isFailure(exit)) {
+    expect(Cause.hasDies(exit.cause)).toBe(true)
+    expect(Cause.pretty(exit.cause)).toContain("composer defect")
+  }
+})

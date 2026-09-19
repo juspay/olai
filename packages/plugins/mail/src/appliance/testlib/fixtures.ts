@@ -122,5 +122,16 @@ export const THREADS = [
   { id: "a2", messages: [message("a21", "Nix meetup", ["INBOX"], true)] },
   { id: "a3", messages: [message("a31", "Invoice conversation", ["INBOX"]), message("a32", "Re: Invoice conversation", ["INBOX"], false, true)] },
   { id: "a4", messages: [message("a41", "Archived newsletter", [])] },
+  { id: "a6", messages: [message("a61", "Follow up", []), {
+    ...message("a62", "Re: Follow up", []),
+    headers: [
+      { name: "Message-ID", value: "<a62@example.com>" },
+      { name: "References", value: "<a61@example.com>" },
+      { name: "Subject", value: "Re: Follow up" },
+      { name: "From", value: "My Name <YOU@GMAIL.COM>" },
+      { name: "To", value: '=?UTF-8?B?UmF2aQ==?= <ravi@example.com>, "Doe, Jane" <jane@example.com>' },
+      { name: "Reply-To", value: "my-other-address@example.com" },
+    ],
+  }] },
   { id: "a5", messages: [message("a51", "Waiting for reply", ["Label_1"])] },
 ]

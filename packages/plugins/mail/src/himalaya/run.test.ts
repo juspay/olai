@@ -73,3 +73,29 @@ ${outcome === "timeout" || outcome === "interruption" ? 'setInterval(() => {}, 1
     } finally { spy?.mockRestore(); await runner.close(); await rm(root, { recursive: true, force: true }) }
   })
 }
+
+test("closing after config lookup reports a swept message directory as ENOENT", async () => {
+  const { readdirSync, rmSync } = await import("node:fs")
+  const root = await mkdtemp(join(tmpdir(), "mail-message-close-test-"))
+  const runner = makeHimalaya({ binary: process.execPath, env: { XDG_RUNTIME_DIR: root } })
+  let closing: Promise<void> | undefined
+  try {
+    await Effect.runPromise(runner.useToken({ token: "test", address: "you@gmail.com" }))
+    const directory = join(root, readdirSync(root)[0]!)
+    const result = await Effect.runPromise(Effect.result(runner.run({ verb: GMAIL.draftsCreate,
+      get message() {
+        if (!closing) {
+          // The message is first read after config lookup, before file acquisition.
+          rmSync(directory, { recursive: true })
+          closing = runner.close()
+        }
+        return "draft body"
+      },
+    })))
+    expect(result._tag).toBe("Failure")
+    if (result._tag === "Failure") {
+      expect(result.failure.reason).toContain("ENOENT")
+      expect(result.failure.reason).not.toContain("TypeError")
+    }
+  } finally { await closing; await runner.close(); await rm(root, { recursive: true, force: true }) }
+})

@@ -6,7 +6,7 @@ import { delta, fullOf, idsOf, Listing, rowOf, Thread } from "./himalaya/threads
 import { History } from "./himalaya/history.ts"
 import { GMAIL } from "./himalaya/verbs.ts"
 import { makeLabels } from "./labels.ts"
-import { compose, validateDraft, type DraftArgs } from "./compose.ts"
+import { addressList, compose, validateDraft, type DraftArgs } from "./compose.ts"
 import { MailRefusal } from "./wire.ts"
 
 /** Mailbox operations and caches share the owning mail activation's scope.
@@ -91,29 +91,32 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     return answer
   })
   const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.String, "thread-id": Schema.NullOr(Schema.String) })
-  const checked = <A>(f: () => A) => Effect.try({ try: f, catch: error => error instanceof MailRefusal ? error : new MailRefusal({ reason: String(error) }) })
   const draft = (args: DraftArgs) => {
     const work = Effect.gen(function*() {
       const address = yield* ready
-      yield* checked(() => validateDraft(args))
+      yield* Effect.fromResult(validateDraft(args))
       let to = args.to
       let subject = args.subject
       let inReplyTo: string | undefined
       let references: string | undefined
       if (args.thread) {
-        const raw = yield* run({ verb: GMAIL.threadsGet, args: [args.thread, "--format", "metadata", ...["Message-ID", "References", "Reply-To", "From", "Subject"].flatMap(name => ["--header", name])] })
+        const raw = yield* run({ verb: GMAIL.threadsGet, args: [args.thread, "--format", "metadata", ...["Message-ID", "References", "Reply-To", "From", "To", "Subject"].flatMap(name => ["--header", name])] })
         const thread = yield* decode(Thread, raw)
         const last = thread.messages.at(-1)
         const header = (name: string) => last?.headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value
         inReplyTo = header("Message-ID")
         if (!inReplyTo) return yield* Effect.fail(new MailRefusal({ reason: "this thread's last message has no Message-ID to reply to" }))
         references = [header("References"), inReplyTo].filter(Boolean).join(" ")
-        to ??= [header("Reply-To") || header("From") || ""]
+        if (to === undefined) {
+          const from = yield* Effect.fromResult(addressList(header("From") ?? ""))
+          const mine = from.some(sender => sender.toLowerCase() === address.toLowerCase())
+          to = yield* Effect.fromResult(addressList(mine ? header("To") ?? "" : header("Reply-To") || header("From") || ""))
+        }
         const original = header("Subject") ?? ""
         subject ??= /^re:/i.test(original) ? original : `Re: ${original}`
       }
       const resolved = { ...args, from: address, to: to!, subject: subject!, inReplyTo, references }
-      const message = yield* checked(() => compose(resolved))
+      const message = yield* Effect.fromResult(compose(resolved))
       const raw = yield* run({ verb: args.draft ? GMAIL.draftsUpdate : GMAIL.draftsCreate,
         args: [...args.draft ? [args.draft] : [], ...args.thread ? ["--thread-id", args.thread] : []], message })
       const output = yield* decode(DraftOutput, raw)
