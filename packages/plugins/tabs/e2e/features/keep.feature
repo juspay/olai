@@ -80,7 +80,7 @@ Feature: Open tabs keep their live conversations awake
     And there should be no page errors
 
   Scenario: Closing one of two matching background tabs preserves the remaining hold
-    When I choose "Duplicate" from the menu of tab 0
+    When I choose "Duplicate tab" from the menu of tab 0
     Then there are 2 tabs
     When I choose "Open in new tab" from the menu of the outline link "yard.olai"
     And I press tab 2
