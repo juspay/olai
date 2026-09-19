@@ -22,6 +22,7 @@ Feature: Conversations receive isolated web browser tools
     Then the chat is empty
     When I ask the agent "servers"
     Then the agent is idle
+    And the agent's answer mentions "servers: [olai kolu odu]"
     And this conversation has no browser MCP server
     When I open the plugins panel
     And I switch the plugin "browser" on

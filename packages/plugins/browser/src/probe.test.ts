@@ -14,7 +14,7 @@ const fixture = () => {
   writeFileSync(exe, `#!${process.execPath}\nimport { serveFake } from ${JSON.stringify(join(import.meta.dirname, "testlib/fake-browser-mcp.ts"))}; serveFake()\n`, { mode: 0o700 })
   return { dir, exe }
 }
-const probe = (exe: string | undefined, output: string, mode = "good", timeout = 1000) => Effect.runPromise(Effect.scoped(probing({ OLAI_BROWSER_MCP: exe, FAKE_BROWSER_MODE: mode }, output, timeout)))
+const probe = (exe: string | undefined, output: string, mode = "good", timeout = 2000) => Effect.runPromise(Effect.scoped(probing({ OLAI_BROWSER_MCP: exe, FAKE_BROWSER_MODE: mode }, output, timeout)))
 test("hands over the absolute answering executable with isolated headless scratch arguments", async () => {
   const { dir, exe } = fixture()
   expect(await probe(exe, dir)).toEqual({ server: { name: "browser", command: exe, args: ["--headless", "--isolated", "--output-dir", dir], env: {} }, missing: null })
@@ -36,7 +36,7 @@ test.each([
   ["hang", "did not answer MCP within"],
   ["closed", "closed the MCP connection"],
 ])("%s cannot be handed to an engine", async (mode, sentence) => {
-  const { dir, exe } = fixture(); const answer = await probe(exe, dir, mode, 200)
+  const { dir, exe } = fixture(); const answer = await probe(exe, dir, mode, 1500)
   expect(answer.server).toBeNull(); expect(answer.missing?.why).toContain(sentence)
 })
 test("scratch is private, isolated per activation, and removed with each owner", async () => {

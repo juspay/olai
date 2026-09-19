@@ -8,7 +8,7 @@ import { TESTID } from "olai-plugin-chat/testids"
 // The harness places each scratch serve's XDG directories beside its vault.
 const runtime = (world: OlaiWorld) => join(`${world.scratch()}.xdg`, "runtime")
 const probes = (world: OlaiWorld): Array<{ args: string[]; pid: number }> =>
-  readFileSync(join(runtime(world), "browser-probes.jsonl"), "utf8").trim().split("\n").map(line => JSON.parse(line))
+  readFileSync(join(runtime(world), "browser-probes.log"), "utf8").trim().split("\n").map(line => JSON.parse(line))
 Given("the browser MCP fixture answers {string}", function (this: OlaiWorld, mode: string) {
   writeFileSync(join(runtime(this), "browser-mode"), mode)
 })
@@ -26,5 +26,6 @@ Then("the browser MCP scratch has been removed", function (this: OlaiWorld) {
   for (const call of probes(this)) assert.equal(existsSync(call.args[3]!), false)
 })
 Then("this conversation has no browser MCP server", async function (this: OlaiWorld) {
-  assert.equal(await this.chat(`[data-testid="${TESTID.chatServer}"][data-server="browser"]`).count(), 0)
+  const names = await this.chatRoot().getByTestId(TESTID.chatServer).evaluateAll(rows => rows.map(row => row.getAttribute("data-server")))
+  assert.ok(!names.includes("browser"))
 })

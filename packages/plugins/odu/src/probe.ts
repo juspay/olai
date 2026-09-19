@@ -142,12 +142,6 @@ const VERBS = {
  *  argued in. */
 const VERB_NAMES = Object.keys(VERBS) as ReadonlyArray<keyof typeof VERBS>
 
-/** odu's own `initialize` payload wants one — the newest one olai's tree
- *  carries (`@modelcontextprotocol/sdk`'s, one pin up). What the responder
- *  answers is its own business: the handshake is evidence that the protocol
- *  is spoken, not an assertion of a revision. */
-
-
 /** The transport deadline, in milliseconds: cohort to kolu's own. A wedged
  *  `odu mcp` and an honest one reach distinction inside five seconds. */
 const DEADLINE_MS = 5_000

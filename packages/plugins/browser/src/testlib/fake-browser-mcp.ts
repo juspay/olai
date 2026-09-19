@@ -8,7 +8,7 @@ export const serveFake = (): void => {
   const runtime = process.env["XDG_RUNTIME_DIR"]
   const control = runtime && join(runtime, "browser-mode")
   const mode = process.env["FAKE_BROWSER_MODE"] ?? (control && existsSync(control) ? readFileSync(control, "utf8") : "good")
-  if (runtime) appendFileSync(join(runtime, "browser-probes.jsonl"), JSON.stringify({ args: process.argv.slice(2), pid: process.pid }) + "\n")
+  if (runtime) appendFileSync(join(runtime, "browser-probes.log"), JSON.stringify({ args: process.argv.slice(2), pid: process.pid }) + "\n")
   if (mode === "garbage") { process.stdout.write("not MCP\n"); return }
   if (mode === "closed") return
   const lines = createInterface({ input: process.stdin })

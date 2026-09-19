@@ -28,6 +28,7 @@ export const askOver = async (child: ChildProcess, deadlineMs: number, signal?: 
   return await new Promise<Verdict>((resolve) => {
     let buffer = ""
     let done = false
+    let initialized = false
     const tools: Array<{ name: string; inputs: ReadonlyArray<string> }> = []
     const finish = (verdict: Verdict): void => {
       if (done) return
@@ -50,9 +51,10 @@ export const askOver = async (child: ChildProcess, deadlineMs: number, signal?: 
     child.stdin?.on("error", (thrown) => finish({ _tag: "failed", cause: String(thrown) }))
     stdout.on("error", (thrown) => finish({ _tag: "failed", cause: String(thrown) }))
     child.on("close", () => finish({ _tag: "closed" }))
-    stdout.on("data", (chunk: Buffer) => {
+    stdout.setEncoding("utf8")
+    stdout.on("data", (chunk: string) => {
       if (done) return
-      buffer += chunk.toString("utf8")
+      buffer += chunk
       if (buffer.length > 4 * 1024 * 1024) { finish({ _tag: "failed", cause: "MCP response exceeds 4 MiB" }); return }
       for (;;) {
         const at = buffer.indexOf("\n")
@@ -77,6 +79,11 @@ export const askOver = async (child: ChildProcess, deadlineMs: number, signal?: 
           return
         }
         if (message["id"] === 1) {
+          const result = message["result"] as { protocolVersion?: unknown } | null | undefined
+          if (initialized || typeof result?.protocolVersion !== "string") {
+            finish({ _tag: "failed", cause: "invalid initialize response" }); return
+          }
+          initialized = true
           // `initialize` answered: mark the session, ask for the surface.
           send({ jsonrpc: "2.0", method: "notifications/initialized" })
           send({ jsonrpc: "2.0", id: 2, method: "tools/list" })
@@ -84,7 +91,8 @@ export const askOver = async (child: ChildProcess, deadlineMs: number, signal?: 
         }
         if (message["id"] === 2) {
           const result = message["result"] as { tools?: Array<Record<string, unknown>>; nextCursor?: string } | undefined
-          if (!Array.isArray(result?.tools) || result.tools.some(tool => tool === null || typeof tool !== "object" || typeof tool["name"] !== "string")) {
+          if (!initialized || !Array.isArray(result?.tools) || result.tools.some(tool => tool === null || typeof tool !== "object" || typeof tool["name"] !== "string"
+            || tool["inputSchema"] === null || typeof tool["inputSchema"] !== "object" || Array.isArray(tool["inputSchema"]))) {
             finish({ _tag: "failed", cause: "invalid tools/list response" }); return
           }
           for (const tool of result.tools) {
