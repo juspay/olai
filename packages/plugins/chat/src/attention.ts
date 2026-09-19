@@ -10,7 +10,9 @@
  * `olai-plugin-tabs`' `attention` component is the consumer: it puts a dot on a
  * tab whose page is a conversation that needs you. What counts as "this page is
  * that conversation" is {@link isCurrent} — the same predicate the Chats
- * section lights a row with — so the two cannot disagree.
+ * section lights a row with — so the two cannot disagree. Tabs also hands
+ * `keep` its current node IDs through this service; chat resolves its own
+ * roster and owns the state-only readings for those already-live conversations.
  */
 import type { Accessor } from "solid-js"
 

@@ -41,7 +41,7 @@ test("holds compose, follow bindings, never wake, and release with either owner"
   setRows(initial)
   const third = keep(ids)
   expect([...active]).toEqual(["alpha/first"])
-  setIds(new Set())
+  setIds(new Set<string>())
   expect([...active]).toEqual([])
   setIds(new Set(["one"]))
   expect([...active]).toEqual(["alpha/first"])
