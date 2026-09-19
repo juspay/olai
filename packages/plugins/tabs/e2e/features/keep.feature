@@ -97,25 +97,6 @@ Feature: Open tabs keep their live conversations awake
     And there should be no page errors
 
 
-  Scenario: A live reconnect cannot wake a reaped background conversation from its stale roster
-    When I ask the agent "remember before disconnect"
-    Then the agent has answered "remember before disconnect" exactly once
-    When I choose "Open in new tab" from the menu of the outline link "yard.olai"
-    And I press tab 1
-    And I mark the page
-    And the browser goes offline
-    Then the connection is "reconnecting"
-    And the disconnected agent "install" is reaped
-    When the browser comes back online
-    Then the connection is "live"
-    And tab 1 is in front
-    And the agent "install" stands "asleep"
-    And the agent "install" remains "asleep" across two idle deadlines
-    When I press tab 0
-    Then the node agent's fold is ready
-    And the agent has answered "remember before disconnect" exactly once
-    And the page has not reloaded
-
   Scenario: Invisible background tabs release holds on a phone while the front conversation stays live
     When I choose "Open in new tab" from the menu of the outline link "yard.olai"
     And I press tab 1

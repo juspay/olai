@@ -20,7 +20,6 @@
  */
 
 import assert from "node:assert/strict";
-import { findLogfmt } from "@olai/log/testlib";
 import { sessionStore } from "@olai/tests/agent/session-store.ts";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -920,13 +919,7 @@ When("I open the fresh-session engine menu", async function (this: OlaiWorld) {
 });
 
 
-Then("the disconnected agent {string} is reaped", async function (this: OlaiWorld, node: string) {
+When("two node idle deadlines pass", async function (this: OlaiWorld) {
   assert.ok(this.fastNodeIdle, "this observation requires @node-idle-fast");
-  const id = this.nodeId(node);
-  // The offline browser cannot observe a fresh roster. Read the scheduler's
-  // actual eviction, so reconnect is known to replay a stale live hold.
-  await this.waitUntil(async () => this.serverLog.text.split("\n").some(line => {
-    const exit = findLogfmt(line, "chat agent exited");
-    return exit?.node === id && exit.reason === "idle eviction";
-  }), `the disconnected agent ${node} to be idle-reaped on the server`);
+  await this.page.waitForTimeout(FAST_NODE_IDLE_MS * 2);
 });

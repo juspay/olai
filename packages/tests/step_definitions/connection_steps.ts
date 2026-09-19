@@ -267,3 +267,39 @@ Then("the server rejected the stale tab", async function (this: OlaiWorld) {
     HYDRATION_TIMEOUT,
   );
 });
+
+
+/** A real transport cut, including the server peer. Chromium's network-offline
+ * emulation can leave a server socket alive while refusing the client's redials.
+ * Install before navigation; each scenario's page owns the route and sockets. */
+const disconnectable = new WeakMap<OlaiWorld, { cut: () => Promise<void>; restore: () => void }>();
+When("the browser wire can be disconnected", async function (this: OlaiWorld) {
+  let blocked = false;
+  let close: (() => Promise<void>) | undefined;
+  await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", client => {
+    if (blocked) { void client.close(); return; }
+    const server = client.connectToServer();
+    close = async () => {
+      await server.close();
+      await client.close();
+    };
+  });
+  disconnectable.set(this, {
+    cut: async () => {
+      assert.ok(close, "the scenario must open a wire before disconnecting it");
+      blocked = true;
+      await close();
+    },
+    restore: () => { blocked = false; },
+  });
+});
+When("I disconnect the browser wire", async function (this: OlaiWorld) {
+  const wire = disconnectable.get(this);
+  assert.ok(wire, "the scenario must install its disconnectable wire");
+  await wire.cut();
+});
+When("I reconnect the browser wire", function (this: OlaiWorld) {
+  const wire = disconnectable.get(this);
+  assert.ok(wire, "the scenario must install its disconnectable wire");
+  wire.restore();
+});
