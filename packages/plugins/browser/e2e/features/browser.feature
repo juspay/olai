@@ -14,21 +14,26 @@ Feature: Conversations receive isolated web browser tools
     When I ask the agent "servers"
     Then the agent's answer mentions "browser"
     And the browser MCP has been probed 1 time with private scratch
+    When I remember this conversation as "enabled"
+    And I mark the page
     When I open the plugins panel
     And I switch the plugin "browser" off
     And I close the plugins panel
     Then the browser MCP scratch has been removed
     When I start a fresh session
-    Then the chat is empty
+    Then the panel is ready in a new conversation after "enabled"
+    And the chat is empty
     When I ask the agent "servers"
     Then the agent is idle
     And the agent's answer mentions "servers: [olai kolu odu]"
     And this conversation has no browser MCP server
+    When I remember this conversation as "disabled"
     When I open the plugins panel
     And I switch the plugin "browser" on
     And I close the plugins panel
     And I start a fresh session
-    Then the chat is empty
+    Then the panel is ready in a new conversation after "disabled"
+    And the chat is empty
     And the panel says this conversation has "browser"
     And the browser MCP has been probed 2 times with private scratch
     When I ask the agent "servers"
@@ -41,6 +46,7 @@ Feature: Conversations receive isolated web browser tools
     When I ask the agent "servers"
     Then the agent's answer mentions "browser"
     And the browser MCP has been probed 2 times with private scratch
+    And the page has not reloaded
     And there should be no page errors
 
   Scenario: A broken MCP executable explains its absence and a new conversation retries after repair
@@ -49,9 +55,11 @@ Feature: Conversations receive isolated web browser tools
     And the node agent's fold is ready
     Then the panel says "browser" is missing from this conversation
     And the reason it gives is "Browser tools did not speak the expected MCP protocol"
-    When the browser MCP fixture answers "good"
+    When I remember this conversation as "broken"
+    And the browser MCP fixture answers "good"
     And I start a fresh session
-    Then the chat is empty
+    Then the panel is ready in a new conversation after "broken"
+    And the chat is empty
     And the panel says this conversation has "browser"
     When I ask the agent "servers"
     Then the agent's answer mentions "browser"
