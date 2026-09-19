@@ -865,12 +865,18 @@ one still doing work or held by a reader.
 Every open app tab keeps its current conversations read, including background
 tabs and every pane of a split. An unfolded conversation or its own node page
 qualifies. Tabs declares a dependency on `chat.state` and supplies the node IDs;
-chat resolves its roster and owns a shared, state-only wire subscription per
-conversation. It follows session and engine changes without reading transcripts
-or saying collections. Closing the last matching tab, folding the conversation,
-withdrawing either owner, or losing the browser connection releases the hold.
-Asleep and unbound rows are skipped: restoring background tabs after a server
-restart does not wake agents. A mounted fold or node page still opens them.
+chat resolves its roster and owns a shared, non-acquiring wire hold per
+conversation. The scheduler registers readership without locating or opening a
+scope, so stale roster frames and live reconnects cannot wake agents. A hold
+registered before another reader wakes a conversation counts once its scope
+exists. Holds follow session and engine changes without reading state,
+transcripts or saying collections. Closing the last matching tab, folding the
+conversation, withdrawing either owner, or losing the browser connection
+releases the hold.
+Asleep and unbound rows are skipped to save subscriptions; the server enforces
+the no-wake guarantee. Without a visible tab strip, only the front tab holds
+chats. Server restarts still retire the old page and require reload; restoring
+background tabs does not wake agents. A mounted fold or node page opens them.
 
 Doorbells are chosen per conversation. Kolu and Odu begin off, with a file
 picker and clear control. Saved choices can wake an offscreen or reaped agent;

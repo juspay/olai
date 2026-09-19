@@ -42,6 +42,8 @@ export interface Chat extends Panel {
   readonly sessionsFor: (agent: string) => Effect.Effect<Listed>
   /** A reader owns its hold until its Effect scope closes. */
   readonly reading: (to: Conversing, observer: ReadingObserver) => Effect.Effect<Panel, OpFailure, Scope.Scope>
+  /** Keep a conversation read without locating, opening or waking it. */
+  readonly holding: (to: Conversing) => Effect.Effect<void, never, Scope.Scope>
   /** Apply a browser gesture only to the conversation it was drawn for. */
   readonly inConversation: <A>(to: Conversing, scope: string | null | undefined, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
   readonly live: () => ReadonlyMap<string, LiveSession>
@@ -735,8 +737,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           history.opening.withPermit(use(history)))
       }))
 
-    const reading: Chat["reading"] = (to, observer) => Effect.gen(function*() {
-        yield* Effect.acquireRelease(Effect.sync(() => {
+    // Registration is separate from acquisition: background holds enter the
+    // same readership table, but must never locate or open a conversation.
+    const observe = (to: Conversing, observer: ReadingObserver) =>
+      Effect.acquireRelease(Effect.sync(() => {
           const key = readingKey(to)
           const held = readers.get(key) ?? new Set<ReadingObserver>()
           held.add(observer)
@@ -747,7 +751,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           held.delete(observer)
           if (held.size === 0 && readers.get(key) === held) readers.delete(key)
           for (const slot of nodes.values()) armIdle(slot)
-        }))
+        })).pipe(Effect.asVoid)
+
+    const holding: Chat["holding"] = to => Effect.suspend(() =>
+      observe(to, { state: () => {}, transcript: () => {} }))
+
+    const reading: Chat["reading"] = (to, observer) => Effect.gen(function*() {
+        yield* observe(to, observer)
         const place = yield* locate(to)
         if (place === null) {
           const state = root.state()
@@ -778,7 +788,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       })
 
     return {
-      reading,
+      reading, holding,
       entries: () => panelOf().entries(),
       state: () => panelOf().state(),
       live: () => new Map(

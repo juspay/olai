@@ -89,7 +89,7 @@ export const components = {
       )
     }),
   }),
-  /** Tabs own which conversations; chat owns their small wire readings. */
+  /** Tabs own which conversations; chat owns their non-acquiring wire holds. */
   keep: definePlugin({
     name: "keep",
     needs: [tabsState, chatState, navigation],
@@ -99,7 +99,7 @@ export const components = {
       const router = yield* navigation
       yield* Effect.acquireRelease(
         Effect.sync(() => createRoot((dispose) => {
-          const release = chat.keep(keptChats(chat, router.routes, tabs.tabs))
+          const release = chat.keep(keptChats(chat, router.routes, tabs))
           return () => {
             release()
             dispose()

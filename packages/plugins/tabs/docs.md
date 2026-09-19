@@ -123,11 +123,16 @@ awake. An unfolded conversation on an outline or the agent's own node page
 qualifies, using the same current-conversation predicate as the needs-you dot.
 Closing the last matching tab or folding the conversation releases the hold.
 The hold is independent of the mounted page: withdrawing outlines removes its
-folds while an open tab can still keep the conversation live.
+folds while an open tab can still keep the conversation live. Below the desktop
+breakpoint, or without a strip, only the front tab's panes hold chats: hidden
+background tabs cannot keep agents alive indefinitely.
 
 The `keep` component needs `tabs.state`, `chat.state`, and navigation. Tabs owns
-which node IDs are wanted; chat owns state-only wire readings, shares overlapping
-claims, and follows the roster's session and engine changes. Either plugin's
-withdrawal cleans up the holds; browser disconnection releases their server
-readers. Sleeping and unbound agents are never woken by a background tab,
-including restored tabs after a server restart.
+which node IDs are wanted; chat owns non-acquiring wire holds, shares overlapping
+claims, and follows the roster's session and engine changes. The server registers
+readership without acquiring a conversation, even if the browser replays a stale
+hold after reconnecting. A hold established before another reader wakes the
+agent counts once that scope exists. Either plugin's withdrawal cleans up the
+holds; browser disconnection releases their server readers. The browser skips sleeping and unbound rows to save subscriptions; the
+server enforces that a hold never wakes them. A server restart still retires the
+old page and requires reload; restored background tabs do not wake agents.

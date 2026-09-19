@@ -1,5 +1,5 @@
-/** Union of external readers, owned by this chat activation. Only the state
- * cell is acquired; asleep/unbound rows cannot open a conversation through here.
+/** Union of external readers, owned by this chat activation. The wire
+ * hold cannot acquire a scope; filtering asleep/unbound rows saves subscriptions.
  * Stable conversation keys avoid releasing a reading on unrelated roster frames. */
 import { type Accessor, createComputed, createMemo, createRoot, createSignal, mapArray, onCleanup } from "solid-js"
 import type { NodeAgentRow } from "../../wire/agents.ts"
@@ -20,7 +20,7 @@ export const createKeeps = (
       && row.standing !== "asleep" && row.standing !== "unbound" && row.session !== null)
       .map(row => JSON.stringify([row.engine, row.session])))]
   })
-  // mapArray's per-key owners dispose the state subscription when the last
+  // mapArray's per-key owners dispose the hold subscription when the last
   // claimant leaves or the roster changes its binding/standing.
   const held = mapArray(conversations, key => {
     const [agent, session] = JSON.parse(key) as [string, string]

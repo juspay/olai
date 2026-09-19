@@ -107,6 +107,7 @@ import type { Conversing } from "./sessions.ts"
 import { forLocalState as modelsIn } from "./models.ts"
 import type { Ops as WriteGate } from "@olai/ops"
 import { makeFiler } from "./server/filer.ts"
+import { holding } from "./server/holding.ts"
 import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
@@ -659,7 +660,7 @@ export default definePlugin({
           sessionsRevision: { store: inMemoryStore<number>(0) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },
         },
-        streams,
+        streams: { ...streams, holding: holding(Deferred.await(ready)) },
         procedures: { conversation },
       } satisfies ImplementSurfaceDeps<typeof surface.spec>,
       published: (bound) => {

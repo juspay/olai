@@ -17,7 +17,10 @@ const reading = (hrefs: string[], unfolded: string[], roster = rows) => createRo
     folding: { unfolded: id => unfolded.includes(id) },
     keep: () => () => {},
   }
-  const result = [...keptChats(chat, routes, () => hrefs.map((href, i) => ({ id: String(i), href, title: href })))()]
+  const result = [...keptChats(chat, routes, {
+    tabs: () => hrefs.map((href, i) => ({ id: String(i), href, title: href })),
+    front: () => "0", drawn: () => true,
+  })()]
   dispose()
   return result
 })

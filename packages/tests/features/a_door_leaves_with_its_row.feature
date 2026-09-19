@@ -31,7 +31,7 @@ Feature: A reading leaves with the row that offered it, and comes back
     And I switch the plugin "outlines" off
     And I close the plugins panel
     Then no agent fold is open
-    # The tab still owns a state-only reading even though its fold has left.
+    # The tab still owns a non-acquiring hold even though its fold has left.
     And the agent "kitchen" remains "idle" across two idle deadlines
     When I open the plugins panel
     And I switch the plugin "tabs" off

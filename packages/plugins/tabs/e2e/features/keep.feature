@@ -41,9 +41,13 @@ Feature: Open tabs keep their live conversations awake
     Then the agent has answered "remember this background conversation" exactly once
     When I choose "Open in new tab" from the menu of the outline link "yard.olai"
     And I press tab 1
+    And I mark the page
     And the server stops
     And the server starts again on the same port
-    And I reload the page
+    Then the server rejected the stale tab
+    And the connection is "retired"
+    And the page has not reloaded
+    When I reload from the overlay
     Then tab 1 is in front
     And the agent "install" stands "asleep"
     And the agent "install" remains "asleep" across two idle deadlines
@@ -88,6 +92,64 @@ Feature: Open tabs keep their live conversations awake
     And I press tab 2
     And I close tab 0 with its button
     Then the agent "install" remains "idle" across two idle deadlines
+    When I close tab 0 with its button
+    Then the agent "install" stands "asleep"
+    And there should be no page errors
+
+
+  Scenario: A live reconnect cannot wake a reaped background conversation from its stale roster
+    When I ask the agent "remember before disconnect"
+    Then the agent has answered "remember before disconnect" exactly once
+    When I choose "Open in new tab" from the menu of the outline link "yard.olai"
+    And I press tab 1
+    And I mark the page
+    And the browser goes offline
+    Then the connection is "reconnecting"
+    And the disconnected agent "install" is reaped
+    When the browser comes back online
+    Then the connection is "live"
+    And tab 1 is in front
+    And the agent "install" stands "asleep"
+    And the agent "install" remains "asleep" across two idle deadlines
+    When I press tab 0
+    Then the node agent's fold is ready
+    And the agent has answered "remember before disconnect" exactly once
+    And the page has not reloaded
+
+  Scenario: Invisible background tabs release holds on a phone while the front conversation stays live
+    When I choose "Open in new tab" from the menu of the outline link "yard.olai"
+    And I press tab 1
+    And I shrink the window to a phone
+    Then there is no tab strip
+    And the agent "install" stands "asleep"
+    And the agent "install" remains "asleep" across two idle deadlines
+    When I widen the window to a desk
+    Then the agent "install" remains "asleep" across two idle deadlines
+    When I press tab 0
+    Then the node agent's fold is ready
+    When I shrink the window to a phone
+    Then there is no tab strip
+    And the agent "install" remains "idle" across two idle deadlines
+    And there should be no page errors
+
+  Scenario: Confirmed Fresh Start moves the hold of an already-background tab to the new conversation
+    When I remember this conversation as "before fresh"
+    And I choose "Duplicate tab" from the menu of tab 0
+    Then tab 1 is in front
+    When I request a fresh session without confirming
+    And I confirm the fresh session
+    Then the panel has a different conversation from "before fresh"
+    When I remember this conversation as "after fresh"
+    And I ask the agent "keep this replacement awake"
+    Then the agent has answered "keep this replacement awake" exactly once
+    When I choose "Open in new tab" from the menu of the outline link "yard.olai"
+    And I press tab 2
+    And I close tab 1 with its button
+    Then the agent "install" remains "idle" across two idle deadlines
+    When I press tab 0
+    Then the node agent's fold is ready
+    And the panel is in the remembered conversation "after fresh"
+    And the agent has answered "keep this replacement awake" exactly once
     When I close tab 0 with its button
     Then the agent "install" stands "asleep"
     And there should be no page errors

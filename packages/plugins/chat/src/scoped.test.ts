@@ -20,7 +20,7 @@ import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { volatile } from "./memory.ts"
-import { make } from "./scoped.ts"
+import { make, type Chat } from "./scoped.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { readings } from "./server/readings.ts"
@@ -837,3 +837,93 @@ test("a state-only wire reader survives idle deadlines and releases the scope wh
     await run(chat.stop)
   }
 }, 10_000)
+
+/** A durable binding with no acquired process, as after reaping or reconnect. */
+const withHoldingChat = async (check: (bench: {
+  chat: Chat
+  to: { agent: string; session: string }
+  scope: () => Scope.Scope
+  tickets: () => number
+  opened: () => number
+}) => Promise<void>) => {
+  const { run, fork, said } = logging()
+  const node: NodeAgent = { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "remembered", memory: 1 }
+  const scopes: Scope.Scope[] = []
+  let tickets = 0
+  const chat = await run(make({
+    fork, cwd,
+    roster: () => [seated(installed("alpha"))],
+    tools: () => null,
+    nodeAt: id => id === node.id ? node : null,
+    seatableAt: id => id === node.id,
+    nodes: () => [node],
+    wake: () => undefined,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: to => to.agent === node.engine && to.session === node.session ? node : null,
+    ticket: () => { tickets++; return { bearer: "non-acquiring-hold", release: () => {} } },
+    idle: "200 millis",
+    onState: () => {}, onTranscript: () => {},
+  }))
+  try {
+    await run(chat.start)
+    await check({
+      chat, to: { agent: "alpha", session: "remembered" },
+      scope: () => { const scope = Scope.makeUnsafe(); scopes.push(scope); return scope },
+      tickets: () => tickets,
+      opened: () => said.filter(line => line.message.includes("conversation opened")).length,
+    })
+  } finally {
+    for (const scope of scopes) await run(Scope.close(scope, Exit.void))
+    await run(chat.stop)
+  }
+}
+
+const acrossHeldDeadlines = async (check: () => void) => {
+  for (let n = 0; n < 30; n++) {
+    await run(Effect.sleep("20 millis"))
+    check()
+  }
+}
+
+test("holding an unopened conversation never acquires a process", () => withHoldingChat(async ({ chat, to, scope, tickets, opened }) => {
+  await run(chat.holding(to).pipe(Effect.provideService(Scope.Scope, scope())))
+  await acrossHeldDeadlines(() => expect(chat.live().size).toBe(0))
+  expect(tickets()).toBe(0)
+  expect(opened()).toBe(0)
+}), 10_000)
+
+test("a live conversation survives hold deadlines, then reaps and a stale hold cannot wake it", () => withHoldingChat(async ({ chat, to, scope, tickets, opened }) => {
+  const page = scope()
+  const tab = scope()
+  await run(chat.reading(to, { state: () => {}, transcript: () => {} }).pipe(Effect.provideService(Scope.Scope, page)))
+  await run(chat.holding(to).pipe(Effect.provideService(Scope.Scope, tab)))
+  await run(Scope.close(page, Exit.void))
+  await acrossHeldDeadlines(() => expect(chat.live().get("one")?.status).toBe("idle"))
+  expect(tickets()).toBe(1)
+  expect(opened()).toBe(1)
+  await run(Scope.close(tab, Exit.void))
+  await until("the released hold to allow reaping", () => chat.live().size === 0)
+  // Replaying a stale subscription after eviction is the live-reconnect race.
+  await run(chat.holding(to).pipe(Effect.provideService(Scope.Scope, scope())))
+  await acrossHeldDeadlines(() => expect(chat.live().size).toBe(0))
+  expect(tickets()).toBe(1)
+  expect(opened()).toBe(1)
+}), 10_000)
+
+test("a hold registered before a later wake counts once the slot exists", () => withHoldingChat(async ({ chat, to, scope, tickets }) => {
+  const first = scope()
+  const second = scope()
+  // Reusing the Effect still creates independent observers for each owner.
+  const hold = chat.holding(to)
+  await run(hold.pipe(Effect.provideService(Scope.Scope, first)))
+  await run(hold.pipe(Effect.provideService(Scope.Scope, second)))
+  expect(tickets()).toBe(0)
+  const page = scope()
+  await run(chat.reading(to, { state: () => {}, transcript: () => {} }).pipe(Effect.provideService(Scope.Scope, page)))
+  await run(Scope.close(page, Exit.void))
+  await run(Scope.close(first, Exit.void))
+  await acrossHeldDeadlines(() => expect(chat.live().get("one")?.status).toBe("idle"))
+  expect(tickets()).toBe(1)
+  await run(Scope.close(second, Exit.void))
+  await until("the last pre-registered hold to release", () => chat.live().size === 0)
+}), 10_000)

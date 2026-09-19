@@ -94,6 +94,8 @@ export const surface = defineSurface({
     },
   },
   streams: {
+    /** Subscription lifetime keeps a live scope read, but can never acquire one. */
+    holding: { inputSchema: Conversing, outputSchema: Schema.Null },
     state: { inputSchema: Conversing, outputSchema: ChatState, arrayKey: "name" },
     transcript: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
     saying: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
@@ -371,6 +373,7 @@ export const faces = {
   browser: {
     sessionsRevision: "resource",
     state: "resource",
+    holding: "resource",
     engines: "resource",
     agents: "resource",
     transcript: "resource",

@@ -10,9 +10,11 @@
  * `olai-plugin-tabs`' `attention` component is the consumer: it puts a dot on a
  * tab whose page is a conversation that needs you. What counts as "this page is
  * that conversation" is {@link isCurrent} — the same predicate the Chats
- * section lights a row with — so the two cannot disagree. Tabs also hands
- * `keep` its current node IDs through this service; chat resolves its own
- * roster and owns the state-only readings for those already-live conversations.
+ * section lights a row with — so the two cannot disagree.
+ *
+ * Tabs also hands `keep` its current node IDs through this service; chat
+ * resolves its own roster and owns non-acquiring wire holds. The server
+ * guarantees that those holds never wake a conversation.
  */
 import type { Accessor } from "solid-js"
 
@@ -29,7 +31,8 @@ export interface AttentionRow {
 }
 
 export interface Attention {
-  /** Keep already-live conversations read until release; never wake sleeping rows. */
+  /** Keep live conversations read without waking sleeping rows. Claims union;
+   * each idempotent release withdraws only its caller's claim. */
   readonly keep: (nodes: Accessor<ReadonlySet<string>>) => () => void
   readonly agents: {
     readonly rows: Accessor<ReadonlyArray<AttentionRow>>
