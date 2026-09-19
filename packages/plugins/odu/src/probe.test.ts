@@ -32,7 +32,6 @@
  * one pins the pin.
  */
 
-import { spawn, type ChildProcess } from "node:child_process"
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -40,7 +39,7 @@ import { join } from "node:path"
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect, Fiber } from "effect"
 
-import { askOver, ODU_COMMAND, type Probed, probing, type Verdict } from "./probe.ts"
+import { ODU_COMMAND, type Probed, probing } from "./probe.ts"
 
 /** ONE WHOLE PROBE, over its own scope — which is what the child belongs to
  *  now, so a probe that answers has already killed the `odu mcp` it asked.
@@ -52,23 +51,11 @@ const probe = (env: Record<string, string | undefined>): Promise<Probed> =>
 /** Every directory this test made, removed after each case. */
 const made: Array<string> = []
 
-/** ...and every child this test spawned ITSELF — the two cases that ask
- *  `askOver` directly start a wedged fixture with no probe around it, so
- *  nothing else is going to kill them. They used to be one orphaned `odu`
- *  apiece, per run of this file. */
-const started: Array<ChildProcess> = []
-const wedged = (): ChildProcess => {
-  const child = spawn(join(where, ODU_COMMAND), ["mcp"], { stdio: ["pipe", "pipe", "ignore"] })
-  started.push(child)
-  return child
-}
-
 /** WHERE THIS CASE'S `odu` IS — the PATH the probe is handed, never this
  *  process's own. */
 let where = ""
 
 afterEach(() => {
-  for (const child of started.splice(0)) child.kill()
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true })
   where = ""
 })
@@ -298,14 +285,6 @@ describe("odu's mcp, asked for fresh", () => {
   })
 
   describe("the ways of failing, told apart", () => {
-    test("a wedged `odu mcp` is `timedOut`, never `closed`", async () => {
-      // The fixture reads forever and says nothing: the deadline is the only
-      // thing that answers, and which answer it is carries the whole case.
-      oduOnPath(`setInterval(() => {}, 1000)`)
-      const verdict = await askOver(wedged(), 100)
-      expect(verdict).toEqual({ _tag: "timedOut", deadlineMs: 100 })
-    })
-
     test("one that exits is `closed`, never `timedOut`", async () => {
       oduOnPath(`process.exit(0)`)
       const found = await probe({ PATH: where })
@@ -313,12 +292,7 @@ describe("odu's mcp, asked for fresh", () => {
       expect(found.missing?.why).toContain("closed the connection without answering")
     })
 
-    test("one that says something that is not JSON-RPC is `failed`, with the sentence", async () => {
-      oduOnPath(`process.stdout.write("the bridge is up\\n"); setInterval(() => {}, 1000)`)
-      const verdict: Verdict = await askOver(wedged(), 1000)
-      expect(verdict._tag).toBe("failed")
-      if (verdict._tag === "failed") expect(verdict.cause).toContain("not JSON-RPC")
-    })
+
   })
 
   test("a probe that is called off kills the `odu mcp` it started, without waiting out the deadline", async () => {

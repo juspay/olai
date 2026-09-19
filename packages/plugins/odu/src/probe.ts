@@ -46,7 +46,6 @@
  */
 
 import { askStdioMcp, type Verdict } from "@olai/plugin-kit/stdio-mcp"
-export { askOver, type Verdict } from "@olai/plugin-kit/stdio-mcp"
 import { accessSync, constants } from "node:fs"
 import { delimiter, join } from "node:path"
 
@@ -235,7 +234,9 @@ export const probing = (
     const found = resolveOn(env["PATH"])
     if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
 
-    const verdict = yield* askStdioMcp({ command: found, args: ARGS, timeout: DEADLINE_MS })
+    // Keep the original process environment for the child. The supplied env
+  // selects the executable through PATH; it has never replaced its environment.
+  const verdict = yield* askStdioMcp({ command: found, args: ARGS, timeout: DEADLINE_MS })
 
     if (verdict._tag !== "answered") {
       return { server: null, missing: { name: ODU_COMMAND, where: found, why: whyOf(verdict) } }
