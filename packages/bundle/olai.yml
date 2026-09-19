@@ -251,7 +251,7 @@
 - id: vault-plugins
   name: olai-plugin-vault-plugins/server
   section: Vault
-  browser: olai-plugin-vault-plugins/browsing
+  browser: olai-plugin-vault-plugins/browser
   profiles: [surface]
 
 - id: outline-olai

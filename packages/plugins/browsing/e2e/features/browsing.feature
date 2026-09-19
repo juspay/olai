@@ -14,26 +14,35 @@ Feature: Conversations receive isolated web browser tools
     When I ask the agent "servers"
     Then the agent's answer mentions "browser"
     And the browser MCP has been probed 1 time with private scratch
-    When I mark the page
+    When I remember this conversation as "first"
+    And I start a fresh session
+    Then the panel is ready in a new conversation after "first"
+    When I ask the agent "servers"
+    Then the agent's answer mentions "browser"
+    And the browser MCP has been probed 2 times with private scratch
+    And two conversations have distinct private output directories
+    When I remember this conversation as "enabled"
+    And I mark the page
     When I open the plugins panel
     And I switch the plugin "browsing" off
     And I close the plugins panel
     Then the browser MCP scratch has been removed
-    When I open the "claude" agent on node "install"
-    And the node agent's fold is ready
+    When I start a fresh session
+    Then the panel is ready in a new conversation after "enabled"
     Then the chat is empty
     When I ask the agent "servers"
     Then the agent is idle
     And the agent's answer mentions "servers: [olai kolu odu]"
     And this conversation has no browser MCP server
-    When I open the plugins panel
+    When I remember this conversation as "disabled"
+    And I open the plugins panel
     And I switch the plugin "browsing" on
     And I close the plugins panel
-    And I open the "claude" agent on node "hinges"
-    And the node agent's fold is ready
+    And I start a fresh session
+    Then the panel is ready in a new conversation after "disabled"
     Then the chat is empty
     And the panel says this conversation has "browser"
-    And the browser MCP has been probed 2 times with private scratch
+    And the browser MCP has been probed 3 times with private scratch
     When I ask the agent "servers"
     Then the agent's answer mentions "browser"
     When the browser goes offline
@@ -43,7 +52,7 @@ Feature: Conversations receive isolated web browser tools
     And the overlay is gone
     When I ask the agent "servers"
     Then the agent's answer mentions "browser"
-    And the browser MCP has been probed 2 times with private scratch
+    And the browser MCP has been probed 3 times with private scratch
     And the page has not reloaded
     And there should be no page errors
 

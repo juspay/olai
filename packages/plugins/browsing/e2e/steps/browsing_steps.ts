@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { readFileSync, statSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Given, Then } from "@olai/tests/harness/runner.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
@@ -15,15 +15,23 @@ Given("the browser MCP fixture answers {string}", function (this: OlaiWorld, mod
 Then(/^the browser MCP has been probed (\d+) times? with private scratch$/, function (this: OlaiWorld, count: string) {
   const calls = probes(this)
   assert.equal(calls.length, Number(count))
-  const last = calls.at(-1)!
-  assert.deepEqual(last.args.slice(0, 3), ["--headless", "--isolated", "--output-dir"])
-  const output = last.args[3]!
-  assert.ok(output.startsWith(join(runtime(this), "olai-browser-")))
-  assert.equal(statSync(output).mode & 0o777, 0o700)
-  assert.ok(!output.startsWith(this.scratch() + "/"))
+  for (const call of calls) assert.deepEqual(call.args, ["--headless", "--isolated"])
+})
+const outputs = (world: OlaiWorld): string[] => readdirSync(runtime(world))
+  .filter(name => name.startsWith("olai-browser-"))
+  .flatMap(name => {
+    const root = join(runtime(world), name)
+    assert.equal(statSync(root).mode & 0o777, 0o700)
+    return readdirSync(root).map(child => join(root, child))
+  })
+Then("two conversations have distinct private output directories", function (this: OlaiWorld) {
+  const dirs = outputs(this)
+  assert.equal(dirs.length, 2)
+  assert.equal(new Set(dirs).size, 2)
+  for (const dir of dirs) assert.equal(statSync(dir).mode & 0o777, 0o700)
 })
 Then("the browser MCP scratch has been removed", function (this: OlaiWorld) {
-  for (const call of probes(this)) assert.equal(existsSync(call.args[3]!), false)
+  assert.deepEqual(outputs(this), [])
 })
 Then("this conversation has no browser MCP server", async function (this: OlaiWorld) {
   const names = await this.chatRoot().getByTestId(TESTID.chatServer).evaluateAll(rows => rows.map(row => row.getAttribute("data-server")))
