@@ -39,7 +39,7 @@ export const probing = (
   const detail = verdict.stderr.trim() ? ` Executable stderr: ${verdict.stderr.trim()}` : ""
   switch (verdict._tag) {
     case "couldNotStart": return missing(`Browser tools could not start: ${verdict.cause}.${detail}`)
-    case "timedOut": return missing(`Browser tools did not answer MCP within ${verdict.deadlineMs / 1000} seconds.`)
+    case "timedOut": return missing(`Browser tools did not answer MCP within ${verdict.deadlineMs / 1000} seconds.${detail}`)
     case "closed": return missing(`Browser tools closed the MCP connection without answering.${detail}`)
     case "failed": return missing(`Browser tools did not speak the expected MCP protocol: ${verdict.cause}.${detail}`)
   }

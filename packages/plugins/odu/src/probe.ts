@@ -235,8 +235,8 @@ export const probing = (
     if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
 
     // Keep the original process environment for the child. The supplied env
-  // selects the executable through PATH; it has never replaced its environment.
-  const verdict = yield* askStdioMcp({ command: found, args: ARGS, timeout: DEADLINE_MS })
+    // selects the executable through PATH; it has never replaced its environment.
+    const verdict = yield* askStdioMcp({ command: found, args: ARGS, timeout: DEADLINE_MS })
 
     if (verdict._tag !== "answered") {
       return { server: null, missing: { name: ODU_COMMAND, where: found, why: whyOf(verdict) } }

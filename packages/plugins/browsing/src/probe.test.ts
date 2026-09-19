@@ -118,3 +118,12 @@ test("an unexpected preparation defect becomes a missing sentence", async () => 
   expect(answer.server).toBeNull()
   expect(answer.missing?.why).toContain("Browser tools could not be prepared:")
 })
+
+
+test("the caller includes executable diagnostics in its startup sentence", async () => {
+  const { dir, exe } = fixture()
+  writeFileSync(exe, `#!${process.execPath}\nprocess.stderr.write("cannot find Chromium", () => process.exit(1))\n`)
+  const answer = await probe(exe, dir)
+  expect(answer.server).toBeNull()
+  expect(answer.missing?.why).toContain("Executable stderr: cannot find Chromium")
+})

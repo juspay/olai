@@ -31,7 +31,7 @@ Then("two conversations have distinct private output directories", function (thi
   for (const dir of dirs) assert.equal(statSync(dir).mode & 0o777, 0o700)
 })
 Then("the browser MCP scratch has been removed", function (this: OlaiWorld) {
-  assert.deepEqual(outputs(this), [])
+  assert.deepEqual(readdirSync(runtime(this)).filter(name => name.startsWith("olai-browser-")), [])
 })
 Then("this conversation has no browser MCP server", async function (this: OlaiWorld) {
   const names = await this.chatRoot().getByTestId(TESTID.chatServer).evaluateAll(rows => rows.map(row => row.getAttribute("data-server")))

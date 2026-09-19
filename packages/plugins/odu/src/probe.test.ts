@@ -18,9 +18,8 @@
  * missing VERB and a missing aim are TWO sentences, because they are
  * two different fixes; a wedged server and a hung-up one are told apart by
  * which verdict comes back (`timedOut` against a fixture that reads and never
- * answers, `closed` against one that exits); and a paginated `tools/list`
- * arrives whole, because the loop that asks for the next page is the sort of
- * code that rots unexercised.
+ * answers, `closed` against one that exits); the shared transport owns timeout, pagination and notification cases in
+ * plugin-kit. This file owns the judgement over the returned tools.
  *
  * AND WHAT THIS FILE CANNOT PIN, which is why it is not the only check on the
  * shape. Every `odu` here is a script this file wrote, so the surface it
@@ -253,32 +252,6 @@ describe("odu's mcp, asked for fresh", () => {
     oduOnPath(answering(handshake({
       tools: [...SURFACE.tools, tool("future_verb")],
     })))
-    const found = await probe({ PATH: where })
-    expect(found.missing).toBeNull()
-    expect(found.server).not.toBeNull()
-  })
-
-  test("`tools/list` that PAGES arrives whole — the loop, not the shape", async () => {
-    oduOnPath(`
-      const lines = require("node:readline").createInterface({ input: process.stdin })
-      let page = 0
-      lines.on("line", (line) => {
-        if (line.trim() === "") return
-        let message
-        try { message = JSON.parse(line) } catch { return }
-        if (message.id === undefined) return
-        if (message.id === 1) {
-          process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { protocolVersion: "2025-06-18" } }) + "\\n")
-          return
-        }
-        page += 1
-        const answers = ${JSON.stringify(SURFACE.tools)}
-        const half = Math.ceil(answers.length / 2)
-        const slice = page === 1 ? answers.slice(0, half) : answers.slice(half)
-        const next = page === 1 ? { nextCursor: "two" } : {}
-        process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools: slice, ...next } }) + "\\n")
-      })
-    `)
     const found = await probe({ PATH: where })
     expect(found.missing).toBeNull()
     expect(found.server).not.toBeNull()
