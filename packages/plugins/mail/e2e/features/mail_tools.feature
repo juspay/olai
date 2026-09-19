@@ -201,10 +201,12 @@ Feature: Reading and acting on Gmail in a conversation
     And the agent's answer mentions "connect one in"
     And the conversation has 9 mail refusal stories
     When I ask the agent "draft mail to ravi@example.com subject Hello saying Hello"
-    Then the conversation has 10 mail refusal stories
+    Then the mail refused story says "connect one in"
+    And the conversation has 10 mail refusal stories
     And the agent's answer mentions "connect one in"
     When I ask the agent "update mail draft draft_1 saying Hello again"
-    Then the conversation has 11 mail refusal stories
+    Then the mail refused story says "connect one in"
+    And the conversation has 11 mail refusal stories
     And the agent's answer mentions "connect one in"
     And the fake mailbox has received no tool calls
 
@@ -284,10 +286,18 @@ Feature: Reading and acting on Gmail in a conversation
     And the saved mail draft "draft_1" has header "To" equal to "ravi@example.com"
     And the saved mail draft "draft_1" has header "Subject" equal to "Café meetup"
     And the saved mail draft "draft_1" has body "Count me in"
+    And the mail draft "draft_1" was passed as a message file after the separator
+    And the mail draft "draft_1" message file is under the runtime directory
+    And the mail draft "draft_1" message file is gone
+    And the fake mailbox has received no send calls
     When I ask the agent "update mail draft draft_1 saying See you tomorrow"
     Then the mail draft_update story says "draft updated · Revised"
     And the saved mail draft "draft_1" has header "Subject" equal to "Revised"
     And the saved mail draft "draft_1" has body "See you tomorrow"
+    And the mail draft "draft_1" was passed as a message file after the separator
+    And the mail draft "draft_1" message file is under the runtime directory
+    And the mail draft "draft_1" message file is gone
+    And the fake mailbox has received no send calls
     And the fake mailbox has received no send calls
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
@@ -303,11 +313,25 @@ Feature: Reading and acting on Gmail in a conversation
     And the node agent's fold is ready
     When I ask the agent "draft reply to mail thread a2 saying Count me in"
     Then the mail draft story says "Re: Nix meetup"
-    And the saved mail draft "draft_1" has header "To" equal to "\"Ravi\" <ravi@example.com>"
+    And the saved mail draft "draft_1" has header "To" equal to "ravi@example.com"
     And the saved mail draft "draft_1" has header "In-Reply-To" equal to "<a21@example.com>"
     And the saved mail draft "draft_1" has header "References" equal to "<earlier@example.com> <a21@example.com>"
     And the saved mail draft "draft_1" belongs to thread "a2"
+    And the saved mail draft "draft_1" has no "Cc" header
+    And the saved mail draft "draft_1" has no "Bcc" header
     And the saved mail draft "draft_1" has body "Count me in"
+    And the mail draft "draft_1" was passed as a message file after the separator
+    And the mail draft "draft_1" message file is under the runtime directory
+    And the mail draft "draft_1" message file is gone
+    And the fake mailbox has received no send calls
+    When I ask the agent "update mail draft draft_1 on thread a2 saying See you tomorrow"
+    Then the mail draft_update story says "draft updated · Re: Nix meetup"
+    And the saved mail draft "draft_1" belongs to thread "a2"
+    And the saved mail draft "draft_1" has header "In-Reply-To" equal to "<a21@example.com>"
+    And the saved mail draft "draft_1" has header "References" equal to "<earlier@example.com> <a21@example.com>"
+    And the saved mail draft "draft_1" has body "See you tomorrow"
+    And the mail draft "draft_1" message file is gone
+    And the fake mailbox has received no send calls
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Missing reply thread cannot create a draft
@@ -357,4 +381,47 @@ Feature: Reading and acting on Gmail in a conversation
     When I ask the agent "update mail draft unknown saying Hello again"
     Then the mail refused story says "this draft is not in you@gmail.com"
     And the fake mailbox has received no drafts.create calls
+    And the fake mailbox has received no send calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: Following up on my own message uses its To recipients
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "draft reply to mail thread a6 saying Following up"
+    Then the mail draft story says "draft to ravi@example.com, jane@example.com · Re: Follow up"
+    And the saved mail draft "draft_1" has header "To" equal to "ravi@example.com, jane@example.com"
+    And the saved mail draft "draft_1" has no "Cc" header
+    And the saved mail draft "draft_1" belongs to thread "a6"
+    And the saved mail draft "draft_1" has header "In-Reply-To" equal to "<a62@example.com>"
+    And the saved mail draft "draft_1" has header "References" equal to "<a61@example.com> <a62@example.com>"
+    And the saved mail draft "draft_1" has body "Following up"
+    And the mail draft "draft_1" message file is gone
+    And the fake mailbox has received no send calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: Reply-all copies only the explicitly requested recipients
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "draft reply to mail thread a2 cc jane@example.com, team@example.com saying Count us in"
+    Then the mail draft story says "draft to ravi@example.com · Re: Nix meetup"
+    And the saved mail draft "draft_1" has header "To" equal to "ravi@example.com"
+    And the saved mail draft "draft_1" has header "Cc" equal to "jane@example.com, team@example.com"
+    And the saved mail draft "draft_1" has no "Bcc" header
+    And the saved mail draft "draft_1" belongs to thread "a2"
+    And the saved mail draft "draft_1" has body "Count us in"
+    And the mail draft "draft_1" message file is gone
     And the fake mailbox has received no send calls

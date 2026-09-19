@@ -14,7 +14,7 @@ const pagination = {
 }
 const names = Schema.Array(described("Label name as Gmail shows it; system labels use capitals: INBOX, UNREAD, STARRED, IMPORTANT.")).check(Schema.isMinLength(1), Schema.isMaxLength(10))
 const draftFields = {
-  to: Schema.optionalKey(Schema.Array(described("Recipient address or display name <address>. Required for new mail; replies default to the sender only."))),
+  to: Schema.optionalKey(Schema.Array(described("Recipient address or display name <address>. Required for new mail; Replies default to Reply-To or From; if you sent the last message, its To recipients."))),
   cc: Schema.optionalKey(Schema.Array(described("Explicit copy recipients, including for reply-all."))),
   bcc: Schema.optionalKey(Schema.Array(described("Blind copy recipients."))),
   subject: Schema.optionalKey(described("Required for new mail; replies default to Re: and the original subject.")),
@@ -37,11 +37,6 @@ export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>
     return { ...result.success, mail: verb }
   })
   const tools: ReadonlyArray<Tool> = [
-    calls("draft", "Draft mail", draftDescription, Schema.Struct(draftFields), true,
-      (_client: unknown, args) => perform("draft", args, mailbox.draft(args))),
-    calls("draft_update", "Update mail draft", "Full replacement: supply the complete recipients, subject and body again (or thread for reply defaults). " + draftDescription,
-      Schema.Struct({ ...draftFields, draft: described("Opaque Gmail draft id returned by mail_draft.").check(Schema.isPattern(/^[A-Za-z0-9_-]+$/)) }), true,
-      (_client: unknown, args) => perform("draft_update", args, mailbox.draft(args))),
     calls("inbox", "Read inbox", "List inbox threads." + manual, Schema.Struct({ ...pagination, unread: Schema.optionalKey(Schema.Boolean.annotate({ description: "Only unread threads when true." })) }), false,
       (_client: unknown, args) => perform("inbox", args, mailbox.list("inbox", args))),
     calls("search", "Search mail", "Search Gmail threads." + manual, Schema.Struct({ ...pagination, query: described("Gmail query, passed untouched."), includeSpamTrash: Schema.optionalKey(Schema.Boolean.annotate({ description: "Include spam and trash." })) }), false,
@@ -58,6 +53,11 @@ export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>
       (_client: unknown, args) => perform("label", args, mailbox.write("label", args))),
     calls("read", "Mark mail read", "Set whether a thread is read." + manual, Schema.Struct({ thread, read: Schema.Boolean.annotate({ description: "True marks read; false marks unread." }) }), true,
       (_client: unknown, args) => perform("read", args, mailbox.write("read", args))),
+    calls("draft", "Draft mail", draftDescription, Schema.Struct(draftFields), true,
+      (_client: unknown, args) => perform("draft", args, mailbox.draft(args))),
+    calls("draft_update", "Update mail draft", "Full replacement: supply the complete recipients, subject and body again (or thread for reply defaults). To keep a reply draft threaded, pass the same thread again. " + draftDescription,
+      Schema.Struct({ ...draftFields, draft: described("Opaque Gmail draft id returned by mail_draft.").check(Schema.isPattern(/^[A-Za-z0-9_-]+$/)) }), true,
+      (_client: unknown, args) => perform("draft_update", args, mailbox.draft(args))),
   ]
   return tools
 })
