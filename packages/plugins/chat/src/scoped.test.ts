@@ -775,3 +775,19 @@ test("a held history load leaves the live opening permit available", async () =>
     })))
   })
 })
+
+
+test("explicit navigation to a superseded session uses history despite a lagging binding", async () => {
+  await withLaggingBinding(async ({ chat, bind, read }) => {
+    const first = await run(chat.startAgentSession("one", "alpha"))
+    bind(first.session)
+    const live = await run(read(first.session))
+    const second = await run(chat.startAgentSession("one", "alpha"))
+    await run(chat.loadSession(first.agent, first.session))
+    // Navigation selects history for the foreground, without replacing the
+    // session held by the original live panel or rewriting the binding.
+    expect(chat.state().session?.id).toBe(first.session)
+    expect(live.state().session?.id).toBe(second.session)
+    expect(second.session).not.toBe(first.session)
+  })
+})

@@ -714,6 +714,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       yield* Effect.forEach([...closing.values()], Deferred.await, { discard: true })
     })
 
+    /** One routing rule for subscriptions and explicit navigation. Locate reads
+     * durable bindings; this permit reconciles that snapshot with replacements
+     * owned by the live slot. History work starts only after releasing it. */
+    const inNodeConversation = <A, E, R>(
+      place: NonNullable<Effect.Success<ReturnType<typeof locate>>>,
+      to: Conversing,
+      use: (slot: NodeSlot) => Effect.Effect<A, E, R>,
+    ): Effect.Effect<A, E | OpFailure, R> =>
+      working(place.node.id, place.history ? to : undefined, ({ slot }) => Effect.gen(function*() {
+        const current = yield* slot.opening.withPermit(Effect.gen(function*() {
+          if (!slot.history && slot.superseded.has(readingKey(to))) return null
+          return { value: yield* use(slot) }
+        }))
+        if (current !== null) return current.value
+        return yield* working(place.node.id, to, ({ slot: history }) =>
+          history.opening.withPermit(use(history)))
+      }))
+
     const reading: Chat["reading"] = (to, observer) => Effect.gen(function*() {
         yield* Effect.acquireRelease(Effect.sync(() => {
           const key = readingKey(to)
@@ -739,43 +757,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return panel
         }
         readerNodes.set(observer, place.node.id)
-        return yield* working(place.node.id, place.history ? to : undefined, ({ slot }) => {
-          const seed = (panel: Panel) => {
-            observer.state(panel.state())
-            observer.transcript({ ...empty, upserts: [...panel.entries()] })
-            return panel
+        return yield* inNodeConversation(place, to, slot => Effect.gen(function*() {
+          const state = slot.panel.state()
+          if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
+            // An agent's refusal is conversation state, not a broken wire.
+            // Keep the reader so Unopened can show it and retry explicitly.
+            slot.openingFor = to
+            yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
+              Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
+            )
           }
-          return Effect.gen(function*() {
-            const live = yield* slot.opening.withPermit(Effect.gen(function*() {
-              const state = slot.panel.state()
-              // Judge after acquiring the permit. A fresh-start may itself have
-              // queued ahead of this reader, and the durable binding may still
-              // name a session the live slot has already superseded.
-              if (!slot.history && slot.superseded.has(readingKey(to))) return null
-              if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
-                // An agent's refusal is conversation state, not a broken wire.
-                // Keep the reader so Unopened can show it and retry explicitly.
-                slot.openingFor = to
-                yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
-                  Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
-                )
-              }
-              if (!place.history) yield* flush(slot)
-              return seed(slot.panel)
-            }))
-            if (live !== null) return live
-            // The routing decision is complete. History has its own permit,
-            // process and credential; its load must not hold the live permit.
-            return yield* working(place.node.id, to, ({ slot: history }) =>
-              history.opening.withPermit(Effect.gen(function*() {
-                const current = history.panel.state()
-                if (current.session?.id !== to.session || agentIn(current)?.id !== to.agent || current.status === "gone") {
-                  yield* Effect.catch(history.panel.loadSession(to.agent, to.session), () => Effect.void)
-                }
-                return seed(history.panel)
-              })))
-          })
-        })
+          if (!slot.history) yield* flush(slot)
+          observer.state(slot.panel.state())
+          observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
+          return slot.panel
+        }))
       })
 
     return {
@@ -938,18 +934,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           activateRoot()
           return yield* root.loadSession(agent, session)
         }
-        return yield* working(
-          place.node.id,
-          place.history ? to : undefined,
-          ({ slot }) => Effect.gen(function*() {
-            activate(slot)
-            const state = slot.panel.state()
-            if (state.session?.id !== session || state.status === "gone") {
-              yield* slot.panel.loadSession(agent, session)
-            }
-            if (!place.history) yield* flush(slot)
-          }),
-        )
+        return yield* inNodeConversation(place, to, slot => Effect.gen(function*() {
+          activate(slot)
+          const state = slot.panel.state()
+          if (state.session?.id !== session || agentIn(state)?.id !== agent || state.status === "gone") {
+            yield* slot.panel.loadSession(agent, session)
+          }
+          if (!slot.history) yield* flush(slot)
+        }))
       }),
       reopen: foreground((panel) => panel.reopen),
       liveSessions: (agent) => nodeSessions(agent) ?? root.liveSessions(agent),

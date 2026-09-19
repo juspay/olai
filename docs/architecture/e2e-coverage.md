@@ -315,6 +315,8 @@ records successful replacements on the node slot and checks that record inside
 the node's opening permit. Superseded readers route to their own history scope
 after releasing the live permit. `scoped.test.ts` covers a completed fresh start
 with a lagging binding, a fresh start and late reader queued behind a third
-opener, and a held history load that leaves live opens available. Deferreds and
+opener, a held history load that leaves live opens available, and explicit navigation
+to a superseded session while the binding still lags. Subscriptions and explicit
+loads share the same permit-protected routing function. Deferreds and
 immediate forks establish ordering without sleeps; both stale-reader cases fail
 against the previous implementation. The same-node off/on workflow now passes end to end.
