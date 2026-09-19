@@ -1,0 +1,9 @@
+{
+  "mcp": [
+    "src/probe.ts",
+    "src/server.ts",
+    "src/surface.check.ts",
+    "src/testlib/fake-browser-mcp.ts"
+  ],
+  "//mcp": "MCP protocol and executable names, not the olai transport row."
+}

@@ -35,17 +35,8 @@
  * `checkout`" could say, because it also catches a `run_wait` that grew a
  * `checkout` back.
  *
- * ## Where the MCP chatter lives, and why it is this file
- *
- * kolu's probe rides `@kolu/detect` — a library kolu ships. No odu package
- * vendored here speaks `odu mcp`'s transport (`@odu/run-client` is the half a
- * CLIENT of a live run holds, and this probe is not one). The plumbing is
- * therefore HERE, as small as the protocol allows: newline-delimited JSON-RPC
- * on the child's pipes, two requests, one notification, done. It is written
- * collocated with the judgement rather than in `@olai/odu-client` because the
- * one thing that makes this probe odu's — WHICH tools must exist and what
- * aims each of them — is this plugin's expectation of the shape, and the
- * two halves that exist on kolu's side answer two questions on this one.
+ * The shared stdio transport is a stateless factory in @olai/plugin-kit.
+ * This plugin retains the verbs, their required inputs and every sentence.
  *
  * ## Why it is on the `./server` door and not on the manifest
  *
@@ -54,7 +45,7 @@
  * it is on this door.
  */
 
-import { spawn, type ChildProcess } from "node:child_process"
+import { askStdioMcp, type Verdict } from "@olai/plugin-kit/stdio-mcp"
 import { accessSync, constants } from "node:fs"
 import { delimiter, join } from "node:path"
 
@@ -150,12 +141,6 @@ const VERBS = {
  *  argued in. */
 const VERB_NAMES = Object.keys(VERBS) as ReadonlyArray<keyof typeof VERBS>
 
-/** odu's own `initialize` payload wants one — the newest one olai's tree
- *  carries (`@modelcontextprotocol/sdk`'s, one pin up). What the responder
- *  answers is its own business: the handshake is evidence that the protocol
- *  is spoken, not an assertion of a revision. */
-const PROTOCOL = "2025-06-18"
-
 /** The transport deadline, in milliseconds: cohort to kolu's own. A wedged
  *  `odu mcp` and an honest one reach distinction inside five seconds. */
 const DEADLINE_MS = 5_000
@@ -170,123 +155,6 @@ const DEADLINE_MS = 5_000
  * that the four ways of failing and the answer travel one channel so the
  * judgement is a fold and never a catch.
  */
-export type Verdict =
-  | {
-    /** It spoke MCP well enough to answer both questions. `inputs` is that
-     *  tool's `inputSchema` property NAMES, read at probe time — the names
-     *  rather than a boolean, because which key aims a verb is
-     *  {@link VERBS}'s to say and not this reader's. */
-    readonly _tag: "answered"
-    readonly tools: ReadonlyArray<{ readonly name: string; readonly inputs: ReadonlyArray<string> }>
-  }
-  /** The OS would not start it — the spawn call raised. */
-  | { readonly _tag: "couldNotStart"; readonly cause: string }
-  /** It never reached either answer inside the deadline. */
-  | { readonly _tag: "timedOut"; readonly deadlineMs: number }
-  /** Its pipes went away with no answer on them. */
-  | { readonly _tag: "closed" }
-  /** Writing to it, or parsing what came back, failed. */
-  | { readonly _tag: "failed"; readonly cause: string }
-
-/**
- * ASK ONE ALREADY-STARTED `odu mcp` — the two requests, with the deadline the
- * caller set.
- *
- * Exported for the reason `olai-plugin-kolu`'s `askOver` is: a wedged server
- * and one that hung up reach the same closed pipe, and only which verdict
- * comes back tells them apart — the case an integration test over {@link
- * probe} cannot afford to spend real seconds on, and the one a fixture
- * generator must reach for precisely.
- *
- * THE PROTOCOL: MCP's stdio transport is newline-DELIMITED JSON-RPC — one
- * message per line, no Content-Length wrapper. Two requests at a time is fine
- * because each holds an `id`, and a response's pairing with what it answers
- * is by id alone. `initialized` is a notification: no `id`, no answer.
- */
-export const askOver = async (child: ChildProcess, deadlineMs: number): Promise<Verdict> => {
-  const { stdout } = child
-  if (child.stdin === null || stdout === null) {
-    return { _tag: "couldNotStart", cause: "the child has no pipes to speak on" }
-  }
-  return await new Promise<Verdict>((resolve) => {
-    let buffer = ""
-    let done = false
-    const tools: Array<{ name: string; inputs: ReadonlyArray<string> }> = []
-    const finish = (verdict: Verdict): void => {
-      if (done) return
-      done = true
-      clearTimeout(timer)
-      resolve(verdict)
-    }
-    const timer = setTimeout(() => finish({ _tag: "timedOut", deadlineMs }), deadlineMs)
-    const send = (message: Record<string, unknown>): void => {
-      try {
-        child.stdin?.write(JSON.stringify(message) + "\n")
-      } catch (thrown) {
-        finish({ _tag: "failed", cause: String(thrown) })
-      }
-    }
-    child.on("error", (thrown) => finish({ _tag: "couldNotStart", cause: String(thrown) }))
-    child.on("exit", () => finish({ _tag: "closed" }))
-    stdout.on("data", (chunk: Buffer) => {
-      buffer += chunk.toString("utf8")
-      for (;;) {
-        const at = buffer.indexOf("\n")
-        if (at === -1) return
-        const line = buffer.slice(0, at).trim()
-        buffer = buffer.slice(at + 1)
-        if (line === "") continue
-        let message: Record<string, unknown>
-        try {
-          message = JSON.parse(line) as Record<string, unknown>
-        } catch (thrown) {
-          finish({ _tag: "failed", cause: `a line that is not JSON-RPC: ${String(thrown)}` })
-          return
-        }
-        // A NOTIFICATION carries no id; say nothing back and carry on.
-        if (message["id"] === undefined) continue
-        if (message["error"] !== undefined) {
-          finish({ _tag: "failed", cause: JSON.stringify(message["error"]) })
-          return
-        }
-        if (message["id"] === 1) {
-          // `initialize` answered: mark the session, ask for the surface.
-          send({ jsonrpc: "2.0", method: "notifications/initialized" })
-          send({ jsonrpc: "2.0", id: 2, method: "tools/list" })
-          continue
-        }
-        if (message["id"] === 2) {
-          const result = message["result"] as { tools?: Array<Record<string, unknown>>; nextCursor?: string } | undefined
-          for (const tool of result?.tools ?? []) {
-            const schema = tool["inputSchema"] as { properties?: Record<string, unknown> } | undefined
-            tools.push({
-              name: String(tool["name"]),
-              inputs: Object.keys(schema?.properties ?? {}),
-            })
-          }
-          const again = result?.nextCursor
-          if (typeof again === "string" && again !== "") {
-            send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: { cursor: again } })
-            continue
-          }
-          finish({ _tag: "answered", tools })
-          return
-        }
-      }
-    })
-    send({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: PROTOCOL,
-        capabilities: {},
-        clientInfo: { name: "olai", version: "0.1.0" },
-      },
-    })
-  })
-}
-
 /**
  * WHERE THE PROBED `odu` IS, or `null` for an answer of "nowhere".
  *
@@ -366,28 +234,9 @@ export const probing = (
     const found = resolveOn(env["PATH"])
     if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
 
-    // THE CHILD IS THE SCOPE'S, and the kill that used to sit on the happy path
-    // below is its release. It ran on every return `probe` had, so an abandoned
-    // probe never orphaned a server for longer than the deadline — but "for
-    // longer than the deadline" is a lifetime nobody wrote down, and an asking
-    // that is called off has no business holding an `odu mcp` open for another
-    // five seconds. Acquired and released together, so the spawn cannot land
-    // without its kill.
-    //
-    // The comment the kill carried is still the reason there IS one: the child
-    // outlives an answered probe by exactly this, because the probe's whole
-    // point is that the SESSION re-spawns the file it was handed rather than
-    // inheriting a second-hand server.
-    const child = yield* Effect.acquireRelease(
-      Effect.sync(() => spawn(found, [...ARGS], { stdio: ["pipe", "pipe", "ignore"] })),
-      (child) => Effect.sync(() => { child.kill() }),
-    )
-    // AND THE ASK IS INTERRUPTIBLE, which is the other half: a stopped fiber
-    // leaves this wait where it stands, so the release above runs at once
-    // rather than after the deadline. The promise underneath carries on with
-    // nobody listening and settles on the child's own `exit` — which the kill
-    // is what causes — so its timer is cleared on the way out.
-    const verdict = yield* Effect.promise(() => askOver(child, DEADLINE_MS))
+    // Keep the original process environment for the child. The supplied env
+    // selects the executable through PATH; it has never replaced its environment.
+    const verdict = yield* askStdioMcp({ command: found, args: ARGS, timeout: DEADLINE_MS })
 
     if (verdict._tag !== "answered") {
       return { server: null, missing: { name: ODU_COMMAND, where: found, why: whyOf(verdict) } }

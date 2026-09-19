@@ -1,0 +1,1 @@
+../../packages/plugins/browsing/docs.md

@@ -112,7 +112,12 @@ export interface Options extends PanelOptions {
 
 interface NodeSlot {
   uses: number
-  switching: boolean
+  /** Mute intermediate frames during a fresh-start transaction, including a
+   * failed one. This is not routing history: superseded records only successful
+   * replacements and remains meaningful after notification delivery resumes. */
+  mutingReaders: boolean
+  /** Successful replacements, keyed by engine and session; owned by this slot. */
+  readonly superseded: Set<string>
   openingFor: Conversing | null
   readingFor: Conversing | null
   readonly opening: Semaphore.Semaphore
@@ -449,20 +454,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                   slot.generation++
                 }
                 if (active.kind === "node" && active.slot === slot) panelOptions.onState(state)
-                if (!slot.switching) for (const reader of readingListeners(slot) ?? []) reader.state(state)
+                if (!slot.mutingReaders) for (const reader of readingListeners(slot) ?? []) reader.state(state)
                 onLive?.()
               },
               onTranscript: (change) => {
                 options.onConversationTranscript?.(slot.state, change)
                 if (active.kind === "node" && active.slot === slot) panelOptions.onTranscript(change)
-                if (!slot.switching) for (const reader of readingListeners(slot) ?? []) reader.transcript(change)
+                if (!slot.mutingReaders) for (const reader of readingListeners(slot) ?? []) reader.transcript(change)
               },
             }),
             (made) => made.stopWithReason(slot?.closeReason ?? "scope released"),
           ).pipe(Effect.provideService(Scope.Scope, scope), Effect.annotateLogs({ node }))
           slot = {
             uses: 1,
-            switching: false,
+            mutingReaders: false,
+            superseded: new Set(),
             openingFor: null,
             readingFor: null,
             opening: Semaphore.makeUnsafe(1),
@@ -711,6 +717,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       yield* Effect.forEach([...closing.values()], Deferred.await, { discard: true })
     })
 
+    /** One routing rule for subscriptions and explicit navigation. Locate reads
+     * durable bindings; this permit reconciles that snapshot with replacements
+     * owned by the live slot. History work starts only after releasing it. */
+    const inNodeConversation = <A, E, R>(
+      place: NonNullable<Effect.Success<ReturnType<typeof locate>>>,
+      to: Conversing,
+      use: (slot: NodeSlot) => Effect.Effect<A, E, R>,
+    ): Effect.Effect<A, E | OpFailure, R> =>
+      working(place.node.id, place.history ? to : undefined, ({ slot }) => Effect.gen(function*() {
+        const current = yield* slot.opening.withPermit(Effect.gen(function*() {
+          if (!slot.history && slot.superseded.has(readingKey(to))) return null
+          return { value: yield* use(slot) }
+        }))
+        if (current !== null) return current.value
+        return yield* working(place.node.id, to, ({ slot: history }) =>
+          history.opening.withPermit(use(history)))
+      }))
+
     const reading: Chat["reading"] = (to, observer) => Effect.gen(function*() {
         yield* Effect.acquireRelease(Effect.sync(() => {
           const key = readingKey(to)
@@ -736,25 +760,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return panel
         }
         readerNodes.set(observer, place.node.id)
-        return yield* working(place.node.id, place.history ? to : undefined, ({ slot }) =>
-          Effect.gen(function*() {
-
-            yield* slot.opening.withPermit(Effect.gen(function*() {
-              const state = slot.panel.state()
-              if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
-                // An agent's refusal is conversation state, not a broken wire.
-                // Keep the reader so Unopened can show it and retry explicitly.
-                slot.openingFor = to
-                yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
-                  Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
-                )
-              }
-              if (!place.history) yield* flush(slot)
-            }))
-            observer.state(slot.panel.state())
-            observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
-            return slot.panel
-          }))
+        return yield* inNodeConversation(place, to, slot => Effect.gen(function*() {
+          const state = slot.panel.state()
+          if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
+            // An agent's refusal is conversation state, not a broken wire.
+            // Keep the reader so Unopened can show it and retry explicitly.
+            slot.openingFor = to
+            yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
+              Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
+            )
+          }
+          if (!slot.history) yield* flush(slot)
+          observer.state(slot.panel.state())
+          observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
+          return slot.panel
+        }))
       })
 
     return {
@@ -872,19 +892,31 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             reason: `node ${node} is no longer available for an agent session`,
           }))
           : working(node, undefined, ({ slot }) =>
-            Effect.gen(function*() {
+            slot.opening.withPermit(Effect.gen(function*() {
               activate(slot)
               options.onConversationClosed?.(slot.state)
+              const previous = slot.state.session === null ? null : {
+                agent: agentIn(slot.state)?.id, session: slot.state.session.id,
+              }
               const before = [...slot.panel.entries()].map(([id]) => id)
               yield* Effect.acquireUseRelease(
-                Effect.sync(() => { slot.switching = true }),
+                Effect.sync(() => { slot.mutingReaders = true }),
                 () => slot.panel.newSession(agent),
-                () => Effect.sync(() => { slot.switching = false }),
+                () => Effect.sync(() => { slot.mutingReaders = false }),
               )
               const session = slot.panel.state().session
               if (session === null) return yield* new UsageFailure({
                 reason: `${agent} opened no conversation to bind to this node`,
               })
+              // Some adapters/fixtures may reuse an identity after changing
+              // engines. The newly opened pair is current, never superseded.
+              slot.superseded.delete(readingKey({ agent, session: session.id }))
+              if (previous?.agent !== undefined
+                && (previous.agent !== agent || previous.session !== session.id)) {
+                slot.superseded.add(readingKey({ agent: previous.agent, session: previous.session }))
+              }
+              // Retain old identities for this slot's lifetime: readers may
+              // already hold a binding snapshot when persistence catches up.
               // A harness may return the same identity for fresh start. Its
               // existing readers still need the new state and cleared replay.
               for (const reader of listeners(slot.state) ?? []) {
@@ -893,7 +925,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               }
               yield* flush(slot)
               return { agent, session: session.id }
-            })),
+            }))),
       chooseAgent: (agent) => {
         activateRoot()
         return root.chooseAgent(agent)
@@ -905,18 +937,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           activateRoot()
           return yield* root.loadSession(agent, session)
         }
-        return yield* working(
-          place.node.id,
-          place.history ? to : undefined,
-          ({ slot }) => Effect.gen(function*() {
-            activate(slot)
-            const state = slot.panel.state()
-            if (state.session?.id !== session || state.status === "gone") {
-              yield* slot.panel.loadSession(agent, session)
-            }
-            if (!place.history) yield* flush(slot)
-          }),
-        )
+        return yield* inNodeConversation(place, to, slot => Effect.gen(function*() {
+          activate(slot)
+          const state = slot.panel.state()
+          if (state.session?.id !== session || agentIn(state)?.id !== agent || state.status === "gone") {
+            yield* slot.panel.loadSession(agent, session)
+          }
+          if (!slot.history) yield* flush(slot)
+        }))
       }),
       reopen: foreground((panel) => panel.reopen),
       liveSessions: (agent) => nodeSessions(agent) ?? root.liveSessions(agent),
