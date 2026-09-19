@@ -38,13 +38,5 @@
   ],
   "vault-plugins": [
     "src/main.ts"
-  ],
-  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
-  "browser": [
-    "src/clientDist.ts",
-    "src/dial.ts",
-    "src/main.ts",
-    "src/runtime.ts",
-    "src/serve.ts"
   ]
 }

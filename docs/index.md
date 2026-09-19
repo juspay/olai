@@ -52,7 +52,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | --- | --- |
 | [plugins/chat.md](plugins/chat.md) | The conversation as a row, the `chat-agent-session` kind, and the seats it reserves. |
 | [plugins/kolu.md](plugins/kolu.md) | Terminals from kolu: the Dock row, the live pane, the events feed, and the doorbell. |
-| [plugins/browser.md](plugins/browser.md) | Isolated headless web browsing for chat agents, executable overrides and temporary artifacts. |
+| [plugins/browsing.md](plugins/browsing.md) | Isolated headless web browsing for chat agents, executable overrides and temporary artifacts. |
 | [plugins/odu.md](plugins/odu.md) | CI from odu: the run chip, the run matrix, and the doorbell. |
 | [plugins/xyne-spaces.md](plugins/xyne-spaces.md) | Mirroring doorbell digests into a Xyne Spaces channel. |
 | [plugins/mail.md](plugins/mail.md) | Gmail: connecting an account, reading and filing mail from a conversation, and acting on threads. |

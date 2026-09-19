@@ -87,6 +87,6 @@
     "olai-plugin-csv": "workspace:*",
     "olai-plugin-image": "workspace:*",
     "olai-plugin-pdf": "workspace:*",
-    "olai-plugin-browser": "workspace:*"
+    "olai-plugin-browsing": "workspace:*"
   }
 }

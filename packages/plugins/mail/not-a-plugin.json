@@ -25,10 +25,5 @@
     "src/himalaya/verbs.ts",
     "src/mailbox.ts",
     "src/tools.ts"
-  ],
-  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
-  "browser": [
-    "src/appliance/testlib/fake-google.ts",
-    "src/wire.ts"
   ]
 }

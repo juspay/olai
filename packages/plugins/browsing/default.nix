@@ -10,11 +10,11 @@ in
     path = executable;
   };
   checks = { tree }: {
-    surface = pkgs.runCommand "olai-plugin-browser-surface"
+    surface = pkgs.runCommand "olai-plugin-browsing-surface"
       { nativeBuildInputs = [ pkgs.bun ]; }
       ''
         cd ${tree}
-        bun packages/plugins/browser/src/surface.check.ts ${executable}
+        bun packages/plugins/browsing/src/surface.check.ts ${executable}
         mkdir -p $out
       '';
   };

@@ -24,11 +24,5 @@
   "vault": [
     "src/plugins.ts",
     "src/seal.ts"
-  ],
-  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
-  "browser": [
-    "src/host.ts",
-    "src/management.ts",
-    "src/plugins.ts"
   ]
 }

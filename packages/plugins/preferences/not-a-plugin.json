@@ -4,9 +4,5 @@
   ],
   "theme": [
     "src/Preferences.tsx"
-  ],
-  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
-  "browser": [
-    "src/Panel.tsx"
   ]
 }

@@ -1,1 +1,0 @@
-../../packages/plugins/browser/docs.md

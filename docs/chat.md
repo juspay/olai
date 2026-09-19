@@ -879,7 +879,7 @@ the existing scope lifecycle and tool boundaries.
 
 ## Web browser tools
 
-New conversations also receive the default-on [browser plugin](plugins/browser.md)'s
+New conversations also receive the default-on [browser plugin](plugins/browsing.md)'s
 Playwright MCP server when its executable answers the per-conversation probe.
 Every ACP engine gets the same headless, isolated browser handoff. Failed probes
 show the plugin's explanation in chat; an empty `OLAI_BROWSER_MCP` omits it.

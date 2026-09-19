@@ -2492,13 +2492,12 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
    *  by the assertions; real keys are corpus files, values the plugin words
    *  it may spell. */
   const ALLOWED: Record<string, ReadonlyArray<string> | string> = {
-    "// browser": "Existing browser build targets, test driver and Cordis graph half labels; not the browser MCP plugin. Exact file equality still applies.",
     "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu",
     "nix/kolu.nix": ["kolu", "mcp"],
     "// justfile": "kolu-deps names the framework pin; git/odu are tool names, files/pins are recipe names",
-    "justfile": ["git", "kolu", "odu", "files", "pins", "browser"],
+    "justfile": ["git", "kolu", "odu", "files", "pins"],
     "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary; the comments enumerate the wrapper-baked knobs (OLAI_ACP_*, OLAI_ODU_BIN, OLAI_HIMALAYA) so the wrap text explains itself",
-    "default.nix": ["claude#knob", "codex#knob", "pi#knob", "kolu", "odu#knob", "mail#knob", "pins", "browser"],
+    "default.nix": ["claude#knob", "codex#knob", "pi#knob", "kolu", "odu#knob", "mail#knob", "pins"],
     "// flake.nix": "the flake folds plugin Nix halves as flake outputs through the fold (kolu is the npins source name)",
     "flake.nix": ["kolu"],
     "// packages/bundle/default.nix": "the bundle fold names the framework's surface pin and the bundle's pin vocabulary",
@@ -2511,13 +2510,13 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
     "// scripts/check-hydrated-deps.sh": "names the pins directory the framework hydrate writes into",
     "scripts/check-hydrated-deps.sh": ["pins"],
     "// scripts/cordis-graph.ts": "walks plugin words to draw the cordis graph",
-    "scripts/cordis-graph.ts": ["ui-renderer", "layout", "browser"],
+    "scripts/cordis-graph.ts": ["ui-renderer", "layout"],
     "// scripts/test-shard.sh": "spells the git CLI and one odu-shaped perf bucket; per-member heavy-test weights come from each member's own test-weights.json",
-    "scripts/test-shard.sh": ["git", "odu", "files", "browser"],
+    "scripts/test-shard.sh": ["git", "odu", "files"],
     "// shell.nix": "the dev shell carries OLAI_KOLU_HYDRATE / OLAI_KOLU_EXTERNALS — harness constants outside any plugin's `olai.knobs`; the vault's OSS_OLAI_VAULT workspace import does not match `OLAI_VAULT` and is not a knob spelling",
     "shell.nix": ["kolu", "pins"],
     "// packages/tests/support/hooks.ts": "the e2e harness's per-tag setup spells the plugins its scenario tags drive (`@alerts`, `@markdown-paints`), the tool suites it exercises (git, files, search, capture), and the worker constants it seeds; its comments name OLAI_HIMALAYA so the mail row's knob counts. Section 13.3's prove-fence mutation (the `@pi` tag) lands here, so the file is checked, not blanked",
-    "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "mail#knob", "files", "capture", "markdown", "browser"],
+    "packages/tests/support/hooks.ts": ["alerts", "git", "search", "kolu", "odu", "mail", "mail#knob", "files", "capture", "markdown"],
     "// packages/tests/support/workers.ts": "the e2e harness's isolation loop reads the fold-derived KNOBS list and deletes every declared knob the wrapper could have baked; the mail row's door names travel beside it",
     "packages/tests/support/workers.ts": ["git", "odu", "mail", "mail#knob"],
   }

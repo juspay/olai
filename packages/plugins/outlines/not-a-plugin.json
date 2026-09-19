@@ -71,17 +71,5 @@
   "vault": [
     "src/server.ts",
     "src/tools.ts"
-  ],
-  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
-  "browser": [
-    "src/browser.tsx",
-    "src/browser/date/DatePicker.tsx",
-    "src/browser/date/pick.ts",
-    "src/browser/document-properties.tsx",
-    "src/browser/fold/refiling.ts",
-    "src/browser/palette/adapter.tsx",
-    "src/index.ts",
-    "src/server.ts",
-    "src/surface.ts"
   ]
 }

@@ -1,4 +1,4 @@
-@browser @scratch:chat
+@browsing @scratch:chat
 Feature: Conversations receive isolated web browser tools
   The executable is a scripted MCP double. These scenarios exercise ACP handoff
   and the visible failure and lifecycle paths without launching Chromium.
@@ -16,7 +16,7 @@ Feature: Conversations receive isolated web browser tools
     And the browser MCP has been probed 1 time with private scratch
     When I mark the page
     When I open the plugins panel
-    And I switch the plugin "browser" off
+    And I switch the plugin "browsing" off
     And I close the plugins panel
     Then the browser MCP scratch has been removed
     When I open the "claude" agent on node "install"
@@ -27,7 +27,7 @@ Feature: Conversations receive isolated web browser tools
     And the agent's answer mentions "servers: [olai kolu odu]"
     And this conversation has no browser MCP server
     When I open the plugins panel
-    And I switch the plugin "browser" on
+    And I switch the plugin "browsing" on
     And I close the plugins panel
     And I open the "claude" agent on node "hinges"
     And the node agent's fold is ready

@@ -16,17 +16,5 @@
   "//tabs": "A shortlist's Tab key, not the tabs row.",
   "tabs": [
     "src/client/keys.ts"
-  ],
-  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
-  "browser": [
-    "src/build.ts",
-    "src/client/main.tsx",
-    "src/client/preference.ts",
-    "src/client/wire.ts",
-    "src/host/boot-status.ts",
-    "src/host/bootstrap.ts",
-    "src/host/loading.ts",
-    "src/host/management.ts",
-    "src/host/runtime.ts"
   ]
 }

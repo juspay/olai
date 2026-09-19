@@ -1,6 +1,6 @@
 # Browser tools for chat agents
 
-The **browser** plugin is on by default. Each new conversation, with any ACP
+The **browsing** plugin is on by default. Each new conversation, with any ACP
 engine, receives a Playwright MCP server for browsing the web: navigation,
 clicking, typing, page snapshots and screenshots. It runs headless Chromium
 with an isolated in-memory profile. This browser is separate from the browser

@@ -63,7 +63,7 @@
         "@olai/web": "workspace:*",
         "effect": "4.0.0-rc.112",
         "olai-plugin-alerts": "workspace:*",
-        "olai-plugin-browser": "workspace:*",
+        "olai-plugin-browsing": "workspace:*",
         "olai-plugin-capture": "workspace:*",
         "olai-plugin-chat": "workspace:*",
         "olai-plugin-claude": "workspace:*",
@@ -264,8 +264,8 @@
         "@olai/tests": "workspace:*",
       },
     },
-    "packages/plugins/browser": {
-      "name": "olai-plugin-browser",
+    "packages/plugins/browsing": {
+      "name": "olai-plugin-browsing",
       "version": "0.1.0",
       "dependencies": {
         "@olai/plugin-api": "workspace:*",
@@ -2057,7 +2057,7 @@
 
     "olai-plugin-alerts": ["olai-plugin-alerts@workspace:packages/plugins/alerts"],
 
-    "olai-plugin-browser": ["olai-plugin-browser@workspace:packages/plugins/browser"],
+    "olai-plugin-browsing": ["olai-plugin-browsing@workspace:packages/plugins/browsing"],
 
     "olai-plugin-capture": ["olai-plugin-capture@workspace:packages/plugins/capture"],
 

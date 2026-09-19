@@ -251,7 +251,7 @@
 - id: vault-plugins
   name: olai-plugin-vault-plugins/server
   section: Vault
-  browser: olai-plugin-vault-plugins/browser
+  browser: olai-plugin-vault-plugins/browsing
   profiles: [surface]
 
 - id: outline-olai
@@ -286,6 +286,6 @@
   quiet: true
   profiles: [surface]
 
-- id: browser
-  name: olai-plugin-browser/server
+- id: browsing
+  name: olai-plugin-browsing/server
   section: Integrations

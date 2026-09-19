@@ -68,10 +68,5 @@
     "src/browser/agents/AgentPalette.ts",
     "src/browser/chat/outline.ts",
     "src/server.ts"
-  ],
-  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
-  "browser": [
-    "src/browser.tsx",
-    "src/wire.ts"
   ]
 }

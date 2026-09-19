@@ -124,9 +124,5 @@
     "src/validate.bench.ts",
     "src/vocabulary.bench.ts",
     "src/writing.ts"
-  ],
-  "//browser": "Existing browser platform, build target and face vocabulary; not the web-browsing MCP plugin. Exact files remain checked by the fence.",
-  "browser": [
-    "src/writing.ts"
   ]
 }
