@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Identity of a created or replaced Gmail draft.",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "message-id": {
+      "type": "string"
+    },
+    "thread-id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "message-id"
+  ],
+  "title": "GmailDraftWriteOutput",
+  "type": "object"
+}

@@ -18,6 +18,10 @@ export const storyOf = (reply: unknown): { kind: string; text: string } | null =
     const from = record(r.messages[0])?.from
     return { kind, text: `${r.subject} · ${typeof from === "string" ? from : ""} · ${r.messages.length} messages` }
   }
+  if (kind === "draft" || kind === "draft_update") {
+    if (!strings(r.to) || typeof r.subject !== "string") return null
+    return { kind, text: `${kind === "draft_update" ? "draft updated" : `draft to ${r.to.join(", ")}`} · ${r.subject}` }
+  }
   if (kind === "attachment") {
     if (typeof r.filename !== "string" || typeof r.bytes !== "number") return null
     return { kind, text: `${r.filename} · ${r.bytes >= 1024 ? `${Math.round(r.bytes / 102.4) / 10} KiB` : `${r.bytes} bytes`}` }

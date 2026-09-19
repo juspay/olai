@@ -392,12 +392,13 @@ test("rewrite moves what the token endpoint answers, on the same origin", async 
 
 test("every structured fake answer validates against the built Himalaya schemas", async () => {
   const { default: Ajv } = await import("ajv/dist/2020.js")
-  const { readFileSync, mkdtempSync, rmSync } = await import("node:fs")
+  const { readFileSync, writeFileSync, mkdtempSync, rmSync } = await import("node:fs")
   const { tmpdir } = await import("node:os")
   const { join } = await import("node:path")
   const { mailAnswer } = await import("./fake-himalaya.ts")
   const { GMAIL } = await import("../../himalaya/verbs.ts")
   const directory = mkdtempSync(join(tmpdir(), "mail-schema-test-"))
+  writeFileSync(join(directory, "message.eml"), "To: r@example.com\r\nSubject: Hello\r\n\r\naGVsbG8=\r\n")
   const ajv = new Ajv({ strict: false, validateFormats: false })
   try {
     for (const [verb, args] of [
@@ -405,6 +406,8 @@ test("every structured fake answer validates against the built Himalaya schemas"
       [GMAIL.threadsGet, ["a3", "--format", "full"]],
       [GMAIL.threadsGet, ["a2", "--format", "metadata"]],
       [GMAIL.labelsList, []],
+      [GMAIL.draftsCreate, ["--", join(directory, "message.eml")]],
+      [GMAIL.draftsUpdate, ["draft_1", "--thread-id", "a2", "--", join(directory, "message.eml")]],
       [GMAIL.historyList, ["--start-history-id", "100", "--label-id", "INBOX", "--history-type", "messageAdded", "-s", "500"]],
     ] as const) {
       const schema = JSON.parse(readFileSync(new URL(`../../himalaya/schemas/himalaya-gmail-${verb.id.replace(".", "-")}.json`, import.meta.url), "utf8"))
@@ -441,5 +444,17 @@ test("history retains arrival labels and thread ids, pages, and expires", async 
     expect(second.next_page).toBeNull()
     fake.expireHistory()
     expect((await run(fake, himalayaArgv(config, GMAIL.historyList.path, args))).stdout).toContain("404")
+  } finally { await fake.stop() }
+})
+
+test("neither messages send nor drafts send is in the table or accepted by the fake", async () => {
+  const { fake, config } = await startedFake({ mailbox: true, profile: { email: EMAIL } })
+  try {
+    expect(fake.speaks.some(verb => verb.endsWith(".send"))).toBe(false)
+    for (const group of ["messages", "drafts"]) {
+      const answer = await run(fake, himalayaArgv(config, ["gmail", group, "send"], ["draft_1"]))
+      expect(answer.code).toBe(2)
+      expect(answer.stderr).toContain("unrecognized subcommand")
+    }
   } finally { await fake.stop() }
 })

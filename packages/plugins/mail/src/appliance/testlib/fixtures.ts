@@ -111,7 +111,7 @@ export const fixtureNamed = <T>(
 export const LABELS = { labels: ["INBOX", "UNREAD", "STARRED", "IMPORTANT", "TRASH", "SPAM"].map(name => ({ id: name, name })).concat([{ id: "Label_1", name: "waiting" }, { id: "Label_2", name: "newsletters" }]) }
 const message = (id: string, subject: string, labels: string[], html = false, attachment = false) => ({
   id, "label-ids": labels, snippet: subject,
-  headers: [{ name: "Subject", value: subject }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "To", value: ADDRESS }, { name: "Date", value: "Tue, 15 Sep 2026 10:00:00 +0000" }],
+  headers: [{ name: "Message-ID", value: `<${id}@example.com>` }, { name: "References", value: "<earlier@example.com>" }, { name: "Subject", value: subject }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "To", value: ADDRESS }, { name: "Date", value: "Tue, 15 Sep 2026 10:00:00 +0000" }],
   payload: { mimeType: "multipart/mixed", parts: [
     { mimeType: html ? "text/html" : "text/plain", filename: "", body: { size: 24, data: Buffer.from(html ? "<p>Meetup on October 2</p>" : subject).toString("base64url") } },
     ...(attachment ? [{ mimeType: "application/pdf", filename: "invoice.pdf", body: { attachmentId: "attachment_1", size: 12288 } }] : []),
@@ -122,5 +122,16 @@ export const THREADS = [
   { id: "a2", messages: [message("a21", "Nix meetup", ["INBOX"], true)] },
   { id: "a3", messages: [message("a31", "Invoice conversation", ["INBOX"]), message("a32", "Re: Invoice conversation", ["INBOX"], false, true)] },
   { id: "a4", messages: [message("a41", "Archived newsletter", [])] },
+  { id: "a6", messages: [message("a61", "Follow up", []), {
+    ...message("a62", "Re: Follow up", []),
+    headers: [
+      { name: "Message-ID", value: "<a62@example.com>" },
+      { name: "References", value: "<a61@example.com>" },
+      { name: "Subject", value: "Re: Follow up" },
+      { name: "From", value: "My Name <YOU@GMAIL.COM>" },
+      { name: "To", value: '=?UTF-8?B?UmF2aQ==?= <ravi@example.com>, "Doe, Jane" <jane@example.com>' },
+      { name: "Reply-To", value: "my-other-address@example.com" },
+    ],
+  }] },
   { id: "a5", messages: [message("a51", "Waiting for reply", ["Label_1"])] },
 ]
