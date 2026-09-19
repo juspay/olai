@@ -7,7 +7,7 @@
  * releases its process credential before the next wake acquires another.
  */
 
-import type { NodeAgent } from "@olai/format"
+import type { NodeAgent, OpFailure } from "@olai/format"
 import { collector } from "@olai/log/testlib"
 import { afterEach, beforeEach, expect, test } from "bun:test"
 import { Deferred, Effect, Exit, Fiber, References, Scope } from "effect"
@@ -666,64 +666,112 @@ test("filing clears old manual wakes and trash releases a running node", async (
 })
 
 
-test("a reader overtaken by fresh-start cannot load its old session over the replacement", async () => {
+/** The node binding deliberately lags behind the live slot. Probes can be
+ * held with Deferreds so the tests choose ordering without wall-clock sleeps. */
+const withLaggingBinding = async (use: (bench: {
+  chat: Effect.Success<ReturnType<typeof make>>
+  bind: (session: string) => void
+  probe: (ask: Effect.Effect<void>) => void
+  read: (session: string) => Effect.Effect<Effect.Success<ReturnType<typeof makePanel>>, OpFailure>
+}) => Promise<void>) => {
   const { run, fork } = logging()
   let node: NodeAgent = {
     id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2,
   }
-  const reached = await run(Deferred.make<void>())
-  const release = await run(Deferred.make<void>())
-  let delay = false
+  let ask: Effect.Effect<void> = Effect.void
   const tab = Scope.makeUnsafe()
   const chat = await run(make({
-    fork,
-    roster: () => [seated(installed("alpha"))],
-    cwd,
-    tools: () => null,
+    fork, roster: () => [seated(installed("alpha"))], cwd, tools: () => null,
     probes: () => Effect.succeed([{
       name: "fixture",
-      ask: Effect.gen(function*() {
-        if (delay) {
-          yield* Deferred.succeed(reached, undefined)
-          yield* Deferred.await(release)
-        }
-        return { server: null, missing: null }
-      }),
+      ask: Effect.suspend(() => ask).pipe(Effect.as({ server: null, missing: null })),
     }]),
     nodeAt: id => id === node.id ? node : null,
     seatableAt: id => id === node.id,
-    nodes: () => [node],
-    wake: () => undefined,
+    nodes: () => [node], wake: () => undefined,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: to => to.agent === node.engine && to.session === node.session ? node : null,
     ticket: () => ({ bearer: "ticket-one", release: () => {} }),
-    onState: () => {},
-    onTranscript: () => {},
+    onState: () => {}, onTranscript: () => {},
   }))
   try {
     await run(chat.start)
-    const first = await run(chat.startAgentSession(node.id, node.engine))
-    node = { ...node, session: first.session }
-    delay = true
-    await run(Effect.scoped(Effect.gen(function*() {
-      const fresh = yield* Effect.forkChild(chat.startAgentSession(node.id, node.engine))
-      yield* Deferred.await(reached)
-      const oldReader = yield* Effect.forkChild(chat.reading(first, {
+    await use({
+      chat,
+      bind: session => { node = { ...node, session } },
+      probe: next => { ask = next },
+      read: session => chat.reading({ agent: "alpha", session }, {
         state: () => {}, transcript: () => {},
-      }).pipe(Effect.provideService(Scope.Scope, tab)))
-      // Give the reader its turn while the fresh probe deliberately holds the
-      // opening. Both calls used to queue on different permits and race here.
-      yield* Effect.sleep("20 millis")
-      yield* Deferred.succeed(release, undefined)
-      const second = yield* Fiber.join(fresh)
-      node = { ...node, session: second.session }
-      const history = yield* Fiber.join(oldReader)
-      expect(second.session).not.toBe(first.session)
-      expect(history.state().session?.id).toBe(first.session)
-      expect(chat.state().session?.id).toBe(second.session)
-    })))
+      }).pipe(Effect.provideService(Scope.Scope, tab)),
+    })
   } finally {
     await run(Scope.close(tab, Exit.void))
     await run(chat.stop)
   }
+}
+
+test("a completed fresh-start routes a reader of the lagging binding to history", async () => {
+  await withLaggingBinding(async ({ chat, bind, read }) => {
+    const first = await run(chat.startAgentSession("one", "alpha"))
+    bind(first.session)
+    const second = await run(chat.startAgentSession("one", "alpha"))
+    const history = await run(read(first.session))
+    expect(history.state().session?.id).toBe(first.session)
+    expect(chat.state().session?.id).toBe(second.session)
+    expect(second.session).not.toBe(first.session)
+  })
+})
+
+test("a fresh-start queued behind a third opener supersedes the late reader's session", async () => {
+  await withLaggingBinding(async ({ chat, bind, read, probe }) => {
+    bind("stored")
+    await run(Effect.scoped(Effect.gen(function*() {
+      const reached = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      probe(Effect.gen(function*() {
+        probe(Effect.void)
+        yield* Deferred.succeed(reached, undefined)
+        yield* Deferred.await(release)
+      }))
+      const third = yield* Effect.forkChild(read("stored"), { startImmediately: true })
+      yield* Deferred.await(reached)
+      // Immediate forks run to their first suspension: both queue on the live
+      // opening permit, in this order, while the third opener holds it.
+      const fresh = yield* Effect.forkChild(chat.startAgentSession("one", "alpha"), { startImmediately: true })
+      const late = yield* Effect.forkChild(read("stored"), { startImmediately: true })
+      yield* Deferred.succeed(release, undefined)
+      yield* Fiber.join(third)
+      const second = yield* Fiber.join(fresh)
+      const history = yield* Fiber.join(late)
+      expect(history.state().session?.id).toBe("stored")
+      expect(chat.state().session?.id).toBe(second.session)
+      expect(second.session).not.toBe("stored")
+    })))
+  })
+})
+
+test("a held history load leaves the live opening permit available", async () => {
+  await withLaggingBinding(async ({ chat, bind, read, probe }) => {
+    const first = await run(chat.startAgentSession("one", "alpha"))
+    bind(first.session)
+    await run(chat.startAgentSession("one", "alpha"))
+    await run(Effect.scoped(Effect.gen(function*() {
+      const reached = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      probe(Effect.gen(function*() {
+        probe(Effect.void)
+        yield* Deferred.succeed(reached, undefined)
+        yield* Deferred.await(release)
+      }))
+      const history = yield* Effect.forkChild(read(first.session), { startImmediately: true })
+      yield* Deferred.await(reached)
+      // Completion, while history remains held, proves permit independence.
+      // The timeout only bounds a regression; it does not arrange the order.
+      const next = yield* chat.startAgentSession("one", "alpha").pipe(Effect.timeout("2 seconds"))
+      expect(chat.state().session?.id).toBe(next.session)
+      yield* Deferred.succeed(release, undefined)
+      expect((yield* Fiber.join(history)).state().session?.id).toBe(first.session)
+      expect(chat.state().session?.id).toBe(next.session)
+    })))
+  })
 })

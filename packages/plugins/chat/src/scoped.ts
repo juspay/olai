@@ -113,6 +113,8 @@ export interface Options extends PanelOptions {
 interface NodeSlot {
   uses: number
   switching: boolean
+  /** Successful replacements, keyed by engine and session; owned by this slot. */
+  readonly superseded: Set<string>
   openingFor: Conversing | null
   readingFor: Conversing | null
   readonly opening: Semaphore.Semaphore
@@ -463,6 +465,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           slot = {
             uses: 1,
             switching: false,
+            superseded: new Set(),
             openingFor: null,
             readingFor: null,
             opening: Semaphore.makeUnsafe(1),
@@ -737,42 +740,41 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }
         readerNodes.set(observer, place.node.id)
         return yield* working(place.node.id, place.history ? to : undefined, ({ slot }) => {
-          // A reconnect may still name the old binding while fresh-start is
-          // opening its replacement. Remember that overlap BEFORE waiting:
-          // binding persistence follows the open, so its old value alone cannot
-          // authorize loading the old session over the one just minted.
-          const overtaken = slot.switching
           const seed = (panel: Panel) => {
             observer.state(panel.state())
             observer.transcript({ ...empty, upserts: [...panel.entries()] })
             return panel
           }
-          return slot.opening.withPermit(Effect.gen(function*() {
-            const state = slot.panel.state()
-            if (overtaken && !place.history && state.session !== null
-              && (state.session.id !== to.session || agentIn(state)?.id !== to.agent)) {
-              // History has its own process and credential. A late reader can
-              // refuse an unsaved old session without touching the new one.
-              return yield* working(place.node.id, to, ({ slot: history }) =>
-                history.opening.withPermit(Effect.gen(function*() {
-                  const current = history.panel.state()
-                  if (current.session?.id !== to.session || agentIn(current)?.id !== to.agent || current.status === "gone") {
-                    yield* Effect.catch(history.panel.loadSession(to.agent, to.session), () => Effect.void)
-                  }
-                  return seed(history.panel)
-                })))
-            }
-            if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
-              // An agent's refusal is conversation state, not a broken wire.
-              // Keep the reader so Unopened can show it and retry explicitly.
-              slot.openingFor = to
-              yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
-                Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
-              )
-            }
-            if (!place.history) yield* flush(slot)
-            return seed(slot.panel)
-          }))
+          return Effect.gen(function*() {
+            const live = yield* slot.opening.withPermit(Effect.gen(function*() {
+              const state = slot.panel.state()
+              // Judge after acquiring the permit. A fresh-start may itself have
+              // queued ahead of this reader, and the durable binding may still
+              // name a session the live slot has already superseded.
+              if (!slot.history && slot.superseded.has(readingKey(to))) return null
+              if (state.session?.id !== to.session || agentIn(state)?.id !== to.agent || state.status === "gone") {
+                // An agent's refusal is conversation state, not a broken wire.
+                // Keep the reader so Unopened can show it and retry explicitly.
+                slot.openingFor = to
+                yield* Effect.catch(slot.panel.loadSession(to.agent, to.session), () => Effect.void).pipe(
+                  Effect.ensuring(Effect.sync(() => { slot.openingFor = null })),
+                )
+              }
+              if (!place.history) yield* flush(slot)
+              return seed(slot.panel)
+            }))
+            if (live !== null) return live
+            // The routing decision is complete. History has its own permit,
+            // process and credential; its load must not hold the live permit.
+            return yield* working(place.node.id, to, ({ slot: history }) =>
+              history.opening.withPermit(Effect.gen(function*() {
+                const current = history.panel.state()
+                if (current.session?.id !== to.session || agentIn(current)?.id !== to.agent || current.status === "gone") {
+                  yield* Effect.catch(history.panel.loadSession(to.agent, to.session), () => Effect.void)
+                }
+                return seed(history.panel)
+              })))
+          })
         })
       })
 
@@ -894,6 +896,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             slot.opening.withPermit(Effect.gen(function*() {
               activate(slot)
               options.onConversationClosed?.(slot.state)
+              const previous = slot.state.session === null ? null : {
+                agent: agentIn(slot.state)?.id, session: slot.state.session.id,
+              }
               const before = [...slot.panel.entries()].map(([id]) => id)
               yield* Effect.acquireUseRelease(
                 Effect.sync(() => { slot.switching = true }),
@@ -904,6 +909,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               if (session === null) return yield* new UsageFailure({
                 reason: `${agent} opened no conversation to bind to this node`,
               })
+              // Some adapters/fixtures may reuse an identity after changing
+              // engines. The newly opened pair is current, never superseded.
+              slot.superseded.delete(readingKey({ agent, session: session.id }))
+              if (previous?.agent !== undefined
+                && (previous.agent !== agent || previous.session !== session.id)) {
+                slot.superseded.add(readingKey({ agent: previous.agent, session: previous.session }))
+              }
+              // Retain old identities for this slot's lifetime: readers may
+              // already hold a binding snapshot when persistence catches up.
               // A harness may return the same identity for fresh start. Its
               // existing readers still need the new state and cleared replay.
               for (const reader of listeners(slot.state) ?? []) {

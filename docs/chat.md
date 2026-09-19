@@ -45,7 +45,11 @@ migrating the node. With multiple startable engines, its menu puts the current
 engine first, then the rest of the standing table in bundle order, with missing
 engines disabled. The row menu lists one **Fresh start — <engine>** entry per
 available engine. Picking one supersedes the conversation onto that engine:
-history follows the node across engines in both directions.
+history follows the node across engines in both directions. A tab reconnecting
+with the previous conversation after a fresh start reads that conversation as
+history; it never replaces the node's new live session. This also holds while
+the saved node binding is catching up with the completed fresh start. Loading
+that history does not block another fresh start on the live conversation.
 
 The list itself:
 

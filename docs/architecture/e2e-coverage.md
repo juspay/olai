@@ -311,7 +311,10 @@ The same-node toggle case exposed a product race: a reconnecting reader for the
 old binding could enqueue `session/load` while fresh-start was still opening.
 It then replaced the new session, forcing a second load of that unprompted id.
 The persistent ACP fixture correctly refuses such unsaved sessions. Chat now
-serializes those opens on the node's opening permit and routes an overtaken old
-reader to its own history scope. `scoped.test.ts` reproduces the interleaving with
-a held probe and proves the new session remains current; the test fails against
-the previous implementation. The same-node off/on workflow now passes end to end.
+records successful replacements on the node slot and checks that record inside
+the node's opening permit. Superseded readers route to their own history scope
+after releasing the live permit. `scoped.test.ts` covers a completed fresh start
+with a lagging binding, a fresh start and late reader queued behind a third
+opener, and a held history load that leaves live opens available. Deferreds and
+immediate forks establish ordering without sleeps; both stale-reader cases fail
+against the previous implementation. The same-node off/on workflow now passes end to end.
