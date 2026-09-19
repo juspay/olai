@@ -153,9 +153,14 @@ export const askStdioMcp = (options: {
   readonly timeout: number
 }): Effect.Effect<Verdict, never, Scope.Scope> => Effect.gen(function*() {
   const child = yield* Effect.acquireRelease(
-    Effect.sync(() => spawn(options.command, [...options.args], {
-      stdio: ["pipe", "pipe", "pipe"], ...(options.env === undefined ? {} : { env: options.env }),
-    })),
+    // Only an exception from spawn is evidence that the OS could not start
+    // the child. A defect in our interrogation is not an executable diagnosis.
+    Effect.try({
+      try: () => spawn(options.command, [...options.args], {
+        stdio: ["pipe", "pipe", "pipe"], ...(options.env === undefined ? {} : { env: options.env }),
+      }),
+      catch: cause => ({ _tag: "couldNotStart" as const, cause: String(cause), stderr: "" }),
+    }),
     child => Effect.promise(() => new Promise<void>(resolve => {
       if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) { resolve(); return }
       child.once("close", () => resolve())
@@ -166,6 +171,4 @@ export const askStdioMcp = (options: {
     })),
   )
   return yield* Effect.promise(signal => askOver(child, options.timeout, signal))
-}).pipe(Effect.catchDefect(cause => Effect.succeed({
-  _tag: "couldNotStart" as const, cause: String(cause), stderr: "",
-})))
+}).pipe(Effect.catch(verdict => Effect.succeed(verdict)))

@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test"
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { Effect, Fiber } from "effect"
+import { Cause, Effect, Exit, Fiber } from "effect"
 import { askStdioMcp } from "./stdio-mcp.ts"
 
 // Each fixture is a process speaking over real pipes; its directory belongs
@@ -85,4 +85,23 @@ test("notifications do not answer the question and paginated tools arrive whole"
     _tag: "answered", stderr: "",
     tools: [{ name: "one", inputs: ["aim"] }, { name: "two", inputs: ["aim"] }],
   })
+})
+
+
+test("a synchronous spawn exception is classified only at the spawn boundary", async () => {
+  const answer = await Effect.runPromise(Effect.scoped(askStdioMcp({
+    command: "invalid\0command", args: [], timeout: 500,
+  })))
+  expect(answer._tag).toBe("couldNotStart")
+})
+
+
+test("an interrogation defect is not reported as an OS spawn failure", async () => {
+  const { options } = fixture("setInterval(() => {}, 1000)")
+  const exit = await Effect.runPromise(Effect.exit(Effect.scoped(askStdioMcp({
+    ...options,
+    get timeout(): number { throw new Error("interrogation bug") },
+  }))))
+  expect(Exit.isFailure(exit)).toBe(true)
+  if (Exit.isFailure(exit)) expect(Cause.pretty(exit.cause)).toContain("interrogation bug")
 })
