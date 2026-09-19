@@ -8,7 +8,7 @@ The user page is [`docs.md`](docs.md), served at `docs/plugins/mail.md`.
 
 ## The name is spelled once
 
-`name = "mail"` sits in [`src/wire.ts`](src/wire.ts) beside the members. One cell, `account`, composes to `surface/mail/account/get` — whether this serve holds a Gmail authorization, in three states (`absent` / `connected` / `fault`) — and two browser-only procedures, `connect.begin` and `connect.disconnect`. A connect is a person at a panel; an agent acting as the mailbox is what the read tools are for. The nine tools are registered through the shared mailbox.
+`name = "mail"` sits in [`src/wire.ts`](src/wire.ts) beside the members. One cell, `account`, composes to `surface/mail/account/get` — whether this serve holds a Gmail authorization, in three states (`absent` / `connected` / `fault`) — and two browser-only procedures, `connect.begin` and `connect.disconnect`. A connect is a person at a panel; an agent acting as the mailbox is what the read tools are for. The eleven tools are registered through the shared mailbox.
 
 The state machine that moves between the three arms is [`src/account.ts`](src/account.ts): a boot, a callback the passive route lands, a disconnect, and one fiber that refreshes the access token five minutes before it expires.
 
@@ -25,6 +25,6 @@ Code doors: `./wire`, `./server`, `./browser`, `./appliance/testlib` — and the
 
 ## Inbox wakes and scope
 
-The nine tools and the conversation strip's **wake on new mail** switch complete the inbox-zero loop. Chat stores the browser's opaque `true` pick and issues revocable recipients through `Deliveries.scopes()`. `watch.ts` owns history paging and pending digests; the memory door persists the cursor alongside OAuth state. The optional cadence component reads the declared configuration service and updates the activation's poll control. Sending, drafts, permanent delete and live filed-thread properties are excluded.
+The eleven tools and the conversation strip's **wake on new mail** switch complete the inbox-zero loop. Chat stores the browser's opaque `true` pick and issues revocable recipients through `Deliveries.scopes()`. `watch.ts` owns history paging and pending digests; the memory door persists the cursor alongside OAuth state. The optional cadence component reads the declared configuration service and updates the activation's poll control. Sending, draft list/delete, permanent delete and live filed-thread properties are excluded.
 
-The plugin’s `default.nix` applies the local MIME payload and history-message patches. The latter preserves thread ids and labels in history JSON for inbox wakes; `src/himalaya/surface.check.ts` checks both against the built binary’s schemas.
+The plugin’s `default.nix` applies the local MIME payload, history-message and draft-output patches. The latter preserves thread ids and labels in history JSON for inbox wakes; `src/himalaya/surface.check.ts` checks all three against the built binary’s schemas.

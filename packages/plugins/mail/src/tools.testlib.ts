@@ -1,3 +1,4 @@
+import { writeFileSync, rmSync } from "node:fs"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -21,7 +22,11 @@ export const harness = <A>(use: (h: {
   const calls: Run[] = []
   const runner: Himalaya = {
     binary: "/fake", useToken: () => Effect.void, close: async () => {},
-    run: call => Effect.sync(() => { calls.push(call); return mailAnswer(call.verb, call.args ?? [], root, stale) }).pipe(Effect.flatMap(answer => answer.code ? Effect.fail(new MailRefusal({ reason: JSON.parse(answer.stdout).error })) : Effect.succeed(JSON.parse(answer.stdout)))),
+    run: call => Effect.sync(() => { calls.push(call)
+      const file = join(root, "message.eml")
+      if (call.message !== undefined) writeFileSync(file, call.message)
+      try { return mailAnswer(call.verb, [...call.args ?? [], ...call.message !== undefined ? ["--", file] : []], root, stale) }
+      finally { rmSync(file, { force: true }) } }).pipe(Effect.flatMap(answer => answer.code ? Effect.fail(new MailRefusal({ reason: JSON.parse(answer.stdout).error })) : Effect.succeed(JSON.parse(answer.stdout)))),
   }
   const tools = yield* makeTools(yield* openMailbox(runner, { current: () => state, usable: () => live }, root))
   return yield* use({

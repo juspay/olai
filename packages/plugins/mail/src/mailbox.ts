@@ -6,6 +6,7 @@ import { delta, fullOf, idsOf, Listing, rowOf, Thread } from "./himalaya/threads
 import { History } from "./himalaya/history.ts"
 import { GMAIL } from "./himalaya/verbs.ts"
 import { makeLabels } from "./labels.ts"
+import { compose, validateDraft, type DraftArgs } from "./compose.ts"
 import { MailRefusal } from "./wire.ts"
 
 /** Mailbox operations and caches share the owning mail activation's scope.
@@ -25,6 +26,7 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
       if (!/\b404\b|not found|notFound/i.test(error.reason)) return error
       const reason = call.verb === GMAIL.attachmentsGet ? "this attachment is not on that message"
         : [GMAIL.threadsGet, GMAIL.threadsModify, GMAIL.threadsTrash, GMAIL.threadsUntrash].some(verb => verb === call.verb) ? `this thread is not in ${state.address}`
+        : call.verb === GMAIL.draftsUpdate ? `this draft is not in ${state.address}`
         : error.reason
       return new MailRefusal({ reason })
     }))
@@ -88,6 +90,40 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     for (const m of answer.messages) attachments.remember(m.id, m.attachments)
     return answer
   })
+  const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.String, "thread-id": Schema.NullOr(Schema.String) })
+  const checked = <A>(f: () => A) => Effect.try({ try: f, catch: error => error instanceof MailRefusal ? error : new MailRefusal({ reason: String(error) }) })
+  const draft = (args: DraftArgs) => {
+    const work = Effect.gen(function*() {
+      const address = yield* ready
+      yield* checked(() => validateDraft(args))
+      let to = args.to
+      let subject = args.subject
+      let inReplyTo: string | undefined
+      let references: string | undefined
+      if (args.thread) {
+        const raw = yield* run({ verb: GMAIL.threadsGet, args: [args.thread, "--format", "metadata", ...["Message-ID", "References", "Reply-To", "From", "Subject"].flatMap(name => ["--header", name])] })
+        const thread = yield* decode(Thread, raw)
+        const last = thread.messages.at(-1)
+        const header = (name: string) => last?.headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value
+        inReplyTo = header("Message-ID")
+        if (!inReplyTo) return yield* Effect.fail(new MailRefusal({ reason: "this thread's last message has no Message-ID to reply to" }))
+        references = [header("References"), inReplyTo].filter(Boolean).join(" ")
+        to ??= [header("Reply-To") || header("From") || ""]
+        const original = header("Subject") ?? ""
+        subject ??= /^re:/i.test(original) ? original : `Re: ${original}`
+      }
+      const resolved = { ...args, from: address, to: to!, subject: subject!, inReplyTo, references }
+      const message = yield* checked(() => compose(resolved))
+      const raw = yield* run({ verb: args.draft ? GMAIL.draftsUpdate : GMAIL.draftsCreate,
+        args: [...args.draft ? [args.draft] : [], ...args.thread ? ["--thread-id", args.thread] : []], message })
+      const output = yield* decode(DraftOutput, raw)
+      return { address, draft: output.id, message: output["message-id"], thread: output["thread-id"], to: resolved.to, cc: args.cc ?? [], subject: resolved.subject, updated: args.draft !== undefined }
+    })
+    // A reply shares the thread permit with label/trash writes. Replacements
+    // additionally share a draft permit, always acquired before a thread permit.
+    const threaded = args.thread ? serialize(args.thread, work) : work
+    return args.draft ? serialize(`draft:${args.draft}`, threaded) : threaded
+  }
   const attachment = (message: string, id: string, filename?: string) => ready.pipe(Effect.andThen(attachments.get(message, id, filename)))
   // History/profile cadence has its own sequential fiber, outside tool permits.
   const history = (since: string, page?: string) => ready.pipe(Effect.andThen(himalaya.run({ verb: GMAIL.historyList,
@@ -95,5 +131,5 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
   })), Effect.flatMap(raw => decode(History, raw)))
   const seed = ready.pipe(Effect.andThen(himalaya.run({ verb: GMAIL.profileGet, args: [] })), Effect.flatMap(raw => decode(Schema.Struct({ "history-id": Schema.String }), raw)), Effect.map(raw => raw["history-id"]))
   const summary = (id: string) => ready.pipe(Effect.andThen(get(id)), Effect.map(t => rowOf(t, labels.names)))
-  return { list, thread, attachment, write, history, seed, summary }
+  return { list, thread, attachment, write, draft, history, seed, summary }
 })

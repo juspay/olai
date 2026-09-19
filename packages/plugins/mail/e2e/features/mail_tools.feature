@@ -200,6 +200,12 @@ Feature: Reading and acting on Gmail in a conversation
     Then the mail refused story says "connect one in"
     And the agent's answer mentions "connect one in"
     And the conversation has 9 mail refusal stories
+    When I ask the agent "draft mail to ravi@example.com subject Hello saying Hello"
+    Then the conversation has 10 mail refusal stories
+    And the agent's answer mentions "connect one in"
+    When I ask the agent "update mail draft draft_1 saying Hello again"
+    Then the conversation has 11 mail refusal stories
+    And the agent's answer mentions "connect one in"
     And the fake mailbox has received no tool calls
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:refused @mail-doors
@@ -219,6 +225,9 @@ Feature: Reading and acting on Gmail in a conversation
     And the node agent's fold is ready
     When I ask the agent "list my inbox"
     Then the mail refused story says "invalid_grant"
+    When I ask the agent "draft mail to ravi@example.com subject Hello saying Hello"
+    Then the conversation has 2 mail refusal stories
+    And the agent's answer mentions "invalid_grant"
     And the fake mailbox has received no tool calls
 
   @scratch:mail @rows-on:mail @mail-himalaya:stale @mail-google:granted @mail-doors
@@ -257,3 +266,95 @@ Feature: Reading and acting on Gmail in a conversation
     Then the mail thread story says "2 messages"
     When I ask the agent "save mail attachment a32 attachment_1"
     Then the mail refused story says "this attachment is not on that message"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: New draft preserves Unicode and is fully replaced
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "draft mail to ravi@example.com subject Café meetup saying Count me in"
+    Then the mail draft story says "draft to ravi@example.com · Café meetup"
+    And the saved mail draft "draft_1" has header "From" equal to "you@gmail.com"
+    And the saved mail draft "draft_1" has header "To" equal to "ravi@example.com"
+    And the saved mail draft "draft_1" has header "Subject" equal to "Café meetup"
+    And the saved mail draft "draft_1" has body "Count me in"
+    When I ask the agent "update mail draft draft_1 saying See you tomorrow"
+    Then the mail draft_update story says "draft updated · Revised"
+    And the saved mail draft "draft_1" has header "Subject" equal to "Revised"
+    And the saved mail draft "draft_1" has body "See you tomorrow"
+    And the fake mailbox has received no send calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: Reply draft uses sender only and preserves threading
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "draft reply to mail thread a2 saying Count me in"
+    Then the mail draft story says "Re: Nix meetup"
+    And the saved mail draft "draft_1" has header "To" equal to "\"Ravi\" <ravi@example.com>"
+    And the saved mail draft "draft_1" has header "In-Reply-To" equal to "<a21@example.com>"
+    And the saved mail draft "draft_1" has header "References" equal to "<earlier@example.com> <a21@example.com>"
+    And the saved mail draft "draft_1" belongs to thread "a2"
+    And the saved mail draft "draft_1" has body "Count me in"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: Missing reply thread cannot create a draft
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "draft reply to mail thread ffff saying Count me in"
+    Then the mail refused story says "this thread is not in you@gmail.com"
+    And the fake mailbox has received no drafts.create calls
+    And the fake mailbox has received no drafts.update calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: Invalid addresses and header injection cannot spawn
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "draft mail to invalid subject Hello saying Hi"
+    Then the mail refused story says "malformed mail address"
+    And the fake mailbox has received no tool calls
+    When I ask the agent "draft mail to ravi@example.com subject Hello\\nBcc: victim@example.com saying Hi"
+    Then the mail refused story says "mail headers cannot contain"
+    And the fake mailbox has received no tool calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: Missing draft is refused in the account words
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "update mail draft unknown saying Hello again"
+    Then the mail refused story says "this draft is not in you@gmail.com"
+    And the fake mailbox has received no drafts.create calls
+    And the fake mailbox has received no send calls

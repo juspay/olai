@@ -111,7 +111,7 @@ export const fixtureNamed = <T>(
 export const LABELS = { labels: ["INBOX", "UNREAD", "STARRED", "IMPORTANT", "TRASH", "SPAM"].map(name => ({ id: name, name })).concat([{ id: "Label_1", name: "waiting" }, { id: "Label_2", name: "newsletters" }]) }
 const message = (id: string, subject: string, labels: string[], html = false, attachment = false) => ({
   id, "label-ids": labels, snippet: subject,
-  headers: [{ name: "Subject", value: subject }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "To", value: ADDRESS }, { name: "Date", value: "Tue, 15 Sep 2026 10:00:00 +0000" }],
+  headers: [{ name: "Message-ID", value: `<${id}@example.com>` }, { name: "References", value: "<earlier@example.com>" }, { name: "Subject", value: subject }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "To", value: ADDRESS }, { name: "Date", value: "Tue, 15 Sep 2026 10:00:00 +0000" }],
   payload: { mimeType: "multipart/mixed", parts: [
     { mimeType: html ? "text/html" : "text/plain", filename: "", body: { size: 24, data: Buffer.from(html ? "<p>Meetup on October 2</p>" : subject).toString("base64url") } },
     ...(attachment ? [{ mimeType: "application/pdf", filename: "invoice.pdf", body: { attachmentId: "attachment_1", size: 12288 } }] : []),

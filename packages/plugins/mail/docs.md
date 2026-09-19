@@ -2,7 +2,7 @@
 
 Read and act on Gmail in an olai conversation, with your vault as the context. Gmail stays the record of the mail; the vault records what you decided about it.
 
-Turn the `mail` plugin on, connect an account, and ask an agent to read threads, archive, move mail to Trash, apply labels or mark it read. The connection survives restarts. Live thread properties on nodes and waking on new mail are still to come.
+Turn the `mail` plugin on, connect an account, and ask an agent to read threads, archive, move mail to Trash, apply labels mark it read, or draft a reply. The connection survives restarts. Live thread properties on nodes and waking on new mail are still to come.
 
 Olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), which is built into every olai release. There is nothing to install. The plugin is called `mail` rather than `gmail` because Himalaya also speaks IMAP and JMAP, and a second kind of mailbox should not need a rename.
 
@@ -34,7 +34,7 @@ For the home-manager service that is the `environmentFile` ([running.md](../runn
 
 The header now shows `● mail you@gmail.com`, and the row shows the address, how many messages the mailbox holds, when the token was last refreshed, and the permission granted.
 
-Olai asks Google for the `gmail.modify` permission. That covers reading, labelling, archiving, and moving to and from Trash. It does not cover permanent deletion, and olai will not ask for it. One mailbox per olai.
+Olai asks Google for the `gmail.modify` permission. That covers reading, labelling, archiving, moving to and from Trash, and drafts. The permission technically allows sending too, but olai exposes no send command. It does not cover permanent deletion, and olai will not ask for it. One mailbox per olai.
 
 ## What the header pill means
 
@@ -77,7 +77,7 @@ Nothing is written into your vault, and olai never reads or changes your own `~/
 
 ## Not included
 
-- Sending mail or writing drafts.
+- Sending mail.
 - Permanent deletion of messages.
 - More than one mailbox, or mailboxes other than Gmail.
 - Using a Himalaya other than the one built into olai.
@@ -91,10 +91,13 @@ The mail tools are available in every conversation under **olai ✓**. Try:
 - “Archive the newsletters and mark the invoice thread read.”
 - “Label that thread waiting, then record what we decided in the project node.”
 - “Save the invoice attachment so you can read it.”
+- “Draft a reply to Ravi about the Nix meetup saying I will be there.”
 
 Search accepts Gmail's usual syntax, including `from:`, `newer_than:1d`, `is:unread`, `has:attachment` and `label:`. Label names are the ones Gmail shows you, such as `waiting`; system labels use names such as `INBOX` and `UNREAD`. Olai uses existing labels and does not create new ones.
 
-Archive removes a thread from the inbox. Trash moves it to Gmail's own Trash, and the agent can restore it. Olai never permanently deletes mail and does not send mail or create drafts. A write refused before it is sent changes nothing; if Gmail accepts a write but its follow-up read fails, the reply says the outcome needs checking.
+Archive removes a thread from the inbox. Trash moves it to Gmail's own Trash, and the agent can restore it. Olai never permanently deletes mail and cannot send mail. olai writes drafts; you send them. A write refused before it is sent changes nothing; if Gmail accepts a write but its follow-up read fails, the reply says the outcome needs checking.
+
+Drafts land in Gmail Drafts for you to review and send. They are plain text only, with no attachments, at most 50 recipients and a 256 KiB body. Replies default to the last sender (Reply-To when present); ask explicitly for copy recipients for reply-all. Updating a draft replaces its complete contents, recipients and subject. The temporary message file is private and removed as soon as the call ends. No reconnect is needed for an existing account.
 
 A thread reply includes plain text and raw HTML where present, with each capped at 64 KiB and a notice when cut. Attachments are listed first, so the agent can check their size before downloading. Files up to 50 MB land in a private mail temporary directory under the serve's runtime directory (or system temporary directory), outside the vault. The agent reads them with its file tools. Switching mail off removes those files; download them again if needed.
 
@@ -120,7 +123,8 @@ For each arrival, search my vault for the sender, project and earlier decisions.
 Read the thread if its preview is not enough.
 Propose one action per thread and wait for my yes.
 When agreed, record the outcome as a todo or note with a Gmail URL.
-Then archive, label or mark the thread as agreed. Never send mail.
+Then archive, label or mark the thread as agreed.
+Draft replies for me to send; never send mail.
 ```
 
 Use `https://mail.google.com/mail/u/0/#all/<thread id>` as the todo's `url`. The watcher supplies facts; your charter decides what the agent does with them. The switch is a browser-only choice. An agent can edit a node's properties, but those edits cannot subscribe a conversation to mail.

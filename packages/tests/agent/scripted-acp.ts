@@ -1322,6 +1322,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
   const mailCall = (() => {
+    const draft = /^draft mail to (.+?) subject (.+?) saying ([\s\S]+)$/.exec(mailWords)
+    if (draft) return { name: "draft", args: { to: [draft[1]!], subject: draft[2]!.replace(/\\n/g, "\n"), body: draft[3] } }
+    const draftReply = /^draft reply to mail thread (\S+) saying (.+)$/.exec(mailWords)
+    if (draftReply) return { name: "draft", args: { thread: draftReply[1], body: draftReply[2] } }
+    const draftUpdate = /^update mail draft (\S+) saying (.+)$/.exec(mailWords)
+    if (draftUpdate) return { name: "draft_update", args: { draft: draftUpdate[1], to: ["ravi@example.com"], subject: "Revised", body: draftUpdate[2] } }
     if (mailWords === "list my inbox") return { name: "inbox", args: {} }
     if (mailWords.startsWith("search mail for ")) return { name: "search", args: { query: mailWords.slice(16) } }
     const thread = /^(read|archive|trash|untrash) mail thread (\S+)$/.exec(mailWords)

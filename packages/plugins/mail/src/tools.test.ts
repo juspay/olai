@@ -28,10 +28,10 @@ test("inbox, query, pagination, HTML and all five mutations round trip", () => r
 })))
 
 test("every tool refuses absent, faulted and expired accounts without spawning", () => run(h => Effect.gen(function*() {
-  const args = { thread: "a1", message: "a32", attachment: "attachment_1", query: "is:unread", add: ["waiting"], read: true }
+  const args = { body: "Hello", draft: "draft_1", thread: "a1", message: "a32", attachment: "attachment_1", query: "is:unread", add: ["waiting"], read: true }
   for (const state of [MAIL_UNCONNECTED, { ...connected, status: "fault" as const, reason: "invalid_grant" }, connected]) {
     h.state(state, false)
-    for (const name of ["inbox", "search", "thread", "attachment", "archive", "trash", "untrash", "label", "read"]) {
+    for (const name of ["inbox", "search", "thread", "attachment", "archive", "trash", "untrash", "label", "read", "draft", "draft_update"]) {
       const result = yield* Effect.result(h.call(name, args))
       expect(result._tag).toBe("Failure")
     }
@@ -108,3 +108,49 @@ test("stale label ids survive all reads, and a missing attachment names the atta
   expect(result._tag).toBe("Failure")
   if (result._tag === "Failure") expect(result.failure).toMatchObject({ reason: "this attachment is not on that message" })
 }), true)))
+
+test("drafts create, reply and replace, retaining MIME and account identity", () => run(h => Effect.gen(function*() {
+  const { readFileSync } = yield* Effect.promise(() => import("node:fs"))
+  const saved = (id: string) => JSON.parse(readFileSync(`${h.root}/draft-${id}.json`, "utf8"))
+  const created: any = yield* h.call("draft", { to: ["ravi@example.com"], cc: ["copy@example.com"], bcc: ["blind@example.com"], subject: "Café ☕", body: "Literal \\n text\nand a line" })
+  expect(created).toMatchObject({ address: "you@gmail.com", draft: "draft_1", message: "d01", thread: null, subject: "Café ☕", updated: false })
+  expect(saved(created.draft).headers).toMatchObject({ From: "you@gmail.com", To: "ravi@example.com", Cc: "copy@example.com", Bcc: "blind@example.com", Subject: "Café ☕" })
+  expect(saved(created.draft).body).toBe("Literal \\n text\nand a line")
+  const reply: any = yield* h.call("draft", { thread: "a2", body: "Count me in" })
+  expect(reply).toMatchObject({ thread: "a2", to: ["Ravi <ravi@example.com>"], cc: [], subject: "Re: Nix meetup" })
+  expect(saved(reply.draft).headers).toMatchObject({ "In-Reply-To": "<a21@example.com>", References: "<earlier@example.com> <a21@example.com>" })
+  expect(saved(reply.draft).args).toContain("--thread-id")
+  const updated: any = yield* h.call("draft_update", { draft: created.draft, to: ["new@example.com"], subject: "Replacement", body: "New text" })
+  expect(updated.updated).toBe(true)
+  expect(saved(created.draft).body).toBe("New text")
+  expect(saved(created.draft).headers.To).toBe("new@example.com")
+  expect(saved(created.draft).headers.Cc).toBeUndefined()
+  expect(saved(created.draft).headers.Bcc).toBeUndefined()
+  expect(h.calls.some(c => c.verb.id.includes("send"))).toBe(false)
+})))
+
+test("invalid drafts do not spawn, missing threads do not create, missing drafts name the account", () => run(h => Effect.gen(function*() {
+  const base = { to: ["r@example.com"], subject: "hi", body: "text" }
+  for (const args of [{ ...base, to: ["bad"] }, { ...base, subject: "hi\nBcc: victim@example.com" }, { ...base, body: "" }, { ...base, body: "x".repeat(262145) }, { ...base, cc: Array(50).fill("c@example.com") }, { body: "hi" }, { ...base, thread: "a2", cc: ["bad"] }]) {
+    expect((yield* Effect.result(h.call("draft", args)))._tag).toBe("Failure")
+  }
+  expect(h.calls).toHaveLength(0)
+  const missing = yield* Effect.result(h.call("draft", { thread: "ffff", body: "hi" }))
+  expect(missing).toMatchObject({ _tag: "Failure", failure: { reason: "this thread is not in you@gmail.com" } })
+  expect(h.calls.some(c => c.verb.id === "drafts.create")).toBe(false)
+  const update = yield* Effect.result(h.call("draft_update", { ...base, draft: "unknown" }))
+  expect(update).toMatchObject({ _tag: "Failure", failure: { reason: "this draft is not in you@gmail.com" } })
+})))
+
+test("draft replacements serialize and replies share the existing thread permit", () => run(h => Effect.gen(function*() {
+  yield* h.call("draft", { thread: "a2", body: "First" })
+  h.calls.length = 0
+  yield* Effect.all([
+    h.call("draft_update", { draft: "draft_1", thread: "a2", body: "Second" }),
+    h.call("draft_update", { draft: "draft_1", thread: "a2", body: "Third" }),
+    h.call("archive", { thread: "a2" }),
+  ], { concurrency: 3 })
+  const verbs = h.calls.filter(c => c.verb.id !== "labels.list").map(c => c.verb.id)
+  for (const [i, verb] of verbs.entries()) if (verb === "drafts.update") expect(verbs[i - 1]).toBe("threads.get")
+  expect(verbs.filter(v => v === "drafts.update")).toHaveLength(2)
+})))

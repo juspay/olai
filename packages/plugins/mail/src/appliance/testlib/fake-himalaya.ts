@@ -433,6 +433,23 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
   if (stale) {
     threads[0]!.messages[0]!["label-ids"].push("Label_deleted", "SYSTEM_UNKNOWN")
   }
+  if (verb.id === "drafts.create" || verb.id === "drafts.update") {
+    const id = verb.id === "drafts.update" ? args[0]! : `draft_${readdirSync(directory).filter(file => /^draft-.*\.json$/.test(file)).length + 1}`
+    const saved = path.join(directory, `draft-${id}.json`)
+    if (verb.id === "drafts.update" && !existsSync(saved)) return failed("404 draft not found")
+    const file = args[args.indexOf("--") + 1]
+    if (!args.includes("--") || !file || !existsSync(file)) return failed("draft message must be a file after --")
+    const raw = readFileSync(file, "utf8")
+    const [head, ...body] = raw.split("\r\n\r\n")
+    const headers = Object.fromEntries(head!.replace(/\r\n[ \t]+/g, " ").split("\r\n").map(line => {
+      const at = line.indexOf(":")
+      const value = line.slice(at + 1).trim().replace(/(\?=)\s+(=\?UTF-8\?B\?)/gi, "$1$2").replace(/=\?UTF-8\?B\?([^?]+)\?=/gi, (_, base64: string) => Buffer.from(base64, "base64").toString("utf8"))
+      return [line.slice(0, at), value]
+    }))
+    const record = { id, headers, body: Buffer.from(body.join("\r\n\r\n"), "base64").toString("utf8"), args, file }
+    writeFileSync(saved, JSON.stringify(record))
+    return ok({ id, "message-id": "d01", "thread-id": args.includes("--thread-id") ? flag("--thread-id") : null })
+  }
   if (verb.id === "history.list") {
     if (!args.includes("--start-history-id") || flag("--label-id") !== "INBOX" || flag("--history-type") !== "messageAdded") return failed("history requires a start id and the inbox messageAdded filters")
     const history = historyAt(directory)

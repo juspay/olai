@@ -3,6 +3,8 @@ import { storyOf } from "./story.ts"
 
 test("each tool story is derived from reply JSON, including refusal and no-op", () => {
   const examples = [
+    [{ mail: "draft", to: ["ravi@example.com"], subject: "Hello" }, "draft to ravi@example.com · Hello"],
+    [{ mail: "draft_update", to: ["ravi@example.com"], subject: "Hello" }, "draft updated · Hello"],
     [{ mail: "inbox", threads: [1, 2, 3] }, "3 threads in INBOX"],
     [{ mail: "search", threads: [1], query: "is:unread" }, '1 threads for "is:unread"'],
     [{ mail: "thread", subject: "Invoice", messages: [{ from: "Ravi" }] }, "Invoice · Ravi · 1 messages"],
