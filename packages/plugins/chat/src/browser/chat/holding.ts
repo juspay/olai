@@ -144,8 +144,10 @@ export const createHolding = (chat: Chat): Holding => {
         return token
       })
       try {
-        // Sequential within one gesture; other gestures have their own tokens
-        // in the same bin. Each callback updates only the owner captured here.
+        // Sequential within one gesture: files reach the strip in the order
+        // they were dropped, which is the order the next message carries.
+        // Other gestures have their own tokens in the same bin. Each callback
+        // updates only the owner captured here.
         for (const [index, file] of taking.entries()) {
           if (chat.state().uploadScope !== scope) break
           const token = tokens[index]!

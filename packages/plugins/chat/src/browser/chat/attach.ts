@@ -30,10 +30,10 @@ import { Effect } from "effect"
 
 import { asFailure, type Call } from "@olai/web/client/run.ts"
 
-/** The one verb this needs, so a test can pass its own. */
 /** Bytes acknowledged by the server, starting at zero; never bytes merely read. */
 export type UploadProgress = (bytes: number) => void
 
+/** The one verb this needs, so a test can pass its own. */
 export type Attach = (chunk: AttachChunk) => Call<Attached>
 
 /**
