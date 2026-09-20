@@ -59,6 +59,7 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
     module: index,
     names: [
       "ASSET_PREFIX",
+      "ATTACHMENT_ACCEPT",
       "ATTACHMENT_EXTENSIONS",
       "Anchor",
       "App",
@@ -67,6 +68,7 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
       "DOCUMENT_EXTENSIONS",
       "Edit",
       "MAX_ATTACHMENT_BYTES",
+      "MAX_VIDEO_ATTACHMENT_BYTES",
       "MEDIA_PREFIX",
       "NO_ROSTER",
       "PLUGIN_BROWSER_NODE",
@@ -85,6 +87,7 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
       "heard",
       "isAttachable",
       "isAttachmentPicture",
+      "isAttachmentVideo",
       "mediaHref",
       "mediaTarget",
       "ours",

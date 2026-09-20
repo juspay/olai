@@ -20,6 +20,9 @@ import { expect, test } from "bun:test"
 
 import {
   ATTACHMENT_EXTENSIONS,
+  ATTACHMENT_ACCEPT,
+  isAttachmentVideo,
+  MAX_VIDEO_ATTACHMENT_BYTES,
   attachmentRejection,
   DOCUMENT_EXTENSIONS,
   isAttachable,
@@ -97,9 +100,12 @@ test("a video is attachable and is not a picture", () => {
     expect(isAttachable(`clip${extension}`)).toBe(true)
     expect(isAttachmentPicture(`clip${extension}`)).toBe(false)
   }
-  // The cap is about the FILE, whatever it is: a recording over it is refused
-  // with the same sentence as a PDF.
-  expect(attachmentRejection("long.mp4", MAX_ATTACHMENT_BYTES + 1)).toMatch(/over the 50 MB limit/)
+  expect(attachmentRejection("long.mp4", MAX_ATTACHMENT_BYTES + 1)).toBeNull()
+  expect(attachmentRejection("long.MOV", MAX_VIDEO_ATTACHMENT_BYTES)).toBeNull()
+  expect(attachmentRejection("long.mp4", MAX_VIDEO_ATTACHMENT_BYTES + 1)).toMatch(/over the 200 MB limit/)
+  expect(isAttachmentVideo("clip.MOV")).toBe(true)
+  expect(isAttachmentVideo("notes.txt")).toBe(false)
+  expect(ATTACHMENT_ACCEPT.split(",")).toEqual([...ATTACHMENT_EXTENSIONS, "image/*", "video/*"])
 })
 
 test("a transport stream is .m2ts, and a TypeScript file is not a video", () => {
@@ -107,7 +113,6 @@ test("a transport stream is .m2ts, and a TypeScript file is not a video", () => 
   expect(isAttachable("server.ts")).toBe(false)
   expect(isAttachable("module.mts")).toBe(false)
 })
-
 
 test("picture attachments use the filename even when the blob has no MIME type", () => {
   const file = new File([new Uint8Array([1, 2, 3])], "shot.PNG")

@@ -658,6 +658,8 @@ export const TESTID = {
   /** The pictures on a message — pending in the composer, or sent, on the row.
    *  Each one is a `chatAttachment` carrying its file name in `data-name`. */
   chatAttachments: "chat-attachments",
+  /** Acknowledged bytes of pending uploads in this conversation. */
+  chatUploadProgress: "chat-upload-progress",
   chatAttachment: "chat-attachment",
   /** Drawn only in the tab that sent the picture, out of the Blob it still
    *  has. Every other tab has the name and nothing to draw. */
@@ -688,6 +690,8 @@ export const TESTID = {
    *  and the button would open a file dialog, so it is ABSENT there —
    *  which is the fact a scenario on a desktop asserts. */
   chatCameraButton: "chat-camera",
+  /** Video capture, under the same coarse-pointer condition as photos. */
+  chatVideoButton: "chat-video",
   /** The button that opens the WHOLE command list. Drawn only when the agent
    *  offers commands. */
   chatCommands: "chat-commands",

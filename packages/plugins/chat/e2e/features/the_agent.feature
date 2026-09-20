@@ -2000,6 +2000,54 @@ Feature: Talking to a node agent
     Then the composer is holding nothing
     And the chat still shows "cannot be attached"
 
+  @scratch:chat @phone
+  Scenario: Recorded videos and library clips ride one message
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I record a video called "porch.mp4"
+    Then the composer is holding "porch.mp4", showing how big it is
+    When I record a video called "porch.mp4"
+    Then the composer is holding "porch.mp4, porch-1.mp4" in that order
+    When I pick "library.mov" with the attach button
+    Then the composer is holding "library.mov", showing how big it is
+    When I ask the agent "read these recordings"
+    Then the agent read "porch.mp4, porch-1.mp4, library.mov" in that order
+
+  @scratch:chat @phone
+  Scenario: An unnamed QuickTime capture gets a video name
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I record an unnamed QuickTime video
+    Then the composer is holding "recorded.mov", showing how big it is
+    When I ask the agent "read this unnamed recording"
+    Then the agent read "recorded.mov" in that order
+    And the composer is holding nothing
+
+  @scratch:chat @phone
+  Scenario: Dismissing the camcorder preserves the draft and refusal
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I record a video called "keep.mp4"
+    Then the composer is holding "keep.mp4", showing how big it is
+    When I type "keep this draft" into the chat
+    And I drop "whatever.zip" on the chat panel
+    Then the chat eventually shows "cannot be attached"
+    When I dismiss the camcorder
+    Then the composer is holding "keep.mp4" in that order
+    And the chat input reads "keep this draft"
+    And the chat still shows "cannot be attached"
+
+  @scratch:chat
+  Scenario: Pasted video bytes take the same path as dropped recordings
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I paste a video called "clipboard.mp4" into the chat
+    Then the composer is holding "clipboard.mp4", showing how big it is
+    When I drop "dropped.mov" on the chat panel
+    Then the composer is holding "dropped.mov", showing how big it is
+    When I ask the agent "read the clips"
+    Then the agent read "clipboard.mp4, dropped.mov" in that order
+
   @scratch:chat
   Scenario: A dropped file olai cannot take says so, by name
     When I open the "claude" agent on node "kitchen"

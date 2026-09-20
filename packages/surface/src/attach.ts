@@ -31,19 +31,20 @@
  * would be the copy coming back as a spelling.
  *
  * What stays is what kolu has no opinion about: what olai will ACCEPT.
- * {@link MAX_ATTACHMENT_BYTES} is a POLICY cap on the FILE — deliberately much
- * larger than one frame, which is why the two numbers were never one — the two
- * extension allowlists, and the sentence both ends refuse with.
+ * The per-kind caps are POLICY on the FILE, deliberately larger than one
+ * frame. The three extension allowlists and the sentence both ends refuse
+ * with live here too.
  */
 
 // Attachments are an agent-input allowlist, independent of rows serving files.
 const PICTURE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico"]
 
 /**
- * Hard cap on one attached file — a cap on abuse rather than a size anyone
- * expects to reach. kolu's own number, kept rather than invented.
+ * Pictures and documents keep the original file cap; recordings get room
+ * for a short phone video. Neither number is a wire-frame budget.
  */
 export const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024
+export const MAX_VIDEO_ATTACHMENT_BYTES = 200 * 1024 * 1024
 
 /**
  * What may be attached that is NOT a picture — the kinds an agent can read as
@@ -86,12 +87,15 @@ export const DOCUMENT_EXTENSIONS: ReadonlyArray<string> = [
  * it can do with a video is the agent's business — Claude Code cannot watch
  * one, and can cut frames out of it with a tool — and olai does not transcode
  * or thumbnail it on the way through, because that would be a pipeline this
- * gate has no business owning. The cap is unchanged: a long recording can
- * exceed it, and is refused in the same sentence any other file is.
+ * gate has no business owning. Videos get a 200 MB cap so a short phone
+ * recording has room; a longer one can still exceed it and gets the same
+ * refusal sentence as other files, with its own limit named.
  *
- * Extensions only, like the other two lists. A video reaches the gate by its
- * NAME — nothing hands a browser an unnamed recording — so no MIME type is
- * declared here, and none needs to change when a browser renames one.
+ * Extensions only, like the other lists: the filename is what every door and
+ * the server can agree on. A camera CAN return an unnamed recording, so the
+ * browser supplies a video extension from its MIME kind before asking the
+ * gate. An unnamed zip must not become `pasted.png` and slip through as a
+ * picture; naming a recording is equally a claim about what it actually is.
  *
  * An MPEG transport stream is `.m2ts` and never `.ts` or `.mts`: those are
  * TypeScript first on any machine this runs on, and a gate that took a `.ts`
@@ -124,6 +128,13 @@ export const ATTACHMENT_EXTENSIONS: ReadonlyArray<string> = [
   ...VIDEO_EXTENSIONS,
 ]
 
+/** MIME wildcards let phone libraries offer both photos and videos; the
+ *  extensions keep documents reachable in desktop pickers. */
+export const ATTACHMENT_ACCEPT = [...ATTACHMENT_EXTENSIONS, "image/*", "video/*"].join(",")
+
+export const isAttachmentVideo = (name: string): boolean =>
+  VIDEO_EXTENSIONS.some(extension => name.toLowerCase().endsWith(extension))
+
 /** Is this a file the agent gets handed as a path? The extension decides,
  *  because the extension is the only thing every face of this — the drop, the
  *  paste, the picker, the server — can agree on before a byte is read. */
@@ -147,9 +158,10 @@ export const attachmentRejection = (name: string, bytes: number): string | null 
   if (!isAttachable(name)) {
     return `"${name}" cannot be attached — attachments are ${ATTACHMENT_EXTENSIONS.join(", ")}`
   }
-  if (bytes > MAX_ATTACHMENT_BYTES) {
+  const cap = isAttachmentVideo(name) ? MAX_VIDEO_ATTACHMENT_BYTES : MAX_ATTACHMENT_BYTES
+  if (bytes > cap) {
     const mb = (n: number) => (n / (1024 * 1024)).toFixed(0)
-    return `"${name}" is ${mb(bytes)} MB, over the ${mb(MAX_ATTACHMENT_BYTES)} MB limit`
+    return `"${name}" is ${mb(bytes)} MB, over the ${mb(cap)} MB limit`
   }
   return null
 }

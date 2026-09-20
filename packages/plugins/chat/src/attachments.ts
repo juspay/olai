@@ -135,9 +135,11 @@ export const make = (): Attachments => {
       const at = yield* claim(continuing)
       // The cap is on the FILE, so a continuation is judged against what is
       // already on disk PLUS what it carries. Judging the chunk alone would
-      // make fifty legal chunks an illegal file nobody refused.
+      // make fifty legal chunks an illegal file nobody refused. The stored
+      // name decides the kind: an append cannot rename a document to video
+      // just to claim the larger cap.
       const already = yield* Effect.promise(() => stat(at))
-      const rejection = attachmentRejection(name, already.size + bytes)
+      const rejection = attachmentRejection(nameOf(at), already.size + bytes)
       if (rejection !== null) return yield* refuse(rejection)
       return yield* Effect.promise(() => append(at, chunk.data))
     })

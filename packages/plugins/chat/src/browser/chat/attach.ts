@@ -1,9 +1,8 @@
 /**
  * A file, from a Blob in this tab to a path on the server's disk.
  *
- * Four ways in — paste, drop, and the two doors a phone has because it has
- * no Ctrl+V (the roll picker, and the camera beside it) — and one way
- * through: read the bytes, base64 them once, and send them as a SEQUENCE of
+ * Paste, drop, the library picker, photo and video capture share one way
+ * through: read and base64 one bounded slice at a time, sending a SEQUENCE of
  * bounded `chat.attach` calls. The first creates
  * the file; each later one hands back the path it was given and appends. No
  * single frame scales with the file, which is the whole reason the calls are
@@ -16,20 +15,23 @@
  * waits for the previous chunk's answer.
  *
  * The gate runs FIRST, before a byte is encoded, and it is the same function
- * the server refuses with — so a 60 MB drop costs nothing and says exactly
+ * the server refuses with — so an oversized drop costs nothing and says exactly
  * what the server would have said.
  *
  * This module composes Effects and runs none: {@link ./state.ts} is where the
  * client runs one, and that is deliberately still true here.
  */
 
-import { chunkBase64 } from "@kolu/surface/frame-chunking"
+import { FRAME_CHUNK_BASE64_CHARS, FRAME_PAYLOAD_BUDGET } from "@kolu/surface/frame-chunking"
 import { attachmentRejection } from "@olai/surface"
 import { type Attached, type AttachChunk } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { Effect } from "effect"
 
 import { asFailure, type Call } from "@olai/web/client/run.ts"
+
+/** Bytes acknowledged by the server, starting at zero; never bytes merely read. */
+export type UploadProgress = (bytes: number) => void
 
 /** The one verb this needs, so a test can pass its own. */
 export type Attach = (chunk: AttachChunk) => Call<Attached>
@@ -51,7 +53,7 @@ export type Attach = (chunk: AttachChunk) => Call<Attached>
 export const attaching = (
   file: File,
   attach: Attach,
-  chunkChars?: number,
+  { chunkChars, progress }: { chunkChars?: number; progress?: UploadProgress } = {},
 ): Effect.Effect<Attached, OpFailure> =>
   Effect.gen(function*() {
     const name = nameOf(file)
@@ -60,21 +62,26 @@ export const attaching = (
       return yield* Effect.fail(new UsageFailure({ reason: rejection }))
     }
 
-    // Encoded in one pass and let go of: the raw bytes are dead the moment the
-    // base64 exists, and a 50 MB paste holding both while it makes seventeen
-    // round trips is 50 MB nobody is reading.
-    const [creating, ...continuing] = chunkBase64(
-      base64Of(new Uint8Array(yield* Effect.promise(() => file.arrayBuffer()))),
-      chunkChars,
+    const chars = chunkChars ?? FRAME_CHUNK_BASE64_CHARS
+    // Production's framing contract is asserted in CI. A bad test seam is a
+    // programmer error, not a refusal a person can fix by choosing a file.
+    if (chunkChars !== undefined && (!Number.isInteger(chars) || chars <= 0 || chars % 4 !== 0 || chars > FRAME_PAYLOAD_BUDGET)) {
+      return yield* Effect.die(new Error("invalid attachment chunk size"))
+    }
+    progress?.(0)
+    // Each full slice is a multiple of three bytes: no padding separates
+    // chunks, and only one slice is resident while its call is in flight.
+    const sliceBytes = chars / 4 * 3
+    const read = (at: number) => Effect.promise(async () =>
+      base64Of(new Uint8Array(await file.slice(at, at + sliceBytes).arrayBuffer()))
     )
-
-    // The protocol, as the shape of the code: the first chunk creates the
-    // file, every later one continues the path it was answered with. Sequential
-    // by construction, because the server appends to one growing file and two
-    // chunks in flight would interleave their bytes.
-    let stored = yield* toRefusal(attach({ name, data: creating }))
-    for (const data of continuing) {
-      stored = yield* toRefusal(attach({ name, data, appendTo: stored.path }))
+    // Even an empty file makes one create call. Every later read waits for
+    // the previous append, retaining the server's path and upload lifetime.
+    let stored = yield* toRefusal(attach({ name, data: yield* read(0) }))
+    progress?.(Math.min(sliceBytes, file.size))
+    for (let at = sliceBytes; at < file.size; at += sliceBytes) {
+      stored = yield* toRefusal(attach({ name, data: yield* read(at), appendTo: stored.path }))
+      progress?.(Math.min(at + sliceBytes, file.size))
     }
     return stored
   })
@@ -99,13 +106,19 @@ export const refusalFor = (file: File): string | null =>
  * A pasted screenshot usually arrives as a `File` with a name of its own
  * (`image.png`), and sometimes as one with nothing useful at all — so the type
  * is the fallback, because the EXTENSION is what the gate judges and what the
- * agent reads the file's kind from. Only a PICTURE is named for it: anything
- * else keeps the name it came with and meets the gate as that, because calling
- * an unnamed zip or recording `pasted.png` would get it past the gate as a
- * picture it is not.
+ * agent reads the file's kind from. Pictures get a picture name, and camera
+ * recordings get a video name (`recorded.mov` for QuickTime, for example).
+ * Anything else keeps its name and meets the gate as that: calling an unnamed
+ * zip `pasted.png` would let it pass as a picture it is not. The video fallback
+ * belongs beside the picture's, rather than widening that exception to every
+ * unnamed blob.
  */
 const nameOf = (file: File): string => {
   if (file.name !== "" && file.name.includes(".")) return file.name
+  if (file.type.startsWith("video/")) {
+    const kind = file.type.split(";", 1)[0]
+    return `recorded.${kind === "video/quicktime" ? "mov" : kind === "video/webm" ? "webm" : "mp4"}`
+  }
   if (file.type !== "" && !file.type.startsWith("image/")) return file.name === "" ? "pasted" : file.name
   const kind = file.type.slice("image/".length)
   return `pasted.${kind === "" ? "png" : kind.replace(/[^a-z0-9]/gi, "")}`

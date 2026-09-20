@@ -145,12 +145,14 @@ export {
  *  {@link ./attach.ts}. */
 export {
   ATTACHMENT_EXTENSIONS,
+  ATTACHMENT_ACCEPT,
   attachmentRejection,
   DOCUMENT_EXTENSIONS,
   isAttachable,
   MAX_ATTACHMENT_BYTES,
+  MAX_VIDEO_ATTACHMENT_BYTES,
 } from "./attach.ts"
 
-export { isAttachmentPicture } from "./attach.ts"
+export { isAttachmentPicture, isAttachmentVideo } from "./attach.ts"
 
 export { refusalIn } from "./refusal.ts"
