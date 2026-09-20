@@ -12,6 +12,10 @@
   "files": [
     "src/projection.ts"
   ],
+  "//image": "The image/* picker MIME wildcard is attachment policy, not a dependency on the image plugin.",
+  "image": [
+    "src/attach.ts"
+  ],
   "pdf": [
     "src/attach.ts"
   ],

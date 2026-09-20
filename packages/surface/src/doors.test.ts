@@ -59,8 +59,8 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
     module: index,
     names: [
       "ASSET_PREFIX",
-      "ATTACHMENT_EXTENSIONS",
       "ATTACHMENT_ACCEPT",
+      "ATTACHMENT_EXTENSIONS",
       "Anchor",
       "App",
       "BODY_REFUSED",
