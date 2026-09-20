@@ -90,7 +90,7 @@ Feature: The strip reserves its place above the reading
     And I open the outline "pinned-chrome.olai"
     And the window is shorter than the page
     When I position reading row 20 for an upward menu in pane 0
-    Then the upward menu in pane 0 clears the strip and uses the viewport reserve
+    Then the upward menu of reading row 20 in pane 0 clears the strip and uses the viewport reserve
     And there should be no page errors
 
   @scratch:good
@@ -101,7 +101,7 @@ Feature: The strip reserves its place above the reading
     When I alt-click the zoom of "pinned-root"
     Then there are 2 panes
     When I position reading row 20 for an upward menu in pane 0
-    Then the upward menu in pane 0 clears the strip and uses the viewport reserve
+    Then the upward menu of reading row 20 in pane 0 clears the strip and uses the viewport reserve
     And there should be no page errors
 
   @scratch:good
