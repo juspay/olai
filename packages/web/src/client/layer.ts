@@ -100,8 +100,11 @@ export const LAYER = {
    * {@link LAYER.over} with the panel behind that pill.
    */
   page: "z-30",
+  /** The main-column strip: above page headings, below drawers, sheets and
+   * the app header. Its opaque ground covers content scrolling beneath it. */
+  strip: "z-[35]",
   /**
-   * COVERS the page: the mobile directory drawer, the chat sheet, the
+   * COVERS the page and strip: the mobile directory drawer, the chat sheet, the
    * minimized agent, the line ⌘Z draws over the outline. A reader who opened
    * one of these is looking at it rather than at the page, and it may pass in
    * front of anything at {@link LAYER.page} — the drawer over its own scrim is

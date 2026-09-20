@@ -120,7 +120,7 @@ function Zoom(props: {
           data-blocked={blockedIds(props.zoomed.blocked)}
           data-kind="node"
         >
-          <header class={`sticky ${panesOf(router.workspace()).length > 1 ? "top-0" : "top-[var(--height-header)]"} ${LAYER.page} bg-paper pb-2`}>
+          <header class={`sticky ${panesOf(router.workspace()).length > 1 ? "top-0" : "top-[var(--height-chrome)]"} ${LAYER.page} bg-paper pb-2`}>
             <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
           <div class="group/row mt-2 flex items-baseline gap-3">
             <h1

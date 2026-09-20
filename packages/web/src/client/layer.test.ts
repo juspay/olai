@@ -59,3 +59,9 @@ test("the two bands do not overlap, so the number says which question it answers
 // make about where things are spelled", reads every source once, and strips
 // comments properly so prose may discuss a utility while nothing else wears
 // one.
+
+test("the strip covers page headings and yields to chrome and the header", () => {
+  expect(rank(LAYER.strip)).toBeGreaterThan(rank(LAYER.page))
+  expect(rank(LAYER.strip)).toBeLessThan(rank(LAYER.chrome))
+  expect(rank(LAYER.strip)).toBeLessThan(rank(LAYER.header))
+})
