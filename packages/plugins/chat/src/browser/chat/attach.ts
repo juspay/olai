@@ -53,8 +53,7 @@ export type Attach = (chunk: AttachChunk) => Call<Attached>
 export const attaching = (
   file: File,
   attach: Attach,
-  chunkChars?: number,
-  progress?: UploadProgress,
+  { chunkChars, progress }: { chunkChars?: number; progress?: UploadProgress } = {},
 ): Effect.Effect<Attached, OpFailure> =>
   Effect.gen(function*() {
     const name = nameOf(file)

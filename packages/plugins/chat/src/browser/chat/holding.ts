@@ -138,19 +138,18 @@ export const createHolding = (chat: Chat): Holding => {
       // which is the drop losing a file with nothing on screen about it.
       const reasons = [...refusals]
       chat.refuse([])
-      const tokens = taking.map(file => {
+      const uploads = taking.map(file => {
         const token = Symbol()
         owner.track(token, 0, file.size)
-        return token
+        return { file, token }
       })
       try {
         // Sequential within one gesture: files reach the strip in the order
         // they were dropped, which is the order the next message carries.
         // Other gestures have their own tokens in the same bin. Each callback
         // updates only the owner captured here.
-        for (const [index, file] of taking.entries()) {
+        for (const { file, token } of uploads) {
           if (chat.state().uploadScope !== scope) break
-          const token = tokens[index]!
           const answer = await chat.attach(file, bytes => owner.track(token, bytes, file.size))
           owner.finish([token])
           if (answer._tag === "refused") reasons.push(answer.failure.reason)
@@ -161,7 +160,7 @@ export const createHolding = (chat: Chat): Holding => {
         }
       } finally {
         // Includes queued files skipped on a scope change and failed reads.
-        owner.finish(tokens)
+        owner.finish(uploads.map(({ token }) => token))
       }
       if (chat.state().uploadScope === scope) chat.refuse(reasons)
     },

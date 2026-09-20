@@ -192,5 +192,5 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     Then the composer is holding "progress.mp4", showing how big it is
     And no attachment upload progress is shown
     When I ask the agent "read the completed video"
-    Then the agent's answer mentions "read 6291456 bytes from progress.mp4"
+    Then the agent read the two-slice video
     And there should be no page errors

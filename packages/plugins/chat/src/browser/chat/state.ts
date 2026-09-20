@@ -474,8 +474,10 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
         const asked = state().uploadScope
         if (asked === null) return resolve({ _tag: "gone" })
         run(
-          attaching(file, (chunk) => chatWire().procedures.conversation.attach({ ...chunk, conv, uploadScope: asked }), undefined, (bytes) => {
-            if (state().uploadScope === asked) progress?.(bytes)
+          attaching(file, (chunk) => chatWire().procedures.conversation.attach({ ...chunk, conv, uploadScope: asked }), {
+            progress: (bytes) => {
+              if (state().uploadScope === asked) progress?.(bytes)
+            },
           }),
           (failure) => resolve({ _tag: "refused", failure }),
           (stored) => {

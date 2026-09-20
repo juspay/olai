@@ -47,7 +47,7 @@ const spy = () => {
 test("a picture arrives whole, one chunk at a time", async () => {
   const server = spy()
   const outcome = await Effect.runPromise(
-    Effect.result(attaching(picture("shot.png", body), server.attach, 8)),
+    Effect.result(attaching(picture("shot.png", body), server.attach, { chunkChars: 8 })),
   )
 
   expect(Result.isSuccess(outcome)).toBe(true)
@@ -70,7 +70,7 @@ test("a picture arrives whole, one chunk at a time", async () => {
 test("what the server will not take is refused before a byte is encoded", async () => {
   const server = spy()
   const outcome = await Effect.runPromise(
-    Effect.result(attaching(picture("logo.svg", body, "image/svg+xml"), server.attach, 8)),
+    Effect.result(attaching(picture("logo.svg", body, "image/svg+xml"), server.attach, { chunkChars: 8 })),
   )
 
   expect(Result.isFailure(outcome)).toBe(true)
@@ -82,7 +82,7 @@ test("what the server will not take is refused before a byte is encoded", async 
 test("a document goes up the same way a picture does", async () => {
   const server = spy()
   const outcome = await Effect.runPromise(
-    Effect.result(attaching(picture("notes.txt", body, "text/plain"), server.attach, 8)),
+    Effect.result(attaching(picture("notes.txt", body, "text/plain"), server.attach, { chunkChars: 8 })),
   )
 
   // The chunk loop has never cared what kind of file it is carrying, and this
@@ -97,7 +97,7 @@ test("a document goes up the same way a picture does", async () => {
 test("a picture the clipboard did not name is named after its type", async () => {
   const server = spy()
   const outcome = await Effect.runPromise(
-    Effect.result(attaching(picture("image", body, "image/webp"), server.attach, 8)),
+    Effect.result(attaching(picture("image", body, "image/webp"), server.attach, { chunkChars: 8 })),
   )
 
   expect(Result.isSuccess(outcome)).toBe(true)
@@ -114,19 +114,18 @@ test("a file the clipboard did not name is not called a picture unless it is one
     const server = spy()
     const file = picture(name, body, type)
     expect(refusalFor(file)).toMatch(/cannot be attached/)
-    const outcome = await Effect.runPromise(Effect.result(attaching(file, server.attach, 8)))
+    const outcome = await Effect.runPromise(Effect.result(attaching(file, server.attach, { chunkChars: 8 })))
     expect(Result.isFailure(outcome)).toBe(true)
     expect(server.calls).toHaveLength(0)
   }
 })
-
 
 test("unnamed recordings get video names and preserve their bytes", async () => {
   for (const [type, extension] of [["video/mp4", "mp4"], ["video/quicktime", "mov"], ["video/webm", "webm"]]) {
     const server = spy()
     const file = picture("", body, type)
     expect(refusalFor(file)).toBeNull()
-    const stored = await Effect.runPromise(attaching(file, server.attach, 8))
+    const stored = await Effect.runPromise(attaching(file, server.attach, { chunkChars: 8 }))
     expect(stored.name).toBe(`stored-recorded.${extension}`)
     expect(server.files.get(stored.path)?.equals(Buffer.from(body))).toBe(true)
   }
@@ -153,12 +152,11 @@ test("slices are bounded and read only after the previous append finishes", asyn
       completed++
       return stored
     })
-    const stored = await Effect.runPromise(attaching(file, attach, 8))
+    const stored = await Effect.runPromise(attaching(file, attach, { chunkChars: 8 }))
     expect(server.files.get(stored.path)?.equals(Buffer.from(original))).toBe(true)
     expect(completed).toBe(Math.max(1, Math.ceil(size / 6)))
   }
 })
-
 
 test("a refused append stops reading later slices", async () => {
   const file = picture("clip.mp4", body, "video/mp4")
@@ -168,11 +166,10 @@ test("a refused append stops reading later slices", async () => {
   const attach: Attach = chunk => chunk.appendTo === undefined
     ? Effect.succeed({ path: "/tmp/clip.mp4", name: "clip.mp4" })
     : Effect.fail(new UsageFailure({ reason: "the conversation changed" }))
-  const result = await Effect.runPromise(Effect.result(attaching(file, attach, 8)))
+  const result = await Effect.runPromise(Effect.result(attaching(file, attach, { chunkChars: 8 })))
   expect(Result.isFailure(result)).toBe(true)
   expect(reads).toBe(2)
 })
-
 
 test("the pinned frame chunk is aligned and fits the payload budget", () => {
   expect(FRAME_CHUNK_BASE64_CHARS).toBeGreaterThan(0)
@@ -187,7 +184,7 @@ test("progress advances only after acknowledged chunks, including the short tail
     expect(reported.at(-1)).toBe(server.calls.length * 6)
     return yield* server.attach(chunk)
   })
-  await Effect.runPromise(attaching(picture("clip.mp4", body.slice(0, 14)), attach, 8, bytes => reported.push(bytes)))
+  await Effect.runPromise(attaching(picture("clip.mp4", body.slice(0, 14)), attach, { chunkChars: 8, progress: bytes => reported.push(bytes) }))
   expect(reported).toEqual([0, 6, 12, 14])
 })
 
@@ -196,15 +193,15 @@ test("progress never claims bytes from a refused append", async () => {
   const attach: Attach = chunk => chunk.appendTo === undefined
     ? Effect.succeed({ path: "/tmp/clip.mp4", name: "clip.mp4" })
     : Effect.fail(new UsageFailure({ reason: "gone" }))
-  await Effect.runPromise(Effect.result(attaching(picture("clip.mp4", body), attach, 8, bytes => reported.push(bytes))))
+  await Effect.runPromise(Effect.result(attaching(picture("clip.mp4", body), attach, { chunkChars: 8, progress: bytes => reported.push(bytes) })))
   expect(reported).toEqual([0, 6])
 })
 
 test("an empty file reports zero bytes and a preflight refusal reports nothing", async () => {
   const reported: number[] = []
-  await Effect.runPromise(attaching(picture("empty.txt", new Uint8Array()), spy().attach, 8, bytes => reported.push(bytes)))
+  await Effect.runPromise(attaching(picture("empty.txt", new Uint8Array()), spy().attach, { chunkChars: 8, progress: bytes => reported.push(bytes) }))
   expect(reported).toEqual([0, 0])
   reported.length = 0
-  await Effect.runPromise(Effect.result(attaching(picture("no.zip", body), spy().attach, 8, bytes => reported.push(bytes))))
+  await Effect.runPromise(Effect.result(attaching(picture("no.zip", body), spy().attach, { chunkChars: 8, progress: bytes => reported.push(bytes) })))
   expect(reported).toEqual([])
 })
