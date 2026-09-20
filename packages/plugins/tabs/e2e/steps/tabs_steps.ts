@@ -223,3 +223,58 @@ Then("the stored tabs hold {string}", async function (this: OlaiWorld, hrefs: st
     throw new Error(`the stored tab set to hold ${hrefs}, and it holds ${JSON.stringify(await read())}`);
   }
 });
+
+// Geometry is measured from the rendered chrome, independently of its tokens.
+const chromeBoxes = async (world: OlaiWorld) => {
+  const header = await world.box(world.page.locator('[data-testid="app-header"]'), "the header");
+  const strip = world.page.locator('[data-testid="main-strip"]');
+  return { header, strip: await strip.count() ? await world.box(strip, "the strip") : undefined };
+};
+
+Then("the tab strip is pinned below the app header", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const { header, strip } = await chromeBoxes(this);
+    return strip !== undefined && Math.abs(strip.y - header.y - header.height) <= 2
+      && strip.height > 0 && strip.y + strip.height < (this.page.viewportSize()?.height ?? 0);
+  }, "the strip to pin directly below the header");
+  const strip = this.page.locator('[data-testid="main-strip"]');
+  assert.ok(await strip.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return element.contains(document.elementFromPoint(box.x + 12, box.y + box.height / 2));
+  }), "the strip must take the pointer above scrolling content");
+});
+
+Then("the main-column reserve equals the visible chrome", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const { header, strip } = await chromeBoxes(this);
+    const padding = await this.page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop));
+    return Math.abs(padding - header.height - (strip?.height ?? 0)) <= 2;
+  }, "the derived root token to track the occupied strip without reloading");
+});
+
+Then("the heading {string} lands below the tab strip", async function (this: OlaiWorld, text: string) {
+  const heading = this.documentBody().locator("h1, h2, h3, h4, h5, h6").filter({ hasText: text }).first();
+  await this.waitUntil(async () => {
+    const { strip } = await chromeBoxes(this);
+    const box = await heading.boundingBox();
+    return strip !== undefined && box !== null && box.y >= strip.y + strip.height - 1
+      && box.y < strip.y + strip.height + 10 && await this.page.evaluate(() => scrollY > 0);
+  }, "the heading jump to land just below the strip");
+});
+
+Then("the split fills the viewport below the tab strip", async function (this: OlaiWorld) {
+  const { strip } = await chromeBoxes(this);
+  assert.ok(strip);
+  const panes = await this.page.locator('[data-testid="pane-header"]').evaluateAll((elements) => elements.map((element) => {
+    const box = element.parentElement!.getBoundingClientRect();
+    return { top: box.top, bottom: box.bottom };
+  }));
+  const viewport = await this.page.evaluate(() => ({ height: innerHeight, total: document.documentElement.scrollHeight, scroll: scrollY }));
+  assert.equal(panes.length, 2);
+  for (const pane of panes) {
+    assert.ok(Math.abs(pane.top - strip.y - strip.height) <= 2, JSON.stringify({ pane, strip }));
+    assert.ok(Math.abs(pane.bottom - viewport.height) <= 2, JSON.stringify({ pane, viewport }));
+  }
+  assert.ok(viewport.total <= viewport.height + 2, JSON.stringify(viewport));
+  assert.equal(viewport.scroll, 0);
+});

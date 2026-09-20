@@ -7,6 +7,7 @@ Feature: Tabs on a phone
   Scenario: No strip, and the pane strip still appears for a split
     Given I open the outline "house.olai"
     Then there is no tab strip
+    And the main-column reserve equals the visible chrome
     When I alt-click the zoom of "install"
     Then the pane tabs are shown
     And there is no tab strip
@@ -35,8 +36,10 @@ Feature: Tabs on a phone
     When I shrink the window to a phone
     And I open the address "/finishes.md"
     Then there is no tab strip
+    And the main-column reserve equals the visible chrome
     And the stored tabs hold "(front) /garden.olai"
     When I widen the window to a desk
-    And I reload the page
+    Then the main-column reserve equals the visible chrome
+    When I reload the page
     Then the tabs hold "/finishes.md /garden.olai"
     And there should be no page errors

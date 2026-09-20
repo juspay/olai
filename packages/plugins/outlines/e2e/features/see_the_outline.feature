@@ -79,9 +79,9 @@ Feature: See the outline
     Given the window is shorter than the page
     And I read the outline with Notes on "open"
     When I scroll to the bottom of the page
-    Then the section heading of "kitchen" is pinned under the header
+    Then the section heading of "kitchen" is pinned under the main-column chrome
     # The negative half, and it is what makes the claim mean anything: only a
     # TOP-LEVEL row is a section. A client that pinned every row would stack the
     # whole branch under the bar and still pass the line above.
-    And the row "demo" is not pinned under the header
+    And the row "demo" is not pinned under the main-column chrome
     And there should be no page errors

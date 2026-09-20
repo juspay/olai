@@ -341,10 +341,10 @@ function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps
   return <DropdownMenu.Content
     {...props}
     // The primitive measures from the viewport edge. An upward menu must
-    // reserve the app header as well, or its first entries sit behind it.
+    // reserve the header and strip as well, or its first entries sit behind it.
     // Downward menus reserve any bottom chrome reported by the phone strip.
     style={{ "max-height": menu.currentPlacement().startsWith("top")
-      ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-header)))"
+      ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-chrome)))"
       : "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-bottom-chrome, 0px)))" }}
   />
 }

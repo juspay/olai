@@ -69,8 +69,10 @@ layout asks again instead of inheriting the previous activation's signals.
 
 `layout.strip` is the seat above the panes in the main column, and it is single
 occupancy: one row may fill it (the `tabs` row does). The frame draws it only on
-a desktop, inside an element with `data-testid="main-strip"`, and it is not
-sticky — on a lone page it scrolls away with the document. While the seat is
+a desktop, inside an element with `data-testid="main-strip"`, and it sticks
+directly below the app header while a lone page scrolls. Main-column sticky
+headings, tooltip floors and heading jumps clear both bands; the static
+`--height-chrome` token sums the header and the currently occupied strip. While the seat is
 filled on a desktop the root entry publishes `--height-strip` on `:root` as
 `var(--height-tabs)` (2.625rem, from the appearance tokens), and `0px`
 otherwise; the pane sheet subtracts it (`PANES_SPLIT`, `PANES_LONE` in
