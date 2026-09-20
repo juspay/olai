@@ -18,9 +18,10 @@ import { succeeded } from "./succession.ts"
 import { pastOf } from "./lineage.ts"
 import { agentIn, type Listed } from "olai-plugin-chat/wire"
 
-/** Long enough not to churn an ordinary working set, finite so sleeping agents
- * do not become a process pool. Tests inject a shorter duration. */
-export const DEFAULT_IDLE = Duration.minutes(15)
+/** Keep idle chats warm for 48 hours. With this long window, the capacity cap
+ * bounds resident node agents: an LRU of 8, evicting only eligible idle scopes.
+ * Credentials and write doors live as long as their scope. Tests inject a shorter duration. */
+export const DEFAULT_IDLE = Duration.hours(48)
 export const DEFAULT_CAPACITY = 8
 
 /** A per-node credential owned by the node scope that receives it. */

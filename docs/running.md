@@ -273,6 +273,10 @@ Use one top-level node per row in `_olai/Settings.olai`. For example:
 {"id":"chat","ord":"a2","title":"chat","custom":{"idle-ms":"1200000"}}
 ```
 
+The chat example shortens the default 48-hour idle window (`172800000` ms) to
+20 minutes. The eight-agent capacity cap can still evict eligible idle scopes
+before that deadline.
+
 `on: yes` enables a build opt-in row; `on: no` disables one. An absent choice uses the profile/build default. Selecting a tool the machine lacks leaves its row unavailable with the reason; it does not break unrelated rows. With no engine available chat explains the absence. Turning chat off removes the conversation and leaves its dependants waiting.
 
 ### Three settings doors

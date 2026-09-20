@@ -136,7 +136,7 @@ Feature: Edit plugin settings on the panel
       """
     And I open the plugins panel
     Then the "git" setting "commit" shows refused file text "sometimes" inline with default "manual"
-    And the "chat" setting "idle-ms" shows refused file text "whenever" inline with default "900000"
+    And the "chat" setting "idle-ms" shows refused file text "whenever" inline with default "172800000"
     When I use the default for "git" setting "commit"
     Then the "git" setting "commit" has no problem
     And the plugin "git" has inline controls
