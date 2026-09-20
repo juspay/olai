@@ -26,10 +26,9 @@ are no longer started by the permanent browser entry point.
 
 Those readings are what `layout.shell` carries: the breakpoint, whether each
 panel is open and how wide, which snap the mobile sheet is on, and the panel's
-own drag handle. Six other rows spend some of it — the outline and the document
-size their column against the panel, chat is the tenant of the right seat, git
-chooses between a pill and a banner, the sidebar and the file rail open the
-column, and the palette resets both widths — and each declares the key on a
+own drag handle. Consumers use the parts they need — outlines and documents
+read the breakpoint, git chooses between a pill and a banner, the sidebar and
+file rail open the column, and the palette resets both widths — and each declares the key on a
 COMPONENT of its own rather than on its row, because content runs under another
 layout entirely (`olai-plugin-test-layout`). With no shell mounted those
 readings answer what they always answered — a phone-width viewport, a shut
@@ -87,3 +86,7 @@ it does for the widths.
 
 A pane's label is navigation's `Routing.label(route)`, read through the routing
 this row holds from `navigation.state` (`src/routing.ts`).
+
+Chat now contributes outline folds and node-page faces, not a dock in
+`app.panel` (removed in #582). Legacy open/width preferences do not recreate
+that panel; e2e checks both wide and maximum stored widths with a live fold.
