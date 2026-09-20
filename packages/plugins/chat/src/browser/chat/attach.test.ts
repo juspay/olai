@@ -106,14 +106,53 @@ test("a picture the clipboard did not name is named after its type", async () =>
 
 test("a file the clipboard did not name is not called a picture unless it is one", async () => {
   // It used to be: every unnamed file became `pasted.png`, so an unnamed zip
-  // or recording passed the gate as a picture. Now it meets the gate under the
+  // passed the gate as a picture. Now it meets the gate under the
   // name it came with, and is refused before a byte is sent.
-  for (const [name, type] of [["", "video/mp4"], ["", "application/zip"], ["archive", "application/zip"]] as const) {
+  for (const [name, type] of [["", "application/zip"], ["archive", "application/zip"]] as const) {
     const server = spy()
     const file = picture(name, body, type)
     expect(refusalFor(file)).toMatch(/cannot be attached/)
     const outcome = await Effect.runPromise(Effect.result(attaching(file, server.attach, 8)))
     expect(Result.isFailure(outcome)).toBe(true)
     expect(server.calls).toHaveLength(0)
+  }
+})
+
+
+test("unnamed recordings get video names and preserve their bytes", async () => {
+  for (const [type, extension] of [["video/mp4", "mp4"], ["video/quicktime", "mov"], ["video/webm", "webm"]]) {
+    const server = spy()
+    const file = picture("", body, type)
+    expect(refusalFor(file)).toBeNull()
+    const stored = await Effect.runPromise(attaching(file, server.attach, 8))
+    expect(stored.name).toBe(`stored-recorded.${extension}`)
+    expect(server.files.get(stored.path)?.equals(Buffer.from(body))).toBe(true)
+  }
+})
+
+test("slices are bounded and read only after the previous append finishes", async () => {
+  for (const size of [0, 1, 2, 6, 7, 8, 301]) {
+    const original = new Uint8Array(Array.from({ length: size }, (_, at) => at % 256))
+    const file = picture("clip.mp4", original, "video/mp4")
+    file.arrayBuffer = () => { throw new Error("must not read the whole file") }
+    const slice = file.slice.bind(file)
+    let reads = 0
+    let completed = 0
+    file.slice = (start, end) => {
+      expect(reads).toBe(completed)
+      expect((end ?? 0) - (start ?? 0)).toBe(6)
+      reads++
+      return slice(start, end)
+    }
+    const server = spy()
+    const attach: Attach = chunk => Effect.gen(function*() {
+      yield* Effect.promise(() => new Promise(resolve => setTimeout(resolve, 1)))
+      const stored = yield* server.attach(chunk)
+      completed++
+      return stored
+    })
+    const stored = await Effect.runPromise(attaching(file, attach, 8))
+    expect(server.files.get(stored.path)?.equals(Buffer.from(original))).toBe(true)
+    expect(completed).toBe(Math.max(1, Math.ceil(size / 6)))
   }
 })

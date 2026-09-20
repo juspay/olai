@@ -29,14 +29,14 @@ import { insertAt, type Insertion } from "./insertion.ts"
  *     sight looks exactly like an agent that is thinking — and this row is
  *     where a person's attention already is, because it is where they were
  *     about to type.
- *   - **a file can be pasted, dropped, picked, or SHOT.** Four events, one
+ *   - **a file can be pasted, dropped, picked, or SHOT.** Five doors, one
  *     path: `attach` sends the bytes to the conversation's tmp directory and
- *     answers with a path, which rides the next `send`. All four ship together
+ *     answers with a path, which rides the next `send`. All five ship together
  *     because they are the same function behind different listeners — paste is
  *     the desktop gesture, drop is the one for a file already on screen, and
- *     the last two are the doors a phone has, since a phone has no Ctrl+V: the
- *     roll picker, and a camera beside it whose input carries `capture` — the
- *     spelling a phone's browser answers by opening the camera itself. That
+ *     the last three are the doors a phone has, since a phone has no Ctrl+V: the
+ *     library picker, and photo/video doors whose inputs carry `capture` — the
+ *     spelling a phone's browser answers by opening the camera itself. Each capture
  *     door is drawn only where a finger is the pointer ({@link ./camera.ts}):
  *     anywhere a mouse is, the attribute is ignored and the same button would
  *     open a file dialog, which is a control lying about what it does — so
@@ -118,7 +118,7 @@ import { insertAt, type Insertion } from "./insertion.ts"
  * fight over one box.
  */
 
-import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
+import { ATTACHMENT_ACCEPT } from "@olai/surface"
 import { agentIn } from "olai-plugin-chat/wire"
 import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
@@ -177,6 +177,7 @@ export function Composer(props: {
   let input: HTMLTextAreaElement | undefined
   let picker: HTMLInputElement | undefined
   let shutter: HTMLInputElement | undefined
+  let camcorder: HTMLInputElement | undefined
 
   /**
    * What either file DOOR does with what it was handed.
@@ -816,24 +817,13 @@ export function Composer(props: {
       </Show>
 
       <div class="mt-2 flex items-center gap-2">
-        {/* One tap to the roll, on every device — and on a phone one of TWO
-            doors, the camera beside it. This comment used to argue
-            `capture`'s absence: a picture is usually one already in the roll,
-            and naming a camera ON THIS INPUT would have made the camera the
-            front door and the roll the second-class case. That was right for
-            one input; two inputs retire it rather than contradict it — each
-            door is one tap, so neither demotes the other, and the camera is
-            simply the next hole over.
-
-            `accept` is SPELLED FROM THE GATE rather than said again as
-            `image/*`: a picker that will not offer a PDF the gate would take
-            is a gate that is half true, and the half a person meets first —
-            they never see the refusal, they see a file greyed out in a dialog
-            with no explanation anywhere. */}
+        {/* The library stays one tap away from either capture door. MIME
+            wildcards offer videos on phones; the gate's extensions keep
+            documents available in desktop dialogs too. */}
         <input
           ref={picker}
           type="file"
-          accept={ATTACHMENT_EXTENSIONS.join(",")}
+          accept={ATTACHMENT_ACCEPT}
           multiple
           class="hidden"
           onChange={(event) => {
@@ -851,29 +841,10 @@ export function Composer(props: {
         >
           +
         </button>
-        {/* THE CAMERA'S OWN DOOR. `capture="environment"` is the whole of
-            what makes it one: on a phone the browser opens the back camera
-            for it directly, so this button says photo and means photo rather
-            than opening a picker with the camera as one entry of it — which
-            is also why it carries no `multiple`: the platform hands one shot
-            back per invocation, and several photos are made by the
-            shoot → chip → shoot rhythm the strip above the box is for. The
-            value-clearing is the roll's own trick, and it is what makes two
-            IDENTICAL shots two attachments: without it the second fires no
-            `change` at all.
-
-            `accept` is the media WILDCARD rather than the gate's spelled
-            list, and that is not the `+`'s half-truth newly risked: what a
-            camera can produce is only ever a picture, and `image/*` is the
-            spelling the capture prompt itself reads its kind from. What the
-            gate would refuse, it refuses by name when the upload tries — the
-            same answer a drop gets.
-
-            Drawn ONLY where `./camera.ts` says a finger is the pointer: the
-            desktop gets no camera entry at all, because there the attribute
-            is ignored and the button would open an ordinary file dialog —
-            one that lies. Both elements stand or go together: the input alone
-            would be markup nothing can reach. */}
+        {/* Two capture doors, each asking the phone for one media kind.
+            Both clear their input so the same name can be captured twice.
+            Only a coarse pointer gets these: desktop browsers ignore capture
+            and would open another ordinary file dialog. */}
         <Show when={camera()}>
           <input
             ref={shutter}
@@ -902,6 +873,28 @@ export function Composer(props: {
                 d="M5.5 2h5l1 2h1A1.5 1.5 0 0 1 14 5.5v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-6A1.5 1.5 0 0 1 3.5 4h1l1-2zM8 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
                 clip-rule="evenodd"
               />
+            </svg>
+          </button>
+          <input
+            ref={camcorder}
+            type="file"
+            accept="video/*"
+            capture="environment"
+            class="hidden"
+            onChange={(event) => {
+              picked(event.currentTarget.files)
+              event.currentTarget.value = ""
+            }}
+          />
+          <button
+            type="button"
+            class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
+            data-testid={TESTID.chatVideoButton}
+            aria-label="record a video"
+            onClick={() => camcorder?.click()}
+          >
+            <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+              <path d="M2.5 3.5h7A1.5 1.5 0 0 1 11 5v6a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 1 11V5a1.5 1.5 0 0 1 1.5-1.5zM12 6l3-2v8l-3-2z" />
             </svg>
           </button>
         </Show>

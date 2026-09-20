@@ -680,6 +680,7 @@ export const TESTID = {
    *  for every reference, however it got there (`./browser/chat/refs.ts`). */
   chatNodeRef: "chat-node-ref",
   /** The file picker beside the input — a phone has no Ctrl+V. */
+  chatVideoButton: "chat-video",
   chatAttachButton: "chat-attach",
   /** The camera's door beside the `+` — the second entry a phone gets
    *  (`./browser/chat/camera.ts`). Its input carries `capture="environment"`, which is

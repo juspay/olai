@@ -137,7 +137,7 @@ export const make = (): Attachments => {
       // already on disk PLUS what it carries. Judging the chunk alone would
       // make fifty legal chunks an illegal file nobody refused.
       const already = yield* Effect.promise(() => stat(at))
-      const rejection = attachmentRejection(name, already.size + bytes)
+      const rejection = attachmentRejection(nameOf(at), already.size + bytes)
       if (rejection !== null) return yield* refuse(rejection)
       return yield* Effect.promise(() => append(at, chunk.data))
     })

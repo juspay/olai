@@ -552,15 +552,17 @@ The notification is the one part that needs the browser's permission. olai asks 
 
 The same panel also takes outline rows as context, transcript rows as quotes, and sidebar files as paths.
 
-You can paste a file into the box — a screenshot, a photo of a whiteboard — or drag one onto the panel, or pick one with the **+** button — one of the two doors a phone has; the other is the camera, next paragraph. All of those take the same kinds:
+You can paste a file into the box — a screenshot, a photo of a whiteboard — or drag one onto the panel, or pick one with the **+** button — one of three doors on a phone, alongside photo and video capture. All of those take the same kinds:
 
 - **pictures**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.bmp`, `.ico`
 - **documents**: `.pdf`, `.txt`, `.md`, `.csv`, `.json`
 - **videos**: `.mp4`, `.m4v`, `.mov`, `.webm`, `.mkv`, `.avi`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.3gp`, `.3g2`, `.ogv`, `.m2ts` (a transport stream is taken as `.m2ts` only — a `.ts` or `.mts` is TypeScript)
 
-A video — a screen recording of the bug a screenshot could not show, usually — is handed over like any other file: the agent gets its path and nothing more. olai does not transcode it, cut frames out of it or thumbnail it. What happens next is up to the agent: Claude Code cannot watch a video, but it can pull frames out of one with a tool such as `ffmpeg` if the machine has one. The 50 MB cap applies to videos too, and a long recording can go over it.
+A video — a screen recording of the bug a screenshot could not show, usually — is handed over like any other file: the agent gets its path and nothing more. olai does not transcode it, cut frames out of it or thumbnail it. What happens next is up to the agent: Claude Code cannot watch a video, but it can pull frames out of one with a tool such as `ffmpeg` if the machine has one. Videos have a 200 MiB cap; pictures and documents keep their 50 MiB cap. The library picker offers both photos and videos, as well as the listed documents.
 
-**On a phone the `+` has a camera beside it.** One tap opens the camera itself rather than a picker: shoot, the photo lands in the strip above the box like any other attachment, and you can shoot again — tap the camera, one more photo joins the strip — until one send carries them all into the same message. It is drawn only where there is a finger to press it: a desktop has no button at all, because a "camera" that opened a file dialog would be a control that lies, and the roll is exactly as reachable there either way. A picture the list above does not take — say a camera that answers with a `.heic` — is named in the refusal, the same as a drop that misses the gate.
+**On a phone the `+` has photo and video buttons beside it.** One tap opens the camera itself rather than a picker: shoot, the photo lands in the strip above the box like any other attachment, and you can shoot again — tap the camera, one more photo joins the strip — until one send carries them all into the same message. The camcorder opens video capture in the same way: record, attach, and record again if needed. Dismissing either capture leaves the composer alone. Both are drawn only where there is a finger to press them: a desktop has no button at all, because a "camera" that opened a file dialog would be a control that lies, and the roll is exactly as reachable there either way. A picture the list above does not take — say a camera that answers with a `.heic` — is named in the refusal, the same as a drop that misses the gate.
+
+Uploads read and encode one bounded slice at a time, keeping browser memory independent of file size. The composer says **attaching…** until the upload finishes.
 
 The bytes go into a temporary directory belonging to that conversation, never under the directory being served, and the agent is handed the PATH: it reads the file itself, so nothing rides the prompt into the stored session, and nothing attached here can end up committed with your outlines. The files go away when you start a new conversation or stop the server.
 
@@ -573,7 +575,7 @@ different conversation.
 
 A picture shows itself in the strip above the box. Anything else shows its name and how big it is, because a PDF has no thumbnail worth drawing and a broken image icon is a lie about a file that arrived perfectly.
 
-Dropping is aimed at the whole panel rather than at the box: while you are dragging over it the panel says so, and what lights up is what will take the file. Several files in one drop attach in the order you dropped them, and they reach the agent in that order. Anything olai will not take is named where it was dropped — an SVG (a document that can script, whatever the drag calls it), a `.zip`, a file over the 50 MB cap — so a drop never disappears quietly, and whatever it can take in the same drop still attaches.
+Dropping is aimed at the whole panel rather than at the box: while you are dragging over it the panel says so, and what lights up is what will take the file. Several files in one drop attach in the order you dropped them, and they reach the agent in that order. Anything olai will not take is named where it was dropped — an SVG (a document that can script, whatever the drag calls it), a `.zip`, a file over its kind’s cap — so a drop never disappears quietly, and whatever it can take in the same drop still attaches.
 
 ## kolu
 

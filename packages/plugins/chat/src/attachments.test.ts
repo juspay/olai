@@ -17,6 +17,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  truncateSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs"
@@ -24,7 +25,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 
 import { chunkBase64 } from "@kolu/surface/frame-chunking"
-import { MAX_ATTACHMENT_BYTES } from "@olai/surface"
+import { MAX_ATTACHMENT_BYTES, MAX_VIDEO_ATTACHMENT_BYTES } from "@olai/surface"
 
 import { make, promptWith, safeName } from "./attachments.ts"
 
@@ -303,3 +304,27 @@ for (const initial of [true, false]) {
     }
   })
 }
+
+
+test("append caps follow the stored kind and accumulated bytes", async () => {
+  const files = make()
+  try {
+    for (const [name, cap, claimed] of [
+      ["notes.txt", MAX_ATTACHMENT_BYTES, "clip.mp4"],
+      ["clip.mp4", MAX_VIDEO_ATTACHMENT_BYTES, "notes.txt"],
+    ] as const) {
+      const stored = await Effect.runPromise(files.receive({ name, data: "" }))
+      // Sparse files reach the boundary without allocating a video's worth
+      // of test memory. The actual append still goes through the real writer.
+      truncateSync(stored.path, cap - 1)
+      const last = await receive(files, { name: claimed, data: "YQ==", appendTo: stored.path })
+      expect(Result.isSuccess(last)).toBe(true)
+      const refused = await receive(files, { name: claimed, data: "Yg==", appendTo: stored.path })
+      expect(Result.isFailure(refused)).toBe(true)
+      if (Result.isFailure(refused)) expect(refused.failure.reason).toContain(`over the ${cap / 1024 / 1024} MB limit`)
+      expect(statSync(stored.path).size).toBe(cap)
+    }
+  } finally {
+    await Effect.runPromise(files.discard)
+  }
+})
