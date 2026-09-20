@@ -51,7 +51,7 @@ Feature: Attachment size boundaries leave the composer usable
   Scenario: A video above the document cap arrives byte-exact on disk
     When I drop a video larger than the document limit
     Then the pending attachment "large.mp4" shows size "50 MB"
-    When I ask the agent "verify video bytes"
+    When I ask the agent "verify attachment bytes"
     Then the agent's answer mentions "read 52428801 bytes from large.mp4"
     And the agent confirms every byte of the large video
     And the composer is holding nothing

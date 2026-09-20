@@ -10,6 +10,7 @@
 
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
+import { UsageFailure } from "@olai/format"
 
 import { type Attach, attaching, refusalFor } from "./attach.ts"
 
@@ -155,4 +156,18 @@ test("slices are bounded and read only after the previous append finishes", asyn
     expect(server.files.get(stored.path)?.equals(Buffer.from(original))).toBe(true)
     expect(completed).toBe(Math.max(1, Math.ceil(size / 6)))
   }
+})
+
+
+test("a refused append stops reading later slices", async () => {
+  const file = picture("clip.mp4", body, "video/mp4")
+  const slice = file.slice.bind(file)
+  let reads = 0
+  file.slice = (start, end) => { reads++; return slice(start, end) }
+  const attach: Attach = chunk => chunk.appendTo === undefined
+    ? Effect.succeed({ path: "/tmp/clip.mp4", name: "clip.mp4" })
+    : Effect.fail(new UsageFailure({ reason: "the conversation changed" }))
+  const result = await Effect.runPromise(Effect.result(attaching(file, attach, 8)))
+  expect(Result.isFailure(result)).toBe(true)
+  expect(reads).toBe(2)
 })

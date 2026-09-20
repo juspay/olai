@@ -42,7 +42,7 @@ When("I drop two different text files with the same name at once", async functio
     if (target === null) throw new Error("the chat transcript is absent");
     for (const text of ["alpha", "bravo"]) {
       const transfer = new DataTransfer();
-      transfer.items.add(new File([text], "collision.txt", { type: name.endsWith(".mp4") ? "video/mp4" : "text/plain" }));
+      transfer.items.add(new File([text], "collision.txt", { type: "text/plain" }));
       for (const kind of ["dragenter", "dragover", "drop"]) {
         target.dispatchEvent(new DragEvent(kind, { dataTransfer: transfer, bubbles: true, cancelable: true }));
       }

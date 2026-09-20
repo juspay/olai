@@ -3780,9 +3780,9 @@ Then("there is somewhere to type into", async function (this: OlaiWorld) {
 
 When("reading the next attachment file is held", async function (this: OlaiWorld) {
   await this.page.evaluate(() => {
-    const read = File.prototype.arrayBuffer;
-    File.prototype.arrayBuffer = async function () {
-      File.prototype.arrayBuffer = read;
+    const read = Blob.prototype.arrayBuffer;
+    Blob.prototype.arrayBuffer = async function () {
+      Blob.prototype.arrayBuffer = read;
       document.documentElement.setAttribute("data-test-file-reading", "held");
       await new Promise<void>((resolve) => document.addEventListener("test-release-file-read", () => resolve(), { once: true }));
       document.documentElement.removeAttribute("data-test-file-reading");
