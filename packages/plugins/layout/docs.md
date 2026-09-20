@@ -90,3 +90,6 @@ this row holds from `navigation.state` (`src/routing.ts`).
 Chat now contributes outline folds and node-page faces, not a dock in
 `app.panel` (removed in #582). Legacy open/width preferences do not recreate
 that panel; e2e checks both wide and maximum stored widths with a live fold.
+
+The static `olai-plugin-layout/e2e/selectors` export shares layout-owned DOM
+selectors with other plugins’ e2e steps without relative cross-package imports.

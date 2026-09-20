@@ -8,7 +8,7 @@
  */
 
 import * as assert from "node:assert";
-import { MAIN_STRIP } from "../../../layout/e2e/selectors.ts";
+import { MAIN_STRIP } from "olai-plugin-layout/e2e/selectors";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
 import { childOf, notChildOf } from "@olai/tests/harness/nesting.ts";

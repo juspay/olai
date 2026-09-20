@@ -15,8 +15,8 @@ import { pressed } from "@olai/tests/harness/settling.ts";
 import { APP_HEADER, CHAT_PANEL, CHAT_TOGGLE, NODE, NODE_GUTTER, NODE_MENU, NODE_MENU_PANEL, NODE_MENU_ITEM, PANEL_RESIZE, PANE_HEADER, TIP, ZOOM_TITLE, HYDRATION_TIMEOUT, POLL_TIMEOUT, ZOOM } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-import { PANEL_OPEN_KEY, PANEL_WIDTH_KEY, PANEL_MAX_PX } from "../../../layout/src/layout/prefs.ts";
-import { MAIN_STRIP } from "../../../layout/e2e/selectors.ts";
+import { PANEL_OPEN_KEY, PANEL_WIDTH_KEY, PANEL_MAX_PX } from "olai-plugin-layout/preferences";
+import { MAIN_STRIP } from "olai-plugin-layout/e2e/selectors";
 
 import { TABS_KEY } from "../../src/persist.ts";
 import { ADDRESS, CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB } from "../selectors.ts";
