@@ -8,7 +8,8 @@
  */
 
 import * as assert from "node:assert";
-import { MAIN_STRIP } from "olai-plugin-layout/e2e/selectors";
+import { TESTID as LAYOUT_TESTID } from "olai-plugin-layout/testids";
+import { selector } from "@olai/web/testlib";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
 import { childOf, notChildOf } from "@olai/tests/harness/nesting.ts";
@@ -1371,7 +1372,7 @@ const SEAM_EDGE = 2;
  *  measured against, asked of the bar rather than of `--height-header`, because
  *  the token and the bar disagreeing is one of the things this can catch. */
 const headerSeam = async (world: OlaiWorld): Promise<number> => {
-  const strip = world.page.locator(MAIN_STRIP);
+  const strip = world.page.locator(selector(LAYOUT_TESTID.mainStrip));
   const header = await world.box(await strip.count() ? strip : world.page.locator(APP_HEADER), "the main-column chrome");
   return header.y + header.height;
 };

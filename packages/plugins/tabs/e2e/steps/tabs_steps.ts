@@ -16,7 +16,8 @@ import { APP_HEADER, CHAT_PANEL, CHAT_TOGGLE, NODE, NODE_GUTTER, NODE_MENU, NODE
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 import { PANEL_OPEN_KEY, PANEL_WIDTH_KEY, PANEL_MAX_PX } from "olai-plugin-layout/preferences";
-import { MAIN_STRIP } from "olai-plugin-layout/e2e/selectors";
+import { TESTID as LAYOUT_TESTID } from "olai-plugin-layout/testids";
+import { selector } from "@olai/web/testlib";
 
 import { TABS_KEY } from "../../src/persist.ts";
 import { ADDRESS, CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB } from "../selectors.ts";
@@ -230,7 +231,7 @@ Then("the stored tabs hold {string}", async function (this: OlaiWorld, hrefs: st
 // Geometry is measured from the rendered chrome, independently of its tokens.
 const chromeBoxes = async (world: OlaiWorld) => {
   const header = await world.box(world.page.locator(APP_HEADER), "the header");
-  const strip = world.page.locator(MAIN_STRIP);
+  const strip = world.page.locator(selector(LAYOUT_TESTID.mainStrip));
   return { header, strip: await strip.count() ? await world.box(strip, "the strip") : undefined };
 };
 
@@ -240,7 +241,7 @@ Then("the tab strip is pinned below the app header", async function (this: OlaiW
     return strip !== undefined && Math.abs(strip.y - header.y - header.height) <= 2
       && strip.height > 0 && strip.y + strip.height < (this.page.viewportSize()?.height ?? 0);
   }, "the strip to pin directly below the header");
-  const strip = this.page.locator(MAIN_STRIP);
+  const strip = this.page.locator(selector(LAYOUT_TESTID.mainStrip));
   assert.ok(await strip.evaluate((element) => {
     const box = element.getBoundingClientRect();
     return element.contains(document.elementFromPoint(box.x + 12, box.y + box.height / 2));

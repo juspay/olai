@@ -97,8 +97,7 @@ export const LAYER = {
    * reachable — a row's tip is about something on the page, and the scrim's
    * whole job is to be dismissed by pressing it while the header above it
    * still works (#101). A tip about a header pill is not this: it rides
-   * {@link LAYER.over} with the panel behind that pill. Chat conversations
-   * now live in outline folds and node pages, not in a dock at this layer.
+   * {@link LAYER.over} with the panel behind that pill.
    */
   page: "z-30",
   /** The main-column strip: above page headings, below drawers, sheets and

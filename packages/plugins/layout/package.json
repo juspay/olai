@@ -17,7 +17,6 @@
     "./geometry": "./src/pane/geometry.ts",
     "./slots": "./src/slots.ts",
     "./testids": "./src/testids.ts",
-    "./e2e/selectors": "./e2e/selectors.ts",
     "./bar-door": "./src/contracts/BarDoor.tsx",
     "./clearance": "./src/contracts/clearance.ts"
   },
@@ -45,7 +44,6 @@
       "./geometry",
       "./slots",
       "./testids",
-      "./e2e/selectors",
       "./bar-door",
       "./clearance"
     ]
