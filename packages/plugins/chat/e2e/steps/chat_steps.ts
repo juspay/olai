@@ -3188,6 +3188,14 @@ When("I record a video called {string}", async function (this: OlaiWorld, name: 
   assert.strictEqual(await hole.inputValue(), "");
 });
 
+When("I record an unnamed QuickTime video", async function (this: OlaiWorld) {
+  const [chooser] = await Promise.all([
+    this.page.waitForEvent("filechooser"),
+    this.chat(selector(PLUGIN_TESTID.chatVideoButton)).click(),
+  ]);
+  await chooser.setFiles({ name: "", mimeType: "video/quicktime", buffer: Buffer.from(TINY_MP4, "base64") });
+});
+
 When("I dismiss the camcorder", async function (this: OlaiWorld) {
   const [chooser] = await Promise.all([
     this.page.waitForEvent("filechooser"),
@@ -3778,17 +3786,37 @@ Then("there is somewhere to type into", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
-When("reading the next attachment file is held", async function (this: OlaiWorld) {
-  await this.page.evaluate(() => {
+const holdAttachmentRead = async (world: OlaiWorld, remaining: number): Promise<void> => {
+  await world.page.evaluate((remaining) => {
     const read = Blob.prototype.arrayBuffer;
     Blob.prototype.arrayBuffer = async function () {
+      if (--remaining > 0) return read.call(this);
       Blob.prototype.arrayBuffer = read;
       document.documentElement.setAttribute("data-test-file-reading", "held");
       await new Promise<void>((resolve) => document.addEventListener("test-release-file-read", () => resolve(), { once: true }));
       document.documentElement.removeAttribute("data-test-file-reading");
       return read.call(this);
     };
-  });
+  }, remaining);
+};
+
+When("reading the next attachment file is held", async function (this: OlaiWorld) {
+  await holdAttachmentRead(this, 1);
+});
+
+When("reading the second attachment slice is held", async function (this: OlaiWorld) {
+  await holdAttachmentRead(this, 2);
+});
+
+Then("the attachment upload shows {int} percent", async function (this: OlaiWorld, percent: number) {
+  await this.waitUntil(async () =>
+    (await this.chat(selector(PLUGIN_TESTID.chatUploadProgress)).innerText()).endsWith(` ${percent}%`),
+    `the acknowledged upload progress to reach ${percent}%`);
+});
+
+Then("no attachment upload progress is shown", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => (await this.chat(selector(PLUGIN_TESTID.chatUploadProgress)).count()) === 0,
+    "the upload progress to clear");
 });
 
 Then("the attachment file is still being read", async function (this: OlaiWorld) {

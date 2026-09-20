@@ -9,9 +9,9 @@
  * strip at the bottom of it. One owner above both: the conversation component makes this and
  * hands it to each.
  *
- * Four gestures arrive here and there is deliberately one way through: paste
- * (the desktop one), drop (for a file already on screen), and the two doors a
- * phone has — the roll picker and the camera beside it. What differs between
+ * Five gestures arrive here and there is deliberately one way through: paste
+ * (the desktop one), drop (for a file already on screen), and the three doors a
+ * phone has — the library picker, photo and video capture. What differs between
  * them is which listener called {@link Holding.take}; nothing below that line
  * knows which it was. A camera's one-shot rhythm is no case of its own here:
  * each invocation is one file, like one file in a drop.
@@ -66,6 +66,8 @@ export interface Holding {
   /** How many uploads are in flight, so the composer can say so. A count
    *  rather than a flag: three files in one drop are three uploads. */
   readonly sending: Accessor<number>
+  /** Percentage of pending bytes acknowledged, across all active gestures. */
+  readonly progress: Accessor<number>
   /** Attach every one of these, in order — whatever the gate takes of them,
    *  and one answer on the panel's refusal line for everything it did not. */
   readonly take: (files: ReadonlyArray<File>) => Promise<void>
@@ -79,8 +81,29 @@ export interface Holding {
 
 const bin = () => {
   const [pending, setPending] = createSignal<ReadonlyArray<Attached>>([])
-  const [sending, setSending] = createSignal(0)
-  return { pending, setPending, sending, setSending }
+  // A token per file, not per name: simultaneous gestures and duplicate
+  // captures must not overwrite one another's progress. This map shares the
+  // chips' upload-scope owner, so drawer remounts keep it and scope changes do
+  // not carry it into the next conversation.
+  const [uploads, setUploads] = createSignal<ReadonlyMap<symbol, { bytes: number; total: number }>>(new Map())
+  const track = (token: symbol, bytes: number, total: number) =>
+    setUploads(now => new Map(now).set(token, { bytes, total }))
+  const finish = (tokens: ReadonlyArray<symbol>) => setUploads(now => {
+    const next = new Map(now)
+    for (const token of tokens) next.delete(token)
+    return next
+  })
+  const sending = () => uploads().size
+  const progress = () => {
+    let bytes = 0
+    let total = 0
+    for (const upload of uploads().values()) {
+      bytes += upload.bytes
+      total += upload.total
+    }
+    return total === 0 ? 0 : Math.floor(bytes / total * 100)
+  }
+  return { pending, setPending, sending, progress, track, finish }
 }
 export const createHoldingMemory = () => new Map<string, ReturnType<typeof bin>>()
 
@@ -104,6 +127,7 @@ export const createHolding = (chat: Chat): Holding => {
   return {
     pending: () => current().pending(),
     sending: () => current().sending(),
+    progress: () => current().progress(),
     take: async (files) => {
       const owner = current()
       const scope = chat.state().uploadScope
@@ -114,23 +138,28 @@ export const createHolding = (chat: Chat): Holding => {
       // which is the drop losing a file with nothing on screen about it.
       const reasons = [...refusals]
       chat.refuse([])
-      owner.setSending((count) => count + taking.length)
-      // Sequential, and that is the promise: several files in one drop
-      // attach in the order they were dropped, which is the order they will
-      // ride the next message in.
-      for (const [index, file] of taking.entries()) {
-        if (chat.state().uploadScope !== scope) {
-          owner.setSending((count) => count - (taking.length - index))
-          break
+      const tokens = taking.map(file => {
+        const token = Symbol()
+        owner.track(token, 0, file.size)
+        return token
+      })
+      try {
+        // Sequential within one gesture; other gestures have their own tokens
+        // in the same bin. Each callback updates only the owner captured here.
+        for (const [index, file] of taking.entries()) {
+          if (chat.state().uploadScope !== scope) break
+          const token = tokens[index]!
+          const answer = await chat.attach(file, bytes => owner.track(token, bytes, file.size))
+          owner.finish([token])
+          if (answer._tag === "refused") reasons.push(answer.failure.reason)
+          // `gone` is not a refusal: the conversation left during the upload
+          // owns neither a chip nor a progress line in the new conversation.
+          if (answer._tag !== "stored") continue
+          owner.setPending((already) => [...already, answer.stored])
         }
-        const answer = await chat.attach(file)
-        owner.setSending((count) => count - 1)
-        if (answer._tag === "refused") reasons.push(answer.failure.reason)
-        // `gone` is not a refusal and says nothing: the conversation this was
-        // being attached to was left while it uploaded, so there is no chip to
-        // draw and nothing anybody needs telling.
-        if (answer._tag !== "stored") continue
-        owner.setPending((already) => [...already, answer.stored])
+      } finally {
+        // Includes queued files skipped on a scope change and failed reads.
+        owner.finish(tokens)
       }
       if (chat.state().uploadScope === scope) chat.refuse(reasons)
     },

@@ -1,3 +1,4 @@
+import { FRAME_CHUNK_BYTES } from "@kolu/surface/frame-chunking";
 import { createHash } from "node:crypto";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { MAX_ATTACHMENT_BYTES, MAX_VIDEO_ATTACHMENT_BYTES } from "@olai/surface";
@@ -55,7 +56,6 @@ Then("the agent confirms attachment content {string}", async function (this: Ola
   await this.waitUntil(async () => (await this.chat(CHAT_PANEL).innerText()).includes(digest), "the harness to read the expected attachment bytes");
 });
 
-
 When("I drop a video larger than the document limit", async function (this: OlaiWorld) {
   await drop(this, MAX_ATTACHMENT_BYTES + 1, "large.mp4");
 });
@@ -72,4 +72,22 @@ Then("the agent confirms every byte of the large video", async function (this: O
   }
   const expected = `sha256 of large.mp4: ${hash.digest("hex")}`;
   await this.waitUntil(async () => (await this.chat(CHAT_PANEL).innerText()).includes(expected), "the agent to hash the complete video on disk");
+});
+
+When("I drop a video with two upload slices", async function (this: OlaiWorld) {
+  await drop(this, FRAME_CHUNK_BYTES * 2, "progress.mp4");
+});
+
+When("I drop a large video and an oversized text file together", async function (this: OlaiWorld) {
+  await this.page.evaluate(({ size, at }) => {
+    const target = document.querySelector(at);
+    if (target === null) throw new Error("the chat transcript is absent");
+    const transfer = new DataTransfer();
+    const bytes = new Uint8Array(size).fill(97);
+    transfer.items.add(new File([bytes], "large.mp4", { type: "video/mp4" }));
+    transfer.items.add(new File([bytes], "oversized.txt", { type: "text/plain" }));
+    for (const kind of ["dragenter", "dragover", "drop"]) {
+      target.dispatchEvent(new DragEvent(kind, { dataTransfer: transfer, bubbles: true, cancelable: true }));
+    }
+  }, { size: MAX_ATTACHMENT_BYTES + 1, at: this.chatSelector(selector(PLUGIN_TESTID.chatTranscript)) });
 });

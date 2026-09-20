@@ -305,7 +305,6 @@ for (const initial of [true, false]) {
   })
 }
 
-
 test("append caps follow the stored kind and accumulated bytes", async () => {
   const files = make()
   try {

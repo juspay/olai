@@ -71,3 +71,14 @@ Feature: Attachment size boundaries leave the composer usable
     Then the agent read "retry.mp4" in that order
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: A mixed drop judges the video and document by their own caps
+    When I drop a large video and an oversized text file together
+    Then the composer is holding "large.mp4" in that order
+    And the chat eventually shows "oversized.txt"
+    And the chat eventually shows "over the 50 MB limit"
+    When I ask the agent "verify attachment bytes"
+    Then the agent's answer mentions "read 52428801 bytes from large.mp4"
+    And the agent confirms every byte of the large video
+    And the composer is holding nothing
+    And there should be no page errors

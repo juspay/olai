@@ -31,6 +31,9 @@ import { Effect } from "effect"
 import { asFailure, type Call } from "@olai/web/client/run.ts"
 
 /** The one verb this needs, so a test can pass its own. */
+/** Bytes acknowledged by the server, starting at zero; never bytes merely read. */
+export type UploadProgress = (bytes: number) => void
+
 export type Attach = (chunk: AttachChunk) => Call<Attached>
 
 /**
@@ -51,6 +54,7 @@ export const attaching = (
   file: File,
   attach: Attach,
   chunkChars?: number,
+  progress?: UploadProgress,
 ): Effect.Effect<Attached, OpFailure> =>
   Effect.gen(function*() {
     const name = nameOf(file)
@@ -60,9 +64,12 @@ export const attaching = (
     }
 
     const chars = chunkChars ?? FRAME_CHUNK_BASE64_CHARS
-    if (!Number.isInteger(chars) || chars <= 0 || chars % 4 !== 0 || chars > FRAME_PAYLOAD_BUDGET) {
-      return yield* Effect.fail(new UsageFailure({ reason: "invalid attachment chunk size" }))
+    // Production's framing contract is asserted in CI. A bad test seam is a
+    // programmer error, not a refusal a person can fix by choosing a file.
+    if (chunkChars !== undefined && (!Number.isInteger(chars) || chars <= 0 || chars % 4 !== 0 || chars > FRAME_PAYLOAD_BUDGET)) {
+      return yield* Effect.die(new Error("invalid attachment chunk size"))
     }
+    progress?.(0)
     // Each full slice is a multiple of three bytes: no padding separates
     // chunks, and only one slice is resident while its call is in flight.
     const sliceBytes = chars / 4 * 3
@@ -72,8 +79,10 @@ export const attaching = (
     // Even an empty file makes one create call. Every later read waits for
     // the previous append, retaining the server's path and upload lifetime.
     let stored = yield* toRefusal(attach({ name, data: yield* read(0) }))
+    progress?.(Math.min(sliceBytes, file.size))
     for (let at = sliceBytes; at < file.size; at += sliceBytes) {
       stored = yield* toRefusal(attach({ name, data: yield* read(at), appendTo: stored.path }))
+      progress?.(Math.min(at + sliceBytes, file.size))
     }
     return stored
   })
@@ -98,8 +107,12 @@ export const refusalFor = (file: File): string | null =>
  * A pasted screenshot usually arrives as a `File` with a name of its own
  * (`image.png`), and sometimes as one with nothing useful at all — so the type
  * is the fallback, because the EXTENSION is what the gate judges and what the
- * agent reads the file's kind from. Pictures and recordings get a fallback;
- * other unnamed files keep their name and meet the gate as that.
+ * agent reads the file's kind from. Pictures get a picture name, and camera
+ * recordings get a video name (`recorded.mov` for QuickTime, for example).
+ * Anything else keeps its name and meets the gate as that: calling an unnamed
+ * zip `pasted.png` would let it pass as a picture it is not. The video fallback
+ * belongs beside the picture's, rather than widening that exception to every
+ * unnamed blob.
  */
 const nameOf = (file: File): string => {
   if (file.name !== "" && file.name.includes(".")) return file.name

@@ -2014,6 +2014,16 @@ Feature: Talking to a node agent
     Then the agent read "porch.mp4, porch-1.mp4, library.mov" in that order
 
   @scratch:chat @phone
+  Scenario: An unnamed QuickTime capture gets a video name
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I record an unnamed QuickTime video
+    Then the composer is holding "recorded.mov", showing how big it is
+    When I ask the agent "read this unnamed recording"
+    Then the agent read "recorded.mov" in that order
+    And the composer is holding nothing
+
+  @scratch:chat @phone
   Scenario: Dismissing the camcorder preserves the draft and refusal
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready

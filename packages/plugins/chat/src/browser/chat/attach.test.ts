@@ -10,6 +10,7 @@
 
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
+import { FRAME_CHUNK_BASE64_CHARS, FRAME_PAYLOAD_BUDGET } from "@kolu/surface/frame-chunking"
 import { UsageFailure } from "@olai/format"
 
 import { type Attach, attaching, refusalFor } from "./attach.ts"
@@ -170,4 +171,40 @@ test("a refused append stops reading later slices", async () => {
   const result = await Effect.runPromise(Effect.result(attaching(file, attach, 8)))
   expect(Result.isFailure(result)).toBe(true)
   expect(reads).toBe(2)
+})
+
+
+test("the pinned frame chunk is aligned and fits the payload budget", () => {
+  expect(FRAME_CHUNK_BASE64_CHARS).toBeGreaterThan(0)
+  expect(FRAME_CHUNK_BASE64_CHARS % 4).toBe(0)
+  expect(FRAME_CHUNK_BASE64_CHARS).toBeLessThanOrEqual(FRAME_PAYLOAD_BUDGET)
+})
+
+test("progress advances only after acknowledged chunks, including the short tail", async () => {
+  const reported: number[] = []
+  const server = spy()
+  const attach: Attach = chunk => Effect.gen(function*() {
+    expect(reported.at(-1)).toBe(server.calls.length * 6)
+    return yield* server.attach(chunk)
+  })
+  await Effect.runPromise(attaching(picture("clip.mp4", body.slice(0, 14)), attach, 8, bytes => reported.push(bytes)))
+  expect(reported).toEqual([0, 6, 12, 14])
+})
+
+test("progress never claims bytes from a refused append", async () => {
+  const reported: number[] = []
+  const attach: Attach = chunk => chunk.appendTo === undefined
+    ? Effect.succeed({ path: "/tmp/clip.mp4", name: "clip.mp4" })
+    : Effect.fail(new UsageFailure({ reason: "gone" }))
+  await Effect.runPromise(Effect.result(attaching(picture("clip.mp4", body), attach, 8, bytes => reported.push(bytes))))
+  expect(reported).toEqual([0, 6])
+})
+
+test("an empty file reports zero bytes and a preflight refusal reports nothing", async () => {
+  const reported: number[] = []
+  await Effect.runPromise(attaching(picture("empty.txt", new Uint8Array()), spy().attach, 8, bytes => reported.push(bytes)))
+  expect(reported).toEqual([0, 0])
+  reported.length = 0
+  await Effect.runPromise(Effect.result(attaching(picture("no.zip", body), spy().attach, 8, bytes => reported.push(bytes))))
+  expect(reported).toEqual([])
 })

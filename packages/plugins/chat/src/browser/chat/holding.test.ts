@@ -16,6 +16,7 @@ import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
 import { createHolding, createHoldingMemory, sorting } from "./holding.ts"
+import type { UploadProgress } from "./attach.ts"
 import type { Chat, Uploaded } from "./state.ts"
 
 const file = (name: string, type: string) => new File([new Uint8Array(3)], name, { type })
@@ -92,12 +93,12 @@ const oversized = (name: string): File => {
   return claiming
 }
 
-const conversation = (answering: (file: File) => Uploaded) => {
+const conversation = (answering: (file: File, progress?: UploadProgress) => Uploaded | Promise<Uploaded>) => {
   const said: Array<ReadonlyArray<string>> = []
   const chat = {
     state: () => ({ session: { id: "one" }, uploadScope: "one" }),
     ui: { holding: createHoldingMemory() },
-    attach: (file: File) => Promise.resolve(answering(file)),
+    attach: (file: File, progress?: UploadProgress) => Promise.resolve(answering(file, progress)),
     refuse: (reasons: ReadonlyArray<string>) => said.push(reasons),
   } as unknown as Chat
   return { chat, said }
@@ -172,4 +173,38 @@ test("two files refused for two different reasons are both named, in one answer"
   // not, which is the difference a single joined sentence would hide.
   expect(answer[0]).not.toEqual(answer[1] ?? "")
   dispose()
+})
+
+
+test("overlapping uploads keep separate progress, survive remounting, and clear on refusal", async () => {
+  const uploads: Array<{ progress: UploadProgress; finish: (answer: Uploaded) => void }> = []
+  const { chat } = conversation((_file, progress) => new Promise(resolve => {
+    uploads.push({ progress: progress!, finish: resolve })
+  }))
+  let dispose = () => {}
+  const [holding, reopened] = createRoot(stop => {
+    dispose = stop
+    return [createHolding(chat), createHolding(chat)] as const
+  })
+  try {
+    // Same name, different gestures: neither can replace the other's counter.
+    const first = holding.take([new File([new Uint8Array(3)], "clip.mp4")])
+    const second = holding.take([new File([new Uint8Array(9)], "clip.mp4")])
+    expect(holding.sending()).toBe(2)
+    expect(holding.progress()).toBe(0)
+    uploads[0]!.progress(3)
+    expect(reopened.progress()).toBe(25)
+    uploads[1]!.progress(3)
+    expect(reopened.progress()).toBe(50)
+    uploads[0]!.finish(stored("clip.mp4"))
+    await first
+    expect(reopened.sending()).toBe(1)
+    expect(reopened.progress()).toBe(33)
+    uploads[1]!.finish(refused("connection lost"))
+    await second
+    expect(reopened.sending()).toBe(0)
+    expect(reopened.progress()).toBe(0)
+  } finally {
+    dispose()
+  }
 })

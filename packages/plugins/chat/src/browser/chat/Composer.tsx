@@ -769,8 +769,8 @@ export function Composer(props: {
           {/* What is in flight. A picture big enough to notice is a picture
               whose upload is worth saying is happening. */}
           <Show when={props.holding.sending() > 0}>
-            <span class="font-mono text-[0.6875rem] text-muted">
-              attaching{props.holding.sending() > 1 ? ` ${props.holding.sending()}` : ""}…
+            <span class="font-mono text-[0.6875rem] text-muted" data-testid={TESTID.chatUploadProgress}>
+              attaching{props.holding.sending() > 1 ? ` ${props.holding.sending()}` : ""}… {props.holding.progress()}%
             </span>
           </Show>
           {/* The turn is stopped on a PERSON, and this is where they find out.
@@ -817,9 +817,17 @@ export function Composer(props: {
       </Show>
 
       <div class="mt-2 flex items-center gap-2">
-        {/* The library stays one tap away from either capture door. MIME
-            wildcards offer videos on phones; the gate's extensions keep
-            documents available in desktop dialogs too. */}
+        {/* One tap to the library, on every device — and on a phone one of
+            THREE doors, beside photo and video capture. There is deliberately
+            no `capture` on THIS input: a file is often already in the library,
+            and making the camera its front door would demote that ordinary
+            case. Separate inputs give each gesture its own single tap.
+
+            `accept` is SPELLED FROM THE GATE: a dialog that greys out a PDF
+            the gate would take is half a promise, with no refusal explaining
+            why. Extensions keep documents reachable; the MIME wildcards ride
+            beside them because phone libraries use media kinds to decide
+            whether to offer photos, videos, or both. */}
         <input
           ref={picker}
           type="file"
@@ -841,10 +849,26 @@ export function Composer(props: {
         >
           +
         </button>
-        {/* Two capture doors, each asking the phone for one media kind.
-            Both clear their input so the same name can be captured twice.
-            Only a coarse pointer gets these: desktop browsers ignore capture
-            and would open another ordinary file dialog. */}
+        {/* THE CAPTURE DOORS. `capture="environment"` asks a phone to open
+            its back camera directly. Each input names one media kind, so one
+            button means photo and the other means video. Neither carries
+            `multiple`: the platform returns one capture per invocation, and
+            capture → chip → capture makes several attachments for one send.
+
+            Clearing the value makes two IDENTICAL captures two attachments:
+            without it the second selection of the same name fires no
+            `change`. The server can suffix a collision only if it gets that
+            second upload at all.
+
+            Here `accept` is a media WILDCARD instead of the gate's extension
+            list because the capture prompt reads its mode from the MIME kind.
+            It asks for a picture or a recording; the gate still judges what
+            comes back by name, giving the same refusal a drop would get.
+
+            Drawn ONLY where `camera()` says a finger is the pointer. Desktop
+            browsers ignore capture and would open an ordinary file dialog,
+            making a camera button lie. Each input and its button stand or go
+            together: an input without its button is markup nobody can reach. */}
         <Show when={camera()}>
           <input
             ref={shutter}

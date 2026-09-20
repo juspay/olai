@@ -658,6 +658,8 @@ export const TESTID = {
   /** The pictures on a message — pending in the composer, or sent, on the row.
    *  Each one is a `chatAttachment` carrying its file name in `data-name`. */
   chatAttachments: "chat-attachments",
+  /** Acknowledged bytes of pending uploads in this conversation. */
+  chatUploadProgress: "chat-upload-progress",
   chatAttachment: "chat-attachment",
   /** Drawn only in the tab that sent the picture, out of the Blob it still
    *  has. Every other tab has the name and nothing to draw. */

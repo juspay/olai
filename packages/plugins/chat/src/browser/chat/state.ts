@@ -54,7 +54,7 @@ import { type Accessor, createEffect, createMemo, createSelector, createSignal, 
 import { chatWire } from "../wire.ts"
 
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
-import { attaching } from "./attach.ts"
+import { attaching, type UploadProgress } from "./attach.ts"
 import { createRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
 import { createConversationUI, type ConversationUI } from "./ui.tsx"
@@ -147,7 +147,7 @@ export interface Chat {
    *  several of these calls, and a verb that drew each answer as it came would
    *  rub out the last one's. The caller collects them and says them once
    *  ({@link Chat.refuse}). */
-  readonly attach: (file: File) => Promise<Uploaded>
+  readonly attach: (file: File, progress?: UploadProgress) => Promise<Uploaded>
   /** Try a message the agent would not take again — `id` is the row's own key,
    *  and the SERVER still holds the prompt behind it. Nothing is rebuilt here:
    *  the row carries its pictures by name, and a retry assembled from what is
@@ -461,7 +461,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
     // The chunk loop is a composed effect ({@link ./attach.ts}) rather than a
     // verb of its own: what a caller waits for is the path, because it is what
     // the next `send` carries.
-    attach: (file) =>
+    attach: (file, progress) =>
       new Promise<Uploaded>((resolve) => {
         // WHICH conversation this is being attached to, read before the first
         // chunk goes out. An upload takes as many round trips as the file
@@ -474,7 +474,9 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
         const asked = state().uploadScope
         if (asked === null) return resolve({ _tag: "gone" })
         run(
-          attaching(file, (chunk) => chatWire().procedures.conversation.attach({ ...chunk, conv, uploadScope: asked })),
+          attaching(file, (chunk) => chatWire().procedures.conversation.attach({ ...chunk, conv, uploadScope: asked }), undefined, (bytes) => {
+            if (state().uploadScope === asked) progress?.(bytes)
+          }),
           (failure) => resolve({ _tag: "refused", failure }),
           (stored) => {
             if (state().uploadScope !== asked) return resolve({ _tag: "gone" })

@@ -87,10 +87,15 @@ export const DOCUMENT_EXTENSIONS: ReadonlyArray<string> = [
  * it can do with a video is the agent's business — Claude Code cannot watch
  * one, and can cut frames out of it with a tool — and olai does not transcode
  * or thumbnail it on the way through, because that would be a pipeline this
- * gate has no business owning. Videos have their own 200 MiB cap.
+ * gate has no business owning. Videos get a 200 MB cap so a short phone
+ * recording has room; a longer one can still exceed it and gets the same
+ * refusal sentence as other files, with its own limit named.
  *
- * The gate judges extensions. The browser names unnamed captures from their
- * MIME kind before asking it, so both ends still judge the same filename.
+ * Extensions only, like the other lists: the filename is what every door and
+ * the server can agree on. A camera CAN return an unnamed recording, so the
+ * browser supplies a video extension from its MIME kind before asking the
+ * gate. An unnamed zip must not become `pasted.png` and slip through as a
+ * picture; naming a recording is equally a claim about what it actually is.
  *
  * An MPEG transport stream is `.m2ts` and never `.ts` or `.mts`: those are
  * TypeScript first on any machine this runs on, and a gate that took a `.ts`

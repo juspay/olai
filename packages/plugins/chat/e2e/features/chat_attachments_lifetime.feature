@@ -55,6 +55,7 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     When reading the next attachment file is held
     And I drop "notes.txt" on the chat panel
     Then the attachment file is still being read
+    And the attachment upload shows 0 percent
     When I close the agent fold
     And the node agent's fold is ready
     And the attachment file read finishes
@@ -67,11 +68,13 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     When reading the next attachment file is held
     And I drop "notes.txt" on the chat panel
     Then the attachment file is still being read
+    And the attachment upload shows 0 percent
     When I remember this conversation as "before fresh"
     And I start a fresh session
     Then the panel has a different conversation from "before fresh"
     And the node agent's fold is ready
     And the chat is empty
+    And no attachment upload progress is shown
     When the attachment file read finishes
     And I ask the agent "a conversation without the old file"
     Then the agent's answer mentions "you said: a conversation without the old file"
@@ -176,3 +179,18 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     And the pending attachment "notes.txt" shows size "11 B"
     When I ask the agent "read the second notes"
     Then the agent's answer mentions "read 11 bytes from notes.txt"
+
+  Scenario: Acknowledged upload progress survives reopening the drawer
+    When reading the second attachment slice is held
+    And I drop a video with two upload slices
+    Then the attachment file is still being read
+    And the attachment upload shows 50 percent
+    When I close the agent fold
+    And the node agent's fold is ready
+    Then the attachment upload shows 50 percent
+    When the attachment file read finishes
+    Then the composer is holding "progress.mp4", showing how big it is
+    And no attachment upload progress is shown
+    When I ask the agent "read the completed video"
+    Then the agent's answer mentions "read 6291456 bytes from progress.mp4"
+    And there should be no page errors
