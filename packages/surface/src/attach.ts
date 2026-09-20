@@ -31,9 +31,9 @@
  * would be the copy coming back as a spelling.
  *
  * What stays is what kolu has no opinion about: what olai will ACCEPT.
- * {@link MAX_ATTACHMENT_BYTES} is a POLICY cap on the FILE — deliberately much
- * larger than one frame, which is why the two numbers were never one — the two
- * extension allowlists, and the sentence both ends refuse with.
+ * The per-kind caps are POLICY on the FILE, deliberately larger than one
+ * frame. The three extension allowlists and the sentence both ends refuse
+ * with live here too.
  */
 
 // Attachments are an agent-input allowlist, independent of rows serving files.

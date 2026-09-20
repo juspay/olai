@@ -680,7 +680,6 @@ export const TESTID = {
    *  for every reference, however it got there (`./browser/chat/refs.ts`). */
   chatNodeRef: "chat-node-ref",
   /** The file picker beside the input — a phone has no Ctrl+V. */
-  chatVideoButton: "chat-video",
   chatAttachButton: "chat-attach",
   /** The camera's door beside the `+` — the second entry a phone gets
    *  (`./browser/chat/camera.ts`). Its input carries `capture="environment"`, which is
@@ -689,6 +688,8 @@ export const TESTID = {
    *  and the button would open a file dialog, so it is ABSENT there —
    *  which is the fact a scenario on a desktop asserts. */
   chatCameraButton: "chat-camera",
+  /** Video capture, under the same coarse-pointer condition as photos. */
+  chatVideoButton: "chat-video",
   /** The button that opens the WHOLE command list. Drawn only when the agent
    *  offers commands. */
   chatCommands: "chat-commands",
