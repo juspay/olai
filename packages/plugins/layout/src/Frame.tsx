@@ -151,9 +151,10 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                       {/* THE SEAT ABOVE THE PANES (`./index.ts`'s `strip`), on a
                           desktop. Pinned under the header while a lone page
                           scrolls; page headings and jumps reserve both bands
-                          through the static --height-chrome contract. */}
+                          through the static --height-chrome contract. Layout owns
+                          the opaque desk ground; the occupant fills this seat. */}
                       <Show when={desktop() && props.slots.read(strip).length > 0}>
-                        <div data-testid={LAYOUT_TESTID.mainStrip} class={`sticky top-[var(--height-header)] h-[var(--height-strip)] bg-paper ${LAYER.strip}`}>
+                        <div data-testid={LAYOUT_TESTID.mainStrip} class={`sticky top-[var(--height-header)] h-[var(--height-strip)] bg-desk ${LAYER.strip}`}>
                           <For each={props.slots.read(strip)}>{({value: Strip})=><Strip/>}</For>
                         </div>
                       </Show>

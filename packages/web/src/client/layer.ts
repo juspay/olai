@@ -91,13 +91,14 @@ export const LAYER = {
    */
   row: "z-20",
   /**
-   * Over the page, under the chrome that covers it: the docked chat column,
-   * the scrim that dims the outline under an open drawer, a tip that hangs
+   * Over the page, under the strip and covering chrome: a lone node-page
+   * header, the scrim under an open drawer, and a tip that hangs
    * off a ROW. What these have in common is that they leave the app's frame
    * reachable — a row's tip is about something on the page, and the scrim's
    * whole job is to be dismissed by pressing it while the header above it
    * still works (#101). A tip about a header pill is not this: it rides
-   * {@link LAYER.over} with the panel behind that pill.
+   * {@link LAYER.over} with the panel behind that pill. Chat conversations
+   * now live in outline folds and node pages, not in a dock at this layer.
    */
   page: "z-30",
   /** The main-column strip: above page headings, below drawers, sheets and

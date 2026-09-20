@@ -12,7 +12,8 @@ own.
 
 The strip stays directly under the app header while a lone page scrolls,
 including a chat page. Page headings pin below it and heading jumps clear it.
-In a split, panes still fill the remaining viewport and scroll independently.
+In a split, panes still fill the remaining viewport and scroll independently;
+their headings pin to their own scrollport tops.
 On a phone, or with tabs switched off, the header alone is reserved. Layout
 owns this geometry; tabs still contributes only to the existing strip seat.
 

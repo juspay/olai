@@ -72,7 +72,11 @@ occupancy: one row may fill it (the `tabs` row does). The frame draws it only on
 a desktop, inside an element with `data-testid="main-strip"`, and it sticks
 directly below the app header while a lone page scrolls. Main-column sticky
 headings, tooltip floors and heading jumps clear both bands; the static
-`--height-chrome` token sums the header and the currently occupied strip. While the seat is
+`--height-chrome` token sums the header and the currently occupied strip.
+Each split pane scrollport overrides that token to `0px`: its sticky section
+and node headings pin to the pane top without knowing the workspace shape.
+Menus portal to the document overlay socket and retain the root viewport
+reserve. The layout wrapper owns the opaque strip ground. While the seat is
 filled on a desktop the root entry publishes `--height-strip` on `:root` as
 `var(--height-tabs)` (2.625rem, from the appearance tokens), and `0px`
 otherwise; the pane sheet subtracts it (`PANES_SPLIT`, `PANES_LONE` in

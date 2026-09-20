@@ -99,7 +99,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
   }
 
   return (
-    <div data-testid={TESTID.tabsStrip} class="relative flex h-full items-end gap-1 bg-desk px-2 pt-1.5">
+    <div data-testid={TESTID.tabsStrip} class="relative flex h-full items-end gap-1 px-2 pt-1.5">
       {/* The rule under the strip. Every tab is positioned and comes after it,
           so the tab in front, on paper, breaks the rule without a z-index. */}
       <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-rule/70" />

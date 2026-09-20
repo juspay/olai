@@ -626,8 +626,9 @@ function Branch(props: {
           // A SECTION holds its place at the top of the reading while its own
           // branch scrolls past — `position: sticky` inside this row's own
           // `<li>`, which is exactly the branch it heads, so it lets go the
-          // moment the next section arrives. The offset is the app bar's height
-          // (the page is what scrolls, `../styles.css`), and the layer is
+          // moment the next section arrives. The scroll owner supplies the
+          // chrome offset: header plus strip for the document, zero within
+          // a split pane whose scrollport already clears both. The layer is
           // {@link LAYER.row}: over the rows it covers, under every piece of
           // chrome. Overlays that hang off a row (the `•••` menu, the
           // title-cell completions) portal out of this context — a heading

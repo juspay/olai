@@ -116,6 +116,7 @@ Feature: The strip reserves its place above the reading
   @scratch:chat
   Scenario Outline: Legacy <width> dock preferences do not recreate a covering panel
     Given legacy dock preferences are open and <width>
+    And I open the outline "house.olai"
     And I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     Then chat remains in the reading below the strip with no dock
