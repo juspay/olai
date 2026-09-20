@@ -12,6 +12,7 @@
  * which is most of what a streaming panel does.
  */
 
+import { ATTACHMENT_ACCEPT } from "@olai/surface";
 import { openFold } from "./node_agent_folds_steps.ts";
 import * as assert from "node:assert";
 import * as fs from "node:fs";
@@ -3101,10 +3102,12 @@ When(
     // one half-truth met with no refusal to explain it.
     const accept = await this
       // `[multiple]`: the ROLL input, not the camera's — on a phone there are
-      // two file inputs in the panel and the unscoped selector below is a
+      // three file inputs in the panel and the unscoped selector below is a
       // strict-mode violation rather than a reading.
       .chat(`${CHAT_PANEL} input[type=file][multiple]`)
       .getAttribute("accept");
+    assert.strictEqual(accept, ATTACHMENT_ACCEPT);
+    assert.ok(accept.includes("image/*") && accept.includes("video/*"));
     const extension = name.slice(name.lastIndexOf("."));
     assert.ok(
       accept !== null && accept.includes(extension),
@@ -3134,7 +3137,7 @@ When(
     // claim is asserted on — the same arrangement as the pick step beside
     // it, which asserts `accept` because the dialog itself cannot be
     // photographed either.
-    const hole = this.chat(`${CHAT_PANEL} input[type=file][capture]`);
+    const hole = this.chat(`${CHAT_PANEL} input[type=file][accept="image/*"][capture]`);
     assert.strictEqual(
       await hole.getAttribute("capture"),
       "environment",
@@ -3170,6 +3173,34 @@ When(
   },
 );
 
+When("I record a video called {string}", async function (this: OlaiWorld, name: string) {
+  const hole = this.chat(`${CHAT_PANEL} input[type=file][accept="video/*"]`);
+  assert.strictEqual(await hole.getAttribute("capture"), "environment");
+  assert.strictEqual(await hole.getAttribute("multiple"), null);
+  const button = this.chat(selector(PLUGIN_TESTID.chatVideoButton));
+  assert.strictEqual(await button.getAttribute("aria-label"), "record a video");
+  const [chooser] = await Promise.all([
+    this.page.waitForEvent("filechooser"),
+    button.click(),
+  ]);
+  const spec = fileSpec(name);
+  await chooser.setFiles({ name, mimeType: spec.type, buffer: Buffer.from(spec.data, "base64") });
+  assert.strictEqual(await hole.inputValue(), "");
+});
+
+When("I dismiss the camcorder", async function (this: OlaiWorld) {
+  const [chooser] = await Promise.all([
+    this.page.waitForEvent("filechooser"),
+    this.chat(selector(PLUGIN_TESTID.chatVideoButton)).click(),
+  ]);
+  await chooser.setFiles([]);
+});
+
+When("I paste a video called {string} into the chat", async function (this: OlaiWorld, name: string) {
+  await this.chat(CHAT_INPUT).click();
+  await deliver(this, PLUGIN_TESTID.chatInput, [name], ["paste"], "clipboard");
+});
+
 When("I dismiss the camera", async function (this: OlaiWorld) {
   // The empty answer: backing out of a shutter hands the input no files and
   // (on the browsers that fire for it) a `change` — the same shape a
@@ -3183,6 +3214,8 @@ When("I dismiss the camera", async function (this: OlaiWorld) {
 });
 
 Then("the composer is not offering a camera", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.chat(selector(PLUGIN_TESTID.chatVideoButton)).count(), 0);
+  assert.strictEqual(await this.chat(`${CHAT_PANEL} input[capture]`).count(), 0);
   assert.strictEqual(
     await this.chat(CHAT_CAMERA_BUTTON).count(),
     0,
@@ -3263,7 +3296,7 @@ Then(
 Then(
   "the agent read {string} in that order",
   async function (this: OlaiWorld, names: string) {
-    const wanted = named(names).map((name) => `read 70 bytes from ${name}`);
+    const wanted = named(names).map((name) => `read ${Buffer.from(fileSpec(name).data, "base64").length} bytes from ${name}`);
     await this.waitUntil(
       async () => {
         const said = await transcriptText(this);
