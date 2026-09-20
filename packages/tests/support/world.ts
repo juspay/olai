@@ -1134,12 +1134,33 @@ const coverOf = (target: Locator): Promise<Cover> =>
     const covered = { ...where, pressable: false, offscreen: false, by: named(hit), control: named(el) };
     if (pinned === null) return { ...covered, pinned: false, clearBy: 0 };
     const over = pinned.getBoundingClientRect();
+    // Adjacent pinned bands are one obstruction: clearing the strip alone
+    // can put the control straight under the section heading below it. Only
+    // include sticky boxes that have reached their top offset, at this x;
+    // ordinary headings still in flow must not consume the reading area.
+    let top = over.top;
+    let bottom = over.bottom;
+    const x = box.x + box.width / 2;
+    const bands = [...document.querySelectorAll("*")].flatMap((node) => {
+      const style = getComputedStyle(node);
+      if (style.position !== "sticky") return [];
+      const edge = Number.parseFloat(style.top);
+      const rect = node.getBoundingClientRect();
+      return Number.isFinite(edge) && rect.top <= edge + 1 && rect.bottom > 0
+        && rect.left <= x && rect.right >= x ? [rect] : [];
+    }).sort((a, b) => a.top - b.top);
+    // First grow upward, then downward, so a chain can join on either side.
+    for (const band of [...bands].reverse().concat(bands)) {
+      if (band.bottom < top - 1 || band.top > bottom + 1) continue;
+      top = Math.min(top, band.top);
+      bottom = Math.max(bottom, band.bottom);
+    }
     // The two ways out, each a whole pixel past the boundary — a control whose
     // edge is exactly the cover's edge is still under it — and then the room
     // the page has for each: scrolling UP is what moves the control DOWN, so
     // what it needs is the page's distance from the top.
-    const down = over.bottom - box.top + 1;
-    const up = box.bottom - over.top + 1;
+    const down = bottom - box.top + 1;
+    const up = box.bottom - top + 1;
     const roomToMoveDown = at;
     const roomToMoveUp = furthest - at;
     const canDown = roomToMoveDown >= down;
