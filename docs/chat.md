@@ -860,9 +860,12 @@ Filing alone starts no node scope. Reading or a derived wake acquires one;
 ongoing work can keep it live after readers leave. Two tabs reading the same
 node share its scope without evicting each other. Historical conversations use
 the same capacity and idle-reaping policy. Idle sessions can be reaped after
-fifteen minutes; working sessions, unanswered questions and live background
-work prevent reaping. Capacity pressure can evict an eligible idle scope, not
-one still doing work.
+48 hours by default (`idle-ms: 172800000`); reading, working sessions,
+unanswered questions and live background work prevent reaping. The capacity
+cap bounds resident node agents to eight: pressure evicts the eligible idle scope touched
+least recently, even before its idle deadline. Credentials and
+write doors remain live for the scope’s longer lifetime. Operators can shorten
+the window with the chat plugin’s `idle-ms` setting.
 
 Doorbells are chosen per conversation. Kolu and Odu begin off, with a file
 picker and clear control. Saved choices can wake an offscreen or reaped agent;

@@ -85,7 +85,7 @@ Tests about sessions need an agent fixture that stores real sessions, not the ca
 
 ## Idle lifetime against the real agent (2026-09-05)
 
-One manual run used a disposable vault, the real Claude/Sonnet agent, and the production 15-minute idle lifetime.
+One manual run used a disposable vault, the real Claude/Sonnet agent, and the then-default 15-minute idle lifetime (the default is now 48 hours).
 
 - The background node `reap-background` went idle at 09:17:20 UTC. The server logged the expected `idle eviction` at 09:32:19.825 and the roster showed the node asleep.
 - The foreground node was still idle and still selected at 09:33:17, more than 15 minutes after it went idle at 09:18:00, so selection does prevent eviction.
@@ -93,7 +93,7 @@ One manual run used a disposable vault, the real Claude/Sonnet agent, and the pr
 - Its real `outlines_read` call returned the node's own title. An attempted `outlines_title` on the sibling node `reap-foreground` was refused by the subtree rule in force at the time, and the file on disk kept the sibling's original title.
 - No browser errors were recorded, and the disposable server was stopped afterwards.
 
-`node_agent_idle_lifecycle` now covers the same protections automatically with the production timer, so this run is supporting evidence rather than the coverage itself. The private test tag `@node-idle-fast` writes `idle-ms: 2000` for the chat plugin into the scratch settings file; ordinary scenarios use the schema defaults. The assertions watch the selected node, the unanswered question or the running watcher continuously across two deadlines, then check that an eligible background agent is evicted and can be restored. No fake clock and no test-only server route are used. None of this shows the broader node or cross-domain audit is finished.
+`node_agent_idle_lifecycle` now covers the same protections automatically with the production timer, so this run is supporting evidence rather than the coverage itself. The private test tag `@node-idle-fast` writes `idle-ms: 2000` for the chat plugin into the scratch settings file; ordinary scenarios use the schema defaults. The assertions watch the selected node, the unanswered question or the running watcher continuously across two deadlines, then check that an eligible background agent is evicted and can be restored. No fake clock and no test-only server route are used. `node_agent_capacity` and `node_agent_capacity_busy` exercise the eight-agent cap before the 48-hour timer can fire, including durable-session recovery and refusal while every scope has an unanswered question. None of this shows the broader node or cross-domain audit is finished.
 
 ## Transports
 
