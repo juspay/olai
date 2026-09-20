@@ -91,8 +91,8 @@ export const LAYER = {
    */
   row: "z-20",
   /**
-   * Over the page, under the chrome that covers it: the docked chat column,
-   * the scrim that dims the outline under an open drawer, a tip that hangs
+   * Over the page, under the strip and covering chrome: a lone node-page
+   * header, the scrim under an open drawer, and a tip that hangs
    * off a ROW. What these have in common is that they leave the app's frame
    * reachable — a row's tip is about something on the page, and the scrim's
    * whole job is to be dismissed by pressing it while the header above it
@@ -100,8 +100,11 @@ export const LAYER = {
    * {@link LAYER.over} with the panel behind that pill.
    */
   page: "z-30",
+  /** The main-column strip: above page headings, below drawers, sheets and
+   * the app header. Its opaque ground covers content scrolling beneath it. */
+  strip: "z-[35]",
   /**
-   * COVERS the page: the mobile directory drawer, the chat sheet, the
+   * COVERS the page and strip: the mobile directory drawer, the chat sheet, the
    * minimized agent, the line ⌘Z draws over the outline. A reader who opened
    * one of these is looking at it rather than at the page, and it may pass in
    * front of anything at {@link LAYER.page} — the drawer over its own scrim is

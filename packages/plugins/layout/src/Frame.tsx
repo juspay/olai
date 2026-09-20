@@ -18,6 +18,7 @@
  * pane. What each PANE shows is a subscription of its own
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
+import { LAYER } from "@olai/web/client/layer.ts"
 import { TipFloor } from "@olai/web/client/Tip.tsx"
 import { TESTID as LAYOUT_TESTID } from "./testids.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -59,7 +60,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
 
   return (
       <RouterProvider router={router}>
-      <TipFloor.Provider value={() => document.querySelector(`[data-testid="${LAYOUT_TESTID.appHeader}"]`)?.getBoundingClientRect().bottom ?? 0}>
+      <TipFloor.Provider value={() => (document.querySelector(`[data-testid="${LAYOUT_TESTID.mainStrip}"]`) ?? document.querySelector(`[data-testid="${LAYOUT_TESTID.appHeader}"]`))?.getBoundingClientRect().bottom ?? 0}>
       <PluginsMounted>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
@@ -148,11 +149,12 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     </>}</For>
                     <div class="min-w-0 bg-paper">
                       {/* THE SEAT ABOVE THE PANES (`./index.ts`'s `strip`), on a
-                          desktop. Not sticky: on a lone page the document
-                          scrolls, and every sticky row a page draws already
-                          holds its place under the bar alone. */}
+                          desktop. Pinned under the header while a lone page
+                          scrolls; page headings and jumps reserve both bands
+                          through the static --height-chrome contract. Layout owns
+                          the opaque desk ground; the occupant fills this seat. */}
                       <Show when={desktop() && props.slots.read(strip).length > 0}>
-                        <div data-testid={LAYOUT_TESTID.mainStrip} class="h-[var(--height-strip)]">
+                        <div data-testid={LAYOUT_TESTID.mainStrip} class={`sticky top-[var(--height-header)] h-[var(--height-strip)] bg-desk ${LAYER.strip}`}>
                           <For each={props.slots.read(strip)}>{({value: Strip})=><Strip/>}</For>
                         </div>
                       </Show>

@@ -50,8 +50,8 @@
 
   /* The app header's height, and the ONLY spelling of it. The bar WEARS this
    * (`h-[var(--height-header)]`); everything that sits under the bar subtracts
-   * it — the chat dock's `top` and height, the sidebar column, the rail, a
-   * sticky section row, the page sheet. No consumer carries a fallback
+   * it — the sidebar column, the rail and the page sheet. Main-column
+   * sticky rows use --height-chrome below. No consumer carries a fallback
    * literal: a `4rem` beside every `var()` is a second spelling of this line,
    * and it can only fire on a page where this sheet failed to load, which has
    * no styling for it to save. (`--visible-h` and friends DO keep fallbacks —
@@ -64,4 +64,13 @@
    * directly: layout publishes `--height-strip` as this token while the seat is
    * filled on a desktop, and `0px` otherwise, and the sheet subtracts that. */
   --height-tabs: 2.625rem;
+}
+
+/* The main column reserves the header plus the occupied strip. Keep this on
+ * :root, where layout publishes --height-strip inline at runtime, so changes
+ * (including withdrawal and phone widths) recompute the derived length.
+ * A nested scrollport overrides this to zero: its own top already clears
+ * the viewport chrome. Portals on the document still read the root value. */
+:root {
+  --height-chrome: calc(var(--height-header) + var(--height-strip, 0px));
 }

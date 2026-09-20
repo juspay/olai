@@ -5,7 +5,7 @@
 
 /* …and the bar is not the only thing that holds its place. On a page that draws
  * a TREE, a section heading pins under the bar while its branch scrolls past
- * (`browser/Tree.tsx`) — so the top `--height-header + section row` of the
+ * (`browser/Tree.tsx`) — so the top `--height-chrome + section row` of the
  * reading is covered, and a jump that lands a target in that band leaves the
  * reader looking at it through the back of the pinned heading (measured: the
  * row stops at the bar's bottom edge, another ~39px short of clear). The bar's

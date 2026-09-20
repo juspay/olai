@@ -66,7 +66,10 @@ export const overlays = location<(props:{readonly toggleDirectory:()=>void})=>JS
  * Drawn on a desktop only; below the breakpoint the frame draws nothing here,
  * so an occupant need not ask. While it is filled the frame publishes
  * `--height-strip` as `--height-tabs` and the pane sheet subtracts it, so a
- * split still fills the viewport exactly. `olai-plugin-tabs` is the occupant.
+ * split still fills the viewport exactly. The seat sticks under the header;
+ * main-column headings and jumps reserve both through `--height-chrome`.
+ * Withdrawal returns that offset to the header alone. `olai-plugin-tabs` is
+ * the occupant.
  */
 export const strip = location<() => JSX.Element>("layout.strip", "one")
 

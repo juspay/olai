@@ -130,8 +130,10 @@ function Column(props: {
     >
       <Header index={props.index} pane={props.pane} />
       {/* Pane chrome stays outside the reading's scroll owner. Node-page
-          headings and composers pin within this one content scroller. */}
-      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          headings and composers pin within this one content scroller.
+          This owner declares zero chrome inside its scrollport; portalled
+          overlays still inherit the viewport reserve from the document. */}
+      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto" style={{ "--height-chrome": "0px" }}>
         <PaneProvider index={props.index}>
           {(router as Navigation).page(()=>props.index)}
         </PaneProvider>

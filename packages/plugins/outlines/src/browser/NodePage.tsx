@@ -1,5 +1,3 @@
-import { useRouter } from "olai-plugin-navigation/routing"
-import { panesOf } from "olai-plugin-navigation/workspace"
 import { LAYER } from "@olai/web/client/layer.ts"
 /**
  * One node, as a page — the zoom.
@@ -73,7 +71,6 @@ function Zoom(props: {
   readonly rows: ReadonlyArray<Row>
 }) {
   const today = useToday()
-  const router = useRouter()
   /** Whether this page is narrowed — the one thing the empty state below has
    *  to know, because "nothing under this node" and "nothing here matches" are
    *  two different pieces of news (./filter/narrowed.tsx). */
@@ -120,7 +117,7 @@ function Zoom(props: {
           data-blocked={blockedIds(props.zoomed.blocked)}
           data-kind="node"
         >
-          <header class={`sticky ${panesOf(router.workspace()).length > 1 ? "top-0" : "top-[var(--height-header)]"} ${LAYER.page} bg-paper pb-2`}>
+          <header class={`sticky top-[var(--height-chrome)] ${LAYER.page} bg-paper pb-2`}>
             <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
           <div class="group/row mt-2 flex items-baseline gap-3">
             <h1

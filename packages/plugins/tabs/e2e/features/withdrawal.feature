@@ -14,6 +14,7 @@ Feature: Switching the tabs row off and on
     And I switch the plugin "tabs" off
     And I close the plugins panel
     Then there is no tab strip
+    And the main-column reserve equals the visible chrome
     And the address is "/finishes.md"
     When I go back
     Then the address is "/"
@@ -23,6 +24,7 @@ Feature: Switching the tabs row off and on
     And I switch the plugin "tabs" on
     And I close the plugins panel
     Then there are 2 tabs
+    And the main-column reserve equals the visible chrome
     And tab 1 is in front
     And tab 0 holds "/garden.olai"
     And tab 1 holds "/house.olai"

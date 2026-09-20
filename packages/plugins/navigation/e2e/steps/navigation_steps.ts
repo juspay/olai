@@ -290,10 +290,19 @@ const toTheBottom = async (world: OlaiWorld): Promise<void> => {
       ),
     "the page to be taller than the window",
   );
-  await world.page.evaluate(() => {
-    window.scrollTo(0, document.documentElement.scrollHeight);
-  });
-  await world.waitForFrame();
+  // A cold route can replace its loading sheet after the first overflow.
+  // Establish the bottom after layout, rather than recording a scroll that
+  // the arriving document has already clamped back to zero.
+  await world.waitUntil(async () => {
+    await world.page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+    });
+    await world.waitForFrame();
+    return world.page.evaluate(() => {
+      const bottom = document.documentElement.scrollHeight - innerHeight;
+      return bottom > 0 && scrollY > 0 && Math.abs(scrollY - bottom) <= 2;
+    });
+  }, "the rendered page to settle at its bottom");
 };
 
 /** WHERE THE READER IS, recorded for the assertion that says they were put

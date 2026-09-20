@@ -10,6 +10,13 @@ own.
 
 ## The strip
 
+The strip stays directly under the app header while a lone page scrolls,
+including a chat page. Page headings pin below it and heading jumps clear it.
+In a split, panes still fill the remaining viewport and scroll independently;
+their headings pin to their own scrollport tops.
+On a phone, or with tabs switched off, the header alone is reserved. Layout
+owns this geometry; tabs still contributes only to the existing strip seat.
+
 The tab in front is drawn on paper, and the others are muted. Each tab shows a
 glyph for the kind of page it holds, its title, and a close button that appears
 on hover and on the tab in front. A tab in the background has no page mounted,

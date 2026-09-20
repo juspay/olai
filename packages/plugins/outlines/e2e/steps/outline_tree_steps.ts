@@ -8,6 +8,8 @@
  */
 
 import * as assert from "node:assert";
+import { TESTID as LAYOUT_TESTID } from "olai-plugin-layout/testids";
+import { selector } from "@olai/web/testlib";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
 import { childOf, notChildOf } from "@olai/tests/harness/nesting.ts";
@@ -1366,16 +1368,17 @@ When(
 // than exactly on it.
 const SEAM_EDGE = 2;
 
-/** Where the app bar's bottom edge is — what "pinned under the header" is
+/** Where the main-column chrome's bottom edge is — what "pinned under the main-column chrome" is
  *  measured against, asked of the bar rather than of `--height-header`, because
  *  the token and the bar disagreeing is one of the things this can catch. */
 const headerSeam = async (world: OlaiWorld): Promise<number> => {
-  const header = await world.box(world.page.locator(APP_HEADER), "the app header");
+  const strip = world.page.locator(selector(LAYOUT_TESTID.mainStrip));
+  const header = await world.box(await strip.count() ? strip : world.page.locator(APP_HEADER), "the main-column chrome");
   return header.y + header.height;
 };
 
 Then(
-  "the section heading of {string} is pinned under the header",
+  "the section heading of {string} is pinned under the main-column chrome",
   async function (this: OlaiWorld, id: string) {
     const seam = await headerSeam(this);
     const line = await this.box(this.within(id, NODE_GUTTER), `the row "${id}"`);
@@ -1395,7 +1398,7 @@ Then(
  *  every row in the tree — or drew the whole outline inside the viewport —
  *  would pass the assertion above. */
 Then(
-  "the row {string} is not pinned under the header",
+  "the row {string} is not pinned under the main-column chrome",
   async function (this: OlaiWorld, id: string) {
     const seam = await headerSeam(this);
     const line = await this.box(this.within(id, NODE_GUTTER), `the row "${id}"`);
