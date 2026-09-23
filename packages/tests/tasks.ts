@@ -38,6 +38,10 @@
  *   AIR=1 bun tasks.ts            # AIR v1 native subagents and async tasks, beside patch stamps
  *   RAW=1 bun tasks.ts            # every SDK message the adapter forwarded, too
  *
+ * `AIR=1` advertises AIR v1 in initialize.clientCapabilities._meta and
+ * session/new._meta. The former is required by 0.73.0; the latter alone
+ * produces no AIR events. AIR lines retain full parameters, including session ids.
+ *
  * `KIND=monitor` (the default) arms a `Monitor` that ticks a few times and
  * ends; `KIND=bash` sends a shell command to the background that exits 3,
  * because the two endings are different sentences and only one of them has an
@@ -61,6 +65,9 @@ import { readMessages } from "./support/ndjson.ts"
 const AGENT = process.env["AGENT"] ?? "claude-agent-acp"
 const KIND = process.env["KIND"] ?? "monitor"
 const AIR = process.env["AIR"] === "1"
+const airMeta = AIR
+  ? { jetbrains: { air: { version: 1, capabilities: ["nativeSubagentSessions", "asyncTasks"] } } }
+  : {}
 const AIR_UPDATES = new Set([
   "async_task_spawned",
   "async_task_progress",
@@ -245,7 +252,11 @@ listen()
 
 await ask("initialize", {
   protocolVersion: 1,
-  clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+  clientCapabilities: {
+    fs: { readTextFile: false, writeTextFile: false },
+    // 0.73.0 negotiates AIR here; session/new metadata alone is insufficient.
+    _meta: airMeta,
+  },
 })
 const opened = await ask("session/new", {
   cwd: process.cwd(),
@@ -254,9 +265,7 @@ const opened = await ask("session/new", {
   // checkable at all: an event the adapter dropped would still be in here.
   _meta: {
     claudeCode: { emitRawSDKMessages: true },
-    ...(AIR ? {
-      jetbrains: { air: { version: 1, capabilities: ["nativeSubagentSessions", "asyncTasks"] } },
-    } : {}),
+    ...airMeta,
   },
 })
 const sessionId = ((opened["result"] ?? {}) as Record<string, string>)["sessionId"]
