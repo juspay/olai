@@ -13,7 +13,7 @@
 set -euo pipefail
 
 root=${ROOT:-$(cd ../.. && pwd)}
-agent=${AGENT:-$(nix build "$root#acp-agent" --no-link --print-out-paths --accept-flake-config)/bin/claude-agent-acp}
+agent=${AGENT:-$(nix build "$root#claude-agent" --no-link --print-out-paths --accept-flake-config)/bin/claude-agent-acp}
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

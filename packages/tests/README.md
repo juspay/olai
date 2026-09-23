@@ -241,9 +241,15 @@ cd packages/tests
 bash tasks.sh                  # a Monitor that ticks and ends
 KIND=bash bash tasks.sh        # a background shell that exits 3
 KIND=agent bash tasks.sh       # an async Agent; a forwarded task-notification prints
+KIND=resume bash tasks.sh      # send the same subagent more work
+AIR=1 bash tasks.sh            # AIR v1 native subagents and async tasks
+RAW=1 bash tasks.sh            # include the forwarded SDK messages
+AGENT=/path/to/claude-agent-acp bash tasks.sh  # select a different adapter
 ```
 
 `tasks.ts` / `tasks.sh` are the fourth driver here and the only one that talks to no olai at all: it drives the PINNED ADAPTER directly, arms one real background task, and prints what reaches an ACP client beside what the CLI underneath it actually sent.
+
+`AIR=1` adds `_meta.jetbrains.air = { version: 1, capabilities: ["nativeSubagentSessions", "asyncTasks"] }` to `session/new`. Each of the five AIR task/subagent notification kinds prints its full parameters on a separate `AIR` timeline line, beside the existing `ACP` tool-call lines and their `backgroundTask` patch stamps. Omit `AIR` to measure the ordinary client. `tasks.sh` builds `.#claude-agent` unless `AGENT` names an executable.
 
 It exists because `chat-background-tasks-visible` rests on two claims about somebody else's process, and both are the kind a later reader re-decides by assuming. The first is that the adapter as released completes such a call at LAUNCH, which is why olai patches its pin (`packages/plugins/claude/acp/patches/README.md`) and which stops being true the day upstream lands its own fix — the timeline is where that shows up. The second is that the task's own EVENTS are on no wire underneath: a monitor's every line reaches the model and the task's output file and no SDK message carries one, so the panel draws the task's life rather than its events. The driver CHECKS that rather than asserting it — a harness frame carrying the monitor's output prints a line saying so, and the day one does, that line is how anybody finds out. The model's own frames are excluded from that check on purpose: the agent is woken per event and says *tick-1 received*, which is the agent's prose and not the task's stream.
 

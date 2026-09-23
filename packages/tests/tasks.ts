@@ -30,11 +30,12 @@
  * what it measures is what that agent does, and a scripted one would be this
  * repo asserting its own assumption back at itself.
  *
- *   AGENT=$(nix build .#acp-agent --no-link --print-out-paths)/bin/claude-agent-acp \
+ *   AGENT=$(nix build .#claude-agent --no-link --print-out-paths)/bin/claude-agent-acp \
  *     bun tasks.ts
  *   KIND=bash bun tasks.ts        # a background shell, whose ending carries an exit code
  *   KIND=resume bun tasks.ts      # a subagent, reported, and then sent more work
  *   KIND=agent bun tasks.ts       # an async Agent, whose completion is a task-notification
+ *   AIR=1 bun tasks.ts            # AIR v1 native subagents and async tasks, beside patch stamps
  *   RAW=1 bun tasks.ts            # every SDK message the adapter forwarded, too
  *
  * `KIND=monitor` (the default) arms a `Monitor` that ticks a few times and
@@ -59,6 +60,14 @@ import { readMessages } from "./support/ndjson.ts"
 
 const AGENT = process.env["AGENT"] ?? "claude-agent-acp"
 const KIND = process.env["KIND"] ?? "monitor"
+const AIR = process.env["AIR"] === "1"
+const AIR_UPDATES = new Set([
+  "async_task_spawned",
+  "async_task_progress",
+  "async_task_state_update",
+  "subagent_spawned",
+  "subagent_state_update",
+])
 const RAW = process.env["RAW"] === "1"
 /** How long to keep listening after the turn is over. The whole point is what
  *  arrives AFTER the prompt has returned, so this is the measurement window
@@ -165,6 +174,10 @@ const heard = (message: Record<string, unknown>): void => {
   if (method === "session/update") {
     const update = (params["update"] ?? {}) as Record<string, unknown>
     if (typeof update["sessionUpdate"] !== "string") return
+    if (AIR_UPDATES.has(update["sessionUpdate"])) {
+      say(`AIR  ${update["sessionUpdate"]}`, JSON.stringify(params))
+      return
+    }
     if (update["sessionUpdate"] === "user_message_chunk") {
       const content = update["content"] as { text?: string } | undefined
       const text = typeof content?.text === "string" ? content.text : ""
@@ -239,7 +252,12 @@ const opened = await ask("session/new", {
   mcpServers: [],
   // Everything the CLI says, forwarded — which is what makes the second claim
   // checkable at all: an event the adapter dropped would still be in here.
-  _meta: { claudeCode: { emitRawSDKMessages: true } },
+  _meta: {
+    claudeCode: { emitRawSDKMessages: true },
+    ...(AIR ? {
+      jetbrains: { air: { version: 1, capabilities: ["nativeSubagentSessions", "asyncTasks"] } },
+    } : {}),
+  },
 })
 const sessionId = ((opened["result"] ?? {}) as Record<string, string>)["sessionId"]
 say("open", `session=${sessionId}`)
