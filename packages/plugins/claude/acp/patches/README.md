@@ -37,7 +37,7 @@ monitor must not miss — was never on the wire at all
 
 [PR #941](https://github.com/agentclientprotocol/claude-agent-acp/pull/941)
 was closed on 2026-09-23 as superseded by [#1017](https://github.com/agentclientprotocol/claude-agent-acp/pull/1017).
-[#865](https://github.com/agentclientprotocol/claude-agent-acp/issues/865) was closed the same day as fixed by #1017. **Its approach is the
+[#865](https://github.com/agentclientprotocol/claude-agent-acp/issues/865) was closed the same day as fixed by #1017. **#941's approach is the
 basis here** and its scope is not: by its own summary it keeps *async
 Agent/Task* calls in progress and "background Bash retain their existing
 behavior", and it never touches `background_tasks_changed`.
@@ -476,6 +476,109 @@ RE-APPLIED and neither was retired.** `pi-mcp-servers.patch` is untouched: the
   #1065 (`a04d354`, in v0.72.0) replaces #958's settle heuristic with
   `user_message_uuid` attribution — the candidate cure this bump exists to
   ship; live verification is after deploy.
+
+### What an AIR client gets from #1017 (2026-09-23)
+
+**Measured against both 0.73.0 adapters, not inferred from the PR.** The
+patched executable was built with `nix build .#claude-agent --no-link
+--print-out-paths` (the old `.#acp-agent` alias is absent on this branch),
+store output `8yb9hmwy46fkh320n4i2b1n562m2m95p-olai-acp-claude-0.73.0`.
+Pristine was installed with `npm install --prefix
+/tmp/air-measure-1017/pristine @agentclientprotocol/claude-agent-acp@0.73.0`.
+Both drove the built pin's SDK Claude executable through
+`CLAUDE_CODE_EXECUTABLE`, with self-updates disabled, so the CLI was held
+constant. Each run used a separate scratch working directory, the driver's
+unchanged prompts, `RAW=1`, and its full 45-second after-turn window.
+
+**The handshake matters.** Sending the requested AIR object only in
+`session/new._meta.jetbrains.air` produced **zero AIR notifications** in all
+eight AIR-on controls. 0.73.0 reads
+`initialize.clientCapabilities._meta.jetbrains.air`. The driver now puts
+`{ version: 1, capabilities: ["nativeSubagentSessions", "asyncTasks"] }`
+there as well as in `session/new`; this matches where olai's Codex path
+actually negotiates. The table is the fresh sixteen-run matrix with that
+correction: patched/pristine × monitor/bash/agent/resume × AIR off/on.
+All sixteen runs authenticated, returned `end_turn` (twice for resume),
+and completed the listening window with exit status 0.
+
+Raw evidence is retained locally in `/tmp/air-measure-1017/`: each
+`negotiated-<patched|pristine>-<KIND>-air<0|1>` has `.timeline`,
+`.requests.jsonl`, `.wire.jsonl`, `.stderr` and `.exit` files. The initial
+session-only controls have the same names without `negotiated-`.
+`air0` means no AIR advertisement. The wire capture is untruncated, including
+initialize replies and child-session text that the existing timeline does
+not print. These are local scratch files, not portable links or fixtures.
+
+| KIND | AIR channel, both adapters with AIR on | Patch's stamps / tool rows | Pristine without AIR |
+|---|---|---|---|
+| `monitor` | `async_task_spawned`: `asyncTaskId`, `name`, `taskType: "shell"`, `description`, `showInTranscript: false`, `canStop: true`. `async_task_progress` adds `toolCallId`. State updates: `stopped`, then `completed`, then completed metadata with `outputFilePath`; no `summary`. | AIR off/on: arming row stays `in_progress`; `backgroundTask` has `taskId`, `taskType: "local_bash"`, `description`, then `status: "completed"` and `summary: Monitor "tick watch" stream ended`. | No AIR or stamps; Monitor row completes at launch. SDK diagnostics still expose its later ending. |
+| `bash` | Same spawn fields; progress carries `toolCallId` and `outputFilePath`. State updates: `stopped`, then `failed`; no exit-code `summary`. | AIR off/on: launch stays `in_progress`; same stamp fields, then `status: "failed"` and the harness's `…failed with exit code 3` summary. | No AIR or stamps; Bash row completes at launch, with no later failed tool-row update. |
+| `agent` | `subagent_spawned`: `subagentSessionId`, `name`, `task`, `capabilities: {}`; `subagent_state_update`: same child id, `state: "completed"`. No `async_task_*`. Report text is `agent_message_chunk` on the child. | AIR off: async launch and terminal stamps on the Agent row, including the report as terminal `summary`. AIR on: no Agent control row or background-task stamps escape the native child routing. | Agent row completes at async launch. No task-notification user chunk in this run; SDK diagnostic summary contains the report. |
+| `resume` | Two `subagent_spawned` / completed pairs: original child, then `<id>:generation:2`. Same fields as `agent`, no `asyncTaskId`, `toolCallId`, or explicit predecessor field. | AIR off: original synchronous Agent row reopens `in_progress` on the second outing and closes again, without background-task stamps. AIR on: un-stamped reopen/settle updates still escape on the original raw tool id, although its initial Agent row was suppressed. | Original row stays completed; SendMessage completes at delivery. No lifecycle update reopens the original row. |
+
+**Failed background shell — no, AIR did not carry the exit-code sentence.**
+In `negotiated-pristine-bash-air1`, task `bn08r2sev` launched at 2.7s,
+its tool row completed at 2.7s, and AIR emitted `state: "stopped"` then
+`state: "failed"` at 10.7s. Neither update has a `summary`. The subsequent
+SDK `task_notification` says `Background command "Run sleep and exit 3 in
+background" failed with exit code 3`. In `negotiated-patched-bash-air1`,
+task `b7kwpxwgw` gets that sentence in the patch's terminal stamp while AIR
+still omits it. This is a measured ordering limitation, not a claim that
+AIR has no summary field: `async-tasks.js`'s `finish` ignores a later terminal
+summary once an event, rather than a level reconciliation, settled the task.
+
+**Resumed subagent — a new child generation, with no explicit AIR link.**
+`negotiated-pristine-resume-air1` spawns `af632bdaa7bef5014` at 3.0s and
+completes it at 5.1s; at 11.3s it spawns
+`af632bdaa7bef5014:generation:2` and immediately completes that child.
+The id string shares its prefix, but neither spawn names a predecessor or
+spawning `toolCallId`, and no async task is emitted. The diagnostic SDK
+frames prove continuity: both `task_started` frames use
+`task_id: "af632bdaa7bef5014"`; the first names
+`toolu_01U6U64u2CBSAmisABBbhFKC`, the second the SendMessage call
+`toolu_01Psu8qSzEQxjWppyxupsfAw`. The second outing's SDK Bash result still
+has the first call as `parent_tool_use_id`. In this run the second child's
+Bash and `TWO` text are visible in SDK diagnostics but have no child-session
+ACP transcript frames; the second spawn is only announced at settlement.
+`negotiated-patched-resume-air1` has the same generation split and missing
+second-child transcript. It additionally leaks the patch's reopen/settle
+updates for `toolu_018kroFqu5F5t2t9jn32yDhB`, whose initial Agent row was
+suppressed by native routing; no `backgroundTask` stamps accompany them.
+
+**Async agent report — child-session prose, not a lifecycle summary.**
+`negotiated-pristine-agent-air1` returns `async_launched` for
+`a17eec2f9ab69c77a`. The full wire then carries
+`sessionId: "a17eec2f9ab69c77a"`, `sessionUpdate: "agent_message_chunk"`,
+`content.text: "ONE\n\n# Findings"`. The parent receives
+`subagent_state_update` with `state: "completed"` at 14.9s and no report
+field. No `<task-notification>` was forwarded as `user_message_chunk` in
+this run (or its AIR-off control); the SDK delivered a system
+`task_notification` with that report as `summary`. Thus this run does not
+exercise suppression of a user-role XML report, and cannot establish that
+the patch's XML handling is redundant.
+
+**Child controls and launch completion.** Agent calls do produce native
+children; their spawn advertises `capabilities: {}`, with neither child
+`cancel` nor `close`. Initialize reports `sessionCapabilities.subagents: {}`;
+its root-session `close: {}` is not a child close capability. These are
+advertisements, not attempted cancellation/close operations. Pristine AIR-on
+Monitor and Bash calls still complete at launch (for example the Bash call
+above, eight seconds before failure). With native subagents negotiated, the
+Agent control row is replaced by child lifecycle events rather than exposed
+as a completed arming row.
+
+**What this means for the switch.** AIR supplies shell lifecycle and native
+child sessions, but these captures lose the shell's terminal summary and
+represent a resumed agent as a new child generation. Child report prose and
+patch terminal stamps are different channels. The Claude leg remains
+unchanged. In `packages/plugins/chat/src/agent.ts`, `leg.nativeActivity`
+creates `Activity` (around line 517), re-keys tool rows by session in
+`onUpdate`, and installs the native stream reader (around line 1324);
+`packages/plugins/chat/src/calls.ts` does the same for call facts (around
+line 172). The Claude-only `parentToolUse` reader and the task-notification
+`notice.onto.toolUseId` still carry raw tool-use ids. Flipping the leg changes
+that identity boundary; the existing readers do not perform the corresponding
+translation. This measurement changes no product ownership or lifetime.
 
 ### The steering hang has a second trigger, and the guard does not cover it
 
