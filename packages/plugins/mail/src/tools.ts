@@ -14,7 +14,7 @@ const pagination = {
 }
 const names = Schema.Array(described("Label name as Gmail shows it; system labels use capitals: INBOX, UNREAD, STARRED, IMPORTANT.")).check(Schema.isMinLength(1), Schema.isMaxLength(10))
 const attachments = Schema.Array(Schema.Struct({
-  path: described("Absolute path to a file this server can read: a chat upload, a file saved by mail_attachment, or a vault file.").check(Schema.isPattern(/^\/[^\r\n\x00]*$/)),
+  path: described("Absolute path to a file this server can read: one uploaded into this conversation, one saved by mail_attachment, or one in the vault.").check(Schema.isPattern(/^\/[^\r\n\x00]*$/)),
   filename: Schema.optionalKey(described("Name the file arrives under; defaults to the path's own. Capped at 120 characters.")),
   type: Schema.optionalKey(described("MIME type as type/subtype, such as application/pdf. Defaults to the filename's extension, else application/octet-stream.")),
 })).check(Schema.isMinLength(1), Schema.isMaxLength(10))
@@ -23,9 +23,9 @@ const draftFields = {
   cc: Schema.optionalKey(Schema.Array(described("Explicit copy recipients, including for reply-all."))),
   bcc: Schema.optionalKey(Schema.Array(described("Blind copy recipients."))),
   subject: Schema.optionalKey(described("Required for new mail; replies default to Re: and the original subject.")),
-  body: described("Plain text only, nonempty, at most 256 KiB. No HTML; attach files with `attachments` instead of pasting them here."),
+  body: described("Plain text only, nonempty, at most 256 KiB. No HTML; send a document with `attachments` instead of pasting it here."),
   thread: Schema.optionalKey(thread),
-  attachments: Schema.optionalKey(attachments.annotate({ description: "Files to attach, 1–10, 25 MB in total and each. Every path must be absolute; a path that is missing, unreadable or not a regular file refuses the whole draft before anything is written." })),
+  attachments: Schema.optionalKey(attachments.annotate({ description: "Attachments to send, 1–10, 25 MB in total and each. Every path must be absolute; a path that is missing, unreadable or not a regular file refuses the whole draft before anything is written." })),
 }
 const draftDescription = "Writes a draft in Gmail Drafts for the person to review and send; olai cannot send mail. At most 50 recipients, and at most 10 attachments totalling 25 MB."
 const manual = " Gmail query syntax is passed verbatim: from:, newer_than:1d, is:unread, has:attachment, label:. Thread ids are opaque Gmail hex ids; file a thread as <address>/<thread id>. Labels use Gmail's displayed names (system labels INBOX, UNREAD, STARRED, IMPORTANT)."

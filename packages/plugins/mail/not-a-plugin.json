@@ -12,11 +12,24 @@
     "src/tools.ts"
   ],
   "vault": [
-    "src/browser/Row.tsx"
+    "src/browser/Row.tsx",
+    "src/tools.ts"
   ],
   "//tools": "Mail query, trash verbs and PDF attachment fixtures are mail vocabulary, not dependencies on those plugin rows.",
+  "//enclosures": "A MIME type is not a row. `src/enclosures.ts` holds the small extension table a draft's attachments are typed from, so it spells `text/csv`, `text/markdown`, `image/*` and `application/pdf` — media types Gmail reads, and a table this plugin keeps itself precisely so a draft does not differ between machines. `src/tools.ts` spells `application/pdf` as the example in the argument's own description, and 'vault' as the place an agent is told it may attach a file from, which is the product's word for the served directory and also a row's name.",
+  "csv": [
+    "src/enclosures.ts"
+  ],
+  "image": [
+    "src/enclosures.ts"
+  ],
+  "markdown": [
+    "src/enclosures.ts"
+  ],
   "pdf": [
-    "src/appliance/testlib/fixtures.ts"
+    "src/appliance/testlib/fixtures.ts",
+    "src/enclosures.ts",
+    "src/tools.ts"
   ],
   "trash": [
     "src/appliance/testlib/fake-himalaya.ts",
