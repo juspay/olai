@@ -1,5 +1,9 @@
-/** Plain-text draft composition only. No capabilities or live mailbox state. */
+/** Plain-text and multipart draft composition only. No capabilities, no live
+ *  mailbox state, and no file reading: attachments arrive already read
+ *  (`./enclosures.ts`). */
+import { randomUUID } from "node:crypto"
 import { Result } from "effect"
+import { contentType, CONTROL, validateEnclosures, type Enclosure, type EnclosureArgs } from "./enclosures.ts"
 import { MailRefusal } from "./wire.ts"
 
 export interface DraftArgs {
@@ -10,6 +14,7 @@ export interface DraftArgs {
   readonly body: string
   readonly thread?: string
   readonly draft?: string
+  readonly attachments?: ReadonlyArray<EnclosureArgs>
 }
 const refuse = (reason: string) => Result.fail(new MailRefusal({ reason }))
 export const headerValue = (value: string): Result.Result<string, MailRefusal> => {
@@ -93,19 +98,65 @@ export const validateDraft = (args: DraftArgs) => Result.gen(function*() {
   if (args.subject !== undefined) yield* headerValue(args.subject)
   if (!args.body.trim()) return yield* refuse("mail draft body cannot be empty")
   if (Buffer.byteLength(args.body, "utf8") > 256 * 1024) return yield* refuse("mail draft body exceeds 256 KiB")
+  yield* validateEnclosures(args.attachments)
   if (args.thread !== undefined && !/^[0-9a-f]+$/i.test(args.thread)) return yield* refuse("malformed mail thread id")
   if (args.draft !== undefined && !/^[A-Za-z0-9_-]+$/.test(args.draft)) return yield* refuse("malformed mail draft id")
   if (args.to !== undefined && !args.to.length) return yield* refuse("mail drafts require at least one To recipient")
   if (!args.thread && (!args.to?.length || args.subject === undefined)) return yield* refuse("new mail drafts require To and Subject")
 })
-export const compose = (args: DraftArgs & { from: string; to: ReadonlyArray<string>; subject: string; inReplyTo?: string; references?: string }) => Result.gen(function*() {
+/** Base64 at the 76 columns MIME asks for. An empty file has no lines at all,
+ *  which is a part with an empty body rather than a throw. */
+const base64 = (data: Buffer): string => data.toString("base64").match(/.{1,76}/g)?.join("\r\n") ?? ""
+/** RFC 5987/2231's attr-char: everything else in a filename is percent-encoded
+ *  from its UTF-8 bytes, so `filename*` carries names no quoted string can. */
+const ATTR_CHAR = /[A-Za-z0-9!#$&+\-.^_`|~]/
+const extended = (name: string): string => `UTF-8''${[...Buffer.from(name, "utf8")]
+  .map(byte => ATTR_CHAR.test(String.fromCharCode(byte)) ? String.fromCharCode(byte) : `%${byte.toString(16).toUpperCase().padStart(2, "0")}`)
+  .join("")}`
+/** ONE ATTACHMENT AS A PART. Its two names say the same thing twice, as every
+ *  mailer does: `name=` on the type for readers that only look there, and
+ *  `filename` on the disposition for everyone else. An ASCII name that needs no
+ *  quoting goes out quoted; anything else takes RFC 2231 on the disposition and
+ *  an RFC 2047 word on the type, because those are the two encodings each
+ *  parameter has. */
+const enclosurePart = (boundary: string, one: Enclosure) => Result.gen(function*() {
+  if (CONTROL.test(one.filename)) return yield* refuse("mail attachment filenames cannot contain CR, LF or control characters")
+  if (!one.filename.trim()) return yield* refuse("mail attachments need a filename to arrive under")
+  if (!contentType(one.type)) return yield* refuse(`malformed mail attachment content type: ${JSON.stringify(one.type)}`)
+  const plain = !/[^\x20-\x7e]/.test(one.filename) && !/["\\]/.test(one.filename)
+  return [
+    `--${boundary}`,
+    `Content-Type: ${one.type};`,
+    ` name="${plain ? one.filename : encoded(one.filename)}"`,
+    "Content-Disposition: attachment;",
+    plain ? ` filename="${one.filename}"` : ` filename*=${extended(one.filename)}`,
+    "Content-Transfer-Encoding: base64",
+    "",
+    base64(one.data),
+  ].join("\r\n")
+})
+/** The message itself. With no attachments this is the single `text/plain`
+ *  part it has always been, byte for byte; with some it is `multipart/mixed`,
+ *  the text first and one part per file after it.
+ *
+ *  The boundary carries `=`, which no base64 line can hold in the middle and no
+ *  header this composer writes can produce — so the delimiter cannot appear
+ *  inside a part, whatever the parts hold. */
+export const compose = (args: DraftArgs & { from: string; to: ReadonlyArray<string>; subject: string; inReplyTo?: string; references?: string }, attachments: ReadonlyArray<Enclosure> = []) => Result.gen(function*() {
   yield* validateDraft(args)
   const headers = [`From: ${yield* recipient(args.from)}`]
   for (const [name, values] of [["To", args.to], ["Cc", args.cc], ["Bcc", args.bcc]] as const) if (values?.length) headers.push(`${name}: ${(yield* Result.all(values.map(recipient))).join(",\r\n ")}`)
   headers.push(`Subject: ${subjectHeader(yield* headerValue(args.subject))}`)
   if (args.inReplyTo) headers.push(`In-Reply-To: ${yield* headerValue(args.inReplyTo)}`)
   if (args.references) headers.push(`References: ${(yield* headerValue(args.references)).trim().split(/\s+/).join("\r\n ")}`)
-  headers.push("MIME-Version: 1.0", "Content-Type: text/plain; charset=utf-8", "Content-Transfer-Encoding: base64")
   const body = Buffer.from(args.body).toString("base64").match(/.{1,76}/g)!.join("\r\n")
-  return headers.join("\r\n") + "\r\n\r\n" + body + "\r\n"
+  if (!attachments.length) {
+    headers.push("MIME-Version: 1.0", "Content-Type: text/plain; charset=utf-8", "Content-Transfer-Encoding: base64")
+    return headers.join("\r\n") + "\r\n\r\n" + body + "\r\n"
+  }
+  const boundary = `=_olai_${randomUUID()}`
+  headers.push("MIME-Version: 1.0", `Content-Type: multipart/mixed; boundary="${boundary}"`)
+  const parts = [[`--${boundary}`, "Content-Type: text/plain; charset=utf-8", "Content-Transfer-Encoding: base64", "", body].join("\r\n")]
+  for (const one of attachments) parts.push(yield* enclosurePart(boundary, one))
+  return headers.join("\r\n") + "\r\n\r\n" + parts.join("\r\n") + `\r\n--${boundary}--\r\n`
 })

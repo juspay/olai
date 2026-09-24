@@ -60,6 +60,7 @@
  * `run.ts`'s `refusedWith` is written around.
  */
 
+import { createHash } from "node:crypto"
 import { appendFileSync, chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -416,6 +417,56 @@ export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHi
   }
 }
 
+/** WHAT A DRAFT FILE HOLDS, read the way a mail client reads it rather than
+ *  the way this plugin wrote it — one `text/plain` body, and the files under
+ *  it when the draft is `multipart/mixed`. A single-part draft records an empty
+ *  attachment list, so every saved draft has the same shape. */
+const draftContents = (contentType: string, body: string): { body: string; attachments: Array<{ filename: string; type: string; bytes: number; sha256: string }> } => {
+  const boundary = /boundary="([^"]+)"/.exec(contentType)?.[1]
+  if (!/^multipart\/mixed/i.test(contentType.trim()) || boundary === undefined) return { body: Buffer.from(body, "base64").toString("utf8"), attachments: [] }
+  const [text, ...rest] = parseParts(body, boundary)
+  return {
+    body: text === undefined ? "" : text.content.toString("utf8"),
+    attachments: rest.map(part => ({
+      filename: partFilename(part.headers),
+      type: (part.headers["Content-Type"] ?? "application/octet-stream").split(";")[0]!.trim(),
+      bytes: part.content.length,
+      sha256: createHash("sha256").update(part.content).digest("hex"),
+    })),
+  }
+}
+interface DraftPart { readonly headers: Record<string, string>; readonly content: Buffer }
+/** The parts between the delimiters: the preamble before the first is dropped,
+ *  and so are the closing delimiter and anything after it. */
+const parseParts = (body: string, boundary: string): DraftPart[] => body.split(`--${boundary}`).slice(1)
+  .filter(part => !part.startsWith("--"))
+  .map(part => {
+    const whole = part.replace(/^\r\n/, "")
+    const blank = whole.indexOf("\r\n\r\n")
+    const head = blank === -1 ? whole : whole.slice(0, blank)
+    const content = blank === -1 ? "" : whole.slice(blank + 4).replace(/\r\n$/, "")
+    const headers = Object.fromEntries(head.replace(/\r\n[ \t]+/g, " ").split("\r\n").filter(Boolean).map(line => {
+      const at = line.indexOf(":")
+      return [line.slice(0, at), line.slice(at + 1).trim()]
+    }))
+    return { headers, content: Buffer.from(content, (headers["Content-Transfer-Encoding"] ?? "").toLowerCase() === "base64" ? "base64" : "utf8") }
+  })
+/** RFC 2231 on the disposition first, then the quoted name on either header,
+ *  decoding RFC 2047 words where a sender put one in a parameter. */
+const partFilename = (headers: Record<string, string>): string => {
+  const disposition = headers["Content-Disposition"] ?? ""
+  const extended = /filename\*=([^;]+)/i.exec(disposition)?.[1]
+  if (extended !== undefined) {
+    const value = /^(?:[^']*)'[^']*'(.*)$/.exec(extended.trim())?.[1] ?? extended.trim()
+    return Buffer.from(value.replace(/%([0-9A-Fa-f]{2})/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16))), "binary").toString("utf8")
+  }
+  const quoted = /filename="([^"]*)"/i.exec(disposition)?.[1] ?? /\bname="([^"]*)"/i.exec(headers["Content-Type"] ?? "")?.[1]
+  return quoted === undefined ? "" : decodeWords(quoted)
+}
+const decodeWords = (value: string): string => value
+  .replace(/(\?=)\s+(=\?UTF-8\?B\?)/gi, "$1$2")
+  .replace(/=\?UTF-8\?B\?([^?]*)\?=/gi, (_, encoded: string) => Buffer.from(encoded, "base64").toString("utf8"))
+
 /** Per-thread files let separate fake processes preserve writes without lost updates on other threads. */
 export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directory: string, stale = false): Answered => {
   const ok = (value: unknown): Answered => ({ code: 0, stdout: JSON.stringify(value), stderr: "" })
@@ -434,7 +485,7 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
       const value = line.slice(at + 1).trim().replace(/(\?=)\s+(=\?UTF-8\?B\?)/gi, "$1$2").replace(/=\?UTF-8\?B\?([^?]+)\?=/gi, (_, base64: string) => Buffer.from(base64, "base64").toString("utf8"))
       return [line.slice(0, at), value]
     }))
-    const record = { id, headers, body: Buffer.from(body.join("\r\n\r\n"), "base64").toString("utf8"), args, file }
+    const record = { id, headers, ...draftContents(headers["Content-Type"] ?? "", body.join("\r\n\r\n")), args, file }
     writeFileSync(saved, JSON.stringify(record))
     return ok({ id, "message-id": `message_${id}`, "thread-id": args.includes("--thread-id") ? flag("--thread-id") : null })
   }

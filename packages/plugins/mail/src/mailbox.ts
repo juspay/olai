@@ -7,6 +7,7 @@ import { History } from "./himalaya/history.ts"
 import { GMAIL } from "./himalaya/verbs.ts"
 import { makeLabels } from "./labels.ts"
 import { addressList, compose, validateDraft, type DraftArgs } from "./compose.ts"
+import { readEnclosures } from "./enclosures.ts"
 import { MailRefusal } from "./wire.ts"
 
 const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.String, "thread-id": Schema.NullOr(Schema.String) })
@@ -100,6 +101,9 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
     const work = Effect.gen(function*() {
       const address = yield* ready
       yield* Effect.fromResult(validateDraft(args))
+      // Read before the thread is looked up: an unreadable file is a refusal
+      // the caller earns without this serve asking Gmail anything.
+      const attachments = yield* readEnclosures(args.attachments)
       let to = args.to
       let subject = args.subject
       let inReplyTo: string | undefined
@@ -123,11 +127,12 @@ export const openMailbox = (himalaya: Himalaya, machine: Pick<AccountMachine, "c
         subject ??= /^re:/i.test(original) ? original : `Re: ${original}`
       }
       const resolved = { ...args, from: address, to: to!, subject: subject!, inReplyTo, references }
-      const message = yield* Effect.fromResult(compose(resolved))
+      const message = yield* Effect.fromResult(compose(resolved, attachments))
       const raw = yield* run({ verb: args.draft ? GMAIL.draftsUpdate : GMAIL.draftsCreate,
         args: [...args.draft ? [args.draft] : [], ...args.thread ? ["--thread-id", args.thread] : []], message })
       const output = yield* decode(DraftOutput, raw)
-      return { address, draft: output.id, message: output["message-id"], thread: output["thread-id"], to: resolved.to, cc: args.cc ?? [], subject: resolved.subject, updated: args.draft !== undefined }
+      return { address, draft: output.id, message: output["message-id"], thread: output["thread-id"], to: resolved.to, cc: args.cc ?? [], subject: resolved.subject, updated: args.draft !== undefined,
+        attachments: attachments.map(one => ({ filename: one.filename, type: one.type, bytes: one.data.length })) }
     })
     // A reply shares the thread permit with label/trash writes. Replacements
     // additionally share a draft permit, always acquired before a thread permit.
