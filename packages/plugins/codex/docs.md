@@ -17,7 +17,7 @@ changing the service's adapter environment requires restarting the service.
 
 ### Model requires a newer Codex version
 
-Olai pins `codex-acp` 1.10.0 with Codex CLI 0.153.3. This updates the bundled 0.152.0 CLI, which could list `gpt-6-astra` but fail on the first prompt with a missing-model-metadata warning and “requires a newer version of Codex”. Update olai and restart the server to use the new bundle; upgrading a separate `codex` on PATH does not update the executable olai ships. If you override `OLAI_ACP_CODEX` or `CODEX_PATH`, update that installation too.
+Olai pins `codex-acp` 1.13.1 with Codex CLI 0.156.1. This updates the bundled 0.152.0 CLI, which could list `gpt-6-astra` but fail on the first prompt with a missing-model-metadata warning and “requires a newer version of Codex”. Update olai and restart the server to use the new bundle; upgrading a separate `codex` on PATH does not update the executable olai ships. If you override `OLAI_ACP_CODEX` or `CODEX_PATH`, update that installation too.
 
 ## What is only true of this wire
 
@@ -35,6 +35,6 @@ Olai pins `codex-acp` 1.10.0 with Codex CLI 0.153.3. This updates the bundled 0.
 
 The adapter and CLI are already in olai's Nix closure. Codex product and sign-in documentation lives at <https://developers.openai.com/codex>.
 
-The pinned codex-acp 1.10.0 already contains [native child sessions](https://github.com/agentclientprotocol/codex-acp/pull/419) and [background-terminal tasks](https://github.com/agentclientprotocol/codex-acp/pull/460). Olai negotiates AIR version 1 `nativeSubagentSessions` and `asyncTasks`. Its ACP SDK predates these session-update variants, so the `@olai/acp` extension channel negotiates capabilities, decodes typed activity values, and routes only the five known activity notifications around the SDK's closed update union; ordinary updates retain SDK validation. Tool IDs are scoped by session, and leaving a conversation clears its activity registry and fences late child events. No adapter patch is needed for activity display.
+The pinned codex-acp 1.13.1 contains [native child sessions](https://github.com/agentclientprotocol/codex-acp/pull/419) and [background-terminal tasks](https://github.com/agentclientprotocol/codex-acp/pull/460). Olai negotiates AIR version 1 `nativeSubagentSessions` and `asyncTasks`. Its ACP SDK predates these session-update variants, so the `@olai/acp` extension channel negotiates capabilities, decodes typed activity values, and routes only the five known activity notifications around the SDK's closed update union; ordinary updates retain SDK validation. Tool IDs are scoped by session, and leaving a conversation clears its activity registry and fences late child events. No adapter patch is needed for activity display.
 
 The leg declares no MCP prefix. For display only it reads the MCP marker plus `rawInput.server` and `rawInput.tool`, and reads the reply from `rawOutput.result.structuredContent`. Dotted titles remain outside the approval boundary.

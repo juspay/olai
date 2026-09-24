@@ -1,4 +1,4 @@
-/** codex-acp 1.10's native session/AIR messages, with no Claude metadata. */
+/** codex-acp's native session/AIR messages, with no Claude metadata. */
 export const nativeActivity = async (
   argument: string,
   root: string,

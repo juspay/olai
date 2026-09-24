@@ -25,12 +25,17 @@ import {
   neverTookAway,
   sidebarHeld,
 } from "../support/probe.ts";
-import type { OlaiWorld } from "../support/world.ts";
+import { HYDRATION_TIMEOUT, PANE, SIDEBAR, type OlaiWorld } from "../support/world.ts";
 
 /** Plant it — a serial on every element of the sidebar, and a watch over the
  *  sidebar and the pane. The twin of "I mark the page", one layer in: that one
  *  proves the DOCUMENT survived, this one proves the elements did. */
 Given("I mark the screen", async function (this: OlaiWorld) {
+  // The header can paint before the pane. Establish both regions before
+  // marking them; all navigation and remount assertions happen afterwards.
+  await Promise.all([SIDEBAR, PANE].map((region) =>
+    this.page.locator(region).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT })
+  ));
   await markScreen(this);
 });
 

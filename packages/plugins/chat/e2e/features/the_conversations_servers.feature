@@ -81,7 +81,7 @@ Feature: The panel says which MCP servers a conversation has
     When I ask the agent "hello"
     Then the agent is idle
     And the panel says the agent could not attach "kolu"
-    And the reason it gives is "needs-auth"
+    And the reason it gives for "kolu" is "needs-auth"
     # ... and the conversation is not otherwise diminished: olai's own server is
     # still there and still attached, which is the difference between "one
     # server did not arrive" and "something is broken".

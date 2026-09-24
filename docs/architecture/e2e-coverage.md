@@ -2,6 +2,16 @@
 
 This document records which user workflows have real browser tests, and which still do not.
 
+The navigation scenarios in `the_chrome_holds_still.feature` plant a DOM-identity
+probe before navigating. Their “I mark the screen” setup waits for both the
+sidebar and pane to exist: the header can paint earlier. The probe and its
+post-navigation remount assertions remain immediate, so setup readiness does
+not hide a remount caused by the gesture.
+
+`a_failed_mcp_server.feature` also exercises two failed MCP connections at
+once. Reason assertions select the named server's row, so another failure
+neither makes the locator ambiguous nor supplies the wrong server's reason.
+
 ## Terms
 
 These words are used throughout with the meaning olai gives them.
@@ -112,7 +122,7 @@ Transport coverage checks that MCP, websocket and browser endpoints can be added
 Codex has its own fixtures, one for steering a running turn and one for its native activity messages.
 
 - `codex_steering.feature`: the fixture rejects a second prompt while one is running, and advertises steering with no queue. An ordinary send must reach the running turn, completing or cancelling must clear both busy indicators, and steering that is refused leaves the message in the box for retry. The adapter build also runs upstream PR #441's steering tests, including the race where the turn goes idle just as a steer arrives, so a late steer cannot start an untracked background turn.
-- `codex_activity.feature`: tool calls from a child session staying separate when IDs collide, nested work and separate terminal output, an active agent completing or being cancelled, permissions and prompts attributed correctly when they carry no tool ID, background terminals completing, failing or being stopped after a turn or its child agent ends, active tasks being restored, and activity arriving after the user switched conversations. The fixtures negotiate the AIR capabilities that codex-acp 1.10 advertises and send its native wire messages, with none of the Claude-specific metadata.
+- `codex_activity.feature`: tool calls from a child session staying separate when IDs collide, nested work and separate terminal output, an active agent completing or being cancelled, permissions and prompts attributed correctly when they carry no tool ID, background terminals completing, failing or being stopped after a turn or its child agent ends, active tasks being restored, and activity arriving after the user switched conversations. The fixtures negotiate the AIR capabilities that codex-acp advertises and send its native wire messages, with none of the Claude-specific metadata.
 
 ## The app element now survives plugin changes (kolu PR #2228)
 

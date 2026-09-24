@@ -2860,9 +2860,10 @@ Then(
 );
 
 Then(
-  "the reason it gives is {string}",
-  async function (this: OlaiWorld, reason: string) {
-    const said = oneLine(await this.chat(CHAT_MISSING_WHY).innerText());
+  "the reason it gives for {string} is {string}",
+  async function (this: OlaiWorld, name: string, reason: string) {
+    const row = this.chat(`${CHAT_MISSING_SERVER}${attr("data-server", name)}`);
+    const said = oneLine(await row.locator(CHAT_MISSING_WHY).innerText());
     assert.ok(
       said.includes(reason),
       `the panel names a missing server without the reason "${reason}", which is ` +
@@ -2897,7 +2898,7 @@ Then(
  *  is a temporary directory's, and only the running server knows it. */
 Then("it names the configured executable", async function (this: OlaiWorld) {
   const said = oneLine(
-    await this.chat(CHAT_MISSING_SERVER).first().innerText(),
+    await this.chat(`${CHAT_MISSING_SERVER}${attr("data-server", "kolu")}`).innerText(),
   );
   assert.ok(
     /\/[^\s]*\/kolu\b/.test(said),

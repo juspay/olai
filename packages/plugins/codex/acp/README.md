@@ -8,8 +8,8 @@ wrapper points the adapter at that exact native CLI through `CODEX_PATH`.
 
 It is deliberately not built from the shared `acp/` shim the Claude and pi
 adapters come through. Those two declare their adapters in their own
-`default.nix` files via `@olai/plugin-kit`'s `npm-adapter.nix` over the shared
-shim's one lockfile — their pins and build rules move together. Codex has its
+`default.nix` files via `@olai/plugin-kit`'s `npm-adapter.nix` over each plugin's
+own shim lockfile. Codex has its
 own upstream release clock and native platform layout, so its derivation
 belongs here, next to this plugin's `default.nix`, and a Codex bump rebuilds
 only this output.
@@ -23,10 +23,29 @@ nix build .#codex-agent
 
 Replace each fake hash with the value its failed fixed-output build reports.
 
-`default.nix` uses `fetchpatch` to backport [upstream PR #441](https://github.com/agentclientprotocol/codex-acp/pull/441)
-(still open on 2026-09-06), pinned to commit
-`84bfbe8318400b139214e9aa51352585aae19368` and a content hash. With `steering.idleBehavior: "promptRequired"`, a steer that
-arrives after completion leaves its input with Olai, which starts and tracks
-the next prompt. Legacy clients keep upstream's default. The upstream steering
-tests included in the patch run in the Nix build. Recheck the backport when
-bumping the adapter; remove it once the release includes the fix.
+### What the move to 1.13.1 found (2026-09-24)
+
+The npm registry's latest stable `@agentclientprotocol/codex-acp` is 1.13.1.
+Its upstream lockfile resolves Codex CLI **0.156.1** (from 0.153.3 in our
+1.10.0 pin). The source and npm dependency hashes were recalculated by Nix;
+the dependency hash covers that lockfile's Linux x64/arm64 and Darwin
+x64/arm64 native tarball integrity hashes. There is no separate per-platform
+hash table in this derivation.
+
+**The steering backport stays.** `git tag --contains
+84bfbe8318400b139214e9aa51352585aae19368` on the upstream clone, after fetching
+that commit explicitly, lists no tags. The v1.13.1 source has neither
+`idleBehavior` nor `promptRequired`. The unchanged `fetchpatch` backport of
+[PR #441](https://github.com/agentclientprotocol/codex-acp/pull/441) still
+applies (line offsets only). With `steering.idleBehavior: "promptRequired"`,
+a steer arriving after completion leaves its input with Olai, which owns the
+next prompt; legacy clients keep upstream's default. Nothing was retired.
+
+The release range adds tool names, file-change diff statistics and turn-diff
+reporting, terminal-output deltas, compaction updates and optional session
+notices, as well as CLI updates. These are upstream changes, not new Olai
+capability advertisements. The Nix build ran `steer-events.test.ts` and
+Olai's `permission-mode.test.ts.in`: **2 files, 17 tests passed**. `just e2e-fast-remote` also passed all
+1,905 scenarios / 22,698 steps across six shards (Odu
+`0mufn6371-vhewx5al`), including both Codex activity and steering features.
+The Claude leg and chat plugin are unchanged in this bump.
