@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, expect, test } from "bun:test"
 import { Effect, Result } from "effect"
-import { MAX_ENCLOSED_BYTES, readEnclosures, typeOf, validateEnclosures } from "./enclosures.ts"
+import { MAX_ENCLOSED_BYTES, readEnclosures, typeOf, validateEnclosures, withinCap } from "./enclosures.ts"
 
 const root = mkdtempSync(join(tmpdir(), "mail-enclosures-"))
 afterAll(() => rmSync(root, { recursive: true, force: true }))
@@ -81,6 +81,34 @@ test("files are read through realpath, and anything that is not a readable regul
   const directory = await read([{ path: root, filename: "root.zip" }])
   expect(directory).toMatchObject({ _tag: "Failure", failure: { reason: `${root} is not a file, so it cannot be attached` } })
   expect(await read([])).toMatchObject({ _tag: "Success", success: [] })
+})
+
+test("the cap is one rule, applied to whatever sizes are in hand", () => {
+  // The reader applies this twice: to the `stat` sizes, and to the bytes it
+  // actually got. A file being uploaded into a conversation grows between the
+  // two, and a draft that was under the ceiling a moment ago is still over it.
+  expect(withinCap([])._tag).toBe("Success")
+  expect(withinCap([{ filename: "a.bin", bytes: MAX_ENCLOSED_BYTES }])._tag).toBe("Success")
+  expect(withinCap([{ filename: "a.bin", bytes: MAX_ENCLOSED_BYTES - 1 }, { filename: "b.bin", bytes: 1 }])._tag).toBe("Success")
+  expect(withinCap([{ filename: "a.bin", bytes: MAX_ENCLOSED_BYTES + 1 }])).toMatchObject({ _tag: "Failure", failure: { reason: "a.bin is over 25 MB, which is more than Gmail takes" } })
+  expect(withinCap([{ filename: "a.bin", bytes: MAX_ENCLOSED_BYTES }, { filename: "b.bin", bytes: 1 }]))
+    .toMatchObject({ _tag: "Failure", failure: { reason: "these attachments come to more than 25 MB together, which is more than Gmail takes" } })
+})
+
+test("a file that grows while the draft is being read is refused on the bytes in hand", async () => {
+  // The realistic case is an upload still streaming into the conversation's
+  // directory. The growth is staged on a timer rather than raced to a
+  // particular await: whichever of the two checks sees it — the `stat` sizes or
+  // the bytes read — the draft is refused, and with the same sentence.
+  const first = file("first.bin", "")
+  truncateSync(first, 20 * 1024 * 1024)
+  const growing = file("growing.bin", "")
+  truncateSync(growing, 8)
+  const timer = setTimeout(() => truncateSync(growing, MAX_ENCLOSED_BYTES), 0)
+  try {
+    expect(await read([{ path: first }, { path: growing }]))
+      .toMatchObject({ _tag: "Failure", failure: { reason: "these attachments come to more than 25 MB together, which is more than Gmail takes" } })
+  } finally { clearTimeout(timer) }
 })
 
 test("a file over 25 MB, and a list over 25 MB together, are refused before any of it is read", async () => {

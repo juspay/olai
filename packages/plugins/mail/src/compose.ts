@@ -22,8 +22,7 @@ export const headerValue = (value: string): Result.Result<string, MailRefusal> =
   return Result.succeed(value)
 }
 // Each encoded word fits RFC 2047's 75-character limit, split on code points.
-const encoded = (value: string): string => {
-  if (!/[^\x20-\x7e]/.test(value) && value.length <= 70) return value
+const encodedWords = (value: string): string => {
   const chunks: string[] = []
   let chunk = ""
   for (const char of value) {
@@ -33,6 +32,12 @@ const encoded = (value: string): string => {
   if (chunk) chunks.push(chunk)
   return chunks.map(part => `=?UTF-8?B?${Buffer.from(part).toString("base64")}?=`).join("\r\n ")
 }
+/** ...and the shortcut every header but one wants: a short ASCII value is
+ *  already its own best spelling. A parameter that will sit inside a quoted
+ *  string cannot take the shortcut — an unescaped `"` would end the string —
+ *  so {@link enclosurePart} asks for the words themselves. */
+const encoded = (value: string): string =>
+  !/[^\x20-\x7e]/.test(value) && value.length <= 70 ? value : encodedWords(value)
 // Fold ASCII subjects at existing whitespace, retaining their raw readability.
 // An unbreakable long word still uses bounded encoded words.
 const subjectHeader = (value: string): string => {
@@ -123,11 +128,15 @@ const enclosurePart = (boundary: string, one: Enclosure) => Result.gen(function*
   if (CONTROL.test(one.filename)) return yield* refuse("mail attachment filenames cannot contain CR, LF or control characters")
   if (!one.filename.trim()) return yield* refuse("mail attachments need a filename to arrive under")
   if (!contentType(one.type)) return yield* refuse(`malformed mail attachment content type: ${JSON.stringify(one.type)}`)
+  // A name that is plain ASCII with no quoted-pair character goes out as
+  // itself. Anything else takes the encoded words UNCONDITIONALLY — `encoded`'s
+  // short-ASCII shortcut would hand `say "hi".txt` back verbatim and end the
+  // quoted string early.
   const plain = !/[^\x20-\x7e]/.test(one.filename) && !/["\\]/.test(one.filename)
   return [
     `--${boundary}`,
     `Content-Type: ${one.type};`,
-    ` name="${plain ? one.filename : encoded(one.filename)}"`,
+    ` name="${plain ? one.filename : encodedWords(one.filename)}"`,
     "Content-Disposition: attachment;",
     plain ? ` filename="${one.filename}"` : ` filename*=${extended(one.filename)}`,
     "Content-Transfer-Encoding: base64",

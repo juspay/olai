@@ -92,13 +92,29 @@ test("an empty file is still a part, and one attachment needs no second boundary
   expect(parts[1]!.endsWith("\r\n\r\n")).toBe(true)
 })
 test("non-ASCII and quoted filenames take RFC 2231 on the disposition and RFC 2047 on the type", () => {
-  const message = Result.getOrThrow(compose(base, [enclosure("Café ☕.txt", "text/plain", "notes"), enclosure('say "hi".txt', "text/plain", "notes")]))
+  const word = (name: string) => `=?UTF-8?B?${Buffer.from(name).toString("base64")}?=`
+  const quoted = 'say "hi".txt'
+  const escaped = "back\\slash.txt"
+  const message = Result.getOrThrow(compose(base, [enclosure("Café ☕.txt", "text/plain", "notes"), enclosure(quoted, "text/plain", "notes"), enclosure(escaped, "text/plain", "notes")]))
   expect(message).toContain("filename*=UTF-8''Caf%C3%A9%20%E2%98%95.txt")
-  expect(message).toContain('name="=?UTF-8?B?Q2Fmw6kg4piVLnR4dA==?="')
+  expect(message).toContain(`name="${word("Café ☕.txt")}"`)
   expect(message).toContain("filename*=UTF-8''say%20%22hi%22.txt")
+  expect(message).toContain("filename*=UTF-8''back%5Cslash.txt")
   expect(message).not.toContain('filename="Café')
+  // An ASCII name with a quote or a backslash may not go in raw: `encoded`'s
+  // short-ASCII shortcut would end the quoted string at the name's own quote.
+  expect(message).toContain(`name="${word(quoted)}"`)
+  expect(message).toContain(`name="${word(escaped)}"`)
+  expect(message).not.toContain('name="say "hi".txt"')
+  expect(message).not.toContain('name="back\\slash.txt"')
   const words = message.match(/=\?UTF-8\?B\?[^?]+\?=/g)!
   expect(words.every(word => word.length <= 75)).toBe(true)
+  // Every part header line is a header: one colon, one value, nothing loose.
+  for (const part of partsOf(message).parts.slice(1, -1)) {
+    for (const line of part.split("\r\n\r\n")[0]!.split("\r\n").filter(Boolean)) {
+      expect(line.startsWith(" ") || /^[A-Za-z-]+: /.test(line)).toBe(true)
+    }
+  }
 })
 test("attachment filenames and content types are refused the way headers are", () => {
   for (const one of [enclosure("in\r\nvoice.pdf", "application/pdf", "x"), enclosure("in\nvoice.pdf", "application/pdf", "x"), enclosure("bell\x07.pdf", "application/pdf", "x"), enclosure("   ", "application/pdf", "x")]) {

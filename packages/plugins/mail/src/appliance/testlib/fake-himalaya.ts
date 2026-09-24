@@ -421,7 +421,7 @@ export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHi
  *  the way this plugin wrote it — one `text/plain` body, and the files under
  *  it when the draft is `multipart/mixed`. A single-part draft records an empty
  *  attachment list, so every saved draft has the same shape. */
-const draftContents = (contentType: string, body: string): { body: string; attachments: Array<{ filename: string; type: string; bytes: number; sha256: string }> } => {
+export const draftContents = (contentType: string, body: string): { body: string; attachments: Array<{ filename: string; type: string; bytes: number; sha256: string }> } => {
   const boundary = /boundary="([^"]+)"/.exec(contentType)?.[1]
   if (!/^multipart\/mixed/i.test(contentType.trim()) || boundary === undefined) return { body: Buffer.from(body, "base64").toString("utf8"), attachments: [] }
   const [text, ...rest] = parseParts(body, boundary)

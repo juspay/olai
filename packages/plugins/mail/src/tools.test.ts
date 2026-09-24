@@ -157,6 +157,15 @@ test("drafts carry files, an update replaces them, and an update naming none dro
   expect(dropped.attachments).toEqual([])
   expect(saved(created.draft).attachments).toEqual([])
   expect(saved(created.draft).body).toBe("Nothing attached")
+  // An empty list is the other way to say it, and the schema takes it: an
+  // agent replacing a draft has one shape for "carry these" and for "carry
+  // nothing", rather than a refusal for the second.
+  const emptied: any = yield* h.call("draft_update", { ...base, draft: created.draft, body: "Still nothing", attachments: [] })
+  expect(emptied.attachments).toEqual([])
+  expect(saved(created.draft).attachments).toEqual([])
+  const fresh: any = yield* h.call("draft", { ...base, body: "Nothing to carry", attachments: [] })
+  expect(fresh.attachments).toEqual([])
+  expect(saved(fresh.draft).attachments).toEqual([])
   // A draft with no attachments is still the single text part it always was.
   expect(h.calls.at(-1)!.message).toContain("Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64")
   expect(h.calls.at(-1)!.message).not.toContain("multipart/mixed")
@@ -172,7 +181,6 @@ test("an unattachable file refuses the whole draft before the thread is looked u
     [{ ...base, attachments: [{ path: `${h.root}/notes.txt` }, { path: `${h.root}/../notes.txt` }] }, "two mail attachments would arrive as notes.txt; give one of them its own filename"],
     [{ ...base, attachments: [{ path: `${h.root}/notes.txt`, type: "text" }] }, undefined],
     [{ ...base, attachments: [{ path: "notes.txt" }] }, undefined],
-    [{ ...base, attachments: [] }, undefined],
     [{ ...base, attachments: Array.from({ length: 11 }, () => ({ path: `${h.root}/notes.txt` })) }, undefined],
     [{ ...base, thread: "a2", attachments: [{ path: `${h.root}/nowhere.pdf` }] }, `there is no file to attach at ${h.root}/nowhere.pdf`],
   ]

@@ -120,26 +120,40 @@ export const validateEnclosures = (list: ReadonlyArray<EnclosureArgs> = []): Res
   return named
 })
 
+/** THE TWO SIZE REFUSALS, over whatever sizes the caller has in hand. Applied
+ *  twice by the reader below, to the `stat` sizes and then to the bytes
+ *  themselves, so it is one rule rather than two spellings of one. */
+export const withinCap = (sized: ReadonlyArray<{ readonly filename: string; readonly bytes: number }>): Result.Result<void, MailRefusal> => Result.gen(function*() {
+  let total = 0
+  for (const one of sized) {
+    if (one.bytes > MAX_ENCLOSED_BYTES) return yield* refuse(`${one.filename} is over 25 MB, which is more than Gmail takes`)
+    total += one.bytes
+    if (total > MAX_ENCLOSED_BYTES) return yield* refuse("these attachments come to more than 25 MB together, which is more than Gmail takes")
+  }
+})
+
 /** ...AND THE EFFECT HALF. Sizes are read for every file before any of them is
  *  read into memory, so a list whose total is over the cap costs one `stat`
- *  each rather than 25 MB of reading. */
+ *  each rather than 25 MB of reading — and the cap is applied AGAIN to what
+ *  was actually read, because a `stat` is a fact about a moment: a file being
+ *  uploaded into a conversation grows between the two, and a draft is not
+ *  allowed over the ceiling just because it was under it a moment ago. */
 export const readEnclosures = (list: ReadonlyArray<EnclosureArgs> = []): Effect.Effect<ReadonlyArray<Enclosure>, MailRefusal> => Effect.gen(function*() {
   const named = yield* Effect.fromResult(validateEnclosures(list))
   if (!named.length) return []
   const missing = (one: NamedEnclosure) => new MailRefusal({ reason: `there is no file to attach at ${one.path}` })
-  const sized: Array<NamedEnclosure & { readonly real: string }> = []
-  let total = 0
+  const sized: Array<NamedEnclosure & { readonly real: string; readonly bytes: number }> = []
   for (const one of named) {
     const real = yield* Effect.tryPromise({ try: () => realpath(one.path), catch: () => missing(one) })
     const file = yield* Effect.tryPromise({ try: () => stat(real), catch: () => missing(one) })
     if (!file.isFile()) return yield* Effect.fail(new MailRefusal({ reason: `${one.path} is not a file, so it cannot be attached` }))
-    if (file.size > MAX_ENCLOSED_BYTES) return yield* Effect.fail(new MailRefusal({ reason: `${one.filename} is over 25 MB, which is more than Gmail takes` }))
-    total += file.size
-    if (total > MAX_ENCLOSED_BYTES) return yield* Effect.fail(new MailRefusal({ reason: "these attachments come to more than 25 MB together, which is more than Gmail takes" }))
-    sized.push({ ...one, real })
+    sized.push({ ...one, real, bytes: file.size })
   }
-  return yield* Effect.forEach(sized, one => Effect.tryPromise({
+  yield* Effect.fromResult(withinCap(sized))
+  const read = yield* Effect.forEach(sized, one => Effect.tryPromise({
     try: () => readFile(one.real),
     catch: error => new MailRefusal({ reason: `could not read ${one.path}: ${String(error)}` }),
   }).pipe(Effect.map(data => ({ filename: one.filename, type: one.type, data }))))
+  yield* Effect.fromResult(withinCap(read.map(one => ({ filename: one.filename, bytes: one.data.length }))))
+  return read
 })
