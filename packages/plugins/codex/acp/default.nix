@@ -5,8 +5,8 @@
 { lib, stdenv, buildNpmPackage, fetchFromGitHub, fetchpatch, makeWrapper, nodejs }:
 
 let
-  adapterVersion = "1.10.0";
-  codexVersion = "0.153.3"; # resolved by this adapter release's package-lock
+  adapterVersion = "1.13.1";
+  codexVersion = "0.156.1"; # resolved by this adapter release's package-lock
   # The optional npm package and the native binary inside it use different
   # platform vocabularies. One table keeps the pair atomic and makes an
   # unsupported host fail at evaluation rather than fall into a Darwin branch.
@@ -26,9 +26,9 @@ buildNpmPackage {
     owner = "agentclientprotocol";
     repo = "codex-acp";
     rev = "v${adapterVersion}";
-    hash = "sha256-D8uYd30NRXQYUSBFCi66Oq0iRZXpl8P7nWv2m3+KBig=";
+    hash = "sha256-lVsj8RqE8XwCblOBSk3B4Nckx4h1o1BHMRrmpkhrIEw=";
   };
-  npmDepsHash = "sha256-df1/kPiZFBEq9Um26Qbo9XaYj2J8BOXQmunCQWquDTo=";
+  npmDepsHash = "sha256-jXXvfg2bPZlvkNBZUw3ptpoOy9wOcvl2B8J0HnpX79c=";
 
   # Upstream PR #441: a steer that loses the completion race leaves its
   # message with the host, which owns the next prompt and its completion.
