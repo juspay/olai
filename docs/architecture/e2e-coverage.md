@@ -2,6 +2,12 @@
 
 This document records which user workflows have real browser tests, and which still do not.
 
+The navigation scenarios in `the_chrome_holds_still.feature` plant a DOM-identity
+probe before navigating. Their “I mark the screen” setup waits for both the
+sidebar and pane to exist: the header can paint earlier. The probe and its
+post-navigation remount assertions remain immediate, so setup readiness does
+not hide a remount caused by the gesture.
+
 ## Terms
 
 These words are used throughout with the meaning olai gives them.
