@@ -39,7 +39,7 @@
  *   RAW=1 bun tasks.ts            # every SDK message the adapter forwarded, too
  *
  * `AIR=1` advertises AIR v1 in initialize.clientCapabilities._meta and
- * session/new._meta. The former is required by 0.73.0; the latter alone
+ * session/new._meta. The former is required since 0.73.0; the latter alone
  * produces no AIR events. AIR lines retain full parameters, including session ids.
  *
  * `KIND=monitor` (the default) arms a `Monitor` that ticks a few times and
@@ -254,7 +254,7 @@ await ask("initialize", {
   protocolVersion: 1,
   clientCapabilities: {
     fs: { readTextFile: false, writeTextFile: false },
-    // 0.73.0 negotiates AIR here; session/new metadata alone is insufficient.
+    // Since 0.73.0, AIR is negotiated here; session/new metadata alone is insufficient.
     _meta: airMeta,
   },
 })
