@@ -1,9 +1,10 @@
 /** Plain-text and multipart draft composition only. No capabilities, no live
  *  mailbox state, and no file reading: attachments arrive already read
- *  (`./enclosures.ts`). */
+ *  (`./enclosures.ts`), and what a caller ASKED to attach — paths this
+ *  composer never opens — is that module's business, not this one's. */
 import { randomUUID } from "node:crypto"
 import { Result } from "effect"
-import { contentType, CONTROL, validateEnclosures, type Enclosure, type EnclosureArgs } from "./enclosures.ts"
+import { contentType, CONTROL, type Enclosure, type EnclosureArgs } from "./enclosures.ts"
 import { MailRefusal } from "./wire.ts"
 
 export interface DraftArgs {
@@ -103,7 +104,6 @@ export const validateDraft = (args: DraftArgs) => Result.gen(function*() {
   if (args.subject !== undefined) yield* headerValue(args.subject)
   if (!args.body.trim()) return yield* refuse("mail draft body cannot be empty")
   if (Buffer.byteLength(args.body, "utf8") > 256 * 1024) return yield* refuse("mail draft body exceeds 256 KiB")
-  yield* validateEnclosures(args.attachments)
   if (args.thread !== undefined && !/^[0-9a-f]+$/i.test(args.thread)) return yield* refuse("malformed mail thread id")
   if (args.draft !== undefined && !/^[A-Za-z0-9_-]+$/.test(args.draft)) return yield* refuse("malformed mail draft id")
   if (args.to !== undefined && !args.to.length) return yield* refuse("mail drafts require at least one To recipient")

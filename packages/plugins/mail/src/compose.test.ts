@@ -60,7 +60,9 @@ test("a draft with no attachments is the single text part it has always been", (
   expect(message).toBe("From: you@gmail.com\r\nTo: ravi@example.com\r\nSubject: Hello\r\nMIME-Version: 1.0\r\n"
     + "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nQ291bnQgbWUgaW4=\r\n")
   expect(Result.getOrThrow(compose({ ...base, body: "Count me in" }, []))).toBe(message)
-  expect(Result.getOrThrow(compose({ ...base, body: "Count me in", attachments: [] }))).toBe(message)
+  // ...including when the CALL named files: paths are the reader's business
+  // (`enclosures.ts`), and this composer renders the bytes it was handed.
+  expect(Result.getOrThrow(compose({ ...base, body: "Count me in", attachments: [{ path: "/tmp/invoice.pdf" }] }))).toBe(message)
 })
 test("attached files become multipart parts whose bytes survive base64", () => {
   const bytes = Buffer.from(Array.from({ length: 5000 }, (_, i) => i % 256))
@@ -123,13 +125,6 @@ test("attachment filenames and content types are refused the way headers are", (
   for (const type of ["application", "application/pdf; charset=utf-8", "application/", "text/pl ain", "text/plain\r\nX: y", ""]) {
     expect(compose(base, [enclosure("invoice.pdf", type, "x")])).toMatchObject({ _tag: "Failure", failure: expect.any(MailRefusal) })
   }
-})
-test("attachment arguments are validated with the rest of the draft, before anything is read", () => {
-  const attachments = [{ path: "relative/invoice.pdf" }]
-  expect(compose({ ...base, attachments })).toMatchObject({ _tag: "Failure", failure: { reason: "mail attachments need an absolute path: relative/invoice.pdf" } })
-  expect(validateDraft({ ...base, attachments })).toMatchObject({ _tag: "Failure", failure: expect.any(MailRefusal) })
-  expect(validateDraft({ ...base, attachments: [{ path: "/tmp/a.pdf" }, { path: "/other/a.pdf" }] })).toMatchObject({ _tag: "Failure", failure: { reason: "two mail attachments would arrive as a.pdf; give one of them its own filename" } })
-  expect(validateDraft({ ...base, attachments: [{ path: "/tmp/a.pdf" }, { path: "/other/a.pdf", filename: "b.pdf" }] })._tag).toBe("Success")
 })
 test("unexpected composer exceptions remain defects when lifted into Effect", () => {
   const broken = { ...base, get body(): string { throw new TypeError("composer defect") } }
