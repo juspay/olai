@@ -739,9 +739,9 @@ would be shaped around, not only on a finished task.
 
 **STILL UNMEASURED, and it is the ruling's question rather than this PR's:**
 the `Monitor` row under the same control — a watch that has DIED but was once
-armed. `chat.ts`'s latch reads session-permanent; `docs/chat.md` describes the
-live-watch case. Those are different guards, and which one the defect actually
-needs is what nobody has measured yet.
+armed. `chat.ts`'s latch reads session-permanent; whether the defect needs
+that lifetime or only a live-watch guard is what nobody has measured yet.
+`docs/chat.md` describes the symptom and recovery and points here for histories.
 
 The pristine column is the one that decides whose bug it is: **upstream's**,
 and older than this pin — not the bump's and not these patches'. The
