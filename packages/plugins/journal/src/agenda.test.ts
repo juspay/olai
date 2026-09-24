@@ -14,7 +14,7 @@ import { readingOf, setOf } from "@olai/format/testlib"
 import { Effect } from "effect"
 import { describe, expect, test } from "bun:test"
 
-import { type AgendaGroup, answerFor, door, KEY, readingIn, WORD } from "./agenda.ts"
+import { type AgendaGroup, door, KEY, readingIn, WORD } from "./agenda.ts"
 import { name } from "./wire.ts"
 
 const SET = (): OutlineSet =>
@@ -136,10 +136,5 @@ describe("journal.agenda", () => {
     expect(readingIn(reading())).not.toBeNull()
     expect(readingIn({ derived: {} })).not.toBeNull()
     expect(readingIn({ set: {} })).toBeNull()
-  })
-
-  test("the builder and the door agree, so a bench may spend either", () => {
-    const at = reading()
-    expect(answerFor(at, "2026-08-09")).toEqual(read(at, "2026-08-09"))
   })
 })

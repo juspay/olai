@@ -112,7 +112,7 @@ export const speakerOf = (entry: ChatEntry | undefined): Speaker | null => {
  * same speaker twice", they are two rows nobody is speaking in, and the
  * question this answers is only ever asked to decide whether a face is owed.
  */
-export const sameSpeaker = (one: Speaker | null, other: Speaker | null): boolean => {
+const sameSpeaker = (one: Speaker | null, other: Speaker | null): boolean => {
   if (one === null || other === null) return false
   if (one.of !== other.of) return false
   return one.of !== "plugin" || other.of !== "plugin" || one.name === other.name

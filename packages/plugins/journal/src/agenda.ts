@@ -224,9 +224,10 @@ const daysOf = (days: ReadonlyArray<FormatAgendaDay>): ReadonlyArray<AgendaDay> 
   days.map((day) => ({ date: day.date, groups: groupsOf(day.groups) }))
 
 /** The answer, from a reading that has already been narrowed — the whole of
- *  what this door computes, taken out so a bench can spend it without a
- *  fiber. */
-export const answerFor = (at: Reading, date: string): AgendaAnswer => {
+ *  what this door computes, named so the door below reads as its two refusals
+ *  and then this. Not exported: a bench that spent it instead of the door
+ *  would be comparing the door to itself. */
+const answerFor = (at: Reading, date: string): AgendaAnswer => {
   const owed = agendaOf(at.derived, date)
   return {
     date,
