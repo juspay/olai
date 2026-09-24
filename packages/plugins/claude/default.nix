@@ -25,11 +25,11 @@ let
   # env arms the SDK binary at the path the build actually leaves.
   mods = "$out/lib/node_modules/olai-acp-claude/node_modules";
 
-  adapter = kit.npmAdapter {
+  adapter = kit.npmAdapter rec {
     name = "olai-acp-claude";
     shim = ./acp/shim;
     shimName = "olai-acp-claude";
-    version = "0.81.2";
+    version = (lib.importJSON (shim + "/package.json")).dependencies.${package};
     package = "@agentclientprotocol/claude-agent-acp";
     entry = "dist/index.js";
     bin = "claude-agent-acp";

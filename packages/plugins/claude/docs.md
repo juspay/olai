@@ -28,9 +28,13 @@ Each of these is a bet on the pinned adapter, and every one of them is safe to l
 
 ## The adapter, and its patches
 
-`default.nix` beside this plugin builds the pinned adapter from a committed
-lockfile — through `@olai/plugin-kit`'s `npm-adapter.nix` over the shared
-`acp/` shim — so nothing is fetched at build time and no `npx` runs at start.
+The exact dependency in `acp/shim/package.json` is the adapter's version pin;
+`default.nix` derives its version from it. npm generates the committed
+lockfile with the resolved dependency graph and integrity hashes.
+`@olai/plugin-kit`'s `npm-adapter.nix` builds from that shim, so nothing is
+fetched at build time and no `npx` runs at start. Dated patch README entries
+record measurements of particular versions; they remain historical evidence
+rather than being generated from the current pin.
 Two patches ride that pin and both live in this plugin's own directory
 ([`acp/patches/`](https://github.com/juspay/olai/tree/master/packages/plugins/claude/acp/patches)):
 
