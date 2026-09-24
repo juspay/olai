@@ -123,8 +123,10 @@ const changed = async (name: Named, from: string | null, ms = 30_000): Promise<s
 // panel with no door on it, is a finding about the panel and not a crash.
 await p.goto(BASE)
 ok("the app came up", await drawn("outline-list"))
-ok("the panel has a door", await drawn("chat-toggle"))
-await p.locator(selector("chat-toggle")).click()
+// New conversations now start from the sidebar; the old chat-toggle door
+// is no longer rendered. Use the same entry a person uses.
+ok("the panel has a door", await drawn("chat-new"))
+await p.locator(selector("chat-new")).click()
 ok("...and it opens on a box to type in", await drawn("chat-input"))
 
 const shot = (name: string): Promise<Buffer> => p.screenshot({ path: `${SHOTS}/${name}.png` })
@@ -230,15 +232,22 @@ ok("the shelf opens onto that agent's own calls", await drawn("chat-preview-of",
 await shot("9-shelf")
 await idle()
 
-// ── 7. what the UNASSIGNED list knows about stored conversations ───────
-// The panel's own `chats` picker is retired (the human's amendment of
-// 2026-09-02): the conversations no node agent claims are the sidebar's, and
-// this is the door a person uses now.
-await p.locator(selector("agent-unassigned")).click()
-await drawn("unassigned-panel")
-ok("the unassigned list holds this directory's stored conversations",
-  await drawn("chat-session", 120_000),
-  `${await p.locator(selector("chat-session")).count()} rows`)
+// ── 7. the stored conversation survives a fresh start ─────────────────
+// New chats now belong to nodes, and the old unassigned-list panel is gone.
+// Start fresh, then open this node's history to read the conversation we made.
+const previousSession = await p.locator(selector("chat-panel")).getAttribute("data-session-id")
+await p.locator(selector("chat-fresh-session")).click()
+await p.getByRole("button", { name: "Start fresh conversation", exact: true }).click()
+await p.waitForFunction(([panel, previous]) => {
+  const current = document.querySelector(panel!)?.getAttribute("data-session-id")
+  return current != null && current !== previous
+}, [selector("chat-panel"), previousSession], { timeout: 120_000 })
+await drawn("chat-input")
+await p.locator(selector("chat-sessions")).click()
+await drawn("chat-session-list")
+ok("the history holds the stored conversation after a fresh start",
+  await drawn("chat-past-session", 120_000),
+  `${await p.locator(selector("chat-past-session")).count()} rows`)
 await shot("10-sessions")
 
 console.log(`\n${at()}  ${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`)
