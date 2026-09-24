@@ -64,8 +64,7 @@ import { readMessages } from "./support/ndjson.ts"
 
 const AGENT = process.env["AGENT"] ?? "claude-agent-acp"
 const KIND = process.env["KIND"] ?? "monitor"
-const AIR = process.env["AIR"] === "1"
-const airMeta = AIR
+const airMeta = process.env["AIR"] === "1"
   ? { jetbrains: { air: { version: 1, capabilities: ["nativeSubagentSessions", "asyncTasks"] } } }
   : {}
 const AIR_UPDATES = new Set([
