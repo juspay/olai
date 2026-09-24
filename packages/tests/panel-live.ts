@@ -15,11 +15,11 @@
  *
  * ORDER MATTERS HERE, and it is the driver's own subject rather than a
  * convenience: the interrupt is asserted BEFORE anything has queued and before
- * any `Monitor` has been armed, because each of those leaves the pinned
- * adapter unable to settle a steered turn (`packages/plugins/claude/acp/patches/README.md` has both
- * triggers and what was measured). Run the same assertions in the other order
- * and the driver hangs — which is the panel hanging, which is how this one
- * was found in the first place.
+ * any `Monitor` has been armed: both histories prevented earlier adapters from
+ * settling a steered turn, and changing the order exposed the second trigger.
+ * Keep that precautionary order; the steering-history table in
+ * `packages/plugins/claude/acp/patches/README.md#steering-history-measurements`
+ * records the current measurements and their limits.
  *
  * NOT PART OF THE SUITE — nothing imports it and `just e2e` never runs it. It
  * needs a real, authenticated `claude` and costs real turns.

@@ -270,7 +270,7 @@ The driver starts at the sidebar's **new chat** entry. Its final stored-history 
 
 The reason it exists rather than being a scenario is the same reason `tasks.ts` does, one layer up: every scenario in `features/` drives a SCRIPTED agent, because a turn has to be deterministic before it can be asserted — and the cost of that discipline is that no scenario has ever seen the real adapter. A pin bump is exactly when that bill comes due, and this is what pays it.
 
-ORDER IS THE DRIVER'S OWN SUBJECT and not a convenience. The interrupt is asserted before anything has queued and before any `Monitor` has been armed, because each of those leaves the pinned adapter unable to settle a steered turn — both triggers, and what was measured about each, are in [`packages/plugins/claude/acp/patches/README.md`](../../packages/plugins/claude/acp/patches/README.md). Run the same assertions in the other order and the driver hangs, which is the panel hanging: that is how the second trigger was found.
+ORDER IS THE DRIVER'S OWN SUBJECT and not a convenience. The interrupt is asserted before anything has queued and before any `Monitor` has been armed: both histories prevented earlier adapters from settling a steered turn, and changing the order is how the second trigger was found. The Monitor-history hang did not reproduce on 0.81.2 with liveness uncontrolled; see the [steering-history table](../../packages/plugins/claude/acp/patches/README.md#steering-history-measurements) for the measurements and their limits. The driver keeps this precautionary order because the queued-turn trigger and a controlled live/dead Monitor comparison have not been remeasured.
 
 ## Measuring what a session costs the wire
 

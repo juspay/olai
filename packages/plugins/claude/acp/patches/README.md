@@ -705,9 +705,11 @@ exactly the kind of claim this section exists to stop.)
 — a `_session/steering` into a session that has once held a QUEUED prompt
 leaves that turn's `session/prompt` unanswered forever — is what olai's
 `queuedHere` latch guards (`packages/plugins/chat/src/chat.ts`). Found while proving
-the panel on this bump: **a session in which a turn armed a `Monitor` hangs
-the same way, with nothing ever queued** — so the latch is still open and the
-panel still offers the interruption that will hang it.
+the panel on the earlier bumps: **a session in which a turn armed a `Monitor`
+hung the same way, with nothing ever queued** — so the latch stayed open and
+the panel offered an interruption that hung it. The Monitor-history hang did
+not reproduce on 0.81.2 with liveness uncontrolled; see the
+[steering-history table](#steering-history-measurements).
 
 Measured with the issue's own reproduction script, varying only the session's
 history before the steer. **What the script controls is the history TURN, not
@@ -716,6 +718,8 @@ armed in that turn may or may not still be running when the steer lands. The
 rows say which reading each one was taken under, because "a task is running"
 and "a task once existed in this session" are different claims and only one of
 them is what a latch would have to be shaped around.
+
+<a id="steering-history-measurements"></a>
 
 | the session before the steer | 0.66.0 | 0.70.0 | pristine 0.70.0, patches lifted off | 0.81.2 (2026-09-24) |
 |---|---|---|---|---|
