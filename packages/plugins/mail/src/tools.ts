@@ -13,15 +13,21 @@ const pagination = {
   page: Schema.optionalKey(described("Opaque next-page token from the previous reply.")),
 }
 const names = Schema.Array(described("Label name as Gmail shows it; system labels use capitals: INBOX, UNREAD, STARRED, IMPORTANT.")).check(Schema.isMinLength(1), Schema.isMaxLength(10))
+const attachments = Schema.Array(Schema.Struct({
+  path: described("Absolute path to a file this server can read: one uploaded into this conversation, one saved by mail_attachment, or one in the vault.").check(Schema.isPattern(/^\/[^\r\n\x00]*$/)),
+  filename: Schema.optionalKey(described("Name the file arrives under; defaults to the path's own. Capped at 120 characters.")),
+  type: Schema.optionalKey(described("MIME type as type/subtype, such as application/pdf. Defaults to the filename's extension, else application/octet-stream.")),
+})).check(Schema.isMaxLength(10))
 const draftFields = {
   to: Schema.optionalKey(Schema.Array(described("Recipient address or display name <address>. Required for new mail; Replies default to Reply-To or From; if you sent the last message, its To recipients."))),
   cc: Schema.optionalKey(Schema.Array(described("Explicit copy recipients, including for reply-all."))),
   bcc: Schema.optionalKey(Schema.Array(described("Blind copy recipients."))),
   subject: Schema.optionalKey(described("Required for new mail; replies default to Re: and the original subject.")),
-  body: described("Plain text only, nonempty, at most 256 KiB. No HTML or attachments."),
+  body: described("Plain text only, nonempty, at most 256 KiB. No HTML; send a document with `attachments` instead of pasting it here."),
   thread: Schema.optionalKey(thread),
+  attachments: Schema.optionalKey(attachments.annotate({ description: "Attachments to send, up to 10, 25 MB in total and each. An empty list is the same as none. Every path must be absolute; a path that is missing, unreadable or not a regular file refuses the whole draft before anything is written." })),
 }
-const draftDescription = "Writes a draft in Gmail Drafts for the person to review and send; olai cannot send mail. At most 50 recipients."
+const draftDescription = "Writes a draft in Gmail Drafts for the person to review and send; olai cannot send mail. At most 50 recipients, and at most 10 attachments totalling 25 MB."
 const manual = " Gmail query syntax is passed verbatim: from:, newer_than:1d, is:unread, has:attachment, label:. Thread ids are opaque Gmail hex ids; file a thread as <address>/<thread id>. Labels use Gmail's displayed names (system labels INBOX, UNREAD, STARRED, IMPORTANT)."
 
 /** Activation-local capabilities only: no vault or conversation identity is needed. */
@@ -55,7 +61,7 @@ export const makeTools = (mailbox: Effect.Success<ReturnType<typeof openMailbox>
       (_client: unknown, args) => perform("read", args, mailbox.write("read", args))),
     calls("draft", "Draft mail", draftDescription, Schema.Struct(draftFields), true,
       (_client: unknown, args) => perform("draft", args, mailbox.draft(args))),
-    calls("draft_update", "Update mail draft", "Full replacement: supply the complete recipients, subject and body again (or thread for reply defaults). To keep a reply draft threaded, pass the same thread again. " + draftDescription,
+    calls("draft_update", "Update mail draft", "Full replacement: supply the complete recipients, subject, body and attachments again (or thread for reply defaults). Omitted attachments are dropped. To keep a reply draft threaded, pass the same thread again. " + draftDescription,
       Schema.Struct({ ...draftFields, draft: described("Opaque Gmail draft id returned by mail_draft.").check(Schema.isPattern(/^[A-Za-z0-9_-]+$/)) }), true,
       (_client: unknown, args) => perform("draft_update", args, mailbox.draft(args))),
   ]

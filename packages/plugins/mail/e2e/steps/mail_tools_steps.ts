@@ -1,7 +1,8 @@
 import { TESTID } from "../../src/testids.ts"
 import * as assert from "node:assert"
+import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { attr } from "@olai/tests/harness/selectors.ts"
 import { Then } from "@olai/tests/harness/runner.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
@@ -28,6 +29,23 @@ Then("the mail attachment is outside the vault under the runtime directory", asy
   assert.ok(!path.startsWith(this.scratch() + "/"), path)
   assert.equal(readFileSync(path).length, 12288)
   saved.set(this, path)
+})
+/** A Gmail attachment id is longer than a path component may be, so the saved
+ *  file is named by a digest of it. The id this asserts against is the one the
+ *  call itself carried, so the feature and the fixture cannot drift apart. */
+Then("the saved mail attachment file is named by a digest, not by the Gmail id", async function(this: OlaiWorld) {
+  const log = join(dirname(this.mailHimalaya!.path), "calls.ndjson")
+  await this.waitUntil(async () => existsSync(log) && readFileSync(log, "utf8").includes("attachments.get"), "attachment download")
+  const calls = readFileSync(log, "utf8").trim().split("\n").map(line => JSON.parse(line))
+  const args: string[] = calls.findLast(c => c.verb === "attachments.get").args
+  const id = args[1]!
+  const path = args[args.indexOf("-o") + 1]!
+  const name = basename(path)
+  assert.ok(id.length > 255, `this scenario needs an id longer than a path component: ${id.length}`)
+  assert.ok(Buffer.byteLength(name) <= 255, name)
+  assert.equal(name, `${createHash("sha256").update(id).digest("hex").slice(0, 16)}-contract.png`)
+  assert.ok(!path.includes(id.slice(0, 40)), path)
+  assert.equal(readFileSync(path).length, 2048)
 })
 Then("the saved mail attachment is gone", async function(this: OlaiWorld) {
   const path = saved.get(this)
@@ -61,6 +79,31 @@ Then("the mail draft {string} message file is gone", async function(this: OlaiWo
 Then("the mail draft {string} message file is under the runtime directory", async function(this: OlaiWorld, id: string) {
   const draft = draftOf(this, id)
   assert.ok(draft.file.includes("/runtime/olai-mail-"), draft.file)
+})
+interface SavedEnclosure { filename: string; type: string; bytes: number; sha256: string }
+const enclosuresOf = (world: OlaiWorld, id: string): SavedEnclosure[] => draftOf(world, id).attachments ?? []
+/** WAITS, unlike its neighbours, and for a reason: every replacement of one
+ *  draft writes the same story sentence, so "the story says draft updated" is
+ *  not evidence that THIS update has landed. What a draft carries is, and a
+ *  scenario puts this step first for exactly that. */
+Then("the saved mail draft {string} has {int} attachments", async function(this: OlaiWorld, id: string, count: number) {
+  await this.waitUntil(async () => enclosuresOf(this, id).length === count,
+    `the saved mail draft ${id} to carry ${count} attachments, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)
+})
+Then("the saved mail draft {string} has attachment {string} of type {string}", async function(this: OlaiWorld, id: string, filename: string, type: string) {
+  await this.waitUntil(async () => enclosuresOf(this, id).some(one => one.filename === filename),
+    `the saved mail draft ${id} to carry ${filename}, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)
+  assert.equal(enclosuresOf(this, id).find(one => one.filename === filename)!.type, type)
+})
+/** The bytes Gmail would have received, against the bytes in the vault: the
+ *  saved record carries a digest, so this compares content rather than size. */
+Then("the saved mail draft {string} attachment {string} is the vault file {string}", async function(this: OlaiWorld, id: string, filename: string, file: string) {
+  await this.waitUntil(async () => enclosuresOf(this, id).some(one => one.filename === filename),
+    `the saved mail draft ${id} to carry ${filename}, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)
+  const found = enclosuresOf(this, id).find(one => one.filename === filename)!
+  const bytes = readFileSync(join(this.scratch(), file))
+  assert.equal(found.bytes, bytes.length)
+  assert.equal(found.sha256, createHash("sha256").update(bytes).digest("hex"))
 })
 Then("the saved mail draft {string} belongs to thread {string}", async function(this: OlaiWorld, id: string, thread: string) {
   const draft = draftOf(this, id)

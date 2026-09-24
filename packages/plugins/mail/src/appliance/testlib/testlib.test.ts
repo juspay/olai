@@ -38,7 +38,7 @@ import {
 import type { FakeGoogle } from "./fake-google.ts"
 import { startFakeGoogleFor } from "./fake-google.ts"
 import type { FakeHimalaya, MailFixture } from "./fake-himalaya.ts"
-import { PINNED_VERSION, startFakeHimalayaFor } from "./fake-himalaya.ts"
+import { draftContents, PINNED_VERSION, startFakeHimalayaFor } from "./fake-himalaya.ts"
 
 /** The OAuth client a scenario configures a serve with. Nothing checks it: the
  *  fake's job is that the SAME two strings come back on the exchange, which is
@@ -457,4 +457,34 @@ test("neither messages send nor drafts send is in the table or accepted by the f
       expect(answer.stderr).toContain("unrecognized subcommand")
     }
   } finally { await fake.stop() }
+})
+
+test("the fake reads back every filename the composer can write, including a bare name=", async () => {
+  const { Result } = await import("effect")
+  const { compose } = await import("../../compose.ts")
+  const names = ["invoice.pdf", "Café ☕.txt", 'say "hi".txt', "back\\slash.txt"]
+  const message = Result.getOrThrow(compose(
+    { from: EMAIL, to: ["ravi@example.com"], subject: "Files", body: "See attached" },
+    names.map(filename => ({ filename, type: "application/octet-stream", data: Buffer.from(filename) })),
+  ))
+  const [head, ...rest] = message.split("\r\n\r\n")
+  const contentType = head!.split("\r\n").find(line => line.startsWith("Content-Type:"))!.slice("Content-Type:".length).trim()
+  const read = draftContents(contentType, rest.join("\r\n\r\n"))
+  expect(read.body).toBe("See attached")
+  expect(read.attachments.map(one => one.filename)).toEqual(names)
+  expect(read.attachments.map(one => one.bytes)).toEqual(names.map(name => Buffer.byteLength(name)))
+  // ...and a mailer that names the file only on the type, in an RFC 2047 word,
+  // which is the half of `partFilename` the composer's own output never reaches.
+  const boundary = /boundary="([^"]+)"/.exec(contentType)![1]!
+  const bare = [
+    `--${boundary}`,
+    `Content-Type: text/plain; name="=?UTF-8?B?${Buffer.from('say "hi".txt').toString("base64")}?="`,
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from("notes").toString("base64"),
+    `--${boundary}--`,
+    "",
+  ].join("\r\n")
+  const one = draftContents(contentType, `--${boundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from("hi").toString("base64")}\r\n${bare}`)
+  expect(one.attachments.map(each => each.filename)).toEqual(['say "hi".txt'])
 })

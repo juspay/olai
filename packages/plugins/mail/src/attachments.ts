@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { mkdir, mkdtemp, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -8,6 +9,14 @@ import { MailRefusal } from "./wire.ts"
 
 export const MAX_ATTACHMENT = 50 * 1024 * 1024
 export const safeFilename = (name: string): string => name.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "attachment"
+/** WHAT AN ATTACHMENT ID BECOMES IN A PATH. Gmail's ids run to 400 characters
+ *  and more, which is past Linux's 255-byte NAME_MAX all by itself: a file
+ *  named after one cannot be written at all, and the refusal a person saw was
+ *  `name too long` before Himalaya was even spawned. Sixteen hex characters of
+ *  SHA-256 over the id keep two attachments on one message apart, name the same
+ *  attachment the same way every time, and leave the whole component well under
+ *  the limit beside a 120-character {@link safeFilename}. */
+export const idDigest = (attachment: string): string => createHash("sha256").update(attachment).digest("hex").slice(0, 16)
 export interface Attachment { readonly id: string; readonly filename: string; readonly mime: string; readonly bytes: number }
 /** Acquired before tool registration; withdrawn calls finish before this directory closes. */
 export const openAttachments = (runtime: string | undefined, run: Himalaya["run"]) => Effect.gen(function*() {
@@ -26,9 +35,11 @@ export const openAttachments = (runtime: string | undefined, run: Himalaya["run"
       if (!a) return yield* Effect.fail(new MailRefusal({ reason: "read the mail thread first so this serve can check the attachment's size" }))
       if (a.bytes > MAX_ATTACHMENT) return yield* Effect.fail(new MailRefusal({ reason: "this attachment is over 50 MB" }))
       const name = safeFilename(filename ?? a.filename)
-      // IDs are untrusted input as well. Encoding is injective and cannot contain a slash.
+      // IDs are untrusted input as well. Encoding is injective and cannot
+      // contain a slash; message ids are short Gmail hex, and the attachment id
+      // is a digest because the id itself is longer than a filename may be.
       const directory = join(root, encodeURIComponent(message))
-      const path = join(directory, `${encodeURIComponent(attachment)}-${name}`)
+      const path = join(directory, `${idDigest(attachment)}-${name}`)
       yield* Effect.tryPromise({ try: () => mkdir(directory, { recursive: true, mode: 0o700 }), catch: e => new MailRefusal({ reason: String(e) }) })
       yield* run({ verb: GMAIL.attachmentsGet, args: [message, attachment, "-o", path] })
       const file = yield* Effect.tryPromise({ try: () => stat(path), catch: e => new MailRefusal({ reason: String(e) }) })
