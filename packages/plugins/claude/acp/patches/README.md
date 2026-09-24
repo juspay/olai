@@ -678,6 +678,13 @@ The 0.81.2 column below records only these two measured cases; it does not
 claim the queued-turn trigger or a controlled live/dead Monitor comparison
 was retested. The chat plugin's guard is unchanged.
 
+**Remote checks:** `just typecheck-fast-remote`, `just test-fast-remote`,
+and `just e2e-fast-remote` all passed. The full browser run covered 1,905
+scenarios / 22,698 steps, including Codex activity and steering. The first
+unit run caught capture filenames using the repository's retired outline
+suffix; the evidence now also has NDJSON-named copies and these references
+use them. The extension guard was not relaxed. `just ci` was not run.
+
 ### The steering hang has a second trigger, and the guard does not cover it
 
 **THE ONE PLACE THIS IS WRITTEN DOWN.** It is a fact about the pinned adapter,
