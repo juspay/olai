@@ -7,13 +7,13 @@
  import { GOAL_ACTIONS, GOAL_CONTROL_METHOD, GOAL_EXTENSION_VERSION, goalUpdateFromPrompt, parseGoalRequest, toGoalSnapshot, } from "./goal-extension.js";
  import { sanitizeTitle, SessionTitles } from "./session-titles.js";
  import { AIR_NATIVE_SUBAGENT_SESSIONS_CAPABILITY, asSdkSessionNotification, clientSupportsSubagents, } from "./acp-subagents.js";
-@@ -641,6 +641,275 @@
+@@ -892,6 +892,275 @@
      }
      return false;
  }
 +/**
 + * olai patch (session-list-info) — GENERATED from acp/session-list-info/facts.js
-+ * by `bash acp/session-list-info/regenerate.sh`. The pairing and the scanning
++ * by `bash packages/plugins/claude/acp/session-list-info/regenerate.sh`. The pairing and the scanning
 + * rules are TESTED there; edit THAT file, run the script, and the bundle gets
 + * the answer the suite asserts. Editing the text below by hand is the drift
 + * this tooling exists to remove.
@@ -283,7 +283,7 @@
  export class ClaudeAcpAgent {
      sessions;
      client;
-@@ -911,20 +1180,76 @@
+@@ -1199,20 +1468,76 @@
          return result;
      }
      async listSessions(params) {
@@ -295,7 +295,7 @@
 +        // rows beside the two facts each transcript has ready, and the
 +        // supersession pairing over the listed set. The helper block above
 +        // the class is GENERATED from acp/session-list-info/facts.js; run
-+        // `bash acp/session-list-info/regenerate.sh` after editing THAT — the
++        // `bash packages/plugins/claude/acp/session-list-info/regenerate.sh` after editing THAT — the
 +        // rulebook and its tests live in one place.
 +        const rows = [];
          for (const session of sdk_sessions) {
@@ -367,4 +367,4 @@
 +                }),
          };
      }
-     async authenticate(_params) {
+     /**

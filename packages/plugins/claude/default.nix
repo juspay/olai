@@ -29,11 +29,11 @@ let
     name = "olai-acp-claude";
     shim = ./acp/shim;
     shimName = "olai-acp-claude";
-    version = "0.73.0";
+    version = "0.81.2";
     package = "@agentclientprotocol/claude-agent-acp";
     entry = "dist/index.js";
     bin = "claude-agent-acp";
-    npmDepsHash = "sha256-eb9XNcy1bzCutEpXE5EY3y4b6eY+xDI4fgoqWmB85LI=";
+    npmDepsHash = "sha256-bTfawcKRtemojbzoD3tnEswhTIIPv13pg1hgCK42R6Y=";
     patches = ./acp/patches;
     # patchelf for the SDK's bun-compiled `claude`; only the interpreter may
     # be touched (see `@olai/plugin-kit`'s `npm-adapter.nix` header).
