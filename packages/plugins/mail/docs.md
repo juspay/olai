@@ -2,7 +2,7 @@
 
 Read and act on Gmail in an olai conversation, with your vault as the context. Gmail stays the record of the mail; the vault records what you decided about it.
 
-Turn the `mail` plugin on, connect an account, and ask an agent to read threads, archive, move mail to Trash, apply labels, mark it read, or draft a reply. The connection survives restarts. Live thread properties on nodes are still to come. You can already wake an agent when new mail arrives.
+Turn the `mail` plugin on, connect an account, and ask an agent to read threads, archive, move mail to Trash, apply labels, mark it read, or draft a reply with files attached. The connection survives restarts. Live thread properties on nodes are still to come. You can already wake an agent when new mail arrives.
 
 Olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), which is built into every olai release. There is nothing to install. The plugin is called `mail` rather than `gmail` because Himalaya also speaks IMAP and JMAP, and a second kind of mailbox should not need a rename.
 
@@ -92,12 +92,15 @@ The mail tools are available in every conversation under **olai ✓**. Try:
 - “Label that thread waiting, then record what we decided in the project node.”
 - “Save the invoice attachment so you can read it.”
 - “Draft a reply to Ravi about the Nix meetup saying I will be there.”
+- “Draft that invoice reply and attach the PDF I dropped in here.”
 
 Search accepts Gmail's usual syntax, including `from:`, `newer_than:1d`, `is:unread`, `has:attachment` and `label:`. Label names are the ones Gmail shows you, such as `waiting`; system labels use names such as `INBOX` and `UNREAD`. Olai uses existing labels and does not create new ones.
 
 Archive removes a thread from the inbox. Trash moves it to Gmail's own Trash, and the agent can restore it. Olai never permanently deletes mail and cannot send mail. olai writes drafts; you send them. A write refused before it is sent changes nothing; if Gmail accepts a write but its follow-up read fails, the reply says the outcome needs checking.
 
-Drafts land in Gmail Drafts for you to review and send. They are plain text only, with no attachments, at most 50 recipients and a 256 KiB body. Replies default to the last message’s Reply-To or From recipients. If that message was sent by your connected address, replies use its To recipients instead. If the thread names no recipient (for example, your last message was Bcc-only), olai asks you to pass `to` explicitly. Address lists are split into individual addresses; ask explicitly for copy recipients for reply-all. Updating a draft replaces its complete contents, recipients and subject. To keep a reply draft threaded, pass the same `thread` again. The temporary message file is private and removed as soon as the call ends. No reconnect is needed for an existing account.
+Drafts land in Gmail Drafts for you to review and send. Their text is plain text only, at most 50 recipients and a 256 KiB body. Replies default to the last message’s Reply-To or From recipients. If that message was sent by your connected address, replies use its To recipients instead. If the thread names no recipient (for example, your last message was Bcc-only), olai asks you to pass `to` explicitly. Address lists are split into individual addresses; ask explicitly for copy recipients for reply-all. Updating a draft replaces its complete contents, recipients, subject and attachments. To keep a reply draft threaded, pass the same `thread` again. The temporary message file is private and removed as soon as the call ends. No reconnect is needed for an existing account.
+
+A draft can carry files. Ask for them by name — “draft that reply with the invoice attached” — and the agent names each one by its absolute path: anything this serve can read is attachable, including files you dropped into the conversation, files saved by `mail_attachment` and files in the vault. A draft carries at most ten of them, no single file over 25 MB and no more than 25 MB in all, which is Gmail's own ceiling. Each arrives under its own filename, which the agent may override; the type comes from the extension, or from the agent, or is left as unknown bytes. A path that is missing, unreadable, not a file, too big, or that would land two files under one name refuses the whole draft before anything is written to Gmail. **Updating a draft replaces its attachments too**: an update that names none leaves the draft with none, so pass every file again to keep them.
 
 A thread reply includes plain text and raw HTML where present, with each capped at 64 KiB and a notice when cut. Attachments are listed first, so the agent can check their size before downloading. Files up to 50 MB land in a private mail temporary directory under the serve's runtime directory (or system temporary directory), outside the vault. The agent reads them with its file tools. Switching mail off removes those files; download them again if needed.
 

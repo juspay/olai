@@ -1,5 +1,6 @@
 import { TESTID } from "../../src/testids.ts"
 import * as assert from "node:assert"
+import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { attr } from "@olai/tests/harness/selectors.ts"
@@ -61,6 +62,25 @@ Then("the mail draft {string} message file is gone", async function(this: OlaiWo
 Then("the mail draft {string} message file is under the runtime directory", async function(this: OlaiWorld, id: string) {
   const draft = draftOf(this, id)
   assert.ok(draft.file.includes("/runtime/olai-mail-"), draft.file)
+})
+interface SavedEnclosure { filename: string; type: string; bytes: number; sha256: string }
+const enclosuresOf = (world: OlaiWorld, id: string): SavedEnclosure[] => draftOf(world, id).attachments ?? []
+Then("the saved mail draft {string} has {int} attachments", async function(this: OlaiWorld, id: string, count: number) {
+  assert.equal(enclosuresOf(this, id).length, count, JSON.stringify(enclosuresOf(this, id)))
+})
+Then("the saved mail draft {string} has attachment {string} of type {string}", async function(this: OlaiWorld, id: string, filename: string, type: string) {
+  const found = enclosuresOf(this, id).find(one => one.filename === filename)
+  assert.ok(found, `no attachment ${filename} among ${JSON.stringify(enclosuresOf(this, id))}`)
+  assert.equal(found.type, type)
+})
+/** The bytes Gmail would have received, against the bytes in the vault: the
+ *  saved record carries a digest, so this compares content rather than size. */
+Then("the saved mail draft {string} attachment {string} is the vault file {string}", async function(this: OlaiWorld, id: string, filename: string, file: string) {
+  const found = enclosuresOf(this, id).find(one => one.filename === filename)
+  assert.ok(found, `no attachment ${filename} among ${JSON.stringify(enclosuresOf(this, id))}`)
+  const bytes = readFileSync(join(this.scratch(), file))
+  assert.equal(found.bytes, bytes.length)
+  assert.equal(found.sha256, createHash("sha256").update(bytes).digest("hex"))
 })
 Then("the saved mail draft {string} belongs to thread {string}", async function(this: OlaiWorld, id: string, thread: string) {
   const draft = draftOf(this, id)
