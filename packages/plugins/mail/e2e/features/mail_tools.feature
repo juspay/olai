@@ -344,14 +344,14 @@ Feature: Reading and acting on Gmail in a conversation
     And the fake mailbox has received no send calls
     When I ask the agent "update mail draft draft_1 saying Just the notes now attaching notes.txt"
     Then the mail draft_update story says "draft updated · Revised · 1 attachment"
-    And the saved mail draft "draft_1" has body "Just the notes now"
     And the saved mail draft "draft_1" has 1 attachments
+    And the saved mail draft "draft_1" has body "Just the notes now"
     And the saved mail draft "draft_1" has attachment "notes.txt" of type "text/plain"
     And the mail draft "draft_1" message file is gone
     When I ask the agent "update mail draft draft_1 saying Nothing attached any more"
-    Then the mail draft_update story says "draft updated · Revised"
+    Then the saved mail draft "draft_1" has 0 attachments
+    And the mail draft_update story says "draft updated · Revised"
     And the saved mail draft "draft_1" has body "Nothing attached any more"
-    And the saved mail draft "draft_1" has 0 attachments
     And the fake mailbox has received no send calls
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors

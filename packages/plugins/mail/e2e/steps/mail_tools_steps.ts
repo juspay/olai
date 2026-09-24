@@ -82,19 +82,25 @@ Then("the mail draft {string} message file is under the runtime directory", asyn
 })
 interface SavedEnclosure { filename: string; type: string; bytes: number; sha256: string }
 const enclosuresOf = (world: OlaiWorld, id: string): SavedEnclosure[] => draftOf(world, id).attachments ?? []
+/** WAITS, unlike its neighbours, and for a reason: every replacement of one
+ *  draft writes the same story sentence, so "the story says draft updated" is
+ *  not evidence that THIS update has landed. What a draft carries is, and a
+ *  scenario puts this step first for exactly that. */
 Then("the saved mail draft {string} has {int} attachments", async function(this: OlaiWorld, id: string, count: number) {
-  assert.equal(enclosuresOf(this, id).length, count, JSON.stringify(enclosuresOf(this, id)))
+  await this.waitUntil(async () => enclosuresOf(this, id).length === count,
+    `the saved mail draft ${id} to carry ${count} attachments, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)
 })
 Then("the saved mail draft {string} has attachment {string} of type {string}", async function(this: OlaiWorld, id: string, filename: string, type: string) {
-  const found = enclosuresOf(this, id).find(one => one.filename === filename)
-  assert.ok(found, `no attachment ${filename} among ${JSON.stringify(enclosuresOf(this, id))}`)
-  assert.equal(found.type, type)
+  await this.waitUntil(async () => enclosuresOf(this, id).some(one => one.filename === filename),
+    `the saved mail draft ${id} to carry ${filename}, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)
+  assert.equal(enclosuresOf(this, id).find(one => one.filename === filename)!.type, type)
 })
 /** The bytes Gmail would have received, against the bytes in the vault: the
  *  saved record carries a digest, so this compares content rather than size. */
 Then("the saved mail draft {string} attachment {string} is the vault file {string}", async function(this: OlaiWorld, id: string, filename: string, file: string) {
-  const found = enclosuresOf(this, id).find(one => one.filename === filename)
-  assert.ok(found, `no attachment ${filename} among ${JSON.stringify(enclosuresOf(this, id))}`)
+  await this.waitUntil(async () => enclosuresOf(this, id).some(one => one.filename === filename),
+    `the saved mail draft ${id} to carry ${filename}, not ${JSON.stringify(enclosuresOf(this, id).map(one => one.filename))}`)
+  const found = enclosuresOf(this, id).find(one => one.filename === filename)!
   const bytes = readFileSync(join(this.scratch(), file))
   assert.equal(found.bytes, bytes.length)
   assert.equal(found.sha256, createHash("sha256").update(bytes).digest("hex"))
