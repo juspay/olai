@@ -24,7 +24,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { NO_KINDS, Writer } from "@olai/format"
+import { DEFAULT_POLICY, NO_KINDS, Writer } from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Effect, type Scope } from "effect"
@@ -1986,6 +1986,14 @@ test("the Push button still hands over git's refusal about a missing upstream", 
 test("the git reading carries the decoded policy, including push defaults", () =>
   withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
     const { git } = yield* fixture.ops.status
+    // `HOUSE` declares no policy, so BOTH halves are the defaults — and the
+    // push half is the one worth naming: it is decoded into rather than left
+    // absent, which is what the name has always promised. It promised it over
+    // a body that destructured `git` and asserted nothing at all about it, so
+    // a reading that carried no policy passed here.
+    expect(git.status).toBe("repo")
+    expect(git.policy).toEqual(DEFAULT_POLICY)
+    expect(git.policy.push).toBeDefined()
   })))
 
 test("filer writes retain their own writer in pending edits and the commit ledger", async () => {
