@@ -241,9 +241,15 @@ cd packages/tests
 bash tasks.sh                  # a Monitor that ticks and ends
 KIND=bash bash tasks.sh        # a background shell that exits 3
 KIND=agent bash tasks.sh       # an async Agent; a forwarded task-notification prints
+KIND=resume bash tasks.sh      # send the same subagent more work
+AIR=1 bash tasks.sh            # AIR v1 native subagents and async tasks
+RAW=1 bash tasks.sh            # include the forwarded SDK messages
+AGENT=/path/to/claude-agent-acp bash tasks.sh  # select a different adapter
 ```
 
 `tasks.ts` / `tasks.sh` are the fourth driver here and the only one that talks to no olai at all: it drives the PINNED ADAPTER directly, arms one real background task, and prints what reaches an ACP client beside what the CLI underneath it actually sent.
+
+`AIR=1` adds `jetbrains.air = { version: 1, capabilities: ["nativeSubagentSessions", "asyncTasks"] }` to both `initialize.clientCapabilities._meta` and `session/new._meta`. The initialize capability is required since 0.73.0: session metadata alone produces no AIR events. Each of the five AIR task/subagent notification kinds prints its full parameters on a separate `AIR` timeline line, beside the existing `ACP` tool-call lines and their `backgroundTask` patch stamps. Omit `AIR` to measure the ordinary client. `tasks.sh` builds `.#claude-agent` unless `AGENT` names an executable.
 
 It exists because `chat-background-tasks-visible` rests on two claims about somebody else's process, and both are the kind a later reader re-decides by assuming. The first is that the adapter as released completes such a call at LAUNCH, which is why olai patches its pin (`packages/plugins/claude/acp/patches/README.md`) and which stops being true the day upstream lands its own fix — the timeline is where that shows up. The second is that the task's own EVENTS are on no wire underneath: a monitor's every line reaches the model and the task's output file and no SDK message carries one, so the panel draws the task's life rather than its events. The driver CHECKS that rather than asserting it — a harness frame carrying the monitor's output prints a line saying so, and the day one does, that line is how anybody finds out. The model's own frames are excluded from that check on purpose: the agent is woken per event and says *tick-1 received*, which is the agent's prose and not the task's stream.
 
@@ -260,9 +266,11 @@ bash panel-live.sh
 
 `panel-live.ts` / `panel-live.sh` are the fifth driver, and the one a PIN BUMP is not finished without. `tasks.ts` above drives the adapter with no olai in it because what it measures is somebody else's process; this one measures the half that answer cannot reach — what the PANEL does with what the adapter sends. It opens the app, sends real turns, and asserts the behaviours the panel is steered through: sending and its answer, the model line and the context fraction, the interrupt while a conversation may still have one, the queue and the withdrawal that follows it, cancel, a background task's clock and its death notice with the harness's own word on it, a subagent's rail and the shelf its calls are read in, and the list of stored conversations.
 
+The driver starts at the sidebar's **new chat** entry. Its final stored-history check starts a fresh session, waits for the session id to change, and reads the previous conversation in the node's history picker; the retired chat toggle and unassigned-list panel are no longer its entry points.
+
 The reason it exists rather than being a scenario is the same reason `tasks.ts` does, one layer up: every scenario in `features/` drives a SCRIPTED agent, because a turn has to be deterministic before it can be asserted — and the cost of that discipline is that no scenario has ever seen the real adapter. A pin bump is exactly when that bill comes due, and this is what pays it.
 
-ORDER IS THE DRIVER'S OWN SUBJECT and not a convenience. The interrupt is asserted before anything has queued and before any `Monitor` has been armed, because each of those leaves the pinned adapter unable to settle a steered turn — both triggers, and what was measured about each, are in [`packages/plugins/claude/acp/patches/README.md`](../../packages/plugins/claude/acp/patches/README.md). Run the same assertions in the other order and the driver hangs, which is the panel hanging: that is how the second trigger was found.
+ORDER IS THE DRIVER'S OWN SUBJECT and not a convenience. The interrupt is asserted before anything has queued and before any `Monitor` has been armed: both histories prevented earlier adapters from settling a steered turn, and changing the order is how the second trigger was found. The Monitor-history hang did not reproduce on 0.81.2 with liveness uncontrolled; see the [steering-history table](../../packages/plugins/claude/acp/patches/README.md#steering-history-measurements) for the measurements and their limits. The driver keeps this precautionary order because the queued-turn trigger and a controlled live/dead Monitor comparison have not been remeasured.
 
 ## Measuring what a session costs the wire
 

@@ -20,7 +20,7 @@ set -euo pipefail
 . support/serve.sh
 
 root=${ROOT:-$(cd ../.. && pwd)}
-agent=${AGENT:-$(nix build "$root#acp-agent" --no-link --print-out-paths --accept-flake-config)/bin/claude-agent-acp}
+agent=${AGENT:-$(nix build "$root#claude-agent" --no-link --print-out-paths --accept-flake-config)/bin/claude-agent-acp}
 shots=${SHOTS:-$(mktemp -d)}
 mkdir -p "$shots"
 

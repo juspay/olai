@@ -25,15 +25,15 @@ let
   # env arms the SDK binary at the path the build actually leaves.
   mods = "$out/lib/node_modules/olai-acp-claude/node_modules";
 
-  adapter = kit.npmAdapter {
+  adapter = kit.npmAdapter rec {
     name = "olai-acp-claude";
     shim = ./acp/shim;
     shimName = "olai-acp-claude";
-    version = "0.73.0";
+    version = (lib.importJSON (shim + "/package.json")).dependencies.${package};
     package = "@agentclientprotocol/claude-agent-acp";
     entry = "dist/index.js";
     bin = "claude-agent-acp";
-    npmDepsHash = "sha256-eb9XNcy1bzCutEpXE5EY3y4b6eY+xDI4fgoqWmB85LI=";
+    npmDepsHash = "sha256-bTfawcKRtemojbzoD3tnEswhTIIPv13pg1hgCK42R6Y=";
     patches = ./acp/patches;
     # patchelf for the SDK's bun-compiled `claude`; only the interpreter may
     # be touched (see `@olai/plugin-kit`'s `npm-adapter.nix` header).
@@ -65,6 +65,6 @@ in
     kind = "file";
     path = "${adapter}/bin/claude-agent-acp";
   };
-  # Exported as `claude-agent`; the flake aliases `.#acp-agent` to this.
+  # Exported by the flake as `.#claude-agent`.
   packages.claude-agent = adapter;
 }

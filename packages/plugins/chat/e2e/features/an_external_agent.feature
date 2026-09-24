@@ -364,5 +364,5 @@ Feature: An agent olai did not start
     When I ask the agent "hello"
     Then the agent is idle
     And the panel says the agent could not attach "kolu"
-    And the reason it gives is "failed"
+    And the reason it gives for "kolu" is "failed"
     And there should be no page errors
