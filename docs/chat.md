@@ -583,7 +583,7 @@ If the machine is running [kolu](https://kolu.dev) — terminals for coding agen
 
 ## mail
 
-When connected, [mail](plugins/mail.md) provides inbox, search, thread and attachment reads, plus archive, Trash, restore, labels, read marks, and draft creation and replacement. olai writes drafts; you review and send them in Gmail. These eleven tools live on olai's own MCP server and appear under **olai ✓**, with a one-line result in each tool row. Refusal sentences remain visible with agents that forward MCP replies as text, including Claude and omp.
+When connected, [mail](plugins/mail.md) provides inbox, search, thread and attachment reads, plus archive, Trash, restore, labels, read marks, and draft creation and replacement. A draft can carry files — one you dropped into this conversation, one the agent saved out of another message, or one from the vault — up to ten of them and 25 MB in all. olai writes drafts; you review and send them in Gmail. These eleven tools live on olai's own MCP server and appear under **olai ✓**, with a one-line result in each tool row. Refusal sentences remain visible with agents that forward MCP replies as text, including Claude and omp.
 
 ## odu
 

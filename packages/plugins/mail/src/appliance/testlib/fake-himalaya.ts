@@ -60,13 +60,14 @@
  * `run.ts`'s `refusedWith` is written around.
  */
 
+import { createHash } from "node:crypto"
 import { appendFileSync, chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
 import { GMAIL, GMAIL_VERBS, type GmailVerb } from "../../himalaya/verbs.ts"
-import { fixtureNamed, MAILBOXES, LABELS, THREADS } from "./fixtures.ts"
+import { ATTACHMENT_BYTES, fixtureNamed, MAILBOXES, LABELS, THREADS } from "./fixtures.ts"
 
 /** The first line `himalaya --version` prints at the pin this repo carries, and
  *  the string a scenario replaces when it wants a serve to see an older one.
@@ -416,6 +417,60 @@ export const startFakeHimalayaFor = async (fixture: MailFixture): Promise<FakeHi
   }
 }
 
+/** WHAT A DRAFT FILE HOLDS, read the way a mail client reads it rather than
+ *  the way this plugin wrote it — one `text/plain` body, and the files under
+ *  it when the draft is `multipart/mixed`. A single-part draft records an empty
+ *  attachment list, so every saved draft has the same shape. */
+export const draftContents = (contentType: string, body: string): { body: string; attachments: Array<{ filename: string; type: string; bytes: number; sha256: string }> } => {
+  const boundary = /boundary="([^"]+)"/.exec(contentType)?.[1]
+  if (!/^multipart\/mixed/i.test(contentType.trim()) || boundary === undefined) return { body: Buffer.from(body, "base64").toString("utf8"), attachments: [] }
+  const [text, ...rest] = parseParts(body, boundary)
+  return {
+    body: text === undefined ? "" : text.content.toString("utf8"),
+    attachments: rest.map(part => ({
+      filename: partFilename(part.headers),
+      type: (part.headers["Content-Type"] ?? "application/octet-stream").split(";")[0]!.trim(),
+      bytes: part.content.length,
+      sha256: createHash("sha256").update(part.content).digest("hex"),
+    })),
+  }
+}
+interface DraftPart { readonly headers: Record<string, string>; readonly content: Buffer }
+/** One header block, unfolded — the message's own and every part's. Values are
+ *  RAW: each reader decodes the words where it needs them. */
+const headersOf = (head: string): Record<string, string> => Object.fromEntries(head.replace(/\r\n[ \t]+/g, " ").split("\r\n").filter(Boolean).map(line => {
+  const at = line.indexOf(":")
+  return [line.slice(0, at), line.slice(at + 1).trim()]
+}))
+/** The parts between the delimiters: the preamble before the first is dropped,
+ *  and so are the closing delimiter and anything after it. */
+const parseParts = (body: string, boundary: string): DraftPart[] => body.split(`--${boundary}`).slice(1)
+  .filter(part => !part.startsWith("--"))
+  .map(part => {
+    const whole = part.replace(/^\r\n/, "")
+    const blank = whole.indexOf("\r\n\r\n")
+    const headers = headersOf(blank === -1 ? whole : whole.slice(0, blank))
+    const content = blank === -1 ? "" : whole.slice(blank + 4).replace(/\r\n$/, "")
+    return { headers, content: Buffer.from(content, (headers["Content-Transfer-Encoding"] ?? "").toLowerCase() === "base64" ? "base64" : "utf8") }
+  })
+/** RFC 2231 on the disposition first, then the quoted name on either header,
+ *  decoding RFC 2047 words where a sender put one in a parameter. */
+const partFilename = (headers: Record<string, string>): string => {
+  const disposition = headers["Content-Disposition"] ?? ""
+  const extended = /filename\*=([^;]+)/i.exec(disposition)?.[1]
+  if (extended !== undefined) {
+    const value = /^(?:[^']*)'[^']*'(.*)$/.exec(extended.trim())?.[1] ?? extended.trim()
+    return Buffer.from(value.replace(/%([0-9A-Fa-f]{2})/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16))), "binary").toString("utf8")
+  }
+  const quoted = /filename="([^"]*)"/i.exec(disposition)?.[1] ?? /\bname="([^"]*)"/i.exec(headers["Content-Type"] ?? "")?.[1]
+  return quoted === undefined ? "" : decodeWords(quoted)
+}
+/** RFC 2047 words, wherever a header or a parameter carries them: adjacent
+ *  words join first, so a folded name comes back as one string. */
+const decodeWords = (value: string): string => value
+  .replace(/(\?=)\s+(=\?UTF-8\?B\?)/gi, "$1$2")
+  .replace(/=\?UTF-8\?B\?([^?]*)\?=/gi, (_, encoded: string) => Buffer.from(encoded, "base64").toString("utf8"))
+
 /** Per-thread files let separate fake processes preserve writes without lost updates on other threads. */
 export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directory: string, stale = false): Answered => {
   const ok = (value: unknown): Answered => ({ code: 0, stdout: JSON.stringify(value), stderr: "" })
@@ -429,12 +484,8 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     if (!args.includes("--") || !file || !existsSync(file)) return failed("draft message must be a file after --")
     const raw = readFileSync(file, "utf8")
     const [head, ...body] = raw.split("\r\n\r\n")
-    const headers = Object.fromEntries(head!.replace(/\r\n[ \t]+/g, " ").split("\r\n").map(line => {
-      const at = line.indexOf(":")
-      const value = line.slice(at + 1).trim().replace(/(\?=)\s+(=\?UTF-8\?B\?)/gi, "$1$2").replace(/=\?UTF-8\?B\?([^?]+)\?=/gi, (_, base64: string) => Buffer.from(base64, "base64").toString("utf8"))
-      return [line.slice(0, at), value]
-    }))
-    const record = { id, headers, body: Buffer.from(body.join("\r\n\r\n"), "base64").toString("utf8"), args, file }
+    const headers = Object.fromEntries(Object.entries(headersOf(head!)).map(([name, value]) => [name, decodeWords(value)]))
+    const record = { id, headers, ...draftContents(headers["Content-Type"] ?? "", body.join("\r\n\r\n")), args, file }
     writeFileSync(saved, JSON.stringify(record))
     return ok({ id, "message-id": `message_${id}`, "thread-id": args.includes("--thread-id") ? flag("--thread-id") : null })
   }
@@ -479,11 +530,12 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     return ok({ threads: selected.map(t => ({ id: t.id })), ...(next ? { next_page: next } : {}) })
   }
   if (verb.id === "attachments.get") {
-    if (stale || args[0] !== "a32" || args[1] !== "attachment_1") return failed("404 not found")
+    const size = args[1] === undefined ? undefined : ATTACHMENT_BYTES[args[1]]
+    if (stale || args[0] !== "a32" || size === undefined) return failed("404 not found")
     const output = flag("-o")
     if (!output) return failed("output path required")
-    writeFileSync(output, Buffer.alloc(12288, 65))
-    return ok(`Saved 12288 bytes to ${output}`)
+    writeFileSync(output, Buffer.alloc(size, 65))
+    return ok(`Saved ${size} bytes to ${output}`)
   }
   const thread = threads.find(t => t.id === args[0])
   if (!thread) return failed("404 not found")

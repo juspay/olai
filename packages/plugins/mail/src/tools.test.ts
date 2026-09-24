@@ -129,6 +129,69 @@ test("drafts create, reply and replace, retaining MIME and account identity", ()
   expect(h.calls.some(c => c.verb.id.includes("send"))).toBe(false)
 })))
 
+test("drafts carry files, an update replaces them, and an update naming none drops them", () => run(h => Effect.gen(function*() {
+  const { readFileSync, writeFileSync } = yield* Effect.promise(() => import("node:fs"))
+  const { createHash } = yield* Effect.promise(() => import("node:crypto"))
+  const saved = (id: string) => JSON.parse(readFileSync(`${h.root}/draft-${id}.json`, "utf8"))
+  const sha = (data: Buffer | string) => createHash("sha256").update(data).digest("hex")
+  const pdf = Buffer.from("%PDF-1.4 invoice bytes")
+  const notes = "two lines\nof notes"
+  writeFileSync(`${h.root}/invoice.pdf`, pdf)
+  writeFileSync(`${h.root}/notes.txt`, notes)
+  const base = { to: ["ravi@example.com"], subject: "Q3" }
+  const created: any = yield* h.call("draft", { ...base, body: "See attached",
+    attachments: [{ path: `${h.root}/invoice.pdf` }, { path: `${h.root}/notes.txt`, filename: "Café ☕.txt" }] })
+  expect(created.attachments).toEqual([
+    { filename: "invoice.pdf", type: "application/pdf", bytes: pdf.length },
+    { filename: "Café ☕.txt", type: "text/plain", bytes: notes.length },
+  ])
+  expect(saved(created.draft).body).toBe("See attached")
+  expect(saved(created.draft).attachments).toEqual([
+    { filename: "invoice.pdf", type: "application/pdf", bytes: pdf.length, sha256: sha(pdf) },
+    { filename: "Café ☕.txt", type: "text/plain", bytes: notes.length, sha256: sha(notes) },
+  ])
+  const updated: any = yield* h.call("draft_update", { ...base, draft: created.draft, body: "Just the notes", attachments: [{ path: `${h.root}/notes.txt`, type: "text/markdown" }] })
+  expect(updated.attachments).toEqual([{ filename: "notes.txt", type: "text/markdown", bytes: notes.length }])
+  expect(saved(created.draft).attachments).toEqual([{ filename: "notes.txt", type: "text/markdown", bytes: notes.length, sha256: sha(notes) }])
+  const dropped: any = yield* h.call("draft_update", { ...base, draft: created.draft, body: "Nothing attached" })
+  expect(dropped.attachments).toEqual([])
+  expect(saved(created.draft).attachments).toEqual([])
+  expect(saved(created.draft).body).toBe("Nothing attached")
+  // An empty list is the other way to say it, and the schema takes it: an
+  // agent replacing a draft has one shape for "carry these" and for "carry
+  // nothing", rather than a refusal for the second.
+  const emptied: any = yield* h.call("draft_update", { ...base, draft: created.draft, body: "Still nothing", attachments: [] })
+  expect(emptied.attachments).toEqual([])
+  expect(saved(created.draft).attachments).toEqual([])
+  const fresh: any = yield* h.call("draft", { ...base, body: "Nothing to carry", attachments: [] })
+  expect(fresh.attachments).toEqual([])
+  expect(saved(fresh.draft).attachments).toEqual([])
+  // A draft with no attachments is still the single text part it always was.
+  expect(h.calls.at(-1)!.message).toContain("Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64")
+  expect(h.calls.at(-1)!.message).not.toContain("multipart/mixed")
+})))
+
+test("an unattachable file refuses the whole draft before the thread is looked up", () => run(h => Effect.gen(function*() {
+  const { writeFileSync } = yield* Effect.promise(() => import("node:fs"))
+  writeFileSync(`${h.root}/notes.txt`, "notes")
+  const base = { to: ["ravi@example.com"], subject: "Q3", body: "See attached" }
+  const cases: Array<[unknown, string | undefined]> = [
+    [{ ...base, attachments: [{ path: `${h.root}/nowhere.pdf` }] }, `there is no file to attach at ${h.root}/nowhere.pdf`],
+    [{ ...base, attachments: [{ path: h.root, filename: "root.zip" }] }, `${h.root} is not a file, so it cannot be attached`],
+    [{ ...base, attachments: [{ path: `${h.root}/notes.txt` }, { path: `${h.root}/../notes.txt` }] }, "two mail attachments would arrive as notes.txt; give one of them its own filename"],
+    [{ ...base, attachments: [{ path: `${h.root}/notes.txt`, type: "text" }] }, undefined],
+    [{ ...base, attachments: [{ path: "notes.txt" }] }, undefined],
+    [{ ...base, attachments: Array.from({ length: 11 }, () => ({ path: `${h.root}/notes.txt` })) }, undefined],
+    [{ ...base, thread: "a2", attachments: [{ path: `${h.root}/nowhere.pdf` }] }, `there is no file to attach at ${h.root}/nowhere.pdf`],
+  ]
+  for (const [args, reason] of cases) {
+    const result = yield* Effect.result(h.call("draft", args))
+    expect(result._tag).toBe("Failure")
+    if (reason !== undefined && result._tag === "Failure") expect(result.failure).toMatchObject({ reason })
+  }
+  expect(h.calls).toHaveLength(0)
+})))
+
 test("invalid drafts do not spawn, missing threads do not create, missing drafts name the account", () => run(h => Effect.gen(function*() {
   const base = { to: ["r@example.com"], subject: "hi", body: "text" }
   for (const args of [{ ...base, to: ["bad"] }, { ...base, subject: "hi\nBcc: victim@example.com" }, { ...base, body: "" }, { ...base, body: "x".repeat(262145) }, { ...base, cc: Array(50).fill("c@example.com") }, { body: "hi" }, { ...base, thread: "a2", cc: ["bad"] }]) {

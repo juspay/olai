@@ -49,6 +49,83 @@ test("References folds each message id and ASCII subjects stay readable", () => 
   expect(headers.replace(/\r\n /g, " ")).toContain(`Subject: ${subject}`)
   expect(headers.replace(/\r\n /g, " ")).toContain(`References: ${references}`)
 })
+const enclosure = (filename: string, type: string, data: Buffer | string) => ({ filename, type, data: typeof data === "string" ? Buffer.from(data) : data })
+const partsOf = (message: string) => {
+  const boundary = /boundary="([^"]+)"/.exec(message.split("\r\n\r\n")[0]!)![1]!
+  const [, ...parts] = message.split(`--${boundary}`)
+  return { boundary, parts }
+}
+test("a draft with no attachments is the single text part it has always been", () => {
+  const message = Result.getOrThrow(compose({ ...base, body: "Count me in" }))
+  expect(message).toBe("From: you@gmail.com\r\nTo: ravi@example.com\r\nSubject: Hello\r\nMIME-Version: 1.0\r\n"
+    + "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nQ291bnQgbWUgaW4=\r\n")
+  expect(Result.getOrThrow(compose({ ...base, body: "Count me in" }, []))).toBe(message)
+  // ...including when the CALL named files: paths are the reader's business
+  // (`enclosures.ts`), and this composer renders the bytes it was handed.
+  expect(Result.getOrThrow(compose({ ...base, body: "Count me in", attachments: [{ path: "/tmp/invoice.pdf" }] }))).toBe(message)
+})
+test("attached files become multipart parts whose bytes survive base64", () => {
+  const bytes = Buffer.from(Array.from({ length: 5000 }, (_, i) => i % 256))
+  const message = Result.getOrThrow(compose({ ...base, body: "See attached" }, [enclosure("invoice.pdf", "application/pdf", bytes), enclosure("notes.txt", "text/plain", "two lines\nof notes")]))
+  const [head, ...rest] = message.split("\r\n\r\n")
+  expect(head).toContain("MIME-Version: 1.0")
+  expect(head).not.toContain("Content-Transfer-Encoding")
+  const { boundary, parts } = partsOf(message)
+  expect(boundary.startsWith("=_olai_")).toBe(true)
+  expect(boundary).toContain("=")
+  expect(parts).toHaveLength(4)
+  expect(parts.at(-1)).toBe("--\r\n")
+  expect(parts[0]).toContain("Content-Type: text/plain; charset=utf-8")
+  expect(Buffer.from(parts[0]!.split("\r\n\r\n")[1]!, "base64").toString()).toBe("See attached")
+  expect(parts[1]).toContain("Content-Type: application/pdf;\r\n name=\"invoice.pdf\"")
+  expect(parts[1]).toContain("Content-Disposition: attachment;\r\n filename=\"invoice.pdf\"")
+  expect(parts[1]).toContain("Content-Transfer-Encoding: base64")
+  expect(Buffer.from(parts[1]!.split("\r\n\r\n")[1]!, "base64").equals(bytes)).toBe(true)
+  expect(Buffer.from(parts[2]!.split("\r\n\r\n")[1]!, "base64").toString()).toBe("two lines\nof notes")
+  // Every line ends CRLF, and no base64 line is wider than MIME's 76 columns.
+  expect(message.replace(/\r\n/g, "")).not.toContain("\n")
+  expect(rest.join("\r\n\r\n").split("\r\n").every(line => line.length <= 76)).toBe(true)
+  expect(message.endsWith(`\r\n--${boundary}--\r\n`)).toBe(true)
+})
+test("an empty file is still a part, and one attachment needs no second boundary", () => {
+  const message = Result.getOrThrow(compose(base, [enclosure("empty.txt", "text/plain", "")]))
+  const { parts } = partsOf(message)
+  expect(parts).toHaveLength(3)
+  expect(parts[1]!.endsWith("\r\n\r\n")).toBe(true)
+})
+test("non-ASCII and quoted filenames take RFC 2231 on the disposition and RFC 2047 on the type", () => {
+  const word = (name: string) => `=?UTF-8?B?${Buffer.from(name).toString("base64")}?=`
+  const quoted = 'say "hi".txt'
+  const escaped = "back\\slash.txt"
+  const message = Result.getOrThrow(compose(base, [enclosure("Café ☕.txt", "text/plain", "notes"), enclosure(quoted, "text/plain", "notes"), enclosure(escaped, "text/plain", "notes")]))
+  expect(message).toContain("filename*=UTF-8''Caf%C3%A9%20%E2%98%95.txt")
+  expect(message).toContain(`name="${word("Café ☕.txt")}"`)
+  expect(message).toContain("filename*=UTF-8''say%20%22hi%22.txt")
+  expect(message).toContain("filename*=UTF-8''back%5Cslash.txt")
+  expect(message).not.toContain('filename="Café')
+  // An ASCII name with a quote or a backslash may not go in raw: `encoded`'s
+  // short-ASCII shortcut would end the quoted string at the name's own quote.
+  expect(message).toContain(`name="${word(quoted)}"`)
+  expect(message).toContain(`name="${word(escaped)}"`)
+  expect(message).not.toContain('name="say "hi".txt"')
+  expect(message).not.toContain('name="back\\slash.txt"')
+  const words = message.match(/=\?UTF-8\?B\?[^?]+\?=/g)!
+  expect(words.every(word => word.length <= 75)).toBe(true)
+  // Every part header line is a header: one colon, one value, nothing loose.
+  for (const part of partsOf(message).parts.slice(1, -1)) {
+    for (const line of part.split("\r\n\r\n")[0]!.split("\r\n").filter(Boolean)) {
+      expect(line.startsWith(" ") || /^[A-Za-z-]+: /.test(line)).toBe(true)
+    }
+  }
+})
+test("attachment filenames and content types are refused the way headers are", () => {
+  for (const one of [enclosure("in\r\nvoice.pdf", "application/pdf", "x"), enclosure("in\nvoice.pdf", "application/pdf", "x"), enclosure("bell\x07.pdf", "application/pdf", "x"), enclosure("   ", "application/pdf", "x")]) {
+    expect(compose(base, [one])).toMatchObject({ _tag: "Failure", failure: expect.any(MailRefusal) })
+  }
+  for (const type of ["application", "application/pdf; charset=utf-8", "application/", "text/pl ain", "text/plain\r\nX: y", ""]) {
+    expect(compose(base, [enclosure("invoice.pdf", type, "x")])).toMatchObject({ _tag: "Failure", failure: expect.any(MailRefusal) })
+  }
+})
 test("unexpected composer exceptions remain defects when lifted into Effect", () => {
   const broken = { ...base, get body(): string { throw new TypeError("composer defect") } }
   const exit = Effect.runSyncExit(Effect.gen(function*() { return yield* Effect.fromResult(compose(broken)) }))

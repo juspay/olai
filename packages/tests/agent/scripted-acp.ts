@@ -1302,6 +1302,16 @@ const canElicit = (): boolean => {
   return elicitation?.form != null
 }
 
+/** `… attaching invoice.pdf, notes.txt` — the files a drafting phrase names.
+ *  The mail tools take ABSOLUTE paths, which is what an agent holds: a name
+ *  relative to the session's own directory is resolved against it here,
+ *  exactly as a real agent resolves one before it calls a tool. */
+const attaching = (named: string | undefined): { attachments?: Array<{ path: string }> } => {
+  if (named === undefined) return {}
+  const paths = named.split(",").map((one) => one.trim()).filter(Boolean)
+  return { attachments: paths.map((path) => ({ path: path.startsWith("/") ? path : `${cwd}/${path}` })) }
+}
+
 const runTurn = async (id: unknown, text: string): Promise<void> => {
   cancelled = false
   noise(`fake agent: ${text}`)
@@ -1322,12 +1332,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
   const mailCall = (() => {
-    const draft = /^draft mail to (.+?) subject (.+?) saying ([\s\S]+)$/.exec(mailWords)
-    if (draft) return { name: "draft", args: { to: [draft[1]!], subject: draft[2]!.replace(/\\n/g, "\n"), body: draft[3] } }
+    const draft = /^draft mail to (.+?) subject (.+?) saying ([\s\S]+?)(?: attaching ([^\n]+))?$/.exec(mailWords)
+    if (draft) return { name: "draft", args: { to: [draft[1]!], subject: draft[2]!.replace(/\\n/g, "\n"), body: draft[3], ...attaching(draft[4]) } }
     const draftReply = /^draft reply to mail thread (\S+)(?: cc (.+?))? saying (.+)$/.exec(mailWords)
     if (draftReply) return { name: "draft", args: { thread: draftReply[1], ...(draftReply[2] ? { cc: draftReply[2].split(",").map(value => value.trim()) } : {}), body: draftReply[3] } }
-    const draftUpdate = /^update mail draft (\S+)(?: on thread (\S+))? saying (.+)$/.exec(mailWords)
-    if (draftUpdate) return { name: "draft_update", args: { draft: draftUpdate[1], ...(draftUpdate[2] ? { thread: draftUpdate[2] } : { to: ["ravi@example.com"], subject: "Revised" }), body: draftUpdate[3] } }
+    const draftUpdate = /^update mail draft (\S+)(?: on thread (\S+))? saying (.+?)(?: attaching ([^\n]+))?$/.exec(mailWords)
+    if (draftUpdate) return { name: "draft_update", args: { draft: draftUpdate[1], ...(draftUpdate[2] ? { thread: draftUpdate[2] } : { to: ["ravi@example.com"], subject: "Revised" }), body: draftUpdate[3], ...attaching(draftUpdate[4]) } }
     if (mailWords === "list my inbox") return { name: "inbox", args: {} }
     if (mailWords.startsWith("search mail for ")) return { name: "search", args: { query: mailWords.slice(16) } }
     const thread = /^(read|archive|trash|untrash) mail thread (\S+)$/.exec(mailWords)

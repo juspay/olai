@@ -20,7 +20,8 @@ export const storyOf = (reply: unknown): { kind: string; text: string } | null =
   }
   if (kind === "draft" || kind === "draft_update") {
     if (!strings(r.to) || typeof r.subject !== "string") return null
-    return { kind, text: `${kind === "draft_update" ? "draft updated" : `draft to ${r.to.join(", ")}`} · ${r.subject}` }
+    const carried = Array.isArray(r.attachments) ? r.attachments.length : 0
+    return { kind, text: `${kind === "draft_update" ? "draft updated" : `draft to ${r.to.join(", ")}`} · ${r.subject}${carried ? ` · ${carried} attachment${carried === 1 ? "" : "s"}` : ""}` }
   }
   if (kind === "attachment") {
     if (typeof r.filename !== "string" || typeof r.bytes !== "number") return null

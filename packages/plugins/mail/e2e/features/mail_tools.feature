@@ -68,6 +68,26 @@ Feature: Reading and acting on Gmail in a conversation
     Then the saved mail attachment is gone
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: An attachment id longer than any filename still saves to a file
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "read mail thread a3"
+    Then the mail thread story says "2 messages"
+    And the agent's answer mentions "contract.png"
+    When I ask the agent "save mail attachment a32 ANGjdJ__0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123"
+    Then the mail attachment story says "contract.png · 2 KiB"
+    And the saved mail attachment file is named by a digest, not by the Gmail id
+    When I ask the agent "save mail attachment a32 attachment_9"
+    Then the mail refused story says "read the mail thread first"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Unknown thread names the connected account
     Given I open the app
     When I open the plugins panel
@@ -298,6 +318,61 @@ Feature: Reading and acting on Gmail in a conversation
     And the mail draft "draft_1" message file is under the runtime directory
     And the mail draft "draft_1" message file is gone
     And the fake mailbox has received no send calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: A draft carries vault files, and an update replaces then drops them
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "draft mail to ravi@example.com subject Q3 invoice saying Both files are attached attaching invoice.pdf, notes.txt"
+    Then the mail draft story says "draft to ravi@example.com · Q3 invoice · 2 attachments"
+    And the saved mail draft "draft_1" has header "To" equal to "ravi@example.com"
+    And the saved mail draft "draft_1" has body "Both files are attached"
+    And the saved mail draft "draft_1" has 2 attachments
+    And the saved mail draft "draft_1" has attachment "invoice.pdf" of type "application/pdf"
+    And the saved mail draft "draft_1" has attachment "notes.txt" of type "text/plain"
+    And the saved mail draft "draft_1" attachment "invoice.pdf" is the vault file "invoice.pdf"
+    And the saved mail draft "draft_1" attachment "notes.txt" is the vault file "notes.txt"
+    And the mail draft "draft_1" was passed as a message file after the separator
+    And the mail draft "draft_1" message file is gone
+    And the fake mailbox has received no send calls
+    When I ask the agent "update mail draft draft_1 saying Just the notes now attaching notes.txt"
+    Then the mail draft_update story says "draft updated · Revised · 1 attachment"
+    And the saved mail draft "draft_1" has 1 attachments
+    And the saved mail draft "draft_1" has body "Just the notes now"
+    And the saved mail draft "draft_1" has attachment "notes.txt" of type "text/plain"
+    And the mail draft "draft_1" message file is gone
+    When I ask the agent "update mail draft draft_1 saying Nothing attached any more"
+    Then the saved mail draft "draft_1" has 0 attachments
+    And the mail draft_update story says "draft updated · Revised"
+    And the saved mail draft "draft_1" has body "Nothing attached any more"
+    And the fake mailbox has received no send calls
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: A file that is not there names itself and writes nothing
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "draft mail to ravi@example.com subject Q3 invoice saying See attached attaching nowhere.pdf"
+    Then the mail refused story says "there is no file to attach at"
+    And the mail refused story says "nowhere.pdf"
+    And the agent's answer mentions "nowhere.pdf"
+    And the fake mailbox has received no tool calls
+    When I ask the agent "draft reply to mail thread a2 saying Count me in"
+    Then the mail draft story says "Re: Nix meetup"
+    And the saved mail draft "draft_1" has 0 attachments
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Reply draft uses sender only and preserves threading
