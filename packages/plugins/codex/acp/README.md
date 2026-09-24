@@ -45,6 +45,7 @@ The release range adds tool names, file-change diff statistics and turn-diff
 reporting, terminal-output deltas, compaction updates and optional session
 notices, as well as CLI updates. These are upstream changes, not new Olai
 capability advertisements. The Nix build ran `steer-events.test.ts` and
-Olai's `permission-mode.test.ts.in`: **2 files, 17 tests passed**. Live and
-scripted client validation is recorded in PR #627; the Claude leg and chat
-plugin are unchanged in this bump.
+Olai's `permission-mode.test.ts.in`: **2 files, 17 tests passed**. `just e2e-fast-remote` also passed all
+1,905 scenarios / 22,698 steps across six shards (Odu
+`0mufn6371-vhewx5al`), including both Codex activity and steering features.
+The Claude leg and chat plugin are unchanged in this bump.
