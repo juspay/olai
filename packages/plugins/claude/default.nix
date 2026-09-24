@@ -65,6 +65,6 @@ in
     kind = "file";
     path = "${adapter}/bin/claude-agent-acp";
   };
-  # Exported as `claude-agent`; the flake aliases `.#acp-agent` to this.
+  # Exported by the flake as `.#claude-agent`.
   packages.claude-agent = adapter;
 }
