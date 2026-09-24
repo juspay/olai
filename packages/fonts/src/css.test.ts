@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { fontCss, fontFaceRule, selectorFor, typefaceBlock } from "./css.ts"
+import { fontCss, selectorFor, typefaceBlock } from "./css.ts"
 import { HOSTED_FILES } from "./hosted.ts"
 import {
   DEFAULT_FONT,
@@ -36,8 +36,22 @@ describe("the generated typeface blocks", () => {
   })
 
   test("every hosted file has an @font-face naming its family and woff2", () => {
-    for (const file of HOSTED_FILES) {
-      expect(css).toContain(fontFaceRule(file))
+    // Read out of the generated text and spelled HERE, rather than asked of
+    // `fontFaceRule` — which is what this used to do, and which made it a
+    // comparison of that function with itself: every declaration could be
+    // deleted from the rule and both sides moved together. The `src:` line is
+    // the one that matters, and it was the one nothing held: drop it and the
+    // page falls back to whatever the family name happens to match on the
+    // machine, silently, with this test still green.
+    const rules = css
+      .split("@font-face {")
+      .slice(1)
+      .map((part) => part.slice(0, part.indexOf("}")))
+    expect(rules).toHaveLength(HOSTED_FILES.length)
+    for (const [index, file] of HOSTED_FILES.entries()) {
+      const rule = rules[index] ?? ""
+      expect(rule).toContain(`font-family: "${file.family}";`)
+      expect(rule).toMatch(/src: url\("\/[^"]+\.woff2"\) format\("woff2"\);/)
     }
   })
 })

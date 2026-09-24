@@ -1,8 +1,6 @@
 import { expect, test } from "bun:test"
 
 import {
-  DEFAULT_FONT,
-  DEFAULT_TYPEFACE,
   FONT_GROUPS,
   FONT_NAMES,
   FONT_TOKENS,
@@ -10,10 +8,12 @@ import {
   typefaceNamed,
 } from "./typefaces.ts"
 
-test("every typeface has a unique name, and the default is one of them", () => {
+// That the default names a row is held by `DEFAULT_TYPEFACE`'s own throw, at
+// import, before any assertion here could run — so asking `typefaceNamed` for
+// it and comparing the answer to the value defined as that answer was a
+// question with one possible outcome.
+test("every typeface has a unique name", () => {
   expect(new Set(FONT_NAMES).size).toBe(FONT_NAMES.length)
-  expect(typefaceNamed(DEFAULT_FONT)).toBe(DEFAULT_TYPEFACE)
-  expect(DEFAULT_TYPEFACE.name).toBe(DEFAULT_FONT)
 })
 
 test("a name no row offers is undefined, not a guess", () => {

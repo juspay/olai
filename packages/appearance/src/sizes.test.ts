@@ -4,7 +4,6 @@ import { join } from "node:path"
 
 import {
   DEFAULT_SIZE,
-  DEFAULT_TYPE_SIZE,
   SIZE_ATTRIBUTE,
   SIZE_STORAGE_KEY,
   SIZES,
@@ -12,11 +11,11 @@ import {
   sizeNamed,
 } from "./sizes.ts"
 
-test("the default names a row of the table", () => {
-  expect(sizeNamed(DEFAULT_SIZE)).toBe(DEFAULT_TYPE_SIZE)
-  expect(DEFAULT_TYPE_SIZE.name).toBe(DEFAULT_SIZE)
-})
-
+// "The default names a row" is `DEFAULT_TYPE_SIZE`'s own throw, which fires at
+// import and takes this whole file with it — so the test that asked
+// `sizeNamed` for the default and compared it to the value defined as that
+// answer could not go red on its own. What a reader actually wants of the
+// default is below: that the bare `:root` is its block and nobody else's.
 test("a name no row offers is nobody's size", () => {
   expect(sizeNamed("huge")).toBeUndefined()
   expect(sizeNamed(null)).toBeUndefined()
