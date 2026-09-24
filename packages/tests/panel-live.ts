@@ -238,10 +238,10 @@ await idle()
 const previousSession = await p.locator(selector("chat-panel")).getAttribute("data-session-id")
 await p.locator(selector("chat-fresh-session")).click()
 await p.getByRole("button", { name: "Start fresh conversation", exact: true }).click()
-await p.waitForFunction(([panel, previous]) => {
-  const current = document.querySelector(panel!)?.getAttribute("data-session-id")
+await p.waitForFunction(({ panel, previous }) => {
+  const current = document.querySelector(panel)?.getAttribute("data-session-id")
   return current != null && current !== previous
-}, [selector("chat-panel"), previousSession], { timeout: 120_000 })
+}, { panel: selector("chat-panel"), previous: previousSession }, { timeout: 120_000 })
 await drawn("chat-input")
 await p.locator(selector("chat-sessions")).click()
 await drawn("chat-session-list")
