@@ -503,7 +503,7 @@ and completed the listening window with exit status 0.
 
 Raw evidence is retained locally in `/tmp/air-measure-1017/`: each
 `negotiated-<patched|pristine>-<KIND>-air<0|1>` has `.timeline`,
-`.requests.jsonl`, `.wire.jsonl`, `.stderr` and `.exit` files. The initial
+`.requests.ndjson`, `.wire.ndjson`, `.stderr` and `.exit` files. The initial
 session-only controls have the same names without `negotiated-`.
 `air0` means no AIR advertisement. The wire capture is untruncated, including
 initialize replies and child-session text that the existing timeline does
@@ -631,7 +631,7 @@ these patches add. **No hunk was retired.**
 
 **Eight real task runs**, all exit 0, authenticated, with the full 45-second
 post-turn window and no RPC errors. Evidence is
-`/tmp/air-measure-1017/bumped-<KIND>-air<0|1>.{timeline,wire.jsonl,requests.jsonl,stderr,exit}`.
+`/tmp/air-measure-1017/bumped-<KIND>-air<0|1>.{timeline,wire.ndjson,requests.ndjson,stderr,exit}`.
 Same prompts and capture method as phase 1; this time the built wrapper uses
 its new SDK's Claude executable, not phase 1's held-constant CLI.
 
@@ -654,7 +654,7 @@ on `spawn-1`, with zero `user_message_chunk`s. The live consumer retains the
 same helper-and-break guard unchanged. This is compatibility-path testing,
 not a claim that the live harness emitted XML it did not emit.
 
-**Session list, from real stored history.** `phase2/session-list.jsonl` is a
+**Session list, from real stored history.** `phase2/session-list.ndjson` is a
 read of `/tmp/cleartest`: predecessor
 `145c623c-f45d-4829-b12b-3ab2249d78b9` has `messageCount: 3` and
 `supersededBy: "bbd7be41-80d5-4149-897e-70cfa5f5eecc"`; that heir has
