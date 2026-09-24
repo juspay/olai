@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
-import { THREADS } from "../appliance/testlib/fixtures.ts"
+import { LONG_ATTACHMENT, THREADS } from "../appliance/testlib/fixtures.ts"
 import { BODY_LIMIT, delta, fullOf, header, partsOf, rowOf, Thread } from "./threads.ts"
 
 test("thread headers, labels, multipart HTML and attachments decode", () => {
@@ -8,7 +8,10 @@ test("thread headers, labels, multipart HTML and attachments decode", () => {
   expect(header(threads[0]!.messages[0], "SUBJECT")).toBe("Q3 invoice")
   expect(rowOf(threads[0]!, ids => [...ids])).toMatchObject({ unread: true, messages: 1 })
   expect(fullOf("you@gmail.com", threads[1]!, ids => [...ids]).messages[0]).toMatchObject({ text: null, html: "<p>Meetup on October 2</p>" })
-  expect(fullOf("you@gmail.com", threads[2]!, ids => [...ids]).messages[1]?.attachments).toEqual([{ id: "attachment_1", filename: "invoice.pdf", mime: "application/pdf", bytes: 12288 }])
+  expect(fullOf("you@gmail.com", threads[2]!, ids => [...ids]).messages[1]?.attachments).toEqual([
+    { id: "attachment_1", filename: "invoice.pdf", mime: "application/pdf", bytes: 12288 },
+    { id: LONG_ATTACHMENT, filename: "contract.png", mime: "image/png", bytes: 2048 },
+  ])
   expect(delta(["INBOX", "UNREAD"], ["UNREAD", "waiting"])).toEqual({ added: ["waiting"], removed: ["INBOX"] })
 })
 test("64 KiB is exact, UTF-8 boundaries survive, each MIME type is independently capped", () => {

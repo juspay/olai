@@ -68,6 +68,26 @@ Feature: Reading and acting on Gmail in a conversation
     Then the saved mail attachment is gone
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
+  Scenario: An attachment id longer than any filename still saves to a file
+    Given I open the app
+    When I open the plugins panel
+    And I press Connect in the mail row
+    Then the mail pill reads connected
+    When I close the plugins panel
+    And I open the outline "mail.olai"
+    And I mark the page
+    And I open the "claude" agent on node "mail-work"
+    And the node agent's fold is ready
+    When I ask the agent "read mail thread a3"
+    Then the mail thread story says "2 messages"
+    And the agent's answer mentions "contract.png"
+    When I ask the agent "save mail attachment a32 ANGjdJ__0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_0123"
+    Then the mail attachment story says "contract.png · 2 KiB"
+    And the saved mail attachment file is named by a digest, not by the Gmail id
+    When I ask the agent "save mail attachment a32 attachment_9"
+    Then the mail refused story says "read the mail thread first"
+
+  @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Unknown thread names the connected account
     Given I open the app
     When I open the plugins panel

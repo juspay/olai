@@ -109,12 +109,23 @@ export const fixtureNamed = <T>(
 
 /** Resource-shaped fixtures, validated against the pinned binary's exported schemas. */
 export const LABELS = { labels: ["INBOX", "UNREAD", "STARRED", "IMPORTANT", "TRASH", "SPAM"].map(name => ({ id: name, name })).concat([{ id: "Label_1", name: "waiting" }, { id: "Label_2", name: "newsletters" }]) }
+/** AN ATTACHMENT ID AT THE LENGTH GMAIL REALLY SENDS. The one in the report
+ *  that found this was 396 characters, which is past a single path component's
+ *  255 bytes on Linux all by itself — so a suite whose only id is
+ *  `attachment_1` cannot see the failure at all. Spelled as a constant so the
+ *  fake's own answer and the tests agree on it. */
+export const LONG_ATTACHMENT = `ANGjdJ__${"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_".repeat(7)}`.slice(0, 396)
+/** What each attachment of the fixture mailbox weighs, by id. */
+export const ATTACHMENT_BYTES: Readonly<Record<string, number>> = { attachment_1: 12288, [LONG_ATTACHMENT]: 2048 }
 const message = (id: string, subject: string, labels: string[], html = false, attachment = false) => ({
   id, "label-ids": labels, snippet: subject,
   headers: [{ name: "Message-ID", value: `<${id}@example.com>` }, { name: "References", value: "<earlier@example.com>" }, { name: "Subject", value: subject }, { name: "From", value: "Ravi <ravi@example.com>" }, { name: "To", value: ADDRESS }, { name: "Date", value: "Tue, 15 Sep 2026 10:00:00 +0000" }],
   payload: { mimeType: "multipart/mixed", parts: [
     { mimeType: html ? "text/html" : "text/plain", filename: "", body: { size: 24, data: Buffer.from(html ? "<p>Meetup on October 2</p>" : subject).toString("base64url") } },
-    ...(attachment ? [{ mimeType: "application/pdf", filename: "invoice.pdf", body: { attachmentId: "attachment_1", size: 12288 } }] : []),
+    ...(attachment ? [
+      { mimeType: "application/pdf", filename: "invoice.pdf", body: { attachmentId: "attachment_1", size: ATTACHMENT_BYTES["attachment_1"]! } },
+      { mimeType: "image/png", filename: "contract.png", body: { attachmentId: LONG_ATTACHMENT, size: ATTACHMENT_BYTES[LONG_ATTACHMENT]! } },
+    ] : []),
   ] },
 })
 export const THREADS = [

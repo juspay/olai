@@ -2,7 +2,7 @@ import { TESTID } from "../../src/testids.ts"
 import * as assert from "node:assert"
 import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { attr } from "@olai/tests/harness/selectors.ts"
 import { Then } from "@olai/tests/harness/runner.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
@@ -29,6 +29,23 @@ Then("the mail attachment is outside the vault under the runtime directory", asy
   assert.ok(!path.startsWith(this.scratch() + "/"), path)
   assert.equal(readFileSync(path).length, 12288)
   saved.set(this, path)
+})
+/** A Gmail attachment id is longer than a path component may be, so the saved
+ *  file is named by a digest of it. The id this asserts against is the one the
+ *  call itself carried, so the feature and the fixture cannot drift apart. */
+Then("the saved mail attachment file is named by a digest, not by the Gmail id", async function(this: OlaiWorld) {
+  const log = join(dirname(this.mailHimalaya!.path), "calls.ndjson")
+  await this.waitUntil(async () => existsSync(log) && readFileSync(log, "utf8").includes("attachments.get"), "attachment download")
+  const calls = readFileSync(log, "utf8").trim().split("\n").map(line => JSON.parse(line))
+  const args: string[] = calls.findLast(c => c.verb === "attachments.get").args
+  const id = args[1]!
+  const path = args[args.indexOf("-o") + 1]!
+  const name = basename(path)
+  assert.ok(id.length > 255, `this scenario needs an id longer than a path component: ${id.length}`)
+  assert.ok(Buffer.byteLength(name) <= 255, name)
+  assert.equal(name, `${createHash("sha256").update(id).digest("hex").slice(0, 16)}-contract.png`)
+  assert.ok(!path.includes(id.slice(0, 40)), path)
+  assert.equal(readFileSync(path).length, 2048)
 })
 Then("the saved mail attachment is gone", async function(this: OlaiWorld) {
   const path = saved.get(this)

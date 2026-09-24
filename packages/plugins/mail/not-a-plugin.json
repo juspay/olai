@@ -21,6 +21,7 @@
     "src/enclosures.ts"
   ],
   "image": [
+    "src/appliance/testlib/fixtures.ts",
     "src/enclosures.ts"
   ],
   "markdown": [

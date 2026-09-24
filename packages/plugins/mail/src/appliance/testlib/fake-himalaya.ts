@@ -67,7 +67,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 
 import { GMAIL, GMAIL_VERBS, type GmailVerb } from "../../himalaya/verbs.ts"
-import { fixtureNamed, MAILBOXES, LABELS, THREADS } from "./fixtures.ts"
+import { ATTACHMENT_BYTES, fixtureNamed, MAILBOXES, LABELS, THREADS } from "./fixtures.ts"
 
 /** The first line `himalaya --version` prints at the pin this repo carries, and
  *  the string a scenario replaces when it wants a serve to see an older one.
@@ -530,11 +530,12 @@ export const mailAnswer = (verb: GmailVerb, args: ReadonlyArray<string>, directo
     return ok({ threads: selected.map(t => ({ id: t.id })), ...(next ? { next_page: next } : {}) })
   }
   if (verb.id === "attachments.get") {
-    if (stale || args[0] !== "a32" || args[1] !== "attachment_1") return failed("404 not found")
+    const size = args[1] === undefined ? undefined : ATTACHMENT_BYTES[args[1]]
+    if (stale || args[0] !== "a32" || size === undefined) return failed("404 not found")
     const output = flag("-o")
     if (!output) return failed("output path required")
-    writeFileSync(output, Buffer.alloc(12288, 65))
-    return ok(`Saved 12288 bytes to ${output}`)
+    writeFileSync(output, Buffer.alloc(size, 65))
+    return ok(`Saved ${size} bytes to ${output}`)
   }
   const thread = threads.find(t => t.id === args[0])
   if (!thread) return failed("404 not found")
