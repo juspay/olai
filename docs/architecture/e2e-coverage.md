@@ -8,6 +8,10 @@ sidebar and pane to exist: the header can paint earlier. The probe and its
 post-navigation remount assertions remain immediate, so setup readiness does
 not hide a remount caused by the gesture.
 
+`a_failed_mcp_server.feature` also exercises two failed MCP connections at
+once. Reason assertions select the named server's row, so another failure
+neither makes the locator ambiguous nor supplies the wrong server's reason.
+
 ## Terms
 
 These words are used throughout with the meaning olai gives them.

@@ -61,7 +61,7 @@ Feature: Conversations receive isolated web browser tools
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     Then the panel says "browser" is missing from this conversation
-    And the reason it gives is "Browser tools did not speak the expected MCP protocol"
+    And the reason it gives for "browser" is "Browser tools did not speak the expected MCP protocol"
     When I remember this conversation as "broken"
     And the browser MCP fixture answers "good"
     And I start a fresh session

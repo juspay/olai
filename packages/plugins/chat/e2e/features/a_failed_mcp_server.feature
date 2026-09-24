@@ -19,7 +19,7 @@ Feature: Actual MCP connection failures are visible
     When I ask the agent "hello"
     Then the agent is idle
     And the panel says the agent could not attach "kolu"
-    And the reason it gives is "failed"
+    And the reason it gives for "kolu" is "failed"
     And it names the configured executable
 
   @scratch:chat
@@ -41,7 +41,7 @@ Feature: Actual MCP connection failures are visible
     When I ask the agent "hello"
     Then the agent is idle
     And the panel says the agent could not attach "kolu"
-    And the reason it gives is "failed"
+    And the reason it gives for "kolu" is "failed"
 
   @scratch:chat @kolu
   Scenario: A recovered connection clears the failure
@@ -56,3 +56,17 @@ Feature: Actual MCP connection failures are visible
     Then the agent's answer mentions "servers: [olai kolu odu]"
     And the panel says the agent attached "kolu"
     And the panel says nothing about a missing server
+
+  @scratch:chat
+  Scenario: Two failed connections retain their own reasons
+    When I ask the agent "attach kolu failed"
+    Then the agent is idle
+    When I ask the agent "attach olai needs-auth"
+    Then the agent is idle
+    When I ask the agent "hello"
+    Then the agent is idle
+    And the panel says the agent could not attach "kolu"
+    And the reason it gives for "kolu" is "failed"
+    And the panel says the agent could not attach "olai"
+    And the reason it gives for "olai" is "needs-auth"
+    And there should be no page errors
