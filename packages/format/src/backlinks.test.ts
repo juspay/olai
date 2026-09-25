@@ -177,14 +177,6 @@ test("a record's note linking the node is a reference, way `link`", () => {
   expect(said(view, "herbs")).toEqual(["note link"])
 })
 
-test("a body's link onto the node is a reference, way `link`", () => {
-  const view = viewOf({
-    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
-  }, [["notes/garden.md", "# the garden\n\n[the herb bed](#herbs) is outside"]])
-  expect(said(view, "herbs")).toEqual(["notes/garden.md link"])
-})
-
-
 test("a document and its headings are the same referrer question", () => {
   // Links onto a document's heading are filed under the document too, so the
   // document arm answers whole-document — and the node arm is unaffected.

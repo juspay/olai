@@ -12,7 +12,7 @@
 import { describe, expect, test } from "bun:test"
 
 import type { AgentEntry, NoticeEntry, ToolEntry, UserEntry } from "olai-plugin-chat/wire"
-import { facedAt, onTheRight, sameSpeaker, speakerOf } from "./speakers.ts"
+import { facedAt, onTheRight, speakerOf } from "./speakers.ts"
 
 const head = { seq: 0, since: "2026-08-31T12:00:00.000Z" }
 
@@ -78,26 +78,11 @@ describe("whose row it is", () => {
   })
 })
 
-describe("the same party, or not", () => {
-  test("two plugins are not one another", () => {
-    expect(sameSpeaker({ of: "plugin", name: "kolu" }, { of: "plugin", name: "odu" }))
-      .toBe(false)
-  })
-
-  test("one plugin is itself", () => {
-    expect(sameSpeaker({ of: "plugin", name: "kolu" }, { of: "plugin", name: "kolu" }))
-      .toBe(true)
-  })
-
-  test("a plugin is never the person whose lane it borrowed", () => {
-    expect(sameSpeaker({ of: "plugin", name: "kolu" }, { of: "human" })).toBe(false)
-  })
-
-  test("nobody is not the same as nobody", () => {
-    expect(sameSpeaker(null, null)).toBe(false)
-  })
-})
-
+// Whether two rows are the same party is asked ONLY to decide whether a face
+// is owed, so it is asserted where that decision is observable — below, on
+// `facedAt`. Asked of the predicate directly it was four cases that could not
+// go red on their own, and one of them (nobody against nobody) an arm no
+// caller can reach: `facedAt` returns before it on a row that is nobody's.
 describe("where a run begins", () => {
   test("the first row of a conversation is always faced", () => {
     expect(facedAt(said(), undefined)).toEqual({ of: "human" })

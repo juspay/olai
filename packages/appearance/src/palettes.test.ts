@@ -49,10 +49,11 @@ describe("the palette table", () => {
     }
   })
 
-  test("the default is one of the themes", () => {
-    expect(DEFAULT_PALETTE.name).toBe(DEFAULT_THEME)
-  })
-
+  // "The default is one of the themes" is what `DEFAULT_PALETTE`'s throw says,
+  // at import — its own comment above it says so — and `paletteNamed` finds a
+  // row by its `name`, so the value's `.name` IS `DEFAULT_THEME` by
+  // construction. Which theme a page that picked nothing lands in is asked
+  // where it is observable, of the selectors: `./css.test.ts`.
   test("chalk is the one that promises AA", () => {
     expect(paletteNamed("chalk")?.aa).toBe(true)
     expect(
@@ -66,7 +67,6 @@ describe("the palette table", () => {
     // WorkFlowy ports that left this table are that case.
     expect(paletteNamed("no-such-theme")).toBeUndefined()
     expect(paletteNamed("matcha")).toBeUndefined()
-    expect(paletteNamed(DEFAULT_THEME)).toBe(DEFAULT_PALETTE)
   })
 
   test("the attribute and the storage key are the ones the shell spells", () => {

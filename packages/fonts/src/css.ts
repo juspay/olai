@@ -45,7 +45,7 @@ export const typefaceBlock = (face: Typeface): string => {
   return `${selectorFor(face)} {\n${declarations.join("\n")}\n}`
 }
 
-export const fontFaceRule = (file: HostedFile): string =>
+const fontFaceRule = (file: HostedFile): string =>
   [
     "@font-face {",
     `  font-family: "${file.family}";`,

@@ -5,12 +5,10 @@ import { PALETTES } from "./palettes.ts"
 import { TAG_HUE_PROPERTY, TAG_INK, tagHue, tagInkHex, tagStyle } from "./tagInk.ts"
 
 describe("the hue a tag is handed", () => {
-  test("one input, one hue — every time", () => {
-    expect(tagHue("#now")).toBe(tagHue("#now"))
-    expect(tagHue("@alice")).toBe(tagHue("@alice"))
-    expect(tagHue("#work/olai")).toBe(tagHue("#work/olai"))
-  })
-
+  // "One input, one hue — every time" was asked as `tagHue(x)` against
+  // `tagHue(x)`, which is true of every function of its argument and false of
+  // nothing. The claim with content in it — that two WRITINGS of one tag land
+  // on one hue — is the case-folding test below, and it can go red.
   test("it is on the wheel", () => {
     for (const hue of ["#now", "#home", "@alice", "#work/olai", "#a", "#z-9"]
       .map(tagHue)) {
