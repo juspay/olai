@@ -78,7 +78,7 @@ Then("the page transcript is unbounded and its composer is on screen", async fun
 });
 Then("the page title has the phone's whole line", async function(this: OlaiWorld) {
   const title = this.page.locator(ZOOM_TITLE);
-  const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(this.activeAgent))}`).first();
+  const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(this.activeAgent!))}`).first();
   const [own, row] = await title.evaluate(el => [el.getBoundingClientRect().width, el.parentElement!.getBoundingClientRect().width]);
   assert.ok(own! >= row! - 1, `the title is squeezed beside its asides: ${own} of ${row}`);
   const heading = await this.box(title, "the page title");
