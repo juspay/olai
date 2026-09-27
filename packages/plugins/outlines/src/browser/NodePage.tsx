@@ -117,11 +117,19 @@ function Zoom(props: {
           data-blocked={blockedIds(props.zoomed.blocked)}
           data-kind="node"
         >
-          <header class={`sticky top-[var(--height-chrome)] ${LAYER.page} bg-paper pb-2`}>
+          {/* PINNED FROM `md` UP, and only there. A phone's screen is short
+              enough that breadcrumbs, a display-size title and an agent's line
+              held at the top — with the composer held at the bottom — leave
+              the transcript a few lines of slot between them. So on a phone
+              the head scrolls away with the page and only the composer stays.
+              The title row WRAPS for the same screen: the title claims the
+              whole line below `sm` and its asides go under it, rather than
+              the asides squeezing it to one word per line. */}
+          <header class={`relative md:sticky md:top-[var(--height-chrome)] ${LAYER.page} bg-paper pb-2`}>
             <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
-          <div class="group/row mt-2 flex items-baseline gap-3">
+          <div class="group/row mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1
-              class={`flex-1 ${PAGE_TITLE} italic ${toneOf(props.zoomed.status)}`}
+              class={`min-w-0 grow basis-full sm:basis-0 ${PAGE_TITLE} italic ${toneOf(props.zoomed.status)}`}
               data-testid={TESTID.zoomTitle}
               data-node-id={props.zoomed.shows.node.id}
               data-status={props.zoomed.status}

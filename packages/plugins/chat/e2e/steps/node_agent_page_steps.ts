@@ -11,6 +11,7 @@ import {
   PROP,
   POLL_TIMEOUT,
   HYDRATION_TIMEOUT,
+  ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import {
   CHAT_SEND,
@@ -74,6 +75,31 @@ Then("the page transcript is unbounded and its composer is on screen", async fun
     return box !== null && composer !== null && box.height > 384 && composer.y >= 0 && composer.y + composer.height <= this.viewport().height;
   }, "the page to follow its unbounded answer", HYDRATION_TIMEOUT);
   assert.equal(await this.chat(CHAT_TRANSCRIPT).evaluate(el => getComputedStyle(el).maxHeight), "none");
+});
+Then("the page title has the phone's whole line", async function(this: OlaiWorld) {
+  const title = this.page.locator(ZOOM_TITLE);
+  const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(this.activeAgent))}`).first();
+  const [own, row] = await title.evaluate(el => [el.getBoundingClientRect().width, el.parentElement!.getBoundingClientRect().width]);
+  assert.ok(own! >= row! - 1, `the title is squeezed beside its asides: ${own} of ${row}`);
+  const heading = await this.box(title, "the page title");
+  const aside = await this.box(standing, "the agent's standing");
+  assert.ok(aside.y >= heading.y + heading.height - 1, "the standing shares the title's line");
+});
+Then("the page head has scrolled away and the transcript has most of the screen", async function(this: OlaiWorld) {
+  const head = await this.box(this.page.locator(ZOOM_TITLE), "the page title");
+  assert.ok(head.y + head.height <= 0, `the page head is still on screen at ${head.y}`);
+  const composer = await this.box(this.chat(CHAT_INPUT), "the composer");
+  const transcript = await this.box(this.chat(CHAT_TRANSCRIPT), "the transcript");
+  const { height } = this.viewport();
+  const chrome = await this.page.evaluate(() => {
+    const probe = document.body.appendChild(document.createElement("div"));
+    probe.style.height = "var(--height-chrome)";
+    const measured = probe.getBoundingClientRect().height;
+    probe.remove();
+    return measured;
+  });
+  const reading = Math.min(composer.y, transcript.y + transcript.height) - Math.max(chrome, transcript.y);
+  assert.ok(reading >= height / 2, `the transcript reads through ${reading}px of a ${height}px screen`);
 });
 Then("the plain node composer has no available engine", async function(this: OlaiWorld) {
   await this.page.locator(plain).locator(selector(PLUGIN_TESTID.chatNoAgent)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
