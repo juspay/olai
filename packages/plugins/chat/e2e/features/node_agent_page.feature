@@ -78,7 +78,8 @@ Feature: A node's page holds its memory and conversation
     When I ask for a tall page answer
     Then the agent is idle
     And the page transcript is unbounded and its composer is on screen
-    And the page head has scrolled away and the transcript has most of the screen
+    When I scroll to the bottom of the page
+    Then the page head has scrolled away and the transcript has most of the screen
     And there should be no page errors
 
   @node-idle-fast

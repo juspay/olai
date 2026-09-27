@@ -99,7 +99,7 @@ Then("the page head has scrolled away and the transcript has most of the screen"
     return measured;
   });
   const reading = Math.min(composer.y, transcript.y + transcript.height) - Math.max(chrome, transcript.y);
-  assert.ok(reading >= height / 2, `the transcript reads through ${reading}px of a ${height}px screen`);
+  assert.ok(reading >= height / 2, `the transcript reads through ${reading}px of a ${height}px screen: ${JSON.stringify({ chrome, transcript, composer })}`);
 });
 Then("the plain node composer has no available engine", async function(this: OlaiWorld) {
   await this.page.locator(plain).locator(selector(PLUGIN_TESTID.chatNoAgent)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
