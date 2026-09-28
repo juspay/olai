@@ -28,7 +28,7 @@ While an input method is composing text, its keys select and confirm candidates.
 | **Escape** | drop what you were typing |
 | **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
 | **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
-| **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again |
+| **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again — the same as the `finished` box beside the filter |
 | **Alt+click** | open a link in the pane to the right |
 | **Alt+Shift+click** | open it in a new pane to the right |
 | **Alt+←** / **Alt+→** | move focus to the neighbouring pane — not while typing, where it stays the text field's word jump; Escape first |
