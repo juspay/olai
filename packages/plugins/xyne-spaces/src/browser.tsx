@@ -24,7 +24,8 @@ import { Effect } from "effect"
 import type { Accessor } from "solid-js"
 
 import type { SpacesApp } from "./browser/app.ts"
-import type { SpacesLink } from "./wire.ts"
+import { SPACES_UNDIALED, type SpacesLink } from "./wire.ts"
+import { spacesStatus } from "./browser/said.ts"
 import { LinkProvider } from "./browser/link.tsx"
 import { SpacesMark } from "./browser/Mark.tsx"
 import { Spaces } from "./browser/Spaces.tsx"
@@ -73,7 +74,12 @@ export default definePlugin({
     // NAMES the two services it wants and composes its own reading of them here,
     // once.
     const app: SpacesApp = { desktop: bar.desktop, pill: bar.pill }
-    yield* slots.register("app.header", { place: "cluster", body: () => <LinkProvider link={owned.link}><Spaces app={app} /></LinkProvider> })
+    yield* slots.register("app.header", {
+      place: "cluster",
+      body: () => <LinkProvider link={owned.link}><Spaces app={app} /></LinkProvider>,
+      // The bar's health dot reads this, off the same root as the row.
+      status: () => spacesStatus(owned.link() ?? SPACES_UNDIALED),
+    })
     yield* slots.register("delivery.mark", SpacesMark)
 
     // NO TEARDOWN BEYOND THE REGISTRATIONS, and it is now unspellable to pretend

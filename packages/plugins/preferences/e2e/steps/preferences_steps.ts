@@ -45,6 +45,8 @@ import {
   APP_HEADER,
   attr,
   CONNECTION,
+  HEALTH,
+  HEALTH_PANEL,
   HYDRATION_TIMEOUT,
   PANE,
   CHAT_TOGGLE,
@@ -903,7 +905,13 @@ Then(
 When("I open the plugins panel", async function (this: OlaiWorld) {
   if ((await this.pluginsPanel().count()) > 0) return;
   const trigger = this.page.locator(PLUGINS_TRIGGER).locator("visible=true");
-  await this.waitUntil(async () => (await this.pluginsPanel().count()) > 0 || await trigger.isVisible(), "the restored panel or its trigger");
+  // On a desktop the door is a row at the foot of the health popover, so the
+  // popover is put up first; on a phone it is the drawer's row, as it was.
+  await this.waitUntil(async () => {
+    if ((await this.pluginsPanel().count()) > 0 || await trigger.isVisible()) return true;
+    await this.openStatus().catch(() => undefined);
+    return (await this.pluginsPanel().count()) > 0 || await trigger.isVisible();
+  }, "the restored panel or its trigger");
   // A returning layout can restore an open inspector before its trigger.
   if ((await this.pluginsPanel().count()) > 0) return;
   await this.press(trigger);
@@ -921,6 +929,13 @@ When("I close the plugins panel", async function (this: OlaiWorld) {
   if (this.viewport().width > 700) await this.press(trigger);
   else await this.pluginsPanel().press("Escape");
   await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
+  // ...and the health popover it was opened from, the way a person would
+  // finish: its dot again. Nothing is left over the page for the next step.
+  const health = this.page.locator(HEALTH_PANEL);
+  if (await health.isVisible()) {
+    await this.press(this.page.locator(HEALTH));
+    await health.waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  }
 });
 
 /**
@@ -1058,13 +1073,17 @@ const hintOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
 Then(
   "no member of this page has gone silent",
   async function (this: OlaiWorld) {
-    const chip = this.page.locator(CONNECTION).first();
-    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // A roster switch may draw its surviving faces during a socket refresh.
     // Await the connection's own readiness before asserting stream health;
-    // a permanently reconnecting or degraded wire still fails this bound.
-    await this.expectAttribute(CONNECTION, "data-connection", "live", "the connection", HYDRATION_TIMEOUT);
-    const stopped = (await chip.getAttribute("data-stopped")) ?? "";
+    // a permanently reconnecting or degraded wire still fails this bound. The
+    // health dot carries the connection's state; the connection's ROW (in the
+    // popover the dot opens) carries `data-stopped` beside it.
+    await this.expectAttribute(HEALTH, "data-connection", "live", "the connection", HYDRATION_TIMEOUT);
+    const [stopped, state] = await this.readStatus(async () => {
+      const chip = this.page.locator(CONNECTION).first();
+      await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+      return [(await chip.getAttribute("data-stopped")) ?? "", await chip.getAttribute("data-connection")] as const;
+    });
     assert.equal(
       stopped,
       "",
@@ -1073,7 +1092,7 @@ Then(
     );
     // Check again beside the stopped members so a drop after readiness is
     // not mistaken for an empty, healthy stream set.
-    assert.equal(await chip.getAttribute("data-connection"), "live");
+    assert.equal(state, "live");
   },
 );
 
@@ -1095,21 +1114,23 @@ Then(
 Then(
   "the appliance link reads {word}",
   async function (this: OlaiWorld, word: string) {
-    try {
-      await this.page
-        .locator(`${PADI_PILL}${attr("data-padi", word)}`)
-        .first()
-        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    } catch {
+    // A row of the health popover on a desktop, so it is read with the
+    // popover up and put away again after.
+    const reached = await this.readStatus(() => this.page
+      .locator(`${PADI_PILL}${attr("data-padi", word)}`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      .then(() => null, async () => {
+        const pill = this.page.locator(PADI_PILL).first();
+        return (await pill.count()) === 0 ? "no pill at all" : await pill.getAttribute("data-padi");
+      }));
+    if (reached !== null) {
       // ...AND WHAT IT ACTUALLY READS, because the two ways this fails want two
       // different next steps: a pill saying `absent` is a plugin that is drawing
       // and cannot reach its appliance, and NO PILL AT ALL is a plugin whose
       // face never came back. A timeout on the selector alone cannot tell them
       // apart, and the difference is which half of a remount to go and look at.
-      const pill = this.page.locator(PADI_PILL).first();
-      const found = (await pill.count()) === 0
-        ? "no pill at all"
-        : await pill.getAttribute("data-padi");
+      const found = reached;
       assert.fail(
         `the appliance link to read ${JSON.stringify(word)}, and it is ` +
           `${JSON.stringify(found)}`,

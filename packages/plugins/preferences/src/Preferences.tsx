@@ -32,15 +32,15 @@ import type { Contribution } from "@olai/plugin-api"
 import type { JSX } from "solid-js"
 export function Preferences(props: {
   readonly sections: () => ReadonlyArray<Contribution<() => JSX.Element>>
-  /** `closet` is the phone drawer row. Default is the header chip. */
-  readonly where?: "header" | "closet"
+  /** `closet` is the phone drawer row, `health` a row of the desktop health
+   *  popover. Default is the header chip. */
+  readonly where?: "header" | "health" | "closet"
 }) {
   return (
     <BarDoor
       where={props.where}
       glyph="⚙"
-      header="prefs"
-      closet="preferences"
+      name="preferences"
       testid={TESTID.prefsTrigger}
       title="preferences: theme, type, finished work, and whether git commits and pushes on its own"
       panel={(at, inside) => <Panel at={at} inside={inside} sections={props.sections} />}

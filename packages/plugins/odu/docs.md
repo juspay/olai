@@ -24,7 +24,7 @@ Press the chip and the matrix opens on the frame, one row per node, with the att
 
 ## The header
 
-The chrome carries the same three-state readout kolu has: **odu** while the service is speaking, **no odu** naming the origin and the fix (`odu web --background`), and **odu skew** naming both versions. Olai never starts the service. Absence is ordinary, said in words, never drawn as a quiet board.
+The header's health-dot popover carries the same three-state readout kolu has (a skew turns the dot red; no odu leaves it alone): **odu** while the service is speaking, **no odu** naming the origin and the fix (`odu web --background`), and **odu skew** naming both versions. Olai never starts the service. Absence is ordinary, said in words, never drawn as a quiet board.
 
 A run that finished while olai was not running still draws its verdict: the catalog remembers it.
 

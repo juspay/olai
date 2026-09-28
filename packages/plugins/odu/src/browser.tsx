@@ -54,6 +54,7 @@ import { OduMark } from "./browser/Mark.tsx"
 import { RunsProvider, createRuns } from "./browser/runs.tsx"
 import { RunMatrix } from "./browser/RunMatrix.tsx"
 import { OduReadout } from "./browser/Odu.tsx"
+import { oduStatus } from "./browser/said.ts"
 import { RUN_KIND } from "./kinds.ts"
 
 import { name, surface } from "./wire.ts"
@@ -129,7 +130,7 @@ export default definePlugin({
     // the chip and the dial cannot come apart.
     yield* slots.register("outline.row.chip", RUN_KIND, props => <ClocksProvider clocks={clocks}><RunsProvider value={owned.runs}><CiChip {...props} /></RunsProvider></ClocksProvider>)
     yield* slots.register("outline.row.pane", RUN_KIND, props => <ClocksProvider clocks={clocks}><RunsProvider value={owned.runs}><RunMatrix {...props} /></RunsProvider></ClocksProvider>)
-    yield* slots.register("app.header", { place: "cluster", body: () => <OduReadout app={bar} link={owned.link} /> })
+    yield* slots.register("app.header", { place: "cluster", body: () => <OduReadout app={bar} link={owned.link} />, status: () => oduStatus(owned.link()) })
     // ODU'S FACE IN A TRANSCRIPT — the mark over a sentence the doorbell
     // delivered into somebody's conversation. It is contributed from the tenant
     // that owns it because core may know this plugin's NAME as data and nothing

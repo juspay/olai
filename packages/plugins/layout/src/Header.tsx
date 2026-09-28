@@ -20,8 +20,9 @@
  * preferences in the directory drawer. A healthy phone does not advertise
  * health — `live` and `✓ committed` and `up 2h` stay off screen. A dead wire is the freeze
  * overlay, which was already the stronger form of that banner. Desktop keeps
- * the pills, because a bar of chips cannot be trusted if the healthy ones
- * disappear. Direct access draws anonymous, not a missing chip.
+ * ONE health dot rather than a row of pills (`./Health.tsx`): always drawn, so
+ * it can be trusted when it is green, and naming what is wrong when it is not.
+ * Direct access draws anonymous, not a missing chip.
  *
  * The bar is a fixed `--height-header` and the right-hand group is `flex-nowrap`: wrapping
  * inside a fixed height centred the second row off the top of the viewport on a
@@ -106,9 +107,9 @@ import { Leaf } from "@olai/web/client/Leaf.tsx"
 import { WORDMARK } from "@olai/web/client/look.ts"
 import { calledApp } from "./named.ts"
 import { PluginHeaders } from "./Chrome.tsx"
+import { Health } from "./Health.tsx"
 import { PluginViewer } from "./Seats.tsx"
 
-import { Uptime } from "./Uptime.tsx"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { desktop } from "./layout/live.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -165,27 +166,21 @@ export function Header(props: {
         </h1>
       </div>
 
-      {/* The pills that are about the app rather than about the page. On
-          desktop they are always here, so a reader of the error report still
-          has the connection answer — which is the one they want most of all.
-          On a phone they are not: search is the only control that stays, and
-          the rest become news under the bar or a row in the drawer
-          (`settings/` in the closet).
+      {/* What is about the app rather than about the page. On desktop it is
+          ONE health dot, always here, so a reader of the error report still
+          has the connection answer — the one they want most of all — as the
+          dot's colour and, when it is not healthy, its name. Its popover holds
+          the rows the bar used to stand as pills (`./Health.tsx`). On a phone
+          none of it is in the bar: search is the only control that stays, and
+          the rest become news under the bar or a row in the drawer.
 
-          The Commit pill sits BESIDE the connection because they are the same
-          kind of promise about two halves of the same page: that it is still
-          reading, and that what is written to it is being kept. There is ONE
-          of it, which is the whole of `one-git-indicator`: #108's `● git`
-          readout used to sit between them answering the second question a
-          second time, and two chips for one subject is what the human filed.
-          Every state that readout drew is a face of this pill now — including
-          the fault, with git's own words on its tip.
+          There is ONE git readout, the Commit readout, now a row of that
+          popover — the whole of `one-git-indicator` still holds: two chips
+          for one subject is what the human filed.
 
           The preferences trigger is one control rather than two: the theme
           pill that used to be here is a row inside the panel it opens
-          (`settings/`). A door beside a door into the same room is the
-          same redundancy `one-git-indicator` closed. Who is looking is
-          LAST — top right. */}
+          (`settings/`). Who is looking is LAST — top right. */}
       <div
         // `gap-1` below 40rem rather than `gap-1.5`: the pills at 390pt spend a
         // gap between each pair, and 6px of white space is a word on the label
@@ -206,32 +201,17 @@ export function Header(props: {
             these two lines (`./plugins/Chrome.tsx`). */}
         <PluginHeaders place="lead" />
         <Show when={desktop()}>
-          <Indicator readout={connectionReadout()} />
-          {/* THE PLUGINS' READOUTS, after "still reading" and before "what is
-              written is kept" — one line, and this file names no tenant
-              (`./plugins/Chrome.tsx`).
-
-              It used to be the padi pill spelled out here, handed three of
-              kolu's own facts off a context this file read for it. WHERE a
-              plugin's readout sits is still the bar's decision and it is this
-              line; WHAT it says is the plugin's, read from its own half. Today
-              exactly one plugin hangs one, which is why the seat reads as it
-              always did: whether this olai can see kolu's terminals. */}
-          <PluginHeaders place="cluster" />
-          {/* Furniture, last of the standing cluster: how long THIS process
-              has been the one answering. Beside the committed pill because
-              it is the same register — a quiet chip about the app, not a
-              door — and after it because a reader scans "is it live, is it
-              kept" before "how long has this one been up". A just-started
-              process reads `up 12s`; a restart is a reload, not a second
-              tick on this page. A healthy phone does not wear it. */}
-          <Uptime />
-          {/* WHICH INTEGRATIONS THIS SERVER IS RUNNING, beside the door to how
-              this browser reads — two doors because two questions, and only one
-              of them is a preference (`./plugins/Plugins.tsx` argues it). It is
-              before `Preferences` rather than after because the two are read as
-              a pair and preferences is the one a reader reaches for by habit:
-              the habitual door stays where the hand already goes. */}
+          {/* THE HEALTH DOT: one mark for everything the bar used to stand
+              a pill for — the connection, every plugin's `cluster` readout
+              (git's Commit readout, kolu, odu, mail, spaces), and under them
+              the uptime line and the plugins door. It wears the worst tone
+              among them and names what is wrong; its popover draws each as a
+              row, still the owner's own face (`./Health.tsx`). A calm bar is
+              the wordmark, search, this dot, preferences and who is looking. */}
+          <Health slots={props.slots} />
+          {/* The door a reader reaches for by habit: preferences, the gear
+              alone. Doors that ask for the health popover's foot instead
+              (`desktop: "health"` — the plugins panel's) are drawn there. */}
           <Tools slots={props.slots} where="header" />
         </Show>
         {/* Phone screens with no directory drawer (the error report, the

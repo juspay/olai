@@ -33,6 +33,7 @@ import {
   COMMIT_PANEL,
   COMMIT_PILL,
   COMMIT_RESUME,
+  HEALTH_PANEL,
   HYDRATION_TIMEOUT,
   oneLine,
   PAST_QUIET_WINDOW,
@@ -85,12 +86,12 @@ Then("the phone commit banner sits below the header", async function (this: Olai
 Then(
   "the commit pill says {int} uncommitted",
   async function (this: OlaiWorld, count: number) {
-    await this.expectAttribute(
+    await this.readStatus(() => this.expectAttribute(
       COMMIT_PILL,
       "data-uncommitted",
       String(count),
       "the commit pill",
-    );
+    ));
   },
 );
 
@@ -104,13 +105,13 @@ Then(
 Then(
   "the commit pill says {string}",
   async function (this: OlaiWorld, state: string) {
-    await this.expectAttribute(
+    await this.readStatus(() => this.expectAttribute(
       COMMIT_PILL,
       "data-state",
       state,
       "the commit pill",
       HYDRATION_TIMEOUT,
-    );
+    ));
   },
 );
 
@@ -121,9 +122,11 @@ Then(
 Then(
   "the commit pill reads {string}",
   async function (this: OlaiWorld, words: string) {
-    const pill = this.page.locator(COMMIT_PILL);
-    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const shown = oneLine(await pill.innerText());
+    const shown = await this.readStatus(async () => {
+      const pill = this.page.locator(COMMIT_PILL);
+      await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+      return oneLine(await pill.innerText());
+    });
     assert.ok(
       shown.includes(words),
       `the commit pill says "${shown}", which does not read "${words}"`,
@@ -137,9 +140,11 @@ Then(
 Then(
   "the commit pill explains {string}",
   async function (this: OlaiWorld, reason: string) {
-    const pill = this.page.locator(COMMIT_PILL);
-    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const said = (await pill.getAttribute("aria-label")) ?? "";
+    const said = await this.readStatus(async () => {
+      const pill = this.page.locator(COMMIT_PILL);
+      await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+      return (await pill.getAttribute("aria-label")) ?? "";
+    });
     assert.ok(
       said.includes(reason),
       `the commit pill's own sentence is "${said}", which does not mention ` +
@@ -152,7 +157,9 @@ Then(
  *  and chrome that cries in the ordinary case is chrome nobody reads in the
  *  rare one. */
 Then("the commit pill is not alarming", async function (this: OlaiWorld) {
-  const shown = oneLine(await this.page.locator(COMMIT_PILL).innerText());
+  const shown = await this.readStatus(async () =>
+    oneLine(await this.page.locator(COMMIT_PILL).innerText())
+  );
   assert.ok(
     !shown.includes("⚠"),
     `the commit pill says "${shown}", which wears a warning it has no cause for`,
@@ -163,9 +170,11 @@ Then("the commit pill is not alarming", async function (this: OlaiWorld) {
  *  mark is what a reader SCANS for, and a face that lost its glyph would still
  *  pass every attribute and word assertion beside this one. */
 Then("the commit pill is alarming", async function (this: OlaiWorld) {
-  const pill = this.page.locator(COMMIT_PILL);
-  await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const shown = oneLine(await pill.innerText());
+  const shown = await this.readStatus(async () => {
+    const pill = this.page.locator(COMMIT_PILL);
+    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    return oneLine(await pill.innerText());
+  });
   assert.ok(
     shown.includes("⚠"),
     `the commit pill says "${shown}", with no warning mark on a state that is one`,
@@ -176,6 +185,7 @@ Then("the commit pill is alarming", async function (this: OlaiWorld) {
  *  (`navigation_steps.ts`'s `a tip says …`, which also holds the rule this app
  *  learnt the hard way: exactly one tip on screen, ever). */
 When("I hover the commit pill", async function (this: OlaiWorld) {
+  await this.openStatus();
   const pill = this.page.locator(COMMIT_PILL);
   await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await pill.hover();
@@ -204,35 +214,51 @@ Then("the header has no git indicator", async function (this: OlaiWorld) {
   const header = this.page.locator(APP_HEADER);
   const chrome = header.locator(APP_CHROME);
   await chrome.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const rows = await this.readStatus(async () => {
+    await this.page.locator(HEALTH_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    return this.page.locator(`${HEALTH_PANEL} ${COMMIT_PILL}`).count();
+  });
   assert.equal(
-    await header.locator(COMMIT_PILL).count(),
+    await this.page.locator(COMMIT_PILL).count() + rows,
     0,
-    "the commit pill is still in the header of a serve that did not mount git",
+    "the commit readout is still in the chrome of a serve that did not mount git",
   );
 });
 
+/**
+ * ONE readout answers for git, and it is a row of the health popover. The bar
+ * itself holds no git chip at all now — the dot folds the Commit readout's
+ * tone in with the rest — so the count is taken in the popover, and the bar is
+ * held to having none.
+ */
 Then("the header shows one git indicator", async function (this: OlaiWorld) {
   await this.waitForFrame();
   const header = this.page.locator(APP_HEADER);
   const chrome = header.locator(APP_CHROME);
   await chrome.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-
-  const inside = await chrome.evaluate((row) =>
-    [...row.querySelectorAll("[data-testid]")].map((el) =>
-      el.getAttribute("data-testid") ?? ""
-    )
+  assert.equal(
+    await chrome.locator(COMMIT_PILL).count(),
+    0,
+    "a git chip is standing in the bar itself, beside the health dot that already folds it in",
   );
+  const inside = await this.readStatus(async () => {
+    const panel = this.page.locator(HEALTH_PANEL);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    return panel.evaluate((box) =>
+      [...box.querySelectorAll("[data-testid]")].map((el) => el.getAttribute("data-testid") ?? "")
+    );
+  });
   const git = inside.filter((id) => id === PLUGIN_TESTID.commitPill);
   assert.equal(
     git.length,
     1,
-    `the chrome row holds ${JSON.stringify(inside)}; exactly one of those is ` +
-      "the Commit pill — a second one is the redundancy `one-git-indicator` closed",
+    `the health popover holds ${JSON.stringify(inside)}; exactly one of those is ` +
+      "the Commit readout — a second one is the redundancy `one-git-indicator` closed",
   );
   assert.equal(
     await header.locator(RETIRED_GIT_READOUT).count(),
     0,
-    "something in the header is reporting a git state of its own, beside the pill " +
+    "something in the header is reporting a git state of its own, beside the readout " +
       "that already does",
   );
 });
@@ -242,12 +268,12 @@ Then("the commit pill cannot be pressed", async function (this: OlaiWorld) {
   // its inert faces on purpose, because the sentence explaining why nothing is
   // being recorded is the whole of the control in exactly those states, and a
   // disabled button takes no focus and so cannot be asked.
-  await this.expectAttribute(
-    COMMIT_PILL,
+  await this.readStatus(() => this.expectAttribute(
+      COMMIT_PILL,
     "aria-disabled",
     "true",
     "the commit pill",
-  );
+  ));
 });
 
 Then(
@@ -270,7 +296,10 @@ Then(
   "the commit panel offers to resume auto-commit",
   async function (this: OlaiWorld) {
     const panel = this.page.locator(COMMIT_PANEL);
-    if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();
+    if (!(await panel.isVisible())) {
+      await this.openStatus();
+      await this.page.locator(COMMIT_PILL).click();
+    }
     await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.page
       .locator(COMMIT_RESUME)
@@ -282,7 +311,10 @@ Then(
   "the commit panel does not offer to resume auto-commit",
   async function (this: OlaiWorld) {
     const panel = this.page.locator(COMMIT_PANEL);
-    if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();
+    if (!(await panel.isVisible())) {
+      await this.openStatus();
+      await this.page.locator(COMMIT_PILL).click();
+    }
     await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal(
       await this.page.locator(COMMIT_RESUME).count(),
@@ -294,7 +326,10 @@ Then(
 
 When("I resume auto-commit", async function (this: OlaiWorld) {
   const panel = this.page.locator(COMMIT_PANEL);
-  if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();
+  if (!(await panel.isVisible())) {
+      await this.openStatus();
+      await this.page.locator(COMMIT_PILL).click();
+    }
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const resume = this.page.locator(COMMIT_RESUME);
   await resume.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -303,13 +338,17 @@ When("I resume auto-commit", async function (this: OlaiWorld) {
 
 When("I open the commit panel", async function (this: OlaiWorld) {
   const panel = this.page.locator(COMMIT_PANEL);
-  if (!(await panel.isVisible())) await this.page.locator(`${COMMIT_PILL}, ${COMMIT_BANNER}`).click();
+  if (!(await panel.isVisible())) {
+    await this.openStatus();
+    await this.page.locator(`${COMMIT_PILL}, ${COMMIT_BANNER}`).click();
+  }
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 /** Unconditionally, unlike the step above: the scenario that presses it a
  *  SECOND time is asking what that press does. */
 When("I press the commit pill", async function (this: OlaiWorld) {
+  await this.openStatus();
   await this.press(this.page.locator(COMMIT_PILL));
 });
 
@@ -415,13 +454,13 @@ Then(
 Then(
   "the commit pill says auto-commit is {string}",
   async function (this: OlaiWorld, state: string) {
-    await this.expectAttribute(
+    await this.readStatus(() => this.expectAttribute(
       COMMIT_PILL,
       "data-auto",
       state,
       "the commit pill",
       HYDRATION_TIMEOUT,
-    );
+    ));
   },
 );
 
@@ -438,13 +477,13 @@ Then(
 Then(
   "the commit pill says the push was refused",
   async function (this: OlaiWorld) {
-    await this.expectAttribute(
+    await this.readStatus(() => this.expectAttribute(
       COMMIT_PILL,
       "data-push-refused",
       "true",
       "the commit pill",
       HYDRATION_TIMEOUT,
-    );
+    ));
   },
 );
 
@@ -461,13 +500,13 @@ Then(
   "the flurry records itself",
   { timeout: QUIET_WINDOW_STEP_TIMEOUT },
   async function (this: OlaiWorld) {
-    await this.expectAttribute(
+    await this.readStatus(() => this.expectAttribute(
       COMMIT_PILL,
       "data-state",
       "committed",
       "the commit pill",
       QUIET_WINDOW_TIMEOUT,
-    );
+    ));
   },
 );
 
@@ -727,12 +766,12 @@ Given("the served repository has a remote", function (this: OlaiWorld) {
 Then(
   "the commit pill says {int} unpushed",
   async function (this: OlaiWorld, count: number) {
-    await this.expectAttribute(
+    await this.readStatus(() => this.expectAttribute(
       COMMIT_PILL,
       "data-unpushed",
       String(count),
       "the unpushed count on the pill",
-    );
+    ));
   },
 );
 

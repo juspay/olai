@@ -34,6 +34,8 @@ const visible = (world: OlaiWorld, selector: string) =>
   world.page.locator(selector).first().waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 
 When("I press the padi pill", async function(this: OlaiWorld) {
+  // A row of the health popover on a desktop: the dot first.
+  await this.openStatus()
   await this.press(this.page.locator(PADI_PILL).first())
   await visible(this, PADI_FEED)
 })

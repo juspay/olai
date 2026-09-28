@@ -25,6 +25,7 @@ import {
   type Writer,
 } from "@olai/format"
 import type { GitState } from "@olai/format"
+import type { BarStatus } from "olai-plugin-layout/slots"
 
 /**
  * Which of the eight things the pill is saying right now.
@@ -633,3 +634,58 @@ const BLOCKED: Readonly<Record<Reason, string>> = {
  */
 export const commitRefused = (git: GitState): string | null =>
   git.status === "error" ? git.said : null
+
+/** What the readout's row says for a face — its first words. The riders (the
+ *  unpushed count, a refused push, a paused loop) follow them. */
+export const saysOf = (face: Face, waiting: number): string => {
+  switch (face) {
+    // Not a claim about the directory — a claim about this page, which has
+    // not been told anything yet.
+    case "unknown":
+      return "…"
+    case "off":
+      return "commits off"
+    case "no-repo":
+      return "no git here"
+    // What the readout this pill absorbed used to say in its own chip. The
+    // WORDS are the consequence rather than the cause — git's own account of
+    // what happened is a paragraph, and it rides the tip and the aria-label.
+    case "error":
+      return "git error"
+    case "never":
+      return "no commits yet"
+    case "committed":
+      return "committed"
+    default:
+      return `${waiting} uncommitted`
+  }
+}
+
+/**
+ * THE READOUT AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
+ * `BarStatus`): the row's words, riders included, and how bad it is.
+ *
+ * A git fault, a refused push and a stopped loop are broken — each is a
+ * promise (recorded, shared, recorded without anybody watching) not being
+ * kept. Writes waiting and commits nobody else has want attention, which is
+ * exactly the set a phone's banner already interrupts for ({@link isNews}).
+ * No repository, commits off and a page not yet told are quiet: nothing is
+ * wrong, there is nothing running. Committed is healthy.
+ */
+export const gitStatusOf = (face: Face, pending: Pending, git: GitState): BarStatus => {
+  const unpushed = unpushedIn(pending)
+  const label = [
+    saysOf(face, waitingIn(pending)),
+    ...(unpushed > 0 ? [`${unpushed} unpushed`] : []),
+    ...(git.pushSaid !== null ? [PUSH_REFUSED] : []),
+    ...(git.paused !== null ? [AUTO_PAUSED] : []),
+  ].join(" · ")
+  const tone = face === "error" || git.pushSaid !== null || git.paused !== null
+    ? "alarm"
+    : isNews(face, pending, git)
+    ? "notice"
+    : isInert(face)
+    ? "quiet"
+    : "healthy"
+  return { tone, label, detail: explain(face, pending, git) }
+}

@@ -14,15 +14,15 @@ export function Plugins(props: {
   /** What each row's own plugin hung on it, read at draw time
    *  (`./browser.tsx`'s `tools` holds the table; `./Panel.tsx` asks it). */
   readonly rows: () => ReadonlyMap<string, PluginsRowFace>
-  /** `closet` is the phone drawer row. Default is the header chip. */
-  readonly where?: "header" | "closet"
+  /** `closet` is the phone drawer row, `health` a row of the desktop health
+   *  popover. Default is the header chip. */
+  readonly where?: "header" | "health" | "closet"
 }) {
   return (
     <BarDoor
       where={props.where}
       glyph="⧉"
-      header="plugins"
-      closet="plugins"
+      name="plugins"
       testid={TESTID.pluginsTrigger}
       title="plugins: which integrations this server is running, and why"
       // Keep this door open when its switch removes a plugin provider.

@@ -106,12 +106,15 @@ Then(
     // `.first()` for the reason odu's own readout step gives: the header is
     // drawn in two places (the bar and the phone drawer) and both are this one
     // face's reading of one cell.
-    const readout = this.page.locator(attr("data-testid", TESTID.mail)).first()
-    await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-    await this.waitUntil(
-      async () => (await readout.getAttribute("data-mail")) === status,
-      `the mail pill to read ${status}`,
-    )
+    // A row of the health popover on a desktop, read with it up.
+    await this.readStatus(async () => {
+      const readout = this.page.locator(attr("data-testid", TESTID.mail)).first()
+      await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      await this.waitUntil(
+        async () => (await readout.getAttribute("data-mail")) === status,
+        `the mail pill to read ${status}`,
+      )
+    })
   },
 )
 
@@ -125,22 +128,27 @@ Then("the mail pill is not drawn", async function (this: OlaiWorld) {
   //
   // `:visible` because the header is drawn twice (the bar and the phone
   // drawer), and a hidden copy in a shut drawer is not a pill anybody reads.
-  await this.waitUntil(
+  //
+  // Asked with the health popover UP, where the row would be: with it shut no
+  // readout row is drawn at all, and "absent" would be true of every plugin.
+  await this.readStatus(() => this.waitUntil(
     async () =>
       (await this.page.locator(`${attr("data-testid", TESTID.mail)}:visible`).count()) === 0,
     "the mail pill to be gone",
-  )
+  ))
 })
 
 Then(
   "the mail pill names the address {string}",
   async function (this: OlaiWorld, address: string) {
-    const readout = this.page.locator(attr("data-testid", TESTID.mail)).first()
-    await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-    await this.waitUntil(
-      async () => (await readout.getAttribute("data-address")) === address,
-      `the mail pill to name ${address}`,
-    )
+    await this.readStatus(async () => {
+      const readout = this.page.locator(attr("data-testid", TESTID.mail)).first()
+      await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      await this.waitUntil(
+        async () => (await readout.getAttribute("data-address")) === address,
+        `the mail pill to name ${address}`,
+      )
+    })
   },
 )
 

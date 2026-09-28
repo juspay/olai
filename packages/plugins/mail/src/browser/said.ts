@@ -13,7 +13,27 @@
  * appliance over.
  */
 
+import type { BarStatus } from "olai-plugin-layout/slots"
+
 import type { Account } from "../wire.ts"
+
+/**
+ * THE SAME READING AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
+ * `BarStatus`). A fault is broken; a live mailbox whose next token is being
+ * retried wants attention (the words already say so); no account is quiet —
+ * the ordinary state of a serve nobody pointed at a mailbox.
+ */
+export const mailStatus = (account: Account): BarStatus => {
+  const said = mailSaid(account)
+  const tone = account.status === "fault"
+    ? "alarm"
+    : account.status === "absent"
+    ? "quiet"
+    : account.retrying
+    ? "notice"
+    : "healthy"
+  return { tone, label: said.label, detail: said.detail }
+}
 
 export interface Said {
   readonly dot: string

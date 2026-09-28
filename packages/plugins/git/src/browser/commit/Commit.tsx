@@ -75,6 +75,7 @@ import {
   markOf,
   newsSays,
   PUSH_REFUSED,
+  saysOf,
   unpushedIn,
 } from "./said.ts"
 import { Panel } from "./Panel.tsx"
@@ -147,29 +148,7 @@ export function Commit() {
 
   /** What the pill says. One line per state, and the reason each is worth its
    *  own words rather than a count is in the header above. */
-  const says = () => {
-    switch (face()) {
-      // Not a claim about the directory — a claim about this page, which has
-      // not been told anything yet.
-      case "unknown":
-        return "…"
-      case "off":
-        return "commits off"
-      case "no-repo":
-        return "no git here"
-      // What the readout this pill absorbed used to say in its own chip. The
-      // WORDS are the consequence rather than the cause — git's own account of
-      // what happened is a paragraph, and it rides the tip and the aria-label.
-      case "error":
-        return "git error"
-      case "never":
-        return "no commits yet"
-      case "committed":
-        return "committed"
-      default:
-        return `${commit.waiting()} uncommitted`
-    }
-  }
+  const says = () => saysOf(face(), commit.waiting())
 
   /** What git said when it last refused a push, or `null`. It overrules the
    *  ✓ and colours the count, because a number that is not coming down is a
@@ -214,7 +193,7 @@ export function Commit() {
           // it painted the label the colour of the bar. The tip is a hover;
           // asking what the pill says made the pill unreadable.
           class={`${PILL} min-w-9 max-w-[9rem] sm:max-w-none ${
-            inert() ? "opacity-60" : "hover:text-paper"
+            inert() ? "opacity-60" : ""
           }`}
           data-testid={TESTID.commitPill}
           // The STATE as an attribute, so a scenario asserts on which face this
@@ -243,9 +222,15 @@ export function Commit() {
             if (!inert()) panel.toggle()
           }}
         >
-          <Show when={markOf(face(), commit.git())}>
+          {/* The mark sits in a dot-wide box, so the words line up with the
+              other rows of the health popover whether this face wears a
+              glyph, or — `no git here`, `4 uncommitted` — none. */}
+          <Show
+            when={markOf(face(), commit.git())}
+            fallback={<span class="w-2 shrink-0" aria-hidden="true" />}
+          >
             {(mark) => (
-              <span class={`shrink-0 ${mark().tone ?? ""}`} aria-hidden="true">
+              <span class={`inline-flex w-2 shrink-0 justify-center ${mark().tone ?? ""}`} aria-hidden="true">
                 {mark().glyph}
               </span>
             )}
@@ -288,7 +273,7 @@ export function Commit() {
               them to give up — what it says is "there is more", which the words
               beside it would rather spend the pixels saying. */}
           <Show when={!inert()}>
-            <span class="hidden shrink-0 sm:inline" aria-hidden="true">
+            <span class="ml-auto hidden shrink-0 text-muted sm:inline" aria-hidden="true">
               {panel.open() ? "▴" : "▾"}
             </span>
           </Show>

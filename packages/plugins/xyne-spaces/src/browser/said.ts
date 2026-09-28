@@ -5,7 +5,20 @@
  * looked. `fault` is the loud one, and names the refusal.
  */
 
+import type { BarStatus } from "olai-plugin-layout/slots"
+
 import type { SpacesLink } from "../wire.ts"
+
+/** THE SAME READING AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
+ *  `BarStatus`): a refused post is broken, no Spaces app is quiet. */
+export const spacesStatus = (link: SpacesLink): BarStatus => {
+  const said = spacesSaid(link)
+  return {
+    tone: link.status === "fault" ? "alarm" : link.status === "absent" ? "quiet" : "healthy",
+    label: said.label,
+    detail: said.detail,
+  }
+}
 
 export interface Said {
   /** The dot's COLOUR — a background utility. Geometry is the chrome's. */

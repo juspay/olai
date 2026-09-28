@@ -50,7 +50,13 @@ export const components = {
     yield* holdRowFaces(yield* Faces)
     yield* (yield* rendererSlots).contribute(tools, {
       body: (props) => <Plugins where={props.where} state={state} management={management} rows={rowFaces} />,
-      headerOrder: 10, closetOrder: 20,
+      // On a desktop the door is a row at the foot of the bar's health popover
+      // rather than a chip of its own: which integrations a serve runs is read
+      // occasionally, beside the readouts they draw, and a calm bar is the
+      // wordmark, search, one dot, preferences and who is looking.
+      // `open` is the door's own held state, read by the bar so a rebuilt shell
+      // puts the popover (and so this panel) back up.
+      headerOrder: 10, closetOrder: 20, desktop: "health", open: state.door.open,
     }, {
       // THE ROWS ARE SEATS OF THEIR OWN, declared by the entry that draws them:
       // a plugin hangs its row's face here, and a registration into a location

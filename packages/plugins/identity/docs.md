@@ -6,7 +6,7 @@ What identity *does* has its own page: [running.md](../running.md#who-is-looking
 
 ## What turns it on
 
-The `identity` row is on by default. Set `on: no` on its top-level node in `_olai/Settings.olai`, or use its switch on `⧉`. The switch writes the same property and restart reads it again.
+The `identity` row is on by default. Set `on: no` on its top-level node in `_olai/Settings.olai`, or use its switch on the plugins panel. The switch writes the same property and restart reads it again.
 
 ```jsonl
 {"id":"identity","ord":"a0","title":"identity","custom":{"on":"no"}}

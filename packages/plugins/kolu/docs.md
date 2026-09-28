@@ -10,7 +10,7 @@ One olai per directory, one padi per machine, one connection between them. The B
 
 Which padi it dials is `$PADI_SOCKET` where that is set, and otherwise the rendezvous path kolu derives from its state root — so the two of them find each other with nothing written down. Both are on this machine, which makes the machine the thing worth naming: olai already titles itself after its host (`olai [machine]` — [running.md](../running.md)), so the fleet on the page is that host's kolu, and two boxes are two tabs you can tell apart. There is no cross-machine fleet, and this page is not a step towards one.
 
-Beside the connection pill in the header is the readout for the link, and it has three states rather than two:
+A row of the header's health-dot popover is the readout for the link, and it has three states rather than two (a skew turns the dot red, a quiet watcher amber, no padi at all leaves it alone):
 
 - `● kolu` in the done green — a padi answered and the fleet is live;
 - `● no kolu`, dim — nothing is answering, and the tip names **where olai looked**, because *looked where?* is the first thing anybody asks;

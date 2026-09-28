@@ -29,7 +29,9 @@ import {
   DETAIL,
   explain,
   faceOf,
+  gitStatusOf,
   HOW,
+  saysOf,
   isInert,
   isNews,
   localOf,
@@ -558,4 +560,32 @@ test("filing names its own writer and counts writes, including the Chats root", 
   expect(wroteOf("filer", 1)).toBe("olai filed into the Inbox · 1 write")
   expect(wroteOf("filer", 3)).toBe("olai filed into the Inbox · 3 writes")
   expect(WHO.auto).toBe("auto-commit")
+})
+
+// ── the readout as the health dot reads it ─────────────────────────────
+
+test("no repository and commits off are quiet: they never colour the dot", () => {
+  const none = surveyed({ _tag: "NoRepo" })
+  expect(gitStatusOf("no-repo", none, git({ status: "none" }))).toMatchObject({ tone: "quiet", label: "no git here" })
+  expect(gitStatusOf("off", surveyed({ _tag: "Off" }), GIT_OFF)).toMatchObject({ tone: "quiet", label: "commits off" })
+})
+
+test("committed is healthy, writes waiting and unpushed commits are a notice", () => {
+  expect(gitStatusOf("committed", surveyed(READY), git()).tone).toBe("healthy")
+  expect(gitStatusOf("waiting", waiting(3), git())).toMatchObject({ tone: "notice", label: "3 uncommitted" })
+  expect(gitStatusOf("committed", behind(2), git())).toMatchObject({ tone: "notice", label: "committed · 2 unpushed" })
+})
+
+test("a git error, a refused push and a paused loop are alarms, in the row's own words", () => {
+  expect(gitStatusOf("error", surveyed(READY), gitSaid("fatal: nope")).tone).toBe("alarm")
+  expect(gitStatusOf("committed", behind(1), git({ pushSaid: "rejected" })))
+    .toMatchObject({ tone: "alarm", label: `committed · 1 unpushed · ${PUSH_REFUSED}` })
+  expect(gitStatusOf("waiting", waiting(1), stopped("conflict")))
+    .toMatchObject({ tone: "alarm", label: `1 uncommitted · ${AUTO_PAUSED}` })
+})
+
+test("the status's words are the row's words, and its sentence is the row's tip", () => {
+  const pending = waiting(2)
+  expect(saysOf("waiting", 2)).toBe("2 uncommitted")
+  expect(gitStatusOf("waiting", pending, git()).detail).toBe(explain("waiting", pending, git()))
 })

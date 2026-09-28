@@ -17,7 +17,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import {
   APP_HEADER,
-  CONNECTION,
+  HEALTH,
   HEADINGS,
   POLL_TIMEOUT,
   PREFS_TRIGGER,
@@ -62,7 +62,7 @@ Then(
   "the header chrome takes the pointer where the page runs under it",
   async function (this: OlaiWorld) {
     for (const [selector, name] of [
-      [CONNECTION, "connection"],
+      [HEALTH, "health"],
       [PREFS_TRIGGER, "prefs-trigger"],
     ] as const) {
       const found = await this.topmostTestidOver(this.page.locator(selector), name);
