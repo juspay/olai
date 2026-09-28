@@ -211,7 +211,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     # and one trash file is why the two piles are already one emptying.
     When I open the outline "Daily/2026-08.olai"
     And I open the node menu of "catch-up"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     Then the see panel is open on "catch-up"
     When I search the edge panel for "knobs"
     # The hit's place line names its ancestry — `kitchen remodel #home` — and

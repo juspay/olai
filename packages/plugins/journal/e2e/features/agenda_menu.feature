@@ -20,14 +20,14 @@ Feature: The ••• menu on the agenda and a day's page
     When I open the agenda
     And I open the node menu of "posts"
     Then the node menu offers "Zoom in"
-    And the node menu offers "Copy link to node"
+    And the node menu offers "More › Copy link"
     And the node menu offers "Pin to sidebar"
-    And the node menu offers "Mark doing"
-    And the node menu offers "Complete"
+    And the node menu offers "Mark › Doing"
+    And the node menu offers "Mark › Done"
     And the node menu offers "Change date…"
     And the node menu offers "Set repeat…"
-    And the node menu offers "Link to a node…"
-    And the node menu offers "Wait for a node…"
+    And the node menu offers "More › Link to…"
+    And the node menu offers "More › Wait for…"
     And the node menu offers "Duplicate"
     And the node menu offers "Move to Trash"
     And the node menu does not offer "Move to…"
@@ -49,7 +49,7 @@ Feature: The ••• menu on the agenda and a day's page
     Given I open the agenda
     And I mark the page
     When I open the node menu of "posts"
-    And I choose "Complete" from the node menu
+    And I choose "Mark › Done" from the node menu
     Then the agenda does not list "posts"
     And "work.olai" holds a node marked done titled "dig the post holes"
     And the page has not reloaded
@@ -90,7 +90,7 @@ Feature: The ••• menu on the agenda and a day's page
     Given I open the agenda
     And I mark the page
     When I open the node menu of "posts"
-    And I choose "Wait for a node…" from the node menu
+    And I choose "More › Wait for…" from the node menu
     Then the after panel is open on "posts"
     When I search the edge panel for "permit"
     And I choose "pull the permit" from the edge panel
@@ -105,7 +105,7 @@ Feature: The ••• menu on the agenda and a day's page
     # instruction the order forbids, and the agenda hears it verbatim.
     Given I open the agenda
     When I open the node menu of "visas"
-    And I choose "Mark doing" from the node menu
+    And I choose "Mark › Doing" from the node menu
     Then the node menu of "visas" says "`send the visa forms` comes after 1 unfinished task, so it cannot start yet: `get passport photos` (`photos`, doing). Finish that first — or start what is ready."
     And the node "visas" has status "todo"
 
@@ -114,7 +114,7 @@ Feature: The ••• menu on the agenda and a day's page
     Given I open the day "2019-11-05"
     And I mark the page
     When I open the node menu of "posts"
-    And I choose "Mark doing" from the node menu
+    And I choose "Mark › Doing" from the node menu
     Then the node "posts" has status "doing"
     And "work.olai" holds a node marked doing titled "dig the post holes"
     And the page has not reloaded
@@ -126,5 +126,5 @@ Feature: The ••• menu on the agenda and a day's page
     Then the node menu of "posts" is not on the row
     When I hold a finger on the node "posts"
     Then the node menu is open
-    And the node menu offers "Complete"
+    And the node menu offers "Mark › Done"
     And the node menu offers "Change date…"
