@@ -55,11 +55,16 @@ implementation. Tools may opt into the mobile header when there is no sidebar.
 Both preferences and the inspector now contribute through `layout.tools`;
 layout imports neither implementation. Entries supply their header/drawer order
 and decide whether to appear on mobile pages without a sidebar. An entry's
-`desktop` asks for the bar (the default — preferences, the gear alone) or the
-foot of the health popover (`health` — the inspector's plugins door). An entry
-whose open state outlives the shell may also supply `open`; the popover opens
-itself while a `health` entry says it is up, which is how the plugins panel
-comes back when the shell under it is rebuilt.
+`desktop` asks for a seat in the same words the entry's body is drawn with
+(`ToolWhere`): the bar (`header`, the default — preferences, the gear alone)
+or the foot of the health popover (`health` — the inspector's plugins door).
+A `health` door stands beside the dot, not inside the popover: only its row is
+portalled into the popover's foot while the popover is drawn
+(`contracts/BarDoor.tsx`'s `HealthSeat`). Picking that row shuts the popover
+and opens the door's panel, anchored to the dot, so the panel never needs the
+popover. A door whose open state outlives the shell (the plugins panel's,
+held in the inspector's activation) is drawn again by that standing door when
+the shell under it is rebuilt.
 
 ## The health dot
 

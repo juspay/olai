@@ -25,6 +25,7 @@
  */
 import { TESTID } from "olai-plugin-preferences/testids"
 import { BarDoor } from "olai-plugin-layout/bar-door"
+import type { ToolWhere } from "olai-plugin-layout/contract"
 import { Panel } from "./Panel.tsx"
 
 
@@ -34,7 +35,7 @@ export function Preferences(props: {
   readonly sections: () => ReadonlyArray<Contribution<Section>>
   /** `closet` is the phone drawer row, `health` a row of the desktop health
    *  popover. Default is the header chip. */
-  readonly where?: "header" | "health" | "closet"
+  readonly where?: ToolWhere
 }) {
   return (
     <BarDoor

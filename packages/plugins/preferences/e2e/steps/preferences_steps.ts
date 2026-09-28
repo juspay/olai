@@ -46,7 +46,6 @@ import {
   attr,
   CONNECTION,
   HEALTH,
-  HEALTH_PANEL,
   HYDRATION_TIMEOUT,
   PANE,
   CHAT_TOGGLE,
@@ -923,19 +922,11 @@ When("I close the plugins panel", async function (this: OlaiWorld) {
   // Wait for the reconnecting dialog to release pointer and keyboard input.
   await this.page.locator(selector(TESTID.offline)).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
   await this.waitUntil(async () => await this.pluginsPanel().locator(`${PLUGIN_SWITCH}[aria-disabled="true"]`).count() === 0, "the panel controls to finish reconciling");
-  const trigger = this.page.locator(`${PLUGINS_TRIGGER}:visible`);
-  // Desktop retains the ordinary trigger click, including Playwright's wait
-  // for any reconnecting overlay. On a phone the panel covers that trigger.
-  if (this.viewport().width > 700) await this.press(trigger);
-  else await this.pluginsPanel().press("Escape");
+  // Escape, on every width: on a desktop the row that opened it went with the
+  // health popover (picking it shuts the popover), and on a phone the panel
+  // covers the drawer's row.
+  await this.pluginsPanel().press("Escape");
   await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
-  // ...and the health popover it was opened from, the way a person would
-  // finish: its dot again. Nothing is left over the page for the next step.
-  const health = this.page.locator(HEALTH_PANEL);
-  if (await health.isVisible()) {
-    await this.press(this.page.locator(HEALTH));
-    await health.waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-  }
 });
 
 /**

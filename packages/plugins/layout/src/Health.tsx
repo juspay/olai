@@ -24,7 +24,13 @@
  * on brings both with a fresh scope.
  *
  * The plugins door is a `layout.tools` entry that asks for this popover's
- * foot (`desktop: "health"`), so this file names no tenant.
+ * foot (`desktop: "health"`), so this file names no tenant. Such a door is
+ * MOUNTED beside the dot rather than inside the popover, and puts only its row
+ * into the popover's foot (`./contracts/BarDoor.tsx`, through
+ * {@link HealthSeat}): its panel therefore needs nothing of the popover. Picking
+ * the row shuts the popover and opens the panel, anchored to the dot — and a
+ * panel whose open state outlives the shell comes back with the shell, because
+ * the door that draws it is always standing.
  *
  * ## The panel
  *
@@ -35,7 +41,7 @@
  * layer, so its Escape shuts it first and a second Escape shuts this.
  */
 import { TESTID } from "olai-plugin-layout/testids"
-import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
+import { createMemo, createSignal, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -50,7 +56,7 @@ import { hung } from "./faces.ts"
 import { nameOf, tipOf, worstOf } from "./health.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { BarStatus } from "./slots.ts"
-import { tools } from "./index.ts"
+import { HealthSeat } from "./contracts/BarDoor.tsx"
 import { Tools } from "./Tools.tsx"
 import { Uptime } from "./Uptime.tsx"
 
@@ -76,23 +82,9 @@ export function Health(props: { readonly slots: RendererSlots }) {
   ])
   const tone = () => worstOf(statuses())
   let dot: HTMLButtonElement | undefined
-  const [open, setOpen] = createSignal(false)
-  const popover = createPopover({ held: { open, setOpen } })
-  // A door at this popover's foot whose own state says it is up (the plugins
-  // panel, held by the inspector's activation) needs its trigger mounted to
-  // draw — so the popover opens for it. That is how a panel that was open
-  // when the shell was rebuilt comes back with the shell.
-  //
-  // MOUNTED, NOT SHOWN: while that panel is up the popover keeps its rows in
-  // the page (the door's trigger lives there) but is not drawn, so the panel
-  // is the one thing on screen rather than a panel over a popover. When the
-  // panel goes down the popover goes with it — the person has moved on.
-  const doorUp = createMemo(() =>
-    props.slots.read(tools).some((entry) => entry.value.desktop === "health" && entry.value.open?.() === true))
-  createEffect(on(doorUp, (up, was) => {
-    if (up) setOpen(true)
-    else if (was === true) setOpen(false)
-  }))
+  const popover = createPopover()
+  // The popover's foot, while it is drawn — where a `health` door puts its row.
+  const [foot, setFoot] = createSignal<HTMLElement>()
 
   return (
     <>
@@ -129,9 +121,8 @@ export function Health(props: { readonly slots: RendererSlots }) {
           <Portal>
             <section
               ref={popover.setPanel}
-              class={`${PANEL_BOX} gap-0.5 !p-2 ${doorUp() ? "invisible" : ""}`}
+              class={`${PANEL_BOX} gap-0.5 !p-2`}
               style={narrowed(at(), dot?.parentElement?.getBoundingClientRect().right)}
-              aria-hidden={doorUp() ? "true" : undefined}
               tabindex="-1"
               data-testid={TESTID.healthPanel}
               aria-label="status"
@@ -139,13 +130,18 @@ export function Health(props: { readonly slots: RendererSlots }) {
               <Indicator readout={connectionReadout()} />
               <PluginHeaders place="cluster" />
               <Uptime />
-              <div class="mt-1 border-t border-rule/60 pt-1">
-                <Tools slots={props.slots} where="health" />
-              </div>
+              <div ref={setFoot} class="mt-1 border-t border-rule/60 pt-1" />
             </section>
           </Portal>
         )}
       </Show>
+      <HealthSeat.Provider value={{
+        dot: () => dot,
+        foot: () => (popover.open() ? foot() : undefined),
+        shut: popover.close,
+      }}>
+        <Tools slots={props.slots} where="health" />
+      </HealthSeat.Provider>
     </>
   )
 }

@@ -12,7 +12,7 @@ export function Tools(props: {
     // The two desktop seats split the entries between them; the phone drawer
     // (and the phone bar without one) keeps every door it always had.
     .filter((entry) => props.where === "closet" || props.mobileWithoutSidebar === true ||
-      (entry.value.desktop ?? "bar") === (props.where === "health" ? "health" : "bar"))
+      (entry.value.desktop ?? "header") === props.where)
     .sort((a, b) => props.where === "closet"
       ? a.value.closetOrder - b.value.closetOrder : a.value.headerOrder - b.value.headerOrder)
   return <For each={entries()}>{({ value: tool }) => <tool.body where={props.where} />}</For>

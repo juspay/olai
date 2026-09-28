@@ -33,17 +33,23 @@ Feature: One health dot stands where the bar's pills stood
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
-  Scenario: A plugin switched off leaves the popover live, and comes back with a fresh row
+  Scenario: A plugin switched off takes its row, and comes back with a fresh one
+    # Picking the plugins row shuts the popover: the panel stands on its own,
+    # and stays up through the rebuild each switch causes.
     Given I open the outline "lanes.olai"
     When I open the plugins panel
-    Then the health popover is open
+    Then the health popover is shut
     When I switch the plugin "kolu" off
-    Then the health popover is open
-    And the health popover has no "padi" row
+    And I close the plugins panel
+    And I open the health popover
+    Then the health popover has no "padi" row
     And the health dot is "healthy"
-    When I switch the plugin "kolu" on
-    Then the health popover is open
-    And the health popover lists, in order:
+    When I press Escape on the health dot
+    And I open the plugins panel
+    And I switch the plugin "kolu" on
+    And I close the plugins panel
+    And I open the health popover
+    Then the health popover lists, in order:
       | connection |
       | padi       |
     And the padi indicator says "connected"

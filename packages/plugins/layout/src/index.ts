@@ -24,21 +24,16 @@ export type ToolWhere = "header" | "health" | "closet"
 
 /** Application tools can be drawn in the header or mobile directory footer.
  * Placement is shell policy; each entry owns its own controls and child seats.
- * `desktop` says which desktop seat the entry asks for: the bar itself (the
- * default) or the foot of the health popover, for a door that is read
- * occasionally rather than reached for by habit. */
+ * `desktop` says which desktop seat the entry asks for, in the seats' own
+ * words: the bar itself (`header`, the default) or the foot of the health
+ * popover (`health`), for a door that is read occasionally rather than reached
+ * for by habit. */
 export interface LayoutTool {
   readonly body: (props: { readonly where: ToolWhere }) => JSX.Element
   readonly headerOrder: number
   readonly closetOrder: number
   readonly mobileWithoutSidebar?: boolean
-  readonly desktop?: "bar" | "health"
-  /** Whether this entry's door is up, for an entry whose open state outlives
-   *  the shell (the plugins panel's lives in the inspector's activation). A
-   *  `health` entry's door is drawn only while the health popover is open, so
-   *  the popover opens itself when this turns true — which is what brings the
-   *  panel back when the shell under it is rebuilt. */
-  readonly open?: () => boolean
+  readonly desktop?: Exclude<ToolWhere, "closet">
 }
 export const tools = location<LayoutTool>("layout.tools")
 
