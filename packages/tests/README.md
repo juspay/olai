@@ -459,7 +459,7 @@ Two of its scenarios are about what does NOT happen. One records every request t
 
 Its last scenario opens a SECOND page in the same context, which is what makes it a second tab of the same browser rather than a second browser: one origin, one `localStorage`, and a `storage` event fired in every document of it except the one that wrote. The second tab is left open on purpose — a preference that only crossed once the other tab was gone would pass a scenario that closed it.
 
-The chips themselves are a ROW of the preferences panel (`packages/plugins/preferences/e2e/features/preferences.feature`), so every scenario here opens that panel to reach one — `showPreferences` in `preferences_steps.ts` is shared for exactly that. What the retired header pill promised, and what the theming feature still asserts under a new name, is that something NAMES the theme in force: it is the Theme row's hint now. Mutation-tested both times — hard-coding the name to "chalk" passed every theming scenario until a step asked.
+The chips themselves are a ROW of the preferences panel (`packages/plugins/preferences/e2e/features/preferences.feature`), so every scenario here opens that panel to reach one — `showPreferences` in `preferences_steps.ts` is shared for exactly that. What the retired header pill promised, and what the theming feature still asserts under a new name, is that something NAMES the theme in force: it is the name beside the Theme row's label now (`prefs-value`). Mutation-tested both times — hard-coding the name to "chalk" passed every theming scenario until a step asked.
 
 `packages/plugins/preferences/e2e/features/preferences.feature` carries the same second-tab scenario for the OTHER preference, and it is worth its own sentence because a reload cannot ask the question: deleting `followDonePrefs()` outright passes every other Done scenario in the file, and fails this one. Done is the setting with TWO homes — the panel row stores the reader's default (`olai.done.hidden`), and each outline's flip beside its own filter stores its out-vote (`olai.done.overrides`) — and the scenarios fence both: the default's stored row, the map holding BOTH words (a page can out-vote a shown default), each page keeping its own pick (two and a split, both fences — the same node answered differently by which pane's file its row stands in), the release (the mark's door, not a second press of the strip), the reload fence of the boot read, and the zoom fence of the inheritance — a zoomed view is the same page, minting nothing of its own. It also holds the two ends of the panel's TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first control — which is the promise a portalled panel cannot get from document order.
 
@@ -526,7 +526,8 @@ The names are not written down twice. A row's `e2e/selectors.ts` imports that ro
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |
 | `[data-testid="empty-under"]` | said on a zoomed page with no rows: a leaf, or a subtree Prefs has hidden |
-| `[data-testid="nothing"]` | said when the address names no file the directory holds — a missing `.md`, a missing outline. Absent while the pane is still on `Reading…` |
+| `[data-testid="nothing"]` | the first line of an empty page (`@olai/web`'s `Empty.tsx`): `Page not found` when the address names no file the directory holds (the line under it names what was asked for), `No outlines yet` in an empty directory. Absent while the pane is still on `Loading…`. Steps read the whole block with `the empty page says … over …` (`step_definitions/app_steps.ts`) |
+| `[data-testid="page-go-home"]` / `[data-testid="nothing-go-home"]` | `Go home` on a `Page not found` page — navigation's, for an address no row claims, and the outlines row's, for a missing outline |
 | `[data-testid="not-found"][data-reason]` | shown when `/#<id>` names no node |
 | `[data-testid="error-view"]` | shown INSTEAD of sidebar + tree when the store never published a set. No corpus provokes it since the per-file ruling — a broken file degrades in place, and a directory that cannot be listed fails the store's boot |
 | `[data-testid="error-file-group"][data-file]` | one group per file with errors |
@@ -538,23 +539,25 @@ The names are not written down twice. A row's `e2e/selectors.ts` imports that ro
 | `[data-testid="broken-file-more"]` | …and the tail, when more files are broken than the summary draws |
 | `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file is broken — its lines would not parse, or it reads and says something the set cannot hold |
 | `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
-| `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
-| `[data-testid="offline"][data-connection]` | THE FREEZE: over everything, with everything under it inert — the wire cannot carry a question, so the app takes no gesture at all. `data-connection` is the state that froze it |
-| `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
+| `[data-testid="health"][data-health][data-connection]` | the desktop bar's one health dot: `data-health` is `healthy` / `notice` / `alarm`, `data-connection` the wire's state (`connecting`, `live`, `reconnecting`, `retired`, `degraded`), and its `aria-label` is `Status: all good` or `Status: <news> · <news>`. Its popover (`health-panel`) holds the connection, the Commit row, every plugin readout, the uptime line and the `Plugins` row; steps go through `world.openStatus` / `readStatus`. A phone has no dot |
+| `[data-testid="offline"][data-connection]` | THE FREEZE: over everything, with everything under it inert — the wire cannot carry a question, so the app takes no gesture at all. `data-connection` is the state that froze it; the card says `Connection lost` over `Reconnecting…`, `Connecting…`, or `The server restarted` over its `Reload` |
+| `[data-testid="reload"]` | `Reload`, in that surface and on the fault card — the whole of the recovery |
 | `[data-testid="commit-pill"][data-state][data-uncommitted][data-repo][data-auto][data-push-refused]` | the Commit pill, ALWAYS drawn, and the header's ONE indicator for git; `data-state` is the face — `off`, `no-repo`, `error`, `never`, `committed`, `waiting`, `blocked`, or `unknown` before the first frame. Two facts ride BESIDE the face because they are different questions about the same directory: `data-auto` is what the server's quiet window is doing (`off`, `armed`, `paused`) and `data-push-refused` is present when the last push was refused, which is what takes the ✓ off a healthy face. What git SAID is its `aria-label` and its tip, never a colour; the inert faces carry `aria-disabled` and stay focusable |
-| `[data-testid="uptime"]` | how long the olai SERVER has been up — process start, not this tab's. Desktop furniture, beside the Commit pill. The wrapper is always in the chrome row (the inventory counts testids); `data-started` is the ISO instant once `app.get` has answered, absent before, and no scenario currently reads it |
+| `[data-testid="uptime"]` | how long the olai SERVER has been up (`Running for 2h`, tip `Running since <instant>`) — process start, not this tab's. A line of the health popover on a desktop; `data-started` is the ISO instant once `app.get` has answered |
 | `[data-testid="commit-last"]` | what olai last recorded here, or the words saying it never has |
 | `[data-testid="commit-panel"]` | the panel it opens |
 | `[data-testid="commit-change"][data-node-id][data-sort]` | one node that changed, and WHAT changed about it — never the phrase it is rendered as |
 | `[data-testid="commit-blocked"]` | why the repository cannot take a commit right now |
 | `[data-testid="commit-message"]` / `[data-testid="commit-now"]` | the message box, and the button |
-| `[data-testid="prefs-trigger"]` | the header's one way into the preferences — the theme pill beside it retired into the panel |
+| `[data-testid="prefs-trigger"]` | the header's gear, named `Preferences` (on a phone, a row at the foot of the sidebar drawer) |
 | `[data-testid="prefs-panel"]` | the panel it opens, portalled out of the header |
-| `[data-testid="prefs-row"][data-pref]` | one preference on it — `theme`, `done` |
-| `[data-testid="prefs-hint"]` | that row's line about the choice IN FORCE, re-read whenever the control moves |
-| `[data-testid="prefs-choice"][data-value]` | one segment of a two-way choice; `aria-pressed` says which is in force |
+| `[data-testid="prefs-row"][data-pref]` | one preference on it, grouped under Appearance (`theme`, `font`, `size`), Outlines (`density` — Row density, `done` — Show finished) and Notifications (`alerts`, `alert-sound`, and the journal's reminders) |
+| `[data-testid="prefs-hint"]` | that row's one short quiet line, where the label alone does not say what the control does; most rows have none |
+| `[data-testid="prefs-choice"][data-value]` | one segment of a named choice (Compact / Cozy / Open); `aria-pressed` says which is in force (`support/preferences.ts`'s `pickChoice`) |
+| `[data-testid="prefs-switch"]` | a yes-or-no row's switch — `role="switch"`, its state `aria-checked` (`support/preferences.ts`'s `setSwitch`) |
+| `[data-testid="prefs-value"]` | the choice in force named beside a row's label where the control does not spell it out (the theme swatches) |
 | `[data-testid="prefs-scope"]` | the footer line: these are this browser's, and are never sent |
-| `[data-testid="theme-chip"][data-value]` | one chip of the Theme row; `aria-pressed` says whether it is the one in force |
+| `[data-testid="theme-chip"][data-value]` | one swatch of the Theme row, with the palette's name as its accessible name; `aria-pressed` says whether it is the one in force |
 
 ## Adding a test
 
