@@ -272,7 +272,7 @@ Feature: Dragging rows, and picking several
     # `Move to Trash` on a mirror at all.
     When I pick the title of "kitchen-herbs"
     Then the pick does not offer the Trash
-    And the pick notes "a placement is in the pick"
+    And the pick notes "A mirrored row is selected"
 
   # ── the fifth picking gesture: drag across ───────────────────────────
   #

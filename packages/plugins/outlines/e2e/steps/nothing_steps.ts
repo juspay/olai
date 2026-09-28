@@ -12,7 +12,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { selector } from "@olai/web/testlib";
 
-import { NOTHING, oneLine, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { EMPTY_UNDER, NOTHING, oneLine, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 import { TESTID } from "../../src/testids.ts";
@@ -46,6 +46,18 @@ When("I press Go home on the empty page", async function (this: OlaiWorld) {
   const button = this.page.locator(GO_HOME);
   assert.strictEqual(oneLine(await button.innerText()), "Go home");
   await this.press(button);
+});
+
+/** A ZOOMED node with nothing drawn under it (`../../src/browser/NodePage.tsx`):
+ *  a leaf says so, and a subtree the done-pick swept says THAT, which is the
+ *  one on-screen sentence about the pick on that page. */
+Then("the empty zoomed page says {string}", async function (this: OlaiWorld, line: string) {
+  const said = this.page.locator(EMPTY_UNDER);
+  await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(
+    async () => oneLine(await said.innerText()) === line,
+    `the zoomed page to say ${JSON.stringify(line)}`,
+  );
 });
 
 Then("the empty page offers no New outline", async function (this: OlaiWorld) {

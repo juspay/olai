@@ -114,15 +114,15 @@ Feature: Zoom and navigate
   Scenario: A zoomed page whose children are all done names the flip
     # THE ONLY ON-SCREEN SENTENCE ABOUT THE SETTING: `compost` has two done
     # children and nothing unmarked, so the pick this page answers to empties
-    # it — and the copy names the door: the flip beside the page's own
-    # filter. It IS there from the first frame now, and the walk out and
+    # it — and the copy says so: everything here is finished, and finished
+    # items are hidden (the Finished box beside the filter brings them back). It IS there from the first frame now, and the walk out and
     # back proves the pick both ways.
     Given I open the node "compost"
-    Then the page names that finished work is hidden
+    Then the empty zoomed page says "Everything here is finished, and finished items are hidden."
     When I show the done nodes
     Then the node "turned" is shown
     When I hide the done nodes
-    Then the page names that finished work is hidden
+    Then the empty zoomed page says "Everything here is finished, and finished items are hidden."
 
   Scenario: A page you go to starts at the top, and the one you come back to does not
     # Two halves of one decision, and neither happens by itself: a route change
