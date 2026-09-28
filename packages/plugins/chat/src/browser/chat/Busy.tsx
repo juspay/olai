@@ -68,7 +68,7 @@ export function Busy(props: { readonly chat: Chat }) {
     <Show when={doing()}>
       {(what) => (
         <div
-          class="flex shrink-0 items-center gap-2 border-t border-rule/70 px-3 py-1.5 text-xs text-doing"
+          class="flex shrink-0 items-center gap-2 border-t border-rule/60 px-3 py-1.5 text-label text-doing"
           data-testid={TESTID.chatBusy}
           aria-live="polite"
         >

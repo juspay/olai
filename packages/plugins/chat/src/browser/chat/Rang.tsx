@@ -236,7 +236,7 @@ export function Rang(props: {
   })
   return (
     <div
-      class={`w-full rounded py-1.5 pl-3 pr-2 text-sm text-ink ${
+      class={`w-full rounded-control py-1.5 pl-3 pr-2 text-body text-ink ${
         rangBubbleOf(props.fated)
       }`}
       data-testid={TESTID.chatRang}
@@ -282,7 +282,7 @@ export function Rang(props: {
           doing that work. */}
       <Show when={said().folds} fallback={<RangBody said={said().body} />}>
         <div
-          class="mb-0.5 flex w-full items-start gap-1.5 font-mono text-[0.6875rem] tracking-wider text-muted"
+          class="mb-0.5 flex w-full items-start gap-1.5 text-caption tracking-wider text-muted"
           title={said().open ? undefined : said().body}
         >
           <button
@@ -292,7 +292,7 @@ export function Rang(props: {
             // panel says pressable the same way everywhere — `Reference.tsx`'s
             // node chip and `styles.css`'s `code[data-node-ref]` both carry it —
             // and this is the transcript's third pressable thing joining them.
-            class="shrink-0 cursor-pointer rounded-sm leading-4 hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            class="shrink-0 cursor-pointer rounded-control leading-4 hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
             data-testid={TESTID.chatRangFold}
             aria-expanded={said().open}
             aria-label={said().open ? "hide the account" : "show the account"}

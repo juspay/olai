@@ -29,7 +29,7 @@ export function NeedsYou() {
           <span class={`${DOT} ${LOOK[row().standing].dot}`} aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate">{row().title}</span>
           <Show when={row().standing === "gone"} fallback={<span class={CHIP_QUIET} data-testid={TESTID.agentWaiting}>{row().waiting}</span>}>
-            <span class="shrink-0 font-mono text-xs text-paper/55">not running</span>
+            <span class="shrink-0 text-label text-paper/60">not running</span>
           </Show>
         </button>
       </li>}</Key></ul>
@@ -57,7 +57,7 @@ export function Chats() {
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span><span class="min-w-0 flex-1 truncate">{row().title}</span>
         <span class="inline-flex shrink-0 items-center gap-2">
           <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
-          <Show when={row().said?.at ?? row().changed}>{at => <span class="font-mono text-xs text-paper/55">{agoOf(at(), now())}</span>}</Show>
+          <Show when={row().said?.at ?? row().changed}>{at => <span class="tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
         </span>
       </button>
     </li>}</Key></ul>

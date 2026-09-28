@@ -85,7 +85,7 @@ export function Roster(props: { readonly chat: Chat }) {
   return (
     <Show when={servers().length > 0}>
       <section
-        class="shrink-0 border-b border-rule/70 bg-panel px-3 py-1.5 font-mono text-[0.6875rem] leading-snug"
+        class="shrink-0 border-b border-rule/60 bg-panel px-3 py-1.5 text-caption leading-snug"
         data-testid={TESTID.chatRoster}
         aria-label="tool servers"
       >
@@ -99,7 +99,7 @@ export function Roster(props: { readonly chat: Chat }) {
               that ended at the last chip would be claiming a completeness this
               end has no way to have. */}
           <span
-            class="text-muted/70"
+            class="text-muted/80"
             data-testid={TESTID.chatRosterOwn}
             title="olai lists the servers it handed this conversation; whatever the agent is configured with of its own is not olai's to see"
           >

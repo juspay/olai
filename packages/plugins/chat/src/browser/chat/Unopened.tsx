@@ -15,7 +15,7 @@ export function Unopened(
 ) {
   return (
     <div
-      class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6 text-sm text-muted"
+      class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6 text-body text-muted"
       data-testid={TESTID.chatUnopened}
     >
       <p class="m-0 mb-3 text-ink">
@@ -31,7 +31,7 @@ export function Unopened(
           what this face exists for, and `break-words` because it can carry a
           session id or a method name into a 26rem drawer. */}
       <p
-        class="m-0 mb-3 break-words font-mono text-xs text-alarm"
+        class="m-0 mb-3 break-words text-label text-alarm"
         data-testid={TESTID.chatUnopenedWhy}
       >
         {props.unopened.why}

@@ -38,7 +38,7 @@ export const LOOK: Record<Standing, Look> = {
     detail: "its agent is not there; this is the one that needs a person",
   },
   asleep: {
-    dot: "bg-muted/50",
+    dot: "bg-muted/40",
     label: "asleep",
     detail: "its session is on disk with nothing running it — pressing it opens the conversation",
   },

@@ -244,4 +244,4 @@ const SOMEBODY = "a subagent"
  * by coincidence, and the first tweak to either would have shown a reader one
  * line drawn as two.
  */
-export const RAIL = "border-l-2 border-muted/70 pl-2"
+export const RAIL = "border-l-2 border-muted/60 pl-2"

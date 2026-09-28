@@ -35,7 +35,7 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   return <Show when={unfolded(props.record ?? props.node)}>{_open => {
     const { chat: conversation } = createNodeConversation(() => props.node)
     return <Show when={conversation()} keyed>{chat =>
-    <ConversationUIProvider value={chat.ui}><section class="my-2 rounded border border-rule bg-panel" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
+    <ConversationUIProvider value={chat.ui}><section class="my-2 rounded-control border border-rule bg-panel" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
       <AgentLine chat={chat} node={props.node} />
       <Conversation chat={chat} node={props.node} />
     </section></ConversationUIProvider>

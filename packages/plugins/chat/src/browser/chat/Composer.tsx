@@ -152,7 +152,7 @@ import type { Chat } from "./state.ts"
  *  once because "these line up" is the property, and a class list copied per
  *  button lines up only until somebody edits one of the copies. */
 const CONTROL =
-  "flex h-8 shrink-0 items-center justify-center rounded border text-xs"
+  "flex h-8 shrink-0 items-center justify-center rounded-control border text-label"
 
 export function Composer(props: {
   readonly chat: Chat
@@ -668,7 +668,7 @@ export function Composer(props: {
         {(said) => (
           <SaidLine
             said={{ tone: "alarm", text: `the directory could not be searched — ${said()}` }}
-            class="m-0 mb-1 font-mono text-xs"
+            class="m-0 mb-1 text-label"
             testid={TESTID.chatNamingFailure}
           />
         )}
@@ -701,7 +701,7 @@ export function Composer(props: {
           their head until a box comes back is work the panel invented. */}
       <textarea
         ref={input}
-        class="w-full resize-none rounded-xl border border-rule/80 bg-paper px-3 py-2 text-sm outline-none focus:border-accent"
+        class="w-full resize-none rounded-control border border-rule/80 bg-paper px-3 py-2 text-body outline-none focus:border-accent"
         data-testid={TESTID.chatInput}
         // THE NODE HALF'S ANSWER, on the box rather than only on the list:
         // a query that named nothing draws no list (`open` is `rows().length
@@ -769,7 +769,7 @@ export function Composer(props: {
           {/* What is in flight. A picture big enough to notice is a picture
               whose upload is worth saying is happening. */}
           <Show when={props.holding.sending() > 0}>
-            <span class="font-mono text-[0.6875rem] text-muted" data-testid={TESTID.chatUploadProgress}>
+            <span class="tabular-nums text-caption text-muted" data-testid={TESTID.chatUploadProgress}>
               attaching{props.holding.sending() > 1 ? ` ${props.holding.sending()}` : ""}… {props.holding.progress()}%
             </span>
           </Show>
@@ -782,7 +782,7 @@ export function Composer(props: {
               type — says it, under the box. */}
           <Show when={props.chat.state().asking > 0}>
             <span
-              class="font-mono text-[0.6875rem] text-doing"
+              class="text-caption text-doing"
               data-testid={TESTID.chatWaiting}
               aria-live="polite"
             >
@@ -807,7 +807,7 @@ export function Composer(props: {
               wait. */}
           <Show when={promised()}>
             <span
-              class="font-mono text-[0.6875rem] text-muted"
+              class="text-caption text-muted"
               data-testid={TESTID.chatQueues}
             >
               sends wait their turn
@@ -926,7 +926,7 @@ export function Composer(props: {
         <Show when={props.chat.state().commands.length > 0}>
           <button
             type="button"
-            class={`${CONTROL} w-8 border-rule font-mono text-muted hover:text-ink`}
+            class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
             data-testid={TESTID.chatCommands}
             aria-label="show the agent's slash commands"
             onClick={askForAll}

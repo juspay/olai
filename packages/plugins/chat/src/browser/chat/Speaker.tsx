@@ -131,7 +131,7 @@ export function Speaker(props: Faced) {
   }
   return (
     <div
-      class="mb-1 flex min-w-0 items-center gap-1.5 font-mono text-[0.6875rem] text-muted"
+      class="mb-1 flex min-w-0 items-center gap-1.5 text-caption text-muted"
       classList={{
         // The face sits on the side its words do. `flex-row-reverse` rather
         // than a second class list: what changes is which end of the line the

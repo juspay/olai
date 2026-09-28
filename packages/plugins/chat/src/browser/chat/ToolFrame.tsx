@@ -133,7 +133,7 @@ const LOOK: Record<ToolStatus, { mark: string; tone: string; said: string }> = {
 function Saying(props: { readonly said: string; readonly tall: boolean }) {
   return (
     <pre
-      class="m-0 overflow-auto whitespace-pre-wrap border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-ink"
+      class="m-0 overflow-auto whitespace-pre-wrap border-t border-rule px-2 py-1 font-mono text-caption text-ink"
       classList={{ "max-h-64": props.tall, "max-h-32": !props.tall }}
       data-testid={TESTID.chatToolProgress}
     >{props.said}</pre>
@@ -197,7 +197,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
 
   return (
     <div
-      class="min-w-0 rounded-lg border border-rule/70 bg-panel"
+      class="min-w-0 rounded-control border border-rule/60 bg-panel"
       data-testid={TESTID.chatTool}
       data-tool-status={status()}
       data-tool-id={props.entry.id}
@@ -210,7 +210,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
           unique, and a scenario that reached for it that way found two. */}
       <button
         type="button"
-        class="flex w-full items-center gap-2 px-2 py-1 text-left font-mono text-xs text-muted hover:text-ink"
+        class="flex w-full items-center gap-2 px-2 py-1 text-left font-mono text-label text-muted hover:text-ink"
         data-testid={TESTID.chatToolFold}
         aria-expanded={open()}
         disabled={!body()}
@@ -238,7 +238,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         <Show when={whoOf(props.entry)}>
           {(who) => (
             <span
-              class="flex min-w-0 shrink-0 items-center gap-1 text-muted/70"
+              class="flex min-w-0 shrink-0 items-center gap-1 text-muted/80"
               data-testid={TESTID.chatSpawn}
               data-spawn-kind={who()}
             >
@@ -278,7 +278,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
               <Show when={watchOf(props.entry)}>
                 {(watching) => (
                   <span
-                    class="flex min-w-0 shrink items-center gap-1 text-muted/70"
+                    class="flex min-w-0 shrink items-center gap-1 text-muted/80"
                     data-testid={TESTID.chatArmed}
                     data-task={armed().task}
                   >
@@ -316,7 +316,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         <Show when={props.entry.locations}>
           {(locations) => (
             <span
-              class="min-w-0 max-w-[45%] shrink truncate text-muted/70"
+              class="min-w-0 max-w-[45%] shrink truncate text-muted/80"
               data-testid={TESTID.chatToolLocations}
               title={locations().join("\n")}
             >
@@ -324,7 +324,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             </span>
           )}
         </Show>
-        <Show when={replyFace().file}>{file => <span class="min-w-0 max-w-[45%] shrink truncate text-muted/70" data-testid={TESTID.chatToolFile}>{file()}</span>}</Show>
+        <Show when={replyFace().file}>{file => <span class="min-w-0 max-w-[45%] shrink truncate text-muted/80" data-testid={TESTID.chatToolFile}>{file()}</span>}</Show>
         {/* HOW LONG IT HAS BEEN GOING, for a call the wire still calls running
             in a conversation that is still live ({@link ./elapsed.ts}). The
             mark at the head of this line has said `·` for a quarter of a second
@@ -436,24 +436,24 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             claims={servedDirectory()?.claims()}
               source={report()}
               from=""
-              class="olai-md-compact border-t border-rule px-2 py-1 text-sm"
+              class="olai-md-compact border-t border-rule px-2 py-1 text-body"
               testid={TESTID.chatToolReport}
             />
           )}
         </Show>
         <Show when={props.entry.row && props.entry.called}>
-          {called => <p class="m-0 border-t border-rule px-2 py-1 font-mono text-xs text-muted" data-testid={TESTID.chatToolCalled}>{called()}</p>}
+          {called => <p class="m-0 border-t border-rule px-2 py-1 font-mono text-label text-muted" data-testid={TESTID.chatToolCalled}>{called()}</p>}
         </Show>
         <Show when={props.entry.detail}>
           {(detail) => (
             <pre
-              class="m-0 max-h-64 overflow-auto border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-muted"
+              class="m-0 max-h-64 overflow-auto border-t border-rule px-2 py-1 font-mono text-caption text-muted"
               data-testid={TESTID.chatToolDetail}
             >{detail()}</pre>
           )}
         </Show>
         <Show when={props.entry.row !== undefined && props.entry.reply !== undefined}>
-          <pre class="m-0 max-h-64 overflow-auto border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-muted" data-testid={TESTID.chatToolReply}>{JSON.stringify(props.entry.reply, null, 2)}</pre>
+          <pre class="m-0 max-h-64 overflow-auto border-t border-rule px-2 py-1 font-mono text-caption text-muted" data-testid={TESTID.chatToolReply}>{JSON.stringify(props.entry.reply, null, 2)}</pre>
         </Show>
       </Show>
     </div>

@@ -472,7 +472,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
 
         <Show when={props.chat.state().trouble}>
           {(trouble) => (
-            <p class="mt-2 text-xs text-alarm" data-testid={TESTID.chatTrouble}>
+            <p class="mt-2 text-label text-alarm" data-testid={TESTID.chatTrouble}>
               {trouble()}
             </p>
           )}
@@ -495,7 +495,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
           {(why) => (
             <SaidLine
               said={{ tone: "alarm", text: `some ids could not be looked up — ${why()}` }}
-              class="m-0 mt-2 font-mono text-xs"
+              class="m-0 mt-2 text-label"
               testid={TESTID.chatRefsFailure}
             />
           )}

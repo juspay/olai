@@ -17,7 +17,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
   const agents = useAgents()
   const state = props.chat.state
   const doing = () => busyIn(state())
-  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule px-3 py-2 text-xs text-muted">
+  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule px-3 py-2 text-label text-muted">
     <Show when={agentIn(state())}>{agent => <span class="inline-flex items-center gap-1" data-testid={TESTID.chatAgent} data-agent={agent().id}>
       <AgentMark id={agent().id} />{agent().name}
     </span>}</Show>

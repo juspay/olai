@@ -112,12 +112,12 @@ const FACE: Record<Delivery, {
   readonly tone: string
 }> = {
   refused: {
-    bubble: "border border-dashed border-alarm bg-alarm/5",
+    bubble: "border border-dashed border-alarm bg-alarm/10",
     said: "not sent",
     tone: "text-alarm",
   },
   unanswered: {
-    bubble: "border border-dashed border-doing bg-doing/5",
+    bubble: "border border-dashed border-doing bg-doing/10",
     said: "no answer — it may not have arrived",
     tone: "text-doing",
   },
@@ -126,7 +126,7 @@ const FACE: Record<Delivery, {
 /** ... and what a message that simply WENT looks like, which is not a fate and
  *  is deliberately not a third row above: the table answers "what became of
  *  it", and nothing became of an ordinary message. */
-const SENT = "border border-accent/30 bg-accent/10"
+const SENT = "border border-accent/20 bg-accent/10"
 
 /** The edge a FATE puts on a bubble, or nothing where the message simply went.
  *  Asked separately from {@link bubbleOf} because the two faces a `user` row can
@@ -299,7 +299,7 @@ export function Entry(props: {
                 keyed
                 fallback={
                   <p
-                    class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
+                    class={`whitespace-pre-wrap rounded-control px-2 py-1.5 text-body text-ink ${
                       bubbleOf(user().delivery)
                     }`}
                     data-testid={TESTID.chatMine}
@@ -348,7 +348,7 @@ export function Entry(props: {
                 class="mt-1 flex items-center gap-2"
                 data-testid={TESTID.chatQueued}
               >
-                <span class="font-mono text-[0.6875rem] text-doing">queued</span>
+                <span class="text-caption text-doing">queued</span>
               </div>
             </Show>
             <Show when={user().delivery} keyed>
@@ -358,14 +358,14 @@ export function Entry(props: {
                   data-testid={TESTID.chatDelivery}
                   data-delivery={fate}
                 >
-                  <span class={`font-mono text-[0.6875rem] ${FACE[fate].tone}`}>
+                  <span class={` text-caption ${FACE[fate].tone}`}>
                     {FACE[fate].said}
                   </span>
                   {/* The quiet pill's shape in the transcript's own scale, and
                       that divergence says why in place, as `../pill.ts` asks of
                       every lookalike: this button sits in a line of 11px mono
                       with `not sent` beside it, and wearing `QUIET_PILL`'s
-                      `text-xs`/`px-2 py-1` would make one control in that line
+                      `text-label`/`px-2 py-1` would make one control in that line
                       a size larger than the words it belongs to. */}
                   {/* ... AND NEVER ON A ROW A MACHINE SAID. The fate line
                       above still draws — what became of the words is as true
@@ -379,7 +379,7 @@ export function Entry(props: {
                   <Show when={fate === "refused" && rang() === undefined}>
                     <button
                       type="button"
-                      class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"
+                      class="rounded-control border border-rule px-1.5 py-0.5 text-caption text-muted hover:text-ink"
                       data-testid={TESTID.chatResend}
                       onClick={() => props.chat.resend(user().id)}
                     >
@@ -411,7 +411,7 @@ export function Entry(props: {
               // and the heading ceiling, the same ones a note takes
               // (`theme/scale.ts`). Without it an agent opening with a `#`
               // sets a 2rem heading in a column half that wide.
-              class="olai-md-compact text-sm"
+              class="olai-md-compact text-body"
               testid={TESTID.chatSaid}
             />
             {/* The caret is CSS (styles.css), hung off the last block of the
@@ -439,7 +439,7 @@ export function Entry(props: {
 
         <Match when={ofKind("notice")}>
           {(notice) => (
-            <p class="font-mono text-[0.6875rem] text-muted">{notice().text}</p>
+            <p class="text-caption text-muted">{notice().text}</p>
           )}
         </Match>
       </Switch>

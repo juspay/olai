@@ -93,7 +93,7 @@ export function FreshStart(props: {
       title={`memory is the subtree (${memoryOf(props.agent)}); the transcript becomes history`}
       onClick={pressed}>fresh start</button>
     <Show when={confirm.where() === "asking"}>
-      <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-xs"
+      <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-label"
         onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); cancel() } }}>
         <span>{freshStartQuestion(props.agent.title)}</span>
         <span class="mt-2 flex gap-2">
@@ -104,7 +104,7 @@ export function FreshStart(props: {
         </span>
       </span>
     </Show>
-    <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatFreshSaid} class="mt-1 text-xs" />}</Show>
+    <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatFreshSaid} class="mt-1 text-label" />}</Show>
     <Show when={menu()}>
       {(anchor) => <EngineMenu layer={props.page ? LAYER.over : LAYER.row} anchor={anchor()}
         engines={ordered()} pick={engine => { setMenu(null); ask(engine) }} close={() => setMenu(null)} />}

@@ -87,7 +87,7 @@ export function AskControl(props: {
           // than with a message after the fact; the server checks it again,
           // because an input's `step` is a hint and not a gate.
           step={props.field.kind === "integer" ? 1 : undefined}
-          class="w-full rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent disabled:text-muted"
+          class="w-full rounded-control border border-rule bg-paper px-2 py-1.5 text-body outline-none focus:border-accent disabled:text-muted"
           data-testid={TESTID.chatAskText}
           data-field={props.field.key}
           placeholder={props.field.attachedTo === null
@@ -120,7 +120,7 @@ function Chips(props: {
         {(choice) => (
           <button
             type="button"
-            class={`min-h-11 rounded border px-2 py-1 text-left text-sm ${
+            class={`min-h-11 rounded-control border px-2 py-1 text-left text-body ${
               props.picked(choice.value)
                 ? "border-accent text-accent"
                 : "border-rule text-ink hover:border-accent"
@@ -137,7 +137,7 @@ function Chips(props: {
                 is most of what a person is choosing between, and hover is not
                 something a thumb has. */}
             <Show when={choice.hint}>
-              {(hint) => <span class="block text-xs text-muted">{hint()}</span>}
+              {(hint) => <span class="block text-label text-muted">{hint()}</span>}
             </Show>
           </button>
         )}

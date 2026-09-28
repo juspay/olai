@@ -53,7 +53,7 @@ export function Standing(props: { readonly node: string; readonly record?: strin
     }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>
     <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.standings()}
       close={() => setMenu(null)} pick={agent => void start(agent)} />}</Show>
-    <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-xs" />}</Show>
+    <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-label" />}</Show>
   </>
 }
 
@@ -62,7 +62,7 @@ function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
   const now = createNow(busy)
   const age = createAgeClock()
   const look = () => LOOK[props.row.standing]
-  return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded px-1 text-xs text-muted enabled:hover:bg-rule"
+  return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1 text-label text-muted enabled:hover:bg-rule"
     classList={{ "text-doing": props.row.standing === "needs-you" }}
     disabled={props.row.session === null} title={look().detail}
     data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
@@ -70,7 +70,7 @@ function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
     onClick={event => { event.stopPropagation(); unfolded(props.record ?? props.row.id) ? fold(props.record ?? props.row.id) : unfold(props.record ?? props.row.id) }}>
     <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
     {look().label}
-    <Show when={busy() && props.row.since}>{since => <span class="font-mono"> · {outFor(since(), now())}</span>}</Show>
-    <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="font-mono"> · {agoOf(said().at, age())}</span>}</Show>
+    <Show when={busy() && props.row.since}>{since => <span class="tabular-nums"> · {outFor(since(), now())}</span>}</Show>
+    <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="tabular-nums"> · {agoOf(said().at, age())}</span>}</Show>
   </button>
 }

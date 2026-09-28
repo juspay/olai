@@ -127,31 +127,31 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   }
   const send = () => { const id = engine(); if (id !== undefined) void props.page.start(id) }
   return <Show when={metadata()}>{node =>
-    <div class={`sticky bottom-0 ${LAYER.row} rounded border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} data-testid={TESTID.agentPlainComposer}>
+    <div class={`sticky bottom-0 ${LAYER.row} rounded-control border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} data-testid={TESTID.agentPlainComposer}>
       <Show when={agents.engines().some(one => one.id === engine())} fallback={
         <Show when={engine()} fallback={<NoAgent />}>{id =>
           <Show when={missing()} fallback={
-            <p class="m-0 text-sm text-muted">This node's engine is not enabled here. Enable it in the plugins panel.</p>
+            <p class="m-0 text-body text-muted">This node's engine is not enabled here. Enable it in the plugins panel.</p>
           }>{reason => <EngineAbsence id={id()} missing={reason()} testid={TESTID.chatInstall} />}</Show>
         }</Show>
       }>
-        <textarea class="min-h-20 w-full resize-y bg-transparent text-sm outline-none" data-testid={TESTID.agentPlainInput}
+        <textarea class="min-h-20 w-full resize-y bg-transparent text-body outline-none" data-testid={TESTID.agentPlainInput}
           aria-label={`ask about ${node().title}`} placeholder={`ask about ${node().title}…`}
           value={props.page.draft()} onInput={event => props.page.setDraft(event.currentTarget.value)}
           onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); send() } }} />
-        <div class="flex flex-wrap items-center gap-2 text-xs text-muted">
+        <div class="flex flex-wrap items-center gap-2 text-label text-muted">
           <select aria-label="Agent engine" data-testid={TESTID.agentPlainEngine} value={engine()} disabled={props.page.starting() || agents.at(props.node) !== undefined}
             onChange={event => choose(event.currentTarget.value)}>
             <For each={agents.engines()}>{one => <option value={one.id}>{one.name}</option>}</For>
           </select>
           <span class="flex-1" />
-          <button type="button" class="rounded bg-accent px-3 py-1 font-semibold text-paper" data-testid={TESTID.agentPlainSend} disabled={props.page.starting()} onClick={send}>
+          <button type="button" class="rounded-control bg-accent px-3 py-1 font-semibold text-paper" data-testid={TESTID.agentPlainSend} disabled={props.page.starting()} onClick={send}>
             {props.page.starting() ? "starting…" : "send"}
           </button>
         </div>
-        <p class="mb-0 mt-2 font-mono text-xs text-muted">sending starts this node's agent · memory: this subtree ({memoryOf(node())})</p>
+        <p class="mb-0 mt-2 text-label text-muted">sending starts this node's agent · memory: this subtree ({memoryOf(node())})</p>
       </Show>
-      <Show when={props.page.failure()}>{message => <p role="alert" class="mb-0 text-xs text-alarm">{message()}</p>}</Show>
+      <Show when={props.page.failure()}>{message => <p role="alert" class="mb-0 text-label text-alarm">{message()}</p>}</Show>
     </div>
   }</Show>
 }

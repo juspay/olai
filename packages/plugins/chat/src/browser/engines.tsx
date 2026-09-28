@@ -14,7 +14,7 @@ export const enginesService = (missing: Roster["missing"]): EnginesService => ({
   row: engine => ({
     needs: () => missing(engine) !== null,
     body: () => <Show when={missing(engine)}>{reason =>
-      <p class="text-xs leading-relaxed text-muted">
+      <p class="text-label leading-relaxed text-muted">
         <EngineAbsence id={engine} missing={reason()} testid={TESTID.engineMissing} />
       </p>
     }</Show>,

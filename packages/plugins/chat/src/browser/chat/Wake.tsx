@@ -17,7 +17,7 @@ export function Wake(props: { readonly chat: Chat }) {
   const rows = () => faces().hung("conversation.wake")
   return <Show when={to()} keyed>{conversation =>
     <Show when={rows().length > 0}>
-      <section class="relative shrink-0 border-b border-rule/70 bg-panel px-3 py-1.5 font-mono text-[0.6875rem] leading-snug" data-testid={TESTID.chatWake} aria-label="wakes on">
+      <section class="relative shrink-0 border-b border-rule/60 bg-panel px-3 py-1.5 text-caption leading-snug" data-testid={TESTID.chatWake} aria-label="wakes on">
         <For each={rows()}>{row => {
           const mine = () => props.chat.state().wake.find(one => one.name === row.plugin)
           const waiting = () => mine()?.waiting ?? 0
