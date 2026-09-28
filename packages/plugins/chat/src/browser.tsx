@@ -138,6 +138,8 @@ export default definePlugin({
 import { speaker } from "./browser/viewer.ts"
 import { alertsChannel } from "olai-plugin-alerts/contract"
 import { holdChannel } from "./browser/channel.ts"
+import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
+import { holdPluginsDoor } from "./browser/plugins-door.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
 import { createComponent, createEffect, createRoot, untrack } from "solid-js"
 export const components = {
@@ -181,6 +183,13 @@ export const components = {
       createAttention(router)
       return dispose
     })), dispose => Effect.sync(dispose))
+  }) }),
+  /** The plugins panel's opener, DECLARED — a component of its own so the
+   *  engine pickers keep working with no inspector mounted; they then offer no
+   *  door (`./browser/plugins-door.ts`). */
+  plugins: definePlugin({ name: "plugins", needs: [configurationPanel], apply: Effect.gen(function*() {
+    const panel = yield* configurationPanel
+    yield* Effect.acquireRelease(Effect.sync(() => holdPluginsDoor(panel)), stop => Effect.sync(stop))
   }) }),
   speaker,
 }
