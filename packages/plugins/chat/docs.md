@@ -68,15 +68,15 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` that opens the engine menu (or starts at once with one startable engine); each Chats row puts its standing dot before its age |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that starts at once with exactly one available agent and otherwise opens the agent menu; each Chats row puts its standing dot before its age |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
-| `outline.row.aside` | outlines, beside progress before the date | standing or hover/focus start pill |
+| `outline.row.aside` | outlines, beside progress before the date | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
 | `outline.page.head` | outlines, under title above property drawer | agent line |
 | `outline.page.foot` | outlines, after the zoomed subtree | unbounded conversation and composer, or a plain-node composer |
-| `outline.row.action` | outlines' row menu | Start an agent session |
+| `outline.row.action` | outlines' row menu | Start an agent on a plain row; Fresh start and Close the agent on a row with an agent. Start and Fresh start are one entry each — the verb with one available agent, a submenu of available agents with several, absent with none; Close the agent is always offered |
 | `app.command` | navigation's text-command grammar | `>` with nearest-ancestor targeting |
-| `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents and new chat, with engine choices |
+| `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents, and New chat with agent choices while an agent is available |
 
 Chat no longer contributes `app.panel` or `app.header` and names no layout shell
 service. Its four node faces are registered under `AgentsProvider`, reading one
@@ -91,9 +91,11 @@ Chat declares `delivery.mark` and `conversation.wake`. The fold registration
 owns these shared child locations once; page faces consume the same locations.
 Reverse withdrawal removes page consumers before the fold's location owner.
 Engine absence is data on the roster, not a separate browser slot. One
-`EngineAbsence` component draws its mark and reason in the picker, no-agent
-face, node composer and engine-owned inspector row. Installation links appear
-only outside disabled menu choices. Chat's declared browser `chat.engines` service
+`EngineAbsence` component draws its mark and reason in the no-agent face, node
+composer and engine-owned inspector row. The agent menu (`EngineMenu`) draws
+only available engines; with none it says “No agent is set up” and, through the
+optional `plugins` component below, offers **Open plugins** on the row that
+explains (the first enabled engine that is not here, else chat's own row). Chat's declared browser `chat.engines` service
 supplies `row(engine): PluginsRowFace`, built over one activation-owned standing
 index. The static `olai-plugin-chat/browser-engines` door contains only its tag
 and interface. Each engine defines its own `row` component and registers the
@@ -108,7 +110,11 @@ the node's current engine.
 Optional dependencies remain in separate scoped components. Navigation and its
 existing palette control supply route changes and choice reset on dismissal;
 outline references supply focused-row context; the search reading supplies
-completions. The `>` ancestor lookup does not require search. Removing an
+completions. The `plugins` component needs the inspector's declared
+`plugin-inspector.configuration` service and holds its `open` in a
+component-owned holder (`src/browser/plugins-door.ts`) for that activation only;
+while the inspector is off the component waits and the agent menu draws no
+**Open plugins** action. The `>` ancestor lookup does not require search. Removing an
 optional provider releases its held service, and reconnection holds the new
 instance. Pending callbacks cannot navigate a later chat activation.
 
@@ -125,8 +131,8 @@ reading and replays its transcript.
 `conversation.newChat` ensures Chats, mints a child through Ops as `filer`, starts
 its node session, and returns the node id. The browser resolves its current
 location through the existing node lookup before navigating and unfolding.
-Free-floating new/choose/load procedures and the dock's global selection are
-retired. History changes the fold's local visiting pair without editing the
+There are no free-floating new/choose/load procedures and no global
+conversation selection. History changes the fold's local visiting pair without editing the
 node binding. `conversation.sessions` remains the stored-history listing.
 
 The filer belongs to chat's server scope. Capture registers its Inbox path in
@@ -163,8 +169,8 @@ for one pending creation at a time and is disposed with the activation.
 
 Chat's attention component names `alerts.channel` and owns its scoped watching,
 cross-tab beat and question subscriptions. It clears its badge claim on release.
-Alerts owns notification, audio and badge devices; chat owns the Alerts and
-Alert sound preference controls and their storage observers. Without the alerts
+Alerts owns notification, audio and badge devices, and the Alerts and Sound
+preference switches with their storage. Without the alerts
 channel, attention waits while conversations and forms continue working. Reveal
 is identity-free and opens the first Needs you agent; no waiting agent means no
 new fold.

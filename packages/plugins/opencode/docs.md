@@ -1,6 +1,6 @@
-# opencode, in the chat panel
+# OpenCode, as a chat agent
 
-The ACP engine olai **finds**. Put [opencode](https://opencode.ai) on this server's agent search path and the panel offers it. When it is missing, its enabled plugins row moves to **Needs you** with installation advice and a link. Whenever an engine menu opens, opencode appears disabled with the same reason but no link inside the disabled choice. After installing it, switch the plugin off and on to probe again without restarting olai. Olai ships no pin or adapter override for it; `OLAI_AGENT_PATH` (defaulting to the server's `PATH`) selects the build.
+The ACP engine olai **finds**. Put [opencode](https://opencode.ai) on this server's agent search path and chat offers it as **OpenCode**. When it is missing, its enabled plugins row moves to **Needs you** with installation advice and a link. It is not offered in the agent menu while it is missing. After installing it, switch the plugin off and on to probe again without restarting olai. Olai ships no pin or adapter override for it; `OLAI_AGENT_PATH` (defaulting to the server's `PATH`) selects the build.
 
 This page is one engine's own account of itself. What a conversation IS — how you choose an agent, what a turn looks like, which conversation you come back to, what the servers strip says — is the same for every engine and is [chat.md](../chat.md).
 
@@ -24,7 +24,7 @@ Every reading was captured live against **opencode 1.17.9**. Each is safe to los
 - **there is no bypass mode.** `session/set_mode "bypassPermissions"` is refused; the modes are `build` and `plan`. Unattended auto-approval for opencode lives in its own `opencode.json`, outside ACP — olai answers what it is asked and never widens what it answers.
 - **opencode cannot be INTERRUPTED.** `_session/steering` does not exist on this wire, so the composer simply does not draw the gesture. Sending is otherwise identical: the message goes at once and opencode answers one prompt at a time, in order.
 - **its subagents carry no attribution**, so a fan-out draws flat — every call in one column — rather than in lanes. Nothing guesses at whose a call was.
-- **its picker offers the ids it reports**, so the header names a model with the picker's own label and needs no alias arithmetic.
+- **its picker offers the ids it reports**, so the agent line names a model with the picker's own label and needs no alias arithmetic.
 
 ## Where to get it
 
