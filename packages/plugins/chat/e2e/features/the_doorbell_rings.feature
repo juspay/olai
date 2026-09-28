@@ -107,7 +107,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     When I open the plugins panel
     # BOTH DOORS kolu named, because it names two and a sentence that owned up
     # to one would send somebody to compose a row that fixes half of it.
-    Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
+    Then the plugins panel says "kolu" is "another plugin it needs isn't running (deliveries, session-start)"
     And the plugins panel says "kolu" is "no plugin in this build offers them"
     # THE CHAT ROW ITSELF is a different absence and gets a different sentence:
     # nobody asked for it, so there is nothing to fix and nothing amber.
@@ -177,7 +177,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I ask the agent "wake history"
     Then the agent has answered "wake history" exactly once

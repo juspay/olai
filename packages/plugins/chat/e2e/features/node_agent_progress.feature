@@ -4,14 +4,14 @@ Feature: Node-agent progress follows its conversation across node switches
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
 
   Scenario: A background node keeps its plan while the selected node has none
     When I ask the agent "execution-plan"
     Then the execution plan contains "Inspect the outline" as "in_progress"
     When I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     Then there is no execution plan
     When I ask the agent "settings"
@@ -41,7 +41,7 @@ Feature: Node-agent progress follows its conversation across node switches
     Then terminal output contains "stdout ready"
     And terminal output contains "Running"
     When I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     Then there is no terminal output
     When I ask the agent "terminal truncate"

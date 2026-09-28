@@ -1,12 +1,12 @@
-# Codex, in the chat panel
+# Codex, as a chat agent
 
 The ACP engine olai **ships**. `nix run`, the packaged binary, `just serve` and `just run` all carry a pinned [codex-acp](https://github.com/agentclientprotocol/codex-acp) adapter and the matching Codex executable, so the Codex row needs nothing from the server's PATH.
 
-This page records what is specific to this engine. The shared conversation model, MCP servers and session picker are documented in [chat.md](../chat.md).
+This page records what is specific to this engine. The shared conversation model, MCP servers and earlier-chats list are documented in [chat.md](../chat.md).
 
 ## How olai finds it
 
-`OLAI_ACP_CODEX` names the ACP adapter for this row. The packaged wrapper sets it to the Nix-built `codex-acp`; the development recipes resolve the same derivation. Set it to another command line to test another adapter. An empty value leaves the enabled Codex row visible but unavailable: the picker disables it, and the plugins panel files it under **Needs you** with the adapter's explanation.
+`OLAI_ACP_CODEX` names the ACP adapter for this row. The packaged wrapper sets it to the Nix-built `codex-acp`; the development recipes resolve the same derivation. Set it to another command line to test another adapter. An empty value leaves Codex enabled but unavailable: it is not offered anywhere a chat starts, and the plugins panel files it under **Needs you** with the adapter's explanation.
 
 The adapter itself wraps the Codex app server. The plugin's `acp/` directory owns both its npm lock and Nix derivation, including the matching native Codex executable supplied through `CODEX_PATH`, so neither half drifts to an ambient install. This pin is separate from the Claude and pi adapters, which each declare their pin in their own plugin's `default.nix` through `@olai/plugin-kit`'s `npm-adapter.nix` over the shared shim: their release clocks and platform rules do not force one another — or Codex — to rebuild. Authentication and Codex configuration continue to use Codex's own normal files and environment.
 
@@ -27,8 +27,8 @@ Olai pins `codex-acp` 1.13.1 with Codex CLI 0.156.1. This updates the bundled 0.
 - **Unknown tool identity is never an approval.** The adapter displays MCP titles such as `mcp.server.tool`, but the ACP fields olai uses for its approval boundary carry an opaque call id and no stable server/tool name. Codex permission requests therefore remain questions for the person instead of being inferred from display text.
 - **Subagents have their own cards and work doors.** Native child-session announcements identify each agent and its parent, including nested agents. Opening a nested agent replaces the work panel; its back button returns to the parent. Child tool calls appear inside that agent's work; its prose stays in the agent card's fold. Permissions and questions remain visible in the main conversation and name the child asking. Child settings, titles and usage never replace the main session's.
 - **Background terminals stay visible after the turn.** AIR async-task events attach running state and completion/failure/stoppage to the command row and activity strip. Active tasks announced while loading a session are restored there too. The adapter exposes task stopping, but Olai currently displays lifecycle events without individual stop controls, as with its other task rows.
-- **The header also exposes advertised session settings**, such as reasoning effort and collaboration mode. Live ACP plans appear below it, and terminal-output metadata streams command output into its tool row with an exit status.
-- **Press the model name to switch models.** While the conversation is idle, the header offers the adapter's model options and applies the selection through ACP's `session/set_config_option`. Codex's adapter does not implement a `/model` slash command. The `model` option uses exact model ids, and the confirmed choice survives a restart of the conversation.
+- **The agent line also exposes advertised chat settings**, such as reasoning effort and collaboration mode. Live ACP plans appear below it, and terminal-output metadata streams command output into its tool row with an exit status.
+- **Press the model name to switch models.** While the conversation is idle, the agent line offers the adapter's model options and applies the selection through ACP's `session/set_config_option`. Codex's adapter does not implement a `/model` slash command. The `model` option uses exact model ids, and the confirmed choice survives a restart of the conversation.
 - **No prompt queue is promised.** Codex advertises steering, not ordinary busy-turn prompt queueing, so the composer makes no queueing claim on its behalf.
 
 ## Where to get it

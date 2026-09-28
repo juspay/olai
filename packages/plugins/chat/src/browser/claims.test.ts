@@ -140,10 +140,11 @@ const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
 // this sweep.
 test("a tool call's status is spelled where it is meant and where it is drawn", () => {
   const statuses = /["'`](pending|in_progress)["'`]/
-  // ACP plan steps share these status words with tool calls.
+  // ACP plan steps share these status words with tool calls. `ToolFrame.tsx`
+  // left the list when its words became sentence case: it keys its table by
+  // the bare status and spells no quoted one.
   expect(filesSpelling(statuses)).toEqual([
     "chat/Plan.tsx",
-    path.join("chat", "ToolFrame.tsx"),
     path.join("chat", "background.test.ts"),
     path.join("chat", "door.test.ts"),
     path.join("chat", "elapsed.test.ts"),

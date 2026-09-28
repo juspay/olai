@@ -102,13 +102,13 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     Given the harness keeps distinct sessions on disk
     When I open the outline "house.olai"
     And I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     When I remember this conversation as "cabinet"
     And I drop "Type 04-C.pdf" on the chat panel
     Then the composer is holding "Type_04-C.pdf", showing how big it is
     When I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "order the new cabinets"
     And the composer is holding nothing
     When I drop "notes.txt" on the chat panel
@@ -160,12 +160,12 @@ Feature: Attachments belong to the live conversation, not to a drawer mount
     Given the harness keeps distinct sessions on disk
     When I open the outline "house.olai"
     And I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     When I attach a text file named "notes.txt" containing "first"
     Then the pending attachment "notes.txt" shows size "5 B"
     When I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "order the new cabinets"
     When I attach a text file named "notes.txt" containing "second-node"
     Then the pending attachment "notes.txt" shows size "11 B"

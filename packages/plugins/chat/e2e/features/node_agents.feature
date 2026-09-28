@@ -41,7 +41,7 @@ Feature: A node with an `agent-session` property IS an agent
   Scenario: An unbound agent wears a standing in the aside
     Given I open the outline "lanes.olai"
     Then the aside on "door-implement" stands "unbound"
-    And the aside on "door-implement" reads "no session bound"
+    And the aside on "door-implement" reads "No agent"
     And the standing on "door-implement" cannot be pressed
 
   @scratch:lanes
@@ -75,7 +75,7 @@ Feature: A node with an `agent-session` property IS an agent
     Then the chat shows a question
     And the agent "door-live" stands "needs-you"
     And the aside on "door-live" stands "needs-you"
-    And the aside on "door-live" reads "needs you"
+    And the aside on "door-live" reads "Needs you"
 
   @scratch:good
   Scenario: A directory with no node agent has no Needs you rows
@@ -97,7 +97,7 @@ Feature: A node with an `agent-session` property IS an agent
     Given I open the outline "lanes.olai"
     Then there is no door on "lane-fresh"
     When I open the node menu of "lane-fresh"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     # One press, and the node IS one: the property carries both halves, and the
     # roster — which is that query — has a row it did not have, wearing a door
     # that says which engine.
@@ -122,7 +122,7 @@ Feature: A node with an `agent-session` property IS an agent
     Given I open the outline "lanes.olai"
     Then the agent "door-implement" stands "unbound"
     When I open the node menu of "door-implement"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     # The property now carries both halves, which is the durable half of the
     # answer: this survives the restart, because it is in the file — and its
     # engine is the one the node already named rather than one picked for it.
@@ -157,7 +157,7 @@ Feature: A node with an `agent-session` property IS an agent
     And the node agent's fold is ready
     When the agent refuses to load a conversation
     And I open the node menu of "lane-fresh"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     # The two acts in their order, unchanged: the conversation, then the
     # property that names it.
     Then the vault node "lane-fresh" has property "agent-session" holding "claude:fake-session-1"
@@ -176,7 +176,7 @@ Feature: A node with an `agent-session` property IS an agent
     # what happens to the transcript, and it is not this phase's.
     Given I open the outline "lanes.olai"
     When I open the node menu of "door-live"
-    Then the node menu does not offer "Start an agent session"
+    Then the node menu does not offer "Start an agent"
 
   # ── the keystone: what an agent-associated session is told ────────────
 
@@ -407,7 +407,7 @@ Feature: A node with an `agent-session` property IS an agent
     And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
     When I open the fold history
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    Then the panel offers a fresh session, saying "keeping memory in"
     And the panel offers a fresh session, saying "the transcript becomes history"
 
   @agent-stored @scratch:lanes
@@ -452,7 +452,7 @@ Feature: A node with an `agent-session` property IS an agent
     # wrote is being thrown away, and *try again* is still there beside it for an
     # engine that had merely lost its store for a moment.
     When I open the fold history
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    Then the panel offers a fresh session, saying "keeping memory in"
     # ...and pressing it moves. A fresh conversation is `session/new`, which this
     # agent never refused — it said no to the old one — so the node comes back to
     # a conversation and the refusal is off the screen.
@@ -478,7 +478,7 @@ Feature: A node with an `agent-session` property IS an agent
     Given I open the outline "lanes.olai"
     When I open the filed conversation "the last conversation" as node "filed-chat"
     And I open the fold history
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    Then the panel offers a fresh session, saying "keeping memory in"
     And the past sessions hold "an older conversation"
 
   @agent-stored @scratch:lanes
@@ -497,7 +497,7 @@ Feature: A node with an `agent-session` property IS an agent
     And I open the outline "house.olai"
     And the filer's boot run has settled
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I pick "Claude Code" in the "Start an agent" submenu of the node menu
     And I ask the agent "cabinet conversation"
     And the agent is idle
     And a terminal stores a conversation titled "terminal conversation"
@@ -536,7 +536,7 @@ Feature: A node with an `agent-session` property IS an agent
     When I press the agent "door-live"
     Then the sidebar marks the outline "lanes.olai" as the one open
     When I open the fold history
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    Then the panel offers a fresh session, saying "keeping memory in"
 
   @scratch:lanes
   Scenario: An unbound agent's sidebar press navigates, and says nothing

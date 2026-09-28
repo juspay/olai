@@ -26,14 +26,12 @@ import { TESTID } from "olai-plugin-chat/testids"
 import { INSTALL } from "../../src/install.ts"
 import { fake } from "../fake/index.ts"
 
-/** What this scenario is comparing ACROSS faces: the process it started with
- *  (nothing here may restart it) and the sentence the picker drew, which the
- *  inspector row has to draw the same. */
-const held = new WeakMap<OlaiWorld, { readonly pid: number; sentence?: string }>()
+/** The process this scenario started with: nothing here may restart it. */
+const held = new WeakMap<OlaiWorld, { readonly pid: number }>()
 
 /** The absence line on the plugins panel's row for this engine. */
 const missing = selector(TESTID.engineMissing)
-/** The engine picker, and the one row in it that cannot be picked. */
+/** The agent menu, and the absence row it no longer draws. */
 const menu = selector(TESTID.agentEngineMenu)
 const greyed = selector(TESTID.agentEngineMissing)
 
@@ -42,10 +40,9 @@ const greyed = selector(TESTID.agentEngineMissing)
  *  spelling, because the install step is claiming to be that installation. */
 const EXECUTABLE = "omp"
 
-/** Read the picker's rows, as `[engine, aria-disabled]` pairs in drawn order —
- *  the whole table rather than the pickable part of it, because a row that is
- *  DROPPED and a row that is greyed are the two answers this feature tells
- *  apart. */
+/** Read the menu's rows, as `[engine, aria-disabled]` pairs in drawn order —
+ *  every row, so a greyed row would show up as one rather than hide among the
+ *  pickable ones. */
 const drawn = (world: OlaiWorld): Promise<ReadonlyArray<ReadonlyArray<string | null>>> =>
   world.page.locator(`${menu} [role="menuitem"]`).evaluateAll(rows =>
     rows.map(row => [row.getAttribute("data-engine"), row.getAttribute("aria-disabled")])
@@ -62,40 +59,27 @@ Given("I note this scenario's serving process", function(this: OlaiWorld) {
   held.set(this, { pid })
 })
 
-Then("the engine picker offers what this machine has and greys omp", async function(this: OlaiWorld) {
+Then("the agent menu offers what this machine has, and not omp", async function(this: OlaiWorld) {
   const choices = this.page.locator(menu)
   await choices.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
-  // BUNDLE ORDER, ABSENCE INCLUDED: the greyed row sits where the engine sits
-  // on the list, not after the ones that answered.
-  assert.deepEqual(await drawn(this), [["claude", null], ["opencode", null], ["omp", "true"]])
-  for (const name of ["Claude Code", "opencode"]) {
+  // ONLY WHAT WORKS, in bundle order: omp is enabled but missing, so it is not
+  // a row here at all — greyed or otherwise.
+  assert.deepEqual(await drawn(this), [["claude", null], ["opencode", null]])
+  for (const name of ["Claude Code", "OpenCode"]) {
     assert.equal(await choices.getByRole("menuitem", { name, exact: true }).isEnabled(), true)
   }
-  const absent = choices.locator(greyed)
-  assert.equal(await absent.getAttribute("data-engine"), "omp")
-  // ONE ROW, ONE STAMP. The menu item carries `data-engine`; the sentence
-  // inside it does not, so a step gripping this engine's row in the picker
-  // grips one element rather than two nested ones.
-  assert.equal(await choices.locator(attr("data-engine", "omp")).count(), 1)
-  // NO LIVE LINK INSIDE A ROW NOBODY CAN REACH. Kobalte leaves a disabled item
-  // out of the roving tabindex, so an anchor in here is mouse-only — offered
-  // to a sighted pointer user and to nobody else. The link belongs on the
-  // faces below, which are ordinary reading.
-  assert.equal(await absent.getByRole("link").count(), 0)
-  // ...and it is still this engine's OWN sentence that was drawn, which is the
-  // whole of what a greyed row is for.
-  assert.ok((await absent.innerText()).includes(INSTALL.why), `the picker's omp row to carry ${JSON.stringify(INSTALL.why)}, and it reads ${JSON.stringify(await absent.innerText())}`)
-  held.set(this, { ...held.get(this)!, sentence: (await absent.innerText()).trim() })
+  assert.equal(await choices.locator(greyed).count(), 0)
+  assert.equal(await choices.locator(attr("data-engine", "omp")).count(), 0)
 })
 
-Then("the omp inspector row carries the picker's absence under Needs you", async function(this: OlaiWorld) {
-  const row = this.pluginsPanel().locator('[data-section="Needs you"] [data-pref="plugin-omp"]')
+Then("the omp inspector row explains its absence under Needs attention", async function(this: OlaiWorld) {
+  const row = this.pluginsPanel().locator('[data-section="Needs attention"] [data-pref="plugin-omp"]')
   const said = row.locator(missing)
   await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
-  // THE SAME SENTENCE, CHARACTER FOR CHARACTER: two faces reading one standing
-  // rather than two authors of one claim.
-  assert.equal((await said.innerText()).trim(), held.get(this)?.sentence)
-  // ...AND HERE THE NAME IS A LINK, because this row is reachable by keyboard:
+  // This engine's OWN sentence — the one place a person is told what to
+  // install, now that the agent menu drops the row.
+  assert.ok((await said.innerText()).includes(INSTALL.why), `the omp row to carry ${JSON.stringify(INSTALL.why)}, and it reads ${JSON.stringify(await said.innerText())}`)
+  // ...AND THE NAME IS A LINK, because this row is reachable by keyboard:
   // where the engine comes from is the other half of what a person has to do.
   assert.equal(await said.getByRole("link").getAttribute("href"), INSTALL.where)
   assert.equal(await row.getByRole("switch", { name: "Enable Oh My Pi" }).getAttribute("aria-checked"), "true")
@@ -115,7 +99,7 @@ Then("the omp inspector row no longer needs installation", async function(this: 
   const row = await this.showPluginRow("omp")
   await this.waitUntil(async () => await row.getByRole("switch", { name: "Enable Oh My Pi" }).getAttribute("aria-checked") === "true", "omp to return")
   await row.locator(missing).waitFor({ state: "detached", timeout: POLL_TIMEOUT })
-  assert.equal(await row.evaluate(element => element.closest("[data-section]")?.getAttribute("data-section")), "Conversation")
+  assert.equal(await row.evaluate(element => element.closest("[data-section]")?.getAttribute("data-section")), "Agents")
 })
 
 Then("the engine picker offers every engine in bundle order", async function(this: OlaiWorld) {

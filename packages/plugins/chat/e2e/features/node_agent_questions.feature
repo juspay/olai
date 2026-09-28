@@ -4,14 +4,14 @@ Feature: Simultaneous node agents keep their question drafts separate
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I remember this conversation as "cabinet"
     And I ask the agent "askstrict"
     Then the chat shows a question
     When I type "cabinet answer" into the question's "note" box
     And I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I remember this conversation as "order"
     And I ask the agent "askstrict"

@@ -13,7 +13,7 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       Given the harness keeps distinct sessions on disk
       And I open the outline "house.olai"
       When I open the node menu of "install"
-      And I choose "Start an agent session" from the node menu
+      And I choose "Start an agent" from the node menu
       Then the panel header names the node agent "install the cabinets"
       And the node agent's fold is ready
       When I remember this conversation as "cabinet"
@@ -24,7 +24,7 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       Then the agent has answered "before idle eviction" exactly once
       When I fold node agent "install"
       And I open the node menu of "order"
-      And I choose "Start an agent session" from the node menu
+      And I choose "Start an agent" from the node menu
       Then the panel header names the node agent "order the new cabinets"
       And the node agent's fold is ready
       When I remember this conversation as "foreground"
@@ -50,7 +50,7 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       When I type "answer after idle deadlines" into the question's "note" box
       And I fold node agent "install"
       And I open the node menu of "order"
-      And I choose "Start an agent session" from the node menu
+      And I choose "Start an agent" from the node menu
       Then the panel header names the node agent "order the new cabinets"
       And the node agent's fold is ready
       And the agent "install" remains "needs-you" across two idle deadlines
@@ -77,7 +77,7 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       And the strip says "kolu fleet watch" is running
       When I fold node agent "install"
       And I open the node menu of "order"
-      And I choose "Start an agent session" from the node menu
+      And I choose "Start an agent" from the node menu
       Then the panel header names the node agent "order the new cabinets"
       And the node agent's fold is ready
       And the agent "install" remains "idle" across two idle deadlines

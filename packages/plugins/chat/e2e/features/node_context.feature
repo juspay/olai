@@ -57,7 +57,7 @@ Feature: The outline and the chat point at each other
     # The reference a transcript carries most often: every write through the
     # ops layer draws this row, and the reply has always named the node.
     When I ask the agent "done order"
-    Then the chat says the write "marked done"
+    Then the chat says the write "Done"
     When I press the node "order" in the write
     Then the node "order" is focused
     # ...IN PLACE, which is the half a lit-up row cannot say on its own: the

@@ -9,7 +9,7 @@ Feature: A restored node recovers its complete conversation history
       """
     And I open the outline "history-recovery.olai"
     When I open the node menu of "history-recovery"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "History recovery agent"
     And the node agent's fold is ready
     When I ask the agent "historical recovery session"

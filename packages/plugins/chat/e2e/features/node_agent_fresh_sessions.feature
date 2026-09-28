@@ -4,7 +4,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     Then the panel header names the node agent "install the cabinets"
     When I ask the agent "cabinet first session"
@@ -146,7 +146,7 @@ Feature: Fresh node sessions have distinct identities and durable history
   Scenario: A second node agent opened from a node has its own tools and leaves the node session intact
     When I show the done nodes
     And I open the node menu of "chase-tiler"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel has a different conversation from "first"
     And the panel header names the node agent "chase the supplier"
     When I remember this conversation as "second-node"
@@ -163,7 +163,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     When I ask the agent "ask"
     Then the chat shows a question
     When I open the node menu of "chase-tiler"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel has a different conversation from "first"
     And the panel header names the node agent "chase the supplier"
     And the agent "install" stands "needs-you"
@@ -188,7 +188,7 @@ Feature: Fresh node sessions have distinct identities and durable history
     And I open the past session "cabinet first session"
     Then the panel is in the remembered conversation "first"
     When I open the node menu of "chase-tiler"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel has a different conversation from "first"
     And the panel header names the node agent "chase the supplier"
     When I ask the agent "done order"

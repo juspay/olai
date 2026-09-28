@@ -16,7 +16,7 @@ Feature: Node agents recover their durable sessions after capacity eviction
       """
     And I open the outline "capacity.olai"
     When I open the node menu of "task-1"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 1"
     And the node agent's fold is ready
     And I ask the agent "message for task 1"
@@ -24,7 +24,7 @@ Feature: Node agents recover their durable sessions after capacity eviction
     When I remember this conversation as "first"
     When I close the agent fold
     And I open the node menu of "task-2"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 2"
     And the node agent's fold is ready
     And I ask the agent "message for task 2"
@@ -32,49 +32,49 @@ Feature: Node agents recover their durable sessions after capacity eviction
     When I close the agent fold
     And I open the node menu of "task-3"
     Then the node menu stays below the app header
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 3"
     And the node agent's fold is ready
     And I ask the agent "message for task 3"
     Then the agent has answered "message for task 3" exactly once
     When I close the agent fold
     And I open the node menu of "task-4"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 4"
     And the node agent's fold is ready
     And I ask the agent "message for task 4"
     Then the agent has answered "message for task 4" exactly once
     When I close the agent fold
     And I open the node menu of "task-5"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 5"
     And the node agent's fold is ready
     And I ask the agent "message for task 5"
     Then the agent has answered "message for task 5" exactly once
     When I close the agent fold
     And I open the node menu of "task-6"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 6"
     And the node agent's fold is ready
     And I ask the agent "message for task 6"
     Then the agent has answered "message for task 6" exactly once
     When I close the agent fold
     And I open the node menu of "task-7"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 7"
     And the node agent's fold is ready
     And I ask the agent "message for task 7"
     Then the agent has answered "message for task 7" exactly once
     When I close the agent fold
     And I open the node menu of "task-8"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 8"
     And the node agent's fold is ready
     And I ask the agent "message for task 8"
     Then the agent has answered "message for task 8" exactly once
     When I close the agent fold
     And I open the node menu of "task-9"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 9"
     And the node agent's fold is ready
     And I ask the agent "message for task 9"

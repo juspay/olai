@@ -3,14 +3,15 @@
  *
  * That driver is about a CONVERSATION: sending, queueing, interrupting, a
  * background task's clock, a subagent's rail. This one is about the thing a
- * conversation gets attached to — a node that carries a binding, the roster row
- * and door that are the query over it, the panel following it, and the two
- * gestures that make and remake it. None of that existed when `panel-live.ts`
- * was written, and none of it has ever met the real adapter: every scenario in
+ * conversation gets attached to — a node that carries a binding, the Chats
+ * row and standing that are the query over it, the fold under the row that
+ * holds its conversation, and the two gestures that make and remake it. None
+ * of that existed when `panel-live.ts` was written, and none of it has met the
+ * real adapter: every scenario in
  * `packages/plugins/chat/e2e/features/node_agents.feature` drives the SCRIPTED agent, whose
  * `session/new` answers `fake-session-1` every time — so the one thing those
  * scenarios cannot assert is a node that changes which conversation it names,
- * which is exactly what *fresh session* is.
+ * which is exactly what *Fresh start* is.
  *
  * ## THE TRAP is the last section, and it is why this file exists
  *
@@ -18,9 +19,14 @@
  * `claude --resume` store cleared, a machine changed, an id that was never
  * theirs. `session/load` answers `no such conversation`, the panel draws the
  * refusal, and what it used to offer was *try again*, which asks for the same
- * lost conversation for ever. The way out is that agent's own *fresh session*,
- * and it hangs off the node the header knows — which a refused open used to
- * drop along with the conversation.
+ * lost conversation for ever. The way out is that agent's own *Fresh start*,
+ * on the agent line of the node's fold — which a refused open used to drop
+ * along with the conversation.
+ *
+ * REWRITTEN FOR THE FOLD (2026-09): the side panel, its toggle, the roster's
+ * door and the header's sessions list are gone. The claims are the same; the
+ * places they are read from are the row's standing, its fold, the agent line's
+ * Fresh start and the Chats row. Not yet re-run against a real adapter since.
  *
  * The scripted agent can be told to refuse a load, so the suite covers the
  * shape. What it cannot do is be an engine that GENUINELY does not have a
@@ -95,11 +101,12 @@ const gone = (name: Named, ms = 60_000): Promise<boolean> =>
 
 const shot = (name: string): Promise<Buffer> => p.screenshot({ path: `${SHOTS}/${name}.png` })
 
-/** The roster's row, its door, and the panel's header line, each by the node
+/** The sidebar's Chats row, the row's standing and its fold, each by the node
  *  they are about — the same `data-agent` the suite's own steps go through. */
 const rowOf = (node: string): string =>
   `${selector("agent-roster")} ${selector("agent-row")}[data-agent="${node}"]`
-const doorOf = (node: string): string => `${selector("agent-door")}[data-agent="${node}"]`
+const standingOf = (node: string): string => `${selector("agent-standing")}[data-agent="${node}"]`
+const foldOf = (node: string): string => `${selector("agent-fold")}[data-agent="${node}"]`
 
 /** The `•••` on an outline row, opened the way a person opens it: the gutter is
  *  `opacity-0` until the row is hovered, and opacity is not something
@@ -113,9 +120,27 @@ const dots = async (node: string): Promise<void> => {
   await p.locator(`${row} ${selector("node-menu")}`).first().click({ force: true })
   await p.waitForSelector(selector("node-menu-panel"), { timeout: 30_000 })
 }
-/** ... and one entry of it, by the words a person reads off it. */
-const choose = async (label: string): Promise<void> => {
-  await p.locator(selector("node-menu-item")).filter({ hasText: label }).first().click()
+/** `Start an agent` on the open menu, with Claude: the entry is the verb itself
+ *  when Claude is the one agent this machine can start, and a submenu of the
+ *  agents when there are several (`olai-plugin-chat`'s `verbs.tsx`). */
+const startClaude = async (): Promise<void> => {
+  const entry = p.locator(`${selector("node-menu-item")}[data-action^="chat:start-agent"]`).first()
+  await entry.click()
+  if (await entry.getAttribute("data-action") === "chat:start-agent") {
+    const sub = p.locator(`${selector("node-menu-sub")}[data-sub="chat:start-agent"]`)
+    await sub.waitFor({ state: "visible", timeout: 30_000 })
+    await sub.locator('[data-action="chat:start-agent-claude"]').click()
+  }
+}
+/** The agent line's Fresh start, answered: with several agents it first asks
+ *  which (Claude, the node's own, is listed first), then asks to confirm. */
+const freshStart = async (): Promise<void> => {
+  await p.locator(selector("chat-fresh-session")).first().click()
+  const menu = p.locator(selector("agent-engine-menu"))
+  const confirm = p.getByRole("button", { name: "Start fresh chat", exact: true })
+  await confirm.or(menu).first().waitFor({ state: "visible", timeout: 30_000 })
+  if (await menu.isVisible()) await menu.locator('[data-engine="claude"]').click()
+  await confirm.click()
 }
 
 /** WHAT THE VAULT SAYS THIS NODE'S BINDING IS, read off the file rather than
@@ -187,28 +212,25 @@ const idle = async (): Promise<void> => {
 }
 
 // ── 0. the boot, and a node that is not an agent ───────────────────────
+// There is no chat panel to open: a node's conversation folds open under its
+// own row, so the boot is the outline and nothing else.
 await p.goto(BASE)
 ok("the app came up", await drawn("outline-list"))
-await p.locator(selector("chat-toggle")).click()
-ok("...and the panel opens", await drawn("chat-input"))
 ok(
-  "a bare node wears no door",
-  await p.locator(doorOf(NODE)).count() === 0,
+  "a bare node wears no standing",
+  await p.locator(standingOf(NODE)).count() === 0,
   "nothing is bound yet",
 )
 ok("...and its property says so", await bindingOnDisk() === null, "no `agent-session` on disk")
 
 // ── 1. the gesture that CREATES a node agent ───────────────────────────
 await dots(NODE)
-ok("the row's `•••` offers a session to start", await drawn("node-menu-panel"))
+ok("the row's `•••` offers an agent to start", await drawn("node-menu-panel"))
 await shot("1-menu")
-await choose("Start an agent session")
-const bound = await p.waitForFunction(
-  () => document.querySelectorAll('[data-testid="agent-door"]').length > 0,
-  { timeout: 120_000 },
-).then(() => true).catch(() => false)
-ok("one press and the node IS an agent — a row and a door", bound)
-ok("...the door names the engine", await shown(doorOf(NODE), 30_000))
+await startClaude()
+const bound = await p.waitForSelector(foldOf(NODE), { timeout: 120_000 }).then(() => true).catch(() => false)
+ok("one press and the node IS an agent — its conversation folds open under it", bound)
+ok("...the row wears a standing", await shown(standingOf(NODE), 30_000))
 const first = await until(bindingOnDisk, (held) => held.includes(":"))
 ok(
   "...and the property carries BOTH halves, which is the durable answer",
@@ -217,13 +239,11 @@ ok(
 )
 await shot("2-bound")
 
-// ── 2. the panel follows the binding ───────────────────────────────────
-await p.locator(rowOf(NODE)).click()
-ok("pressing the agent puts the panel in its conversation", await drawn("chat-node", 60_000))
-// ...AND THAT THERE IS SOMEWHERE TO TYPE, which is its own claim rather than
-// part of the next one: the panel has three bodies without a composer in them
-// — no agent, a dead one, and a conversation the agent would not open — and a
-// person who has just made a node agent and pressed it is in none of them.
+// ── 2. the fold is the conversation ────────────────────────────────────
+// ...AND THAT THERE IS SOMEWHERE TO TYPE, which is its own claim: the fold has
+// bodies without a composer in them — no agent, a dead one, and a conversation
+// the agent would not open — and a person who has just made a node agent is in
+// none of them.
 ok("...on a conversation there is somewhere to type into", await drawn("chat-input", 120_000))
 await type("Reply with exactly BOUND and nothing else.")
 await drawn("chat-busy")
@@ -232,85 +252,61 @@ ok(
   "the node agent answered",
   (await p.locator(selector("chat-entry")).last().innerText()).includes("BOUND"),
 )
-ok("...and its door carries what it last said", await shown(`${doorOf(NODE)} ${selector("agent-said")}`, 30_000))
+ok("...and the sidebar's Chats lists it", await shown(rowOf(NODE), 30_000))
 await shot("3-answered")
 
-// ── 3. a fresh session, and what it costs ──────────────────────────────
-ok("the header offers this agent's own sessions", await drawn("chat-sessions"))
-await p.locator(selector("chat-sessions")).click()
-ok("the list opens", await drawn("chat-session-list"))
-const said = await drawn("chat-fresh-session")
-ok(
-  "*fresh session* says what it MEANS beside it",
-  said !== null && said.includes("memory is the subtree") &&
-    said.includes("the transcript becomes history"),
-  said ?? "",
-)
-await shot("4-sessions")
-await p.locator(selector("chat-fresh-session")).click()
-await p.getByRole("button", { name: "Start fresh conversation", exact: true }).click()
+// ── 3. a fresh start, and what it costs ────────────────────────────────
+ok("the agent line offers a fresh start", await drawn("chat-fresh-session"))
+await freshStart()
 // THE ONE CLAIM THE SCRIPTED AGENT CANNOT MAKE: its `session/new` answers one
-// id for ever, so a node re-pointed by a fresh session names the conversation
-// it already named. A real adapter mints a new one, and the property MOVING is
+// id for ever, so a node re-pointed by a fresh start names the conversation it
+// already named. A real adapter mints a new one, and the property MOVING is
 // the whole of what this gesture does.
-const reopened = await p.waitForFunction(
-  (was: string) => {
-    const el = document.querySelector('[data-testid="chat-node"]')
-    return el !== null && was !== ""
-  },
-  first ?? "",
-  { timeout: 120_000 },
-).then(() => true).catch(() => false)
-ok("the panel comes back to a conversation", reopened)
 const second = await until(bindingOnDisk, (held) => held !== first)
 ok(
-  "...and the node names a DIFFERENT one — the property moved",
+  "the node names a DIFFERENT conversation — the property moved",
   second !== null && second !== first,
   `${first} -> ${second}`,
 )
+ok("...and the fold comes back to a conversation", await drawn("chat-input", 120_000))
 await p.locator(selector("chat-sessions")).click()
-ok("...with the one it replaced kept as history", await drawn("chat-past-sessions", 30_000))
+ok("...with the one it replaced kept among its earlier chats", await drawn("chat-past-sessions", 30_000))
 await shot("5-fresh")
 // SHUT AND WAITED FOR, not just asked to shut. The picker closes on the next
 // pointer anywhere (`inlinePicker.ts`), so a press made while it is still up is
-// spent shutting it and the row underneath is never pressed — which is a driver
-// reading its own popover as a panel that did nothing.
+// spent shutting it — a driver reading its own popover as a page that did
+// nothing.
 await p.keyboard.press("Escape")
-ok("the session list shuts", await gone("chat-session-list", 30_000))
+ok("the earlier-chats list shuts", await gone("chat-session-list", 30_000))
 
 // ── 4. THE TRAP, against an engine that genuinely has not got it ───────
 // Not a scripted refusal: the property is pointed at an id no `claude` ever
 // minted, so `session/load` answers for itself. What is asserted is that the
-// panel reads that as a LIVE agent saying no — its third body — and that the
+// fold reads that as a LIVE agent saying no — its refused body — and that the
 // way out is on the screen a person is stuck on.
 const STRANGER = "claude:00000000-0000-4000-8000-000000000000"
 await pointAt(STRANGER)
-// PRESSED UNTIL IT TAKES, and that is the honest shape rather than a settle: a
-// file written under a running server reaches the roster on the next published
-// revision, and nothing on the row changes when it does — the door was there
-// before the re-point and is there after, and the standing is `idle` either
-// way. So there is no state to wait for, only the press to repeat, which is
-// what a person does. What proves the roster followed is the refusal NAMING the
+// WAITED FOR, and re-opened only if it shut: a file written under a running
+// server reaches the roster on the next published revision, and the fold
+// re-opens the conversation the property now names. Pressing the Chats row
+// while the fold is open would fold it away, so the row is pressed only when
+// no fold is open. What proves the roster followed is the refusal NAMING the
 // stranger's id, which is the claim below.
 for (let press = 0; press < 5; press += 1) {
-  await p.locator(rowOf(NODE)).click()
   if (await p.locator(selector("chat-unopened")).count() > 0) break
+  if (await p.locator(foldOf(NODE)).count() === 0) await p.locator(rowOf(NODE)).click()
   await p.waitForTimeout(2_000)
 }
 const why = await drawn("chat-unopened-why", 120_000)
 ok("a conversation the engine has not got is REFUSED, not a dead agent", await drawn("chat-unopened"))
 ok("...in the agent's own words, naming the stranger the vault points at", why)
-ok("...and *try again* is offered", await drawn("chat-reopen"))
-// THE FIX, and the reason this section is the last one: the header goes on
-// naming the node agent whose conversation it could not open, which is what
-// draws that agent's session control — the only gesture that can move.
-ok("THE WAY OUT: the header still names the node agent", await drawn("chat-node"))
-ok("...so its sessions control is on the refused screen", await drawn("chat-sessions"))
+ok("...and *Try again* is offered", await drawn("chat-reopen"))
+// THE FIX: the agent line goes on naming the node agent whose conversation it
+// could not open, which is what draws its Fresh start — the only gesture that
+// can move.
+ok("THE WAY OUT: Fresh start is on the refused screen", await drawn("chat-fresh-session"))
 await shot("6-trap")
-await p.locator(selector("chat-sessions")).click()
-await drawn("chat-fresh-session")
-await p.locator(selector("chat-fresh-session")).click()
-await p.getByRole("button", { name: "Start fresh conversation", exact: true }).click()
+await freshStart()
 ok("...and taking it opens a conversation", await gone("chat-unopened", 120_000))
 const third = await until(bindingOnDisk, (held) => held !== STRANGER)
 ok(

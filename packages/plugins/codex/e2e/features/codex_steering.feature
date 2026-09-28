@@ -74,7 +74,7 @@ Feature: Messages sent while Codex works steer its current turn
     When I ask the agent "done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
-    And the chat says the write "marked done"
+    And the chat says the write "Done"
     When I press the node "order" in the write
     Then the node "order" is focused
     When I unfold the tool call

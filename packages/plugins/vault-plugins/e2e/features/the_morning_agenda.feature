@@ -53,7 +53,7 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
 
     When I close the plugins panel
     And I open the node menu of "gardener"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     # Assert the session opened the panel; the Given step would open it itself.
     Then node agent "gardener" is unfolded
     And the panel header names the node agent "the gardener"

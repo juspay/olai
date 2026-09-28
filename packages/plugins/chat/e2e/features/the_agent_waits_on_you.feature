@@ -13,7 +13,7 @@ Feature: Waiting node agents alert the tab
     When I ask the agent "ask later"
     And I close the agent fold
     And the agent is released
-    Then a notification says "is waiting on your answer"
+    Then a notification says "Waiting on your answer"
     And the notification is titled "kitchen remodel #home"
     And the tab says something is waiting
     And the chime rang
@@ -31,7 +31,7 @@ Feature: Waiting node agents alert the tab
     When I ask the agent "ask later"
     And I close the agent fold
     And the agent is released
-    Then a notification says "is waiting on your answer"
+    Then a notification says "Waiting on your answer"
     And the tab says something is waiting
     When the notification is pressed
     Then the panel is open at the question
@@ -68,7 +68,7 @@ Feature: Waiting node agents alert the tab
     Then this browser has stored that the alert sound is "off"
     When I set Alerts to "off"
     Then the alert sound cannot be set
-    And the Alerts row explains "silent"
+    And the Alerts row explains "When the agent needs you"
 
   @scratch:chat @alerts-denied
   Scenario: A browser that has refused notifications still chimes and still marks the tab

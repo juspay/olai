@@ -21,12 +21,12 @@ describe("which rail a row hangs", () => {
 
   test("a spawn's rail says the agent is working", () => {
     expect(railOf(row({ status: "in_progress", spawned: { kind: "Explore" } })))
-      .toEqual({ said: "working…", name: TESTID.chatSpawnWorking })
+      .toEqual({ said: "Working…", name: TESTID.chatSpawnWorking })
   })
 
   test("an armed task's rail says it is still running", () => {
     expect(railOf(row({ status: "in_progress", armed: { task: "bu13xz2ie" } })))
-      .toEqual({ said: "still running…", name: TESTID.chatArmedStill })
+      .toEqual({ said: "Still running…", name: TESTID.chatArmedStill })
   })
 
   test("A CALL THAT IS BOTH hangs the SPAWN's rail", () => {
@@ -40,7 +40,7 @@ describe("which rail a row hangs", () => {
         spawned: { kind: "Explore" },
         armed: { task: "ad58764267416dc7e" },
       })),
-    ).toEqual({ said: "working…", name: TESTID.chatSpawnWorking })
+    ).toEqual({ said: "Working…", name: TESTID.chatSpawnWorking })
   })
 
   test("... and nothing once each of them is over", () => {
@@ -58,7 +58,7 @@ describe("which rail a row hangs", () => {
 
 describe("whether two answers are the same rail", () => {
   test("the same words under the same name", () => {
-    const rail = { said: "working…", name: TESTID.chatSpawnWorking }
+    const rail = { said: "Working…", name: TESTID.chatSpawnWorking }
     expect(sameRail(rail, { ...rail })).toBe(true)
     expect(sameRail(null, null)).toBe(true)
   })
@@ -69,10 +69,10 @@ describe("whether two answers are the same rail", () => {
     // a task's name on the row it changed into.
     expect(
       sameRail(
-        { said: "still running…", name: TESTID.chatArmedStill },
-        { said: "still running…", name: TESTID.chatSpawnWorking },
+        { said: "Still running…", name: TESTID.chatArmedStill },
+        { said: "Still running…", name: TESTID.chatSpawnWorking },
       ),
     ).toBe(false)
-    expect(sameRail({ said: "working…", name: TESTID.chatSpawnWorking }, null)).toBe(false)
+    expect(sameRail({ said: "Working…", name: TESTID.chatSpawnWorking }, null)).toBe(false)
   })
 })

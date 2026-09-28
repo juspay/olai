@@ -16,56 +16,56 @@ Feature: A full pool of busy node agents refuses new work visibly
       """
     And I open the outline "capacity.olai"
     When I open the node menu of "task-1"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 1"
     And the node agent's fold is ready
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the agent "task-1" stands "needs-you"
     When I open the node menu of "task-2"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 2"
     And the node agent's fold is ready
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the agent "task-2" stands "needs-you"
     When I open the node menu of "task-3"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 3"
     And the node agent's fold is ready
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the agent "task-3" stands "needs-you"
     When I open the node menu of "task-4"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 4"
     And the node agent's fold is ready
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the agent "task-4" stands "needs-you"
     When I open the node menu of "task-5"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 5"
     And the node agent's fold is ready
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the agent "task-5" stands "needs-you"
     When I open the node menu of "task-6"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 6"
     And the node agent's fold is ready
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the agent "task-6" stands "needs-you"
     When I open the node menu of "task-7"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 7"
     And the node agent's fold is ready
     And I ask the agent "askstrict"
     Then the chat shows a question
     And the agent "task-7" stands "needs-you"
     When I open the node menu of "task-8"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 8"
     And the node agent's fold is ready
     And I remember this conversation as "eighth"
@@ -73,7 +73,7 @@ Feature: A full pool of busy node agents refuses new work visibly
     Then the chat shows a question
     And the agent "task-8" stands "needs-you"
     And I open the node menu of "task-9"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the node menu of "task-9" says "8 node agents are already live; let one become idle before waking another"
     And the panel is in the working conversation "eighth"
     And the agent "task-1" stands "needs-you"
@@ -93,7 +93,7 @@ Feature: A full pool of busy node agents refuses new work visibly
     When I close the agent fold
     When I press the agent "task-8"
     And I open the node menu of "task-9"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 9"
     And the node agent's fold is ready
     And I ask the agent "ninth task after capacity recovered"

@@ -73,7 +73,6 @@ import {
   CHAT_REFUSAL,
   CHAT_SAID,
   CHAT_STRIP,
-  CHAT_TOGGLE,
   CHAT_TROUBLE,
   CHAT_USAGE,
   OUTLINES_STORY,
@@ -893,16 +892,6 @@ When("I close the agent fold", async function (this: OlaiWorld) {
 When("I open the agent fold again", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
   await openFold(this, this.activeAgent);
-});
-
-Then("the agent toggle says a turn is running", async function (this: OlaiWorld) {
-  // Still on screen while the drawer is shut (and while open): the pulse is
-  // the cue that a turn is running behind a closed panel.
-  await this.expectAttribute(this.chatSelector(CHAT_TOGGLE),
-    "data-busy",
-    "true",
-    "the agent toggle",
-  );
 });
 
 Then("the chat says the turn was cancelled", async function (this: OlaiWorld) {
@@ -3179,7 +3168,7 @@ When("I record a video called {string}", async function (this: OlaiWorld, name: 
   assert.strictEqual(await hole.getAttribute("capture"), "environment");
   assert.strictEqual(await hole.getAttribute("multiple"), null);
   const button = this.chat(selector(PLUGIN_TESTID.chatVideoButton));
-  assert.strictEqual(await button.getAttribute("aria-label"), "record a video");
+  assert.strictEqual(await button.getAttribute("aria-label"), "Record a video");
   const [chooser] = await Promise.all([
     this.page.waitForEvent("filechooser"),
     button.click(),
@@ -3829,7 +3818,7 @@ When("the attachment file read finishes", async function (this: OlaiWorld) {
 });
 
 When("I remove the pending attachment {string}", async function (this: OlaiWorld, name: string) {
-  await this.chat(pendingChip(name)).getByRole("button", { name: `remove ${name}`, exact: true }).click();
+  await this.chat(pendingChip(name)).getByRole("button", { name: `Remove ${name}`, exact: true }).click();
 });
 
 When("I attach a text file named {string} containing {string}", async function (this: OlaiWorld, name: string, text: string) {
@@ -3889,7 +3878,7 @@ Then("the model picker offers nothing for {string}", async function (this: OlaiW
   await this.chat(CHAT_MODEL_NONE).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   // The empty row names the QUERY and takes nothing: no button rows to land
   // a verdict on, which is what makes its Enter a dead key.
-  assert.strictEqual(await this.chat(CHAT_MODEL_NONE).innerText(), `no model matches "${query}"`);
+  assert.strictEqual(await this.chat(CHAT_MODEL_NONE).innerText(), `No model matches "${query}"`);
   assert.strictEqual(
     await this.chatLine().getByRole("list", { name: "Models", exact: true }).getByRole("button").count(),
     0,
@@ -4075,7 +4064,7 @@ Then("the filer log names {string} with {string}", async function (this: OlaiWor
 
 When("I send the recovered draft again", async function (this: OlaiWorld) {
   const button = this.chat(CHAT_SEND);
-  await button.filter({ hasText: "send again" }).click();
+  await button.filter({ hasText: "Send again" }).click();
 });
 
 Then("the active chat completion is {string}", async function(this: OlaiWorld, value: string) {

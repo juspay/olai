@@ -32,7 +32,7 @@ const pinnedShows = async (world: OlaiWorld) =>
   await world.topmostTestidOver(world.page.locator(PINNED_TITLE), "the pinned node name") === PLUGIN_TESTID.zoomPinnedTitle;
 
 When("I follow the agent's open-page link", async function(this: OlaiWorld) {
-  await this.chatRoot().getByRole("link", { name: "open the page ›" }).click();
+  await this.chatRoot().getByRole("link", { name: "Open the page ›" }).click();
 });
 Given("I open the plain node composer for {string}", async function(this: OlaiWorld, node: string) {
   await this.openNode(node);
@@ -52,7 +52,7 @@ Then("the agent page puts its line before properties and memory before conversat
   const memory = await this.box(this.node("hinges"), "the memory row");
   const conversation = await this.box(this.page.locator(foot), "the conversation");
   assert.ok(line.y < properties.y && properties.y < memory.y && memory.y < conversation.y);
-  assert.equal(await this.page.getByRole("link", { name: "open the page ›" }).count(), 0);
+  assert.equal(await this.page.getByRole("link", { name: "Open the page ›" }).count(), 0);
   assert.equal(await this.chat(CHAT_PANEL).count(), 1);
 });
 Then("the plain node composer says {string} and {string}", async function(this: OlaiWorld, placeholder: string, notice: string) {
@@ -64,7 +64,7 @@ When("I send {string} from the plain node composer", async function(this: OlaiWo
   await this.page.locator(send).click();
 });
 Then("the plain node composer is starting", async function(this: OlaiWorld) {
-  await this.page.locator(send).filter({ hasText: "starting…" }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.page.locator(send).filter({ hasText: "Starting…" }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.equal(await this.page.locator(send).isDisabled(), true);
 });
 When("I choose {string} in the plain node composer", async function(this: OlaiWorld, engine: string) {
@@ -128,8 +128,8 @@ Then("the page has fresh start above its fold history", async function(this: Ola
   })
   const fresh = this.chat(selector(PLUGIN_TESTID.chatFreshSession));
   const history = this.chat(selector(PLUGIN_TESTID.chatSessions));
-  assert.equal((await fresh.innerText()).trim(), "fresh start");
-  assert.ok((await fresh.getAttribute("title"))?.includes("the transcript becomes history"));
+  assert.equal((await fresh.innerText()).trim(), "Fresh start");
+  assert.ok((await fresh.getAttribute("title"))?.includes("keeping memory in"));
   const top = await this.box(fresh, "fresh start");
   const line = await this.box(history, "the fold history");
   const transcript = await this.box(this.chat(CHAT_TRANSCRIPT), "the transcript");

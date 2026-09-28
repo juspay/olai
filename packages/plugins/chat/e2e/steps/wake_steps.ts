@@ -134,7 +134,7 @@ Then("this conversation offers no {string} wake control", async function (this: 
 
 When("I clear this conversation's {string} wake", async function (this: OlaiWorld, plugin: string) {
   const row = (await thePicker(this, plugin)).locator("..");
-  await this.press(row.getByRole("button", { name: "clear", exact: true }));
+  await this.press(row.getByRole("button", { name: "Clear", exact: true }));
 });
 
 // ── the far end ────────────────────────────────────────────────────────

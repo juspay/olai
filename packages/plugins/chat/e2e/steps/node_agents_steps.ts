@@ -528,7 +528,7 @@ When("I start a fresh session", async function (this: OlaiWorld) {
   const fresh = this.chat(FRESH);
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
-  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
+  await this.page.getByRole("button", { name: "Start fresh chat", exact: true }).click();
 });
 
 /** PRESS THE FRESH SESSION AND NAME THE ENGINE — the multi-engine form of the
@@ -541,7 +541,7 @@ When("I start a fresh session with {string}", async function (this: OlaiWorld, e
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
   await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).click();
-  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
+  await this.page.getByRole("button", { name: "Start fresh chat", exact: true }).click();
 });
 
 /** PRESS THE CLOSE sentinel in the agent line — the gesture that takes the
@@ -633,7 +633,7 @@ Then("the past session {string} is selected", async function (this: OlaiWorld, t
 });
 
 When("I return to the node agent's current session", async function (this: OlaiWorld) {
-  const button = this.chatRoot().getByRole("button", { name: "current session ↩", exact: true });
+  const button = this.chatRoot().getByRole("button", { name: "Back to current chat ↩", exact: true });
   const session = await button.getAttribute("data-session-id");
   assert.ok(session);
   await button.click();
@@ -900,7 +900,7 @@ When("I cancel the fresh session", async function (this: OlaiWorld) {
 });
 
 When("I confirm the fresh session", async function (this: OlaiWorld) {
-  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
+  await this.page.getByRole("button", { name: "Start fresh chat", exact: true }).click();
 });
 
 Then("the fresh-session confirmation is absent", async function (this: OlaiWorld) {
