@@ -89,7 +89,7 @@ test("a row carries the edit it will send, and the archive carries its question"
   // The MENU's sentence, verbatim — not a second wording of the same warning.
   expect(
     trash?.action.kind === "edit" ? trash.action.confirm : undefined,
-  ).toContain("Move “install them” to the Trash?")
+  ).toContain("Move “install them” to Trash?")
 })
 
 test("the ids are namespaced, so a shell row and an op row cannot collide", () => {

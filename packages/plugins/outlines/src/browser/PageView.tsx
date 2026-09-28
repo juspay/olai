@@ -316,7 +316,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
               <Empty
                 testid={IDS_UI_PRIMITIVES.nothing}
                 line="Page not found"
-                action={{ label: "Go home", run: () => router.go(HOME_ROUTE), testid: TESTID.nothingGoHome }}
+                action={{ label: "Go home", run: () => router.go(HOME_ROUTE), testid: TESTID.missingGoHome }}
               />
             </Show>
           }

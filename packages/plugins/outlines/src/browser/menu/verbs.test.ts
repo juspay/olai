@@ -388,15 +388,15 @@ test("the put-away is a node's verb, not a placement's", () => {
 
 test("the confirm names the row, how much goes with it, and the way back", () => {
   expect(verb("kitchen", "Move to Trash").confirm).toBe(
-    "Move “kitchen remodel” and the 4 rows under it to the Trash? They keep " +
-      "their ids, and the Trash in the sidebar is where to put them back.",
+    "Move “kitchen remodel” and the 4 rows under it to Trash? You can put " +
+      "them back from Trash in the sidebar.",
   )
 })
 
 test("a childless row is asked about on its own", () => {
   expect(verb("install", "Move to Trash").confirm).toBe(
-    "Move “install them” to the Trash? It keeps its id, and the Trash in " +
-      "the sidebar is where to put it back.",
+    "Move “install them” to Trash? You can put it back from Trash in the " +
+      "sidebar.",
   )
 })
 
