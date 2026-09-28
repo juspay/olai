@@ -61,13 +61,15 @@ const PAINT: Readonly<Record<DotTone, string>> = {
 }
 
 /** A list of short rows wants less than the 24rem a settings panel is given.
- *  The anchor's box is narrowed from its LEFT edge, so its right edge — the
- *  window's margin, under the dot at the bar's right end — stays put. */
+ *  The box is narrowed and its RIGHT edge set on the bar's own right edge (the
+ *  last control's, `edge`) — never past the anchor's window margin — so the
+ *  popover hangs flush under the dot, the gear and who is looking. */
 const ROWS_WIDTH = 320
 
-const narrowed = (at: Anchor): Record<string, string | undefined> => {
-  const width = Math.min(at.width, ROWS_WIDTH)
-  return { ...styleOf(at), left: `${at.left + at.width - width}px`, width: `${width}px` }
+const narrowed = (at: Anchor, edge: number | undefined): Record<string, string | undefined> => {
+  const right = Math.min(at.left + at.width, edge ?? Number.POSITIVE_INFINITY)
+  const width = Math.min(at.width, ROWS_WIDTH, right)
+  return { ...styleOf(at), left: `${right - width}px`, width: `${width}px` }
 }
 
 export function Health(props: { readonly slots: RendererSlots }) {
@@ -79,6 +81,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
       one.face.place === "cluster" && one.face.status !== undefined ? [one.face.status()] : []),
   ])
   const tone = () => worstOf(statuses())
+  let dot: HTMLButtonElement | undefined
   const [open, setOpen] = createSignal(false)
   const popover = createPopover({ held: { open, setOpen } })
   // A door at this popover's foot whose own state says it is up (the plugins
@@ -95,7 +98,10 @@ export function Health(props: { readonly slots: RendererSlots }) {
     <>
       <button
         type="button"
-        ref={popover.setTrigger}
+        ref={(el) => {
+          dot = el
+          popover.setTrigger(el)
+        }}
         class={`${ICON_BUTTON} size-8 !p-0 border ${
           popover.open() ? "border-accent" : "border-paper/25"
         }`}
@@ -124,7 +130,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
             <section
               ref={popover.setPanel}
               class={`${PANEL_BOX} gap-0.5 !p-2`}
-              style={narrowed(at())}
+              style={narrowed(at(), dot?.parentElement?.getBoundingClientRect().right)}
               tabindex="-1"
               data-testid={TESTID.healthPanel}
               aria-label="status"
