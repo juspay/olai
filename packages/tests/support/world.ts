@@ -631,7 +631,7 @@ export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is
  *  reporting is its `data-connection`, never its colour. */
 export const CONNECTION = selector(TESTID.connection);
-/** THE BAR'S ONE HEALTH DOT (desktop). `data-tone` is `healthy` / `notice` /
+/** THE BAR'S ONE HEALTH DOT (desktop). `data-health` is `healthy` / `notice` /
  *  `alarm`, `data-connection` the connection's own state, and its
  *  `aria-label` names what is wrong in each readout's words. */
 export const HEALTH = selector(TESTID.health);

@@ -106,7 +106,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
           popover.open() ? "border-accent" : "border-paper/25"
         }`}
         data-testid={TESTID.health}
-        data-tone={tone()}
+        data-health={tone()}
         // The connection's own state rides the dot too: it is the bar's own
         // readout, and "is this page still reading" should not need a click
         // to be asserted or inspected.

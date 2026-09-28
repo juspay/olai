@@ -81,7 +81,7 @@ drawing; every readout still belongs to the plugin that registers it:
 - The dot wears the worst tone among the connection and every standing
   status (`health.ts`; `quiet` never colours it). When it is not healthy its
   accessible name and tip quote each piece of news, alarms first, in the
-  readout's own label and sentence. `data-tone` and `data-connection` carry
+  readout's own label and sentence. `data-health` and `data-connection` carry
   the state for tests.
 - Withdrawal is the registration's: a plugin switched off takes its row and
   its vote in the same step, an open popover redraws without it, and a plugin

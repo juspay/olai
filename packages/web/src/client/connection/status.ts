@@ -116,5 +116,16 @@ export const lookOf = (readout: SurfaceReadout): Look =>
  *  usable. Dead-wire states are the freeze overlay; `live` is health. Named
  *  here so a banner does not spell the readout's raw states — that is this
  *  file's table, and `claims.test.ts` holds it shut. */
+/** How bad this state is, for the header's health dot: `live` is healthy;
+ *  `connecting` is a page not yet told anything, which is attention rather than
+ *  a fault; a dropped connection, a replaced server and a subscription that
+ *  died under an open socket are alarms. Here because this file is the one
+ *  reader of the readout's raw states. */
+export const toneOf = (readout: SurfaceReadout): "healthy" | "notice" | "alarm" =>
+  readout.status === LIVE ? "healthy" : readout.status === CONNECTING ? "notice" : "alarm"
+
+const LIVE: SurfaceReadoutStatus = "live"
+const CONNECTING: SurfaceReadoutStatus = "connecting"
+
 export const isDegraded = (readout: SurfaceReadout): boolean =>
   readout.status === DEGRADED

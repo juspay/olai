@@ -1,7 +1,7 @@
 /**
  * THE BAR'S ONE HEALTH DOT, driven the way a person drives it.
  *
- * What is asserted is the dot's `data-tone` (the state, never the colour), its
+ * What is asserted is the dot's `data-health` (the state, never the colour), its
  * accessible name (the words a reader with no pointer gets, and what a person
  * learns without opening anything), which rows its popover holds (by test id —
  * each row is its owner's face, so the id is the owner's), and where the caret
@@ -15,6 +15,7 @@ import {
   APP_CHROME,
   APP_CHROME_CONTROLS,
   APP_HEADER,
+  attr,
   COMMIT_PANEL,
   HEALTH,
   HEALTH_PANEL,
@@ -28,7 +29,7 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 Then("the health dot is {string}", async function (this: OlaiWorld, tone: string) {
   // HYDRATION: a tone moves when the wire does (a dropped socket, a survey
   // landing), which is a network's clock rather than a render's.
-  await this.expectAttribute(HEALTH, "data-tone", tone, "the health dot", HYDRATION_TIMEOUT);
+  await this.expectAttribute(HEALTH, "data-health", tone, "the health dot", HYDRATION_TIMEOUT);
 });
 
 /** Its accessible name, which is also the first line of its tip. Contains
@@ -119,7 +120,7 @@ Then("the health popover has no {string} row", async function (this: OlaiWorld, 
   const panel = this.page.locator(HEALTH_PANEL);
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitUntil(
-    async () => (await panel.locator(`[data-testid="${id}"]`).count()) === 0,
+    async () => (await panel.locator(attr("data-testid", id)).count()) === 0,
     `the ${id} row to leave the health popover`,
   );
 });

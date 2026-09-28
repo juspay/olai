@@ -6,7 +6,7 @@ export const TESTID = {
   sidebarToggle: "sidebar-toggle",
   sidebarResize: "sidebar-resize",
   connection: "connection",
-  /** The bar's one health dot (desktop). `data-tone` is `healthy` / `notice` /
+  /** The bar's one health dot (desktop). `data-health` is `healthy` / `notice` /
    *  `alarm` — the state, never the colour. */
   health: "health",
   /** ...and the popover it opens: one row per status readout, the uptime

@@ -12,7 +12,7 @@
  * bar's own readout. This file only picks the worst and says it.
  */
 import type { SurfaceReadout } from "@olai/web/client/connection/status.ts"
-import { lookOf } from "@olai/web/client/connection/status.ts"
+import { lookOf, toneOf } from "@olai/web/client/connection/status.ts"
 
 import type { BarStatus, BarTone } from "./slots.ts"
 
@@ -53,20 +53,9 @@ export const tipOf = (statuses: ReadonlyArray<BarStatus>): string => {
     one.detail === undefined || one.detail === "" ? [] : [`${one.label} — ${one.detail}`])].join("\n")
 }
 
-/** The connection's own tone. `live` is healthy; `connecting` is a page that
- *  has not been told anything yet, which is attention and not a fault; a
- *  dropped connection, a restarted server and a subscription that died under
- *  an open socket are alarms. */
-export const connectionTone = (readout: SurfaceReadout): BarTone => {
-  switch (readout.status) {
-    case "live":
-      return "healthy"
-    case "connecting":
-      return "notice"
-    default:
-      return "alarm"
-  }
-}
+/** The connection's own tone — `connection/status.ts`'s, which is the one
+ *  reader of the readout's raw states. */
+export const connectionTone = (readout: SurfaceReadout): BarTone => toneOf(readout)
 
 /** The connection as a status, in the words its row says. */
 export const connectionStatus = (readout: SurfaceReadout): BarStatus => {
