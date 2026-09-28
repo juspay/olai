@@ -44,10 +44,10 @@ Feature: Palette write responses belong to the interaction that sent them
     And there should be no page errors
 
     Examples:
-      | node    | command    | file        | mark | title                     |
-      | handles | Mark todo  | house.olai  | todo | choose the handles        |
-      | demo    | Mark doing | house.olai  | done | take out the old counters |
-      | mint    | Complete   | garden.olai | done | split the mint            |
+      | node    | command      | file        | mark  | title                     |
+      | handles | Mark: To do  | house.olai  | todo  | choose the handles        |
+      | demo    | Mark: Doing  | house.olai  | doing | take out the old counters |
+      | mint    | Mark: Done   | garden.olai | done  | split the mint            |
 
   Scenario: A successful write leaves a newer query in the same palette open
     Given incoming updates to this browser tab can be held

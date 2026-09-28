@@ -38,7 +38,7 @@ Feature: The ⌘K palette writes
 
   Scenario: Zoomed, the palette offers what that node can take
     # `kitchen` is doing, has no date, and is a node rather than a placement —
-    # so no `Mark doing` (it carries one), no `Clear date`, no `Remove this
+    # so no `Mark: Doing` (it carries one), no `Clear date`, no `Remove this
     # placement`.
     Given I open the node "kitchen"
     When I press the palette shortcut
@@ -65,7 +65,7 @@ Feature: The ⌘K palette writes
 
   Scenario: An untouched palette has nothing chosen, so Enter writes nothing
     # What lets the op rows sit FIRST — where a reader can see them — without a
-    # stray keypress meaning `Mark todo`. A highlight is where the arrows start
+    # stray keypress meaning `Mark: To do`. A highlight is where the arrows start
     # from, not a choice somebody made; the first character typed is the choice.
     Given I open the node "kitchen"
     When I press the palette shortcut

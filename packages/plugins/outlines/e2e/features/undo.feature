@@ -210,7 +210,7 @@ Feature: Undo
     # That is the replay contract already documented for every inverse here
     # ("a refusal partway stops there"), not a hole opened by this rule: the
     # first call is a legal write on its own, nothing is lost, and the row is
-    # one `Mark todo` away from where a blocked node should be. It is drawn
+    # one `Mark › To do` away from where a blocked node should be. It is drawn
     # rather than swallowed, which is the whole of what is owed.
     When I click the title of "demo"
     And I press "Control+Enter"
