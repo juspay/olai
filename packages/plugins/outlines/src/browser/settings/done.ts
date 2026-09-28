@@ -30,7 +30,7 @@
  *     carries over this tab's stale one — the window is one event loop wide,
  *     and what a union cannot see (a sibling's delete of a key this tab still
  *     holds) is the folds' own trade, taken face-on. An explicit RELEASE —
- *     the mark beside the strip, `../filter/DoneFlip.tsx`'s own gesture —
+ *     the `reset` beside the `finished` box, `../filter/DoneFlip.tsx`'s own gesture —
  *     removes the entry the same way, ranked after everything it was unioned
  *     with, so a page goes back to following the panel.
  *
@@ -43,7 +43,7 @@
  * pane's (the scroll, the accent, `../OutlinePage.tsx`'s own keying), and a
  * courtesy owed one arrival cannot flow to a neighbor's reading. The default
  * and the out-vote are the reader's two standing claims and a landing mints
- * neither — the flip's strip and its `·` stand exactly as the reader left
+ * neither — the `finished` box and its `reset` stand exactly as the reader left
  * them. A pane's reveal is replaced by its own next landing, taken down when
  * the page it was owed on leaves, and — the two gates it was MINTED under
  * are its law while it stands — taken down the moment either stops holding:
@@ -68,9 +68,9 @@ import { boolCodec, createPreference } from "@olai/web/client/preference.ts"
 import { DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "../../contracts/preferences.ts"
 export { DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "../../contracts/preferences.ts"
 
-/** The pick's two words, in the value space they are stored in: the flip and
- *  the strip on screen say "Visible" / "Hidden" because those are the words the
- *  control has always said (settings/Panel.tsx's DONE_CHOICES), and storage
+/** The pick's two words, in the value space they are stored in: the panel row
+ *  says "Visible" / "Hidden" (PreferenceRows.tsx's DONE_CHOICES) and the
+ *  page's box is ticked or clear beside the word `finished`, while storage
  *  says `shown` / `hidden` — the file's two states, the way it describes
  *  itself. */
 type DoneWord = "shown" | "hidden"

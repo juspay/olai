@@ -247,3 +247,67 @@ Feature: Filtering the outline in place
     And the node "handles" is a match
     And the node "hinges" is not shown
     And the node "handles" was never taken away
+
+  # ── the box, and the hint under it ─────────────────────────────────
+
+  Scenario: The empty box says Filter, and its grammar is a hint under it while focused
+    # The placeholder used to be the whole grammar; it is one word now, and the
+    # forms are offered under the focused, empty box instead — each one put in
+    # by a press, with the part a person replaces already selected.
+    Given I open the outline "house.olai"
+    Then the filter box says "Filter" when empty
+    And the filter hint is not shown
+    When I focus the filter box
+    Then the filter hint offers 'words | "a phrase" | a OR b | #tag | is:done | has:desc | date:last-week | changed:today | -not'
+    And no row of the filter hint is chosen
+    When I choose "#tag" from the filter hint
+    Then the filter box holds "#tag"
+    And the filter box has "tag" selected
+    And the filter box has the focus
+    And the filter hint is not shown
+    When I type "home" into the filter box
+    Then the filter box holds "#home"
+    And the filter hint is not shown
+    And there should be no page errors
+
+  Scenario: The hint is walked by the arrows, taken by Enter, and put away by Escape
+    Given I open the outline "house.olai"
+    When I focus the filter box
+    Then no row of the filter hint is chosen
+    When I press "ArrowDown" in the filter box
+    Then the filter hint's chosen row is "words"
+    When I press "ArrowDown" in the filter box
+    And I press "ArrowDown" in the filter box
+    Then the filter hint's chosen row is "a OR b"
+    When I press "ArrowUp" in the filter box
+    Then the filter hint's chosen row is '"a phrase"'
+    When I press "Escape" in the filter box
+    Then the filter hint is not shown
+    And the filter box has the focus
+    And the filter box holds ""
+    When I press "Tab" in the filter box
+    And I focus the filter box
+    Then the filter hint offers 'words | "a phrase" | a OR b | #tag | is:done | has:desc | date:last-week | changed:today | -not'
+    When I press "ArrowUp" in the filter box
+    Then the filter hint's chosen row is "-not"
+    When I press "Enter" in the filter box
+    Then the filter box holds "-not"
+    And the filter box has "not" selected
+    And the filter hint is not shown
+    And the filter box has the focus
+    And there should be no page errors
+
+  Scenario: Clearing the box brings the hint back, and Escape in a filled box still empties it
+    Given I open the outline "house.olai"
+    When I filter the page by "hinges"
+    Then the filter hint is not shown
+    When I clear the filter
+    Then the filter box holds ""
+    When I focus the filter box
+    Then the filter hint offers 'words | "a phrase" | a OR b | #tag | is:done | has:desc | date:last-week | changed:today | -not'
+    When I type "hinges" into the filter box
+    Then the filter hint is not shown
+    When I press "Escape" in the filter box
+    Then the filter box holds ""
+    And the address is exactly "/house.olai"
+    And there should be no page errors

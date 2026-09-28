@@ -21,6 +21,8 @@ import { foundCount } from "@olai/tests/harness/counted.ts";
 import { saysThat } from "@olai/tests/harness/said.ts";
 import {
   attr,
+  COMPLETION_ITEM,
+  COMPLETIONS,
   DESC_HIT,
   FILTER_BAR,
   FILTER_CLEAR,
@@ -354,6 +356,83 @@ Then(
     assert.strictEqual(await box.inputValue(), text);
   },
 );
+
+Then(
+  "the filter box says {string} when empty",
+  async function (this: OlaiWorld, placeholder: string) {
+    const box = this.page.locator(FILTER_INPUT);
+    await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await box.getAttribute("placeholder"), placeholder);
+  },
+);
+
+// ── the hint under the empty box ───────────────────────────────────────
+
+/** The hint is the completion box (`client/complete/offer.tsx`), wearing its
+ *  own kind so a scenario knows it is not a row editor's list. */
+const HINT = `${COMPLETIONS}${attr("data-kind", "filter")}`;
+
+When("I focus the filter box", async function (this: OlaiWorld) {
+  const box = this.page.locator(FILTER_INPUT);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await box.focus();
+});
+
+When("I press {string} in the filter box", async function (this: OlaiWorld, key: string) {
+  await this.page.locator(FILTER_INPUT).press(key);
+  await this.waitForFrame();
+});
+
+When("I type {string} into the filter box", async function (this: OlaiWorld, text: string) {
+  await this.page.locator(FILTER_INPUT).pressSequentially(text);
+  await this.waitForFrame();
+});
+
+Then("the filter hint offers {string}", async function (this: OlaiWorld, forms: string) {
+  const wanted = forms.split(" | ");
+  const hint = this.page.locator(HINT);
+  await hint.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const offered = await hint.locator(COMPLETION_ITEM).evaluateAll((rows) => rows.map((row) => row.getAttribute("data-id")));
+  assert.deepStrictEqual(offered, wanted);
+});
+
+Then("the filter hint is not shown", async function (this: OlaiWorld) {
+  await this.page.locator(HINT).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+
+Then("no row of the filter hint is chosen", async function (this: OlaiWorld) {
+  const hint = this.page.locator(HINT);
+  await hint.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await hint.locator(`${COMPLETION_ITEM}${attr("data-active", "true")}`).count(), 0);
+});
+
+Then("the filter hint's chosen row is {string}", async function (this: OlaiWorld, form: string) {
+  await this.page
+    .locator(`${HINT} ${COMPLETION_ITEM}${attr("data-active", "true")}${attr("data-id", form)}`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+When("I choose {string} from the filter hint", async function (this: OlaiWorld, form: string) {
+  const row = this.page.locator(`${HINT} ${COMPLETION_ITEM}${attr("data-id", form)}`);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await row.click();
+  await this.waitForFrame();
+});
+
+Then("the filter box has the focus", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? null)) === "filter-input",
+    "the filter box to hold the caret",
+  );
+});
+
+/** What typing would write over: the part of a form a person replaces. */
+Then("the filter box has {string} selected", async function (this: OlaiWorld, selected: string) {
+  await this.waitUntil(async () => (await this.page.locator(FILTER_INPUT).evaluate((box) => {
+    const input = box as HTMLInputElement;
+    return input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0);
+  })) === selected, `the filter box to have "${selected}" selected`);
+});
 
 Then("there is no filter bar", async function (this: OlaiWorld) {
   assert.strictEqual(

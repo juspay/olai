@@ -280,24 +280,24 @@ const flipOfAddressed = async (page: Page) => {
     : page.locator(`${FOCUSED_PANE} ${DONE_FLIP}${attr("data-file", named)}`);
 };
 
-/** One segment of the flip beside the FOCUSED pane's filter: this page's own
- *  say. Its value-space is the override map's — `shown` / `hidden` — where
- *  the panel's segments answer in the row's own `visible` / `hidden`
- *  (client/settings/done.ts keeps the two vocabularies apart on purpose). */
+/** The `finished` box beside the FOCUSED pane's filter: this page's own say.
+ *  Ticked is `shown`, the override map's word; the panel's segments answer in
+ *  the row's own `visible` / `hidden` (client/settings/done.ts keeps the two
+ *  vocabularies apart on purpose).
+ *
+ *  PRESS WHAT YOU MEAN: a box already standing the way it is asked is left
+ *  alone, so "I show the done nodes" on a page that shows them is not a press
+ *  that would hide them — the same idempotent ask the two segments were. */
 const flipDone = async (
   page: Page,
   word: "shown" | "hidden",
 ): Promise<void> => {
   const flip = await flipOfAddressed(page);
-  const pick = flip.locator(`${PREFS_CHOICE}${attr("data-value", word)}`);
-  await pick.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await pick.click();
-  // Scored to THE SEGMENT PRESSED: either the press landed (the segment
-  // that was not in force now is) or the ask was a deliberate no-op (the
-  // in-force side already carries it — at pace the same selector, at no
-  // cost — a no-op IS the read a press makes of this strip now.
+  const box = flip.locator(attr("data-testid", TESTID.doneToggle));
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if ((await box.isChecked()) !== (word === "shown")) await box.click();
   await flip
-    .locator(`${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`)
+    .and(page.locator(`${DONE_FLIP}${attr("data-shown", word === "shown" ? "true" : "false")}`))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 };
 
@@ -309,12 +309,58 @@ Then(
     }
     const flip = await flipOfAddressed(this.page);
     await flip
-      .locator(
-        `${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`,
-      )
+      .and(this.page.locator(`${DONE_FLIP}${attr("data-shown", word === "shown" ? "true" : "false")}`))
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const box = flip.locator(attr("data-testid", TESTID.doneToggle));
+    assert.strictEqual(await box.isChecked(), word === "shown", `the finished box is not ${word === "shown" ? "ticked" : "clear"}`);
   },
 );
+
+/** The box's accessible name and its tooltip, as a person reads them. */
+Then(
+  "the finished box is named {string}",
+  async function (this: OlaiWorld, name: string) {
+    const flip = await flipOfAddressed(this.page);
+    await flip.getByRole("checkbox", { name, exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the finished box's tooltip says {string}",
+  async function (this: OlaiWorld, said: string) {
+    const flip = await flipOfAddressed(this.page);
+    await this.waitUntil(async () => (await flip.getAttribute("title")) === said,
+      `the finished box's tooltip to say ${said}`);
+  },
+);
+
+Then("the finished box offers no reset", async function (this: OlaiWorld) {
+  const flip = await flipOfAddressed(this.page);
+  await flip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => (await flip.locator(attr("data-testid", TESTID.doneRelease)).count()) === 0,
+    "no reset beside the finished box");
+});
+
+/** THE ONE LINE on a phone: the box and the finished toggle share a row, the
+ *  toggle's word is not cut, and each is a finger's target. */
+Then("the filter and the finished box share one line", async function (this: OlaiWorld) {
+  const flip = await flipOfAddressed(this.page);
+  const input = this.page.locator(`${FOCUSED_PANE} ${attr("data-testid", TESTID.filterInput)}`);
+  const a = await input.boundingBox();
+  const b = await flip.boundingBox();
+  assert.ok(a !== null && b !== null, "the filter or the finished box is not on screen");
+  const viewport = this.page.viewportSize()!;
+  assert.ok(Math.abs((a.y + a.height / 2) - (b.y + b.height / 2)) < 4,
+    `the filter (y=${a.y}, h=${a.height}) and the finished box (y=${b.y}, h=${b.height}) are not on one line`);
+  assert.ok(b.x >= a.x + a.width, "the finished box overlaps the filter");
+  assert.ok(b.x + b.width <= viewport.width, `the finished box ends at ${b.x + b.width}, past the ${viewport.width}px screen`);
+  assert.ok(a.height >= 44, `the filter is ${a.height}px tall, under a finger's 44`);
+  const label = flip.locator("label");
+  const box = await label.boundingBox();
+  assert.ok(box !== null && box.height >= 44, `the finished toggle is ${box?.height}px tall, under a finger's 44`);
+  const clipped = await label.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  assert.ok(!clipped, "the finished toggle's word is cut");
+});
 
 Then("the Done flip is this page's own", async function (this: OlaiWorld) {
   const flip = await flipOfAddressed(this.page);
@@ -380,10 +426,10 @@ When("I show the done nodes", async function (this: OlaiWorld) {
   await flipDone(this.page, "shown");
 });
 
-/** The release door is the MARK — not a second press. The strip's gestures
- *  are idempotent asks (press what you mean); only the `·` hands the pick
- *  back to the panel, and that is deliberately a door one CLUTTER-free
- *  second near a strip cannot miss (client/filter/DoneFlip.tsx). */
+/** The release door is `reset` — not a second press. The box's gestures are
+ *  idempotent asks (press what you mean); only `reset` hands the pick back to
+ *  the panel, and it is drawn exactly while the page holds its own word
+ *  (client/filter/DoneFlip.tsx). */
 When("I hand the page's Done pick back to the panel", async function (this: OlaiWorld) {
   const flip = await flipOfAddressed(this.page);
   await flip.locator(attr("data-testid", TESTID.doneRelease)).click();

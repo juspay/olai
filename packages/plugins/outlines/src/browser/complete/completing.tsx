@@ -168,7 +168,7 @@ export interface Listing {
   readonly showing: Accessor<boolean>
   /** Which widget is armed, or `null`. Drawn as a fact on the popup so a
    *  scenario can say WHICH list it is looking at. */
-  readonly kind: Accessor<Trigger["kind"] | null>
+  readonly kind: Accessor<Trigger["kind"] | "filter" | null>
   readonly choices: Accessor<ReadonlyArray<Choice>>
   readonly active: Accessor<number>
   readonly hover: (at: number) => void

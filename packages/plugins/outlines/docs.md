@@ -52,6 +52,12 @@ palette command adapter for the lifetime of its activation.
 
 Outlines draws every claimed file whose `holds` value is `nodes`, through one glyph and one page contribution. It does not select a format row by name.
 
+## The filter bar
+
+Every page that can carry a `?q=` draws the filter bar: outline pages, zoomed nodes, days, the Agenda and the Trash. The box is short and says **Filter**. Focused and empty, it opens a hint listing the grammar's forms (`filter/forms.ts`), drawn by the same completion box the row editor uses (`complete/offer.tsx` over `complete/Completions.tsx`): the popover hangs from this row's overlay socket and goes when the bar does. Arrows walk it, Enter or a click puts the form in the box with its example part selected, Escape puts it away and keeps the caret; nothing is chosen until an arrow is pressed, so Enter in an empty box still does nothing.
+
+On an outline (and a zoom into one) the bar also draws the **finished** box, a real checkbox named "Show finished": ticked shows finished work on this page, clear hides it. The page follows the Done preference until the box is pressed; from then on the page holds its own word, and a `reset` beside the box hands the pick back to the preference. ⌘O writes the same word, so the box follows it. The Agenda and a day have no finished box: the pick is not about them.
+
 ## Tool reply story
 
 The browser activation registers its `tool.reply` face. Chat owns the frame, file span and fold; outlines reads a top-level file and projects the write reply’s story fields to draw its change glyph, node title, classification and nudge. Reads and refusals have no story; an unchanged write says “nothing changed”. The face owns node navigation through outlines’ existing focus helper; the generic slot receives only the reply. Registration belongs to the outlines activation and withdraws with it; outlines imports no chat implementation.

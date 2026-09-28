@@ -112,6 +112,7 @@ export const TESTID = {
   filterBar: "filter-bar",
   filterInput: "filter-input",
   doneFlip: "done-flip",
+  doneToggle: "done-toggle",
   doneRelease: "done-release",
   filterCount: "filter-count",
   filterClear: "filter-clear",

@@ -56,5 +56,5 @@ const densityHint = (): string => {
  *  it — the flip beside its filter, not another row here. */
 const doneHint = (): string =>
   doneHidden()
-    ? "Finished work is hidden. A page can show it anyway from its own filter."
-    : "Finished work is shown. A page can hide it from its own filter."
+    ? "Finished work is hidden. A page can show it anyway with the finished box beside its filter."
+    : "Finished work is shown. A page can hide it with the finished box beside its filter."

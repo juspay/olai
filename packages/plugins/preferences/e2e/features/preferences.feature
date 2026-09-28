@@ -38,7 +38,7 @@ Feature: One place to set how this browser reads
   is a feature nobody discovers — is the title alone.
 
   Done is TWO homes of one pick: the row here is the reader's default —
-  hidden, for a browser that never said — and the FLIP beside an outline's
+  hidden, for a browser that never said — and the `finished` box beside an outline's
   filter is that page's out-vote, one stored word a file in either direction
   (even matching the default, which is what lets it outlive a panel flip),
   gone when the page hands it back. What "done" means depends on the page —
@@ -190,9 +190,9 @@ Feature: One place to set how this browser reads
     Then the node "demo" is not shown
     And this browser has stored that done nodes are "hidden" on "house.olai"
 
-  Scenario: The page's mark hands the pick back to the panel
-    # The release door is the `·` — not a second press of either side (the
-    # strip's asks are idempotent: pressing what the pick already is means
+  Scenario: The page's reset hands the pick back to the panel
+    # The release door is `reset` — not a second press of the box (the
+    # box's asks are idempotent: pressing what the pick already is means
     # what it says, and it means it twice the same way). After the hand back,
     # the word the page answers to is the panel's own, and the ask survives
     # no further — the map keeps no entry for what follow already IS.
@@ -204,9 +204,51 @@ Feature: One place to set how this browser reads
     And the node "demo" is not shown
     And this browser has stored no Done word on "house.olai"
 
-  Scenario: A flip pressed the way the page ALREADY STANDS while the page follows says nothing
+  Scenario: The finished box follows the default until the page says otherwise, and reset returns to it
+    # THE THREE STATES ON ONE BOX: following (no reset, the tooltip names the
+    # default), the page's own word (a reset, the tooltip names both), and
+    # following again. The default moving under a page that holds its own word
+    # does not move the page.
+    Given I open the outline "house.olai"
+    Then the finished box is named "Show finished"
+    And this page's Done flip says "hidden"
+    And the finished box offers no reset
+    And the finished box's tooltip says "Finished items are hidden on this page, as your default in Preferences says."
+    When I set Done to "visible"
+    And I press Escape on the preferences
+    Then this page's Done flip says "shown"
+    And the node "demo" is shown
+    And the finished box offers no reset
+    When I hide the done nodes
+    Then the node "demo" is not shown
+    And the Done flip is this page's own
+    And the finished box's tooltip says "Finished items are hidden on this page. Your default in Preferences is shown; press reset to follow it here."
+    When I set Done to "hidden"
+    And I press Escape on the preferences
+    Then this page's Done flip says "hidden"
+    And the Done flip is this page's own
+    When I set Done to "visible"
+    And I press Escape on the preferences
+    And I hand the page's Done pick back to the panel
+    Then the Done flip is the panel's answer
+    And this page's Done flip says "shown"
+    And the node "demo" is shown
+    And the finished box offers no reset
+    And this browser has stored no Done word on "house.olai"
+    And there should be no page errors
+
+  @phone
+  Scenario: On a phone the filter and the finished box fit one line
+    Given I open the outline "house.olai"
+    Then the filter and the finished box share one line
+    When I show the done nodes
+    Then the node "demo" is shown
+    And the filter and the finished box share one line
+    And there should be no page errors
+
+  Scenario: Asking the box for what the page ALREADY SHOWS while the page follows says nothing
     # The pin case, in the negative: `demo` is done, `house.olai` follows the
-    # default and the strip already stands at Hidden — pressing it is not a
+    # default and the box already stands clear — asking for hidden is not a
     # way to pin the page at the word the panel already says: storage stays
     # silent, and the mark stays off.
     Given I open the outline "house.olai"

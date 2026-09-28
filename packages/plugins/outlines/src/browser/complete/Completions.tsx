@@ -3,7 +3,8 @@
  *
  * PRIVATE to this directory: `./completing.tsx` hands its consumer a `Panel`
  * that draws this, so a field with a completion in it wires one thing rather
- * than a hook and a component that have to agree about a shape.
+ * than a hook and a component that have to agree about a shape. The filter
+ * bar's syntax hint is the fourth list it draws, through `./offer.tsx`.
  *
  * It draws {@link ../search/Result.tsx}'s row, which is the row the ⌘K palette
  * and the header's search box already draw, for the reason that file gives:

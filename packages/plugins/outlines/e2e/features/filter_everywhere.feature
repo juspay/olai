@@ -91,7 +91,11 @@ Feature: The filter reaches every page that draws nodes
   @corpus:agenda
   Scenario: The agenda narrows day by day, and the silences close up
     When I open the agenda
-    Then the spine's "late" rows are "permit, visas, posts"
+    # The agenda has the box and not the finished box: its pick was never
+    # about the agenda (settings/done.ts's pageFileOf).
+    Then the filter box says "Filter" when empty
+    And this page offers no Done flip
+    And the spine's "late" rows are "permit, visas, posts"
     And the spine's "late" days are "2019-10-30, 2019-11-03, 2019-11-05"
     When I filter the page by "posts"
     # Two of the three days had nothing left on them, so they left the line —

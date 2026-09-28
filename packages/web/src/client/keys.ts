@@ -112,7 +112,7 @@ export const CHORDS: ReadonlyArray<
   // pointer faces of the same verb.
   { key: "w", action: "closePane", whileEditing: true, shift: true },
   // ⌘O / Ctrl+O — Workflowy's "show or hide completed", on the FOCUSED page:
-  // the strip's Done flip (filter/DoneFlip.tsx) by key instead of by pointer.
+  // the page's `finished` box (filter/DoneFlip.tsx) by key instead of by pointer.
   // `whileEditing: true`, for the flip's own reason: "what about here?" is a
   // question about the page under the caret, not about the caret — and the
   // letter claims nothing a text field means, so a draft being typed is left
