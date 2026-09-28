@@ -282,14 +282,15 @@ Then("the preferences panel fits the screen", async function (this: OlaiWorld) {
 
 // ── the headings ───────────────────────────────────────────────────────
 //
-// The panel knows no heading of its own: each contributor names the one its
-// rows sit under (`preferences.sections`' `group`), and a heading whose
-// contributors have all gone is not drawn. So the headings on screen are a
+// The panel knows no row of its own: the headings are its `HEADINGS` table,
+// each contributor names the key its rows sit under (`preferences.sections`'
+// `heading`), and a heading whose contributors have all gone is not drawn. So the headings on screen are a
 // reading of WHICH ROWS ARE RUNNING, and that is what these steps ask.
 
-/** The headings drawn, in the order a reader meets them. A heading whose
- *  contribution drew no row is hidden by CSS rather than removed, so it is
- *  read as a person would: visible or not. */
+/** The headings drawn, in the order a reader meets them, in the words a
+ *  reader reads (the group's accessible name; `data-group` is the key). A
+ *  heading whose contribution drew no row is hidden by CSS rather than
+ *  removed, so it is read as a person would: visible or not. */
 const headings = async (world: OlaiWorld): Promise<ReadonlyArray<string>> => {
   await showPreferences(world.page);
   return await world.page
@@ -297,7 +298,7 @@ const headings = async (world: OlaiWorld): Promise<ReadonlyArray<string>> => {
     .evaluateAll((all) =>
       all
         .filter((one) => one.getClientRects().length > 0)
-        .map((one) => one.getAttribute("data-group") ?? ""),
+        .map((one) => one.getAttribute("aria-label") ?? ""),
     );
 };
 
@@ -320,7 +321,7 @@ Then(
   async function (this: OlaiWorld, group: string) {
     await showPreferences(this.page);
     await this.page
-      .locator(`${PREFS_PANEL} ${selector(TESTID.prefsGroup)}${attr("data-group", group)}`)
+      .locator(`${PREFS_PANEL} ${selector(TESTID.prefsGroup)}${attr("aria-label", group)}`)
       .waitFor({ state: "hidden", timeout: POLL_TIMEOUT })
       .catch(async () => {
         assert.fail(`the preferences still carry ${JSON.stringify(group)}; they are headed ${JSON.stringify((await headings(this)).join(", "))}`);

@@ -388,7 +388,7 @@ single subscription however many rows draw.
 
 | Word | Meaning |
 | --- | --- |
-| `cluster` | a status readout: a row of the desktop health-dot popover, after the connection's row. It may declare a reactive `status` (`tone`, `label`, `detail`) from state its own activation owns; the dot wears the worst tone among them |
+| `cluster` | a status readout: a row of the desktop health-dot popover, ordered worst first with the connection's row (alarm, notice, healthy, quiet; mount order within a tone). It may declare a reactive `status` (`tone`, `label`, `detail`) from state its own activation owns; the row paints its dot from the same tone through the one `TONE` table, and the dot wears the worst tone among them |
 | `lead` | the seat in the bar ahead of the dot, drawn on phones too, which may shrink to nothing before the dot or a door does |
 
 ### mark

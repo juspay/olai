@@ -1962,8 +1962,8 @@ export class OlaiWorld extends World {
    * Put the plugins panel up, the way a person gets to it, unless it is up.
    *
    * On a desktop the door is the `Plugins` row at the foot of the health
-   * popover, so the dot is pressed first; while the panel is open the popover
-   * behind it is `aria-hidden`. On a phone the door is a row of the sidebar
+   * popover, so the dot is pressed first; picking the row shuts the popover and
+   * the panel hangs from the dot. On a phone the door is a row of the sidebar
    * drawer. A returning layout can restore an open panel before its trigger,
    * which is why the panel is checked for on every turn of the wait.
    */
@@ -1987,10 +1987,10 @@ export class OlaiWorld extends World {
    * Put the plugins panel away, the way a person does: Escape on it.
    *
    * NOT its trigger. On a desktop the trigger is the `Plugins` row of the
-   * health popover, and while the panel is up that popover is kept mounted but
-   * `aria-hidden` and invisible — there is nothing there to press. Escape shuts
-   * the panel, and the popover goes down with it; on a phone Escape shuts the
-   * panel over the drawer the same way.
+   * health popover, and picking it shut that popover — there is nothing there
+   * to press. Escape shuts the panel and the caret goes back to the health dot
+   * it hangs from; on a phone Escape shuts the panel over the drawer the same
+   * way.
    */
   async hidePlugins(): Promise<void> {
     const panel = this.pluginsPanel();

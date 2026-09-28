@@ -15,7 +15,7 @@
 
 import { expect, test } from "bun:test"
 
-import { frozenLookOf, lookOf, LOOK, toneOf, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
+import { frozenLookOf, lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
 /** The states the table answers for, DERIVED from it — which is not a table
  *  checked against itself, because membership is already a type-level
@@ -117,10 +117,13 @@ test("the freeze card says what happened, then what is being done", () => {
     .toEqual({ title: "The server restarted", line: "Reload the page to keep working." })
 })
 
-test("the dot's tone: live is healthy, a first connect is a notice, the rest are alarms", () => {
-  expect(toneOf(readoutOf("live"))).toBe("healthy")
-  expect(toneOf(readoutOf("connecting"))).toBe("notice")
-  for (const state of STATES.filter((s) => s !== "live" && s !== "connecting")) {
-    expect(toneOf(readoutOf(state))).toBe("alarm")
+// The health dot folds the very tone the row paints — there is no second
+// reading of the connection for the dot to disagree with.
+test("the dot's tone: live is healthy, a first connect is quiet, only a replaced server is an alarm", () => {
+  expect(lookOf(readoutOf("live")).tone).toBe("healthy")
+  expect(lookOf(readoutOf("connecting")).tone).toBe("quiet")
+  expect(lookOf(readoutOf("retired")).tone).toBe("alarm")
+  for (const state of STATES.filter((s) => s !== "live" && s !== "connecting" && s !== "retired")) {
+    expect(lookOf(readoutOf(state)).tone).toBe("notice")
   }
 })

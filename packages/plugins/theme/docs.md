@@ -7,8 +7,9 @@ listeners, HTML attributes, generated favicon URLs and palette metadata are
 released or restored when the provider leaves.
 
 Its preferences integration is a separate component. It contributes the
-**Appearance** heading's rows to `preferences.sections` (`group: "Appearance"`,
-first in the panel) only while that location exists:
+**Appearance** heading's rows to `preferences.sections` (`heading:
+"appearance"`, a key of preferences' `HEADINGS` table, which puts it first in
+the panel; `order: 0` within it) only while that location exists:
 
 - **Theme** — ten swatches, lights first then darks, each painted in its
   palette's paper with a wedge of its accent. A swatch carries no word: its

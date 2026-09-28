@@ -52,7 +52,7 @@ The row is drawn only while the plugin is on.
 
 The `mail` row in the plugins panel always says what happened in plain words. Most faults fall into two kinds.
 
-**Google or the network was briefly unavailable.** Olai keeps your connection and retries by itself, first after thirty seconds and then at longer intervals up to ten minutes. While the previous token is still valid the readout stays connected, the row adds what it is retrying, and the health dot goes amber. If the outage outlasts the token, the readout shows `Mail error` until the retry succeeds. You do not need to do anything.
+**Google or the network was briefly unavailable.** Olai keeps your connection and retries by itself, first after thirty seconds and then at longer intervals up to ten minutes. While the previous token is still valid the readout stays connected, the row adds what it is retrying, and the health dot stays green: the mailbox still works. If the outage outlasts the token, the readout shows `Mail error` until the retry succeeds. You do not need to do anything.
 
 **The Gmail API is not enabled.** The row shows Google's sentence *Gmail API has not been used in project … before or it is disabled*, with a link. Open the link, press **Enable**, and wait. Olai treats this as a temporary condition and keeps retrying, so the row heals within a few minutes with no further press.
 

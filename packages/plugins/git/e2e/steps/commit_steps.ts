@@ -471,7 +471,7 @@ Then(
  * Its own attribute beside the eight faces for the reason the pause has one: a
  * repository whose commits all land and whose push will not go is healthy on
  * one question and broken on the other, and one word could not say both. What
- * the reader SEES of it — the ⚠ instead of the ✓, git's own words on the label
+ * the reader SEES of it — the row's dot in alarm, git's own words on the label
  * — is asserted by the alarming/reads/explains steps above.
  */
 Then(
