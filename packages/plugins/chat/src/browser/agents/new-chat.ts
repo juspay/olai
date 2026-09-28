@@ -15,24 +15,24 @@ export const createNewChat = () => {
   let alive = true
   onCleanup(() => { alive = false })
   const start = async (agent: string): Promise<Said | undefined> => {
-    if (!alive) return { tone: "alarm", text: "chat is unavailable" }
-    if (pending()) return { tone: "aside", text: "a new conversation is already starting" }
+    if (!alive) return { tone: "alarm", text: "Chat isn't available" }
+    if (pending()) return { tone: "aside", text: "A new chat is already starting" }
     setPending(true)
     say(undefined)
     try {
       const result = await runAsync(chatWire().procedures.conversation.newChat({ agent }))
-      if (!alive) return { tone: "alarm", text: "chat is unavailable" }
+      if (!alive) return { tone: "alarm", text: "Chat isn't available" }
       if (result._tag === "Failure") { const failure: Said = { tone: "alarm", text: result.failure.message, kind: result.failure._tag }; say(failure); return failure }
       // Ask the existing node lookup for its current file. This also reports a
       // concurrent removal instead of waiting indefinitely for a roster row.
       const found = await runAsync(chatWire().procedures.conversation.agentAbove({ node: result.success }))
-      if (!alive) return { tone: "alarm", text: "chat is unavailable" }
+      if (!alive) return { tone: "alarm", text: "Chat isn't available" }
       if (found._tag === "Failure") { const failure: Said = { tone: "alarm", text: found.failure.message, kind: found.failure._tag }; say(failure); return failure }
       const row = found.success
       const nav = routeReading()
       const claims = servedDirectory()?.claims()
       if (row === null || row.node !== result.success || nav === undefined || claims === undefined) {
-        const failure: Said = { tone: "alarm", text: "the conversation was created, but its node is no longer available here" }
+        const failure: Said = { tone: "alarm", text: "The chat started, but its page is gone" }
         say(failure); return failure
       }
       nav.go(atElement(claims, row.file, row.node))

@@ -83,7 +83,7 @@ export default definePlugin({
     )
 
     yield* slots.register("conversation.wake", context => <MailWake {...context} />)
-    yield* slots.register("delivery.mark", () => <span aria-label="mail">✉</span>)
+    yield* slots.register("delivery.mark", () => <span aria-label="Mail">✉</span>)
 
     yield* slots.register("tool.reply", { fileOf: () => null, story })
 

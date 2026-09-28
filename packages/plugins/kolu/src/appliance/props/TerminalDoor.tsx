@@ -170,7 +170,7 @@ function Value(props: {
           type="button"
           class="min-w-0 cursor-pointer truncate text-body text-muted hover:text-accent"
           data-testid={props.valueId}
-          title={`change ${props.value}`}
+          title={`Change ${props.value}`}
           onClick={(event) => {
             // The row's own line answers a click by opening the title editor.
             event.stopPropagation()
@@ -306,7 +306,7 @@ function Row(props: {
         onSelect={() => {
           if (props.pressable) props.onSelect()
         }}
-        title={props.pressable ? "read this terminal's screen" : undefined}
+        title={props.pressable ? "Read this terminal's screen" : undefined}
       />
     </DockSection>
   )

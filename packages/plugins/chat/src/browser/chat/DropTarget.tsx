@@ -116,7 +116,7 @@ export function DropTarget(props: {
           data-carrying={props.carrying ?? undefined}
         >
           <span class="rounded-control border border-accent px-2 py-1 text-label text-accent">
-            {props.carrying ?? "drop to attach"}
+            {props.carrying ?? "Drop to attach"}
           </span>
         </div>
       </Show>

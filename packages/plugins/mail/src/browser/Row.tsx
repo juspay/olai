@@ -154,12 +154,12 @@ export function MailRow(props: {
         // so the sentence says what this serve is reading and, when there is
         // something, what it is also waiting on.
         return `Connected as ${account.address}${account.messages === null ? "" : ` · ${account.messages} messages`} · token refreshed ${refreshed()} · scope ${account.scope}`
-          + (account.retrying ? ` — ${account.reason ?? "the next token is being retried"}` : "")
+          + (account.retrying ? `. ${account.reason ?? "Retrying sign-in…"}` : "")
       case "fault":
         // THE REASON VERBATIM, plus what a WAIT is doing — the same composition
         // the pill's tooltip makes (`./said.ts`), from the same field, so the
         // two cannot disagree about which kind of fault this is.
-        return `${account.reason ?? "this serve's Gmail connection is not working."}${account.retrying ? " — retrying" : ""}`
+        return `${account.reason ?? "Gmail isn't working."}${account.retrying ? " Retrying…" : ""}`
       case "absent":
         // A SERVE THAT CANNOT CONNECT IS NOT TOLD TO CONNECT: the seed, and a
         // serve whose binary or Google origin is wrong, carry no reason of the
@@ -168,8 +168,8 @@ export function MailRow(props: {
         // button that is not there.
         if (account.reason !== null) return account.reason
         return account.canConnect
-          ? "No Gmail account is connected. Connecting opens Google in a new tab; the redirect comes back to this serve and the refresh token is kept in this serve's memory, never in the vault."
-          : "No Gmail account is connected to this serve."
+          ? "No Gmail account connected. Connecting opens Google in a new tab. Your sign-in stays in olai's memory, never in your notes."
+          : "No Gmail account connected."
     }
   }
 

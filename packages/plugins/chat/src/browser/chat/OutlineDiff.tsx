@@ -77,7 +77,7 @@ export function OutlineDiff(props: {
           {props.diff.path}
         </span>
         <Show when={props.diff.oldText === null}>
-          <span class="shrink-0 text-done">new</span>
+          <span class="shrink-0 text-done">New</span>
         </Show>
       </p>
 
@@ -94,8 +94,8 @@ export function OutlineDiff(props: {
              thing an agent hand-editing an outline does wrong. */
           <p class="px-2 py-1 text-label text-alarm" data-testid={TESTID.chatOutlineUnreadable}>
             {unreadable() === "after"
-              ? "the outline this call wrote does not parse, so what changed in it cannot be told"
-              : "the outline as it stood does not parse, so what changed in it cannot be told"}
+              ? "Can't show changes: the new outline doesn't parse"
+              : "Can't show changes: the old outline doesn't parse"}
           </p>
         }
       >
@@ -103,7 +103,7 @@ export function OutlineDiff(props: {
           when={changes().length > 0}
           fallback={
             <p class="px-2 py-1 text-label text-muted">
-              the file was rewritten and no node changed
+              Rewritten, but no rows changed
             </p>
           }
         >
@@ -147,7 +147,7 @@ export function OutlineDiff(props: {
           aria-expanded={open()}
           onClick={() => toggleFold(props.id)}
         >
-          {open() ? "show less" : `+${more()} more nodes`}
+          {open() ? "Show less" : `+${more()} more rows`}
         </button>
       </Show>
     </div>

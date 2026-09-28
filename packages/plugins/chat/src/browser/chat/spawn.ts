@@ -145,7 +145,7 @@ export const sentOf = (entry: ChatEntry | undefined): string | null => {
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's
  *  own `subagent_type` is optional, so this is an ordinary spawn rather than a
  *  broken one, and the honest thing to say about it is the category. */
-const SOMEBODY = "agent"
+const SOMEBODY = "Agent"
 
 /** What the rail says while an agent is out. */
-const WORKING = "working…"
+const WORKING = "Working…"

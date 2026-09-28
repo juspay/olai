@@ -114,10 +114,10 @@ import { faceOf } from "../marks.ts"
  * to keep to one.
  */
 const LOOK: Record<ToolStatus, { mark: string; tone: string; said: string }> = {
-  pending: { mark: "·", tone: "text-muted", said: "pending" },
-  in_progress: { mark: "…", tone: "text-doing", said: "in progress" },
-  completed: { mark: "✓", tone: "text-done", said: "completed" },
-  failed: { mark: "✗", tone: "text-alarm", said: "failed" },
+  pending: { mark: "·", tone: "text-muted", said: "Pending" },
+  in_progress: { mark: "…", tone: "text-doing", said: "In progress" },
+  completed: { mark: "✓", tone: "text-done", said: "Completed" },
+  failed: { mark: "✗", tone: "text-alarm", said: "Failed" },
 }
 
 /**

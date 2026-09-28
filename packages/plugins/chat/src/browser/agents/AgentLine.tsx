@@ -21,13 +21,13 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     <Show when={agentIn(state())}>{agent => <span class="inline-flex items-center gap-1" data-testid={TESTID.chatAgent} data-agent={agent().id}>
       <AgentMark id={agent().id} />{agent().name}
     </span>}</Show>
-    <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || doing()?.kind === "starting"}><span>{doing()?.kind === "starting" ? "starting…" : state().status === "off" ? "not configured" : state().status === "gone" ? "not running" : "ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "settings"} /></Show>
-    <Show when={usageOf(state().usage)}>{usage => <span data-testid={TESTID.chatUsage} title="context used / context window">{usage()}</span>}</Show>
+    <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || doing()?.kind === "starting"}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} /></Show>
+    <Show when={usageOf(state().usage)}>{usage => <span data-testid={TESTID.chatUsage} title="Context used">{usage()}</span>}</Show>
     <Show when={doing()?.kind === "working" || doing()?.kind === "waiting"}>
-      <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{doing()?.kind === "waiting" ? "waiting on you" : "working…"}</span>
+      <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{doing()?.kind === "waiting" ? "Waiting on you" : "Working…"}</span>
     </Show>
     <span class="flex-1" />
-    <Show when={!props.page}><Link route={atNode(props.node)}>open the page ›</Link></Show>
+    <Show when={!props.page}><Link route={atNode(props.node)}>Open the page ›</Link></Show>
     <Show when={agents.at(props.node)}>
       {agent => <>
         <FreshStart agent={agent()} page={props.page} />

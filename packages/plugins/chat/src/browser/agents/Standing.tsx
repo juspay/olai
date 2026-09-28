@@ -48,7 +48,7 @@ export function Standing(props: { readonly node: string; readonly record?: strin
             const only = roster.only()
             if (only !== null) void start(only.id)
             else setMenu(event.currentTarget)
-          }}><AgentMark id={roster.engines()[0]?.id ?? ""} />start an agent</button>
+          }}><AgentMark id={roster.engines()[0]?.id ?? ""} />Start an agent</button>
       </Show>
     }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>
     <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.standings()}

@@ -29,7 +29,7 @@ export function NeedsYou() {
           <span class={`${DOT} ${LOOK[row().standing].dot}`} aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate">{row().title}</span>
           <Show when={row().standing === "gone"} fallback={<span class={CHIP_QUIET} data-testid={TESTID.agentWaiting}>{row().waiting}</span>}>
-            <span class="shrink-0 text-label text-paper/60">not running</span>
+            <span class="shrink-0 text-label text-paper/60">Not running</span>
           </Show>
         </button>
       </li>}</Key></ul>

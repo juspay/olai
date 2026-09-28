@@ -98,7 +98,7 @@ function Strip(props: { readonly chat: Chat }) {
       // half the truth: agents are on this strip too, and telling a screen
       // reader that five subagents are background tasks is naming one kind of
       // thing after the other. What both are is STILL RUNNING.
-      aria-label="still running"
+      aria-label="Still running"
     >
       <p class="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
         <For each={out()}>

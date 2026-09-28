@@ -87,7 +87,7 @@ export function Roster(props: { readonly chat: Chat }) {
       <section
         class="shrink-0 border-b border-rule/60 bg-panel px-3 py-1.5 text-caption leading-snug"
         data-testid={TESTID.chatRoster}
-        aria-label="tool servers"
+        aria-label="Tools"
       >
         <p class="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
           <For each={servers()}>{(server) => <Chip server={server} />}</For>
@@ -101,9 +101,9 @@ export function Roster(props: { readonly chat: Chat }) {
           <span
             class="text-muted/80"
             data-testid={TESTID.chatRosterOwn}
-            title="olai lists the servers it handed this conversation; whatever the agent is configured with of its own is not olai's to see"
+            title="Tools the agent set up itself aren't listed"
           >
-            <span aria-hidden="true">· </span>plus the agent&rsquo;s own
+            <span aria-hidden="true">· </span>Plus the agent&rsquo;s own
           </span>
         </p>
         {/* THE WHOLE ROSTER, and it picks its own rows out of it: which

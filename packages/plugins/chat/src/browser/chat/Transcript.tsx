@@ -494,7 +494,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
         <Show when={declaringFailure()}>
           {(why) => (
             <SaidLine
-              said={{ tone: "alarm", text: `some ids could not be looked up — ${why()}` }}
+              said={{ tone: "alarm", text: `Some links couldn't be found. ${why()}` }}
               class="m-0 mt-2 text-label"
               testid={TESTID.chatRefsFailure}
             />

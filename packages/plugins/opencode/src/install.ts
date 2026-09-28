@@ -25,7 +25,7 @@ import type { NotHere } from "@olai/acp/engine"
  *  about this agent's own name rather than a rule: the two exist apart because
  *  "Claude Code" is not `claude`, and an engine whose name IS its word simply
  *  says so twice. */
-export const NAME = "opencode"
+export const NAME = "OpenCode"
 
 /** ...AND WHAT A MACHINE THAT HAS NONE IS TOLD. Two clauses and both are this
  *  plugin's to word: where it comes from, and the one thing a person has to do

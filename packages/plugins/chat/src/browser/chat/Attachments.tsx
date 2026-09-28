@@ -100,7 +100,7 @@ function Attachment(props: {
           <button
             type="button"
             class="text-muted hover:text-alarm"
-            aria-label={`remove ${props.name}`}
+            aria-label={`Remove ${props.name}`}
             data-testid={TESTID.chatAttachmentRemove}
             onClick={() => remove()(props.name)}
           >

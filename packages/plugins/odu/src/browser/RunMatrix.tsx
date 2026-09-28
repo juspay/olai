@@ -54,7 +54,7 @@ const spanOf = (cell: RunCell, now: number, clocks: OduClocks): string => {
 
 /** ...and the exact figure on the hover, where there is one to be exact about. */
 const spanTitle = (cell: RunCell, clocks: OduClocks): string | undefined =>
-  cell.ms === null ? undefined : `took ${clocks.exactOf(cell.ms / 1000)}`
+  cell.ms === null ? undefined : `Took ${clocks.exactOf(cell.ms / 1000)}`
 
 export function RunMatrix(context: BlockContext) {
   const runs = useRuns()

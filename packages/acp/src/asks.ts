@@ -254,7 +254,7 @@ export const PERMISSION_FIELD = "permission"
  * order it wants them read.
  */
 export const permissionFormOf = (request: RequestPermissionRequest): Form => ({
-  message: textOr(request.toolCall.title, "the agent is asking for permission"),
+  message: textOr(request.toolCall.title, "The agent is asking for permission"),
   toolCall: request.toolCall.toolCallId,
   fields: [{
     key: PERMISSION_FIELD,

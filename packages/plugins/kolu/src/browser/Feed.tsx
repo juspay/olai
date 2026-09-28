@@ -39,7 +39,7 @@ export function Feed(props: {
   readonly onLeave: () => void
 }) {
   return <>
-    <h2 class="text-label font-medium uppercase tracking-wider text-muted">recently wanted attention</h2>
+    <h2 class="text-label font-medium uppercase tracking-wider text-muted">Recent activity</h2>
     <EventsFeed />
     <FeedFoot onLeave={props.onLeave} />
   </>

@@ -67,7 +67,7 @@ function Shelf(props: {
       classList={{ "max-h-96 shrink": !props.unbounded }}
       data-testid={TESTID.chatPreview}
       data-row={props.open.row}
-      aria-label="what one agent is doing"
+      aria-label="Agent's work"
     >
       {/* ABOVE EVERYTHING THIS BOX HAS TO SAY, because it is the one thing in
           it that is not about the agent: the turn is stopped, and it is stopped
@@ -90,8 +90,8 @@ function Shelf(props: {
           }}
         >
           <span aria-hidden="true">◆</span>
-          <span class="min-w-0 flex-1 truncate">a question is waiting on you</span>
-          <span class="shrink-0 opacity-70">show me</span>
+          <span class="min-w-0 flex-1 truncate">A question is waiting on you</span>
+          <span class="shrink-0 opacity-70">Show me</span>
         </button>
       </Show>
       {/* Navigation between agents keeps one shelf open. These buttons only
@@ -129,7 +129,7 @@ function Shelf(props: {
             // sentence, and the row's own rail in the transcript is already
             // saying the other half.
             <p class="py-1 text-caption text-muted" data-testid={TESTID.chatPreviewNothing}>
-              nothing yet
+              Nothing yet
             </p>
           }
         >

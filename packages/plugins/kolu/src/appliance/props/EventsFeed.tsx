@@ -153,7 +153,7 @@ export function EventsFeed(): JSX.Element {
       <ol
         class="flex flex-col gap-2"
         data-testid={TESTID.eventsFeed}
-        aria-label="what recently wanted attention"
+        aria-label="Recent activity"
       >
         <For each={events()}>
           {(event) => <EventRow event={event} now={() => fleet.now()} />}

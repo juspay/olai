@@ -70,7 +70,7 @@ export function Conversation(props: {
             data-testid={TESTID.chatSessionSuperseded}
             data-successor={next().id}
           >
-            superseded by {next().title ?? next().id}
+            Replaced by {next().title ?? next().id}
           </span>
         )}
       </Show>

@@ -107,7 +107,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
         <li>
           <input type="search" aria-label="Filter models" data-testid={TESTID.chatModelFilter}
             class="block w-full rounded-control bg-transparent px-2 py-1 text-label text-ink outline-none placeholder:text-muted"
-            placeholder="filter"
+            placeholder="Filter"
             // The caret goes here as the list attaches — it was opened to be
             // typed in. `queueMicrotask` for the reason every panel in this
             // client uses one: the element is not in the document when the
@@ -125,7 +125,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
         </li>
         <For each={visible()} fallback={
           <li data-testid={TESTID.chatModelNone} class="px-2 py-1 text-label text-muted">
-            no model matches "{query().trim()}"
+            No model matches "{query().trim()}"
           </li>
         }>
           {(model, index) => (

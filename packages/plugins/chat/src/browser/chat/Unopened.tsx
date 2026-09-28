@@ -23,8 +23,8 @@ export function Unopened(
             its own conversation, so "could not open `fake-stored-old`" would
             be this panel putting a name to a choice nobody made. */}
         {props.unopened.what === null
-          ? "The agent would not open a conversation."
-          : "The agent would not open that conversation."}
+          ? "The agent couldn't open a chat."
+          : "The agent couldn't open that chat."}
       </p>
 
       {/* Its own line and its own id, for `Missing.tsx`'s reason: the REASON is
@@ -38,8 +38,7 @@ export function Unopened(
       </p>
 
       <p class="m-0 mb-3">
-        The conversation could not be opened. You can keep using the outlines
-        and try again when the cause has cleared.
+        Your notes still work. Try again once the problem is fixed.
       </p>
 
       {/* The header's own quiet pill, at the header's own scale — this sits in
@@ -51,7 +50,7 @@ export function Unopened(
         data-testid={TESTID.chatReopen}
         onClick={() => props.chat.reopen()}
       >
-        try again
+        Try again
       </button>
 
       {/* WHAT THAT BUTTON WAS TOLD, when it was told something. The panel's

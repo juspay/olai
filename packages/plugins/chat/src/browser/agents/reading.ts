@@ -36,20 +36,20 @@ export const createAgentReadings = (agents: Roster) => {
       return next
     }),
     ready: (node: string, to: Conversing): Promise<Chat | string> => new Promise(resolve => {
-      if (!alive) { resolve("chat stopped"); return }
+      if (!alive) { resolve("Chat stopped"); return }
       createRoot(dispose => {
-        const stop = () => { waiting.delete(stop); dispose(); resolve("chat stopped") }
+        const stop = () => { waiting.delete(stop); dispose(); resolve("Chat stopped") }
         waiting.add(stop)
         createEffect(() => {
           const current = agents.at(node)
           if (current === undefined || current.engine !== to.agent || current.session !== to.session) {
-            waiting.delete(stop); dispose(); resolve("the agent's session changed — try again"); return
+            waiting.delete(stop); dispose(); resolve("The agent's chat changed. Try again."); return
           }
           const chat = [...(readings().get(node) ?? [])].find(chat => chat.ui === ui(to))
           if (chat === undefined) return
           const state = chat.state()
           if (state.unopened) {
-            waiting.delete(stop); dispose(); resolve("the conversation could not be opened"); return
+            waiting.delete(stop); dispose(); resolve("Couldn't open the chat"); return
           }
           if (state.session?.id !== to.session || state.uploadScope === null) return
           waiting.delete(stop); dispose(); resolve(chat)

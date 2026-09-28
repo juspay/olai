@@ -295,7 +295,7 @@ export function Rang(props: {
             class="shrink-0 cursor-pointer rounded-control leading-4 hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
             data-testid={TESTID.chatRangFold}
             aria-expanded={said().open}
-            aria-label={said().open ? "hide the account" : "show the account"}
+            aria-label={said().open ? "Hide details" : "Show details"}
             onClick={() => toggleFold(props.entry.id)}
           >
             <span aria-hidden="true">{said().open ? "▾" : "▸"}</span>

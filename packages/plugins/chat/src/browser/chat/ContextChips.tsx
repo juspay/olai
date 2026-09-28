@@ -76,7 +76,7 @@ export function ContextChips(props: {
                   <button
                     type="button"
                     class="shrink-0 text-muted hover:text-alarm"
-                    aria-label={`send without ${node().title}`}
+                    aria-label={`Send without ${node().title}`}
                     data-testid={TESTID.chatContextRemove}
                     onClick={() => remove()(node().id)}
                   >

@@ -39,8 +39,8 @@ export function Reference(props: {
       }`}
       data-testid={TESTID.chatNodeRef}
       data-node-ref={props.id}
-      title="show this node"
-      aria-label={`show ${props.id}`}
+      title="Show this row"
+      aria-label={`Show ${props.id}`}
       // On this page if it is here; at its own address if it is not — which
       // covers another outline, a collapsed branch and a row done-hidden has
       // left out, without this having to tell them apart. Which of those a

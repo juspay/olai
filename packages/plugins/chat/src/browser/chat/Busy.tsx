@@ -51,11 +51,11 @@ import type { Chat } from "./state.ts"
  * words wide beside a model name and says the terse version.
  */
 const saying = (doing: Doing): string => {
-  if (doing.kind === "waiting") return "waiting on your answer"
+  if (doing.kind === "waiting") return "Waiting on your answer"
   if (doing.kind === "starting") {
-    return doing.agent === null ? "starting…" : `starting ${doing.agent}…`
+    return doing.agent === null ? "Starting…" : `Starting ${doing.agent}…`
   }
-  return doing.agent === null ? "working…" : `${doing.agent} is working…`
+  return doing.agent === null ? "Working…" : `${doing.agent} is working…`
 }
 
 /** The strip. Drawn between the transcript and the box (`../agents/Fold.tsx`). */

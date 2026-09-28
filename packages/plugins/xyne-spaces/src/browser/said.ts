@@ -32,17 +32,17 @@ export const spacesSaid = (link: SpacesLink): Said => {
   if (link.status === "absent") {
     return {
       dot: "bg-muted",
-      label: "no xyne",
+      label: "No xyne",
       detail:
-        `no Spaces app is configured — olai looked at ${link.where}`
-        + (link.told ? "." : " (set OLAI_SPACES_URL and OLAI_SPACES_TOKEN)."),
+        `Spaces isn't set up. Looked at ${link.where}`
+        + (link.told ? "." : ". Set OLAI_SPACES_URL and OLAI_SPACES_TOKEN."),
       loud: false,
     }
   }
   if (link.status === "fault") {
     return {
       dot: "bg-alarm",
-      label: "xyne fault",
+      label: "xyne error",
       detail: link.why ?? `Spaces refused a post at ${link.where}.`,
       loud: true,
     }
@@ -50,7 +50,7 @@ export const spacesSaid = (link: SpacesLink): Said => {
   return {
     dot: "bg-done",
     label: "xyne",
-    detail: `posting to ${link.where}`,
+    detail: `Posting to ${link.where}`,
     loud: false,
   }
 }

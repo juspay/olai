@@ -129,7 +129,7 @@ export function CiChip(context: ChipContext) {
               data-state={said().tone}
               data-run={context.entry.value}
               data-open={context.opened ? "yes" : "no"}
-              title={`${said().title} — press for the run matrix`}
+              title={`${said().title} · Show all runs`}
               onClick={(event) => {
                 // The row beneath answers a click by opening; this one is a
                 // door of its own and the run's line must not also move.

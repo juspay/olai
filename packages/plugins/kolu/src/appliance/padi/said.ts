@@ -77,8 +77,8 @@ export const beatOf = (pulse: WatchPulse | null | undefined, now: number): Beat 
   // no `ago`, because what the register owes is an answer ("watcher quiet
   // 47m", the pill's loud words) and the longer phrase would blur it.
   const said = quiet
-    ? `watcher quiet ${recencyText("wait-chip", at, now)}`
-    : `watcher pulse ${recencyText("ago", at, now)}`
+    ? `No check-in for ${recencyText("wait-chip", at, now)}`
+    : `Checked in ${recencyText("ago", at, now)}`
   return { kind: quiet ? "quiet" : "fresh", said }
 }
 
@@ -119,10 +119,10 @@ export interface Said {
  *  the fact underneath. */
 const lookedAt = (link: KoluLink): string =>
   link.socket === ""
-    ? "this olai is not watching a padi at all."
+    ? "kolu isn't set up"
     : link.told
-    ? `${link.socket}, which is where $PADI_SOCKET points.`
-    : `${link.socket}, the default rendezvous path.`
+    ? `kolu isn't running at ${link.socket} (from $PADI_SOCKET)`
+    : `kolu isn't running at ${link.socket}`
 
 export const padiSaid = (link: KoluLink, pulse?: WatchPulse | null, now?: number): Said => {
   switch (link.status) {
@@ -138,24 +138,24 @@ export const padiSaid = (link: KoluLink, pulse?: WatchPulse | null, now?: number
         dot: "bg-done",
         label: "kolu",
         detail: beat.said === null
-          ? `connected to padi at ${link.socket} — the terminal rows on this page are live.`
-          : `mirror connected · ${beat.said}`,
+          ? "Connected. Terminals on this page are live."
+          : `Connected · ${beat.said}`,
         beat: beat.kind === "none" ? null : beat,
       }
     }
     case "skew":
       return {
         dot: "bg-alarm",
-        label: "kolu skew",
+        label: "kolu: update needed",
         detail:
-          `padi at ${link.socket} speaks ${link.surfaceVersion ?? "?"} and this olai speaks ${link.speaks} — one of the two needs an upgrade, and until then no terminal can be read.`,
+          `kolu and olai versions don't match (padi ${link.surfaceVersion ?? "?"}, olai ${link.speaks}). Update one of them to see terminals.`,
         beat: null,
       }
     case "absent":
       return {
         dot: "bg-muted",
-        label: "no kolu",
-        detail: `no padi is answering at ${lookedAt(link)}`,
+        label: "No kolu",
+        detail: lookedAt(link),
         beat: null,
       }
   }

@@ -667,7 +667,7 @@ export function Composer(props: {
       <Show when={naming() !== null && nodesNamed.failure()}>
         {(said) => (
           <SaidLine
-            said={{ tone: "alarm", text: `the directory could not be searched — ${said()}` }}
+            said={{ tone: "alarm", text: `Couldn't search your notes. ${said()}` }}
             class="m-0 mb-1 text-label"
             testid={TESTID.chatNamingFailure}
           />
@@ -708,7 +708,7 @@ export function Composer(props: {
         // > 0`), and the wait still has to see that the search settled.
         data-asked={nodesNamed.answering() ?? undefined}
         rows={2}
-        placeholder={working() ? "…or say the next thing" : "ask the agent…"}
+        placeholder={working() ? "…or say the next thing" : "Ask the agent…"}
         value={draft()}
         // ONE KEYSTROKE IS ONE QUESTION, which is what `batch` buys and it is
         // not a micro-optimisation: the list is a memo of the draft AND the
@@ -770,7 +770,7 @@ export function Composer(props: {
               whose upload is worth saying is happening. */}
           <Show when={props.holding.sending() > 0}>
             <span class="tabular-nums text-caption text-muted" data-testid={TESTID.chatUploadProgress}>
-              attaching{props.holding.sending() > 1 ? ` ${props.holding.sending()}` : ""}… {props.holding.progress()}%
+              Attaching{props.holding.sending() > 1 ? ` ${props.holding.sending()}` : ""}… {props.holding.progress()}%
             </span>
           </Show>
           {/* The turn is stopped on a PERSON, and this is where they find out.
@@ -786,7 +786,7 @@ export function Composer(props: {
               data-testid={TESTID.chatWaiting}
               aria-live="polite"
             >
-              waiting on your answer
+              Waiting on your answer
             </span>
           </Show>
           {/* WHAT PRESSING SEND NOW DOES, while the agent is working.
@@ -810,7 +810,7 @@ export function Composer(props: {
               class="text-caption text-muted"
               data-testid={TESTID.chatQueues}
             >
-              sends wait their turn
+              Messages wait their turn
             </span>
           </Show>
         </div>
@@ -844,7 +844,7 @@ export function Composer(props: {
           type="button"
           class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
           data-testid={TESTID.chatAttachButton}
-          aria-label="attach a file"
+          aria-label="Attach a file"
           onClick={() => picker?.click()}
         >
           +
@@ -885,7 +885,7 @@ export function Composer(props: {
             type="button"
             class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
             data-testid={TESTID.chatCameraButton}
-            aria-label="take a photo"
+            aria-label="Take a photo"
             onClick={() => shutter?.click()}
           >
             {/* A camera, drawn with the `+`'s ink and at the `+`'s weight:
@@ -914,7 +914,7 @@ export function Composer(props: {
             type="button"
             class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
             data-testid={TESTID.chatVideoButton}
-            aria-label="record a video"
+            aria-label="Record a video"
             onClick={() => camcorder?.click()}
           >
             <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
@@ -928,7 +928,7 @@ export function Composer(props: {
             type="button"
             class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
             data-testid={TESTID.chatCommands}
-            aria-label="show the agent's slash commands"
+            aria-label="Show slash commands"
             onClick={askForAll}
           >
             /
@@ -942,7 +942,7 @@ export function Composer(props: {
             data-testid={TESTID.chatCancel}
             onClick={() => props.chat.cancel()}
           >
-            cancel
+            Cancel
           </button>
         </Show>
         {/* THE INTERRUPTION, as a control and not only as a chord.
@@ -965,10 +965,10 @@ export function Composer(props: {
             type="button"
             class={`${CONTROL} border-doing px-3 text-doing`}
             data-testid={TESTID.chatInterrupt}
-            title="send it into the turn the agent is running (Alt+Enter)"
+            title="Send now, into the running turn (Alt+Enter)"
             onClick={() => void send(true)}
           >
-            interrupt
+            Interrupt
           </button>
         </Show>
         <button
@@ -977,7 +977,7 @@ export function Composer(props: {
           data-testid={TESTID.chatSend}
           onClick={() => void send()}
         >
-          {retry() && draft().trim() ? "send again" : "send"}
+          {retry() && draft().trim() ? "Send again" : "Send"}
         </button>
       </div>
     </div>

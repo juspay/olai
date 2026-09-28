@@ -105,14 +105,14 @@ export function Diff(props: {
             rewritten, and the counts alone cannot say it: a new file is all
             additions, and so is a file everything was appended to. */}
         <Show when={computed().created}>
-          <span class="shrink-0 text-done">new</span>
+          <span class="shrink-0 text-done">New</span>
         </Show>
         {/* The two sides were too far apart to line up, so every row below is
             a change and the first ones are the top of the old file. Said out
             loud rather than drawn as though it were an ordinary diff. */}
         <Show when={computed().wholesale}>
           <span class="shrink-0 text-muted" data-testid={TESTID.chatDiffWholesale}>
-            rewritten whole
+            Rewritten whole
           </span>
         </Show>
         <Show when={computed().added > 0}>
@@ -185,7 +185,7 @@ export function Diff(props: {
           aria-expanded={open()}
           onClick={() => toggleFold(props.id)}
         >
-          {open() ? "show less" : `+${more()} more lines`}
+          {open() ? "Show less" : `+${more()} more lines`}
         </button>
       </Show>
     </div>

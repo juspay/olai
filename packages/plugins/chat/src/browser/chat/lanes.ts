@@ -229,7 +229,7 @@ const established = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
 const namesItself = (row: ChatEntry): boolean => row.kind === "ask"
 
 /** What a lane is called when the frame that spawned it is not on screen. */
-const SOMEBODY = "a subagent"
+const SOMEBODY = "A subagent"
 
 /**
  * THE RAIL: the line down the left of a lane, and the inset it holds its rows

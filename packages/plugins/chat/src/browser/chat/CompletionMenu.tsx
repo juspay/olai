@@ -125,6 +125,11 @@ function RowLabel(props: { readonly row: MenuRow }) {
   )
 }
 
+/** A section's heading in words a person reads. The section KEY stays what
+ *  `./naming.ts` files it under (it is the `data-section` a test asks for);
+ *  only what is drawn is said plainly. */
+const SECTION_WORDS: Readonly<Record<string, string>> = { files: "Files", nodes: "Rows" }
+
 export function CompletionMenu(props: {
   readonly completing: Completing | null
   readonly rows: ReadonlyArray<MenuRow>
@@ -278,7 +283,7 @@ export function CompletionMenu(props: {
                 data-testid={TESTID.chatCompletionSection}
                 data-section={row().section}
               >
-                {row().section}
+                {SECTION_WORDS[row().section ?? ""] ?? row().section}
               </li>
             </Show>
             <li>

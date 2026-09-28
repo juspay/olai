@@ -38,9 +38,9 @@ import type { Chat } from "./state.ts"
  *  sentences — a dismissal and a withdrawal are different things that happened
  *  and a reader coming back to the row deserves to know which. */
 const SAID: Record<string, string> = {
-  answered: "answered",
-  declined: "you dismissed this",
-  withdrawn: "the agent took this back",
+  answered: "Answered",
+  declined: "You dismissed this",
+  withdrawn: "The agent withdrew this",
 }
 
 export function AskForm(props: {
@@ -138,7 +138,7 @@ export function AskForm(props: {
                   <p class="m-0 text-label text-muted">
                     {label()}
                     <Show when={field.required}>
-                      <span class="text-alarm" aria-label="required">*</span>
+                      <span class="text-alarm" aria-label="Required">*</span>
                     </Show>
                   </p>
                 )}
@@ -184,7 +184,7 @@ export function AskForm(props: {
             class="mt-2 text-caption text-muted"
             data-testid={TESTID.chatAskOutcome}
           >
-            {SAID[ask().outcome?.how ?? ""] ?? "no longer waiting"}
+            {SAID[ask().outcome?.how ?? ""] ?? "No longer waiting"}
           </p>
         }
       >
@@ -196,7 +196,7 @@ export function AskForm(props: {
             disabled={sending()}
             onClick={submit}
           >
-            answer
+            Answer
           </button>
           {/* Not `../pill.ts`'s quiet pill: this row's height is set by
               the accent "answer" beside it, so dismiss keeps h-8/px-3 —
@@ -208,7 +208,7 @@ export function AskForm(props: {
             disabled={sending()}
             onClick={dismiss}
           >
-            dismiss
+            Dismiss
           </button>
         </div>
       </Show>

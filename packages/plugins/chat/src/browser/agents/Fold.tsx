@@ -52,7 +52,7 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
     if (!table) return
     onCleanup(table.register({
       lift: value => props.chat.state().unopened || !(carriedNodes(value) || carriedText(value) || carriedPath(value)) ? null : documentBox(box),
-      aim: value => setCarrying(carriedNodes(value) ? `drop to ask about ${value.ids.length === 1 ? "it" : "them"}` : carriedText(value) ? "drop to quote it" : "drop to name it"),
+      aim: value => setCarrying(carriedNodes(value) ? `Drop to ask about ${value.ids.length === 1 ? "it" : "them"}` : carriedText(value) ? "Drop to quote it" : "Drop to mention it"),
       leave: () => setCarrying(null),
       drop: async value => {
         if (props.chat.state().unopened || !documentBox(box)) return null

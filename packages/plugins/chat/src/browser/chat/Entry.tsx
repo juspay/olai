@@ -113,12 +113,12 @@ const FACE: Record<Delivery, {
 }> = {
   refused: {
     bubble: "border border-dashed border-alarm bg-alarm/10",
-    said: "not sent",
+    said: "Not sent",
     tone: "text-alarm",
   },
   unanswered: {
     bubble: "border border-dashed border-doing bg-doing/10",
-    said: "no answer — it may not have arrived",
+    said: "No reply. It may not have arrived.",
     tone: "text-doing",
   },
 }
@@ -348,7 +348,7 @@ export function Entry(props: {
                 class="mt-1 flex items-center gap-2"
                 data-testid={TESTID.chatQueued}
               >
-                <span class="text-caption text-doing">queued</span>
+                <span class="text-caption text-doing">Queued</span>
               </div>
             </Show>
             <Show when={user().delivery} keyed>
@@ -383,7 +383,7 @@ export function Entry(props: {
                       data-testid={TESTID.chatResend}
                       onClick={() => props.chat.resend(user().id)}
                     >
-                      send again
+                      Send again
                     </button>
                   </Show>
                 </div>
