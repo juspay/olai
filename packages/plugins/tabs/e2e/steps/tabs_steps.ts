@@ -139,6 +139,38 @@ When("I close tab {int} with its button", async function (this: OlaiWorld, index
   await settled(this);
 });
 
+/**
+ * WHERE THE CLOSE BUTTON SITS, and what it is called. At the tab's right edge,
+ * after the name — the last thing in the tab, the place a hand reaches for —
+ * with the tooltip `Close tab` and an accessible name that says WHICH tab.
+ * Measured on the tab in front, whose button is always drawn; a background
+ * tab's shows on hover.
+ */
+Then(
+  "tab {int}'s close button sits at its right edge, called {string}",
+  async function (this: OlaiWorld, index: number, name: string) {
+    const tab = tabAt(this, index);
+    await tab.hover();
+    const close = tab.locator(CLOSE);
+    await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(await close.getAttribute("aria-label"), name);
+    assert.equal(await close.getAttribute("title"), "Close tab");
+    const [face, button, title] = await Promise.all([tab.boundingBox(), close.boundingBox(), tab.locator(TITLE).boundingBox()]);
+    assert.ok(face !== null && button !== null && title !== null, "the tab, its name or its button has no box");
+    // Right-aligned: nothing but the tab's own padding after the button.
+    const gap = face.x + face.width - (button.x + button.width);
+    assert.ok(gap >= 0 && gap <= 8, `the close button ends ${gap}px short of the tab's right edge`);
+    // ...and after the name, not before it.
+    assert.ok(button.x >= title.x + title.width - 1, "the close button sits before the tab's name");
+    // The last element in the tab: nothing is drawn to its right.
+    assert.equal(
+      await close.evaluate((el) => el.nextElementSibling === null),
+      true,
+      "something is drawn after the close button",
+    );
+  },
+);
+
 When("I press the new tab button", async function (this: OlaiWorld) {
   await this.page.locator(NEW).click();
   await settled(this);

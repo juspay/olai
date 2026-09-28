@@ -309,6 +309,8 @@ Feature: The agenda — what is owed, on one line of time
     When every date is taken off "life.olai"
     And every date is taken off "work.olai"
     Then the agenda is empty
+    And the empty page says "Nothing due" over "Rows with a date show up here."
+    And the empty page "Nothing due" offers nothing to press
     And the agenda draws no spine
     # Not a dead end: the directory is still the way on.
     And the outline list is shown

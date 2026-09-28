@@ -33,7 +33,7 @@ import { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "../../src/file/mak
 
 import { saysThat } from "@olai/tests/harness/said.ts";
 import { keysSettled } from "@olai/tests/harness/settling.ts";
-import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { HYDRATION_TIMEOUT, POLL_TIMEOUT, SIDEBAR } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** Which door a scenario means. A throw rather than a default, because a
@@ -225,6 +225,25 @@ Then(
     const box = this.page.locator(selector(making(kind).testids.path));
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(await box.inputValue(), file, `the new ${kind} box`);
+  },
+);
+
+/**
+ * THE BOX A PAGE OPENED IS ONE A PERSON CAN SEE. An empty directory's `New
+ * outline` is pressed on the page, and the box it opens is the files row's own,
+ * drawn in the sidebar — so the sidebar has to come into view with it: the
+ * column out of its rail on a desktop, the drawer on a phone. A box opened in a
+ * shut drawer is a press that looked like it did nothing.
+ */
+Then(
+  "the sidebar is open with the new {word} box in it",
+  async function (this: OlaiWorld, kind: string) {
+    const sidebar = this.page.locator(SIDEBAR);
+    await sidebar.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await sidebar.getAttribute("data-open"), "true", "the sidebar is drawn shut");
+    await sidebar
+      .locator(selector(making(kind).testids.path))
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 

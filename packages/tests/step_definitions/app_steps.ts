@@ -118,6 +118,62 @@ Then("the page has not reloaded", async function (this: OlaiWorld) {
 });
 
 
+// ── an empty page ──────────────────────────────────────────────────────
+//
+// Every page with nothing on it draws one shared component
+// (`@olai/web/client/Empty.tsx`): the leaf, a line saying what is empty, a
+// quieter line under it saying what will appear here, and at most one button
+// doing the obvious next thing. Here rather than in each plugin's steps
+// because the SHAPE is shared; what each page says is the scenario's.
+
+/** The empty page on screen whose first line is `line` — the block around it,
+ *  holding the second line, and the button beside that block. */
+const emptyPage = (world: OlaiWorld, line: string) => {
+  const said = world.page.getByText(line, { exact: true }).locator("visible=true").first();
+  return { said, words: said.locator("xpath=.."), block: said.locator("xpath=../..") };
+};
+
+Then(
+  "the empty page says {string} over {string}",
+  async function (this: OlaiWorld, line: string, detail: string) {
+    const { said, words } = emptyPage(this, line);
+    await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const lines = (await words.locator(":scope > p").allInnerTexts()).map((one) => one.trim());
+    assert.deepStrictEqual(lines, [line, detail], `the empty page reads ${JSON.stringify(lines)}`);
+  },
+);
+
+Then("the empty page says {string} and nothing more", async function (this: OlaiWorld, line: string) {
+  const { said, words } = emptyPage(this, line);
+  await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const lines = (await words.locator(":scope > p").allInnerTexts()).map((one) => one.trim());
+  assert.deepStrictEqual(lines, [line], `the empty page reads ${JSON.stringify(lines)}`);
+});
+
+Then(
+  "the empty page {string} offers {string}",
+  async function (this: OlaiWorld, line: string, action: string) {
+    const { said, block } = emptyPage(this, line);
+    await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const buttons = (await block.locator(":scope > button").allInnerTexts()).map((one) => one.trim());
+    assert.deepStrictEqual(buttons, [action], `the empty page offers ${JSON.stringify(buttons)}`);
+  },
+);
+
+Then("the empty page {string} offers nothing to press", async function (this: OlaiWorld, line: string) {
+  const { said, block } = emptyPage(this, line);
+  await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await block.locator(":scope > button").count(), 0, "an empty page with nothing to do offers a button");
+});
+
+When(
+  "I press {string} on the empty page {string}",
+  async function (this: OlaiWorld, action: string, line: string) {
+    const { block } = emptyPage(this, line);
+    await this.press(block.locator(":scope > button", { hasText: action }));
+  },
+);
+
 /** Close the app's live connections before a persistence-only server restart.
  * Reconnect workflows keep their tab open and exercise the connection overlay. */
 When("I leave the app", async function (this: OlaiWorld) {

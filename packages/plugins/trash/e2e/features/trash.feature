@@ -54,6 +54,11 @@ Feature: The trash can be seen into, taken out of, and emptied
     # it on first use, so an absent archive IS an empty trash.
     When I open the Trash
     Then the Trash is empty
+    # Said, with what will appear here — and nothing to press: an empty Trash
+    # has no next step.
+    And the empty page says "Trash is empty" over "Deleted outlines and rows appear here."
+    And the empty page "Trash is empty" offers nothing to press
+    And there should be no page errors
 
   Scenario: What is moved to the Trash is listed there, whole
     When I open the node menu of "install"
