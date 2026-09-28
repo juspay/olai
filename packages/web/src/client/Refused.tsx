@@ -43,8 +43,8 @@ export function Refused(props: {
     <Show when={props.said}>
       {(text) => (
         <p
-          class={"m-0 rounded border border-alarm bg-paper leading-snug text-alarm " +
-            (props.compact === true ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-[0.8125rem]")}
+          class={"m-0 rounded-control border border-alarm bg-paper leading-snug text-alarm " +
+            (props.compact === true ? "px-2 py-1 text-label" : "px-3 py-1.5 text-body")}
           data-testid={props.testid}
           data-tone="alarm"
           role="alert"

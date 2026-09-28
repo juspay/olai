@@ -14,8 +14,8 @@ export function Empty(props: {
 }) {
   return (
     <div class="flex flex-col items-start gap-5 py-12">
-      <Leaf class="size-16 text-accent/35" />
-      <p class="font-serif text-xl italic leading-snug text-muted" data-testid={props.testid}>
+      <Leaf class="size-16 text-accent/40" />
+      <p class="font-serif text-title italic leading-snug text-muted" data-testid={props.testid}>
         {props.line}
       </p>
     </div>

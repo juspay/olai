@@ -24,8 +24,8 @@ export function FileWake(props: {
     <Show when={props.problem}><span role="alert" class="text-alarm">{props.problem}</span></Show>
     <Show when={props.picker.open()}>
       <div class={props.listClass} data-testid={props.ids.list} ref={props.picker.setList}>
-        <input ref={element => queueMicrotask(() => element.focus())} class="w-full bg-transparent px-2 py-1 text-xs text-ink" data-testid={props.ids.query} placeholder="file" value={props.picker.showing() ?? ""} onInput={event => props.picker.show(event.currentTarget.value)} />
-        <ul class="list-none"><Show when={props.paths.length} fallback={<li class="text-muted">no such file here</li>}><For each={props.paths}>{file => <li><button type="button" class="flex w-full gap-2 rounded px-2 py-1 text-left text-xs hover:bg-rule" data-testid={props.ids.file} data-file={file} onClick={() => { props.picker.shut(); props.setPick(file) }}><span class="min-w-0 flex-1 truncate">{name(file)}</span><span class="text-muted">{file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : ""}</span></button></li>}</For></Show></ul>
+        <input ref={element => queueMicrotask(() => element.focus())} class="w-full bg-transparent px-2 py-1 text-label text-ink" data-testid={props.ids.query} placeholder="file" value={props.picker.showing() ?? ""} onInput={event => props.picker.show(event.currentTarget.value)} />
+        <ul class="list-none"><Show when={props.paths.length} fallback={<li class="text-muted">no such file here</li>}><For each={props.paths}>{file => <li><button type="button" class="flex w-full gap-2 rounded-control px-2 py-1 text-left text-label hover:bg-rule" data-testid={props.ids.file} data-file={file} onClick={() => { props.picker.shut(); props.setPick(file) }}><span class="min-w-0 flex-1 truncate">{name(file)}</span><span class="text-muted">{file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : ""}</span></button></li>}</For></Show></ul>
       </div>
     </Show>
   </>

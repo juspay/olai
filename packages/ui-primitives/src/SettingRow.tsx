@@ -48,14 +48,14 @@ export function Row(props: {
   const label = (
     <div class="min-w-0 flex-1">
       <div class="flex items-baseline gap-2">
-        <span class="text-sm text-ink">{props.label}</span>
+        <span class="text-body text-ink">{props.label}</span>
         <Show when={props.value}>
-          {(value) => <span class="truncate text-xs capitalize text-muted" data-testid={TESTID.prefsValue}>{value()}</span>}
+          {(value) => <span class="truncate text-label capitalize text-muted" data-testid={TESTID.prefsValue}>{value()}</span>}
         </Show>
       </div>
       <Show when={props.hint}>
         {(said) => (
-          <p class="mt-0.5 text-xs leading-snug text-muted" data-testid={TESTID.prefsHint}>
+          <p class="mt-0.5 text-label leading-snug text-muted" data-testid={TESTID.prefsHint}>
             {said()}
           </p>
         )}
@@ -87,7 +87,7 @@ export function Row(props: {
       </div>
       <Show when={props.setBy}>
         {(said) => (
-          <p id={saidId()} class="mt-1 text-xs leading-snug text-muted" data-testid={TESTID.prefsSetBy}>
+          <p id={saidId()} class="mt-1 text-label leading-snug text-muted" data-testid={TESTID.prefsSetBy}>
             {said()}
           </p>
         )}

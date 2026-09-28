@@ -144,7 +144,7 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
       // around a card nobody navigated to reads as a border somebody chose.
       // The focus itself is kept — it is half of what makes the page under this
       // unreachable by keyboard.
-      class="m-auto max-w-sm rounded-2xl border-0 bg-panel px-6 py-5 text-ink shadow-xl ring-1 ring-rule/40 focus:outline-none backdrop:bg-black/60"
+      class="m-auto max-w-sm rounded-surface border-0 bg-panel px-6 py-5 text-ink shadow-overlay ring-1 ring-rule/40 focus:outline-none backdrop:bg-black/60"
       data-testid={TESTID.offline}
       // WHICH state froze it, for a test and for whoever is reading the DOM —
       // the same attribute and the same values the pill publishes
@@ -157,15 +157,15 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
       // nothing to answer it.
       onCancel={(event) => event.preventDefault()}
     >
-      <h2 class="m-0 mb-1 text-base font-bold">{look().label}</h2>
-      <p class="m-0 text-sm text-muted">{look().detail}</p>
+      <h2 class="m-0 mb-1 text-title font-bold">{look().label}</h2>
+      <p class="m-0 text-body text-muted">{look().detail}</p>
       {/* The recovery, where there is one. `needsReload` rides the readout
           (kolu#2160) rather than being re-derived from a list of terminal
           states kept here by hand — the hand-kept list is what once drew
           "reconnecting…" over a page that never would. */}
       <Show
         when={props.readout.needsReload}
-        fallback={<p class="m-0 mt-3 text-sm text-muted">{FROZEN}</p>}
+        fallback={<p class="m-0 mt-3 text-body text-muted">{FROZEN}</p>}
       >
         <div class="mt-4">
           <Reload onReload={reloadForUpdate} />
