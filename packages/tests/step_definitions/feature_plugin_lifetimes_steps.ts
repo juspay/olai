@@ -11,7 +11,36 @@ const contributions: Readonly<Record<string, string>> = {
   capture: selector(TESTID.inboxLink),
   trash: selector(TESTID.trashLink),
   chat: `${selector(TESTID.agentStart)}, ${selector(TESTID.agentStanding)}`,
+  journal: selector(TESTID.calendarRow),
 };
+
+/**
+ * EVERY PART A ROW DRAWS IN THE COLUMN, each of which must leave with it and
+ * come back with it — a heading left behind with no list, or a `+` whose owner
+ * has gone, is the failure. Each selector is counted on its own, so "present"
+ * means all of them rather than any one.
+ */
+const parts: Readonly<Record<string, ReadonlyArray<string>>> = {
+  files: [selector(TESTID.sidebarFiles), selector(TESTID.newFile)],
+  pins: [selector(TESTID.pinShelf)],
+  capture: [selector(TESTID.inboxLink)],
+  trash: [`${selector(TESTID.sidebarFoot)} ${selector(TESTID.trashLink)}`],
+  chat: [selector(TESTID.agentRoster), selector(TESTID.chatNew)],
+  journal: [selector(TESTID.agendaLink), selector(TESTID.calendarRow), selector(TESTID.calendarToggle)],
+};
+
+Then("every sidebar part of {string} is {word} in this tab", async function(this: OlaiWorld, feature: string, state: string) {
+  const selectors = parts[feature];
+  assert.ok(selectors, `unknown directory feature ${feature}`);
+  assert.ok(state === "present" || state === "absent");
+  await this.showSidebar();
+  for (const one of selectors) {
+    await this.page.locator(one).first().waitFor({
+      state: state === "present" ? "attached" : "detached",
+      timeout: HYDRATION_TIMEOUT,
+    });
+  }
+});
 
 Then("the directory feature {string} is {word} in this tab", async function(this: OlaiWorld, feature: string, state: string) {
   const selector = contributions[feature];

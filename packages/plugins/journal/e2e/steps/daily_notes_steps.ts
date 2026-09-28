@@ -164,6 +164,7 @@ Then(
 /** Every cell is a link — the day has a page, whether the reader wrote
  *  something on it, the set did, or neither. */
 Then("the day {string} is a link", async function (this: OlaiWorld, date: string) {
+  await this.openCalendar();
   const link = this.dayLink(date);
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(await link.count(), 1);
@@ -182,6 +183,7 @@ Then("the day {string} is a link", async function (this: OlaiWorld, date: string
 Then(
   "the day {string} is announced as {string}",
   async function (this: OlaiWorld, date: string, said: string) {
+    await this.openCalendar();
     await this.expectAttribute(
       `${daySelector(date)} a`,
       "aria-label",

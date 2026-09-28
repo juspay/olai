@@ -25,6 +25,8 @@ import { TESTID } from "../src/testids.ts";
 
 /** The trash: the one `_olai/Trash.olai` the directory holds, read-only, one verb. */
 export const TRASH_PAGE = selector(TESTID.trashPage);
+/** The Trash's icon at the collapsed rail's foot. */
+export const RAIL_TRASH = selector(TESTID.railTrash);
 /** One row of it — a trashed node; `data-node-id` is which. */
 export const TRASH_ROW = selector(TESTID.trashRow);
 /** The one verb a trash row offers. */

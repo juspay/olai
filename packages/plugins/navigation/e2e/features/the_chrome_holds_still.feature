@@ -67,6 +67,9 @@ Feature: The chrome holds still while the page changes
     # subscription torn down and re-opened with them, for a click inside one
     # month.
     Given I open the day "2019-11-05"
+    # The month is folded under the Today row until a reader opens it; open
+    # it before marking, so the mark watches a click inside an open month.
+    And the calendar is open
     And I mark the screen
     When I click the day "2019-11-12"
     Then the day open is "2019-11-12"

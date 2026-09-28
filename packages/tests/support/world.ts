@@ -593,6 +593,11 @@ export const CALENDAR = selector(PLUGIN_TESTID.calendar);
 export const CALENDAR_DAY = selector(PLUGIN_TESTID.calendarDay);
 export const CALENDAR_PREV = selector(PLUGIN_TESTID.calendarPrev);
 export const CALENDAR_NEXT = selector(PLUGIN_TESTID.calendarNext);
+/** The `Today` row the month folds under: the link to today's page, and the
+ *  chevron that unfolds the month (`aria-expanded` says whether it is). */
+export const CALENDAR_ROW = selector(PLUGIN_TESTID.calendarRow);
+export const CALENDAR_TODAY = selector(PLUGIN_TESTID.calendarToday);
+export const CALENDAR_TOGGLE = selector(PLUGIN_TESTID.calendarToggle);
 /** One day, as a page: `/d/<date>` and `/today`. */
 export const DAY_PAGE = selector(PLUGIN_TESTID.dayPage);
 /** The day page's + day note — shown on any day without a note. */
@@ -1801,6 +1806,23 @@ export class OlaiWorld extends World {
   }
 
 
+  /**
+   * THE MONTH, UNFOLDED — the sidebar's calendar is shut under its `Today` row
+   * by default, so a step about a day's cell opens it first. Idempotent: an
+   * open month is left open, and the preference this writes is the reader's
+   * own (`olai.sidebar.calendar`), exactly as a click would write it.
+   */
+  async openCalendar(page: Page = this.page): Promise<void> {
+    // Already unfolded (a phone's shut drawer still holds it): asserting a
+    // day's facts must not open the drawer over the page as a side effect.
+    if ((await page.locator(CALENDAR).count()) > 0) return;
+    await this.showSidebar(page);
+    const toggle = page.locator(CALENDAR_TOGGLE);
+    await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+    await page.locator(CALENDAR).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
+
   /** One day of the month in the sidebar. */
   calendarDay(date: string): Locator {
     return this.page.locator(daySelector(date));
@@ -2399,6 +2421,7 @@ export class OlaiWorld extends World {
     fact: "data-dated" | "data-noted" | "data-today" | "data-open",
     expected: boolean,
   ): Promise<void> {
+    await this.openCalendar();
     await this.expectAttribute(
       daySelector(date),
       fact,

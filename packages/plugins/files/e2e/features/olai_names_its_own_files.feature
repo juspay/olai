@@ -75,16 +75,18 @@ Feature: The files olai names for itself, and the doors onto them
     And the vault group's "_olai/Pins.olai" row marks the current page
     And there should be no page errors
 
-  Scenario: The furniture nests under one parent, and the Trash is in it
-    # THE 2026-08-31 RULING: one mechanism, one parent, one door for the
-    # house's own furniture — the group's rows AND the Trash sit under a
-    # row named for the house; nothing stands alone at the column's foot
-    # any more. The parent is no page, though, and no fold either: a door
-    # in name only.
-    Then the sidebar's foot is one parent named "olai"
-    And the parent nests the Trash door
+  Scenario: The furniture nests under one parent, and the Trash stands at the foot
+    # THE 2026-08-31 RULING kept: one mechanism, one parent for the house's
+    # own furniture, a row named for the house that is no page and no fold.
+    # THE 2026-09 SIMPLIFICATION moved the Trash out: it is the trash row's
+    # own entry, pinned at the column's foot, so a directory with no `_olai/`
+    # file draws no empty parent at all.
+    Then the sidebar draws no vault group
+    And the Trash door stands at the sidebar's foot, outside the group
     When I pin the page
-    Then the parent nests the vault group's "_olai/Pins.olai" row
+    Then the vault group is one parent named "olai"
+    And the parent nests the vault group's "_olai/Pins.olai" row
+    And the Trash door stands at the sidebar's foot, outside the group
     And there should be no page errors
 
   Scenario: The trash is out of the tree either way, because it is not a file you edit

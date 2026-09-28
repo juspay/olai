@@ -9,6 +9,18 @@ When("I press new chat in Chats", async function(this: OlaiWorld) {
   await this.showSidebar();
   await this.press(this.page.locator(fresh));
 });
+When("I press {string} on new chat in Chats", async function(this: OlaiWorld, key: string) {
+  await this.showSidebar();
+  const plus = this.page.locator(fresh);
+  await plus.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => await plus.isEnabled(), "the Chats + to be ready");
+  await plus.focus();
+  await this.page.keyboard.press(key);
+});
+Then("the engine menu is shut and new chat in Chats has focus", async function(this: OlaiWorld) {
+  await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => await this.page.locator(fresh).evaluate(el => document.activeElement === el), "focus to return to the Chats +");
+});
 When("I pick new chat in the Agents palette", async function(this: OlaiWorld) {
   await this.page.locator(`${PALETTE_ITEM}${attr("data-id", "new-chat")}`).click();
 });

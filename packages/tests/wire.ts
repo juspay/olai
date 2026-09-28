@@ -397,6 +397,9 @@ const pages = async (
   await page.locator('[data-testid="document-body"]').waitFor({ timeout: 30_000 })
   await mark("a document is opened")
 
+  // The month is folded under the sidebar's Today row until it is opened.
+  const toggle = page.locator('[data-testid="calendar-toggle"]')
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click()
   await page.locator('[data-testid="calendar-day"][data-date="2026-08-12"] a').click()
   await page.locator('[data-testid="day-page"]').waitFor({ timeout: 30_000 })
   await mark("a day page is opened")
