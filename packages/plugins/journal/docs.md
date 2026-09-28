@@ -16,17 +16,17 @@ chosen time of day. The one thing olai says unprompted about due work is that
 the day has work on it. Once per local day, in each browser, its first non-empty
 reading of what is owed raises a notification. The title is the deployment's
 name and the body uses the Agenda entry's own phrase, such as **Agenda: 2
-overdue, 3 on today**. Pressing it opens `/agenda` in the focused pane.
+overdue, 3 due today** (or **1 due today** alone). Pressing it opens `/agenda` in the focused pane.
 
-The notification is the reminder. A chime accompanies it only if Alert sound
-is on and an earlier pointer or keyboard gesture in this page has unlocked
+The notification is the reminder. A chime accompanies it only if the `Sound`
+preference is on and an earlier pointer or keyboard gesture in this page has unlocked
 audio. Before that, the sound is skipped for the day and never replayed at a
 later gesture. Reminders never badge the app or mark the tab: the Agenda entry
 and rail dot already carry the durable reading of due work; the badge counts
 chat's questions alone.
 
-**Reminders** is a browser preference, default on, beneath **Alerts** and
-**Alert sound**. Turning it off leaves the Agenda entry working. Turning Alerts
+**Reminders** is a browser switch, default on, under Notifications in the
+Preferences panel, beneath **Alerts** and **Sound**. Turning it off leaves the Agenda entry working. Turning Alerts
 off silences reminders too and freezes the Reminders row with an explanation.
 Neither switch spends an unannounced day: turning it back on can remind once.
 The choice is kept under `olai.reminders`, not in the vault's configuration.
@@ -93,6 +93,12 @@ so those affordances cannot drift from the parser that owns their URLs.
 Rows on a day's page and the agenda are the outlines plugin's dated row, reached through its `outlines.dated-row` location, so they carry that row's `•••` menu ([editing.md](../editing.md)): the journal supplies the dates, and the verbs, their panels and their writes stay the outlines plugin's. Each entry also carries how many records hang under its node (`under`), counted on the server with the reading, for the menu's **Move to Trash** question.
 
 The Agenda entry and its owed badge open the sidebar. Directly under it is the `Today` row: `Today` and the date (`Sep 28`), a link to today's page, with a chevron that unfolds the month calendar in place below the row and folds it away again. Whether the month is open is remembered per browser (`olai.sidebar.calendar`, followed across tabs by the journal's activation) and is shut by default. Unfolded, the month is drawn on the sidebar's own dark ground and keeps its paging, day links and marks. When the full sidebar is collapsed, the journal contributes its compact Today and Agenda doors to the rail. The command palette gets *Go to today* and *Go to agenda* from the same row.
+
+The Agenda entry's badge shows one number; its tooltip and accessible name say
+both in words, such as `Agenda — 1 due today` or `Agenda — 2 overdue, 3 due
+today`. An agenda with nothing owed says `Nothing due` and `Rows with a date
+show up here.` An empty day says `Nothing is on today.` (or `Nothing is on
+2026-08-10.` for another day).
 
 An empty day may mint its daily note. The browser sends only the date through `journal`'s `note.mint` procedure; the server derives the path from the vault's existing daily-note convention and returns the file it created. That write never travels through core's general `edit.apply` vocabulary.
 

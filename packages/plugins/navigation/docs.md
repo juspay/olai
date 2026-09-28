@@ -118,10 +118,16 @@ in the shortcuts sheet under "Added by plugins", in their `said` words. They are
 answered only while the palette's component is active: it names `layout.shell`
 and the renderer, so with the layout row off a registered chord does nothing.
 
-`Routing.label(route)` is a page's short name — a node's id, a file's path, a
-plugin page's breadcrumb — read by the pane header and the tab strip alike.
-`Routing.name(route)` is what a whole document goes by in a strip of names:
-the files sidebar's stem (`garden` for `garden.olai`, through `@olai/format`'s
-`stemOf` over the vault's claims) for a kind the vault keeps, the filename with
-its suffix for any other file (`q3.pdf`), and nothing for a page that is not a
-file or before the claims are read. The tab strip reads it.
+`Routing.label(route)` is a page's short name: `Home` for the front page,
+`Trash`, a node's id, a file's path, or a plugin page's breadcrumb.
+`Routing.name(route)` is what a whole document goes by: the files sidebar's
+stem (`garden` for `garden.olai`, through `@olai/format`'s `stemOf` over the
+vault's claims) for a kind the vault keeps, the filename with its suffix for
+any other file (`q3.pdf`), and nothing for a page that is not a file or before
+the claims are read. The tab strip and the pane header both read `name`, and
+fall back to `label` where it answers nothing. So a pane on `garden.olai` is
+headed `garden`, its close button is named `Close garden`, and a collapsed
+pane's rail is named `Expand garden`.
+
+The palette's `Reset sidebar width` puts the sidebar back to its default width,
+for keyboard users who cannot drag its handle.

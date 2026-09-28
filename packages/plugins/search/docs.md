@@ -8,7 +8,7 @@ What search *does* has its own page: [search.md](../search.md) is the grammar, t
 
 Nothing. It is on by default, like chat, git and the journal. Two things take it away, and they answer two different questions.
 
-Set `on: no` on the `search` node in `_olai/Settings.olai`, or use its switch in `⧉`. The switch writes that same property and the choice survives restart. Turning the row back on restores its services and browser contribution.
+Set `on: no` on the `search` node in `_olai/Settings.olai`, or use its switch (`Enable search`) on the plugins panel ([running.md](../running.md#which-integrations-this-serve-runs)). The switch writes that same property and the choice survives restart. Turning the row back on restores its services and browser contribution.
 
 **Either way, no query finds anything, and nothing is silent about it.** The refusal is carried on the answer's `refusals`, which is the field every one of those doors already draws for a query the grammar could not read — and which an agent reads in the result of `search_nodes`. There is no empty list with nothing to say.
 
@@ -26,9 +26,9 @@ The row stands behind `Search` on `Offers` alone, so it answers on a serve with 
 
 | seat | who declares it, and what they keep | what search brings |
 | --- | --- | --- |
-| `app.header` (`lead`) | `layout` — the seat, and what it costs when the bar runs out of width | the box, and the phone's magnifier |
+| `app.header` (`lead`) | `layout` — the seat, and what it costs when the bar runs out of width | the box (placeholder `Search`), and the phone's search button |
 
-The `lead` word arrived with this row. It is the seat ahead of the pills — the one control in the bar that may shrink to nothing before any pill loses a character, and the one drawn on a phone too, where it is a 44px magnifier that opens the ⌘K palette. The panel of results portals against the viewport, the way the commit and preferences panels do.
+The `lead` word arrived with this row. It is the seat ahead of the health dot and the Preferences gear — the one control in the bar that may shrink to nothing before anything beside it gives way, and the one drawn on a phone too, where it is a 44px magnifier button named `Search` that opens the ⌘K palette. Under the box, an **All / Rows / Files** selector picks what kind of hit to ask for ([search.md](../search.md)). The panel of results portals against the viewport, the way the commit and preferences panels do.
 
 The shortlist, result rows and count are search's public presentation contracts. Navigation, chat and outlines supply their own selection behavior and retain their own editing state. The generic cursor is a UI primitive.
 

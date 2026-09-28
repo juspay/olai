@@ -18,8 +18,9 @@ On a phone, or with tabs switched off, the header alone is reserved. Layout
 owns this geometry; tabs still contributes only to the existing strip seat.
 
 The tab in front is drawn on paper, and the others are muted. Each tab shows a
-glyph for the kind of page it holds, its title, and a close button that appears
-on hover and on the tab in front.
+glyph for the kind of page it holds, its title, and a close button at its right
+edge. The close button shows on the tab in front and on hover; its tooltip is
+`Close tab` and its accessible name is `Close <title>`.
 
 A tab holding a document (an outline or a markdown file) is named the way the
 files sidebar names it, without the suffix: `garden`, not `garden.olai`. A file
@@ -32,8 +33,9 @@ split tab's title is its panes' names joined with " + ". A tab brought back to
 the front keeps its title until its page reports a real name, and every tab in
 the strip is the same width, so nothing moves while a page arrives.
 
-Hover a tab to see the address it holds. The browser's address bar shows the
-address of the tab in front and nothing about the other tabs.
+A tab's tooltip is the address it holds. The strip draws no address of its
+own. The browser's address bar shows the address of the tab in front and
+nothing about the other tabs.
 
 - Press a tab to bring it to the front.
 - Middle-click a tab, or press its ×, to close it. Closing the tab in front
@@ -44,7 +46,7 @@ address of the tab in front and nothing about the other tabs.
   front), **Close other tabs**, **Copy address** (the tab's link, for pasting
   elsewhere; if the browser will not write to the clipboard, the address is
   shown to copy by hand) and **Close**.
-- Press **+** for a new tab on the front page.
+- Press **+** (`New tab`) for a new tab on the front page.
 
 ## Opening a page in a new tab
 

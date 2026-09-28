@@ -27,8 +27,9 @@ are no longer started by the permanent browser entry point.
 Those readings are what `layout.shell` carries: the breakpoint, whether each
 panel is open and how wide, which snap the mobile sheet is on, and the panel's
 own drag handle. Consumers use the parts they need — outlines and documents
-read the breakpoint, git chooses between a pill and a banner, the sidebar and
-file rail open the column, and the palette resets both widths — and each declares the key on a
+read the breakpoint, git chooses between its health-popover row and a banner, the sidebar and
+file rail open the column, and the palette's `Reset sidebar width` puts the
+widths back to their defaults — and each declares the key on a
 COMPONENT of its own rather than on its row, because content runs under another
 layout entirely (`olai-plugin-test-layout`). With no shell mounted those
 readings answer what they always answered — a phone-width viewport, a shut
@@ -59,18 +60,29 @@ and decide whether to appear on mobile pages without a sidebar. An entry's
 foot of the health popover (`health` — the inspector's plugins door). An entry
 whose open state outlives the shell may also supply `open`; the popover opens
 itself while a `health` entry says it is up, which is how the plugins panel
-comes back when the shell under it is rebuilt.
+comes back when the shell under it is rebuilt. While that panel is up the
+popover stays mounted (the door's trigger lives in it) but is hidden, so the
+panel is the one thing on screen; when the panel closes, the popover closes
+with it.
+
+A phone draws the Preferences and Plugins doors as rows at the foot of the
+sidebar drawer. On a phone page with no drawer (the error page, the waiting
+page) the Preferences gear stays in the bar.
 
 ## The health dot
 
 The desktop header is the wordmark, the `lead` seat (search), one health dot,
-the `header` tools and the `app.viewer` seat. The dot (`Health.tsx`) replaces
-the row of pills the bar used to stand. Layout owns the LOCATION and the
-drawing; every readout still belongs to the plugin that registers it:
+the `header` tools (the Preferences gear) and the `app.viewer` seat (the
+signed-in face). Layout owns the location and the drawing of the dot
+(`Health.tsx`); every readout still belongs to the plugin that registers it:
 
+- The connection's row is layout's own and comes first: `Connected`,
+  `Connecting…`, `Reconnecting…`, `Partly connected` or `The server restarted`.
 - `app.header` `cluster` seats are drawn as rows of the dot's popover, in mount
-  order, after the connection's row (layout's own). The uptime line is last,
-  quiet, and casts no vote. The `health` tools are the popover's foot.
+  order, after the connection's row — git's Commit row, kolu, odu, mail,
+  spaces. The uptime line is last, quiet, and casts no vote: `Running for 2h`,
+  with `Running since <instant>` on its tip. The `health` tools are the
+  popover's foot (the `Plugins` row).
 - A seat may declare `status: () => BarStatus` — `tone` (`healthy`, `quiet`,
   `notice`, `alarm`), `label` (the row's own words) and `detail`. It is a
   reactive accessor over state the contributor's activation owns (git reads
@@ -79,9 +91,10 @@ drawing; every readout still belongs to the plugin that registers it:
   types are a static contract (`olai-plugin-layout/slots`); no live value
   crosses by import.
 - The dot wears the worst tone among the connection and every standing
-  status (`health.ts`; `quiet` never colours it). When it is not healthy its
-  accessible name and tip quote each piece of news, alarms first, in the
-  readout's own label and sentence. `data-health` and `data-connection` carry
+  status (`health.ts`; `quiet` never colours it): green, amber or red. Its
+  accessible name is `Status: all good`, or `Status: ` and each piece of news
+  joined by ` · `, alarms first, in the readout's own label; the tip adds each
+  readout's sentence. `data-health` and `data-connection` carry
   the state for tests.
 - Withdrawal is the registration's: a plugin switched off takes its row and
   its vote in the same step, an open popover redraws without it, and a plugin
@@ -92,6 +105,13 @@ drawing; every readout still belongs to the plugin that registers it:
 
 A phone has no dot: search and who is looking stay in the bar, and the
 connection and git news appear as banners under it only when there is news.
+
+## When the page breaks
+
+The shell is drawn inside a fault boundary. A thrown render shows
+`Something went wrong on this page` and `Your files are safe. Reload to try
+again.`, with `Reload` and `Go home`. The technical text sits inside a closed
+`Details` disclosure, verbatim, for a bug report (`Fault.tsx`).
 
 Pane geometry, resizing and responsive preferences live in the layout package.
 The frame consumes navigation state and renders registered overlays and content
@@ -121,5 +141,9 @@ keeps the header-only heights, because the sidebar column beside the main one
 is not under the strip. Removing the entry restores the prior inline value, as
 it does for the widths.
 
-A pane's label is navigation's `Routing.label(route)`, read through the routing
-this row holds from `navigation.state` (`src/routing.ts`).
+A pane's header shows the page's name: navigation's `Routing.name(route)` (a
+document's stem, such as `garden`), or `Routing.label(route)` where the page
+has no such name (`Home`, `Trash`, a node's id, a path). Both are read through
+the routing this row holds from `navigation.state` (`src/routing.ts`). The
+pane's close button is named `Close <name>`, and a collapsed pane's rail is
+named `Expand <name>`.

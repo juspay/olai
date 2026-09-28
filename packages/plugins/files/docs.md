@@ -8,10 +8,15 @@ files removes browsing UI without withdrawing an open content editor.
 Sidebar file rows carry their served path through the host-supplied `Landings` table. A press still opens the file; a travelled carry suppresses navigation. Holding a file on a phone closes the drawer through the sidebar region’s existing owner-supplied `onClose` callback, without unmounting the carrier.
 
 `files.state` carries the two controls this row draws for another row's page —
-the box that names a new file and the guarded verb that deletes one. The
-outline and the document each name it on a component of their own, so a page
-with no files row mounted is a whole page with no delete verb under it and no
-minting box.
+the box that names a new file and the guarded verb that deletes one — and
+`open(kind)`, which opens the sidebar's own new-file box for one kind, as
+picking that item in the Outlines `+` menu does. `open` also brings the sidebar
+into view through `layout.shell`'s `revealSidebar`: the column comes out of its
+rail on a desktop, and the drawer opens on a phone. An empty directory's
+`No outlines yet` page offers a `New outline` button that calls it; with no
+files row mounted the button is not offered. The outline and the document each
+name `files.state` on a component of their own, so a page with no files row
+mounted is a whole page with no delete verb under it and no minting box.
 
 Content providers contribute creation controls through `files.types`: each
 gives a `making` (the words and test ids of its item, or nothing while it cannot
