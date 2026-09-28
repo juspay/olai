@@ -29,7 +29,7 @@ Feature: An open filter follows changing matches without losing its query
     And I press "Escape"
     Then "filtered.olai" holds a node titled "finished searching"
     And the node "filter-second" is not shown
-    And the filter found "no matches of 3"
+    And the filter found "No matches of 3"
     When I clear the filter
     Then the node titled "first no longer matches" is shown
     And the node titled "finished searching" is shown
@@ -38,7 +38,7 @@ Feature: An open filter follows changing matches without losing its query
 
   Scenario: A no-match filter survives rebuilding and discovers a later match
     When I filter the page by "later"
-    Then the filter found "no matches of 3"
+    Then the filter found "No matches of 3"
     When I open another browser tab
     And I open the plugins panel
     And I switch the plugin "journal" off
@@ -46,7 +46,7 @@ Feature: An open filter follows changing matches without losing its query
     And I use the original browser tab
     Then the journal chrome is absent
     And the filter box holds "later"
-    And the filter found "no matches of 3"
+    And the filter found "No matches of 3"
     When I rewrite "filtered.olai" as:
       """
       {"id":"filter-root","ord":"a0","title":"work"}

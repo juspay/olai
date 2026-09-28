@@ -80,7 +80,7 @@ Feature: A frame leaves the rest of the page standing
     Given I open the outline "house.olai"
     And I mark the page
     When I open the node menu of "order"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     Then the edge panel holds "herbs"
     When I put the caret on the edge panel's ×
     And I mark every element of the "edge panel's list"

@@ -73,17 +73,33 @@ Feature: Workflowy gutter
     Then the collapse control of "kitchen" is revealed
     And the node menu of "kitchen" is revealed
 
-  Scenario: The node menu's five read actions come first
-    # What this row can WRITE is `menu_verbs.feature`'s subject; what belongs
-    # here is that the reads are still at the top of the panel, in the order
-    # they were, above the rule that separates them from everything that
-    # changes the directory.
+  Scenario: The node menu is short, in groups, with Move to Trash last and alone
+    # What each verb DOES is `menu_verbs.feature`'s subject; what belongs here
+    # is the shape: `Zoom in` and the marks first, then when and where, then
+    # the plugins' verbs, the rarely reached under `More ›`, and the verb that
+    # takes a subtree away under a rule of its own. The row's own fold is the
+    # triangle beside the `•••`, so the menu does not repeat it; the two "all"
+    # folds are in `More ›`.
     When I open the node menu of "kitchen"
-    Then the node menu offers "Zoom in"
-    And the node menu offers "Collapse"
-    And the node menu offers "Expand all"
-    And the node menu offers "Collapse all"
-    And the node menu offers "Copy link to node"
+    Then the node menu reads, in order:
+      | Zoom in        |
+      | Mark ›         |
+      | —              |
+      | Set date…      |
+      | Pin to sidebar |
+      | —              |
+      | Move to…       |
+      | Duplicate      |
+      | —              |
+      | Start an agent |
+      | —              |
+      | More ›         |
+      | —              |
+      | Move to Trash  |
+    And the node menu does not offer "Collapse"
+    And the node menu offers "More › Expand all"
+    And the node menu offers "More › Collapse all"
+    And the node menu offers "More › Copy link"
 
   Scenario: Zoom in from the menu stays in the same document
     Given I mark the page
@@ -92,10 +108,10 @@ Feature: Workflowy gutter
     Then the zoomed node is "kitchen"
     And the page has not reloaded
 
-  Scenario: Collapse from the menu hides children
+  Scenario: Collapse all from the menu hides children
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen"
-    And I choose "Collapse" from the node menu
+    And I choose "More › Collapse all" from the node menu
     Then the node "kitchen" is collapsed
     And the children of "kitchen" are hidden
     And the node "kitchen" shows a collapsed halo
@@ -105,7 +121,7 @@ Feature: Workflowy gutter
     And the node "install" is expanded
     When I collapse the node "install"
     And I open the node menu of "kitchen"
-    And I choose "Expand all" from the node menu
+    And I choose "More › Expand all" from the node menu
     Then the node "kitchen" is expanded
     And the node "install" is expanded
     And the children of "install" are shown

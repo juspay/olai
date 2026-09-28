@@ -41,8 +41,7 @@
     "src/tools.ts"
   ],
   "preferences": [
-    "src/browser.tsx",
-    "src/browser/filter/DoneFlip.tsx"
+    "src/browser.tsx"
   ],
   "search": [
     "src/browser/complete/trigger.ts",

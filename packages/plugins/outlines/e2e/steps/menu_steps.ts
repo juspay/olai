@@ -75,7 +75,7 @@ const panelOf = async (world: OlaiWorld) => {
  *
  * A line's LABEL is its words without the `›` a submenu's entry wears — the
  * `›` is `aria-hidden`, drawn for the eye — so `"Mark"` names that entry, and
- * {@link menuLabels} lists it as `Mark ›`, the way it reads.
+ * {@link linesOf} lists it as `Mark ›`, the way it reads.
  */
 const SUB_MARK = /\s*›$/;
 const labelOf = (text: string): string => oneLine(text).replace(SUB_MARK, "");
@@ -143,24 +143,21 @@ const entry = async (
   // Not on the top level: look in each submenu, and be sure it is in ONE.
   const triggers = panel.locator(`${NODE_MENU_ITEM}[data-opens]`);
   const subs = (await triggers.allInnerTexts()).map(labelOf);
-  const holding: Array<{ readonly sub: string; readonly item: Locator }> = [];
+  const holding: Array<number> = [];
   for (const [at, sub] of subs.entries()) {
     const level = await openSub(world, triggers.nth(at), sub, gesture);
-    const item = await findIn(level, name);
-    if (item !== undefined) holding.push({ sub, item });
+    if ((await findIn(level, name)) !== undefined) holding.push(at);
   }
-  assert.ok(
-    holding.length > 0,
-    `the node menu offers no ${JSON.stringify(name)}, at the top or in ${JSON.stringify(subs)}`,
-  );
+  // In none of them: it may be a line still ARRIVING on the top level — a
+  // plugin's verb asks a roster the tab dials after the panel opens.
+  if (holding.length === 0) return await itemIn(world, panel, name, "the node menu");
   assert.ok(
     holding.length === 1,
-    `${JSON.stringify(name)} is in ${JSON.stringify(holding.map((one) => one.sub))} — spell the path, e.g. "${holding[0]!.sub} › ${name}"`,
+    `${JSON.stringify(name)} is in ${JSON.stringify(holding.map((at) => subs[at]))} — spell the path, e.g. "${subs[holding[0]!]} › ${name}"`,
   );
-  const { sub, item } = holding[0]!;
-  // The last submenu opened may not be the one it is in: open that one again.
-  await openSub(world, panel.locator(NODE_MENU_ITEM).nth((await panel.locator(NODE_MENU_ITEM).allInnerTexts()).map(labelOf).indexOf(sub)), sub, gesture);
-  return item;
+  // Opening the next submenu may have shut this one: open it again.
+  const sub = subs[holding[0]!]!;
+  return await itemIn(world, await openSub(world, triggers.nth(holding[0]!), sub, gesture), name, `the node menu's ${JSON.stringify(sub)}`);
 };
 
 /** The `•••` pressed: the row's gutter revealed first (it is `opacity-0` until
@@ -302,7 +299,7 @@ Then(
 
 /** The top level of the panel, in order, a rule as `—` and a submenu's entry
  *  as `Mark ›` — the menu as a person reads it down the screen. */
-Then("the node menu reads:", async function (this: OlaiWorld, table: { raw(): string[][] }) {
+Then("the node menu reads, in order:", async function (this: OlaiWorld, table: { raw(): string[][] }) {
   const panel = await panelOf(this);
   const expected = table.raw().map((row) => row[0]!);
   let seen: ReadonlyArray<string> = [];
@@ -493,8 +490,12 @@ Then(
 /** One level of the menu as it reads: each line's label (`Mark ›` for one
  *  that opens a submenu) and `—` for a rule between groups. */
 const linesOf = async (level: Locator): Promise<ReadonlyArray<string>> =>
-  (await level.locator(`${NODE_MENU_ITEM}, [role="separator"]`).evaluateAll((els) =>
-    els.map((el) => (el.getAttribute("role") === "separator" ? "—" : (el as HTMLElement).innerText))
+  // The rule is Kobalte's `Separator`, an `<hr>` (whose role is implicit, so
+  // no attribute says it).
+  (await level.locator(`${NODE_MENU_ITEM}, hr, [role="separator"]`).evaluateAll((els) =>
+    els.map((el) =>
+      el.tagName === "HR" || el.getAttribute("role") === "separator" ? "—" : (el as HTMLElement).innerText
+    )
   )).map(oneLine);
 
 /**

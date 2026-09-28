@@ -279,7 +279,7 @@ Feature: Zoom and navigate
     Given I open the outline "garden.olai"
     When I collapse the node "herbs"
     And I open the node menu of "herbs"
-    And I choose "Complete" from the node menu
+    And I choose "Mark › Done" from the node menu
     And I open the address "/garden.olai#basil"
     Then the node "basil" is focused
     And the node "basil" is shown
