@@ -123,10 +123,17 @@ const changed = async (name: Named, from: string | null, ms = 30_000): Promise<s
 // panel with no door on it, is a finding about the panel and not a crash.
 await p.goto(BASE)
 ok("the app came up", await drawn("outline-list"))
-// New conversations now start from the sidebar; the old chat-toggle door
-// is no longer rendered. Use the same entry a person uses.
+// New conversations start from the `+` on the sidebar's Chats heading; there
+// is no side panel or toggle. The `+` starts at once with one agent and opens
+// the agent menu with several, where this driver picks Claude — the adapter it
+// exists to measure. The conversation folds open under its Inbox row.
 ok("the panel has a door", await drawn("chat-new"))
 await p.locator(selector("chat-new")).click()
+{
+  const agents = p.locator(selector("agent-engine-menu"))
+  await agents.or(p.locator(selector("chat-input"))).first().waitFor({ state: "visible", timeout: 60_000 }).catch(() => {})
+  if (await agents.isVisible()) await agents.locator('[data-engine="claude"]').click()
+}
 ok("...and it opens on a box to type in", await drawn("chat-input"))
 
 const shot = (name: string): Promise<Buffer> => p.screenshot({ path: `${SHOTS}/${name}.png` })
@@ -237,7 +244,15 @@ await idle()
 // Start fresh, then open this node's history to read the conversation we made.
 const previousSession = await p.locator(selector("chat-panel")).getAttribute("data-session-id")
 await p.locator(selector("chat-fresh-session")).click()
-await p.getByRole("button", { name: "Start fresh conversation", exact: true }).click()
+{
+  // With several agents, Fresh start first asks which; the node's own (Claude)
+  // is listed first. Then it asks to confirm.
+  const agents = p.locator(selector("agent-engine-menu"))
+  const confirm = p.getByRole("button", { name: "Start fresh chat", exact: true })
+  await confirm.or(agents).first().waitFor({ state: "visible", timeout: 30_000 })
+  if (await agents.isVisible()) await agents.locator('[data-engine="claude"]').click()
+  await confirm.click()
+}
 await p.waitForFunction(({ panel, previous }) => {
   const current = document.querySelector(panel)?.getAttribute("data-session-id")
   return current != null && current !== previous
