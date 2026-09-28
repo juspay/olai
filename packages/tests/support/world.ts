@@ -623,6 +623,9 @@ export const TRASH_LINK = selector(TESTID.trashLink);
  *  Distinct from {@link NOT_FOUND}, which is a `/#id` that names no node. */
 export const NOTHING = selector(TESTID.nothing);
 
+/** What a regular expression reads as syntax, to be taken literally. */
+const REGEXP_SPECIAL = /[.*+?^${}()|[\]\\]/g;
+
 /**
  * THE EMPTY PAGE ON SCREEN — the one shared component every page with nothing
  * on it draws (`@olai/web/client/Empty.tsx`), and the one helper every step
@@ -636,10 +639,9 @@ export const NOTHING = selector(TESTID.nothing);
  */
 export const emptyPage = (page: Page, line?: string) => {
   const shown = page.locator(NOTHING).locator("visible=true");
-  const said = (line === undefined
-    ? shown
-    : shown.filter({ hasText: new RegExp(`^\\s*${line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`) })
-  ).first();
+  const exactly = (words: string): RegExp =>
+    new RegExp("^\\s*" + words.replace(REGEXP_SPECIAL, "\\$&") + "\\s*$");
+  const said = (line === undefined ? shown : shown.filter({ hasText: exactly(line) })).first();
   return {
     /** The heading. */
     said,
