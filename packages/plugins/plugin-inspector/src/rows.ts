@@ -1,8 +1,8 @@
 /** Pure readings of the roster, independent of this tab's mounted controls.
  * The panel walks the build: no plugin names or configuration keys belong here.
- * Enablement is visible in the switch. Only failures and waits add a reason;
- * repeating a shared explanation beneath each row hides the rows needing help.
- * File provenance and session persistence use the panel's shared legend.
+ * Enablement is visible in the switch. Only failures and waits add a reason,
+ * a few words at rest and the full sentence in the row's detail; repeating a
+ * shared explanation beneath each row hides the rows needing help.
  * Drafts and pending requests belong to the mounted controls, while section
  * state belongs to the inspector activation. Neither is another policy store.
  */
@@ -95,7 +95,7 @@ export const pluginHint = (
     case "pending":
       return null
     case "failed":
-      return `Failed to start. ${said(plugin.fault)}`
+      return `Failed to start. ${said(plugin.fault)} Switch it off and on to try again.`
     case "waiting":
       // NAMED WHERE THE ROW NAMES THEM, because "something it needs" is the
       // sentence that sends a person to the source. A service with nobody
@@ -184,9 +184,59 @@ export const rowCopy = (
  * a section spelled here would be the inspector naming a plugin's origin in
  * the one file that must not.
  */
-export const THIS_VAULT = "Defined here"
+export const THIS_VAULT = "Your plugins"
 
-export const NEEDS_YOU = "Needs you"
+export const NEEDS_YOU = "Needs attention"
+
+/** THE NAME A PERSON READS — the build's own label for the row (`olai.yml`'s
+ *  `label`), or the plugin's name where the build gives none, which is every
+ *  vault-defined row. The name itself stays the settings namespace and is
+ *  shown in the row's detail. */
+export const displayName = (plugin: BuiltPlugin, look: PluginLook = {}): string =>
+  plugin.source === undefined ? look.label ?? plugin.name : plugin.name
+
+/**
+ * THE ROW'S STATE IN A FEW WORDS, beside its name at rest — or nothing, which
+ * is the ordinary answer: a row that is on and fine, or off because somebody
+ * left it off, is said by its switch. Only a row that is stuck says so here;
+ * the full sentence and what to do about it sit in the row's detail.
+ */
+export const rowStatus = (
+  plugin: BuiltPlugin,
+  reports: ReadonlyMap<string, RowReport> = new Map(),
+  needs = false,
+): string | null => {
+  switch (pluginState(plugin)) {
+    case "failed":
+      return "Failed"
+    case "pending":
+      return "Needs approval"
+    case "waiting":
+      return plugin.missing === undefined || plugin.missing.length === 0
+        ? "Starting…"
+        : `Waiting for ${plugin.missing.join(", ")}`
+    case "running": {
+      let waiting = false
+      for (const [name, report] of reports) {
+        if (name !== plugin.name && !name.startsWith(plugin.name + "/")) continue
+        if (report.state === "failed") return "Failed in this tab"
+        if (report.state === "waiting") waiting = true
+      }
+      if (waiting) return "Starting in this tab"
+      if (plugin.browserOnly && reports.get(plugin.name)?.state !== "running" && reports.size > 0) return "Starting in this tab"
+      return needs ? "Needs setup" : null
+    }
+    default:
+      return null
+  }
+}
+
+/** A group whose every row is off by the BUILD's own default — maintained test
+ *  fixtures nobody asked for — is not listed at all. It reappears the moment
+ *  one of its rows is switched on (a test serve selecting it), so nothing a
+ *  scenario turns on is hidden from it. */
+const unasked = (members: ReadonlyArray<BuiltPlugin>, look: (name: string) => PluginLook): boolean =>
+  members.every((plugin) => look(plugin.name).optIn === true && !plugin.running)
 
 export type PluginGroup = {
   readonly label: string
@@ -238,8 +288,9 @@ const sectionOf = (plugin: BuiltPlugin, look: PluginLook): string =>
  * {@link THIS_VAULT}, after the built-in catalogue, because that is where they
  * arrive on the cell.
  *
- * A group of only `optIn` rows is hidden — fixtures nobody asked for. A quiet
- * group whose every row is running and silent starts collapsed.
+ * A group of only `optIn` rows none of which is running is hidden — fixtures
+ * nobody asked for. Every ordinary group starts collapsed, and a group of only
+ * quiet rows sorts after the others.
  *
  * `needs` is the panel's reader over the faces its rows hung
  * (`olai-plugin-plugin-inspector`'s `plugins.row`), passed in rather than
@@ -278,15 +329,18 @@ export const pluginGroups = (
       bucket.push(plugin)
     }
   }
+  // Every ordinary group starts shut: at rest the panel is its headings and
+  // their counts, and the rows are a press away. Quiet groups — the app's own
+  // machinery — sort after the ones a person is likelier to look for.
+  const loud: PluginGroup[] = []
+  const quietGroups: PluginGroup[] = []
   for (const label of order) {
     const members = buckets.get(label)!
+    if (unasked(members, look)) continue
     const quiet = members.every((plugin) => look(plugin.name).quiet === true)
-    const healthy = members.every((plugin) =>
-      pluginState(plugin) === "running" && rowCopy(plugin, roster, look(plugin.name), reports) === null
-    )
-    groups.push({ label, needs: false, collapsed: quiet && healthy, rows: members })
+    ;(quiet ? quietGroups : loud).push({ label, needs: false, collapsed: true, rows: members })
   }
-  return groups
+  return [...groups, ...loud, ...quietGroups]
 }
 
 export const groupCount = (rows: ReadonlyArray<BuiltPlugin>): string => {
@@ -310,7 +364,15 @@ export const controlOf = (value: PolicyReading | EnvironmentReading) => "control
 export const enableLabel = (name: string): string => `Enable ${name}`
 
 export const configurationAuthored = `set in ${CONFIGURATION_FILE.split("/").pop()}`
-export const configurationLinkLabel = `Open ${CONFIGURATION_FILE.split("/").pop()!.split(".")[0]!.toLowerCase()} node`
+export const configurationLinkLabel = `Open in ${CONFIGURATION_FILE.split("/").pop()}`
+
+/** An environment reading's own description as a label: its first letter
+ *  raised, nothing else touched. */
+export const sentenceOf = (said: string): string => said.charAt(0).toUpperCase() + said.slice(1)
+/** What an environment reading holds, in words — a secret says only whether
+ *  it is there. */
+export const environmentValue = (one: EnvironmentReading): string =>
+  one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")
 
 /** Compact spelling is derived from the leaf, never a plugin-specific table. */
 export const knobLabel = (key: string): string => key.split(".").at(-1)!.split("-")[0]!.toLowerCase()
