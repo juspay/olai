@@ -85,6 +85,22 @@ export function Panel(props: {
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
         <DropdownMenu.SubContent
+          ref={(el: HTMLElement) => {
+            // Kobalte preventDefault's its own focus of the first row, and the
+            // list's deferred autofocus is a timer the next key can beat.
+            // Focusing the row runs its own onFocus, which is what makes the
+            // following arrow move off it. A caret already inside the submenu
+            // is left where the arrows put it.
+            const focusFirst = () => {
+              if (!el.isConnected) return
+              const active = document.activeElement
+              if (active !== el && el.contains(active)) return
+              const first = el.querySelector('[role="menuitem"]')
+              if (first instanceof HTMLElement) first.focus({ preventScroll: true })
+            }
+            focusFirst()
+            queueMicrotask(focusFirst)
+          }}
           class={`${MENU_PANEL} ${LAYER.row} pointer-events-auto`}
           data-testid={TESTID.nodeMenuSub}
           data-sub={sub.entry.id}

@@ -82,14 +82,21 @@ When(
     assert.ok(await trigger.evaluate(el => el === document.activeElement), `the arrows never reached ${JSON.stringify(label)}`);
     await this.page.keyboard.press("ArrowRight");
     await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The scenario's next key moves OFF the first agent. A DOM focus() is not
-    // the menu's own caret: ArrowDown would then land on the first agent
-    // instead of the second. One ArrowDown, only when the menu has not
-    // highlighted anybody yet, gives the first agent that caret.
+    // The scenario's next key moves OFF the first agent. That only happens
+    // once the first agent is the caret the menu itself is tracking: a
+    // highlight with the caret still on the parent, or an autofocus timer
+    // that has not run yet, makes that ArrowDown land on the first agent
+    // again. Kobalte schedules the autofocus with setTimeout(0); let that
+    // timer pass, then require the real caret, before this step returns.
     const first = sub.getByRole("menuitem").first();
-    const highlighted = async () => await first.evaluate((el) => el.hasAttribute("data-highlighted"));
-    if (!(await highlighted())) await this.page.keyboard.press("ArrowDown");
-    await this.waitUntil(highlighted, "the first agent in the submenu to have the caret");
+    const caret = async () => await first.evaluate((el) =>
+      el === document.activeElement && el.hasAttribute("data-highlighted"));
+    await this.page.evaluate(() => new Promise<void>((resolve) => { setTimeout(resolve, 0); }));
+    if (!(await caret())) {
+      await first.evaluate((el) => { if (el instanceof HTMLElement) el.focus({ preventScroll: true }); });
+      await this.page.evaluate(() => new Promise<void>((resolve) => { setTimeout(resolve, 0); }));
+    }
+    await this.waitUntil(caret, "the first agent in the submenu to have the caret");
   },
 );
 

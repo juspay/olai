@@ -1130,7 +1130,10 @@ const shownRow = (world: OlaiWorld, plugin: string) => world.showPluginRow(plugi
  *  no disclosure, and is handed back as it is. */
 export const detailOf = async (world: OlaiWorld, plugin: string): Promise<Locator> => {
   const row = await shownRow(world, plugin);
-  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // A long wait here spends the caller's whole budget on a row that has
+  // already moved into a group that starts folded. Throwing lets that caller
+  // open the group the row is in now.
+  if (!(await row.isVisible().catch(() => false))) throw new Error(`the ${plugin} row is not on screen`);
   // Read the chevron's state and press it only while it says shut — in one
   // short attempt, never a wait on a selector: a roster republish can move the
   // row into Needs attention (which opens it) between the read and the press,
