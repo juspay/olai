@@ -229,7 +229,7 @@ const established = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
 const namesItself = (row: ChatEntry): boolean => row.kind === "ask"
 
 /** What a lane is called when the frame that spawned it is not on screen. */
-const SOMEBODY = "a subagent"
+const SOMEBODY = "A subagent"
 
 /**
  * THE RAIL: the line down the left of a lane, and the inset it holds its rows
@@ -244,4 +244,4 @@ const SOMEBODY = "a subagent"
  * by coincidence, and the first tweak to either would have shown a reader one
  * line drawn as two.
  */
-export const RAIL = "border-l-2 border-muted/70 pl-2"
+export const RAIL = "border-l-2 border-muted/60 pl-2"

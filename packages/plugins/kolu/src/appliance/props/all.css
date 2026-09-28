@@ -47,7 +47,7 @@
  */
 .olai-live {
   border: 1px solid var(--color-rule);
-  border-radius: 0.375rem;
+  border-radius: var(--radius-control);
   background-color: var(--color-panel);
 }
 
@@ -79,7 +79,7 @@
    * measurement, not something computed back from a scaled terminal. */
   height: 22rem;
   width: 100%;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-control);
   overflow: hidden;
 }
 
@@ -148,13 +148,13 @@
  */
 .olai-snapshot {
   border: 1px dashed var(--color-rule);
-  border-radius: 0.375rem;
+  border-radius: var(--radius-control);
   background-color: var(--color-panel);
 }
 
 .olai-snapshot pre {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--text-label);
   line-height: 1.35;
   margin: 0;
   max-height: 22rem;

@@ -198,7 +198,7 @@ export const onEnd = (state: Attaching): Next =>
   spent(state)
     ? {
       kind: "stop",
-      says: "this terminal stopped answering — it has probably closed.",
+      says: "This terminal stopped responding. It probably closed.",
     }
     : { kind: "reattach", why: "the stream ended, which is not the same as the terminal ending" }
 
@@ -208,7 +208,7 @@ export const onSilence = (state: Attaching): Next =>
   state.seen
     ? { kind: "idle" }
     : spent(state)
-    ? { kind: "stop", says: "this terminal is not sending anything — it may have closed." }
+    ? { kind: "stop", says: "This terminal isn't sending anything. It may have closed." }
     : { kind: "reattach", why: "no first frame inside the deadline" }
 
 /**

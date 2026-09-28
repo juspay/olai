@@ -102,14 +102,14 @@ export function Completions(props: { readonly listing: Listing }) {
         // number here would be the twentieth call site that could only be
         // read by looking at the other nineteen. `relative` so the layer
         // bites on the positioner's absolute box, the same as the menu.
-        class={`relative ${LAYER.row} w-[min(24rem,80vw)] overflow-hidden rounded-md border border-rule/70 bg-panel shadow-lg`}
+        class={`relative ${LAYER.row} w-[min(24rem,80vw)] overflow-hidden rounded-surface border border-rule/60 bg-panel shadow-raised`}
         data-testid={TESTID.completions}
         // WHICH widget this is, as a fact in the markup rather than as a guess
         // from what is in it — the same contract every other panel in this
         // client keeps about its own mood.
         data-kind={props.listing.kind() ?? undefined}
         role="listbox"
-        aria-label="completions"
+        aria-label="Suggestions"
       >
         {/* The search's own refusal, in its own words and in its own slot —
             never dropped, and never overwriting a list somebody is reading.

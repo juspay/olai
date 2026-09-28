@@ -108,7 +108,7 @@ export function followReading(
 ): Search {
   const reading = createKeyedRoot(provider, value => value?.(text, typeof kind === "function" ? kind : () => kind))
   const absent = () => reading() === undefined && (text()?.trim().length ?? 0) >= 3
-  const unavailable = "Search is unavailable: the search plugin is not running, so there is no matcher to look this up in."
+  const unavailable = "Search is unavailable right now."
   return {
     hits: () => reading()?.hits() ?? [],
     total: () => reading()?.total() ?? 0,

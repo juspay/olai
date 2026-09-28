@@ -89,21 +89,21 @@ interface Face {
  *  error at this table rather than a heading drawn with no class on it. */
 const FACE: Record<Standing, Face> = {
   late: {
-    heading: "text-xs font-semibold text-alarm",
+    heading: "text-label font-semibold text-alarm",
     lead: "",
     dot: SPINE_DOT,
     ring: undefined,
     distance: "leads",
   },
   today: {
-    heading: "text-[0.6875rem] font-semibold text-accent",
+    heading: "text-caption font-semibold text-accent",
     lead: "uppercase tracking-[0.08em]",
     dot: SPINE_NOW,
     ring: NOW_RING,
     distance: "leads",
   },
   ahead: {
-    heading: "text-xs font-semibold text-ink",
+    heading: "text-label font-semibold text-ink",
     lead: "",
     dot: SPINE_DOT,
     ring: undefined,
@@ -158,7 +158,7 @@ export function Day(props: {
         <Show when={props.rung.quiet.label}>
           {(label) => (
             <span
-              class={`${QUIET_INDENT} text-[0.6875rem] italic text-muted opacity-60`}
+              class={`${QUIET_INDENT} text-caption italic text-muted opacity-60`}
               data-testid={TESTID.agendaQuiet}
               data-days={String(props.rung.quiet.days)}
             >
@@ -207,7 +207,7 @@ export function Day(props: {
             </Link>
             <Show when={gloss()}>
               {(distance) => (
-                <span class="shrink-0 text-[0.6875rem] text-muted">
+                <span class="shrink-0 text-caption text-muted">
                   {distance()}
                 </span>
               )}
@@ -224,8 +224,8 @@ export function Day(props: {
           when={rows().length > 0}
           fallback={
             <Show when={unfiltered(narrowed)}>
-              <p class={`m-0 ${SPINE_INDENT} text-xs italic text-muted opacity-80`}>
-                nothing due today
+              <p class={`m-0 ${SPINE_INDENT} text-label italic text-muted opacity-80`}>
+                Nothing due today
               </p>
             </Show>
           }

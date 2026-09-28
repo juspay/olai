@@ -40,7 +40,7 @@ export default function EngineMenu(props: {
     getAnchorRect={() => anchor.getBoundingClientRect()}
     onOpenChange={open => { if (!open && topmost()) props.close() }}>
     <DropdownMenu.Portal mount={portal}>
-      <DropdownMenu.Content class={`${MENU_PANEL} ${layer}`} aria-label="choose an engine"
+      <DropdownMenu.Content class={`${MENU_PANEL} ${layer}`} aria-label="Choose an agent"
         data-testid={TESTID.agentEngineMenu}
         ref={element => queueMicrotask(() => { if (element.isConnected) element.focus({ preventScroll: true }) })}
         onCloseAutoFocus={event => { event.preventDefault(); anchor.isConnected && anchor.focus({ preventScroll: true }) }}>

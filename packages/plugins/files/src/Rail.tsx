@@ -10,8 +10,8 @@ const ICON = "size-4"
 export function FileRail() { const router = useRouter(); return <>
       <RailButton
         testid={TESTID.railOutlines}
-        label="open outlines"
-        title="outlines"
+        label="Open outlines"
+        title="Outlines"
         onClick={() => {
           setSidebarOpen(true)
           router.go(HOME_ROUTE)
@@ -26,8 +26,8 @@ export function FileRail() { const router = useRouter(); return <>
 
       <RailButton
         testid={TESTID.railDocs}
-        label="open the directory"
-        title="documents"
+        label="Open the sidebar"
+        title="Documents"
         onClick={() => setSidebarOpen(true)}
       >
         {/* And the tree's document glyph, for the same reason. */}

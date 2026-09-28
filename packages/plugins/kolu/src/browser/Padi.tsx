@@ -100,7 +100,7 @@ export function Padi(props: { readonly app: KoluApp }) {
           where the reader's caret goes. */}
       <popover.Panel
         testid={TESTID.padiFeed}
-        label="what recently wanted attention"
+        label="Recent activity"
       >
         <Feed onLeave={popover.close} />
       </popover.Panel>

@@ -8,15 +8,15 @@ export const bootStatus = (root: Element): {
 } => {
   const status = document.createElement("section")
   status.setAttribute("role", "alert")
-  status.setAttribute("aria-label", "Browser startup failed")
+  status.setAttribute("aria-label", "olai couldn't start")
   const detail = document.createElement("p")
   const button = document.createElement("button")
-  button.textContent = "Retry browser startup"
+  button.textContent = "Try again"
   status.append(detail, button)
   let problem: { message: string; retry: () => Promise<void>; recovery: "retry" | "reload" } | undefined
   const update = () => {
     if (!problem || root.childElementCount > 0) status.remove()
-    else { detail.textContent = problem.message; button.textContent = problem.recovery === "reload" ? "Reload page" : "Retry browser startup"; root.after(status) }
+    else { detail.textContent = problem.message; button.textContent = problem.recovery === "reload" ? "Reload page" : "Try again"; root.after(status) }
   }
   const observer = new MutationObserver(update)
   observer.observe(root, { childList: true })

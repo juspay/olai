@@ -14,13 +14,13 @@ import { chatWire } from "./wire.ts"
 
 import { freshStartQuestion } from "./agents/fresh-start.ts"
 
-const NO_AGENT = "no agent above this row — start one"
+const NO_AGENT = "No agent here. Start one first."
 const target = async (node: string | null) => {
   if (node === null) return NO_AGENT
   const found = await runAsync(chatWire().procedures.conversation.agentAbove({ node }))
   if (Result.isFailure(found)) return found.failure.message
   if (found.success === null) return NO_AGENT
-  if (found.success.session === null) return "this agent has no session — start one"
+  if (found.success.session === null) return "This agent has no chat. Start one first."
   return { ...found.success, session: found.success.session }
 }
 const show = (agent: { node: string; file: string }) => {
@@ -93,17 +93,17 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
 }
 
 export const createAskCommand = (): AppCommand => ({
-  prefix: ">", said: "ask the agent", placeholder: "ask the agent…",
+  prefix: ">", said: "Ask the agent", placeholder: "Ask the agent…",
   run: async line => {
     const agent = await target(focusedNode())
     if (typeof agent === "string") return agent
     const held = agentReadings()
-    if (held === undefined) return "chat stopped"
+    if (held === undefined) return "Chat stopped"
     show(agent)
     const chat = await held.ready(agent.node, agent)
     if (typeof chat === "string") return chat
     const current = held.agents.at(agent.node)
-    if (current?.engine !== agent.agent || current.session !== agent.session) return "the agent's session changed — try again"
+    if (current?.engine !== agent.agent || current.session !== agent.session) return "The agent's chat changed. Try again."
     const context = chat.ui.armed.releaseArmed()
     const outcome = await runAsync(chatWire().procedures.conversation.send({
       conv: { agent: agent.agent, session: agent.session }, scope: chat.state().uploadScope, text: line, context,

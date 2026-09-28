@@ -39,7 +39,7 @@ export const clampSaid = (table: CsvTable): Said | null => {
   // bordered rectangle with no rows reads as a page that failed to load, and a
   // file somebody exported empty is a real thing to find out.
   if (table.rows.length === 0) {
-    return { tone: "aside", text: "Nothing in it — the file has no rows." }
+    return { tone: "aside", text: "This file is empty." }
   }
   // Each clause only when that axis really ran out: a file with nine hundred
   // rows and four columns is owed no word about its columns, and being told

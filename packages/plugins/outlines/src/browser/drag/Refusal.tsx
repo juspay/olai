@@ -44,7 +44,7 @@ export function DropRefusal(props: { readonly refusal: Refusal }) {
         // `LAYER.row` — over the rows it is about and under every piece of
         // chrome, which is the drop line's claim and the same one for the same
         // reason (`../layer.ts`).
-        class={`pointer-events-none absolute ${LAYER.row} flex items-center justify-center rounded border-2 border-alarm bg-alarm/10 px-4`}
+        class={`pointer-events-none absolute ${LAYER.row} flex items-center justify-center rounded-control border-2 border-alarm bg-alarm/10 px-4`}
         style={{
           top: `${props.refusal.top}px`,
           left: `${props.refusal.left}px`,

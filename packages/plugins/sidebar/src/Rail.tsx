@@ -40,12 +40,12 @@ export function Rail(props: {
     <div
       class="olai-frame sticky top-[var(--height-header)] hidden h-[calc(100dvh-var(--height-header))] w-[var(--width-rail)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-paper/20 py-2 md:flex"
       data-testid={TESTID.sidebarRail}
-      aria-label="directory rail"
+      aria-label="Sidebar"
     >
       <RailButton
         testid={TESTID.sidebarExpand}
-        label="expand the sidebar"
-        title="expand sidebar"
+        label="Expand sidebar"
+        title="Expand sidebar"
         onClick={() => setSidebarOpen(true)}
       >
         {/* chevron-right */}

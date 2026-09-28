@@ -41,8 +41,8 @@ export function RepeatBadge(props: {
       classList={{ "bg-pill text-muted": true }}
       onPick={props.onPick}
       title={props.onPick === undefined
-        ? `repeats ${props.repeat}`
-        : "change how this repeats"}
+        ? `Repeats ${props.repeat}`
+        : "Change repeat"}
     >
       {/* The glyph says RECURRENCE without a word of chrome, and the words say
           which one. `aria-hidden` so a screen reader reads the rule rather

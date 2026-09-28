@@ -206,15 +206,15 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   {
     id: "nav-home",
     label: "Go home",
-    hint: "open the first outline",
+    hint: "Open the first outline",
     action: { kind: "route", route: HOME_ROUTE },
     taking: atOnce,
     search: "go home outline first",
   },
   {
     id: "nav-trash",
-    label: "Go to the Trash",
-    hint: "what was put away",
+    label: "Go to Trash",
+    hint: "Deleted items",
     action: { kind: "route", route: { kind: "trash" } },
     taking: atOnce,
     search: "go to trash archive archived put away restore put back",
@@ -230,7 +230,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   {
     id: "shortcuts",
     label: "Keyboard shortcuts",
-    hint: "every key",
+    hint: "All keys",
     action: { kind: "shortcuts" },
     taking: atOnce,
     search: "keyboard shortcuts keys help reference bindings",
@@ -238,7 +238,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   {
     id: "reset-widths",
     label: "Reset sidebar width",
-    hint: "default",
+    hint: "Back to default",
     action: { kind: "reset-widths" },
     taking: atOnce,
     search: "reset sidebar width panel default size",

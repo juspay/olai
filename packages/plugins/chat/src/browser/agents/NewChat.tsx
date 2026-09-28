@@ -22,7 +22,7 @@ export function NewChat() {
   let shutting = false
   return <>
     <button type="button" class={HEAD_ACTION} data-testid={TESTID.chatNew}
-      aria-label="new chat" title="new chat" aria-haspopup="menu" aria-expanded={menu() !== null}
+      aria-label="New chat" title="New chat" aria-haspopup="menu" aria-expanded={menu() !== null}
       disabled={creation === undefined || creation?.pending()} aria-busy={creation?.pending()}
       onPointerDown={() => { shutting = menu() !== null }}
       onClick={event => {
@@ -49,5 +49,5 @@ export function NewChat() {
 /** What the last start refused, said under the heading the `+` sits on. */
 export function NewChatSaid() {
   const creation = agentReadings()?.newChat
-  return <Show when={creation?.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="px-2.5 text-xs" />}</Show>
+  return <Show when={creation?.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="px-2.5 text-label" />}</Show>
 }

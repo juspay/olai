@@ -56,7 +56,7 @@ export interface TerminalReading {
  *  the state actionable. */
 export const noPadiSays = (link: KoluLink): string => {
   if (link.status === "skew") {
-    return `kolu at ${link.socket} speaks padi ${link.surfaceVersion ?? "?"}, and this olai speaks ${link.speaks} — one of the two needs an upgrade.`
+    return `kolu and olai versions don't match (padi ${link.surfaceVersion ?? "?"}, olai ${link.speaks}). Update one of them.`
   }
   // NO SOCKET AT ALL is the UNWIRED case, and it gets a sentence of its own
   // rather than the naming one with a blank where the path goes. Two readers
@@ -65,10 +65,10 @@ export const noPadiSays = (link: KoluLink): string => {
   // in the first instant of its life, before the dial has answered. "olai
   // looked at ." is not a sentence, and it would send a reader hunting for a
   // path that is not there.
-  if (link.socket === "") return "olai is not watching a padi here."
+  if (link.socket === "") return "kolu isn't set up."
   return link.told
-    ? `no padi is answering at ${link.socket}, which is where $PADI_SOCKET points.`
-    : `no padi is running — olai looked at ${link.socket}.`
+    ? `kolu isn't running at ${link.socket} (from $PADI_SOCKET).`
+    : `kolu isn't running. Looked at ${link.socket}.`
 }
 
 /** What one `terminal` value reads as, given the link and the fleet. */
@@ -94,12 +94,12 @@ export const readingOf = (
       // THE COUNT, because it is what makes the next move obvious: write more
       // of the id. A row for whichever terminal sorted first would be a live
       // green row about a terminal this value never named.
-      says: `this names ${found.count} terminals — write more of the id to say which.`,
+      says: `${found.count} terminals match. Type more of the id.`,
     }
   }
   const row = found.kind === "one" ? fleet.get(found.id) : undefined
   if (row === undefined) {
-    return { says: "this terminal is no longer in the fleet — it has been closed or retired." }
+    return { says: "This terminal was closed." }
   }
   return { row, says: "" }
 }

@@ -149,7 +149,7 @@ const inFenceAt = (span: Element): boolean => span.parentElement?.tagName === "P
 const AS_A_CONTROL: ReadonlyArray<readonly [string, string]> = [
   ["role", "button"],
   ["tabindex", "0"],
-  ["title", "show this node"],
+  ["title", "Show this row"],
 ]
 
 /**

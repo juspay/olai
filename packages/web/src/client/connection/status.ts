@@ -74,25 +74,23 @@ export type { Look }
 export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
   connecting: {
     dot: "bg-muted",
-    label: "connecting",
-    detail: "reaching the server that served this page",
+    label: "Connecting…",
+    detail: "Reaching the server.",
   },
   live: {
     dot: "bg-done",
-    label: "live",
-    detail: "connected — the files on disk reach this page as they change",
+    label: "Connected",
+    detail: "Changes to your files show up here as they happen.",
   },
   reconnecting: {
     dot: "bg-doing",
-    label: "reconnecting",
-    detail:
-      "the connection dropped and is being retried — what is on screen is the last thing the server said",
+    label: "Reconnecting…",
+    detail: "Connection lost. What you see may be out of date.",
   },
   retired: {
     dot: "bg-alarm",
-    label: "server restarted",
-    detail:
-      "the server that served this page has been replaced, so this page will not update again — reload it",
+    label: "The server restarted",
+    detail: "Reload the page to keep working.",
   },
 }
 
@@ -107,10 +105,23 @@ export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
 export const lookOf = (readout: SurfaceReadout): Look =>
   readout.status !== DEGRADED ? LOOK[readout.status] : {
     dot: "bg-doing",
-    label: "partly live",
-    detail:
-      `connected, but nothing is arriving on ${readout.stopped.join(", ")} — what is on screen is missing whatever those carry, and may be missing it silently`,
+    label: "Partly connected",
+    detail: `Some updates aren't arriving (${readout.stopped.join(", ")}).`,
   }
+
+/**
+ * What the freeze card says: a heading for what happened and, where there is
+ * one, a line for what is being done about it. Said the way a person would —
+ * `Connection lost` / `Reconnecting…` for a dropped wire, `Connecting…` on the
+ * first connect, and the readout's own words over the Reload for a replaced
+ * server. Here, because this file is the one reader of the raw states.
+ */
+export const frozenLookOf = (readout: SurfaceReadout): { readonly title: string; readonly line?: string } =>
+  readout.needsReload || readout.status === DEGRADED
+    ? { title: lookOf(readout).label, line: lookOf(readout).detail }
+    : readout.status === CONNECTING
+      ? { title: LOOK.connecting.label }
+      : { title: "Connection lost", line: LOOK.reconnecting.label }
 
 /** The one connection state that is news on a phone while the page is still
  *  usable. Dead-wire states are the freeze overlay; `live` is health. Named

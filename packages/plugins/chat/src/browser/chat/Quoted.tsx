@@ -41,7 +41,7 @@ export function Quoted(props: { readonly said: string }) {
           // in one column — and no vertical padding, because these sit in a
           // `pre-wrap` paragraph where a taller chip would push its own line
           // apart from the ones around it.
-          ? <code class="rounded bg-rule/45 px-1">{run.text}</code>
+          ? <code class="rounded-control bg-rule/40 px-1">{run.text}</code>
           : run.text}
     </For>
   )

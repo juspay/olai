@@ -56,7 +56,7 @@ export function ThemeChips(props: { readonly state: Appearance }) {
         >
           <span
             aria-hidden="true"
-            class="relative block size-7 rounded-full md:size-6 border ring-offset-2 ring-offset-panel group-hover:scale-105 group-focus-visible:ring-2 group-focus-visible:ring-accent group-aria-pressed:ring-2 group-aria-pressed:ring-ink/70 motion-safe:transition-transform"
+            class="relative block size-7 rounded-full md:size-6 border ring-offset-2 ring-offset-panel group-hover:scale-105 group-focus-visible:ring-2 group-focus-visible:ring-accent group-aria-pressed:ring-2 group-aria-pressed:ring-ink/60 motion-safe:transition-transform"
             style={{
               background: `linear-gradient(135deg, ${palette.colors.paper} 0 55%, ${palette.colors.accent} 55% 100%)`,
               "border-color": palette.colors.rule,

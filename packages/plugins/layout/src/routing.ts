@@ -39,3 +39,9 @@ export const hrefOf = (route: Route): string =>
  *  not landed. */
 export const labelOf = (route: Route): string =>
   provider.read()?.label(route) ?? labelIn(NO_PAGES, route)
+
+/** The name a person reads for a pane — the document's own name, the one the
+ *  sidebar and the tab give it (`Routing.name`), and the route's label only
+ *  where the page has no such name. */
+export const nameOf = (route: Route): string =>
+  provider.read()?.name(route) ?? labelOf(route)

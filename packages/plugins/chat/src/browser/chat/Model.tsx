@@ -106,8 +106,8 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
       <>
         <li>
           <input type="search" aria-label="Filter models" data-testid={TESTID.chatModelFilter}
-            class="block w-full rounded bg-transparent px-2 py-1 text-xs text-ink outline-none placeholder:text-muted"
-            placeholder="filter"
+            class="block w-full rounded-control bg-transparent px-2 py-1 text-label text-ink outline-none placeholder:text-muted"
+            placeholder="Filter"
             // The caret goes here as the list attaches — it was opened to be
             // typed in. `queueMicrotask` for the reason every panel in this
             // client uses one: the element is not in the document when the
@@ -124,14 +124,14 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
             onKeyDown={key} />
         </li>
         <For each={visible()} fallback={
-          <li data-testid={TESTID.chatModelNone} class="px-2 py-1 text-xs text-muted">
-            no model matches "{query().trim()}"
+          <li data-testid={TESTID.chatModelNone} class="px-2 py-1 text-label text-muted">
+            No model matches "{query().trim()}"
           </li>
         }>
           {(model, index) => (
             <li>
               <button type="button"
-                class="block w-full rounded px-2 py-1 text-left text-xs hover:bg-rule"
+                class="block w-full rounded-control px-2 py-1 text-left text-label hover:bg-rule"
                 classList={{ "bg-rule": index() === cursor.at() }}
                 aria-selected={index() === cursor.at()}
                 onPointerEnter={() => cursor.to(index())}
@@ -163,14 +163,14 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
       </button>
       <Show when={picker.open()}>
         <ul ref={picker.setList} aria-label="Models"
-          class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}>
+          class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded-surface border border-rule/60 bg-panel p-1 shadow-raised`}>
           <Show when={state().models.length > 0}>
             <ModelFilter />
           </Show>
           <For each={state().settings}>
             {(setting) => (
               <li class="border-t border-rule/60 px-2 py-2">
-                <label class="flex items-center justify-between gap-3 text-xs">
+                <label class="flex items-center justify-between gap-3 text-label">
                   <span>{setting.name}</span>
                   <Show when={setting.type === "select" ? setting : undefined} fallback={
                     <input type="checkbox" aria-label={setting.name}
@@ -178,7 +178,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
                       onChange={(event) => { const value = event.currentTarget.checked; event.currentTarget.checked = setting.currentValue === true; choose(setting, value) }} />
                   }>
                     {(select) => <select aria-label={select().name} value={select().currentValue}
-                      disabled={disabled()} class="max-w-40 rounded border border-rule bg-panel px-1 py-1"
+                      disabled={disabled()} class="max-w-40 rounded-control border border-rule bg-panel px-1 py-1"
                       onChange={(event) => { const value = event.currentTarget.value; event.currentTarget.value = select().currentValue; choose(setting, value) }}>
                       <For each={select().options}>{(option) =>
                         <option value={option.value} title={option.description}>{option.name}</option>
@@ -187,7 +187,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
                   </Show>
                 </label>
                 <Show when={setting.description}>
-                  <p class="mt-1 whitespace-normal text-[0.625rem] text-muted">{setting.description}</p>
+                  <p class="mt-1 whitespace-normal text-caption text-muted">{setting.description}</p>
                 </Show>
               </li>
             )}

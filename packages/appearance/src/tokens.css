@@ -5,7 +5,7 @@
  * match the default row; `theme/fonts.test.ts` holds them. */
 
 @theme {
-  --font-sans: "iA Writer Quattro", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: Literata, ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
   --font-mono: "iA Writer Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
@@ -64,6 +64,46 @@
    * directly: layout publishes `--height-strip` as this token while the seat is
    * filled on a desktop, and `0px` otherwise, and the sheet subtracts that. */
   --height-tabs: 2.625rem;
+
+  /* THE INTERFACE SCALE. Five type sizes, three corners and two shadows for
+   * everything that is chrome rather than document content, named for the
+   * job they do so a call site says what a thing IS and never how big it
+   * happens to be. The markdown content scale (`./scale.ts`) is a separate,
+   * deliberate system for what a reader wrote; it does not read these.
+   *
+   * All `rem`, so the Size preference (`./sizes.ts`) moves every one of them
+   * with the root: at the default Large a caption is about 12px, at Medium
+   * exactly 11px, and nothing in chrome is set smaller than a caption. */
+
+  /* Counts, small-caps section headings, the smallest labels. */
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 1.4;
+  /* Secondary text beside a control: hints, notes, a status word. */
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.4;
+  /* The default for controls, menu items and sidebar rows. */
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.45;
+  /* A panel's or dialog's own name. */
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.35;
+  /* A page's own name: Agenda, a day, the Trash. */
+  --text-display: 2.5rem;
+  --text-display--line-height: 1.1;
+
+  /* Corners. `control` for anything a pointer presses or a row a list is made
+   * of; `surface` for anything that floats or holds controls (menus,
+   * popovers, panels, cards, dialogs). The third is Tailwind's own
+   * `rounded-full`, for pills, dots, round buttons and switches. */
+  --radius-control: 0.375rem;
+  --radius-surface: 0.75rem;
+
+  /* Elevation. `raised` for what hangs off a control (menus, popovers,
+   * tooltips); `overlay` for what covers the page (the palette, dialogs, a
+   * phone sheet). Black at low alpha rather than a palette ink: ink inverts
+   * in the dark palettes, and a shadow that glowed would not be one. */
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.06), 0 6px 20px -6px rgb(0 0 0 / 0.22);
+  --shadow-overlay: 0 2px 8px rgb(0 0 0 / 0.08), 0 24px 64px -12px rgb(0 0 0 / 0.4);
 }
 
 /* The main column reserves the header plus the occupied strip. Keep this on

@@ -37,7 +37,7 @@ export function CloseAgent(props: { readonly node: string }) {
   return <span class="relative">
     <button type="button" class={QUIET_PILL} data-testid={TESTID.chatCloseAgent}
       disabled={closing()} aria-busy={closing()}
-      title="close the agent: the conversation goes back to the unclaimed chats, filed under Chats — nothing is deleted"
-      onClick={close}>close</button>
+      title="Close the agent. The chat moves to Chats."
+      onClick={close}>Close</button>
   </span>
 }

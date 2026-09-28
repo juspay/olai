@@ -38,9 +38,9 @@ import type { Chat } from "./state.ts"
  *  sentences — a dismissal and a withdrawal are different things that happened
  *  and a reader coming back to the row deserves to know which. */
 const SAID: Record<string, string> = {
-  answered: "answered",
-  declined: "you dismissed this",
-  withdrawn: "the agent took this back",
+  answered: "Answered",
+  declined: "You dismissed this",
+  withdrawn: "The agent withdrew this",
 }
 
 export function AskForm(props: {
@@ -117,8 +117,8 @@ export function AskForm(props: {
 
   return (
     <div
-      class={`rounded border-l-[3px] py-1.5 pl-3 pr-2 ${
-        waiting() ? "border-doing bg-doing/5" : "border-rule"
+      class={`rounded-control border-l-[3px] py-1.5 pl-3 pr-2 ${
+        waiting() ? "border-doing bg-doing/10" : "border-rule"
       }`}
       data-testid={TESTID.chatAsk}
       data-asking={waiting()}
@@ -127,7 +127,7 @@ export function AskForm(props: {
       {/* The agent's own words. Quoted rather than rendered, like a user
           message: a question is a sentence somebody has to read exactly,
           and a `#` in it is a `#`. */}
-      <p class="m-0 whitespace-pre-wrap text-sm">{props.entry.text}</p>
+      <p class="m-0 whitespace-pre-wrap text-body">{props.entry.text}</p>
 
       <div class="mt-2 flex flex-col gap-3">
         <For each={blocks()}>
@@ -135,16 +135,16 @@ export function AskForm(props: {
             <div data-testid={TESTID.chatAskField} data-field={field.key}>
               <Show when={field.label}>
                 {(label) => (
-                  <p class="m-0 text-xs text-muted">
+                  <p class="m-0 text-label text-muted">
                     {label()}
                     <Show when={field.required}>
-                      <span class="text-alarm" aria-label="required">*</span>
+                      <span class="text-alarm" aria-label="Required">*</span>
                     </Show>
                   </p>
                 )}
               </Show>
               <Show when={field.hint}>
-                {(hint) => <p class="m-0 text-xs text-muted">{hint()}</p>}
+                {(hint) => <p class="m-0 text-label text-muted">{hint()}</p>}
               </Show>
 
               <div class="mt-1">
@@ -181,34 +181,34 @@ export function AskForm(props: {
         when={waiting()}
         fallback={
           <p
-            class="mt-2 font-mono text-[0.6875rem] text-muted"
+            class="mt-2 text-caption text-muted"
             data-testid={TESTID.chatAskOutcome}
           >
-            {SAID[ask().outcome?.how ?? ""] ?? "no longer waiting"}
+            {SAID[ask().outcome?.how ?? ""] ?? "No longer waiting"}
           </p>
         }
       >
         <div class="mt-2 flex items-center gap-2">
           <button
             type="button"
-            class="flex h-8 items-center rounded border border-accent px-3 text-xs text-accent disabled:opacity-60"
+            class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent disabled:opacity-60"
             data-testid={TESTID.chatAskSubmit}
             disabled={sending()}
             onClick={submit}
           >
-            answer
+            Answer
           </button>
           {/* Not `../pill.ts`'s quiet pill: this row's height is set by
               the accent "answer" beside it, so dismiss keeps h-8/px-3 —
               the shared px-2/py-1 would shrink it out of the pair. */}
           <button
             type="button"
-            class="flex h-8 items-center rounded border border-rule px-3 text-xs text-muted hover:text-ink disabled:opacity-60"
+            class="flex h-8 items-center rounded-control border border-rule px-3 text-label text-muted hover:text-ink disabled:opacity-60"
             data-testid={TESTID.chatAskDismiss}
             disabled={sending()}
             onClick={dismiss}
           >
-            dismiss
+            Dismiss
           </button>
         </div>
       </Show>

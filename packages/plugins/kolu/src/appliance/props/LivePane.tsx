@@ -251,7 +251,7 @@ export function LivePane(props: {
     // and it used to be nothing at all: the rejection went to the console as an
     // unhandled promise and the reader watched an empty box that never said
     // why. It says why now, in the same place every other refusal lands.
-    () => { setSays("this browser could not load the terminal viewer — check the connection and open the pane again.") },
+    () => { setSays("Couldn't load the terminal viewer. Check your connection and open it again.") },
   )
 
   /**
@@ -266,7 +266,7 @@ export function LivePane(props: {
       if (g === 0 || term === undefined) return
       const watch = fleet.watch
       if (watch === undefined) {
-        setSays("this olai is not watching a padi, so there is no terminal to show.")
+        setSays("kolu isn't set up, so there's no terminal to show.")
         return
       }
       // WHAT THIS PANE CAN SHOW, measured from its own box — the size padi is
@@ -292,7 +292,7 @@ export function LivePane(props: {
       // the moment it is true.
       if (carried !== undefined && spent(carried)) {
         halted = true
-        setSays("this terminal stopped answering — it has probably closed.")
+        setSays("This terminal stopped responding. It probably closed.")
         return
       }
       let state: Attaching = g === 1 ? opening() : again(carried ?? opening())
@@ -421,23 +421,23 @@ export function LivePane(props: {
       data-testid={TESTID.terminalPane}
       data-terminal={props.value}
     >
-      <div class="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-[0.6875rem] text-muted">
+      <div class="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-caption text-muted">
         {/* WHAT THIS IS, first and always — the border says it and so does
             this. A live pane does not need an age line: the age of what you are
             looking at is zero, which is the whole difference from the pane this
             replaced. */}
-        <span data-testid={TESTID.terminalLive}>● live</span>
+        <span data-testid={TESTID.terminalLive}>● Live</span>
         <span class="ml-auto flex gap-2">
           <button
             type="button"
             class="cursor-pointer hover:text-accent"
-            title="stop watching"
+            title="Stop watching"
             onClick={(event) => {
               event.stopPropagation()
               props.onClose()
             }}
           >
-            close
+            Close
           </button>
         </span>
       </div>
@@ -460,7 +460,7 @@ export function LivePane(props: {
       >
         {(said) => (
           <p
-            class="text-[0.8125rem] text-muted"
+            class="text-body text-muted"
             data-testid={TESTID.terminalScreen}
             data-state="refused"
           >

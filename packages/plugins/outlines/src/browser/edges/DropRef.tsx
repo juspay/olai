@@ -35,11 +35,11 @@ export function DropRef(props: {
   return (
     <button
       type="button"
-      class="cursor-pointer border-0 bg-transparent p-0 text-xs leading-none text-muted hover:text-alarm"
+      class="cursor-pointer border-0 bg-transparent p-0 text-label leading-none text-muted hover:text-alarm"
       data-testid={props.testid}
       data-ref={props.id}
-      aria-label={`stop this node's \`${props.relation}\` naming ${props.title}`}
-      title={`remove ${props.title}`}
+      aria-label={`Remove ${props.title}`}
+      title={`Remove ${props.title}`}
       onClick={(event) => {
         event.preventDefault()
         event.stopPropagation()

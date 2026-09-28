@@ -216,7 +216,7 @@ export const bootstrapBrowser = async (): Promise<void> => {
   } catch (error) {
     if (receivedRoster) return
     console.warn("olai: browser bootstrap could not be read", error)
-    boot?.failed(`Browser startup could not read the host selection: ${String(error)}`, retryBrowser)
+    boot?.failed(`olai couldn't start in this tab. Check the connection and try again. (${String(error)})`, retryBrowser)
   }
 }
 
@@ -279,13 +279,13 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     composed = signature
     const failedReports = [...browserReports()].filter(([, report]) => report.state === "failed")
     const failures = failedReports.map(([name]) => name)
-    if (failures.length) boot?.failed(`Browser plugins could not start: ${failures.join(", ")}.`
-      + (reloadRequired.size ? " Retry could not recover a browser module. Reload the page to recover its dependencies." : ""),
+    if (failures.length) boot?.failed(`Some plugins couldn't start: ${failures.join(", ")}.`
+      + (reloadRequired.size ? " Reload the page to fix this." : " Try again."),
       reloadRequired.size ? async () => { globalThis.location.reload() } : retryBrowser,
       reloadRequired.size ? "reload" : "retry")
     else boot?.clear()
   } catch (refused) {
-    boot?.failed(`Browser startup could not follow the host selection: ${String(refused)}`, retryBrowser)
+    boot?.failed(`olai couldn't load its plugins in this tab. Try again. (${String(refused)})`, retryBrowser)
     console.error(
       "olai: this tab could not follow the server's plugin roster, so it is still serving the previous one",
       refused,

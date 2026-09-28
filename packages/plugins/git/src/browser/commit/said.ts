@@ -186,7 +186,7 @@ export const newsSays = (face: Face, pending: Pending, git: GitState): string =>
     case "blocked":
       return `${waiting} uncommitted — repository busy`
     case "error":
-      return "git error — tap to see"
+      return "Git error — tap to see"
     default:
       // WHY the count is not coming down outranks the count, which is the whole
       // of `push-failure-invisible` on a phone: a number with a reason and a
@@ -265,23 +265,23 @@ export const markOf = (face: Face, git: GitState): Mark | null =>
  * the half #108 existed for: what git actually said.
  */
 export const DETAIL: Readonly<Record<Face, string>> = {
-  unknown: "waiting to hear from the server",
-  off: "commits are off for this server (`commit: off`), so nothing here is recorded",
+  unknown: "Loading…",
+  off: "Commits are turned off (`commit: off`), so changes are saved but not committed",
   "no-repo":
-    "this directory is not a git work tree, so writes land on disk but are not committed anywhere",
+    "This folder isn't a git repository, so changes are saved but not committed",
   // True of both ways this state is reached — a git that could not be asked
   // about the directory at all, and a commit it refused — because what happened
   // is in the words that follow, and what a reader needs first is the
   // consequence.
-  error: "git failed here, so writes are landing on disk but are not being committed",
+  error: "Git failed here, so changes are saved but not committed",
   // The two that are counted: {@link explain} puts the tally in front of them,
   // because "3 uncommitted" on screen and "some writes are waiting" in the
   // sentence would be the same fact told twice and told differently.
   blocked: "waiting to be committed",
-  waiting: "waiting to be committed — open it to see what changed, and to record it",
+  waiting: "waiting to be committed. Open it to see what changed and commit",
   committed:
-    "everything olai has written here is committed — open it for what it last recorded",
-  never: "this directory is a git repository, and olai has not committed in it yet",
+    "Everything is committed. Open it to see the last commit",
+  never: "This is a git repository, and olai hasn't committed here yet",
 }
 
 /**
@@ -307,7 +307,7 @@ const sentence = (face: Face, pending: Pending, git: GitState): string => {
     case "waiting":
       return `${counted(pending)} ${DETAIL.waiting}`
     case "blocked":
-      return `${counted(pending)} ${DETAIL.blocked}, and ${because(pending.repo)}`
+      return `${counted(pending)} ${DETAIL.blocked}. ${because(pending.repo)}`
     default:
       return DETAIL[face]
   }
@@ -337,13 +337,13 @@ const alsoUnpushed = (said: string, pending: Pending, git: GitState): string => 
     const count = unpushed === null ? "" : `${unpushed} · `
     return `${said} · ${count}${PUSH_REFUSED}: ${git.pushSaid}`
   }
-  return unpushed === null ? said : `${said} · ${unpushed}, and the panel can push them`
+  return unpushed === null ? said : `${said} · ${unpushed}. Open it to push`
 }
 
 /** What a push that git said no to is CALLED — short, because it goes on a
  *  fixed-height bar and on a phone banner, with git's own words a gesture
  *  away. Spelled once for the chip, the sentence and the banner. */
-export const PUSH_REFUSED = "the last push was refused"
+export const PUSH_REFUSED = "Push refused"
 
 /**
  * ── Auto-commit, as the DIRECTORY has it ──────────────────────────────
@@ -364,7 +364,7 @@ export const PUSH_REFUSED = "the last push was refused"
 /** The chip a stopped loop wears in the header. Short, because the bar is a
  *  fixed height and the sentence is one gesture away — on the tip, on the
  *  `aria-label`, and in full in the panel. */
-export const AUTO_PAUSED = "auto-commit paused"
+export const AUTO_PAUSED = "Auto-commit paused"
 
 /**
  * WHAT THE LOOP IS DOING, as one word — and the one place that reading is made.
@@ -409,13 +409,13 @@ const RESUME_GESTURE = "Press Resume in the commit panel to start it again."
  * printed twice in one popover is a popover nobody reads either copy of.
  */
 const autoSays = (paused: string): string =>
-  `auto-commit is paused — ${paused}. ${RESUME_GESTURE}`
+  `Auto-commit is paused: ${paused}. ${RESUME_GESTURE}`
 
 /** ... and the same clause for a sentence that has ALREADY quoted whatever git
  *  said, which is the ordinary case: a refused push both stops the loop and
  *  rides {@link alsoUnpushed}, so a paragraph of git's hints would otherwise be
  *  printed twice inside one `aria-label`. */
-const AUTO_SAYS_AGAIN = `auto-commit is paused. ${RESUME_GESTURE}`
+const AUTO_SAYS_AGAIN = `Auto-commit is paused. ${RESUME_GESTURE}`
 
 /** Whether the words that stopped the loop are already on the sentence. There
  *  are exactly two things that can have printed them — the refused push's
@@ -426,7 +426,7 @@ const quoted = (git: GitState): boolean =>
 
 /** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
 export const AUTO_STOPPED =
-  `auto-commit is paused, and what git said is below. ${RESUME_GESTURE}`
+  `Auto-commit is paused. Git's message is below. ${RESUME_GESTURE}`
 
 /**
  * Whether the server's quiet window really would record what the panel is
@@ -449,7 +449,7 @@ export const willRecord = (pending: Pending, git: GitState): boolean =>
  *  while it is really going to happen, so it is a promise rather than a
  *  description of a setting. */
 export const AUTO_ARMED =
-  "Auto-commit will record all of this as one commit once the edits stop."
+  "Auto-commit will commit all of this once you stop editing."
 
 /**
  * The pause, on whatever sentence the face produced — see {@link explain}.
@@ -538,8 +538,8 @@ export const localOf = (from: string | null, served: string): string | null =>
 
 export const scopeOf = (served: string): string =>
   served === ""
-    ? "whole repository · olai serves it from the root"
-    : `whole repository · olai serves ${served}`
+    ? "Whole repository"
+    : `Whole repository · olai shows ${served}`
 
 /**
  * What is committed here and nowhere else, in the sentence the panel puts beside
@@ -593,13 +593,13 @@ export const because = (repo: RepoState): string => {
     // an absent repository, which is the one confusion #108 exists to have
     // ended.
     case "Unusable":
-      return "git could not be asked about this directory"
+      return "Git couldn't read this folder"
     // The two settings, and the pill DOES draw for both — it is never absent —
     // but their sentence is {@link DETAIL}'s, because they are statements
     // rather than something to fix. This is the fallback that keeps the
     // function total.
     default:
-      return "there is nowhere to commit to"
+      return "There is nowhere to commit to"
   }
 }
 
@@ -611,10 +611,10 @@ export const verbatim = (repo: RepoState): string | undefined =>
   repo._tag === "Blocked" || repo._tag === "Unusable" ? repo.said : undefined
 
 const BLOCKED: Readonly<Record<Reason, string>> = {
-  merge: "a merge is in progress — finish it first",
-  rebase: "a rebase is in progress — finish it first",
-  "cherry-pick": "a cherry-pick is in progress — finish it first",
-  detached: "HEAD is detached — check out a branch first",
+  merge: "A merge is in progress. Finish it first",
+  rebase: "A rebase is in progress. Finish it first",
+  "cherry-pick": "A cherry-pick is in progress. Finish it first",
+  detached: "No branch is checked out. Check out a branch first",
 }
 
 /**
@@ -644,18 +644,18 @@ export const saysOf = (face: Face, waiting: number): string => {
     case "unknown":
       return "…"
     case "off":
-      return "commits off"
+      return "Commits off"
     case "no-repo":
-      return "no git here"
+      return "Not a git folder"
     // What the readout this pill absorbed used to say in its own chip. The
     // WORDS are the consequence rather than the cause — git's own account of
     // what happened is a paragraph, and it rides the tip and the aria-label.
     case "error":
-      return "git error"
+      return "Git error"
     case "never":
-      return "no commits yet"
+      return "No commits yet"
     case "committed":
-      return "committed"
+      return "Committed"
     default:
       return `${waiting} uncommitted`
   }

@@ -87,7 +87,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
     <section data-testid={TESTID.documentPage} data-file={props.file}>
       <header class="mb-8">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 class="m-0 max-w-full break-all font-mono text-sm tracking-tight text-muted">{props.file}</h1>
+          <h1 class="m-0 max-w-full break-all font-mono text-body tracking-tight text-muted">{props.file}</h1>
           {/* The control and the draft it opens read ONE value, so a page cannot
               offer an editor it has nothing to open: `served()` is both the
               condition here and the baseline below. The delete beside it reads
@@ -101,7 +101,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
             <div class="flex min-w-0 flex-1 basis-full flex-wrap items-baseline justify-end gap-2 sm:basis-auto">
               <button
                 type="button"
-                class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
+                class="cursor-pointer rounded-control border border-rule bg-transparent px-2 py-0.5 text-body text-muted hover:bg-rule/60 hover:text-ink"
                 data-testid={TESTID.documentEdit}
                 onClick={editor.open}
               >
@@ -149,7 +149,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           hand from the first frame, and a section that waited on a body would
           be blank on exactly the saved page whose bytes never cross the
           wire. */}
-      <Show when={nudge()}>{text => <div data-testid={TESTID.documentNudge} class="text-xs text-alarm">{text()}</div>}</Show>
+      <Show when={nudge()}>{text => <div data-testid={TESTID.documentNudge} class="text-label text-alarm">{text()}</div>}</Show>
       <Referrers file={props.file} reading={reading} claims={servedDirectory()?.claims()} href={router.routes.href} memory={referrersMemory.read()!} />
     </section>
   )

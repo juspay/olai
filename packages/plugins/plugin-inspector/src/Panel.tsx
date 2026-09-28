@@ -302,7 +302,7 @@ export function Panel(props: {
       </header>
       <div class="plugins-body">
         <Show when={plugins().configurationAvailable === false && plugins().built.length > 0}>
-          <p class="plugins-notice">{rosterFile().split("/").pop()} can't be read, so switches here last for this session only.</p>
+          <p class="plugins-notice">{rosterFile().split("/").pop()} can't be read, so switches here reset when olai restarts.</p>
         </Show>
         <Show when={refused()}>{said => <p class="plugins-notice plugins-alarm" data-testid={TESTID.pluginsRefused}>{said()}</p>}</Show>
         <Show when={plugins().configurationError}>{error => <p class="plugins-notice plugins-alarm" data-testid={TESTID.pluginConfigError}>{error()}</p>}</Show>
@@ -367,8 +367,10 @@ export function Panel(props: {
 /** The Server section's heading, and its key on inspector state's open map. */
 const SERVER = "Server"
 
-function Chevron() {
-  return <svg class="plugins-chevron" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+/** `hidden` keeps the chevron's width so a row with nothing to open lines its
+ *  name up with the rows that have one. */
+function Chevron(props: { readonly hidden?: boolean }) {
+  return <svg class="plugins-chevron" style={props.hidden ? { visibility: "hidden" } : undefined} viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
     <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
   </svg>
 }
@@ -419,17 +421,30 @@ function PluginRow(props: {
   const environment = () => (plugin().environment ?? []).filter(environmentVisible)
   const broken = () => plugin().running && [...props.panel.management.reports()].some(([name, report]) =>
     (name === plugin().name || name.startsWith(plugin().name + "/")) && report.state === "failed")
-  const open = () => props.panel.state.expanded()[plugin().name] ?? props.needs
+  /** Whether the row has anything to show beyond its short name. A row that
+   *  does not draws no chevron and does not open: a press that reveals only
+   *  the name already on it is a door to nothing. */
+  const reveals = () => copy() !== null || props.face !== undefined || broken() || plugin().source !== undefined ||
+    values().length > 0 || environment().length > 0 || session() ||
+    (plugin().configurationNode !== undefined && Boolean(props.panel.state.file()))
+  const open = () => reveals() && (props.panel.state.expanded()[plugin().name] ?? props.needs)
   const detailId = `plugins-detail-${plugin().name}`
   return (
     <div data-testid={PRIMITIVE.prefsRow} data-pref={pluginPref(plugin().name)} class="plugins-row" data-off={!plugin().running ? "true" : undefined}
       data-open={open() ? "true" : undefined} data-plugin-line>
       <div class="plugins-line">
-        <button type="button" class="plugins-name" aria-expanded={open()} aria-controls={detailId}
-          onClick={() => props.panel.state.setExpanded(plugin().name, !open())}>
-          <Chevron />
-          <span class="plugins-name-text">{displayName(plugin(), look())}</span>
-        </button>
+        <Show when={reveals()} fallback={
+          <span class="plugins-name" title={displayName(plugin(), look()) !== plugin().name ? plugin().name : undefined}>
+            <Chevron hidden />
+            <span class="plugins-name-text">{displayName(plugin(), look())}</span>
+          </span>
+        }>
+          <button type="button" class="plugins-name" aria-expanded={open()} aria-controls={detailId}
+            onClick={() => props.panel.state.setExpanded(plugin().name, !open())}>
+            <Chevron />
+            <span class="plugins-name-text">{displayName(plugin(), look())}</span>
+          </button>
+        </Show>
         <Show when={status()}>{said => <span class={`plugins-status ${state() === "failed" || said().startsWith("Failed") ? "plugins-alarm" : ""}`}>{said()}</span>}</Show>
         <Switch label={enableLabel(plugin().name)} on={strip().value === "on"} frozen={strip().frozen}
           session={session()} onPick={value => props.set(plugin().name, value)} />
@@ -463,11 +478,11 @@ function PluginRow(props: {
           <div class="plugins-actions">
             <Show when={props.panel.management.requiresReload(plugin().name)} fallback={
               <button type="button" disabled={props.panel.management.changing()} onClick={() => { void props.panel.management.retry() }}>
-                Retry browser activation
+                Try again
               </button>
             }>
-              <p>Reload to recover this browser module. Save any unfinished edits first.</p>
-              <button type="button" onClick={() => props.panel.management.reload()}>Reload page</button>
+              <p>Reload the page to fix this. Save any unfinished edits first.</p>
+              <button type="button" onClick={() => props.panel.management.reload()}>Reload</button>
             </Show>
           </div>
         </Show>
@@ -495,7 +510,7 @@ function PluginRow(props: {
           </Show>
         </dl>
         <Show when={session()}>
-          <p class="plugins-note">Switching it here lasts for this session only.</p>
+          <p class="plugins-note">This switch resets when olai restarts.</p>
         </Show>
       </div>
     </div>
@@ -596,7 +611,7 @@ function Defined(props: {
         return (
           <details
             open={pending()}
-            class="rounded border border-line/60 p-2 text-xs"
+            class="rounded-control border border-line/60 p-2 text-label"
             data-testid={TESTID.pluginsSource}
             data-plugin={props.plugin.name}
             data-version={said().version}
@@ -622,7 +637,7 @@ function Defined(props: {
                     </p>
                     <button
                       type="button"
-                      class="rounded border border-line px-2 py-1"
+                      class="rounded-control border border-line px-2 py-1"
                       onClick={() => props.onRead(props.plugin.name, said().version)}
                     >
                       I have read it
@@ -633,7 +648,7 @@ function Defined(props: {
                 <div class="mt-2 flex gap-2">
                   <button
                     type="button"
-                    class="rounded border border-line px-2 py-1"
+                    class="rounded-control border border-line px-2 py-1"
                     disabled={frozen()}
                     data-testid={TESTID.pluginsApprove}
                     onClick={() => props.approve(props.plugin.name, said().version, false)}
@@ -642,7 +657,7 @@ function Defined(props: {
                   </button>
                   <button
                     type="button"
-                    class="rounded border border-line px-2 py-1"
+                    class="rounded-control border border-line px-2 py-1"
                     disabled={frozen()}
                     data-testid={TESTID.pluginsApproveAlways}
                     onClick={() => props.approve(props.plugin.name, said().version, true)}

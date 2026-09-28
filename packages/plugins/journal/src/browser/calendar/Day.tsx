@@ -49,8 +49,8 @@ import { dayRoute } from "../routes.ts"
  *  smallest target in this app and the one a finger is likeliest to miss into
  *  the day beside it. `w-full` so the hit area is the grid cell, not the
  *  number. */
-const BOX = `flex ${TARGET} relative w-full items-center justify-center rounded-lg border ` +
-  "text-xs tabular-nums no-underline md:min-h-6"
+const BOX = `flex ${TARGET} relative w-full items-center justify-center rounded-control border ` +
+  "text-label tabular-nums no-underline md:min-h-6"
 
 /** The dot, as the pseudo-element it has to be — it sits UNDER the number
  *  rather than beside it, and `currentColor` is what makes it follow the cell
@@ -112,7 +112,7 @@ export function Day(props: {
     live()
       ? `${props.date}, ${
         props.dated
-          ? props.noted ? "has a note and dated nodes" : "has dated nodes"
+          ? props.noted ? "has a note and dated items" : "has dated items"
           : "has a note"
       }`
       : props.date
@@ -132,8 +132,8 @@ export function Day(props: {
       ? "text-accent"
       : live()
       ? "text-paper"
-      : "text-paper/45"
-  const ground = (): string => props.open ? "bg-accent/30" : "hover:bg-paper/10"
+      : "text-paper/40"
+  const ground = (): string => props.open ? "bg-accent/20" : "hover:bg-paper/10"
   const ring = (): string =>
     props.today ? "border-accent" : "border-transparent"
 

@@ -58,17 +58,17 @@ export function Who(props: { readonly viewer: Viewer }) {
     >
       <Switch>
         <Match when={face() === "asking"}>
-          <Icon label="asking who is looking" dim>
+          <Icon label="Checking who you are…" dim>
             <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={face() === "none"}>
-          <Icon label="anonymous">
+          <Icon label="Not signed in">
             <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={face() === "error"}>
-          <Icon label="could not tell who is looking" alarm>
+          <Icon label="Couldn't check who you are" alarm>
             <UserIcon class="size-4" />
           </Icon>
         </Match>
@@ -89,7 +89,7 @@ function Icon(props: {
   return (
     <Tip text={props.label} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/25 ${
+        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/20 ${
           props.alarm === true ? "text-alarm" : "text-paper/80"
         } ${props.dim === true ? "opacity-50" : ""}`}
         aria-label={props.label}
@@ -107,7 +107,7 @@ function Chip(props: { readonly person: Person }) {
   return (
     <Tip text={saying(props.person)} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/25 ${
+        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/20 ${
           props.person.picture === null ? "text-paper/80" : "p-1.5"
         }`}
         aria-label={saying(props.person)}

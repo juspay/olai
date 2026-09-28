@@ -38,7 +38,7 @@ export function Conversation(props: {
   return (
     <button
       type="button"
-      class="flex w-full flex-col rounded px-2 py-1 text-left text-xs hover:bg-rule"
+      class="flex w-full flex-col rounded-control px-2 py-1 text-left text-label hover:bg-rule"
       data-testid={props.testid ?? TESTID.chatSession}
       data-session-id={props.session.id}
       data-agent={props.session.agent}
@@ -53,24 +53,24 @@ export function Conversation(props: {
           {props.session.title ?? props.session.id}
         </span>
         <Show when={size()}>
-          {(drawn) => <span class="shrink-0 font-mono text-[0.625rem] text-muted">{drawn()}</span>}
+          {(drawn) => <span class="shrink-0 tabular-nums text-caption text-muted">{drawn()}</span>}
         </Show>
         {/* The stamp does not shrink and the title does: two rows that share a
             title (a `/clear` leaves a pair) differ in nothing else, so the one
             thing that tells them apart may not be the thing a long title pushes
             off the end. */}
         <Show when={whenOf(props.session.updatedAt)}>
-          {(at) => <span class="shrink-0 font-mono text-[0.625rem] text-muted">{at()}</span>}
+          {(at) => <span class="shrink-0 tabular-nums text-caption text-muted">{at()}</span>}
         </Show>
       </span>
       <Show when={props.successor}>
         {(next) => (
           <span
-            class="truncate text-[0.625rem] text-muted"
+            class="truncate text-caption text-muted"
             data-testid={TESTID.chatSessionSuperseded}
             data-successor={next().id}
           >
-            superseded by {next().title ?? next().id}
+            Replaced by {next().title ?? next().id}
           </span>
         )}
       </Show>

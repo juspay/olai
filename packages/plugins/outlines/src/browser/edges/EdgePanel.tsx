@@ -120,7 +120,7 @@ export function EdgePanel(props: {
 
   return (
     <div
-      class="my-1 w-[min(28rem,90vw)] rounded border border-rule/70 bg-panel p-2"
+      class="my-1 w-[min(28rem,90vw)] rounded-control border border-rule/60 bg-panel p-2"
       data-testid={TESTID.edgePanel}
       data-relation={props.relation}
       // ESCAPE IS THIS PANEL'S, wherever the caret is inside it — the box, a
@@ -138,7 +138,7 @@ export function EdgePanel(props: {
         props.onClose()
       }}
     >
-      <p class="m-0 mb-1 text-xs text-muted">{words().heading}</p>
+      <p class="m-0 mb-1 text-label text-muted">{words().heading}</p>
 
       {/* What it says now, each with the write that takes it off. Drawn before
           the box because it is what the panel is ABOUT — the search adds to
@@ -158,7 +158,7 @@ export function EdgePanel(props: {
               wrote. */}
           <Key each={held()} by="id">
             {(one) => (
-              <li class="flex items-center gap-1 rounded border border-rule/70 px-1.5 py-0.5 text-sm text-ink">
+              <li class="flex items-center gap-1 rounded-control border border-rule/60 px-1.5 py-0.5 text-body text-ink">
                 <span
                   onClick={(event) => {
                     // A chip is a FACT about this node, not a door: the pill

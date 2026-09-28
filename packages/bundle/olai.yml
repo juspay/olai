@@ -137,11 +137,11 @@
 - id: opencode
   name: olai-plugin-opencode/server
   section: Agents
-  label: opencode
+  label: OpenCode
 - id: pi
   name: olai-plugin-pi/server
   section: Agents
-  label: pi
+  label: Pi
 - id: omp
   name: olai-plugin-omp/server
   section: Agents

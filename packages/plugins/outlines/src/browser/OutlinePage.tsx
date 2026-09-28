@@ -318,7 +318,7 @@ export function OutlinePage(props: {
         {(said) => (
           <SaidLine
             said={said()}
-            class="mb-2 text-[0.8125rem] leading-snug"
+            class="mb-2 text-body leading-snug"
             testid={IDS_OUTLINES.landingSaid}
           />
         )}
@@ -337,7 +337,7 @@ export function OutlinePage(props: {
         <Show when={unfiltered(narrowed) && props.held.length === 0}>
           <StartLine
             at={{ kind: "first", file: props.file }}
-            label="This outline is empty — write its first line."
+            label="This outline is empty. Write the first line."
           />
           {/* …OR RETIRE IT. The same emptiness that offers a first line is
               the only condition under which the op may take the FILE — an

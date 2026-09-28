@@ -40,9 +40,9 @@ export function MarkdownPageView() {
     data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
     data-href={hrefOf(route())} onPointerDown={() => router.focus(here())} onClick={follow}>
     <DocumentReading value={page}>
-      <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Reading…</p>}>
+      <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Loading…</p>}>
         {shows => <Switch fallback={<p data-testid={IDS_UI_PRIMITIVES.nothing}>No such document here.</p>}>
-          <Match when={only(shows(), "nothing")}>{missing => <Empty testid={IDS_UI_PRIMITIVES.nothing} line={`No ${servedDirectory()?.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested} under the served directory.`} />}</Match>
+          <Match when={only(shows(), "nothing")}>{missing => <Empty testid={IDS_UI_PRIMITIVES.nothing} line="Page not found" detail={`There is no ${servedDirectory()?.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested}.`} />}</Match>
           <Match when={only(shows(), "document")}>{doc => <DocumentPage file={doc().file} custom={doc().props} />}</Match>
         </Switch>}
       </Show>

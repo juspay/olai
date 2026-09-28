@@ -28,8 +28,8 @@
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 export const ENTRY_SHAPE =
-  `flex min-w-0 ${TARGET} items-center rounded-xl px-2.5 py-1 text-[0.875rem] leading-snug ` +
-  "no-underline hover:bg-paper/10 aria-[current=page]:bg-accent/30 " +
+  `flex min-w-0 ${TARGET} items-center rounded-control px-2.5 py-1 text-body leading-snug ` +
+  "no-underline hover:bg-paper/10 aria-[current=page]:bg-accent/40 " +
   "aria-[current=page]:text-paper aria-[current=page]:font-semibold md:min-h-0"
 
 /** The space between the things ON a row — a glyph, a name, and whatever the
@@ -92,7 +92,7 @@ export const REGION = "mt-4"
  *  written in the plugin's own case; `uppercase` is paint, so a screen reader
  *  and a `getByRole` name still read "Chats". */
 export const REGION_LABEL =
-  "m-0 px-2.5 font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-paper/55"
+  "m-0 px-2.5 font-sans text-caption font-semibold uppercase tracking-[0.08em] text-paper/60"
 
 /**
  * A HEADING THAT CARRIES ITS OWN ACTION — the `+` beside Chats and beside
@@ -109,8 +109,8 @@ export const REGION_HEAD = "mb-1 flex min-h-7 items-center justify-between gap-2
  *  (`@olai/ui-primitives/touch.ts`) and a 1.5rem one beside a pointer. It is
  *  a real `<button>`, so Tab reaches it and Enter/Space press it. */
 export const HEAD_ACTION =
-  "inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg " +
-  "border-0 bg-transparent text-paper/55 hover:bg-paper/10 hover:text-paper " +
+  "inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-control " +
+  "border-0 bg-transparent text-paper/60 hover:bg-paper/10 hover:text-paper " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent " +
   "disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent " +
   "aria-expanded:bg-paper/10 aria-expanded:text-paper md:min-h-6 md:min-w-6"

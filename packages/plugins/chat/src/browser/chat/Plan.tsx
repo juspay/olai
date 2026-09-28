@@ -6,11 +6,11 @@ const MARK = { pending: "○", in_progress: "◉", completed: "✓" } as const
 export function Plan(props: { readonly chat: Chat }) {
   const steps = () => props.chat.state().plan
   return <Show when={steps().length > 0}>
-    <details open class="shrink-0 border-b border-rule/70 px-3 py-2" aria-label="Execution plan">
-      <summary class="cursor-pointer text-xs font-semibold">
+    <details open class="shrink-0 border-b border-rule/60 px-3 py-2" aria-label="Execution plan">
+      <summary class="cursor-pointer text-label font-semibold">
         Plan · {steps().filter((step) => step.status === "completed").length}/{steps().length}
       </summary>
-      <ol class="mt-2 max-h-40 space-y-1 overflow-auto text-xs">
+      <ol class="mt-2 max-h-40 space-y-1 overflow-auto text-label">
         <For each={steps()}>{(step) =>
           <li data-status={step.status} class="flex gap-2"
             classList={{ "text-doing": step.status === "in_progress", "text-muted": step.status === "completed" }}>

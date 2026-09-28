@@ -51,28 +51,28 @@ export const mailSaid = (account: Account): Said => {
         // stays `connected`). The words carry the trouble; the colour would be
         // a lie about a `gmail` call that would answer.
         dot: "bg-done",
-        label: `mail ${account.address ?? ""}`.trim(),
+        label: `Mail ${account.address ?? ""}`.trim(),
         detail: account.retrying
-          ? `connected as ${account.address ?? "an unknown address"} — ${account.reason ?? "the next token is being retried"}`
-          : `connected as ${account.address ?? "an unknown address"}`,
+          ? `Connected as ${account.address ?? "an unknown address"}. ${account.reason ?? "Retrying sign-in…"}`
+          : `Connected as ${account.address ?? "an unknown address"}`,
       }
     case "absent":
       return {
         dot: "bg-muted",
-        label: "no mail",
+        label: "No mail",
         // The absent arm's reason is not a fault: it says what a connect would
         // still need (the two credential doors). See `../wire.ts`.
-        detail: account.reason ?? "no Gmail account is connected to this serve.",
+        detail: account.reason ?? "No Gmail account connected",
       }
     case "fault":
       return {
         dot: "bg-alarm",
-        label: "mail fault",
+        label: "Mail error",
         // THE WORDS BESIDE THE FIELD: `retrying` is what the cell carries
         // (`../wire.ts`), and `— retrying` is what a reader is told, composed
         // here because copy belongs to a renderer. A wait heals itself, so the
         // tooltip says so rather than promising a fix nobody has to make.
-        detail: `${account.reason ?? "this serve's Gmail connection is not working, and it gave no reason."}${account.retrying ? " — retrying" : ""}`,
+        detail: `${account.reason ?? "Gmail isn't working and gave no reason."}${account.retrying ? " Retrying…" : ""}`,
       }
   }
 }

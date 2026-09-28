@@ -29,7 +29,7 @@ export function Trash() {
       route={TRASH_ROUTE}
       // The quiet ink says what the row is: a door onto a page, not one more
       // file of the reader's own.
-      class={`${ENTRY_SHAPE} text-paper/65`}
+      class={`${ENTRY_SHAPE} text-paper/60`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
@@ -44,7 +44,7 @@ export function Trash() {
 export function TrashRail() {
   const router = useRouter()
   return (
-    <RailButton testid={TESTID.railTrash} label="open the trash" title="trash" onClick={() => router.go(TRASH_ROUTE)}>
+    <RailButton testid={TESTID.railTrash} label="Open Trash" title="Trash" onClick={() => router.go(TRASH_ROUTE)}>
       <TrashGlyph class="size-4" />
     </RailButton>
   )

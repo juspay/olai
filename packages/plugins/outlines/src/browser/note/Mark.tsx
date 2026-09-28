@@ -48,8 +48,8 @@ export function NoteMark(props: {
       // rows a keyboard reader is most likely to be standing on. `ring-2
       // ring-accent` is what every other control in this client wears
       // (`../settings/Segmented.tsx`, `../theme/FontSelect.tsx`), and the
-      // `rounded-sm` is static so the ring has a shape to trace at 12px.
-      class="inline-flex w-3 shrink-0 cursor-pointer select-none justify-center rounded-sm border-0 bg-transparent p-0 align-baseline text-[0.8125rem] leading-none transition-colors duration-100 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      // `rounded-control` is static so the ring has a shape to trace at 12px.
+      class="inline-flex w-3 shrink-0 cursor-pointer select-none justify-center rounded-control border-0 bg-transparent p-0 align-baseline text-body leading-none transition-colors duration-100 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       classList={{
         "text-accent": props.open,
         "text-muted/60": !props.open,
@@ -59,8 +59,8 @@ export function NoteMark(props: {
       // machine-read thing on a row gets.
       data-open={props.open ? "true" : "false"}
       aria-expanded={props.open}
-      aria-label={props.open ? "close the note" : "open the note"}
-      title={props.open ? "close the note" : "open the note"}
+      aria-label={props.open ? "Close note" : "Open note"}
+      title={props.open ? "Close note" : "Open note"}
       onClick={(event) => {
         event.stopPropagation()
         props.onToggle()

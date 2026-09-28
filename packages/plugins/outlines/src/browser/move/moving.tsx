@@ -122,7 +122,7 @@ export const createMoving = (...args: Parameters<typeof createGesture>): Moving 
             // row that did not.
             <SaidLine
               said={message()}
-              class="mt-1 mb-0 text-[0.8125rem] leading-snug"
+              class="mt-1 mb-0 text-body leading-snug"
               testid={TESTID.moveSaid}
             />
           )}

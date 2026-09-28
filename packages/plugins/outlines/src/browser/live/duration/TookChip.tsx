@@ -66,7 +66,7 @@ import { createNow, liveOf, liveStoryOf, roundOf, settledStoryOf, tickingOf, wor
 
 /** The quiet register both halves of the chip share — the ¶-counter's own:
  *  mono, reading-size, muted. */
-const CHIP = "shrink-0 rounded-full px-2 font-mono text-xs"
+const CHIP = "shrink-0 rounded-full px-2 tabular-nums text-label"
 
 /** A settled span recedes with its row: a finished one is legible and out of
  *  the way, and a called-off one is already the dimmest thing on the line. */

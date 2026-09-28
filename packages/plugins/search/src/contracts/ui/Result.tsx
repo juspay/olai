@@ -165,7 +165,7 @@ export function Result(props: {
   return (
     <button
       type="button"
-      class={`flex w-full min-w-0 flex-col rounded px-3 py-2 text-left text-sm ${
+      class={`flex w-full min-w-0 flex-col rounded-control px-3 py-2 text-left text-body ${
         props.active ? "bg-rule text-ink" : "text-ink hover:bg-rule/60"
       }`}
       data-testid={props.testids.row}
@@ -214,7 +214,7 @@ export function Result(props: {
         </span>
         <Show when={props.hint}>
           {(hint) => (
-            <span class="shrink-0 font-mono text-[0.6875rem] text-muted">
+            <span class="shrink-0 text-caption text-muted">
               {hint()}
             </span>
           )}
@@ -223,7 +223,7 @@ export function Result(props: {
       <Show when={props.place}>
         {place => {
           const parts = () => { const value = place(); return typeof value === "string" ? undefined : value }
-          return <Show when={parts()} fallback={<span class="w-full min-w-0 truncate font-mono text-[0.6875rem] text-muted" data-testid={props.testids.place}><TitleHtml drawing={renderTitle(props.claims, String(place()), "", { links: false })} /></span>}>
+          return <Show when={parts()} fallback={<span class="w-full min-w-0 truncate text-caption text-muted" data-testid={props.testids.place}><TitleHtml drawing={renderTitle(props.claims, String(place()), "", { links: false })} /></span>}>
             {value => <PlaceLine claims={props.claims} place={value()} testid={props.testids.place} />}
           </Show>
         }}
@@ -231,7 +231,7 @@ export function Result(props: {
       <Show when={(props.props ?? []).length > 0}>
         {/* One line, truncated like the two above it, so six properties cost
             what one does and neither this nor the panel ever widens. */}
-        <span class="flex w-full min-w-0 gap-4 truncate text-[0.6875rem]">
+        <span class="flex w-full min-w-0 gap-4 truncate text-caption">
           <For each={props.props}>
             {(prop) => (
               <span

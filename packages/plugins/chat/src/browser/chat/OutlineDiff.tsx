@@ -66,23 +66,23 @@ export function OutlineDiff(props: {
   return (
     <div
       onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
-      class="mt-1 overflow-hidden rounded border border-rule"
+      class="mt-1 overflow-hidden rounded-control border border-rule"
       data-testid={TESTID.chatOutlineDiff}
       data-path={props.diff.path}
       data-expanded={open()}
     >
-      <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
+      <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-caption">
         <Grip text={words()} carry={carry} />
         <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
         </span>
         <Show when={props.diff.oldText === null}>
-          <span class="shrink-0 text-done">new</span>
+          <span class="shrink-0 text-done">New</span>
         </Show>
       </p>
 
       <Show when={read() !== undefined} fallback={
-        <p class="px-2 py-1 text-xs text-muted" data-testid={TESTID.chatOutlineUnreadable}>
+        <p class="px-2 py-1 text-label text-muted" data-testid={TESTID.chatOutlineUnreadable}>
           {line()}
         </p>
       }>
@@ -92,22 +92,22 @@ export function OutlineDiff(props: {
           /* Never a text diff, not even when the nodes cannot be read: what a
              reader is owed is which side stopped parsing, which is exactly the
              thing an agent hand-editing an outline does wrong. */
-          <p class="px-2 py-1 text-xs text-alarm" data-testid={TESTID.chatOutlineUnreadable}>
+          <p class="px-2 py-1 text-label text-alarm" data-testid={TESTID.chatOutlineUnreadable}>
             {unreadable() === "after"
-              ? "the outline this call wrote does not parse, so what changed in it cannot be told"
-              : "the outline as it stood does not parse, so what changed in it cannot be told"}
+              ? "Can't show changes: the new outline doesn't parse"
+              : "Can't show changes: the old outline doesn't parse"}
           </p>
         }
       >
         <Show
           when={changes().length > 0}
           fallback={
-            <p class="px-2 py-1 text-xs text-muted">
-              the file was rewritten and no node changed
+            <p class="px-2 py-1 text-label text-muted">
+              Rewritten, but no rows changed
             </p>
           }
         >
-          <ul class="px-2 py-1 text-xs">
+          <ul class="px-2 py-1 text-label">
             <For each={shown()}>
               {(change) => (
                 <li
@@ -142,12 +142,12 @@ export function OutlineDiff(props: {
       <Show when={more() > 0}>
         <button
           type="button"
-          class="w-full border-t border-rule px-2 py-1 text-left font-mono text-[0.6875rem] text-muted hover:text-ink"
+          class="w-full border-t border-rule px-2 py-1 text-left font-mono text-caption text-muted hover:text-ink"
           data-testid={TESTID.chatDiffExpand}
           aria-expanded={open()}
           onClick={() => toggleFold(props.id)}
         >
-          {open() ? "show less" : `+${more()} more nodes`}
+          {open() ? "Show less" : `+${more()} more rows`}
         </button>
       </Show>
     </div>

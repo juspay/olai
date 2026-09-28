@@ -14,37 +14,37 @@ export type Row = NodeAgentRow
 export const LOOK: Record<Standing, Look> = {
   "needs-you": {
     dot: NEEDS_YOU_DOT,
-    label: "needs you",
-    detail: "its turn has stopped on a question only you can answer, and nothing times out",
+    label: "Needs you",
+    detail: "Waiting for your answer",
   },
   working: {
     dot: "bg-done animate-pulse",
-    label: "working…",
-    detail: "a turn is in flight",
+    label: "Working…",
+    detail: "Working on a reply",
   },
   waking: {
     dot: "bg-done animate-pulse",
-    label: "starting…",
-    detail: "its agent is coming up — a subprocess, a handshake, a replay",
+    label: "Starting…",
+    detail: "The agent is starting",
   },
   idle: {
     dot: "bg-done",
-    label: "idle",
-    detail: "its conversation is open and ready",
+    label: "Idle",
+    detail: "Ready for your next message",
   },
   gone: {
     dot: "bg-alarm",
-    label: "not running",
-    detail: "its agent is not there; this is the one that needs a person",
+    label: "Not running",
+    detail: "The agent stopped",
   },
   asleep: {
-    dot: "bg-muted/50",
-    label: "asleep",
-    detail: "its session is on disk with nothing running it — pressing it opens the conversation",
+    dot: "bg-muted/40",
+    label: "Asleep",
+    detail: "Saved. Open it to continue.",
   },
   unbound: {
     dot: "border border-muted/60",
-    label: "no session bound",
-    detail: "nobody has bound a conversation to this node agent yet",
+    label: "No agent",
+    detail: "No chat here yet",
   },
 }

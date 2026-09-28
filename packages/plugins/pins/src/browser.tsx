@@ -52,7 +52,7 @@ export const components={palette:paletteIntegration,
  const nav = yield* navigation
  const files = yield* fileAccess
  const undo = usePinUndo()
- yield* (yield* rendererSlots).contribute(regions, {at:"shelf" as const, Body: () => <Show when={files.outlineRow() === undefined || files.claims().byKind.has(files.outlineRow()!)} fallback={<p class="px-2 py-1 text-sm text-muted">Pins: the {files.outlineRow()} row is off.</p>}><Shelf record={nav.focused()?.history?.record ?? undo.record} /></Show>})
+ yield* (yield* rendererSlots).contribute(regions, {at:"shelf" as const, Body: () => <Show when={files.outlineRow() === undefined || files.claims().byKind.has(files.outlineRow()!)} fallback={<p class="px-2 py-1 text-body text-muted">Pins need {files.outlineRow()}, which is turned off.</p>}><Shelf record={nav.focused()?.history?.record ?? undo.record} /></Show>})
 })})}
 
 export { surface } from "./surface.ts"

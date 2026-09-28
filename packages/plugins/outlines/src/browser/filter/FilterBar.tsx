@@ -143,10 +143,10 @@ export function FilterBar(props: {
             ref={input}
             type="text"
             role="combobox"
-            class="min-h-11 w-full min-w-0 rounded-md border border-rule/70 bg-paper py-1.5 pl-3 pr-11 text-sm md:pr-9 text-ink outline-none placeholder:text-muted focus:border-accent/60 focus:ring-2 focus:ring-accent/20 md:min-h-0"
+            class="min-h-11 w-full min-w-0 rounded-control border border-rule/60 bg-paper py-1.5 pl-3 pr-11 text-body md:pr-9 text-ink outline-none placeholder:text-muted focus:border-accent/60 focus:ring-2 focus:ring-accent/20 md:min-h-0"
             data-testid={TESTID.filterInput}
             placeholder={PLACEHOLDER}
-            aria-label="filter this page"
+            aria-label="Filter"
             aria-autocomplete="list"
             aria-expanded={focused() && !shut() && props.narrowing.text() === ""}
             value={props.narrowing.text()}
@@ -176,12 +176,12 @@ export function FilterBar(props: {
           <Show when={props.narrowing.active()}>
             <button
               type="button"
-              class={`${TARGET_BOX} absolute inset-y-0 right-0 inline-flex items-center justify-center rounded text-muted hover:text-ink md:min-h-0 md:min-w-0 md:w-8`}
+              class={`${TARGET_BOX} absolute inset-y-0 right-0 inline-flex items-center justify-center rounded-control text-muted hover:text-ink md:min-h-0 md:min-w-0 md:w-8`}
               data-testid={TESTID.filterClear}
-              aria-label="clear the filter"
+              aria-label="Clear filter"
               onClick={() => props.onType("")}
             >
-              <span aria-hidden="true" class="text-base leading-none">×</span>
+              <span aria-hidden="true" class="text-title leading-none">×</span>
             </button>
           </Show>
           <hint.Panel />
@@ -200,7 +200,7 @@ export function FilterBar(props: {
       <Show when={props.narrowing.active() && said()}>
         {(line) => (
           <p
-            class="m-0 mt-1 font-mono text-xs text-muted"
+            class="m-0 mt-1 text-label text-muted"
             data-testid={TESTID.filterCount}
             // A READOUT rather than something said about a write, which is why
             // it is not a `SaidLine` (`../SaidLine.tsx` owns the two MOODS a
@@ -221,7 +221,7 @@ export function FilterBar(props: {
           left here is where the lines sit and what this bar calls them. */}
       <Refusals
         of={props.narrowing.refusals()}
-        class="m-0 mt-1 font-mono text-xs"
+        class="m-0 mt-1 text-label"
         testid={TESTID.filterRefusal}
       />
 
@@ -232,7 +232,7 @@ export function FilterBar(props: {
         {(said) => (
           <SaidLine
             said={{ tone: "alarm", text: said() }}
-            class="m-0 mt-1 font-mono text-xs"
+            class="m-0 mt-1 text-label"
             testid={TESTID.filterFailure}
           />
         )}

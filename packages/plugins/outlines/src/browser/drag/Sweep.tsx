@@ -33,7 +33,7 @@ export function SweepBand(props: { readonly sweep: Sweep | null }) {
       {(sweep) => (
         <Portal>
           <div
-            class={`pointer-events-none absolute ${LAYER.row} rounded-sm border border-accent/40 bg-accent/5`}
+            class={`pointer-events-none absolute ${LAYER.row} rounded-control border border-accent/40 bg-accent/10`}
             style={{
               top: `${sweep().top}px`,
               left: `${sweep().left}px`,

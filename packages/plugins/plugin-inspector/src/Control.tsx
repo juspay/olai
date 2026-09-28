@@ -24,7 +24,7 @@ export function Control(props: {
   onCleanup(() => { active = false })
   createEffect(() => { const value = reading(); if (!dirty) setDraft(value) })
   const metadata = () => controlOf(props.value)
-  const frozen = () => props.frozen ?? (metadata() === undefined ? "This serve does not describe an editable control." : undefined)
+  const frozen = () => props.frozen ?? (metadata() === undefined ? "This setting can't be changed here." : undefined)
   const disabled = () => frozen() !== undefined || pending()
   const save = (value: string | null) => {
     if (disabled()) return

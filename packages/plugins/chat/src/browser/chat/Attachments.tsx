@@ -73,7 +73,7 @@ function Attachment(props: {
 
   return (
     <li
-      class="flex items-center gap-1 rounded border border-rule bg-paper px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted"
+      class="flex items-center gap-1 rounded-control border border-rule bg-paper px-1.5 py-0.5 text-caption text-muted"
       data-testid={TESTID.chatAttachment}
       data-name={props.name}
     >
@@ -82,7 +82,7 @@ function Attachment(props: {
           <img
             src={url()}
             alt={props.name}
-            class="max-h-16 max-w-24 rounded object-contain"
+            class="max-h-16 max-w-24 rounded-control object-contain"
             data-testid={TESTID.chatAttachmentPreview}
           />
         )}
@@ -90,7 +90,7 @@ function Attachment(props: {
       <span>{props.name}</span>
       <Show when={size()}>
         {(bytes) => (
-          <span class="text-muted/70" data-testid={TESTID.chatAttachmentSize}>
+          <span class="text-muted/80" data-testid={TESTID.chatAttachmentSize}>
             {bytes()}
           </span>
         )}
@@ -100,7 +100,7 @@ function Attachment(props: {
           <button
             type="button"
             class="text-muted hover:text-alarm"
-            aria-label={`remove ${props.name}`}
+            aria-label={`Remove ${props.name}`}
             data-testid={TESTID.chatAttachmentRemove}
             onClick={() => remove()(props.name)}
           >

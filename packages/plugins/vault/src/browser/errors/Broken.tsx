@@ -42,10 +42,10 @@ export function Broken(props: { readonly file: BrokenFile }) {
       </h1>
       <Lede>
         {unparsed()
-          ? "Some of its lines could not be read, so it has no tree to draw. "
-          : "It reads, and it says something the set cannot hold, so its tree is not being drawn. "}
-        Every other outline in the directory is unaffected — still live, still
-        writable — and this one comes back on its own once these are fixed.
+          ? "Some lines couldn't be read, so this outline can't be shown. "
+          : "Something in it conflicts with your other outlines, so it can't be shown. "}
+        Every other outline still works, and this one comes back on its own
+        once these are fixed.
       </Lede>
       <Rows errors={props.file.errors} />
     </section>

@@ -118,7 +118,7 @@ export function TerminalBlock(context: BlockContext) {
           // speaking about why there is nothing to draw, and setting it in the
           // row's own face would read as a row that had somehow come back
           // empty.
-          <p class="text-[0.8125rem] text-muted" data-testid={TESTID.terminalSays}>
+          <p class="text-body text-muted" data-testid={TESTID.terminalSays}>
             {reading().says}
           </p>
         }
@@ -160,7 +160,7 @@ function Value(props: {
     <Show
       when={props.onOpen}
       fallback={
-        <span class="min-w-0 truncate text-[0.8125rem] text-muted" data-testid={props.valueId}>
+        <span class="min-w-0 truncate text-body text-muted" data-testid={props.valueId}>
           {props.value}
         </span>
       }
@@ -168,9 +168,9 @@ function Value(props: {
       {(open) => (
         <button
           type="button"
-          class="min-w-0 cursor-pointer truncate text-[0.8125rem] text-muted hover:text-accent"
+          class="min-w-0 cursor-pointer truncate text-body text-muted hover:text-accent"
           data-testid={props.valueId}
-          title={`change ${props.value}`}
+          title={`Change ${props.value}`}
           onClick={(event) => {
             // The row's own line answers a click by opening the title editor.
             event.stopPropagation()
@@ -306,7 +306,7 @@ function Row(props: {
         onSelect={() => {
           if (props.pressable) props.onSelect()
         }}
-        title={props.pressable ? "read this terminal's screen" : undefined}
+        title={props.pressable ? "Read this terminal's screen" : undefined}
       />
     </DockSection>
   )

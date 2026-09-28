@@ -86,10 +86,10 @@ export const NOTHING_COUNTED: Counts = { shown: 0, held: 0, hiddenAsDone: 0 }
  * "what does this page have to say about my query" and one place a scenario
  * reads it from.
  */
-export const ANSWERING = "filtering…"
+export const ANSWERING = "Filtering…"
 
 export const countLine = ({ shown, held, hiddenAsDone }: Counts): string => {
-  const found = shown === 0 ? `no matches of ${held}` : `${shown} of ${held}`
+  const found = shown === 0 ? `No matches of ${held}` : `${shown} of ${held}`
   if (hiddenAsDone === 0) return found
   const more = shown === 0 ? "" : "more "
   const matches = hiddenAsDone === 1 ? "match" : "matches"

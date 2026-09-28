@@ -207,11 +207,11 @@ export const noticeOf = (
     offsetIn(canonicalDate(stored, null) ?? "") !== offsetIn(instantAt(dayOf(stored), storedTime))
   const quoted = foreign ? `Scheduled for ${stored}. ` : ""
   if (written !== undefined && (dayOf(written) !== chosen.day || timeOf(written) !== chosen.time)) {
-    return `${quoted}There is no ${chosen.time} on ${chosen.day} in this browser's time zone, so pressing writes ${written}.`
+    return `${quoted}There is no ${chosen.time} on ${chosen.day} in your time zone, so this saves ${written}.`
   }
   if (!foreign) return undefined
-  if (written !== undefined) return `${quoted}Pressing writes ${written}, in this browser's time zone.`
+  if (written !== undefined) return `${quoted}This saves ${written}, in your time zone.`
   return value === stored
-    ? `${quoted}A changed day or time is written in this browser's time zone.`
+    ? `${quoted}A new day or time is saved in your time zone.`
     : undefined
 }

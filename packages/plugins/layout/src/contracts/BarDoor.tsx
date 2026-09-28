@@ -107,7 +107,7 @@ export function BarDoor(props: {
             : health()
             ? `${STATUS_ROW} ${open() ? "bg-pill/60" : ""}`
             : `${ICON_BUTTON} size-8 !p-0 border ${
-              open() ? "border-accent text-paper" : "border-paper/25"
+              open() ? "border-accent text-paper" : "border-paper/20"
             }`
         }
         data-testid={props.testid}
@@ -117,7 +117,7 @@ export function BarDoor(props: {
         onClick={() => popover.toggle()}
       >
         <span aria-hidden="true" class={health() ? "inline-block w-2 text-center text-muted" : undefined}>{props.glyph}</span>
-        <span class={closet() ? undefined : health() ? "capitalize" : "sr-only"}>
+        <span class={closet() || health() ? undefined : "sr-only"}>
           {props.name}
         </span>
       </button>

@@ -104,20 +104,20 @@ export function DocEditor(props: {
     <div class="flex flex-col gap-2">
       <Show when={drifted() && said() === null}>
         <p
-          class="m-0 rounded border border-alarm/60 bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug text-alarm"
+          class="m-0 rounded-control border border-alarm/60 bg-paper px-3 py-1.5 text-body leading-snug text-alarm"
           data-testid={TESTID.documentDrifted}
           role="status"
         >
-          This document has changed on disk while you were editing. Saving will
-          be refused rather than overwrite it; your text is safe here.
+          This file changed while you were editing. Your text is safe here, and
+          Save won't overwrite the change.
         </p>
       </Show>
 
       <textarea
         ref={editor}
-        class="min-h-[60vh] w-full resize-y rounded border border-rule bg-panel p-3 font-mono text-sm leading-relaxed text-ink outline-none focus:border-accent"
+        class="min-h-[60vh] w-full resize-y rounded-control border border-rule bg-panel p-3 font-mono text-body leading-relaxed text-ink outline-none focus:border-accent"
         data-testid={TESTID.documentEditor}
-        aria-label={`the source of ${props.file}`}
+        aria-label={`Edit ${props.file}`}
         spellcheck={false}
         value={text()}
         onInput={(event) => {
@@ -144,7 +144,7 @@ export function DocEditor(props: {
       <div class="flex items-center gap-2">
         <button
           type="button"
-          class="cursor-pointer rounded border border-rule bg-panel px-3 py-1 text-[0.8125rem] font-semibold text-ink hover:bg-rule/60"
+          class="cursor-pointer rounded-control border border-rule bg-panel px-3 py-1 text-body font-semibold text-ink hover:bg-rule/60"
           data-testid={TESTID.documentSave}
           onClick={() => void commit(true)}
         >
@@ -152,7 +152,7 @@ export function DocEditor(props: {
         </button>
         <button
           type="button"
-          class="cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-[0.8125rem] text-muted hover:text-ink"
+          class="cursor-pointer rounded-control border-0 bg-transparent px-2 py-1 text-body text-muted hover:text-ink"
           data-testid={TESTID.documentCancel}
           onClick={() => props.onDone(draft)}
         >
@@ -163,11 +163,11 @@ export function DocEditor(props: {
         <Show when={said() !== null && drifted()}>
           <button
             type="button"
-            class="cursor-pointer rounded border border-alarm/60 bg-transparent px-2 py-1 text-[0.8125rem] text-alarm hover:bg-alarm/10"
+            class="cursor-pointer rounded-control border border-alarm/60 bg-transparent px-2 py-1 text-body text-alarm hover:bg-alarm/10"
             data-testid={TESTID.documentOverwrite}
             onClick={() => void commit(false)}
           >
-            Overwrite what is there
+            Overwrite anyway
           </button>
         </Show>
       </div>

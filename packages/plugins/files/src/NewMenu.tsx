@@ -35,7 +35,7 @@ export default function NewMenu(props: {
     getAnchorRect={() => anchor.getBoundingClientRect()}
     onOpenChange={open => { if (!open && topmost()) props.close() }}>
     <DropdownMenu.Portal mount={portal}>
-      <DropdownMenu.Content class={`${MENU_PANEL} ${LAYER.over}`} aria-label="start a new file"
+      <DropdownMenu.Content class={`${MENU_PANEL} ${LAYER.over}`} aria-label="New file"
         data-testid={TESTID.newFileMenu}
         ref={element => queueMicrotask(() => { if (element.isConnected) element.focus({ preventScroll: true }) })}
         onCloseAutoFocus={event => {

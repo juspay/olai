@@ -90,21 +90,21 @@ export function FreshStart(props: {
   return <span class="relative">
     <button ref={trigger} type="button" class={QUIET_PILL} data-testid={TESTID.chatFreshSession}
       data-agent={props.agent.id} disabled={starting()} aria-busy={starting()}
-      title={`memory is the subtree (${memoryOf(props.agent)}); the transcript becomes history`}
-      onClick={pressed}>fresh start</button>
+      title={`Start over, keeping memory in ${memoryOf(props.agent)}`}
+      onClick={pressed}>Fresh start</button>
     <Show when={confirm.where() === "asking"}>
-      <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-xs"
+      <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-label"
         onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); cancel() } }}>
         <span>{freshStartQuestion(props.agent.title)}</span>
         <span class="mt-2 flex gap-2">
-          <button type="button" class={ALARM_PILL} onClick={() => fresh(chosen())}>Start fresh conversation</button>
+          <button type="button" class={ALARM_PILL} onClick={() => fresh(chosen())}>Start fresh chat</button>
           <button type="button" class={QUIET_PILL}
             ref={element => queueMicrotask(() => { if (element.isConnected) element.focus() })}
             onClick={cancel}>Cancel</button>
         </span>
       </span>
     </Show>
-    <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatFreshSaid} class="mt-1 text-xs" />}</Show>
+    <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatFreshSaid} class="mt-1 text-label" />}</Show>
     <Show when={menu()}>
       {(anchor) => <EngineMenu layer={props.page ? LAYER.over : LAYER.row} anchor={anchor()}
         engines={ordered()} pick={engine => { setMenu(null); ask(engine) }} close={() => setMenu(null)} />}

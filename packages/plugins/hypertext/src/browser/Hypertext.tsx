@@ -269,7 +269,7 @@ const VISIT = "olai-visit"
  */
 const REFUSED: Said = {
   tone: "alarm",
-  text: "That link points at a file this directory does not serve, so there is no page to open.",
+  text: "That link points to a file that isn't in this folder.",
 }
 
 /** The `#…` the frame's own address wears, or nothing — encoded for the reason
@@ -396,8 +396,7 @@ function RefusedBody() {
     <section>
       <BodyRefused class="m-0 mb-2 italic text-alarm" />
       <Lede>
-        The file is in the directory and will not open, so there is nothing
-        to show.
+        This file couldn't be opened, so there's nothing to show.
       </Lede>
     </section>
   )
@@ -1074,7 +1073,7 @@ export function Hypertext(props: { readonly file: string }) {
         {(said) => (
           <SaidLine
             said={said()}
-            class="mb-2 text-[0.8125rem] leading-snug"
+            class="mb-2 text-body leading-snug"
             testid={TESTID.hypertextSaid}
           />
         )}
@@ -1149,7 +1148,7 @@ export function Hypertext(props: { readonly file: string }) {
       // flow, so it wants the same reading `../Sidebar.tsx` argues for at
       // length — the visual viewport is right for a `fixed` box on a phone with
       // a keyboard up, and the two disagree by however tall the keyboard is.
-      class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded border border-rule bg-white"
+      class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded-control border border-rule bg-white"
       data-testid={TESTID.hypertextPreview}
       />
       </Show>

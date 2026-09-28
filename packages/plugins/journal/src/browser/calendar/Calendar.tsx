@@ -111,13 +111,13 @@ export function Calendar(props: {
       data-month={month()}
     >
       <header class="mb-1 flex items-center justify-between gap-1">
-        <Step label="the month before" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
+        <Step label="Previous month" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
           ‹
         </Step>
-        <h2 class="m-0 text-[0.8125rem] font-medium text-paper/80">
+        <h2 class="m-0 text-body font-medium text-paper/80">
           {monthLabel(month())}
         </h2>
-        <Step label="the month after" testid={TESTID.calendarNext} onStep={() => page(1)}>
+        <Step label="Next month" testid={TESTID.calendarNext} onStep={() => page(1)}>
           ›
         </Step>
       </header>
@@ -125,7 +125,7 @@ export function Calendar(props: {
       <div class="grid grid-cols-7 gap-px">
         <For each={WEEKDAY_HEADINGS}>
           {(weekday) => (
-            <div class="text-center text-[0.625rem] text-paper/45" aria-hidden="true">
+            <div class="text-center text-caption text-paper/40" aria-hidden="true">
               {weekday}
             </div>
           )}
@@ -165,7 +165,7 @@ function Step(props: {
       // A chevron is a small thing to hit, and unlike a day of the month it
       // has no grid column to fill it out — so it takes the box both ways
       // (../touch.ts).
-      class={`inline-flex ${TARGET_BOX} cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1 text-xs text-paper/55 hover:bg-paper/10 hover:text-paper md:min-h-0 md:min-w-6`}
+      class={`inline-flex ${TARGET_BOX} cursor-pointer items-center justify-center rounded-control border-0 bg-transparent px-1 text-label text-paper/60 hover:bg-paper/10 hover:text-paper md:min-h-0 md:min-w-6`}
       data-testid={props.testid}
       aria-label={props.label}
       onClick={props.onStep}

@@ -74,7 +74,7 @@ import type { Said } from "./saying.ts"
  * its own, and that is the one axis they genuinely differ on.
  */
 export const ALARM_BAND =
-  "m-0 border-b border-alarm/40 bg-alarm/5 py-2 font-mono text-xs"
+  "m-0 border-b border-alarm/40 bg-alarm/10 py-2 text-label"
 
 export function SaidLine(props: {
   readonly said: Said

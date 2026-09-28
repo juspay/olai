@@ -50,8 +50,8 @@ import { LAYER } from "./layer.ts"
  *  44px tall below 48rem for a thumb; the popover is desktop-only today, but a
  *  row is a row wherever it lands. */
 export const PILL =
-  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm " +
-  "text-ink/85 enabled:hover:bg-pill/50 enabled:cursor-pointer " +
+  "flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-body " +
+  "text-ink/80 enabled:hover:bg-pill/60 enabled:cursor-pointer " +
   "min-h-11 md:min-h-0"
 
 /** The same row's shape for a DOOR at the foot of the popover (the plugins
@@ -97,7 +97,7 @@ export const TEXT_ALARM = "text-alarm"
  */
 export const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center gap-1 rounded-full " +
-  "border border-paper/20 bg-paper/10 px-2 py-1.5 font-mono text-xs text-paper/80 hover:text-paper sm:px-3 " +
+  "border border-paper/20 bg-paper/10 px-2 py-1.5 text-label text-paper/80 hover:text-paper sm:px-3 " +
   "min-h-11 md:min-h-0"
 
 /**
@@ -108,7 +108,7 @@ export const ICON_BUTTON =
  */
 export const BANNER =
   "flex min-h-11 w-full items-center gap-2 border-b border-rule bg-paper " +
-  "px-4 py-2.5 text-left text-sm"
+  "px-4 py-2.5 text-left text-body"
 
 /**
  * THE BOX A PORTALLED PANEL WEARS — the preferences panel, the plugins panel,
@@ -140,4 +140,4 @@ export const BANNER =
  */
 export const PANEL_BOX = `fixed ${LAYER.over} ` +
   "flex min-h-0 flex-col overflow-y-auto overflow-x-hidden overscroll-contain " +
-  "rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none"
+  "rounded-surface border-0 bg-panel p-4 text-body shadow-overlay ring-1 ring-rule/40 focus:outline-none"

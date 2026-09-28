@@ -69,7 +69,7 @@ import { onTheRight, type Speaker as Party } from "./speakers.ts"
  *  `just run`, a proxy that injects nothing. It is `you` rather than a login
  *  invented for the occasion, because that is what is true: these are the words
  *  the reader typed, and the row is already drawn on their side. */
-const ANONYMOUS = "you"
+const ANONYMOUS = "You"
 
 /** Chat's anonymous mark also exists while its identity component is waiting. */
 const AnonymousIcon = (props: { readonly class: string }) => (
@@ -131,7 +131,7 @@ export function Speaker(props: Faced) {
   }
   return (
     <div
-      class="mb-1 flex min-w-0 items-center gap-1.5 font-mono text-[0.6875rem] text-muted"
+      class="mb-1 flex min-w-0 items-center gap-1.5 text-caption text-muted"
       classList={{
         // The face sits on the side its words do. `flex-row-reverse` rather
         // than a second class list: what changes is which end of the line the

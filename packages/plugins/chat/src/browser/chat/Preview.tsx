@@ -63,11 +63,11 @@ function Shelf(props: {
   }
   return (
     <section
-      class="flex min-h-0 flex-col border-b border-rule/70 bg-panel"
+      class="flex min-h-0 flex-col border-b border-rule/60 bg-panel"
       classList={{ "max-h-96 shrink": !props.unbounded }}
       data-testid={TESTID.chatPreview}
       data-row={props.open.row}
-      aria-label="what one agent is doing"
+      aria-label="Agent's work"
     >
       {/* ABOVE EVERYTHING THIS BOX HAS TO SAY, because it is the one thing in
           it that is not about the agent: the turn is stopped, and it is stopped
@@ -77,7 +77,7 @@ function Shelf(props: {
       <Show when={asked()}>
         <button
           type="button"
-          class="flex w-full shrink-0 items-center gap-1.5 border-b border-rule/70 bg-alarm/10 px-3 py-1.5 text-left font-mono text-[0.6875rem] leading-snug text-alarm hover:bg-alarm/20 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          class="flex w-full shrink-0 items-center gap-1.5 border-b border-rule/60 bg-alarm/10 px-3 py-1.5 text-left text-caption leading-snug text-alarm hover:bg-alarm/20 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-accent"
           data-testid={TESTID.chatPreviewAsked}
           onClick={() => {
             // BOTH, and in this order: the shelf is what is in the way, and the
@@ -90,20 +90,20 @@ function Shelf(props: {
           }}
         >
           <span aria-hidden="true">◆</span>
-          <span class="min-w-0 flex-1 truncate">a question is waiting on you</span>
-          <span class="shrink-0 opacity-70">show me</span>
+          <span class="min-w-0 flex-1 truncate">A question is waiting on you</span>
+          <span class="shrink-0 opacity-70">Show me</span>
         </button>
       </Show>
       {/* Navigation between agents keeps one shelf open. These buttons only
           choose whose work to view; they never stop or dismiss an agent. */}
       <Show when={parent()}>{(above) => (
-        <button type="button" class="px-3 pt-1 text-left text-xs text-muted hover:text-ink"
+        <button type="button" class="px-3 pt-1 text-left text-label text-muted hover:text-ink"
           aria-label={`Back to ${above().name}`} onClick={() => togglePreview(above().row)}>
           ← {above().name}
         </button>
       )}</Show>
       <p
-        class="flex min-w-0 shrink-0 items-baseline gap-1 px-3 py-1.5 font-mono text-[0.6875rem] leading-snug text-ink"
+        class="flex min-w-0 shrink-0 items-baseline gap-1 px-3 py-1.5 text-caption leading-snug text-ink"
         data-testid={TESTID.chatPreviewOf}
         data-spawn-kind={whoOf(props.open.entry) ?? undefined}
       >
@@ -128,8 +128,8 @@ function Shelf(props: {
             // would read as a shelf that had failed to load; this is the true
             // sentence, and the row's own rail in the transcript is already
             // saying the other half.
-            <p class="py-1 font-mono text-[0.6875rem] text-muted" data-testid={TESTID.chatPreviewNothing}>
-              nothing yet
+            <p class="py-1 text-caption text-muted" data-testid={TESTID.chatPreviewNothing}>
+              Nothing yet
             </p>
           }
         >

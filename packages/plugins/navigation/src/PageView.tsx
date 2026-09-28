@@ -1,9 +1,9 @@
 /** Dispatch file pages by the current claim, then ordinary content routes. */
 
-import { unclaimedFileMessage } from "@olai/format"
 import { type Address, fileKind } from "@olai/format"
 import { content, pages } from "./index.ts"
 import { useHere, useRouter } from "./routing.tsx"
+import { HOME_ROUTE } from "./routes.ts"
 import { panesOf } from "./workspace.ts"
 import { readLocation } from "./locations.ts"
 import { directory } from "./pages.ts"
@@ -31,17 +31,33 @@ export function PageView() {
   // zoom owned by the same renderer must keep that renderer's undo scope.
   type Props = Address & { readonly route: ReturnType<typeof route>; readonly index: number }
   const draw = createMemo<((props: Props) => JSX.Element) | undefined>(() => address() ? page()?.page : handler()?.Page)
-  const missing = () => {
+  /** What went wrong, as a heading and one plain line under it. */
+  const said = (): { readonly line: string; readonly detail?: string } => {
+    if (address() === undefined) {
+      return { line: "This page can't be opened", detail: "The plugin that shows it is turned off." }
+    }
+    if (directory()?.standing() === "reading") return { line: "Loading…" }
     const path = address()?.path ?? ""
     const kind = claim()
-    if (kind === undefined) return unclaimedFileMessage(path)
+    if (kind === undefined) {
+      const suffix = /\.[^./]+$/.exec(path)?.[0]
+      return {
+        line: "Page not found",
+        detail: suffix === undefined ? `There is nothing named ${path}.` : `olai can't open ${suffix} files.`,
+      }
+    }
     return directory()?.paths().includes(path)
-      ? `The browser page for files claimed by the ${kind.kind} row is unavailable.`
-      : `No ${kind.noun} named ${path} under the served directory.`
+      ? { line: "This page can't be opened", detail: `The plugin that opens ${kind.noun}s is turned off.` }
+      : { line: "Page not found", detail: `There is no ${kind.noun} named ${path}.` }
   }
   return <Show when={draw()} keyed fallback={
     <main class="min-w-0 flex-1 p-8" data-testid={TESTID.pane} data-pane={String(here())} data-href={router.routes.href(route())}>
-      <Empty testid={UI.nothing} line={address() === undefined ? "No enabled content provider handles this address." : directory()?.standing() === "reading" ? "Reading…" : missing()} />
+      <Empty
+        testid={UI.nothing}
+        line={said().line}
+        detail={said().detail}
+        action={said().line === "Loading…" ? undefined : { label: "Go home", run: () => router.go(HOME_ROUTE), testid: TESTID.nothingGoHome }}
+      />
     </main>
   }>{Page => <Page {...address()!} route={route()} index={here()} />}</Show>
 }

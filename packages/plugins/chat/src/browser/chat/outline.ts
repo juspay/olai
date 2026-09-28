@@ -23,5 +23,5 @@ export const createOutlineDiff = (vault: Accessor<Pick<Directory, "outlineDiff">
       () => { if (!controller.signal.aborted) setFailed(true) },
     )
   })
-  return { read, line: () => failed() ? "the outline is unreadable, so what changed in it cannot be told" : "reading outline changes…" }
+  return { read, line: () => failed() ? "Can't read the outline to show changes" : "Loading…" }
 }

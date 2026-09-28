@@ -98,6 +98,6 @@ export const pressOf = (stored: string | undefined, rule: string): Press =>
 export const noticeOf = (stored: string | undefined): string | undefined =>
   stored === undefined || canonicalRepeat(stored) !== undefined
     ? undefined
-    : `This node repeats "${stored}", which is not a rule olai can read. ` +
-      `Choosing one replaces it.`
+    : `This row repeats "${stored}", which olai can’t read. ` +
+      `Choosing a rule replaces it.`
 

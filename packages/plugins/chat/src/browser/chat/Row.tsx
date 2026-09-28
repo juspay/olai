@@ -99,7 +99,7 @@ export function Row(props: {
       <Show when={props.lane?.label}>
         {(label) => (
           <p
-            class="mb-1 flex min-w-0 items-center gap-1 font-mono text-[0.6875rem] text-muted"
+            class="mb-1 flex min-w-0 items-center gap-1 text-caption text-muted"
             data-testid={TESTID.chatLaneLabel}
           >
             <span aria-hidden="true">↳</span>
@@ -129,7 +129,7 @@ export function Row(props: {
                 rail's own box starts at the row's left edge, and asserting on
                 that would pass on a build that had lost the indent entirely. */}
             <p
-              class="flex items-center gap-1 font-mono text-[0.6875rem] text-doing"
+              class="flex items-center gap-1 text-caption text-doing"
               data-testid={rail().name}
               data-lane={props.entry.id}
               aria-live="polite"
@@ -150,7 +150,7 @@ export function Row(props: {
         <div class={`${RAIL} pb-2 pt-1`}>
           <button
             type="button"
-            class="flex items-center gap-1 rounded-sm font-mono text-[0.6875rem] text-muted hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            class="flex items-center gap-1 rounded-control text-caption text-muted hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
             data-testid={TESTID.chatLaneDoor}
             data-lane={props.entry.id}
             aria-expanded={isPreviewing(props.entry.id)}

@@ -69,7 +69,7 @@ export function NodeRefs(props: {
   return (
     <Show when={props.refs.length > 0}>
       <div
-        class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
+        class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-body"
         data-testid={props.testid}
       >
         <span class="text-muted">{props.label}</span>
@@ -148,7 +148,7 @@ export function NodeRefLink(props: {
       route={atNode(props.to.id)}
       class={props.class}
       testid={props.testid}
-      title={props.title ?? `open ${props.to.title}`}
+      title={props.title ?? `Open ${props.to.title}`}
     >
       <span data-ref={props.to.id}>{props.children}</span>
     </Link>

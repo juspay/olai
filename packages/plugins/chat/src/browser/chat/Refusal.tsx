@@ -21,7 +21,7 @@ import { TESTID } from "../../testids.ts"
 export function Refusal(props: { readonly failure: OpFailure }) {
   return (
     <div
-      class="rounded border-l-[3px] border-alarm bg-alarm/5 px-3 py-1.5 text-sm"
+      class="rounded-control border-l-[3px] border-alarm bg-alarm/10 px-3 py-1.5 text-body"
       data-testid={TESTID.chatRefusal}
       data-kind={kindOf(props.failure)}
     >
@@ -33,7 +33,7 @@ export function Refusal(props: { readonly failure: OpFailure }) {
 
       <Show when={onlyValidation(props.failure)}>
         {(invalid) => (
-          <div class="mt-1 text-sm">
+          <div class="mt-1 text-body">
             <Rows errors={invalid().verdict.findings} />
           </div>
         )}

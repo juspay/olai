@@ -29,6 +29,5 @@
  * meets: one gate, one sentence, whoever asked.
  */
 export const deleteQuestion = (path: string): string =>
-  `Delete ${path}? Nothing in olai puts it back — it leaves the directory ` +
-  `the way every other write does, so what survives is whatever git has ` +
-  `already recorded.`
+  `Delete ${path}? olai can't bring it back. Only what git has already ` +
+  `saved can be recovered.`

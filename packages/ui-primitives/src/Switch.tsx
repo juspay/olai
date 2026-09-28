@@ -36,10 +36,10 @@ export function Switch(props: {
       aria-label={props.label}
       aria-checked={props.on}
       aria-disabled={frozen() ? true : undefined}
-      title={props.session ? "session-only" : undefined}
+      title={props.session ? "Resets when olai restarts" : undefined}
       data-session={props.session ? "true" : undefined}
       data-testid={props.testid}
-      class={`prototype-switch relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-ink)_6%,transparent)] after:absolute after:-inset-x-[0.4rem] after:-inset-y-[0.8rem] after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel md:after:hidden ${
+      class={`prototype-switch relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full inset-ring inset-ring-ink/10 after:absolute after:-inset-x-[0.4rem] after:-inset-y-[0.8rem] after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel md:after:hidden ${
         frozen() ? "opacity-60" : "cursor-pointer"
       } ${props.on ? "bg-done" : "bg-rule"}`}
       onClick={() => {
@@ -47,7 +47,7 @@ export function Switch(props: {
       }}
     >
       <span
-        class={`absolute top-[0.12rem] size-[0.9rem] rounded-full bg-panel shadow-sm transition-[left] duration-150 ${
+        class={`absolute top-[0.12rem] size-[0.9rem] rounded-full bg-panel shadow-raised transition-[left] duration-150 ${
           props.on ? "left-[1.02rem]" : "left-[0.12rem]"
         }`}
       />

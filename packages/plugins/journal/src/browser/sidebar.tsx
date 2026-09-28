@@ -80,7 +80,7 @@ export function TodayEntry() {
           title={today()}
         >
           Today
-          <span class="ml-auto shrink-0 pl-2 text-[0.8125rem] tabular-nums text-paper/55" data-testid={TESTID.calendarTodayDate}>
+          <span class="ml-auto shrink-0 pl-2 text-body tabular-nums text-paper/60" data-testid={TESTID.calendarTodayDate}>
             {shortDay(today())}
           </span>
         </Link>
@@ -90,8 +90,8 @@ export function TodayEntry() {
           data-testid={TESTID.calendarToggle}
           aria-expanded={calendarOpen()}
           aria-controls={grid}
-          aria-label={calendarOpen() ? "hide the month" : "show the month"}
-          title={calendarOpen() ? "hide the month" : "show the month"}
+          aria-label={calendarOpen() ? "Hide month" : "Show month"}
+          title={calendarOpen() ? "Hide month" : "Show month"}
           onClick={(event) => {
             // The sidebar body puts the phone drawer away on any click that
             // bubbles to it; unfolding the month is not leaving.
@@ -121,8 +121,8 @@ export function JournalRail() {
     <>
       <RailButton
         testid={TESTID.railCalendar}
-        label="open today"
-        title="today"
+        label="Open today"
+        title="Today"
         onClick={() => router.go(todayRoute)}
       >
         <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
@@ -131,8 +131,8 @@ export function JournalRail() {
       </RailButton>
       <RailButton
         testid={TESTID.railAgenda}
-        label={mark().said ?? "open the agenda"}
-        title={mark().said ?? "agenda"}
+        label={mark().said ?? "Open Agenda"}
+        title={mark().said ?? "Agenda"}
         data={{ get "data-owed"() { return mark().face } }}
         onClick={() => router.go(agendaRoute)}
       >

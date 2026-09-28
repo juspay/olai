@@ -34,7 +34,7 @@ export function SidebarHandle() {
     <ResizeHandle
       edge="right"
       testid={TESTID.sidebarResize}
-      label="resize the sidebar"
+      label="Resize sidebar"
       width={sidebarWidth}
       min={SIDEBAR_MIN_PX}
       max={SIDEBAR_MAX_PX}
@@ -49,7 +49,7 @@ export function PanelHandle() {
     <ResizeHandle
       edge="left"
       testid={TESTID.panelResize}
-      label="resize the agent panel"
+      label="Resize agent panel"
       width={panelWidth}
       min={PANEL_MIN_PX}
       max={PANEL_MAX_PX}

@@ -57,7 +57,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class={`${PANEL_BOX} gap-5`}
+      class={`${PANEL_BOX} gap-3 max-md:!py-3 md:gap-5`}
       style={styleOf(props.at)}
       // Focusable, never in the tab order: opening puts the caret here so a
       // keyboard is standing IN the panel, and Tab from here is the first control.
@@ -73,15 +73,15 @@ export function Panel(props: {
             data-testid={TESTID.prefsGroup}
             data-group={group}
           >
-            <h3 class="mb-1 text-xs font-medium text-muted">{group}</h3>
-            <div class="divide-y divide-rule/50">
+            <h3 class="mb-1 text-label font-medium text-muted">{group}</h3>
+            <div class="divide-y divide-rule/40">
               <For each={entriesOf(group)}>{(entry) => entry.value.body()}</For>
             </div>
           </section>
         )}
       </For>
 
-      <p class="text-xs text-muted" data-testid={TESTID.prefsScope}>
+      <p class="text-label text-muted" data-testid={TESTID.prefsScope}>
         Saved in this browser only.
       </p>
     </section>

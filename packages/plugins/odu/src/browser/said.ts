@@ -35,23 +35,23 @@ export const oduSaid = (link: OduLink): Said => {
       return {
         dot: "bg-done",
         label: "odu",
-        detail: `connected to odu at ${link.origin}`,
+        detail: `Connected to ${link.origin}`,
       }
     case "skew":
       return {
         dot: "bg-alarm",
-        label: "odu skew",
+        label: "odu: update needed",
         detail:
-          `odu at ${link.origin} speaks ${link.protocolVersion ?? "?"} and this olai speaks ${link.speaks} — one of the two needs an upgrade.`,
+          `odu and olai versions don't match (odu ${link.protocolVersion ?? "?"}, olai ${link.speaks}). Update one of them.`,
       }
     case "absent":
       return {
         dot: "bg-muted",
-        label: "no odu",
+        label: "No odu",
         detail:
           link.origin === ""
-            ? "this olai is not watching an odu service."
-            : `no odu is answering at ${link.origin} — run \`odu web --background\`.`,
+            ? "odu isn't set up"
+            : `odu isn't running at ${link.origin}. Run \`odu web --background\`.`,
       }
   }
 }

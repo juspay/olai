@@ -249,7 +249,7 @@ export function NodeBody(props: {
                     class={`mt-0.5 mb-1 cursor-text ${ROW_NOTE}`}
                     role="button"
                     tabindex={0}
-                    title="write in this note"
+                    title="Edit note"
                     onClick={(event) => {
                       if (event.target instanceof Element && event.target.closest("a")) return
                       event.stopPropagation()
@@ -312,7 +312,7 @@ export function NodeBody(props: {
       </Show>
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
     </Show>
-    <For each={dead()}>{link => <div data-testid={TESTID.deadLink} class="text-xs text-alarm opacity-80">{deadLinkSaid(link)}</div>}</For>
+    <For each={dead()}>{link => <div data-testid={TESTID.deadLink} class="text-label text-alarm opacity-80">{deadLinkSaid(link)}</div>}</For>
     </>
   )
 }

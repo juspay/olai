@@ -103,13 +103,13 @@ export function Toc(props: {
       <nav aria-label="Contents">
         <details
           open
-          class="mb-6 rounded border border-rule px-3 py-2"
+          class="mb-6 rounded-control border border-rule px-3 py-2"
           data-testid={TESTID.toc}
         >
-          <summary class="cursor-pointer text-sm text-muted select-none">
+          <summary class="cursor-pointer text-body text-muted select-none">
             Contents
           </summary>
-          <ol class="mt-2 space-y-0.5 text-sm">
+          <ol class="mt-2 space-y-0.5 text-body">
             <For each={props.headings}>
               {(heading) => (
                 <li style={{ "padding-left": `${(heading.depth - base()) * INDENT_REM}rem` }}>
