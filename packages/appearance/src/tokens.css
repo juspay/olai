@@ -5,7 +5,7 @@
  * match the default row; `theme/fonts.test.ts` holds them. */
 
 @theme {
-  --font-sans: "iA Writer Quattro", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: Literata, ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
   --font-mono: "iA Writer Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 

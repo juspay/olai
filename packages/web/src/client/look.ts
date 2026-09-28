@@ -4,7 +4,7 @@
  * One pair of classes, so Agenda, a zoomed node, a day, the Trash and the
  * wordmark cannot drift into four different ideas of "this is the name".
  * Serif because the default typeface keeps jobs distinct (`@olai/fonts`:
- * Literata on the page, Quattro on the chrome) — a heading that stayed
+ * Literata on the page, Inter on the chrome) — a heading that stayed
  * sans-bold would be chrome shouting over the outline.
  *
  * THE SLANT IS SPLIT OUT, for the reason `layout/entry.ts` splits the ink

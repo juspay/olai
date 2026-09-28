@@ -10,11 +10,11 @@
  *
  * Three jobs, one pick. `--font-serif` is the page (outline titles, a
  * document). `--font-sans` is the chrome (header, sidebar, notes, chat).
- * `--font-mono` is the furniture that has to be tabular (a SHA, a diff, a
- * breadcrumb). The default is Olai — titles in Literata, chrome in iA Writer
- * Quattro, code in iA Writer Mono — because a product that names a face
- * after itself and then reads in somebody else's is a product that has not
- * decided what it looks like. Atkinson Hyperlegible remains a pick, for a
+ * `--font-mono` is for code-like values only (a SHA, a path, a diff, a
+ * key). The default is olai — titles in Literata, the interface in Inter,
+ * code in iA Writer Mono. The interface was iA Writer Quattro, a duospace
+ * face; beside real code it read as monospace, so every label looked like
+ * code (the 2026-09 simplification). Quattro stays a pick of its own. Atkinson Hyperlegible remains a pick, for a
  * page that wants one voice. Pick Inter and the page speaks Inter; pick
  * Fira Code and it speaks Fira Code, chrome included.
  *
@@ -94,9 +94,9 @@ const TABLE = [
     label: "olai",
     group: "olai",
     hint:
-      "Titles and documents in Literata, chrome in iA Writer Quattro, code " +
+      "Titles and documents in Literata, the interface in Inter, code " +
       "in iA Writer Mono.",
-    sans: withSans("iA Writer Quattro"),
+    sans: withSans("Inter"),
     serif: withSerif("Literata"),
     mono: withMono("iA Writer Mono"),
   },
