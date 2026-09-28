@@ -20,9 +20,9 @@
  *  the size is the constant's, so a page wanting a smaller one is a page
  *  wanting a different thing, not a page appending `text-xl` and hoping. */
 export const PAGE_TITLE =
-  "m-0 font-serif text-4xl font-medium tracking-tight md:text-5xl"
+  "m-0 font-serif text-display font-medium tracking-tight"
 
 /** The word in the bar. Colour is the header's (`text-paper` on ink);
  *  this is only the face. */
 export const WORDMARK =
-  "m-0 flex items-center gap-2 font-serif text-[1.125rem] font-medium italic leading-none tracking-tight md:gap-2.5 md:text-[1.375rem]"
+  "m-0 flex items-center gap-2 font-serif text-title font-medium italic leading-none tracking-tight md:gap-2.5"
