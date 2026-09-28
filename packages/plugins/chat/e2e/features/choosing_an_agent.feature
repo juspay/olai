@@ -7,7 +7,7 @@ Feature: Choosing a node agent's engine
   @opencode @scratch:chat
   Scenario: The node menu offers claude and opencode
     When I open the node menu of "kitchen"
-    Then the node menu's "Start an agent" is a submenu
+    Then chat's "Start an agent" in the node menu opens a submenu
     When I open the node menu's "Start an agent" agents
     Then the node menu's "Start an agent" offers the agents "Claude Code|OpenCode"
 
@@ -283,7 +283,7 @@ Feature: Choosing a node agent's engine
     # frame as the agent having worked on the message and left it looking sent.
     And I ask the agent "error-silent"
     Then the chat shows my message "error-silent" as "refused"
-    And the strip under my message "error-silent" reads "not sent"
+    And the strip under my message "error-silent" reads "Not sent"
     # ... and it is the REFUSAL a person is told about, not a silence: the agent
     # answered, in its own words.
     And the chat eventually shows "No api key passed in"
@@ -307,7 +307,7 @@ Feature: Choosing a node agent's engine
   Scenario: A message typed while a filed agent is opening is delivered once
     When the next conversation load will hang
     And I open the filed "opencode" conversation "an opencode conversation" as node "opening-chat"
-    Then the panel says it is busy, with "starting"
+    Then the panel says it is busy, with "Starting"
     When I ask the agent "hello"
     And the agent is released
     Then the agent has answered "opencode says: hello" exactly once
@@ -392,7 +392,7 @@ Feature: Choosing a node agent's engine
   @pi @scratch:chat
   Scenario: The node menu offers claude and pi
     When I open the node menu of "kitchen"
-    Then the node menu's "Start an agent" is a submenu
+    Then chat's "Start an agent" in the node menu opens a submenu
     When I open the node menu's "Start an agent" agents
     Then the node menu's "Start an agent" offers the agents "Claude Code|Pi"
 
@@ -520,7 +520,7 @@ Feature: Choosing a node agent's engine
     When I ask the agent "done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
-    And the chat says the write "marked done"
+    And the chat says the write "Done"
     When I press the node "order" in the write
     Then the node "order" is focused
     When I unfold the tool call
@@ -544,7 +544,7 @@ Feature: Choosing a node agent's engine
     When I ask the agent "mcp done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
-    And the chat says the write "marked done"
+    And the chat says the write "Done"
     When I press the node "order" in the write
     Then the node "order" is focused
     When I unfold the tool call
@@ -573,7 +573,7 @@ Feature: Choosing a node agent's engine
     # in. `not-a-plugin.json` exists to say out loud that neither branding is
     # that row's; a menu that matched on the id, or read this name as that one,
     # offers the wrong agent exactly where a person cannot tell.
-    Then the node menu's "Start an agent" is a submenu
+    Then chat's "Start an agent" in the node menu opens a submenu
     When I open the node menu's "Start an agent" agents
     Then the node menu's "Start an agent" offers the agents "Claude Code|Oh My Pi"
 
@@ -665,7 +665,7 @@ Feature: Choosing a node agent's engine
     When I ask the agent "done order"
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
-    And the chat says the write "marked done"
+    And the chat says the write "Done"
     When I press the node "order" in the write
     Then the node "order" is focused
     When I unfold the tool call
@@ -879,7 +879,7 @@ Feature: Choosing a node agent's engine
     # the one thing they could do about it.
     And I ask the agent "busy"
     Then the chat shows my message "busy" as "refused"
-    And the strip under my message "busy" reads "not sent"
+    And the strip under my message "busy" reads "Not sent"
     And the agent is idle
     # ... and the conversation is not wedged: the refusal is about that one
     # message, and the next thing somebody does is type.

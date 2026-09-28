@@ -34,7 +34,7 @@ Feature: Web action errors stay with the web action
 
   Scenario: A refused status change reports locally without leaking to chat
     When I open the node menu of "demo"
-    And I choose "Mark doing" from the node menu
+    And I pick "Doing" in the "Mark" submenu of the node menu
     Then the node menu of "demo" says "`take out the old counters` is done. Undo that first — nothing should decide on your behalf that finished work is not finished."
     And the node "demo" has status "done"
     When I ask the agent "after status"

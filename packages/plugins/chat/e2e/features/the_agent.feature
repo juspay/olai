@@ -29,7 +29,7 @@ Feature: Talking to a node agent
     When I ask the agent "done install"
     Then node "install" is done
     And the chat shows no refusal
-    And the chat says the write "marked done"
+    And the chat says the write "Done"
     And the write's nudge says "every task under `kitchen remodel #home` is done now"
     When I ask the agent "done kitchen"
     Then node "kitchen" is done
@@ -341,7 +341,7 @@ Feature: Talking to a node agent
     # used to arrive as a diff block and be drawn as ordinary lines.
     When I ask the agent "edit house.olai"
     Then the chat shows the outline "house.olai" changing
-    And the outline change says "note rewritten"
+    And the outline change says "Note changed"
     And the chat shows no diff
 
   @scratch:chat
@@ -396,7 +396,7 @@ Feature: Talking to a node agent
     # the ops layer is drawn as the node-level story, in the words the commit
     # panel already uses for the same event.
     When I ask the agent "done order"
-    Then the chat says the write "marked done"
+    Then the chat says the write "Done"
     And the chat shows no diff
 
   @scratch:chat
@@ -1205,7 +1205,7 @@ Feature: Talking to a node agent
     And the agent is working
     When I ask the agent "done order"
     Then the chat shows my message "done order" as "refused"
-    And the strip under my message "done order" reads "not sent"
+    And the strip under my message "done order" reads "Not sent"
     # ... and the row does not claim two things at once: a message that was
     # refused is not also one waiting its turn.
     And my message "done order" is no longer waiting
@@ -1297,7 +1297,7 @@ Feature: Talking to a node agent
     # ... in the words a person reads, not only in the attribute the panel
     # carries. Swapping the two faces' sentences left this suite green until
     # both reviewers said so.
-    And the strip under my message "done order" reads "not sent"
+    And the strip under my message "done order" reads "Not sent"
     # ... and it really did not go: nothing marked anything.
     And node "order" is not done
     # SEND AGAIN IS A SEND, never a second interruption: a person pressing it
@@ -1340,7 +1340,7 @@ Feature: Talking to a node agent
     # The words are still in the bubble they were typed into. What is missing is
     # the certainty, not the message.
     And the chat shows my message "done order"
-    And the strip under my message "done order" reads "no answer — it may not have arrived"
+    And the strip under my message "done order" reads "No reply. It may not have arrived."
     And the chat offers no way to send it again
     # ... and the transcript keeps the reason, rather than only the banner that
     # the next turn will clear.
@@ -1360,7 +1360,7 @@ Feature: Talking to a node agent
     When I ask the agent "vanish"
     Then the chat eventually shows "the agent exited"
     And the chat shows my message "vanish" as "unanswered"
-    And the strip under my message "vanish" reads "no answer — it may not have arrived"
+    And the strip under my message "vanish" reads "No reply. It may not have arrived."
     # No button, for the reason the whole feature exists: the agent may have
     # read those words before it died, and nobody can say.
     And the chat offers no way to send it again
@@ -2271,7 +2271,7 @@ Feature: Talking to a node agent
     Then the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
     And the tool call says where it is working
-    And the chat says the write "marked done"
+    And the chat says the write "Done"
     When I press the node "order" in the write
     Then the node "order" is focused
     When I unfold the tool call
@@ -2298,7 +2298,7 @@ Feature: Talking to a node agent
     And the agent is idle
     And the chat shows a tool call named "Mark done"
     And the tool call says which outline it touched
-    And the chat says the write "marked done"
+    And the chat says the write "Done"
     When I unfold the tool call
     Then the tool call is called "pending MCP call" underneath
     And the tool call's reply is shown once

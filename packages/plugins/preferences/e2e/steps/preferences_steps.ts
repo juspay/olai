@@ -563,17 +563,29 @@ const asSwitch = (value: string): "on" | "off" => {
   return value;
 };
 
+/** The alerts rows are SWITCHES (`olai-plugin-alerts`' `AlertRows.tsx`): a
+ *  press flips it, so press only when it is not already where the step wants
+ *  it, then wait for the row to say so. */
+const flipAlertRow = async (world: OlaiWorld, pref: string, value: "on" | "off"): Promise<void> => {
+  await showPreferences(world.page);
+  const control = row(world, pref).getByRole("switch");
+  await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const want = value === "on" ? "true" : "false";
+  if (await control.getAttribute("aria-checked") !== want) await control.click();
+  await world.waitUntil(async () => await control.getAttribute("aria-checked") === want, `the ${pref} switch to read ${value}`);
+};
+
 When(
   "I set Alerts to {string}",
   async function (this: OlaiWorld, value: string) {
-    await pickChoice(this.page, "alerts", asSwitch(value));
+    await flipAlertRow(this, "alerts", asSwitch(value));
   },
 );
 
 When(
   "I set the alert sound to {string}",
   async function (this: OlaiWorld, value: string) {
-    await pickChoice(this.page, "alert-sound", asSwitch(value));
+    await flipAlertRow(this, "alert-sound", asSwitch(value));
   },
 );
 
@@ -602,19 +614,13 @@ Then(
 );
 
 /** The sound row is drawn INERT rather than hidden while alerts are off — the
- *  Segmented control's own "frozen", which the git rows already wear: a choice
- *  a reader cannot see is one they cannot ask anybody about. */
+ *  switch's own "frozen" (dimmed, `aria-disabled`): a choice a reader cannot
+ *  see is one they cannot ask anybody about. */
 Then("the alert sound cannot be set", async function (this: OlaiWorld) {
   await showPreferences(this.page);
-  const segments = row(this, "alert-sound").locator(PREFS_CHOICE);
-  await segments.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const disabled = await segments.evaluateAll((all) =>
-    all.map((one) => one.getAttribute("aria-disabled")),
-  );
-  assert.ok(
-    disabled.length > 0 && disabled.every((said) => said === "true"),
-    `the alert sound row's segments say aria-disabled=${JSON.stringify(disabled)}`,
-  );
+  const control = row(this, "alert-sound").getByRole("switch");
+  await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(await control.getAttribute("aria-disabled"), "true", "the Sound switch to be frozen with Alerts off");
 });
 
 Then(

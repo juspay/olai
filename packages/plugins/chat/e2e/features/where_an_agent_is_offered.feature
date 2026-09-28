@@ -45,7 +45,7 @@ Feature: An agent is offered only where one can start
   Scenario: With one agent, Start an agent is a plain entry that starts it
     Given I open the outline "house.olai"
     When I open the node menu of "order"
-    Then the node menu's "Start an agent" is a plain entry
+    Then chat's "Start an agent" in the node menu runs at once
     When I choose "Start an agent" from the node menu
     Then node agent "order" is unfolded
     And the vault node "order" has property "agent-session" holding "claude:fake-session-1"
@@ -54,10 +54,10 @@ Feature: An agent is offered only where one can start
   Scenario: With several agents, Start an agent opens a submenu of them
     Given I open the outline "house.olai"
     When I open the node menu of "order"
-    Then the node menu's "Start an agent" is a submenu
+    Then chat's "Start an agent" in the node menu opens a submenu
     When I open the node menu's "Start an agent" agents
     Then the node menu's "Start an agent" offers the agents "Claude Code|Codex"
-    When I choose "Start an agent" › "Codex" from the node menu
+    When I pick "Codex" in the "Start an agent" submenu of the node menu
     Then node agent "order" is unfolded
     And the header names the agent "codex"
     And there should be no page errors
@@ -86,18 +86,18 @@ Feature: An agent is offered only where one can start
     Given I open the outline "house.olai"
     When I open the plugins panel
     And I switch the plugin "codex" off
-    And I close the plugins panel
+    And I press "Escape"
     And I open the node menu of "order"
-    Then the node menu's "Start an agent" is a plain entry
+    Then chat's "Start an agent" in the node menu runs at once
     When I press "Escape"
     And I press new chat in Chats
     # One agent left: the + starts it rather than asking.
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
     When I open the plugins panel
     And I switch the plugin "codex" on
-    And I close the plugins panel
+    And I press "Escape"
     And I open the node menu of "order"
-    Then the node menu's "Start an agent" is a submenu
+    Then chat's "Start an agent" in the node menu opens a submenu
     When I open the node menu's "Start an agent" agents
     Then the node menu's "Start an agent" offers the agents "Claude Code|Codex"
     And there should be no page errors
@@ -109,7 +109,7 @@ Feature: An agent is offered only where one can start
     And the node agent's fold is ready
     When I open the plugins panel
     And I switch the plugin "chat" off
-    And I close the plugins panel
+    And I press "Escape"
     Then no agent control is drawn anywhere
     When I open the node menu of "order"
     Then the node menu does not offer "Start an agent"
@@ -120,7 +120,7 @@ Feature: An agent is offered only where one can start
     When I press "Escape"
     And I open the plugins panel
     And I switch the plugin "chat" on
-    And I close the plugins panel
+    And I press "Escape"
     Then agent controls are drawn again
     And there should be no page errors
 

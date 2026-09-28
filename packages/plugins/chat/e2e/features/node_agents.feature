@@ -407,7 +407,7 @@ Feature: A node with an `agent-session` property IS an agent
     And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
     When I open the fold history
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    Then the panel offers a fresh session, saying "keeping memory in"
     And the panel offers a fresh session, saying "the transcript becomes history"
 
   @agent-stored @scratch:lanes
@@ -452,7 +452,7 @@ Feature: A node with an `agent-session` property IS an agent
     # wrote is being thrown away, and *try again* is still there beside it for an
     # engine that had merely lost its store for a moment.
     When I open the fold history
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    Then the panel offers a fresh session, saying "keeping memory in"
     # ...and pressing it moves. A fresh conversation is `session/new`, which this
     # agent never refused — it said no to the old one — so the node comes back to
     # a conversation and the refusal is off the screen.
@@ -478,7 +478,7 @@ Feature: A node with an `agent-session` property IS an agent
     Given I open the outline "lanes.olai"
     When I open the filed conversation "the last conversation" as node "filed-chat"
     And I open the fold history
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    Then the panel offers a fresh session, saying "keeping memory in"
     And the past sessions hold "an older conversation"
 
   @agent-stored @scratch:lanes
@@ -497,7 +497,7 @@ Feature: A node with an `agent-session` property IS an agent
     And I open the outline "house.olai"
     And the filer's boot run has settled
     When I open the node menu of "install"
-    And I choose "Start an agent" › "Claude Code" from the node menu
+    And I pick "Claude Code" in the "Start an agent" submenu of the node menu
     And I ask the agent "cabinet conversation"
     And the agent is idle
     And a terminal stores a conversation titled "terminal conversation"
@@ -536,7 +536,7 @@ Feature: A node with an `agent-session` property IS an agent
     When I press the agent "door-live"
     Then the sidebar marks the outline "lanes.olai" as the one open
     When I open the fold history
-    Then the panel offers a fresh session, saying "memory is the subtree"
+    Then the panel offers a fresh session, saying "keeping memory in"
 
   @scratch:lanes
   Scenario: An unbound agent's sidebar press navigates, and says nothing

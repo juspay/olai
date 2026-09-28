@@ -8,7 +8,7 @@ Feature: Rows land in the conversation chosen by the pointer
 
   Scenario: A drop arms a node and sends its context
     When I carry row "order" over the conversation
-    Then the conversation offers "drop to ask about it"
+    Then the conversation offers "Drop to ask about it"
     When I release the carry
     Then the composer is armed with "order"
     And the armed node "order" is labelled "order the new cabinets"
@@ -109,5 +109,5 @@ Feature: Rows land in the conversation chosen by the pointer
     And the served bytes of "house.olai" are unchanged
     When I click away from the editor
     And I press "ControlOrMeta+z"
-    Then the undo says "nothing to undo"
+    Then the undo says "Nothing to undo"
     And the served bytes of "house.olai" are unchanged

@@ -17,7 +17,7 @@ Feature: A node's page holds its memory and conversation
 
   Scenario Outline: Sending from a plain node starts its agent and delivers the queued message on <screen>
     Given I open the plain node composer for "install"
-    Then the plain node composer says "ask about install the cabinets…" and "memory: this subtree (2 rows)"
+    Then the plain node composer says "Ask about install the cabinets…" and "Sending starts an agent here · Memory: 2 rows"
     When I send "done hinges" from the plain node composer
     Then the node page conversation is ready for "install"
     And the agent is idle

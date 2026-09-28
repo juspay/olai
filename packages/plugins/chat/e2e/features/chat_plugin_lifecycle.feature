@@ -134,7 +134,7 @@ Feature: Chat remains usable as the plugin runtime changes
     When I open the plugins panel
     And I switch the plugin "chat" off
     And I request that the plugin "claude" be on
-    Then the plugins panel says "claude" is "Waiting for agents"
+    Then the plugins panel says "claude" is "Can't start: another plugin it needs isn't running (agents)."
     When I switch the plugin "chat" on
     And I close the plugins panel
     And I open the "claude" agent on node "kitchen"

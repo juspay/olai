@@ -4,7 +4,7 @@ Feature: A fresh start may pick a different engine
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent" › "Claude Code" from the node menu
+    And I pick "Claude Code" in the "Start an agent" submenu of the node menu
     And the node agent's fold is ready
     Then the panel header names the node agent "install the cabinets"
     When I ask the agent "cabinet first session"
@@ -52,7 +52,7 @@ Feature: A fresh start may pick a different engine
     Then the node menu does not offer "Start an agent"
     And the node menu offers "Close the agent"
     # Fresh start is one entry: a submenu of the agents, the node's own first.
-    And the node menu's "Fresh start" is a submenu
+    And chat's "Fresh start" in the node menu opens a submenu
     When I open the node menu's "Fresh start" agents
     Then the node menu's "Fresh start" offers the agents "Codex|Claude Code"
 
@@ -75,15 +75,15 @@ Feature: A fresh start may pick a different engine
 
   Scenario: The row menu fresh-starts onto the other engine
     When I open the node menu of "install"
-    Then the node menu's "Fresh start" is a submenu
+    Then chat's "Fresh start" in the node menu opens a submenu
     When I open the node menu's "Fresh start" agents
     # The node's own agent is listed first; the other is a deliberate choice.
     Then the node menu's "Fresh start" offers the agents "Claude Code|Codex"
-    When I choose "Fresh start" › "Codex" from the node menu
+    When I pick "Codex" in the "Fresh start" submenu of the node menu
     Then the node menu asks "Start a fresh chat for “install the cabinets”? The current chat moves to earlier chats."
     And the panel is in the remembered conversation "first"
     When I choose "Cancel" from the node menu
-    And I choose "Fresh start" › "Codex" from the node menu
+    And I pick "Codex" in the "Fresh start" submenu of the node menu
     # The question's go button carries the chosen agent's name.
     And I choose "Codex" from the node menu
     Then the node agent's fold is ready

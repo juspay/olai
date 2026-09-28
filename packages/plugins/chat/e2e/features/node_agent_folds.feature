@@ -76,13 +76,13 @@ Feature: A node agent's conversation unfolds in the outline
     When I point at row "hinges" in outline "house.olai"
     And I press the palette shortcut
     And I ask the palette "> keep these words"
-    Then the palette refuses with "no agent above this row — start one" and retains "> keep these words"
+    Then the palette refuses with "No agent here. Start one first." and retains "> keep these words"
     And no agent fold is open
 
   Scenario: The palette refuses with no focused row
     When I press the palette shortcut
     And I ask the palette "> keep these words"
-    Then the palette refuses with "no agent above this row — start one" and retains "> keep these words"
+    Then the palette refuses with "No agent here. Start one first." and retains "> keep these words"
     And no agent fold is open
 
   Scenario: Reload folds every conversation
@@ -103,7 +103,7 @@ Feature: A node agent's conversation unfolds in the outline
     When I point at row "hinges" in outline "house.olai"
     And I press the palette shortcut
     And I ask the palette "> keep the unbound question"
-    Then the palette refuses with "this agent has no session — start one" and retains "> keep the unbound question"
+    Then the palette refuses with "This agent has no chat. Start one first." and retains "> keep the unbound question"
     And no agent fold is open
     And the agent "kitchen" stands "unbound"
 
@@ -141,7 +141,7 @@ Feature: A node agent's conversation unfolds in the outline
     And I ask the agent "ask later"
     And I close the agent fold
     And the agent is released
-    Then a notification says "is waiting on your answer"
+    Then a notification says "Waiting on your answer"
     When I unfold node agent "install"
     And I choose "birch"
     And I answer the question
@@ -188,8 +188,7 @@ Feature: A node agent's conversation unfolds in the outline
     And the node agent's fold is ready
     And I close the agent fold
     And I open the node menu of "install"
-    Then the node menu offers "Add property…"
-    When I choose "Add property…" from the node menu
+    When I pick "Add property…" in the "More" submenu of the node menu
     And I write the property "review-note" holding "kept" on "install"
     Then the node "install" shows the property "review-note" holding "kept"
     And "house.olai" holds the node "install" with "review-note" set to "kept"

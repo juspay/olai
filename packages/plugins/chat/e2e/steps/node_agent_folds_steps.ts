@@ -44,7 +44,9 @@ Given("I open the {string} agent on node {string}", async function(this: OlaiWor
     return;
   }
   const pill = this.node(node).locator(`${selector(PLUGIN_TESTID.agentStart)}${attr("data-agent", this.nodeId(node))}`);
-  if (await pill.count()) {
+  // The pill is an OFFER: on a phone it is in the row but not drawn until the
+  // row is tapped, so a phone takes the row menu (a long press) instead.
+  if (await pill.count() && await pill.isVisible()) {
     await this.press(pill);
     const menu = this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu));
     await this.waitUntil(async () => await menu.isVisible() || await fold(this, node).isVisible(), "a choice or the new conversation", HYDRATION_TIMEOUT);

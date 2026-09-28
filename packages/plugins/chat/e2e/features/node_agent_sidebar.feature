@@ -47,7 +47,7 @@ Feature: Agent activity is reachable from Chats and the palette
     Then the agent "order" stands "gone"
     And Needs you lists "install order"
     And the Needs you row "install" has waiting questions
-    And the Needs you row "order" says "not running"
+    And the Needs you row "order" says "Not running"
     And Chats lists "order install"
     And the Chats row "install" draws the "Needs you" dot before its age
     And the Chats row "order" draws the "Not running" dot before its age
