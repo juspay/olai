@@ -168,12 +168,18 @@ export const matchChord = <T extends { readonly key: string; readonly shift?: bo
   ) ?? null
 }
 
+/** `<input>` types that hold no text: a box, a switch, a button. A caret is
+ *  never in one, so a chord pressed while one has focus is the app's — a
+ *  finished box just ticked must not leave ⌘Z dead until somebody clicks away. */
+const NOT_TEXT = new Set(["checkbox", "radio", "button", "submit", "reset", "range", "color", "file", "image"])
+
 /** Is the event target (or its composed path) an editable field? */
 export const isEditingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof Element)) return false
   const el =
     target.closest("input, textarea, select, [contenteditable=true]") ??
     (target instanceof HTMLElement && target.isContentEditable ? target : null)
+  if (el instanceof HTMLInputElement && NOT_TEXT.has(el.type)) return false
   return el !== null
 }
 
