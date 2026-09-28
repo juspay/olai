@@ -11,7 +11,7 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, labelIn, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
+import { atElement, atFile, atNode, labelIn, nameIn, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
 import { ROUTES, routingIn } from "./routes.testlib.ts"
 
 /** No plugin claims a URL — the roster these cases are about, named rather
@@ -393,4 +393,20 @@ test("a page's short name: a node's id, a file's path, a tenant's breadcrumb, an
   expect(labelIn(pages, { kind: "trash" })).toBe("trash")
   expect(labelIn(pages, plugin)).toBe("a named page")
   expect(labelIn([], plugin)).toBe("plugin")
+})
+
+test("a document is named by the files sidebar's stem, and a file that is not one keeps its suffix", () => {
+  expect(nameIn(TEST_CLAIMS, atFile("garden.olai"))).toBe("garden")
+  expect(nameIn(TEST_CLAIMS, atFile("notes/plan.md"))).toBe("plan")
+  expect(nameIn(TEST_CLAIMS, atElement(TEST_CLAIMS, "garden.md", "beds"))).toBe("garden")
+  expect(nameIn(TEST_CLAIMS, atFile("art/report.pdf"))).toBe("report.pdf")
+  expect(nameIn(TEST_CLAIMS, atFile("rows.csv"))).toBe("rows.csv")
+  expect(nameIn(TEST_CLAIMS, atFile("handle.png"))).toBe("handle.png")
+  // Named by what they show, which is the page's own report — not here.
+  expect(nameIn(TEST_CLAIMS, atNode("kitchen"))).toBeUndefined()
+  expect(nameIn(TEST_CLAIMS, atElement(TEST_CLAIMS, "house.olai", "kitchen"))).toBeUndefined()
+  expect(nameIn(TEST_CLAIMS, HOME_ROUTE)).toBeUndefined()
+  expect(nameIn(TEST_CLAIMS, { kind: "trash" })).toBeUndefined()
+  // ...and nothing before the claims have been read.
+  expect(nameIn(undefined, atFile("garden.olai"))).toBeUndefined()
 })
