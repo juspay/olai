@@ -49,10 +49,29 @@ const DEFINITION = "swatch.olai";
 const blockFor = (world: OlaiWorld, plugin: string) =>
   world.pluginsPanel().locator(`${PLUGINS_SOURCE}${attr("data-plugin", plugin)}`);
 
+/**
+ * THE BLOCK LIVES IN THE ROW'S DETAIL, behind the row's chevron. A pending
+ * definition is filed under Needs attention and opens with its detail showing;
+ * an approved one sits shut under Your plugins. Open the group and the row the
+ * way a person does — pressing the chevron only while it reads collapsed, and
+ * re-resolving the row on every try, since an approval or an edit moves it
+ * between groups while this waits.
+ */
+const shownBlock = async (world: OlaiWorld, plugin: string) => {
+  await world.waitUntil(async () => {
+    const toggle = (await world.showPluginRow(plugin)).locator("button.plugins-name[aria-expanded]");
+    if ((await toggle.count()) === 0) return true;
+    if ((await toggle.getAttribute("aria-expanded")) === "true") return true;
+    await toggle.click({ timeout: 2000 }).catch(() => undefined);
+    return (await toggle.getAttribute("aria-expanded").catch(() => null)) === "true";
+  }, `the ${plugin} row to show its detail`);
+  return blockFor(world, plugin);
+};
+
 Then(
   "the plugins panel shows the source of {string}",
   async function (this: OlaiWorld, plugin: string) {
-    const block = blockFor(this, plugin);
+    const block = await shownBlock(this, plugin);
     await block.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const said = await block.innerText();
     // BOTH HALVES, in full. Approving is READING, which is the whole reason the
@@ -76,7 +95,7 @@ Then(
 Then(
   "the plugins panel shows only the server half of {string}",
   async function (this: OlaiWorld, plugin: string) {
-    const block = blockFor(this, plugin);
+    const block = await shownBlock(this, plugin);
     await block.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const said = await block.innerText();
     assert.ok(said.includes("server.ts"), `the block for "${plugin}" draws no server half:\n${said}`);
@@ -95,8 +114,7 @@ Then(
  * somebody iterating with an agent and is a different claim.
  */
 When("I approve the plugin {string}", async function (this: OlaiWorld, plugin: string) {
-  await this.showPluginRow(plugin);
-  const block = blockFor(this, plugin);
+  const block = await shownBlock(this, plugin);
   await block.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   if ((await block.getAttribute("open")) === null) {
     await this.press(block.locator("summary"));
@@ -107,7 +125,7 @@ When("I approve the plugin {string}", async function (this: OlaiWorld, plugin: s
 /** ...and the press that arms them again after the definition moved under the
  *  reader — which is a press of its own, and that is the point of it. */
 When("I read the plugin {string} again", async function (this: OlaiWorld, plugin: string) {
-  await this.press(blockFor(this, plugin).locator(PLUGINS_MOVED).locator("button"));
+  await this.press((await shownBlock(this, plugin)).locator(PLUGINS_MOVED).locator("button"));
 });
 
 /**
@@ -122,7 +140,7 @@ When("I read the plugin {string} again", async function (this: OlaiWorld, plugin
 Then(
   "the plugins panel offers to approve {string}",
   async function (this: OlaiWorld, plugin: string) {
-    await blockFor(this, plugin).locator(PLUGINS_APPROVE)
+    await (await shownBlock(this, plugin)).locator(PLUGINS_APPROVE)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -152,7 +170,7 @@ Then(
 Then(
   "the plugins panel says {string} changed while I was reading it",
   async function (this: OlaiWorld, plugin: string) {
-    const block = blockFor(this, plugin);
+    const block = await shownBlock(this, plugin);
     await block.locator(PLUGINS_MOVED).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // ...AND THE VERBS ARE GONE, which is the half that matters: a warning
     // beside a live button would be a sentence somebody clicks past.

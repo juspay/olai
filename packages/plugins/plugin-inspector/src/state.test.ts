@@ -27,6 +27,25 @@ test("inspector history survives presentation replacement but ends with its acti
   next.close()
 })
 
+test("expanded rows survive presentation replacement and end with the activation", () => {
+  const state = createInspectorState()
+  expect(state.expanded()["example"]).toBeUndefined()
+  state.setExpanded("example", true)
+  const before = state.expanded()
+  // Setting the same answer again is not a new publication.
+  state.setExpanded("example", true)
+  expect(state.expanded()).toBe(before)
+  state.door.setOpen(false)
+  state.door.setOpen(true)
+  expect(state.expanded()["example"]).toBe(true)
+  state.setExpanded("example", false)
+  expect(state.expanded()["example"]).toBe(false)
+  state.setExpanded("other", true)
+  state.close()
+  expect(state.expanded()).toEqual({})
+  expect(() => state.setExpanded("example", true)).toThrow("closed")
+})
+
 test("optional links withdraw and reconnect independently of the panel", () => {
   const state = createInspectorState()
   const first = () => null

@@ -8,6 +8,7 @@ Feature: A definition reads its own schema knobs
       {"id":"swatch-server","ord":"a0","parent":"swatch-policy","title":"server.ts","desc":"import { definePlugin } from \"@olai/plugin-api\"; import { Effect, Schema } from \"effect\"; const Config = Schema.Struct({ tone: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed(\"blue\")), Schema.annotate({ description: \"the swatch tone\" })) }); export default definePlugin({ name: \"swatch\", needs: [], config: Config, apply: (config) => config.tone === \"blue\" ? Effect.void : Effect.die(new Error(\"tone=\" + config.tone)) });"}
       """
     And I open the plugins panel
+    And I expand the plugin "swatch"
     Then the plugins panel shows "swatch" configured "tone" as "blue"
     And the plugin "swatch" marks "tone" as authored by "vault"
     Given a terminal agent is connected to the served directory

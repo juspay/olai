@@ -1,15 +1,20 @@
 @scratch:good
 Feature: Edit plugin settings on the panel
-  The controls write the vault file and remain visible beside their row names.
+  The controls write the vault file and sit in each row's detail, one press
+  behind its chevron.
 
-  Scenario: The square panel exposes controls and the keyboard reaches the next row's knob
+  Scenario: The one-column panel exposes controls and the keyboard reaches a row's first knob
     Given I open the app
     When I open the plugins panel
-    Then the plugins panel is square and has no horizontal overflow
-    And the plugin "vault" has inline controls
-    And the plugin "git" has inline controls
-    And the plugin "kolu" has inline controls
-    When I focus the enable switch for "settings"
+    Then the plugins panel is one column and has no horizontal overflow
+    When I expand the plugin "vault"
+    Then the plugin "vault" has inline controls
+    When I expand the plugin "git"
+    Then the plugin "git" has inline controls
+    When I expand the plugin "kolu"
+    Then the plugin "kolu" has inline controls
+    And the plugins panel is one column and has no horizontal overflow
+    When I focus the enable switch for "git"
     And I press "Tab"
     Then the first choice of "git" setting "commit" has focus
     And there should be no page errors
@@ -22,6 +27,7 @@ Feature: Edit plugin settings on the panel
       {"id":"escape-watch","ord":"a0","parent":"escape-kolu","title":"watch","custom":{"held-for":"2m"}}
       """
     And I open the plugins panel
+    And I expand the plugin "kolu"
     Then the plugins panel shows "kolu" configured "watch.held-for" as "2m"
     When I remember the settings file "_olai/Settings.olai"
     And I type "90s" into "kolu" setting "watch.held-for"
@@ -43,7 +49,7 @@ Feature: Edit plugin settings on the panel
     And I open the plugins panel
     Then the plugin "git" is off without prose
     When I switch the plugin "git" on
-    Then the plugin "git" line has only its labelled enable switch
+    Then the plugin "git" line reads "Git" beside its labelled enable switch
     And I pick "auto" for "git" setting "commit"
     Then the plugins panel shows "git" configured "commit" as "auto"
     And the plugin "git" marks "commit" as authored by "vault"
@@ -56,6 +62,7 @@ Feature: Edit plugin settings on the panel
     And the server starts again on the same port
     And I open the app
     And I open the plugins panel
+    And I expand the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "auto"
     And there should be no page errors
 
@@ -179,7 +186,9 @@ Feature: Edit plugin settings on the panel
     When I tap the burger
     And I open the plugins panel
     Then the plugins panel has one column and fits the phone
-    And the plugin "git" has inline controls
+    When I expand the plugin "git"
+    Then the plugin "git" has inline controls
+    And the plugins panel has one column and fits the phone
     And there should be no page errors
 
   # Plan §9: the `file` knob of the ACP engines (claude/codex/pi) is not

@@ -147,7 +147,7 @@ Feature: It stays live
     # only way to be stale was a set that would not validate, so it told
     # everybody to go and fix their files — which for a mount that went away
     # is a lie of exactly the kind this whole item is about.
-    And the stale banner says "The served directory cannot be read right now"
+    And the stale banner says "olai can't read this folder right now"
     And the node "herbs" is shown
     And the page has not reloaded
     # The RECOVERY half is deliberately not here, and it is a cost decision
@@ -399,7 +399,7 @@ Feature: It stays live
       {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
       """
-    Then the filter found "no matches of 4"
+    Then the filter found "No matches of 4"
     And the node "basil" is not shown
     And the page has not reloaded
     And there should be no page errors

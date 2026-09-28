@@ -38,12 +38,13 @@ When("the browser module can be fetched again", async function (this: OlaiWorld)
   this.errors = this.errors.filter((error) => error !== expected);
 });
 
+// The retry is the failed row's own verb in the plugins panel, in its detail.
 When("I retry the failed browser activation", async function (this: OlaiWorld) {
-  await this.page.getByRole("button", { name: "Retry browser activation", exact: true }).click();
+  await this.pluginsPanel().getByRole("button", { name: "Try again", exact: true }).click();
 });
 
 Then("the browser activation has recovered", async function (this: OlaiWorld) {
-  await this.page.getByRole("button", { name: "Retry browser activation", exact: true }).waitFor({ state: "hidden" });
+  await this.pluginsPanel().getByRole("button", { name: "Try again", exact: true }).waitFor({ state: "hidden" });
 });
 
 Then("browser startup reports its failure", async function (this: OlaiWorld) {

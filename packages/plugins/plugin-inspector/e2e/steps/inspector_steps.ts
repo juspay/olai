@@ -37,12 +37,16 @@ When("the non-UI controller sets plugin {string} {word}", async function (this: 
   }, { name, enabled: state === "on" });
 });
 
+// On a desktop the plugins door is a row at the foot of the health popover,
+// drawn only while that popover is open — so both reads below put it up
+// (`readStatus`), look, and put it away again. On a phone it is the drawer's
+// row, and `readStatus` reads in place.
 Then("the inspector has no rendered controls or panel", async function (this: OlaiWorld) {
-  await this.page.getByTestId(TESTID.pluginsTrigger).first().waitFor({ state: "detached" });
   await this.page.getByTestId(TESTID.pluginsPanel).waitFor({ state: "detached" });
+  await this.readStatus(() => this.page.getByTestId(TESTID.pluginsTrigger).first().waitFor({ state: "detached" }));
 });
 
 Then("the inspector panel is closed", async function (this: OlaiWorld) {
-  await this.page.getByTestId(TESTID.pluginsTrigger).first().waitFor({ state: "visible" });
   await this.page.getByTestId(TESTID.pluginsPanel).waitFor({ state: "detached" });
+  await this.readStatus(() => this.page.getByTestId(TESTID.pluginsTrigger).first().waitFor({ state: "visible" }));
 });
