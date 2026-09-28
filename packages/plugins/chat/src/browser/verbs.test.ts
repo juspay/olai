@@ -2,6 +2,8 @@ import { expect, test } from "bun:test"
 import { rowVerbs } from "./verbs.tsx"
 import type { Roster } from "./agents/answered.tsx"
 import type { AgentChoice, NodeAgentRow } from "../wire.ts"
+import type { RowAction } from "olai-plugin-outlines/slots"
+import { freshStartQuestion } from "./agents/fresh-start.ts"
 
 const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", standing: "here" }, { id: "codex", name: "Codex", standing: "here" }]
 const roster = (bound?: NodeAgentRow, installed = engines): Roster => ({
@@ -13,37 +15,40 @@ const roster = (bound?: NodeAgentRow, installed = engines): Roster => ({
 })
 const node: NodeAgentRow = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null }
 
-test("rowVerbs offers only writing start entries, one per installed engine", () => {
-  const verbs = rowVerbs("one", roster())
-  expect(verbs.map(({ id, writes, label }) => ({ id, writes, label }))).toEqual([
-    { id: "start-agent-claude", writes: true, label: "Start an agent session — Claude" },
-    { id: "start-agent-codex", writes: true, label: "Start an agent session — Codex" },
+/** What a menu draws of the answer: each entry's words, and a choice's options. */
+const drawn = (actions: ReadonlyArray<RowAction>) => actions.map(action => "choices" in action
+  ? { id: action.id, label: action.label, choices: action.choices.map(({ id, label }) => ({ id, label })) }
+  : { id: action.id, label: action.label })
+const verbsOf = (actions: ReadonlyArray<RowAction>) => actions.flatMap(action => "choices" in action ? action.choices : [action])
+
+test("a bare row offers one start choice of every startable engine", () => {
+  expect(drawn(rowVerbs("one", roster()))).toEqual([{ id: "start-agent", label: "Start an agent", choices: [
+    { id: "start-agent-claude", label: "Claude" },
+    { id: "start-agent-codex", label: "Codex" },
+  ] }])
+  // A choice of one, or of none, is still handed whole: outlines' menu is what
+  // collapses it (`olai-plugin-outlines/slots`'s `RowChoice`).
+  expect(drawn(rowVerbs("one", roster(node)))).toEqual([
+    { id: "start-agent", label: "Start an agent", choices: [{ id: "start-agent-claude", label: "Claude" }] },
   ])
-  expect(rowVerbs("one", roster(undefined, []))).toEqual([])
-  expect(rowVerbs("one", roster(node)).map(verb => verb.label)).toEqual(["Start an agent session"])
-  expect(rowVerbs("one", roster(node, []))).toEqual([])
+  expect(drawn(rowVerbs("one", roster(undefined, [])))).toEqual([{ id: "start-agent", label: "Start an agent", choices: [] }])
+  expect(rowVerbs("one", roster()).every(action => action.writes)).toBe(true)
 })
 
-test("a node talking through a conversation offers fresh start per engine, then close", () => {
-  const bound: NodeAgentRow = { ...node, session: "existing" }
-  expect(rowVerbs("one", roster(bound)).map(({ id, writes, label }) => ({ id, writes, label }))).toEqual([
-    { id: "fresh-start-claude", writes: true, label: "Fresh start — Claude" },
-    { id: "fresh-start-codex", writes: true, label: "Fresh start — Codex" },
-    { id: "close-agent", writes: true, label: "Close the agent" },
+test("a node talking through a conversation offers fresh start, its own engine first, then close", () => {
+  const bound: NodeAgentRow = { ...node, engine: "codex", session: "existing" }
+  expect(drawn(rowVerbs("one", roster(bound)))).toEqual([
+    { id: "fresh-start", label: "Fresh start", choices: [
+      { id: "fresh-start-codex", label: "Codex" },
+      { id: "fresh-start-claude", label: "Claude" },
+    ] },
+    { id: "close-agent", label: "Close the agent" },
   ])
-  // close is still reachable from the agent line — the row menu stays silent.
-  expect(rowVerbs("one", roster(bound, []))).toEqual([])
 })
 
-test("only fresh-start row actions require confirmation, for one engine or several", () => {
-  for (const installed of [engines, engines.slice(0, 1)]) {
-    const verbs = rowVerbs("one", roster({ ...node, session: "existing" }, installed))
-    for (const verb of verbs) {
-      if (verb.id.startsWith("fresh-start-")) {
-        expect(verb.confirm).toContain("This replaces the current conversation.")
-        expect(verb.confirm).toContain("“One”")
-      } else expect(verb.confirm).toBeUndefined()
-    }
-    for (const verb of rowVerbs("one", roster(undefined, installed))) expect(verb.confirm).toBeUndefined()
+test("only fresh-start choices ask first", () => {
+  for (const verb of verbsOf(rowVerbs("one", roster({ ...node, session: "existing" })))) {
+    expect(verb.confirm).toBe(verb.id.startsWith("fresh-start-") ? freshStartQuestion("One") : undefined)
   }
+  for (const verb of verbsOf(rowVerbs("one", roster()))) expect(verb.confirm).toBeUndefined()
 })

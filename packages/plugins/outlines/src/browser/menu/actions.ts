@@ -155,8 +155,10 @@ const running = (
 }
 
 /**
- * A plugin's contribution, as a line of core's menu: a verb, or a submenu of
- * them (`olai-plugin-outlines/slots`'s `RowChoice`).
+ * A plugin's contribution, as lines of core's menu: a verb, or a submenu of
+ * them (`olai-plugin-outlines/slots`'s `RowChoice`) — COLLAPSED here when it
+ * holds one choice, into that choice's press under the entry's own label, and
+ * dropped when it holds none, so no plugin has to spell either case.
  *
  * THE ID IS COMPOSED, because a plugin's `id` is its own word and two plugins
  * may spell it the same. `<plugin>:<verb>` is unambiguous — a plugin's name
@@ -167,7 +169,7 @@ const running = (
  * standing there — the rule a mark, a fold and a pin already follow, spent
  * here so nothing on the other side of the slot can get it wrong.
  */
-const pluginEntry = (plugin: string, action: RowAction, shown: string): MenuEntry => {
+const pluginEntries = (plugin: string, action: RowAction, shown: string): ReadonlyArray<MenuEntry> => {
   const verb = (one: RowVerb): MenuAction => ({
     id: `${plugin}:${one.id}`,
     label: one.label,
@@ -177,9 +179,9 @@ const pluginEntry = (plugin: string, action: RowAction, shown: string): MenuEntr
       if (typeof refusal === "string") return { tone: "alarm" as const, text: refusal }
     },
   })
-  return "choices" in action
-    ? { id: `${plugin}:${action.id}`, label: action.label, entries: action.choices.map(verb) }
-    : verb(action)
+  if (!("choices" in action)) return [verb(action)]
+  if (action.choices.length > 1) return [{ id: `${plugin}:${action.id}`, label: action.label, entries: action.choices.map(verb) }]
+  return action.choices.map((one) => ({ ...verb(one), label: action.label }))
 }
 
 /**
@@ -295,7 +297,7 @@ export const subjectMenuActions = (args: {
    *
    * A READING, ASKED HERE: the face answers the verbs that plugin offers on
    * this node right now — which for chat is one `Start an agent` on a bare row
-   * (a submenu of engines when there is a choice), and `Fresh start` and
+   * (a submenu of engines when there is more than one), and `Fresh start` and
    * `Close the agent` on a row already talking. None of that is knowable when
    * a plugin registers.
    *
@@ -307,7 +309,7 @@ export const subjectMenuActions = (args: {
   const plugins: Array<MenuEntry> = []
   for (const { plugin, face } of hung("outline.row.action")) {
     for (const action of face(shown)) {
-      ;(action.writes ? plugins : reads).push(pluginEntry(plugin, action, shown))
+      ;(action.writes ? plugins : reads).push(...pluginEntries(plugin, action, shown))
     }
   }
 

@@ -41,9 +41,10 @@ export interface RowVerb {
 /**
  * ONE ENTRY, SEVERAL WAYS TO DO IT — `Start an agent ›` and its engines. Drawn
  * as a submenu, so a verb that varies by a choice costs the menu one line
- * rather than one per option. A choice of one is the plugin's to collapse into
- * a plain {@link RowVerb}: a submenu with a single entry is a click that asks
- * nothing.
+ * rather than one per option. The plugin hands its whole choice, however many
+ * options it has: core draws a choice of one as that option's press under this
+ * entry's label (a submenu with a single entry is a click that asks nothing),
+ * and a choice of none as nothing at all.
  */
 export interface RowChoice {
   /** This plugin's own word for the entry, as {@link RowVerb.id}. */
