@@ -45,6 +45,7 @@ import {
   attr,
   CONNECTION,
   HEALTH,
+  HEALTH_PANEL,
   HYDRATION_TIMEOUT,
   PANE,
   CHAT_TOGGLE,

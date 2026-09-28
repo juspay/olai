@@ -295,10 +295,10 @@ test("a running row that carries others names them", () => {
   expect(said).toContain("Turning it off")
   // ...and the panel names them by the label a person reads on their rows.
   const labels: Record<string, string> = { kolu: "Kolu" }
-  expect(pluginConfirm(carrier, {}, (name) => labels[name] ?? name)).toBe("Turning it off also stops Kolu, odu.")
+  expect(pluginConfirm(carrier, (name) => ({ label: labels[name] }))).toBe("Turning it off also stops Kolu, odu.")
   // A row that carries nobody asks only when the build gave it a switchHint.
   expect(pluginConfirm(only(row("running")))).toBeNull()
-  expect(pluginConfirm(only(row("running")), { switchHint: "Careful." })).toBe("Careful.")
+  expect(pluginConfirm(only(row("running")), () => ({ switchHint: "Careful." }))).toBe("Careful.")
 })
 
 /**

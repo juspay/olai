@@ -173,7 +173,7 @@ test("no file here spells the same-file law — it is the format's", () => {
 // than either half, because either half alone is a shape somebody else is
 // entitled to.
 test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () => {
-  expect(filesSpelling(/border-alarm\/40[^"'`]*bg-alarm\/10/)).toEqual([
+  expect(filesSpelling(/border-b border-alarm\/40[^"'`]*bg-alarm\/10/)).toEqual([
     "web/src/client/SaidLine.tsx"
   ])
 })

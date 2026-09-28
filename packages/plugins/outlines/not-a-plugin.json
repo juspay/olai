@@ -41,8 +41,7 @@
     "src/tools.ts"
   ],
   "preferences": [
-    "src/browser.tsx",
-    "src/browser/filter/DoneFlip.tsx"
+    "src/browser.tsx"
   ],
   "search": [
     "src/browser/complete/trigger.ts",
@@ -75,6 +74,6 @@
     "src/tools.ts"
   ],
   "//files": "The empty page says olai can't open some `files`: the word, not the files row.",
-  "//preferences": "The finished box's tooltip points at `Preferences` as the panel a person opens, not by the preferences row's name.",
+  "//preferences": "browser.tsx registers this plugin's rows with the preferences panel through its declared contract.",
   "//trash": "A write's story reads `Moved to Trash`: the Trash a person sees, not the trash row."
 }
