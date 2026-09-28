@@ -94,12 +94,6 @@ test("a node the shelf already holds is offered the way OFF it instead", () => {
     .toEqual({ kind: "edit", edit: { verb: "trash", id: "p-install" } })
 })
 
-test("the shelf's verb comes first among the writes", () => {
-  // The order of this list is a fence: the entry a hand reaches for most often
-  // does not sit beside the one that takes a subtree away.
-  expect(labels("install")[0]).toBe("Pin to sidebar")
-})
-
 // ── the mark section ───────────────────────────────────────────────────
 
 test("a node with no mark is offered the four, and nothing to clear", () => {
@@ -107,12 +101,12 @@ test("a node with no mark is offered the four, and nothing to clear", () => {
   // LAST of the four, past the finishing verb: calling work off is the rarest
   // of them and the one nobody should reach by accident.
   expect(labels("install")).toEqual([
-    "Pin to sidebar",
     "Mark todo",
     "Mark doing",
     "Complete",
     "Cancel",
     "Set date…",
+    "Pin to sidebar",
     "Add property…",
     "Link to a node…",
     "Wait for a node…",
@@ -127,12 +121,12 @@ test("the mark a node already carries is not offered back to it", () => {
   // layer refuses for asking about nothing, and the row's own checkbox is
   // three pixels away from the menu that would have said so.
   expect(labels("kitchen")).toEqual([
-    "Pin to sidebar",
     "Mark todo",
     "Complete",
     "Cancel",
     "Clear mark",
     "Set date…",
+    "Pin to sidebar",
     "Add property…",
     "Link to a node…",
     "Wait for a node…",
@@ -385,12 +379,12 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
   // read off something else.
   expect(writeVerbs(routes, subjectOfRow(row("kitchen")), undefined, NO_PINS).map((verb) => verb.label))
     .toEqual([
-      "Pin to sidebar",
       "Mark todo",
       "Complete",
       "Cancel",
       "Clear mark",
       "Set date…",
+      "Pin to sidebar",
       "Add property…",
       "Link to a node…",
       "Wait for a node…",
