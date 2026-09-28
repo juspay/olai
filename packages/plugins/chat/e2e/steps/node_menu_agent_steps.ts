@@ -82,13 +82,14 @@ When(
     assert.ok(await trigger.evaluate(el => el === document.activeElement), `the arrows never reached ${JSON.stringify(label)}`);
     await this.page.keyboard.press("ArrowRight");
     await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The next key in the scenario is ArrowDown, which moves OFF the first
-    // agent. Do not return until that first agent actually has the caret.
+    // The scenario's next key moves OFF the first agent. A DOM focus() is not
+    // the menu's own caret: ArrowDown would then land on the first agent
+    // instead of the second. One ArrowDown, only when the menu has not
+    // highlighted anybody yet, gives the first agent that caret.
     const first = sub.getByRole("menuitem").first();
-    await this.waitUntil(
-      async () => await first.evaluate((el) => el === document.activeElement || el.hasAttribute("data-highlighted")),
-      "the first agent in the submenu to have the caret",
-    );
+    const highlighted = async () => await first.evaluate((el) => el.hasAttribute("data-highlighted"));
+    if (!(await highlighted())) await this.page.keyboard.press("ArrowDown");
+    await this.waitUntil(highlighted, "the first agent in the submenu to have the caret");
   },
 );
 

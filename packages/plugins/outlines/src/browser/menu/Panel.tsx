@@ -85,20 +85,6 @@ export function Panel(props: {
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
         <DropdownMenu.SubContent
-          ref={(el: HTMLElement) => {
-            // Kobalte's own focus of the first row is preventDefault'd, and a
-            // later timer loses the race to the next key. Focus the first row
-            // in this turn, before the opener's step returns.
-            const focusFirst = () => {
-              if (!el.isConnected) return
-              const active = document.activeElement
-              if (active !== el && el.contains(active)) return
-              const first = el.querySelector('[role="menuitem"]')
-              if (first instanceof HTMLElement) first.focus({ preventScroll: true })
-            }
-            focusFirst()
-            queueMicrotask(focusFirst)
-          }}
           class={`${MENU_PANEL} ${LAYER.row} pointer-events-auto`}
           data-testid={TESTID.nodeMenuSub}
           data-sub={sub.entry.id}
