@@ -141,9 +141,9 @@ const VERBS = {
  *  argued in. */
 const VERB_NAMES = Object.keys(VERBS) as ReadonlyArray<keyof typeof VERBS>
 
-/** The transport deadline, in milliseconds: cohort to kolu's own. A wedged
- *  `odu mcp` and an honest one reach distinction inside five seconds. */
-const DEADLINE_MS = 5_000
+/** The transport deadline. A wedged `odu mcp` still fails; five seconds was
+ *  shorter than a cold start on a busy builder, which read as a missing tool. */
+const DEADLINE_MS = 20_000
 
 // ── The evidence ────────────────────────────────────────────────────────
 

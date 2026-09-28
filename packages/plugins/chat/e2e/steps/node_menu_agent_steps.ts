@@ -82,6 +82,13 @@ When(
     assert.ok(await trigger.evaluate(el => el === document.activeElement), `the arrows never reached ${JSON.stringify(label)}`);
     await this.page.keyboard.press("ArrowRight");
     await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // The next key in the scenario is ArrowDown, which moves OFF the first
+    // agent. Do not return until that first agent actually has the caret.
+    const first = sub.getByRole("menuitem").first();
+    await this.waitUntil(
+      async () => await first.evaluate((el) => el === document.activeElement || el.hasAttribute("data-highlighted")),
+      "the first agent in the submenu to have the caret",
+    );
   },
 );
 
@@ -104,15 +111,18 @@ When(
     }
     const starting = await trigger.getAttribute("data-action") === "chat:start-agent";
     const item = sub.getByRole("menuitem", { name: choice, exact: true });
-    // A submenu that has only just portalled can report a box whose centre is
-    // not the row yet — the click lands on the page, and that click shuts the
-    // menu. Wait until the row is what a pointer would actually hit.
+    // Hit-test and release in one turn. A Playwright click samples the box,
+    // then the portalled row moves, and the click lands on the page — which
+    // shuts the menu.
     await this.waitUntil(async () => item.evaluate((el) => {
       const box = el.getBoundingClientRect();
-      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-      return hit === el || (hit !== null && el.contains(hit));
+      const x = box.left + box.width / 2;
+      const y = box.top + box.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      if (!(hit === el || (hit !== null && el.contains(hit)))) return false;
+      el.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, clientX: x, clientY: y }));
+      return true;
     }).catch(() => false), `${choice} to be where the pointer lands`);
-    await this.press(item);
     if (starting) await started(this);
   },
 );

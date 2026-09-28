@@ -18,6 +18,7 @@ import { publishLayoutCss } from "olai-plugin-layout/layout/css.ts"
 import { trackVisibleViewport } from "olai-plugin-layout/viewport.ts"
 import { Effect } from "effect"
 import { content,navigation,paletteAdapters } from "olai-plugin-navigation/contract"
+import { holdNavigation } from "./navigation-hold.ts"
 import { rendererSlots,root } from "olai-plugin-ui-renderer/contract"
 import { createRoot,ErrorBoundary } from "solid-js"
 import Frame from "./Frame.tsx"
@@ -31,15 +32,15 @@ import { followLayout } from "./layout/prefs-owner.ts"
 
 export default definePlugin({
   name,
-  needs: [rendererSlots, Offers, navigation, Faces],
+  // Navigation is NOT a need. The bar, and the plugins panel on it, have to
+  // stay up when that row is switched off — the page under the bar is what
+  // leaves, via the `router` component below.
+  needs: [rendererSlots, Offers, Faces],
   apply: Effect.gen(function*() {
     // WHAT OTHER PLUGINS HUNG, held for this activation — `./faces.ts` on why
     // the shell holds it rather than threading it through every seat.
     yield* holdFaces(yield* Faces)
     const slots = yield* rendererSlots
-    const router = yield* navigation
-    // The app's URL grammar, for the label a pane wears (`./routing.ts`).
-    yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     // Offers publishes in the outer plugin activation. Location activations
     // run in their own Cordis host; publishing there would make the bar
     // invisible to the plugins that consume it. This provider needs the
@@ -57,7 +58,7 @@ export default definePlugin({
     yield* slots.contribute(root, () => <ErrorBoundary fallback={(error) => {
       console.error(error)
       return <Fault text={String(error)} />
-    }}><Frame slots={slots} router={router} /></ErrorBoundary>, {
+    }}><Frame slots={slots} /></ErrorBoundary>, {
       children: [sidebar, tools, contentStatus, overlays, strip, content, paletteAdapters, ...Object.values(slotContracts), ...Object.values(navigationSlots)],
       activate: Effect.gen(function*() {
         for (const start of [trackVisibleViewport, trackDesktop, followLayout]) {
@@ -78,6 +79,15 @@ import { calledApp,followName,startedAt } from "./named.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { connectionReadout,olai } from "@olai/web/client/wire.ts"
 export const components = {
+  /** Holds the router for the shell, and leaves with navigation. */
+  router: definePlugin({ name: "router", needs: [navigation], apply: Effect.gen(function*() {
+    const router = yield* navigation
+    yield* Effect.acquireRelease(Effect.sync(() => {
+      const dropRoutes = holdRouting(router.routes)
+      const dropNav = holdNavigation(router)
+      return () => { dropRoutes(); dropNav() }
+    }), stop => Effect.sync(stop))
+  }) }),
   deployment: definePlugin({name: "deployment", needs: [Offers], apply: Effect.gen(function*() {
     yield* Effect.acquireRelease(Effect.sync(() => followName({
       readout: connectionReadout, ask: () => runAsync(olai.procedures.app.get()),
