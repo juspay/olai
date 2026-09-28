@@ -283,7 +283,7 @@ test("Tab goes under the sibling above, last among its children", () => {
 test("Tab on the first of its siblings has nothing to go under", () => {
   const failure = refused({ verb: "move", id: "demo", how: "in" })
   expect(failure._tag).toBe("UsageFailure")
-  expect(failure.message).toContain("no row above it")
+  expect(failure.message).toContain("no row above to indent under")
 })
 
 test("Shift+Tab goes up a level, immediately after the old parent", () => {
@@ -318,7 +318,7 @@ test("Shift+Tab one level down lands at top level, spelled `null`", () => {
 
 test("Shift+Tab at the top level is refused", () => {
   expect(refused({ verb: "move", id: "kitchen", how: "out" }).message)
-    .toContain("already at the top level")
+    .toContain("Already at the top level")
 })
 
 test("Alt+Shift+↑/↓ swaps with the sibling above or below", () => {
@@ -358,7 +358,7 @@ test("indenting under a mirror of nothing is refused rather than doomed", () => 
     ].join("\n"),
   })
   expect(refused({ verb: "move", id: "two", how: "in" }, reading(set)).message)
-    .toContain("not in the loaded set")
+    .toContain("mirrors a row that isn't loaded")
 })
 
 test("a MIRROR moves as itself — a placement is a row a reader can reorder", () => {
@@ -747,7 +747,7 @@ test("an empty trash file is not in the list at all", () => {
   }))
   const failure = refused({ verb: "emptyTrash" }, at)
   expect(failure._tag).toBe("UsageFailure")
-  expect(failure.message).toBe("the Trash is empty, so there is nothing to delete")
+  expect(failure.message).toBe("The Trash is already empty")
 })
 
 test("the count the confirm showed travels, and is never re-derived here", () => {
@@ -767,7 +767,7 @@ test("an empty trash is refused HERE, in terms of the trash", () => {
   // the stale tab.
   const failure = refused({ verb: "emptyTrash" }, reading())
   expect(failure._tag).toBe("UsageFailure")
-  expect(failure.message).toBe("the Trash is empty, so there is nothing to delete")
+  expect(failure.message).toBe("The Trash is already empty")
 })
 
 // ── what would take a write back ───────────────────────────────────────

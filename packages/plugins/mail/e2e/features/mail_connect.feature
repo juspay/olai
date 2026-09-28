@@ -41,10 +41,13 @@ Feature: A Gmail account is a pill and a row, and both are readings of one cell
     # absence of the action says.
     And the mail row offers no Connect action
     # ...AND IT IS ASKING NOBODY. Only one group holds a row, so the group it
-    # IS filed under is how "not under Needs you" is said: the answer to a
+    # IS filed under is how "not under Needs attention" is said: the answer to a
     # missing credential is an operator's, not a press.
-    And the plugins panel groups "mail" under "Appliances"
+    And the plugins panel groups "mail" under "Connections"
     And the mail pill reads absent
+    # No account is the ordinary serve, not news: the row is quiet and the
+    # bar's one dot stays green.
+    And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
@@ -54,7 +57,7 @@ Feature: A Gmail account is a pill and a row, and both are readings of one cell
     # ASKING FOR A PERSON: no account and both doors set, so the row is filed
     # where somebody looks for what is stuck, it offers the press, and it draws
     # the one URI that has to be registered in Google Cloud by hand.
-    Then the plugins panel groups "mail" under "Needs you"
+    Then the plugins panel groups "mail" under "Needs attention"
     And the mail row offers the connect action
     And the mail row draws the redirect URI
     When I press Connect in the mail row
@@ -106,6 +109,10 @@ Feature: A Gmail account is a pill and a row, and both are readings of one cell
     And the server starts again on the same port
     And I reload the page
     Then the mail pill reads fault
+    # A fault is broken, so the bar's one dot is red and says so in the row's
+    # own words with the popover shut.
+    And the health dot is "alarm"
+    And the health dot names "Mail error"
     When I open the plugins panel
     Then the mail row's sentence names "invalid_grant"
     # ...AND THE SAME ACTION, DRAWN UNDER THE ROW'S OWN WORD FOR IT. A faulted
@@ -120,6 +127,7 @@ Feature: A Gmail account is a pill and a row, and both are readings of one cell
     And I press Connect in the mail row
     Then the consent tab says it connected as "you@gmail.com"
     And the mail pill reads connected
+    And the health dot is "healthy"
 
   @scratch:mail @rows-on:mail @mail-himalaya:mailbox @mail-google:granted @mail-doors
   Scenario: Disconnect revokes at Google and offers a Connect again
@@ -170,6 +178,8 @@ Feature: A Gmail account is a pill and a row, and both are readings of one cell
     # deliberately: a plugin that refused to load would take its own diagnosis
     # away with it (`../src/himalaya/run.ts`).
     Then the mail pill reads fault
+    And the health dot is "alarm"
+    And the health dot names "Mail error"
     When I open the plugins panel
     Then the mail row's sentence names "Nix build"
     # ...AND NO BUTTON, because a press could not work: the cell's `canConnect`

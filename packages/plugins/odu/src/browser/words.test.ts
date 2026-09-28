@@ -150,7 +150,7 @@ describe("a live run", () => {
     const said = wordsFor(run({ cells: many(10, "ok") }), 10_000)
     expect(said.text).toBe("ci · lanes · 10/10 ok")
     expect(said.tone).toBe("ok")
-    expect(said.title).toContain("the run is up")
+    expect(said.title).toContain("Running")
   })
 })
 
@@ -198,7 +198,15 @@ describe("the hover", () => {
       run({ state: "settled", outcome: "passed", cells: [cell({ id: "a@p", status: "ok" })] }),
       0,
     )
-    expect(said.title).toContain("settled")
+    expect(said.title).toContain("Finished")
     expect(said.title).toContain("/home/x/code/olai/.worktrees/a")
+  })
+
+  it("says a lost owner and an unknown run in plain words", () => {
+    expect(wordsFor(run({ state: "owner_lost", cells: many(2, "ok") }), 0).title)
+      .toContain("Stopped unexpectedly")
+    const unknown = wordsFor(run({ state: "unknown", repoRoot: "", cells: [] }), 0)
+    expect(unknown.title).toContain("Unknown run")
+    expect(unknown.title).toContain("Unknown checkout")
   })
 })

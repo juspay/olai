@@ -39,18 +39,26 @@ Feature: A lane names its CI run by odu's run id
   Scenario: No odu is said in the header
     Given I open the outline "board.olai"
     Then the odu readout is absent
+    # Olai never starts the service, so its absence is ordinary: the row is
+    # quiet and the bar's one dot stays green.
+    And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:odu-run @odu-service:live
   Scenario: A live service is the quiet odu face
     Given I open the outline "board.olai"
     Then the odu readout is connected
+    And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:odu-run @odu-service:skew
   Scenario: A skewed service names both versions
     Given I open the outline "board.olai"
     Then the odu readout is skew
+    # Two builds that cannot speak: the bar's one dot is red and names the row's
+    # own words with the popover shut.
+    And the health dot is "alarm"
+    And the health dot names "odu: update needed"
     And there should be no page errors
 
   @scratch:odu-run @odu-service:red

@@ -32,5 +32,9 @@
   "chat": [
     "src/browser/Wake.tsx"
   ],
-  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls."
+  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls.",
+  "alerts": [
+    "src/settings.ts"
+  ],
+  "//alerts": "The watch schema's description says `Terminal alerts and timing`: the word, not the alerts row."
 }

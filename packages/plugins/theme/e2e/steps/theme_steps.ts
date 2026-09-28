@@ -24,13 +24,18 @@ import type { Page } from "@olai/tests/harness/playwright.ts";
 import {
   customProperty,
   DEFAULT_THEME,
+  selector,
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
 } from "@olai/web/testlib";
+import { THEME_NAMES } from "@olai/appearance/palettes.ts";
 
+import { focusedOn } from "@olai/tests/harness/caret.ts";
 import { manifestOf } from "@olai/tests/harness/manifest.ts";
-import { hintOf, showPreferences } from "@olai/tests/harness/preferences.ts";
-import { attr, POLL_TIMEOUT, THEME_CHIP } from "@olai/tests/harness/world.ts";
+import { showPreferences } from "@olai/tests/harness/preferences.ts";
+import { pressed } from "@olai/tests/harness/settling.ts";
+import { TESTID } from "@olai/tests/harness/testids.ts";
+import { attr, POLL_TIMEOUT, PREFS_ROW, THEME_CHIP } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** What the parse probe leaves on `window`. Named once: an init script and two
@@ -118,24 +123,64 @@ Then("the page names no theme", async function (this: OlaiWorld) {
 
 /**
  * The Theme row NAMES the theme in force — including the default when nobody
- * has picked.
+ * has picked — once, quietly, beside its label.
  *
  * This is the promise the retired header pill carried, kept where the rest of
  * the preferences are said. It is worth its own step for the reason it was
  * worth one there: mutation-tested, hard-coding the name to "chalk" passed
- * every theming scenario until something asserted it. Chips wearing their
- * palettes say which is which and not which is ON.
+ * every theming scenario until something asserted it. Swatches wearing their
+ * palettes say which is which and not which is ON — and a swatch carries no
+ * word at all.
+ *
+ * Waited for rather than read once: a pick crossing from another tab lands
+ * on a `storage` event, and the name follows it a frame later.
  */
 Then(
   "the theme row names the theme in force",
   async function (this: OlaiWorld) {
-    const expected = (await namedTheme(this)) ?? DEFAULT_THEME;
-    // `hintOf` opens the panel itself — this step reads a sentence, not a chip.
-    const hint = (await hintOf(this, "theme")).trim();
-    assert.ok(
-      hint.startsWith(expected),
-      `the Theme row says "${hint}", but the page is in "${expected}"`,
-    );
+    await showPreferences(this.page);
+    const named = themeRow(this).locator(selector(TESTID.prefsValue));
+    await named.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    let said = "";
+    let expected = "";
+    await this.waitUntil(async () => {
+      expected = (await namedTheme(this)) ?? DEFAULT_THEME;
+      said = (await named.innerText()).trim();
+      return said.toLowerCase() === expected.toLowerCase();
+    }, "the Theme row to name the theme in force").catch(() => {
+      assert.fail(`the Theme row names "${said}", but the page is in "${expected}"`);
+    });
+  },
+);
+
+/** The Theme row, by the preference it sets. */
+const themeRow = (world: OlaiWorld) =>
+  world.page.locator(`${PREFS_ROW}${attr("data-pref", "theme")}`);
+
+// ── the keyboard ───────────────────────────────────────────────────────
+
+/** Walk the caret with Tab — the way a keyboard reaches a swatch, rather than
+ *  a `focus()` no person can make — until it stands on the one offering
+ *  `theme`. Bounded, and the failure names where the caret got to. */
+When(
+  "I Tab to the {string} swatch",
+  async function (this: OlaiWorld, theme: string) {
+    await showChips(this);
+    let at = "nothing";
+    for (let presses = 0; presses < 40; presses += 1) {
+      at = await focusedOn(this);
+      if (at === `${TESTID.themeChip}=${theme}`) return;
+      await pressed(this, "Tab");
+    }
+    assert.fail(`forty Tabs never reached the ${theme} swatch; the caret is on ${at}`);
+  },
+);
+
+Then(
+  "the {string} swatch has the focus",
+  async function (this: OlaiWorld, theme: string) {
+    const at = await focusedOn(this);
+    assert.equal(at, `${TESTID.themeChip}=${theme}`, `the caret is on ${at}, not on the ${theme} swatch`);
   },
 );
 
@@ -194,9 +239,22 @@ Then(
       elements.map((element) => ({
         value: (element as HTMLElement).dataset.value ?? null,
         pressed: element.getAttribute("aria-pressed"),
+        name: element.getAttribute("aria-label"),
       })),
     );
-    assert.ok(chips.length > 0, "the picker offers no chips at all");
+    // ONE SWATCH PER PALETTE, and each one NAMED: a swatch is a colour with
+    // no word on it, so its accessible name (and its tooltip) is the only
+    // way a screen reader — or anybody unsure of a colour — knows what it is.
+    assert.deepStrictEqual(
+      chips.map((chip) => chip.value).sort(),
+      [...THEME_NAMES].sort(),
+      "the swatches are not one per palette",
+    );
+    assert.deepStrictEqual(
+      chips.filter((chip) => (chip.name ?? "").toLowerCase() !== chip.value),
+      [],
+      "a swatch does not announce the palette it offers",
+    );
     assert.deepStrictEqual(
       chips.filter((chip) => chip.pressed !== "true" && chip.pressed !== "false"),
       [],

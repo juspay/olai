@@ -359,6 +359,13 @@ core's presentation types. An optional `confirm` sentence asks the row menu to
 show its existing confirmation controls before calling `run`; cancellation or
 dismissing the menu does not invoke the action.
 
+An entry may instead be a choice: `{ id, label, writes, choices }`, where
+`choices` is a list of ordinary actions. The menu draws it as a submenu, so a
+verb with several options (chat's `Start an agent ›`, one entry per engine) costs
+the top level one line. A plugin with only one option hands a plain action. Every
+entry says whether it `writes`; the menu groups the reads before the writes and
+keeps `Move to Trash` last.
+
 ### chrome and mount
 
 `chrome` is a component in the header (kolu's padi readout, a row of the health-dot popover). `mount` is the
@@ -777,7 +784,7 @@ absent at every moment, not only at boot.
   kolu.on = no   ⇒   kolu's row is patched `disabled` and never applies
 
                       no sibling surface        no probe run
-                      no wire tag               no chrome pill
+                      no wire tag               no header readout
                       no handler                no tab half mounted
                       no expose row             no dressing licensed
                       no surface/kolu/ at all   its kinds validate as plain text
@@ -919,7 +926,7 @@ appliance olai has a judgement about. Smaller shape, same rules.
   its own optional `row` component. It consumes the `chat.engines` service's
   `row(name)` face and registers it in `plugins.row` under the engine's own
   identity. The imported door contains only a tag and interface, never a
-  component factory. Missing engines belong in **Needs you**; when chat is
+  component factory. Missing engines belong in **Needs attention**; when chat is
   absent the component pends.
 - Put the absence sentence in `src/install.ts`, spent by the server probe:
   a `NotHere` whose `why` is a whole sentence the reader does not compose.

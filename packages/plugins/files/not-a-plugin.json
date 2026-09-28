@@ -43,5 +43,6 @@
   "vault": [
     "src/Files.tsx",
     "src/testids.ts"
-  ]
+  ],
+  "//sidebar": "The rail's button is labelled `Open the sidebar`: the column a person sees, not the sidebar row."
 }

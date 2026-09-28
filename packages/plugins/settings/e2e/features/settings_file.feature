@@ -10,6 +10,7 @@ Feature: The vault settings file applies policy to running rows
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off","push":"off"}}
       """
     And I open the plugins panel
+    And I expand the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     When I rewrite "_olai/Settings.olai" as:
       """
@@ -33,6 +34,7 @@ Feature: The vault settings file applies policy to running rows
       {"id":"identity-policy","ord":"a0","title":"identity","custom":{"login-header":"Remote-User"}}
       """
     And I open the plugins panel
+    And I expand the plugin "identity"
     Then the plugins panel shows "identity" configured "login-header" as "Remote-User"
     When I rewrite "Settings.olai" as:
       """
@@ -56,6 +58,7 @@ Feature: The vault settings file applies policy to running rows
   Scenario: A switch authors a durable namespace and links to it
     Given I open the app
     When I open the plugins panel
+    And I expand the plugin "git"
     Then the plugin "git" has inline controls
     When I switch the plugin "journal" off
     Then the plugin "journal" is off without prose
@@ -89,6 +92,7 @@ Feature: The vault settings file applies policy to running rows
       {"id":"policy-target","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
     And I open the plugins panel
+    And I expand the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     And the plugin "git" marks "commit" as authored by "vault"
     And the plugins panel shows "git" configured "push" as "off"
@@ -104,6 +108,7 @@ Feature: The vault settings file applies policy to running rows
       {"id":"policy-return","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
     And I open the plugins panel
+    And I expand the plugin "git"
     Then the plugins panel shows "git" configured "commit" as "off"
     When I switch the plugin "navigation" off
     Then the plugin "git" has no policy link
@@ -113,6 +118,7 @@ Feature: The vault settings file applies policy to running rows
       {"id":"restore-navigation","ord":"a1","title":"navigation","custom":{"on":"yes"}}
       """
     And I open the plugins panel
+    And I expand the plugin "git"
     And I follow the policy link for "git"
     Then the policy link targets node "policy-return"
     And there should be no page errors
@@ -156,6 +162,7 @@ Feature: The vault settings file applies policy to running rows
       {"id":"agent-policy","ord":"a1","title":"git"}
       """
     And I open the plugins panel
+    And I expand the plugin "git"
     Then file "_olai/Settings.olai" has namespace "journal" setting "on" as "<before>"
     Given a terminal agent is connected to the served directory
     When the terminal agent sets property "on" on "reserved-choice" to "<after>"

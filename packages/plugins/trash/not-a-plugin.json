@@ -23,5 +23,6 @@
   "vault": [
     "src/server.ts",
     "src/tools.ts"
-  ]
+  ],
+  "//outlines": "The empty Trash says deleted `outlines` appear there: the word, not the outlines row."
 }

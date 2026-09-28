@@ -1,6 +1,7 @@
 {
   "alerts": [
     "src/browser.tsx",
+    "src/browser/chat/Wake.tsx",
     "src/browser/chat/attention/attention.ts"
   ],
   "capture": [
@@ -8,6 +9,7 @@
   ],
   "files": [
     "src/browser/agents/Fold.tsx",
+    "src/browser/chat/CompletionMenu.tsx",
     "src/browser/chat/Composer.tsx",
     "src/browser/chat/DropTarget.tsx",
     "src/browser/chat/holding.ts",
@@ -40,14 +42,13 @@
     "src/browser/verbs.tsx"
   ],
   "outlines": [
-    "src/adapter.ts",
-    "src/browser/chat/NoAgent.tsx",
-    "src/browser/chat/Unopened.tsx"
+    "src/adapter.ts"
   ],
   "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin.",
   "search": [
     "src/agents/roster.ts",
     "src/browser/agents/AgentPalette.ts",
+    "src/browser/chat/Composer.tsx",
     "src/browser/chat/Model.tsx",
     "src/browser/chat/completion.ts",
     "src/testids.ts"
@@ -65,8 +66,9 @@
     "src/browser.tsx"
   ],
   "vault": [
-    "src/browser/agents/AgentPalette.ts",
     "src/browser/chat/outline.ts",
     "src/server.ts"
-  ]
+  ],
+  "//alerts": "The wake strip's accessible label says `alerts` as an ordinary word, not the alerts row.",
+  "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row."
 }

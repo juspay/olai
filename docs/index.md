@@ -75,7 +75,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/trash.md](plugins/trash.md) | Browsing trashed rows, restoring them, and emptying Trash. |
 | [plugins/alerts.md](plugins/alerts.md) | Notification permission, sound and badges owned by a tab-only channel row. |
 | [plugins/preferences.md](plugins/preferences.md) | The preferences panel and the slot other plugins add controls to. |
-| [plugins/theme.md](plugins/theme.md) | Light and dark appearance, stored per browser and exposed in preferences. |
+| [plugins/theme.md](plugins/theme.md) | Palette, typeface and page size, stored per browser and set under Appearance in preferences. |
 | [plugins/plugin-inspector.md](plugins/plugin-inspector.md) | Plugin switches, activation reports, and retry. |
 
 ### File kinds

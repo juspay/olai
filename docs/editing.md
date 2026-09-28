@@ -46,7 +46,7 @@ The reconnect dialog can take focus without committing or closing the row editor
 
 An outline is a column of titles, so that is what it draws — that, and the short facts a node carries, which are drawn as a run of chips under the title whether the row is open or not (*What a node says about itself*, below). What waits behind the small dim **¶** beside the title is the node's **note** and what it points at. Press the ¶ (or **Space**, with it focused) and the row opens: the title line says so, its tags brighten, and the note appears in full under the facts. Press it again, click away, or press **Escape**, and the row folds back. A node with nothing behind it wears no ¶ at all, so the mark is always a promise there is something there — and a node whose only body is properties has none, because the properties are already on the row.
 
-**How much a row starts as is yours**, in *prefs → Notes*:
+**How much a row starts as is yours**, in *Preferences → Outlines → Row density*:
 
 - **Compact** — the title and its facts alone.
 - **Cozy** — those, and the first line of the note under them, clamped. This is the default, and the shape every row had before the compact switch existed.
@@ -62,7 +62,7 @@ It is a default and not a lock. The ¶ works at all three, and only rows you hav
 
 **The tags stay where they were written**, inline in the title, quieted by layout rather than by a box: no background, no border, brightening to the accent under the pointer and while the row is open. And each tag wears **a colour of its own**, read off its text: the hue is a stable hash of the tag as written, folded for case (`#Now` and `#now` are one tag, exactly as the search fold reads them) — so one tag is one hue on every face that draws a title (the tree, a breadcrumb, the palette, a day page), in light themes and dark alike, and two tags on one row separate at a glance. The alphabet does not colour: `#topic` and `@person` stay two namespaces shown by their sigil, while the hue separates the members inside either. The ink's lightness and chroma are each theme's, and every hue clears WCAG AA on every theme's page background by test — the colour never carries meaning the words do not. Pressing one still filters the page ([search.md](search.md)). Nodes' titles draw the same way wherever they appear — a tree row, a breadcrumb, a see-reference, a search or completion row, the move picker's heading, the commit panel, an outline diff the agent shows you — the pill and its hue come with them.
 
-**And how big all of it is set is yours too**, in *prefs → Size*: Medium, Large or Larger. One number moves the whole page — rows, gutter, badges, panels — and it is a multiple of your browser's own text size rather than a pixel count overriding it. The default is Large, a notch above the browser's own: a column of titles read all day is not a document.
+**And how big all of it is set is yours too**, in *Preferences → Appearance → Size*: Medium, Large or Larger. One number moves the whole page — rows, gutter, badges, panels — and it is a multiple of your browser's own text size rather than a pixel count overriding it. The default is Large, a notch above the browser's own: a column of titles read all day is not a document.
 
 ## The four marks, from the keyboard
 

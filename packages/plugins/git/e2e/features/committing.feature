@@ -32,7 +32,7 @@ Feature: Committing on purpose
     # same count of pending changes and different facts.
     Then the commit pill says "never"
     When I open the commit panel
-    Then the panel says the last commit was "not committed in this directory yet"
+    Then the panel says the last commit was "olai hasn't committed in this folder yet"
     And there should be no page errors
 
   Scenario: Pressing the pill again puts the panel away
@@ -193,8 +193,12 @@ Feature: Committing on purpose
       """
     Then the commit pill says "blocked"
     And the commit pill says 1 uncommitted
+    # Busy, not broken: a checkout will take the commit, so the bar's one dot
+    # is amber rather than red, and it names the row's own words.
+    And the health dot is "notice"
+    And the health dot names "1 uncommitted"
     When I open the commit panel
-    Then the panel says the repository is "detached"
+    Then the panel says the repository is "No branch is checked out"
     And the commit button is disabled
     And there should be no page errors
 
@@ -326,8 +330,12 @@ Feature: Committing on purpose
     # Git's own words, on the sentence a reader with no pointer gets.
     And the commit pill explains "CONFLICT"
     And the commit pill says the push was refused
-    And the commit pill reads "the last push was refused"
+    And the commit pill reads "Push refused"
     And the commit pill is alarming
+    # A promise not kept is broken, so the bar's one dot is red and says which
+    # with the popover shut.
+    And the health dot is "alarm"
+    And the health dot names "Push refused"
     When I open the commit panel
     Then the panel says auto-commit is paused
     And the panel says a push was refused

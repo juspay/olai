@@ -39,7 +39,7 @@ export default definePlugin({
 })
 ```
 
-A definition’s schema-derived controls appear inline beside its name on the plugins panel. Descriptions are tooltips and a ● marks authored values; for a definition, the authored value lives on its own node. ↺ removes the property. The ↗ beside its name links to that definition. The browser’s `plugins.configure` validates before writing and refuses `plugin` and `approved` as configuration keys, preserving the definition’s identity and approval. A knob edit re-applies the row; setting an explicit value equal to its default changes authorship without restarting it. Invalid leaves use defaults, warn once, and show the file text and schema message beneath their controls; an invalid schema fails only that definition. Source approval hashes the server and browser source, so a knob edit keeps approval while a source edit requires approval of its new version. A plugin declaring live config updates retains its activation and can follow its own node through its declared vault service.
+A definition’s schema-derived controls appear in its row’s detail on the plugins panel (press the chevron beside its name). Descriptions are tooltips and a ● marks authored values; for a definition, the authored value lives on its own node. ↺ removes the property. `Saved in` in the same detail links to that definition. The browser’s `plugins.configure` validates before writing and refuses `plugin` and `approved` as configuration keys, preserving the definition’s identity and approval. A knob edit re-applies the row; setting an explicit value equal to its default changes authorship without restarting it. Invalid leaves use defaults, warn once, and show the file text and schema message beneath their controls; an invalid schema fails only that definition. Source approval hashes the server and browser source, so a knob edit keeps approval while a source edit requires approval of its new version. A plugin declaring live config updates retains its activation and can follow its own node through its declared vault service.
 
 ## What a half may import
 
@@ -67,7 +67,7 @@ The server half's `@olai/plugin-api` is the runtime door (`Kinds`, `Vault`, `Sur
 
 Nothing mounts until a person approves it, at the plugins panel, with the source in front of them.
 
-The panel draws the definition **on its own row**, in **Defined here** once it is running, and in **Needs you** while it is `pending`: the two halves in full, and — on a row that is `pending` — two buttons.
+The panel draws the definition **on its own row**, under **Your plugins** once it is running, and under **Needs attention** while it is `pending`, with its detail open: the two halves in full, and — on a row that is `pending` — two buttons.
 
 - **Approve this version** writes `approved: <content hash>` on the plugin's node.
 - **Approve always** writes `approved: always`.

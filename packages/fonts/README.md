@@ -14,9 +14,9 @@ Two entry points, one per reader. `@olai/fonts` is what a PAGE reads — the pic
 
 ## The three tokens
 
-`--font-sans` is the chrome (header, sidebar, notes, chat). `--font-serif` is the page (outline titles, a document). `--font-mono` is the furniture that has to be tabular (a SHA, a diff, a breadcrumb). A row answers all three, so picking a font is one decision and not three.
+`--font-sans` is the interface (header, sidebar, notes, chat, every panel). `--font-serif` is the page (outline titles, a document). `--font-mono` is for code-like values only (a SHA, a path, a diff, a key) — never a label. A row answers all three, so picking a font is one decision and not three.
 
-The default is **Olai** — titles in Literata, chrome in iA Writer Quattro, code in iA Writer Mono. **Atkinson Hyperlegible Next** remains a pick, for a page that wants one voice. Generics (System, Sans-serif, Terminal, …) name only what a browser already has and download nothing.
+The default is **olai** — titles and documents in Literata, the interface in Inter, code in iA Writer Mono. The interface used to be iA Writer Quattro, a duospace face; beside real code it read as monospace, so every label looked like code. **iA Writer Quattro** stays a pick of its own, and **Atkinson Hyperlegible Next** remains one for a page that wants one voice. Generics (System, Sans-serif, Terminal, …) name only what a browser already has and download nothing. The Font select groups them as *olai*, *Generic* and *Typefaces*.
 
 ## Adding a typeface
 
@@ -37,9 +37,9 @@ nix build .#olai-fonts   # the directory itself, if you want to look at it
 
 ## What is NOT here
 
-**The pick.** Which typeface this browser is in, and what pressing an option does, is client state and lives in `@olai/web` (`theme/fontState.ts`, `theme/FontSelect.tsx`) — beside the theme's, because a font is the same kind of preference: written on `<html>` by the shell's boot script before the first paint, stored under `olai.font` in that browser, and never sent anywhere.
+**The pick.** Which typeface this browser is in, and what pressing an option does, is client state and lives in the `theme` plugin (`packages/plugins/theme/src/state.ts`, `FontSelect.tsx`) — beside the palette's, because a font is the same kind of preference: written on `<html>` by the shell's boot script before the first paint, stored under `olai.font` in that browser, and never sent anywhere.
 
-**The `@theme` block.** Tailwind can only generate `font-sans` for a `--font-sans` it has seen, so `@olai/web`'s `styles.css` spells the token names and the default row's stacks by hand. That is the one hand-copy, and `theme/fonts.test.ts` over there holds it to this table.
+**The `@theme` block.** Tailwind can only generate `font-sans` for a `--font-sans` it has seen, so `@olai/appearance`'s `tokens.css` spells the token names and the default row's stacks by hand. That is the one hand-copy, and `@olai/appearance`'s `fonts.test.ts` holds it to this table.
 
 ## Layering
 

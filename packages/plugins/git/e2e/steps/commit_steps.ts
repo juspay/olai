@@ -693,7 +693,7 @@ Then(
       .locator(COMMIT_SCOPE)
       .textContent({ timeout: POLL_TIMEOUT });
     assert.ok(
-      (said ?? "").includes("whole repository"),
+      (said ?? "").includes("Whole repository"),
       `expected the scope line to say what it covers, but it says "${said}"`,
     );
   },
