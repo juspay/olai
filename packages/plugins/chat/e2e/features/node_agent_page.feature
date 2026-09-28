@@ -82,8 +82,8 @@ Feature: A node's page holds its memory and conversation
     When I scroll to the bottom of the page
     Then the page head has scrolled away and the transcript has most of the screen
     And the node's name is pinned on one line under the chrome
-    When I tap the pinned node name
-    Then the page title has the phone's whole line
+    # …and back at the head, the head covers it again.
+    And the page title has the phone's whole line
     And there should be no page errors
 
   @node-idle-fast
