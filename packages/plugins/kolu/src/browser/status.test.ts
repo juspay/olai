@@ -10,9 +10,12 @@
 
 import { expect, mock, test } from "bun:test"
 
-import type { KoluLink, WatchPulse } from "olai-plugin-kolu/appliance/wire"
-
 import { padiSaid } from "../appliance/padi/said.ts"
+
+// The wire's types, read off the function that takes them: `src/browser/`
+// names no part of the appliance's tier (`../faces.test.ts`), tests included.
+type KoluLink = Parameters<typeof padiSaid>[0]
+type WatchPulse = NonNullable<Parameters<typeof padiSaid>[1]>
 
 // `./status.ts` reaches `padiSaid` through the appliance's one door
 // (`../appliance/index.ts`), which also re-exports the terminal door's Solid

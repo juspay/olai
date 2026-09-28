@@ -1,0 +1,6 @@
+{
+  "files": [
+    "src/FileWake.tsx"
+  ],
+  "//files": "The file picker's empty line reads `No matching files`: the word, not the files row."
+}
