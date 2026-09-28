@@ -44,6 +44,9 @@ export const TESTID = {
   nodeMenu: "node-menu",
   nodeMenuPanel: "node-menu-panel",
   nodeMenuItem: "node-menu-item",
+  /** A submenu's panel (`Mark ›`, `More ›`, a plugin's choice); `data-sub`
+   *  names the entry that opened it. */
+  nodeMenuSub: "node-menu-sub",
   nodeMenuConfirm: "node-menu-confirm",
   nodeMenuSaid: "node-menu-said",
   blocked: "blocked",
