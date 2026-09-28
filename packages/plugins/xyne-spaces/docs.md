@@ -13,13 +13,13 @@ Two facts, and they live in different places because one is a secret:
 
 **Off by default.** Set `on: yes` on the `xyne-spaces` node in `_olai/Settings.olai`, or use its durable panel switch. The build keeps this integration opt-in because not every machine has a Spaces credential.
 
-No env and no `xyne-channel` → the plugin is honestly **absent**, not broken. A node agent with `xyne-channel` and no env is a **fault**, not absent: the user named a channel and this process cannot post. The pill is loud and names the missing env; the first bound conversation is told once.
+No env and no `xyne-channel` → the plugin is honestly **absent**, not broken. A node agent with `xyne-channel` and no env is a **fault**, not absent: the user named a channel and this process cannot post. The readout is loud — it turns the header's health dot red — and names the missing env; the first bound conversation is told once.
 
 A row of the header's health-dot popover is a readout with three states rather than two (a fault turns the dot red; absent leaves it alone):
 
 - `● xyne` — both env vars are set and the last post (if any) was accepted;
-- `● no xyne`, dim — nothing is configured (no env, no bind), and the tip names **where olai looked** (`OLAI_SPACES_URL` / `OLAI_SPACES_TOKEN`);
-- `● xyne fault` in the alarm colour — a post was refused, or a channel is bound and the env is missing, and the tip names **which**.
+- `● No xyne`, dim — nothing is configured (no env, no bind), and the tip names **where olai looked** (`OLAI_SPACES_URL` / `OLAI_SPACES_TOKEN`);
+- `● xyne error` in the alarm colour — a post was refused, or a channel is bound and the env is missing, and the tip names **which**.
 
 The third is why the readout is not a boolean. *Nothing was ever configured* and *a channel is bound but the process has no app* have opposite loudness, and a fault reported as absent would hide the bind the user already wrote.
 
@@ -35,7 +35,7 @@ The bind is a property on the **node agent**, next to `agent-session`:
 
 `xyne-channel` is required on that node; without it nothing posts. The session is the current `agent-session` pointer — *fresh session* re-points it and the mirror follows, because the node is the identity. A conversation no node claims (Unassigned) does not post. Trim is 500 Unicode code points; there is no second file of knobs.
 
-olai never writes this property. Turning the plugin on without it is a connected pill that posts nothing.
+olai never writes this property. Turning the plugin on without it is a connected readout that posts nothing.
 
 ## What mirrors
 
@@ -57,7 +57,7 @@ A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Hum
 
 ## Failure honesty
 
-A refused post, and a bind whose process has no Spaces app, are said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped at 32) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A missing channel (a typo in `xyne-channel`) keeps retrying with the fault said. A dead Spaces thread is forgotten and the digest re-opens one. A 4xx that will never accept (a validation error) is dropped so it cannot wedge the rest. Overflow of the cap drops the oldest and **says so**, with the count. The pill stays on `xyne fault` until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
+A refused post, and a bind whose process has no Spaces app, are said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped at 32) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A missing channel (a typo in `xyne-channel`) keeps retrying with the fault said. A dead Spaces thread is forgotten and the digest re-opens one. A 4xx that will never accept (a validation error) is dropped so it cannot wedge the rest. Overflow of the cap drops the oldest and **says so**, with the count. The readout stays on `xyne error` (and the dot red) until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
 
 ## What it is not
 

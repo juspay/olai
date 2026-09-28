@@ -28,23 +28,23 @@ For the home-manager service that is the `environmentFile` ([running.md](../runn
 ## Connecting
 
 1. Open the plugins panel (the **Plugins** row at the foot of the header's health-dot popover) and switch **mail** on. It is off by default because it needs these credentials.
-2. The row moves to **Needs you** and shows a **Connect Gmail** button, with the redirect URI to register above it. If the two environment variables are missing, the row says so instead and shows no button; set them and restart.
+2. The row moves to **Needs attention** and shows a **Connect Gmail** button, with the redirect URI to register above it. If the two environment variables are missing, the row says so instead and shows no button; set them and restart.
 3. Press **Connect Gmail**. Google opens in a new tab. Choose the mailbox and approve.
 4. Google sends you back to olai. The tab says *Connected as you@gmail.com* and can be closed.
 
-The header now shows `● mail you@gmail.com`, and the row shows the address, how many messages the mailbox holds, when the token was last refreshed, and the permission granted.
+The header's readout now shows `● Mail you@gmail.com`, and the row shows the address, how many messages the mailbox holds, when the token was last refreshed, and the permission granted.
 
 Olai asks Google for the `gmail.modify` permission. That covers reading, labelling, archiving, moving to and from Trash, and drafts. The permission technically allows sending too, but olai exposes no send command. It does not cover permanent deletion, and olai will not ask for it. One mailbox per olai.
 
 ## What the header readout means
 
-On a desktop the readout is a row of the popover the header's health dot opens. A fault turns the dot red and names `mail fault`; a token being retried turns it amber.
+On a desktop the readout is a row of the popover the header's health dot opens. A fault turns the dot red and names `Mail error`; a connected mailbox whose token is being retried turns it amber. No account at all leaves it alone.
 
 | Row | Meaning |
 | --- | --- |
-| `● mail you@gmail.com` | Connected. Hover for details. |
-| `● no mail` | No account is connected. Connect one from the plugins panel. |
-| `● mail fault` | Something needs attention. The tooltip and the row say what. |
+| `● Mail you@gmail.com` | Connected. Hover for details. |
+| `● No mail` | No account is connected. Connect one from the plugins panel. |
+| `● Mail error` | Something needs attention. The tooltip and the row say what. |
 
 The row is drawn only while the plugin is on.
 
@@ -52,7 +52,7 @@ The row is drawn only while the plugin is on.
 
 The `mail` row in the plugins panel always says what happened in plain words. Most faults fall into two kinds.
 
-**Google or the network was briefly unavailable.** Olai keeps your connection and retries by itself, first after thirty seconds and then at longer intervals up to ten minutes. While the previous token is still valid the pill stays `connected` and the row adds what it is retrying. If the outage outlasts the token, the pill shows `mail fault` until the retry succeeds. You do not need to do anything.
+**Google or the network was briefly unavailable.** Olai keeps your connection and retries by itself, first after thirty seconds and then at longer intervals up to ten minutes. While the previous token is still valid the readout stays connected, the row adds what it is retrying, and the health dot goes amber. If the outage outlasts the token, the readout shows `Mail error` until the retry succeeds. You do not need to do anything.
 
 **The Gmail API is not enabled.** The row shows Google's sentence *Gmail API has not been used in project … before or it is disabled*, with a link. Open the link, press **Enable**, and wait. Olai treats this as a temporary condition and keeps retrying, so the row heals within a few minutes with no further press.
 
@@ -68,7 +68,7 @@ If the redirect back to olai fails, the page Google sends you to explains why. T
 
 ## Disconnecting
 
-Press **Disconnect** on the row. Olai revokes the permission at Google, forgets the stored token, and the pill returns to `no mail`. Switching the plugin off keeps the stored token but stops using it; switching it back on reconnects without asking you again.
+Press **Disconnect** on the row. Olai revokes the permission at Google, forgets the stored token, and the readout returns to `No mail`. Switching the plugin off keeps the stored token but stops using it; switching it back on reconnects without asking you again.
 
 ## What olai stores
 
@@ -114,7 +114,7 @@ Attachment stories round KiB sizes to one decimal place.
 
 ## Waking an agent when mail arrives
 
-Open your triage agent's conversation and turn **wake on new mail** on in its strip. Connect Gmail in the plugins panel. New inbox mail then wakes that conversation with a digest: sender, subject, date, thread id, unread status and a short preview. A busy conversation receives one combined digest when its turn finishes. Each conversation starts with the switch off; only a person can turn it on.
+Open your triage agent's conversation and turn **Alert on new mail** on in its strip. Connect Gmail in the plugins panel. New inbox mail then wakes that conversation with a digest: sender, subject, date, thread id, unread status and a short preview. A busy conversation receives one combined digest when its turn finishes. Each conversation starts with the switch off; only a person can turn it on.
 
 The first check starts from now, without replaying the inbox. Switch the wake off to stop; turning it back on starts from then. Restarts resume the saved position. If Gmail's history has expired, the watcher starts from now again without replaying the gap. Use `mail_inbox` whenever you want the current inbox, including any mail missed during that gap. Digests show at most 50 threads and say how many more arrived.
 

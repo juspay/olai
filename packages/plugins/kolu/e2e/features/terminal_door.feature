@@ -71,7 +71,7 @@ Feature: The `terminal` property is a DOOR
     # hangs on its row, so that row has to be on the page.
     And I show the done nodes
     Then the terminal on "old-implement" has no row
-    And the terminal on "old-implement" says "no longer in the fleet"
+    And the terminal on "old-implement" says "This terminal was closed"
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
@@ -127,7 +127,7 @@ Feature: The `terminal` property is a DOOR
     # as "we looked and it is quiet", which is the one confusion the design refuses.
     Given I open the outline "lanes.olai"
     Then the terminal on "door-implement" has no row
-    And the terminal on "door-implement" says "no padi is running"
+    And the terminal on "door-implement" says "kolu isn't running"
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
@@ -172,7 +172,7 @@ Feature: The `terminal` property is a DOOR
     And I show the done nodes
     When I watch the terminal on "quiet-implement"
     Then a snapshot pane opens on "quiet-implement"
-    And the pane refuses with "it may have closed"
+    And the pane refuses with "may have closed"
     And there should be no page errors
 
   @scratch:lanes @padi:ahead
@@ -188,7 +188,7 @@ Feature: The `terminal` property is a DOOR
     Given I open the outline "lanes.olai"
     Then the terminal on "door-implement" has no row
     And the terminal on "door-implement" says "99.0"
-    And the terminal on "door-implement" says "upgrade"
+    And the terminal on "door-implement" says "Update one of them"
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
@@ -233,6 +233,7 @@ Feature: The `terminal` property is a DOOR
     # all. So the link gets a chrome readout beside the connection pill.
     Given I open the outline "lanes.olai"
     Then the padi indicator says "connected"
+    And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:lanes
@@ -241,7 +242,10 @@ Feature: The `terminal` property is a DOOR
     # nothing — a laptop that is not running kolu, which is most of them.
     Given I open the outline "lanes.olai"
     Then the padi indicator says "absent"
-    And the padi indicator explains "no padi is answering"
+    And the padi indicator explains "kolu isn't running"
+    # No padi is nothing wrong with this serve: the row is quiet and the bar's
+    # one dot stays green.
+    And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:lanes @padi:ahead
@@ -253,7 +257,11 @@ Feature: The `terminal` property is a DOOR
     Given I open the outline "lanes.olai"
     Then the padi indicator says "skew"
     And the padi indicator explains "99.0"
-    And the padi indicator explains "needs an upgrade"
+    And the padi indicator explains "Update one of them"
+    # ...and no terminal can be read, so the bar's one dot is red and names it
+    # with the popover shut.
+    And the health dot is "alarm"
+    And the health dot names "kolu: update needed"
     And there should be no page errors
 
   @scratch:lanes @padi:lanes

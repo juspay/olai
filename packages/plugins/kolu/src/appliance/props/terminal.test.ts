@@ -71,7 +71,7 @@ describe("a terminal property", () => {
     const reading = readingOf("t1", link({ status: "absent" }), empty)
     expect(reading.row).toBeUndefined()
     // The whole point: a reader must not be able to mistake this for "quiet".
-    expect(reading.says).toContain("no padi is running")
+    expect(reading.says).toContain("kolu isn't running")
     expect(reading.says).toContain("/run/user/1000/padi-abc/padi.sock")
   })
 
@@ -87,7 +87,7 @@ describe("a terminal property", () => {
     // Same shape, different sentence — which is the distinction that decides
     // what a reader does next.
     expect(noPadi.says).not.toBe(noTerminal.says)
-    expect(noTerminal.says).toContain("no longer in the fleet")
+    expect(noTerminal.says).toBe("This terminal was closed.")
   })
 
   it("names both versions on a skew, because one of the two has to move", () => {
@@ -129,15 +129,15 @@ describe("a terminal property", () => {
 })
 
 describe("the unwired reading", () => {
-  it("does not say 'olai looked at .' when there is no socket to name", () => {
+  it("does not say 'Looked at .' when there is no socket to name", () => {
     // A run drawn outside the fleet provider gets `KOLU_UNDIALED`, whose socket
     // is the empty string — a document's frontmatter, a test that mounts a
     // chip, and the first instant of a server's life. The naming sentence would
     // send a reader hunting for a path that is not there.
     const reading = readingOf("t1", { ...link(), status: "absent", socket: "" }, empty)
     expect(reading.row).toBeUndefined()
-    expect(reading.says).toBe("olai is not watching a padi here.")
-    expect(reading.says).not.toContain("looked at .")
+    expect(reading.says).toBe("kolu isn't set up.")
+    expect(reading.says).not.toContain("Looked at .")
   })
 })
 

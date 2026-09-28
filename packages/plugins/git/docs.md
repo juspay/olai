@@ -12,7 +12,7 @@ The `git` row is on by default. Set `on: no` on its top-level node in `_olai/Set
 {"id":"git","ord":"a0","title":"git","custom":{"on":"no"}}
 ```
 
-**Either way you are left with an outliner whose writes wait for nobody.** There is no pill, no `surface/git/` on the wire, and nobody to record a write — not a disabled version of any of them, an absent one.
+**Either way you are left with an outliner whose writes wait for nobody.** There is no Commit readout, no `surface/git/` on the wire, and nobody to record a write — not a disabled version of any of them, an absent one.
 
 ## The config
 
@@ -36,7 +36,7 @@ move onto the result only with one all-or-nothing tree update.
 
 ## In the browser
 
-The desktop Commit readout uses `app.header`: it is a row of the health-dot popover, and it declares a `status` (read off the same two cells by a root this row's activation owns) so the dot turns amber while writes wait or commits are unpushed and red on a git error, a refused push or a paused loop. `no git here` and `commits off` are quiet: they never colour the dot. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable while an agent conversation is open.
+The desktop Commit readout uses `app.header`: it is a row of the health-dot popover, and it declares a `status` (read off the same two cells by a root this row's activation owns) so the dot turns amber while writes wait, the repository is busy or commits are unpushed, and red on a git error, a refused push or a paused loop. `Not a git folder` and `Commits off` are quiet: they never colour the dot. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable while an agent conversation is open.
 
 ## On the wire
 
@@ -55,4 +55,4 @@ They are on the browser face. The MCP tools an agent calls are `git_commit` and 
 | `app.header` | `layout` — where a readout sits, and the dot its status colours | the Commit readout and its status |
 | `app.banner` | `layout` — where a banner sits over the page | the phone banner (news only) |
 
-The panel travels with the pill, portalled against the viewport, the way it always did.
+The panel travels with the readout, portalled against the viewport, the way it always did.
