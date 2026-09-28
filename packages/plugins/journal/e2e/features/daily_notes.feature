@@ -174,8 +174,8 @@ Feature: Daily notes
   @corpus:journal
   Scenario: A day cell says which marks it is wearing
     When I open the day "2019-11-05"
-    Then the day "2019-11-05" is announced as "2019-11-05, has a note and dated nodes"
-    And the day "2019-11-06" is announced as "2019-11-06, has dated nodes"
+    Then the day "2019-11-05" is announced as "2019-11-05, has a note and dated items"
+    And the day "2019-11-06" is announced as "2019-11-06, has dated items"
     And the day "2019-11-08" is announced as "2019-11-08, has a note"
 
   @corpus:journal

@@ -110,7 +110,7 @@ Feature: What is put away is on the Trash and nowhere else
     # On the day itself there is nothing archived to find — the page draws none
     # of it, and a filter narrows the page rather than re-asking its question.
     When I filter the page by "is:trashed"
-    Then the filter found "no matches of 1"
+    Then the filter found "No matches of 1"
     When I clear the filter
     And I press the palette shortcut
     And I type "is:trashed" into the palette

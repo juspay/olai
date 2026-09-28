@@ -77,7 +77,7 @@ Feature: The ••• menu on the agenda and a day's page
     And I mark the page
     When I open the node menu of "posts"
     And I choose "Move to Trash" from the node menu
-    Then the node menu asks "Move “dig the post holes” to the Trash? It keeps its id, and the Trash in the sidebar is where to put it back."
+    Then the node menu asks "Move “dig the post holes” to Trash? You can put it back from Trash in the sidebar."
     When I choose "Move to Trash" from the node menu
     Then the agenda does not list "posts"
     When I open the Trash

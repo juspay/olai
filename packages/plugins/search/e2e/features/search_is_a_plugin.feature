@@ -12,10 +12,11 @@ Feature: The matcher is a plugin
     # The palette opens as it always did, and asks as it always did. What is
     # behind the door is gone, so the answer carries the refusal every one of
     # these doors already draws for a query the grammar could not read — spent
-    # here on a serve that has no matcher to read it with.
+    # here on a serve that has no matcher to read it with, and says search is
+    # unavailable rather than that nothing matched.
     When I press the palette shortcut
     And I type "cabinets" into the palette
-    Then the search refuses "cabinets" and says "no matcher"
+    Then the search refuses "cabinets" and says "Search is unavailable right now."
     And there should be no page errors
 
   Scenario: Switching the row off takes the box out of the bar while you watch
@@ -46,7 +47,7 @@ Feature: The matcher is a plugin
     And I open the plugins panel
     And I switch the plugin "search" off
     And I use the original browser tab
-    Then the search refuses "cabinets" and says "no matcher"
+    Then the search refuses "cabinets" and says "Search is unavailable right now."
     When I use the other browser tab
     And I switch the plugin "search" on
     And I use the original browser tab

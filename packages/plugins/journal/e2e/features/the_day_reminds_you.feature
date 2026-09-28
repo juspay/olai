@@ -28,7 +28,7 @@ Feature: The day reminds you, and only once
     When I click the page
     And a task is due today
     Then the agenda entry nudges with 1 on today
-    And a notification says "Agenda: 1 on today"
+    And a notification says "Agenda: 1 due today"
     And the notification is tagged for today
     And the chime rang
     And the tab says nothing is waiting
@@ -41,7 +41,7 @@ Feature: The day reminds you, and only once
     And the notification worker is ready
     And I click the page
     When a task is due today
-    Then a notification says "1 on today"
+    Then a notification says "1 due today"
     And the chime rang
     When I remember the reminder
     And a second task is due today
@@ -56,7 +56,7 @@ Feature: The day reminds you, and only once
     And the notification worker is ready
     And I click the page
     When a task is due today
-    Then a notification says "1 on today"
+    Then a notification says "1 due today"
     And the chime rang
     When I reload the page
     And the notification worker is ready
@@ -72,7 +72,7 @@ Feature: The day reminds you, and only once
     And the notification worker is ready
     And I click the page
     When a task is due today
-    Then a notification says "1 on today"
+    Then a notification says "1 due today"
     And the chime rang
     When I open a second tab after the reminder
     Then there should be no page errors
@@ -88,7 +88,7 @@ Feature: The day reminds you, and only once
     And the notification worker is ready
     And I click the page
     When a task is due today
-    Then a notification says "1 on today"
+    Then a notification says "1 due today"
     And the chime rang
     When the notification is pressed
     Then the agenda says it is today
@@ -123,15 +123,14 @@ Feature: The day reminds you, and only once
     And the notification worker is ready
     When I set Reminders to "off"
     Then this browser has stored that reminders are "off"
-    And the Reminders row explains "Nothing says the day has work on it. The Agenda entry still shows it."
+    And the Reminders row explains "A daily summary of what's due"
     When a task is due today
     Then the agenda entry nudges with 1 on today
     And no notification has been raised
     And no chime rang
     When I set Reminders to "on"
-    Then a notification says "1 on today"
+    Then a notification says "1 due today"
     And the chime rang
-    And the Reminders row explains "with a chime if you have clicked the page since it opened."
     And there should be no page errors
 
   @scratch:journal @alerts
@@ -141,13 +140,12 @@ Feature: The day reminds you, and only once
     And the notification worker is ready
     When I set Alerts to "off"
     Then Reminders cannot be set
-    And the Reminders row explains "Alerts are off, so nothing will remind you."
     When a task is due today
     Then the agenda entry nudges with 1 on today
     And no notification has been raised
     And no chime rang
     When I set Alerts to "on"
-    Then a notification says "1 on today"
+    Then a notification says "1 due today"
     And the chime rang
     And there should be no page errors
 
@@ -194,7 +192,7 @@ Feature: The day reminds you, and only once
     When I open the plugins panel
     And I switch the plugin "journal" on
     Then the agenda entry nudges with 1 on today
-    And a notification says "1 on today"
+    And a notification says "1 due today"
     And the chime rang
     And the Reminders row is shown
     When I remember the reminder
@@ -211,7 +209,7 @@ Feature: The day reminds you, and only once
     Given every date is taken off "work.olai"
     And I open the app
     When I open the plugins panel
-    Then the plugins panel says "journal" is "Browser reminders: waiting for alerts.channel"
+    Then the plugins panel says "journal" is "In this tab (reminders): still starting (needs alerts.channel)."
     And the preferences have no alert rows
     When I press Escape on the preferences
     And a task is due today

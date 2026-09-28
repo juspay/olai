@@ -34,18 +34,22 @@ Feature: One health dot stands where the bar's pills stood
 
   @scratch:lanes @padi:lanes
   Scenario: A plugin switched off leaves the popover live, and comes back with a fresh row
+    # The popover is held behind the plugins panel while it is up — mounted,
+    # following the roster, but not drawn — so its rows can be read there.
     Given I open the outline "lanes.olai"
     When I open the plugins panel
-    Then the health popover is open
+    Then the health popover is held behind the plugins panel
     When I switch the plugin "kolu" off
-    Then the health popover is open
+    Then the health popover is held behind the plugins panel
     And the health popover has no "padi" row
     And the health dot is "healthy"
     When I switch the plugin "kolu" on
-    Then the health popover is open
+    Then the health popover is held behind the plugins panel
     And the health popover lists, in order:
       | connection |
       | padi       |
+    When I close the plugins panel
+    Then the health popover is shut
     And the padi indicator says "connected"
     And there should be no page errors
 

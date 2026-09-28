@@ -74,6 +74,18 @@ Then("the health popover is open", async function (this: OlaiWorld) {
   await this.expectAttribute(HEALTH, "aria-expanded", "true", "the health dot");
 });
 
+/** While the plugins panel (opened from the popover's foot) is up, the popover
+ *  stays MOUNTED — the panel's trigger lives in it — but is not drawn: it is
+ *  `aria-hidden` and invisible, so the panel is the one thing on screen rather
+ *  than a panel over a popover. Its rows still follow the roster underneath. */
+Then("the health popover is held behind the plugins panel", async function (this: OlaiWorld) {
+  const panel = this.page.locator(HEALTH_PANEL);
+  await panel.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+  await this.expectAttribute(HEALTH_PANEL, "aria-hidden", "true", "the health popover");
+  assert.equal(await panel.isVisible(), false, "the health popover is drawn over by the plugins panel");
+  await this.expectAttribute(HEALTH, "aria-expanded", "true", "the health dot");
+});
+
 Then("the health popover is shut", async function (this: OlaiWorld) {
   await this.page.locator(HEALTH_PANEL).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
   await this.expectAttribute(HEALTH, "aria-expanded", "false", "the health dot");
@@ -92,7 +104,8 @@ Then("the health dot has the focus", async function (this: OlaiWorld) {
 Then("the health popover lists, in order:", async function (this: OlaiWorld, table: { raw(): string[][] }) {
   const wanted = table.raw().map((row) => row[0] ?? "");
   const panel = this.page.locator(HEALTH_PANEL);
-  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // Attached rather than visible: the rows are read behind the plugins panel too.
+  await panel.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
   const order = async () => panel.evaluate((box) =>
     [...box.querySelectorAll("[data-testid]")].map((el) => el.getAttribute("data-testid") ?? "")
   );
@@ -118,7 +131,7 @@ Then("the health popover lists, in order:", async function (this: OlaiWorld, tab
 
 Then("the health popover has no {string} row", async function (this: OlaiWorld, id: string) {
   const panel = this.page.locator(HEALTH_PANEL);
-  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await panel.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
   await this.waitUntil(
     async () => (await panel.locator(attr("data-testid", id)).count()) === 0,
     `the ${id} row to leave the health popover`,

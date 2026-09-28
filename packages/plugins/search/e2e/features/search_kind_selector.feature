@@ -39,7 +39,7 @@ Feature: Search can narrow to nodes or files for the session
     When I press the palette shortcut
     And I type "is:done" into the palette
     And I pick search kind "Files"
-    Then the palette found "0 matches"
+    Then the palette found "No matches"
     And search kind "Files" is selected
     And there should be no page errors
 
@@ -78,7 +78,7 @@ Feature: Search can narrow to nodes or files for the session
     When I press "Tab"
     Then search kind "Files" is selected
     And the search refuses "is:open" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
-    And the header search found "0 matches"
+    And the header search found "No matches"
 
   Scenario: Picking Files leaves the move picker node-only
     When I press the palette shortcut

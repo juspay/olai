@@ -13,7 +13,7 @@ Feature: Palette drafts survive plugin changes
     And I close the plugins panel
     And I use the original browser tab
     Then the journal chrome is absent
-    And the palette asks "a name for this pin — Enter with nothing takes the name off"
+    And the palette asks "Rename this pin, or leave it blank"
     And the palette box holds "Kitchen project draft"
     When I click the palette box
     And I press "Enter"

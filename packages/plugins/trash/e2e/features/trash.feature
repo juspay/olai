@@ -238,7 +238,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     # same crumb the pill-press above lands on, here a RECORD line),
     # `August 2026` for catch-up, and the two rows themselves.
     And I press Empty trash
-    Then the Trash asks "Permanently delete all 7 rows in the Trash? Nothing in olai puts them back — the records leave the trash the way every other write does, so what survives is whatever git has already recorded."
+    Then the Trash asks "Permanently delete all 7 rows in Trash? olai can't bring them back. Only what git has already saved can be recovered."
     When I confirm emptying the Trash
     Then "_olai/Trash.olai" holds nothing
     And the Trash is empty

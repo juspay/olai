@@ -52,7 +52,7 @@ Feature: Pinning a page to the sidebar
     # A narrowed page is the one address nothing in the set can name, so the
     # palette asks what to call it — and ENTER WITH NOTHING is the bare pin this
     # app has always written, one keystroke from where the caret already is.
-    Then the palette asks "a name for this pin — Enter with nothing pins it unnamed"
+    Then the palette asks "Name this pin, or leave it blank"
     When I name the pin ""
     Then the pinned shelf holds "/house.olai?q=is%3Atodo"
     And "_olai/Pins.olai" holds a node titled "/house.olai?q=is%3Atodo"
@@ -108,7 +108,7 @@ Feature: Pinning a page to the sidebar
     # asked for this one, on #282).
     When I filter the page by "is:todo"
     And I pin the page
-    Then the palette asks "a name for this pin — Enter with nothing pins it unnamed"
+    Then the palette asks "Name this pin, or leave it blank"
     When I press "Escape"
     Then the pinned shelf is not drawn
     # The FILE, not just the column: a shelf olai never minted is the proof
@@ -128,7 +128,7 @@ Feature: Pinning a page to the sidebar
     Given the directory has the pins:
       | /#order |
     When I rename the pin "/#order"
-    Then the palette asks "a name for this pin — Enter with nothing takes the name off"
+    Then the palette asks "Rename this pin, or leave it blank"
     When I name the pin "Kitchen project"
     Then the pin "/#order" is named "Kitchen project"
     And "_olai/Pins.olai" holds a node titled "[Kitchen project](/#order)"

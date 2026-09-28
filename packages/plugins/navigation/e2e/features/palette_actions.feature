@@ -131,7 +131,7 @@ Feature: The ⌘K palette writes
     Given I open the node "install"
     When I press the palette shortcut
     And I choose "Move to Trash" from the palette
-    Then the palette asks "Move “install the cabinets” and the 3 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
+    Then the palette asks "Move “install the cabinets” and the 3 rows under it to Trash? You can put them back from Trash in the sidebar."
     And "house.olai" holds a node titled "install the cabinets"
 
   Scenario: The question takes the caret, and Tab cycles its two ways out
@@ -218,7 +218,7 @@ Feature: The ⌘K palette writes
   Scenario: The line about to become a node is previewed, so Enter is never a guess
     When I press the palette shortcut
     And I type "+ buy the walnut stain" into the palette
-    Then the palette previews the capture "capture to the Inbox: buy the walnut stain"
+    Then the palette previews the capture "Capture to the Inbox: buy the walnut stain"
 
   Scenario: A capture mints the inbox on first use and lands the line in it
     # The directory has no inbox, so the write is a `create` seeded with this
@@ -235,7 +235,7 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
     Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
-    And the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    And the palette remarks "Captured “buy the walnut stain” to _olai/Inbox.olai"
     And there should be no page errors
 
   Scenario: A second Enter on the first capture is not a second write
@@ -261,7 +261,7 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I type "+ buy the walnut stain" into the palette
     And I press "Enter" twice without waiting
-    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    Then the palette remarks "Captured “buy the walnut stain” to _olai/Inbox.olai"
     And "_olai/Inbox.olai" holds exactly 1 node titled "buy the walnut stain"
     And there should be no page errors
 
@@ -305,7 +305,7 @@ Feature: The ⌘K palette writes
     And I capture "buy the walnut stain" from the palette
     # The palette's own line rather than the disk, for the reason the op
     # scenario gives: it is said in the answer that files the inverse.
-    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    Then the palette remarks "Captured “buy the walnut stain” to _olai/Inbox.olai"
     And "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
     # The palette first: ⌘Z is dead while the box has the caret, because an
     # input has the platform's own undo in it — the same rule a draft follows.
