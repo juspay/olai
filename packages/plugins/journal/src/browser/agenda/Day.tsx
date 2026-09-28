@@ -225,7 +225,7 @@ export function Day(props: {
           fallback={
             <Show when={unfiltered(narrowed)}>
               <p class={`m-0 ${SPINE_INDENT} text-label italic text-muted opacity-80`}>
-                nothing due today
+                Nothing due today
               </p>
             </Show>
           }

@@ -43,7 +43,7 @@ export const newsOf = (statuses: ReadonlyArray<BarStatus>): ReadonlyArray<BarSta
  *  popover. */
 export const nameOf = (statuses: ReadonlyArray<BarStatus>): string => {
   const news = newsOf(statuses)
-  return news.length === 0 ? "status: all well" : `status: ${news.map((one) => one.label).join(" · ")}`
+  return news.length === 0 ? "Status: all good" : `Status: ${news.map((one) => one.label).join(" · ")}`
 }
 
 /** The tip: the name, and under it each piece of news's own sentence. */

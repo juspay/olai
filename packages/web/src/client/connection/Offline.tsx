@@ -75,17 +75,9 @@ import { createEffect, createMemo, onCleanup, Show } from "solid-js"
 
 import { withOfflineFocus } from "./focus.ts"
 import { reachable } from "./reaching.ts"
-import { lookOf, type SurfaceReadout } from "./status.ts"
+import { frozenLookOf, type SurfaceReadout } from "./status.ts"
 import { Reload } from "../Reload.tsx"
 
-
-/** What the freeze itself says, and the only sentence here that is not the
- *  pill's: the pill reports on the WIRE, and this reports on what that does to
- *  the app. Said only where waiting is the whole of the recovery — a retired
- *  wire is offered the reload instead, and telling somebody to wait for a
- *  connection that is never coming back would be the page pretending in the
- *  one state it must not. */
-const FROZEN = "Nothing on this page can be used until it is back."
 
 export function Offline(props: { readonly readout: SurfaceReadout }) {
   let overlay!: HTMLDialogElement
@@ -103,7 +95,7 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
    * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.1).
    */
   const frozen = createMemo(() => !reachable(props.readout))
-  const look = () => lookOf(props.readout)
+  const look = () => frozenLookOf(props.readout)
 
   // OPENING IS A CALL, not a class: the top layer is only entered through
   // `showModal`, and the inertness of everything else comes with it. Guarded on
@@ -157,16 +149,15 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
       // nothing to answer it.
       onCancel={(event) => event.preventDefault()}
     >
-      <h2 class="m-0 mb-1 text-title font-bold">{look().label}</h2>
-      <p class="m-0 text-body text-muted">{look().detail}</p>
+      <h2 class="m-0 mb-1 text-title font-bold">{look().title}</h2>
+      <Show when={look().line}>
+        {(line) => <p class="m-0 text-body text-muted">{line()}</p>}
+      </Show>
       {/* The recovery, where there is one. `needsReload` rides the readout
           (kolu#2160) rather than being re-derived from a list of terminal
           states kept here by hand — the hand-kept list is what once drew
           "reconnecting…" over a page that never would. */}
-      <Show
-        when={props.readout.needsReload}
-        fallback={<p class="m-0 mt-3 text-body text-muted">{FROZEN}</p>}
-      >
+      <Show when={props.readout.needsReload}>
         <div class="mt-4">
           <Reload onReload={reloadForUpdate} />
         </div>

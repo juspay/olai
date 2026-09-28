@@ -53,11 +53,11 @@ export function DayMint(props: { readonly date: string }) {
         data-testid={TESTID.dayMint}
         disabled={sending()}
         aria-busy={sending()}
-        aria-label={`create ${props.date}'s note`}
-        title={`create ${props.date}'s note`}
+        aria-label={`Create a note for ${props.date}`}
+        title={`Create a note for ${props.date}`}
         onClick={() => void mint()}
       >
-        {sending() ? "Creating…" : "+ day note"}
+        {sending() ? "Creating…" : "+ Day note"}
       </button>
       <Refused said={said()} testid={TESTID.dayMintSaid} />
     </div></Show>

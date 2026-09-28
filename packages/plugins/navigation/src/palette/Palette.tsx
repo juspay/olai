@@ -555,7 +555,7 @@ export function Palette(props: {
     setSending(true)
     setSaid(null)
     const adapter = adapters().find(adapter=>adapter.accepts?.(edit))
-    void (adapter?.write?.(edit) ?? Promise.resolve({tone:"alarm" as const,text:"No enabled capability can perform this action."})).then((line) => {
+    void (adapter?.write?.(edit) ?? Promise.resolve({tone:"alarm" as const,text:"Nothing here can do that right now."})).then((line) => {
       setSending(false)
       if (!current()) return
       if (line === undefined) {
@@ -625,7 +625,7 @@ export function Palette(props: {
       setSending(false)
       if (paletteRevision !== opened || queryRevision !== submitted || !prefixes().includes(prefix)) return
       console.error("Palette prefix action failed", failure)
-      setSaid({ tone: "alarm", text: "The action failed. Please try again." })
+      setSaid({ tone: "alarm", text: "That didn't work. Try again." })
     })
   }
 
@@ -677,7 +677,7 @@ export function Palette(props: {
         setAskError(refusal)
       },
       (fault: unknown) => {
-        if (current()) setAskError(`“${command.said}” could not be reached — see the console.`)
+        if (current()) setAskError(`“${command.said}” didn't work. Try again.`)
         console.error(`olai: the palette command "${command.prefix}" threw`, fault)
       },
     )
@@ -847,12 +847,12 @@ export function Palette(props: {
         data-testid={TESTID.palette}
         role="dialog"
         aria-modal="true"
-        aria-label="command palette"
+        aria-label="Command palette"
       >
         <button
           type="button"
           class="absolute inset-0 cursor-default"
-          aria-label="close the palette"
+          aria-label="Close"
           data-testid={TESTID.paletteScrim}
           // Asked of the stack like the key is, and for the same reason: this
           // is the palette's other dismissal, and a press on a full-screen
@@ -986,7 +986,7 @@ export function Palette(props: {
                     by="id"
                     fallback={
                       <li class="px-3 py-2 text-label text-muted">
-                        no matches
+                        No matches
                       </li>
                     }
                   >

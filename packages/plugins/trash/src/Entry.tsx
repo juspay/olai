@@ -44,7 +44,7 @@ export function Trash() {
 export function TrashRail() {
   const router = useRouter()
   return (
-    <RailButton testid={TESTID.railTrash} label="open the trash" title="trash" onClick={() => router.go(TRASH_ROUTE)}>
+    <RailButton testid={TESTID.railTrash} label="Open Trash" title="Trash" onClick={() => router.go(TRASH_ROUTE)}>
       <TrashGlyph class="size-4" />
     </RailButton>
   )

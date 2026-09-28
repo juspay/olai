@@ -852,11 +852,11 @@ export interface Routing {
 export const labelIn = (pages: MountedPages, route: Route): string => {
   if (route.kind === "at") {
     const address = route.address
-    if (address === null) return "outline"
+    if (address === null) return "Home"
     return address.kind === "node" ? address.id : address.path
   }
-  if (route.kind === "plugin") return routeFaceIn(pages, route)?.route.breadcrumb(route.value) ?? "plugin"
-  return "trash"
+  if (route.kind === "plugin") return routeFaceIn(pages, route)?.route.breadcrumb(route.value) ?? "Page"
+  return "Trash"
 }
 
 /**

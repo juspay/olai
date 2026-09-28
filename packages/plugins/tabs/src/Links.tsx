@@ -62,7 +62,7 @@ export function LinkMenu(props: { readonly tabs: TabsState; readonly router: Nav
 
   return (
     <Show when={open()} keyed>{(at) =>
-      <PointMenu x={at.x} y={at.y} label="link" close={() => setOpen(null)} entries={[
+      <PointMenu x={at.x} y={at.y} label="Link menu" close={() => setOpen(null)} entries={[
         { label: "Open", run: () => at.anchor.isConnected ? at.anchor.click() : props.router.open(at.workspace) },
         { label: "Open in new tab", run: () => props.tabs.open(at.workspace, { behind: true }) },
       ]} />

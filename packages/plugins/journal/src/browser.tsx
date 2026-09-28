@@ -92,14 +92,14 @@ export default definePlugin({
     yield* slots.register("app.palette", {
       id: "nav-today",
       label: "Go to today",
-      hint: "journal for this day",
+      hint: "Today's page",
       search: "go to today journal day calendar",
       href: dayKind.href({ today: true }),
     })
     yield* slots.register("app.palette", {
       id: "nav-agenda",
-      label: "Go to the agenda",
-      hint: "what is due",
+      label: "Go to Agenda",
+      hint: "What's due",
       search: "go to agenda due overdue upcoming owed",
       href: agendaKind.href({}),
     })

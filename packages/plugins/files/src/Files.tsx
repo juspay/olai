@@ -264,7 +264,7 @@ function NewFileButton(props: { readonly items: ReadonlyArray<Making> }) {
   let shutting = false
   return <>
     <button type="button" class={HEAD_ACTION} data-testid={TESTID.newFile}
-      aria-label="new file" title="new outline or document" aria-haspopup="menu" aria-expanded={menu() !== null}
+      aria-label="New file" title="New outline or document" aria-haspopup="menu" aria-expanded={menu() !== null}
       onPointerDown={() => { shutting = menu() !== null }}
       onClick={(event) => {
         // The sidebar body puts the phone drawer away on any click that
@@ -336,7 +336,7 @@ function FileAnatomy(props: {
       <span class="min-w-0 truncate">{props.name}</span>
       <Show when={props.broken}>
         {/* No margin of its own: the row has one gap and this is on it. */}
-        <span class="text-alarm" title="this file could not be read">
+        <span class="text-alarm" title="This file couldn't be read">
           ⚠
         </span>
       </Show>
@@ -462,7 +462,7 @@ function Dir(props: {
         class={DIR}
         data-testid={TESTID.fileDirToggle}
         aria-expanded={!folded()}
-        aria-label={folded() ? `expand ${props.row.name}` : `collapse ${props.row.name}`}
+        aria-label={folded() ? `Expand ${props.row.name}` : `Collapse ${props.row.name}`}
         title={props.row.path}
         onClick={(event) => {
           event.stopPropagation()

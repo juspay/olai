@@ -124,7 +124,7 @@ export function Panel(props: {
       tabindex="-1"
       data-testid={TESTID.commitPanel}
       data-repo={pending().repo._tag}
-      aria-label="uncommitted changes"
+      aria-label="Uncommitted changes"
     >
       {/* What was last recorded, and by whom — the other half of the question
           "is this directory being audited". `null` is not an absence to hide:
@@ -133,13 +133,13 @@ export function Panel(props: {
       <p class="wrap-anywhere text-label text-muted" data-testid={TESTID.commitLast}>
         <Show
           when={pending().last}
-          fallback={<>olai has not committed in this directory yet</>}
+          fallback={<>olai hasn't committed in this folder yet</>}
         >
           {(last) => (
             <>
               <span class="text-ink">{last().message}</span>
               {" · "}
-              {last().writer === null ? "writer not recorded" : WHO[last().writer!]}
+              {last().writer === null ? "unknown author" : WHO[last().writer!]}
               {" · "}
               {agoOf(last().at, props.now)}
               {" · "}
@@ -150,7 +150,7 @@ export function Panel(props: {
       </p>
 
       <Show when={pending().outlines.length > 0}>
-        <Rule>outlines</Rule>
+        <Rule>Outlines</Rule>
         <Outlines
           outlines={pending().outlines}
           changes={pending().changes}
@@ -160,7 +160,7 @@ export function Panel(props: {
       </Show>
 
       <Show when={pending().others.length > 0}>
-        <Rule>other files</Rule>
+        <Rule>Other files</Rule>
         <Others others={pending().others} selection={selection} />
       </Show>
 
@@ -169,8 +169,8 @@ export function Panel(props: {
           it, and saying nothing at all would be the panel lying by omission. */}
       <Show when={pending().unreadable.length > 0}>
         <p class="wrap-anywhere text-label text-muted" data-testid={TESTID.commitUnreadable}>
-          {pending().unreadable.join(", ")} changed, but does not parse — what
-          is in it cannot be shown.
+          {pending().unreadable.join(", ")} changed, but can't be read, so its
+          changes can't be shown.
         </p>
       </Show>
 
@@ -247,7 +247,7 @@ export function Panel(props: {
           // half and looked like a rendering fault rather than a scroll.
           class="min-h-24 w-full resize-y rounded-control border border-rule bg-paper p-2 text-label"
           data-testid={TESTID.commitMessage}
-          aria-label="commit message"
+          aria-label="Commit message"
           value={draft()}
           onInput={(event) => setTyped(event.currentTarget.value)}
         />

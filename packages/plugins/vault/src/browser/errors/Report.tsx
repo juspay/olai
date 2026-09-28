@@ -61,8 +61,8 @@ export function Report(props: { readonly errors: ReadonlyArray<OutlineError> }) 
         <section data-testid={TESTID.crossFileErrors}>
           <Heading>Across files</Heading>
           <Lede>
-            These name two places at once — a reference that leaves its file, or
-            a loop that closes through another one.
+            These involve two files: a link to another file, or a loop that
+            runs through another one.
           </Lede>
           <Rows errors={split().across} />
         </section>

@@ -30,7 +30,7 @@ export function ProgressBadge(props: { readonly progress: Progress }) {
       class="shrink-0 tabular-nums text-label text-muted"
       data-testid={TESTID.progress}
       data-progress={`${props.progress.done}/${props.progress.total}`}
-      title={`${props.progress.done} of ${props.progress.total} tasks under this are done`}
+      title={`${props.progress.done} of ${props.progress.total} done`}
     >
       {props.progress.done}/{props.progress.total}
     </span>

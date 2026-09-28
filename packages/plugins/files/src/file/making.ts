@@ -48,7 +48,7 @@ export const MAKING_OUTLINE = (row: string): Making => ({
   label: "New outline",
   placeholder: "notes/plan",
   aria:
-    "path of the new outline, relative to the served directory — the configured row’s suffix is added if you leave it off",
+    "Name of the new outline, like notes/plan",
   testids: {
     open: TESTID.newOutline,
     path: TESTID.newOutlinePath,
@@ -61,7 +61,7 @@ export const MAKING_DOCUMENT = (row: string): Making => ({
   label: "New document",
   placeholder: "notes/idea",
   aria:
-    "path of the new document, relative to the served directory — the document suffix is added if you leave it off",
+    "Name of the new document, like notes/idea",
   testids: {
     open: TESTID.newDocument,
     path: TESTID.newDocumentPath,

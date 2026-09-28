@@ -63,7 +63,7 @@ export function Outlines(props: {
               path={outline.path}
               ticked={props.selection.ticked(outline.path)}
               toggle={() => props.selection.toggle(outline.path)}
-              label={`commit ${outline.path}`}
+              label={`Commit ${outline.path}`}
             />
             <Moved from={localOf(outline.from, props.served)} />
             <span class="min-w-0 truncate font-mono text-label text-muted">

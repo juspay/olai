@@ -91,7 +91,7 @@ const TYPEWRITER = `"American Typewriter", "Courier New", ${SERIF_FALLBACK}`
 const TABLE = [
   {
     name: "olai",
-    label: "Olai",
+    label: "olai",
     group: "olai",
     hint:
       "Titles and documents in Literata, chrome in iA Writer Quattro, code " +
@@ -313,9 +313,9 @@ export const FONT_ATTRIBUTE = "data-font"
 export const FONT_STORAGE_KEY = "olai.font"
 
 export const GROUP_LABEL: Record<FontGroup, string> = {
-  olai: "Olai",
+  olai: "olai",
   generic: "Generic",
-  face: "Faces",
+  face: "Typefaces",
 }
 
 export const FONT_GROUPS: ReadonlyArray<{

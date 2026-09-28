@@ -58,17 +58,17 @@ export function Who(props: { readonly viewer: Viewer }) {
     >
       <Switch>
         <Match when={face() === "asking"}>
-          <Icon label="asking who is looking" dim>
+          <Icon label="Checking who you are…" dim>
             <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={face() === "none"}>
-          <Icon label="anonymous">
+          <Icon label="Not signed in">
             <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={face() === "error"}>
-          <Icon label="could not tell who is looking" alarm>
+          <Icon label="Couldn't check who you are" alarm>
             <UserIcon class="size-4" />
           </Icon>
         </Match>

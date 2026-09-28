@@ -74,10 +74,10 @@ export const FACE: Record<
   Status,
   { readonly face: Exclude<MarkFace, "waiting" | "bullet">; readonly hint: string; readonly tone: string }
 > = {
-  done: { face: "checked", hint: "done", tone: "text-done" },
-  cancelled: { face: "crossed", hint: "cancelled", tone: "text-muted" },
-  doing: { face: "doing", hint: "doing", tone: "text-accent" },
-  todo: { face: "empty", hint: "not started", tone: "text-muted" },
+  done: { face: "checked", hint: "Done", tone: "text-done" },
+  cancelled: { face: "crossed", hint: "Cancelled", tone: "text-muted" },
+  doing: { face: "doing", hint: "Doing", tone: "text-accent" },
+  todo: { face: "empty", hint: "Not started", tone: "text-muted" },
 }
 
 /** What a node with no mark takes: the ink of the page, because a bullet is not

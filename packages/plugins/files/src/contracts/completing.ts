@@ -143,7 +143,7 @@ export const meantAt = (claims: Claims, of: string, typed: string): Meant => {
   // Both doors here make a kind with exactly one, so this is the general rule
   // rather than a choice being made.
   const ext = mintExt(claims, of)
-  if (ext === null) return { refused: `the ${of} row is off, so no file can be created` }
+  if (ext === null) return { refused: `Creating ${of} files is turned off.` }
   const carried = fileKind(claims, name)
   if (carried === of) return { file: name }
   // AS TYPED where completing would erase the refusal — the section above.

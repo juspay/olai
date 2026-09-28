@@ -111,13 +111,13 @@ export function Calendar(props: {
       data-month={month()}
     >
       <header class="mb-1 flex items-center justify-between gap-1">
-        <Step label="the month before" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
+        <Step label="Previous month" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
           ‹
         </Step>
         <h2 class="m-0 text-body font-medium text-paper/80">
           {monthLabel(month())}
         </h2>
-        <Step label="the month after" testid={TESTID.calendarNext} onStep={() => page(1)}>
+        <Step label="Next month" testid={TESTID.calendarNext} onStep={() => page(1)}>
           ›
         </Step>
       </header>

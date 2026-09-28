@@ -44,7 +44,7 @@ export function Others(props: {
               path={other.path}
               ticked={props.selection.ticked(other.path)}
               toggle={() => props.selection.toggle(other.path)}
-              label={`commit ${other.path}`}
+              label={`Commit ${other.path}`}
             />
             <Moved from={other.from} />
             <span class="min-w-0 truncate font-mono text-label">{other.path}</span>

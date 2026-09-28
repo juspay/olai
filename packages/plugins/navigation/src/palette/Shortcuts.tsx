@@ -82,12 +82,12 @@ export function Shortcuts(props: {
         data-testid={TESTID.shortcuts}
         role="dialog"
         aria-modal="true"
-        aria-label="keyboard shortcuts"
+        aria-label="Keyboard shortcuts"
       >
         <button
           type="button"
           class="absolute inset-0 cursor-default"
-          aria-label="close the shortcuts"
+          aria-label="Close"
           onClick={() => props.onClose()}
         />
         <div

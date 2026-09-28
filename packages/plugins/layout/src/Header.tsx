@@ -149,7 +149,7 @@ export function Header(props: {
               data-testid={TESTID.sidebarToggle}
               data-open={menu().open}
               aria-expanded={menu().open}
-              aria-label={menu().open ? "hide the sidebar" : "show the sidebar"}
+              aria-label={menu().open ? "Hide sidebar" : "Show sidebar"}
               onClick={() => menu().onToggle()}
             >
               <span aria-hidden="true" class="text-title leading-none">☰</span>

@@ -112,7 +112,7 @@ export function Day(props: {
     live()
       ? `${props.date}, ${
         props.dated
-          ? props.noted ? "has a note and dated nodes" : "has dated nodes"
+          ? props.noted ? "has a note and dated items" : "has dated items"
           : "has a note"
       }`
       : props.date

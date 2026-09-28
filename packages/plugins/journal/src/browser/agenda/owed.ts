@@ -177,6 +177,6 @@ export const unchanged = (before: Mark, after: Mark): boolean =>
  *  print. */
 export const phraseOf = (owed: Owed): string => {
   const late = owed.overdue > 0 ? [`${owed.overdue} overdue`] : []
-  const on = owed.today > 0 ? [`${owed.today} on today`] : []
+  const on = owed.today > 0 ? [`${owed.today} due today`] : []
   return [...late, ...on].join(", ")
 }

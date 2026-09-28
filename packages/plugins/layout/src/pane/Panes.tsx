@@ -30,7 +30,7 @@ type Pane,
 import { desktop } from "../layout/live.ts"
 import { PANES_LONE,PANES_SPLIT } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
-import { labelOf } from "../routing.ts"
+import { nameOf } from "../routing.ts"
 
 export { PANE_MIN_PX,PANE_RAIL_PX } from "./geometry.ts"
 
@@ -180,13 +180,13 @@ function Header(props: { readonly index: number; readonly pane: Pane }) {
       }}
     >
       <span class="min-w-0 flex-1 truncate text-label text-muted">
-        {labelOf(props.pane.route)}
+        {nameOf(props.pane.route)}
       </span>
       <button
         type="button"
         class={`${TARGET_BOX} inline-flex items-center justify-center rounded-control text-muted hover:text-ink`}
         data-testid={TESTID.paneClose}
-        aria-label={`close ${labelOf(props.pane.route)}`}
+        aria-label={`Close ${nameOf(props.pane.route)}`}
         onClick={() => router.close(props.index)}
       >
         <span aria-hidden="true" class="text-title leading-none">×</span>
@@ -206,7 +206,7 @@ function Rail(props: { readonly index: number; readonly pane: Pane }) {
       style={{ width: `${PANE_RAIL_PX}px` }}
       data-testid={TESTID.paneRail}
       data-pane={String(props.index)}
-      aria-label={`expand ${labelOf(props.pane.route)}`}
+      aria-label={`Expand ${nameOf(props.pane.route)}`}
       onClick={() => {
         router.expand(props.index)
         router.focus(props.index)
@@ -215,7 +215,7 @@ function Rail(props: { readonly index: number; readonly pane: Pane }) {
       <span
         class="origin-center text-caption tracking-wide [writing-mode:vertical-rl] [text-orientation:mixed]"
       >
-        {labelOf(props.pane.route)}
+        {nameOf(props.pane.route)}
       </span>
     </button>
   )
@@ -235,7 +235,7 @@ function Divider(props: {
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="resize panes"
+      aria-label="Resize panes"
       data-testid={TESTID.paneResize}
       data-left={String(props.left)}
       data-right={String(props.right)}
@@ -279,7 +279,7 @@ function TabStrip() {
       class="flex shrink-0 gap-1 overflow-x-auto border-b border-rule/60 bg-desk px-2 py-1"
       data-testid={TESTID.paneTabs}
       role="tablist"
-      aria-label="panes"
+      aria-label="Panes"
     >
       <For each={panesOf(router.workspace())}>
         {(pane, i) => {
@@ -298,7 +298,7 @@ function TabStrip() {
               data-pane={String(i())}
               onClick={() => router.focus(i())}
             >
-              {labelOf(pane.route)}
+              {nameOf(pane.route)}
             </button>
           )
         }}

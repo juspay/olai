@@ -117,7 +117,7 @@ export function BarDoor(props: {
         onClick={() => popover.toggle()}
       >
         <span aria-hidden="true" class={health() ? "inline-block w-2 text-center text-muted" : undefined}>{props.glyph}</span>
-        <span class={closet() ? undefined : health() ? "capitalize" : "sr-only"}>
+        <span class={closet() || health() ? undefined : "sr-only"}>
           {props.name}
         </span>
       </button>

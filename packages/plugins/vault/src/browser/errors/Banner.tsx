@@ -64,10 +64,9 @@ export function Banner(props: { readonly trouble: Trouble }) {
               Showing the last good version
             </h2>
             <Lede>
-              The served directory cannot be read right now, so the outline below
-              is the one from before it went away. Nothing here is wrong with
-              your files, and nothing needs reloading — it catches up on its own
-              once the directory can be read again.
+              olai can't read this folder right now, so this is the version
+              from before. Your files are fine, and there is nothing to reload:
+              this updates on its own once the folder can be read again.
             </Lede>
           </>
         }
@@ -76,9 +75,8 @@ export function Banner(props: { readonly trouble: Trouble }) {
           {named() === 1 ? "One file is broken" : `${named()} files are broken`}
         </h2>
         <Lede>
-          Everything else here is live and can be edited — a broken file costs
-          you that file and nothing else. Open one to see what it says; fix it
-          and it comes back on its own, with nothing to reload.
+          Everything else works as usual. Open a broken file to see what is
+          wrong; once it is fixed it comes back on its own.
         </Lede>
       </Show>
       <ul class="m-0 mt-2 list-none p-0">

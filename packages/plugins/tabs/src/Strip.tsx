@@ -64,7 +64,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
     if (href === undefined) return
     const url = new URL(href, location.href).href
     navigator.clipboard.writeText(url).catch(() => {
-      window.prompt("The browser would not copy it. The address:", url)
+      window.prompt("Couldn't copy the address. Copy it from here:", url)
     })
   }
 
@@ -119,7 +119,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
       {/* The rule under the strip. Every tab is positioned and comes after it,
           so the tab in front, on paper, breaks the rule without a z-index. */}
       <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-rule/60" />
-      <div ref={row} role="tablist" aria-label="open tabs"
+      <div ref={row} role="tablist" aria-label="Open tabs"
         class="flex h-full min-w-0 flex-1 items-end gap-0.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
         <Key each={tabs.tabs()} by="id">{(tab, index) => {
           const front = () => tabs.front() === tab().id
@@ -177,12 +177,12 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               <span aria-hidden="true" class="shrink-0 text-label opacity-75">{glyphOf(props.router.routes, tab().href)}</span>
               <span data-testid={TESTID.tabsTitle} class="min-w-0 truncate">{title()}</span>
               <Show when={dot()}>{(paint) =>
-                <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label="needs you" class={`${DOT} ${paint()}`} />
+                <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label="Needs you" class={`${DOT} ${paint()}`} />
               }</Show>
               <button
                 type="button"
                 data-testid={TESTID.tabsClose}
-                aria-label={`close ${title()}`}
+                aria-label={`Close ${title()}`}
                 class="flex size-5 shrink-0 items-center justify-center rounded-control text-body leading-none text-muted hover:bg-rule hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100"
                 classList={{ "opacity-0": !front() }}
                 onClick={(event) => {
@@ -197,13 +197,13 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
       <button
         type="button"
         data-testid={TESTID.tabsNew}
-        aria-label="new tab"
-        title="new tab"
+        aria-label="New tab"
+        title="New tab"
         class="mb-1.5 flex size-7 shrink-0 items-center justify-center rounded-control text-muted hover:bg-panel hover:text-ink"
         onClick={() => tabs.open(lone(HOME_ROUTE))}
       >+</button>
       <Show when={menu()} keyed>{(open) =>
-        <PointMenu x={open.x} y={open.y} label="tab" close={() => setMenu(null)} entries={[
+        <PointMenu x={open.x} y={open.y} label="Tab menu" close={() => setMenu(null)} entries={[
           { label: "Duplicate tab", run: () => tabs.duplicate(open.id) },
           { label: "Close other tabs", run: () => tabs.closeOthers(open.id) },
           { label: "Copy address", run: () => copyAddress(open.id) },
