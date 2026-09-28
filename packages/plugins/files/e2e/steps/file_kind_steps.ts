@@ -21,8 +21,8 @@ Then("the file-kind page says {string}", async function(this: OlaiWorld, text: s
 })
 Then("the Inbox and Pins entries explain the configured row is off", async function(this: OlaiWorld) {
   await this.showSidebar()
-  await this.page.getByText("Inbox: the outline-olai row is off.", { exact: true }).waitFor({ state: "visible" })
-  await this.page.getByText("Pins: the outline-olai row is off.", { exact: true }).waitFor({ state: "visible" })
+  await this.page.getByText("Inbox needs outline-olai, which is turned off.", { exact: true }).waitFor({ state: "visible" })
+  await this.page.getByText("Pins need outline-olai, which is turned off.", { exact: true }).waitFor({ state: "visible" })
 })
 Then("no outline file is listed", async function(this: OlaiWorld) {
   await this.waitUntil(async () => await this.page.locator(rowsOfKind("outline-olai")).count() === 0, "outline claim withdrawal")

@@ -6,7 +6,7 @@ Feature: Capturing the first thought makes an empty vault useful
     When I press the palette shortcut
     And I capture "the first captured thought" from the palette
     Then "_olai/Inbox.olai" holds exactly 1 node titled "the first captured thought"
-    And the palette remarks "captured “the first captured thought” to _olai/Inbox.olai"
+    And the palette remarks "Captured “the first captured thought” to _olai/Inbox.olai"
     When I capture "the second captured thought" from the palette
     Then "_olai/Inbox.olai" holds exactly 1 node titled "the first captured thought"
     And "_olai/Inbox.olai" holds exactly 1 node titled "the second captured thought"

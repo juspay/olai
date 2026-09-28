@@ -1984,6 +1984,27 @@ export class OlaiWorld extends World {
   }
 
   /**
+   * Put the plugins panel away, the way a person does: Escape on it.
+   *
+   * NOT its trigger. On a desktop the trigger is the `Plugins` row of the
+   * health popover, and while the panel is up that popover is kept mounted but
+   * `aria-hidden` and invisible — there is nothing there to press. Escape shuts
+   * the panel, and the popover goes down with it; on a phone Escape shuts the
+   * panel over the drawer the same way.
+   */
+  async hidePlugins(): Promise<void> {
+    const panel = this.pluginsPanel();
+    if ((await panel.count()) === 0) return;
+    await panel.press("Escape");
+    await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+    const health = this.page.locator(HEALTH_PANEL);
+    if (await health.isVisible()) {
+      await this.press(this.page.locator(HEALTH));
+      await health.waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+    }
+  }
+
+  /**
    * One plugin's row, on screen and OPEN.
    *
    * Two presses stand between the panel and a row's detail, and this makes

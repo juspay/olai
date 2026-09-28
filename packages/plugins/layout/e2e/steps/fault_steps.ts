@@ -93,8 +93,31 @@ Then("the page says it broke", async function (this: OlaiWorld) {
   // would have changed what a reader is handed while keeping every testid
   // in place.
   await this.page
-    .getByRole("heading", { name: "This page broke" })
+    .getByRole("heading", { name: "Something went wrong on this page" })
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // ...and what to do, before any stack: the files are safe, and a reload is
+  // the first thing to try.
+  await this.page
+    .locator(FAULT)
+    .getByText("Your files are safe. Reload to try again.", { exact: true })
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/** The technical half is one press away, not the first thing a person reads:
+ *  it sits in a `Details` disclosure that starts closed. */
+Then("the fault's detail is behind a closed Details", async function (this: OlaiWorld) {
+  const detail = this.page.locator(FAULT_DETAIL);
+  await detail.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+  assert.equal(await detail.isVisible(), false, "the fault's text is on show before anybody asked for it");
+  assert.equal(
+    await detail.evaluate((el) => el.closest("details")?.open ?? null),
+    false,
+    "the fault's text is not inside a closed <details>",
+  );
+});
+
+When("I open the fault's Details", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(FAULT).getByText("Details", { exact: true }));
 });
 
 Then("the fault is on the page, verbatim", async function (this: OlaiWorld) {
@@ -117,6 +140,8 @@ Then("both ways out are offered", async function (this: OlaiWorld) {
       .locator(`${FAULT} ${way}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
+  assert.equal((await this.page.locator(`${FAULT} ${RELOAD}`).innerText()).trim(), "Reload");
+  assert.equal((await this.page.locator(`${FAULT} ${FAULT_HOME}`).innerText()).trim(), "Go home");
   assert.equal(
     await this.page.locator(`${FAULT} ${FAULT_HOME}`).getAttribute("href"),
     "/",

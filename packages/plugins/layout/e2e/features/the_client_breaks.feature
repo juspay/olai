@@ -22,7 +22,11 @@ Feature: When olai itself breaks
     Given this client's own code throws while it draws
     When I open a page it cannot draw
     Then the page says it broke
-    And the fault is on the page, verbatim
+    # The first thing read is what to do; the stack a bug report is made of is
+    # one press away, under Details, and verbatim once opened.
+    And the fault's detail is behind a closed Details
+    When I open the fault's Details
+    Then the fault is on the page, verbatim
     # Two: a reload for a bundle that is stale, and the way OFF this page for a
     # fault that is deterministic for the route — which is the usual kind, and
     # against which a reload on its own is a loop.

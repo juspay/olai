@@ -11,7 +11,7 @@ Feature: Capture responses preserve what the reader typed next
     And I release incoming updates to the original browser tab
     And I wait for the palette write to finish
     Then the palette box holds "+ second thought"
-    And the palette remarks "captured “first thought” to _olai/Inbox.olai"
+    And the palette remarks "Captured “first thought” to _olai/Inbox.olai"
     When I press "Enter"
     Then "_olai/Inbox.olai" holds exactly 1 node titled "first thought"
     And "_olai/Inbox.olai" holds exactly 1 node titled "second thought"

@@ -247,7 +247,7 @@ Then("the pdf viewer drew it, or the page says it cannot", async function (
   const said = await fallback.innerText();
   assert.match(
     said,
-    /will not show a PDF here/,
+    /can't show a PDF here/,
     "a browser with no pdf viewer drew nothing and said nothing",
   );
   assert.strictEqual(
