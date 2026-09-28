@@ -117,11 +117,29 @@ function Zoom(props: {
           data-blocked={blockedIds(props.zoomed.blocked)}
           data-kind="node"
         >
-          <header class={`sticky top-[var(--height-chrome)] ${LAYER.page} bg-paper pb-2`}>
+          {/* PINNED FROM `md` UP, and only there. On a phone, breadcrumbs, a
+              display-size title and an agent's line held at the top — with the
+              composer held at the bottom — left the transcript a few lines of
+              screen, so there the head scrolls away with the page. The title
+              row WRAPS for the same screen: below `sm` the title claims its
+              own line rather than being squeezed to a word per line.
+
+              What a phone keeps pinned is the node's NAME, on one line. It is
+              a zero-height sticky slot at the head's own layer, BEFORE the
+              head: the opaque head paints over it while it is on screen and
+              uncovers it as it scrolls away. No observer and no measurement —
+              the stacking order is the whole mechanism, so the line follows
+              the chrome's height whatever the layout publishes. */}
+          <div class={`sticky top-[var(--height-chrome)] ${LAYER.page} h-0 md:hidden`} aria-hidden="true">
+            <p class="m-0 truncate border-b border-rule bg-paper py-2 font-serif text-base italic" data-testid={TESTID.zoomPinnedTitle}>
+              <NodeTitle title={props.zoomed.shows.node.title} from={props.zoomed.shows.file} links={false} />
+            </p>
+          </div>
+          <header class={`relative md:sticky md:top-[var(--height-chrome)] ${LAYER.page} bg-paper pb-2`}>
             <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
-          <div class="group/row mt-2 flex items-baseline gap-3">
+          <div class="group/row mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1
-              class={`flex-1 ${PAGE_TITLE} italic ${toneOf(props.zoomed.status)}`}
+              class={`min-w-0 grow basis-full sm:basis-0 ${PAGE_TITLE} italic ${toneOf(props.zoomed.status)}`}
               data-testid={TESTID.zoomTitle}
               data-node-id={props.zoomed.shows.node.id}
               data-status={props.zoomed.status}

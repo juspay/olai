@@ -63,6 +63,29 @@ Feature: A node's page holds its memory and conversation
     Then the agent is idle
     And the page transcript is unbounded and its composer is on screen
 
+  # A phone has no height to spare for a pinned head. Held at the top, the
+  # breadcrumbs, a display-size title and the agent's line took half the screen,
+  # the pinned composer took a third, and the transcript read through a slot of
+  # four lines between them. The title, squeezed beside its standing, wrapped
+  # one word per line and made the head taller still. What stays pinned now is
+  # the node's name on one line, so the reader still knows what the chat is about.
+  @phone
+  Scenario: A phone page gives its conversation the screen
+    Given I open the plain node composer for "install"
+    When I send "hello" from the plain node composer
+    Then the node page conversation is ready for "install"
+    And the agent is idle
+    And the page title has the phone's whole line
+    When I ask for a tall page answer
+    Then the agent is idle
+    And the page transcript is unbounded and its composer is on screen
+    When I scroll to the bottom of the page
+    Then the page head has scrolled away and the transcript has most of the screen
+    And the node's name is pinned on one line under the chrome
+    # …and back at the head, the head covers it again.
+    And the page title has the phone's whole line
+    And there should be no page errors
+
   @node-idle-fast
   Scenario: Leaving the page releases both slot faces' shared reading
     Given the harness keeps distinct sessions on disk

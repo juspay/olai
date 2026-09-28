@@ -208,7 +208,10 @@ PR 582 review regressions cover independent original/mirror folds, a binding-onl
 row's Add property affordance, and plugin withdrawal with an open reading.
 The split agent page scenario checks the single pane scroller, pinned head and
 send control, memory revealed by scrolling up, and continued streaming without
-moving that reading position. Scheduler tests cover capacity refusals, fresh
+moving that reading position. On a phone, the agent page's title keeps its
+whole line and its head scrolls away, leaving the transcript most of the
+screen above the pinned composer; the node's name stays pinned on one line
+under the chrome, covered again once the head is back on screen. Scheduler tests cover capacity refusals, fresh
 binding versus filing serialization, clearing inherited wakes, trash cleanup,
 and process-group termination with escalation.
 

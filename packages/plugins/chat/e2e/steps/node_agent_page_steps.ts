@@ -11,6 +11,8 @@ import {
   PROP,
   POLL_TIMEOUT,
   HYDRATION_TIMEOUT,
+  APP_HEADER,
+  ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import {
   CHAT_SEND,
@@ -23,6 +25,11 @@ const input = selector(PLUGIN_TESTID.agentPlainInput);
 const send = selector(PLUGIN_TESTID.agentPlainSend);
 const head = selector(PLUGIN_TESTID.agentPageHead);
 const foot = selector(PLUGIN_TESTID.agentPageFoot);
+const PINNED_TITLE = selector(PLUGIN_TESTID.zoomPinnedTitle);
+/** The pinned name is always laid out on a phone; the head painting over it is
+ *  what hides it, so "shown" is a question about what a finger would reach. */
+const pinnedShows = async (world: OlaiWorld) =>
+  await world.topmostTestidOver(world.page.locator(PINNED_TITLE), "the pinned node name") === PLUGIN_TESTID.zoomPinnedTitle;
 
 When("I follow the agent's open-page link", async function(this: OlaiWorld) {
   await this.chatRoot().getByRole("link", { name: "open the page ›" }).click();
@@ -74,6 +81,38 @@ Then("the page transcript is unbounded and its composer is on screen", async fun
     return box !== null && composer !== null && box.height > 384 && composer.y >= 0 && composer.y + composer.height <= this.viewport().height;
   }, "the page to follow its unbounded answer", HYDRATION_TIMEOUT);
   assert.equal(await this.chat(CHAT_TRANSCRIPT).evaluate(el => getComputedStyle(el).maxHeight), "none");
+});
+Then("the page title has the phone's whole line", async function(this: OlaiWorld) {
+  const title = this.page.locator(ZOOM_TITLE);
+  // A page follows its newest line, so the head may be scrolled away already.
+  await title.scrollIntoViewIfNeeded();
+  const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(this.activeAgent!))}`).first();
+  const [own, row] = await title.evaluate(el => [el.getBoundingClientRect().width, el.parentElement!.getBoundingClientRect().width]);
+  assert.ok(own! >= row! - 1, `the title is squeezed beside its asides: ${own} of ${row}`);
+  const heading = await this.box(title, "the page title");
+  const aside = await this.box(standing, "the agent's standing");
+  assert.ok(aside.y >= heading.y + heading.height - 1, "the standing shares the title's line");
+  assert.equal(await pinnedShows(this), false, "the pinned name shows over the page head");
+});
+Then("the node's name is pinned on one line under the chrome", async function(this: OlaiWorld) {
+  const pinned = this.page.locator(PINNED_TITLE);
+  assert.ok(await pinnedShows(this), "the pinned name is covered");
+  assert.equal((await pinned.innerText()).trim(), (await this.page.locator(ZOOM_TITLE).innerText()).trim());
+  const box = await this.box(pinned, "the pinned node name");
+  const bar = await this.box(this.page.locator(APP_HEADER), "the app header");
+  assert.ok(Math.abs(box.y - (bar.y + bar.height)) <= 1, `the pinned name is at ${box.y}, not under the header`);
+  const oneLine = await pinned.evaluate(el => el.scrollHeight <= el.clientHeight + 1 && getComputedStyle(el).whiteSpace === "nowrap");
+  assert.ok(oneLine, "the pinned name wraps");
+});
+Then("the page head has scrolled away and the transcript has most of the screen", async function(this: OlaiWorld) {
+  const head = await this.box(this.page.locator(ZOOM_TITLE), "the page title");
+  assert.ok(head.y + head.height <= 0, `the page head is still on screen at ${head.y}`);
+  const composer = await this.box(this.chat(CHAT_INPUT), "the composer");
+  const transcript = await this.box(this.chat(CHAT_TRANSCRIPT), "the transcript");
+  const { height } = this.viewport();
+  const below = await this.box(this.page.locator(PINNED_TITLE), "the pinned node name");
+  const reading = Math.min(composer.y, transcript.y + transcript.height) - Math.max(below.y + below.height, transcript.y);
+  assert.ok(reading >= height / 2, `the transcript reads through ${reading}px of a ${height}px screen: ${JSON.stringify({ below, transcript, composer })}`);
 });
 Then("the plain node composer has no available engine", async function(this: OlaiWorld) {
   await this.page.locator(plain).locator(selector(PLUGIN_TESTID.chatNoAgent)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
