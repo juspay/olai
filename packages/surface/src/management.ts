@@ -12,6 +12,9 @@ export type PluginLook = {
   readonly switchHint?: string
   /** Plugins panel group. Verbatim. Absent on a vault-defined row. */
   readonly section?: string
+  /** The name a person reads on the row. Absent on a vault-defined row, which
+   *  draws its name. */
+  readonly label?: string
   readonly quiet?: boolean
   /** The build ships this row off until somebody asks. */
   readonly optIn?: boolean

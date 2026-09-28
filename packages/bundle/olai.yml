@@ -27,6 +27,9 @@
 #             groups rather than a flat list; a new plugin picks a section here
 #             and appears in it with no inspector edit. The word is verbatim on
 #             screen. Required.
+#   label     THE NAME A PERSON READS on the plugins panel row — `Claude Code`
+#             rather than `claude`. The id stays the settings namespace and is
+#             shown in the row's detail. Absent draws the id.
 #   switchHint Warning shown before switching a row off.
 #   quiet     THE GROUP MAY START COLLAPSED when every row in it is running and
 #             has nothing to say. Absent is always-open. A group is quiet when
@@ -55,25 +58,30 @@
 # read by people, and the thing everything else waits on reads first.
 - id: alerts
   name: olai-plugin-alerts
-  section: This tab
+  section: Interface
+  label: Alerts
   quiet: true
 - id: chat
   name: olai-plugin-chat/server
-  section: Conversation
+  section: Agents
+  label: Chat
 # THE DIRECTORY — an ordinary plugin, selected in every default profile.
 - id: vault
   name: olai-plugin-vault/server
-  section: Vault
+  section: Notes
+  label: Vault
   profiles: [surface, test-minimal]
   switchHint: Turning it off clears the served files and stops plugins that need the vault. Turn it on to reopen the directory.
 - id: settings
   name: olai-plugin-settings/server
-  section: Vault
+  section: Notes
+  label: Settings
   profiles: [surface, test-minimal]
 # THE LEDGER — policy defaults belong to the plugin's Config schema.
 - id: git
   name: olai-plugin-git/server
-  section: Vault
+  section: Notes
+  label: Git
 # THE MATCHER — search as a row. Off is "no provider mounted": `search_nodes`
 # and the four boxes a person types into are answered with no hits and the
 # reason, in words. It carries the trigram table with it, so a serve without it
@@ -81,7 +89,8 @@
 # somebody is not on this row: it is a reading of one page and it stays core.
 - id: search
   name: olai-plugin-search/server
-  section: Vault
+  section: Notes
+  label: Search
 # WHO IS LOOKING — the login a reverse proxy injected, or nobody. Its server
 # half stands behind the `Identity` door core reads at the websocket upgrade, at
 # `GET /olai/who` and at `/mcp`; its browser half is the chip in the bar's last
@@ -94,13 +103,15 @@
 # by the identity Config schema, like every other row's policy.
 - id: identity
   name: olai-plugin-identity/server
-  section: Vault
+  section: Notes
+  label: Identity
 # THE JOURNAL — the date-shaped reading of the vault. Its server half owns the
 # four live readings and daily-note mint; its browser half owns the three URLs,
 # agenda entry, calendar section and palette navigation.
 - id: journal
   name: olai-plugin-journal/server
-  section: Vault
+  section: Notes
+  label: Journal
 # THE ENGINES, FIRST AND IN THE ORDER THE PICKER DRAWS THEM.
 #
 # One row per ACP agent olai can seat, and ORDER IS LOAD-BEARING HERE in a way
@@ -117,26 +128,33 @@
 # Claude row, no probe of one, and no mark for one anywhere.
 - id: claude
   name: olai-plugin-claude/server
-  section: Conversation
+  section: Agents
+  label: Claude Code
 - id: codex
   name: olai-plugin-codex/server
-  section: Conversation
+  section: Agents
+  label: Codex
 - id: opencode
   name: olai-plugin-opencode/server
-  section: Conversation
+  section: Agents
+  label: opencode
 - id: pi
   name: olai-plugin-pi/server
-  section: Conversation
+  section: Agents
+  label: pi
 - id: omp
   name: olai-plugin-omp/server
-  section: Conversation
+  section: Agents
+  label: Oh My Pi
 # ...AND THE TENANTS: olai's judgement about somebody else's appliance.
 - id: kolu
   name: olai-plugin-kolu/server
-  section: Appliances
+  section: Connections
+  label: Kolu
 - id: odu
   name: olai-plugin-odu/server
-  section: Appliances
+  section: Connections
+  label: Odu
 # OFF BY DEFAULT, declared here by `disabled: true`: a Spaces app JWT is a
 # secret this machine may not have,
 # and a pill in every bar for an integration nobody pointed at is the wrong
@@ -144,7 +162,8 @@
 # mechanism doing exactly what it is for.
 - id: xyne-spaces
   name: olai-plugin-xyne-spaces/server
-  section: Appliances
+  section: Connections
+  label: Xyne Spaces
   disabled: true
 # OFF BY DEFAULT for the same reason, and it is the row that made the reason
 # general rather than about Spaces: a Gmail account needs an OAuth client this
@@ -154,81 +173,98 @@
 # on, and a policy selecting only mail is what turns it on.
 - id: mail
   name: olai-plugin-mail/server
-  section: Appliances
+  section: Connections
+  label: Mail
   disabled: true
 # TRANSPORTS — ordinary plugins, selected by profiles and vault policy.
 - id: ws
   name: olai-plugin-ws/server
-  section: Transports
+  section: Connections
+  label: WebSocket
   quiet: true
 - id: mcp
   name: olai-plugin-mcp/server
-  section: Transports
+  section: Connections
+  label: MCP
   quiet: true
   profiles: [surface]
 - id: web-app
   name: olai-plugin-web-app/server
-  section: Transports
+  section: Connections
+  label: Web app
   quiet: true
 
 # Browser-only rows: the host selects them; activation is reported by each tab.
 - id: ui-renderer
   name: olai-plugin-ui-renderer
-  section: This tab
+  section: Interface
+  label: Renderer
   quiet: true
 - id: layout
   name: olai-plugin-layout
-  section: This tab
+  section: Interface
+  label: Layout
   quiet: true
 - id: tabs
   name: olai-plugin-tabs
-  section: This tab
+  section: Interface
+  label: Tabs
   quiet: true
 - id: sidebar
   name: olai-plugin-sidebar
-  section: This tab
+  section: Interface
+  label: Sidebar
   quiet: true
 - id: preferences
   name: olai-plugin-preferences
-  section: This tab
+  section: Interface
+  label: Preferences
   quiet: true
 - id: theme
   name: olai-plugin-theme
-  section: This tab
+  section: Interface
+  label: Theme
   quiet: true
 - id: plugin-inspector
   name: olai-plugin-plugin-inspector
-  section: This tab
+  section: Interface
+  label: Plugins panel
   quiet: true
 
 # Independent navigation, content and directory capabilities.
 - id: navigation
   name: olai-plugin-navigation
-  section: This tab
+  section: Interface
+  label: Navigation
   quiet: true
 - id: outlines
   name: olai-plugin-outlines/server
-  section: Pages
+  section: Notes
+  label: Outlines
   quiet: true
   profiles: [surface]
 - id: files
   name: olai-plugin-files/server
-  section: Pages
+  section: Notes
+  label: Files
   quiet: true
   profiles: [surface]
 - id: pins
   name: olai-plugin-pins/server
-  section: Pages
+  section: Notes
+  label: Pins
   quiet: true
   profiles: [surface]
 - id: capture
   name: olai-plugin-capture/server
-  section: Pages
+  section: Notes
+  label: Capture
   quiet: true
   profiles: [surface]
 - id: trash
   name: olai-plugin-trash/server
-  section: Pages
+  section: Notes
+  label: Trash
   quiet: true
   profiles: [surface]
 
@@ -238,54 +274,64 @@
 # precisely that boundary; disabled rows add no activation to ordinary starts.
 - id: test-layout
   name: olai-plugin-test-layout
-  section: Fixtures
+  section: Test fixtures
+  label: Test layout
   quiet: true
   disabled: true
   profiles: [test-minimal]
 - id: test-counter
   name: olai-plugin-test-counter/server
-  section: Fixtures
+  section: Test fixtures
+  label: Test counter
   quiet: true
   disabled: true
   profiles: [test-minimal]
 - id: vault-plugins
   name: olai-plugin-vault-plugins/server
-  section: Vault
+  section: Notes
+  label: Vault plugins
   browser: olai-plugin-vault-plugins/browser
   profiles: [surface]
 
 - id: outline-olai
   name: olai-plugin-outline-olai/server
-  section: Files
+  section: Notes
+  label: Outline files
   quiet: true
   profiles: [surface, test-minimal]
   switchHint: Disabling this row unclaims outlines and prevents creating them; trash, inbox, pins and agenda become unavailable, and settings reading withdraws until it returns.
 - id: markdown
   name: olai-plugin-markdown/server
-  section: Files
+  section: Notes
+  label: Markdown
   quiet: true
   profiles: [surface]
 - id: hypertext
   name: olai-plugin-hypertext/server
-  section: Files
+  section: Notes
+  label: HTML
   quiet: true
   profiles: [surface]
 - id: csv
   name: olai-plugin-csv/server
-  section: Files
+  section: Notes
+  label: CSV
   quiet: true
   profiles: [surface]
 - id: image
   name: olai-plugin-image/server
-  section: Files
+  section: Notes
+  label: Images
   quiet: true
   profiles: [surface]
 - id: pdf
   name: olai-plugin-pdf/server
-  section: Files
+  section: Notes
+  label: PDF
   quiet: true
   profiles: [surface]
 
 - id: browsing
   name: olai-plugin-browsing/server
-  section: Integrations
+  section: Connections
+  label: Browsing
