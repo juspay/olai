@@ -7,8 +7,9 @@ Feature: Choosing a node agent's engine
   @opencode @scratch:chat
   Scenario: The node menu offers claude and opencode
     When I open the node menu of "kitchen"
-    Then the node menu offers "Start an agent session — Claude Code"
-    And the node menu offers "Start an agent session — opencode"
+    Then the node menu's "Start an agent" is a submenu
+    When I open the node menu's "Start an agent" agents
+    Then the node menu's "Start an agent" offers the agents "Claude Code|OpenCode"
 
   @opencode @scratch:chat
   Scenario: An agent this machine no longer has is not a conversation to wedge on
@@ -391,8 +392,9 @@ Feature: Choosing a node agent's engine
   @pi @scratch:chat
   Scenario: The node menu offers claude and pi
     When I open the node menu of "kitchen"
-    Then the node menu offers "Start an agent session — Claude Code"
-    And the node menu offers "Start an agent session — pi"
+    Then the node menu's "Start an agent" is a submenu
+    When I open the node menu's "Start an agent" agents
+    Then the node menu's "Start an agent" offers the agents "Claude Code|Pi"
 
   @pi @scratch:chat
   Scenario: A turn with pi, from the box to the answer — and the banner left out
@@ -571,8 +573,9 @@ Feature: Choosing a node agent's engine
     # in. `not-a-plugin.json` exists to say out loud that neither branding is
     # that row's; a menu that matched on the id, or read this name as that one,
     # offers the wrong agent exactly where a person cannot tell.
-    Then the node menu offers "Start an agent session — Claude Code"
-    And the node menu offers "Start an agent session — Oh My Pi"
+    Then the node menu's "Start an agent" is a submenu
+    When I open the node menu's "Start an agent" agents
+    Then the node menu's "Start an agent" offers the agents "Claude Code|Oh My Pi"
 
   @omp @scratch:chat
   Scenario: The header says who the conversation is with

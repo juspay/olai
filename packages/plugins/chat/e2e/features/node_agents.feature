@@ -41,7 +41,7 @@ Feature: A node with an `agent-session` property IS an agent
   Scenario: An unbound agent wears a standing in the aside
     Given I open the outline "lanes.olai"
     Then the aside on "door-implement" stands "unbound"
-    And the aside on "door-implement" reads "no session bound"
+    And the aside on "door-implement" reads "No agent"
     And the standing on "door-implement" cannot be pressed
 
   @scratch:lanes
@@ -75,7 +75,7 @@ Feature: A node with an `agent-session` property IS an agent
     Then the chat shows a question
     And the agent "door-live" stands "needs-you"
     And the aside on "door-live" stands "needs-you"
-    And the aside on "door-live" reads "needs you"
+    And the aside on "door-live" reads "Needs you"
 
   @scratch:good
   Scenario: A directory with no node agent has no Needs you rows

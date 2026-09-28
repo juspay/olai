@@ -105,13 +105,16 @@ Feature: A new chat has an Inbox node from its first message
     And the Inbox has 1 filed conversations
 
   @no-agent
-  Scenario: Without an engine neither face creates a conversation
+  Scenario: Without an agent neither face creates a conversation
+    # The + stays pressable: it opens the agent menu, which says why there is
+    # nothing to pick. The palette offers no New chat row at all.
     Given I open the outline "house.olai"
-    Then new chat in Chats is unavailable
-    When I press the palette shortcut
+    When I press new chat in Chats
+    Then the agent menu says no agent is set up
+    When I press "Escape"
+    And I press the palette shortcut
     And I type "Agents" into the palette
-    And I pick new chat in the Agents palette
-    Then the palette says no agent engine is available
+    Then the palette does not offer "New chat"
     And the Inbox contains no chat children
 
   Scenario: A refused start leaves its plain node available for retry
