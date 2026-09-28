@@ -35,7 +35,7 @@
  * layer, so its Escape shuts it first and a second Escape shuts this.
  */
 import { TESTID } from "olai-plugin-layout/testids"
-import { createMemo, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -49,6 +49,7 @@ import { hung } from "./faces.ts"
 import { connectionStatus, nameOf, tipOf, worstOf, type DotTone } from "./health.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { BarStatus } from "./slots.ts"
+import { tools } from "./index.ts"
 import { Tools } from "./Tools.tsx"
 import { Uptime } from "./Uptime.tsx"
 
@@ -78,7 +79,17 @@ export function Health(props: { readonly slots: RendererSlots }) {
       one.face.place === "cluster" && one.face.status !== undefined ? [one.face.status()] : []),
   ])
   const tone = () => worstOf(statuses())
-  const popover = createPopover()
+  const [open, setOpen] = createSignal(false)
+  const popover = createPopover({ held: { open, setOpen } })
+  // A door at this popover's foot whose own state says it is up (the plugins
+  // panel, held by the inspector's activation) needs its trigger mounted to
+  // draw — so the popover opens for it. That is how a panel that was open
+  // when the shell was rebuilt comes back with the shell.
+  createEffect(() => {
+    if (props.slots.read(tools).some((entry) => entry.value.desktop === "health" && entry.value.open?.() === true)) {
+      setOpen(true)
+    }
+  })
 
   return (
     <>

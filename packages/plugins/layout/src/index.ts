@@ -33,6 +33,12 @@ export interface LayoutTool {
   readonly closetOrder: number
   readonly mobileWithoutSidebar?: boolean
   readonly desktop?: "bar" | "health"
+  /** Whether this entry's door is up, for an entry whose open state outlives
+   *  the shell (the plugins panel's lives in the inspector's activation). A
+   *  `health` entry's door is drawn only while the health popover is open, so
+   *  the popover opens itself when this turns true — which is what brings the
+   *  panel back when the shell under it is rebuilt. */
+  readonly open?: () => boolean
 }
 export const tools = location<LayoutTool>("layout.tools")
 

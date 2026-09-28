@@ -54,7 +54,9 @@ export const components = {
       // rather than a chip of its own: which integrations a serve runs is read
       // occasionally, beside the readouts they draw, and a calm bar is the
       // wordmark, search, one dot, preferences and who is looking.
-      headerOrder: 10, closetOrder: 20, desktop: "health",
+      // `open` is the door's own held state, read by the bar so a rebuilt shell
+      // puts the popover (and so this panel) back up.
+      headerOrder: 10, closetOrder: 20, desktop: "health", open: state.door.open,
     }, {
       // THE ROWS ARE SEATS OF THEIR OWN, declared by the entry that draws them:
       // a plugin hangs its row's face here, and a registration into a location
