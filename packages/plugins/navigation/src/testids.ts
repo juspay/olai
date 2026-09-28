@@ -19,6 +19,7 @@ export const TESTID = {
   searchRefusal: "search-refusal",
   paletteAskError: "palette-ask-error",
   paletteSearchError: "palette-search-error",
+  nothingGoHome: "page-go-home",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

@@ -86,7 +86,7 @@ export function AgendaPage(props: {
           reading every page with a sentence like this is drawn on
           (`../filter/narrowed.tsx`). */}
       <Show when={unfiltered(narrowed) && nothing()}>
-        <Empty testid={TESTID.agendaEmpty} line="Nothing is due." />
+        <Empty testid={TESTID.agendaEmpty} line="Nothing due" detail="Rows with a date show up here." />
       </Show>
 
       <Show when={!nothing()}>

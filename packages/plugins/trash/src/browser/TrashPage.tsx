@@ -105,11 +105,11 @@ export function TrashPage(props: {
       <Show
         when={props.groups.length > 0}
         fallback={
-          // "The Trash is empty." is a claim about the TRASH; a query that
+          // "Trash is empty" is a claim about the TRASH; a query that
           // found none of it is a claim about the query, and the bar makes
           // that one (`../filter/narrowed.tsx` holds the division).
           <Show when={unfiltered(narrowed)}>
-            <Empty testid={IDS_TRASH.trashEmpty} line="The Trash is empty." />
+            <Empty testid={IDS_TRASH.trashEmpty} line="Trash is empty" detail="Deleted outlines and rows appear here." />
           </Show>
         }
       >

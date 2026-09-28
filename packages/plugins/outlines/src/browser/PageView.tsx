@@ -36,6 +36,8 @@ import { createReading, ReadingProvider, useReadings } from "./reading.tsx"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { useFollow, useHere, useRouter } from "olai-plugin-navigation/routing"
 import type { MountedAppPage } from "olai-plugin-navigation/routes"
+import { HOME_ROUTE } from "olai-plugin-navigation/routes"
+import { TESTID } from "../testids.ts"
 import { filterOf, hrefOf, narrowable, narrowedTo, routeFace, samePage } from "./routing.ts"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { pageFileOf, visibleIn } from "./settings/done.ts"
@@ -309,9 +311,13 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
           fallback={
             <Show
               when={missing()}
-              fallback={<p class="m-0 py-8 text-muted">Reading…</p>}
+              fallback={<p class="m-0 py-8 text-muted">Loading…</p>}
             >
-              <Empty testid={IDS_UI_PRIMITIVES.nothing} line="No such page here." />
+              <Empty
+                testid={IDS_UI_PRIMITIVES.nothing}
+                line="Page not found"
+                action={{ label: "Go home", run: () => router.go(HOME_ROUTE), testid: TESTID.nothingGoHome }}
+              />
             </Show>
           }
         >

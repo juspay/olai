@@ -42,9 +42,9 @@ export function BodyPage(props: {
     data-testid={NAV.pane} data-pane={String(here())}
     data-pane-focused={here() === props.navigation.workspace().focus ? "true" : undefined}
     data-href={props.navigation.routes.href(route())} onPointerDown={() => props.navigation.focus(here())} onClick={follow}>
-    <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Reading…</p>}>
+    <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Loading…</p>}>
       {shows => <Switch>
-        <Match when={only(shows(), "nothing")}>{missing => <Empty testid={UI.nothing} line={`No ${props.directory.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested} under the served directory.`} />}</Match>
+        <Match when={only(shows(), "nothing")}>{missing => <Empty testid={UI.nothing} line="Page not found" detail={`There is no ${props.directory.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested}.`} />}</Match>
         <Match when={only(shows(), "document")}>{doc => <Show when={doc().file} keyed>{path =>
           <section data-testid={TESTID.documentPage} data-file={path}>
             <header class="mb-8"><h1 class="m-0 max-w-full break-all font-mono text-body tracking-tight text-muted">{path}</h1></header>
