@@ -67,7 +67,7 @@ test("work on today is the quiet face — a nudge, and the row is untouched", ()
   expect(mark.face).toBe("today")
   expect(mark.count).toBe(1)
   expect(mark.entry).toBe("")
-  expect(mark.said).toBe("Agenda — 1 on today")
+  expect(mark.said).toBe("Agenda — 1 due today")
 })
 
 test("late work is the loud face, and takes the row with it", () => {
@@ -86,7 +86,7 @@ test("both at once: the alarm wins the row, and the count is the LATE one", () =
   expect(mark.count).toBe(1)
   // Not lost, and said rather than shown: the number that decides whether to
   // press is the late one, and the other rides the sentence.
-  expect(mark.said).toBe("Agenda — 1 overdue, 1 on today")
+  expect(mark.said).toBe("Agenda — 1 overdue, 1 due today")
 })
 
 test("an occurrence on today is not a row this mark counts", () => {
@@ -147,8 +147,8 @@ import { phraseOf } from "./owed.ts"
 test("the entry and reminder share the exact count phrase", () => {
   for (const [owed, phrase] of [
     [{ overdue: 2, today: 0 }, "2 overdue"],
-    [{ overdue: 0, today: 3 }, "3 on today"],
-    [{ overdue: 2, today: 3 }, "2 overdue, 3 on today"],
+    [{ overdue: 0, today: 3 }, "3 due today"],
+    [{ overdue: 2, today: 3 }, "2 overdue, 3 due today"],
   ] as const) {
     expect(phraseOf(owed)).toBe(phrase)
     expect(markOf(owed).said).toBe(`Agenda — ${phrase}`)

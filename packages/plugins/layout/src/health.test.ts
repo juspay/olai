@@ -14,14 +14,14 @@ const reconnecting: SurfaceReadout = { status: "reconnecting", needsReload: fals
 
 test("nothing standing, and nothing but quiet rows, is healthy", () => {
   expect(worstOf([])).toBe("healthy")
-  expect(worstOf([{ tone: "quiet", label: "no git here" }, { tone: "quiet", label: "no kolu" }])).toBe("healthy")
-  expect(nameOf([{ tone: "quiet", label: "no git here" }])).toBe("status: all well")
+  expect(worstOf([{ tone: "quiet", label: "Not a git folder" }, { tone: "quiet", label: "No kolu" }])).toBe("healthy")
+  expect(nameOf([{ tone: "quiet", label: "Not a git folder" }])).toBe("Status: all good")
 })
 
 test("the worst tone wins, whatever order the rows stand in", () => {
   const notice: BarStatus = { tone: "notice", label: "3 uncommitted" }
   const alarm: BarStatus = { tone: "alarm", label: "kolu skew" }
-  expect(worstOf([notice, { tone: "healthy", label: "live" }])).toBe("notice")
+  expect(worstOf([notice, { tone: "healthy", label: "Connected" }])).toBe("notice")
   expect(worstOf([notice, alarm])).toBe("alarm")
   expect(worstOf([alarm, notice])).toBe("alarm")
 })
@@ -32,8 +32,8 @@ test("the name quotes the news in the readouts' own words, alarms first", () => 
     { tone: "healthy", label: "kolu" },
     connectionStatus(reconnecting),
   ]
-  expect(nameOf(statuses)).toBe("status: reconnecting · 3 uncommitted")
-  expect(tipOf(statuses).split("\n")[1]).toStartWith("reconnecting — the connection dropped")
+  expect(nameOf(statuses)).toBe("Status: Reconnecting… · 3 uncommitted")
+  expect(tipOf(statuses).split("\n")[1]).toBe("Reconnecting… — Connection lost. What you see may be out of date.")
 })
 
 test("the connection is healthy only while live", () => {

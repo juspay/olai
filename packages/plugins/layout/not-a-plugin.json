@@ -10,9 +10,6 @@
   "navigation": [
     "src/browser.tsx"
   ],
-  "outlines": [
-    "src/Fault.tsx"
-  ],
   "sidebar": [
     "src/Frame.tsx",
     "src/Header.tsx",

@@ -56,7 +56,7 @@ export function PageView() {
         testid={UI.nothing}
         line={said().line}
         detail={said().detail}
-        action={said().line === "Loading…" ? undefined : { label: "Go home", run: () => router.go(HOME_ROUTE), testid: TESTID.nothingGoHome }}
+        action={said().line === "Loading…" ? undefined : { label: "Go home", run: () => router.go(HOME_ROUTE), testid: TESTID.pageGoHome }}
       />
     </main>
   }>{Page => <Page {...address()!} route={route()} index={here()} />}</Show>

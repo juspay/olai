@@ -387,12 +387,12 @@ test("a page's short name: a node's id, a file's path, a tenant's breadcrumb, an
   })
   const pages = settleRoutePages([{ plugin: "named", face: defineAppPage(route, () => null) }])
   const plugin: Route = { kind: "plugin", source: pages[0]!.page.route, value: "named" }
-  expect(labelIn(pages, HOME_ROUTE)).toBe("outline")
+  expect(labelIn(pages, HOME_ROUTE)).toBe("Home")
   expect(labelIn(pages, atNode("kitchen"))).toBe("kitchen")
   expect(labelIn(pages, atFile("wing/kitchen.olai"))).toBe("wing/kitchen.olai")
-  expect(labelIn(pages, { kind: "trash" })).toBe("trash")
+  expect(labelIn(pages, { kind: "trash" })).toBe("Trash")
   expect(labelIn(pages, plugin)).toBe("a named page")
-  expect(labelIn([], plugin)).toBe("plugin")
+  expect(labelIn([], plugin)).toBe("Page")
 })
 
 test("a document is named by the files sidebar's stem, and a file that is not one keeps its suffix", () => {

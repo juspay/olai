@@ -15,7 +15,7 @@
 
 import { expect, test } from "bun:test"
 
-import { lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
+import { frozenLookOf, lookOf, LOOK, toneOf, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
 /** The states the table answers for, DERIVED from it — which is not a table
  *  checked against itself, because membership is already a type-level
@@ -82,4 +82,31 @@ test("the degraded detail names what stopped", () => {
 // state was in would be the split this collapses.
 test("every state is drawn through one function", () => {
   for (const state of TABLED) expect(lookOf(readoutOf(state))).toBe(LOOK[state])
+})
+
+// The rows the health popover reads, in the words a person reads there.
+test("the connection's words are plain", () => {
+  expect(LOOK.live.label).toBe("Connected")
+  expect(LOOK.connecting.label).toBe("Connecting…")
+  expect(LOOK.reconnecting.label).toBe("Reconnecting…")
+  expect(LOOK.retired.label).toBe("The server restarted")
+})
+
+// THE FREEZE CARD: what happened as its heading, and what is being done about
+// it under that. A dropped wire is `Connection lost` over `Reconnecting…`; a
+// replaced server is its own words over the Reload the card draws.
+test("the freeze card says what happened, then what is being done", () => {
+  expect(frozenLookOf({ status: "reconnecting", needsReload: false }))
+    .toEqual({ title: "Connection lost", line: "Reconnecting…" })
+  expect(frozenLookOf({ status: "connecting", needsReload: false })).toEqual({ title: "Connecting…" })
+  expect(frozenLookOf({ status: "retired", needsReload: true }))
+    .toEqual({ title: "The server restarted", line: "Reload the page to keep working." })
+})
+
+test("the dot's tone: live is healthy, a first connect is a notice, the rest are alarms", () => {
+  expect(toneOf(readoutOf("live"))).toBe("healthy")
+  expect(toneOf(readoutOf("connecting"))).toBe("notice")
+  for (const state of STATES.filter((s) => s !== "live" && s !== "connecting")) {
+    expect(toneOf(readoutOf(state))).toBe("alarm")
+  }
 })

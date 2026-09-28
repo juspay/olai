@@ -30,6 +30,7 @@
   ],
   "sidebar": [
     "src/Files.tsx",
+    "src/Rail.tsx",
     "src/browser.tsx",
     "src/fold/folders.ts",
     "src/fold/reference.ts",

@@ -13,6 +13,7 @@
     "src/browser.tsx"
   ],
   "outlines": [
+    "src/browser/TrashPage.tsx",
     "src/tools.ts"
   ],
   "sidebar": [

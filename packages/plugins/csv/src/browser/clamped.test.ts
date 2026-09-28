@@ -16,7 +16,7 @@ test("a page showing the whole file says nothing about what it left out", () => 
 test("a file with nothing in it says so", () => {
   expect(clampSaid(csvTable(""))).toEqual({
     tone: "aside",
-    text: "Nothing in it — the file has no rows.",
+    text: "This file is empty.",
   })
 })
 

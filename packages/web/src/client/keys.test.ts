@@ -29,7 +29,8 @@ const key = (
 test("on Apple, Meta bindings fire and bare Ctrl does not", () => {
   expect(matchKey(key("k", { meta: true }), "MacIntel")?.action).toBe("palette")
   expect(matchKey(key("k", { ctrl: true }), "MacIntel")).toBeNull()
-  expect(matchKey(key("j", { meta: true }), "MacIntel")?.action).toBe("panel")
+  // ⌘J left with the chat dock: it is no chord at all now, so the browser keeps it.
+  expect(matchKey(key("j", { meta: true }), "MacIntel")).toBeNull()
   expect(matchKey(key("\\", { meta: true }), "MacIntel")?.action).toBe("sidebar")
 })
 
@@ -38,7 +39,7 @@ test("elsewhere, Ctrl bindings fire and bare Meta does not", () => {
     "palette",
   )
   expect(matchKey(key("k", { meta: true }), "Linux x86_64")).toBeNull()
-  expect(matchKey(key("j", { ctrl: true }), "Linux x86_64")?.action).toBe("panel")
+  expect(matchKey(key("j", { ctrl: true }), "Linux x86_64")).toBeNull()
 })
 
 test("shifted and bare keys are ignored", () => {
@@ -467,6 +468,12 @@ test("every editing key is written down for a person", () => {
 test("the reference names the same chords the matcher answers", () => {
   const anywhere = SHORTCUTS.find((group) => group.group === "Anywhere")
   expect(anywhere?.keys.length).toBe(CHORDS.length)
+})
+
+test("⌘J is neither a chord nor a line in the reference", () => {
+  expect(CHORDS.some((chord) => chord.key === "j")).toBe(false)
+  const lines = SHORTCUTS.flatMap((group) => group.keys.map((key) => key.keys))
+  expect(lines.some((keys) => keys.includes("⌘J") || keys.includes("Ctrl+J"))).toBe(false)
 })
 
 test("Alt+Left and Alt+Right move pane focus, and Shift keeps them the row's", () => {

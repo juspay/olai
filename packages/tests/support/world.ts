@@ -733,6 +733,12 @@ export const PLUGINS_MOVED = selector(TESTID.pluginsMoved);
 export const PREFS_ROW = selector(TESTID.prefsRow);
 export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
+/** A yes-or-no row's switch: `role="switch"`, its state `aria-checked`. Every
+ *  binary preference (Show finished, Alerts, Sound) is one of these. */
+export const PREFS_SWITCH = selector(TESTID.prefsSwitch);
+/** The choice in force, named quietly beside a row's label where the control
+ *  does not spell it out (the theme swatches). */
+export const PREFS_VALUE = selector(TESTID.prefsValue);
 export const PREFS_SCOPE = selector(TESTID.prefsScope);
 export const PREFS_SET_BY = selector(TESTID.prefsSetBy);
 export const COMMIT_RESUME = selector(PLUGIN_TESTID.commitResume);
@@ -1953,11 +1959,49 @@ export class OlaiWorld extends World {
   }
 
   /**
-   * Quiet groups start collapsed. A scenario that names a row in one has to
-   * open the heading first — the same press a person makes — or the wait for
-   * visible is a wait for a summary.
+   * Put the plugins panel up, the way a person gets to it, unless it is up.
+   *
+   * On a desktop the door is the `Plugins` row at the foot of the health
+   * popover, so the dot is pressed first; while the panel is open the popover
+   * behind it is `aria-hidden`. On a phone the door is a row of the sidebar
+   * drawer. A returning layout can restore an open panel before its trigger,
+   * which is why the panel is checked for on every turn of the wait.
    */
-  async showPluginRow(plugin: string): Promise<Locator> {
+  async showPlugins(): Promise<Locator> {
+    const panel = this.pluginsPanel();
+    if ((await panel.count()) > 0) return panel;
+    const trigger = this.page.locator(PLUGINS_TRIGGER).locator("visible=true");
+    await this.waitUntil(async () => {
+      if ((await panel.count()) > 0 || (await trigger.isVisible())) return true;
+      if (await this.page.locator(HEALTH).isVisible()) await this.openStatus().catch(() => undefined);
+      else await this.showSidebar().catch(() => undefined);
+      return (await panel.count()) > 0 || (await trigger.isVisible());
+    }, "the plugins panel or its trigger");
+    if ((await panel.count()) > 0) return panel;
+    await this.press(trigger);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    return panel;
+  }
+
+  /**
+   * One plugin's row, on screen and OPEN.
+   *
+   * Two presses stand between the panel and a row's detail, and this makes
+   * both — the ones a person makes. Every group (Needs attention, Agents,
+   * Notes, Connections, Interface, Your plugins, and Server at the foot) is a
+   * `<details>` that may be shut, and every row in it is a one-line summary —
+   * name, status, switch — whose sentence, face, knobs and source sit behind
+   * its name button (`aria-expanded`, `aria-controls` its detail). A row
+   * filed under Needs attention starts open; a row with nothing to reveal has
+   * no button and nothing to open.
+   *
+   * `detail: false` stops after the group, for a step that only wants the
+   * row's line (its switch) and must not move the row's own open state.
+   */
+  async showPluginRow(
+    plugin: string,
+    options: { readonly detail?: boolean } = {},
+  ): Promise<Locator> {
     const panel = this.pluginsPanel();
     const row = panel.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
     await row.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
@@ -1973,6 +2017,17 @@ export class OlaiWorld extends World {
       return true;
     });
     if (opened) await this.waitForFrame();
+    if (options.detail === false) return row;
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // The row's own name button: the one that controls its detail block.
+    const name = row.locator(`button${attr("aria-controls", `plugins-detail-${plugin}`)}`);
+    if ((await name.count()) > 0 && (await name.getAttribute("aria-expanded")) !== "true") {
+      await name.click();
+      await row
+        .locator(`button${attr("aria-controls", `plugins-detail-${plugin}`)}${attr("aria-expanded", "true")}`)
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+      await this.waitForFrame();
+    }
     return row;
   }
 
