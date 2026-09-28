@@ -39,7 +39,6 @@
 export type KeyAction =
   | "palette"
   | "sidebar"
-  | "panel"
   | "undo"
   | "redo"
   | "closePane"
@@ -69,13 +68,11 @@ const onApple = (platform?: string): boolean =>
  *
  *   ⌘K / Ctrl+K   — command palette
  *   ⌘\ / Ctrl+\   — toggle sidebar
- *   ⌘J / Ctrl+J   — toggle chat
  *   ⌘Z / Ctrl+Z   — undo the last edit this tab made
  *   ⌘⇧Z / Ctrl+⇧Z — redo it
  *
- * ⌘J / Ctrl+J and Ctrl+K shadow browser chrome defaults (downloads / search
- * bar) — deliberate, so keyboard editing could not claim those combos later,
- * and it has not.
+ * Ctrl+K shadows a browser chrome default (the search bar) — deliberate, so
+ * keyboard editing could not claim that combo later, and it has not.
  *
  * ⌘Z is the one chord with a SHIFTED twin, which is why `shift` is a field
  * rather than a blanket "no shift" test in the matcher: undo and redo are one
@@ -103,7 +100,6 @@ export const CHORDS: ReadonlyArray<
 > = [
   { key: "k", action: "palette", whileEditing: true },
   { key: "\\", action: "sidebar", whileEditing: false },
-  { key: "j", action: "panel", whileEditing: false },
   { key: "z", action: "undo", whileEditing: false },
   { key: "z", action: "redo", whileEditing: false, shift: true },
   // The browser owns bare ⌘W / Ctrl+W (close the tab). This is the
@@ -678,7 +674,6 @@ export const SHORTCUTS: ReadonlyArray<{
     keys: [
       { keys: "⌘K / Ctrl+K", what: "the command palette" },
       { keys: "⌘\\ / Ctrl+\\", what: "show or hide the directory" },
-      { keys: "⌘J / Ctrl+J", what: "show or hide the agent" },
       { keys: "⌘Z / Ctrl+Z", what: "take back your last edit on this outline" },
       { keys: "⌘⇧Z / Ctrl+⇧Z", what: "put it back" },
       { keys: "⌘⇧W / Ctrl+⇧W", what: "close the focused pane" },

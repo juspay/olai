@@ -28,8 +28,5 @@ const provider = heldService<Shell>()
 /** Told by ``../browser.tsx`'s `shell` component`, for that activation. */
 export const holdShell = provider.hold
 
-/** Is the right panel open? */
-export const panelOpen: Accessor<boolean> = () => provider.read()?.panelOpen() ?? false
-
 /** Is the viewport at the phone/desktop split? */
 export const desktop: Accessor<boolean> = () => provider.read()?.desktop() ?? false

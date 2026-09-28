@@ -9,6 +9,8 @@ export const TESTID = {
   prefsRow: "prefs-row",
   prefsHint: "prefs-hint",
   prefsChoice: "prefs-choice",
+  prefsSwitch: "prefs-switch",
+  prefsValue: "prefs-value",
   prefsSetBy: "prefs-set-by",
   nothing: "nothing",
 } as const

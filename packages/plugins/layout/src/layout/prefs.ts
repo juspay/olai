@@ -56,6 +56,8 @@ export const SIDEBAR_WIDTH_KEY = "olai.sidebar.width"
  * as a place the word `chat` appears and is not a plugin's name, beside the two
  * collisions the engines already produce.
  */
+/** NO LONGER READ: nothing opens the seat's panel since the chat dock left.
+ *  Kept so the legacy-preference scenario can seed it and prove it is inert. */
 export const PANEL_OPEN_KEY = "olai.chat.open"
 export const PANEL_WIDTH_KEY = "olai.chat.width"
 export const PANEL_SNAP_KEY = "olai.chat.snap"
@@ -156,10 +158,10 @@ export const fitWidths = (
   return { side, chat }
 }
 
-/** The five preference circuits a layout activation installs — the shape
+/** The four preference circuits a layout activation installs — the shape
  *  `./prefs-owner.ts` builds and `./live.ts` holds. */
 interface Preference<T> {readonly value:()=>T;readonly set:(value:T,opts?:SetOptions)=>void}
 export interface LayoutPreferences {
  readonly sidebarOpenPref:Preference<boolean>;readonly sidebarWidthPref:Preference<number>
- readonly panelOpenPref:Preference<boolean>;readonly panelWidthPref:Preference<number>;readonly panelSnapPref:Preference<ChatSnap>
+ readonly panelWidthPref:Preference<number>;readonly panelSnapPref:Preference<ChatSnap>
 }

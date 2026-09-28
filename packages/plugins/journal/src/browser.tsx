@@ -144,8 +144,8 @@ export const components = {
   }) }),
   "reminder-controls": definePlugin({ name: "reminder-controls", needs: [alertsChannel, rendererSlots], apply: Effect.gen(function*() {
     const channel = yield* alertsChannel
-    yield* (yield* rendererSlots).contribute(sections, () =>
-      <Show when={reminderState.read()}>{state => <ReminderRow channel={channel} state={state()} />}</Show>)
+    yield* (yield* rendererSlots).contribute(sections, { group: "Notifications", order: 31, body: () =>
+      <Show when={reminderState.read()}>{state => <ReminderRow channel={channel} state={state()} />}</Show> })
   }) }),
   /** Where a minted note is opened, DECLARED — a component of its own so the
    *  calendar, the agenda and every day page keep working with no document row

@@ -96,7 +96,7 @@ import { atOnce,spend } from "@olai/web/client/settled.ts"
 
 import { useToday } from "./clock.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
-import { desktop, resetPanelWidths, togglePanel } from "./shell.ts"
+import { desktop, resetPanelWidths } from "./shell.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { isLone } from "olai-plugin-navigation/workspace"
@@ -534,7 +534,6 @@ export function Palette(props: {
     if (action.kind === "route") props.go(action.route)
     else if (action.kind === "shortcuts") setKeys(true)
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
-    else if (action.kind === "toggle-panel") togglePanel()
     else if (action.kind === "reset-widths") resetPanelWidths()
     else if (action.kind === "close-pane") router.close()
     close()
@@ -823,7 +822,6 @@ export function Palette(props: {
       event.preventDefault()
       if (match.action === "palette") return // Navigation owns this shortcut.
       if (match.action === "sidebar") props.toggleDirectory()
-      if (match.action === "panel") togglePanel()
       // Reached only with the caret nowhere — both chords are
       // `whileEditing: false`, so a draft keeps the platform's own undo and
       // Escape keeps abandoning.

@@ -117,7 +117,7 @@ export const strip = location<() => JSX.Element>("layout.strip", "one")
  * runs under another layout entirely (`olai-plugin-test-layout`,
  * `alternate_layout.feature`), so a row that waited for this one would be a row
  * that could not. With no shell mounted the readings answer what they have
- * always answered — a phone-width viewport, a shut panel, an open sidebar —
+ * always answered — a phone-width viewport and an open sidebar —
  * and the presses do nothing.
  */
 export interface Shell {
@@ -129,15 +129,12 @@ export interface Shell {
   /** Live width, clamped to the current viewport. */
   readonly sidebarWidth: Accessor<number>
   readonly setSidebarWidth: (px: number, opts?: SetOptions) => void
-  /** Is the right panel open? Minimized is the other of the two states. */
-  readonly panelOpen: Accessor<boolean>
-  readonly setPanelOpen: (open: boolean) => void
-  readonly togglePanel: () => void
   readonly panelWidth: Accessor<number>
   readonly setPanelWidth: (px: number, opts?: SetOptions) => void
   readonly panelSnap: Accessor<ChatSnap>
   readonly setPanelSnap: (snap: ChatSnap) => void
-  /** Put both panels back to their defaults — the palette's command. */
+  /** Put the sidebar (and the seat's panel) back to default widths — the
+   *  palette's command. */
   readonly resetPanelWidths: () => void
   /** The panel's own drag handle, drawn by whoever is in the seat. The BOX is
    *  the shell's and what is inside it is the tenant's, so the handle travels

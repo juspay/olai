@@ -6,7 +6,7 @@
  * pointerup (see layout/prefs.ts), so a short drag is one storage write and
  * not twenty cross-tab re-renders.
  *
- * Keyboard users reset widths from the palette ("Reset panel widths"); this
+ * Keyboard users reset widths from the palette ("Reset sidebar width"); this
  * control is pointer-only.
  */
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"

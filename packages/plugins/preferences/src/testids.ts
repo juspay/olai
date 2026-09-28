@@ -4,6 +4,7 @@ export const TESTID = {
   prefsTrigger: "prefs-trigger",
   prefsPanel: "prefs-panel",
   prefsScope: "prefs-scope",
+  prefsGroup: "prefs-group",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

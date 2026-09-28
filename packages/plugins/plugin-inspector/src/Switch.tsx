@@ -1,6 +1,9 @@
-/** A binary on/off control. Segmented Off|On is for named alternatives; this
- *  panel has thirty binaries and the two-pill strip is a wall. */
+/** The plugins panel's switch is the shared one (`@olai/ui-primitives/Switch.tsx`),
+ *  so the preferences panel draws the same control for its binaries. This file
+ *  keeps the panel's import and names the testid this package owns. */
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
+import { Switch as Shared } from "@olai/ui-primitives/Switch.tsx"
+
 export function Switch(props: {
   readonly label: string
   readonly session?: boolean
@@ -8,29 +11,5 @@ export function Switch(props: {
   readonly frozen?: boolean
   readonly onPick: (value: "on" | "off") => void
 }) {
-  const frozen = (): boolean => props.frozen === true
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-label={props.label}
-      aria-checked={props.on}
-      aria-disabled={frozen() ? true : undefined}
-      title={props.session ? "session-only" : undefined}
-      data-session={props.session ? "true" : undefined}
-      data-testid={TESTID.pluginSwitch}
-      class={`prototype-switch relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-ink)_6%,transparent)] ${
-        frozen() ? "opacity-60" : ""
-      } ${props.on ? "bg-done" : "bg-rule"}`}
-      onClick={() => {
-        if (!frozen()) props.onPick(props.on ? "off" : "on")
-      }}
-    >
-      <span
-        class={`absolute top-[0.12rem] size-[0.9rem] rounded-full bg-panel shadow-sm ${
-          props.on ? "left-[1.02rem]" : "left-[0.12rem]"
-        }`}
-      />
-    </button>
-  )
+  return <Shared {...props} testid={TESTID.pluginSwitch} />
 }
