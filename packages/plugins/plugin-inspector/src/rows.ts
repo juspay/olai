@@ -130,10 +130,10 @@ const said = (fault: string | undefined): string =>
  * invented a warning out of that silence would be worse than one that kept
  * quiet.
  */
-const carries = (plugin: BuiltPlugin): string | undefined =>
+const carries = (plugin: BuiltPlugin, named: (name: string) => string): string | undefined =>
   plugin.carrying === undefined || plugin.carrying.length === 0
     ? undefined
-    : plugin.carrying.join(", ")
+    : plugin.carrying.map(named).join(", ")
 
 /** A running server row can have a waiting browser component. Keep the
  * server's switch semantics and name that component and its missing keys. */
@@ -160,8 +160,11 @@ export const browserHint = (plugin: string, reports: ReadonlyMap<string, RowRepo
 export const pluginConfirm = (
   plugin: BuiltPlugin,
   look: PluginLook = {},
+  /** How a carried row is named — its label on the panel; the name itself
+   *  where the caller has no labels. */
+  named: (name: string) => string = (name) => name,
 ): string | null => {
-  const carry = carries(plugin)
+  const carry = carries(plugin, named)
   if (carry !== undefined) return `Turning it off also stops ${carry}.`
   return look.switchHint ?? null
 }

@@ -77,7 +77,6 @@ details[open] > summary > .plugins-chevron, .plugins-row[data-open] > .plugins-l
 .plugins-list { display: flex; flex-direction: column; gap: 2px; }
 .plugins-env { display: flex; flex-direction: column; gap: 1px; }
 .plugins-env-key { color: var(--color-muted); font-size: 10.5px; }
-.plugins-short-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .plugins-link { font-size: 12px; color: var(--color-accent); }
 .plugins-link a:hover { text-decoration: underline; }
 

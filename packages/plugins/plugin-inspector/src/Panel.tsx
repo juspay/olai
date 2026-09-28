@@ -240,7 +240,7 @@ export function Panel(props: {
     if (group !== undefined) props.state.setGroupOpen(group.label, true)
     if (pick === "off") {
       const plugin = rows().find((one) => one.name === name)
-      const cost = plugin === undefined ? null : pluginConfirm(plugin, props.management.look(name))
+      const cost = plugin === undefined ? null : pluginConfirm(plugin, props.management.look(name), (one) => props.management.look(one).label ?? one)
       if (cost !== null && confirming() !== name) {
         setConfirming(name)
         setRefused(null)
@@ -413,7 +413,7 @@ function PluginRow(props: {
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const copy = () => rowCopy(plugin(), props.plugins(), look(), props.panel.management.reports())
   const status = () => rowStatus(plugin(), props.panel.management.reports(), props.face?.needs() === true)
-  const cost = () => pluginConfirm(plugin(), look())
+  const cost = () => pluginConfirm(plugin(), look(), (one) => props.panel.management.look(one).label ?? one)
   const state = () => pluginState(plugin())
   const session = () => plugin().switchPersistence === "session" || props.plugins().configurationAvailable === false
   const environment = () => (plugin().environment ?? []).filter(environmentVisible)
@@ -483,11 +483,16 @@ function PluginRow(props: {
         <dl class="plugins-detail">
           <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
           <Show when={environment().length > 0}><Environment values={environment()} /></Show>
-          <dt>Short name</dt>
-          <dd class="plugins-short-name">
-            <code>{plugin().name}</code>
-            <NodeLink node={plugin().configurationNode} state={props.panel.state} />
-          </dd>
+          {/* The name a person types in the settings file, where the row's
+              label is not already it — and the link to its node there. */}
+          <Show when={displayName(plugin(), look()) !== plugin().name}>
+            <dt>Short name</dt>
+            <dd><code>{plugin().name}</code></dd>
+          </Show>
+          <Show when={plugin().configurationNode && props.panel.state.file()}>
+            <dt>Saved in</dt>
+            <dd><NodeLink node={plugin().configurationNode} state={props.panel.state} /></dd>
+          </Show>
         </dl>
         <Show when={session()}>
           <p class="plugins-note">Switching it here lasts for this session only.</p>
