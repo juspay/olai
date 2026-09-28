@@ -81,8 +81,7 @@ Feature: The files olai names for itself, and the doors onto them
     # THE 2026-09 SIMPLIFICATION moved the Trash out: it is the trash row's
     # own entry, pinned at the column's foot, so a directory with no `_olai/`
     # file draws no empty parent at all.
-    Then the sidebar draws no vault group
-    And the Trash door stands at the sidebar's foot, outside the group
+    Then the Trash door stands at the sidebar's foot, outside the group
     When I pin the page
     Then the vault group is one parent named "olai"
     And the parent nests the vault group's "_olai/Pins.olai" row

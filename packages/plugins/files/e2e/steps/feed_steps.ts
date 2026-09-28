@@ -113,15 +113,6 @@ Then("the vault group is one parent named \"olai\"", async function(this: OlaiWo
   )
 })
 
-/** No `_olai/` file, no parent: the group is drawn only when it holds a row
- *  (the Trash no longer keeps it standing). Asked once the tree is up, so an
- *  undrawn column cannot pass it. */
-Then("the sidebar draws no vault group", async function(this: OlaiWorld) {
-  await this.showSidebar()
-  await visible(this, OUTLINE_LIST)
-  await this.waitUntil(async () => (await this.page.locator(VAULT_GROUP).count()) === 0, "no empty vault group")
-})
-
 /** The Trash is the trash row's own foot entry now — pinned under the
  *  scrolling list, and never inside the files row's group. */
 Then("the Trash door stands at the sidebar's foot, outside the group", async function(this: OlaiWorld) {

@@ -13,7 +13,7 @@ Feature: Today is one row, and the month folds under it
 
   @corpus:journal
   Scenario: The month is folded by default, and Today names the day
-    Given I open the outline "garden.olai"
+    Given I open the outline "work.olai"
     Then the Today row sits directly under Agenda
     And the Today row names today
     And the month is folded under the Today row
@@ -21,7 +21,7 @@ Feature: Today is one row, and the month folds under it
 
   @corpus:journal
   Scenario: The Today row goes to today's page without unfolding the month
-    Given I open the outline "garden.olai"
+    Given I open the outline "work.olai"
     When I follow the Today row
     Then the day open is today
     And the Today row is the current page
@@ -44,7 +44,7 @@ Feature: Today is one row, and the month folds under it
 
   @corpus:journal
   Scenario: The chevron answers the keyboard
-    Given I open the outline "garden.olai"
+    Given I open the outline "work.olai"
     When I press "Enter" on the month's chevron
     Then the month is unfolded under the Today row
     When I press " " on the month's chevron
@@ -52,7 +52,7 @@ Feature: Today is one row, and the month folds under it
 
   @corpus:journal
   Scenario: An unfolded month survives a reload, and so does a folded one
-    Given I open the outline "garden.olai"
+    Given I open the outline "work.olai"
     When I press the month's chevron
     Then the month is unfolded under the Today row
     When I reload the page

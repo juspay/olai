@@ -25,9 +25,10 @@ export function NewChat() {
       disabled={creation === undefined || creation?.pending() || agents.engines().length === 0} aria-busy={creation?.pending()}
       onPointerDown={() => { shutting = menu() !== null }}
       onClick={event => {
-        // The sidebar body puts the phone drawer away on any click that
-        // bubbles to it; opening a menu is not leaving.
-        event.stopPropagation()
+        // Deliberately LET the click bubble: the sidebar body puts the phone
+        // drawer away, which is what a new chat wants — the conversation it
+        // starts unfolds in the page the drawer was covering. The engine menu
+        // is portalled and anchored to this button's last box, so it stays.
         if (shutting) { shutting = false; setMenu(null); return }
         // One startable engine is no choice, regardless of how many missing
         // engines the build ships. Their advice remains in the inspector.
