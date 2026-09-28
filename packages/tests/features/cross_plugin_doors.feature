@@ -75,7 +75,7 @@ Feature: Plugins depend on doors
     And my transcript speaker is "You"
     And my transcript speaker wears an anonymous silhouette
     When I open the plugins panel
-    Then the plugins panel says "chat" is "Browser speaker: waiting for identity.viewer"
+    Then the plugins panel says "chat" is "In this tab (speaker): still starting (needs identity.viewer)."
     And the browser service catalog excludes "identity.viewer"
     When I switch the plugin "identity" on
     Then the plugin "chat" has no browser warning
@@ -84,7 +84,7 @@ Feature: Plugins depend on doors
     Then my transcript speaker is "ada@example.com"
     When I open the plugins panel
     And I switch the plugin "identity" off
-    Then the plugins panel says "chat" is "identity.viewer"
+    Then the plugins panel says "chat" is "In this tab (speaker): still starting (needs identity.viewer)."
     And the browser service catalog excludes "identity.viewer"
     When I close the plugins panel
     Then my transcript speaker is "You"

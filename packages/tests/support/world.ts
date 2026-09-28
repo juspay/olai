@@ -2041,14 +2041,21 @@ export class OlaiWorld extends World {
     if (options.detail === false) return row;
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // The row's own name button: the one that controls its detail block.
+    // A PRESS IS A TOGGLE, and the row's open state can move under it: a
+    // roster republish that files the row under Needs attention opens it by
+    // default, and a press aimed at the shut row then shuts it. So the state
+    // is read again after every press and pressed again while it says shut —
+    // never one press followed by a long wait for an answer it undid.
     const name = row.locator(`button${attr("aria-controls", `plugins-detail-${plugin}`)}`);
-    if ((await name.count()) > 0 && (await name.getAttribute("aria-expanded")) !== "true") {
-      await name.click();
-      await row
-        .locator(`button${attr("aria-controls", `plugins-detail-${plugin}`)}${attr("aria-expanded", "true")}`)
-        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const open = async (): Promise<boolean> =>
+      (await name.count()) === 0 ||
+      (await name.getAttribute("aria-expanded", { timeout: 1000 }).catch(() => null)) === "true";
+    await this.waitUntil(async () => {
+      if (await open()) return true;
+      await name.click({ timeout: 2000 }).catch(() => undefined);
       await this.waitForFrame();
-    }
+      return await open();
+    }, `the ${plugin} row's detail to open`);
     return row;
   }
 
