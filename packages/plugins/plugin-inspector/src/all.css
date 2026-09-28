@@ -42,6 +42,7 @@ details[open] > summary > .plugins-chevron, .plugins-row[data-open] > .plugins-l
 .plugins-rows { padding: 0 0 6px; }
 .plugins-row { border-radius: var(--radius-control); }
 .plugins-row[data-open] { background: color-mix(in srgb, var(--color-pill) 40%, transparent); margin: 2px 0; }
+.plugins-group[data-needs] .plugins-row[data-open] { background: transparent; }
 .plugins-line { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 8px 0 4px; }
 .plugins-name {
   display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; align-self: stretch;

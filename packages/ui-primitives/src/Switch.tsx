@@ -36,7 +36,7 @@ export function Switch(props: {
       aria-label={props.label}
       aria-checked={props.on}
       aria-disabled={frozen() ? true : undefined}
-      title={props.session ? "This tab only" : undefined}
+      title={props.session ? "Resets when olai restarts" : undefined}
       data-session={props.session ? "true" : undefined}
       data-testid={props.testid}
       class={`prototype-switch relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full inset-ring inset-ring-ink/10 after:absolute after:-inset-x-[0.4rem] after:-inset-y-[0.8rem] after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel md:after:hidden ${
