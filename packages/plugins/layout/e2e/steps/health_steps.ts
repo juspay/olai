@@ -132,6 +132,17 @@ Then("the {string} row wears a {string} dot", async function (this: OlaiWorld, i
   await this.expectAttribute(dot,"data-health", tone, `the ${id} row's dot`, HYDRATION_TIMEOUT);
 });
 
+/** Rows stand worst first: the first row (the first owner's test id in the
+ *  popover, in the order a Tab walks them) is the one named. */
+Then("the health popover's first row is {string}", async function (this: OlaiWorld, id: string) {
+  const panel = this.page.locator(HEALTH_PANEL);
+  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const first = async () => panel.evaluate((box) => box.querySelector("[data-testid]")?.getAttribute("data-testid") ?? "");
+  await this.waitUntil(async () => (await first()) === id, `the health popover's first row to be ${id}`).catch(async () => {
+    assert.fail(`the health popover's first row is ${JSON.stringify(await first())}, not ${JSON.stringify(id)}`);
+  });
+});
+
 /** THE INVARIANT the one-tone rule exists for: a dot that is not green always
  *  has a row of exactly its colour under it, so nothing in the list leaves the
  *  colour unexplained. */

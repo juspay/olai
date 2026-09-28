@@ -73,9 +73,15 @@ the `header` tools and the `app.viewer` seat. The dot (`Health.tsx`) replaces
 the row of pills the bar used to stand. Layout owns the LOCATION and the
 drawing; every readout still belongs to the plugin that registers it:
 
-- `app.header` `cluster` seats are drawn as rows of the dot's popover, in mount
-  order, after the connection's row (layout's own). The uptime line is last,
-  quiet, and casts no vote. The `health` tools are the popover's foot.
+- `app.header` `cluster` seats are drawn as rows of the dot's popover beside
+  the connection's row (layout's own), WORST FIRST: `alarm` rows, then
+  `notice`, then `healthy`, then `quiet` (a seat with no `status` stands with
+  the quiet), and within one tone the connection first, then mount order
+  (`health.ts`'s `worstFirst`). The order is live — a row whose tone changes
+  moves, in the DOM, so a Tab walks the rows in the order they are seen. Layout
+  orders from each registration's own `status`; no plugin chooses its place
+  and Layout names none. The uptime line is last, quiet, and casts no vote. The
+  `health` tools are the popover's foot.
 - A seat may declare `status: () => BarStatus` — `tone` (`healthy`, `quiet`,
   `notice`, `alarm`), `label` (the row's own words) and `detail`. It is a
   reactive accessor over state the contributor's activation owns (git reads

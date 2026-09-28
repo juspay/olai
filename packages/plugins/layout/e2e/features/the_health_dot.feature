@@ -24,10 +24,12 @@ Feature: One health dot stands where the bar's pills stood
     And the health dot is "healthy"
     And the health dot says all is well
     When I open the health popover
+    # Worst first, then as they mount: the healthy connection and kolu before
+    # git's quiet "not a git folder".
     Then the health popover lists, in order:
       | connection      |
-      | commit-pill     |
       | padi            |
+      | commit-pill     |
       | uptime          |
       | plugins-trigger |
     And there should be no page errors
@@ -104,7 +106,7 @@ Feature: One health dot stands where the bar's pills stood
     And there should be no page errors
 
   @scratch:good @git:repo
-  Scenario: An amber dot has an amber row under it
+  Scenario: An amber dot has an amber row under it, first
     # The owner's bug: the dot was amber for "2 uncommitted" while git's row
     # drew no dot, so nothing in the list explained the colour. Each row now
     # wears the one tone its readout states, and the dot is the worst of them.
@@ -115,7 +117,9 @@ Feature: One health dot stands where the bar's pills stood
       """
     Then the health dot is "notice"
     When I open the health popover
-    Then the "commit-pill" row wears a "notice" dot
+    # Worst first: the row that explains the colour is the first one.
+    Then the health popover's first row is "commit-pill"
+    And the "commit-pill" row wears a "notice" dot
     And a row of the health popover wears the health dot's tone
     And there should be no page errors
 

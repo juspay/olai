@@ -15,7 +15,7 @@
  * Every row in the popover is still its OWNER's face: the connection and the
  * uptime line are this plugin's own; every other row is a `cluster` seat in
  * `app.header`, registered and withdrawn by the plugin that owns it, drawn here
- * by {@link PluginHeaders} exactly as the bar used to draw it — so a row's
+ * exactly as the bar used to draw it — so a row's
  * words and whatever its press opens (the Commit panel, kolu's feed) are the
  * plugin's, untouched. What changed is WHERE: a row of this popover rather
  * than a chip in the bar. The dot's colour comes from the same registrations'
@@ -23,14 +23,14 @@
  * its row and its vote with it in the same withdrawal, and one switched back
  * on brings both with a fresh scope.
  *
+ * The rows stand WORST FIRST, by the same live tones (`./health.ts`'s
+ * `worstFirst`): alarms, then notices, then the healthy, then the quiet, the
+ * connection taking part like any row. A row whose tone changes moves, and
+ * since they are moved in the DOM, a Tab walks them in the order they are seen.
+ *
  * The plugins door is a `layout.tools` entry that asks for this popover's
- * foot (`desktop: "health"`), so this file names no tenant. Such a door is
- * MOUNTED beside the dot rather than inside the popover, and puts only its row
- * into the popover's foot (`./contracts/BarDoor.tsx`, through
- * {@link HealthSeat}): its panel therefore needs nothing of the popover. Picking
- * the row shuts the popover and opens the panel, anchored to the dot — and a
- * panel whose open state outlives the shell comes back with the shell, because
- * the door that draws it is always standing.
+ * foot (`desktop: "health"`), so this file names no tenant. Such a door stands
+ * beside the dot and lends the popover only its row ({@link HealthSeat}).
  *
  * ## The panel
  *
@@ -41,8 +41,9 @@
  * layer, so its Escape shuts it first and a second Escape shuts this.
  */
 import { TESTID } from "olai-plugin-layout/testids"
-import { createMemo, createSignal, Show } from "solid-js"
-import { Portal } from "solid-js/web"
+import type { Hung } from "@olai/plugin-api"
+import { createMemo, createSignal, For, Show } from "solid-js"
+import { Dynamic, Portal } from "solid-js/web"
 
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
@@ -51,11 +52,10 @@ import { createPopover } from "@olai/web/client/popover.ts"
 import { lookOf } from "@olai/web/client/connection/status.ts"
 import { ICON_BUTTON, PANEL_BOX, TONE } from "@olai/web/client/readout.ts"
 
-import { PluginHeaders } from "./Chrome.tsx"
 import { hung } from "./faces.ts"
-import { nameOf, tipOf, worstOf } from "./health.ts"
+import { nameOf, tipOf, worstFirst, worstOf } from "./health.ts"
 import { Indicator } from "./Indicator.tsx"
-import type { BarStatus } from "./slots.ts"
+import type { BarSeat, BarStatus, BarTone } from "./slots.ts"
 import { HealthSeat } from "./contracts/BarDoor.tsx"
 import { Tools } from "./Tools.tsx"
 import { Uptime } from "./Uptime.tsx"
@@ -72,14 +72,22 @@ const narrowed = (at: Anchor, edge: number | undefined): Record<string, string |
   return { ...styleOf(at), left: `${right - width}px`, width: `${width}px` }
 }
 
+/** The connection's own row, ordered among the seats like any of them. */
+const CONNECTION = "connection"
+type Row = typeof CONNECTION | Hung<BarSeat>
+
 export function Health(props: { readonly slots: RendererSlots }) {
+  const seats = createMemo(() => hung("app.header").filter((one) => one.face.place === "cluster"))
   /** Every status standing now: the connection first, then each cluster
    *  seat's in mount order. A seat with no `status` has no vote. */
   const statuses = createMemo((): ReadonlyArray<BarStatus> => [
     lookOf(connectionReadout()),
-    ...hung("app.header").flatMap((one) =>
-      one.face.place === "cluster" && one.face.status !== undefined ? [one.face.status()] : []),
+    ...seats().flatMap((one) => one.face.status === undefined ? [] : [one.face.status()]),
   ])
+  /** A row's live tone; a seat with no `status` stands with the quiet. */
+  const toneOf = (row: Row): BarTone =>
+    row === CONNECTION ? lookOf(connectionReadout()).tone : row.face.status?.().tone ?? "quiet"
+  const rows = createMemo(() => worstFirst<Row>([CONNECTION, ...seats()], toneOf))
   const tone = () => worstOf(statuses())
   let dot: HTMLButtonElement | undefined
   const popover = createPopover()
@@ -127,8 +135,11 @@ export function Health(props: { readonly slots: RendererSlots }) {
               data-testid={TESTID.healthPanel}
               aria-label="status"
             >
-              <Indicator readout={connectionReadout()} />
-              <PluginHeaders place="cluster" />
+              <For each={rows()}>
+                {(row) => row === CONNECTION
+                  ? <Indicator readout={connectionReadout()} />
+                  : <Dynamic component={row.face.body} />}
+              </For>
               <Uptime />
               <div ref={setFoot} class="mt-1 border-t border-rule/60 pt-1" />
             </section>

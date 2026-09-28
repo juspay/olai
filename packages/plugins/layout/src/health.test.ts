@@ -6,7 +6,7 @@ import { expect, test } from "bun:test"
 
 import { lookOf } from "@olai/web/client/connection/status.ts"
 
-import { nameOf, tipOf, worstOf } from "./health.ts"
+import { nameOf, tipOf, worstFirst, worstOf } from "./health.ts"
 import type { BarStatus, BarTone } from "./slots.ts"
 
 const retired = lookOf({ status: "retired", needsReload: true })
@@ -33,6 +33,25 @@ test("the name quotes the news in the readouts' own words, alarms first", () => 
   ]
   expect(nameOf(statuses)).toBe(`Status: ${retired.label} · 3 uncommitted`)
   expect(tipOf(statuses).split("\n")[1]).toBe(`${retired.label} — ${retired.detail}`)
+})
+
+// The popover's order: worst first, the quiet last, and rows of one tone in
+// the order they came (the connection first, then mount order).
+test("rows stand worst first, and keep their order within a tone", () => {
+  const rows: ReadonlyArray<BarStatus> = [
+    { tone: "healthy", label: "connection" },
+    { tone: "quiet", label: "no kolu" },
+    { tone: "notice", label: "9 uncommitted" },
+    { tone: "healthy", label: "odu" },
+    { tone: "alarm", label: "xyne error" },
+    { tone: "notice", label: "kolu · no check-in" },
+  ]
+  expect(worstFirst(rows, (row) => row.tone).map((row) => row.label)).toEqual([
+    "xyne error", "9 uncommitted", "kolu · no check-in", "connection", "odu", "no kolu",
+  ])
+  // Nothing wrong: the order is the order they came in.
+  const calm = rows.filter((row) => row.tone === "healthy")
+  expect(worstFirst(calm, (row) => row.tone)).toEqual(calm)
 })
 
 // THE INVARIANT the one-tone rule exists for: whenever the dot is not green,

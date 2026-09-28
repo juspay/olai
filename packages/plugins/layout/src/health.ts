@@ -28,6 +28,16 @@ export const worstOf = (statuses: ReadonlyArray<BarStatus>): DotTone =>
     return RANK[tone] > RANK[worst] ? tone : worst
   }, "healthy")
 
+/** Where a tone's rows stand in the popover: worst first, and `quiet` last. */
+const PLACE: Readonly<Record<BarTone, number>> = { alarm: 0, notice: 1, healthy: 2, quiet: 3 }
+
+/** THE POPOVER'S ORDER: rows by their live tone, worst first — so the row that
+ *  explains the dot's colour is the first one under it. Rows of one tone keep
+ *  the order they came in (the connection first, then mount order): the sort
+ *  is stable. Layout orders; no row says where it goes. */
+export const worstFirst = <T>(rows: ReadonlyArray<T>, toneOf: (row: T) => BarTone): ReadonlyArray<T> =>
+  [...rows].sort((a, b) => PLACE[toneOf(a)] - PLACE[toneOf(b)])
+
 /** The statuses that are news — `alarm` first, then `notice` — in the order
  *  they stand in the bar within each tone. */
 export const newsOf = (statuses: ReadonlyArray<BarStatus>): ReadonlyArray<BarStatus> => [
