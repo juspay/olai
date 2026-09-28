@@ -18,13 +18,21 @@ export interface SidebarSeat {
 }
 export const sidebar = location<SidebarSeat>("layout.sidebar", "one")
 
+/** Where a tool's door is drawn: the desktop bar (`header`), the foot of the
+ *  desktop health popover (`health`), or the phone drawer's foot (`closet`). */
+export type ToolWhere = "header" | "health" | "closet"
+
 /** Application tools can be drawn in the header or mobile directory footer.
- * Placement is shell policy; each entry owns its own controls and child seats. */
+ * Placement is shell policy; each entry owns its own controls and child seats.
+ * `desktop` says which desktop seat the entry asks for: the bar itself (the
+ * default) or the foot of the health popover, for a door that is read
+ * occasionally rather than reached for by habit. */
 export interface LayoutTool {
-  readonly body: (props: { readonly where: "header" | "closet" }) => JSX.Element
+  readonly body: (props: { readonly where: ToolWhere }) => JSX.Element
   readonly headerOrder: number
   readonly closetOrder: number
   readonly mobileWithoutSidebar?: boolean
+  readonly desktop?: "bar" | "health"
 }
 export const tools = location<LayoutTool>("layout.tools")
 

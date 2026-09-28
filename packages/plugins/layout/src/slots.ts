@@ -2,9 +2,40 @@
 import type { JSX } from "solid-js"
 import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"
 
+/**
+ * How a status readout is doing, worst last. The bar's one health dot wears the
+ * worst tone among everything standing in the `cluster` seat (and the
+ * connection, which is the bar's own).
+ *
+ *   - `healthy` — working, and saying so.
+ *   - `quiet` — nothing wrong and nothing running: `no kolu`, `no git here`.
+ *     It never colours the dot.
+ *   - `notice` — wants attention, is not broken: writes waiting, a watcher
+ *     gone quiet.
+ *   - `alarm` — broken: a dropped connection, a version skew, a fault.
+ */
+export type BarTone = "healthy" | "quiet" | "notice" | "alarm"
+
+/** What a cluster readout states NOW, in its own words — the same short label
+ *  its row draws, and the sentence behind it. The dot's name and tip quote
+ *  `label` (and `detail`) when the tone is `notice` or `alarm`, so a person
+ *  learns what is wrong without opening anything. */
+export interface BarStatus {
+  readonly tone: BarTone
+  readonly label: string
+  readonly detail?: string
+}
+
 export interface BarSeat {
   readonly place: "lead" | "cluster"
+  /** The readout's face. A `cluster` face is a ROW of the health popover
+   *  (drawn only while it is open); a `lead` face sits in the bar. */
   readonly body: () => JSX.Element
+  /** A `cluster` readout's live state, read reactively by the bar to colour
+   *  its health dot. Supplied by the contributor from state its own activation
+   *  owns, so it is withdrawn with the registration. Absent is a readout that
+   *  never affects the dot. */
+  readonly status?: () => BarStatus
 }
 
 declare module "@olai/plugin-api/slots" {

@@ -41,6 +41,7 @@ import type { KoluClient } from "./appliance/index.ts"
 import type { KoluApp } from "./browser/app.ts"
 import { KoluMark } from "./browser/Mark.tsx"
 import { Padi } from "./browser/Padi.tsx"
+import { padiStatus } from "./browser/status.ts"
 import { TERMINAL_KIND } from "./kinds.ts"
 
 export { name, surface } from "./wire.ts"
@@ -94,7 +95,12 @@ export default definePlugin({
     yield* slots.register("outline.row.block", TERMINAL_KIND, props => <KoluUi value={owned.value}><TerminalBlock {...props} /></KoluUi>)
     // THE PADI PILL, in the app's chrome row. Where it sits in the cluster is the
     // app's decision and always was; what a plugin gets is a seat.
-    yield* slots.register("app.header", { place: "cluster", body: () => <KoluUi value={owned.value}><Padi app={app} /></KoluUi> })
+    // Its STATUS is the same fleet's reading, for the bar's health dot.
+    yield* slots.register("app.header", {
+      place: "cluster",
+      body: () => <KoluUi value={owned.value}><Padi app={app} /></KoluUi>,
+      status: () => padiStatus(owned.value),
+    })
     // KOLU'S FACE IN A TRANSCRIPT — the mark over a sentence its doorbell
     // delivered into somebody's conversation.
     yield* slots.register("delivery.mark", KoluMark)

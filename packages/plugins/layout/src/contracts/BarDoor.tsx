@@ -57,20 +57,20 @@ import { Portal } from "solid-js/web"
 import type { Anchor } from "@olai/web/client/anchor.ts"
 import { ENTRY_SHAPE, ROW_GAP } from "olai-plugin-layout/entry"
 import { createPopover, type HeldOpen } from "@olai/web/client/popover.ts"
-import { ICON_BUTTON } from "@olai/web/client/readout.ts"
+import { ICON_BUTTON, STATUS_ROW } from "@olai/web/client/readout.ts"
 
 export function BarDoor(props: {
-  /** `closet` is the phone drawer row. Default is the header chip. */
-  readonly where?: "header" | "closet"
-  /** One character, drawn `aria-hidden` — the word beside it is the name. */
+  /** `closet` is the phone drawer row, `health` a row at the foot of the
+   *  desktop health popover. Default is the header chip, which is the GLYPH
+   *  alone: the word rides the accessible name and the tip. */
+  readonly where?: "header" | "health" | "closet"
+  /** One character, drawn `aria-hidden` — the word is the name. */
   readonly glyph: string
-  /** The word in the BAR, where space is what it is. */
-  readonly header: string
-  /** ...and the word in the phone DRAWER, which is a column of rows and can
-   *  afford the longer one. Two props rather than one because `prefs` and
-   *  `preferences` are the same door said in two widths, and a door whose two
-   *  widths happen to agree passes the same string twice. */
-  readonly closet: string
+  /** The door's word: drawn beside the glyph on a row (the phone drawer, the
+   *  health popover), and the accessible name of the glyph-only bar chip. The
+   *  bar used to draw a short second word (`prefs`) beside the glyph; a calm
+   *  bar draws the glyph and nothing else, so one word is enough. */
+  readonly name: string
   /** The hover sentence: what is behind this door, in the words a person who
    *  has not opened it yet would use. */
   readonly title: string
@@ -94,6 +94,7 @@ export function BarDoor(props: {
   const popover = createPopover(props.held === undefined ? {} : { held: props.held })
   const open = popover.open
   const closet = () => props.where === "closet"
+  const health = () => props.where === "health"
 
   return (
     <>
@@ -103,7 +104,9 @@ export function BarDoor(props: {
         class={
           closet()
             ? `${ENTRY_SHAPE} ${ROW_GAP} w-full text-paper/80`
-            : `${ICON_BUTTON} border ${
+            : health()
+            ? `${STATUS_ROW} ${open() ? "bg-pill/60" : ""}`
+            : `${ICON_BUTTON} size-8 !p-0 border ${
               open() ? "border-accent text-paper" : "border-paper/25"
             }`
         }
@@ -113,9 +116,9 @@ export function BarDoor(props: {
         title={props.title}
         onClick={() => popover.toggle()}
       >
-        <span aria-hidden="true">{props.glyph}</span>
-        <span class={closet() ? undefined : "sr-only sm:not-sr-only"}>
-          {closet() ? props.closet : props.header}
+        <span aria-hidden="true" class={health() ? "inline-block w-2 text-center text-muted" : undefined}>{props.glyph}</span>
+        <span class={closet() ? undefined : health() ? "capitalize" : "sr-only"}>
+          {props.name}
         </span>
       </button>
       {/* Out of the bar entirely — see this file's header. */}

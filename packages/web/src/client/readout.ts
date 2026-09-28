@@ -35,53 +35,50 @@ export interface Look {
 
 import { LAYER } from "./layer.ts"
 
-/** The pill both readouts wear, minus the width each one caps itself at. Quiet
- *  by construction — a border, paper and muted text — because chrome that
- *  competes with the outline is chrome a reader learns to skip.
+/** THE STATUS ROW every chrome readout wears — the connection, the Commit
+ *  readout, each plugin's (kolu, odu, mail, spaces) and the uptime line. It
+ *  used to be a rounded chip standing in the bar; the bar now carries ONE
+ *  health dot and these are the rows of the popover it opens
+ *  (`olai-plugin-layout`'s `Health.tsx`), so the shape is a row on the
+ *  panel's ground: ink words, no border, a quiet hover where the row is a
+ *  control (`enabled:` matches a button and never a span, so a readout that
+ *  opens nothing does not pretend to).
  *
  *  No `truncate` here, and no `min-w-0` either. Those belong on the LABEL
- *  inside — the connection's words, the Commit pill's sentence — because
- *  putting them on this box was how a 360pt bar crushed the Commit pill to an
- *  empty oval: `min-w-0` let the box shrink past its mark, and `overflow:
- *  hidden` (what `truncate` is) clipped the mark that `shrink-0` had promised
- *  would stay. The label already truncates. The box is a chip.
+ *  inside, because `overflow: hidden` on this box would clip the mark.
  *
- *  Height matches {@link ICON_BUTTON} below 48rem, so a live pill and the
- *  agent toggle are one toolbar rather than a compact chip beside two 44px
- *  circles. Released on a pointer, same as that button. */
+ *  44px tall below 48rem for a thumb; the popover is desktop-only today, but a
+ *  row is a row wherever it lands. */
 export const PILL =
-  "flex items-center gap-1.5 rounded-full border border-paper/20 " +
-  "bg-paper/10 px-2 py-1.5 text-xs text-paper/80 sm:gap-2 sm:px-3 " +
+  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm " +
+  "text-ink/85 enabled:hover:bg-pill/50 enabled:cursor-pointer " +
   "min-h-11 md:min-h-0"
+
+/** The same row's shape for a DOOR at the foot of the popover (the plugins
+ *  panel's): the readout row, always a control. */
+export const STATUS_ROW = PILL
 
 /** The dot itself, which the state's own `dot` utility colours. */
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
 
 /**
- * THE INFRASTRUCTURE-WARNING REGISTER — the pill's one non-status face.
- *
- * The bar's loud colours already have a ruling: violet (`styles.css`'s
- * `--color-alarm` and `--color-doing`'s siblings) is what an AGENT's ask
- * for a human wears — the board's `blocked` column, the skew chip's
- * "upgrade me". The PILL's new face (the watcher gone silent) is the
- * other kind of wrong: something of this machine's OWN is broken, rather
- * than a human is owed, and it gets AMBER as a third, smaller family so
- * the two are never one glance's confusion. The inks are the prototype's
- * own (`projects/olai/prototypes/pill-mock.png`): a hollow dot, a warm
- * coat on the chip, and a warm word beside it.
+ * THE WARNING REGISTER — a readout's "wants attention, is not broken" face
+ * (the kolu watcher gone quiet). It used to be a hand-picked amber on the
+ * ink bar; a row on the panel's ground wears the theme's own `doing` ink,
+ * which is what the health dot's `notice` tone wears too — one colour for
+ * one meaning, in every palette.
  */
-export const PILL_WARN_COAT = "!border-[#e0a83c] shadow-[0_0_0_1px_#e0a83c66]"
+export const PILL_WARN_COAT = ""
 /** The dot's HOLLOW face — the same round, emptied. */
-export const DOT_HOLLOW_WARN = "!bg-transparent border-2 !border-[#e0a83c]"
+export const DOT_HOLLOW_WARN = "!bg-transparent border-2 !border-doing"
 /** The quiet sentence's ink, beside the dot's. */
-export const TEXT_WARN = "text-[#f0c46a]"
+export const TEXT_WARN = "text-doing"
 
 /**
  * THE ALARM REGISTER — a refused post, a missing permission. Same ink
- * git's error face wears (`text-alarm`), so a Spaces fault is not the
- * amber of "the watcher went quiet".
+ * git's error face wears (`text-alarm`), and the health dot's `alarm` tone.
  */
-export const PILL_ALARM_COAT = "!border-alarm shadow-[0_0_0_1px] shadow-alarm/40"
+export const PILL_ALARM_COAT = ""
 export const DOT_HOLLOW_ALARM = "!bg-transparent border-2 !border-alarm"
 export const TEXT_ALARM = "text-alarm"
 
