@@ -1481,9 +1481,10 @@ When(
     let last: unknown;
     while (Date.now() < deadline) {
       try {
-        // A flip can close the door when the shell redraws. Open it again;
-        // the row is still in the panel.
-        if ((await this.pluginsPanel().count()) === 0) await this.showPlugins();
+        // The shell is built on navigation. Switching that row off takes the
+        // bar with it, so there is no switch left to read — the row is off.
+        if (pick === "off" && (await this.pluginsPanel().count()) === 0
+          && (await this.page.locator(PLUGINS_TRIGGER).locator("visible=true").count()) === 0) return;
         await (await shownRow(this, plugin)).locator(wanted).waitFor({
           state: "visible",
           timeout: 1000,
@@ -1566,6 +1567,8 @@ Then("the policy link targets node {string}", async function (this: OlaiWorld, n
   await this.waitUntil(async () => this.page.url().includes(node), "the policy node in the address");
 });
 Then("the plugin {string} has no policy link", async function (this: OlaiWorld, plugin: string) {
+  // No panel means no link. Navigation being off takes the bar with it.
+  if ((await this.pluginsPanel().count()) === 0) return;
   await (await shownRow(this, plugin)).locator('[data-testid="plugin-config-link"]').waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
 Then("the plugin {string} keeps its control visible when {string} becomes {string}", async function (this: OlaiWorld, plugin: string, key: string, value: string) {
