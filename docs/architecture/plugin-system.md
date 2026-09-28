@@ -361,7 +361,7 @@ dismissing the menu does not invoke the action.
 
 ### chrome and mount
 
-`chrome` is a component in the header bar (kolu's padi pill). `mount` is the
+`chrome` is a component in the header (kolu's padi readout, a row of the health-dot popover). `mount` is the
 plugin's component in the page body, mounted once per tab, where it opens its
 single subscription however many rows draw.
 
@@ -379,8 +379,8 @@ single subscription however many rows draw.
 
 | Word | Meaning |
 | --- | --- |
-| `cluster` | the standing row of pills, desktop only, after the connection state |
-| `lead` | the single seat ahead of them, drawn on phones too, which may shrink to nothing before any pill loses a character |
+| `cluster` | a status readout: a row of the desktop health-dot popover, after the connection's row. It may declare a reactive `status` (`tone`, `label`, `detail`) from state its own activation owns; the dot wears the worst tone among them |
+| `lead` | the seat in the bar ahead of the dot, drawn on phones too, which may shrink to nothing before the dot or a door does |
 
 ### mark
 

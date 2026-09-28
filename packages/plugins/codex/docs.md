@@ -10,7 +10,7 @@ This page records what is specific to this engine. The shared conversation model
 
 The adapter itself wraps the Codex app server. The plugin's `acp/` directory owns both its npm lock and Nix derivation, including the matching native Codex executable supplied through `CODEX_PATH`, so neither half drifts to an ambient install. This pin is separate from the Claude and pi adapters, which each declare their pin in their own plugin's `default.nix` through `@olai/plugin-kit`'s `npm-adapter.nix` over the shared shim: their release clocks and platform rules do not force one another — or Codex — to rebuild. Authentication and Codex configuration continue to use Codex's own normal files and environment.
 
-Turn this row off with `on: no` on the `codex` node in `_olai/Settings.olai`, or its durable switch on `⧉`. The row stops probing and its browser contribution is withdrawn.
+Turn this row off with `on: no` on the `codex` node in `_olai/Settings.olai`, or its durable switch on the plugins panel. The row stops probing and its browser contribution is withdrawn.
 
 Engine detection is cached for each activation. Switching off and on asks again;
 changing the service's adapter environment requires restarting the service.

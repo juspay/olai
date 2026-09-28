@@ -12,7 +12,7 @@ The packaged adapter is a wrapper inside the nix store. `OLAI_ACP_AGENT` supplie
 - **set to a command** → that is the agent, pinned default ignored. Point it at your own build, or at a different ACP agent entirely: the override has always meant *read this the way you read Claude Code*, and it still does.
 - **empty or unset without a packaged command** → search for a matching executable on `OLAI_AGENT_PATH` (or `PATH`). No matching executable leaves this engine unavailable. Enablement remains the vault’s decision.
 
-Turn this row off with `on: no` on the `claude` node in `_olai/Settings.olai`, or its durable switch on `⧉`. The row stops probing and its browser contribution is withdrawn.
+Turn this row off with `on: no` on the `claude` node in `_olai/Settings.olai`, or its durable switch on the plugins panel. The row stops probing and its browser contribution is withdrawn.
 
 ## What is only true of this wire
 

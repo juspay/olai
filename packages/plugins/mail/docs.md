@@ -27,7 +27,7 @@ For the home-manager service that is the `environmentFile` ([running.md](../runn
 
 ## Connecting
 
-1. Open the plugins panel (**⧉** in the header) and switch **mail** on. It is off by default because it needs these credentials.
+1. Open the plugins panel (the **Plugins** row at the foot of the header's health-dot popover) and switch **mail** on. It is off by default because it needs these credentials.
 2. The row moves to **Needs you** and shows a **Connect Gmail** button, with the redirect URI to register above it. If the two environment variables are missing, the row says so instead and shows no button; set them and restart.
 3. Press **Connect Gmail**. Google opens in a new tab. Choose the mailbox and approve.
 4. Google sends you back to olai. The tab says *Connected as you@gmail.com* and can be closed.
@@ -36,15 +36,17 @@ The header now shows `● mail you@gmail.com`, and the row shows the address, ho
 
 Olai asks Google for the `gmail.modify` permission. That covers reading, labelling, archiving, moving to and from Trash, and drafts. The permission technically allows sending too, but olai exposes no send command. It does not cover permanent deletion, and olai will not ask for it. One mailbox per olai.
 
-## What the header pill means
+## What the header readout means
 
-| Pill | Meaning |
+On a desktop the readout is a row of the popover the header's health dot opens. A fault turns the dot red and names `mail fault`; a token being retried turns it amber.
+
+| Row | Meaning |
 | --- | --- |
 | `● mail you@gmail.com` | Connected. Hover for details. |
 | `● no mail` | No account is connected. Connect one from the plugins panel. |
 | `● mail fault` | Something needs attention. The tooltip and the row say what. |
 
-The pill is drawn only while the plugin is on.
+The row is drawn only while the plugin is on.
 
 ## When something goes wrong
 

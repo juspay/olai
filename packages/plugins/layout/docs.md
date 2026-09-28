@@ -54,7 +54,44 @@ implementation. Tools may opt into the mobile header when there is no sidebar.
 
 Both preferences and the inspector now contribute through `layout.tools`;
 layout imports neither implementation. Entries supply their header/drawer order
-and decide whether to appear on mobile pages without a sidebar.
+and decide whether to appear on mobile pages without a sidebar. An entry's
+`desktop` asks for the bar (the default — preferences, the gear alone) or the
+foot of the health popover (`health` — the inspector's plugins door). An entry
+whose open state outlives the shell may also supply `open`; the popover opens
+itself while a `health` entry says it is up, which is how the plugins panel
+comes back when the shell under it is rebuilt.
+
+## The health dot
+
+The desktop header is the wordmark, the `lead` seat (search), one health dot,
+the `header` tools and the `app.viewer` seat. The dot (`Health.tsx`) replaces
+the row of pills the bar used to stand. Layout owns the LOCATION and the
+drawing; every readout still belongs to the plugin that registers it:
+
+- `app.header` `cluster` seats are drawn as rows of the dot's popover, in mount
+  order, after the connection's row (layout's own). The uptime line is last,
+  quiet, and casts no vote. The `health` tools are the popover's foot.
+- A seat may declare `status: () => BarStatus` — `tone` (`healthy`, `quiet`,
+  `notice`, `alarm`), `label` (the row's own words) and `detail`. It is a
+  reactive accessor over state the contributor's activation owns (git reads
+  its two cells in a root its activation disposes after the registration is
+  withdrawn; kolu, odu, mail and spaces read the root they already had). The
+  types are a static contract (`olai-plugin-layout/slots`); no live value
+  crosses by import.
+- The dot wears the worst tone among the connection and every standing
+  status (`health.ts`; `quiet` never colours it). When it is not healthy its
+  accessible name and tip quote each piece of news, alarms first, in the
+  readout's own label and sentence. `data-tone` and `data-connection` carry
+  the state for tests.
+- Withdrawal is the registration's: a plugin switched off takes its row and
+  its vote in the same step, an open popover redraws without it, and a plugin
+  switched back on registers afresh.
+- The popover is `createPopover` (anchor, dismissal, one tab cycle, focus
+  back to the dot on Escape). A row's own panel (the Commit panel, kolu's
+  feed) opens above it and is the topmost layer.
+
+A phone has no dot: search and who is looking stay in the bar, and the
+connection and git news appear as banners under it only when there is news.
 
 Pane geometry, resizing and responsive preferences live in the layout package.
 The frame consumes navigation state and renders registered overlays and content

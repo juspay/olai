@@ -15,7 +15,7 @@ Two facts, and they live in different places because one is a secret:
 
 No env and no `xyne-channel` → the plugin is honestly **absent**, not broken. A node agent with `xyne-channel` and no env is a **fault**, not absent: the user named a channel and this process cannot post. The pill is loud and names the missing env; the first bound conversation is told once.
 
-Beside the connection pill in the header is a readout with three states rather than two:
+A row of the header's health-dot popover is a readout with three states rather than two (a fault turns the dot red; absent leaves it alone):
 
 - `● xyne` — both env vars are set and the last post (if any) was accepted;
 - `● no xyne`, dim — nothing is configured (no env, no bind), and the tip names **where olai looked** (`OLAI_SPACES_URL` / `OLAI_SPACES_TOKEN`);

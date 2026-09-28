@@ -1,12 +1,12 @@
 # The ledger
 
-Git is a plugin. Everything about recording what olai wrote — the pill in the header, the phone banner, the commit panel, the `git_commit` and `git_push` tools, and the two cells an agent used to read as `surface://cells/git` and `surface://cells/pending` — arrives with one row in the build's plugin list. A serve that does not name that row has none of it: writes still land on disk, and nobody records them.
+Git is a plugin. Everything about recording what olai wrote — the Commit readout in the header's health-dot popover, the phone banner, the commit panel, the `git_commit` and `git_push` tools, and the two cells an agent used to read as `surface://cells/git` and `surface://cells/pending` — arrives with one row in the build's plugin list. A serve that does not name that row has none of it: writes still land on disk, and nobody records them.
 
 What git *does* has its own page: [git.md](../git.md) is the feature. This page is about the row.
 
 ## What turns it on
 
-The `git` row is on by default. Set `on: no` on its top-level node in `_olai/Settings.olai`, or use its switch on `⧉`. The switch writes the same property and restart reads it again.
+The `git` row is on by default. Set `on: no` on its top-level node in `_olai/Settings.olai`, or use its switch on the plugins panel. The switch writes the same property and restart reads it again.
 
 ```jsonl
 {"id":"git","ord":"a0","title":"git","custom":{"on":"no"}}
@@ -36,7 +36,7 @@ move onto the result only with one all-or-nothing tree update.
 
 ## In the browser
 
-The desktop pill uses `app.header`. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable while an agent conversation is open.
+The desktop Commit readout uses `app.header`: it is a row of the health-dot popover, and it declares a `status` (read off the same two cells by a root this row's activation owns) so the dot turns amber while writes wait or commits are unpushed and red on a git error, a refused push or a paused loop. `no git here` and `commits off` are quiet: they never colour the dot. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable while an agent conversation is open.
 
 ## On the wire
 
@@ -52,7 +52,7 @@ They are on the browser face. The MCP tools an agent calls are `git_commit` and 
 
 | seat | who declares it, and what they keep | what git brings |
 | --- | --- | --- |
-| `app.header` | `layout` — where in the bar cluster a readout sits | the Commit pill |
+| `app.header` | `layout` — where a readout sits, and the dot its status colours | the Commit readout and its status |
 | `app.banner` | `layout` — where a banner sits over the page | the phone banner (news only) |
 
 The panel travels with the pill, portalled against the viewport, the way it always did.

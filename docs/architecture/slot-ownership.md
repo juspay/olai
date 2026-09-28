@@ -49,7 +49,13 @@ Each builtin appliance acquires its shared subscriptions inside its own activati
 | Kolu | Terminal blocks and header | One fleet |
 | Odu | Chip and matrix | One run collection |
 | Spaces | Header | One link cell |
-| Mail | Header pill and its own plugins-panel row | One account cell |
+| Mail | Header readout and its own plugins-panel row | One account cell |
+
+A header readout (`app.header`, `cluster`) is drawn by Layout as a row of the
+desktop health popover, and its optional `status` accessor colours the health
+dot. Both are the contributor's: the status reads the same activation-owned
+state the row does and is withdrawn with the registration, so Layout draws the
+row and the dot without owning or importing any readout's state.
 
 - Each contribution provides that state to its own subtree only.
 - They do not wrap unrelated content in `app.mount`. Its compatibility renderer belongs to Layout.

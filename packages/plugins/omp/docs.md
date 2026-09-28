@@ -16,7 +16,7 @@ A probe for a runnable `omp` on the **agent search path**, spawned as `omp --app
 
 **Olai's PATH is not your shell's.** Run as a systemd user service (the home-manager unit) olai inherits neither your profile nor your login shell, so an `omp` you can run in a terminal is not necessarily one this process can see. `OLAI_AGENT_PATH` is where to say otherwise; set, it REPLACES the search path rather than adding to it.
 
-Turn this row off with `on: no` on the `omp` node in `_olai/Settings.olai`, or its durable switch on `⧉`. The row stops probing and its browser contribution is withdrawn.
+Turn this row off with `on: no` on the `omp` node in `_olai/Settings.olai`, or its durable switch on the plugins panel. The row stops probing and its browser contribution is withdrawn.
 
 ## What is only true of this wire
 
