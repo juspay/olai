@@ -60,7 +60,7 @@ show connecting state. Once the live roster has answered, a delayed bootstrap
 response cannot replace it. The browser never infers selection from defaults.
 
 A failed browser module is reported on its own row; independent loaded rows
-still mount. The inspector offers **Retry browser activation** without reloading
+still mount. The inspector files the row under Needs attention and offers **Try again** without reloading
 surviving plugins. If startup cannot render an application, the host displays a
 small error view with **Retry browser startup**, including when the renderer
 itself cannot load or the bootstrap request fails. Retry uses the latest host

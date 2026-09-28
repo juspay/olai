@@ -8,10 +8,28 @@ The permanent plugin API defines only the generic location reference type and th
 | --- | --- |
 | Outlines | `outline.row.chip`, `.placement`, `.aside`, `.fold`, `.pane`, `.block`, `.action`, `outline.page.head`, `.foot` and property contexts |
 | Navigation | `app.route`, `app.keys`, `app.command`, `app.palette` |
-| Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount`, `layout.strip` |
+| Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount`, `layout.strip`, `layout.tools` |
 | Sidebar | `sidebar.entry`, `sidebar.section` |
 | Chat | `conversation.wake`, `delivery.mark`, `tool.reply` |
 | Search | `search.box.below` |
+| Preferences | `preferences.sections` |
+| Files | `files.types`, and the `files.state` service |
+| Plugin inspector | `plugins.row` |
+
+## The shapes a contributor fills in
+
+These are the contracts a contributor writes against. Each is a static type
+exported by the owner; the owner draws, the contributor owns what it hands over.
+
+| Location | A contribution is | Notes |
+| --- | --- | --- |
+| `preferences.sections` | `{ group, order, body }` | `group` is the heading the rows sit under, in the words a person reads (`Appearance`, `Outlines`, `Notifications`). Contributions naming the same heading are drawn together, at the place of the lowest `order`. The panel knows no heading of its own, so a heading whose contributors are all switched off is not drawn. |
+| `app.header` | `{ place, body, status? }` | `place` is `lead` (in the bar) or `cluster` (a row of the desktop health popover). `status` is a reactive `{ tone, label, detail? }` read from state the contributor's own activation owns; `tone` is `healthy`, `quiet`, `notice` (amber dot) or `alarm` (red dot), and the dot wears the worst tone present. |
+| `layout.tools` | `{ body, headerOrder, closetOrder, desktop?, open? }` | `desktop` picks the desktop seat: `bar` (default) or `health`, the foot of the health popover. `body` is told where it is drawn (`header`, `health` or `closet`). `open` reports whether the entry's door is up when that state lives outside the shell (the plugins panel keeps it in the inspector's activation); a `health` entry's popover reopens itself when it turns true, so a rebuilt shell puts the panel back. |
+| `sidebar.entry` | `{ place, body, rail? }` | `place` is `top`, `bottom` or `foot`. `foot` is pinned under the scrolling list and sinks to the rail's foot (Trash). The old `sidebar.vault` location is gone; nothing contributes a vault entry to the sidebar any more. |
+| `files.types` | `{ making, Create }` | `making` is the item the kind puts in the Outlines heading's `+` menu, or `undefined` while it cannot create files. `Create` is the kind's name box, empty until the item opens it. |
+| `files.state` | a service with `Delete`, `New` and `open(kind)` | `open` opens the new-file box for one kind, the same as picking that kind's `+` item. A page offering the first file of a kind (an empty folder's `New outline`) calls it. |
+| `outline.row.action` | a verb `{ id, label, writes, run, confirm? }` or a choice `{ id, label, writes, choices }` | A choice is drawn as a submenu of verbs (`Start an agent ›` and its engines). A plugin with a single option hands a plain verb rather than a one-entry choice. `writes` places the entry among the reads or among the writes. |
 
 ## Declaring and registering
 

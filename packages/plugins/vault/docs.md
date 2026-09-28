@@ -8,7 +8,7 @@ The row lives in `packages/bundle/olai.yml`. Its `Config` schema declares the
 `format` field, its `outline-olai` default and its description; YAML carries no config.
 Every server profile selects the vault. Its panel switch is session-only: turning it off keeps the transport control plane available while withdrawing the directory and the services that depend on it. Enabling it reopens the store and republishes the settings file. Rows that do not own the settings reading use durable `on` properties in `_olai/Settings.olai`. The settings row and the row claiming that file’s suffix share the session-only exception.
 
-The plugins panel explains that switching this row off clears served files and
+The plugins panel asks before switching this row off, saying that it clears served files and
 stops dependent plugins. Accepted writes finish before the watcher and lock are
 released. Turning it on opens a fresh store and gate over the same directory.
 A lock conflict or non-directory path fails this row while the
