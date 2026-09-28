@@ -68,12 +68,17 @@ export function Panel(props: {
    * down with the list it hung off.
    */
   const Sub = (sub: { readonly entry: MenuSub }) => (
-    <DropdownMenu.Sub gutter={2} shift={-5}>
+    // `overlap`: on a phone there is no room beside the panel, so the submenu
+    // may slide back over it rather than hang off the screen's edge.
+    <DropdownMenu.Sub gutter={2} shift={-5} overlap>
       <DropdownMenu.SubTrigger
         ref={(el: HTMLElement) => entries.set(sub.entry.id, el)}
         class={`${MENU_ITEM} flex items-center justify-between gap-6 data-[expanded]:bg-rule`}
         data-testid={TESTID.nodeMenuItem}
         data-action={sub.entry.id}
+        // Opens on its click, which a tap's ghost-eater must leave alone
+        // (`./Dropdown.tsx`'s `tappedInPanel`).
+        data-opens=""
       >
         <span>{sub.entry.label}</span>
         <span class="text-muted" aria-hidden="true">›</span>

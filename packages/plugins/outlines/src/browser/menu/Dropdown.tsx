@@ -136,6 +136,10 @@ import { Panel } from "./Panel.tsx"
  * lands on the panel it belongs to, which is nothing happening.
  */
 const tappedInPanel = (event: PointerEvent): void => {
+  // ...EXCEPT on an entry that OPENS a submenu (`./Panel.tsx`): Kobalte opens
+  // one on the click itself, the panel stays up, and there is no row under
+  // the point for the click to land on.
+  if (event.target instanceof Element && event.target.closest("[data-opens]") !== null) return
   if (event.pointerType === "touch") swallowGhost()
 }
 

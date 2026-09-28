@@ -288,6 +288,9 @@ export const subjectMenuActions = (args: {
   })
   const of = (group: Group): Array<MenuAction> =>
     verbs.filter((verb) => verb.group === group).map(({ group: _, ...verb }) => verb)
+  // The pin LAST in its group: the date and the rule are about the node, the
+  // pin about the sidebar — the catalog lists it first for the palette's sake.
+  const plan = [...of("plan")].sort((a, b) => Number(a.id.endsWith("pin")) - Number(b.id.endsWith("pin")))
 
   /**
    * WHAT THE PLUGINS HANG ON A ROW — `outline.row.action`, asked about this
@@ -318,7 +321,7 @@ export const subjectMenuActions = (args: {
       ...(marks.length === 0 ? [] : [{ id: "mark", label: "Mark", entries: marks }]),
       ...reads,
     ],
-    of("plan"),
+    plan,
     of("place"),
     plugins,
     [{ id: "more", label: "More", entries: [copyLink, ...(args.more ?? []), ...of("more"), ...of("unset")] }],
