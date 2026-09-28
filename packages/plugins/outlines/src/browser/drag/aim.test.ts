@@ -85,8 +85,8 @@ test("a pane of the SAME file with nothing left to land beside says a different 
   const aim = aimAt([here, inside], "house.olai", 524, 25)
   expect(aim?.kind).toBe("refused")
   if (aim?.kind !== "refused") return
-  expect(aim.refusal.why).toContain("inside what you are carrying")
-  expect(aim.refusal.why).not.toContain("another file")
+  expect(aim.refusal.why).toContain("every row in this pane is part of what you’re dragging")
+  expect(aim.refusal.why).not.toContain("Move to…")
 })
 
 test("nowhere to aim at all is an answer, and it is silence", () => {

@@ -94,28 +94,57 @@ test("a node the shelf already holds is offered the way OFF it instead", () => {
     .toEqual({ kind: "edit", edit: { verb: "trash", id: "p-install" } })
 })
 
-test("the shelf's verb comes first among the writes", () => {
-  // The order of this list is a fence: the entry a hand reaches for most often
-  // does not sit beside the one that takes a subtree away.
+test("the shelf's verb comes first in the catalog", () => {
+  // The CATALOG's order, which the palette lists flat. The `•••` menu files
+  // the same verb last in its group (`./actions.ts`), after the date.
   expect(labels("install")[0]).toBe("Pin to sidebar")
+})
+
+// ── the groups ─────────────────────────────────────────────────────────
+
+/** Each verb's label beside the group the `•••` menu files it in. */
+const grouped = (id: string): ReadonlyArray<readonly [string, string]> =>
+  writeVerbs(routes, subjectOfRow(row(id)), row(id).under, NO_PINS).map((one) => [one.label, one.group])
+
+test("every verb says which group of the menu it sits in", () => {
+  expect(grouped("install")).toEqual([
+    ["Pin to sidebar", "plan"],
+    ["To do", "mark"],
+    ["Doing", "mark"],
+    ["Done", "mark"],
+    ["Cancelled", "mark"],
+    ["Set date…", "plan"],
+    ["Add property…", "more"],
+    ["Link to…", "more"],
+    ["Wait for…", "more"],
+    ["Move to…", "place"],
+    ["Duplicate", "place"],
+    ["Move to Trash", "away"],
+  ])
+})
+
+test("taking a fact back off goes with the rarely reached, and the mark's clear with the marks", () => {
+  expect(grouped("order").filter(([label]) => label === "Clear date")).toEqual([["Clear date", "unset"]])
+  expect(grouped("kitchen").filter(([label]) => label === "Clear")).toEqual([["Clear", "mark"]])
+  expect(grouped("kitchen-herbs").filter(([label]) => label === "Remove from here")).toEqual([["Remove from here", "more"]])
 })
 
 // ── the mark section ───────────────────────────────────────────────────
 
 test("a node with no mark is offered the four, and nothing to clear", () => {
-  // In MENU order, which is the order a task moves through — and `Cancel` is
-  // LAST of the four, past the finishing verb: calling work off is the rarest
+  // In MENU order, which is the order a task moves through — and `Cancelled`
+  // is LAST of the four, past the finishing verb: calling work off is the rarest
   // of them and the one nobody should reach by accident.
   expect(labels("install")).toEqual([
     "Pin to sidebar",
-    "Mark todo",
-    "Mark doing",
-    "Complete",
-    "Cancel",
+    "To do",
+    "Doing",
+    "Done",
+    "Cancelled",
     "Set date…",
     "Add property…",
-    "Link to a node…",
-    "Wait for a node…",
+    "Link to…",
+    "Wait for…",
     "Move to…",
     "Duplicate",
     "Move to Trash",
@@ -128,14 +157,14 @@ test("the mark a node already carries is not offered back to it", () => {
   // three pixels away from the menu that would have said so.
   expect(labels("kitchen")).toEqual([
     "Pin to sidebar",
-    "Mark todo",
-    "Complete",
-    "Cancel",
-    "Clear mark",
+    "To do",
+    "Done",
+    "Cancelled",
+    "Clear",
     "Set date…",
     "Add property…",
-    "Link to a node…",
-    "Wait for a node…",
+    "Link to…",
+    "Wait for…",
     "Move to…",
     "Duplicate",
     "Move to Trash",
@@ -147,12 +176,12 @@ test("a done node is still offered the two that walk it back, because ops answer
   // ("nothing should decide on your behalf that finished work is not
   // finished"), which is the sentence a person needs and the two calls an
   // agent makes.
-  expect(labels("demo")).toContain("Mark todo")
-  expect(labels("demo")).toContain("Mark doing")
+  expect(labels("demo")).toContain("To do")
+  expect(labels("demo")).toContain("Doing")
 })
 
 test("a mark names the node the row SHOWS, so a mirror marks its target", () => {
-  expect(edit("kitchen-herbs", "Mark doing")).toEqual({
+  expect(edit("kitchen-herbs", "Doing")).toEqual({
     verb: "mark",
     id: "herbs",
     mark: "doing",
@@ -160,7 +189,7 @@ test("a mark names the node the row SHOWS, so a mirror marks its target", () => 
 })
 
 test("clearing a mark is the same verb saying none", () => {
-  expect(edit("kitchen", "Clear mark")).toEqual({
+  expect(edit("kitchen", "Clear")).toEqual({
     verb: "mark",
     id: "kitchen",
     mark: null,
@@ -209,10 +238,10 @@ test("the picker entry sends nothing on its own", () => {
   expect(verb("order", "Change date…").does).toEqual({ kind: "pick-date" })
 })
 
-test("the two date entries are next to each other, in that order", () => {
-  // Change, then clear: the reader is looking at a date, and the two things
-  // they can do to it read as one pair rather than being separated by the
-  // verb that takes the branch away.
+test("the two date entries come in that order: change, then clear", () => {
+  // Adjacent in the catalog (the palette's flat list). The `•••` menu puts
+  // the clear under `More ›` (group `unset`), away from the reach for the
+  // date itself.
   expect(labels("order").filter((label) => label.toLowerCase().includes("date")))
     .toEqual(["Change date…", "Clear date"])
 })
@@ -303,7 +332,7 @@ test("a placement offers the picker for the node it SHOWS", () => {
 // ── the placement ──────────────────────────────────────────────────────
 
 test("a mirror row retires ITS OWN record, never the node it shows", () => {
-  expect(edit("kitchen-herbs", "Remove this placement")).toEqual({
+  expect(edit("kitchen-herbs", "Remove from here")).toEqual({
     verb: "unmirror",
     id: "kitchen-herbs",
   })
@@ -319,11 +348,11 @@ test("a placement drawing no node offers only the two verbs about its RECORD", (
   // TWO of them are about the record rather than about a node: retiring the
   // placement, and moving it. A line a reader can see is a line they can carry
   // somewhere else, whatever it managed to draw.
-  expect(labels("lost")).toEqual(["Move to…", "Remove this placement"])
+  expect(labels("lost")).toEqual(["Move to…", "Remove from here"])
 })
 
 test("a node's own row has no placement verb", () => {
-  expect(labels("install")).not.toContain("Remove this placement")
+  expect(labels("install")).not.toContain("Remove from here")
 })
 
 // ── the duplicate ──────────────────────────────────────────────────────
@@ -386,14 +415,14 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
   expect(writeVerbs(routes, subjectOfRow(row("kitchen")), undefined, NO_PINS).map((verb) => verb.label))
     .toEqual([
       "Pin to sidebar",
-      "Mark todo",
-      "Complete",
-      "Cancel",
-      "Clear mark",
+      "To do",
+      "Done",
+      "Cancelled",
+      "Clear",
       "Set date…",
       "Add property…",
-      "Link to a node…",
-      "Wait for a node…",
+      "Link to…",
+      "Wait for…",
       "Move to…",
       "Duplicate",
     ])

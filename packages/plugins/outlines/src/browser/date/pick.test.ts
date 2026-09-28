@@ -226,8 +226,8 @@ test("`Z` is the same offset as `+00:00`, not another zone", () => {
 
 test("a datetime from another zone is quoted verbatim, naming no offset until one is chosen", () => {
   expect(notice("2026-08-11T15:40:03-07:00", { day: "2026-08-11", time: "15:40" })).toBe(
-    "Scheduled for 2026-08-11T15:40:03-07:00. A changed day or time is written " +
-      "in this browser's time zone.",
+    "Scheduled for 2026-08-11T15:40:03-07:00. A new day or time is saved " +
+      "in your time zone.",
   )
   // A hand that wrote no zone at all is the same news.
   expect(notice("2026-08-11 15:40", { day: "2026-08-11", time: "15:40" }))
@@ -238,8 +238,8 @@ test("with the draft changed, it quotes exactly what pressing writes", () => {
   // The offset is the DRAFT's moment's: December is -05:00 even though the
   // stored value and today are both in summer.
   expect(notice("2026-08-11T15:40:03-07:00", { day: "2026-12-01", time: "15:40" })).toBe(
-    "Scheduled for 2026-08-11T15:40:03-07:00. Pressing writes " +
-      "2026-12-01T15:40:00-05:00, in this browser's time zone.",
+    "Scheduled for 2026-08-11T15:40:03-07:00. This saves " +
+      "2026-12-01T15:40:00-05:00, in your time zone.",
   )
   // Taking the time off writes no offset, so there is none to warn about.
   expect(notice("2026-08-11T15:40:03-07:00", { day: "2026-08-11", time: "" })).toBeUndefined()
@@ -247,7 +247,7 @@ test("with the draft changed, it quotes exactly what pressing writes", () => {
 
 test("a face the zone skips is quoted as the value it becomes, before it is written", () => {
   expect(notice(undefined, { day: "2026-03-08", time: "02:30" }, skipping)).toBe(
-    "There is no 02:30 on 2026-03-08 in this browser's time zone, so pressing " +
-      "writes 2026-03-08T03:30:00-04:00.",
+    "There is no 02:30 on 2026-03-08 in your time zone, so this saves " +
+      "2026-03-08T03:30:00-04:00.",
   )
 })

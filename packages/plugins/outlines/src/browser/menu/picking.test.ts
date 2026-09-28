@@ -49,7 +49,7 @@ test("a verb's own sentence is drawn verbatim, in the mood it chose", async () =
   // it or decides its tone.
   const refusal = { tone: "alarm", text: "“install” is finished; clear it first" } as const
   await withPicking(async ({ said, pick }) => {
-    await pick(verb("Mark todo", () => Promise.resolve(refusal)))
+    await pick(verb("To do", () => Promise.resolve(refusal)))
     expect(said()).toEqual(refusal)
   })
 })
@@ -62,13 +62,13 @@ test("a verb that THROWS is worded from its own label, and the cause is kept", a
   const cause = new Error("the clipboard is not available")
   try {
     await withPicking(async ({ said, pick }) => {
-      await pick(verb("Copy link to node", () => Promise.reject(cause)))
-      expect(said()).toEqual({ tone: "alarm", text: "couldn't copy link to node" })
+      await pick(verb("Copy link", () => Promise.reject(cause)))
+      expect(said()).toEqual({ tone: "alarm", text: "“Copy link” didn’t work" })
     })
     // ...and the cause is in the console rather than nowhere: a browser's
     // denial and a bug in this app's own href-building read the same on
     // screen, and must not read the same to somebody debugging it.
-    expect(warned.mock.calls).toEqual([[`olai: "Copy link to node" did not happen`, cause]])
+    expect(warned.mock.calls).toEqual([[`olai: "Copy link" did not happen`, cause]])
   } finally {
     warned.mockRestore()
   }
