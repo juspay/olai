@@ -665,6 +665,11 @@ function Branch(props: {
         // for every row in the outline. A static attribute NAME with a dynamic
         // value is compiled to one `setAttribute` effect instead.
         data-row-key={props.row.key}
+        // THE ACTIVE ROW — the one the caret or the last point is on — as the
+        // fact a plugin's offer is revealed by on a phone (`OFFER_REVEAL` in
+        // `@olai/ui-primitives/touch.ts`): with no hover to wait for, a verb
+        // hung on every line is drawn only on the line a finger tapped.
+        data-active={focused() || editing() ? "" : undefined}
       >
         {/* Hover strip: triangle always (phone) / hover-reveal (pointer). The
             `•••` is drawn on pointer devices only; below md its root is still
@@ -685,7 +690,6 @@ function Branch(props: {
               routes,
               row: props.row,
               pins: pins(),
-              collapsed: collapsed(),
               foldable: foldable(),
               go,
               record: undo.record,
