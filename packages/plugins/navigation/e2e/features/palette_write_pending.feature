@@ -46,7 +46,7 @@ Feature: Palette write responses belong to the interaction that sent them
     Examples:
       | node    | command      | file        | mark  | title                     |
       | handles | Mark: To do  | house.olai  | todo  | choose the handles        |
-      | demo    | Mark: Doing  | house.olai  | doing | take out the old counters |
+      | knobs   | Mark: Doing  | house.olai  | doing | pick the knobs            |
       | mint    | Mark: Done   | garden.olai | done  | split the mint            |
 
   Scenario: A successful write leaves a newer query in the same palette open

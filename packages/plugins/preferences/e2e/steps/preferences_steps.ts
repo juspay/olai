@@ -1474,7 +1474,10 @@ When(
     // reasons (the roster it lists moved), so the loop stands. Re-open the
     // group on every try: the first shownRow can land on the outgoing draw.
     const wanted = `${PLUGIN_SWITCH}${attr("aria-checked", pick === "on" ? "true" : "false")}`;
-    const deadline = Date.now() + POLL_TIMEOUT;
+    // The step itself is allowed 90s because a flip recomposes the bundle.
+    // The row can leave the panel for that whole recomposition. A 15s poll
+    // gives up while the row is still on its way back.
+    const deadline = Date.now() + 60_000;
     let last: unknown;
     while (Date.now() < deadline) {
       try {

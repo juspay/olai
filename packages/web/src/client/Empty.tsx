@@ -15,6 +15,7 @@
 
 import { Show } from "solid-js"
 
+import { TESTID } from "@olai/ui-primitives/testids.ts"
 import { Leaf } from "@olai/web/client/Leaf.tsx"
 
 /** The one thing an empty page offers to do. */
@@ -32,11 +33,16 @@ export function Empty(props: {
   readonly detail?: string
   readonly action?: EmptyAction
 }) {
+  // The sentence is always `nothing`. The shared steps find an empty page by
+  // that id plus the exact words, and a page that put its own id there instead
+  // was a page those steps could not see. A page-specific id, when the caller
+  // has one, stays on the block so that page's own steps still find it.
+  const pageId = () => props.testid !== undefined && props.testid !== TESTID.nothing ? props.testid : undefined
   return (
-    <div class="flex flex-col items-start gap-5 py-12">
+    <div class="flex flex-col items-start gap-5 py-12" data-testid={pageId()}>
       <Leaf class="size-16 text-accent/40" />
       <div class="flex flex-col items-start gap-1">
-        <p class="m-0 font-serif text-title italic leading-snug text-muted" data-testid={props.testid}>
+        <p class="m-0 font-serif text-title italic leading-snug text-muted" data-testid={TESTID.nothing}>
           {props.line}
         </p>
         <Show when={props.detail}>

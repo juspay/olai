@@ -85,7 +85,23 @@ export function Panel(props: {
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
         <DropdownMenu.SubContent
-          class={`${MENU_PANEL} ${LAYER.row}`}
+          ref={(el: HTMLElement) => {
+            // A key that opens this submenu asks Kobalte to focus its first
+            // row. That attempt lands on this box, or never leaves the
+            // trigger, so the next ArrowDown walks the parent list. Focus the
+            // first row once Kobalte's own attempt has settled, and leave a
+            // caret that is already on a row where it is.
+            setTimeout(() => {
+              setTimeout(() => {
+                if (!el.isConnected) return
+                const active = document.activeElement
+                if (active !== el && el.contains(active)) return
+                const first = el.querySelector('[role="menuitem"]')
+                if (first instanceof HTMLElement) first.focus({ preventScroll: true })
+              })
+            })
+          }}
+          class={`${MENU_PANEL} ${LAYER.row} pointer-events-auto`}
           data-testid={TESTID.nodeMenuSub}
           data-sub={sub.entry.id}
           aria-label={sub.entry.label}

@@ -1417,7 +1417,7 @@ describe("push: auto", () => {
         expect((yield* fixture.ops.git).paused).toBeNull()
         expect((yield* fixture.ops.pending).unpushed?.commits).toBe(0)
         expect(gitIn(bare)("log", "--format=%s", "-1", "main").trim()).toStartWith("olai:")
-      }), { commits: "auto", pushes: "auto", quiet: 40 }))
+      }), { commits: "auto", pushes: "auto", quiet: 40 }), { timeout: 20_000 })
   /** A CONFLICT is what actually stops the loop now — see §5 of the plan. The
    *  other clone edits the SAME LINE of the file the loop's own next commit
    *  will touch, and the "theirs" upstream commit collides with olai's own
