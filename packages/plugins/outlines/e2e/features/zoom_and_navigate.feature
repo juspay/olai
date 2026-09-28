@@ -305,7 +305,7 @@ Feature: Zoom and navigate
     # pick's sweep exactly as it stood, word and strip alike.
     When I open the address "/garden.olai?q=slugs#basil"
     Then the filter found "1 of 11"
-    And the landing says "basil — what it names is not drawn on this page"
+    And the landing says "basil — not shown on this page"
     And the node "basil" is not shown
     When I clear the filter
     Then the node "basil" is not shown
@@ -366,7 +366,7 @@ Feature: Zoom and navigate
     # and that the page draws none of it.
     When I open the address "/house.olai#no-such-row"
     Then the tree is shown
-    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    And the landing says "no-such-row — not found"
     # ...and it is a notice, not a state: the way every transient line in
     # this client goes.
     And the landing's sentence has gone
@@ -382,7 +382,7 @@ Feature: Zoom and navigate
     # hides done). Then said then gone, the way any transient line goes.
     When I open the address "/house.olai#glazing"
     Then the tree is shown
-    And the landing says "glazing — what it names is not drawn on this page"
+    And the landing says "glazing — not shown on this page"
     And the landing's sentence has gone
     And there should be no page errors
 
@@ -396,7 +396,7 @@ Feature: Zoom and navigate
     # component stays, and only the stretch's own ending may answer.
     When I open the address "/house.olai#no-such-row"
     Then the tree is shown
-    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    And the landing says "no-such-row — not found"
     When I click the outline "garden.olai"
     # BOUNDED under the line's own six seconds, or the dead-miss step above
     # would ask this no question at all: BY the boundary is the claim here,

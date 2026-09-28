@@ -195,7 +195,7 @@ Feature: Dragging rows, and picking several
     # under a caret that is not there.
     When I pick the title of "handles"
     And I press "Tab"
-    Then the pick says "no row above it"
+    Then the pick says "no row above to indent under"
     And the node "handles" is a child of "install"
 
   # ── taking one back ──────────────────────────────────────────────────

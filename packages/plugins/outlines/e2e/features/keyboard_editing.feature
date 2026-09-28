@@ -241,7 +241,7 @@ Feature: Keyboard editing
   Scenario: The first of its siblings has nothing to indent under
     When I click the title of "handles"
     And I press "Tab"
-    Then the refusal says "no row above it"
+    Then the refusal says "no row above to indent under"
     And the node "handles" is a child of "install"
     # And the row goes on working: a refused key writes nothing and changes
     # nothing about the editor it was pressed in.
@@ -584,9 +584,9 @@ Feature: Keyboard editing
     # second refusal cannot latch it — after which the row still commits.
     When I click the title of "handles"
     And I press "Tab"
-    Then the refusal says "no row above it"
+    Then the refusal says "no row above to indent under"
     When I press "Tab"
-    Then the refusal says "no row above it"
+    Then the refusal says "no row above to indent under"
     When I select all and type "choose the brass handles"
     And I click away from the editor
     Then "house.olai" holds a node titled "choose the brass handles"
