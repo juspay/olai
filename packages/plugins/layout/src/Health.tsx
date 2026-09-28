@@ -103,7 +103,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
           popover.setTrigger(el)
         }}
         class={`${ICON_BUTTON} size-8 !p-0 border ${
-          popover.open() ? "border-accent" : "border-paper/25"
+          popover.open() ? "border-accent" : "border-paper/20"
         }`}
         data-testid={TESTID.health}
         data-health={tone()}

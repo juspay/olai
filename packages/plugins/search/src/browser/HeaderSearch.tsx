@@ -198,7 +198,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         <input
           ref={box}
           type="search"
-          class="w-full min-w-0 rounded-full border-0 bg-paper/15 px-3 py-1.5 font-mono text-xs text-paper outline-none placeholder:text-paper/50 ring-1 ring-paper/20 focus:bg-paper/25 focus:ring-accent/70"
+          class="w-full min-w-0 rounded-full border-0 bg-paper/10 px-3 py-1.5 text-label text-paper outline-none placeholder:text-paper/60 ring-1 ring-paper/20 focus:bg-paper/20 focus:ring-accent/60"
           data-testid={TESTID.headerSearch}
           placeholder="search"
           aria-label="search the directory"
@@ -255,19 +255,19 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
           square sat on the wordmark at 360pt. */}
       <button
         type="button"
-        class={`${TARGET} inline-flex w-8 shrink-0 items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
+        class={`${TARGET} inline-flex w-8 shrink-0 items-center justify-center rounded-control text-paper/80 hover:text-paper md:hidden`}
         data-testid={TESTID.headerSearchOpen}
         aria-label="search the directory"
         onClick={() => openPalette()}
       >
-        <span aria-hidden="true" class="text-base leading-none">⌕</span>
+        <span aria-hidden="true" class="text-title leading-none">⌕</span>
       </button>
 
       <Show when={showing() && at()}>
         {(box_) => (
           <Portal>
             <div
-              class={`fixed ${LAYER.over} overflow-hidden rounded-2xl border-0 bg-panel shadow-xl ring-1 ring-rule/40`}
+              class={`fixed ${LAYER.over} overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule/40`}
               data-testid={TESTID.headerSearchResults}
               // `styleOf` rather than a style object of this file's own: a
               // COMPUTED key (`[at.side]`) compiles away silently in Solid and
@@ -336,7 +336,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
               <SearchCount
                 of={nodes}
                 empty={nodes.answering() !== null}
-                class="m-0 border-t border-rule/40 px-3 py-1.5 font-mono text-xs text-muted"
+                class="m-0 border-t border-rule/40 px-3 py-1.5 text-label text-muted"
               />
             </div>
           </Portal>

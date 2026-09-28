@@ -49,7 +49,7 @@ export function DayMint(props: { readonly date: string }) {
     <Show when={useDocumentActions()}><div class="flex flex-col items-end gap-2">
       <button
         type="button"
-        class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
+        class="cursor-pointer rounded-control border border-rule bg-transparent px-2 py-0.5 text-body text-muted hover:bg-rule/60 hover:text-ink"
         data-testid={TESTID.dayMint}
         disabled={sending()}
         aria-busy={sending()}

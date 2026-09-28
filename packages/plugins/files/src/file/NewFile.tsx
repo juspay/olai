@@ -128,7 +128,7 @@ export function NewFile(props: {
       <div class="mb-1 px-1">
         <input
           type="text"
-          class="w-full rounded border border-rule bg-panel px-2 py-1 font-mono text-[0.8125rem] text-ink outline-none focus:border-accent"
+          class="w-full rounded-control border border-rule bg-panel px-2 py-1 text-body text-ink outline-none focus:border-accent"
           data-testid={props.making.testids.path}
           aria-label={props.making.aria}
           aria-busy={sending()}
@@ -157,7 +157,7 @@ export function NewFile(props: {
           }}
         />
         <div class="mt-1">
-          <Show when={sending()}><span role="status" class="text-xs text-muted">Creating…</span></Show>
+          <Show when={sending()}><span role="status" class="text-label text-muted">Creating…</span></Show>
           <Refused said={said()} testid={props.making.testids.said} compact />
         </div>
       </div>

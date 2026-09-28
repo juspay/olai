@@ -118,7 +118,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
     <div data-testid={TESTID.tabsStrip} class="relative flex h-full items-end gap-1 px-2 pt-1.5">
       {/* The rule under the strip. Every tab is positioned and comes after it,
           so the tab in front, on paper, breaks the rule without a z-index. */}
-      <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-rule/70" />
+      <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-rule/60" />
       <div ref={row} role="tablist" aria-label="open tabs"
         class="flex h-full min-w-0 flex-1 items-end gap-0.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
         <Key each={tabs.tabs()} by="id">{(tab, index) => {
@@ -144,10 +144,10 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
               // (a page naming itself as it arrives) must not move its
               // neighbours along the strip.
-              class="group/tab relative flex min-w-[5rem] max-w-[15rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-t-lg border border-b-0 pl-2.5 pr-1 text-[0.8125rem]"
+              class="group/tab relative flex min-w-[5rem] max-w-[15rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap rounded-t-control border border-b-0 pl-2.5 pr-1 text-body"
               classList={{
-                "h-full border-rule/70 bg-paper font-semibold text-ink": front(),
-                "h-[calc(100%-0.25rem)] border-transparent text-muted hover:bg-panel/55 hover:text-ink": !front(),
+                "h-full border-rule/60 bg-paper font-semibold text-ink": front(),
+                "h-[calc(100%-0.25rem)] border-transparent text-muted hover:bg-panel/60 hover:text-ink": !front(),
                 "opacity-40": isLifted(),
               }}
               draggable={false}
@@ -174,7 +174,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 <span aria-hidden="true" class="pointer-events-none absolute bottom-1 top-1.5 w-0.5 rounded-full bg-accent"
                   classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
               }</Show>
-              <span aria-hidden="true" class="shrink-0 font-mono text-xs opacity-75">{glyphOf(props.router.routes, tab().href)}</span>
+              <span aria-hidden="true" class="shrink-0 text-label opacity-75">{glyphOf(props.router.routes, tab().href)}</span>
               <span data-testid={TESTID.tabsTitle} class="min-w-0 truncate">{title()}</span>
               <Show when={dot()}>{(paint) =>
                 <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label="needs you" class={`${DOT} ${paint()}`} />
@@ -183,7 +183,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 type="button"
                 data-testid={TESTID.tabsClose}
                 aria-label={`close ${title()}`}
-                class="flex size-5 shrink-0 items-center justify-center rounded font-mono text-sm leading-none text-muted hover:bg-rule hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100"
+                class="flex size-5 shrink-0 items-center justify-center rounded-control text-body leading-none text-muted hover:bg-rule hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100"
                 classList={{ "opacity-0": !front() }}
                 onClick={(event) => {
                   event.stopPropagation()
@@ -199,7 +199,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
         data-testid={TESTID.tabsNew}
         aria-label="new tab"
         title="new tab"
-        class="mb-1.5 flex size-7 shrink-0 items-center justify-center rounded-md font-mono text-muted hover:bg-panel hover:text-ink"
+        class="mb-1.5 flex size-7 shrink-0 items-center justify-center rounded-control text-muted hover:bg-panel hover:text-ink"
         onClick={() => tabs.open(lone(HOME_ROUTE))}
       >+</button>
       <Show when={menu()} keyed>{(open) =>

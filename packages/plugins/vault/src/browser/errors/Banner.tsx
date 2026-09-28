@@ -53,14 +53,14 @@ export function Banner(props: { readonly trouble: Trouble }) {
 
   return (
     <aside
-      class="mb-6 rounded border border-alarm bg-alarm/5 px-4 py-3"
+      class="mb-6 rounded-control border border-alarm bg-alarm/10 px-4 py-3"
       data-testid={TESTID.staleBanner}
     >
       <Show
         when={props.trouble.kind === "files"}
         fallback={
           <>
-            <h2 class="m-0 mb-1 text-base font-bold text-alarm">
+            <h2 class="m-0 mb-1 text-title font-bold text-alarm">
               Showing the last good version
             </h2>
             <Lede>
@@ -72,7 +72,7 @@ export function Banner(props: { readonly trouble: Trouble }) {
           </>
         }
       >
-        <h2 class="m-0 mb-1 text-base font-bold text-alarm">
+        <h2 class="m-0 mb-1 text-title font-bold text-alarm">
           {named() === 1 ? "One file is broken" : `${named()} files are broken`}
         </h2>
         <Lede>
@@ -99,12 +99,12 @@ export function Banner(props: { readonly trouble: Trouble }) {
               <Show
                 when={props.trouble.kind === "files"}
                 fallback={
-                  <code class="mr-2 font-mono text-[0.8125rem] text-muted">{one.file}</code>
+                  <code class="mr-2 font-mono text-body text-muted">{one.file}</code>
                 }
               >
                 <Link
                   route={atFile(one.file)}
-                  class="mr-2 font-mono text-[0.8125rem] text-muted underline"
+                  class="mr-2 font-mono text-body text-muted underline"
                   testid={TESTID.brokenFileLink}
                   broken
                 >

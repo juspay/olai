@@ -60,14 +60,14 @@ import { runningIn, type CiTone, wordsFor } from "./words.ts"
 /** The chip's box — the run's own chip geometry, in the mono face a figure
  *  that moves needs (`tabular-nums` keeps a ticking `m:ss` from shimmying). */
 const CHIP =
-  "inline-flex min-w-0 max-w-full shrink-0 items-baseline gap-1 rounded-full border px-2 py-px font-mono text-xs tabular-nums"
+  "inline-flex min-w-0 max-w-full shrink-0 items-baseline gap-1 rounded-full border px-2 py-px text-label tabular-nums"
 
 /** The four inks, by what the run is doing rather than by odu's own hues —
  *  a per-NODE hue is `./hue.ts`'s and belongs to the matrix, where there are
  *  nodes to colour. `going` is the app's accent for `TookChip`'s reason: work
  *  in flight is the one thing on a page worth finding at a glance. */
 const TONE: Record<CiTone, string> = {
-  going: "border-accent/30 bg-accent/10 text-accent",
+  going: "border-accent/20 bg-accent/10 text-accent",
   ok: "border-rule bg-panel text-done",
   red: "border-alarm/40 bg-alarm/10 text-alarm",
   quiet: "border-rule bg-desk text-muted",

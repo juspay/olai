@@ -43,7 +43,7 @@ export function Uptime() {
           {/* The quiet LAST LINE of the health popover: smaller, muted, and
               its words on the same left edge as the rows' words above it
               (a row's padding, its dot and the gap after it). */}
-          <div class={`${PILL} !pl-6 text-xs !text-muted`}>
+          <div class={`${PILL} !pl-6 text-label !text-muted`}>
             {says()}
             <span class="sr-only">{said()}</span>
           </div>

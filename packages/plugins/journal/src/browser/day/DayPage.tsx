@@ -93,7 +93,7 @@ export function DayPage(props: {
               place that parses one. */}
           <h1 class={`${PAGE_TITLE} tabular-nums`}>{props.date}</h1>
           <Show when={props.date === props.today}>
-            <span class="text-sm text-accent">today</span>
+            <span class="text-body text-accent">today</span>
           </Show>
         </div>
         <Show when={!props.noted}>

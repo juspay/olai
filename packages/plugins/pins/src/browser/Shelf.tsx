@@ -260,7 +260,7 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
           <Show when={carrying()}>
             {(held) => (
               <li
-                class="pointer-events-none absolute inset-x-1 h-0.5 rounded bg-accent"
+                class="pointer-events-none absolute inset-x-1 h-0.5 rounded-control bg-accent"
                 data-testid={TESTID.pinDropLine}
                 data-gap={String(held().gap)}
                 aria-hidden="true"

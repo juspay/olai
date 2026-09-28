@@ -81,7 +81,7 @@ export function Rows(props: { readonly errors: ReadonlyArray<OutlineError> }) {
 
 function Heading(props: { readonly children: unknown }) {
   return (
-    <h2 class="mt-8 mb-2 font-mono text-base">{props.children as never}</h2>
+    <h2 class="mt-8 mb-2 text-title">{props.children as never}</h2>
   )
 }
 
@@ -95,7 +95,7 @@ function Row(props: { readonly error: OutlineError }) {
       <At site={props.error} />
       <span>{props.error.message}</span>
       <Show when={props.error.related?.length}>
-        <ul class="mt-1 ml-4 list-none text-sm text-muted">
+        <ul class="mt-1 ml-4 list-none text-body text-muted">
           <For each={props.error.related ?? []}>
             {(related) => (
               <li>
@@ -122,7 +122,7 @@ function Row(props: { readonly error: OutlineError }) {
  *  drawing it last, by hand, or never. */
 function At(props: { readonly site: Site }) {
   return (
-    <code class="mr-2 font-mono text-[0.8125rem] text-muted">
+    <code class="mr-2 font-mono text-body text-muted">
       {props.site.file}
       {hasLine(props.site) ? `:${props.site.line}` : ""}
     </code>

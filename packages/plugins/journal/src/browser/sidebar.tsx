@@ -80,7 +80,7 @@ export function TodayEntry() {
           title={today()}
         >
           Today
-          <span class="ml-auto shrink-0 pl-2 text-[0.8125rem] tabular-nums text-paper/55" data-testid={TESTID.calendarTodayDate}>
+          <span class="ml-auto shrink-0 pl-2 text-body tabular-nums text-paper/60" data-testid={TESTID.calendarTodayDate}>
             {shortDay(today())}
           </span>
         </Link>

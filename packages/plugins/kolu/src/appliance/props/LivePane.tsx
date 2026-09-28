@@ -421,7 +421,7 @@ export function LivePane(props: {
       data-testid={TESTID.terminalPane}
       data-terminal={props.value}
     >
-      <div class="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-[0.6875rem] text-muted">
+      <div class="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-caption text-muted">
         {/* WHAT THIS IS, first and always — the border says it and so does
             this. A live pane does not need an age line: the age of what you are
             looking at is zero, which is the whole difference from the pane this
@@ -460,7 +460,7 @@ export function LivePane(props: {
       >
         {(said) => (
           <p
-            class="text-[0.8125rem] text-muted"
+            class="text-body text-muted"
             data-testid={TESTID.terminalScreen}
             data-state="refused"
           >

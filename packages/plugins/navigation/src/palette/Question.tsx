@@ -38,7 +38,7 @@ export function Question(props: {
           `assertive` is the same pair a refusal gets one row up — this is the
           other sentence in this palette that must interrupt. */}
       <p
-        class="m-0 text-xs leading-snug text-ink"
+        class="m-0 text-label leading-snug text-ink"
         data-testid={TESTID.paletteConfirm}
         role="alert"
         aria-live="assertive"

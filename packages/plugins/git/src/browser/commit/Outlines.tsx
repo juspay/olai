@@ -66,13 +66,13 @@ export function Outlines(props: {
               label={`commit ${outline.path}`}
             />
             <Moved from={localOf(outline.from, props.served)} />
-            <span class="min-w-0 truncate font-mono text-xs text-muted">
+            <span class="min-w-0 truncate font-mono text-label text-muted">
               {outline.file}
             </span>
             {/* A brand-new outline is UNTRACKED, which no node comparison can
                 say: every node in it reads as created either way. */}
             <Show when={outline.how !== "modified"}>
-              <span class={`ml-auto shrink-0 text-xs ${HOW_TONE[outline.how]}`}>
+              <span class={`ml-auto shrink-0 text-label ${HOW_TONE[outline.how]}`}>
                 {HOW[outline.how]}
               </span>
             </Show>
@@ -105,7 +105,7 @@ export function Outlines(props: {
                   <span class="min-w-0 truncate">
                     <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
                   </span>
-                  <span class="ml-auto shrink-0 text-xs text-muted">
+                  <span class="ml-auto shrink-0 text-label text-muted">
                     {SAID[change.sort]}
                   </span>
                 </li>

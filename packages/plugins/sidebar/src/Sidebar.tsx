@@ -51,7 +51,7 @@ export function Sidebar(props: SidebarRegionProps) {
             cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-full border border-paper/20 bg-ink text-paper/65 hover:bg-paper/10 hover:text-paper md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-full border border-paper/20 bg-ink text-paper/60 hover:bg-paper/10 hover:text-paper md:inline-flex md:min-h-8 md:min-w-8`}
           data-testid={TESTID.sidebarCollapse}
           aria-label="collapse the sidebar to the icon rail"
           title="collapse sidebar"
@@ -106,7 +106,7 @@ export function Sidebar(props: SidebarRegionProps) {
         </div>
         <Show when={props.foot}>
           {(foot) => (
-            <div class="shrink-0 border-t border-paper/15 p-3">
+            <div class="shrink-0 border-t border-paper/10 p-3">
               {foot()}
             </div>
           )}

@@ -596,7 +596,7 @@ function Defined(props: {
         return (
           <details
             open={pending()}
-            class="rounded border border-line/60 p-2 text-xs"
+            class="rounded-control border border-line/60 p-2 text-label"
             data-testid={TESTID.pluginsSource}
             data-plugin={props.plugin.name}
             data-version={said().version}
@@ -622,7 +622,7 @@ function Defined(props: {
                     </p>
                     <button
                       type="button"
-                      class="rounded border border-line px-2 py-1"
+                      class="rounded-control border border-line px-2 py-1"
                       onClick={() => props.onRead(props.plugin.name, said().version)}
                     >
                       I have read it
@@ -633,7 +633,7 @@ function Defined(props: {
                 <div class="mt-2 flex gap-2">
                   <button
                     type="button"
-                    class="rounded border border-line px-2 py-1"
+                    class="rounded-control border border-line px-2 py-1"
                     disabled={frozen()}
                     data-testid={TESTID.pluginsApprove}
                     onClick={() => props.approve(props.plugin.name, said().version, false)}
@@ -642,7 +642,7 @@ function Defined(props: {
                   </button>
                   <button
                     type="button"
-                    class="rounded border border-line px-2 py-1"
+                    class="rounded-control border border-line px-2 py-1"
                     disabled={frozen()}
                     data-testid={TESTID.pluginsApproveAlways}
                     onClick={() => props.approve(props.plugin.name, said().version, true)}

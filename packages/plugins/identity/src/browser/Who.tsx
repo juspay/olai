@@ -89,7 +89,7 @@ function Icon(props: {
   return (
     <Tip text={props.label} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/25 ${
+        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/20 ${
           props.alarm === true ? "text-alarm" : "text-paper/80"
         } ${props.dim === true ? "opacity-50" : ""}`}
         aria-label={props.label}
@@ -107,7 +107,7 @@ function Chip(props: { readonly person: Person }) {
   return (
     <Tip text={saying(props.person)} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/25 ${
+        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/20 ${
           props.person.picture === null ? "text-paper/80" : "p-1.5"
         }`}
         aria-label={saying(props.person)}

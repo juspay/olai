@@ -145,14 +145,14 @@ export function Header(props: {
           {(menu) => (
             <button
               type="button"
-              class={`${TARGET_BOX} -ml-2 inline-flex items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
+              class={`${TARGET_BOX} -ml-2 inline-flex items-center justify-center rounded-control text-paper/80 hover:text-paper md:hidden`}
               data-testid={TESTID.sidebarToggle}
               data-open={menu().open}
               aria-expanded={menu().open}
               aria-label={menu().open ? "hide the sidebar" : "show the sidebar"}
               onClick={() => menu().onToggle()}
             >
-              <span aria-hidden="true" class="text-lg leading-none">☰</span>
+              <span aria-hidden="true" class="text-title leading-none">☰</span>
             </button>
           )}
         </Show>

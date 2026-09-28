@@ -107,7 +107,7 @@ export function BarDoor(props: {
             : health()
             ? `${STATUS_ROW} ${open() ? "bg-pill/60" : ""}`
             : `${ICON_BUTTON} size-8 !p-0 border ${
-              open() ? "border-accent text-paper" : "border-paper/25"
+              open() ? "border-accent text-paper" : "border-paper/20"
             }`
         }
         data-testid={props.testid}

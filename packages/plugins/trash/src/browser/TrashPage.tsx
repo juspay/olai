@@ -90,7 +90,7 @@ export function TrashPage(props: {
     <div data-testid={IDS_TRASH.trashPage}>
       <header class="mb-8">
         <h1 class={`${PAGE_TITLE} italic text-ink`}>Trash</h1>
-        <p class="m-0 mt-1 text-sm text-muted">
+        <p class="m-0 mt-1 text-body text-muted">
           What was put away, kept whole. Put a row back and it returns where it
           came from, everything under it included.
         </p>
@@ -120,7 +120,7 @@ export function TrashPage(props: {
                   directory whose subdirectories archive separately gets one
                   per file, the way the day page groups by outline. */}
               <Show when={props.files.length > 1}>
-                <h2 class="mb-1 mt-4 text-sm font-medium text-muted">
+                <h2 class="mb-1 mt-4 text-body font-medium text-muted">
                   {group().file}
                 </h2>
               </Show>
@@ -229,7 +229,7 @@ function Branch(props: {
           {(row) => (
             <button
               type="button"
-              class="shrink-0 rounded border border-rule/70 bg-panel px-2 py-0.5 text-xs text-muted opacity-0 transition-opacity hover:bg-rule/60 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+              class="shrink-0 rounded-control border border-rule/60 bg-panel px-2 py-0.5 text-label text-muted opacity-0 transition-opacity hover:bg-rule/60 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
               data-testid={IDS_TRASH.trashPutBack}
               aria-label={`put back “${row().shows.node.title}”`}
               onClick={() => void putBack()}
@@ -245,7 +245,7 @@ function Branch(props: {
           // something about a write; where the line sits is this row's.
           <SaidLine
             said={line()}
-            class="m-0 mb-1 ml-6 text-sm"
+            class="m-0 mb-1 ml-6 text-body"
             testid={IDS_TRASH.trashSaid}
           />
         )}

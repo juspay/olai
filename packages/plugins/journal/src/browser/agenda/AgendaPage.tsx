@@ -77,7 +77,7 @@ export function AgendaPage(props: {
     <section data-testid={TESTID.agendaPage} data-date={props.today}>
       <header class="mb-10 flex items-baseline gap-3">
         <h1 class={`${PAGE_TITLE} italic`}>Agenda</h1>
-        <span class="text-sm text-muted tabular-nums">{props.today}</span>
+        <span class="text-body text-muted tabular-nums">{props.today}</span>
       </header>
 
       {/* Said once, as the one condition it is: nothing is late, nothing is on

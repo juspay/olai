@@ -8,8 +8,8 @@ import { name } from "../wire.ts"
 
 function FeedFoot(props: { readonly onLeave: () => void }) {
   return <Show when={configurationPanel()}>{panel =>
-    <footer class="mt-1 flex items-baseline gap-2 border-t border-paper/15 pt-2" data-testid={TESTID.padiFeedFoot}>
-      <button type="button" class="ml-auto flex shrink-0 items-center rounded p-0.5 text-muted hover:bg-paper/10 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    <footer class="mt-1 flex items-baseline gap-2 border-t border-paper/10 pt-2" data-testid={TESTID.padiFeedFoot}>
+      <button type="button" class="ml-auto flex shrink-0 items-center rounded-control p-0.5 text-muted hover:bg-paper/10 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         data-testid={TESTID.padiFeedWrench} aria-label="Edit watch configuration" title="Edit watch configuration"
         onClick={() => { props.onLeave(); panel().open(name) }}>
       <svg
@@ -39,7 +39,7 @@ export function Feed(props: {
   readonly onLeave: () => void
 }) {
   return <>
-    <h2 class="text-xs font-medium uppercase tracking-wider text-muted">recently wanted attention</h2>
+    <h2 class="text-label font-medium uppercase tracking-wider text-muted">recently wanted attention</h2>
     <EventsFeed />
     <FeedFoot onLeave={props.onLeave} />
   </>

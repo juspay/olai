@@ -29,7 +29,7 @@ export function Trash() {
       route={TRASH_ROUTE}
       // The quiet ink says what the row is: a door onto a page, not one more
       // file of the reader's own.
-      class={`${ENTRY_SHAPE} text-paper/65`}
+      class={`${ENTRY_SHAPE} text-paper/60`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >

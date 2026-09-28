@@ -55,7 +55,7 @@ export function Fault(props: { readonly text: string }) {
           a bug report is made of, and a fault surface that summarised the
           fault would be the white tab with extra steps. */}
       <pre
-        class="mb-4 max-w-full overflow-x-auto rounded border border-rule bg-rule/30 p-3 text-xs text-ink"
+        class="mb-4 max-w-full overflow-x-auto rounded-control border border-rule bg-rule/20 p-3 text-label text-ink"
         data-testid={TESTID.faultDetail}
       >
         {props.text}
@@ -67,7 +67,7 @@ export function Fault(props: { readonly text: string }) {
             A plain `<a>` — this is a document navigation, which is the whole
             point of offering it. */}
         <a
-          class={`inline-flex ${TARGET} items-center text-sm text-muted underline md:min-h-0`}
+          class={`inline-flex ${TARGET} items-center text-body text-muted underline md:min-h-0`}
           // Through `routes.ts` like every other address this app writes: it is
           // the one bijection between a URL and what it means, and it is pure —
           // nothing about the page being down stops it answering.

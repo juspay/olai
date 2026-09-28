@@ -180,12 +180,12 @@ export function MailRow(props: {
    *  account is the destructive half of this face. */
   const asksForAPerson = (): boolean => mailNeedsYou(props.account())
 
-  const button = "rounded border border-rule px-2 py-0.5 text-xs"
+  const button = "rounded-control border border-rule px-2 py-0.5 text-label"
   return (
     <div class="flex flex-col gap-1.5" data-testid={TESTID.mailRow} data-mail-row={props.account().status}>
-      <p class="text-xs leading-relaxed text-muted">{said()}</p>
+      <p class="text-label leading-relaxed text-muted">{said()}</p>
       <Show when={props.account().status === "absent" && props.account().reason === null}>
-        <p class="text-xs leading-relaxed text-muted" data-testid={TESTID.mailRedirect} data-mail-redirect={redirectFor(props.account(), window.location.origin)}>
+        <p class="text-label leading-relaxed text-muted" data-testid={TESTID.mailRedirect} data-mail-redirect={redirectFor(props.account(), window.location.origin)}>
           Register {redirectFor(props.account(), window.location.origin)} in Google Cloud.
         </p>
       </Show>
@@ -199,14 +199,14 @@ export function MailRow(props: {
       </Show>
       <Show when={props.account().status === "connected" || props.account().status === "fault"}>
         <div class="flex gap-1.5">
-          <button type="button" class={`${button} border-alarm/45 text-alarm`} disabled={busy()}
+          <button type="button" class={`${button} border-alarm/40 text-alarm`} disabled={busy()}
             data-testid={TESTID.mailAction} data-mail-action="disconnect"
             onClick={() => press(() => props.client.procedures.connect.disconnect())}>
             Disconnect
           </button>
         </div>
       </Show>
-      <Show when={refused()}>{(sentence) => <p class="text-xs leading-relaxed text-alarm" data-testid={TESTID.mailRefused} data-mail-refused={sentence()}>{sentence()}</p>}</Show>
+      <Show when={refused()}>{(sentence) => <p class="text-label leading-relaxed text-alarm" data-testid={TESTID.mailRefused} data-mail-refused={sentence()}>{sentence()}</p>}</Show>
     </div>
   )
 }

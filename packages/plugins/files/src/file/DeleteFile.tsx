@@ -60,7 +60,7 @@ export function DeleteFile(props: { readonly file: string }) {
       <Switch>
         <Match when={confirm.where() === "asking"}>
           <p
-            class="m-0 min-w-0 flex-1 basis-full [overflow-wrap:anywhere] text-sm text-ink sm:basis-auto"
+            class="m-0 min-w-0 flex-1 basis-full [overflow-wrap:anywhere] text-body text-ink sm:basis-auto"
             data-testid={TESTID.fileDeleteConfirm}
           >
             {deleteQuestion(props.file)}
@@ -109,7 +109,7 @@ export function DeleteFile(props: { readonly file: string }) {
           outside the pile's. The door module argues the rest. */}
       <Show when={said()}>
         {(line) => (
-          <SaidLine said={line()} class="text-sm" testid={TESTID.fileDeleteSaid} />
+          <SaidLine said={line()} class="text-body" testid={TESTID.fileDeleteSaid} />
         )}
       </Show>
     </>
