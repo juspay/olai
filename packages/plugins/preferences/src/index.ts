@@ -3,20 +3,26 @@ import type { JSX } from "solid-js"
 export const name = "preferences"
 
 /**
- * One contribution to the preferences panel: rows, under a heading, at a place.
- *
- * The panel draws headings and knows none of them. Each contributor says which
- * heading its rows belong under, in the words a person reads (`Appearance`,
- * `Notifications`), and where they sit; contributions naming the same heading
- * are drawn together under it, at the place of the first. So a plugin that
- * joins an existing heading needs nothing from the plugin already there, and
- * a heading whose contributors are all switched off is simply not drawn.
+ * The panel's headings, in the order they are drawn. This package owns them: a
+ * contributor names one by its key and never spells, orders or matches a
+ * heading's words itself, so two plugins sharing a heading cannot disagree
+ * about it, and a key that is not here is a type error.
+ */
+export const HEADINGS = [
+  { key: "appearance", label: "Appearance" },
+  { key: "outlines", label: "Outlines" },
+  { key: "notifications", label: "Notifications" },
+] as const
+export type Heading = (typeof HEADINGS)[number]["key"]
+
+/**
+ * One contribution to the preferences panel: rows, under a heading, at a place
+ * within it. A heading whose contributors are all switched off is not drawn.
  */
 export interface Section {
-  /** The heading these rows sit under. Rows naming the same heading share it. */
-  readonly group: string
-  /** Lower first, across the whole panel. A heading sits at its first row's
-   *  place; within a heading, contributions follow this too. */
+  /** The heading these rows sit under — a key of {@link HEADINGS}. */
+  readonly heading: Heading
+  /** Lower first, among the contributions under the same heading only. */
   readonly order: number
   readonly body: () => JSX.Element
 }

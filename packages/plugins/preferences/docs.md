@@ -3,7 +3,10 @@
 `preferences` is a browser-only UI row. It contributes a tool to `layout.tools`,
 which the shell places in the desktop header or mobile directory footer. Its
 entry owns `preferences.sections`; other plugins contribute their controls
-there without importing the panel implementation.
+there without importing the panel implementation. The headings are this
+package's own static table (`HEADINGS`: key, label, and position by order in
+the table); a contribution names a heading's key and an order among that
+heading's rows only.
 
 The theme provider contributes Theme, Font and Size controls. Disabling this
 UI removes its panels and those contributions while the theme provider keeps

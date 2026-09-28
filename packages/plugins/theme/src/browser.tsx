@@ -30,6 +30,6 @@ export const components = {
   }) }),
   preferences: definePlugin({ name: "preferences", needs: [appearance, rendererSlots], apply: Effect.gen(function*() {
     const state = yield* appearance
-    yield* (yield* rendererSlots).contribute(sections, { group: "Appearance", order: 10, body: () => <AppearanceRows state={state} /> })
+    yield* (yield* rendererSlots).contribute(sections, { heading: "appearance" as const, order: 0, body: () => <AppearanceRows state={state} /> })
   }) }),
 }
