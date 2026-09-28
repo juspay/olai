@@ -122,7 +122,7 @@ export const TESTID = {
   filterRefusal: "filter-refusal",
   filterFailure: "filter-failure",
   nothingNewOutline: "nothing-new-outline",
-  nothingGoHome: "nothing-go-home",
+  missingGoHome: "nothing-go-home",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

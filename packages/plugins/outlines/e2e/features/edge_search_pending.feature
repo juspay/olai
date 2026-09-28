@@ -4,7 +4,7 @@ Feature: A pending search never relabels retained edge targets
     Given incoming updates to this browser tab can be held
     And I open the outline "house.olai"
     When I open the node menu of "handles"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     And I search the edge panel for "compost"
     And I mark the wire
     And I hold incoming updates to the original browser tab

@@ -9,6 +9,7 @@
 
 import * as assert from "node:assert";
 import { TESTID as LAYOUT_TESTID } from "olai-plugin-layout/testids";
+import { TESTID as HARNESS_TESTID } from "@olai/tests/harness/testids.ts";
 import { selector } from "@olai/web/testlib";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -1414,4 +1415,39 @@ Then(
 Then("the node titled {string} is shown", async function (this: OlaiWorld, title: string) {
   await this.waitUntil(async () => (await this.page.locator(NODE_TITLE).allInnerTexts()).includes(title),
     `a node titled ${JSON.stringify(title)} to be shown`);
+});
+
+// ── the active row, and what a plugin offers on it ─────────────────────
+//
+// A row that a plugin hangs an OFFER on — chat's `Start an agent` — draws it
+// on a pointer device when a hand is on the row, and on a phone only on the
+// ACTIVE row: the one the caret or the last tap is on, which the row line
+// says with `data-active` (`OFFER_REVEAL`). A STANDING — an agent that is
+// there — is a fact rather than an offer, and is drawn on every row. The
+// ids are chat's, read through the harness's combined table, which is the
+// one door a row's steps may name another row's testid by.
+
+const offerOn = (world: OlaiWorld, id: string) =>
+  world.page.locator(`${selector(HARNESS_TESTID.agentStart)}${attr("data-agent", world.nodeId(id))}`);
+const standingOn = (world: OlaiWorld, id: string) =>
+  world.page.locator(`${selector(HARNESS_TESTID.agentStanding)}${attr("data-agent", world.nodeId(id))}`);
+
+When("I tap the title of {string}", async function (this: OlaiWorld, id: string) {
+  await this.press(this.within(id, NODE_TITLE), "tap");
+});
+
+/** On the row and NOT drawn: attached (so a plugin did offer it here) but
+ *  laid out as nothing — the phone's answer for a row nobody tapped. */
+Then("the agent offer on {string} is not drawn", async function (this: OlaiWorld, id: string) {
+  const offer = offerOn(this, id);
+  await offer.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => !(await offer.isVisible()), `the agent offer on "${id}" to be put away`);
+});
+
+Then("the agent offer on {string} is drawn", async function (this: OlaiWorld, id: string) {
+  await offerOn(this, id).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the agent standing on {string} is drawn", async function (this: OlaiWorld, id: string) {
+  await standingOn(this, id).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });

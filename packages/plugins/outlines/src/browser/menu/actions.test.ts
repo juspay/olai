@@ -35,6 +35,7 @@ import { expect, spyOn, test } from "bun:test"
 import type { Relation } from "../edges/relation.ts"
 import { flatten } from "../edit/order.ts"
 import * as writes from "../writes.ts"
+import { isSub, type MenuAction, type MenuEntry } from "./action.ts"
 import { nodeMenuActions, type Panels, subjectMenuActions } from "./actions.ts"
 import { subjectOfSituated } from "./verbs.ts"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
@@ -68,7 +69,6 @@ const actionsFor = (
     routes,
     row: row(id),
     pins: NO_PINS,
-    collapsed: false,
     foldable: [],
     go: () => {},
     record: () => {},
@@ -91,11 +91,56 @@ const actionsFor = (
     },
   })
 
+/** Every verb in the menu, submenus opened — the menu is grouped now
+ *  (`Mark ›`, `More ›`), and what a verb answers does not depend on where it
+ *  is filed. */
+const verbsOf = (entries: ReadonlyArray<MenuEntry>): ReadonlyArray<MenuAction> =>
+  entries.flatMap((one) => (isSub(one) ? verbsOf(one.entries) : [one]))
+
 const entry = (id: string, label: string) => {
-  const found = actionsFor(id, () => true).find((one) => one.label === label)
+  const found = verbsOf(actionsFor(id, () => true)).find((one) => one.label === label)
   if (found === undefined) throw new Error(`\`${id}\` offers no ${JSON.stringify(label)}`)
   return found
 }
+
+/** The menu as a person reads it: each line's label, a submenu as its label
+ *  and its own lines, and a rule as `—`. */
+const shape = (entries: ReadonlyArray<MenuEntry>): ReadonlyArray<unknown> =>
+  entries.flatMap((one) => [
+    ...(one.divider === true ? ["—"] : []),
+    isSub(one) ? { [one.label]: shape(one.entries) } : one.label,
+  ])
+
+test("the menu is short, in groups a rule apart, with Move to Trash last and alone", () => {
+  expect(shape(actionsFor("kitchen", () => true))).toEqual([
+    "Zoom in",
+    { Mark: ["To do", "Done", "Cancelled", "Clear"] },
+    "—",
+    "Set date…",
+    "Pin to sidebar",
+    "—",
+    "Move to…",
+    "Duplicate",
+    "—",
+    { More: ["Copy link", "Copy as text", "Expand all", "Collapse all", "Add property…", "Link to…", "Wait for…"] },
+    "—",
+    "Move to Trash",
+  ])
+})
+
+test("a leaf row has no folds to offer, and a mirror retires itself from More", () => {
+  expect(shape(actionsFor("echo", () => true))).toEqual([
+    "Zoom in",
+    { Mark: ["To do", "Doing", "Done", "Cancelled"] },
+    "—",
+    "Set date…",
+    "Pin to sidebar",
+    "—",
+    "Move to…",
+    "—",
+    { More: ["Copy link", "Copy as text", "Add property…", "Link to…", "Wait for…", "Remove from here"] },
+  ])
+})
 
 test("opening the picker says NOTHING, whatever the opener answers with", () => {
   // The regression: `run: () => args.pickDate()` hands the panel `true`, which
@@ -107,13 +152,13 @@ test("opening the picker says NOTHING, whatever the opener answers with", () => 
 test("an edge verb says nothing either, and names the relation it opens", () => {
   // The same regression one arm over: `pickEdge` is a setter too, and the arm
   // that calls it must not hand the panel the relation it just stored.
-  expect(entry("install", "Link to a node…").run()).toBeUndefined()
+  expect(entry("install", "Link to…").run()).toBeUndefined()
   let asked: Relation | undefined
-  const actions = actionsFor("install", (relation) => {
+  const actions = verbsOf(actionsFor("install", (relation) => {
     asked = relation as Relation
     return relation
-  })
-  actions.find((one) => one.label === "Wait for a node…")?.run()
+  }))
+  actions.find((one) => one.label === "Wait for…")?.run()
   expect(asked).toBe("after")
 })
 
@@ -121,10 +166,10 @@ test("...and it still opens the picker", () => {
   // The other half, so a `run` that answered `undefined` by doing nothing at
   // all would not pass the test above.
   let opened = 0
-  const actions = actionsFor("install", () => {
+  const actions = verbsOf(actionsFor("install", () => {
     opened += 1
     return true
-  })
+  }))
   actions.find((one) => one.label === "Set date…")?.run()
   expect(opened).toBe(1)
 })
@@ -143,7 +188,7 @@ test("a verb that WRITES still answers with a promise the panel can read", async
     text: "kitchen remodel is done",
   }))
   try {
-    const answer = entry("install", "Mark todo").run()
+    const answer = entry("install", "To do").run()
     expect(answer).toBeInstanceOf(Promise)
     expect(await answer).toEqual({
       tone: "aside",
@@ -192,12 +237,12 @@ test("a copy that LANDED answers with a remark, so the ordinary case is not sile
   const answers = await withClipboard(
     { writeText: (text) => (written.push(text), Promise.resolve()) },
     async () => ({
-      link: await entry("install", "Copy link to node").run(),
+      link: await entry("install", "Copy link").run(),
       text: await entry("install", "Copy as text").run(),
     }),
   )
-  expect(answers.link).toEqual({ tone: "aside", text: "link copied" })
-  expect(answers.text).toEqual({ tone: "aside", text: "text copied" })
+  expect(answers.link).toEqual({ tone: "aside", text: "Link copied" })
+  expect(answers.text).toEqual({ tone: "aside", text: "Text copied" })
   // ...and each sentence is a report rather than an assumption: both reached
   // the clipboard before either of them said anything.
   expect(written).toHaveLength(2)
@@ -212,7 +257,7 @@ test("a copy the browser REFUSED answers with no remark at all — it throws", a
     { writeText: () => Promise.reject(new Error("denied")) },
     async () => {
       try {
-        await entry("install", "Copy link to node").run()
+        await entry("install", "Copy link").run()
         return null
       } catch (cause) {
         return cause as Error
@@ -221,7 +266,7 @@ test("a copy the browser REFUSED answers with no remark at all — it throws", a
   )
   // `null` would be the regression, and it is the one worth naming: a `run`
   // that RESOLVED here resolved with the remark, and the menu would draw
-  // "link copied" over a clipboard that had refused.
+  // "Link copied" over a clipboard that had refused.
   expect(thrown?.message).toBe("denied")
 })
 
@@ -244,7 +289,7 @@ test("a copy the browser REFUSED answers with no remark at all — it throws", a
 const situatedLabels = (id: string, panels: Panels): ReadonlyArray<string> => {
   const zoomed = zoom(derived, id)
   if (zoomed.kind !== "node") throw new Error(`no node \`${id}\` in the fixture`)
-  return subjectMenuActions({
+  return verbsOf(subjectMenuActions({
     routes,
     subject: subjectOfSituated(zoomed),
     under: zoomed.under,
@@ -252,7 +297,7 @@ const situatedLabels = (id: string, panels: Panels): ReadonlyArray<string> => {
     go: () => {},
     record: () => {},
     panels,
-  }).map((one) => one.label)
+  })).map((one) => one.label)
 }
 
 test("a verb whose panel the surface does not draw is not offered at all", () => {
@@ -260,23 +305,23 @@ test("a verb whose panel the surface does not draw is not offered at all", () =>
   // or the chip run's add: an entry for either would be a click that silently
   // goes nowhere, which is the one outcome the catalog refuses everywhere else.
   const none = situatedLabels("install", {})
-  for (const opens of ["Set date…", "Link to a node…", "Wait for a node…", "Add property…", "Move to…"]) {
+  for (const opens of ["Set date…", "Link to…", "Wait for…", "Add property…", "Move to…"]) {
     expect(none).not.toContain(opens)
   }
   // ...while every verb that writes on the spot is still there.
-  expect(none).toContain("Complete")
+  expect(none).toContain("Done")
   expect(none).toContain("Duplicate")
   expect(none).toContain("Move to Trash")
 
   const some = situatedLabels("install", { pickDate: () => {}, pickEdge: () => {} })
   expect(some).toContain("Set date…")
-  expect(some).toContain("Link to a node…")
-  expect(some).toContain("Wait for a node…")
+  expect(some).toContain("Link to…")
+  expect(some).toContain("Wait for…")
   expect(some).not.toContain("Move to…")
   expect(some).not.toContain("Add property…")
 })
 
-test("a situated node's menu keeps the two halves in their order, with one rule between", () => {
+test("a situated node's menu keeps its groups in their order, a rule above each but the first", () => {
   const actions = subjectMenuActions({
     routes,
     subject: subjectOfSituated((() => {
@@ -290,8 +335,13 @@ test("a situated node's menu keeps the two halves in their order, with one rule 
     record: () => {},
     panels: {},
   })
-  expect(actions.slice(0, 2).map((one) => one.id)).toEqual(["zoom", "copy-link"])
-  expect(actions.filter((one) => one.divider === true).map((one) => one.id)).toEqual(["pin"])
+  // No panels: no date, no move — so `plan` is the pin alone and `place` the
+  // duplicate alone, and a group left empty draws no rule of its own.
+  expect(actions.map((one) => one.id)).toEqual(["zoom", "mark", "pin", "duplicate", "more", "trash"])
+  expect(actions.filter((one) => one.divider === true).map((one) => one.id)).toEqual(["pin", "duplicate", "more", "trash"])
+  // `More ›` opens on the link, whatever else the surface files there.
+  const more = actions.find((one) => one.id === "more")
+  expect(more !== undefined && isSub(more) ? more.entries[0]?.id : undefined).toBe("copy-link")
 })
 
 test("a group draws in the catalog's order: the pin ends its group, and the clears end More", () => {

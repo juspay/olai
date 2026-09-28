@@ -114,15 +114,15 @@ Feature: Zoom and navigate
   Scenario: A zoomed page whose children are all done names the flip
     # THE ONLY ON-SCREEN SENTENCE ABOUT THE SETTING: `compost` has two done
     # children and nothing unmarked, so the pick this page answers to empties
-    # it — and the copy names the door: the flip beside the page's own
-    # filter. It IS there from the first frame now, and the walk out and
+    # it — and the copy says so: everything here is finished, and finished
+    # items are hidden (the Finished box beside the filter brings them back). It IS there from the first frame now, and the walk out and
     # back proves the pick both ways.
     Given I open the node "compost"
-    Then the page names that finished work is hidden
+    Then the empty zoomed page says "Everything here is finished, and finished items are hidden."
     When I show the done nodes
     Then the node "turned" is shown
     When I hide the done nodes
-    Then the page names that finished work is hidden
+    Then the empty zoomed page says "Everything here is finished, and finished items are hidden."
 
   Scenario: A page you go to starts at the top, and the one you come back to does not
     # Two halves of one decision, and neither happens by itself: a route change
@@ -279,7 +279,7 @@ Feature: Zoom and navigate
     Given I open the outline "garden.olai"
     When I collapse the node "herbs"
     And I open the node menu of "herbs"
-    And I choose "Complete" from the node menu
+    And I choose "Mark › Done" from the node menu
     And I open the address "/garden.olai#basil"
     Then the node "basil" is focused
     And the node "basil" is shown
@@ -305,7 +305,7 @@ Feature: Zoom and navigate
     # pick's sweep exactly as it stood, word and strip alike.
     When I open the address "/garden.olai?q=slugs#basil"
     Then the filter found "1 of 11"
-    And the landing says "basil — what it names is not drawn on this page"
+    And the landing says "basil — not shown on this page"
     And the node "basil" is not shown
     When I clear the filter
     Then the node "basil" is not shown
@@ -366,7 +366,7 @@ Feature: Zoom and navigate
     # and that the page draws none of it.
     When I open the address "/house.olai#no-such-row"
     Then the tree is shown
-    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    And the landing says "no-such-row — not found"
     # ...and it is a notice, not a state: the way every transient line in
     # this client goes.
     And the landing's sentence has gone
@@ -382,7 +382,7 @@ Feature: Zoom and navigate
     # hides done). Then said then gone, the way any transient line goes.
     When I open the address "/house.olai#glazing"
     Then the tree is shown
-    And the landing says "glazing — what it names is not drawn on this page"
+    And the landing says "glazing — not shown on this page"
     And the landing's sentence has gone
     And there should be no page errors
 
@@ -396,7 +396,7 @@ Feature: Zoom and navigate
     # component stays, and only the stretch's own ending may answer.
     When I open the address "/house.olai#no-such-row"
     Then the tree is shown
-    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    And the landing says "no-such-row — not found"
     When I click the outline "garden.olai"
     # BOUNDED under the line's own six seconds, or the dead-miss step above
     # would ask this no question at all: BY the boundary is the claim here,

@@ -148,7 +148,7 @@ Feature: Filtering the outline in place
     # like an empty directory.
     When I filter the page by "is:done"
     Then the outline has 0 rows
-    And the filter found "no matches of 10 — 2 matches hidden as done"
+    And the filter found "No matches of 10 — 2 matches hidden as done"
 
   Scenario: The header's box refuses the same operator, in the same words
     # One grammar, four doors. The filter parses for itself; the header box,

@@ -100,7 +100,7 @@ test("a new op that lands mid-replay wins the branch, and redo stays empty", asy
   undo.redo()
   await settled()
   expect(wire.waiting.length).toBe(1)
-  expect(undo.said()).toEqual({ tone: "aside", text: "nothing to redo" })
+  expect(undo.said()).toEqual({ tone: "aside", text: "Nothing to redo" })
 
   // And ⌘Z still reaches B, which is the other half of "the new op won".
   undo.undo()
@@ -156,7 +156,7 @@ test("a new op takes away what the last undo said", async () => {
 
   undo.undo()
   await settled()
-  expect(undo.said()?.text).toContain("nothing to undo")
+  expect(undo.said()?.text).toContain("Nothing to undo")
 
   undo.record([edit("undo-A")])
   await settled()

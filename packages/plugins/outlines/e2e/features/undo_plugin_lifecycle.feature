@@ -87,10 +87,10 @@ Feature: Undo history survives plugin changes without overwriting other work
     Then "house.olai" holds a node whose note ends "— measured twice"
     When I click the outline "garden.olai"
     And I press "ControlOrMeta+z"
-    Then the undo says "nothing to undo"
+    Then the undo says "Nothing to undo"
     When I click the outline "house.olai"
     And I press "ControlOrMeta+Shift+z"
-    Then the undo says "nothing to redo"
+    Then the undo says "Nothing to redo"
     And "house.olai" holds a node whose note ends "— measured twice"
     And the page has not reloaded
     And there should be no page errors

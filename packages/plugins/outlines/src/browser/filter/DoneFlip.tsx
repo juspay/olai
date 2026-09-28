@@ -44,7 +44,7 @@ export function DoneFlip(props: { readonly file: string }) {
   const said = (): string =>
     own()
       ? `Finished items ${word(shown())} here. Your default: ${word(!doneHidden())}.`
-      : `Finished items ${word(shown())}, as in Preferences.`
+      : `Finished items ${word(shown())}, as your default.`
 
   return (
     <span

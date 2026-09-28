@@ -90,9 +90,9 @@ Feature: A dated node that comes back
     And I pick the repeat rule "every month"
     When I open the node menu of "order"
     Then the node menu offers "Change repeat…"
-    And the node menu offers "Stop repeating"
+    And the node menu offers "More › Stop repeating"
     And the node menu does not offer "Set repeat…"
-    When I choose "Stop repeating" from the node menu
+    When I choose "More › Stop repeating" from the node menu
     Then the node "order" shows no repeat rule
     And "house.olai" holds the node "order" with no repeat rule
     And there should be no page errors

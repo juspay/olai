@@ -4,7 +4,7 @@ Feature: Prepared links survive rebuilding the same node
     Given I open the outline "house.olai"
     And I mark the page
     When I open the node menu of "handles"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     And I search the edge panel for "compost"
     And I open another browser tab
     And I open the plugins panel

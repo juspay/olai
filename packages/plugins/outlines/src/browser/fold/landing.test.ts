@@ -222,19 +222,19 @@ test("the set's answer changing nothing is the certain miss, carrying WHICH half
 
 test("a certain miss says what was asked — and which half of certain it is", () => {
   expect(missedSays("day29-thirteenth", null)).toBe(
-    "day29-thirteenth — nothing by that name is drawn on this page",
+    "day29-thirteenth — not found",
   )
   // What the SET declares but this page draws no row of — the id of a DONE
-  // row, a filtered branch, another file — is NOT "nothing by that name":
+  // row, a filtered branch, another file — is NOT "not found":
   // a hidden live row must not answer in the dead link's words.
   expect(missedSays("day29-thirteenth", "day29-anchor")).toBe(
-    "day29-thirteenth — what it names is not drawn on this page",
+    "day29-thirteenth — not shown on this page",
   )
 })
 
 test("the failed ask says just that — nothing of whether the name names", () => {
   expect(failedSays("day29-thirteenth")).toBe(
-    "day29-thirteenth — the set could not be asked what it names",
+    "day29-thirteenth — couldn’t look this up. Try again.",
   )
 })
 

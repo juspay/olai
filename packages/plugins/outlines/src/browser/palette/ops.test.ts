@@ -48,14 +48,15 @@ test("a page that is not a zoom offers no op rows at all", () => {
 })
 
 test("the zoomed node's own verbs, minus the one that opens a picker", () => {
-  // `kitchen` is doing and carries no date, so: no `Mark doing`, no `Clear
-  // date`. `Set date…` is absent for a different reason — it opens the ROW's
+  // `kitchen` is doing and carries no date, so: no `Mark: Doing`, no `Clear
+  // date`. A mark is listed with its `Mark:` heading back — in the `•••` menu
+  // it reads under `Mark ›`, and flat here `Done` alone would say nothing. `Set date…` is absent for a different reason — it opens the ROW's
   // picker, and the palette is drawn over the tree rather than in it.
   expect(labels("kitchen")).toEqual([
-    "Mark todo",
-    "Complete",
-    "Cancel",
-    "Clear mark",
+    "Mark: To do",
+    "Mark: Done",
+    "Mark: Cancelled",
+    "Mark: Clear",
     "Duplicate",
     "Move to Trash",
   ])
@@ -70,12 +71,12 @@ test("every row says which node it is about, on the place line", () => {
   // typing what you are looking at finds what you can do to it.
   expect(rows.every((row) => row.search === "order the cabinets")).toBe(true)
   expect(filterItems("cabinets", rows).length).toBe(rows.length)
-  expect(filterItems("complete", rows).map((row) => row.label)).toEqual(["Complete"])
+  expect(filterItems("mark: done", rows).map((row) => row.label)).toEqual(["Mark: Done"])
 })
 
 test("a row carries the edit it will send, and the archive carries its question", () => {
   const rows = opItems(routes, at("install"), at("install").under)
-  const complete = rows.find((row) => row.label === "Complete")
+  const complete = rows.find((row) => row.label === "Mark: Done")
   expect(complete?.action).toEqual({
     kind: "edit",
     edit: { verb: "mark", id: "install", mark: "done" },
@@ -88,7 +89,7 @@ test("a row carries the edit it will send, and the archive carries its question"
   // The MENU's sentence, verbatim — not a second wording of the same warning.
   expect(
     trash?.action.kind === "edit" ? trash.action.confirm : undefined,
-  ).toContain("Move “install them” to the Trash?")
+  ).toContain("Move “install them” to Trash?")
 })
 
 test("the ids are namespaced, so a shell row and an op row cannot collide", () => {
@@ -109,7 +110,7 @@ test("with no indexes yet the archive is not offered, rather than uncounted", ()
   // where the write is judged, so this one has no number to read off an index
   // it has not been given.
   expect(opItems(routes, at("kitchen"), undefined).map((row) => row.label))
-    .toEqual(["Mark todo", "Complete", "Cancel", "Clear mark", "Duplicate"])
+    .toEqual(["Mark: To do", "Mark: Done", "Mark: Cancelled", "Mark: Clear", "Duplicate"])
 })
 
 test("the shelf's verb is not among them — the palette's pin row is the PAGE's", () => {

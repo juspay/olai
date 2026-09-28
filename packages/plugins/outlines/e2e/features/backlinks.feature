@@ -38,10 +38,10 @@ Feature: Referenced by — a zoomed node says what points at it
     Then the page says it is referenced by 1 things
     And the referenced-by section is collapsed
     When I open the referenced-by section
-    Then the referenced-by "sees this" row reads "order the new cabinets"
+    Then the referenced-by "Sees this" row reads "order the new cabinets"
     # No note in this corpus names the herb bed, so the second row is absent
     # rather than empty — the rule every relation row on this page follows.
-    And the referenced-by section draws no "mentions this" row
+    And the referenced-by section draws no "Mentions this" row
     And there should be no page errors
 
   Scenario: Each entry opens the record that made the reference
@@ -60,7 +60,7 @@ Feature: Referenced by — a zoomed node says what points at it
     Then the zoomed node is "herbs"
     And the page says it is referenced by 1 things
     When I open the referenced-by section
-    Then the referenced-by "sees this" row reads "order the new cabinets"
+    Then the referenced-by "Sees this" row reads "order the new cabinets"
     And there should be no page errors
 
   Scenario: What is put away is on the Trash and nowhere else
@@ -74,8 +74,8 @@ Feature: Referenced by — a zoomed node says what points at it
     # rather than three and each row holds exactly the live half.
     Then the page says it is referenced by 2 things
     When I open the referenced-by section
-    Then the referenced-by "sees this" row reads "order the new cabinets"
-    And the referenced-by "mentions this" row reads "look at @herbs before Tuesday"
+    Then the referenced-by "Sees this" row reads "order the new cabinets"
+    And the referenced-by "Mentions this" row reads "look at @herbs before Tuesday"
     And the page has not reloaded
     And there should be no page errors
 
@@ -88,8 +88,8 @@ Feature: Referenced by — a zoomed node says what points at it
     # The section a reader opened stays open when the set moves under it — the
     # list grows in place rather than shutting and starting again.
     And the referenced-by section is still open
-    And the referenced-by "mentions this" row reads "look at @herbs before Tuesday"
-    And the referenced-by "sees this" row reads "order the new cabinets"
+    And the referenced-by "Mentions this" row reads "look at @herbs before Tuesday"
+    And the referenced-by "Sees this" row reads "order the new cabinets"
     And the page has not reloaded
     And there should be no page errors
 
@@ -127,11 +127,11 @@ Feature: Referenced by — a zoomed node says what points at it
     # `order` is one record saying two things.
     Then the page says it is referenced by 2 things
     When I open the referenced-by section
-    Then the referenced-by "sees this" row reads "order the new cabinets for @herbs"
+    Then the referenced-by "Sees this" row reads "order the new cabinets for @herbs"
     # CORPUS ORDER, whichever index found them: garden.olai sorts before
     # house.olai, so the appended mention comes first even though the `see`
     # was there all along.
-    And the referenced-by "mentions this" row reads "look at @herbs before Tuesday, order the new cabinets for @herbs"
+    And the referenced-by "Mentions this" row reads "look at @herbs before Tuesday, order the new cabinets for @herbs"
     And there should be no page errors
 
   # ── a body can refer ─────────────────────────────────────────────────
@@ -154,7 +154,7 @@ Feature: Referenced by — a zoomed node says what points at it
     # The row is the document's FACE — a body has no finer grain than itself,
     # so what is named is the file's own first line, the way a record's row is
     # the node.
-    Then the referenced-by "mentions this" row reads "Finishes"
+    Then the referenced-by "Mentions this" row reads "Finishes"
     When I rewrite "finishes.md" as:
       """
       # Finishes
@@ -167,7 +167,7 @@ Feature: Referenced by — a zoomed node says what points at it
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: A body's link to a node draws under "links this"
+  Scenario: A body's link to a node draws under "Links to this"
     Given I open the node "basil"
     When I rewrite "finishes.md" as:
       """
@@ -177,8 +177,8 @@ Feature: Referenced by — a zoomed node says what points at it
       """
     Then the page says it is referenced by 1 things
     When I open the referenced-by section
-    Then the referenced-by section draws no "mentions this" row
-    And the referenced-by "links this" row reads "Finishes"
+    Then the referenced-by section draws no "Mentions this" row
+    And the referenced-by "Links to this" row reads "Finishes"
     And there should be no page errors
 
   Scenario: A link inside a code fence is text, not a reference
@@ -198,12 +198,12 @@ Feature: Referenced by — a zoomed node says what points at it
     # thing this page hears.
     Then the page says it is referenced by 1 things
     When I open the referenced-by section
-    Then the referenced-by section draws no "links this" row
-    And the referenced-by "mentions this" row reads "Finishes"
+    Then the referenced-by section draws no "Links to this" row
+    And the referenced-by "Mentions this" row reads "Finishes"
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: A record note can link a node, and draws under "links this"
+  Scenario: A record note can link a node, and draws under "Links to this"
     Given I open the node "basil"
     When I rewrite "notes.olai" as:
       """
@@ -212,7 +212,7 @@ Feature: Referenced by — a zoomed node says what points at it
       """
     Then the page says it is referenced by 1 things
     When I open the referenced-by section
-    Then the referenced-by "links this" row reads "sow the basil"
+    Then the referenced-by "Links to this" row reads "sow the basil"
     When I follow the referenced-by link to "sow-basil"
     Then the zoomed node is "sow-basil"
     And the breadcrumbs are "notes.olai, sowing notes"
