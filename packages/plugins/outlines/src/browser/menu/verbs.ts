@@ -213,10 +213,10 @@ export interface Verb {
  * is the rarest of the four and the one nobody should reach by accident.
  */
 const MARK_MENU = {
-  todo: { at: 0, label: "Mark todo" },
-  doing: { at: 1, label: "Mark doing" },
-  done: { at: 2, label: "Complete" },
-  cancelled: { at: 3, label: "Cancel" },
+  todo: { at: 0, label: "To do" },
+  doing: { at: 1, label: "Doing" },
+  done: { at: 2, label: "Done" },
+  cancelled: { at: 3, label: "Cancelled" },
 } as const satisfies Record<Status, { readonly at: number; readonly label: string }>
 
 /** That table, read in its own order — off {@link MARKS}, so the entries are
@@ -324,7 +324,7 @@ export const writeVerbs = (
       verbs.push({
         id: "clear-mark",
         group: "mark",
-        label: "Clear mark",
+        label: "Clear",
         does: sends({ verb: "mark", id: shown.node.id, mark: null }),
       })
     }
@@ -471,7 +471,7 @@ export const writeVerbs = (
     verbs.push({
       id: "remove-placement",
       group: "more",
-      label: "Remove this placement",
+      label: "Remove from here",
       does: sends({ verb: "unmirror", id: subject.record.id }),
     })
   } else if (shown !== undefined) {

@@ -148,7 +148,7 @@ export function NodeRefLink(props: {
       route={atNode(props.to.id)}
       class={props.class}
       testid={props.testid}
-      title={props.title ?? `open ${props.to.title}`}
+      title={props.title ?? `Open ${props.to.title}`}
     >
       <span data-ref={props.to.id}>{props.children}</span>
     </Link>

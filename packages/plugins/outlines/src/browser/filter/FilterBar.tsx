@@ -146,7 +146,7 @@ export function FilterBar(props: {
             class="min-h-11 w-full min-w-0 rounded-control border border-rule/60 bg-paper py-1.5 pl-3 pr-11 text-body md:pr-9 text-ink outline-none placeholder:text-muted focus:border-accent/60 focus:ring-2 focus:ring-accent/20 md:min-h-0"
             data-testid={TESTID.filterInput}
             placeholder={PLACEHOLDER}
-            aria-label="filter this page"
+            aria-label="Filter"
             aria-autocomplete="list"
             aria-expanded={focused() && !shut() && props.narrowing.text() === ""}
             value={props.narrowing.text()}
@@ -178,7 +178,7 @@ export function FilterBar(props: {
               type="button"
               class={`${TARGET_BOX} absolute inset-y-0 right-0 inline-flex items-center justify-center rounded-control text-muted hover:text-ink md:min-h-0 md:min-w-0 md:w-8`}
               data-testid={TESTID.filterClear}
-              aria-label="clear the filter"
+              aria-label="Clear filter"
               onClick={() => props.onType("")}
             >
               <span aria-hidden="true" class="text-title leading-none">×</span>

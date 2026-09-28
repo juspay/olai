@@ -124,7 +124,7 @@ export const referrerRowOf = (one: Reference, open: {
       opens: open.file(one.source.path),
       calls: one.source.title,
       callsFrom: one.source.path,
-      title: `open ${one.source.path}`,
+      title: `Open ${one.source.path}`,
       ref: one.source.path,
     }
     : {
@@ -133,7 +133,7 @@ export const referrerRowOf = (one: Reference, open: {
       calls: one.source.node.title,
       callsFrom: one.source.file,
       where: one.source.file,
-      title: `open ${one.source.node.title}`,
+      title: `Open ${one.source.node.title}`,
       ref: one.source.node.id,
     }
 
@@ -161,9 +161,9 @@ export const makeReferrerWays = (refs: Record<Way, AnyTestId>): ReadonlyArray<Re
   WAYS.map((way) => ({ way, label: REFERRER_LABELS[way], refs: refs[way] }))
 
 const REFERRER_LABELS: Record<Way, string> = {
-  see: "sees this",
-  mention: "mentions this",
-  link: "links this",
+  see: "Sees this",
+  mention: "Mentions this",
+  link: "Links to this",
 }
 export type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 

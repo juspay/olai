@@ -74,7 +74,7 @@ import { applying } from "../writes.ts"
  * word that differs and in nothing else, which is what stops the second copy
  * from growing a sentence of its own the day somebody edits one of them.
  */
-const copied = (what: "link" | "text"): Said => ({ tone: "aside", text: `${what} copied` })
+const copied = (what: "link" | "text"): Said => ({ tone: "aside", text: what === "link" ? "Link copied" : "Text copied" })
 
 /**
  * The panels a surface draws under the line its menu hangs off — what the
@@ -255,7 +255,7 @@ export const subjectMenuActions = (args: {
   }
   const copyLink: MenuAction = {
     id: "copy-link",
-    label: "Copy link to node",
+    label: "Copy link",
     // The failure is NOT caught here, and that is the fix: a clipboard write
     // is refused as a matter of course on a page served over plain http to
     // another machine — which is how olai is normally read — so a denial is

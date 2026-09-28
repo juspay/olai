@@ -200,8 +200,8 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
           type="search"
           class="w-full min-w-0 rounded-full border-0 bg-paper/10 px-3 py-1.5 text-label text-paper outline-none placeholder:text-paper/60 ring-1 ring-paper/20 focus:bg-paper/20 focus:ring-accent/60"
           data-testid={TESTID.headerSearch}
-          placeholder="search"
-          aria-label="search the directory"
+          placeholder="Search"
+          aria-label="Search"
           value={query()}
           onInput={(event) => {
             setQuery(event.currentTarget.value)
@@ -257,7 +257,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         type="button"
         class={`${TARGET} inline-flex w-8 shrink-0 items-center justify-center rounded-control text-paper/80 hover:text-paper md:hidden`}
         data-testid={TESTID.headerSearchOpen}
-        aria-label="search the directory"
+        aria-label="Search"
         onClick={() => openPalette()}
       >
         <span aria-hidden="true" class="text-title leading-none">⌕</span>

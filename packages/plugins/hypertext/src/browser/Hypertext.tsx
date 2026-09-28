@@ -269,7 +269,7 @@ const VISIT = "olai-visit"
  */
 const REFUSED: Said = {
   tone: "alarm",
-  text: "That link points at a file this directory does not serve, so there is no page to open.",
+  text: "That link points to a file that isn't in this folder.",
 }
 
 /** The `#…` the frame's own address wears, or nothing — encoded for the reason
@@ -396,8 +396,7 @@ function RefusedBody() {
     <section>
       <BodyRefused class="m-0 mb-2 italic text-alarm" />
       <Lede>
-        The file is in the directory and will not open, so there is nothing
-        to show.
+        This file couldn't be opened, so there's nothing to show.
       </Lede>
     </section>
   )

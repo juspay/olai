@@ -28,22 +28,22 @@ import type { Sort } from "@olai/format"
  * already: the write is on disk, and what is being reported is what it did.
  */
 export const SAID: Readonly<Record<Sort, string>> = {
-  created: "created",
-  trashed: "trashed",
-  gone: "gone from the file",
-  done: "marked done",
-  undone: "no longer done",
-  cancelled: "called off",
-  uncancelled: "no longer cancelled",
-  doing: "started",
-  "not-doing": "no longer started",
-  moved: "moved",
-  scheduled: "scheduled",
-  unscheduled: "unscheduled",
-  noted: "note rewritten",
-  renamed: "retitled",
-  linked: "links changed",
-  edited: "edited",
+  created: "Created",
+  trashed: "Moved to Trash",
+  gone: "Removed",
+  done: "Done",
+  undone: "No longer done",
+  cancelled: "Cancelled",
+  uncancelled: "No longer cancelled",
+  doing: "Started",
+  "not-doing": "No longer started",
+  moved: "Moved",
+  scheduled: "Scheduled",
+  unscheduled: "Unscheduled",
+  noted: "Note changed",
+  renamed: "Renamed",
+  linked: "Links changed",
+  edited: "Edited",
 }
 
 /**

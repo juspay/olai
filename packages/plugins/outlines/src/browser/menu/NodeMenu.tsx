@@ -102,7 +102,7 @@ export function NodeMenu(props: {
     const failed = props.door.armed() ? menuFailure() : undefined
     return failed === undefined
       ? picking.said()
-      : { tone: "alarm", text: `${failed.message} — reloading is the way to try again.` }
+      : { tone: "alarm", text: `The menu didn’t load. Reload the page to try again. (${failed.message})` }
   }
 
   return (

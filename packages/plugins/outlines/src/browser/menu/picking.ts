@@ -57,7 +57,7 @@ export const createPicking = (): Picking => {
       try {
         saying.say(await action.run())
       } catch (cause) {
-        saying.say({ tone: "alarm", text: `couldn't ${action.label.toLowerCase()}` })
+        saying.say({ tone: "alarm", text: `“${action.label}” didn’t work` })
         console.warn(`olai: "${action.label}" did not happen`, cause)
       }
     },

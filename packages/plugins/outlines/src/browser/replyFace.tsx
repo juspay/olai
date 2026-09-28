@@ -16,7 +16,7 @@ export function story(input: { reply: unknown }) {
   const props = { wrote }
   /** A write that changed no record has no honest word for what it did, and
    *  this is what it says instead — the one case the table cannot cover. */
-  const said = () => (props.wrote.sort === null ? "nothing changed" : SAID[props.wrote.sort])
+  const said = () => (props.wrote.sort === null ? "No change" : SAID[props.wrote.sort])
   const glyph = () => (props.wrote.sort === null ? "·" : GLYPH[props.wrote.sort])
 
   return (

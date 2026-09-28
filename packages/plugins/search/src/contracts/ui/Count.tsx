@@ -44,7 +44,7 @@ export function SearchCount(props: {
 }) {
   const said = () =>
     countLine({ drawn: props.of.hits().length, total: props.of.total() }) ??
-    (props.empty && props.of.total() === 0 ? "0 matches" : undefined)
+    (props.empty && props.of.total() === 0 ? "No matches" : undefined)
   return (
     <Show when={said()}>
       {(line) => (

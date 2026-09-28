@@ -109,7 +109,7 @@ export function Completions(props: { readonly listing: Listing }) {
         // client keeps about its own mood.
         data-kind={props.listing.kind() ?? undefined}
         role="listbox"
-        aria-label="completions"
+        aria-label="Suggestions"
       >
         {/* The search's own refusal, in its own words and in its own slot —
             never dropped, and never overwriting a list somebody is reading.

@@ -89,7 +89,7 @@ export function DateBadge(props: {
       }}
       attrs={{ "data-occasion": occasion(), "data-overdue": String(props.overdue) }}
       onPick={props.onPick}
-      title={props.onPick === undefined ? undefined : "change the date"}
+      title={props.onPick === undefined ? undefined : "Change date"}
     >
       <Show when={occasion() !== "date"}>
         <span class="mr-1 opacity-70">{occasion()}</span>

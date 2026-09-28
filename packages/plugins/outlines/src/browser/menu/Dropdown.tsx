@@ -238,8 +238,8 @@ export function Dropdown(props: {
         ref={trigger}
         class={DOTS}
         data-testid={TESTID.nodeMenu}
-        aria-label="node menu"
-        title="node menu"
+        aria-label="More"
+        title="More"
         // Kobalte toggles on the POINTERDOWN (and on the click for a touch
         // pointer), so both are stopped here: opening a row's menu is not
         // also a press on the row it belongs to. It is also a gesture the
@@ -280,7 +280,7 @@ export function Dropdown(props: {
         // (`aria-labelledby`), because below md there is no trigger to
         // point at and a dangling id names nothing. The same two words the
         // `•••` carries either way.
-        aria-label="node menu"
+        aria-label="More"
         // `relative` so the layer bites: Kobalte's positioner is the
         // absolute box, and a z-index on a STATIC child of it would do
         // nothing. (Kobalte's content carries `position: relative` in an

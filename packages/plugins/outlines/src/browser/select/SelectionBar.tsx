@@ -130,14 +130,14 @@ export function SelectionBar() {
           <Show when={rows().length > 0}>
             <div class="flex flex-wrap items-center gap-3">
               <span class="text-muted" data-testid={TESTID.selectionCount}>
-                {rows().length === 1 ? "1 row picked" : `${rows().length} rows picked`}
+                {rows().length === 1 ? "1 row selected" : `${rows().length} rows selected`}
               </span>
               {/* Three states of one verb, side by side rather than nested:
                   not offered, offered, asking. */}
               <Switch>
                 <Match when={!archivable(rows())}>
                   <span class="text-muted" data-testid={TESTID.selectionNote}>
-                    a placement is in the pick — retire it from its own ••• menu
+                    A mirrored row is selected. Remove it from its own ••• menu.
                   </span>
                 </Match>
                 <Match when={confirm.where() === "asking"}>
@@ -157,7 +157,7 @@ export function SelectionBar() {
                   </Pill>
                 </Match>
               </Switch>
-              <span class="text-muted">Escape clears</span>
+              <span class="text-muted">Esc to clear</span>
             </div>
           </Show>
           <Show when={selection.said()}>

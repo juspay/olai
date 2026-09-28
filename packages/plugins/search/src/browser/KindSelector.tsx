@@ -7,7 +7,7 @@ const choicesFor = (claims: Claims): ReadonlyArray<{ readonly value: Kind; reado
   const categories = new Set([...claims.byKind.values()].map(claim => claim.holds === "nodes" ? "node" : "file"))
   return [
     { value: undefined, label: "All" },
-    ...(categories.has("node") ? [{ value: "node" as const, label: "Nodes" }] : []),
+    ...(categories.has("node") ? [{ value: "node" as const, label: "Rows" }] : []),
     ...(categories.has("file") ? [{ value: "file" as const, label: "Files" }] : []),
   ]
 }

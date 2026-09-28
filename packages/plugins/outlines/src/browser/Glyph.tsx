@@ -76,8 +76,8 @@ export function Glyph(props: {
       // the 44px rule is argued and where everything that moves with it lives.
       class={`${CONTROL} group/glyph relative select-none text-center no-underline ${tone()}`}
       testid={TESTID.zoom}
-      title={props.status === undefined ? "zoom into this node" : FACE[props.status].hint}
-      label={`zoom into ${props.id}`}
+      title={props.status === undefined ? "Zoom in" : FACE[props.status].hint}
+      label="Zoom in"
       // The halo is a FACT about the reading, not a colour: a scenario asks
       // for it the same way it asks for data-collapsed on the row.
       halo={halo()}

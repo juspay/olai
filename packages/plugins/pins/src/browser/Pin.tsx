@@ -145,8 +145,8 @@ export function Pin(props: {
           class={`${CONTROL} cursor-pointer rounded-control border-0 bg-transparent p-0 ` +
             "text-label leading-none text-paper/60 hover:text-accent"}
           data-testid={TESTID.pinRename}
-          aria-label={`rename ${props.pin.name}`}
-          title="rename"
+          aria-label={`Rename ${props.pin.name}`}
+          title="Rename"
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -161,8 +161,8 @@ export function Pin(props: {
           class={`${CONTROL} cursor-pointer rounded-control border-0 bg-transparent p-0 ` +
             "text-label leading-none text-paper/60 hover:text-alarm"}
           data-testid={TESTID.pinRemove}
-          aria-label={`unpin ${props.pin.name}`}
-          title="unpin"
+          aria-label={`Unpin ${props.pin.name}`}
+          title="Unpin"
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()

@@ -435,8 +435,8 @@ export function PropsDrawer(props: {
             type="button"
             class={`${CHIP} cursor-pointer items-baseline rounded-full text-muted hover:text-accent`}
             data-testid={IDS_OUTLINES.propAdd}
-            title="add a property"
-            aria-label="add a property"
+            title="Add property"
+            aria-label="Add property"
             onClick={(event) => {
               event.stopPropagation()
               setEditing(null)
@@ -779,7 +779,7 @@ function Plain(props: { readonly value: string; readonly onOpen?: () => void }) 
         <button
           type="button"
           class="cursor-text text-left hover:text-accent"
-          title="change this"
+          title="Change"
           onClick={(event) => {
             event.stopPropagation()
             open()()
@@ -916,7 +916,7 @@ function NewChip(props: {
       <Box
         testid={IDS_OUTLINES.propEditKey}
         value=""
-        placeholder="key"
+        placeholder="Name"
         focus
         mono
         onInput={setKey}
@@ -926,7 +926,7 @@ function NewChip(props: {
       <Box
         testid={IDS_OUTLINES.propEdit}
         value=""
-        placeholder="value"
+        placeholder="Value"
         wide
         ref={(element) => (box = element)}
         onInput={setValue}

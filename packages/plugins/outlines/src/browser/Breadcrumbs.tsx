@@ -46,7 +46,7 @@ export function Breadcrumbs(props: {
   return (
     <nav
       class="flex flex-wrap items-baseline gap-1 text-body text-muted"
-      aria-label={props.file === undefined ? "ancestors" : "breadcrumbs"}
+      aria-label="Breadcrumbs"
       data-testid={TESTID.breadcrumbs}
     >
       <Show when={props.file}>

@@ -72,7 +72,7 @@ export function Pdf(props: { readonly file: string }) {
       aria-label={props.file}
     >
       <p class="m-0 p-4 text-muted">
-        This browser will not show a PDF here.{" "}
+        This browser can't show a PDF here.{" "}
         <a class="underline" href={mediaHref(props.file)} target="_blank" rel="noreferrer">
           Open {props.file}
         </a>

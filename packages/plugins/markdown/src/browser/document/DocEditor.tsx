@@ -108,8 +108,8 @@ export function DocEditor(props: {
           data-testid={TESTID.documentDrifted}
           role="status"
         >
-          This document has changed on disk while you were editing. Saving will
-          be refused rather than overwrite it; your text is safe here.
+          This file changed while you were editing. Your text is safe here, and
+          Save won't overwrite the change.
         </p>
       </Show>
 
@@ -117,7 +117,7 @@ export function DocEditor(props: {
         ref={editor}
         class="min-h-[60vh] w-full resize-y rounded-control border border-rule bg-panel p-3 font-mono text-body leading-relaxed text-ink outline-none focus:border-accent"
         data-testid={TESTID.documentEditor}
-        aria-label={`the source of ${props.file}`}
+        aria-label={`Edit ${props.file}`}
         spellcheck={false}
         value={text()}
         onInput={(event) => {
@@ -167,7 +167,7 @@ export function DocEditor(props: {
             data-testid={TESTID.documentOverwrite}
             onClick={() => void commit(false)}
           >
-            Overwrite what is there
+            Overwrite anyway
           </button>
         </Show>
       </div>

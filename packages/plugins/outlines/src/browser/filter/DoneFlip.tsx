@@ -43,14 +43,13 @@ export function DoneFlip(props: { readonly file: string }) {
 
   const said = (): string =>
     own()
-      ? `Finished items are ${word(shown())} on this page. Your default in Preferences ` +
-        `is ${word(!doneHidden())}; press reset to follow it here.`
-      : `Finished items are ${word(shown())} on this page, as your default in Preferences says.`
+      ? `Finished items ${word(shown())} here. Your default: ${word(!doneHidden())}.`
+      : `Finished items ${word(shown())}, as in Preferences.`
 
   return (
     <span
       role="group"
-      aria-label="finished items on this page"
+      aria-label="Finished items"
       class="inline-flex shrink-0 items-center gap-2"
       data-testid={TESTID.doneFlip}
       data-file={props.file}
@@ -67,7 +66,7 @@ export function DoneFlip(props: { readonly file: string }) {
           aria-label="Show finished"
           onChange={(event) => setDoneFor(props.file, event.currentTarget.checked ? "shown" : "hidden")}
         />
-        <span aria-hidden="true">finished</span>
+        <span aria-hidden="true">Finished</span>
       </label>
       <Show when={own()}>
         <button
@@ -76,11 +75,11 @@ export function DoneFlip(props: { readonly file: string }) {
           // touch.ts), reset at the desktop breakpoint like the clear cross.
           class={`${TARGET_BOX} inline-flex items-center justify-center text-label text-muted underline decoration-rule underline-offset-2 hover:text-ink md:min-h-0 md:min-w-0`}
           data-testid={TESTID.doneRelease}
-          aria-label="Reset finished items to your default"
-          title={`Follow your default in Preferences: finished items ${word(!doneHidden())}`}
+          aria-label="Use my default"
+          title="Use my default"
           onClick={() => letDoneFollow(props.file)}
         >
-          reset
+          Reset
         </button>
       </Show>
     </span>

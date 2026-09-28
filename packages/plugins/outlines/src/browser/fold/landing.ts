@@ -258,8 +258,8 @@ export type Aim =
  */
 export const missedSays = (id: string, target: string | null): string =>
   target === null
-    ? `${id} — nothing by that name is drawn on this page`
-    : `${id} — what it names is not drawn on this page`
+    ? `${id} — not found`
+    : `${id} — not shown on this page`
 
 /**
  * What a FAILED ASK says — {@link missedSays}'s sibling, for the landing
@@ -270,7 +270,7 @@ export const missedSays = (id: string, target: string | null): string =>
  * lie in the miss's own words.
  */
 export const failedSays = (id: string): string =>
-  `${id} — the set could not be asked what it names`
+  `${id} — couldn’t look this up. Try again.`
 
 /**
  * Which of the chain's own ANCESTORS are shut — the write the landing act

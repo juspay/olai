@@ -26,13 +26,13 @@ const form = (text: string, hint: string, example?: string): FilterForm => {
 }
 
 export const FILTER_FORMS: ReadonlyArray<FilterForm> = [
-  form("words", "every word", "words"),
-  form("\"a phrase\"", "exactly", "a phrase"),
-  form("a OR b", "either", "a OR b"),
-  form("#tag", "tagged", "tag"),
-  form("is:done", "finished"),
-  form("has:desc", "has a note"),
-  form("date:last-week", "dated", "last-week"),
-  form("changed:today", "edited", "today"),
-  form("-not", "without", "not"),
+  form("words", "Every word", "words"),
+  form("\"a phrase\"", "Exact phrase", "a phrase"),
+  form("a OR b", "Either", "a OR b"),
+  form("#tag", "Tagged", "tag"),
+  form("is:done", "Finished"),
+  form("has:desc", "Has a note"),
+  form("date:last-week", "Dated", "last-week"),
+  form("changed:today", "Edited", "today"),
+  form("-not", "Leave out", "not"),
 ]

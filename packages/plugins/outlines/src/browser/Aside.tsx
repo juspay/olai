@@ -65,7 +65,7 @@ export function Aside(props: {
             class="shrink-0 tabular-nums text-label text-muted"
             data-testid={TESTID.foldedDone}
             data-done={String(count())}
-            title={`${count()} finished row(s) are folded under this one, and the rollup beside it does not count them`}
+            title={`${count()} finished ${count() === 1 ? "row" : "rows"} folded here`}
           >
             +{count()} done
           </span>

@@ -505,7 +505,7 @@ const emptyTrashRequest = (
     return Result.fail(refusal(`ambiguous-convention: more than one Trash file: ${piles.join(", ")}`))
   }
   if (piles.length === 0 || nodesOf(at.derived, piles[0]!).length === 0) {
-    return Result.fail(refusal("the Trash is empty, so there is nothing to delete"))
+    return Result.fail(refusal("The Trash is already empty"))
   }
   return Result.succeed({
     op: "empty",
@@ -533,7 +533,7 @@ const moveRequest = (
       const above = row[at - 1]
       if (above === undefined) {
         return Result.fail(
-          refusal("this is the first of its siblings, so there is nothing above it to move past"),
+          refusal("Already at the top"),
         )
       }
       return Result.succeed({ op: "move", id: edit.id, before: above.node.id })
@@ -542,7 +542,7 @@ const moveRequest = (
       const below = row[at + 1]
       if (below === undefined) {
         return Result.fail(
-          refusal("this is the last of its siblings, so there is nothing below it to move past"),
+          refusal("Already at the bottom"),
         )
       }
       return Result.succeed({ op: "move", id: edit.id, after: below.node.id })
@@ -554,7 +554,7 @@ const moveRequest = (
       const above = row[at - 1]
       if (above === undefined) {
         return Result.fail(
-          refusal("this is the first of its siblings, so there is no row above it to go under"),
+          refusal("There is no row above to indent under"),
         )
       }
       // The row above may be a MIRROR, and then the new parent is the node it
@@ -570,7 +570,7 @@ const moveRequest = (
       if (parent === undefined) {
         return Result.fail(
           refusal(
-            "the row above is a mirror of a node that is not in the loaded set, so there is nothing to go under",
+            "Can't indent: the row above mirrors a row that isn't loaded",
           ),
         )
       }
@@ -584,7 +584,7 @@ const moveRequest = (
       const parent = located.node.parent
       if (parent === undefined) {
         return Result.fail(
-          refusal("this row is already at the top level, so there is nothing to outdent out of"),
+          refusal("Already at the top level"),
         )
       }
       const above = derived.byId.get(parent)

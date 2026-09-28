@@ -28,7 +28,7 @@ export function Handle(props: { readonly label: string; readonly onOpen?: () => 
           type="button"
           class="shrink-0 cursor-pointer font-mono text-caption text-muted hover:text-accent"
           data-testid={TESTID.propKey}
-          title={`change ${props.label}`}
+          title={`Change ${props.label}`}
           onClick={(event) => {
             // The row's own line answers a click by opening the title editor,
             // and this one is about the fact under the pointer.

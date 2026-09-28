@@ -135,7 +135,7 @@ export function NewRow(props: {
           active={props.active}
           onActivate={props.onActivate}
           onParkedInput={props.onParkedInput}
-          placeholder="a new line — type it, and Enter makes the next one"
+          placeholder="New line"
           // A ghost IS a line: the box is the rest of it, which is what a
           // person aims at and what the placeholder has to be readable in.
           // A row's title is the other shape (`../NodeLine.tsx`).

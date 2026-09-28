@@ -237,7 +237,7 @@ function Zoom(props: {
                 has nowhere else to put. */}
             <StartLine
               at={{ kind: "under", id: props.zoomed.shows.node.id }}
-              label="Nothing under this node — write the first line under it."
+              label="Nothing here yet. Write the first line."
             />
           </Show>
         }
@@ -261,5 +261,5 @@ const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
 ): string =>
   zoomed.children.length > 0 && doneHiddenOn(zoomed.shows.file)
-    ? "Everything under this node is done, and the Done flip is hiding finished work."
-    : "Nothing under this node."
+    ? "Everything here is finished, and finished items are hidden."
+    : "Nothing here yet."

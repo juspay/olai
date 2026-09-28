@@ -59,19 +59,19 @@ export interface Relating {
 const RELATING: Record<Relation, Relating> = {
   see: {
     relation: "see",
-    verb: "Link to a node…",
+    verb: "Link to…",
     heading: "See also",
-    label: "see",
+    label: "See also",
     refs: TESTID.seeRefs,
-    placeholder: "search for a node to link to",
+    placeholder: "Search for a row to link",
   },
   after: {
     relation: "after",
-    verb: "Wait for a node…",
+    verb: "Wait for…",
     heading: "Comes after",
-    label: "after",
+    label: "Comes after",
     refs: TESTID.afterRefs,
-    placeholder: "search for a node this comes after",
+    placeholder: "Search for a row this comes after",
   },
 }
 

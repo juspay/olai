@@ -59,8 +59,8 @@ export function NoteMark(props: {
       // machine-read thing on a row gets.
       data-open={props.open ? "true" : "false"}
       aria-expanded={props.open}
-      aria-label={props.open ? "close the note" : "open the note"}
-      title={props.open ? "close the note" : "open the note"}
+      aria-label={props.open ? "Close note" : "Open note"}
+      title={props.open ? "Close note" : "Open note"}
       onClick={(event) => {
         event.stopPropagation()
         props.onToggle()

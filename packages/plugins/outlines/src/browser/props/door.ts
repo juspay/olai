@@ -114,7 +114,7 @@ export function doorFor(opens: Meaning, value: string, names: Names,
         // it (`../calendar/Day.tsx`, `../agenda/Day.tsx`): `/d/<ISO>` has no
         // constructor because a day carries a value and the named pages do not.
         route,
-        says: `what is on ${opens.date}`,
+        says: `Open ${opens.date}`,
         face: value,
       }
     case "document": {

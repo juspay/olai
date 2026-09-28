@@ -249,7 +249,7 @@ export function NodeBody(props: {
                     class={`mt-0.5 mb-1 cursor-text ${ROW_NOTE}`}
                     role="button"
                     tabindex={0}
-                    title="write in this note"
+                    title="Edit note"
                     onClick={(event) => {
                       if (event.target instanceof Element && event.target.closest("a")) return
                       event.stopPropagation()

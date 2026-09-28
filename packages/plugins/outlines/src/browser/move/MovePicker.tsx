@@ -159,7 +159,7 @@ export function MovePicker(props: {
         claims={servedDirectory()?.claims()}
         nodes={createSearch}
         query={props.query}
-        label="search every outline for a new parent"
+        label="Search for where to move it"
         testids={MOVE_LIST}
         refusing={{
           testid: TESTID.moveRefused,

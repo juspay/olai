@@ -713,7 +713,7 @@ function Branch(props: {
               class={`${HOVER_CELL} ${HOVER_REVEAL} cursor-pointer border-0 bg-transparent p-0 text-caption leading-none text-muted hover:text-ink`}
               data-testid={TESTID.toggle}
               aria-expanded={!collapsed()}
-              aria-label={collapsed() ? "expand" : "collapse"}
+              aria-label={collapsed() ? "Expand" : "Collapse"}
               onClick={() => setFolded([foldOf(props.row)], !collapsed())}
             >
               {/* Small filled triangle — Workflowy's chevron, rotated. */}
@@ -797,7 +797,7 @@ function Branch(props: {
                 titleEditor={typing("title") === undefined ? undefined : titleCell}
               >
                 <Show when={props.row.kind !== "node"}>
-                  <span class="mr-1 text-muted" title="a mirror of another node">
+                  <span class="mr-1 text-muted" title="Mirrored from elsewhere">
                     ⇢
                   </span>
                 </Show>

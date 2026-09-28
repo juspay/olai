@@ -69,8 +69,8 @@ export function Dots(props: { readonly onArm: () => void }) {
       data-testid={TESTID.nodeMenu}
       aria-haspopup="true"
       aria-expanded={false}
-      aria-label="node menu"
-      title="node menu"
+      aria-label="More"
+      title="More"
       onPointerDown={arm}
       onKeyDown={(event) => {
         if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return
