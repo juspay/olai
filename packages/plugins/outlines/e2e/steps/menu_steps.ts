@@ -45,7 +45,9 @@ import {
 import {
   NODE_MENU_CONFIRM,
   NODE_MENU_SAID,
+  NODE_MENU_SUB,
 } from "../selectors.ts";
+import type { Locator } from "@olai/tests/harness/playwright.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { revealGutter } from "./outline_tree_steps.ts";
 
@@ -58,10 +60,108 @@ const panelOf = async (world: OlaiWorld) => {
   return panel;
 };
 
-/** ONE entry of it, by the label a person reads off it. `.first()` because one
- *  word can match two — the list's `Collapse`, and its `Collapse all`. */
-const entry = async (world: OlaiWorld, label: string) =>
-  (await panelOf(world)).locator(NODE_MENU_ITEM).filter({ hasText: label }).first();
+/**
+ * THE MENU IS GROUPED: a line may OPEN a submenu (`Mark ›`, `More ›`, a
+ * plugin's `Start an agent ›`) rather than run a verb, and the submenu is
+ * portalled beside the panel, not inside it (`menu/Panel.tsx`).
+ *
+ * So an entry is named by a PATH, the way a person reads it off the screen:
+ * `"Mark › Done"` is the `Done` in the submenu `Mark` opens. A label with no
+ * `›` is looked for on the top level first and then, if it is not there, in
+ * each submenu in turn — which is where a scenario that is about the verb
+ * rather than about where it is filed can leave the filing to the menu. Two
+ * submenus holding the same word (`Claude Code` under both `Start an agent`
+ * and `Fresh start`) is a failure that says to spell the path.
+ *
+ * A line's LABEL is its words without the `›` a submenu's entry wears — the
+ * `›` is `aria-hidden`, drawn for the eye — so `"Mark"` names that entry, and
+ * {@link menuLabels} lists it as `Mark ›`, the way it reads.
+ */
+const SUB_MARK = /\s*›$/;
+const labelOf = (text: string): string => oneLine(text).replace(SUB_MARK, "");
+const pathOf = (label: string): ReadonlyArray<string> =>
+  label.split("›").map((one) => one.trim()).filter((one) => one !== "");
+
+/** One open submenu, by the label of the entry that opened it. */
+const subOf = (world: OlaiWorld, label: string): Locator =>
+  world.page.locator(`${NODE_MENU_SUB}[aria-label=${JSON.stringify(label)}]`);
+
+/** The entry of `level` whose label is exactly `label`, or `undefined`. Read
+ *  as one list and indexed, so `Collapse all` is never taken for `Collapse`. */
+const findIn = async (level: Locator, label: string): Promise<Locator | undefined> => {
+  const items = level.locator(NODE_MENU_ITEM);
+  const at = (await items.allInnerTexts()).map(labelOf).indexOf(label);
+  return at < 0 ? undefined : items.nth(at);
+};
+
+/** ...the same, waited for: a roster may still be arriving under the panel. */
+const itemIn = async (world: OlaiWorld, level: Locator, label: string, where: string): Promise<Locator> => {
+  let found: Locator | undefined;
+  await world.waitUntil(
+    async () => (found = await findIn(level, label)) !== undefined,
+    `${where} to offer ${JSON.stringify(label)}`,
+  );
+  return found!;
+};
+
+/** Open the submenu an entry opens, the way `gesture` opens it, and wait for
+ *  it to be on screen. */
+const openSub = async (
+  world: OlaiWorld,
+  trigger: Locator,
+  label: string,
+  gesture: "click" | "tap",
+): Promise<Locator> => {
+  const sub = subOf(world, label);
+  if (!(await sub.isVisible())) await world.press(trigger, gesture);
+  await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return sub;
+};
+
+/** ONE entry of the menu, by its path (see above), with every submenu on the
+ *  way opened by `gesture`. */
+const entry = async (
+  world: OlaiWorld,
+  label: string,
+  gesture: "click" | "tap" = "click",
+): Promise<Locator> => {
+  const path = pathOf(label);
+  const panel = await panelOf(world);
+  if (path.length > 1) {
+    let level = panel;
+    let where = "the node menu";
+    for (const [at, name] of path.entries()) {
+      const item = await itemIn(world, level, name, where);
+      if (at === path.length - 1) return item;
+      level = await openSub(world, item, name, gesture);
+      where = `the node menu's ${JSON.stringify(name)}`;
+    }
+  }
+  const name = path[0] ?? label;
+  const top = await findIn(panel, name);
+  if (top !== undefined) return top;
+  // Not on the top level: look in each submenu, and be sure it is in ONE.
+  const triggers = panel.locator(`${NODE_MENU_ITEM}[data-opens]`);
+  const subs = (await triggers.allInnerTexts()).map(labelOf);
+  const holding: Array<{ readonly sub: string; readonly item: Locator }> = [];
+  for (const [at, sub] of subs.entries()) {
+    const level = await openSub(world, triggers.nth(at), sub, gesture);
+    const item = await findIn(level, name);
+    if (item !== undefined) holding.push({ sub, item });
+  }
+  assert.ok(
+    holding.length > 0,
+    `the node menu offers no ${JSON.stringify(name)}, at the top or in ${JSON.stringify(subs)}`,
+  );
+  assert.ok(
+    holding.length === 1,
+    `${JSON.stringify(name)} is in ${JSON.stringify(holding.map((one) => one.sub))} — spell the path, e.g. "${holding[0]!.sub} › ${name}"`,
+  );
+  const { sub, item } = holding[0]!;
+  // The last submenu opened may not be the one it is in: open that one again.
+  await openSub(world, panel.locator(NODE_MENU_ITEM).nth((await panel.locator(NODE_MENU_ITEM).allInnerTexts()).map(labelOf).indexOf(sub)), sub, gesture);
+  return item;
+};
 
 /** The `•••` pressed: the row's gutter revealed first (it is `opacity-0` until
  *  the row is hovered), then the press itself. `force` because opacity is not
@@ -145,9 +245,74 @@ Then("the node menu is open", async function (this: OlaiWorld) {
 When(
   "I tap {string} in the node menu",
   async function (this: OlaiWorld, label: string) {
-    await this.press(await entry(this, label), "tap");
+    await this.press(await entry(this, label, "tap"), "tap");
   },
 );
+
+/** A submenu opened on its own — the pointer's press on `Mark ›` — so a
+ *  scenario can say what is IN it before choosing anything. */
+When(
+  "I open {string} in the node menu",
+  async function (this: OlaiWorld, label: string) {
+    const panel = await panelOf(this);
+    await openSub(this, await itemIn(this, panel, label, "the node menu"), label, "click");
+  },
+);
+
+When(
+  "I tap {string} open in the node menu",
+  async function (this: OlaiWorld, label: string) {
+    const panel = await panelOf(this);
+    await openSub(this, await itemIn(this, panel, label, "the node menu"), label, "tap");
+  },
+);
+
+/** What a submenu offers, in order, a rule as `—`. The whole list: a submenu
+ *  is short, and what it holds and in which order is the grouping this menu is
+ *  about. */
+Then(
+  "the node menu's {string} offers:",
+  async function (this: OlaiWorld, label: string, table: { raw(): string[][] }) {
+    const sub = subOf(this, label);
+    await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const expected = table.raw().map((row) => row[0]!);
+    await this.waitUntil(
+      async () => JSON.stringify(await linesOf(sub)) === JSON.stringify(expected),
+      `the node menu's ${JSON.stringify(label)} to offer ${JSON.stringify(expected)}`,
+    );
+  },
+);
+
+Then(
+  "the node menu's {string} is open",
+  async function (this: OlaiWorld, label: string) {
+    await subOf(this, label).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the node menu's {string} is closed",
+  async function (this: OlaiWorld, label: string) {
+    await this.waitUntil(
+      async () => (await subOf(this, label).count()) === 0,
+      `the node menu's ${JSON.stringify(label)} to be gone`,
+    );
+  },
+);
+
+/** The top level of the panel, in order, a rule as `—` and a submenu's entry
+ *  as `Mark ›` — the menu as a person reads it down the screen. */
+Then("the node menu reads:", async function (this: OlaiWorld, table: { raw(): string[][] }) {
+  const panel = await panelOf(this);
+  const expected = table.raw().map((row) => row[0]!);
+  let seen: ReadonlyArray<string> = [];
+  await this.waitUntil(
+    async () => JSON.stringify(seen = await linesOf(panel)) === JSON.stringify(expected),
+    `the node menu to read ${JSON.stringify(expected)}`,
+  ).catch((cause: unknown) => {
+    throw new Error(`the node menu reads ${JSON.stringify(seen)}: ${String(cause)}`);
+  });
+});
 
 /** Somewhere that is not the menu — `clickAway` is the suite's one spelling of
  *  that gesture, and a row's note is dismissed by the same one. */
@@ -187,7 +352,7 @@ Then(
   async function (this: OlaiWorld, label: string) {
     const caret = await caretOn(this);
     assert.deepStrictEqual(
-      caret === null ? null : { testid: caret.testid, text: caret.text },
+      caret === null ? null : { testid: caret.testid, text: labelOf(caret.text) },
       { testid: TESTID.nodeMenuItem, text: label },
       `the caret is on ${JSON.stringify(caret)}, expected the node menu's ${JSON.stringify(label)}`,
     );
@@ -325,27 +490,58 @@ Then(
 );
 /** What it is offering, in order. Through `oneLine` like every other text this
  *  suite reads out of the DOM, so a label that wraps is still one label. */
-const menuLabels = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
-  (await (await panelOf(world)).locator(NODE_MENU_ITEM).allInnerTexts()).map(oneLine);
+/** One level of the menu as it reads: each line's label (`Mark ›` for one
+ *  that opens a submenu) and `—` for a rule between groups. */
+const linesOf = async (level: Locator): Promise<ReadonlyArray<string>> =>
+  (await level.locator(`${NODE_MENU_ITEM}, [role="separator"]`).evaluateAll((els) =>
+    els.map((el) => (el.getAttribute("role") === "separator" ? "—" : (el as HTMLElement).innerText))
+  )).map(oneLine);
 
+/**
+ * Whether the menu offers a verb, by the same PATH {@link entry} takes: a
+ * bare label is looked for on the top level and in every submenu (opening
+ * each), `"More › Copy link"` only where it says.
+ */
+const offered = async (world: OlaiWorld, label: string): Promise<{ readonly found: boolean; readonly seen: ReadonlyArray<string> }> => {
+  const path = pathOf(label);
+  const name = path.at(-1) ?? label;
+  const wordsOf = async (level: Locator) => (await level.locator(NODE_MENU_ITEM).allInnerTexts()).map(labelOf);
+  let level = await panelOf(world);
+  for (const [at, sub] of path.slice(0, -1).entries()) {
+    const trigger = await findIn(level, sub);
+    if (trigger === undefined) {
+      return { found: false, seen: (await wordsOf(level)).map((one) => [...path.slice(0, at), one].join(" › ")) };
+    }
+    level = await openSub(world, trigger, sub, "click");
+  }
+  const where = path.slice(0, -1);
+  const here = await wordsOf(level);
+  const seen = here.map((one) => [...where, one].join(" › "));
+  if (here.includes(name) || path.length > 1) return { found: here.includes(name), seen };
+  // A bare label: every submenu too, each read while it is the one open.
+  const triggers = level.locator(`${NODE_MENU_ITEM}[data-opens]`);
+  for (const [at, sub] of (await triggers.allInnerTexts()).map(labelOf).entries()) {
+    const words = await wordsOf(await openSub(world, triggers.nth(at), sub, "click"));
+    seen.push(...words.map((one) => `${sub} › ${one}`));
+    if (words.includes(name)) return { found: true, seen };
+  }
+  return { found: false, seen };
+};
 Then(
   "the node menu offers {string}",
   async function (this: OlaiWorld, label: string) {
-    const labels = await menuLabels(this);
-    assert.ok(
-      labels.includes(label),
-      `node menu offers ${JSON.stringify(labels)}, expected ${JSON.stringify(label)}`,
-    );
+    const { found, seen } = await offered(this, label);
+    assert.ok(found, `node menu offers ${JSON.stringify(seen)}, expected ${JSON.stringify(label)}`);
   },
 );
 
 Then(
   "the node menu does not offer {string}",
   async function (this: OlaiWorld, label: string) {
-    const labels = await menuLabels(this);
+    const { found, seen } = await offered(this, label);
     assert.ok(
-      !labels.includes(label),
-      `node menu offers ${JSON.stringify(labels)}, and this step says ${
+      !found,
+      `node menu offers ${JSON.stringify(seen)}, and this step says ${
         JSON.stringify(label)
       } is not one of them`,
     );
@@ -356,7 +552,7 @@ When(
   "I choose {string} from the node menu",
   async function (this: OlaiWorld, label: string) {
     const item = await entry(this, label);
-    const startingNode = label.startsWith("Start an agent session") ? this.menuNode : null;
+    const startingNode = label.startsWith("Start an agent") ? this.menuNode : null;
     // A tall menu scrolls independently of the outline. Reveal the item in
     // that scrollport before the page's sticky-cover check hit-tests it.
     // Roster updates may replace an entry while Playwright waits for scroll
@@ -625,8 +821,8 @@ Then(
   async function (this: OlaiWorld, id: string) {
     const line = await said(this);
     assert.ok(
-      line.text.startsWith("the ••• menu could not be loaded:") &&
-        line.text.endsWith("reloading is the way to try again."),
+      line.text.startsWith("The menu didn’t load. Reload the page to try again. (") &&
+        line.text.endsWith(")"),
       `"${id}" did not say why its menu is not opening: ${JSON.stringify(line.text)}`,
     );
     assert.strictEqual(

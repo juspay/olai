@@ -109,6 +109,10 @@ export const NODE_MENU_CONFIRM = selector(TESTID.nodeMenuConfirm);
 /** What the last verb had to say, beside the `•••`. `data-tone` is which of
  *  the two moods it is in — `alarm` for a refusal, `aside` for a nudge. */
 export const NODE_MENU_SAID = selector(TESTID.nodeMenuSaid);
+/** A submenu of that panel (`Mark ›`, `More ›`, a plugin's choice), portalled
+ *  beside it rather than inside it. `aria-label` is the entry that opened it,
+ *  `data-sub` that entry's id. Present only while it is open. */
+export const NODE_MENU_SUB = selector(TESTID.nodeMenuSub);
 /** The status box beside that bullet: checked for done, half for doing, empty
  *  for todo — and absent entirely on a node with no mark. */
 export const CHECKBOX = selector(TESTID.checkbox);
