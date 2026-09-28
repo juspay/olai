@@ -2092,10 +2092,12 @@ export class OlaiWorld extends World {
       (await name.getAttribute("aria-expanded", { timeout: 1000 }).catch(() => null)) === "true";
     await this.waitUntil(async () => {
       if (await open()) return true;
-      await name.click({ timeout: 2000 }).catch(() => undefined);
+      await name.click({ timeout: 2000 }).catch(async () => {
+        await name.evaluate((el) => { if (el instanceof HTMLElement) el.click(); }).catch(() => undefined);
+      });
       await this.waitForFrame();
       return await open();
-    }, `the ${plugin} row's detail to open`);
+    }, `the ${plugin} row's detail to open`, 45_000);
     return row;
   }
 

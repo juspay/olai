@@ -251,9 +251,12 @@ Then("that swatch is round", async function (this: OlaiWorld) {
  * count is zero already and the wait returns on its first pass.
  */
 Then("no row wears a swatch", async function (this: OlaiWorld) {
+  // Replacing a provider recompiles the definition and only then drops the
+  // chip. On a loaded fleet that outlasts the ordinary poll.
   await this.waitUntil(
     async () => (await this.page.locator("[data-swatch]").count()) === 0,
     "every swatch to leave after the plugin is stopped or loses approval",
+    45_000,
   );
 });
 

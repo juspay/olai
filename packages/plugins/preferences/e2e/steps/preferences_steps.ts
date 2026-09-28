@@ -1481,6 +1481,9 @@ When(
     let last: unknown;
     while (Date.now() < deadline) {
       try {
+        // A flip can close the door when the shell redraws. Open it again;
+        // the row is still in the panel.
+        if ((await this.pluginsPanel().count()) === 0) await this.showPlugins();
         await (await shownRow(this, plugin)).locator(wanted).waitFor({
           state: "visible",
           timeout: 1000,

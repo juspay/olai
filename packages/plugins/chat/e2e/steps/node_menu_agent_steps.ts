@@ -103,7 +103,16 @@ When(
       await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     }
     const starting = await trigger.getAttribute("data-action") === "chat:start-agent";
-    await this.press(sub.getByRole("menuitem", { name: choice, exact: true }));
+    const item = sub.getByRole("menuitem", { name: choice, exact: true });
+    // A submenu that has only just portalled can report a box whose centre is
+    // not the row yet — the click lands on the page, and that click shuts the
+    // menu. Wait until the row is what a pointer would actually hit.
+    await this.waitUntil(async () => item.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return hit === el || (hit !== null && el.contains(hit));
+    }).catch(() => false), `${choice} to be where the pointer lands`);
+    await this.press(item);
     if (starting) await started(this);
   },
 );
