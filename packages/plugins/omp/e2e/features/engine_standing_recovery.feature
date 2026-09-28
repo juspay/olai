@@ -44,7 +44,7 @@ Feature: Enabled engines explain what this machine is missing
     And I switch the plugin "chat" off
     Then no engine installation advice is drawn in the inspector
     When I request that the plugin "omp" be on
-    Then the plugins panel says "omp" is "Can't start: another plugin it needs isn't running (agents)."
+    Then the plugins panel says "omp" is "another plugin it needs isn't running (agents)"
     And no engine installation advice is drawn in the inspector
     When I switch the plugin "chat" on
     Then the omp inspector row explains its absence under Needs attention

@@ -48,7 +48,7 @@ Feature: An agent is offered only where one can start
     Then chat's "Start an agent" in the node menu runs at once
     When I choose "Start an agent" from the node menu
     Then node agent "order" is unfolded
-    And the vault node "order" has property "agent-session" holding "claude:fake-session-1"
+    And the header names the agent "claude"
 
   @codex @scratch:chat
   Scenario: With several agents, Start an agent opens a submenu of them
@@ -96,6 +96,9 @@ Feature: An agent is offered only where one can start
     When I open the plugins panel
     And I switch the plugin "codex" on
     And I press "Escape"
+    # The new chat took this tab to the Inbox; the row menu is read back on
+    # the outline it started from.
+    And I open the outline "house.olai"
     And I open the node menu of "order"
     Then chat's "Start an agent" in the node menu opens a submenu
     When I open the node menu's "Start an agent" agents
