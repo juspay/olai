@@ -2059,17 +2059,25 @@ export class OlaiWorld extends World {
     // Walk from the row, not from a group selector: after a shell remount the
     // heading is still a `<details>` wrapping the row, and a CSS walk that
     // missed it left every quiet row hidden.
-    const opened = await row.evaluate((el) => {
-      const details = el.closest("details");
-      if (!(details instanceof HTMLDetailsElement) || details.open) return false;
-      const summary = details.querySelector(":scope > summary");
-      if (summary instanceof HTMLElement) summary.click();
-      details.open = true;
-      return true;
-    });
-    if (opened) await this.waitForFrame();
+    //
+    // AND WALK AGAIN until the row is on screen: an approval or a switch moves
+    // a row between groups — out of Needs attention, which is open, into its
+    // own group, which starts shut — and the row the first walk opened a group
+    // for is then a different element in a different, shut group.
+    const reveal = async (): Promise<boolean> =>
+      await row.evaluate((el) => {
+        const details = el.closest("details");
+        if (!(details instanceof HTMLDetailsElement) || details.open) return false;
+        const summary = details.querySelector(":scope > summary");
+        if (summary instanceof HTMLElement) summary.click();
+        details.open = true;
+        return true;
+      }, undefined, { timeout: 1000 }).catch(() => false);
+    await this.waitUntil(async () => {
+      if (await reveal()) await this.waitForFrame();
+      return await row.isVisible();
+    }, `the ${plugin} row to be on screen in its group`);
     if (options.detail === false) return row;
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // The row's own name button: the one that controls its detail block.
     // A PRESS IS A TOGGLE, and the row's open state can move under it: a
     // roster republish that files the row under Needs attention opens it by

@@ -1455,6 +1455,10 @@ When(
   // stages did not happen.
   { timeout: FLIP_STEP_TIMEOUT },
   async function (this: OlaiWorld, plugin: string, pick: string) {
+    // A serve that just re-read its settings file may be redialling: the
+    // reconnecting dialog takes every press until the wire is back, so wait
+    // for it to go first, as closing the panel does.
+    await this.page.locator(selector(TESTID.offline)).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
     const row = await shownRow(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const current = await switchOn(this, plugin);
@@ -1512,11 +1516,18 @@ Then(
 );
 
 Then("the plugin {string} has no browser warning", async function (this: OlaiWorld, plugin: string) {
-  const row = rowFor(this, plugin);
-  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   // What a browser-half fault says, at rest ("Failed in this tab", "Starting
-  // in this tab") and in the detail ("In this tab: …").
-  await this.waitUntil(async () => !/in this tab/i.test(await row.innerText()), `${plugin}'s browser components to recover`);
+  // in this tab") and in the detail ("In this tab: …"). The row is found
+  // afresh on every try, its group and its detail opened: a recovery moves it
+  // out of Needs attention into its own group, which starts shut, and a row
+  // read through a shut group reads as nothing at all.
+  await this.waitUntil(async () => {
+    try {
+      return !/in this tab/i.test(await (await shownRow(this, plugin)).innerText());
+    } catch {
+      return false;
+    }
+  }, `${plugin}'s browser components to recover`);
 });
 
 Then("the plugins panel shows no refusal", async function (this: OlaiWorld) {
