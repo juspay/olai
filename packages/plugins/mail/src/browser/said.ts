@@ -18,39 +18,20 @@ import type { BarStatus } from "olai-plugin-layout/slots"
 import type { Account } from "../wire.ts"
 
 /**
- * THE SAME READING AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
- * `BarStatus`). A fault is broken; a live mailbox whose next token is being
- * retried wants attention (the words already say so); no account is quiet —
- * the ordinary state of a serve nobody pointed at a mailbox.
+ * ONE READING, for the row and the bar's health dot alike (`olai-plugin-layout`'s
+ * `BarStatus`), so the two cannot disagree. A fault is broken; no account is
+ * quiet — the ordinary state of a serve nobody pointed at a mailbox.
  */
-export const mailStatus = (account: Account): BarStatus => {
-  const said = mailSaid(account)
-  const tone = account.status === "fault"
-    ? "alarm"
-    : account.status === "absent"
-    ? "quiet"
-    : account.retrying
-    ? "notice"
-    : "healthy"
-  return { tone, label: said.label, detail: said.detail }
-}
-
-export interface Said {
-  readonly dot: string
-  readonly label: string
-  readonly detail: string
-}
-
-export const mailSaid = (account: Account): Said => {
+export const mailSaid = (account: Account): BarStatus => {
   switch (account.status) {
     case "connected":
       return {
-        // STILL THE QUIET COAT WHILE A RETRY IS RUNNING, because the mailbox is
-        // still working: the token in the generated config is live, and what is
+        // STILL HEALTHY WHILE A RETRY IS RUNNING, because the mailbox is still
+        // working: the token in the generated config is live, and what is
         // failing is the broker's next one (`../account.ts` says why the arm
         // stays `connected`). The words carry the trouble; the colour would be
         // a lie about a `gmail` call that would answer.
-        dot: "bg-done",
+        tone: "healthy",
         label: `Mail ${account.address ?? ""}`.trim(),
         detail: account.retrying
           ? `Connected as ${account.address ?? "an unknown address"}. ${account.reason ?? "Retrying sign-in…"}`
@@ -58,7 +39,7 @@ export const mailSaid = (account: Account): Said => {
       }
     case "absent":
       return {
-        dot: "bg-muted",
+        tone: "quiet",
         label: "No mail",
         // The absent arm's reason is not a fault: it says what a connect would
         // still need (the two credential doors). See `../wire.ts`.
@@ -66,7 +47,7 @@ export const mailSaid = (account: Account): Said => {
       }
     case "fault":
       return {
-        dot: "bg-alarm",
+        tone: "alarm",
         label: "Mail error",
         // THE WORDS BESIDE THE FIELD: `retrying` is what the cell carries
         // (`../wire.ts`), and `— retrying` is what a reader is told, composed

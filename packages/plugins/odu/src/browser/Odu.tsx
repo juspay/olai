@@ -12,6 +12,7 @@ import type { OduLink } from "olai-plugin-odu/appliance/wire"
 
 import { TESTID } from "../testids.ts"
 import { oduSaid } from "./said.ts"
+import { TONE } from "olai-plugin-layout/slots"
 
 /** The furniture this face spends of the app's bar — redeclared so this
  *  package does not import kolu. */
@@ -38,7 +39,7 @@ export function OduReadout(props: {
         title={said().detail}
         aria-label={`odu: ${said().detail}`}
       >
-        <span class={`${pill.DOT} ${said().dot}`} aria-hidden="true" />
+        <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
         <span class="min-w-0 truncate">{said().label}</span>
       </span>
     </Show>

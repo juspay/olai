@@ -125,6 +125,28 @@ Then("the health popover has no {string} row", async function (this: OlaiWorld, 
   );
 });
 
+/** A row's dot, by its owner's test id: the tone it wears (`data-health`, in
+ *  the health dot's own words). */
+Then("the {string} row wears a {string} dot", async function (this: OlaiWorld, id: string, tone: string) {
+  const dot = `${HEALTH_PANEL} ${attr("data-testid", id)} [data-health]`;
+  await this.expectAttribute(dot,"data-health", tone, `the ${id} row's dot`, HYDRATION_TIMEOUT);
+});
+
+/** THE INVARIANT the one-tone rule exists for: a dot that is not green always
+ *  has a row of exactly its colour under it, so nothing in the list leaves the
+ *  colour unexplained. */
+Then("a row of the health popover wears the health dot's tone", async function (this: OlaiWorld) {
+  const tone = (await this.page.locator(HEALTH).getAttribute("data-health")) ?? "";
+  const panel = this.page.locator(HEALTH_PANEL);
+  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const rows = await panel.evaluate((box) =>
+    [...box.querySelectorAll("[data-health]")].map((el) => el.getAttribute("data-health") ?? ""));
+  assert.ok(
+    tone === "healthy" || rows.includes(tone),
+    `the health dot is "${tone}" but the popover's rows wear ${JSON.stringify(rows)}`,
+  );
+});
+
 Then("the commit panel is up", async function (this: OlaiWorld) {
   await this.page.locator(COMMIT_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });

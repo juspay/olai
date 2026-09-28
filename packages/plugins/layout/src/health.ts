@@ -8,17 +8,15 @@
  *
  * WHO SAYS WHAT is not decided here. Each readout states its own tone and its
  * own words (`./slots.ts`'s `BarStatus`, supplied by the plugin that owns the
- * readout); the connection's are mapped below because the connection is the
- * bar's own readout. This file only picks the worst and says it.
+ * readout, and the connection's `lookOf`) — the same value its row paints
+ * from. This file only picks the worst and says it, so the dot's colour is
+ * always some row's.
  */
-import type { SurfaceReadout } from "@olai/web/client/connection/status.ts"
-import { lookOf, toneOf } from "@olai/web/client/connection/status.ts"
-
 import type { BarStatus, BarTone } from "./slots.ts"
 
 /** The dot's three colours. `quiet` never reaches the dot: a row with nothing
  *  running is not a row with something wrong. */
-export type DotTone = "healthy" | "notice" | "alarm"
+export type DotTone = Exclude<BarTone, "quiet">
 
 const RANK: Readonly<Record<BarTone, number>> = { quiet: 0, healthy: 0, notice: 1, alarm: 2 }
 
@@ -51,14 +49,4 @@ export const tipOf = (statuses: ReadonlyArray<BarStatus>): string => {
   const news = newsOf(statuses)
   return [nameOf(statuses), ...news.flatMap((one) =>
     one.detail === undefined || one.detail === "" ? [] : [`${one.label} — ${one.detail}`])].join("\n")
-}
-
-/** The connection's own tone — `connection/status.ts`'s, which is the one
- *  reader of the readout's raw states. */
-export const connectionTone = (readout: SurfaceReadout): BarTone => toneOf(readout)
-
-/** The connection as a status, in the words its row says. */
-export const connectionStatus = (readout: SurfaceReadout): BarStatus => {
-  const look = lookOf(readout)
-  return { tone: connectionTone(readout), label: look.label, detail: look.detail }
 }

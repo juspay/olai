@@ -3,9 +3,8 @@
  * `BarStatus`) — the same `padiSaid` reading the row draws, from the same fleet
  * this activation owns, so the dot and the row cannot disagree.
  *
- * A skew is broken (no terminal can be read). A watcher whose pulse went quiet
- * wants attention and is not broken — the mirror is still connected. No padi at
- * all is quiet: nothing is wrong with a serve that is not watching one.
+ * The tone is `padiSaid`'s own; what is composed here is only the label, which
+ * carries the quiet beat's words as the row's rider does.
  */
 import type { BarStatus } from "olai-plugin-layout/slots"
 
@@ -13,12 +12,10 @@ import { padiSaid } from "../appliance/index.ts"
 import type { Fleet } from "../appliance/props/fleet.tsx"
 
 export const padiStatus = (fleet: Pick<Fleet, "link" | "pulse" | "now">): BarStatus => {
-  const link = fleet.link()
-  const said = padiSaid(link, fleet.pulse(), fleet.now())
-  const quiet = said.beat?.kind === "quiet"
+  const said = padiSaid(fleet.link(), fleet.pulse(), fleet.now())
   return {
-    tone: link.status === "skew" ? "alarm" : link.status === "absent" ? "quiet" : quiet ? "notice" : "healthy",
-    label: quiet && said.beat?.said ? `${said.label} · ${said.beat.said}` : said.label,
+    tone: said.tone,
+    label: said.beat?.kind === "quiet" && said.beat.said ? `${said.label} · ${said.beat.said}` : said.label,
     detail: said.detail,
   }
 }

@@ -4,18 +4,17 @@
  */
 import { expect, test } from "bun:test"
 
-import type { SurfaceReadout } from "@olai/web/client/connection/status.ts"
+import { lookOf } from "@olai/web/client/connection/status.ts"
 
-import { connectionStatus, nameOf, tipOf, worstOf } from "./health.ts"
-import type { BarStatus } from "./slots.ts"
+import { nameOf, tipOf, worstOf } from "./health.ts"
+import type { BarStatus, BarTone } from "./slots.ts"
 
-const live: SurfaceReadout = { status: "live", needsReload: false }
-const reconnecting: SurfaceReadout = { status: "reconnecting", needsReload: false }
+const retired = lookOf({ status: "retired", needsReload: true })
 
 test("nothing standing, and nothing but quiet rows, is healthy", () => {
   expect(worstOf([])).toBe("healthy")
   expect(worstOf([{ tone: "quiet", label: "no git here" }, { tone: "quiet", label: "no kolu" }])).toBe("healthy")
-  expect(nameOf([{ tone: "quiet", label: "no git here" }])).toBe("status: all well")
+  expect(nameOf([{ tone: "quiet", label: "no git here" }])).toBe("Status: all good")
 })
 
 test("the worst tone wins, whatever order the rows stand in", () => {
@@ -30,16 +29,22 @@ test("the name quotes the news in the readouts' own words, alarms first", () => 
   const statuses: ReadonlyArray<BarStatus> = [
     { tone: "notice", label: "3 uncommitted" },
     { tone: "healthy", label: "kolu" },
-    connectionStatus(reconnecting),
+    retired,
   ]
-  expect(nameOf(statuses)).toBe("status: reconnecting · 3 uncommitted")
-  expect(tipOf(statuses).split("\n")[1]).toStartWith("reconnecting — the connection dropped")
+  expect(nameOf(statuses)).toBe(`Status: ${retired.label} · 3 uncommitted`)
+  expect(tipOf(statuses).split("\n")[1]).toBe(`${retired.label} — ${retired.detail}`)
 })
 
-test("the connection is healthy only while live", () => {
-  expect(connectionStatus(live).tone).toBe("healthy")
-  expect(connectionStatus({ status: "connecting", needsReload: false }).tone).toBe("notice")
-  expect(connectionStatus(reconnecting).tone).toBe("alarm")
-  expect(connectionStatus({ status: "retired", needsReload: true }).tone).toBe("alarm")
-  expect(connectionStatus({ status: "degraded", stopped: ["documents.keys"], needsReload: false }).tone).toBe("alarm")
+// THE INVARIANT the one-tone rule exists for: whenever the dot is not green,
+// some row in the popover wears a dot of exactly its colour — because the dot
+// is folded from the very tones the rows paint. Every mix of up to three rows,
+// so no ordering or combination can break it.
+test("a dot that is not green always has a row of its colour", () => {
+  const TONES: ReadonlyArray<BarTone> = ["healthy", "quiet", "notice", "alarm"]
+  const rows = (n: number): ReadonlyArray<ReadonlyArray<BarTone>> =>
+    n === 0 ? [[]] : rows(n - 1).flatMap((rest) => TONES.map((tone) => [tone, ...rest]))
+  for (const tones of [0, 1, 2, 3].flatMap(rows)) {
+    const worst = worstOf(tones.map((tone) => ({ tone, label: tone })))
+    if (worst !== "healthy") expect(tones).toContain(worst)
+  }
 })

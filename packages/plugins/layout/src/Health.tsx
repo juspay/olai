@@ -42,23 +42,17 @@ import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { createPopover } from "@olai/web/client/popover.ts"
-import { ICON_BUTTON, PANEL_BOX } from "@olai/web/client/readout.ts"
+import { lookOf } from "@olai/web/client/connection/status.ts"
+import { ICON_BUTTON, PANEL_BOX, TONE } from "@olai/web/client/readout.ts"
 
 import { PluginHeaders } from "./Chrome.tsx"
 import { hung } from "./faces.ts"
-import { connectionStatus, nameOf, tipOf, worstOf, type DotTone } from "./health.ts"
+import { nameOf, tipOf, worstOf } from "./health.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { BarStatus } from "./slots.ts"
 import { tools } from "./index.ts"
 import { Tools } from "./Tools.tsx"
 import { Uptime } from "./Uptime.tsx"
-
-/** The dot's paint, per tone — theme tokens only. */
-const PAINT: Readonly<Record<DotTone, string>> = {
-  healthy: "bg-done",
-  notice: "bg-doing",
-  alarm: "bg-alarm",
-}
 
 /** A list of short rows wants less than the 24rem a settings panel is given.
  *  The box is narrowed and its RIGHT edge set on the bar's own right edge (the
@@ -76,7 +70,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
   /** Every status standing now: the connection first, then each cluster
    *  seat's in mount order. A seat with no `status` has no vote. */
   const statuses = createMemo((): ReadonlyArray<BarStatus> => [
-    connectionStatus(connectionReadout()),
+    lookOf(connectionReadout()),
     ...hung("app.header").flatMap((one) =>
       one.face.place === "cluster" && one.face.status !== undefined ? [one.face.status()] : []),
   ])
@@ -126,7 +120,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
         <span
           // A hairline of paper round it: the healthy green is a page-ground
           // token, and on the ink bar it needs an edge to read as a mark.
-          class={`inline-block size-3 rounded-full ring-1 ring-paper/60 ${PAINT[tone()]}`}
+          class={`inline-block size-3 rounded-full ring-1 ring-paper/60 ${TONE[tone()].dot}`}
           aria-hidden="true"
         />
       </button>

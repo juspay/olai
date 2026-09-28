@@ -46,6 +46,8 @@
 
 import { Show } from "solid-js"
 
+import { TONE } from "olai-plugin-layout/slots"
+
 import { padiSaid, useFleet } from "../appliance/index.ts"
 
 import { TESTID } from "../testids.ts"
@@ -67,9 +69,7 @@ export function Padi(props: { readonly app: KoluApp }) {
       <button
         type="button"
         ref={popover.setTrigger}
-        class={`${pill.PILL} max-w-[9.5rem] shrink-0 cursor-pointer sm:max-w-none ${
-          quiet() ? pill.PILL_WARN_COAT : ""
-        }`}
+        class={`${pill.PILL} max-w-[9.5rem] shrink-0 cursor-pointer sm:max-w-none`}
         data-testid={TESTID.padi}
         // The STATUS as an attribute as well as a paint, so a scenario asserts
         // the state rather than a colour — the same contract the terminal dot
@@ -84,13 +84,10 @@ export function Padi(props: { readonly app: KoluApp }) {
         aria-haspopup="true"
         onClick={() => popover.toggle()}
       >
-        <span
-          class={`${pill.DOT} ${quiet() ? pill.DOT_HOLLOW_WARN : said().dot}`}
-          aria-hidden="true"
-        />
+        <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
         <span class="min-w-0 truncate">{said().label}</span>
         <Show when={quiet() ? said().beat?.said : null}>
-          {(beat) => <span class={`shrink-0 ${pill.TEXT_WARN}`}>· {beat()}</span>}
+          {(beat) => <span class={`shrink-0 ${TONE[said().tone].text}`}>· {beat()}</span>}
         </Show>
       </button>
       {/* The panel is the app's box — portalled, placed and layered by it —

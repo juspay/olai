@@ -50,13 +50,13 @@ Feature: One health dot stands where the bar's pills stood
     And there should be no page errors
 
   @scratch:good
-  Scenario: A dropped connection turns the dot to alarm and says so without a click
+  Scenario: A dropped connection turns the dot amber and says so without a click
     Given I open the outline "garden.olai"
     And the connection is "live"
     Then the health dot is "healthy"
     When the browser goes offline
     Then the connection is "reconnecting"
-    And the health dot is "alarm"
+    And the health dot is "notice"
     And the health dot names "reconnecting"
     When the browser comes back online
     Then the connection is "live"
@@ -95,6 +95,22 @@ Feature: One health dot stands where the bar's pills stood
     When I press Escape on the health dot
     Then the health popover is shut
     And the health dot has the focus
+    And there should be no page errors
+
+  @scratch:good @git:repo
+  Scenario: An amber dot has an amber row under it
+    # The owner's bug: the dot was amber for "2 uncommitted" while git's row
+    # drew no dot, so nothing in the list explained the colour. Each row now
+    # wears the one tone its readout states, and the dot is the worst of them.
+    Given I open the outline "garden.olai"
+    When I rewrite "garden.olai" as:
+      """
+      {"id":"garden","ord":"a0","title":"garden, rewritten"}
+      """
+    Then the health dot is "notice"
+    When I open the health popover
+    Then the "commit-pill" row wears a "notice" dot
+    And a row of the health popover wears the health dot's tone
     And there should be no page errors
 
   @scratch:good

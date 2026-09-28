@@ -16,6 +16,7 @@ const link = (over: Partial<OduLink>): OduLink => ({
 test("connected is the quiet face", () => {
   const said = oduSaid(link({ status: "connected", protocolVersion: "1.3" }))
   expect(said.label).toBe("odu")
+  expect(said.tone).toBe("healthy")
   expect(said.detail).toContain("http://127.0.0.1:18440")
 })
 
@@ -23,11 +24,13 @@ test("absent names the origin and the fix", () => {
   const said = oduSaid(link({ status: "absent" }))
   expect(said.label).toBe("no odu")
   expect(said.detail).toContain("odu web --background")
+  expect(said.tone).toBe("quiet")
 })
 
 test("skew names both versions", () => {
   const said = oduSaid(link({ status: "skew", protocolVersion: "2.0" }))
   expect(said.label).toBe("odu skew")
+  expect(said.tone).toBe("alarm")
   expect(said.detail).toContain("2.0")
   expect(said.detail).toContain("1.3")
 })

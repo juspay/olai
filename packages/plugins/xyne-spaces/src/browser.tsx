@@ -25,7 +25,7 @@ import type { Accessor } from "solid-js"
 
 import type { SpacesApp } from "./browser/app.ts"
 import { SPACES_UNDIALED, type SpacesLink } from "./wire.ts"
-import { spacesStatus } from "./browser/said.ts"
+import { spacesSaid } from "./browser/said.ts"
 import { LinkProvider } from "./browser/link.tsx"
 import { SpacesMark } from "./browser/Mark.tsx"
 import { Spaces } from "./browser/Spaces.tsx"
@@ -78,7 +78,7 @@ export default definePlugin({
       place: "cluster",
       body: () => <LinkProvider link={owned.link}><Spaces app={app} /></LinkProvider>,
       // The bar's health dot reads this, off the same root as the row.
-      status: () => spacesStatus(owned.link() ?? SPACES_UNDIALED),
+      status: () => spacesSaid(owned.link() ?? SPACES_UNDIALED),
     })
     yield* slots.register("delivery.mark", SpacesMark)
 

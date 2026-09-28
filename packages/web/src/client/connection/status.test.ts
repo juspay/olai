@@ -46,7 +46,7 @@ const readoutOf = (status: SurfaceReadoutStatus): SurfaceReadout =>
 // at the handshake — the wire retired, never to dial again — must not be drawn
 // as a healthy one, nor as the transient drop it was once projected as.
 test("a retired wire is drawn as neither live nor merely reconnecting", () => {
-  expect(LOOK.retired.dot).not.toBe(LOOK.live.dot)
+  expect(LOOK.retired.tone).not.toBe(LOOK.live.tone)
   expect(LOOK.retired.label).not.toBe(LOOK.live.label)
   expect(LOOK.retired.label).not.toBe(LOOK.reconnecting.label)
 })
@@ -54,9 +54,23 @@ test("a retired wire is drawn as neither live nor merely reconnecting", () => {
 test("only a live connection is drawn as one", () => {
   for (const state of STATES.filter((s) => s !== "live")) {
     const look = lookOf(readoutOf(state))
-    expect(look.dot).not.toBe(LOOK.live.dot)
+    expect(look.tone).not.toBe(LOOK.live.tone)
     expect(look.label).not.toBe(LOOK.live.label)
   }
+})
+
+// Each state's tone is the one its row paints AND the one the health dot folds,
+// so it is pinned per state: a wire re-dialling or a subscription gone quiet
+// wants attention, only a replaced server is broken, and a first dial not yet
+// answered is nothing at all.
+test("every state has its one tone", () => {
+  expect(Object.fromEntries(STATES.map((state) => [state, lookOf(readoutOf(state)).tone]))).toEqual({
+    connecting: "quiet",
+    live: "healthy",
+    reconnecting: "notice",
+    retired: "alarm",
+    degraded: "notice",
+  })
 })
 
 test("every state says something, and says it differently", () => {

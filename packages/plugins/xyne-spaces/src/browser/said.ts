@@ -1,56 +1,36 @@
 /**
- * WHAT THE SPACES READOUT SAYS — the three faces of the link, as words.
+ * WHAT THE SPACES READOUT SAYS — the three faces of the link, as words and one
+ * tone. The row paints this value and the bar's health dot folds the same one
+ * (`olai-plugin-layout`'s `BarStatus`), so the two cannot disagree.
  *
- * `connected` is quiet (one word). `absent` is dim and names where olai
- * looked. `fault` is the loud one, and names the refusal.
+ * `connected` is healthy (one word). `absent` is quiet and names where olai
+ * looked. `fault` — a refused post — is the alarm, and names the refusal.
  */
 
 import type { BarStatus } from "olai-plugin-layout/slots"
 
 import type { SpacesLink } from "../wire.ts"
 
-/** THE SAME READING AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
- *  `BarStatus`): a refused post is broken, no Spaces app is quiet. */
-export const spacesStatus = (link: SpacesLink): BarStatus => {
-  const said = spacesSaid(link)
-  return {
-    tone: link.status === "fault" ? "alarm" : link.status === "absent" ? "quiet" : "healthy",
-    label: said.label,
-    detail: said.detail,
-  }
-}
-
-export interface Said {
-  /** The dot's COLOUR — a background utility. Geometry is the chrome's. */
-  readonly dot: string
-  readonly label: string
-  readonly detail: string
-  readonly loud: boolean
-}
-
-export const spacesSaid = (link: SpacesLink): Said => {
+export const spacesSaid = (link: SpacesLink): BarStatus => {
   if (link.status === "absent") {
     return {
-      dot: "bg-muted",
+      tone: "quiet",
       label: "No xyne",
       detail:
         `Spaces isn't set up. Looked at ${link.where}`
         + (link.told ? "." : ". Set OLAI_SPACES_URL and OLAI_SPACES_TOKEN."),
-      loud: false,
     }
   }
   if (link.status === "fault") {
     return {
-      dot: "bg-alarm",
+      tone: "alarm",
       label: "xyne error",
       detail: link.why ?? `Spaces refused a post at ${link.where}.`,
-      loud: true,
     }
   }
   return {
-    dot: "bg-done",
+    tone: "healthy",
     label: "xyne",
     detail: `Posting to ${link.where}`,
-    loud: false,
   }
 }

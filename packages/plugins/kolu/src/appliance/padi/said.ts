@@ -98,10 +98,11 @@ export const beatOf = (pulse: WatchPulse | null | undefined, now: number): Beat 
  * that is the file holding the pill, the dot geometry and the testid.
  */
 export interface Said {
-  /** The dot's COLOUR — a background utility. The dot's geometry is the
-   *  chrome's (`../readout.ts`'s `DOT`); the two are concatenated at the call
-   *  site, which is why this is a colour and not a class list. */
-  readonly dot: string
+  /** How bad it is — ONE word, which the row's dot and the bar's health dot
+   *  both read, so the two cannot disagree. The chrome's `BarTone` by
+   *  structure rather than by import, for the wall reason above; the chrome
+   *  owns what each word is painted. */
+  readonly tone: "healthy" | "quiet" | "notice" | "alarm"
   /** Two or three words, on screen next to the dot. */
   readonly label: string
   /** What that means, spelled out — the longer sentence a reader gets from the
@@ -132,10 +133,9 @@ export const padiSaid = (link: KoluLink, pulse?: WatchPulse | null, now?: number
       // arithmetic on a clock nobody asked for.
       const beat = pulse === undefined || now === undefined ? { kind: "none" as const, said: null } : beatOf(pulse, now)
       return {
-        // The DONE green, the same one a finished task wears: this is the
-        // quiet face, and the outline's own vocabulary is what keeps a second
-        // green from meaning a second thing.
-        dot: "bg-done",
+        // Healthy — unless the watcher's pulse has gone quiet, which wants
+        // attention and is not broken: the mirror is still connected.
+        tone: beat.kind === "quiet" ? "notice" : "healthy",
         label: "kolu",
         detail: beat.said === null
           ? "Connected. Terminals on this page are live."
@@ -145,7 +145,7 @@ export const padiSaid = (link: KoluLink, pulse?: WatchPulse | null, now?: number
     }
     case "skew":
       return {
-        dot: "bg-alarm",
+        tone: "alarm",
         label: "kolu: update needed",
         detail:
           `kolu and olai versions don't match (padi ${link.surfaceVersion ?? "?"}, olai ${link.speaks}). Update one of them to see terminals.`,
@@ -153,7 +153,7 @@ export const padiSaid = (link: KoluLink, pulse?: WatchPulse | null, now?: number
       }
     case "absent":
       return {
-        dot: "bg-muted",
+        tone: "quiet",
         label: "No kolu",
         detail: lookedAt(link),
         beat: null,

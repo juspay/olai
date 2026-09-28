@@ -13,8 +13,7 @@ test("absent names where olai looked, and is not loud", () => {
   const said = spacesSaid(link({ status: "absent", where: "OLAI_SPACES_URL" }))
   expect(said.label).toBe("no xyne")
   expect(said.detail).toContain("OLAI_SPACES_URL")
-  expect(said.loud).toBe(false)
-  expect(said.dot).toBe("bg-muted")
+  expect(said.tone).toBe("quiet")
 })
 
 test("connected is one quiet word", () => {
@@ -24,8 +23,7 @@ test("connected is one quiet word", () => {
     told: true,
   }))
   expect(said.label).toBe("xyne")
-  expect(said.loud).toBe(false)
-  expect(said.dot).toBe("bg-done")
+  expect(said.tone).toBe("healthy")
 })
 
 test("fault is loud and names the refusal", () => {
@@ -37,6 +35,5 @@ test("fault is loud and names the refusal", () => {
   }))
   expect(said.label).toBe("xyne fault")
   expect(said.detail).toBe("Authentication failed")
-  expect(said.loud).toBe(true)
-  expect(said.dot).toBe("bg-alarm")
+  expect(said.tone).toBe("alarm")
 })

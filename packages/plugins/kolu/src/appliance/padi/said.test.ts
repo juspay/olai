@@ -47,7 +47,7 @@ test("the beat speaks plainly while it is fresh — the inspection sentence", ()
   // And the register paint is quiet: no hollow, no amber, the dot says
   // as `connected` always did.
   expect(said.label).toBe("kolu")
-  expect(said.dot).toBe("bg-done")
+  expect(said.tone).toBe("healthy")
 })
 
 test("the register crosses at `everyMs * 2`, the pill's house margin", () => {
@@ -68,6 +68,7 @@ test("the quiet register is loud enough to name the piece that went down", () =>
   const said = padiSaid(connectedLink, pulse(47 * 60_000, 60_000), T0)
   expect(said.beat?.kind).toBe("quiet")
   expect(said.beat?.said).toBe("watcher quiet 47m")
+  expect(said.tone).toBe("notice")
   // The coat is the prototype's amber — the one draw outside the link's
   // three faces this fold owns — and the words the hid-hover eats carry
   // the same phrase.
@@ -90,5 +91,6 @@ test("the beat says nothing once the link has failed — the fault is the link's
   const absent: KoluLink = { ...connectedLink, status: "absent" }
   const said = padiSaid(absent, pulse(5_000, 30_000), T0)
   expect(said.beat).toBeNull()
-  expect(said.dot).toBe("bg-muted")
+  expect(said.tone).toBe("quiet")
+  expect(padiSaid({ ...connectedLink, status: "skew" }).tone).toBe("alarm")
 })

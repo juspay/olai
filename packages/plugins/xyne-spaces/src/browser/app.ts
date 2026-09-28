@@ -9,18 +9,11 @@
  * copies the app's whole shape gives that up and keeps only the cycle-avoidance.
  */
 
-/** The chrome pill's look — classes rather than a component. FIVE, because the
- *  pill spaces draws is either plain or alarmed: it has no warn arm, and copied
- *  the app's three WARN tokens for a while without a line reading one. kolu's
- *  own `PillLook` one appliance over is the mirror image — the two plain
- *  tokens and the three WARN, and no ALARM — which is what this shape looks
- *  like when each half declares its own. */
+/** The chrome pill's look — the row's box and the dot's geometry. The dot's
+ *  colour is the state's tone, painted from the layout contract's one table. */
 export interface PillLook {
   readonly PILL: string
   readonly DOT: string
-  readonly PILL_ALARM_COAT: string
-  readonly DOT_HOLLOW_ALARM: string
-  readonly TEXT_ALARM: string
 }
 
 export interface SpacesApp {

@@ -78,8 +78,18 @@ drawing; every readout still belongs to the plugin that registers it:
   withdrawn; kolu, odu, mail and spaces read the root they already had). The
   types are a static contract (`olai-plugin-layout/slots`); no live value
   crosses by import.
+- Severity is stated ONCE. Each readout's state table carries one `tone`, and
+  its row and its `status` read the same value. The row paints its dot from
+  `TONE` (`@olai/web/client/readout.ts`, re-exported from
+  `olai-plugin-layout/slots`) — the one table from tone to dot and text
+  colour, which the health dot paints from too; `quiet` paints no dot but
+  keeps its box so the words stay aligned. A row's dot carries its tone as
+  `data-health`. So a dot that is not green always has a row of exactly its
+  colour in the popover.
 - The dot wears the worst tone among the connection and every standing
-  status (`health.ts`; `quiet` never colours it). When it is not healthy its
+  status (`health.ts`; `quiet` never colours it). The connection is `notice`
+  while it reconnects or is partly connected, `alarm` once the server has
+  been replaced, and `quiet` while it first connects. When it is not healthy its
   accessible name and tip quote each piece of news, alarms first, in the
   readout's own label and sentence. `data-health` and `data-connection` carry
   the state for tests.
