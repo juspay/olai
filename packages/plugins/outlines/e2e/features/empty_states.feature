@@ -11,7 +11,8 @@ Feature: A page with nothing on it offers the next step
 
   @scratch:empty
   Scenario: No outlines yet, and New outline opens the sidebar's own box
-    Given I open the app
+    Given the served directory holds no file at all
+    And I open the app
     And I mark the page
     Then the empty page says "No outlines yet"
     When I press New outline on the empty page

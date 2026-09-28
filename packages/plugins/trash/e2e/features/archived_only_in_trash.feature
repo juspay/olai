@@ -41,7 +41,7 @@ Feature: What is put away is on the Trash and nowhere else
     # in flight, and the agenda then never empties.
     Then the node "order" is not shown
     And I open the agenda
-    # "Nothing is due." — the page's own sentence, because there is nothing
+    # "Nothing due" — the page's own sentence, because there is nothing
     # owed rather than nothing matching.
     Then the agenda is empty
     And the agenda does not list "order"

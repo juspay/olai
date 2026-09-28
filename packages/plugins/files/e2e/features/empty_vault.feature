@@ -4,7 +4,8 @@ Feature: A new vault can become useful through the browser
   Scenario: An empty directory says so, and New outline opens the sidebar's box
     # The page's one button is the next step, and the box it opens is the
     # sidebar's own `+` › New outline box — not a second one on the page.
-    Given I open the app
+    Given the served directory holds no file at all
+    And I open the app
     Then the empty page says "No outlines yet" and nothing more
     And the empty page "No outlines yet" offers "New outline"
     When I mark the page
@@ -19,7 +20,8 @@ Feature: A new vault can become useful through the browser
     And there should be no page errors
 
   Scenario: With the sidebar collapsed to its rail, New outline brings the column back
-    Given I open the app
+    Given the served directory holds no file at all
+    And I open the app
     When I collapse the sidebar
     And I press "New outline" on the empty page "No outlines yet"
     Then the sidebar is open with the new outline box in it
@@ -31,7 +33,8 @@ Feature: A new vault can become useful through the browser
     # The box lives in the sidebar, which on a phone is a drawer that starts
     # shut. Opening the box in a shut drawer would be a press that did nothing
     # anyone could see, so the drawer opens with it.
-    Given I open the app
+    Given the served directory holds no file at all
+    And I open the app
     When I press "New outline" on the empty page "No outlines yet"
     Then the sidebar is open with the new outline box in it
     And the new outline box has the caret

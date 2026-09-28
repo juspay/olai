@@ -622,6 +622,36 @@ export const TRASH_LINK = selector(TESTID.trashLink);
 /** Shown when the address names no file the directory holds. The sidebar stays.
  *  Distinct from {@link NOT_FOUND}, which is a `/#id` that names no node. */
 export const NOTHING = selector(TESTID.nothing);
+
+/**
+ * THE EMPTY PAGE ON SCREEN — the one shared component every page with nothing
+ * on it draws (`@olai/web/client/Empty.tsx`), and the one helper every step
+ * about it reads through.
+ *
+ * Its heading is the element carrying {@link NOTHING}; the quieter line under
+ * it is that heading's sibling in one block; the page's one button sits beside
+ * that block. `line` picks the heading by its exact words — the SAME testid a
+ * sidebar or a second pane may also be drawing, so words and visibility both
+ * decide — and without it the first visible heading is the one meant.
+ */
+export const emptyPage = (page: Page, line?: string) => {
+  const shown = page.locator(NOTHING).locator("visible=true");
+  const said = (line === undefined
+    ? shown
+    : shown.filter({ hasText: new RegExp(`^\\s*${line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`) })
+  ).first();
+  return {
+    /** The heading. */
+    said,
+    /** The heading and the line under it, in order. */
+    lines: said.locator("xpath=../p"),
+    /** The line under the heading. */
+    detail: said.locator("xpath=following-sibling::p"),
+    /** The block holding the words and the button beside them. */
+    block: said.locator("xpath=../.."),
+  };
+};
+
 /** Shown in the main pane when `/#<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when the store never published a

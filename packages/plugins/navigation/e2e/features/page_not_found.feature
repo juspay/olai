@@ -30,8 +30,11 @@ Feature: An address that names nothing says so, and offers the way home
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: A name with no suffix says there is nothing by that name
+  Scenario: A name with no suffix names no page, and opens the front page
+    # An address the grammar cannot read as a file names no page at all, and
+    # the router's kindness for that is the front page rather than a dead end
+    # (`../../src/routes.ts`'s `routeOfIn`, held by `routes.test.ts`): only an
+    # address that names a FILE can be a file that is not there.
     When I open the address "/no-such-thing"
-    Then the empty page says "Page not found" over "There is nothing named no-such-thing."
-    And the empty page "Page not found" offers "Go home"
+    Then the focused pane is drawing the outline "Daily/2026-08.olai"
     And there should be no page errors
