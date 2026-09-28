@@ -57,7 +57,7 @@ Feature: One health dot stands where the bar's pills stood
     When the browser goes offline
     Then the connection is "reconnecting"
     And the health dot is "alarm"
-    And the health dot names "reconnecting"
+    And the health dot names "Reconnecting…"
     When the browser comes back online
     Then the connection is "live"
     And the health dot is "healthy"

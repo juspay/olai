@@ -52,7 +52,7 @@ When("I open a second tab after the reminder", async function (this: OlaiWorld) 
     if (message.type() === "error") this.errors.push(`second tab console.error: ${message.text()}`);
   });
   await other.goto(this.page.url());
-  await other.locator(`${AGENDA_LINK}${attr("aria-label", "Agenda — 1 on today")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await other.locator(`${AGENDA_LINK}${attr("aria-label", "Agenda — 1 due today")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitUntil(() => other.evaluate(async () => (await navigator.serviceWorker.getRegistration())?.active != null), "the second tab's worker to activate");
   assert.equal(await other.evaluate(() => localStorage.getItem("olai.reminders.said")), isoDayOf(new Date()));
   assert.deepStrictEqual(await alertsOn(other), { banners: [], notes: 0 });

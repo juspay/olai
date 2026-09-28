@@ -51,7 +51,7 @@ Then("the health dot names {string}", async function (this: OlaiWorld, words: st
 });
 
 Then("the health dot says all is well", async function (this: OlaiWorld) {
-  await this.expectAttribute(HEALTH, "aria-label", "status: all well", "the health dot", HYDRATION_TIMEOUT);
+  await this.expectAttribute(HEALTH, "aria-label", "Status: all good", "the health dot", HYDRATION_TIMEOUT);
 });
 
 When("I open the health popover", async function (this: OlaiWorld) {
