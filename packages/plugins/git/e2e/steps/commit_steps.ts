@@ -153,32 +153,32 @@ Then(
   },
 );
 
-/** Quiet: no warning mark at all. The healthy directory is the ordinary case,
- *  and chrome that cries in the ordinary case is chrome nobody reads in the
- *  rare one. */
+/** The tone the pill's dot wears — its `data-health`, the state and never the
+ *  colour, in the same words the health dot uses. */
+const pillTone = (world: OlaiWorld): Promise<string | null> =>
+  world.readStatus(async () => {
+    const pill = world.page.locator(COMMIT_PILL);
+    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    return pill.locator("[data-health]").getAttribute("data-health");
+  });
+
+/** Quiet: no warning at all. The healthy directory is the ordinary case, and
+ *  chrome that cries in the ordinary case is chrome nobody reads in the rare
+ *  one. */
 Then("the commit pill is not alarming", async function (this: OlaiWorld) {
-  const shown = await this.readStatus(async () =>
-    oneLine(await this.page.locator(COMMIT_PILL).innerText())
-  );
+  const tone = await pillTone(this);
   assert.ok(
-    !shown.includes("⚠"),
-    `the commit pill says "${shown}", which wears a warning it has no cause for`,
+    tone !== "alarm" && tone !== "notice",
+    `the commit pill's dot is "${tone}", a warning it has no cause for`,
   );
 });
 
 /** And the other direction, which is the half that matters on a fault: the
- *  mark is what a reader SCANS for, and a face that lost its glyph would still
+ *  dot is what a reader SCANS for, and a face that lost its tone would still
  *  pass every attribute and word assertion beside this one. */
 Then("the commit pill is alarming", async function (this: OlaiWorld) {
-  const shown = await this.readStatus(async () => {
-    const pill = this.page.locator(COMMIT_PILL);
-    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    return oneLine(await pill.innerText());
-  });
-  assert.ok(
-    shown.includes("⚠"),
-    `the commit pill says "${shown}", with no warning mark on a state that is one`,
-  );
+  const tone = await pillTone(this);
+  assert.equal(tone, "alarm", `the commit pill's dot is "${tone}", on a state that is an alarm`);
 });
 
 /** Open the tip, and leave the assertion to the step that already owns tips

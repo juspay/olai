@@ -35,8 +35,8 @@ import {
   isInert,
   isNews,
   localOf,
-  MARK,
-  markOf,
+  FACE_TONE,
+  readingOf,
   newsSays,
   unpushedIn,
   PUSH_REFUSED,
@@ -151,29 +151,48 @@ test("never committed is not the same as committed, on the same empty tree", () 
 
 // ── what it wears ──────────────────────────────────────────────────────
 
-test("the two settings and the page that has not heard wear no mark, and cannot be pressed", () => {
+test("the two settings and the page that has not heard are quiet, and cannot be pressed", () => {
   for (const face of ["unknown", "off", "no-repo"] as const) {
-    expect(MARK[face]).toBeNull()
+    expect(FACE_TONE[face]).toBe("quiet")
     expect(isInert(face)).toBe(true)
   }
 })
 
-test("a healthy repository is quiet, and not a second green claim", () => {
-  // The retired readout's rule, and it outlives it: the connection dot beside
-  // this pill is the page's one green claim, and a second one lit permanently
-  // in the ordinary case dilutes the thing a reader actually scans for.
-  // Quiet is also no extra paint: a `text-muted` tick is a paper-page token
-  // and vanishes into the ink header this mark actually lives on.
-  expect(MARK.committed).toEqual({ glyph: "✓" })
-  expect(MARK.never).toBeNull()
-  expect(MARK.waiting).toBeNull()
+// Every face's one tone — the row's dot and the health dot's vote alike.
+test("every face has its one tone", () => {
+  expect(FACE_TONE).toEqual({
+    unknown: "quiet",
+    off: "quiet",
+    "no-repo": "quiet",
+    error: "alarm",
+    blocked: "notice",
+    waiting: "notice",
+    committed: "healthy",
+    never: "healthy",
+  })
 })
 
-test("the two a person can act on are marked", () => {
-  // A repository mid-rebase will take a commit once they finish; a git that
-  // failed will not. Same warning glyph; the faces themselves tell them apart.
-  expect(MARK.blocked?.glyph).toBe("⚠")
-  expect(MARK.error?.glyph).toBe("⚠")
+// The bug the one-tone rule was filed for: the health dot was amber for
+// `2 uncommitted` while git's row drew no dot at all. The row and the status
+// are one reading now, so whatever the dot says, the row says too.
+test("the row wears a tone for writes waiting, and the riders move it", () => {
+  const cases = [
+    ["waiting", waiting(2), git(), "notice"],
+    ["committed", behind(2), git(), "notice"],
+    ["committed", behind(1), git({ pushSaid: "rejected" }), "alarm"],
+    ["waiting", waiting(1), stopped("conflict"), "alarm"],
+    ["error", surveyed(READY), gitSaid("fatal: nope"), "alarm"],
+    ["never", surveyed(READY), git(), "healthy"],
+  ] as const
+  for (const [face, pending, state, tone] of cases) {
+    const row = readingOf(face, pending, state)
+    expect(row.tone).toBe(tone)
+    expect(gitStatusOf(face, pending, state)).toEqual({
+      tone,
+      label: [row.says, ...row.riders].join(" · "),
+      detail: row.detail,
+    })
+  }
 })
 
 test("the fault is reachable, because its whole point is the reason on it", () => {
@@ -413,18 +432,17 @@ test("a refused push says what git said, and a successful one says nothing", () 
   expect(git().pushSaid).toBeNull()
 })
 
-test("a failing push takes the tick off the pill, whatever the face is saying", () => {
+test("a failing push turns the pill to alarm, whatever the face is saying", () => {
   const said = "! [rejected] master -> master (non-fast-forward)"
   // The ordinary healthy chip, which is the one that lied.
-  expect(MARK.committed?.glyph).toBe("✓")
-  expect(markOf("committed", git())?.glyph).toBe("✓")
-  expect(markOf("committed", git({ pushSaid: said }))).toEqual({
-    glyph: "⚠",
-    tone: "text-alarm",
+  expect(readingOf("committed", surveyed(READY), git()).tone).toBe("healthy")
+  expect(readingOf("committed", surveyed(READY), git({ pushSaid: said }))).toMatchObject({
+    tone: "alarm",
+    riders: [PUSH_REFUSED],
   })
-  // ... and it overrules a face that wears no mark at all, too.
-  expect(markOf("waiting", git())).toBe(null)
-  expect(markOf("waiting", git({ pushSaid: said }))?.glyph).toBe("⚠")
+  // ... and it overrules a face that is only a notice, too.
+  expect(readingOf("waiting", waiting(1), git()).tone).toBe("notice")
+  expect(readingOf("waiting", waiting(1), git({ pushSaid: said })).tone).toBe("alarm")
 })
 
 test("the sentence says the push was refused, and hands over git's words", () => {

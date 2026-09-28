@@ -213,7 +213,7 @@ export const components = {
     yield* Effect.acquireRelease(Effect.sync(() => backlinksMemory.hold(memory)), stop => Effect.sync(stop))
   }) }),
   preferences: definePlugin({ name: "preferences", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
-    yield* (yield* rendererSlots).contribute(sections, { group: "Outlines", order: 20, body: PreferenceRows })
+    yield* (yield* rendererSlots).contribute(sections, { heading: "outlines" as const, order: 0, body: PreferenceRows })
   }) }),
 }
 

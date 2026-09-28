@@ -25,7 +25,7 @@ import {
   type Writer,
 } from "@olai/format"
 import type { GitState } from "@olai/format"
-import type { BarStatus } from "olai-plugin-layout/slots"
+import type { BarStatus, BarTone } from "olai-plugin-layout/slots"
 
 /**
  * Which of the eight things the pill is saying right now.
@@ -149,8 +149,9 @@ export const isInert = (face: Face): boolean =>
  * when it is absent, because the page itself is the healthy state.
  */
 export const isNews = (face: Face, pending: Pending, git: GitState): boolean =>
-  face === "waiting" || face === "blocked" || face === "error" ||
-  unpushedIn(pending) > 0 || git.paused !== null || git.pushSaid !== null
+  NEWS.has(readingOf(face, pending, git).tone)
+
+const NEWS: ReadonlySet<BarTone> = new Set(["notice", "alarm"])
 
 /** How many commits are recorded here and nowhere else, as a number — `0` for a
  *  branch already in sync and for one with no upstream at all, which are two
@@ -197,65 +198,58 @@ export const newsSays = (face: Face, pending: Pending, git: GitState): string =>
 }
 
 /**
- * The mark a face wears, or `null` for the faces that wear none.
+ * How bad each face is — ONE tone, which the row's dot paints and the bar's
+ * health dot folds (`olai-plugin-layout`'s `BarTone`), so the two cannot
+ * disagree. A table, so every face must be given one.
  *
- * A table, so every face must be given one — including the ones whose answer is
- * NOTHING, which is a decision and is spelled out rather than left as a missing
- * key. It is here rather than in the component for the reason the retired
- * readout's `LOOK` was: what a state looks like is an argument about that state,
- * and an argument is a thing to unit-test.
- *
- * `⚠` is for the two a person can act on, in the two tones that tell them
- * apart: a repository mid-rebase is amber and will take a commit once they
- * finish, a git that failed is alarm and will not.
- *
- * The `✓` is deliberately NOT green, and that is #108's rule surviving its own
- * readout: the connection dot beside this pill is the page's one green claim,
- * and a second one permanently lit in the ordinary case dilutes the thing a
- * reader actually scans for. Recency is what the committed face carries
- * (`✓ committed · 3m ago`); the colour was only ever decoration.
- *
- * It is also not `text-muted`. Muted is a paper-page token, and this mark
- * lives on the ink header: muted-on-ink is the same colour as the bar, so
- * the tick vanished. Quiet here means the chip's own ink — no tone, so the
- * glyph inherits the pill and brightens with the words on hover.
+ * The two settings and a page not yet told are quiet: nothing is wrong, there
+ * is nothing running. Writes waiting — in a repository mid-rebase too — want
+ * attention. A git that failed is broken. Committed, and a clean tree nothing
+ * has written to yet, are healthy.
  */
-export interface Mark {
-  /** One character, already in the font — nothing to load and nothing to
-   *  disagree with the words beside it. */
-  readonly glyph: string
-  /** The token that paints it, when the glyph has a colour of its own.
-   *  A theme token, never a literal colour. Absent is the chip's own ink. */
-  readonly tone?: string
+export const FACE_TONE: Readonly<Record<Face, BarTone>> = {
+  unknown: "quiet",
+  off: "quiet",
+  "no-repo": "quiet",
+  error: "alarm",
+  blocked: "notice",
+  waiting: "notice",
+  committed: "healthy",
+  never: "healthy",
 }
 
-export const MARK: Readonly<Record<Face, Mark | null>> = {
-  unknown: null,
-  off: null,
-  "no-repo": null,
-  error: { glyph: "⚠", tone: "text-alarm" },
-  blocked: { glyph: "⚠", tone: "text-doing" },
-  waiting: null,
-  committed: { glyph: "✓" },
-  never: null,
+/** WHAT THE READOUT SAYS, whole: its tone, its first words, the riders that
+ *  follow them, and the sentence behind them. The row draws it and the bar's
+ *  health dot reads it ({@link gitStatusOf}) — one reading, so the dot's colour
+ *  is always the row's. */
+export interface Reading {
+  readonly tone: BarTone
+  readonly says: string
+  readonly riders: ReadonlyArray<string>
+  readonly detail: string
 }
 
 /**
- * ... and the mark actually WORN, which a failing push overrules.
- *
- * `✓ committed · 13 unpushed` over a push that had been refused for an hour is
- * the screenshot this whole feature was filed against. The tick is a claim, and
- * it is a false one whenever the sharing half of the job is broken — so the
- * refusal takes the glyph, in alarm, whatever the face underneath is saying
- * about what is recorded.
- *
- * It is a RIDER rather than a ninth face, exactly as the unpushed count and the
- * pause are: a refused push says nothing about whether writes are being
- * recorded, which is what the faces are about, and folding it in would make
- * `4 uncommitted` and `push refused` compete for one word.
+ * The one reading. The riders are what no face can carry — commits nobody
+ * else has, a push git refused, a loop that stopped — and they move the tone:
+ * unpushed work is at least a notice, and a refused push or a stopped loop is
+ * a promise (shared, recorded without anybody watching) not being kept, so it
+ * is an alarm whatever the face underneath says.
  */
-export const markOf = (face: Face, git: GitState): Mark | null =>
-  git.pushSaid === null ? MARK[face] : { glyph: "⚠", tone: "text-alarm" }
+export const readingOf = (face: Face, pending: Pending, git: GitState): Reading => {
+  const unpushed = unpushedIn(pending)
+  const riders = [
+    ...(unpushed > 0 ? [`${unpushed} unpushed`] : []),
+    ...(git.pushSaid !== null ? [PUSH_REFUSED] : []),
+    ...(git.paused !== null ? [AUTO_PAUSED] : []),
+  ]
+  const tone: BarTone = git.pushSaid !== null || git.paused !== null
+    ? "alarm"
+    : unpushed > 0 && FACE_TONE[face] !== "alarm"
+    ? "notice"
+    : FACE_TONE[face]
+  return { tone, says: saysOf(face, waitingIn(pending)), riders, detail: explain(face, pending, git) }
+}
 
 /**
  * What a face MEANS, in one sentence — the tip a pointer opens and the
@@ -661,31 +655,9 @@ export const saysOf = (face: Face, waiting: number): string => {
   }
 }
 
-/**
- * THE READOUT AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
- * `BarStatus`): the row's words, riders included, and how bad it is.
- *
- * A git fault, a refused push and a stopped loop are broken — each is a
- * promise (recorded, shared, recorded without anybody watching) not being
- * kept. Writes waiting and commits nobody else has want attention, which is
- * exactly the set a phone's banner already interrupts for ({@link isNews}).
- * No repository, commits off and a page not yet told are quiet: nothing is
- * wrong, there is nothing running. Committed is healthy.
- */
+/** THE READOUT AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
+ *  `BarStatus`): {@link readingOf}, its words and riders on one line. */
 export const gitStatusOf = (face: Face, pending: Pending, git: GitState): BarStatus => {
-  const unpushed = unpushedIn(pending)
-  const label = [
-    saysOf(face, waitingIn(pending)),
-    ...(unpushed > 0 ? [`${unpushed} unpushed`] : []),
-    ...(git.pushSaid !== null ? [PUSH_REFUSED] : []),
-    ...(git.paused !== null ? [AUTO_PAUSED] : []),
-  ].join(" · ")
-  const tone = face === "error" || git.pushSaid !== null || git.paused !== null
-    ? "alarm"
-    : isNews(face, pending, git)
-    ? "notice"
-    : isInert(face)
-    ? "quiet"
-    : "healthy"
-  return { tone, label, detail: explain(face, pending, git) }
+  const said = readingOf(face, pending, git)
+  return { tone: said.tone, label: [said.says, ...said.riders].join(" · "), detail: said.detail }
 }

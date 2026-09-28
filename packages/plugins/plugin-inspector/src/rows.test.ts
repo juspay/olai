@@ -4,25 +4,38 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 
 
 import { NO_ROSTER, type BuiltPlugin, type PluginRoster } from "@olai/surface"
+import type { RowReport } from "@olai/plugin-api"
 import { expect, test } from "bun:test"
 
 import {
+  CONDITION_TONE,
+  CONDITION_WORDS,
+  conditionSaid,
   displayName,
   environmentValue,
   groupCount,
-  rowStatus,
   sentenceOf,
   NEEDS_YOU,
   pluginConfig,
   pluginConfirm,
   pluginGroups,
-  pluginHint,
   pluginRows,
-  rowCopy,
   pluginSwitch,
+  rowCondition,
   THIS_VAULT,
 } from "./rows.ts"
 
+/** The sentence a row's detail draws, read the way the panel reads it. */
+const pluginHint = (plugin: BuiltPlugin, reports?: ReadonlyMap<string, RowReport>): string | null => {
+  const now = rowCondition(plugin, reports)
+  return now === null ? null : conditionSaid(now)
+}
+
+/** The few words beside a row's name, read the way the panel reads them. */
+const rowStatus = (plugin: BuiltPlugin, reports?: ReadonlyMap<string, RowReport>, needs = false): string | null => {
+  const now = rowCondition(plugin, reports, needs)
+  return now === null ? null : CONDITION_WORDS[now.kind]
+}
 
 
 const roster = (
@@ -362,9 +375,8 @@ test("a press freezes only that row's strip, and does not move it", () => {
 
 
 test("session exceptions use the legend and never add row prose", () => {
-  const value = roster(["alpha"])
-  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, value)).toBeNull()
-  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "file" }, value)).toBeNull()
+  expect(pluginHint({ name: "alpha", running: true, switchPersistence: "session" })).toBeNull()
+  expect(pluginHint({ name: "alpha", running: true, switchPersistence: "file" })).toBeNull()
 })
 
 
@@ -592,10 +604,8 @@ test("a build whose faces ask for nothing keeps the groups it always had", () =>
 })
 
 test("a file-authored off state and session exceptions have no row sentence", () => {
-  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], configurationFile: "_olai/Settings.olai" })).toBeNull()
-  for (const configurationAvailable of [false, true]) {
-    expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, { built: [], configurationAvailable })).toBeNull()
-  }
+  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false })).toBeNull()
+  expect(pluginHint({ name: "alpha", running: true, switchPersistence: "session" })).toBeNull()
 })
 
 import { environmentVisible } from "./rows.ts"
@@ -636,4 +646,25 @@ test("inline controls replace summary and defaults identifiers", () => {
   expect(Object.values(TESTID)).toContain("plugin-knob")
   expect(Object.values(TESTID)).not.toContain("plugin-summary")
   expect(Object.values(TESTID)).not.toContain("plugin-defaults")
+})
+
+/**
+ * ONE READING, THREE TABLES: the few words, the sentence and the tone all come
+ * from the row's tagged condition, so a fault in this tab is an alarm because
+ * of what it IS, not because its words happen to start with "Failed".
+ */
+test("a row's condition is read once, and its words and tone are tables over it", () => {
+  const live: BuiltPlugin = { name: "alpha", running: true, state: "running" }
+  const failed = rowCondition(live, new Map<string, RowReport>([["alpha/panel", { state: "failed", fault: "no canvas" }], ["alpha", { state: "waiting" }]]))
+  expect(failed?.kind).toBe("tabFailed")
+  expect(CONDITION_WORDS.tabFailed).toBe("Failed in this tab")
+  expect(CONDITION_TONE.tabFailed).toBe("alarm")
+  expect(conditionSaid(failed!)).toBe("In this tab (panel): failed to start. no canvas In this tab: still starting.")
+  expect(rowCondition(live, new Map<string, RowReport>([["alpha", { state: "waiting", missing: ["slots"] }]]))?.kind).toBe("tabStarting")
+  expect(rowCondition({ ...live, browserOnly: true }, new Map<string, RowReport>([["beta", { state: "running" }]]))?.kind).toBe("tabStarting")
+  expect(rowCondition({ ...live, browserOnly: true })).toBeNull()
+  expect(rowCondition(live, new Map(), true)?.kind).toBe("setup")
+  expect(conditionSaid({ kind: "setup" })).toBeNull()
+  expect(rowCondition(only(row("waiting", undefined, ["deliveries"])))?.kind).toBe("blocked")
+  expect(CONDITION_TONE[rowCondition(only(row("failed")))!.kind]).toBe("alarm")
 })

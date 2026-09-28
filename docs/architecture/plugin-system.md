@@ -357,7 +357,9 @@ the originating row; a successful action returns nothing. A plugin can therefore
 explain an expected failure, such as a full node-agent pool, without depending on
 core's presentation types. An optional `confirm` sentence asks the row menu to
 show its existing confirmation controls before calling `run`; cancellation or
-dismissing the menu does not invoke the action.
+dismissing the menu does not invoke the action. A choice of verbs under one
+label (`RowChoice`, such as chat's engines) is handed whole; the menu draws it as
+a submenu, as that verb alone when it holds one, and not at all when it holds none.
 
 An entry may instead be a choice: `{ id, label, writes, choices }`, where
 `choices` is a list of ordinary actions. The menu draws it as a submenu, so a

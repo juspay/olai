@@ -170,7 +170,7 @@ Then("the mail row is off", async function (this: OlaiWorld) {
   // it), and this is what makes "and no pill is drawn" a claim about THIS row
   // rather than about a page that has not read the roster yet.
   const swap = (await this.showPluginRow("mail")).getByRole("switch", {
-    name: "Enable mail",
+    name: "Enable Mail",
     exact: true,
   })
   await this.waitUntil(

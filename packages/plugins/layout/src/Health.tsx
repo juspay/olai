@@ -15,7 +15,7 @@
  * Every row in the popover is still its OWNER's face: the connection and the
  * uptime line are this plugin's own; every other row is a `cluster` seat in
  * `app.header`, registered and withdrawn by the plugin that owns it, drawn here
- * by {@link PluginHeaders} exactly as the bar used to draw it — so a row's
+ * exactly as the bar used to draw it — so a row's
  * words and whatever its press opens (the Commit panel, kolu's feed) are the
  * plugin's, untouched. What changed is WHERE: a row of this popover rather
  * than a chip in the bar. The dot's colour comes from the same registrations'
@@ -23,8 +23,14 @@
  * its row and its vote with it in the same withdrawal, and one switched back
  * on brings both with a fresh scope.
  *
+ * The rows stand WORST FIRST, by the same live tones (`./health.ts`'s
+ * `worstFirst`): alarms, then notices, then the healthy, then the quiet, the
+ * connection taking part like any row. A row whose tone changes moves, and
+ * since they are moved in the DOM, a Tab walks them in the order they are seen.
+ *
  * The plugins door is a `layout.tools` entry that asks for this popover's
- * foot (`desktop: "health"`), so this file names no tenant.
+ * foot (`desktop: "health"`), so this file names no tenant. Such a door stands
+ * beside the dot and lends the popover only its row ({@link HealthSeat}).
  *
  * ## The panel
  *
@@ -35,30 +41,24 @@
  * layer, so its Escape shuts it first and a second Escape shuts this.
  */
 import { TESTID } from "olai-plugin-layout/testids"
-import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
-import { Portal } from "solid-js/web"
+import type { Hung } from "@olai/plugin-api"
+import { createMemo, createSignal, For, Show } from "solid-js"
+import { Dynamic, Portal } from "solid-js/web"
 
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { createPopover } from "@olai/web/client/popover.ts"
-import { ICON_BUTTON, PANEL_BOX } from "@olai/web/client/readout.ts"
+import { lookOf } from "@olai/web/client/connection/status.ts"
+import { ICON_BUTTON, PANEL_BOX, TONE } from "@olai/web/client/readout.ts"
 
-import { PluginHeaders } from "./Chrome.tsx"
 import { hung } from "./faces.ts"
-import { connectionStatus, nameOf, tipOf, worstOf, type DotTone } from "./health.ts"
+import { nameOf, tipOf, worstFirst, worstOf } from "./health.ts"
 import { Indicator } from "./Indicator.tsx"
-import type { BarStatus } from "./slots.ts"
-import { tools } from "./index.ts"
+import type { BarSeat, BarStatus, BarTone } from "./slots.ts"
+import { HealthSeat } from "./contracts/BarDoor.tsx"
 import { Tools } from "./Tools.tsx"
 import { Uptime } from "./Uptime.tsx"
-
-/** The dot's paint, per tone — theme tokens only. */
-const PAINT: Readonly<Record<DotTone, string>> = {
-  healthy: "bg-done",
-  notice: "bg-doing",
-  alarm: "bg-alarm",
-}
 
 /** A list of short rows wants less than the 24rem a settings panel is given.
  *  The box is narrowed and its RIGHT edge set on the bar's own right edge (the
@@ -72,33 +72,27 @@ const narrowed = (at: Anchor, edge: number | undefined): Record<string, string |
   return { ...styleOf(at), left: `${right - width}px`, width: `${width}px` }
 }
 
+/** The connection's own row, ordered among the seats like any of them. */
+const CONNECTION = "connection"
+type Row = typeof CONNECTION | Hung<BarSeat>
+
 export function Health(props: { readonly slots: RendererSlots }) {
+  const seats = createMemo(() => hung("app.header").filter((one) => one.face.place === "cluster"))
   /** Every status standing now: the connection first, then each cluster
    *  seat's in mount order. A seat with no `status` has no vote. */
   const statuses = createMemo((): ReadonlyArray<BarStatus> => [
-    connectionStatus(connectionReadout()),
-    ...hung("app.header").flatMap((one) =>
-      one.face.place === "cluster" && one.face.status !== undefined ? [one.face.status()] : []),
+    lookOf(connectionReadout()),
+    ...seats().flatMap((one) => one.face.status === undefined ? [] : [one.face.status()]),
   ])
+  /** A row's live tone; a seat with no `status` stands with the quiet. */
+  const toneOf = (row: Row): BarTone =>
+    row === CONNECTION ? lookOf(connectionReadout()).tone : row.face.status?.().tone ?? "quiet"
+  const rows = createMemo(() => worstFirst<Row>([CONNECTION, ...seats()], toneOf))
   const tone = () => worstOf(statuses())
   let dot: HTMLButtonElement | undefined
-  const [open, setOpen] = createSignal(false)
-  const popover = createPopover({ held: { open, setOpen } })
-  // A door at this popover's foot whose own state says it is up (the plugins
-  // panel, held by the inspector's activation) needs its trigger mounted to
-  // draw — so the popover opens for it. That is how a panel that was open
-  // when the shell was rebuilt comes back with the shell.
-  //
-  // MOUNTED, NOT SHOWN: while that panel is up the popover keeps its rows in
-  // the page (the door's trigger lives there) but is not drawn, so the panel
-  // is the one thing on screen rather than a panel over a popover. When the
-  // panel goes down the popover goes with it — the person has moved on.
-  const doorUp = createMemo(() =>
-    props.slots.read(tools).some((entry) => entry.value.desktop === "health" && entry.value.open?.() === true))
-  createEffect(on(doorUp, (up, was) => {
-    if (up) setOpen(true)
-    else if (was === true) setOpen(false)
-  }))
+  const popover = createPopover()
+  // The popover's foot, while it is drawn — where a `health` door puts its row.
+  const [foot, setFoot] = createSignal<HTMLElement>()
 
   return (
     <>
@@ -126,7 +120,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
         <span
           // A hairline of paper round it: the healthy green is a page-ground
           // token, and on the ink bar it needs an edge to read as a mark.
-          class={`inline-block size-3 rounded-full ring-1 ring-paper/60 ${PAINT[tone()]}`}
+          class={`inline-block size-3 rounded-full ring-1 ring-paper/60 ${TONE[tone()].dot}`}
           aria-hidden="true"
         />
       </button>
@@ -135,23 +129,30 @@ export function Health(props: { readonly slots: RendererSlots }) {
           <Portal>
             <section
               ref={popover.setPanel}
-              class={`${PANEL_BOX} gap-0.5 !p-2 ${doorUp() ? "invisible" : ""}`}
+              class={`${PANEL_BOX} gap-0.5 !p-2`}
               style={narrowed(at(), dot?.parentElement?.getBoundingClientRect().right)}
-              aria-hidden={doorUp() ? "true" : undefined}
               tabindex="-1"
               data-testid={TESTID.healthPanel}
               aria-label="status"
             >
-              <Indicator readout={connectionReadout()} />
-              <PluginHeaders place="cluster" />
+              <For each={rows()}>
+                {(row) => row === CONNECTION
+                  ? <Indicator readout={connectionReadout()} />
+                  : <Dynamic component={row.face.body} />}
+              </For>
               <Uptime />
-              <div class="mt-1 border-t border-rule/60 pt-1">
-                <Tools slots={props.slots} where="health" />
-              </div>
+              <div ref={setFoot} class="mt-1 border-t border-rule/60 pt-1" />
             </section>
           </Portal>
         )}
       </Show>
+      <HealthSeat.Provider value={{
+        dot: () => dot,
+        foot: () => (popover.open() ? foot() : undefined),
+        shut: popover.close,
+      }}>
+        <Tools slots={props.slots} where="health" />
+      </HealthSeat.Provider>
     </>
   )
 }

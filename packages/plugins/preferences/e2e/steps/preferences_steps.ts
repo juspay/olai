@@ -45,7 +45,6 @@ import {
   attr,
   CONNECTION,
   HEALTH,
-  HEALTH_PANEL,
   HYDRATION_TIMEOUT,
   PANE,
   CHAT_TOGGLE,
@@ -1002,22 +1001,20 @@ When("I close the plugins panel", async function (this: OlaiWorld) {
   // Wait for the reconnecting dialog to release pointer and keyboard input.
   await this.page.locator(selector(TESTID.offline)).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
   await this.waitUntil(async () => await this.pluginsPanel().locator(`${PLUGIN_SWITCH}[aria-disabled="true"]`).count() === 0, "the panel controls to finish reconciling");
-  const trigger = this.page.locator(`${PLUGINS_TRIGGER}:visible`).first();
-  // The door's own row when it is on screen — a desktop whose health popover
-  // is still up under the panel. Otherwise Escape, the door's other way shut:
-  // the popover the row sits in has gone once the panel took the caret, and
-  // on a phone the panel covers the drawer's row.
+  // Escape, on every width: on a desktop the row that opened it went with the
+  // health popover (picking it shuts the popover), and on a phone the panel
+  // covers the drawer's row.
   // A step before this one may already have put the panel away (a press
   // elsewhere on the page is a click-away), so shut it only while it is up —
   // and keep asking, because a rebuilt shell puts a held-open panel back.
   await this.waitUntil(async () => {
     if ((await this.pluginsPanel().count()) === 0) return (await this.page.locator(PLUGINS_PANEL).count()) === 0;
-    if (this.viewport().width > 700 && await trigger.isVisible().catch(() => false)) await this.press(trigger);
-    else await this.pluginsPanel().press("Escape").catch(() => undefined);
+    await this.pluginsPanel().press("Escape").catch(() => undefined);
     return (await this.page.locator(PLUGINS_PANEL).count()) === 0;
   }, "the plugins panel to be shut");
-  // ...and the health popover it was opened from, the way a person would
-  // finish: its dot again. Nothing is left over the page for the next step.
+  // Picking the Plugins row already shut the health popover; should a step
+  // before this one have left it up anyway, shut it the way a person would —
+  // its dot again. Nothing is left over the page for the next step.
   const health = this.page.locator(HEALTH_PANEL);
   if (await health.isVisible()) {
     await this.press(this.page.locator(HEALTH));

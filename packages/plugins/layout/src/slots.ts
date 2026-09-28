@@ -3,18 +3,17 @@ import type { JSX } from "solid-js"
 import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"
 
 /**
- * How a status readout is doing, worst last. The bar's one health dot wears the
- * worst tone among everything standing in the `cluster` seat (and the
- * connection, which is the bar's own).
- *
- *   - `healthy` — working, and saying so.
- *   - `quiet` — nothing wrong and nothing running: `no kolu`, `no git here`.
- *     It never colours the dot.
- *   - `notice` — wants attention, is not broken: writes waiting, a watcher
- *     gone quiet.
- *   - `alarm` — broken: a dropped connection, a version skew, a fault.
+ * How a status readout is doing, and how each tone is painted — `@olai/web`'s
+ * one table (`client/readout.ts`), opened here too so a readout's plugin reads
+ * its tone's paint through the same contract door it states the tone through.
+ * The bar's one health dot wears the worst tone among everything standing in
+ * the `cluster` seat (and the connection, which is the bar's own); each row
+ * wears its own, from the same table, so a dot that is not green always has a
+ * row of its colour under it.
  */
-export type BarTone = "healthy" | "quiet" | "notice" | "alarm"
+export type { Tone as BarTone } from "@olai/web/client/readout.ts"
+export { TONE } from "@olai/web/client/readout.ts"
+import type { Tone as BarTone } from "@olai/web/client/readout.ts"
 
 /** What a cluster readout states NOW, in its own words — the same short label
  *  its row draws, and the sentence behind it. The dot's name and tip quote

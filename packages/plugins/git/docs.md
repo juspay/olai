@@ -36,7 +36,7 @@ move onto the result only with one all-or-nothing tree update.
 
 ## In the browser
 
-The desktop Commit readout uses `app.header`: it is a row of the health-dot popover, and it declares a `status` (read off the same two cells by a root this row's activation owns) so the dot turns amber while writes wait, the repository is busy or commits are unpushed, and red on a git error, a refused push or a paused loop. `Not a git folder` and `Commits off` are quiet: they never colour the dot. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable while an agent conversation is open.
+The desktop Commit readout uses `app.header`: it is a row of the health-dot popover, and it declares a `status` (read off the same two cells by a root this row's activation owns) so the dot turns amber while writes wait (in a busy repository too) or commits are unpushed, and red on a git error, a refused push or a paused loop. The row reads the same value (`readingOf` in `said.ts`: one tone, the words and their riders) and wears a dot of that tone, so the Commit row is always the one that explains an amber or red dot. `Not a git folder` and `Commits off` are quiet: they wear no dot and never colour the health dot. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable while an agent conversation is open.
 
 ## On the wire
 

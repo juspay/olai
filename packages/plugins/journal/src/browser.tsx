@@ -144,7 +144,7 @@ export const components = {
   }) }),
   "reminder-controls": definePlugin({ name: "reminder-controls", needs: [alertsChannel, rendererSlots], apply: Effect.gen(function*() {
     const channel = yield* alertsChannel
-    yield* (yield* rendererSlots).contribute(sections, { group: "Notifications", order: 31, body: () =>
+    yield* (yield* rendererSlots).contribute(sections, { heading: "notifications" as const, order: 1, body: () =>
       <Show when={reminderState.read()}>{state => <ReminderRow channel={channel} state={state()} />}</Show> })
   }) }),
   /** Where a minted note is opened, DECLARED — a component of its own so the

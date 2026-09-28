@@ -15,6 +15,7 @@ import { Show, type Accessor } from "solid-js"
 import { TESTID } from "../testids.ts"
 import type { Account } from "../wire.ts"
 import { mailSaid } from "./said.ts"
+import { TONE } from "olai-plugin-layout/slots"
 
 /** The furniture this face spends of the app's bar — redeclared so this package
  *  does not import layout's, exactly as odu's readout does. */
@@ -42,7 +43,7 @@ export function MailReadout(props: {
         title={said().detail}
         aria-label={`mail: ${said().detail}`}
       >
-        <span class={`${pill.DOT} ${said().dot}`} aria-hidden="true" />
+        <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
         <span class="min-w-0 truncate">{said().label}</span>
       </span>
     </Show>

@@ -293,3 +293,24 @@ test("a situated node's menu keeps the two halves in their order, with one rule 
   expect(actions.slice(0, 2).map((one) => one.id)).toEqual(["zoom", "copy-link"])
   expect(actions.filter((one) => one.divider === true).map((one) => one.id)).toEqual(["pin"])
 })
+
+test("a group draws in the catalog's order: the pin ends its group, and the clears end More", () => {
+  // A mirror of a dated, repeating node: every verb of `More ›` a placement
+  // can carry. The order is declared where each verb is pushed, never read
+  // off how an id is spelled.
+  const set = derive(TEST_CLAIMS, recordsOf(setOf({ "due.olai": [
+    `{"id":"due","ord":"a0","title":"due","date":"2026-08-10","repeat":"every day"}`,
+    `{"id":"here","ord":"a1","mirror":"due"}`,
+  ].join("\n") })))
+  const here = flatten(rowsOf(set, "due.olai"), new Set()).find((one) => one.at.node.id === "here")!
+  const open = () => {}
+  const menu = nodeMenuActions({
+    routes, row: here, pins: NO_PINS, foldable: [], go: open, record: open,
+    panels: { pickDate: open, pickRepeat: open, pickEdge: open, addProp: open, pickMove: open },
+  })
+  expect(menu.map((one) => one.id)).toEqual(["zoom", "mark", "set-date", "set-repeat", "pin", "move-to", "more"])
+  const more = menu.find((one) => one.id === "more")
+  expect(more !== undefined && "entries" in more ? more.entries.map((one) => one.id) : []).toEqual([
+    "copy-link", "copy-text", "prop-add", "edge-see", "edge-after", "remove-placement", "clear-date", "clear-repeat",
+  ])
+})

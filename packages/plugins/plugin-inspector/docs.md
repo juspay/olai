@@ -3,22 +3,31 @@
 The plugin inspector provides enable switches, configuration controls and reports in the plugins panel.
 It is a browser-only bundle row. Disabling it removes its doors (the **Plugins**
 row at the foot of the desktop health popover and the phone drawer's row); the
-host keeps managing plugins and its non-UI operations remain available.
+host keeps managing plugins and its non-UI operations remain available. On a
+desktop the door stands beside the health dot: picking its row shuts the
+popover and opens the panel, which hangs from the dot and hands the caret back
+to it on Escape.
 
 ## One line per plugin
 
 The panel is one column. Each plugin is one line: the label `olai.yml` gives it
 (`Claude Code`, `Kolu`), a few words of state only when something is wrong
 (`Failed`, `Can't start`, `Starting…`, `Needs approval`, `Needs setup`,
-`Failed in this tab`), and its switch, labelled `Enable <name>`. A plugin that is
-on and fine, or off because somebody left it off, says nothing beyond its switch.
+`Failed in this tab`, `Starting in this tab`), and its switch, labelled
+`Enable <label>` with the name the row shows (`Enable Claude Code`). A plugin
+that is on and fine, or off because somebody left it off, says nothing beyond
+its switch. The row's condition is read once, as one tagged value
+(`rowCondition` in `rows.ts`); the few words, the detail's sentence and their
+colour (alarm for a fault, in-progress for a wait) are tables over that tag,
+so nothing classifies a row by its words.
 
 Everything else is the row's detail, behind a chevron before the label: the full
 sentence about what is wrong, the face its own plugin hangs, **Try again** or
 **Reload** for a browser half that failed, a vault definition's source, its
 settings, the environment it reads, `Short name` (the settings namespace, where
 the label differs), `Saved in` (a link to its node) and, for a session-only
-switch, `This switch resets when olai restarts.` A row with nothing to reveal
+switch, `This switch resets when olai restarts.` (the switch itself wears a
+dashed ring and the hover title `Resets when olai restarts`). A row with nothing to reveal
 has no chevron; its label keeps the chevron's space so the names line up.
 
 ## Groups

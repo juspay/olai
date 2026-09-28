@@ -21,10 +21,37 @@
  * should have to be edited to add a third readout.
  */
 
+/**
+ * How bad a readout's state is, worst last — decided ONCE, in the state's own
+ * table, and read by both the row that draws it and the bar's health dot that
+ * folds every row. Two decisions (a row colour and a separate dot tone) are
+ * two answers that can disagree, and did: an amber dot over a list with no
+ * amber row in it.
+ *
+ *   - `healthy` — working, and saying so.
+ *   - `quiet` — nothing wrong and nothing running: `No kolu`, `Not a git
+ *     folder`. It paints no dot and never colours the health dot.
+ *   - `notice` — wants attention, is not broken: writes waiting, a watcher
+ *     gone quiet, a connection re-dialling.
+ *   - `alarm` — broken: a replaced server, a version skew, a fault.
+ */
+export type Tone = "healthy" | "quiet" | "notice" | "alarm"
+
+/** THE ONE PAINT per tone — the dot's colour and, where a row's words carry
+ *  the tone too, their ink. Theme tokens only. `quiet`'s dot is empty: the
+ *  {@link DOT} box still stands, so the words stay aligned with the rows that
+ *  wear one. */
+export const TONE: Readonly<Record<Tone, { readonly dot: string; readonly text: string }>> = {
+  healthy: { dot: "bg-done", text: "" },
+  quiet: { dot: "", text: "" },
+  notice: { dot: "bg-doing", text: "text-doing" },
+  alarm: { dot: "bg-alarm", text: "text-alarm" },
+}
+
 /** How one state of a readout is drawn. */
 export interface Look {
-  /** The dot. A background utility, because the dot IS the colour. */
-  readonly dot: string
+  /** How bad it is — the row's dot and the health dot's vote. */
+  readonly tone: Tone
   /** Two or three words, on screen next to the dot. */
   readonly label: string
   /** What that means, spelled out — the longer sentence a reader gets from the
@@ -58,29 +85,8 @@ export const PILL =
  *  panel's): the readout row, always a control. */
 export const STATUS_ROW = PILL
 
-/** The dot itself, which the state's own `dot` utility colours. */
+/** The dot itself, which {@link TONE} colours. */
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
-
-/**
- * THE WARNING REGISTER — a readout's "wants attention, is not broken" face
- * (the kolu watcher gone quiet). It used to be a hand-picked amber on the
- * ink bar; a row on the panel's ground wears the theme's own `doing` ink,
- * which is what the health dot's `notice` tone wears too — one colour for
- * one meaning, in every palette.
- */
-export const PILL_WARN_COAT = ""
-/** The dot's HOLLOW face — the same round, emptied. */
-export const DOT_HOLLOW_WARN = "!bg-transparent border-2 !border-doing"
-/** The quiet sentence's ink, beside the dot's. */
-export const TEXT_WARN = "text-doing"
-
-/**
- * THE ALARM REGISTER — a refused post, a missing permission. Same ink
- * git's error face wears (`text-alarm`), and the health dot's `alarm` tone.
- */
-export const PILL_ALARM_COAT = ""
-export const DOT_HOLLOW_ALARM = "!bg-transparent border-2 !border-alarm"
-export const TEXT_ALARM = "text-alarm"
 
 /**
  * The other shape in the bar: a BUTTON with a glyph on it — the agent toggle

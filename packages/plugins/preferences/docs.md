@@ -33,25 +33,36 @@ raise the prompt), blocked, or unable to show them.
 
 ## The contribution contract
 
+The headings are this package's own static table, `HEADINGS` in `src/index.ts`:
+a key and the words a person reads, drawn in the table's order.
+
+```ts
+export const HEADINGS = [
+  { key: "appearance", label: "Appearance" },
+  { key: "outlines", label: "Outlines" },
+  { key: "notifications", label: "Notifications" },
+] as const
+```
+
 A contribution to `preferences.sections` is a `Section`:
 
 ```ts
 interface Section {
-  readonly group: string          // the heading, in the words a person reads
-  readonly order: number          // lower first, across the whole panel
+  readonly heading: Heading       // a key of HEADINGS
+  readonly order: number          // lower first, among this heading's rows only
   readonly body: () => JSX.Element
 }
 ```
 
-The panel sorts every contribution by `order` and draws one heading per
-distinct `group`, at the place of its first contribution; contributions naming
-the same heading are drawn together under it. So a plugin that joins an
-existing heading (journal's Reminders under alerts' Notifications) needs
-nothing from the plugin already there, and the panel knows no heading and no
-row of its own. A contributor switched off withdraws its entry, and a heading
-left with no entries is gone with it, live, in every open panel. A body that
-draws no row (a provider with nothing to offer yet) leaves its heading hidden
-rather than drawn over nothing.
+So a contributor names where its rows go and never spells a heading's words:
+two plugins sharing a heading cannot disagree about it, and a key that is not
+in the table is a type error. A plugin that joins an existing heading
+(journal's Reminders, `order: 1`, under alerts' Notifications, `order: 0`)
+needs nothing from the plugin already there, and the panel knows no row of its
+own. A contributor switched off withdraws its entry, and a heading left with no
+entries is not drawn, live, in every open panel. A body that draws no row (a
+provider with nothing to offer yet) leaves its heading hidden rather than drawn
+over nothing. Each heading's group carries its key as `data-group`.
 
 ## Lifetimes
 

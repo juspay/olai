@@ -138,7 +138,7 @@ NodeId,
 addressOf,
 fileKind,
 type PageReading,
-stemOf,
+nameOf,
 type PageRequest,
 parseAddress,
 type Shown,
@@ -860,17 +860,15 @@ export const labelIn = (pages: MountedPages, route: Route): string => {
 }
 
 /**
- * THE NAME A DOCUMENT GOES BY — the files sidebar's word for it, so a tab and
- * the sidebar row it was opened from cannot disagree: `@olai/format`'s
- * `stemOf` over the same claims, which takes off the suffix that claimed the
- * file (`garden.olai` is `garden`, `notes/plan.md` is `plan`).
+ * THE NAME A FILE GOES BY — the files sidebar's word for it, so a tab and the
+ * sidebar row it was opened from cannot disagree: `@olai/format`'s `nameOf`
+ * over the same claims (`garden.olai` is `garden`, `art/report.pdf` is
+ * `report.pdf`).
  *
- * ONLY for a DOCUMENT — a kind the vault keeps (`kept`: an outline, a
- * markdown file). A picture, a PDF, a CSV is a file whose suffix is part of
- * how a person tells it apart, and it keeps it (`report.pdf`). Only for an
- * address that opens the file WHOLE or at a heading of it: a node, a row and a
- * plugin page are named by what they show, which is the page's own report.
- * `undefined` for those, and before the claims have been read.
+ * Only for an address that opens a claimed file WHOLE or at a heading of it:
+ * a node, a row and a plugin page are named by what they show, which is the
+ * page's own report. `undefined` for those, and before the claims have been
+ * read.
  *
  * Two open documents can share a stem (`notes.md` beside `notes.olai`,
  * `a/x.olai` beside `b/x.olai`); telling them apart is the caller's, which
@@ -880,10 +878,7 @@ export const nameIn = (table: Claims | undefined, route: Route): string | undefi
   if (table === undefined || route.kind !== "at") return undefined
   const address = route.address
   if (address === null || (address.kind !== "document" && address.kind !== "heading")) return undefined
-  const kind = fileKind(table, address.path)
-  if (kind === null) return undefined
-  const base = address.path.slice(address.path.lastIndexOf("/") + 1)
-  return table.byKind.get(kind)?.kept === true ? stemOf(table, address.path) : base
+  return fileKind(table, address.path) === null ? undefined : nameOf(table, address.path)
 }
 
 export const routingOver = (claims: () => Claims | undefined, pages: () => MountedPages): Routing => ({

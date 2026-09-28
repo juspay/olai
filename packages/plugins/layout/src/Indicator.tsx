@@ -48,7 +48,7 @@ import { Show } from "solid-js"
 
 import { isDegraded, lookOf, type SurfaceReadout } from "@olai/web/client/connection/status.ts"
 import { desktop } from "./layout/live.ts"
-import { BANNER, DOT, PILL } from "@olai/web/client/readout.ts"
+import { BANNER, DOT, PILL, TONE } from "@olai/web/client/readout.ts"
 
 
 /** The room a page keeps at the bottom of its reading column: the phone's home
@@ -85,13 +85,13 @@ export function Indicator(props: { readonly readout: SurfaceReadout }) {
           title={look().detail}
           aria-live="polite"
         >
-          <span class={`${DOT} ${look().dot}`} aria-hidden="true" />
+          <span class={`${DOT} ${TONE[look().tone].dot}`} data-health={look().tone} aria-hidden="true" />
           <span class="min-w-0 truncate">{look().label}</span>
         </div>
       </Show>
       <Show when={!desktop() && isDegraded(props.readout)}>
         <div
-          class={`${BANNER} text-doing`}
+          class={`${BANNER} ${TONE[look().tone].text}`}
           data-testid={TESTID.connection}
           data-connection={props.readout.status}
           data-stopped={props.readout.stopped?.join(" ")}

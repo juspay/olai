@@ -52,6 +52,9 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     And the "image" row "art/handle.png" wears its own glyph
     And the "csv" row "data/sales.csv" wears its own glyph
     And the "pdf" row "reports/q3.pdf" wears its own glyph
+    # Not a document, so the row keeps its suffix — the same name its tab wears.
+    And the "pdf" row "reports/q3.pdf" reads "q3.pdf"
+    And the "image" row "art/handle.png" reads "handle.png"
     And there should be no page errors
 
   @corpus:good

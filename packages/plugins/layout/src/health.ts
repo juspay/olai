@@ -8,17 +8,15 @@
  *
  * WHO SAYS WHAT is not decided here. Each readout states its own tone and its
  * own words (`./slots.ts`'s `BarStatus`, supplied by the plugin that owns the
- * readout); the connection's are mapped below because the connection is the
- * bar's own readout. This file only picks the worst and says it.
+ * readout, and the connection's `lookOf`) — the same value its row paints
+ * from. This file only picks the worst and says it, so the dot's colour is
+ * always some row's.
  */
-import type { SurfaceReadout } from "@olai/web/client/connection/status.ts"
-import { lookOf, toneOf } from "@olai/web/client/connection/status.ts"
-
 import type { BarStatus, BarTone } from "./slots.ts"
 
 /** The dot's three colours. `quiet` never reaches the dot: a row with nothing
  *  running is not a row with something wrong. */
-export type DotTone = "healthy" | "notice" | "alarm"
+export type DotTone = Exclude<BarTone, "quiet">
 
 const RANK: Readonly<Record<BarTone, number>> = { quiet: 0, healthy: 0, notice: 1, alarm: 2 }
 
@@ -29,6 +27,16 @@ export const worstOf = (statuses: ReadonlyArray<BarStatus>): DotTone =>
     const tone: DotTone = one.tone === "quiet" ? "healthy" : one.tone
     return RANK[tone] > RANK[worst] ? tone : worst
   }, "healthy")
+
+/** Where a tone's rows stand in the popover: worst first, and `quiet` last. */
+const PLACE: Readonly<Record<BarTone, number>> = { alarm: 0, notice: 1, healthy: 2, quiet: 3 }
+
+/** THE POPOVER'S ORDER: rows by their live tone, worst first — so the row that
+ *  explains the dot's colour is the first one under it. Rows of one tone keep
+ *  the order they came in (the connection first, then mount order): the sort
+ *  is stable. Layout orders; no row says where it goes. */
+export const worstFirst = <T>(rows: ReadonlyArray<T>, toneOf: (row: T) => BarTone): ReadonlyArray<T> =>
+  [...rows].sort((a, b) => PLACE[toneOf(a)] - PLACE[toneOf(b)])
 
 /** The statuses that are news — `alarm` first, then `notice` — in the order
  *  they stand in the bar within each tone. */
@@ -51,14 +59,4 @@ export const tipOf = (statuses: ReadonlyArray<BarStatus>): string => {
   const news = newsOf(statuses)
   return [nameOf(statuses), ...news.flatMap((one) =>
     one.detail === undefined || one.detail === "" ? [] : [`${one.label} — ${one.detail}`])].join("\n")
-}
-
-/** The connection's own tone — `connection/status.ts`'s, which is the one
- *  reader of the readout's raw states. */
-export const connectionTone = (readout: SurfaceReadout): BarTone => toneOf(readout)
-
-/** The connection as a status, in the words its row says. */
-export const connectionStatus = (readout: SurfaceReadout): BarStatus => {
-  const look = lookOf(readout)
-  return { tone: connectionTone(readout), label: look.label, detail: look.detail }
 }

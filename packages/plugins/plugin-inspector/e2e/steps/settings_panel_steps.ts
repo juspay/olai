@@ -94,20 +94,20 @@ Then("the same serve process is running", function(this: OlaiWorld) {
 /**
  * THE ROW AT REST IS ONE LINE: the build's label for it, its switch, and
  * nothing else while it is fine — no state words, no summary, and its detail
- * shut. The switch keeps the plugin's own name as its accessible name, which
- * is the settings namespace a person types.
+ * shut. The switch is labelled with the name the row shows ("Enable Git"),
+ * which is the build's label where it has one.
  */
 Then("the plugin {string} line reads {string} beside its labelled enable switch", async function(this: OlaiWorld, name: string, label: string) {
   const row = await shownLine(this, name)
   const line = row.locator(".plugins-line")
   await this.waitUntil(async () => (await line.locator(".plugins-name-text").innerText()).trim() === label,
     `the ${name} line to read ${JSON.stringify(label)}`)
-  assert.equal(await line.getByRole("switch", { name: `Enable ${name}`, exact: true }).count(), 1)
+  assert.equal(await line.getByRole("switch", { name: `Enable ${label}`, exact: true }).count(), 1)
   assert.equal(await line.locator(".plugins-status").count(), 0)
   assert.equal(await row.locator('[data-testid="plugin-summary"], [data-testid="plugin-defaults"]').count(), 0)
 })
 When("I focus the enable switch for {string}", async function(this: OlaiWorld, name: string) {
-  await (await this.showPluginRow(name)).getByRole("switch", { name: `Enable ${name}`, exact: true }).focus()
+  await (await this.showPluginRow(name)).locator(selector(TESTID.pluginSwitch)).focus()
 })
 Then("the {string} setting {string} has focus", async function(this: OlaiWorld, name: string, key: string) {
   assert.equal(await (await control(this, name, key)).locator("input").evaluate(el => el === document.activeElement), true)
@@ -199,13 +199,13 @@ Then("the plugins panel remains open", async function(this: OlaiWorld) {
 
 Then("the plugin {string} is off without prose", async function(this: OlaiWorld, name: string) {
   const row = await this.showPluginRow(name)
-  await this.waitUntil(async () => await row.getByRole("switch", { name: `Enable ${name}`, exact: true }).getAttribute("aria-checked") === "false", "the off switch")
+  await this.waitUntil(async () => await row.locator(selector(TESTID.pluginSwitch)).getAttribute("aria-checked") === "false", "the off switch")
   assert.equal(await row.locator('[data-testid="prefs-hint"]').count(), 0)
   assert.equal(await row.getAttribute("data-off"), "true")
 })
 Then("the plugin {string} has a session-only switch ring", async function(this: OlaiWorld, name: string) {
   const row = await this.showPluginRow(name)
-  const toggle = row.getByRole("switch", { name: `Enable ${name}`, exact: true })
+  const toggle = row.locator(selector(TESTID.pluginSwitch))
   await this.waitUntil(async () => await toggle.getAttribute("title") === SESSION_TITLE, "the session switch")
   assert.equal(await toggle.evaluate(el => getComputedStyle(el, "::before").borderTopStyle), "dashed")
   // The words live in the row's detail, once, rather than beside the switch.

@@ -1,7 +1,7 @@
 import { servedDirectory } from "./vault.ts"
 /** Row actions and the palette share one server-owned ancestor query. */
 import type { AppCommand } from "olai-plugin-navigation/slots"
-import type { RowAction, RowVerb } from "olai-plugin-outlines/slots"
+import type { RowAction } from "olai-plugin-outlines/slots"
 import { atElement } from "olai-plugin-navigation/routes"
 import { Result } from "effect"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -31,25 +31,11 @@ const show = (agent: { node: string; file: string }) => {
 }
 
 /**
- * ONE ENTRY per gesture, however many engines: the verb itself when only one
- * engine can start, and a choice of the engines that can (`RowChoice`, drawn
- * by outlines as a submenu) when several can. Engines this machine lacks are
- * never offered; the plugins panel says what they need.
+ * ONE ENTRY per gesture, however many engines: a choice of the engines that
+ * can start (`RowChoice`), which outlines draws as a submenu, as the verb
+ * itself when there is one, and not at all when there are none. Engines this
+ * machine lacks are never offered; the plugins panel says what they need.
  */
-const oneOrChoice = (
-  id: string,
-  label: string,
-  engines: ReadonlyArray<{ readonly id: string; readonly name: string }>,
-  verb: (engine: { readonly id: string; readonly name: string }) => Omit<RowVerb, "id" | "label" | "writes">,
-): ReadonlyArray<RowAction> => {
-  if (engines.length === 0) return []
-  if (engines.length === 1) return [{ id: `${id}-${engines[0]!.id}`, label, writes: true, ...verb(engines[0]!) }]
-  return [{
-    id, label, writes: true,
-    choices: engines.map(engine => ({ id: `${id}-${engine.id}`, label: engine.name, writes: true, ...verb(engine) })),
-  }]
-}
-
 export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction> => {
   /** THE START GESTURE, SHARED BY BOTH HALVES: start a session on a node with
    *  a given engine, and on success mark the node read and unfold it. The
@@ -67,7 +53,10 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
     // sessionless one, and nothing when none can.
     const engines = bound?.engine != null
       ? roster.engines().filter(engine => engine.id === bound.engine) : roster.engines()
-    return oneOrChoice("start-agent", "Start an agent", engines, engine => ({ run: startOn(engine) }))
+    return [{
+      id: "start-agent", label: "Start an agent", writes: true,
+      choices: engines.map(engine => ({ id: `start-agent-${engine.id}`, label: engine.name, writes: true, run: startOn(engine) })),
+    }]
   }
   // A node already talking through a conversation: `Fresh start` — the node's
   // own engine first, a choice only where there is one — and CLOSE, releasing
@@ -77,10 +66,13 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
   const current = available.find(engine => engine.id === bound.engine)
   const engines = current === undefined ? available : [current, ...available.filter(engine => engine !== current)]
   return [
-    ...oneOrChoice("fresh-start", "Fresh start", engines, engine => ({
-      confirm: freshStartQuestion(bound.title),
-      run: startOn(engine),
-    })),
+    {
+      id: "fresh-start", label: "Fresh start", writes: true,
+      choices: engines.map(engine => ({
+        id: `fresh-start-${engine.id}`, label: engine.name, writes: true,
+        confirm: freshStartQuestion(bound.title), run: startOn(engine),
+      })),
+    },
     {
       id: "close-agent", writes: true, label: "Close the agent",
       run: async (node: string) => {

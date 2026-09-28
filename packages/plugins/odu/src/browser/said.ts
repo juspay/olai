@@ -9,44 +9,29 @@ import type { BarStatus } from "olai-plugin-layout/slots"
 import type { OduLink } from "olai-plugin-odu/appliance/wire"
 
 /**
- * THE SAME READING AS A STATUS for the bar's health dot (`olai-plugin-layout`'s
- * `BarStatus`): the row's own label and sentence, and how bad it is. A skew is
- * broken; no odu at all is quiet — nothing is wrong with a serve that does not
- * watch one.
+ * ONE READING, for the row and the bar's health dot alike (`olai-plugin-layout`'s
+ * `BarStatus`): the label, the sentence, and how bad it is. A skew is broken;
+ * no odu at all is quiet — nothing is wrong with a serve that does not watch
+ * one.
  */
-export const oduStatus = (link: OduLink): BarStatus => {
-  const said = oduSaid(link)
-  return {
-    tone: link.status === "connected" ? "healthy" : link.status === "skew" ? "alarm" : "quiet",
-    label: said.label,
-    detail: said.detail,
-  }
-}
-
-export interface Said {
-  readonly dot: string
-  readonly label: string
-  readonly detail: string
-}
-
-export const oduSaid = (link: OduLink): Said => {
+export const oduSaid = (link: OduLink): BarStatus => {
   switch (link.status) {
     case "connected":
       return {
-        dot: "bg-done",
+        tone: "healthy",
         label: "odu",
         detail: `Connected to ${link.origin}`,
       }
     case "skew":
       return {
-        dot: "bg-alarm",
+        tone: "alarm",
         label: "odu: update needed",
         detail:
           `odu and olai versions don't match (odu ${link.protocolVersion ?? "?"}, olai ${link.speaks}). Update one of them.`,
       }
     case "absent":
       return {
-        dot: "bg-muted",
+        tone: "quiet",
         label: "No odu",
         detail:
           link.origin === ""

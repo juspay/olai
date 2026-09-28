@@ -52,7 +52,7 @@ import { describe, expect, test } from "bun:test"
 
 import type { NodeChange } from "./changes.ts"
 import { noteDateOf } from "./dates.ts"
-import { bareOf, mintExt, stemOf } from "./kinds.ts"
+import { bareOf, mintExt, nameOf, stemOf } from "./kinds.ts"
 import { composed } from "./message.ts"
 
 /** `./message.ts`'s retired private `stemOf`: the basename, and the suffix taken
@@ -251,4 +251,15 @@ describe("the suffix off a path, and the same off a name", () => {
       })
     }
   })
+})
+
+// The name a file is DRAWN by — the sidebar's and the tab's one rule: a
+// document drops its suffix, every other file keeps it.
+test("a document is named by its stem, any other file by its basename", () => {
+  expect(nameOf(TEST_CLAIMS, "notes/garden.olai")).toBe("garden")
+  expect(nameOf(TEST_CLAIMS, "notes/plan.md")).toBe("plan")
+  expect(nameOf(TEST_CLAIMS, "art/report.pdf")).toBe("report.pdf")
+  expect(nameOf(TEST_CLAIMS, "art/handle.png")).toBe("handle.png")
+  expect(nameOf(TEST_CLAIMS, "rows.csv")).toBe("rows.csv")
+  expect(nameOf(TEST_CLAIMS, "notes/README")).toBe("README")
 })

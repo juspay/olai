@@ -15,6 +15,7 @@
  * reason: a disabled button takes no focus, and a keyboard reader who tabs
  * onto it is owed the reason it will not move.
  */
+import { splitProps } from "solid-js"
 import type { AnyTestId } from "@olai/ui-primitives/testids.ts"
 
 export function Switch(props: {
@@ -24,20 +25,22 @@ export function Switch(props: {
   readonly frozen?: boolean
   readonly onPick: (value: "on" | "off") => void
   readonly testid: AnyTestId
-  /** A choice that lasts only this session: marked (`data-session`) for the
-   *  caller's own styling, and said on hover. */
-  readonly session?: boolean
+  /** Said on hover. */
+  readonly title?: string | undefined
+  /** The caller's own markings, passed through for its own styling. */
+  readonly [data: `data-${string}`]: string | undefined
 }) {
+  const [, data] = splitProps(props, ["label", "on", "frozen", "onPick", "testid", "title"])
   const frozen = (): boolean => props.frozen === true
   return (
     <button
+      {...data}
       type="button"
       role="switch"
       aria-label={props.label}
       aria-checked={props.on}
       aria-disabled={frozen() ? true : undefined}
-      title={props.session ? "Resets when olai restarts" : undefined}
-      data-session={props.session ? "true" : undefined}
+      title={props.title}
       data-testid={props.testid}
       class={`prototype-switch relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full inset-ring inset-ring-ink/10 after:absolute after:-inset-x-[0.4rem] after:-inset-y-[0.8rem] after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel md:after:hidden ${
         frozen() ? "opacity-60" : "cursor-pointer"

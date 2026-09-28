@@ -73,22 +73,22 @@ export type { Look }
  */
 export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
   connecting: {
-    dot: "bg-muted",
+    tone: "quiet",
     label: "Connecting…",
     detail: "Reaching the server.",
   },
   live: {
-    dot: "bg-done",
+    tone: "healthy",
     label: "Connected",
     detail: "Changes to your files show up here as they happen.",
   },
   reconnecting: {
-    dot: "bg-doing",
+    tone: "notice",
     label: "Reconnecting…",
     detail: "Connection lost. What you see may be out of date.",
   },
   retired: {
-    dot: "bg-alarm",
+    tone: "alarm",
     label: "The server restarted",
     detail: "Reload the page to keep working.",
   },
@@ -104,7 +104,7 @@ export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
  */
 export const lookOf = (readout: SurfaceReadout): Look =>
   readout.status !== DEGRADED ? LOOK[readout.status] : {
-    dot: "bg-doing",
+    tone: "notice",
     label: "Partly connected",
     detail: `Some updates aren't arriving (${readout.stopped.join(", ")}).`,
   }
@@ -123,20 +123,11 @@ export const frozenLookOf = (readout: SurfaceReadout): { readonly title: string;
       ? { title: LOOK.connecting.label }
       : { title: "Connection lost", line: LOOK.reconnecting.label }
 
+const CONNECTING: SurfaceReadoutStatus = "connecting"
+
 /** The one connection state that is news on a phone while the page is still
  *  usable. Dead-wire states are the freeze overlay; `live` is health. Named
  *  here so a banner does not spell the readout's raw states — that is this
  *  file's table, and `claims.test.ts` holds it shut. */
-/** How bad this state is, for the header's health dot: `live` is healthy;
- *  `connecting` is a page not yet told anything, which is attention rather than
- *  a fault; a dropped connection, a replaced server and a subscription that
- *  died under an open socket are alarms. Here because this file is the one
- *  reader of the readout's raw states. */
-export const toneOf = (readout: SurfaceReadout): "healthy" | "notice" | "alarm" =>
-  readout.status === LIVE ? "healthy" : readout.status === CONNECTING ? "notice" : "alarm"
-
-const LIVE: SurfaceReadoutStatus = "live"
-const CONNECTING: SurfaceReadoutStatus = "connecting"
-
 export const isDegraded = (readout: SurfaceReadout): boolean =>
   readout.status === DEGRADED

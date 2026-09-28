@@ -43,7 +43,7 @@ import type {} from "olai-plugin-layout/slots"
 import type {} from "olai-plugin-plugin-inspector/slots"
 
 import { MailReadout } from "./browser/Mail.tsx"
-import { mailStatus } from "./browser/said.ts"
+import { mailSaid } from "./browser/said.ts"
 import { type MailClient, MailRow, mailNeedsYou } from "./browser/Row.tsx"
 import { MAIL_UNCONNECTED, type Account, name, surface } from "./wire.ts"
 
@@ -91,7 +91,7 @@ export default definePlugin({
       place: "cluster",
       body: () => <MailReadout app={bar} account={owned.account} />,
       // The bar's health dot reads this; same root, same lifetime as the row.
-      status: () => mailStatus(owned.account()),
+      status: () => mailSaid(owned.account()),
     })
 
     /** THIS ROW'S OWN FACE IN THE PLUGINS PANEL. The key is the registering

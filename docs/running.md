@@ -62,15 +62,15 @@ It binds to loopback by default because the surface is unauthenticated: anyone w
 
 The page it serves follows the disk. Save a file, `git pull`, or drop in a new outline, and the page updates in place. It needs nothing installed.
 
-On a desktop the header holds the wordmark, the search box (placeholder `Search`), one health dot, the Preferences gear and the face of whoever is signed in. The dot covers everything that reports on the app: the connection, git's Commit row, and each integration's readout (kolu, odu, mail, spaces). It is green when all is well, amber when something wants attention (writes waiting to be committed, a watcher gone quiet), and red when something is broken (the connection dropped, a version skew, a fault). Its accessible name and tooltip say what is wrong in the readout's own words — `Status: all good`, or `Status: <news> · <news>` — so a dropped connection is heard without a click.
+On a desktop the header holds the wordmark, the search box (placeholder `Search`), one health dot, the Preferences gear and the face of whoever is signed in. The dot covers everything that reports on the app: the connection, git's Commit row, and each integration's readout (kolu, odu, mail, spaces). It is green when all is well, amber when something wants attention (writes waiting to be committed, a watcher gone quiet, a connection re-dialling), and red when something is broken (the server restarted under the tab, a version skew, a fault). A readout with nothing wrong and nothing running (`Not a git folder`, `No kolu`) is quiet and never colours it. Its accessible name and tooltip say what is wrong in the readout's own words — `Status: all good`, or `Status: <news> · <news>` — so a dropped connection is heard without a click.
 
-Press the dot (or Tab to it and press Enter) for a popover with one row per readout, each with its own dot and words:
+Press the dot (or Tab to it and press Enter) for a popover with one row per readout, each with a dot of its own tone and its words. A quiet row draws no dot. The rows stand worst first — red, then amber, then green, then quiet — keeping their usual order within a tone, with the uptime line and the Plugins row always last. The rows are:
 
 - the connection: `Connected`, `Connecting…`, `Reconnecting…`, `Partly connected` (some updates are not arriving), or `The server restarted`;
 - git's Commit row (for example `Not a git folder`), which opens the commit panel;
 - each running integration's row (kolu's opens its feed);
 - a quiet line saying how long this server process has been running, `Running for 2h`, with `Running since <instant>` on its tip. The page that loads after a restart reads `Running for 12s`, because it is a new page against a new process;
-- at the foot, a **Plugins** row that opens the plugins panel ([below](#which-integrations-this-serve-runs)). While the plugins panel is open the popover is hidden.
+- at the foot, a **Plugins** row. Picking it shuts the popover and opens the plugins panel ([below](#which-integrations-this-serve-runs)), hanging from the dot; Escape shuts the panel and puts the caret back on the dot.
 
 A plugin that is switched off has no row.
 
@@ -324,7 +324,7 @@ The reader selects `Settings.olai` by case-folded basename, shallowest path firs
 
 The plugins panel is a list of collapsible groups, each heading with a count. **Needs attention** comes first and starts open when any row needs a person. Then come the sections `olai.yml` names (such as Agents, Notes, Connections, Interface), then **Your plugins** (plugins defined in the vault), and **Server** at the bottom. Every other group starts closed.
 
-Each row is one line: the plugin's name, a short status only when it is stuck (`Failed`, `Needs approval`, `Starting…`, `Can't start`, `Failed in this tab`, `Starting in this tab`, `Needs setup`), and a switch named `Enable <name>`. Pressing the name expands the row's detail: a sentence about its state, whatever the plugin itself shows there, its knobs, its environment readings, its source (for a vault-defined plugin), its `Short name` where the label differs, and `Saved in`, a link to its node in the settings file. Rows under Needs attention start expanded. A row with nothing more to show has no chevron.
+Each row is one line: the plugin's name, a short status only when it is stuck (`Failed`, `Needs approval`, `Starting…`, `Can't start`, `Failed in this tab`, `Starting in this tab`, `Needs setup`), and a switch named `Enable <name>` after the name the row shows (`Enable Git`). Pressing the name expands the row's detail: a sentence about its state, whatever the plugin itself shows there, its knobs, its environment readings, its source (for a vault-defined plugin), its `Short name` where the label differs, and `Saved in`, a link to its node in the settings file. Rows under Needs attention start expanded. A row with nothing more to show has no chevron.
 
 Knob labels come from the leaf keys, and schema descriptions are tooltips. Up to four choices use segmented buttons, longer choices a select, booleans a switch, and numbers/text compact inputs. A ● marks file-authored values; its tooltip says `set in Settings.olai`, and ↺ removes the property. Defaults have no marker. Off rows dim their knobs but leave them editable. Enter or blur saves; Escape reverts a draft without closing the panel.
 

@@ -56,14 +56,17 @@ implementation. Tools may opt into the mobile header when there is no sidebar.
 Both preferences and the inspector now contribute through `layout.tools`;
 layout imports neither implementation. Entries supply their header/drawer order
 and decide whether to appear on mobile pages without a sidebar. An entry's
-`desktop` asks for the bar (the default — preferences, the gear alone) or the
-foot of the health popover (`health` — the inspector's plugins door). An entry
-whose open state outlives the shell may also supply `open`; the popover opens
-itself while a `health` entry says it is up, which is how the plugins panel
-comes back when the shell under it is rebuilt. While that panel is up the
-popover stays mounted (the door's trigger lives in it) but is hidden, so the
-panel is the one thing on screen; when the panel closes, the popover closes
-with it.
+`desktop` asks for a seat in the same words the entry's body is drawn with
+(`ToolWhere`): the bar (`header`, the default — preferences, the gear alone)
+or the foot of the health popover (`health` — the inspector's plugins door).
+A `health` door stands beside the dot, not inside the popover: only its row is
+portalled into the popover's foot while the popover is drawn
+(`contracts/BarDoor.tsx`'s `HealthSeat`). Picking that row shuts the popover
+and opens the door's panel, anchored to the dot, so the panel never needs the
+popover; Escape shuts the panel and hands the caret back to the dot. A door
+whose open state outlives the shell (the plugins panel's, held in the
+inspector's activation) is drawn again by that standing door when the shell
+under it is rebuilt.
 
 A phone draws the Preferences and Plugins doors as rows at the foot of the
 sidebar drawer. On a phone page with no drawer (the error page, the waiting
@@ -76,13 +79,18 @@ the `header` tools (the Preferences gear) and the `app.viewer` seat (the
 signed-in face). Layout owns the location and the drawing of the dot
 (`Health.tsx`); every readout still belongs to the plugin that registers it:
 
-- The connection's row is layout's own and comes first: `Connected`,
-  `Connecting…`, `Reconnecting…`, `Partly connected` or `The server restarted`.
-- `app.header` `cluster` seats are drawn as rows of the dot's popover, in mount
-  order, after the connection's row — git's Commit row, kolu, odu, mail,
-  spaces. The uptime line is last, quiet, and casts no vote: `Running for 2h`,
-  with `Running since <instant>` on its tip. The `health` tools are the
-  popover's foot (the `Plugins` row).
+- The connection's row is layout's own: `Connected`, `Connecting…`,
+  `Reconnecting…`, `Partly connected` or `The server restarted`.
+- `app.header` `cluster` seats are drawn as rows of the dot's popover beside
+  the connection's row — git's Commit row, kolu, odu, mail, spaces — WORST
+  FIRST: `alarm` rows, then `notice`, then `healthy`, then `quiet` (a seat with
+  no `status` stands with the quiet), and within one tone the connection first,
+  then mount order (`health.ts`'s `worstFirst`). The order is live — a row
+  whose tone changes moves, in the DOM, so a Tab walks the rows in the order
+  they are seen. Layout orders from each registration's own `status`; no
+  plugin chooses its place and Layout names none. The uptime line is last,
+  quiet, and casts no vote: `Running for 2h`, with `Running since <instant>` on
+  its tip. The `health` tools are the popover's foot (the `Plugins` row).
 - A seat may declare `status: () => BarStatus` — `tone` (`healthy`, `quiet`,
   `notice`, `alarm`), `label` (the row's own words) and `detail`. It is a
   reactive accessor over state the contributor's activation owns (git reads
@@ -90,8 +98,18 @@ signed-in face). Layout owns the location and the drawing of the dot
   withdrawn; kolu, odu, mail and spaces read the root they already had). The
   types are a static contract (`olai-plugin-layout/slots`); no live value
   crosses by import.
+- Severity is stated ONCE. Each readout's state table carries one `tone`, and
+  its row and its `status` read the same value. The row paints its dot from
+  `TONE` (`@olai/web/client/readout.ts`, re-exported from
+  `olai-plugin-layout/slots`) — the one table from tone to dot and text
+  colour, which the health dot paints from too; `quiet` paints no dot but
+  keeps its box so the words stay aligned. A row's dot carries its tone as
+  `data-health`. So a dot that is not green always has a row of exactly its
+  colour in the popover.
 - The dot wears the worst tone among the connection and every standing
-  status (`health.ts`; `quiet` never colours it): green, amber or red. Its
+  status (`health.ts`; `quiet` never colours it): green, amber or red. The
+  connection is `notice` while it reconnects or is partly connected, `alarm`
+  once the server has been replaced, and `quiet` while it first connects. Its
   accessible name is `Status: all good`, or `Status: ` and each piece of news
   joined by ` · `, alarms first, in the readout's own label; the tip adds each
   readout's sentence. `data-health` and `data-connection` carry

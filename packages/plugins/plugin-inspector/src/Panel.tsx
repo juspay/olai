@@ -117,6 +117,9 @@ import { Control } from "./Control.tsx"
 
 import {
   type PluginPick,
+  CONDITION_TONE,
+  CONDITION_WORDS,
+  conditionSaid,
   configurationLinkLabel,
   displayName,
   enableLabel,
@@ -129,8 +132,7 @@ import {
   pluginGroups,
   pluginRows,
   pluginSwitch,
-  rowCopy,
-  rowStatus,
+  rowCondition,
   sentenceOf,
 } from "./rows.ts"
 
@@ -240,7 +242,7 @@ export function Panel(props: {
     if (group !== undefined) props.state.setGroupOpen(group.label, true)
     if (pick === "off") {
       const plugin = rows().find((one) => one.name === name)
-      const cost = plugin === undefined ? null : pluginConfirm(plugin, props.management.look(name), (one) => props.management.look(one).label ?? one)
+      const cost = plugin === undefined ? null : pluginConfirm(plugin, (one) => props.management.look(one), plugins())
       if (cost !== null && confirming() !== name) {
         setConfirming(name)
         setRefused(null)
@@ -413,14 +415,14 @@ function PluginRow(props: {
   const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
-  const copy = () => rowCopy(plugin(), props.plugins(), look(), props.panel.management.reports())
-  const status = () => rowStatus(plugin(), props.panel.management.reports(), props.face?.needs() === true)
-  const cost = () => pluginConfirm(plugin(), look(), (one) => props.panel.management.look(one).label ?? one)
-  const state = () => pluginState(plugin())
+  const shown = () => displayName(plugin(), look())
+  const condition = () => rowCondition(plugin(), props.panel.management.reports(), props.face?.needs() === true)
+  const copy = () => { const now = condition(); return now === null ? null : conditionSaid(now) }
+  const tone = () => { const now = condition(); return now === null || CONDITION_TONE[now.kind] === undefined ? "" : `plugins-${CONDITION_TONE[now.kind]}` }
+  const cost = () => pluginConfirm(plugin(), (one) => props.panel.management.look(one), props.plugins())
   const session = () => plugin().switchPersistence === "session" || props.plugins().configurationAvailable === false
   const environment = () => (plugin().environment ?? []).filter(environmentVisible)
-  const broken = () => plugin().running && [...props.panel.management.reports()].some(([name, report]) =>
-    (name === plugin().name || name.startsWith(plugin().name + "/")) && report.state === "failed")
+  const broken = () => condition()?.kind === "tabFailed"
   /** Whether the row has anything to show beyond its short name. A row that
    *  does not draws no chevron and does not open: a press that reveals only
    *  the name already on it is a door to nothing. */
@@ -434,19 +436,19 @@ function PluginRow(props: {
       data-open={open() ? "true" : undefined} data-plugin-line>
       <div class="plugins-line">
         <Show when={reveals()} fallback={
-          <span class="plugins-name" title={displayName(plugin(), look()) !== plugin().name ? plugin().name : undefined}>
+          <span class="plugins-name" title={shown() !== plugin().name ? plugin().name : undefined}>
             <Chevron hidden />
-            <span class="plugins-name-text">{displayName(plugin(), look())}</span>
+            <span class="plugins-name-text">{shown()}</span>
           </span>
         }>
           <button type="button" class="plugins-name" aria-expanded={open()} aria-controls={detailId}
             onClick={() => props.panel.state.setExpanded(plugin().name, !open())}>
             <Chevron />
-            <span class="plugins-name-text">{displayName(plugin(), look())}</span>
+            <span class="plugins-name-text">{shown()}</span>
           </button>
         </Show>
-        <Show when={status()}>{said => <span class={`plugins-status ${state() === "failed" || said().startsWith("Failed") ? "plugins-alarm" : ""}`}>{said()}</span>}</Show>
-        <Switch label={enableLabel(plugin().name)} on={strip().value === "on"} frozen={strip().frozen}
+        <Show when={condition()}>{now => <span class={`plugins-status ${tone()}`}>{CONDITION_WORDS[now().kind]}</span>}</Show>
+        <Switch label={enableLabel(shown())} on={strip().value === "on"} frozen={strip().frozen}
           session={session()} onPick={value => props.set(plugin().name, value)} />
       </div>
       <Show when={props.confirming() === plugin().name && cost()}>
@@ -463,7 +465,7 @@ function PluginRow(props: {
       <div class="plugins-detail-wrap" id={detailId} hidden={!open()}>
         <Show when={copy()}>
           {(said) => (
-            <p class={`plugins-said ${state() === "failed" ? "plugins-alarm" : state() === "waiting" ? "plugins-doing" : ""}`} data-testid={PRIMITIVE.prefsHint}>
+            <p class={`plugins-said ${tone()}`} data-testid={PRIMITIVE.prefsHint}>
               {said()}
             </p>
           )}
@@ -500,7 +502,7 @@ function PluginRow(props: {
           <Show when={environment().length > 0}><Environment values={environment()} /></Show>
           {/* The name a person types in the settings file, where the row's
               label is not already it — and the link to its node there. */}
-          <Show when={displayName(plugin(), look()) !== plugin().name}>
+          <Show when={shown() !== plugin().name}>
             <dt>Short name</dt>
             <dd><code>{plugin().name}</code></dd>
           </Show>

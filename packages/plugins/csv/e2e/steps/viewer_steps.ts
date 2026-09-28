@@ -37,6 +37,7 @@ import {
   FILE_GLYPH,
   HYDRATION_TIMEOUT,
   IMAGE_VIEW,
+  oneLine,
   PDF_EMBED,
   rowsOfKind,
 } from "@olai/tests/harness/world.ts";
@@ -301,6 +302,18 @@ Then(
       `the ${kind} "${file}"`,
       HYDRATION_TIMEOUT,
     );
+  },
+);
+
+// The name a row draws is the tab's (`@olai/format`'s `nameOf`): a file that
+// is not a document keeps its suffix.
+Then(
+  "the {string} row {string} reads {string}",
+  async function (this: OlaiWorld, kind: string, file: string, name: string) {
+    await this.showSidebar();
+    const link = this.kindLink(kind, file);
+    await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(oneLine(await link.innerText()), name, `the ${kind} "${file}"`);
   },
 );
 

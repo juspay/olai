@@ -3,7 +3,6 @@
  * chat cell; it only decides how the wire's answer looks. */
 
 import type { AgentStanding, NodeAgentRow } from "olai-plugin-chat/wire"
-import type { Look } from "@olai/web/client/readout.ts"
 import { NEEDS_YOU_DOT } from "../../attention.ts"
 
 export type Standing = AgentStanding
@@ -11,7 +10,7 @@ export type Row = NodeAgentRow
 
 /** What each standing is called, how it is painted, and what it means. One
  * table is read by both the sidebar row and the aside on the outline. */
-export const LOOK: Record<Standing, Look> = {
+export const LOOK: Record<Standing, { readonly dot: string; readonly label: string; readonly detail: string }> = {
   "needs-you": {
     dot: NEEDS_YOU_DOT,
     label: "Needs you",
