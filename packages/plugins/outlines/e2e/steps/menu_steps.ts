@@ -30,6 +30,7 @@ import { selector } from "@olai/web/testlib"
 
 import { chunkOf } from "@olai/tests/harness/chunks.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
+import { attr } from "@olai/tests/harness/selectors.ts";
 
 import {
   attr,
@@ -84,7 +85,7 @@ const pathOf = (label: string): ReadonlyArray<string> =>
 
 /** One open submenu, by the label of the entry that opened it. */
 const subOf = (world: OlaiWorld, label: string): Locator =>
-  world.page.locator(`${NODE_MENU_SUB}[aria-label=${JSON.stringify(label)}]`);
+  world.page.locator(`${NODE_MENU_SUB}${attr("aria-label", label)}`);
 
 /** The entry of `level` whose label is exactly `label`, or `undefined`. Read
  *  as one list and indexed, so `Collapse all` is never taken for `Collapse`. */
