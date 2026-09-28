@@ -102,7 +102,7 @@ Then("the omp inspector row no longer needs installation", async function(this: 
   assert.equal(await row.evaluate(element => element.closest("[data-section]")?.getAttribute("data-section")), "Agents")
 })
 
-Then("the engine picker offers every engine in bundle order", async function(this: OlaiWorld) {
+Then("the agent menu offers every engine in bundle order", async function(this: OlaiWorld) {
   await this.waitUntil(async () => (await drawn(this)).length === 3, "all three engine choices")
   assert.deepEqual(await drawn(this), [["claude", null], ["opencode", null], ["omp", null]])
 })
