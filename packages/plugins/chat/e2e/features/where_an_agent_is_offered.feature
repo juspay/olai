@@ -86,7 +86,7 @@ Feature: An agent is offered only where one can start
     Given I open the outline "house.olai"
     When I open the plugins panel
     And I switch the plugin "codex" off
-    And I press "Escape"
+    And I close the plugins panel
     And I open the node menu of "order"
     Then chat's "Start an agent" in the node menu runs at once
     When I press "Escape"
@@ -95,7 +95,7 @@ Feature: An agent is offered only where one can start
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
     When I open the plugins panel
     And I switch the plugin "codex" on
-    And I press "Escape"
+    And I close the plugins panel
     # The new chat took this tab to the Inbox; the row menu is read back on
     # the outline it started from.
     And I open the outline "house.olai"
@@ -112,7 +112,7 @@ Feature: An agent is offered only where one can start
     And the node agent's fold is ready
     When I open the plugins panel
     And I switch the plugin "chat" off
-    And I press "Escape"
+    And I close the plugins panel
     Then no agent control is drawn anywhere
     When I open the node menu of "order"
     Then the node menu does not offer "Start an agent"
@@ -123,13 +123,13 @@ Feature: An agent is offered only where one can start
     When I press "Escape"
     And I open the plugins panel
     And I switch the plugin "chat" on
-    And I press "Escape"
+    And I close the plugins panel
     Then agent controls are drawn again
     And there should be no page errors
 
   # ── standings are facts, offers wait ────────────────────────────────
 
-  @no-agent @corpus:lanes
+  @no-agent @scratch:lanes
   Scenario: A row with an agent shows its standing even when no agent can start
     Given I open the outline "lanes.olai"
     Then the agent standing on "door-live" is shown

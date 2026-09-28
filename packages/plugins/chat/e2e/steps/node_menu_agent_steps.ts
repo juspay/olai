@@ -69,7 +69,17 @@ When(
   "I open the node menu's {string} agents with the keyboard",
   async function (this: OlaiWorld, label: string) {
     const { trigger, sub } = await submenuOf(this, label);
-    await trigger.focus();
+    // WALKED TO with the arrows, the way a person reaches it and the way
+    // outlines' own keyboard scenario walks into `More ›`
+    // (`menu_panel.feature`). A caret put on the entry by `focus()` is not one
+    // the menu's own list moved, and after it the agents' submenu did not
+    // hand its first agent the caret.
+    const entries = await this.page.locator(NODE_MENU_PANEL).locator(NODE_MENU_ITEM).count();
+    for (let step = 0; step <= entries; step++) {
+      if (await trigger.evaluate(el => el === document.activeElement)) break;
+      await this.page.keyboard.press("ArrowDown");
+    }
+    assert.ok(await trigger.evaluate(el => el === document.activeElement), `the arrows never reached ${JSON.stringify(label)}`);
     await this.page.keyboard.press("ArrowRight");
     await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
@@ -81,7 +91,14 @@ When(
   "I pick {string} in the {string} submenu of the node menu",
   async function (this: OlaiWorld, choice: string, label: string) {
     const { trigger, sub } = await submenuOf(this, label);
-    if (!(await sub.isVisible())) {
+    // OPEN IS THE ENTRY'S WORD, not the submenu's visibility: a question
+    // cancelled redraws the list, and the submenu it hung off is still on
+    // screen on its way out while the new entry is shut. So wait for the two
+    // to agree, and open it from the entry when it is shut.
+    const expanded = async () => (await trigger.getAttribute("data-expanded")) !== null;
+    await this.waitUntil(async () => await expanded() || (await sub.count()) === 0,
+      `the ${JSON.stringify(label)} submenu to be settled open or shut`);
+    if (!(await expanded())) {
       await this.press(trigger);
       await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     }

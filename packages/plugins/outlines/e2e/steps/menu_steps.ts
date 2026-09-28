@@ -113,7 +113,14 @@ const openSub = async (
   gesture: "click" | "tap",
 ): Promise<Locator> => {
   const sub = subOf(world, label);
-  if (!(await sub.isVisible())) await world.press(trigger, gesture);
+  // OPEN IS THE ENTRY'S WORD (`data-expanded`), not the submenu's
+  // visibility: opening a sibling shuts this one, and a submenu on its way
+  // out is still on screen for a moment — read as open, it was never pressed
+  // and then left.
+  if ((await trigger.getAttribute("data-expanded")) === null) {
+    await sub.waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+    await world.press(trigger, gesture);
+  }
   await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return sub;
 };

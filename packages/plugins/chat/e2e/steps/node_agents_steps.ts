@@ -34,7 +34,7 @@ import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
 import { answering } from "@olai/tests/harness/shortlist.ts";
 
-import { POLL_TIMEOUT, PROP_EDIT } from "@olai/tests/harness/world.ts";
+import { oneLine, POLL_TIMEOUT, PROP_EDIT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { FAST_NODE_IDLE_MS } from "@olai/tests/harness/node_idle.ts";
 
@@ -893,6 +893,15 @@ When("I begin opening the past session {string}", async function(this: OlaiWorld
 When("I request a fresh session without confirming", async function (this: OlaiWorld) {
   await this.chat(FRESH).first().click();
   await this.page.getByRole("group", { name: "Confirm fresh start", exact: true }).waitFor({ state: "visible" });
+});
+
+/** What the confirmation says will happen — the sentence that makes the
+ *  gesture safe to press, read where it is asked. */
+Then("the fresh-session confirmation says {string}", async function (this: OlaiWorld, words: string) {
+  const asking = this.page.getByRole("group", { name: "Confirm fresh start", exact: true });
+  await asking.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => oneLine(await asking.innerText()).includes(words),
+    `the fresh-session confirmation to say ${JSON.stringify(words)}`);
 });
 
 When("I cancel the fresh session", async function (this: OlaiWorld) {

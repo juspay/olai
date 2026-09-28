@@ -399,16 +399,21 @@ Feature: A node with an `agent-session` property IS an agent
 
   @corpus:lanes
   Scenario: A node agent's panel offers a fresh session, labelled with what it means
-    # The affordance the panel owed a person and did not have. It says what
-    # happens to the transcript, because that sentence is the whole reason it is
-    # safe to press: the memory is the subtree, and a fresh session reads it.
+    # The affordance the panel owed a person and did not have. Its label says
+    # what a fresh session keeps — the memory is the subtree, and a fresh
+    # session reads it — and the question it asks before starting says what
+    # happens to the transcript, because that sentence is the whole reason it
+    # is safe to press.
     Given I open the outline "lanes.olai"
     And I press the agent "door-live"
     And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
     When I open the fold history
     Then the panel offers a fresh session, saying "keeping memory in"
-    And the panel offers a fresh session, saying "the transcript becomes history"
+    When I request a fresh session without confirming
+    Then the fresh-session confirmation says "The current chat moves to earlier chats."
+    When I cancel the fresh session
+    Then the fresh-session confirmation is absent
 
   @agent-stored @scratch:lanes
   Scenario: A node agent whose conversation the engine has lost can still be got out of
