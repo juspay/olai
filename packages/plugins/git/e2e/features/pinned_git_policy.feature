@@ -13,10 +13,10 @@ Feature: Git policy travels with the vault
     # on an unpinned serve.
     When I open the preferences
     And I set Done to "visible"
-    Then the Done row explains that finished work is "shown"
+    Then the "Show finished" switch reads "on"
     And this browser has stored done nodes "shown" by default
     When I set Notes to "open"
-    Then the Notes row explains that a row "already open"
+    Then the "Row density" row is set to "open"
     And there should be no page errors
 
   Scenario: The panel names these as this browser's
