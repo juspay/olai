@@ -25,7 +25,7 @@ import { contentStatus,name,overlays,type Shell,sidebar,strip,tools } from "./in
 import { trackDesktop } from "./layout/media-owner.ts"
 import {
   desktop, panelSnap, panelWidth, resetPanelWidths, setPanelSnap,
-  setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, toggleSidebar,
+  revealSidebar, setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, toggleSidebar,
 } from "./layout/live.ts"
 import { followLayout } from "./layout/prefs-owner.ts"
 
@@ -50,7 +50,7 @@ export default definePlugin({
     // `./layout/live.ts`). The readings are installed by the root
     // contribution's `activate` below, on this same activation.
     yield* (yield* Offers).own("shell", (): Shell => ({
-      desktop, sidebarOpen, setSidebarOpen, toggleSidebar, sidebarWidth, setSidebarWidth,
+      desktop, sidebarOpen, setSidebarOpen, toggleSidebar, revealSidebar, sidebarWidth, setSidebarWidth,
       panelWidth, setPanelWidth, panelSnap, setPanelSnap,
       resetPanelWidths, PanelHandle,
     }))

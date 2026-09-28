@@ -26,7 +26,7 @@ import { For } from "solid-js"
 import { contentStatus,overlays,sidebar,strip } from "./index.ts"
 import {
 createEffect,
-createSignal,
+onCleanup,
 Show
 } from "solid-js"
 
@@ -37,7 +37,7 @@ import { PluginsMounted } from "./Mounted.tsx"
 import { PluginPanel } from "./Seats.tsx"
 import { connectionReadout } from "@olai/web/client/wire.ts"
 import { desktop } from "./layout/live.ts"
-import { sidebarOpen,toggleSidebar } from "./layout/live.ts"
+import { drawerOpen as menuOpen,setDrawerOpen as setMenuOpen,sidebarOpen,toggleSidebar } from "./layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { RouterProvider } from "olai-plugin-navigation/routing"
@@ -49,8 +49,11 @@ import { Tools } from "./Tools.tsx"
 export default function Frame(props: { readonly slots: RendererSlots; readonly router: import("olai-plugin-navigation/contract").Navigation }) {
   const router = props.router
 
-  const [menuOpen, setMenuOpen] = createSignal(false)
-
+  // The phone drawer is this frame's for as long as it is drawn — a signal in
+  // `./layout/live.ts` so `layout.shell`'s `revealSidebar` can open it from a
+  // control outside the sidebar — and it starts shut and leaves shut.
+  setMenuOpen(false)
+  onCleanup(() => setMenuOpen(false))
 
   createEffect(() => {
     if (desktop()) setMenuOpen(false)

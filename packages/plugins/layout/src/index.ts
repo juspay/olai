@@ -126,6 +126,10 @@ export interface Shell {
   readonly sidebarOpen: Accessor<boolean>
   readonly setSidebarOpen: (open: boolean) => void
   readonly toggleSidebar: () => void
+  /** Put the sidebar in view — the column out of its rail on a desktop, the
+   *  drawer on a phone — for a control outside it that opens something in it
+   *  (an empty page's `New outline` opening the files row's path box). */
+  readonly revealSidebar: () => void
   /** Live width, clamped to the current viewport. */
   readonly sidebarWidth: Accessor<number>
   readonly setSidebarWidth: (px: number, opts?: SetOptions) => void

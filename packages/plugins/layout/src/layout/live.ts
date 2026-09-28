@@ -64,6 +64,28 @@ export const setSidebarOpen = (open: boolean): void => active()?.sidebarOpenPref
 
 export const toggleSidebar = (): void => setSidebarOpen(!sidebarOpen())
 
+// ── the phone drawer (the sidebar below the breakpoint) ───────────────────
+//
+// Not a preference: a drawer is open for one errand and shut by the next tap,
+// so nothing stores it. Owned by the frame that draws it (`../Frame.tsx`),
+// which shuts it when it unmounts and whenever the viewport becomes a desktop.
+
+const [drawer, setDrawer] = createSignal(false)
+
+/** Is the phone's sidebar drawer open? Always `false` on a desktop. */
+export const drawerOpen: Accessor<boolean> = drawer
+
+export const setDrawerOpen = (open: boolean): void => { setDrawer(open) }
+
+/** Put the sidebar where a person can see it: the column on a desktop (out of
+ *  its rail), the drawer on a phone. For a control OUTSIDE the sidebar that
+ *  opens something IN it — an empty page's `New outline` opening the files
+ *  row's path box. */
+export const revealSidebar = (): void => {
+  if (desktop()) setSidebarOpen(true)
+  else setDrawerOpen(true)
+}
+
 // ── sidebar width ─────────────────────────────────────────────────────────
 
 /** Live width, clamped to the current viewport. */
