@@ -133,8 +133,9 @@ arrived, rather than scrolling through that history as it loads. New text follow
 you are at the bottom; scrolling up keeps your place. A fold bounds its
 transcript, while a zoomed page scrolls the containing pane with the conversation.
 On a wide screen the page's head — title and agent line — stays pinned above
-it; on a phone only the composer stays, and the head scrolls away so the
-transcript gets the screen.
+it; on a phone the head scrolls away so the transcript gets the screen, and the
+node's name stays pinned on one line under the app header; tap it to bring the
+head back.
 
 Unsent words, attachments and nodes chosen through `@` belong to their
 conversation in this tab. Closing a fold, visiting history, or rebuilding an
