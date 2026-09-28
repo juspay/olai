@@ -1,4 +1,3 @@
-import { MENU_ITEM } from "@olai/ui-primitives/menu.ts"
 /**
  * What is INSIDE the open panel: the list, or the question one verb asks first
  * (`./Confirm.tsx`).
@@ -16,18 +15,29 @@ import { MENU_ITEM } from "@olai/ui-primitives/menu.ts"
  * behaves. That is the seam the primitive drew: the two used to be one file
  * and had no reason left to be.
  */
+import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createSignal, For, onCleanup, Show } from "solid-js"
+import { LAYER } from "@olai/web/client/layer.ts"
 
-import { asks, type MenuAction } from "./action.ts"
+import { asks, isSub, type MenuAction, type MenuEntry, type MenuSub } from "./action.ts"
 import { Confirm } from "./Confirm.tsx"
+import { overlayRoot } from "../overlay.ts"
 
+/** What the root panel listens for, handed to each submenu too: a submenu is
+ *  portalled beside the panel, not inside it (`./Dropdown.tsx`). */
+export interface Gestures {
+  readonly onKeyDown: () => void
+  readonly onPointerDown: () => void
+  readonly onPointerUp: (event: PointerEvent) => void
+}
 
 export function Panel(props: {
-  readonly actions: ReadonlyArray<MenuAction>
+  readonly actions: ReadonlyArray<MenuEntry>
   readonly onPick: (action: MenuAction) => void | Promise<void>
   readonly onGone: () => void
+  readonly gestures: Gestures
 }) {
   const [asking, setAsking] = createSignal<MenuAction | null>(null)
   onCleanup(() => props.onGone())
@@ -49,20 +59,66 @@ export function Panel(props: {
     queueMicrotask(() => entries.get(action.id)?.focus())
   }
 
-  return (
-    <Show
-      when={asking()}
-      fallback={
-        <For each={props.actions}>
-          {(action) => (
-            <>
-              {/* The rule between the halves, as a `role="separator"` rather
-                  than as a border on the entry below it: the same 4px above,
-                  hairline, 4px below the `<li>` used to draw, and this way the
-                  hover band is still exactly the entry. */}
-              <Show when={action.divider}>
-                <DropdownMenu.Separator class="my-1 border-t border-rule" />
-              </Show>
+  /**
+   * A SUBMENU — `Mark ›`, `More ›`, a plugin's choice — as Kobalte's own `Sub`,
+   * so the arrows, Enter, Escape and typeahead walk into and out of it exactly
+   * as they walk the list. Its content is portalled into the same overlay the
+   * panel is (`../overlay.ts`), at the panel's layer. A verb inside it that
+   * asks first swaps the ROOT panel for the question, which takes the submenu
+   * down with the list it hung off.
+   */
+  const Sub = (sub: { readonly entry: MenuSub }) => (
+    // `overlap`: on a phone there is no room beside the panel, so the submenu
+    // may slide back over it rather than hang off the screen's edge.
+    <DropdownMenu.Sub gutter={2} shift={-5} overlap>
+      <DropdownMenu.SubTrigger
+        ref={(el: HTMLElement) => entries.set(sub.entry.id, el)}
+        class={`${MENU_ITEM} flex items-center justify-between gap-6 data-[expanded]:bg-rule`}
+        data-testid={TESTID.nodeMenuItem}
+        data-action={sub.entry.id}
+        // Opens on its click, which a tap's ghost-eater must leave alone
+        // (`./Dropdown.tsx`'s `tappedInPanel`).
+        data-opens=""
+      >
+        <span>{sub.entry.label}</span>
+        <span class="text-muted" aria-hidden="true">›</span>
+      </DropdownMenu.SubTrigger>
+      <DropdownMenu.Portal mount={overlayRoot()}>
+        <DropdownMenu.SubContent
+          class={`${MENU_PANEL} ${LAYER.row}`}
+          data-testid={TESTID.nodeMenuSub}
+          data-sub={sub.entry.id}
+          aria-label={sub.entry.label}
+          onKeyDown={props.gestures.onKeyDown}
+          onPointerDown={props.gestures.onPointerDown}
+          onPointerUp={props.gestures.onPointerUp}
+        >
+          <Entries entries={sub.entry.entries} />
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Sub>
+  )
+
+  const Entries = (list: { readonly entries: ReadonlyArray<MenuEntry> }) => (
+    <For each={list.entries}>
+      {(entry) => (
+        <>
+          {/* The rule between groups, as a `role="separator"` rather than as
+              a border on the entry below it: the same 4px above, hairline,
+              4px below the `<li>` used to draw, and this way the hover band
+              is still exactly the entry. */}
+          <Show when={entry.divider}>
+            <DropdownMenu.Separator class="my-1 border-t border-rule" />
+          </Show>
+          {isSub(entry) ? <Sub entry={entry} /> : <Verb action={entry} />}
+        </>
+      )}
+    </For>
+  )
+
+  const Verb = (one: { readonly action: MenuAction }) => {
+    const action = one.action
+    return (
               <DropdownMenu.Item
                 ref={(el: HTMLElement) => entries.set(action.id, el)}
                 // The classes are this app's own — Kobalte ships no styles —
@@ -82,11 +138,11 @@ export function Panel(props: {
               >
                 {action.label}
               </DropdownMenu.Item>
-            </>
-          )}
-        </For>
-      }
-    >
+    )
+  }
+
+  return (
+    <Show when={asking()} fallback={<Entries entries={props.actions} />}>
       {(action) => (
         <Confirm action={action()} onGo={props.onPick} onCancel={cancel} />
       )}

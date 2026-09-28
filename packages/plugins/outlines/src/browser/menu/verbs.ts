@@ -162,11 +162,30 @@ export type Does =
  *  a list of verbs rather than a list of wrappers. */
 const sends = (edit: Edit): Does => ({ kind: "edit", edit })
 
+/**
+ * WHERE a verb sits in the `•••` menu (`./actions.ts` draws the groups in this
+ * order, a rule between each):
+ *
+ *   - `mark`  — the status marks, under one `Mark ›` entry;
+ *   - `plan`  — when and where to find it: the date, the repeat rule, the pin;
+ *   - `place` — where it lives: move it, copy it;
+ *   - `more`  — reached for rarely, under `More ›`;
+ *   - `unset` — taking a date or a rule back off, at the end of `More ›`;
+ *   - `away`  — `Move to Trash`, last and alone.
+ *
+ * A VALUE ON THE VERB rather than a list in the menu, so a new verb says where
+ * it belongs at the one place it is written, and the palette — which lists
+ * the same catalog flat — simply ignores it.
+ */
+export type Group = "mark" | "plan" | "place" | "more" | "unset" | "away"
+
 /** One write the menu offers: what it is called, what it does, and what it
  *  asks first — if it asks anything. */
 export interface Verb {
   readonly id: string
   readonly label: string
+  /** Which group of the `•••` menu it sits in ({@link Group}). */
+  readonly group: Group
   /** What choosing it does. A VALUE: the wire, the refusal, the line that says
    *  so and the picker are all `./actions.ts`'s and `../writes.ts`'s. */
   readonly does: Does
@@ -261,11 +280,13 @@ export const writeVerbs = (
       pinned === undefined
         ? {
           id: "pin",
+          group: "plan",
           label: "Pin to sidebar",
           does: sends({ verb: "pin", at: hrefOfPlain(atNode(shown.node.id)) }),
         }
         : {
           id: "unpin",
+          group: "plan",
           label: "Unpin from sidebar",
           // The pin's OWN node, which is the one thing on the shelf this verb
           // is about — never the node it opens. Archived rather than erased:
@@ -294,6 +315,7 @@ export const writeVerbs = (
       if (subject.status === mark) continue
       verbs.push({
         id: `mark-${mark}`,
+        group: "mark",
         label,
         does: sends({ verb: "mark", id: shown.node.id, mark }),
       })
@@ -301,6 +323,7 @@ export const writeVerbs = (
     if (subject.status !== undefined) {
       verbs.push({
         id: "clear-mark",
+        group: "mark",
         label: "Clear mark",
         does: sends({ verb: "mark", id: shown.node.id, mark: null }),
       })
@@ -325,12 +348,14 @@ export const writeVerbs = (
     // hold "one way to say no date" up.
     verbs.push({
       id: "set-date",
+      group: "plan",
       label: shown.node.date === undefined ? "Set date…" : "Change date…",
       does: { kind: "pick-date" },
     })
     if (shown.node.date !== undefined) {
       verbs.push({
         id: "clear-date",
+        group: "unset",
         label: "Clear date",
         does: sends(datePick(shown.node.id, "")),
       })
@@ -348,12 +373,14 @@ export const writeVerbs = (
       // constructor the picker's empty option sends (`../date/repeat.ts`).
       verbs.push({
         id: "set-repeat",
+        group: "plan",
         label: shown.node.repeat === undefined ? "Set repeat…" : "Change repeat…",
         does: { kind: "pick-repeat" },
       })
       if (shown.node.repeat !== undefined) {
         verbs.push({
           id: "clear-repeat",
+          group: "unset",
           label: "Stop repeating",
           does: sends(repeatPick(shown.node.id, "")),
         })
@@ -386,6 +413,7 @@ export const writeVerbs = (
     if (customEntries(customOf(shown.node), placement).length === 0) {
       verbs.push({
         id: "prop-add",
+        group: "more",
         label: "Add property…",
         does: { kind: "add-prop" },
       })
@@ -404,6 +432,7 @@ export const writeVerbs = (
     for (const one of RELATIONS) {
       verbs.push({
         id: `edge-${one.relation}`,
+        group: "more",
         label: one.verb,
         does: { kind: "pick-edge", relation: one.relation },
       })
@@ -424,6 +453,7 @@ export const writeVerbs = (
   // cannot carry one.
   verbs.push({
     id: "move-to",
+    group: "place",
     label: "Move to…",
     does: { kind: "pick-move" },
   })
@@ -440,6 +470,7 @@ export const writeVerbs = (
   if (isMirror(subject.record)) {
     verbs.push({
       id: "remove-placement",
+      group: "more",
       label: "Remove this placement",
       does: sends({ verb: "unmirror", id: subject.record.id }),
     })
@@ -457,6 +488,7 @@ export const writeVerbs = (
     // something away; this one only adds, and ⌘Z takes it back.
     verbs.push({
       id: "duplicate",
+      group: "place",
       label: "Duplicate",
       does: sends({ verb: "duplicate", id: subject.record.id }),
     })
@@ -479,6 +511,7 @@ export const writeVerbs = (
     // tool is still `outlines_trash`; only the surface a person reads renames.
     verbs.push({
       id: "trash",
+      group: "away",
       label: "Move to Trash",
       does: sends({ verb: "trash", id: shown.node.id }),
       // Counted over the SET rather than over this row's children: what the

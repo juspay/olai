@@ -1,6 +1,7 @@
 /** THE `+` ON THE CHATS HEADING — the sidebar's way to a new conversation.
- *  It opens the engine menu (`./EngineMenu.tsx`) under itself, or starts at
- *  once where only one engine can start. A real button: Tab reaches it, Enter
+ *  It starts at once where exactly one engine can start; otherwise it opens
+ *  the engine menu (`./EngineMenu.tsx`) under itself — the engines that can
+ *  start, or with none, one quiet line and the plugins panel's door. A real button: Tab reaches it, Enter
  *  and Space press it, and the menu hands focus back to it on Escape. */
 import { LAYER } from "@olai/web/client/layer.ts"
 import { TESTID } from "../../testids.ts"
@@ -22,7 +23,7 @@ export function NewChat() {
   return <>
     <button type="button" class={HEAD_ACTION} data-testid={TESTID.chatNew}
       aria-label="new chat" title="new chat" aria-haspopup="menu" aria-expanded={menu() !== null}
-      disabled={creation === undefined || creation?.pending() || agents.engines().length === 0} aria-busy={creation?.pending()}
+      disabled={creation === undefined || creation?.pending()} aria-busy={creation?.pending()}
       onPointerDown={() => { shutting = menu() !== null }}
       onClick={event => {
         // Deliberately LET the click bubble: the sidebar body puts the phone

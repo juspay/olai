@@ -103,7 +103,7 @@ import { DropdownMenu, type DropdownMenuContentProps } from "@kobalte/core/dropd
 import { useMenuContext } from "@kobalte/core/menu"
 import type { PolymorphicProps } from "@kobalte/core/polymorphic"
 
-import type { MenuAction } from "./action.ts"
+import type { MenuAction, MenuEntry } from "./action.ts"
 import type { MenuDoor } from "./door.ts"
 import { DOTS } from "./Dots.tsx"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
@@ -136,11 +136,15 @@ import { Panel } from "./Panel.tsx"
  * lands on the panel it belongs to, which is nothing happening.
  */
 const tappedInPanel = (event: PointerEvent): void => {
+  // ...EXCEPT on an entry that OPENS a submenu (`./Panel.tsx`): Kobalte opens
+  // one on the click itself, the panel stays up, and there is no row under
+  // the point for the click to land on.
+  if (event.target instanceof Element && event.target.closest("[data-opens]") !== null) return
   if (event.pointerType === "touch") swallowGhost()
 }
 
 export function Dropdown(props: {
-  readonly actions: ReadonlyArray<MenuAction>
+  readonly actions: ReadonlyArray<MenuEntry>
   /** How this row's menu is reached, and whether it is open — the ROW's,
    *  because below `md` the door is a long press on markup this component does
    *  not own, and the panel then hangs off that same markup (`./door.ts`). */
@@ -328,7 +332,14 @@ export function Dropdown(props: {
         // ...and the tap that any of it leaves behind (see above).
         onPointerUp={tappedInPanel}
       >
-        <Panel actions={props.actions} onPick={props.onPick} onGone={handBack} />
+        {/* A SUBMENU is portalled beside this panel rather than inside it, so
+            the gestures above are handed to it too: a key there is the
+            keyboard driving this menu, and a tap there leaves the same ghost. */}
+        <Panel actions={props.actions} onPick={props.onPick} onGone={handBack} gestures={{
+          onKeyDown: () => { lastGesture = "key" },
+          onPointerDown: () => { lastGesture = "pointer" },
+          onPointerUp: tappedInPanel,
+        }} />
       </ViewportContent>
       </DropdownMenu.Portal>
     </DropdownMenu>

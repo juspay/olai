@@ -23,9 +23,9 @@ export interface MenuAction {
    *  bigger than the row it was chosen on. The panel puts the question where
    *  the list was; choosing the verb again is the answer. */
   readonly confirm?: string
-  /** A rule above this entry: the first verb that writes, so the half of the
-   *  menu that changes the DIRECTORY is visibly a different half from the one
-   *  that changes what this tab is looking at. */
+  /** A rule above this entry: the first of a group (`./actions.ts` names the
+   *  groups), so a reader sees where one kind of verb ends and the next — and,
+   *  above all, `Move to Trash` — begins. */
   readonly divider?: boolean
   /** Do it. Answering with a {@link Said} is how a verb says what happened —
    *  a refusal in the ops layer's own words, a nudge from a write that landed,
@@ -34,6 +34,26 @@ export interface MenuAction {
    *  on screen already. */
   readonly run: () => void | Promise<Said | void>
 }
+
+/**
+ * An entry that OPENS rather than runs: a submenu of further entries —
+ * `Mark ›`, `More ›`, a plugin's `Start an agent ›`. It is how the menu stays
+ * short: what varies by a choice, and what is reached for rarely, costs the top
+ * level one line.
+ */
+export interface MenuSub {
+  readonly id: string
+  readonly label: string
+  /** A rule above this entry, as {@link MenuAction.divider}. */
+  readonly divider?: boolean
+  readonly entries: ReadonlyArray<MenuEntry>
+}
+
+/** One line of the menu: a verb, or a submenu of them. */
+export type MenuEntry = MenuAction | MenuSub
+
+/** Does this line open a submenu? */
+export const isSub = (entry: MenuEntry): entry is MenuSub => "entries" in entry
 
 /**
  * Whether this verb asks before it runs.

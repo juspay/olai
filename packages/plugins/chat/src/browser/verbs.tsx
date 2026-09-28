@@ -1,7 +1,7 @@
 import { servedDirectory } from "./vault.ts"
 /** Row actions and the palette share one server-owned ancestor query. */
 import type { AppCommand } from "olai-plugin-navigation/slots"
-import type { RowAction } from "olai-plugin-outlines/slots"
+import type { RowAction, RowVerb } from "olai-plugin-outlines/slots"
 import { atElement } from "olai-plugin-navigation/routes"
 import { Result } from "effect"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -30,10 +30,30 @@ const show = (agent: { node: string; file: string }) => {
   unfold(agent.node)
 }
 
+/**
+ * ONE ENTRY per gesture, however many engines: the verb itself when only one
+ * engine can start, and a choice of the engines that can (`RowChoice`, drawn
+ * by outlines as a submenu) when several can. Engines this machine lacks are
+ * never offered; the plugins panel says what they need.
+ */
+const oneOrChoice = (
+  id: string,
+  label: string,
+  engines: ReadonlyArray<{ readonly id: string; readonly name: string }>,
+  verb: (engine: { readonly id: string; readonly name: string }) => Omit<RowVerb, "id" | "label" | "writes">,
+): ReadonlyArray<RowAction> => {
+  if (engines.length === 0) return []
+  if (engines.length === 1) return [{ id: `${id}-${engines[0]!.id}`, label, writes: true, ...verb(engines[0]!) }]
+  return [{
+    id, label, writes: true,
+    choices: engines.map(engine => ({ id: `${id}-${engine.id}`, label: engine.name, writes: true, ...verb(engine) })),
+  }]
+}
+
 export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction> => {
   /** THE START GESTURE, SHARED BY BOTH HALVES: start a session on a node with
    *  a given engine, and on success mark the node read and unfold it. The
-   *  start and fresh-start maps are the same act on different labels. */
+   *  start and fresh-start entries are the same act on different labels. */
   const startOn = (engine: { readonly id: string }) => async (node: string) => {
     const outcome = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }))
     if (Result.isFailure(outcome)) return outcome.failure.message
@@ -42,28 +62,23 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
   }
   const bound = roster.at(node)
   if (bound?.session == null) {
-    // A bare row, or one naming only an engine: the start gesture for each
-    // engine it may use — one per installed engine on a bare row, one for the
-    // named engine on a sessionless one, none when nothing is installed.
+    // A bare row, or one naming only an engine: `Start an agent` — a choice of
+    // every engine that can start on a bare row, the named engine alone on a
+    // sessionless one, and nothing when none can.
     const engines = bound?.engine != null
       ? roster.engines().filter(engine => engine.id === bound.engine) : roster.engines()
-    return engines.map(engine => ({
-      id: `start-agent-${engine.id}`, writes: true,
-      label: engines.length === 1 ? "Start an agent session" : `Start an agent session — ${engine.name}`,
-      run: startOn(engine),
-    }))
+    return oneOrChoice("start-agent", "Start an agent", engines, engine => ({ run: startOn(engine) }))
   }
-  // A node already talking through a conversation: fresh start — one entry per
-  // installed engine, the label naming the engine only where there is a
-  // choice — and CLOSE, releasing the node's agent back to the unclaimed
-  // chats (the conversation is filed back under Chats by the next filer run).
-  const engines = roster.engines()
-  if (engines.length === 0) return []
+  // A node already talking through a conversation: `Fresh start` — the node's
+  // own engine first, a choice only where there is one — and CLOSE, releasing
+  // the node's agent back to the unclaimed chats (the conversation is filed
+  // back under Chats by the next filer run).
+  const available = roster.engines()
+  const current = available.find(engine => engine.id === bound.engine)
+  const engines = current === undefined ? available : [current, ...available.filter(engine => engine !== current)]
   return [
-    ...engines.map(engine => ({
-      id: `fresh-start-${engine.id}`, writes: true,
+    ...oneOrChoice("fresh-start", "Fresh start", engines, engine => ({
       confirm: freshStartQuestion(bound.title),
-      label: engines.length === 1 ? "Fresh start" : `Fresh start — ${engine.name}`,
       run: startOn(engine),
     })),
     {

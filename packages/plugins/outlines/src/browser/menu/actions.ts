@@ -1,6 +1,6 @@
 /**
- * The `•••` menu's catalog: every verb a row offers, in the order it offers
- * them.
+ * The `•••` menu's catalog: every verb a row offers, in the groups and order
+ * it offers them ({@link subjectMenuActions}).
  *
  * One table, so the panel never has to know about zoom routes, fold keys or
  * the write gate — and so the menu's growth is an entry here rather than a
@@ -50,13 +50,14 @@ import type { Relation } from "../edges/relation.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 import type { Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
-import { type Fold, foldOf } from "../fold/rows.ts"
+import type { Fold } from "../fold/rows.ts"
 import { hung } from "../faces.ts"
 import { atNode, hrefOfPlain, type Route } from "olai-plugin-navigation/routes"
 import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
+import type { RowAction, RowVerb } from "olai-plugin-outlines/slots"
 import { asText } from "./subtree.ts"
-import type { MenuAction } from "./action.ts"
-import { type Does, shownIdOf, type Subject, subjectOfRow, writeVerbs } from "./verbs.ts"
+import type { MenuAction, MenuEntry } from "./action.ts"
+import { type Does, type Group, shownIdOf, type Subject, subjectOfRow, writeVerbs } from "./verbs.ts"
 import { applying } from "../writes.ts"
 
 /**
@@ -154,25 +155,63 @@ const running = (
 }
 
 /**
+ * A plugin's contribution, as a line of core's menu: a verb, or a submenu of
+ * them (`olai-plugin-outlines/slots`'s `RowChoice`).
+ *
+ * THE ID IS COMPOSED, because a plugin's `id` is its own word and two plugins
+ * may spell it the same. `<plugin>:<verb>` is unambiguous — a plugin's name
+ * carries no colon — and it is what reaches `data-action` on the entry, so a
+ * scenario naming a plugin's verb names whose it is.
+ *
+ * The press is handed ONE argument: the node this row SHOWS, never the record
+ * standing there — the rule a mark, a fold and a pin already follow, spent
+ * here so nothing on the other side of the slot can get it wrong.
+ */
+const pluginEntry = (plugin: string, action: RowAction, shown: string): MenuEntry => {
+  const verb = (one: RowVerb): MenuAction => ({
+    id: `${plugin}:${one.id}`,
+    label: one.label,
+    ...(one.confirm === undefined ? {} : { confirm: one.confirm }),
+    run: async () => {
+      const refusal = await one.run(shown)
+      if (typeof refusal === "string") return { tone: "alarm" as const, text: refusal }
+    },
+  })
+  return "choices" in action
+    ? { id: `${plugin}:${action.id}`, label: action.label, entries: action.choices.map(verb) }
+    : verb(action)
+}
+
+/**
  * The verbs a NODE offers, wherever its `•••` hangs. `go` is the SPA navigator
  * — never `location.assign`, which tears down the wire and the reading.
  *
- * The READS come first and the writes after them, with a rule between the two
- * halves rather than a habit: everything above the divider changes what this
- * tab is looking at, everything below it changes the directory. A person
- * reaching for "Collapse all" and hitting "Move to Trash" is a mistake the
- * ORDER can prevent, so it does.
+ * ## Short, and in groups
  *
- * ...AND THE PLUGINS' VERBS AFTER BOTH, which is the same argument once more
- * rather than a third half: where a tenant's press sits in this list is core's
- * decision, so it is made in one place — the walk at the end of this function,
- * which is where the reasoning is.
+ * The menu used to be one list of every verb — twenty to thirty lines on a
+ * busy row, five of them per agent engine. It is now at most a dozen, in
+ * groups a rule apart, in this order:
  *
- * A SURFACE'S OWN VERBS ride in `afterZoom` and `afterWrites`, named for WHERE
- * they go rather than what they are — `Copy as text` is a read that belongs
- * among the writes — and before the plugins' either way: the one decision about
- * where a surface's verb goes is made here, for every surface, rather than by
- * each of them splicing into a list it did not build.
+ *   1. `Zoom in`, `Mark ›` (the status marks), and any plugin verb that only
+ *      READS (`RowAction.writes === false`) — what a reader does most;
+ *   2. when and where to find it — the date, the repeat rule, the pin;
+ *   3. where it lives — `Move to…`, `Duplicate`;
+ *   4. the plugins' WRITES (chat's `Start an agent ›`, `Fresh start`,
+ *      `Close the agent`), after core's own, in the bundle's order;
+ *   5. `More ›` — the rarely reached: the two copies, the folds, a property,
+ *      the edges, retiring a placement, and taking a date or a rule back off;
+ *   6. `Move to Trash`, last and alone.
+ *
+ * The rules are the safety property the old reads/writes divider was: a
+ * person reaching for anything else does not land on the verb that takes a
+ * subtree away. Where a verb goes is its own `group` (`./verbs.ts`); where a
+ * plugin's goes is decided HERE, not by the plugin, which says only whether it
+ * writes.
+ *
+ * A SURFACE'S OWN VERBS ride in `more` — the tree row's folds and `Copy as
+ * text` — so the one decision about where a surface's verb goes is made here,
+ * for every surface, rather than by each of them splicing into a list it did
+ * not build.
  */
 export const subjectMenuActions = (args: {
   /** The app's URL grammar, handed in — the shelf verb asks through it
@@ -202,28 +241,19 @@ export const subjectMenuActions = (args: {
   /** The panels this surface draws; a verb that would open one it does not is
    *  not offered ({@link Panels}). */
   readonly panels: Panels
-  /** This surface's own verbs placed after `Zoom in`, before the link. */
-  readonly afterZoom?: ReadonlyArray<MenuAction>
-  /** This surface's own verbs placed after core's writes. */
-  readonly afterWrites?: ReadonlyArray<MenuAction>
-}): ReadonlyArray<MenuAction> => {
+  /** This surface's own rarely-reached verbs, placed in `More ›` after the
+   *  link. */
+  readonly more?: ReadonlyArray<MenuAction>
+}): ReadonlyArray<MenuEntry> => {
   const id = args.subject.record.id
   /** The node the record SHOWS — what a plugin's press is handed. */
   const shown = shownIdOf(args.subject)
-  const items: MenuAction[] = [
-    {
-      id: "zoom",
-      label: "Zoom in",
-      run: () => args.go(atNode(id)),
-    },
-    ...(args.afterZoom ?? []),
-  ]
-  // `Ask agent` STOOD HERE, second among the reads, and it is gone with the
-  // rest of chat: arming a composer is a thing a conversation has, and this
-  // catalog is core's. It is `olai-plugin-chat`'s browser half now, hung in
-  // `outline.row.action` — and it arrives back on this list at the bottom of
-  // this function, through the walk every plugin's verb comes in by.
-  items.push({
+  const zoom: MenuAction = {
+    id: "zoom",
+    label: "Zoom in",
+    run: () => args.go(atNode(id)),
+  }
+  const copyLink: MenuAction = {
     id: "copy-link",
     label: "Copy link to node",
     // The failure is NOT caught here, and that is the fix: a clipboard write
@@ -239,17 +269,14 @@ export const subjectMenuActions = (args: {
       await navigator.clipboard.writeText(url)
       return copied("link")
     },
-  })
+  }
 
   // The verb, with the one field that is not a menu's business — what it does
   // — turned into the running of it, and DROPPED where this surface cannot run
   // it ({@link Panels}). Spread rather than copied field by field: a
   // hand-written list of names here is the list that goes stale the day a verb
   // grows a field, silently, because both shapes still compile.
-  // HOW MUCH AN ARCHIVE MOVES rides on the reading itself: it is a fact about
-  // the records rather than about what this surface happens to be drawing, so
-  // it is counted where the set is and sent with the page.
-  const writes: MenuAction[] = writeVerbs(
+  const verbs = writeVerbs(
     args.routes,
     args.subject,
     args.under,
@@ -259,85 +286,61 @@ export const subjectMenuActions = (args: {
     const run = running(does, args.panels, args.record)
     return run === undefined ? [] : [{ ...verb, run }]
   })
-  writes.push(...(args.afterWrites ?? []))
+  const of = (group: Group): Array<MenuAction> =>
+    verbs.filter((verb) => verb.group === group).map(({ group: _, ...verb }) => verb)
+  // The pin LAST in its group: the date and the rule are about the node, the
+  // pin about the sidebar — the catalog lists it first for the palette's sake.
+  const plan = [...of("plan")].sort((a, b) => Number(a.id.endsWith("pin")) - Number(b.id.endsWith("pin")))
 
   /**
-   * ...AND WHAT THE PLUGINS HANG ON A ROW — `outline.row.action`, placed into
-   * the half each verb says it belongs in.
+   * WHAT THE PLUGINS HANG ON A ROW — `outline.row.action`, asked about this
+   * row, in the bundle's order (`../plugins/runtime.ts`'s `hung` imposes it).
    *
-   * ## What core keeps
+   * A READING, ASKED HERE: the face answers the verbs that plugin offers on
+   * this node right now — which for chat is one `Start an agent` on a bare row
+   * (a submenu of engines when there is a choice), and `Fresh start` and
+   * `Close the agent` on a row already talking. None of that is knowable when
+   * a plugin registers.
    *
-   * The POSITION, and it is a safety property rather than a preference: the rule
-   * above separates verbs that change what this tab is looking at from verbs
-   * that change the directory, and a person reaching for one and hitting the
-   * other is the mistake the ORDER prevents. A plugin's verbs sit at the END of
-   * whichever half they belong to — after core's own, in the bundle's order
-   * (`../plugins/runtime.ts`'s `hung` imposes it), and one plugin's several stay
-   * in the order it registered them.
-   *
-   * APPENDING AFTER BOTH HALVES was the first shape and it broke exactly the
-   * rule it was standing next to: *Ask agent* arms a composer and writes
-   * nothing, and it landed under *Move to Trash*. Core cannot tell which a
-   * verb is, and a plugin may not be trusted with the position — so `RowAction`
-   * carries the one fact that crosses (`writes`) and this is where it is spent.
-   *
-   * NO DIVIDER and NO CONFIRM, and neither is an omission: `RowAction` has
-   * neither field. A rule is core's statement about where the halves meet, and a
-   * question asked before a verb runs is prose drawn in core's words — which a
-   * plugin's verb is not core's to compose.
-   *
-   * ## What the plugin brings
-   *
-   * The words, the press, and which half. The press is handed ONE argument: the
-   * node this row SHOWS (`../fold/rows.ts`), never the record standing there.
-   * That is the rule a mark, a fold and a pin already follow, and spending it
-   * here is what stops a tenant from having to know that a mirror is a placement
-   * with no title of its own — `Ask agent` got this right when it lived in this
-   * file and a test held it; now nothing on the other side of the slot can get
-   * it wrong.
-   *
-   * THE ID IS COMPOSED, because a plugin's `id` is its own word and two plugins
-   * may spell it the same. `<plugin>:<verb>` is unambiguous — a plugin's name
-   * carries no colon — and it is what reaches `data-action` on the entry, so a
-   * scenario naming a plugin's verb names whose it is.
+   * NO DIVIDER and NO CONFIRM of the plugin's composing: a rule is core's
+   * statement about where its groups meet. A plugin's verb may ASK (its
+   * `confirm`), and the question is drawn in core's panel.
    */
+  const reads: Array<MenuEntry> = []
+  const plugins: Array<MenuEntry> = []
   for (const { plugin, face } of hung("outline.row.action")) {
-    // A READING, ASKED HERE, AND ASKED ABOUT THIS ROW. The face answers the
-    // verbs that plugin offers on this node right now — which for the chat panel
-    // is one *start* per installed engine on a bare row, one on a row that names
-    // an engine, and none at all on a row already talking through a conversation.
-    // None of that is knowable when a plugin registers: the roster arrives over a
-    // wire the tab dials afterwards, and the row is this walk's own. It is the
-    // NODE THE ROW SHOWS, the same id a press is handed, so core's arithmetic
-    // over mirrors and folds is spent once and no tenant can get it wrong.
-    for (const verb of face(shown)) {
-      const entry = {
-        id: `${plugin}:${verb.id}`,
-        label: verb.label,
-        ...(verb.confirm === undefined ? {} : { confirm: verb.confirm }),
-        run: async () => {
-          const refusal = await verb.run(shown)
-          if (typeof refusal === "string") return { tone: "alarm" as const, text: refusal }
-        },
-      }
-      if (verb.writes) writes.push(entry)
-      else items.push(entry)
+    for (const action of face(shown)) {
+      ;(action.writes ? plugins : reads).push(pluginEntry(plugin, action, shown))
     }
   }
 
-  // The rule goes above the first of the writes, wherever the two halves meet —
-  // AFTER the plugins have added to both, so a serve running a plugin whose only
-  // verb writes still draws one rule in the one right place.
-  items.push(...writes.map((verb, at) => (at === 0 ? { ...verb, divider: true } : verb)))
+  const marks = of("mark")
+  const groups: ReadonlyArray<ReadonlyArray<MenuEntry>> = [
+    [
+      zoom,
+      ...(marks.length === 0 ? [] : [{ id: "mark", label: "Mark", entries: marks }]),
+      ...reads,
+    ],
+    plan,
+    of("place"),
+    plugins,
+    [{ id: "more", label: "More", entries: [copyLink, ...(args.more ?? []), ...of("more"), ...of("unset")] }],
+    of("away"),
+  ]
 
-  return items
+  // A rule above the first entry of every group but the first — AFTER the
+  // plugins have added theirs, so a group left empty draws no rule of its own.
+  return groups
+    .filter((group) => group.length > 0)
+    .flatMap((group, at) => group.map((entry, i) => (at > 0 && i === 0 ? { ...entry, divider: true } : entry)))
 }
 
 /**
  * The verbs a TREE ROW offers: every one a node offers
  * ({@link subjectMenuActions}), and the ones only a place in an outline has —
- * its folds, and the text of its subtree. It draws every panel a verb can
- * open, so none of the node's verbs is left out here.
+ * the folds of its subtree, and its text. Both are rarely reached, so both go
+ * in `More ›`. It draws every panel a verb can open, so none of the node's
+ * verbs is left out here.
  */
 export const nodeMenuActions = (args: {
   /** What a kind licenses on this row's file (`./verbs.ts`). */
@@ -347,7 +350,6 @@ export const nodeMenuActions = (args: {
   readonly row: Row
   /** The shelf as the server answered it (`../pins.ts`). */
   readonly pins: Shelf
-  readonly collapsed: boolean
   /** Every node under this row that has children — what the two "all" verbs
    *  name. Passed in rather than walked here: the walk is over Row shape, which
    *  is the tree's business (`../fold/rows.ts`), and this catalog is built for
@@ -358,40 +360,14 @@ export const nodeMenuActions = (args: {
   /** The five panels a tree row draws, each REQUIRED here: a tree row that
    *  forgot one would quietly lose the verb ({@link Panels}). */
   readonly panels: Required<Panels>
-}): ReadonlyArray<MenuAction> => {
-  const folds: MenuAction[] = []
-  if (args.row.children.length > 0) {
-    folds.push(
-      {
-        id: args.collapsed ? "expand" : "collapse",
-        label: args.collapsed ? "Expand" : "Collapse",
-        // The NODE this row shows, not the place it sits in — the same fold the
-        // triangle beside it presses (`../fold/rows.ts`), sent to the same
-        // memory (`../fold/memory.ts`), which is what makes the two controls
-        // one switch rather than two that agree.
-        run: () => setFolded([foldOf(args.row)], !args.collapsed),
-      },
-      {
-        id: "expand-all",
-        label: "Expand all",
-        run: () => setFolded(args.foldable, false),
-      },
-      {
-        id: "collapse-all",
-        label: "Collapse all",
-        run: () => setFolded(args.foldable, true),
-      },
-    )
-  }
-  // A pure READ, and the only reason it sits among the writes is that it is
-  // about the subtree rather than about this tab: it is the one clipboard verb
-  // that answers "what does all of this SAY". Built here rather than in the
-  // catalog of values because the text is the whole subtree rendered, and the
-  // catalog is rebuilt for every row on every frame the store publishes — a
-  // copy nobody asked for is not worth a walk per row. Not offered on a row
-  // that draws no node (a mirror whose chain died, one that closed a loop):
-  // there is no text under it, and a menu entry that copies an empty string is
-  // a click that silently does nothing.
+}): ReadonlyArray<MenuEntry> => {
+  // A pure READ: the one clipboard verb that answers "what does all of this
+  // SAY". Built here rather than in the catalog of values because the text is
+  // the whole subtree rendered, and the catalog is rebuilt for every row on
+  // every frame the store publishes — a copy nobody asked for is not worth a
+  // walk per row. Not offered on a row that draws no node (a mirror whose chain
+  // died, one that closed a loop): there is no text under it, and a menu entry
+  // that copies an empty string is a click that silently does nothing.
   const text: MenuAction[] = args.row.kind === "node" || args.row.kind === "mirror"
     ? [{
       id: "copy-text",
@@ -402,6 +378,21 @@ export const nodeMenuActions = (args: {
       },
     }]
     : []
+  // THE TWO "ALL" FOLDS, on a row with anything under it. This row's own fold
+  // is the triangle beside the `•••` — drawn on every device — so the menu does
+  // not repeat it.
+  const folds: MenuAction[] = args.row.children.length === 0 ? [] : [
+    {
+      id: "expand-all",
+      label: "Expand all",
+      run: () => setFolded(args.foldable, false),
+    },
+    {
+      id: "collapse-all",
+      label: "Collapse all",
+      run: () => setFolded(args.foldable, true),
+    },
+  ]
   return subjectMenuActions({
     routes: args.routes,
     subject: subjectOfRow(args.row),
@@ -411,7 +402,6 @@ export const nodeMenuActions = (args: {
     go: args.go,
     record: args.record,
     panels: args.panels,
-    afterZoom: folds,
-    afterWrites: text,
+    more: [...text, ...folds],
   })
 }

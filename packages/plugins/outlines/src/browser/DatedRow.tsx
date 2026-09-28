@@ -107,6 +107,7 @@ import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { subjectOfSituated } from "./menu/verbs.ts"
 import { usePins } from "./pins.ts"
+import { focusedNode, selectNode } from "./focus.ts"
 
 export function DatedRow(props: {
   readonly dated: DayEntry
@@ -185,6 +186,11 @@ export function DatedRow(props: {
         onContextMenu={menu.hold.onContextMenu}
         // This row owns its menu; a page-wide link menu leaves its links alone.
         data-menu-owner="outline-row"
+        // A tap makes this THE row — the tree's "this is the one" (`./focus.ts`),
+        // since a dated row has no caret to say it — and the active row is
+        // where a plugin's offer shows on a phone (`OFFER_REVEAL`).
+        onClick={() => selectNode(node().id)}
+        data-active={focusedNode() === node().id ? "" : undefined}
       >
         <div class={HANGING_MENU}>
           {/* Built where it is READ, inside the open panel — Solid compiles a

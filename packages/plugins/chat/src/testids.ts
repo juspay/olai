@@ -78,6 +78,9 @@ export const TESTID = {
    *  scenario names one row rather than reading which of the menu's entries
    *  happened to be disabled. */
   agentEngineMissing: "agent-engine-missing",
+  /** The engine picker's one line when nothing on this machine can start —
+   *  `No agent is set up`, beside the plugins panel's door. */
+  agentEngineNone: "agent-engine-none",
   /** The same sentence line on the PLUGINS PANEL's row for an engine whose
    *  executable this machine has not got — the face each engine plugin hangs
    *  through its own `row` component, filed under

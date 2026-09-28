@@ -23,14 +23,18 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       search: `agents new chat ${engine.name}`.toLowerCase(), taking: atOnce,
       action: { kind: "run", run: () => start(engine.id) },
     }))
-    return [{ id: "new-chat", label: "new chat", place: "Agents", search: "agents new chat", taking: atOnce,
+    // ONLY WHAT WORKS: with no engine this machine can start, there is no
+    // `new chat` row to choose — the plugins panel says why.
+    const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 ? [] : [{
+      id: "new-chat", label: "new chat", place: "Agents", search: "agents new chat", taking: atOnce,
       action: { kind: "run", run: async () => {
         const only = agents.only()
         if (only !== null) return start(only.id)
         if (agents.engines().length === 0) return { keepOpen: true, said: { tone: "alarm", text: "no agent engine is available" } }
         choose(true)
         return { keepOpen: true }
-      } } }, ...byActivity(agents.rows()).map((row): PaletteItem => ({
+      } } }]
+    return [...creating, ...byActivity(agents.rows()).map((row): PaletteItem => ({
       id: `agent-${row.id}`, label: row.title, hint: LOOK[row.standing].label,
       place: "Agents", search: `agents ${row.title}`.toLowerCase(), taking: atOnce,
       action: { kind: "run", run: async () => {
