@@ -399,7 +399,11 @@ Then(
     const opacity = Number(await control.evaluate((el) => getComputedStyle(el).opacity));
     assert.ok(opacity < 1, `the frozen ${label} switch is drawn at full strength (opacity ${opacity})`);
     const before = await control.getAttribute("aria-checked");
-    await this.press(control);
+    // FORCED, because Playwright will not click an `aria-disabled` control at
+    // all — it waits for it to be enabled — and the claim is about what a
+    // press a person can still make does, not whether a tool would make it.
+    await this.intoReach(control);
+    await control.click({ force: true });
     await this.waitForFrame();
     assert.equal(await control.getAttribute("aria-checked"), before, `pressing the frozen ${label} switch moved it`);
   },
@@ -1003,9 +1007,15 @@ When("I close the plugins panel", async function (this: OlaiWorld) {
   // is still up under the panel. Otherwise Escape, the door's other way shut:
   // the popover the row sits in has gone once the panel took the caret, and
   // on a phone the panel covers the drawer's row.
-  if (this.viewport().width > 700 && await trigger.isVisible().catch(() => false)) await this.press(trigger);
-  else await this.pluginsPanel().press("Escape");
-  await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached" });
+  // A step before this one may already have put the panel away (a press
+  // elsewhere on the page is a click-away), so shut it only while it is up —
+  // and keep asking, because a rebuilt shell puts a held-open panel back.
+  await this.waitUntil(async () => {
+    if ((await this.pluginsPanel().count()) === 0) return (await this.page.locator(PLUGINS_PANEL).count()) === 0;
+    if (this.viewport().width > 700 && await trigger.isVisible().catch(() => false)) await this.press(trigger);
+    else await this.pluginsPanel().press("Escape").catch(() => undefined);
+    return (await this.page.locator(PLUGINS_PANEL).count()) === 0;
+  }, "the plugins panel to be shut");
   // ...and the health popover it was opened from, the way a person would
   // finish: its dot again. Nothing is left over the page for the next step.
   const health = this.page.locator(HEALTH_PANEL);
@@ -1122,11 +1132,15 @@ const shownRow = (world: OlaiWorld, plugin: string) => world.showPluginRow(plugi
 export const detailOf = async (world: OlaiWorld, plugin: string): Promise<Locator> => {
   const row = await shownRow(world, plugin);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const disclosure = row.locator('.plugins-line [aria-expanded="false"]').first();
-  if ((await row.getAttribute("data-open")) !== "true" && await disclosure.isVisible().catch(() => false)) {
-    await world.press(disclosure);
-    await row.and(world.page.locator('[data-open="true"]')).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
+  // Read the chevron's state and press it only while it says shut — in one
+  // short attempt, never a wait on a selector: a roster republish can move the
+  // row into Needs attention (which opens it) between the read and the press,
+  // and a press that waited for a shut chevron that no longer exists would
+  // spend the caller's whole deadline on one try.
+  const disclosure = row.locator(".plugins-line button.plugins-name").first();
+  if ((await disclosure.getAttribute("aria-expanded", { timeout: 1000 }).catch(() => null)) === "false") {
+    await disclosure.click({ timeout: 2000 }).catch(() => undefined);
+    await world.waitForFrame();
   }
   return row;
 };

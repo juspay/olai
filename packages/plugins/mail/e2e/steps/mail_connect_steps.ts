@@ -67,8 +67,18 @@ const REDIRECT_PATH = "/_olai/mail/oauth"
 /** The mail row's own face, inside the panel's row for this plugin. The row the
  *  panel draws is `data-pref="plugin-mail"` (`olai-plugin-plugin-inspector`'s
  *  own testid), and the face this plugin hung on it is `mail-row`. */
-const rowFace = async (world: OlaiWorld) =>
-  (await world.showPluginRow("mail")).locator(attr("data-testid", TESTID.mailRow))
+const rowFace = async (world: OlaiWorld) => {
+  const row = await world.showPluginRow("mail")
+  // The face is drawn in the row's DETAIL. A mail row with no account sits
+  // under Needs attention, open; a connected one sits shut under
+  // Connections, so its chevron is pressed — only while it reads shut.
+  const disclosure = row.locator(".plugins-line button.plugins-name").first()
+  if ((await disclosure.getAttribute("aria-expanded", { timeout: 2000 }).catch(() => null)) === "false") {
+    await disclosure.click({ timeout: 2000 }).catch(() => undefined)
+    await world.waitForFrame()
+  }
+  return row.locator(attr("data-testid", TESTID.mailRow))
+}
 
 /** One of the row's two buttons. */
 const rowButton = async (world: OlaiWorld, action: string) =>
