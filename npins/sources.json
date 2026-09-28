@@ -35,9 +35,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "eaada0f940b1ccd85888c33e3e38a51b67eb1874",
-      "url": "https://github.com/pimalaya/himalaya/archive/eaada0f940b1ccd85888c33e3e38a51b67eb1874.tar.gz",
-      "hash": "sha256-oTgsWRZqVspSUrjqopwB7NnDTQGTwH+xaHVLThyfeJI="
+      "revision": "94baf003543c419e2985baf8aaf96e92c13426a8",
+      "url": "https://github.com/pimalaya/himalaya/archive/94baf003543c419e2985baf8aaf96e92c13426a8.tar.gz",
+      "hash": "sha256-TwTvKR27zmwfxBQMrtWrjZGYqVHUWmqNqlcWLm2+4fo="
     },
     "kolu": {
       "type": "Git",
