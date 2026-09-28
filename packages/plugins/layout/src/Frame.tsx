@@ -41,14 +41,13 @@ import { drawerOpen as menuOpen,setDrawerOpen as setMenuOpen,sidebarOpen,toggleS
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { RouterProvider } from "olai-plugin-navigation/routing"
-import { useNavigation } from "./navigation-hold.ts"
 import { isLone } from "olai-plugin-navigation/workspace"
 import { Header } from "./Header.tsx"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { Tools } from "./Tools.tsx"
 
-export default function Frame(props: { readonly slots: RendererSlots }) {
-  const nav = useNavigation
+export default function Frame(props: { readonly slots: RendererSlots; readonly router: import("olai-plugin-navigation/contract").Navigation }) {
+  const router = props.router
 
   // The phone drawer is this frame's for as long as it is drawn — a signal in
   // `./layout/live.ts` so `layout.shell`'s `revealSidebar` can open it from a
@@ -60,12 +59,10 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
     if (desktop()) setMenuOpen(false)
   })
 
-  const split = () => {
-    const router = nav()
-    return router !== undefined && !isLone(router.workspace())
-  }
+  const split = () => !isLone(router.workspace())
 
   return (
+      <RouterProvider router={router}>
       <TipFloor.Provider value={() => (document.querySelector(`[data-testid="${LAYOUT_TESTID.mainStrip}"]`) ?? document.querySelector(`[data-testid="${LAYOUT_TESTID.appHeader}"]`))?.getBoundingClientRect().bottom ?? 0}>
       <PluginsMounted>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
@@ -112,8 +109,6 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
           }
         />
         <PluginBanners />
-        <Show when={nav()} keyed>{(router) => (
-        <RouterProvider router={router}>
         <div
           class="flex-1"
           classList={{
@@ -171,10 +166,9 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
                     </div>
                   </div>
         </div>
-        </RouterProvider>
-        )}</Show>
       </div>
       </PluginsMounted>
       </TipFloor.Provider>
+      </RouterProvider>
   )
 }
