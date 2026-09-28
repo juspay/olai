@@ -30,7 +30,6 @@ import { selector } from "@olai/web/testlib"
 
 import { chunkOf } from "@olai/tests/harness/chunks.ts";
 import { pressed } from "@olai/tests/harness/settling.ts";
-import { attr } from "@olai/tests/harness/selectors.ts";
 
 import {
   attr,
