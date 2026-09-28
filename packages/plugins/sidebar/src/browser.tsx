@@ -17,7 +17,7 @@ import { sidebar } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Rail } from "./Rail.tsx"
 import { Sidebar } from "./Sidebar.tsx"
-import { railEntries,regions,vaultEntries } from "./contract.ts"
+import { railEntries,regions } from "./contract.ts"
 import { name } from "./index.ts"
 
 export default definePlugin({
@@ -26,7 +26,7 @@ export default definePlugin({
     yield* holdFaces(yield* Faces)
     const slots = yield* rendererSlots
     yield* slots.contribute(sidebar, { Sidebar: (props) => <Sidebar {...props} slots={slots} />, Rail: (props) => <Rail {...props} slots={slots} /> }, {
-      children: [regions, vaultEntries, railEntries, slotContracts["sidebar.entry"], slotContracts["sidebar.section"]],
+      children: [regions, railEntries, slotContracts["sidebar.entry"], slotContracts["sidebar.section"]],
     })
   }),
 })

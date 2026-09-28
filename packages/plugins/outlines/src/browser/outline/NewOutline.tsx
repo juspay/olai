@@ -36,13 +36,20 @@ import { useRouter } from "olai-plugin-navigation/routing"
 import { applied } from "../writes.ts"
 import { atFile } from "olai-plugin-navigation/routes"
 
+/** The item this door puts in the Outlines heading's `+` menu — none while no
+ *  outline row is configured, the same condition the box below is drawn on. */
+export const outlineMaking = () => {
+  const row = servedDirectory()?.outlineRow()
+  return row ? MAKING_OUTLINE(row) : undefined
+}
+
 export function NewOutline() {
   const undo = useUndo()
   const router = useRouter()
 
   return (
-    <Show when={servedDirectory()?.outlineRow()}>{row => <NewFile
-      making={MAKING_OUTLINE(row())}
+    <Show when={outlineMaking()}>{making => <NewFile
+      making={making()}
       create={async (file) => {
         const started = router.workspace()
         const outcome = await applied({ verb: "outlineNew", file }, undo.record)

@@ -91,6 +91,19 @@ export function Sidebar(props: SidebarRegionProps) {
           <Regions at="shelf" props={props} />
           <Regions at="files" props={props} />
         </div>
+        {/* THE FOOT: entries placed `foot` (Trash), pinned under the scrolling
+            list so they stay in view however long it runs — above the drawer's
+            own foot on a phone, and beside the collapse button on a desktop,
+            which is what the right padding leaves room for. Drawn by the
+            placement word the entry declared, never by who contributed it; an
+            empty foot (the trash row off) takes no room. */}
+        <div
+          class="shrink-0 px-3 pb-2 pt-1 empty:hidden md:pr-12"
+          data-testid={TESTID.sidebarFoot}
+          onClick={() => props.onClose()}
+        >
+          <PluginEntries place="foot" />
+        </div>
         <Show when={props.foot}>
           {(foot) => (
             <div class="shrink-0 border-t border-paper/15 p-3">

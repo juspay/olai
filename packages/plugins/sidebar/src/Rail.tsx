@@ -59,6 +59,12 @@ export function Rail(props: {
       <For each={props.slots.read(railEntries)}>{({value: Entry}) => <Entry />}</For>
 
       <PluginRailEntries place="bottom" />
+
+      {/* The column's foot has a foot here too: what stands pinned under the
+          list (Trash) sinks to the bottom of the rail. */}
+      <div class="mt-auto flex flex-col items-center gap-1 empty:hidden">
+        <PluginRailEntries place="foot" />
+      </div>
     </div>
   )
 }

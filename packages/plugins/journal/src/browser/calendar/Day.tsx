@@ -17,7 +17,7 @@
  *                   a pseudo-element has no text, so a shape distinction is
  *                   silence to a screen reader;
  *   today           a ring, wherever it falls and whatever else it is;
- *   you are here    FILLED — ink ground, paper number. The day you are reading
+ *   you are here    FILLED — the accent wash, paper number. The day you are reading
  *                   is not a shade of a day, it is the day. It outranks its own
  *                   hover, because the pointer is still over the cell that was
  *                   just clicked.
@@ -121,17 +121,21 @@ export function Day(props: {
   // does rather than the way the stylesheet happened to be sorted. Today and
   // open together is the ring around the fill: the ring says which day it is,
   // the fill says you are standing on it.
+  // ON THE SPINE'S GROUND (`./Calendar.tsx`): paper words on ink, so a quiet
+  // day is paper at half strength and the day being read wears the column's
+  // own current-page wash — the accent behind paper, as a current row does
+  // (`olai-plugin-layout/entry`'s `ENTRY_SHAPE`).
   const ink = (): string =>
     props.open
       ? "text-paper"
       : props.today
       ? "text-accent"
       : live()
-      ? "text-ink"
-      : "text-muted"
-  const ground = (): string => props.open ? "bg-ink" : "hover:bg-rule"
+      ? "text-paper"
+      : "text-paper/45"
+  const ground = (): string => props.open ? "bg-accent/30" : "hover:bg-paper/10"
   const ring = (): string =>
-    props.today ? "border-accent" : props.open ? "border-ink" : "border-transparent"
+    props.today ? "border-accent" : "border-transparent"
 
   const look = (): string =>
     [

@@ -593,6 +593,7 @@ test("the stack is joined directly only where the gestures are not dismissOn's",
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
     "plugins/chat/src/browser/agents/EngineMenu.tsx",
     "plugins/chat/src/browser/chat/CompletionMenu.tsx",
+    "plugins/files/src/NewMenu.tsx",
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/Shortcuts.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
