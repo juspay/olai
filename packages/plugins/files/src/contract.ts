@@ -19,6 +19,10 @@ export const fileState = serviceTag<FileControls>("files.state")
 export interface FileControls {
  readonly Delete: (props:{readonly file:string})=>JSX.Element
  readonly New: (props:{readonly making:import("./file/making.ts").Making;readonly create:(file:string)=>Promise<string|null>})=>JSX.Element
+ /** Open the new-file box for one kind — the same thing picking that kind's
+  *  item in the Outlines heading's `+` menu does. For a page that offers the
+  *  first file of a kind (an empty directory's `New outline`). */
+ readonly open: (of:import("./file/making.ts").Making["of"])=>void
 }
 /**
  * ## THE TWO WRAPPERS LEFT THIS DOOR, and the signal behind them went with

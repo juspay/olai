@@ -12,7 +12,7 @@ import { holdServed } from "./vault.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
 import { holdShell } from "./shell.ts"
 import { DeleteFile } from "./file/DeleteFile.tsx"
-import { clearNewFileMemory,NewFile } from "./file/NewFile.tsx"
+import { clearNewFileMemory,NewFile,openNewFile } from "./file/NewFile.tsx"
 import { definePlugin,Offers } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { navigation } from "olai-plugin-navigation/contract"
@@ -46,7 +46,7 @@ export default definePlugin({name:"files", needs: [Landings, Wired, Offers, Edit
  yield* Effect.acquireRelease(Effect.void,()=>Effect.sync(clearNewFileMemory))
  yield* Effect.acquireRelease(Effect.sync(followFolders), stop => Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(followReference), stop => Effect.sync(stop))
- yield* (yield* Offers).own("state",()=>({Delete:DeleteFile,New:NewFile}))
+ yield* (yield* Offers).own("state",()=>({Delete:DeleteFile,New:NewFile,open:openNewFile}))
 })})
 export const components = {
  /** The shell's geometry, DECLARED — a component of its own because content

@@ -10,12 +10,9 @@
  *
  * Both are the caller's, because only the page's owner knows what belongs on
  * it and which verb starts it. This component knows no plugin and reaches no
- * service; `children` is where an owner draws what its action opened (the new
- * outline's name box, say) so it lands under the words rather than somewhere
- * else on the page.
+ * service.
  */
 
-import type { JSX } from "solid-js"
 import { Show } from "solid-js"
 
 import { Leaf } from "@olai/web/client/Leaf.tsx"
@@ -34,7 +31,6 @@ export function Empty(props: {
   /** What will appear here, or how it gets here, in one short line. */
   readonly detail?: string
   readonly action?: EmptyAction
-  readonly children?: JSX.Element
 }) {
   return (
     <div class="flex flex-col items-start gap-5 py-12">
@@ -59,7 +55,6 @@ export function Empty(props: {
           </button>
         )}
       </Show>
-      {props.children}
     </div>
   )
 }
