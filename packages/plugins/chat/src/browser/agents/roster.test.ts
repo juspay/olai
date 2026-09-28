@@ -15,13 +15,13 @@ test("every standing the server can send has words and a visible mark", () => {
     "unbound",
   ]
   expect(standings.map((standing) => LOOK[standing].label)).toEqual([
-    "needs you",
-    "working…",
-    "starting…",
-    "idle",
-    "not running",
-    "asleep",
-    "no session bound",
+    "Needs you",
+    "Working…",
+    "Starting…",
+    "Idle",
+    "Not running",
+    "Asleep",
+    "No agent",
   ])
   expect(standings.every((standing) => LOOK[standing].dot.length > 0)).toBe(true)
 })

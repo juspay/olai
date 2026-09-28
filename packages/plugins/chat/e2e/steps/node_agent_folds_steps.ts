@@ -60,9 +60,16 @@ Given("I open the {string} agent on node {string}", async function(this: OlaiWor
     else await this.hold(this.node(node));
     const menu = this.page.locator(NODE_MENU_PANEL);
     await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const choices = menu.locator(NODE_MENU_ITEM).filter({ hasText: "Start an agent session" });
-    if (await choices.count() === 1) await choices.click();
-    else await choices.filter({ hasText: new RegExp(engine, "i") }).click();
+    // One entry, however many agents: the verb itself with one, a submenu of
+    // the agents with several (`data-action` is the bare `chat:start-agent`).
+    const start = menu.locator(`${NODE_MENU_ITEM}[data-action^="chat:start-agent"]`);
+    await start.click();
+    if (await start.getAttribute("data-action") === "chat:start-agent") {
+      const sub = this.page.locator(`${selector(PLUGIN_TESTID.nodeMenuSub)}${attr("data-sub", "chat:start-agent")}`);
+      await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+      await sub.locator(attr("data-action", `chat:start-agent-${engine}`))
+        .or(sub.getByRole("menuitem", { name: engine, exact: true })).click();
+    }
   }
   await fold(this, node).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });

@@ -44,7 +44,7 @@ describe("who was sent", () => {
     // Naming a kind is optional in the tool that starts an agent, so this is
     // an ordinary spawn rather than a broken one — and a row saying nothing
     // where every other spawn says something reads as a row that failed.
-    expect(whoOf(row({ spawned: {} }))).toBe("agent")
+    expect(whoOf(row({ spawned: {} }))).toBe("Agent")
   })
 
   test("... and goes on saying it after the agent has reported back", () => {
@@ -63,11 +63,11 @@ describe("whether it is still going", () => {
     // made it wrong is the `pending` case: a heartbeat can be half a minute
     // away, so a subagent whose calls were already drawn in the lane below
     // this rail went on being described as *starting…* while they arrived.
-    expect(doingOf(row({ spawned: { kind: "Explore" } }))).toBe("working…")
+    expect(doingOf(row({ spawned: { kind: "Explore" } }))).toBe("Working…")
     expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" })))
-      .toBe("working…")
+      .toBe("Working…")
     expect(doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress" })))
-      .toBe("working…")
+      .toBe("Working…")
   })
 
   test("a spawn that has stopped has nothing live left to say", () => {

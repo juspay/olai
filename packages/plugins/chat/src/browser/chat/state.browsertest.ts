@@ -72,7 +72,7 @@ test("a send waits for its keyed opening, and disposal settles a queued gesture 
     expect(sent).toEqual([])
     second.dispose()
     expect(await abandoned).toBe(false)
-    expect(second.chat.refused()?.message).toContain("your message was kept")
+    expect(second.chat.refused()?.message).toContain("Your message was kept")
     Queue.offerUnsafe(states.get("opening")!, {
       ...CHAT_OFF, status: "idle", uploadScope: "opened-lifetime",
       session: { id: "opening", title: null, updatedAt: null },

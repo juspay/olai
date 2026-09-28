@@ -5,7 +5,7 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     And the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I ask the agent "ask"
     Then the chat shows a question
@@ -13,7 +13,7 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     When I hold incoming updates to the original browser tab
     And I open another browser tab
     And I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I ask the agent "ask"
     Then the chat shows a question
@@ -35,7 +35,7 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     And the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I pick "notes.txt" with the attach button
     Then the composer is holding "notes.txt", showing how big it is
@@ -43,7 +43,7 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     And I hold incoming updates to the original browser tab
     And I open another browser tab
     And I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     When I use the original browser tab
     And I send the chat message
@@ -71,14 +71,14 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     And the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I point at row "hinges" in outline "house.olai"
     And I close the agent fold
     And I hold incoming updates to the original browser tab
     And I open another browser tab
     And I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     When I use the original browser tab
     And I press the palette shortcut
@@ -98,7 +98,7 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     And the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I ask the agent "ready"
     Then the agent is idle
@@ -113,7 +113,7 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
     When I hold incoming updates to the original browser tab
     And I open another browser tab
     And I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I ask the agent "ready"
     Then the agent is idle

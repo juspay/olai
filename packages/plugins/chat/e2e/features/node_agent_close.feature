@@ -4,7 +4,7 @@ Feature: Closing a node's agent releases it back to an unclaimed chat
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     Then the panel header names the node agent "install the cabinets"
     When I ask the agent "cabinet installed session"

@@ -4,7 +4,7 @@ Feature: Node conversation controls remain usable after reconnecting
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     And the node agent's fold is ready
     And I remember this conversation as "cabinet"

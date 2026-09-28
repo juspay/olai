@@ -73,7 +73,7 @@ describe("whether it is still out there", () => {
         status: "in_progress",
         armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
       })),
-    ).toBe("still running…")
+    ).toBe("Still running…")
   })
 
   test("a task the harness has reported the end of does not", () => {
@@ -113,7 +113,7 @@ describe("whether it is still out there", () => {
     // `pending` is what the adapter announces every call with, so it is a
     // running state rather than a case to fall through — the same reading the
     // rail under a spawn makes, from the same module.
-    expect(stillOf(row({ status: "pending", armed: { task: "t1" } }))).toBe("still running…")
+    expect(stillOf(row({ status: "pending", armed: { task: "t1" } }))).toBe("Still running…")
   })
 })
 

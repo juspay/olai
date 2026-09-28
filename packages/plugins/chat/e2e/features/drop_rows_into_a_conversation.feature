@@ -60,7 +60,7 @@ Feature: Rows land in the conversation chosen by the pointer
 
   Scenario: The row menu offers starting a conversation and context uses the drop
     When I open the node menu of "order"
-    Then the node menu offers "Start an agent session"
+    Then the node menu offers "Start an agent"
     And the node menu does not offer "Ask agent"
 
   Scenario: Leaving the conversation restores the outline drop line

@@ -177,7 +177,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     And the node agent's fold is ready
     And I ask the agent "wake history"
     Then the agent has answered "wake history" exactly once

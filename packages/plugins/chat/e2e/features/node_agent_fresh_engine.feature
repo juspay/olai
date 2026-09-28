@@ -4,7 +4,7 @@ Feature: A fresh start may pick a different engine
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" › "Claude Code" from the node menu
     And the node agent's fold is ready
     Then the panel header names the node agent "install the cabinets"
     When I ask the agent "cabinet first session"
@@ -49,7 +49,7 @@ Feature: A fresh start may pick a different engine
     # another fresh start, never a claim to a chat the node already owns.
     And the agents roster holds 1 agents
     When I open the node menu of "install"
-    Then the node menu does not offer "Start an agent session"
+    Then the node menu does not offer "Start an agent"
     And the node menu offers "Fresh start — Codex"
     And the node menu offers "Close the agent"
 

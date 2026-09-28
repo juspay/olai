@@ -97,7 +97,7 @@ Feature: A node with an `agent-session` property IS an agent
     Given I open the outline "lanes.olai"
     Then there is no door on "lane-fresh"
     When I open the node menu of "lane-fresh"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     # One press, and the node IS one: the property carries both halves, and the
     # roster — which is that query — has a row it did not have, wearing a door
     # that says which engine.
@@ -122,7 +122,7 @@ Feature: A node with an `agent-session` property IS an agent
     Given I open the outline "lanes.olai"
     Then the agent "door-implement" stands "unbound"
     When I open the node menu of "door-implement"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     # The property now carries both halves, which is the durable half of the
     # answer: this survives the restart, because it is in the file — and its
     # engine is the one the node already named rather than one picked for it.
@@ -157,7 +157,7 @@ Feature: A node with an `agent-session` property IS an agent
     And the node agent's fold is ready
     When the agent refuses to load a conversation
     And I open the node menu of "lane-fresh"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     # The two acts in their order, unchanged: the conversation, then the
     # property that names it.
     Then the vault node "lane-fresh" has property "agent-session" holding "claude:fake-session-1"
@@ -176,7 +176,7 @@ Feature: A node with an `agent-session` property IS an agent
     # what happens to the transcript, and it is not this phase's.
     Given I open the outline "lanes.olai"
     When I open the node menu of "door-live"
-    Then the node menu does not offer "Start an agent session"
+    Then the node menu does not offer "Start an agent"
 
   # ── the keystone: what an agent-associated session is told ────────────
 
@@ -497,7 +497,7 @@ Feature: A node with an `agent-session` property IS an agent
     And I open the outline "house.olai"
     And the filer's boot run has settled
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" › "Claude Code" from the node menu
     And I ask the agent "cabinet conversation"
     And the agent is idle
     And a terminal stores a conversation titled "terminal conversation"

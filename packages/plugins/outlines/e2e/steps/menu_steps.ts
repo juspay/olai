@@ -356,7 +356,7 @@ When(
   "I choose {string} from the node menu",
   async function (this: OlaiWorld, label: string) {
     const item = await entry(this, label);
-    const startingNode = label.startsWith("Start an agent session") ? this.menuNode : null;
+    const startingNode = label.startsWith("Start an agent") ? this.menuNode : null;
     // A tall menu scrolls independently of the outline. Reveal the item in
     // that scrollport before the page's sticky-cover check hit-tests it.
     // Roster updates may replace an entry while Playwright waits for scroll

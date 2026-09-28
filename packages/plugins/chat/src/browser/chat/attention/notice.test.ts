@@ -34,7 +34,7 @@ test("with the panel shut and no question in hand, it says the plain fact", () =
   // so there are no words to quote — and a question remembered from the last
   // time it was open would be a banner about something else.
   const notice = noticeOf({ ...conversation("kitchen remodel"), asking: 1 }, undefined)
-  expect(notice.body).toBe("is waiting on your answer")
+  expect(notice.body).toBe("Waiting on your answer")
 })
 
 test("the others waiting are counted, question or no question", () => {
@@ -43,7 +43,7 @@ test("the others waiting are counted, question or no question", () => {
       .body,
   ).toBe("Which timber? (and 2 more)")
   expect(noticeOf({ ...conversation("kitchen"), asking: 2 }, undefined).body).toBe(
-    "is waiting on your answer (and 1 more)",
+    "Waiting on your answer (and 1 more)",
   )
 })
 
