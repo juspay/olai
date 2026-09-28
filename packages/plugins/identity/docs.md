@@ -32,7 +32,7 @@ What the row stands behind is the `Identity` door (`@olai/plugin-api`): the head
 
 | seat | who declares it, and what they keep | what identity brings |
 | --- | --- | --- |
-| `app.viewer` | `layout` — the last seat in the bar — top right, and the one seat a phone keeps | the chip, its four faces, and every word in them |
+| `app.viewer` | `layout` — the last seat in the bar — top right, and the one seat a phone keeps | the chip, its four faces (checking, **Not signed in**, the person, a failed check), and every word in them; on a desktop a circle the size of the ⚙ beside it, a phone keeping its 44px target |
 
 There is one seat and one occupant: two chips answering "who am I" in one bar is not an answer, so a second row claiming it is refused by name at the moment it registers.
 

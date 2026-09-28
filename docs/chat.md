@@ -540,7 +540,7 @@ That counts ANOTHER TAB of the same olai, too. Two tabs are two documents and on
 
 **A turn merely FINISHING is silent, on purpose.** An agent that has finished will still have finished in five minutes; a chime for every turn is a chime people switch off, and it would take the one that matters with it.
 
-Two rows owned by **chat** in **preferences** decide its alerts — **Alerts**, and **Alert sound** beneath it — and both start ON. They are two rows rather than one because they are two questions: turning the chime off in a quiet office should not also cost you the notification. Turning Alerts off silences all three, and puts the icon back.
+Two switches under **Notifications** in **preferences**, owned by the **alerts** row, decide its alerts — **Alerts**, and **Sound** beneath it — and both start ON. With Alerts off, Sound is drawn dimmed and does not move. They are two rows rather than one because they are two questions: turning the chime off in a quiet office should not also cost you the notification. Turning Alerts off silences all three, and puts the icon back.
 
 A third row, **Reminders**, belongs to the journal and defaults on. It sends a daily
 notification about owed work through the same channel. A reminder is not a
