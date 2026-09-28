@@ -496,7 +496,7 @@ const linesOf = async (level: Locator): Promise<ReadonlyArray<string>> =>
     els.map((el) =>
       el.tagName === "HR" || el.getAttribute("role") === "separator" ? "—" : (el as HTMLElement).innerText
     )
-  )).map(oneLine);
+  )).map((line) => oneLine(line).replace(SUB_MARK, " ›"));
 
 /**
  * Whether the menu offers a verb, by the same PATH {@link entry} takes: a
