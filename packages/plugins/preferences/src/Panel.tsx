@@ -57,7 +57,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class={`${PANEL_BOX} gap-5`}
+      class={`${PANEL_BOX} gap-3 max-md:!py-3 md:gap-5`}
       style={styleOf(props.at)}
       // Focusable, never in the tab order: opening puts the caret here so a
       // keyboard is standing IN the panel, and Tab from here is the first control.

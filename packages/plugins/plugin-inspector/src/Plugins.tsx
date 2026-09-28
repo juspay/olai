@@ -22,9 +22,9 @@ export function Plugins(props: {
     <BarDoor
       where={props.where}
       glyph="⧉"
-      name="plugins"
+      name="Plugins"
       testid={TESTID.pluginsTrigger}
-      title="plugins: which integrations this server is running, and why"
+      title="Plugins"
       // Keep this door open when its switch removes a plugin provider.
       held={props.state.door}
       panel={(_at, inside) => <Panel inside={inside} state={props.state} management={props.management} rows={props.rows} />}

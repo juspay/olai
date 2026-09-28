@@ -640,14 +640,14 @@ function Branch(props: {
           // their own, and two backgrounds on one element is a race between two
           // utilities rather than a decision.
           "bg-paper": section() && !editing() && !picked(),
-          "rounded-control bg-accent/10": editing(),
+          "rounded-control bg-accent/10": editing() || picked(),
           "rounded-control ring-1 ring-accent/40": focused(),
           // A PICKED row wears the same accent wash the caret's row does —
           // "this is one of the ones" is the same thing to say, and a caret and
           // a pick are never on screen together. A row in the air fades, so the
           // eye follows the line that says where it is going rather than the
-          // rows it left.
-          "rounded-control bg-accent/10": picked(),
+          // rows it left. (It is folded into the editing arm above: one class
+          // string may be one key of this object, and the two washes are one.)
           "opacity-40": carried(),
         }}
         data-testid={TESTID.nodeGutter}

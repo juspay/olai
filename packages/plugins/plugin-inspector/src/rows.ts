@@ -102,9 +102,8 @@ export const pluginHint = (
       // behind it is another ROW's to offer, so what this line is really saying
       // is which plugin to compose — and it can only say it by naming the door.
       return plugin.missing === undefined || plugin.missing.length === 0
-        ? `Starting — waiting for something it needs.`
-        : `Waiting for ${plugin.missing.join(", ")} — no plugin in this build offers `
-          + `${plugin.missing.length === 1 ? "it" : "them"}.`
+        ? `Starting…`
+        : `Can't start: another plugin it needs isn't running (${plugin.missing.join(", ")}).`
     default:
       return null
   }
@@ -141,12 +140,12 @@ export const browserHint = (plugin: string, reports: ReadonlyMap<string, RowRepo
   const lines: string[] = []
   for (const [name, report] of reports) {
     if (name !== plugin && !name.startsWith(plugin + "/")) continue
-    const label = name === plugin ? "Browser" : `Browser ${name.slice(plugin.length + 1)}`
-    if (report.state === "waiting") lines.push(`${label}: waiting for ${report.missing?.join(", ") || "initialization"}.`)
+    const label = name === plugin ? "In this tab" : `In this tab (${name.slice(plugin.length + 1)})`
+    if (report.state === "waiting") lines.push(`${label}: still starting${report.missing?.length ? ` (needs ${report.missing.join(", ")})` : ""}.`)
     if (report.state === "failed") lines.push(`${label}: failed to start. ${report.fault ?? "It gave no message."}`)
   }
   if (lines.length) return lines.join(" ")
-  if (browserOnly && reports.get(plugin)?.state !== "running") return "Browser: awaiting activation."
+  if (browserOnly && reports.get(plugin)?.state !== "running") return "Not started in this tab yet."
   return null
 }
 
@@ -217,7 +216,7 @@ export const rowStatus = (
     case "waiting":
       return plugin.missing === undefined || plugin.missing.length === 0
         ? "Starting…"
-        : `Waiting for ${plugin.missing.join(", ")}`
+        : "Can't start"
     case "running": {
       let waiting = false
       for (const [name, report] of reports) {

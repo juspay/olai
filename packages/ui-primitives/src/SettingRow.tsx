@@ -65,14 +65,14 @@ export function Row(props: {
 
   return (
     <div
-      class="py-2"
+      class="py-1 md:py-2"
       data-testid={TESTID.prefsRow}
       data-pref={props.pref}
       data-pinned={props.frozen ? "true" : undefined}
     >
       <div
         class={props.stacked
-          ? "flex flex-col gap-2.5"
+          ? "flex flex-col gap-1.5 md:gap-2.5"
           : "flex min-h-11 items-center justify-between gap-4 md:min-h-8"}
       >
         {label}
