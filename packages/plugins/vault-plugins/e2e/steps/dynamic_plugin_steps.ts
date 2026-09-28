@@ -250,9 +250,10 @@ Then("that swatch is round", async function (this: OlaiWorld) {
  * The first use — before anybody has approved anything — is unaffected: the
  * count is zero already and the wait returns on its first pass.
  */
-Then("no row wears a swatch", async function (this: OlaiWorld) {
+Then("no row wears a swatch", { timeout: 60_000 }, async function (this: OlaiWorld) {
   // Replacing a provider recompiles the definition and only then drops the
-  // chip. On a loaded fleet that outlasts the ordinary poll.
+  // chip. On a loaded fleet that outlasts the ordinary poll. The step's own
+  // budget has to outlive that wait; the suite's default kills it first.
   await this.waitUntil(
     async () => (await this.page.locator("[data-swatch]").count()) === 0,
     "every swatch to leave after the plugin is stopped or loses approval",
