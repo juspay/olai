@@ -275,7 +275,7 @@ The panels under a row are deliberately not part of that. They cap at eight as w
 
 **And they are ranked WITH the node hits, on one scale**, rather than as a block above or below them: a document whose title holds your word outranks a node that only mentions it in a note, and a body match is the weakest hit either kind has. That is one order over one answer, which is what makes "eight of twenty" a number about the query rather than about a block. (The chat composer's `@` is the other arrangement, deliberately: two blocks under one cursor, files first, because a path's three buckets are not a score and a node's rank is — [chat.md](chat.md) argues it there.) An empty ⌘K lists no documents at all: it is a list of commands until you type, and a bare `@` in a message is the door that exists for browsing the directory.
 
-**There is no way to MAKE a document from the palette**, and none to make an outline either. `+ New document` and `+ New outline` live in the sidebar ([editing.md](editing.md)); the palette has never carried a create row for either, and giving one to documents alone would be the old imbalance the other way up.
+**There is no way to MAKE a document from the palette**, and none to make an outline either. New document and New outline live in the sidebar, under the Outlines heading's `+` ([editing.md](editing.md)); the palette has never carried a create row for either, and giving one to documents alone would be the old imbalance the other way up.
 
 ## Not yet: finding a note you cannot name
 

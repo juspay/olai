@@ -30,7 +30,7 @@ probe and choices without disabling the other engines. Choices follow the
 server's current engine roster.
 
 A conversation belongs to one engine for its lifetime. The *start an agent*
-pill and *new chat* button appear when at least one engine is available. They
+pill and the Chats heading's `+` (new chat) appear when at least one engine is available. They
 start immediately when exactly one engine is available. With two or more, the
 menu lists all enabled engines in bundle order: available engines are pickable;
 missing ones are greyed out with their reason, without a link inside the
@@ -736,7 +736,7 @@ or a title in the palette to reach every agent, including those beyond the Chats
 cap. Palette rows name their standing and use the same navigation rule. Both
 regions and the palette contribution withdraw with chat.
 
-The **new chat** row heads Chats and the Agents palette. It ensures `Chats` in
+The **`+`** on the Chats heading, and the **new chat** row of the Agents palette, are one action. It ensures `Chats` in
 the Inbox, mints a child titled **new conversation**, then starts its chosen
 engine and unfolds that child. With one engine it starts immediately; several
 offer engine names, in the sidebar menu or as palette rows. Both faces share one

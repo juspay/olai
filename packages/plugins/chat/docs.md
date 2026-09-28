@@ -68,7 +68,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; each Chats row puts its standing dot before its age |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` that opens the engine menu (or starts at once with one startable engine); each Chats row puts its standing dot before its age |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, beside progress before the date | standing or hover/focus start pill |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
