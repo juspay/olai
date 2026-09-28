@@ -6,7 +6,7 @@ import type { CarriedPath } from "./carry.ts"
  *  drawn here — it is the trash row's own entry at the column's foot. */
 
 import { TESTID } from "olai-plugin-files/testids"
-import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from "@olai/format"
+import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, nameOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
@@ -370,7 +370,7 @@ function VaultFile(props: {
 }) {
   const name = () => {
     const claims = servedDirectory()?.claims()
-    return claims === undefined ? props.file : stemOf(claims, props.file)
+    return claims === undefined ? props.file : nameOf(claims, props.file)
   }
   const of = () => servedDirectory()?.kindOf(props.file) ?? null
   const unreadable = () => servedDirectory()?.claims().byKind.get(of() ?? "")?.holds === "nodes" && props.broken.has(props.file)

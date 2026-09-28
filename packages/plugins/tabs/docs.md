@@ -21,9 +21,9 @@ The tab in front is drawn on paper, and the others are muted. Each tab shows a
 glyph for the kind of page it holds, its title, and a close button that appears
 on hover and on the tab in front.
 
-A tab holding a document (an outline or a markdown file) is named the way the
-files sidebar names it, without the suffix: `garden`, not `garden.olai`. A file
-that is not a document keeps its suffix (`q3.pdf`, `sales.csv`). When two open
+A tab holding a file is named the way the files sidebar names it: a document
+(an outline or a markdown file) without the suffix, `garden`, not
+`garden.olai`; any other file with it (`q3.pdf`, `sales.csv`). When two open
 tabs would say the same name for different files (`notes.md` and
 `notes.olai`, or `a/x.olai` and `b/x.olai`), both show their whole path
 instead, until one of them closes. Other pages show the title the page reported
@@ -126,7 +126,7 @@ reading of which tabs wear a dot, which the `attention` component uses. Name
 
 A tab's name is read from `navigation.state` as well: the page's reported
 title, and `routes.name(route)`, navigation's name for a document (the same
-`stemOf` the files sidebar uses, over the vault's claims). Tabs does not ask any
+`nameOf` the files sidebar uses, over the vault's claims). Tabs does not ask any
 page plugin for a name.
 
 The row itself needs only `navigation.state`. It names a history lane for the

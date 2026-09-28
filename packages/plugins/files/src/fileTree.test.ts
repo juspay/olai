@@ -25,9 +25,9 @@ test("empty regions have no folders or files", () => {
   expect(fileTree(TEST_CLAIMS, ["only.md"], "nodes")).toEqual([])
   expect(fileTree(TEST_CLAIMS, ["only.olai"], "reference")).toEqual([])
 })
-test("stems determine file order, directories share the alphabetical order", () => {
-  const rows = fileTree(TEST_CLAIMS, ["z.md", "beta/a.md", "a.md", "b.md"], "reference")
-  expect(rows.map(row => row.name)).toEqual(["a", "b", "beta", "z"])
+test("names determine file order, directories share the alphabetical order", () => {
+  const rows = fileTree(TEST_CLAIMS, ["z.md", "beta/a.md", "a.md", "b.md", "c.pdf"], "reference")
+  expect(rows.map(row => row.name)).toEqual(["a", "b", "beta", "c.pdf", "z"])
 })
 test("input ordering and duplicate paths do not change either tree", () => {
   for (const mode of ["nodes", "reference"] as const) expect(fileTree(TEST_CLAIMS, [...files].reverse().concat(files), mode)).toEqual(fileTree(TEST_CLAIMS, files, mode))
