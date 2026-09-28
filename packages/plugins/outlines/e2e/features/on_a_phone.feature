@@ -209,6 +209,27 @@ Feature: On a phone
     And the node menu is closed
     And no row is being edited
 
+  # ── what a plugin offers on a row ─────────────────────────────────────
+  #
+  # A pointer reveals a plugin's offer — chat's `Start an agent` — when a hand
+  # is on the row. A phone has no hover, and an offer drawn permanently on
+  # every line took a line of its own per row: five rows filled the screen.
+  # So on a phone it is drawn on the ACTIVE row only, the one a finger tapped.
+  # What a row already HAS is not an offer: an agent standing on a row says
+  # so on every row, tapped or not.
+
+  @corpus:lanes @phone
+  Scenario: A plugin's offer waits for the tapped row, and a standing always shows
+    Given I open the outline "lanes.olai"
+    Then the agent standing on "door-implement" is drawn
+    And the agent offer on "lane-fresh" is not drawn
+    And the agent offer on "lane-quiet" is not drawn
+    When I tap the title of "lane-fresh"
+    Then the agent offer on "lane-fresh" is drawn
+    And the agent offer on "lane-quiet" is not drawn
+    And the agent standing on "door-implement" is drawn
+    And there should be no page errors
+
   # ── the bullet is the handle, on a finger as on a mouse ───────────────
   #
   # A row can be picked up with a finger now, and the gesture is the same long
