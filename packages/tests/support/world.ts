@@ -631,6 +631,14 @@ export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is
  *  reporting is its `data-connection`, never its colour. */
 export const CONNECTION = selector(TESTID.connection);
+/** THE BAR'S ONE HEALTH DOT (desktop). `data-tone` is `healthy` / `notice` /
+ *  `alarm`, `data-connection` the connection's own state, and its
+ *  `aria-label` names what is wrong in each readout's words. */
+export const HEALTH = selector(TESTID.health);
+/** ...and the popover it opens. The connection, the Commit readout and every
+ *  plugin's readout are ROWS of it now, drawn only while it is open — which is
+ *  why steps that read or press them go through `openStatus` / `readStatus`. */
+export const HEALTH_PANEL = selector(TESTID.healthPanel);
 /**
  * The row of pills in the header that are about the APP, and the two halves of
  * the tombstone over the retired `● git` readout.
@@ -645,51 +653,20 @@ export const CONNECTION = selector(TESTID.connection);
  */
 export const APP_CHROME = selector(TESTID.appChrome);
 
-/** The default desktop inventory of that row, in order. Plugin Headers grow
- *  here in registry order without a bar edit, so "the header shows one git
- *  indicator" counts Commit pills rather than treating this list as a closed
- *  set. The list is still the inventory a person reads, and a second control
- *  reporting on git is the decision the git-indicator step is here to catch.
- *  The theme pill was the fifth entry until `preferences-panel`. */
+/** The default desktop inventory of that row, in order: the calm bar. The
+ *  connection, the Commit readout, every plugin's readout and the uptime line
+ *  are ROWS of the health popover now, not chips in the bar, and the plugins
+ *  door is that popover's foot. The Commit readout is still the only control
+ *  anywhere in the chrome that reports on the repository, which is what the
+ *  git-indicator step guards — it now counts rows of the popover. */
 export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
-  // The search box, and beside it the magnifier a phone gets instead (the bar
-  // has no room for a box at 390pt, and a phone has no ⌘K). Added here as the
-  // deliberate edit this list exists to demand: the row gained a DOOR, not a
-  // second answer about git — the Commit pill is still the only control in it
-  // that reports on the repository, which is the whole of what the fence
-  // below guards.
+  // The search box, and beside it the magnifier a phone gets instead.
   PLUGIN_TESTID.headerSearch,
   PLUGIN_TESTID.headerSearchOpen,
-  TESTID.connection,
-  // The padi link, between the two promises it sits with: whether this page is
-  // still READING (the connection, before it) and whether what is written to it
-  // is KEPT (the Commit pill, after it). This is the third — whether it can see
-  // kolu's terminals.
-  //
-  // Added as the deliberate edit this list demands, and it does NOT weaken what
-  // the fence guards. `one-git-indicator` is about a SECOND control answering
-  // for GIT, and this one answers for a padi socket: it never reports a
-  // repository state, it draws from `cells.kolu` and from nothing else, and the
-  // assertion below still holds that the Commit pill is the only control in the
-  // row that reports on the repository. Chrome that is orthogonal grows the
-  // list by one; chrome that answers a question already answered is what the
-  // list exists to stop, and this is the first kind.
-  PLUGIN_TESTID.padi,
-  PLUGIN_TESTID.commitPill,
-  // How long THIS process has been the one answering — furniture, beside
-  // the committed pill, the same register. Added as the deliberate edit
-  // this list demands: it does not answer for git (the fence below still
-  // holds that the Commit pill is the only control in the row that does),
-  // it draws from `app.get`'s start instant and from nothing else, and a
-  // second process-start chip would be the redundancy this list exists to
-  // stop.
-  TESTID.uptime,
-  PLUGIN_TESTID.chatToggle,
+  // ONE dot for everything the bar used to stand a pill for.
+  TESTID.health,
   TESTID.prefsTrigger,
-  // Who is looking, last — an icon about the request, not about git. A
-  // PLUGIN's id since identity became a row: it hangs in the app.viewer
-  // seat, so a serve without that row has one fewer chip here and the
-  // fence below is about what the ROW draws when it is running.
+  // Who is looking, last — a plugin's face in the app.viewer seat.
   PLUGIN_TESTID.identity,
 ];
 
@@ -1694,6 +1671,56 @@ export class OlaiWorld extends World {
     await page
       .locator(SIDEBAR_BODY)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
+
+  /**
+   * Put the health popover up, and leave it up — for a step about to PRESS a
+   * row in it (the Commit readout, kolu's, the plugins door).
+   *
+   * On a desktop the status readouts are rows of that popover and exist only
+   * while it is open; on a phone there is no dot, the rows are not drawn at
+   * all, and this does nothing — which is why it is one call at the top of
+   * those steps rather than a `@phone` branch inside each. Idempotent: an open
+   * popover is left alone, because pressing the dot again would shut it.
+   */
+  async openStatus(page: Page = this.page): Promise<void> {
+    const dot = page.locator(HEALTH);
+    if (!(await dot.isVisible())) return;
+    const panel = page.locator(HEALTH_PANEL);
+    if (await panel.isVisible()) return;
+    await dot.click();
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
+
+  /**
+   * Read something off the health popover's rows WITHOUT leaving the page
+   * changed: open it if it is shut, run `read`, then shut it again and put the
+   * caret back where it was — opening a popover moves focus into it, and a
+   * step that only LOOKED must not have taken the caret out of an editor a
+   * later step types into. Already open (a scenario that opened it, or a row's
+   * own panel above it) is read in place and left open.
+   */
+  async readStatus<T>(read: () => Promise<T>): Promise<T> {
+    const dot = this.page.locator(HEALTH);
+    const panel = this.page.locator(HEALTH_PANEL);
+    if (!(await dot.isVisible()) || (await panel.isVisible())) return read();
+    await this.page.evaluate(() => {
+      (window as unknown as { __olaiStatusFocus?: Element | null }).__olaiStatusFocus =
+        document.activeElement;
+    });
+    await this.openStatus();
+    try {
+      return await read();
+    } finally {
+      if (await panel.isVisible()) await dot.click();
+      await panel.waitFor({ state: "hidden", timeout: POLL_TIMEOUT }).catch(() => undefined);
+      await this.page.evaluate(() => {
+        const held = window as unknown as { __olaiStatusFocus?: Element | null };
+        const was = held.__olaiStatusFocus;
+        delete held.__olaiStatusFocus;
+        if (was instanceof HTMLElement && was !== document.body && was.isConnected) was.focus();
+      });
+    }
   }
 
   async expandReference(): Promise<void> {

@@ -25,6 +25,7 @@ import { startOwnServer, stopOwnServer } from "../support/hooks.ts";
 import { pressed } from "../support/settling.ts";
 import {
   CONNECTION,
+  HEALTH,
   FILTER_INPUT,
   HYDRATION_TIMEOUT,
   OFFLINE,
@@ -95,6 +96,27 @@ Then("the app is frozen under the offline overlay", async function (this: OlaiWo
   // behind it, which is a wire's clock rather than a render's.
   await overlay.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const shown = (await overlay.innerText()).replace(/\s+/g, " ");
+  // On a desktop the connection's words ride the health dot: its tip carries
+  // each piece of news as `label — sentence`, the connection's among them, in
+  // `client/connection/status.ts`'s own words. The overlay must say the same.
+  const dot = this.page.locator(HEALTH);
+  if ((await dot.count()) > 0) {
+    const label = (await overlay.locator("h2").innerText()).trim();
+    const tip = (await dot.getAttribute("title")) ?? "";
+    const line = tip.split("\n").find((one) => one.startsWith(`${label} — `));
+    assert.ok(
+      line !== undefined,
+      `the health dot's tip ${JSON.stringify(tip)} does not name the overlay's state ` +
+        `${JSON.stringify(label)} — the dot and the freeze are two readers of one wire`,
+    );
+    const said = line.slice(label.length + 3);
+    assert.ok(
+      shown.includes(said.replace(/\s+/g, " ")),
+      `the overlay reads ${JSON.stringify(shown)}, which is not the dot's own sentence ` +
+        `${JSON.stringify(said)} — two wordings of one wire are two claims free to disagree`,
+    );
+    return;
+  }
   const pill = this.page.locator(CONNECTION);
   if ((await pill.count()) > 0) {
     const said = await pill.getAttribute("title");

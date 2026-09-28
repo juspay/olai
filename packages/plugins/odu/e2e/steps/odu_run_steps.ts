@@ -38,11 +38,14 @@ Then(
 Then(
   "the odu readout is {word}",
   async function (this: OlaiWorld, status: string) {
-    const pill = this.page.locator(attr("data-testid", TESTID.odu)).first()
-    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-    await this.waitUntil(
-      async () => (await pill.getAttribute("data-odu")) === status,
-      `the odu readout to say ${status}`,
-    )
+    // A row of the health popover on a desktop, read with it up.
+    await this.readStatus(async () => {
+      const pill = this.page.locator(attr("data-testid", TESTID.odu)).first()
+      await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      await this.waitUntil(
+        async () => (await pill.getAttribute("data-odu")) === status,
+        `the odu readout to say ${status}`,
+      )
+    })
   },
 )
