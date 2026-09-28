@@ -243,7 +243,7 @@ Feature: Zoom and navigate
     Then the node "basil" is focused
     And the node "basil" is shown
     # And nothing the address did not name came back with it: the page's
-    # OTHER finished rows stay hidden, the flip still answers "Hidden",
+    # OTHER finished rows stay hidden, the flip still answers "hidden",
     # and no word was minted for this page — the reveal is the landing's,
     # never the page's.
     And the node "glazing" is not shown

@@ -184,7 +184,9 @@ When(
  */
 Given("the served directory holds no file at all", function (this: OlaiWorld) {
   rmSync(join(this.scratch(), CONFIGURATION_FILE), { force: true });
-  const left = readdirSync(this.scratch(), { recursive: true, withFileTypes: true }).filter((one) => one.isFile());
+  // A dotfile is nothing a page draws (the fixture's own `.gitkeep`).
+  const left = readdirSync(this.scratch(), { recursive: true, withFileTypes: true })
+    .filter((one) => one.isFile() && !one.name.startsWith("."));
   assert.deepStrictEqual(left.map((one) => one.name), [], "the served directory still holds files");
 });
 

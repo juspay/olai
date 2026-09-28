@@ -431,7 +431,7 @@ Feature: A node with an `agent-session` property IS an agent
     #
     #   - the panel's session picker, which is drawn only where the conversation
     #     belongs to a node, and a refused load means there is no conversation;
-    #   - the row's `•••`, which withholds *Start an agent session* precisely
+    #   - the row's `•••`, which withholds *Start an agent* precisely
     #     because the node HAS a session (`one agent, one current session`).
     #
     # So the two rules that are each correct alone close on a person together.

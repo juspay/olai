@@ -137,7 +137,7 @@ Feature: The outline and the chat point at each other
     And the node "order" is focused
     # And the pick is the witness beside the landed row: `demo` was finished
     # long before this scenario and stays hidden, the flip still answers
-    # "Hidden", and no word of this page's was minted for the row the press
+    # "hidden", and no word of this page's was minted for the row the press
     # owed — the reveal is the landing's, never the page's.
     And the node "demo" is not shown
     And this page's Done flip says "hidden"
