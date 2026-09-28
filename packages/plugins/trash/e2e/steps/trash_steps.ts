@@ -19,9 +19,13 @@ import {
   expectGone,
   oneLine,
   POLL_TIMEOUT,
+  SIDEBAR_BODY,
   TRASH_LINK,
 } from "@olai/tests/harness/world.ts";
+import { selector } from "@olai/web/testlib";
+import { TESTID } from "@olai/tests/harness/testids.ts";
 import {
+  RAIL_TRASH,
   TRASH_EMPTY,
   TRASH_EMPTY_CANCEL,
   TRASH_EMPTY_CONFIRM,
@@ -36,7 +40,42 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** One trash row, by the archived node it draws. A selector string for the
  *  same reason `nodeSelector` is one. */
+const SIDEBAR_FOOT = selector(TESTID.sidebarFoot);
+
 const trashRow = (id: string): string => `${TRASH_ROW}${attr("data-node-id", id)}`;
+
+/** The door is the trash row's own `foot` entry: pinned under the scrolling
+ *  list (outside the sidebar's scrolling body), in view, and a finger's size
+ *  on a phone. */
+Then("the Trash door is pinned at the sidebar's foot", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  const door = this.page.locator(`${SIDEBAR_FOOT} ${TRASH_LINK}`);
+  await door.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await this.page.locator(`${SIDEBAR_BODY} ${TRASH_LINK}`).count(), 0, "the Trash scrolls with the list");
+  const box = await door.boundingBox();
+  const viewport = this.page.viewportSize();
+  assert.ok(box !== null && viewport !== null && box.y + box.height <= viewport.height, "the Trash door is below the fold");
+});
+
+Then("the Trash door is at least a finger's size", async function (this: OlaiWorld) {
+  const box = await this.page.locator(`${SIDEBAR_FOOT} ${TRASH_LINK}`).boundingBox();
+  assert.ok(box !== null && box.height >= 44, `the Trash door is ${box?.height}px tall, under the 44px target`);
+});
+
+Then("the Trash door is the current page", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  await this.expectAttribute(TRASH_LINK, "aria-current", "page", "the Trash door");
+});
+
+When("I tap the Trash door", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(`${SIDEBAR_FOOT} ${TRASH_LINK}`), "tap");
+  await this.page.locator(TRASH_PAGE).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+When("I open the Trash from the rail", async function (this: OlaiWorld) {
+  await this.page.locator(RAIL_TRASH).click();
+  await this.page.locator(TRASH_PAGE).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
 
 When("I open the Trash", async function (this: OlaiWorld) {
   await this.showSidebar();

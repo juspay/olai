@@ -20,7 +20,6 @@
     "src/browser/question.ts"
   ],
   "vault": [
-    "src/browser.tsx",
     "src/server.ts",
     "src/tools.ts"
   ]

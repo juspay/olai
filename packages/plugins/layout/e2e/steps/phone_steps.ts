@@ -144,6 +144,7 @@ When("I tap the outline {string}", async function (this: OlaiWorld, file: string
 });
 
 When("I tap the day {string}", async function (this: OlaiWorld, date: string) {
+  await this.openCalendar();
   await this.press(this.dayLink(date), "tap");
 });
 

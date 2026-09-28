@@ -45,6 +45,81 @@ const making = (kind: string): Making => {
   throw new Error(`there is no sidebar door for a new ${kind}`);
 };
 
+const PLUS = selector(TESTID.newFile);
+const MENU = selector(TESTID.newFileMenu);
+
+const openNewMenu = async (world: OlaiWorld): Promise<void> => {
+  await world.showSidebar();
+  const plus = world.page.locator(PLUS);
+  await plus.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  if ((await world.page.locator(MENU).count()) === 0) await plus.click();
+  await world.page.locator(MENU).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
+
+const pickFromNewMenu = async (world: OlaiWorld, door: Making): Promise<void> => {
+  await openNewMenu(world);
+  await world.page.locator(`${MENU} ${selector(door.testids.open)}`).click();
+};
+
+When("I open the Outlines + menu", async function (this: OlaiWorld) {
+  await openNewMenu(this);
+});
+
+/** By keyboard only: Tab lands on the `+` from the heading row before it, and
+ *  Enter presses it — a real button, not a pointer-only glyph. */
+When("I open the Outlines + menu from the keyboard", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  const plus = this.page.locator(PLUS);
+  await plus.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await plus.focus();
+  await this.page.keyboard.press("Enter");
+  await this.page.locator(MENU).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the Outlines + menu offers {string}", async function (this: OlaiWorld, labels: string) {
+  const items = this.page.locator(MENU).getByRole("menuitem");
+  await this.waitUntil(
+    async () => (await items.allInnerTexts()).map((one) => one.trim()).join("|") === labels,
+    `the + menu to offer ${labels}`,
+  );
+});
+
+When("I choose {string} from the Outlines + menu with the keyboard", async function (this: OlaiWorld, label: string) {
+  const item = this.page.locator(MENU).getByRole("menuitem", { name: label, exact: true });
+  await item.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // Arrow to it rather than click: the menu is a keyboard surface too.
+  for (let step = 0; step < 4 && !(await item.evaluate((el) => el.hasAttribute("data-highlighted"))); step++) {
+    await this.page.keyboard.press("ArrowDown");
+  }
+  await this.page.keyboard.press("Enter");
+});
+
+Then("the Outlines + menu is shut and the + has focus", async function (this: OlaiWorld) {
+  await this.page.locator(MENU).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  await this.waitUntil(
+    async () => await this.page.locator(PLUS).evaluate((el) => document.activeElement === el),
+    "focus to return to the Outlines +",
+  );
+  assert.strictEqual(await this.page.locator(PLUS).getAttribute("aria-expanded"), "false");
+});
+
+Then("the new {word} box has the caret", async function (this: OlaiWorld, kind: string) {
+  const path = selector(making(kind).testids.path);
+  await this.page.locator(path).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(
+    async () => await this.page.locator(path).evaluate((el) => document.activeElement === el),
+    `the caret to be in the new ${kind} box`,
+  );
+});
+
+/** No kind can be started here, so there is no `+` at all — never a button
+ *  that opens an empty menu. */
+Then("the Outlines heading offers no +", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  await this.page.getByTestId(TESTID.sidebarFiles).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => (await this.page.locator(PLUS).count()) === 0, "the Outlines + to be withdrawn");
+});
+
 /** The box, opened and waited for. One spelling, because four steps start from
  *  it and a second "click, then wait" is where two of them would drift. It is
  *  idempotent: a box already open is one to type in, not one to reopen. */
@@ -53,9 +128,9 @@ const boxOf = async (world: OlaiWorld, kind: string) => {
   await world.showSidebar();
   const path = selector(door.testids.path);
   if ((await world.page.locator(path).count()) === 0) {
-    const open = world.page.locator(selector(door.testids.open));
-    await open.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await open.click();
+    // The way in is the Outlines heading's `+` and the kind's item in the
+    // menu it opens (`../../src/NewMenu.tsx`).
+    await pickFromNewMenu(world, door);
   }
   const box = world.page.locator(path);
   await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

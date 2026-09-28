@@ -4,20 +4,20 @@ import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
 import { holdEdits, writeEdit } from "./browser/writes.ts"
 import { createUndo } from "@olai/edit-history/undoing.ts"
-import { definePlugin,Offers } from "@olai/plugin-api"
+import { definePlugin,Offers,Slots } from "@olai/plugin-api"
 import { holdLocations } from "./browser/locations.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { client } from "./client.ts"
 import { Effect } from "effect"
 import { content,navigation } from "olai-plugin-navigation/contract"
 import { browserState } from "olai-plugin-outlines/contract"
-import { vaultEntries } from "olai-plugin-sidebar/contract"
+import type {} from "olai-plugin-sidebar/slots"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createRoot } from "solid-js"
 import { holdTrashUndo } from "./browser/history.ts"
 import { TrashPageView } from "./browser/PageView.tsx"
 import { trashState } from "./contract.ts"
-import { Trash } from "./Entry.tsx"
+import { Trash, TrashRail } from "./Entry.tsx"
 export default definePlugin({name:"trash", needs:[Wired, Offers, Edits], apply:Effect.gen(function*(){
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
@@ -42,8 +42,13 @@ export const components={content:definePlugin({name:"content",needs:[navigation,
  // (`./browser/locations.ts`).
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* slots.contribute(content,{matches:route=>route.kind==="trash",Page:()=> <TrashPageView files={files} />})
-})}),sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,navigation,trashState], apply:Effect.gen(function*(){
- yield* (yield* rendererSlots).contribute(vaultEntries, Trash)
+})}),
+ /** The Trash door, at the sidebar's foot. A `sidebar.entry` placed `foot`
+  *  (`olai-plugin-sidebar/slots`), registered and withdrawn with THIS
+  *  component — it no longer hangs inside the files row's vault group, whose
+  *  lifetime it used to share. */
+ sidebar:definePlugin({name:"sidebar", needs:[Slots,navigation,trashState], apply:Effect.gen(function*(){
+ yield* (yield* Slots).register("sidebar.entry", { place: "foot", body: Trash, rail: TrashRail })
 })})}
 
 export { surface } from "./surface.ts"

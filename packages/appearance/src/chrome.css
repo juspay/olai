@@ -11,8 +11,9 @@ html {
 /* THE FRAME. Ink ground, paper words — inherited, not remapped. The header,
  * the directory spine and the collapsed rail are ONE surround, and this is
  * the one place that says what it is made of; a page is the paper sheet
- * sitting in it (`layout/sheet.ts`). The month is a paper CARD on the spine
- * (`.olai-card`) and paints its own ink. Palettes invert with their ink: reef
+ * sitting in it (`layout/sheet.ts`). The month, unfolded under the sidebar's
+ * Today row, is drawn on the spine's own ground — it used to be a paper card
+ * here, the loudest thing on screen. Palettes invert with their ink: reef
  * is a forest column beside a lagoon page; aurora is a pale sky beside
  * midnight paper.
  *
@@ -53,13 +54,5 @@ html {
   .olai-scroll {
     scrollbar-gutter: stable;
   }
-}
-
-/* A raised card on the desk — the month, and anything else that sits up off
- * the workbench. Ink-tinted so it follows every palette rather than a gray. */
-.olai-card {
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--color-ink) 8%, transparent),
-    0 18px 40px -24px color-mix(in srgb, var(--color-ink) 28%, transparent);
 }
 

@@ -104,7 +104,7 @@ Then("the vault group's {string} row marks the current page", async function(thi
   assert.equal(await row.getAttribute("aria-current"), "page")
 })
 
-Then("the sidebar's foot is one parent named \"olai\"", async function(this: OlaiWorld) {
+Then("the vault group is one parent named \"olai\"", async function(this: OlaiWorld) {
   await visible(this, VAULT_GROUP)
   assert.equal(
     (await this.page.locator(VAULT_GROUP).first().innerText()).trim(),
@@ -113,17 +113,14 @@ Then("the sidebar's foot is one parent named \"olai\"", async function(this: Ola
   )
 })
 
-Then("the parent nests the Trash door", async function(this: OlaiWorld) {
-  await visible(this, VAULT_GROUP)
-  // Nothing beside the nested door carries the mark: one parent, and
-  // everything under it is the house's own.
-  await this.waitUntil(
-    async () =>
-      (await this.page
-        .locator(`${VAULT_GROUP} ~ ul ${TRASH_LINK}`)
-        .count()) === 1,
-    "the Trash door to nest under the foot's parent",
-  )
+/** The Trash is the trash row's own foot entry now — pinned under the
+ *  scrolling list, and never inside the files row's group. */
+Then("the Trash door stands at the sidebar's foot, outside the group", async function(this: OlaiWorld) {
+  await this.showSidebar()
+  const foot = this.page.getByTestId(TESTID.sidebarFoot)
+  await foot.locator(TRASH_LINK).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  assert.equal(await this.page.locator(`${VAULT_GROUP} ~ ul ${TRASH_LINK}`).count(), 0, "the Trash nested in the vault group")
+  assert.equal(await this.page.getByTestId(TESTID.sidebarBody).locator(TRASH_LINK).count(), 0, "the Trash scrolled with the list")
 })
 
 Then("the parent nests the vault group's {string} row", async function(this: OlaiWorld, file: string) {

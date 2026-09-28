@@ -55,48 +55,62 @@ export const ROW_GAP = "gap-1.5"
  * out. The glyph on a row says what one row IS; it cannot say where one list
  * ends.
  *
- * NOTHING NEW IS INVENTED HERE. The two pieces are the ones this app already
- * groups lists with: a hairline (`border-t border-rule`, the `•••` menu's own
- * separator between its reads and its writes, and the preferences panel's
- * footer) and a quiet uppercase label (`../palette/Shortcuts.tsx` over each
- * group of keys, `../chat/CompletionMenu.tsx` over each kind of completion,
- * `../commit/Panel.tsx` over its sections). The month above is the third: a
- * card with a heading, which is the same idea with a border round it.
+ * WHAT SAYS WHERE ONE LIST ENDS is space and a label, not a rule. The first
+ * drawing used a hairline (`border-t`) over every region as well; the 2026-09
+ * simplification (an Apple-like quiet list, owner's mockup) dropped it — a
+ * rule over every group is five lines drawn across the column for what a gap
+ * already says — and kept the label, the quiet uppercase one this app groups
+ * lists with elsewhere (`../palette/Shortcuts.tsx` over each group of keys,
+ * `../chat/CompletionMenu.tsx` over each kind of completion).
  *
- * The label is MUTED and small, because it is chrome rather than content —
- * the month's heading is the name of the month a reader is looking at, and
+ * The label is MUTED and small, because it is chrome rather than content:
  * these are names for lists that already say what they hold.
  */
-export const REGION = "mt-2 border-t border-paper/15 pt-2"
+export const REGION = "mt-4"
 
 /**
  * WHAT IT MAY NOT COST is the tree's place on a short screen, and that is a
  * promise with a test behind it: the column is sticky and exactly one screen
- * tall, and `packages/plugins/sidebar/e2e/features/the_sidebar_sticks.feature` holds that the FILE TREE
- * still reaches the visible strip at the bottom of a long page — it is what a
- * reader came back to the column for. The month above it is ~240px of the
- * 328px the column has on a 400px window, so everything between the two is a
- * budget rather than a free choice:
- *
- *   - the first draft of these regions spent 45px on a rule, a margin and a
- *     label over the tree, and pushed it 28px under the fold (caught by that
- *     scenario, 2026-08-19);
- *   - the redesign spent it again, from four directions at once — a bar 1rem
- *     taller, a month with more padding and a bigger heading, a roomier row —
- *     and put the tree 29px under the fold on all four page kinds. Reclaimed
- *     the same way it was spent: a size off the month's day cells and its
- *     heading, and a step off four paddings. The tree now clears the fold by
- *     21px, which is the margin this note exists to keep.
- *
- * Hence the tighter spacing here, the month's own bottom margin giving way to
- * it (`../calendar/Calendar.tsx`), and exactly ONE label below the month —
- * the shelf's, because a list that is new to a reader is the one that needs
- * naming. The tree is what the column IS; a rule above it says where it
- * starts.
+ * tall, and `packages/plugins/sidebar/e2e/features/the_sidebar_sticks.feature`
+ * holds that the FILE TREE still reaches the visible strip at the bottom of a
+ * long page — it is what a reader came back to the column for. The month used
+ * to be ~240px of the 328px the column has on a 400px window; it is one row
+ * now until a reader opens it (journal's `Today` row), which is what paid for
+ * the gap above each region. A reader who keeps the month open is back on the
+ * old budget, so the gap stays one step and not two.
  */
 
-/** …and the words over it. `px-2` so the label sits on the same left edge as
+/** …and the words over it. `px-2.5` so the label sits on the same left edge as
  *  the rows under it — an entry's own padding — rather than hanging a couple of
- *  pixels outside the column of names ({@link ENTRY_SHAPE}). */
+ *  pixels outside the column of names ({@link ENTRY_SHAPE}).
+ *
+ *  ONE TREATMENT FOR EVERY HEADING IN THE COLUMN — Pinned, Needs you, Chats,
+ *  Outlines — and it is the quiet uppercase label named above, not the serif
+ *  italic the regions first wore beside a mono Outlines: two heading voices in
+ *  one list read as two lists (the 2026-09 sidebar simplification). Small,
+ *  spaced capitals in the muted ink: chrome, not content. The words stay
+ *  written in the plugin's own case; `uppercase` is paint, so a screen reader
+ *  and a `getByRole` name still read "Chats". */
 export const REGION_LABEL =
-  "m-0 mb-1 px-2.5 font-serif text-[0.75rem] italic tracking-tight text-paper/55"
+  "m-0 px-2.5 font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-paper/55"
+
+/**
+ * A HEADING THAT CARRIES ITS OWN ACTION — the `+` beside Chats and beside
+ * Outlines. The label and the button share one line, the button at the right
+ * edge where a row's count sits, so the column keeps one left edge of names.
+ *
+ * Whose the action is stays the heading's owner's: this is paint only, the way
+ * {@link ENTRY_SHAPE} is. Chat draws its `+` over its own engine menu, files
+ * over its own new-file menu; nothing here knows either.
+ */
+export const REGION_HEAD = "mb-1 flex min-h-7 items-center justify-between gap-2"
+
+/** The `+` itself: a quiet square that is a full finger's box below `md`
+ *  (`@olai/ui-primitives/touch.ts`) and a 1.5rem one beside a pointer. It is
+ *  a real `<button>`, so Tab reaches it and Enter/Space press it. */
+export const HEAD_ACTION =
+  "inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg " +
+  "border-0 bg-transparent text-paper/55 hover:bg-paper/10 hover:text-paper " +
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent " +
+  "disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent " +
+  "aria-expanded:bg-paper/10 aria-expanded:text-paper md:min-h-6 md:min-w-6"

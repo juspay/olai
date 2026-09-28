@@ -30,6 +30,18 @@ Feature: A new chat has an Inbox node from its first message
     And there should be no page errors
 
   @codex
+  Scenario: The Chats heading's + is keyboard-reachable, and Escape hands focus back
+    # The separate `new chat` row left with the 2026-09 simplification; the
+    # heading carries a `+` over the same engine menu.
+    Given I open the outline "house.olai"
+    When I press "Enter" on new chat in Chats
+    Then the agent engine menu offers "Claude Code"
+    When I press "Escape"
+    Then the engine menu is shut and new chat in Chats has focus
+    And the Inbox contains no chat children
+    And there should be no page errors
+
+  @codex
   Scenario Outline: Chats offers the same engine menu as the aside on <screen>
     Given I open the outline "house.olai"
     When I press new chat in Chats

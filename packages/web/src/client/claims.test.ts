@@ -429,6 +429,7 @@ test("address recognition has one door: parseAddress( is called only in routes.t
 test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
   expect(filesSpelling(/@kobalte\/core\/dropdown-menu/)).toEqual([
     "plugins/chat/src/browser/agents/EngineMenu.tsx",
+    "plugins/files/src/NewMenu.tsx",
     "plugins/outlines/src/browser/menu/Confirm.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
     "plugins/outlines/src/browser/menu/Panel.tsx",
@@ -550,6 +551,7 @@ test("every dynamic import() the client spells takes a literal the bundler can r
     "plugins/chat/src/browser/agents/FreshStart.tsx",
     "plugins/chat/src/browser/agents/NewChat.tsx",
     "plugins/chat/src/browser/agents/Standing.tsx",
+    "plugins/files/src/Files.tsx",
     "plugins/kolu/src/appliance/props/LivePane.tsx",
     "plugins/outlines/src/browser/menu/chunk.ts",
     "plugins/tabs/src/chunk.ts",
@@ -593,6 +595,7 @@ test("the stack is joined directly only where the gestures are not dismissOn's",
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
     "plugins/chat/src/browser/agents/EngineMenu.tsx",
     "plugins/chat/src/browser/chat/CompletionMenu.tsx",
+    "plugins/files/src/NewMenu.tsx",
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/Shortcuts.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",

@@ -1,7 +1,7 @@
 /** The grid's days, with the padding dropped — what the month actually holds. */
 import { expect, test } from "bun:test"
 
-import { dayNumber, monthGrid, monthLabel, WEEKDAY_HEADINGS } from "./month.ts"
+import { dayNumber, monthGrid, monthLabel, shortDay, WEEKDAY_HEADINGS } from "./month.ts"
 
 // The arithmetic these are drawn from is tested where it now lives
 // (`@olai/format`'s `calendar.test.ts`) — what is left here is the grid.
@@ -74,4 +74,12 @@ test("the heading over a month names it in words", () => {
   expect(monthLabel("2026-01")).toBe("January 2026")
   expect(monthLabel("2026-12")).toBe("December 2026")
   expect(monthLabel("hello")).toBe("hello")
+})
+
+test("the Today row's date is the month's three letters and the day", () => {
+  expect(shortDay("2026-09-28")).toBe("Sep 28")
+  expect(shortDay("2026-01-05")).toBe("Jan 5")
+  expect(shortDay("2026-12-31")).toBe("Dec 31")
+  expect(shortDay("")).toBe("")
+  expect(shortDay("2026-13-01")).toBe("2026-13-01")
 })

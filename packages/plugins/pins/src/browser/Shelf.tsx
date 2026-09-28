@@ -45,7 +45,7 @@ import { createEffect,createMemo,createSelector,createSignal,Show } from "solid-
 import { createDrags,TRAVEL_PX } from "@olai/web/client/pointer.ts"
 import { selector } from "@olai/ui-primitives/testids.ts"
 import { applying } from "./writes.ts"
-import { REGION,REGION_LABEL } from "olai-plugin-layout/entry"
+import { REGION,REGION_HEAD,REGION_LABEL } from "olai-plugin-layout/entry"
 
 import { useRouter } from "olai-plugin-navigation/routing"
 import { usePins } from "./answered.tsx"
@@ -228,7 +228,7 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
             says what one ROW is; over a column of a dozen entries it cannot say
             where one list ends and the next begins, which is what a reader
             looking at the whole column actually needs (human, 2026-08-19). */}
-        <h2 class={REGION_LABEL}>Pinned</h2>
+        <div class={REGION_HEAD}><h2 class={REGION_LABEL}>Pinned</h2></div>
         <ul class="m-0 list-none p-0" ref={list}>
           {/* `<Key>` BY THE PIN NODE'S OWN ID, not `<For>`, for the reason the
               tree uses it (`../Tree.tsx`): `pinsOf` mints a fresh `Pin` per row

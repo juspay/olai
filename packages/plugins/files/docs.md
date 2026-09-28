@@ -13,9 +13,19 @@ outline and the document each name it on a component of their own, so a page
 with no files row mounted is a whole page with no delete verb under it and no
 minting box.
 
-Content providers contribute creation controls through `files.types`. Removing
-a content provider removes its control. The two trees and vault group live in files,
-while capture, pins and trash provide their own sidebar contributions.
+Content providers contribute creation controls through `files.types`: each
+gives a `making` (the words and test ids of its item, or nothing while it cannot
+mint) and a `Create` path box. Files draws the `+` on the Outlines heading and
+the menu it opens (`New outline`, `New document`, one item per contributed
+kind); picking an item opens that kind's path box under the heading, with the
+caret in it. Escape shuts the menu and returns focus to the `+`. Removing a
+content provider removes its item; with no kind left, the heading has no `+`.
+
+The two trees and the vault group live in files. The vault group (a parent
+named `olai` over the `_olai/` outlines such as Pins, Settings and the Inbox)
+is drawn only when `_olai/` holds such a file. Capture, pins and trash provide
+their own sidebar contributions; the Trash door is trash's own `foot` entry,
+not a row of this group.
 
 `files.kinds` holds scoped glyph, noun, article and test-id contributions keyed
 by a claiming row id or by `holds`. Lookup prefers the row id, then `holds`.

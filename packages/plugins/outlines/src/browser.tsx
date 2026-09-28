@@ -38,7 +38,7 @@ import { navigation, content, gestures } from "olai-plugin-navigation/contract"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { fileTypes, fileState } from "olai-plugin-files/contract"
 import { holdFileControls } from "./browser/files.tsx"
-import { NewOutline } from "./browser/outline/NewOutline.tsx"
+import { NewOutline, outlineMaking } from "./browser/outline/NewOutline.tsx"
 import { sections } from "olai-plugin-preferences/contract"
 import { referrerMemory } from "olai-plugin-markdown/contract"
 import { backlinksMemory } from "./browser/backlinks/memory.ts"
@@ -201,7 +201,7 @@ export const components = {
     yield* Effect.acquireRelease(Effect.sync(() => holdReading(reading)), stop => Effect.sync(stop))
   }) }),
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
-    yield* (yield* rendererSlots).contribute(fileTypes, { Create: NewOutline })
+    yield* (yield* rendererSlots).contribute(fileTypes, { making: outlineMaking, Create: NewOutline })
   }) }),
   /** The backlinks section's open-state memory, DECLARED — a component of its
    *  own so the outline keeps editing and navigating when the markdown row

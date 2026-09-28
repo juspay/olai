@@ -3,6 +3,7 @@
 export const TESTID = {
   sidebar: "sidebar",
   sidebarBody: "sidebar-body",
+  sidebarFoot: "sidebar-foot",
   sidebarScrim: "sidebar-scrim",
   sidebarCollapse: "sidebar-collapse",
   sidebarExpand: "sidebar-expand",

@@ -20,7 +20,7 @@
  * So `said` is the section's NAME rather than its heading: what the app has to
  * say whose a section is, in a `data-plugin` a scenario can find it by.
  */
-import type {} from "./slots.ts"
+import type { SidebarPlace } from "./slots.ts"
 import { createMemo, For } from "solid-js"
 import { hung } from "./faces.ts"
 export function PluginSections() {
@@ -32,8 +32,8 @@ export function PluginSections() {
   )
 }
 
-/** Plugin-owned directory doors, in the shell's two ruled placements. */
-export function PluginEntries(props: { readonly place: "top" | "bottom" }) {
+/** Plugin-owned directory doors, in the shell's ruled placements. */
+export function PluginEntries(props: { readonly place: SidebarPlace }) {
   const entries = createMemo(() =>
     hung("sidebar.entry").filter((one) => one.face.place === props.place)
   )
@@ -45,7 +45,7 @@ export function PluginEntries(props: { readonly place: "top" | "bottom" }) {
 }
 
 /** The collapsed drawing that travels with the same directory entry. */
-export function PluginRailEntries(props: { readonly place: "top" | "bottom" }) {
+export function PluginRailEntries(props: { readonly place: SidebarPlace }) {
   const entries = createMemo(() =>
     hung("sidebar.entry").filter((one) => one.face.place === props.place)
   )
