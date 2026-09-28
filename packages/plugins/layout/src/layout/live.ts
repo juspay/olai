@@ -2,7 +2,7 @@
  * THE SHELL'S LIVE GEOMETRY — this row's own, and PRIVATE to this package.
  *
  * Three readings with one owner and one lifetime: whether the viewport is at
- * the desktop breakpoint, how wide the window is, and the five preference
+ * the desktop breakpoint, how wide the window is, and the four preference
  * circuits this browser's layout keeps. All three are installed by the layout
  * root's `activate` block (`../browser.tsx`) and released with it.
  *
@@ -45,7 +45,7 @@ const [viewportWidth, setViewportWidth] = createSignal(10_000)
 
 
 
-// ── the five circuits, one factory ────────────────────────────────────────
+// ── the four circuits, one factory ────────────────────────────────────────
 //
 // Each preference is its codec and nothing else; the read→signal→write→watch
 // wiring is `createPreference`'s (../preference.ts). The setters below stay,
@@ -72,7 +72,10 @@ export const sidebarWidth: Accessor<number> = () =>
     (active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX),
     (active()?.panelWidthPref.value() ?? CHAT_DEFAULT_PX),
     sidebarOpen(),
-    panelOpen(),
+    // No open/shut state for the seat's panel: nothing opens it any more
+    // (the chord and its palette row left with the chat dock), so the
+    // sidebar is never squeezed for a panel that is not drawn.
+    false,
     viewportWidth(),
   ).side
 
@@ -84,15 +87,6 @@ export const sidebarWidth: Accessor<number> = () =>
 export const setSidebarWidth = (px: number, opts?: SetOptions): void =>
   active()?.sidebarWidthPref.set(clamp(Math.round(px), SIDEBAR_MIN_PX, SIDEBAR_MAX_PX), opts)
 
-// ── chat open (open dock/sheet vs minimized pill/strip) ───────────────────
-
-/** Is the agent panel open right now? Minimized is the other of the two states. */
-export const panelOpen: Accessor<boolean> = () => active()?.panelOpenPref.value() ?? false
-
-export const setPanelOpen = (open: boolean): void => active()?.panelOpenPref.set(open)
-
-export const togglePanel = (): void => setPanelOpen(!panelOpen())
-
 // ── chat width ────────────────────────────────────────────────────────────
 
 /** Live width, clamped to the current viewport. */
@@ -101,14 +95,18 @@ export const panelWidth: Accessor<number> = () =>
     (active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX),
     (active()?.panelWidthPref.value() ?? CHAT_DEFAULT_PX),
     sidebarOpen(),
-    panelOpen(),
+    // No open/shut state for the seat's panel: nothing opens it any more
+    // (the chord and its palette row left with the chat dock), so the
+    // sidebar is never squeezed for a panel that is not drawn.
+    false,
     viewportWidth(),
   ).chat
 
 export const setPanelWidth = (px: number, opts?: SetOptions): void =>
   active()?.panelWidthPref.set(clamp(Math.round(px), PANEL_MIN_PX, PANEL_MAX_PX), opts)
 
-/** Reset both panels to their defaults (palette command for keyboard users). */
+/** Reset the sidebar (and the seat's panel) to default widths — the palette's
+ *  "Reset sidebar width", for keyboard users. */
 export const resetPanelWidths = (): void => {
   setSidebarWidth(SIDEBAR_DEFAULT_PX)
   setPanelWidth(CHAT_DEFAULT_PX)

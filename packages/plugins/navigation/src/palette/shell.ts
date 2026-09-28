@@ -30,7 +30,5 @@ export const holdShell = provider.hold
 
 export const resetPanelWidths = (): void => provider.read()?.resetPanelWidths()
 
-export const togglePanel = (): void => provider.read()?.togglePanel()
-
 /** Is the viewport at the phone/desktop split? */
 export const desktop: Accessor<boolean> = () => provider.read()?.desktop() ?? false

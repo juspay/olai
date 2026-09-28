@@ -6,7 +6,7 @@ import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 import { createMemo, Match, Show, Switch } from "solid-js"
 import { nameOf } from "./routing.ts"
 import { Empty } from "@olai/web/client/Empty.tsx"
-import { desktop, panelOpen } from "./shell.ts"
+import { desktop } from "./shell.ts"
 import { samePageRequest } from "@olai/format"
 import type { DocumentPageRequest } from "@olai/format"
 import { useHistory } from "./history.ts"
@@ -35,7 +35,7 @@ export function MarkdownPageView() {
   const page = createMemo<import("@olai/format").PageReading | undefined>(was => reading() ?? was)
   const history = useHistory()
   router.report(here, () => ({ history, file: file(), title: nameOf(route(),undefined) }))
-  return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${!desktop() && !panelOpen() ? "pb-16" : ""}`}
+  return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${!desktop() ? "pb-16" : ""}`}
     data-testid={IDS_NAVIGATION.pane} data-pane={String(here())}
     data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
     data-href={hrefOf(route())} onPointerDown={() => router.focus(here())} onClick={follow}>
