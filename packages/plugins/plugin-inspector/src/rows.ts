@@ -80,38 +80,117 @@ export const pluginConfig = (
   return Object.entries(config).map(([key, value]) => [key, typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)] as const)
 }
 
-/** Failed and waiting rows explain their own obstruction. All other states
- * are expressed by the enable switch, without an additional prose arm. */
-export const pluginHint = (
+/** One component of a running row that is stuck in this tab — `component` is
+ *  the part after the row's name (`shell/palette` → `palette`), or `undefined`
+ *  for the row's own browser half. */
+export type TabPart = { readonly component: string | undefined; readonly report: RowReport }
+
+/**
+ * WHAT IS WRONG WITH A ROW, as one tagged reading — or `null`, the ordinary
+ * answer: a row that is on and fine, or off because somebody left it off, is
+ * said by its switch. The few words at rest ({@link CONDITION_WORDS}), the full
+ * sentence in the detail ({@link conditionSaid}) and the tone
+ * ({@link CONDITION_TONE}) are tables over this tag, so no reader classifies a
+ * row by its words.
+ *
+ * `blocked` names the doors a waiting row is short of, because "something it
+ * needs" is the sentence that sends a person to the source: a service with
+ * nobody behind it is another ROW's to offer. A running row can still be stuck
+ * in this tab (`tabFailed`, `tabStarting`); a browser-only row that has not
+ * reported once the tab has heard from others is `tabStarting` with no parts.
+ * `setup` is the one arm only the row's own plugin can answer (`needs`).
+ */
+export type RowCondition =
+  | { readonly kind: "failed"; readonly fault: string | undefined }
+  | { readonly kind: "pending" }
+  | { readonly kind: "starting" }
+  | { readonly kind: "blocked"; readonly missing: ReadonlyArray<string> }
+  | { readonly kind: "tabFailed"; readonly parts: ReadonlyArray<TabPart> }
+  | { readonly kind: "tabStarting"; readonly parts: ReadonlyArray<TabPart> }
+  | { readonly kind: "setup" }
+
+export const rowCondition = (
   plugin: BuiltPlugin,
-  roster: PluginRoster = { built: [] },
-  look: PluginLook = {},
-): string | null => {
+  reports: ReadonlyMap<string, RowReport> = new Map(),
+  needs = false,
+): RowCondition | null => {
   switch (pluginState(plugin)) {
-    case "running":
-    case "off":
-    case "optIn":
-    case "switched":
-    case "pending":
-      return null
     case "failed":
-      return `Failed to start. ${said(plugin.fault)} Switch it off and on to try again.`
+      return { kind: "failed", fault: plugin.fault }
+    case "pending":
+      return { kind: "pending" }
     case "waiting":
-      // NAMED WHERE THE ROW NAMES THEM, because "something it needs" is the
-      // sentence that sends a person to the source. A service with nobody
-      // behind it is another ROW's to offer, so what this line is really saying
-      // is which plugin to compose — and it can only say it by naming the door.
       return plugin.missing === undefined || plugin.missing.length === 0
-        ? `Starting…`
-        : `Can't start: another plugin it needs isn't running (${plugin.missing.join(", ")}).`
+        ? { kind: "starting" }
+        : { kind: "blocked", missing: plugin.missing }
+    case "running": {
+      const parts: TabPart[] = []
+      for (const [name, report] of reports) {
+        if (name !== plugin.name && !name.startsWith(plugin.name + "/")) continue
+        if (report.state === "waiting" || report.state === "failed")
+          parts.push({ component: name === plugin.name ? undefined : name.slice(plugin.name.length + 1), report })
+      }
+      if (parts.some(({ report }) => report.state === "failed")) return { kind: "tabFailed", parts }
+      if (parts.length > 0 || (plugin.browserOnly && reports.size > 0 && reports.get(plugin.name)?.state !== "running"))
+        return { kind: "tabStarting", parts }
+      return needs ? { kind: "setup" } : null
+    }
     default:
       return null
   }
 }
 
+type ConditionKind = RowCondition["kind"]
+
+/** THE ROW'S STATE IN A FEW WORDS, beside its name at rest. */
+export const CONDITION_WORDS: { readonly [K in ConditionKind]: string } = {
+  failed: "Failed",
+  pending: "Needs approval",
+  starting: "Starting…",
+  blocked: "Can't start",
+  tabFailed: "Failed in this tab",
+  tabStarting: "Starting in this tab",
+  setup: "Needs setup",
+}
+
+/** How the words are coloured: a fault is an alarm, a wait is in progress. */
+export const CONDITION_TONE: { readonly [K in ConditionKind]: "alarm" | "doing" | undefined } = {
+  failed: "alarm",
+  pending: undefined,
+  starting: "doing",
+  blocked: "doing",
+  tabFailed: "alarm",
+  tabStarting: "doing",
+  setup: undefined,
+}
+
 /** THE PLUGIN'S OWN SENTENCE, verbatim — or the honest nothing. */
 const said = (fault: string | undefined): string =>
   fault === undefined ? `It gave no message.` : `It said: “${fault}”.`
+
+/** What each stuck part of this tab says, in the order the tab reported them. */
+const inTab = (parts: ReadonlyArray<TabPart>): string =>
+  parts.map(({ component, report }) => {
+    const label = component === undefined ? "In this tab" : `In this tab (${component})`
+    return report.state === "failed"
+      ? `${label}: failed to start. ${report.fault ?? "It gave no message."}`
+      : `${label}: still starting${report.state === "waiting" && report.missing?.length ? ` (needs ${report.missing.join(", ")})` : ""}.`
+  }).join(" ") || "Not started in this tab yet."
+
+/** THE FULL SENTENCE in the row's detail. Approval and setup say nothing
+ *  here: the definition's own block and the plugin's own face are what to do. */
+const CONDITION_SAID: { readonly [K in ConditionKind]: (condition: Extract<RowCondition, { kind: K }>) => string | null } = {
+  failed: ({ fault }) => `Failed to start. ${said(fault)} Switch it off and on to try again.`,
+  pending: () => null,
+  starting: () => `Starting…`,
+  blocked: ({ missing }) => `Can't start: another plugin it needs isn't running (${missing.join(", ")}).`,
+  tabFailed: ({ parts }) => inTab(parts),
+  tabStarting: ({ parts }) => inTab(parts),
+  setup: () => null,
+}
+
+export const conditionSaid = (condition: RowCondition): string | null =>
+  (CONDITION_SAID[condition.kind] as (condition: RowCondition) => string | null)(condition)
 
 /**
  * THE ROWS THAT STOP WITH THIS ONE, as one phrase — or nothing at all.
@@ -134,50 +213,22 @@ const carries = (plugin: BuiltPlugin, named: (name: string) => string): string |
     ? undefined
     : plugin.carrying.map(named).join(", ")
 
-/** A running server row can have a waiting browser component. Keep the
- * server's switch semantics and name that component and its missing keys. */
-export const browserHint = (plugin: string, reports: ReadonlyMap<string, RowReport>, browserOnly = false): string | null => {
-  const lines: string[] = []
-  for (const [name, report] of reports) {
-    if (name !== plugin && !name.startsWith(plugin + "/")) continue
-    const label = name === plugin ? "In this tab" : `In this tab (${name.slice(plugin.length + 1)})`
-    if (report.state === "waiting") lines.push(`${label}: still starting${report.missing?.length ? ` (needs ${report.missing.join(", ")})` : ""}.`)
-    if (report.state === "failed") lines.push(`${label}: failed to start. ${report.fault ?? "It gave no message."}`)
-  }
-  if (lines.length) return lines.join(" ")
-  if (browserOnly && reports.get(plugin)?.state !== "running") return "Not started in this tab yet."
-  return null
-}
-
 /**
  * WHAT PRESSING OFF WILL COST — carrying, or the row's own switchHint.
  *
  * On the running row this used to be a caption. It is a confirm now: the
  * ordinary On says nothing, and the sentence appears when the switch is about
- * to move. {@link pluginHint}'s running arm is `null` for the same rows.
+ * to move. {@link rowCondition} is `null` for the same rows.
  */
 export const pluginConfirm = (
   plugin: BuiltPlugin,
-  look: PluginLook = {},
-  /** How a carried row is named — its label on the panel; the name itself
-   *  where the caller has no labels. */
-  named: (name: string) => string = (name) => name,
-): string | null => {
-  const carry = carries(plugin, named)
-  if (carry !== undefined) return `Turning it off also stops ${carry}.`
-  return look.switchHint ?? null
-}
-
-/** The sentence the panel draws under a row — hint plus a waiting/failed browser. */
-export const rowCopy = (
-  plugin: BuiltPlugin,
+  look: (name: string) => PluginLook = () => ({}),
+  /** Where a carried row is found, so it is named as its own row is. */
   roster: PluginRoster = { built: [] },
-  look: PluginLook = {},
-  reports: ReadonlyMap<string, RowReport> = new Map(),
 ): string | null => {
-  const hint = pluginHint(plugin, roster, look)
-  const browser = plugin.running ? browserHint(plugin.name, reports, plugin.browserOnly) : null
-  return [hint, browser].filter(Boolean).join(" ") || null
+  const carry = carries(plugin, (name) => displayName(roster.built.find((one) => one.name === name) ?? { name, running: false }, look(name)))
+  if (carry !== undefined) return `Turning it off also stops ${carry}.`
+  return look(plugin.name).switchHint ?? null
 }
 
 /**
@@ -196,42 +247,6 @@ export const NEEDS_YOU = "Needs attention"
  *  shown in the row's detail. */
 export const displayName = (plugin: BuiltPlugin, look: PluginLook = {}): string =>
   plugin.source === undefined ? look.label ?? plugin.name : plugin.name
-
-/**
- * THE ROW'S STATE IN A FEW WORDS, beside its name at rest — or nothing, which
- * is the ordinary answer: a row that is on and fine, or off because somebody
- * left it off, is said by its switch. Only a row that is stuck says so here;
- * the full sentence and what to do about it sit in the row's detail.
- */
-export const rowStatus = (
-  plugin: BuiltPlugin,
-  reports: ReadonlyMap<string, RowReport> = new Map(),
-  needs = false,
-): string | null => {
-  switch (pluginState(plugin)) {
-    case "failed":
-      return "Failed"
-    case "pending":
-      return "Needs approval"
-    case "waiting":
-      return plugin.missing === undefined || plugin.missing.length === 0
-        ? "Starting…"
-        : "Can't start"
-    case "running": {
-      let waiting = false
-      for (const [name, report] of reports) {
-        if (name !== plugin.name && !name.startsWith(plugin.name + "/")) continue
-        if (report.state === "failed") return "Failed in this tab"
-        if (report.state === "waiting") waiting = true
-      }
-      if (waiting) return "Starting in this tab"
-      if (plugin.browserOnly && reports.get(plugin.name)?.state !== "running" && reports.size > 0) return "Starting in this tab"
-      return needs ? "Needs setup" : null
-    }
-    default:
-      return null
-  }
-}
 
 /** A group whose every row is off by the BUILD's own default — maintained test
  *  fixtures nobody asked for — is not listed at all. It reappears the moment

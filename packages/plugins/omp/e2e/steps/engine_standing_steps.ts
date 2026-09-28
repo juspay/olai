@@ -98,7 +98,7 @@ Then("the omp inspector row carries the picker's absence under Needs you", async
   // ...AND HERE THE NAME IS A LINK, because this row is reachable by keyboard:
   // where the engine comes from is the other half of what a person has to do.
   assert.equal(await said.getByRole("link").getAttribute("href"), INSTALL.where)
-  assert.equal(await row.getByRole("switch", { name: "Enable omp" }).getAttribute("aria-checked"), "true")
+  assert.equal(await row.getByRole("switch", { name: "Enable Oh My Pi" }).getAttribute("aria-checked"), "true")
 })
 
 /** INSTALL IT, the way a person would: the executable appears on the path the
@@ -113,7 +113,7 @@ When("I install the fake omp in the agent search directory", function(this: Olai
 
 Then("the omp inspector row no longer needs installation", async function(this: OlaiWorld) {
   const row = await this.showPluginRow("omp")
-  await this.waitUntil(async () => await row.getByRole("switch", { name: "Enable omp" }).getAttribute("aria-checked") === "true", "omp to return")
+  await this.waitUntil(async () => await row.getByRole("switch", { name: "Enable Oh My Pi" }).getAttribute("aria-checked") === "true", "omp to return")
   await row.locator(missing).waitFor({ state: "detached", timeout: POLL_TIMEOUT })
   assert.equal(await row.evaluate(element => element.closest("[data-section]")?.getAttribute("data-section")), "Conversation")
 })

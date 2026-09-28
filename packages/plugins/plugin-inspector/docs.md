@@ -63,8 +63,8 @@ Every schema leaf is an inline control beside its row name. Short lowercase
 labels derive from leaf keys; the schema description is the knob's tooltip.
 Four or fewer choices use segmented buttons, longer choices a select; booleans
 use switches and text/numbers use compact inputs. Numeric bounds, units and
-format hints stay available. The enable switch is labelled `Enable <row>` and
-has no visible caption. Off rows dim their knobs but leave them editable; only
+format hints stay available. The enable switch is labelled `Enable <label>`,
+the name the row shows, and has no visible caption. Off rows dim their knobs but leave them editable; only
 failed and waiting rows add a reason.
 
 A file-authored value has a ● with the tooltip `set in Settings.olai` and a ↺
