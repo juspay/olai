@@ -34,7 +34,7 @@ const stage = (boot?: Owed) => createRoot(dispose => {
 
 test("the claim precedes notification and chime; frames, reconnects and naming never replay a skipped chime", () => {
   const s = stage({ overdue: 2, today: 3 })
-  expect(s.calls).toEqual(["said:2026-09-11", "notify:Agenda: 2 overdue, 3 on today", "chime"])
+  expect(s.calls).toEqual(["said:2026-09-11", "notify:Agenda: 2 overdue, 3 due today", "chime"])
   s.owed({ overdue: 2, today: 4 }); s.owed(undefined); s.owed({ overdue: 2, today: 4 }); s.called("olai [other]")
   expect(s.calls).toHaveLength(3)
   s.press(); expect(s.calls.at(-1)).toBe("agenda")
