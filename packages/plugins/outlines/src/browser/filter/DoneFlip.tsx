@@ -43,9 +43,9 @@ export function DoneFlip(props: { readonly file: string }) {
 
   const said = (): string =>
     own()
-      ? `Finished items are ${word(shown())} on this page. Your default in Preferences ` +
+      ? `Finished items are ${word(shown())} on this page. Your default in ⚙ prefs ` +
         `is ${word(!doneHidden())}; press reset to follow it here.`
-      : `Finished items are ${word(shown())} on this page, as your default in Preferences says.`
+      : `Finished items are ${word(shown())} on this page, as your default in ⚙ prefs says.`
 
   return (
     <span
@@ -77,7 +77,7 @@ export function DoneFlip(props: { readonly file: string }) {
           class={`${TARGET_BOX} inline-flex items-center justify-center text-xs text-muted underline decoration-rule underline-offset-2 hover:text-ink md:min-h-0 md:min-w-0`}
           data-testid={TESTID.doneRelease}
           aria-label="Reset finished items to your default"
-          title={`Follow your default in Preferences: finished items ${word(!doneHidden())}`}
+          title={`Follow your default in ⚙ prefs: finished items ${word(!doneHidden())}`}
           onClick={() => letDoneFollow(props.file)}
         >
           reset

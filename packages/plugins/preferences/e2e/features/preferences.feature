@@ -213,7 +213,7 @@ Feature: One place to set how this browser reads
     Then the finished box is named "Show finished"
     And this page's Done flip says "hidden"
     And the finished box offers no reset
-    And the finished box's tooltip says "Finished items are hidden on this page, as your default in Preferences says."
+    And the finished box's tooltip says "Finished items are hidden on this page, as your default in ⚙ prefs says."
     When I set Done to "visible"
     And I press Escape on the preferences
     Then this page's Done flip says "shown"
@@ -222,7 +222,7 @@ Feature: One place to set how this browser reads
     When I hide the done nodes
     Then the node "demo" is not shown
     And the Done flip is this page's own
-    And the finished box's tooltip says "Finished items are hidden on this page. Your default in Preferences is shown; press reset to follow it here."
+    And the finished box's tooltip says "Finished items are hidden on this page. Your default in ⚙ prefs is shown; press reset to follow it here."
     When I set Done to "hidden"
     And I press Escape on the preferences
     Then this page's Done flip says "hidden"
