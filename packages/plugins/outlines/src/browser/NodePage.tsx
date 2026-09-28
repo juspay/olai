@@ -39,6 +39,7 @@ import { NodeBody } from "./NodeBody.tsx"
 import { PluginAsides } from "./Asides.tsx"
 import { PluginPageHead, PluginPageFoot } from "./PageFaces.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
+import { PinnedTitle } from "./PinnedTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
 import { ProgressBadge } from "@olai/web/client/ProgressBadge.tsx"
 import { RepeatBadge } from "./RepeatBadge.tsx"
@@ -93,6 +94,7 @@ function Zoom(props: {
    * to sit at (`./props/PropsDrawer.tsx`).
    */
   const undo = useUndo()
+  let heading: HTMLHeadingElement | undefined
 
   return (
     <Editable
@@ -124,11 +126,18 @@ function Zoom(props: {
               the head scrolls away with the page and only the composer stays.
               The title row WRAPS for the same screen: the title claims the
               whole line below `sm` and its asides go under it, rather than
-              the asides squeezing it to one word per line. */}
+              the asides squeezing it to one word per line. What a phone
+              keeps pinned is the node's name, on one line (./PinnedTitle.tsx). */}
+          <PinnedTitle
+            title={props.zoomed.shows.node.title}
+            from={props.zoomed.shows.file}
+            heading={() => heading}
+          />
           <header class={`relative md:sticky md:top-[var(--height-chrome)] ${LAYER.page} bg-paper pb-2`}>
             <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
           <div class="group/row mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1
+              ref={heading}
               class={`min-w-0 grow basis-full sm:basis-0 ${PAGE_TITLE} italic ${toneOf(props.zoomed.status)}`}
               data-testid={TESTID.zoomTitle}
               data-node-id={props.zoomed.shows.node.id}

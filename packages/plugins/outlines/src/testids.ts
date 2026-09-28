@@ -105,6 +105,7 @@ export const TESTID = {
   selectionSaid: "selection-said",
   emptyUnder: "empty-under",
   zoomTitle: "zoom-title",
+  zoomPinnedTitle: "zoom-pinned-title",
   breadcrumbs: "breadcrumbs",
   crumb: "crumb",
   notFound: "not-found",

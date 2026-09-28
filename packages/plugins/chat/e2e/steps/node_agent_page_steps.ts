@@ -24,6 +24,14 @@ const input = selector(PLUGIN_TESTID.agentPlainInput);
 const send = selector(PLUGIN_TESTID.agentPlainSend);
 const head = selector(PLUGIN_TESTID.agentPageHead);
 const foot = selector(PLUGIN_TESTID.agentPageFoot);
+const PINNED_TITLE = selector(PLUGIN_TESTID.zoomPinnedTitle);
+const chromeHeight = (world: OlaiWorld) => world.page.evaluate(() => {
+  const probe = document.body.appendChild(document.createElement("div"));
+  probe.style.height = "var(--height-chrome)";
+  const measured = probe.getBoundingClientRect().height;
+  probe.remove();
+  return measured;
+});
 
 When("I follow the agent's open-page link", async function(this: OlaiWorld) {
   await this.chatRoot().getByRole("link", { name: "open the page ›" }).click();
@@ -84,6 +92,20 @@ Then("the page title has the phone's whole line", async function(this: OlaiWorld
   const heading = await this.box(title, "the page title");
   const aside = await this.box(standing, "the agent's standing");
   assert.ok(aside.y >= heading.y + heading.height - 1, "the standing shares the title's line");
+  await this.page.locator(PINNED_TITLE).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+Then("the node's name is pinned on one line under the chrome", async function(this: OlaiWorld) {
+  const pinned = this.page.locator(PINNED_TITLE);
+  await pinned.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal((await pinned.innerText()).trim(), (await this.page.locator(ZOOM_TITLE).innerText()).trim());
+  const box = await this.box(pinned, "the pinned node name");
+  assert.ok(Math.abs(box.y - await chromeHeight(this)) <= 1, `the pinned name is not under the chrome: ${box.y}`);
+  const lines = await pinned.evaluate(el => el.scrollHeight <= el.clientHeight + 1 && getComputedStyle(el).whiteSpace === "nowrap");
+  assert.ok(lines, "the pinned name wraps");
+});
+When("I tap the pinned node name", async function(this: OlaiWorld) {
+  await this.page.locator(PINNED_TITLE).click();
+  await this.page.locator(PINNED_TITLE).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
 Then("the page head has scrolled away and the transcript has most of the screen", async function(this: OlaiWorld) {
   const head = await this.box(this.page.locator(ZOOM_TITLE), "the page title");
@@ -91,15 +113,11 @@ Then("the page head has scrolled away and the transcript has most of the screen"
   const composer = await this.box(this.chat(CHAT_INPUT), "the composer");
   const transcript = await this.box(this.chat(CHAT_TRANSCRIPT), "the transcript");
   const { height } = this.viewport();
-  const chrome = await this.page.evaluate(() => {
-    const probe = document.body.appendChild(document.createElement("div"));
-    probe.style.height = "var(--height-chrome)";
-    const measured = probe.getBoundingClientRect().height;
-    probe.remove();
-    return measured;
-  });
-  const reading = Math.min(composer.y, transcript.y + transcript.height) - Math.max(chrome, transcript.y);
-  assert.ok(reading >= height / 2, `the transcript reads through ${reading}px of a ${height}px screen: ${JSON.stringify({ chrome, transcript, composer })}`);
+  const pinned = this.page.locator(PINNED_TITLE);
+  await pinned.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const below = await this.box(pinned, "the pinned node name");
+  const reading = Math.min(composer.y, transcript.y + transcript.height) - Math.max(below.y + below.height, transcript.y);
+  assert.ok(reading >= height / 2, `the transcript reads through ${reading}px of a ${height}px screen: ${JSON.stringify({ below, transcript, composer })}`);
 });
 Then("the plain node composer has no available engine", async function(this: OlaiWorld) {
   await this.page.locator(plain).locator(selector(PLUGIN_TESTID.chatNoAgent)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });

@@ -67,7 +67,8 @@ Feature: A node's page holds its memory and conversation
   # breadcrumbs, a display-size title and the agent's line took half the screen,
   # the pinned composer took a third, and the transcript read through a slot of
   # four lines between them. The title, squeezed beside its standing, wrapped
-  # one word per line and made the head taller still.
+  # one word per line and made the head taller still. What stays pinned now is
+  # the node's name on one line, so the reader still knows what the chat is about.
   @phone
   Scenario: A phone page gives its conversation the screen
     Given I open the plain node composer for "install"
@@ -80,6 +81,9 @@ Feature: A node's page holds its memory and conversation
     And the page transcript is unbounded and its composer is on screen
     When I scroll to the bottom of the page
     Then the page head has scrolled away and the transcript has most of the screen
+    And the node's name is pinned on one line under the chrome
+    When I tap the pinned node name
+    Then the page title has the phone's whole line
     And there should be no page errors
 
   @node-idle-fast
