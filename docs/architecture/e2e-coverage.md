@@ -343,3 +343,45 @@ to a superseded session while the binding still lags. Subscriptions and explicit
 loads share the same permit-protected routing function. Deferreds and
 immediate forks establish ordering without sleeps; both stale-reader cases fail
 against the previous implementation. The same-node off/on workflow now passes end to end.
+
+## The UI revamp: shell and navigation
+
+The revamp moved the header's status into one health dot, grouped the
+preferences and plugins panels, dropped the `⌘J` agent panel, and rewrote the
+app's words in Sentence case. The shell's scenarios follow it, and these cases
+were added for what changed:
+
+- **Empty pages.** `trash` and `agenda` assert the two lines each empty page
+  says (`Trash is empty` / `Deleted outlines and rows appear here.`, `Nothing
+  due` / `Rows with a date show up here.`) and that neither offers a button.
+  `empty_vault` (files) presses `New outline` on an empty directory's `No
+  outlines yet`: the sidebar's own box opens with the caret, on a desktop with
+  the sidebar collapsed to its rail, and on a phone. The phone case found a
+  bug: the box opened inside the shut drawer, so the press looked like it did
+  nothing. `layout.shell` now has `revealSidebar`, and the files row's `open`
+  calls it. `page_not_found` (navigation, 3) covers a missing outline (the
+  outlines row's page, which names the noun), a file of a kind no row reads,
+  and a bare name, each saying `Page not found` with `Go home` back to `/`
+  without a reload.
+- **Names.** `second_pane` checks that a pane header, a collapsed pane's rail
+  and the phone's pane tabs say the page's name (`house`, `kitchen-sink`,
+  `install`) and that `Close <name>` / `Expand <name>` carry it. `strip` checks
+  that a tab's close button is the last thing in the tab, at its right edge,
+  with the tooltip `Close tab` and the name `Close <title>`.
+- **⌘J.** `no_agent_panel_chord` (layout, 3) presses the old chord and checks
+  that no handler took it and nothing was written, that the shortcuts sheet
+  lists no `J` chord, and that the palette offers `Reset sidebar width` and no
+  agent panel.
+- **Cards.** `the_connection` asserts the freeze card's copy (`Connection
+  lost` over `Reconnecting…`; `The server restarted` over its `Reload`), and
+  the card and the health dot still name one state. `the_client_breaks`
+  checks the fault card's `Something went wrong on this page`, its detail
+  behind a closed `Details`, and `Reload` and `Go home`. `shell_rows` reads
+  the startup card `olai couldn't start` and a failed browser half's `Try
+  again` in its plugins-panel row.
+
+The harness gained what several plugins' steps stand on: `showPluginRow`
+opens the group and then the row's own detail, `showPlugins` / `hidePlugins`
+open the plugins panel through the health popover and put it away with Escape
+(the popover is hidden while the panel is up), and `setSwitch` drives a
+preference switch.
