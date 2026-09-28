@@ -175,7 +175,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                   classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
               }</Show>
               <span aria-hidden="true" class="shrink-0 font-mono text-xs opacity-75">{glyphOf(props.router.routes, tab().href)}</span>
-              <span data-testid={TESTID.tabsTitle} class="min-w-0 truncate">{title()}</span>
+              <span data-testid={TESTID.tabsTitle} class="min-w-0 flex-1 truncate">{title()}</span>
               <Show when={dot()}>{(paint) =>
                 <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label="needs you" class={`${DOT} ${paint()}`} />
               }</Show>
@@ -183,6 +183,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 type="button"
                 data-testid={TESTID.tabsClose}
                 aria-label={`close ${title()}`}
+                title="Close tab"
                 class="flex size-5 shrink-0 items-center justify-center rounded font-mono text-sm leading-none text-muted hover:bg-rule hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100"
                 classList={{ "opacity-0": !front() }}
                 onClick={(event) => {
