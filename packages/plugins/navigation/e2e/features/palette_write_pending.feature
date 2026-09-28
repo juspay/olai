@@ -53,8 +53,8 @@ Feature: Palette write responses belong to the interaction that sent them
     Given incoming updates to this browser tab can be held
     And I open the node "handles"
     When I press the palette shortcut
-    And I type "Mark todo" into the palette
-    Then the palette offers "Mark todo"
+    And I type "Mark: To do" into the palette
+    Then the palette offers "Mark: To do"
     When I hold incoming updates to the original browser tab
     And I press "Enter" without waiting
     And I type "garden" into the palette

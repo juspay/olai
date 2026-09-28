@@ -12,8 +12,8 @@ Feature: Navigation owns the palette shortcut before its layout arrives
     And the non-UI controller sets plugin "layout" on
     Then the command palette is open
     And the palette input has keyboard focus
-    And the palette offers "Complete"
-    When I choose "Complete" from the palette
+    And the palette offers "Mark: Done"
+    When I choose "Mark: Done" from the palette
     Then "garden.olai" holds a node marked done titled "split the mint"
     And there should be no page errors
 
@@ -22,7 +22,7 @@ Feature: Navigation owns the palette shortcut before its layout arrives
     When I open the node "mint" through a held reconnect
     And I press "ControlOrMeta+k"
     Then the command palette is open
-    And the palette offers "Complete"
-    When I choose "Complete" from the palette
+    And the palette offers "Mark: Done"
+    When I choose "Mark: Done" from the palette
     Then "garden.olai" holds a node marked done titled "split the mint"
     And there should be no page errors

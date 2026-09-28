@@ -8,7 +8,7 @@ Feature: Browser initialization failures are visible
     When I open the plugins panel
     And I approve the plugin "swatch"
     And I approve the plugin "palette"
-    Then the plugins panel says "palette" is "Browser: failed to start. palette initialization failed"
+    Then the plugins panel says "palette" is "In this tab: failed to start. palette initialization failed"
     And the plugins panel says "swatch" is "palette.colours"
     And no row wears a swatch
     And the browser service catalog includes "palette.colours"

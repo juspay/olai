@@ -139,7 +139,7 @@ Feature: A plugin is turned on and off while the serve runs
     Given I open the outline "lanes.olai"
     Then chat controls are gone-from the outline
     When I open the plugins panel
-    Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
+    Then the plugins panel says "kolu" is "Can't start: another plugin it needs isn't running (deliveries, session-start)."
     # ...and the panel says the row is off because the file disabled it, which is
     # a different morning from a press and from the build's own default.
     And the plugin "chat" is off without prose
@@ -182,7 +182,7 @@ Feature: A plugin is turned on and off while the serve runs
     # reaches this sentence with nothing anywhere moving.
     And I request that the plugin "chat" be off
     Then the plugins panel asks to confirm turning "chat" off
-    And the confirm for "chat" names "kolu"
+    And the confirm for "chat" names "Kolu"
 
     When I confirm turning the plugin "chat" off
     # KOLU NAMES BOTH ITS DOORS, because it names two and a sentence that owned
@@ -191,8 +191,7 @@ Feature: A plugin is turned on and off while the serve runs
     # point here is that a serve which had chat a moment ago arrives at the
     # identical state, which is what "disabled means absent at every moment
     # rather than only at boot" comes to.
-    Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
-    And the plugins panel says "kolu" is "no plugin in this build offers them"
+    Then the plugins panel says "kolu" is "Can't start: another plugin it needs isn't running (deliveries, session-start)."
     # ...AND CHAT'S OWN CHROME IS GONE, not disabled. The members left the wire,
     # so the tab loaded no chunk for them and mounted nothing — which is the
     # browser's exact twin of *no fiber, no surface, no handler*.
@@ -218,22 +217,23 @@ Feature: A plugin is turned on and off while the serve runs
     And there should be no page errors
 
   @scratch:good
-  Scenario: A quiet group starts collapsed, and a press on its heading opens it
-    # Quiet groups fold when every row is running and silent, so the walk is
-    # the groups that need a person rather than thirty switches. A press on
-    # the heading has to STAY open: the roster is live, and a redraw that
-    # slammed the group shut again would make the walk unusable.
+  Scenario: A group starts collapsed, and a press on its heading opens it
+    # Every ordinary group starts shut — at rest the panel is its headings and
+    # their counts (Agents, Notes, Connections, Interface) — and only Needs
+    # attention opens by itself. A press on the heading has to STAY open: the
+    # roster is live, and a redraw that slammed the group shut again would
+    # make the walk unusable.
     When I open the app
     And I open the plugins panel
-    Then the plugins panel group "Pages" is collapsed
-    And the plugins panel group "This tab" is collapsed
-    When I open the plugins panel group "Pages"
-    Then the plugins panel groups "outlines" under "Pages"
-    And the plugins panel group "This tab" is collapsed
+    Then the plugins panel group "Notes" is collapsed
+    And the plugins panel group "Interface" is collapsed
+    When I open the plugins panel group "Notes"
+    Then the plugins panel groups "outlines" under "Notes"
+    And the plugins panel group "Interface" is collapsed
     # A SWITCH REBUILDS THE SHELL. The walk has to survive that remount, or
     # turning a quiet row on folds its group and the switch you just pressed
     # disappears under the heading.
     When I switch the plugin "outlines" off
     And I switch the plugin "outlines" on
-    Then the plugins panel groups "outlines" under "Pages"
-    And the plugins panel group "This tab" is collapsed
+    Then the plugins panel groups "outlines" under "Notes"
+    And the plugins panel group "Interface" is collapsed

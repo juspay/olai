@@ -33,7 +33,7 @@ Feature: The ⌘K palette writes
     # simply absent until the address says which node the reader is looking at.
     When I press the palette shortcut
     Then the palette offers "Go to today"
-    And the palette does not offer "Mark todo"
+    And the palette does not offer "Mark: To do"
     And the palette does not offer "Move to Trash"
 
   Scenario: Zoomed, the palette offers what that node can take
@@ -42,11 +42,11 @@ Feature: The ⌘K palette writes
     # placement`.
     Given I open the node "kitchen"
     When I press the palette shortcut
-    Then the palette offers "Mark todo"
-    And the palette offers "Complete"
-    And the palette offers "Clear mark"
+    Then the palette offers "Mark: To do"
+    And the palette offers "Mark: Done"
+    And the palette offers "Mark: Clear"
     And the palette offers "Move to Trash"
-    And the palette does not offer "Mark doing"
+    And the palette does not offer "Mark: Doing"
     And the palette does not offer "Clear date"
 
   Scenario: The verbs that ask something first are not in it — all three of them
@@ -73,7 +73,7 @@ Feature: The ⌘K palette writes
     Then the command palette is open
     And "house.olai" holds a node marked doing titled "kitchen remodel #home"
     # The arrows select a named op among all current plugin contributions.
-    When I move the palette cursor to "Mark todo"
+    When I move the palette cursor to "Mark: To do"
     And I press "Enter"
     Then "house.olai" holds a node marked todo titled "kitchen remodel #home"
 
@@ -83,7 +83,7 @@ Feature: The ⌘K palette writes
     # scenario claims is that the WRITE re-rendered in place.
     And I mark the page
     When I press the palette shortcut
-    And I choose "Mark doing" from the palette
+    And I choose "Mark: Doing" from the palette
     Then the command palette is closed
     And "house.olai" holds a node marked doing titled "choose the handles"
     And the page has not reloaded
@@ -93,7 +93,7 @@ Feature: The ⌘K palette writes
     Given I open the node "handles"
     When I press the palette shortcut
     And I type "handles" into the palette
-    Then the palette offers "Complete"
+    Then the palette offers "Mark: Done"
 
   Scenario: A refusal is quoted where it was asked, and the palette stays up
     # The ops layer's own words, verbatim — nothing decides on somebody's
@@ -102,7 +102,7 @@ Feature: The ⌘K palette writes
     # presses is what an agent makes and what the ••• menu asks for.
     Given I open the node "demo"
     When I press the palette shortcut
-    And I choose "Mark doing" from the palette
+    And I choose "Mark: Doing" from the palette
     Then the palette says "`take out the old counters` is done. Undo that first — nothing should decide on your behalf that finished work is not finished."
     And the command palette is open
     And the node "demo" has status "done"
@@ -114,7 +114,7 @@ Feature: The ⌘K palette writes
     # somebody might want to tick the branch — and now can.
     Given I open the node "mint"
     When I press the palette shortcut
-    And I choose "Complete" from the palette
+    And I choose "Mark: Done" from the palette
     Then the palette remarks "every task under `the herb bed by the door` is done now"
     And "garden.olai" holds a node marked done titled "split the mint"
 
@@ -193,7 +193,7 @@ Feature: The ⌘K palette writes
     # ••• entry do.
     Given I open the node "handles"
     When I press the palette shortcut
-    And I choose "Mark doing" from the palette
+    And I choose "Mark: Doing" from the palette
     # The CLOSE rather than the disk: the palette shuts in the same answer that
     # files the inverse, so it is the signal that there is something on the
     # stack. The file can be written a beat before that answer reaches the tab.

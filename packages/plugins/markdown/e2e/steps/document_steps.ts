@@ -116,10 +116,15 @@ Then(
         `timed out waiting for the pane to say there is no document ${JSON.stringify(file)}: stuck on ${JSON.stringify(stuck)}`,
       );
     }
+    // `Page not found`, and under it the plain line naming what was asked for
+    // by the kind's own noun (a csv is a `table`).
     const text = oneLine(await said.innerText());
+    assert.strictEqual(text, "Page not found");
+    const detail = oneLine(await said.locator("xpath=..").innerText());
+    const noun = kind === "csv" ? "table" : kind;
     assert.ok(
-      text.includes(file) && text.includes(`No ${kind === "csv" ? "table" : kind}`),
-      `the pane says ${JSON.stringify(text)}, which does not name the missing document`,
+      detail.includes(`There is no ${noun} named ${file}.`),
+      `the pane says ${JSON.stringify(detail)}, which does not name the missing ${noun}`,
     );
     assert.strictEqual(
       await this.page.locator(DOCUMENT_PAGE).count(),

@@ -12,5 +12,5 @@ Feature: The journal is one optional plugin
 
     When I press the palette shortcut
     Then the palette does not offer "Go to today"
-    And the palette does not offer "Go to the agenda"
+    And the palette does not offer "Go to Agenda"
     And there should be no page errors
