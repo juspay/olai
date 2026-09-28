@@ -77,7 +77,7 @@ export function Row(props: {
       >
         {label}
         <div
-          class={`flex min-w-0 flex-wrap items-center gap-1 ${props.stacked ? "" : "shrink-0 justify-end"}`}
+          class={`flex min-w-0 flex-wrap items-center gap-1 ${props.stacked ? "md:gap-1.5" : "shrink-0 justify-end"}`}
           role="group"
           aria-label={props.label}
           aria-describedby={props.setBy ? saidId() : undefined}

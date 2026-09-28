@@ -46,7 +46,7 @@ export function ThemeChips(props: { readonly state: Appearance }) {
           // swatch inside it is the drawing. The ring says which is in force,
           // and the focus ring where the caret is — the page's accent, so it
           // shows against any swatch.
-          class={`${TARGET_BOX} group inline-flex flex-none items-center justify-center rounded-full focus-visible:outline-none md:min-h-0 md:min-w-0 md:p-[0.125rem]`}
+          class={`${TARGET_BOX} group inline-flex flex-none items-center justify-center rounded-full focus-visible:outline-none md:min-h-0 md:min-w-0 md:p-0`}
           data-testid={TESTID.themeChip}
           data-value={palette.name}
           title={paletteLabel(palette.name)}
