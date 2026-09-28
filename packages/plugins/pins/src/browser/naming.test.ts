@@ -129,6 +129,6 @@ test("layouts require a written name on creation and rename", () => {
   expect(wrote(naming, " Planning ")).toEqual({ verb: "pin", at, name: "Planning" })
   const pin = pinned({ at, target: { kind: "layout", workspace: routes.layoutIn(at)! } })
   for (const request of [naming, { kind: "rename", pin } as const]) {
-    expect(namedEdit(request, "  ")).toEqual(Result.fail("a layout needs a name"))
+    expect(namedEdit(request, "  ")).toEqual(Result.fail("A layout needs a name"))
   }
 })

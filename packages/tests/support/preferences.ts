@@ -117,7 +117,7 @@ export const setSwitch = async (
   await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   if ((await toggle.getAttribute("aria-checked")) !== String(on)) await toggle.click();
   await toggle
-    .and(page.locator(`[aria-checked="${on}"]`))
+    .and(page.locator(attr("aria-checked", String(on))))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
     .catch(() => {
       throw new Error(`the ${pref} switch never went ${on ? "on" : "off"}`);
