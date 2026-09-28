@@ -285,7 +285,7 @@ Feature: One place to set how this browser reads
     Then the finished box is named "Show finished"
     And this page's Done flip says "hidden"
     And the finished box offers no reset
-    And the finished box's tooltip says "Finished items hidden, as in Preferences."
+    And the finished box's tooltip says "Finished items hidden, as your default."
     When I set Done to "visible"
     And I press Escape on the preferences
     Then this page's Done flip says "shown"
