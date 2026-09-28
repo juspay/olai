@@ -3,12 +3,18 @@
   "description": "Identity of a created or replaced Gmail draft.",
   "properties": {
     "id": {
+      "description": "The immutable draft id.",
       "type": "string"
     },
     "message-id": {
-      "type": "string"
+      "description": "The id of the message currently stored in the draft, when present.",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "thread-id": {
+      "description": "The thread id returned by Gmail, when present.",
       "type": [
         "string",
         "null"
@@ -16,8 +22,7 @@
     }
   },
   "required": [
-    "id",
-    "message-id"
+    "id"
   ],
   "title": "GmailDraftWriteOutput",
   "type": "object"

@@ -20,7 +20,7 @@
       "type": "object"
     },
     "GmailHistoryMessageOutput": {
-      "description": "Message identity and labels at the time of arrival.",
+      "description": "Identity and labels supplied by Gmail for an added message.",
       "properties": {
         "id": {
           "type": "string"

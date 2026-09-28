@@ -10,7 +10,7 @@ import { addressList, compose, validateDraft, type DraftArgs } from "./compose.t
 import { readEnclosures } from "./enclosures.ts"
 import { MailRefusal } from "./wire.ts"
 
-const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.String, "thread-id": Schema.NullOr(Schema.String) })
+const DraftOutput = Schema.Struct({ id: Schema.String, "message-id": Schema.NullOr(Schema.String), "thread-id": Schema.NullOr(Schema.String) })
 // Empty defaults are a reply-policy refusal; malformed nonempty headers still
 // use the composer's address syntax refusal. Explicit recipients bypass this.
 const replyAddresses = (header: string) => header.trim() ? addressList(header)
