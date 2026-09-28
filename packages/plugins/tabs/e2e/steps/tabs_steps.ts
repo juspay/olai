@@ -16,16 +16,19 @@ import { HYDRATION_TIMEOUT, POLL_TIMEOUT, ZOOM } from "@olai/tests/harness/world
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 import { TABS_KEY } from "../../src/persist.ts";
-import { ADDRESS, CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB } from "../selectors.ts";
+import { CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB, TITLE } from "../selectors.ts";
 
 const tabAt = (world: OlaiWorld, index: number) => world.page.locator(`${TAB}${attr("data-tab", String(index))}`);
 
 const tabsNow = async (world: OlaiWorld) =>
-  world.page.locator(TAB).evaluateAll((faces) => faces.map((face) => ({
+  world.page.locator(TAB).evaluateAll((faces, title) => faces.map((face) => ({
     href: face.getAttribute("data-href"),
     front: face.getAttribute("data-tab-front") === "true",
-    title: face.getAttribute("title"),
-  })));
+    // What the tab SAYS, and what it says on hover — two facts now: the name,
+    // and the address it holds.
+    title: face.querySelector(title)?.textContent?.trim() ?? null,
+    tip: face.getAttribute("title"),
+  })), TITLE);
 
 /** Wait for the strip to say something, and say what it held when it would not. */
 const untilTabs = async (
@@ -74,8 +77,31 @@ Then("the tabs hold {string}", async function (this: OlaiWorld, hrefs: string) {
     `the tabs to hold ${hrefs}`);
 });
 
-Then("the tab strip reads the address {string}", async function (this: OlaiWorld, href: string) {
-  await this.waitUntil(async () => (await this.page.locator(ADDRESS).innerText()).trim() === href, `the strip's address to read ${href}`);
+/** The address is on each tab's tooltip — there is no readout beside the strip. */
+Then("tab {int}'s tooltip is {string}", async function (this: OlaiWorld, index: number, tip: string) {
+  await untilTabs(this, (tabs) => tabs[index]?.tip === tip, `tab ${index}'s tooltip to be ${tip}`);
+});
+
+Then("the tab strip spells no address", async function (this: OlaiWorld) {
+  const strip = this.page.locator(STRIP);
+  await strip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const text = await strip.innerText();
+  assert.ok(!text.includes("/"), `the strip reads ${JSON.stringify(text)}, which spells an address`);
+});
+
+When("I let the page use the clipboard", async function (this: OlaiWorld) {
+  await this.context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(this.page.url()).origin });
+});
+
+Then("the clipboard holds the link to {string}", async function (this: OlaiWorld, href: string) {
+  const wanted = new URL(href, this.page.url()).href;
+  let held = "";
+  try {
+    await this.waitUntil(async () => (held = await this.page.evaluate(() => navigator.clipboard.readText())) === wanted,
+      `the clipboard to hold ${wanted}`);
+  } catch {
+    throw new Error(`the clipboard to hold ${wanted}, and it holds ${JSON.stringify(held)}`);
+  }
 });
 
 Then("there is no tab strip", async function (this: OlaiWorld) {

@@ -5,8 +5,10 @@
  * rule broken under it, the others muted. A press brings a tab forward when it
  * is let go, a drag reorders it with the
  * pane header's threshold and pointer helper, a middle-click closes it, and a
- * right-click opens its menu. `+` opens a front-page tab, and the readout at
- * the right is the address of the tab in front.
+ * right-click opens its menu. `+` opens a front-page tab. A tab says the name
+ * of what it holds (`./face.ts`'s `facesOf`: a document by its stem, the way
+ * the files sidebar says it) and carries its address as its tooltip; the
+ * menu copies that address.
  *
  * It draws the list and nothing else: every verb is `tabs.state`'s.
  */
@@ -20,7 +22,7 @@ import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { lone } from "olai-plugin-navigation/workspace"
 
 import type { Tab, TabsState } from "./contract.ts"
-import { glyphOf } from "./face.ts"
+import { facesOf, glyphOf } from "./face.ts"
 import { PointMenu } from "./chunk.ts"
 import { TESTID } from "./testids.ts"
 
@@ -50,7 +52,21 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
     return x < (faces[0]?.getBoundingClientRect().left ?? 0) ? 0 : Math.max(from, faces.length - 1)
   }
 
-  const frontHref = () => tabs.tabs().find((tab) => tab.id === tabs.front())?.href ?? ""
+  /** Every tab's name and tooltip, read together: a name shared by two
+   *  different pages is spelled out on both (`./face.ts`). */
+  const faces = createMemo(() => facesOf(props.router.routes, tabs.tabs()))
+
+  /** The tab's address as a link somebody can paste. A clipboard the browser
+   *  refuses (plain http to another machine is the usual one) is not
+   *  swallowed: the address is handed over to copy by hand instead. */
+  const copyAddress = (id: string): void => {
+    const href = tabs.tabs().find((tab) => tab.id === id)?.href
+    if (href === undefined) return
+    const url = new URL(href, location.href).href
+    navigator.clipboard.writeText(url).catch(() => {
+      window.prompt("The browser would not copy it. The address:", url)
+    })
+  }
 
   // The tab in front is kept in view when it CHANGES — a chord or a new tab can
   // bring one forward that the strip has scrolled past. Only the strip's own
@@ -107,6 +123,8 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
         class="flex h-full min-w-0 flex-1 items-end gap-0.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
         <Key each={tabs.tabs()} by="id">{(tab, index) => {
           const front = () => tabs.front() === tab().id
+          const face = () => faces().get(tab().id)
+          const title = () => face()?.title ?? tab().title
           const dot = () => tabs.dotted().get(tab().id)
           const isLifted = () => lifted() === tab().id
           const drop = () => (over()?.id === tab().id ? over()!.side : undefined)
@@ -115,7 +133,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               role="tab"
               aria-selected={front()}
               tabIndex={front() ? 0 : -1}
-              title={tab().title}
+              title={face()?.tip ?? tab().href}
               data-testid={TESTID.tabsTab}
               data-tab={String(index())}
               data-tab-id={tab().id}
@@ -157,14 +175,14 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                   classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
               }</Show>
               <span aria-hidden="true" class="shrink-0 font-mono text-xs opacity-75">{glyphOf(props.router.routes, tab().href)}</span>
-              <span class="min-w-0 truncate">{tab().title}</span>
+              <span data-testid={TESTID.tabsTitle} class="min-w-0 truncate">{title()}</span>
               <Show when={dot()}>{(paint) =>
                 <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label="needs you" class={`${DOT} ${paint()}`} />
               }</Show>
               <button
                 type="button"
                 data-testid={TESTID.tabsClose}
-                aria-label={`close ${tab().title}`}
+                aria-label={`close ${title()}`}
                 class="flex size-5 shrink-0 items-center justify-center rounded font-mono text-sm leading-none text-muted hover:bg-rule hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100"
                 classList={{ "opacity-0": !front() }}
                 onClick={(event) => {
@@ -184,13 +202,11 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
         class="mb-1.5 flex size-7 shrink-0 items-center justify-center rounded-md font-mono text-muted hover:bg-panel hover:text-ink"
         onClick={() => tabs.open(lone(HOME_ROUTE))}
       >+</button>
-      <span data-testid={TESTID.tabsAddress} class="mb-2.5 ml-2 max-w-[18rem] shrink-0 truncate font-mono text-[0.7rem] text-muted">
-        {frontHref()}
-      </span>
       <Show when={menu()} keyed>{(open) =>
         <PointMenu x={open.x} y={open.y} label="tab" close={() => setMenu(null)} entries={[
           { label: "Duplicate tab", run: () => tabs.duplicate(open.id) },
           { label: "Close other tabs", run: () => tabs.closeOthers(open.id) },
+          { label: "Copy address", run: () => copyAddress(open.id) },
           { rule: true },
           { label: "Close", run: () => tabs.close(open.id) },
         ]} />

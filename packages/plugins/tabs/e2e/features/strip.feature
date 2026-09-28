@@ -9,7 +9,9 @@ Feature: Tabs above the panes
     Then there is 1 tab
     And tab 0 is in front
     And tab 0 holds "/house.olai"
-    And the tab strip reads the address "/house.olai"
+    And tab 0 is titled "house"
+    And tab 0's tooltip is "/house.olai"
+    And the tab strip spells no address
     And there should be no page errors
 
   Scenario: Following a door changes the tab in front and keeps the count
@@ -17,8 +19,8 @@ Feature: Tabs above the panes
     When I click the outline "garden.olai"
     Then there is 1 tab
     And tab 0 holds "/garden.olai"
-    And tab 0 is titled "garden.olai"
-    And the tab strip reads the address "/garden.olai"
+    And tab 0 is titled "garden"
+    And tab 0's tooltip is "/garden.olai"
     And there should be no page errors
 
   Scenario: Open in new tab from a link's menu adds a tab behind
@@ -156,7 +158,7 @@ Feature: Tabs above the panes
     Then there are 2 panes
     And there are 2 tabs
     And tab 0 holds the address in the bar
-    And tab 0 is titled "house.olai + install"
+    And tab 0 is titled "house + install"
     When I press tab 1
     Then there are 1 panes
     And the address is "/garden.olai"

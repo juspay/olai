@@ -6,7 +6,7 @@ export const TESTID = {
   tabsClose: "tabs-close",
   tabsNew: "tabs-new",
   tabsDot: "tabs-dot",
-  tabsAddress: "tabs-address",
+  tabsTitle: "tabs-title",
   tabsMenu: "tabs-menu",
 } as const
 

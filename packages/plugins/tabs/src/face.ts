@@ -1,10 +1,13 @@
 /**
- * What a tab WEARS besides its title: a glyph for the kind of page it holds.
- * Read off the address, so a tab in the background — which has no page mounted
- * — wears the same glyph it wore in front.
+ * What a tab WEARS: a glyph for the kind of page it holds, the name it goes by,
+ * and the address it holds as its tooltip. All of it is read off the address,
+ * so a tab in the background — which has no page mounted — wears the same face
+ * it wore in front.
  */
 import type { Routing } from "olai-plugin-navigation/routes"
-import { panesOf, workspaceOf } from "olai-plugin-navigation/workspace"
+import { panesOf, type WorkspaceRouting, workspaceOf } from "olai-plugin-navigation/workspace"
+
+import type { Tab } from "./contract.ts"
 
 export const glyphOf = (routes: Routing, href: string): string => {
   const panes = panesOf(workspaceOf(routes, href))
@@ -15,4 +18,55 @@ export const glyphOf = (routes: Routing, href: string): string => {
   const address = route.address
   if (address === null) return "⌂"
   return address.kind === "node" ? "•" : "¶"
+}
+
+export interface TabFace {
+  /** What the tab says: a document by the name the files sidebar gives it
+   *  (`garden`, not `garden.olai`), anything else by its page's title. */
+  readonly title: string
+  /** Where the tab is — its address, spelled for a person to read. */
+  readonly tip: string
+}
+
+const readable = (href: string): string => {
+  try {
+    return decodeURI(href)
+  } catch {
+    return href
+  }
+}
+
+/**
+ * EVERY TAB'S FACE AT ONCE, because one tab's name depends on its neighbours':
+ * a name is short (the stem navigation answers, `Routing.name`) until two
+ * tabs holding different pages would say the same word — `notes.md` beside
+ * `notes.olai`, `a/x.olai` beside `b/x.olai` — and then those tabs, and only
+ * those, say their whole path instead. Two tabs on the SAME page (a duplicate)
+ * say the same word, which is the truth about them.
+ *
+ * A page that is not a whole document (a node, an agenda, the front page)
+ * wears the title its page last reported, exactly as before.
+ */
+export const facesOf = (routes: WorkspaceRouting, tabs: ReadonlyArray<Tab>): ReadonlyMap<string, TabFace> => {
+  const read = tabs.map((tab) => {
+    const panes = panesOf(workspaceOf(routes, tab.href))
+    const [lone, ...more] = panes
+    if (lone !== undefined && more.length === 0) {
+      const name = routes.name(lone.route)
+      return name === undefined
+        ? { tab, short: tab.title, long: tab.title }
+        : { tab, short: name, long: routes.label(lone.route) }
+    }
+    return {
+      tab,
+      short: panes.map((pane) => routes.name(pane.route) ?? routes.label(pane.route)).join(" + "),
+      long: panes.map((pane) => routes.label(pane.route)).join(" + "),
+    }
+  })
+  const longsBy = new Map<string, Set<string>>()
+  for (const one of read) longsBy.set(one.short, (longsBy.get(one.short) ?? new Set<string>()).add(one.long))
+  return new Map(read.map(({ tab, short, long }) => [tab.id, {
+    title: (longsBy.get(short)?.size ?? 0) > 1 ? long : short,
+    tip: readable(tab.href),
+  }]))
 }

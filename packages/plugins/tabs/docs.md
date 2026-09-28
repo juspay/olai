@@ -19,14 +19,21 @@ owns this geometry; tabs still contributes only to the existing strip seat.
 
 The tab in front is drawn on paper, and the others are muted. Each tab shows a
 glyph for the kind of page it holds, its title, and a close button that appears
-on hover and on the tab in front. A tab in the background has no page mounted,
-so its title is the one it had when it was last in front: the page's own title
-where the page reported one, otherwise the page's label. A split tab's title is
-its panes' labels joined with " + ". A tab brought back to the front keeps that
-title until its page reports a real name, and every tab in the strip is the same
-width, so nothing moves while a page arrives. The address of the tab in front is shown at
-the right of the strip; the browser's address bar shows the same address and
-nothing about the other tabs.
+on hover and on the tab in front.
+
+A tab holding a document (an outline or a markdown file) is named the way the
+files sidebar names it, without the suffix: `garden`, not `garden.olai`. A file
+that is not a document keeps its suffix (`q3.pdf`, `sales.csv`). When two open
+tabs would say the same name for different files (`notes.md` and
+`notes.olai`, or `a/x.olai` and `b/x.olai`), both show their whole path
+instead, until one of them closes. Other pages show the title the page reported
+when it was last in front, or the page's label before it has reported one. A
+split tab's title is its panes' names joined with " + ". A tab brought back to
+the front keeps its title until its page reports a real name, and every tab in
+the strip is the same width, so nothing moves while a page arrives.
+
+Hover a tab to see the address it holds. The browser's address bar shows the
+address of the tab in front and nothing about the other tabs.
 
 - Press a tab to bring it to the front.
 - Middle-click a tab, or press its ×, to close it. Closing the tab in front
@@ -34,7 +41,9 @@ nothing about the other tabs.
   rightmost. Closing the last tab leaves one tab on the front page.
 - Drag a tab to reorder the strip; a bar shows where it will land.
 - Right-click a tab for **Duplicate tab** (a copy right after it, brought to the
-  front), **Close other tabs** and **Close**.
+  front), **Close other tabs**, **Copy address** (the tab's link, for pasting
+  elsewhere; if the browser will not write to the clipboard, the address is
+  shown to copy by hand) and **Close**.
 - Press **+** for a new tab on the front page.
 
 ## Opening a page in a new tab
@@ -100,6 +109,7 @@ window's own history. The chords do nothing.
   walk the window's whole history again. Switching it back on restores the
   stored set.
 - **chat** off: tabs have no needs-you dot.
+- **outlines** off: tabs holding other kinds of page are still named as above.
 - **pins** off: nothing changes here; pinned layouts are the pins row's.
 - **layout** off: no strip is drawn. The set is kept, the chords do nothing, and
   Back and Forward walk the window's history.
@@ -113,6 +123,11 @@ The row offers `tabs.state` (`olai-plugin-tabs`'s `tabsState`, typed by
 strip registers that with `draw(desktop)`. `dot({ ids, paint })` registers a
 reading of which tabs wear a dot, which the `attention` component uses. Name
 `tabs.state` on a component of your own, so your row still works without tabs.
+
+A tab's name is read from `navigation.state` as well: the page's reported
+title, and `routes.name(route)`, navigation's name for a document (the same
+`stemOf` the files sidebar uses, over the vault's claims). Tabs does not ask any
+page plugin for a name.
 
 The row itself needs only `navigation.state`. It names a history lane for the
 tab in front (see [navigation](navigation.md)) while the strip reports that it
