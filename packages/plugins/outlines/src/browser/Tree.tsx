@@ -640,14 +640,14 @@ function Branch(props: {
           // their own, and two backgrounds on one element is a race between two
           // utilities rather than a decision.
           "bg-paper": section() && !editing() && !picked(),
-          "rounded-sm bg-accent/10": editing(),
-          "rounded-sm ring-1 ring-accent/50": focused(),
+          "rounded-control bg-accent/10": editing(),
+          "rounded-control ring-1 ring-accent/40": focused(),
           // A PICKED row wears the same accent wash the caret's row does —
           // "this is one of the ones" is the same thing to say, and a caret and
           // a pick are never on screen together. A row in the air fades, so the
           // eye follows the line that says where it is going rather than the
           // rows it left.
-          "rounded-sm bg-accent/15": picked(),
+          "rounded-control bg-accent/10": picked(),
           "opacity-40": carried(),
         }}
         data-testid={TESTID.nodeGutter}
@@ -710,7 +710,7 @@ function Branch(props: {
           >
             <button
               type="button"
-              class={`${HOVER_CELL} ${HOVER_REVEAL} cursor-pointer border-0 bg-transparent p-0 text-[0.6rem] leading-none text-muted hover:text-ink`}
+              class={`${HOVER_CELL} ${HOVER_REVEAL} cursor-pointer border-0 bg-transparent p-0 text-caption leading-none text-muted hover:text-ink`}
               data-testid={TESTID.toggle}
               aria-expanded={!collapsed()}
               aria-label={collapsed() ? "expand" : "collapse"}
@@ -925,7 +925,7 @@ function Branch(props: {
 
       <Show when={props.row.kind === "cycle" ? props.row : undefined}>
         {(row) => (
-          <div class={`${PAST_CONTROLS} text-sm text-alarm`}>
+          <div class={`${PAST_CONTROLS} text-body text-alarm`}>
             this mirror is inside the subtree it shows (`{row().through}`) — not
             expanded
           </div>

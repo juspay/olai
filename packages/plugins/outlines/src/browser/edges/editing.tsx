@@ -137,7 +137,7 @@ export const createEdgeEditing = (
             // shut, which is where the `×` that caused it was pressed.
             <SaidLine
               said={message()}
-              class="mt-1 mb-0 text-[0.8125rem] leading-snug"
+              class="mt-1 mb-0 text-body leading-snug"
               testid={TESTID.edgeSaid}
             />
           )}

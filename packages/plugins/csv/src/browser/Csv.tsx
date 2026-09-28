@@ -122,14 +122,14 @@ export function Csv(props: { readonly file: string }) {
                   in it. */}
               <div class="overflow-x-auto">
                 <table
-                  class="w-max border-collapse text-[0.8125rem]"
+                  class="w-max border-collapse text-body"
                   data-testid={TESTID.csvTable}
                 >
                   <thead>
                     <tr>
                       <For each={header() ?? []}>
                         {(cell) => (
-                          <th class="border-b border-muted bg-rule/45 px-2 py-1 text-left align-top font-semibold whitespace-pre">
+                          <th class="border-b border-muted bg-rule/40 px-2 py-1 text-left align-top font-semibold whitespace-pre">
                             {cell}
                           </th>
                         )}
@@ -164,7 +164,7 @@ export function Csv(props: { readonly file: string }) {
               {(one) => (
                 <SaidLine
                   said={one()}
-                  class="mt-2 mb-0 text-[0.8125rem]"
+                  class="mt-2 mb-0 text-body"
                   testid={TESTID.csvClamp}
                 />
               )}

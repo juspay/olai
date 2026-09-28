@@ -47,7 +47,7 @@ export function BodyPage(props: {
         <Match when={only(shows(), "nothing")}>{missing => <Empty testid={UI.nothing} line={`No ${props.directory.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested} under the served directory.`} />}</Match>
         <Match when={only(shows(), "document")}>{doc => <Show when={doc().file} keyed>{path =>
           <section data-testid={TESTID.documentPage} data-file={path}>
-            <header class="mb-8"><h1 class="m-0 max-w-full break-all font-mono text-sm tracking-tight text-muted">{path}</h1></header>
+            <header class="mb-8"><h1 class="m-0 max-w-full break-all font-mono text-body tracking-tight text-muted">{path}</h1></header>
             <props.Body file={path} />
             <Referrers file={path} reading={page} claims={props.directory.claims()} href={props.navigation.routes.href} memory={props.memory} />
           </section>

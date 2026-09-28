@@ -20,13 +20,13 @@ export function Handle(props: { readonly label: string; readonly onOpen?: () => 
     <Show
       when={props.onOpen}
       fallback={
-        <span class="shrink-0 font-mono text-[0.6875rem] text-muted">{props.label}</span>
+        <span class="shrink-0 font-mono text-caption text-muted">{props.label}</span>
       }
     >
       {(open) => (
         <button
           type="button"
-          class="shrink-0 cursor-pointer font-mono text-[0.6875rem] text-muted hover:text-accent"
+          class="shrink-0 cursor-pointer font-mono text-caption text-muted hover:text-accent"
           data-testid={TESTID.propKey}
           title={`change ${props.label}`}
           onClick={(event) => {

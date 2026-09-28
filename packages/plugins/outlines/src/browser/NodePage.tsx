@@ -131,7 +131,7 @@ function Zoom(props: {
               the stacking order is the whole mechanism, so the line follows
               the chrome's height whatever the layout publishes. */}
           <div class={`sticky top-[var(--height-chrome)] ${LAYER.page} h-0 md:hidden`} aria-hidden="true">
-            <p class="m-0 truncate border-b border-rule bg-paper py-2 font-serif text-base italic" data-testid={TESTID.zoomPinnedTitle}>
+            <p class="m-0 truncate border-b border-rule bg-paper py-2 font-serif text-title italic" data-testid={TESTID.zoomPinnedTitle}>
               <NodeTitle title={props.zoomed.shows.node.title} from={props.zoomed.shows.file} links={false} />
             </p>
           </div>

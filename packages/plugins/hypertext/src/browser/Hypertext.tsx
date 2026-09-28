@@ -1074,7 +1074,7 @@ export function Hypertext(props: { readonly file: string }) {
         {(said) => (
           <SaidLine
             said={said()}
-            class="mb-2 text-[0.8125rem] leading-snug"
+            class="mb-2 text-body leading-snug"
             testid={TESTID.hypertextSaid}
           />
         )}
@@ -1149,7 +1149,7 @@ export function Hypertext(props: { readonly file: string }) {
       // flow, so it wants the same reading `../Sidebar.tsx` argues for at
       // length — the visual viewport is right for a `fixed` box on a phone with
       // a keyboard up, and the two disagree by however tall the keyboard is.
-      class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded border border-rule bg-white"
+      class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded-control border border-rule bg-white"
       data-testid={TESTID.hypertextPreview}
       />
       </Show>

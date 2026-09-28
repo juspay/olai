@@ -49,7 +49,7 @@ export function Confirm(props: {
     // A WIDTH rather than a maximum: the panel is as wide as its longest verb
     // otherwise, and a question set in that column is eight lines of two words.
     <div class="w-64 px-3 py-1.5" role="group" aria-label={props.action.confirm}>
-      <p class="m-0 text-xs leading-snug text-ink" data-testid={TESTID.nodeMenuConfirm}>
+      <p class="m-0 text-label leading-snug text-ink" data-testid={TESTID.nodeMenuConfirm}>
         {props.action.confirm}
       </p>
       <div class="mt-2 flex gap-2">

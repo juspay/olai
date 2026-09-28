@@ -45,7 +45,7 @@ export function Breadcrumbs(props: {
 }) {
   return (
     <nav
-      class="flex flex-wrap items-baseline gap-1 text-sm text-muted"
+      class="flex flex-wrap items-baseline gap-1 text-body text-muted"
       aria-label={props.file === undefined ? "ancestors" : "breadcrumbs"}
       data-testid={TESTID.breadcrumbs}
     >
@@ -53,7 +53,7 @@ export function Breadcrumbs(props: {
         {(file) => (
           <Link
             route={atFile(file())}
-            class={`${CRUMB} font-mono`}
+            class={CRUMB}
             testid={TESTID.crumb}
           >
             {file()}

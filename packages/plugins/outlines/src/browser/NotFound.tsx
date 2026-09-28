@@ -57,5 +57,5 @@ export function NotFound(props: { readonly zoomed: Zoomed }) {
 }
 
 function Id(props: { readonly children: string }) {
-  return <code class="font-mono text-[0.8125rem] text-ink">{props.children}</code>
+  return <code class="font-mono text-body text-ink">{props.children}</code>
 }

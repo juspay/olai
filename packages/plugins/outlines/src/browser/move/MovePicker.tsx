@@ -100,7 +100,7 @@ export function MovePicker(props: {
 }) {
   return (
     <div
-      class="my-1 w-[min(28rem,90vw)] rounded border border-rule/70 bg-panel p-2"
+      class="my-1 w-[min(28rem,90vw)] rounded-control border border-rule/60 bg-panel p-2"
       data-testid={TESTID.movePicker}
       // WHICH ROW it is about, as a fact in the markup rather than something a
       // reader has to infer from where it is drawn — the row moves under it
@@ -122,7 +122,7 @@ export function MovePicker(props: {
       }}
     >
       <p
-        class="m-0 mb-1 text-xs text-muted"
+        class="m-0 mb-1 text-label text-muted"
         onClick={(event) => {
           // The heading is not read through — the picker is an open write:
           // its pill must not filter the tree (and unseat the panel) any

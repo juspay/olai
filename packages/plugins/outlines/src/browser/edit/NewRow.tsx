@@ -69,8 +69,8 @@ export function NewRow(props: {
         // caret changed height) at every landing: a blank is a row one write
         // early, so the two boxes are the same box or the seat they share is
         // only pretending.
-        class={`${ROW_LINE} rounded-sm`}
-        classList={{ "bg-accent/10 ring-1 ring-accent/50": props.active !== false }}
+        class={`${ROW_LINE} rounded-control`}
+        classList={{ "bg-accent/10 ring-1 ring-accent/40": props.active !== false }}
         // A CARET IN A LINE THAT IS NOT A ROW LIGHTS NO ROW. The ring a
         // selected row wears (`../focus.ts`) has to leave, or the row above
         // goes on claiming to be the one while this line is what is being

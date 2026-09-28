@@ -126,7 +126,7 @@ export function SelectionBar() {
         data-testid={TESTID.selectionBar}
         data-rows={String(rows().length)}
       >
-        <div class="pointer-events-auto flex max-w-xl flex-col gap-1 rounded border border-rule bg-panel px-3 py-2 text-[0.8125rem] leading-snug shadow-sm">
+        <div class="pointer-events-auto flex max-w-xl flex-col gap-1 rounded-surface border border-rule bg-panel px-3 py-2 text-body leading-snug shadow-raised">
           <Show when={rows().length > 0}>
             <div class="flex flex-wrap items-center gap-3">
               <span class="text-muted" data-testid={TESTID.selectionCount}>

@@ -84,7 +84,7 @@ export function DateBadge(props: {
     <Pill
       testid={TESTID.date}
       classList={{
-        "bg-alarm/15 text-alarm": props.overdue,
+        "bg-alarm/10 text-alarm": props.overdue,
         "bg-pill text-muted": !props.overdue,
       }}
       attrs={{ "data-occasion": occasion(), "data-overdue": String(props.overdue) }}

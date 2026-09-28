@@ -21,10 +21,10 @@ function PlainProperties(props: { readonly custom: Custom; readonly from: string
     return undefined
   }
   return <Show when={customOrder(props.custom).length > 0}>
-    <div class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-[0.8125rem] leading-snug" data-testid={TESTID.props}>
+    <div class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-body leading-snug" data-testid={TESTID.props}>
       <For each={customOrder(props.custom)}>{key =>
         <span class="inline-flex min-w-0 max-w-full items-baseline gap-1.5 rounded-full border border-rule bg-panel px-2 py-px" data-testid={TESTID.prop} data-key={key}>
-          <span class="font-mono text-[0.65rem] text-muted">{key}</span>
+          <span class="font-mono text-caption text-muted">{key}</span>
           <span class="min-w-0 break-words text-ink" data-testid={TESTID.propValue}>
             <For each={values(key)}>{(value,i) => <>{i() > 0 ? ", " : ""}<Show when={href(key,value)} fallback={value}>{address => <a class="text-accent hover:underline" href={address()}>{value}</a>}</Show></>}</For>
           </span>

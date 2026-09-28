@@ -49,7 +49,7 @@ export function Aside(props: {
         <Match when={props.hot?.kind === "prop" ? props.hot : undefined}>
           {(prop) => (
             <span
-              class="shrink-0 text-xs text-muted"
+              class="shrink-0 text-label text-muted"
               data-testid={TESTID.hotFact}
               data-key={prop().key}
               title={prop().full}
@@ -62,7 +62,7 @@ export function Aside(props: {
       <Show when={fold()}>
         {(count) => (
           <span
-            class="shrink-0 font-mono text-xs text-muted"
+            class="shrink-0 tabular-nums text-label text-muted"
             data-testid={TESTID.foldedDone}
             data-done={String(count())}
             title={`${count()} finished row(s) are folded under this one, and the rollup beside it does not count them`}

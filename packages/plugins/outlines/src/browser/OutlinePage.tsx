@@ -318,7 +318,7 @@ export function OutlinePage(props: {
         {(said) => (
           <SaidLine
             said={said()}
-            class="mb-2 text-[0.8125rem] leading-snug"
+            class="mb-2 text-body leading-snug"
             testid={IDS_OUTLINES.landingSaid}
           />
         )}

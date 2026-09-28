@@ -66,7 +66,7 @@ export function Pdf(props: { readonly file: string }) {
     <object
       data={src()}
       type={PDF_TYPE}
-      class="block h-[80dvh] w-full rounded border border-rule"
+      class="block h-[80dvh] w-full rounded-control border border-rule"
       data-testid={TESTID.pdfEmbed}
       data-file={props.file}
       aria-label={props.file}

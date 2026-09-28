@@ -58,7 +58,7 @@ export function DoneFlip(props: { readonly file: string }) {
       data-shown={shown() ? "true" : "false"}
       title={said()}
     >
-      <label class={`${TARGET} inline-flex cursor-pointer select-none items-center gap-1.5 text-sm text-muted hover:text-ink md:min-h-0`}>
+      <label class={`${TARGET} inline-flex cursor-pointer select-none items-center gap-1.5 text-body text-muted hover:text-ink md:min-h-0`}>
         <input
           type="checkbox"
           class="size-3.5 cursor-pointer accent-ink"
@@ -74,7 +74,7 @@ export function DoneFlip(props: { readonly file: string }) {
           type="button"
           // The 44px target is a PHONE's rule (`@olai/ui-primitives`'
           // touch.ts), reset at the desktop breakpoint like the clear cross.
-          class={`${TARGET_BOX} inline-flex items-center justify-center text-xs text-muted underline decoration-rule underline-offset-2 hover:text-ink md:min-h-0 md:min-w-0`}
+          class={`${TARGET_BOX} inline-flex items-center justify-center text-label text-muted underline decoration-rule underline-offset-2 hover:text-ink md:min-h-0 md:min-w-0`}
           data-testid={TESTID.doneRelease}
           aria-label="Reset finished items to your default"
           title={`Follow your default in Preferences: finished items ${word(!doneHidden())}`}

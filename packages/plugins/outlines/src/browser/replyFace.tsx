@@ -21,7 +21,7 @@ export function story(input: { reply: unknown }) {
 
   return (
     <div
-      class="border-t border-rule px-2 py-1 text-xs"
+      class="border-t border-rule px-2 py-1 text-label"
       data-testid={TESTID.outlinesStory}
       data-sort={props.wrote.sort ?? "unchanged"}
     >
