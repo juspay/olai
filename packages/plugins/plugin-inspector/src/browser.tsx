@@ -127,7 +127,7 @@ export const components = {
       // failure — it is this component closing — so it passes through.
       Effect.catchCauseIf(
         (cause) => !Cause.hasInterruptsOnly(cause),
-        (cause) => Effect.logError("olai: the promoted settings headings could not be reconciled", cause),
+        (cause) => Effect.logError("olai: the promoted preference headings could not be reconciled", cause),
       ),
     )
   }) }),
