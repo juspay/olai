@@ -22,7 +22,7 @@
 import { expect, test } from "bun:test"
 
 import { createPreviewing } from "./previewing.ts"
-const { closePreview, isPreviewing, previewing, togglePreview } = createPreviewing()
+const { closePreview, isPreviewing, owed, placed, previewing, togglePreview } = createPreviewing()
 
 test("nothing is open until a door is pressed", () => {
   closePreview()
@@ -64,4 +64,29 @@ test("and it can be closed by something that is not a door", () => {
   togglePreview("tool:agent-1")
   closePreview()
   expect(previewing()).toBeNull()
+})
+
+test("a pinned door says where its shelf is owed, and a row's door does not", () => {
+  // The page's strip is pinned in the head and the shelf is in the scroll
+  // under it, so the press carries the line the shelf has to come up to. A
+  // door in the transcript is beside its own row and asks for nothing.
+  closePreview()
+  togglePreview("tool:agent-1", 212)
+  expect(owed()).toBe(212)
+  placed()
+  expect(owed()).toBeNull()
+  expect(previewing()).toBe("tool:agent-1")
+  togglePreview("tool:agent-2")
+  expect(owed()).toBeNull()
+})
+
+test("putting a shelf away owes nothing", () => {
+  closePreview()
+  togglePreview("tool:agent-1", 212)
+  togglePreview("tool:agent-1", 212)
+  expect(previewing()).toBeNull()
+  expect(owed()).toBeNull()
+  togglePreview("tool:agent-1", 212)
+  closePreview()
+  expect(owed()).toBeNull()
 })

@@ -1981,7 +1981,8 @@ export class OlaiWorld extends World {
     return `:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
   }
   chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
-  /** Settings live in the fold's agent line or the zoomed page's head. */
+  /** Settings and the standing strips (plan, tools, still running, alerts)
+   *  live in the fold or the zoomed page's pinned head. */
   chatLine(): Locator {
     assert.ok(this.activeAgent, "select a node agent before addressing its agent line");
     return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)})${attr("data-agent", this.nodeId(this.activeAgent))}`);

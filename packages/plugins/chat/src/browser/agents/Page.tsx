@@ -16,6 +16,7 @@ import { useAgents } from "./answered.tsx"
 import { agentReadings } from "./reading.ts"
 import { createNodeConversation } from "./conversation.ts"
 import { AgentLine } from "./AgentLine.tsx"
+import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
 import { NoAgent } from "../chat/NoAgent.tsx"
 import { EngineAbsence } from "./EngineAbsence.tsx"
@@ -94,13 +95,23 @@ function usePage(node: Accessor<string>) {
   return createMemo(() => pane === undefined ? undefined : agentReadings()?.page(pane, node(), () => createPageSession(node())))
 }
 
+/** The agent line and, under it, what the conversation has standing. The
+ * strips are HERE rather than above the transcript because the page's head is
+ * what the pane's scroll cannot carry away (`../chat/Strips.tsx`). */
 export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
-  return <Show when={page()?.chat()} keyed>{chat =>
-    <ConversationUIProvider value={chat.ui}>
-      <div data-testid={TESTID.agentPageHead} data-agent={props.node}><AgentLine chat={chat} node={props.node} page /></div>
+  return <Show when={page()?.chat()} keyed>{chat => {
+    let head: HTMLDivElement | undefined
+    return <ConversationUIProvider value={chat.ui}>
+      <div ref={head} data-testid={TESTID.agentPageHead} data-agent={props.node}>
+        <AgentLine chat={chat} node={props.node} page />
+        {/* The floor is the box this head is positioned in — the page's pinned
+            header, whoever draws it — so a shelf lands clear of that box's own
+            padding rather than under it. */}
+        <Strips chat={chat} floor={() => (head?.offsetParent ?? head)?.getBoundingClientRect().bottom} />
+      </div>
     </ConversationUIProvider>
-  }</Show>
+  }}</Show>
 }
 
 export function PageFoot(props: { readonly node: string }) {

@@ -3,12 +3,13 @@
  * Page shelves grow in the pane scroll. Fold shelves bound their own scroll.
  */
 
-import { For, Show } from "solid-js"
+import { createEffect, For, Show } from "solid-js"
 
 import type { ChatEntry } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
 import type { Lane } from "./lanes.ts"
 import { useConversationUI } from "./ui.tsx"
+import { scrollHostOf } from "./host.ts"
 import { railOf } from "./rail.ts"
 import { Row } from "./Row.tsx"
 import { sentOf, whoOf } from "./spawn.ts"
@@ -36,7 +37,35 @@ function Shelf(props: {
   readonly unbounded?: boolean
   readonly open: { readonly row: string; readonly entry: ChatEntry }
 }) {
-  const { closePreview, previewing, togglePreview } = useConversationUI().previewing
+  const { closePreview, owed, placed, togglePreview } = useConversationUI().previewing
+  let box: HTMLElement | undefined
+  /**
+   * A DOOR PRESSED IN THE PAGE'S PINNED HEAD opens this a scroll away from the
+   * finger: the reader is at the newest line and the shelf is above the whole
+   * transcript. So the press says where its block ends (`./previewing.ts`) and
+   * the shelf comes up to that line — unless it is already on screen under it,
+   * where moving it would only be motion.
+   *
+   * The scroll is upward, which is a reader leaving the bottom as far as
+   * {@link ./Transcript.tsx} can tell, so new text stops pulling the pane back
+   * down off the shelf that was just asked for. A fold owes nothing: its shelf
+   * is the next thing under its strip.
+   */
+  createEffect(() => {
+    const floor = owed()
+    if (floor === null) return
+    // The row is read so that a second door, pressed with the shelf already
+    // open, is answered like the first.
+    void props.open.row
+    if (props.unbounded && box !== undefined) {
+      const top = box.getBoundingClientRect().top
+      if (top < floor || top > window.innerHeight / 2) {
+        const host = scrollHostOf(box)
+        host.scrollTop += top - floor
+      }
+    }
+    placed()
+  })
   const calls = () => props.chat.lanes().get(props.open.row) ?? EMPTY
   /** The lane every row in here is in — MINTED ONCE for the whole shelf rather
    *  than asked of {@link ./lanes.ts} per row, and with no label at all.
@@ -63,6 +92,7 @@ function Shelf(props: {
   }
   return (
     <section
+      ref={box}
       class="flex min-h-0 flex-col border-b border-rule/60 bg-panel"
       classList={{ "max-h-96 shrink": !props.unbounded }}
       data-testid={TESTID.chatPreview}

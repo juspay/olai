@@ -95,6 +95,7 @@ import { TESTID } from "../../testids.ts"
 import { wholeYet } from "./attention/whole.ts"
 import { declaringFailure } from "../references.ts"
 import { laneOf } from "./lanes.ts"
+import { scrollHostOf } from "./host.ts"
 import { NEAR } from "./near.ts"
 import { useConversationUI } from "./ui.tsx"
 import { railOf, sameRail } from "./rail.ts"
@@ -158,9 +159,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
   onMount(() => {
     if (content === undefined || pane === undefined) return
     if (props.unbounded) {
-      let parent = pane.parentElement
-      while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
-      outer = parent ?? document.documentElement
+      outer = scrollHostOf(pane)
       const target = outer === document.documentElement ? window : outer
       target.addEventListener("scroll", scrolled, { passive: true })
       onCleanup(() => target.removeEventListener("scroll", scrolled))
