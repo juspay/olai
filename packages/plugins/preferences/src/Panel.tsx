@@ -60,7 +60,7 @@ export function Panel(props: {
     const all = props.sections()
     const fixed: Group[] = HEADINGS
       .map((heading) => ({
-        key: heading.key as string,
+        key: heading.key,
         label: heading.label,
         scope: "browser" as const,
         entries: all

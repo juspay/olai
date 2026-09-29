@@ -44,8 +44,8 @@ Then(
     await showPreferences(this.page);
     const row = preferenceRow(this, pref);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const group = await row.evaluate((el, testid) =>
-      el.closest(`[data-testid="${testid}"]`)?.getAttribute("aria-label") ?? null, TESTID.prefsGroup);
+    const group = await row.evaluate((el, where) =>
+      el.closest(where)?.getAttribute("aria-label") ?? null, GROUP);
     assert.equal(group, heading, `the ${JSON.stringify(pref)} row to sit under ${JSON.stringify(heading)}`);
   },
 );
