@@ -27,12 +27,11 @@ import { contentStatus,overlays,sidebar,strip } from "./index.ts"
 import {
 createEffect,
 onCleanup,
-onMount,
 Show
 } from "solid-js"
 
 import { Offline } from "@olai/web/client/connection/Offline.tsx"
-import { rememberFocus } from "@olai/web/client/connection/focus.ts"
+import { watchFocus } from "@olai/web/client/connection/focus.ts"
 import { Panes } from "olai-plugin-layout/pane/Panes.tsx"
 import { PluginBanners } from "./Chrome.tsx"
 import { PluginsMounted } from "./Mounted.tsx"
@@ -54,8 +53,9 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
   // keyboard when the wire goes and hands it back when it returns, and the
   // element it goes back to is remembered here rather than guessed by the
   // browser — see `@olai/web/client/connection/focus.ts` for the half of that
-  // the browser cannot do. Disposed with the frame, which is the app's life.
-  onMount(() => rememberFocus())
+  // the browser cannot do. `watchFocus` registers its own `onCleanup`, so the
+  // listener goes with this frame.
+  const focus = watchFocus()
 
   // The phone drawer is this frame's for as long as it is drawn — a signal in
   // `./layout/live.ts` so `layout.shell`'s `revealSidebar` can open it from a
@@ -87,7 +87,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
           the page's arm because it covers the chrome too; WHERE it sits in this
           composition decides nothing about what it paints over, because it is a
           `<dialog>` in the top layer rather than a box with a number on it. */}
-      <Offline readout={connectionReadout()} />
+      <Offline readout={connectionReadout()} memory={focus} />
       {/* THE PANEL IN THE SEAT THIS APP RESERVES FOR ONE — whichever plugin took
           it, or nothing at all where none did. It was `<ChatPanel />`, an import
           of a feature by name; the shell keeps the seat's geometry and the plugin
