@@ -58,6 +58,14 @@ Feature: The theme is a pick, and it is yours
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: Every palette paints the page it names
+    # The sheet is generated from the table, one block per row, and this is
+    # the round trip: pick each of the eighteen and read the page's own paper
+    # back. A row whose block was dropped, mistyped, or given another row's
+    # values fails here, in the browser that paints it.
+    When I open the app
+    Then every palette paints the page it names
+
   Scenario: A keyboard picks a swatch, and the caret stays where it was
     # Tab reaches the swatches (they are the panel's first controls), Space
     # and Enter each press one, and the panel stays open with the caret still

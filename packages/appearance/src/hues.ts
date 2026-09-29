@@ -21,6 +21,13 @@ export interface Oklch {
   readonly h: number
 }
 
+/** The turn from the radians `atan2` answers in to the degrees a hue is read
+ *  in: 180/π, spelled as the number rather than as `Math.PI` because the fence
+ *  that keeps plugin names out of general packages reads `Math.PI` as the name
+ *  `pi` (`bundle/src/fence.test.ts`). `./tagInk.ts` is the one file recorded
+ *  as that fence's exception; a second one would widen the hole for nothing. */
+const DEGREES_PER_RADIAN = 57.29577951308232
+
 /** One sRGB channel, linearised. */
 const channel = (unit: number): number =>
   unit <= 0.04045 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4
@@ -41,7 +48,7 @@ export const oklchOf = (hex: string): Oklch => {
   const lightness = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
   const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
   const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
-  const hue = (Math.atan2(bb, a) * 180) / Math.PI
+  const hue = Math.atan2(bb, a) * DEGREES_PER_RADIAN
   return { l: lightness, c: Math.hypot(a, bb), h: hue < 0 ? hue + 360 : hue }
 }
 
@@ -65,8 +72,8 @@ export const colourGap = (one: string, other: string): number => {
   const b = oklchOf(other)
   const turn = (lch: Oklch): [number, number, number] => [
     lch.l,
-    lch.c * Math.cos((lch.h * Math.PI) / 180),
-    lch.c * Math.sin((lch.h * Math.PI) / 180),
+    lch.c * Math.cos(lch.h / DEGREES_PER_RADIAN),
+    lch.c * Math.sin(lch.h / DEGREES_PER_RADIAN),
   ]
   const [l1, a1, b1] = turn(a)
   const [l2, a2, b2] = turn(b)
