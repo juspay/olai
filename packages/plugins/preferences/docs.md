@@ -19,13 +19,16 @@ while it applies. Yes-or-no rows are the one shared switch
 alternatives are a segmented strip. A switch that cannot move right now is
 drawn dimmed and announced as disabled rather than hidden.
 
-A group closes with its **scope line**. A fixed heading's rows are this
-browser's, and the line says so: *Saved in this browser only.* A plugin-named
-heading's rows are the serve's — a promoted setting writes `_olai/Settings.olai`
-— and its line reads *Saved in `Settings.olai`, for everyone using this
-directory.* Adjacent groups of one scope share one line, and the ordering makes
-the promise structural rather than verbal: fixed headings draw first, plugin
-headings after, so the browser-only line can never sit above a shared row.
+A **run** of adjacent groups of one scope closes with its **scope line**. A
+fixed heading's rows are this browser's, and the line says so: *Saved in this
+browser only.* A plugin-named heading's rows are the serve's — a promoted
+setting writes `_olai/Settings.olai` — and its line reads *Saved in
+`Settings.olai`, for everyone using this directory.* The line belongs to the RUN
+and not to its last group, which is what keeps a group whose body drew no row
+(hidden by CSS, the ordinary case for a provider with nothing to offer yet) from
+taking its run's line down with it. The ordering makes the promise structural
+rather than verbal: browser-local groups draw first, shared ones after, so the
+browser-only line can never sit above a shared row.
 
 Today's headings and their contributors:
 

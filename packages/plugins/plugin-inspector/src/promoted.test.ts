@@ -112,3 +112,55 @@ test("the component's own finalizer closes what it still holds", () => run(Effec
   yield* store.settled
   expect(store.read(sections).map((one) => one.key)).toEqual(["git"])
 })))
+
+/**
+ * A KEY SOMEBODY ELSE HOLDS IS ONE HEADING'S LOSS, not the frame's and not the
+ * stream's.
+ *
+ * The failure this refuses is the shape that reads as correct: `held.set` before
+ * the claim, so a claim that died leaves a scope holding nothing (never closed)
+ * and an entry that stops the plugin from ever being retried; and the failure
+ * caught outside the stream, so the stream ENDS — headings that stop appearing
+ * and, worse, stop being withdrawn.
+ *
+ * The rival is another owner holding the same key, which is what a leaked
+ * registration looks like from the outside.
+ */
+test("a claim that fails takes only its own heading down", () => run(Effect.gen(function*() {
+  const app = yield* openApp()
+  let store!: Locations
+  yield* mountPlugin(app.host, definePlugin({
+    name: "renderer", needs: [Offers], apply: Effect.gen(function*() { store = yield* locations() }),
+  }))
+  yield* store.forOwner("preferences").contribute(location("root", "one"), null, { children: [sections] })
+  yield* store.settled
+  const slots: RendererSlots = { ...store.forOwner("inspector"), read: store.read, inspect: store.inspect }
+  const held = heldHeadings(slots, sections)
+  const mine = () => store.read(sections).filter((one) => one.owner === "inspector").map((one) => one.key).sort()
+
+  yield* Effect.scoped(Effect.gen(function*() {
+    // THE RIVAL, for as long as this scope runs: the `mail` key is taken.
+    yield* store.forOwner("rival").contribute(sections, {
+      heading: { plugin: "mail", label: () => "Rival" }, order: 0, scope: "shared", body: () => null,
+    }, { key: "mail" })
+    yield* store.settled
+    // ONE FRAME, TWO HEADINGS, ONE OF THEM IMPOSSIBLE: `git` is claimed, `mail`
+    // cannot be, and the frame itself does not fail.
+    yield* held.reconcile(["git", "mail"], headings)
+    yield* store.settled
+    expect(mine()).toEqual(["git"])
+    expect(store.read(sections).filter((one) => one.key === "mail").map((one) => one.owner)).toEqual(["rival"])
+    // ...AND THE HEADING THAT FAILED IS NOT REMEMBERED AS HELD: a later frame
+    // tries it again rather than skipping it for the rest of the component.
+    yield* held.reconcile(["git", "mail"], headings)
+    yield* store.settled
+    expect(mine()).toEqual(["git"])
+  }))
+
+  // The rival is gone with its scope, so the SAME heading claims the key now.
+  yield* held.reconcile(["git", "mail"], headings)
+  yield* store.settled
+  expect(mine()).toEqual(["git", "mail"])
+  expect(store.read(sections).filter((one) => one.key === "mail").map((one) => one.owner)).toEqual(["inspector"])
+  expect(store.inspect().filter((one) => one.state !== "active").map((one) => one.name)).toEqual([])
+})))

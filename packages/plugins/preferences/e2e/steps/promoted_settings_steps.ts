@@ -23,7 +23,8 @@ import { attr, POLL_TIMEOUT, PREFS_ROW, PREFS_SCOPE } from "@olai/tests/harness/
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const KNOB = selector(TESTID.pluginKnob);
-const GROUP = selector(TESTID.prefsGroup);
+const GROUP = selector(TESTID.prefsGroup)
+const RUN = selector(TESTID.prefsRun);
 
 /** One promoted row, by the preference it sets. */
 const preferenceRow = (world: OlaiWorld, pref: string): Locator =>
@@ -50,22 +51,28 @@ Then(
   },
 );
 
+/** THE RUN a group belongs to — the container that closes it and carries the
+ *  line, which is why the line outlives a group whose body drew nothing. */
+const runHolding = (world: OlaiWorld, heading: string): Locator =>
+  world.page.locator(`${RUN}:has(${GROUP}${attr("aria-label", heading)})`)
+
 Then(
-  "the preferences group {string} ends its rows with the scope line {string}",
+  "the preferences run that holds {string} carries the scope line {string}",
   async function (this: OlaiWorld, heading: string, said: string) {
     await showPreferences(this.page);
-    const line = this.page.locator(`${GROUP}${attr("aria-label", heading)} ${PREFS_SCOPE}`);
+    const line = runHolding(this, heading).locator(PREFS_SCOPE);
     await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal((await line.innerText()).trim(), said);
   },
 );
 
 Then(
-  "the preferences group {string} draws no scope line",
+  "the preferences run that holds {string} carries one scope line",
   async function (this: OlaiWorld, heading: string) {
     await showPreferences(this.page);
-    const line = this.page.locator(`${GROUP}${attr("aria-label", heading)} ${PREFS_SCOPE}`);
-    assert.equal(await line.count(), 0, `the ${JSON.stringify(heading)} group to draw no scope line of its own`);
+    const lines = runHolding(this, heading).locator(PREFS_SCOPE);
+    await lines.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(await lines.count(), 1, `one line per run, not one per group`);
   },
 );
 

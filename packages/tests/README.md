@@ -556,7 +556,8 @@ The names are not written down twice. A row's `e2e/selectors.ts` imports that ro
 | `[data-testid="prefs-choice"][data-value]` | one segment of a named choice (Compact / Cozy / Open); `aria-pressed` says which is in force (`support/preferences.ts`'s `pickChoice`) |
 | `[data-testid="prefs-switch"]` | a yes-or-no row's switch — `role="switch"`, its state `aria-checked` (`support/preferences.ts`'s `setSwitch`) |
 | `[data-testid="prefs-value"]` | the choice in force named beside a row's label where the control does not spell it out (the theme swatches) |
-| `[data-testid="prefs-scope"][data-scope]` | one group's scope line, closing a run of groups that share it: `browser` (these are this browser's, and are never sent) or `shared` (written to `_olai/Settings.olai` for everybody using this directory) |
+| `[data-testid="prefs-run"][data-scope]` | one run: the container holding the groups of one scope and then their scope line. Hidden when no group of the run drew a row (`:not(:has([data-pref]))`), which is what keeps a group whose body drew nothing from taking the line with it |
+| `[data-testid="prefs-scope"][data-scope]` | that run's scope line: `browser` (these are this browser's, and are never sent) or `shared` (written to `_olai/Settings.olai` for everybody using this directory) |
 | `[data-testid="theme-chip"][data-value]` | one swatch of the Theme row, with the palette's name as its accessible name; `aria-pressed` says whether it is the one in force |
 
 ## Adding a test

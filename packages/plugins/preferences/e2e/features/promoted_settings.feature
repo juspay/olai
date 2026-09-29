@@ -24,8 +24,8 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And the preference "plugin-git-commit" is drawn under the heading "Git"
     And the preference "plugin-git-push" is drawn under the heading "Git"
     And the preference "plugin-git-commit" shows "manual"
-    And the preferences group "Git" ends its rows with the scope line "Saved in Settings.olai, for everyone using this directory."
-    And the preferences group "Notifications" ends its rows with the scope line "Saved in this browser only."
+    And the preferences run that holds "Git" carries the scope line "Saved in Settings.olai, for everyone using this directory."
+    And the preferences run that holds "Notifications" carries the scope line "Saved in this browser only."
     When I pick "auto" in the preference "plugin-git-commit"
     Then file "_olai/Settings.olai" has namespace "git" setting "commit" as "auto"
     And the preference "plugin-git-commit" is marked as authored by "vault"
@@ -166,27 +166,30 @@ Feature: A plugin's own settings can be marked as this panel's preferences
 
   @scratch:good @rows-on:mail @mail-himalaya:mailbox
   Scenario: A stopped plugin gives the shared scope line back
-    # THE SHARED RUN, WITH TWO PLUGINS IN IT. One scope line closes a run of one
-    # scope, so with both up the line sits under the LAST of them — and when
-    # `mail` stops, its heading has to be GONE, not merely hidden: a heading that
-    # stayed (hidden by CSS, holding the run's line) would take `Git`'s line with
-    # it. `mail` is `disabled: true` by default, so this scenario turns it on.
+    # THE SHARED RUN, WITH TWO PLUGINS IN IT: one line closes a run of one
+    # scope, and the line belongs to the RUN — so with both up there is exactly
+    # one, under the last group. When `mail` stops, its heading is GONE and
+    # `Git` keeps the run and its line. (A plugin's heading is withdrawn when it
+    # stops — that claim's regression test is `promoted.test.ts`, which holds a
+    # key of its own per heading. `mail` is `disabled: true` by default, so this
+    # scenario turns it on.)
     Given I open the app
     When I open the preferences
     Then the preferences are headed "Appearance, Outlines, Notifications, Git, Mail"
-    And the preferences group "Mail" ends its rows with the scope line "Saved in Settings.olai, for everyone using this directory."
-    And the preferences group "Git" draws no scope line
+    And the preferences run that holds "Git" carries one scope line
+    And the preferences run that holds "Mail" carries the scope line "Saved in Settings.olai, for everyone using this directory."
     When I open the plugins panel
     And I switch the plugin "mail" off
     And I open the preferences
     Then the preferences have no "Mail" heading
     And the preferences are headed "Appearance, Outlines, Notifications, Git"
-    And the preferences group "Git" ends its rows with the scope line "Saved in Settings.olai, for everyone using this directory."
+    And the preferences run that holds "Git" carries the scope line "Saved in Settings.olai, for everyone using this directory."
     # ...AND BACK ON: the key was given back, so the second claim is free.
     When I open the plugins panel
     And I switch the plugin "mail" on
     And I open the preferences
     Then the preferences are headed "Appearance, Outlines, Notifications, Git, Mail"
+    And the preferences run that holds "Git" carries one scope line
     And the preference "plugin-mail-poll" is drawn under the heading "Mail"
     And there should be no page errors
 

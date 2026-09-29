@@ -100,13 +100,14 @@ export const components = {
     yield* Effect.acquireRelease(
       Effect.sync(() => createRoot((dispose) => {
         const roster = management.roster()
-        let last: string | undefined
         createEffect(() => {
-          const names = promotingPlugins(roster() ?? NO_ROSTER)
-          const signature = names.join("\u0000")
-          if (signature === last) return
-          last = signature
-          Queue.offerUnsafe(found, names)
+          // EVERY FRAME REACHES THE RECONCILER, with no signature to dedupe it
+          // away: a claim that FAILED is not in `held`, and a frame the roster
+          // did not change is the only other one that could try it again —
+          // `reconcile` is idempotent, so a frame that changed nothing costs a
+          // scan of the map and nothing else. (Dedupe by names here would have
+          // made a failed claim permanent until a plugin was switched.)
+          Queue.offerUnsafe(found, promotingPlugins(roster() ?? NO_ROSTER))
         })
         return dispose
       })),
@@ -119,16 +120,17 @@ export const components = {
       headings.reconcile(names, {
         heading: (plugin) => ({ plugin, label: () => management.look(plugin).label ?? plugin }),
         body: (plugin) => () => <PromotedRows plugin={plugin} management={management} />,
-      }))).pipe(
-      // A CLAIM THAT FAILS IS NOT SILENT: `contribute` dies on a key somebody
-      // still holds (`./promoted.ts`), and a defect in a forked fiber nobody
-      // awaits would leave the panel drawing the previous set with no word
-      // about why. The console is where a bug belongs. An INTERRUPT is not a
-      // failure — it is this component closing — so it passes through.
-      Effect.catchCauseIf(
-        (cause) => !Cause.hasInterruptsOnly(cause),
-        (cause) => Effect.logError("olai: the promoted preference headings could not be reconciled", cause),
-      ),
-    )
+      }).pipe(
+        // A FRAME THAT DIES IS REPORTED AND THE NEXT FRAME STILL RUNS. The
+        // stream is this component's whole life, so ending it on one bad frame
+        // would leave every later roster change unread: headings that stopped
+        // appearing and — worse — stopped being withdrawn. A claim's own
+        // failure is handled inside (`./promoted.ts`); this is the last resort,
+        // and an INTERRUPT is not a failure — it is this component closing.
+        Effect.catchCauseIf(
+          (cause) => !Cause.hasInterruptsOnly(cause),
+          (cause) => Effect.logError("olai: one preference heading frame could not be reconciled", cause),
+        ),
+      )))
   }) }),
 }
