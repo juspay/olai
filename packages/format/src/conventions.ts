@@ -147,7 +147,9 @@ export interface PathSet {
  * HOW FAR IT GOES is written out in this module's header and the checks below
  * are built against precisely that: `changed` names every path the probe
  * decoded, so an arrival is always in it; `removed` is a listing's diff
- * against a stamp table a `resync` may forget, so a departure can go unnamed.
+ * against the stamp table, which a `resync` used to forget wholesale, so a
+ * departure could go unnamed — the store's forget keeps membership now, and
+ * these checks still do not rely on it.
  */
 export interface PathsMoved {
   readonly changed: ReadonlyArray<string>

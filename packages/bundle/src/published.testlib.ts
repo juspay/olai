@@ -288,13 +288,14 @@ const walkedChangeOf = <S, T>(
  * the two things that make a collection's map be rebuilt, so a corpus that
  * never writes one is a corpus that never reaches half the code under test.
  *
- * {@link Step.forgotten} is the other half and it is not a hypothetical. The
+ * {@link Step.forgotten} is the other half and it was not a hypothetical. The
  * store's `removed` is the listing's diff against the STAMP TABLE the last
- * probe left, and a VERIFIED look forgets that table wholesale (`@olai/store`'s
- * `probe.forget`, behind `refresh("verified")` — the class a `git checkout`,
- * an rsync or a test harness putting a fixture back asks for), so after one, a
- * file that left is
- * re-listed as gone and named as removed by NOBODY. The walk this replaced
+ * probe left, and a VERIFIED look used to forget that table wholesale
+ * (`@olai/store`'s `probe.forget`, behind `refresh("verified")` — the class a
+ * `git checkout`, an rsync or a test harness putting a fixture back asks for),
+ * so after one, a file that left was re-listed as gone and named as removed by
+ * NOBODY. The forget now drops stamps and keeps membership, so the store names
+ * it; the corpus keeps the shape so the projections' own belt stays tested. The walk this replaced
  * re-derived membership from the set every revision and could not be hurt by
  * it; a projection that carries its maps can be, and was — a `_olai/Inbox.olai`
  * deleted before a resync stayed in the sidebar for the life of the process,

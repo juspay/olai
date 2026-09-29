@@ -418,9 +418,9 @@ test("the hot case is covered, and the two lists really do disagree", () => {
 // ── the departure the store did not name ───────────────────────────────
 
 test("a departure the delta never names is caught by the count", () => {
-  // `removed` is the weaker of the store's two lists: a `resync` forgets the
-  // stamp table the listing diff is taken against, so a file that went away can
-  // be in neither list (`@olai/surface`'s `projection.ts` says so and mints the
+  // `removed` is the weaker of the store's two lists: a `resync` used to forget
+  // the stamp table the listing diff is taken against, so a file that went away
+  // could be in neither list (the store keeps membership now; this is the belt) (`@olai/surface`'s `projection.ts` says so and mints the
   // remove itself). The carrier must not take an empty delta as "nothing
   // moved", and this is the case that says it does not.
   const files: Corpus = { ...START, "_olai/pins.olai": pin("root"), "_olai/inbox.olai": capture("root") }
