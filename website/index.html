@@ -40,18 +40,28 @@
   }
 
   /* Default is reef: the lagoon under the palm. Every other row is a pick,
-     including chalk, which used to be what an unpicked page read in. */
+     including chalk, which used to be what an unpicked page read in. The
+     rows are the wheel — lights in hue order, then darks, the neutrals last
+     (packages/appearance/src/palettes.ts is the table). */
+  [data-theme="bloom"]      { --paper:#F1DFE4; --desk:#E6CCD3; --panel:#F8EDEF; --pill:#DDB6C0; --ink:#381926; --muted:#6C4252; --rule:#CFAAB4; --accent:#426F48; --done:#246B47; --doing:#865C13; --alarm:#992929; }
+  [data-theme="apricot"]    { --paper:#FFDECE; --desk:#FCD2C0; --panel:#FFECE0; --pill:#F5C5AF; --ink:#41261A; --muted:#765546; --rule:#E3BCAB; --accent:#006C84; --done:#256638; --doing:#824F00; --alarm:#9F3541; }
+  [data-theme="manuscript"] { --paper:#EFE7D2; --desk:#F4EDDD; --panel:#F6F0E2; --pill:#F9F4E6; --ink:#3C2F1B; --muted:#64573E; --rule:#DBCFAC; --accent:#1A5B54; --done:#4A6529; --doing:#884D11; --alarm:#9E4444; }
+  [data-theme="leaf"]       { --paper:#DBEFD0; --desk:#E7F4E0; --panel:#E8F6E0; --pill:#F0F9E9; --ink:#1F442C; --muted:#486649; --rule:#C0DBB4; --accent:#4E689C; --done:#2F642B; --doing:#885411; --alarm:#A84A5E; }
   :root,
-  [data-theme="reef"]       { --paper:#D7F0E8; --desk:#C5E6DC; --panel:#E8F7F2; --pill:#B5DDD2; --ink:#14352F; --muted:#467269; --rule:#9CC9BE; --accent:#B34219; --done:#1E7656; --doing:#8F5A00; --alarm:#C13349; }
-  [data-theme="leaf"]       { --paper:#E4ECCA; --desk:#EDF2DC; --panel:#EFF4DC; --pill:#F5F8E6; --ink:#2C4222; --muted:#536440; --rule:#CDD8AB; --accent:#2B6A8F; --done:#2F642B; --doing:#885411; --alarm:#A84A5E; }
-  [data-theme="manuscript"] { --paper:#F0E7D2; --desk:#F5EDDD; --panel:#F7F0E2; --pill:#FAF4E6; --ink:#3D2F1B; --muted:#65573E; --rule:#DCCEAC; --accent:#296559; --done:#4A6529; --doing:#884D11; --alarm:#9E4444; }
-  [data-theme="bloom"]      { --paper:#F1DFE3; --desk:#E6CCD2; --panel:#F8EDEF; --pill:#DDB6BF; --ink:#381925; --muted:#6C4251; --rule:#CFAAB3; --accent:#1E7166; --done:#246B47; --doing:#865C13; --alarm:#992929; }
-  [data-theme="sky"]        { --paper:#D2E2EF; --desk:#BFD2E3; --panel:#E4EEF6; --pill:#A8C4DC; --ink:#15263C; --muted:#42556C; --rule:#9CB4C9; --accent:#9A4E13; --done:#206F52; --doing:#8A590F; --alarm:#99293B; }
+  [data-theme="reef"] { --paper:#D6F0EA; --desk:#C4E6DF; --panel:#E7F7F3; --pill:#B4DDD5; --ink:#133531; --muted:#45726C; --rule:#9BC9C1; --accent:#B43C45; --done:#1E7656; --doing:#8F5A00; --alarm:#C13349; }
+  [data-theme="sky"]        { --paper:#CFE3EC; --desk:#BBD4E0; --panel:#E2EFF4; --pill:#A2C7D7; --ink:#0B283A; --muted:#3B5769; --rule:#97B6C5; --accent:#9B4D18; --done:#206F52; --doing:#8A590F; --alarm:#99293B; }
+  [data-theme="iris"]       { --paper:#DDE6FF; --desk:#D1DCFB; --panel:#EBF1FF; --pill:#C3D0F5; --ink:#252D45; --muted:#525D7A; --rule:#B9C5E7; --accent:#784F00; --done:#236436; --doing:#804C00; --alarm:#9C323E; }
+  [data-theme="orchid"]     { --paper:#EFE0F7; --desk:#E7D4F0; --panel:#F8EDFD; --pill:#DEC7E9; --ink:#36273D; --muted:#685571; --rule:#D2BCDD; --accent:#6D6900; --done:#1E6032; --doing:#7B4800; --alarm:#972E3A; }
   [data-theme="chalk"]      { --paper:#FAFAF6; --desk:#F2F2EC; --panel:#F5F5F0; --pill:#EDEFE6; --ink:#15180F; --muted:#555E4C; --rule:#C9CDBF; --accent:#134F75; --done:#2A6626; --doing:#8F5200; --alarm:#8E3348; }
-  [data-theme="aurora"]     { --paper:#0A1220; --desk:#121C30; --panel:#1A2742; --pill:#243352; --ink:#D5E8F5; --muted:#7A93B0; --rule:#2A3C58; --accent:#4EE0C8; --done:#7EE0A8; --doing:#F0C04A; --alarm:#F07090; }
-  [data-theme="pitch"]      { --paper:#000000; --desk:#0D110A; --panel:#10140C; --pill:#161B10; --ink:#C9D6B4; --muted:#77836A; --rule:#242B1E; --accent:#6FAECE; --done:#7FC97A; --doing:#D9A85A; --alarm:#D68B9A; }
-  [data-theme="ember"]      { --paper:#21140D; --desk:#312017; --panel:#3E2B1E; --pill:#4D3728; --ink:#EDE3D4; --muted:#B39D89; --rule:#4E392C; --accent:#F29A36; --done:#60C78B; --doing:#EECB58; --alarm:#E87382; }
-  [data-theme="dusk"]       { --paper:#1C1023; --desk:#291A32; --panel:#352442; --pill:#412E52; --ink:#E0D4ED; --muted:#A38FB7; --rule:#463154; --accent:#EE8F58; --done:#6BC799; --doing:#EEC658; --alarm:#E87DA1; }
+  [data-theme="madder"]     { --paper:#210E14; --desk:#2F171E; --panel:#3D1F29; --pill:#4C2934; --ink:#F3D5DD; --muted:#B38C97; --rule:#4A2A34; --accent:#FD8A8C; --done:#49A675; --doing:#B78F08; --alarm:#E1728B; }
+  [data-theme="ember"]      { --paper:#21140E; --desk:#312018; --panel:#3F2B1F; --pill:#4E3729; --ink:#EEE3D4; --muted:#B49C8A; --rule:#4F392D; --accent:#F29A35; --done:#60C78B; --doing:#EECB58; --alarm:#E87382; }
+  [data-theme="brandy"]     { --paper:#1D1300; --desk:#291E00; --panel:#362800; --pill:#433300; --ink:#E7DEC4; --muted:#A49775; --rule:#3F3414; --accent:#BDBE53; --done:#45A271; --doing:#B48C00; --alarm:#DD6E87; }
+  [data-theme="spruce"]     { --paper:#0E1809; --desk:#172310; --panel:#1F2F16; --pill:#293C1E; --ink:#D4E4CD; --muted:#8BA081; --rule:#2A3B20; --accent:#7FD189; --done:#43A070; --doing:#B28900; --alarm:#DA6C85; }
+  [data-theme="abyss"]      { --paper:#021A15; --desk:#042520; --panel:#05322B; --pill:#093E36; --ink:#C6E6DF; --muted:#76A399; --rule:#113E36; --accent:#49D2EA; --done:#409E6E; --doing:#AF8700; --alarm:#D86A83; }
+  [data-theme="midnight"]   { --paper:#031820; --desk:#05232D; --panel:#082F3C; --pill:#0D3B4B; --ink:#C6E4F0; --muted:#779FB0; --rule:#133B49; --accent:#7BBEFA; --done:#3C9A6A; --doing:#AC8400; --alarm:#D46680; }
+  [data-theme="aurora"]     { --paper:#0D1120; --desk:#161B30; --panel:#1F2642; --pill:#2A3152; --ink:#D7E7F6; --muted:#7F91B1; --rule:#2F3A58; --accent:#51E0C5; --done:#7EE0A8; --doing:#F0C04A; --alarm:#F07090; }
+  [data-theme="dusk"]       { --paper:#1D1022; --desk:#2A1A31; --panel:#362441; --pill:#422E51; --ink:#E1D4EC; --muted:#A58EB6; --rule:#473153; --accent:#DE88CC; --done:#6BC799; --doing:#EEC658; --alarm:#E87DA1; }
+  [data-theme="pitch"]      { --paper:#000000; --desk:#0D110A; --panel:#10140C; --pill:#161B10; --ink:#C9D6B4; --muted:#77836A; --rule:#242B1E; --accent:#96A1D7; --done:#7FC97A; --doing:#D9A85A; --alarm:#D68B9A; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; background: var(--paper); }
@@ -346,10 +356,10 @@
   .plugoff .plugname { color: var(--muted); }
 
   #agent {
-    background: #0A1220; color: #D5E8F5;
-    --paper: #0A1220; --desk: #121C30; --panel: #1A2742; --pill: #243352;
-    --ink: #D5E8F5; --muted: #7A93B0; --rule: #2A3C58;
-    --accent: #4EE0C8; --done: #7EE0A8; --doing: #F0C04A; --alarm: #F07090;
+    background: #0D1120; color: #D7E7F6;
+    --paper: #0D1120; --desk: #151B30; --panel: #1E2642; --pill: #293152;
+    --ink: #D7E7F6; --muted: #7E91B1; --rule: #2E3A58;
+    --accent: #51E0C5; --done: #7EE0A8; --doing: #F0C04A; --alarm: #F07090;
     --well: color-mix(in srgb, var(--rule) 40%, var(--paper));
   }
 
@@ -554,18 +564,26 @@
 <section id="prefs">
   <div class="wrap">
     <h2>How it looks</h2>
-    <p class="lead">Ten palettes. Press a chip — this page follows.</p>
+    <p class="lead">Eighteen palettes. Press a chip — this page follows.</p>
     <div class="chips" role="list">
-      <span class="chip on" data-theme="reef" role="listitem">reef</span>
-      <span class="chip" data-theme="leaf" role="listitem">leaf</span>
-      <span class="chip" data-theme="manuscript" role="listitem">manuscript</span>
       <span class="chip" data-theme="bloom" role="listitem">bloom</span>
+      <span class="chip" data-theme="apricot" role="listitem">apricot</span>
+      <span class="chip" data-theme="manuscript" role="listitem">manuscript</span>
+      <span class="chip" data-theme="leaf" role="listitem">leaf</span>
+      <span class="chip on" data-theme="reef" role="listitem">reef</span>
       <span class="chip" data-theme="sky" role="listitem">sky</span>
+      <span class="chip" data-theme="iris" role="listitem">iris</span>
+      <span class="chip" data-theme="orchid" role="listitem">orchid</span>
       <span class="chip" data-theme="chalk" role="listitem">chalk</span>
-      <span class="chip" data-theme="aurora" role="listitem">aurora</span>
-      <span class="chip" data-theme="pitch" role="listitem">pitch</span>
+      <span class="chip" data-theme="madder" role="listitem">madder</span>
       <span class="chip" data-theme="ember" role="listitem">ember</span>
+      <span class="chip" data-theme="brandy" role="listitem">brandy</span>
+      <span class="chip" data-theme="spruce" role="listitem">spruce</span>
+      <span class="chip" data-theme="abyss" role="listitem">abyss</span>
+      <span class="chip" data-theme="midnight" role="listitem">midnight</span>
+      <span class="chip" data-theme="aurora" role="listitem">aurora</span>
       <span class="chip" data-theme="dusk" role="listitem">dusk</span>
+      <span class="chip" data-theme="pitch" role="listitem">pitch</span>
     </div>
     <div class="cols">
       <div class="panel" data-theme="ember">

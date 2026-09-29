@@ -57,8 +57,8 @@ export const manifestOf = (hostname: string): ManifestOptions => ({
   name: appName(hostname),
   short_name: hostname,
   description: "Self-hosted outliner: your files, your agent, a live web view.",
-  themeColor: "#D7F0E8",
-  backgroundColor: "#D7F0E8",
+  themeColor: "#D6F0EA",
+  backgroundColor: "#D6F0EA",
   lang: "en",
   categories: ["productivity", "utilities"],
   icons: [

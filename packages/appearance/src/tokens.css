@@ -26,14 +26,14 @@
    * The other palettes are generated from the table into blocks
    * appended to this sheet at build time (`src/client/theme/`,
    * `src/build.ts`). */
-  --color-ink: #14352F;
-  --color-paper: #D7F0E8;
-  --color-desk: #C5E6DC;
-  --color-panel: #E8F7F2;
-  --color-pill: #B5DDD2;
-  --color-muted: #467269;
-  --color-rule: #9CC9BE;
-  --color-accent: #B34219;
+  --color-ink: #133531;
+  --color-paper: #D6F0EA;
+  --color-desk: #C4E6DF;
+  --color-panel: #E7F7F3;
+  --color-pill: #B4DDD5;
+  --color-muted: #45726C;
+  --color-rule: #9BC9C1;
+  --color-accent: #B43C45;
   --color-done: #1E7656;
   --color-doing: #8F5A00;
   --color-alarm: #C13349;
