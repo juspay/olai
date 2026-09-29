@@ -81,6 +81,20 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And the preference "plugin-git-commit" is frozen because "Settings can be edited when the configuration reader is running"
     And there should be no page errors
 
+  Scenario: A broken settings file freezes the promoted controls
+    # The reader is up and the file is torn, which is the other freeze: the
+    # schema still declares what is promoted, so the rows are drawn and none of
+    # them will move.
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {torn line
+      """
+    And I open the preferences
+    Then the preference "plugin-git-commit" is drawn under the heading "Git"
+    And the preference "plugin-git-commit" is frozen because "Repair _olai/Settings.olai before changing settings"
+    And there should be no page errors
+
   @rows-off:plugin-inspector
   Scenario: Disabling the inspector withdraws the promoted rows and leaves the rest of the panel
     Given I open the app
