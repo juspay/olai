@@ -16,13 +16,14 @@ import { tools } from "olai-plugin-layout/contract"
 import { sections, preferencesPanel } from "olai-plugin-preferences/contract"
 import { NO_ROSTER } from "@olai/surface"
 import { createEffect, createRoot } from "solid-js"
-import { Effect, Fiber, Queue, Stream } from "effect"
+import { Cause, Effect, Queue, Stream } from "effect"
 import { name, type ConfigurationPanel } from "./index.ts"
 import { createInspectorState, type InspectorState } from "./state.ts"
 import { Plugins } from "./Plugins.tsx"
 import { approvals as sourceApprovals } from "olai-plugin-vault-plugins/contract"
 import { holdApprovals } from "./approvals.ts"
 import { holdRowFaces, rowFaces } from "./faces.ts"
+import { heldHeadings } from "./promoted.ts"
 import { holdPreferencesPanel } from "./preferences-door.ts"
 import { PromotedRows } from "./PromotedRows.tsx"
 import { pluginsRow } from "./slots.ts"
@@ -85,19 +86,17 @@ export const components = {
    *  uses (`./PromotedRows.tsx`).
    *
    *  A Solid effect watches the roster and reports the promoting plugins into a
-   *  queue; the Effect side registers one section per plugin, each in a scope
-   *  of its own under this component's, so disabling the inspector or
-   *  Preferences withdraws every row without touching inspector state or the
-   *  settings reader. */
+   *  queue; the Effect side keeps one heading per plugin in a scope of its own
+   *  (`./promoted.ts`), so a plugin switched off has its heading RELEASED and
+   *  one switched back on claims the key again. Disabling the inspector closes
+   *  every remaining heading from one finalizer, without touching inspector
+   *  state or the settings reader. */
   preferences: definePlugin({ name: "preferences", needs: [browserManagement, rendererSlots], apply: Effect.gen(function*() {
     const management = yield* browserManagement
     const slots = yield* rendererSlots
+    const headings = heldHeadings(slots, sections)
+    yield* Effect.addFinalizer(() => headings.close)
     const found = yield* Queue.unbounded<ReadonlyArray<string>>()
-    /** ONE FIBER PER HEADING, so a plugin that stops can take its heading with
-     *  it: interrupting the fiber closes the scope the registration lives in,
-     *  which is the withdrawal, and a plugin switched back on is registered
-     *  again under the same key. */
-    const held = new Map<string, Fiber.Fiber<void, never>>()
     yield* Effect.acquireRelease(
       Effect.sync(() => createRoot((dispose) => {
         const roster = management.roster()
@@ -113,21 +112,23 @@ export const components = {
       })),
       (dispose) => Effect.sync(dispose),
     )
-    yield* Effect.forkScoped(Stream.runForEach(Stream.fromQueue(found), (names) => Effect.gen(function*() {
-      for (const [plugin, fiber] of [...held]) {
-        if (names.includes(plugin)) continue
-        held.delete(plugin)
-        yield* Fiber.interrupt(fiber)
-      }
-      for (const plugin of names) {
-        if (held.has(plugin)) continue
-        const label = management.look(plugin).label ?? plugin
-        held.set(plugin, yield* Effect.forkScoped(slots.contribute(sections, {
-          heading: { plugin, label },
-          order: 0,
-          body: () => <PromotedRows plugin={plugin} management={management} />,
-        }, { key: plugin })))
-      }
-    })))
+    // THE LABEL IS A READER, not a snapshot: the words are the build's
+    // (`PluginLook.label`, read off the roster), so a rebuilt roster's words
+    // reach the heading without re-registering it.
+    yield* Effect.forkScoped(Stream.runForEach(Stream.fromQueue(found), (names) =>
+      headings.reconcile(names, {
+        heading: (plugin) => ({ plugin, label: () => management.look(plugin).label ?? plugin }),
+        body: (plugin) => () => <PromotedRows plugin={plugin} management={management} />,
+      }))).pipe(
+      // A CLAIM THAT FAILS IS NOT SILENT: `contribute` dies on a key somebody
+      // still holds (`./promoted.ts`), and a defect in a forked fiber nobody
+      // awaits would leave the panel drawing the previous set with no word
+      // about why. The console is where a bug belongs. An INTERRUPT is not a
+      // failure — it is this component closing — so it passes through.
+      Effect.catchCauseIf(
+        (cause) => !Cause.hasInterruptsOnly(cause),
+        (cause) => Effect.logError("olai: the promoted settings headings could not be reconciled", cause),
+      ),
+    )
   }) }),
 }

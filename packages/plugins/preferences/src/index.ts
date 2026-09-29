@@ -22,15 +22,21 @@ export type Heading = (typeof HEADINGS)[number]["key"]
  * A promoted leaf (`@olai/plugin-api/configuration`'s `preference`) is drawn
  * here, under its plugin's heading, and moves out of the plugins panel while
  * that plugin is running. The two fields are the plugin's own name (the
- * settings namespace its rows are grouped by) and the words a person reads,
- * which the contributor reads off the roster rather than importing the plugin.
+ * settings namespace its rows are grouped by) and the words a person reads.
+ *
+ * THE WORDS ARE THE BUILD'S, and they are a READER because they are live: the
+ * label comes from `olai.yml`'s `label` — `@olai/surface`'s `PluginLook`, read
+ * off the roster by whoever contributes the rows — so a contributor hands over
+ * `() => look(plugin).label ?? plugin` rather than a snapshot of it. The panel
+ * never spells a plugin's name, and a rebuilt roster's words reach the heading
+ * without a re-registration.
  */
 export interface PluginHeading {
   /** The plugin's `name` — the settings namespace. Contributions naming the
    *  same plugin are drawn together under one heading. */
   readonly plugin: string
-  /** The words a person reads. */
-  readonly label: string
+  /** The words a person reads, read when the heading is drawn. */
+  readonly label: () => string
 }
 
 /** Either a key of {@link HEADINGS} or a {@link PluginHeading}. */
@@ -38,7 +44,7 @@ export type HeadingName = Heading | PluginHeading
 
 /**
  * WHERE A GROUP'S CHOICE IS KEPT, and what its scope line says. A fixed
- * heading's rows are this browser's; a plugin heading's rows are the serve's —
+ * heading's rows are this browser's; a promoted leaf's are the serve's —
  * written to `_olai/Settings.olai` for everybody using this directory.
  */
 export type Scope = "browser" | "shared"
@@ -58,6 +64,17 @@ export interface Section {
   readonly heading: HeadingName
   /** Lower first, among the contributions under the same heading only. */
   readonly order: number
+  /**
+   * WHERE THESE ROWS' CHOICES ARE KEPT — a fact about the contribution, not
+   * something the panel may infer from the shape of its heading: a plugin that
+   * one day contributes browser-local rows under its own heading declares
+   * `browser` here and is drawn (and labelled) with this browser's rows.
+   *
+   * Two contributions under ONE heading should agree; the panel draws a group
+   * as `shared` if any of its entries says so, because the one arrangement the
+   * ordering exists to prevent is a shared row under the browser-only line.
+   */
+  readonly scope: Scope
   readonly body: () => JSX.Element
 }
 export const sections = location<Section>("preferences.sections")
@@ -66,9 +83,10 @@ export const sections = location<Section>("preferences.sections")
  * OPEN THE PREFERENCES PANEL — the one verb the panel offers, so a link
  * elsewhere can land somebody here without importing the panel or its state.
  *
- * A component of the inspector offers it while Preferences is up; a consumer
- * holds it as an optional dependency and draws its own control when the door
- * is absent. Mirrors the inspector's own `configuration.open(name)`.
+ * THIS PACKAGE offers it, for as long as its activation runs; a consumer holds
+ * it as an optional dependency and draws its own control when the door is
+ * absent. Mirrors the inspector's own `configuration.open(name)`, which is what
+ * a consumer already knows how to hold.
  */
 export interface PreferencesPanel {
   readonly open: () => void

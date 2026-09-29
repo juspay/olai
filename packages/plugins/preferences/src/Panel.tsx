@@ -38,13 +38,22 @@ import { PANEL_BOX } from "@olai/web/client/readout.ts"
 import { HEADINGS, SCOPE_WORDS, type Section, type Scope } from "./index.ts"
 
 /** One group as the panel draws it: what it is called, what it is keyed by,
- *  whose choices it holds, and the entries under it in order. */
+ *  whose choices it holds, and the entries under it in order. The label is a
+ *  READER: a plugin heading's words come off the roster at draw time
+ *  (`PluginHeading.label`), and a fixed heading's are the table's own. */
 interface Group {
   readonly key: string
-  readonly label: string
+  readonly label: () => string
   readonly scope: Scope
   readonly entries: ReadonlyArray<Contribution<Section>>
 }
+
+/** WHAT SCOPE A HEADING DRAWS AS, read off the contributions that named it.
+ *  Their scopes should agree; the strictest wins, because a shared row under
+ *  the browser-only line is the one arrangement the ordering exists to
+ *  prevent. */
+const scopeOf = (entries: ReadonlyArray<Contribution<Section>>): Scope =>
+  entries.some((entry) => entry.value.scope === "shared") ? "shared" : "browser"
 
 export function Panel(props: {
   readonly sections: () => ReadonlyArray<Contribution<Section>>
@@ -53,24 +62,28 @@ export function Panel(props: {
   /** Register this surface with the click-away, since it is portalled. */
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
-  /** THE GROUPS, IN DRAW ORDER: the table's own headings first, in table
-   *  order, then one heading per plugin that named one, sorted by its label.
-   *  A heading with no entries is not a group. */
+  /** THE GROUPS, IN DRAW ORDER: this browser's rows first, then the serve's.
+   *  Within those, the table's own headings draw in table order and plugin
+   *  headings follow, sorted by label. That ordering is what makes the scope
+   *  lines honest — every browser-local group precedes every shared one — and
+   *  the scope itself is READ off the contributions (`Section.scope`), never
+   *  inferred from the shape of a heading. A heading with no entries is not a
+   *  group. */
   const groups = createMemo((): ReadonlyArray<Group> => {
     const all = props.sections()
     const fixed: Group[] = HEADINGS
       .map((heading) => ({
         key: heading.key,
-        label: heading.label,
-        scope: "browser" as const,
+        label: () => heading.label,
+        scope: scopeOf(all.filter((entry) => entry.value.heading === heading.key)),
         entries: all
           .filter((entry) => entry.value.heading === heading.key)
           .sort((a, b) => a.value.order - b.value.order),
       }))
       .filter((group) => group.entries.length > 0)
     // Plugin headings, filed by the plugin they name: two contributions may
-    // share one heading, and a heading's words come from its own label.
-    const named = new Map<string, { label: string; entries: Contribution<Section>[] }>()
+    // share one heading, and a heading's words come from its own live label.
+    const named = new Map<string, { label: () => string; entries: Contribution<Section>[] }>()
     for (const entry of all) {
       const heading = entry.value.heading
       if (typeof heading === "string") continue
@@ -82,12 +95,17 @@ export function Panel(props: {
       .map(([plugin, bucket]) => ({
         key: plugin,
         label: bucket.label,
-        scope: "shared" as const,
+        scope: scopeOf(bucket.entries),
         entries: bucket.entries.slice().sort((a, b) => a.value.order - b.value.order),
       }))
       .filter((group) => group.entries.length > 0)
-      .sort((a, b) => a.label.localeCompare(b.label))
-    return [...fixed, ...plugins]
+    const byLabel = (a: Group, b: Group): number => a.label().localeCompare(b.label())
+    return [
+      ...fixed.filter((group) => group.scope === "browser"),
+      ...plugins.filter((group) => group.scope === "browser").sort(byLabel),
+      ...fixed.filter((group) => group.scope === "shared"),
+      ...plugins.filter((group) => group.scope === "shared").sort(byLabel),
+    ]
   })
 
   return (
@@ -105,18 +123,18 @@ export function Panel(props: {
         {(group, index) => (
           <section
             class="[&:not(:has([data-pref]))]:hidden"
-            aria-label={group.label}
+            aria-label={group.label()}
             data-testid={TESTID.prefsGroup}
             data-group={group.key}
           >
-            <h3 class="mb-1 text-label font-medium text-muted">{group.label}</h3>
+            <h3 class="mb-1 text-label font-medium text-muted">{group.label()}</h3>
             <div class="divide-y divide-rule/40">
               <For each={group.entries}>{(entry) => entry.value.body()}</For>
             </div>
             {/* ONE LINE PER RUN OF ONE SCOPE, not per group and not one for
                 the whole panel: adjacent groups of a scope share the line, and
                 the browser-only line can never sit above a shared row because
-                every shared heading draws after every fixed one. It sits
+                every `browser` group draws before every `shared` one. It sits
                 INSIDE the group so a group that drew no row (hidden by CSS)
                 takes its line with it. */}
             <Show when={index() === groups().length - 1 || groups()[index() + 1]!.scope !== group.scope}>

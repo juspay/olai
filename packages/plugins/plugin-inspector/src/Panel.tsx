@@ -124,18 +124,19 @@ import {
   configurationLinkLabel,
   controlValues,
   displayName,
+  fullyPromoted,
   enableLabel,
   environmentValue,
   environmentVisible,
   groupCount,
   labelOf,
-  pluginConfig,
   pluginConfirm,
   pluginGroups,
   pluginRows,
   pluginSwitch,
   promotedLinkLabel,
   rowCondition,
+  rowValues,
   sentenceOf,
   showsPromotedLink,
 } from "./rows.ts"
@@ -188,8 +189,26 @@ export function Panel(props: {
   createEffect(() => {
     const name = props.state.requested()
     if (name === undefined) return
+    const plugin = rows().find((row) => row.name === name)
     const group = groups().find(group => group.rows.some(row => row.name === name))
     if (group === undefined) return
+    // A ROW WHOSE EVERY LEAF IS PROMOTED has nothing to open HERE — the one
+    // control it would reveal is a link to the other panel, and somebody asking
+    // for the row's settings wants the setting, not a door to it. So the
+    // request lands where the settings are, and this panel shuts behind them.
+    if (plugin !== undefined && preferencesPanel() !== undefined && plugin.running &&
+      fullyPromoted(rowValues(plugin), true)) {
+      props.state.revealed(name)
+      // DEFERRED, like the focus below: this effect runs while the panel it
+      // belongs to is being mounted (opening the door is what drew it), and
+      // shutting that door from inside its own render leaves the portal behind.
+      queueMicrotask(() => {
+        if (!active) return
+        props.state.door.setOpen(false)
+        preferencesPanel()?.open()
+      })
+      return
+    }
     props.state.setGroupOpen(group.label, true)
     props.state.setExpanded(name, true)
     queueMicrotask(() => {
@@ -417,13 +436,16 @@ function PluginRow(props: {
   readonly approving: () => string | null
 }) {
   const plugin = (): BuiltPlugin => props.plugin
-  const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
+  /** WHAT THIS ROW'S SETTINGS ARE — the reader's values where the serve has
+   *  them, and the build-patch pairs it carries where it has not (`rows.ts`'s
+   *  `rowValues`). */
+  const values = (): ReadonlyArray<PolicyValue> => rowValues(plugin())
   /** WHETHER THE PROMOTED LEAVES HAVE LEFT THIS ROW — its plugin is running and
    *  the preferences panel is up to draw them. Read live, so switching the
    *  panel off (`../preferences`) brings the controls back without a reload. */
   const promotedAway = (): boolean => plugin().running && preferencesPanel() !== undefined
-  const knobs = (): ReadonlyArray<PolicyValue> => controlValues(plugin(), promotedAway())
-  const promotes = (): boolean => showsPromotedLink(plugin(), promotedAway())
+  const knobs = (): ReadonlyArray<PolicyValue> => controlValues(values(), promotedAway())
+  const promotes = (): boolean => showsPromotedLink(values(), promotedAway())
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const shown = () => displayName(plugin(), look())

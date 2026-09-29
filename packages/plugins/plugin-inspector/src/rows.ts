@@ -404,11 +404,18 @@ export const knobWidth = (value: PolicyReading): string => value.control?.kind =
   : /(?:header|template)$/.test(value.key) ? "22ch" : "6ch"
 export const knobAuthored = (value: PolicyReading): boolean => value.setBy !== "default"
 
+/** WHAT A ROW'S SETTINGS ARE, read in one place: the reader's published values
+ *  where a serve has them, and the build-patch pairs the row carries where it
+ *  has not — an older serve publishes no `configurationValues`, and its rows
+ *  still draw their `config`. */
+export const rowValues = (plugin: BuiltPlugin): ReadonlyArray<PolicyReading> =>
+  plugin.configurationValues ?? pluginConfig(plugin).map(([key, value]) => ({ key, value, setBy: "default" as const, says: "" }))
+
 /** WHAT THIS ROW PROMOTED — the leaves its declaration marked as preferences
  *  (`@olai/plugin-api/configuration`'s `preference`). Empty on every row that
  *  promoted nothing, which is every row with no annotation. */
-export const promotedValues = (plugin: BuiltPlugin): ReadonlyArray<PolicyReading> =>
-  (plugin.configurationValues ?? []).filter((one) => one.preference === true)
+export const promotedValues = (values: ReadonlyArray<PolicyReading>): ReadonlyArray<PolicyReading> =>
+  values.filter((one) => one.preference === true)
 
 /** THE PLUGINS THAT PROMOTED ANYTHING AND ARE RUNNING NOW, in build order —
  *  the headings the preferences panel needs, discovered from the roster rather
@@ -416,18 +423,24 @@ export const promotedValues = (plugin: BuiltPlugin): ReadonlyArray<PolicyReading
  *  heading: its rows would draw nothing, and a heading drawn over nothing is
  *  the one thing this panel refuses. */
 export const promotingPlugins = (roster: PluginRoster): ReadonlyArray<string> =>
-  pluginRows(roster).filter((plugin) => plugin.running && promotedValues(plugin).length > 0).map((plugin) => plugin.name)
+  pluginRows(roster).filter((plugin) => plugin.running && promotedValues(rowValues(plugin)).length > 0).map((plugin) => plugin.name)
 
 /** WHICH LEAVES THE DETAIL STILL DRAWS: a promoted leaf is drawn in the
  *  preferences panel while its plugin runs and that panel can draw it, so it
  *  leaves this row's controls; everything else stays. */
-export const controlValues = (plugin: BuiltPlugin, promotedAway: boolean): ReadonlyArray<PolicyReading> =>
-  (plugin.configurationValues ?? []).filter((one) => !promotedAway || one.preference !== true)
+export const controlValues = (values: ReadonlyArray<PolicyReading>, promotedAway: boolean): ReadonlyArray<PolicyReading> =>
+  values.filter((one) => !promotedAway || one.preference !== true)
 
 /** WHERE THE ONE LINK REPLACES THE PROMOTED CONTROLS — its plugin is running
  *  and the preferences panel is up to take it. */
-export const showsPromotedLink = (plugin: BuiltPlugin, promotedAway: boolean): boolean =>
-  promotedAway && promotedValues(plugin).length > 0
+export const showsPromotedLink = (values: ReadonlyArray<PolicyReading>, promotedAway: boolean): boolean =>
+  promotedAway && promotedValues(values).length > 0
+
+/** WHETHER THE LINK IS ALL THAT IS LEFT — every leaf this row declares is
+ *  drawn in the preferences panel, so there is no control here to open and a
+ *  person asking for this row's settings wants the other panel. */
+export const fullyPromoted = (values: ReadonlyArray<PolicyReading>, promotedAway: boolean): boolean =>
+  showsPromotedLink(values, promotedAway) && controlValues(values, true).length === 0
 
 /** WHY THE CONTROLS WILL NOT MOVE — the reader is absent, the file is broken,
  *  or a change is landing. The same sentence every knob's tooltip carries. */

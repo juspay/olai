@@ -27,13 +27,7 @@ import { NO_ROSTER } from "@olai/surface"
 import type { BrowserManagement } from "@olai/surface/management"
 import { Row } from "@olai/ui-primitives/SettingRow.tsx"
 import { Control } from "./Control.tsx"
-import { configurationFrozen, labelOf, promotedValues } from "./rows.ts"
-
-/** One promoted row's `data-pref`: namespaced by the plugin so two plugins
- *  promoting the same key cannot collide, and spelled from the key alone so no
- *  plugin's words are written here. */
-export const promotedPref = (plugin: string, key: string): string =>
-  `plugin-${plugin}-${key.replace(/[^a-z0-9]+/gi, "-")}`
+import { configurationFrozen, labelOf, promotedValues, rowValues } from "./rows.ts"
 
 export function PromotedRows(props: {
   readonly plugin: string
@@ -43,15 +37,20 @@ export function PromotedRows(props: {
   const plugin = () => (roster() ?? NO_ROSTER).built.find((one) => one.name === props.plugin)
   const values = () => {
     const row = plugin()
-    return row === undefined ? [] : promotedValues(row)
+    return row === undefined ? [] : promotedValues(rowValues(row))
   }
   const frozen = () => configurationFrozen(roster() ?? NO_ROSTER, props.management.changing())
   return (
     <Show when={plugin()?.running === true}>
+      {/* ONE ROW PER LEAF, addressed as `plugin-<plugin>-<key>`: the plugin
+          namespaces it, and the leaf's own key is spelled VERBATIM — a key is
+          already unique within its plugin, and folding anything out of it would
+          make two of them collide (`watch.held-for` and `watch-held.for` are
+          one row's key change away from each other, and one name). */}
       <For each={values().map((one) => one.key)}>{key => {
         const value = () => values().find((one) => one.key === key)!
         return (
-          <Row label={labelOf(key)} pref={promotedPref(props.plugin, key)} frozen={frozen() !== undefined}>
+          <Row label={labelOf(key)} pref={`plugin-${props.plugin}-${key}`} frozen={frozen() !== undefined}>
             <Control name={props.plugin} value={value()} configure={props.management.configure} frozen={frozen()} label={false} />
           </Row>
         )

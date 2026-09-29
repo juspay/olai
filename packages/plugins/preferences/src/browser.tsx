@@ -6,12 +6,17 @@
  * theme's storage observers and selected values therefore remain effective.
  * The same entry supplies desktop and drawer presentations with explicit order.
  *
- * IT ALSO OFFERS THE ONE DOOR onto the panel — `preferences.open` — so a link
+ * It ALSO OFFERS THE ONE DOOR onto the panel — `preferences.open` — so a link
  * elsewhere (`olai-plugin-plugin-inspector`'s promoted rows and its plugins-panel
  * "Set in Preferences") can land somebody here without importing this package's
  * panel or its state. The open bit lives HERE, in this activation, because the
  * door's panel can be asked to open from outside the shell that draws it, and a
- * rebuilt shell must draw the door again with the same answer. */
+ * rebuilt shell must draw the door again with the same answer.
+ *
+ * AND IT IS ACQUIRED LIKE ANY OTHER RESOURCE OF THIS ACTIVATION, with a
+ * release: disabling Preferences SHUTS its panel (the bit is set back to shut
+ * when the activation closes), and re-enabling starts shut rather than
+ * reopening a panel a person did not ask for. */
 import { definePlugin, Offers } from "@olai/plugin-api"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { tools } from "olai-plugin-layout/contract"
@@ -24,7 +29,10 @@ export default definePlugin({
   name, needs: [Offers, rendererSlots], apply: Effect.gen(function*() {
     const offers = yield* Offers
     const slots = yield* rendererSlots
-    const [open, setOpen] = createSignal(false)
+    const [open, setOpen] = yield* Effect.acquireRelease(
+      Effect.sync(() => createSignal(false)),
+      ([, setOpen]) => Effect.sync(() => setOpen(false)),
+    )
     yield* offers.own("open", () => ({ open: () => setOpen(true) }))
     yield* slots.contribute(tools, {
       body: (props) => <Preferences where={props.where} sections={() => slots.read(sections)} door={{ open, setOpen }} />,

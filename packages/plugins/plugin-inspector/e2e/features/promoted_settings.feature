@@ -40,3 +40,43 @@ Feature: A promoted setting is not a control here
     Then the plugin "git" row draws its own "commit" control
     And the plugin "git" row draws no Preferences link
     And there should be no page errors
+
+  Scenario: Opening a fully promoted row lands in Preferences
+    # THE PANEL'S OWN `configuration.open(name)`, driven by a controller a
+    # scenario approves. A row whose every leaf is drawn in the preferences
+    # panel has nothing to open HERE — the one control it would reveal is a link
+    # — so asking for that row's settings lands on them rather than on a door to
+    # them, which is one press instead of two.
+    Given the vault defines a row opener
+    And I open the outline "house.olai"
+    And I open the plugins panel
+    And I approve the plugin "row-opener"
+    When the controller opens the plugin row "git"
+    Then the preferences are open
+    And the preference "plugin-git-commit" is drawn under the heading "Git"
+    And the plugins panel is shut
+    And there should be no page errors
+
+  Scenario: Switching the inspector off in another tab withdraws the promoted rows
+    Given I open the app
+    And I mark the page
+    When I open the preferences
+    Then the preference "plugin-git-commit" is drawn under the heading "Git"
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "plugin-inspector" off
+    And I use the original browser tab
+    Then the preferences have no "Git" heading
+    And the preferences are headed "Appearance, Outlines, Notifications"
+    And the page has not reloaded
+    And there should be no page errors
+
+  @phone
+  Scenario: On a phone the link opens Preferences from the drawer
+    Given I open the app
+    When I tap the burger
+    And I open the plugins panel
+    And I follow the Set in Preferences link on "git"
+    Then the preferences are open
+    And the preference "plugin-git-commit" is drawn under the heading "Git"
+    And there should be no page errors

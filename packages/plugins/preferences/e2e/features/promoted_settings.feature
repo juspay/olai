@@ -124,6 +124,70 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And I press "Enter" in the preference "plugin-mail-poll"
     Then file "_olai/Settings.olai" has namespace "mail" setting "poll" as "1h"
     And the preference "plugin-mail-poll" is marked as authored by "vault"
+    # RESET, on a TEXT leaf: the property leaves the file and the row reads the
+    # schema's default again.
+    When I use the default for the preference "plugin-mail-poll"
+    Then file "_olai/Settings.olai" has namespace "mail" setting "poll" as "<absent>"
+    And the preference "plugin-mail-poll" shows "2m"
+    And the preference "plugin-mail-poll" is marked as authored by "default"
+    # ...AND ON A MALFORMED FILE VALUE: the refused spelling is drawn, and the
+    # reset is the way out of it.
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"mail-settings","ord":"a0","title":"mail","custom":{"on":"yes","poll":"bad"}}
+      """
+    Then the preference "plugin-mail-poll" shows refused file text "bad" inline with default "2m"
+    When I use the default for the preference "plugin-mail-poll"
+    Then the preference "plugin-mail-poll" has no problem
+    And file "_olai/Settings.olai" has namespace "mail" setting "poll" as "<absent>"
+    And there should be no page errors
+
+  Scenario: A pick made elsewhere lands in an open panel
+    # A CHANGE FROM OUTSIDE: another tab writes the setting, and then the file
+    # itself is rewritten. The panel a person is looking at follows both — the
+    # row is drawn off the roster, and the roster follows the serve.
+    Given I open the app
+    And I mark the page
+    When I open the preferences
+    Then the preference "plugin-git-commit" shows "manual"
+    When I open another browser tab
+    And I open the preferences
+    And I pick "auto" in the preference "plugin-git-commit"
+    And I use the original browser tab
+    Then the preference "plugin-git-commit" shows "auto"
+    And the preference "plugin-git-commit" is marked as authored by "vault"
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off"}}
+      """
+    Then the preference "plugin-git-commit" shows "off"
+    And the page has not reloaded
+    And there should be no page errors
+
+  @scratch:good @rows-on:mail @mail-himalaya:mailbox
+  Scenario: A stopped plugin gives the shared scope line back
+    # THE SHARED RUN, WITH TWO PLUGINS IN IT. One scope line closes a run of one
+    # scope, so with both up the line sits under the LAST of them — and when
+    # `mail` stops, its heading has to be GONE, not merely hidden: a heading that
+    # stayed (hidden by CSS, holding the run's line) would take `Git`'s line with
+    # it. `mail` is `disabled: true` by default, so this scenario turns it on.
+    Given I open the app
+    When I open the preferences
+    Then the preferences are headed "Appearance, Outlines, Notifications, Git, Mail"
+    And the preferences group "Mail" ends its rows with the scope line "Saved in Settings.olai, for everyone using this directory."
+    And the preferences group "Git" draws no scope line
+    When I open the plugins panel
+    And I switch the plugin "mail" off
+    And I open the preferences
+    Then the preferences have no "Mail" heading
+    And the preferences are headed "Appearance, Outlines, Notifications, Git"
+    And the preferences group "Git" ends its rows with the scope line "Saved in Settings.olai, for everyone using this directory."
+    # ...AND BACK ON: the key was given back, so the second claim is free.
+    When I open the plugins panel
+    And I switch the plugin "mail" on
+    And I open the preferences
+    Then the preferences are headed "Appearance, Outlines, Notifications, Git, Mail"
+    And the preference "plugin-mail-poll" is drawn under the heading "Mail"
     And there should be no page errors
 
   @phone

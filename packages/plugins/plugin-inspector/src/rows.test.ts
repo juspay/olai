@@ -676,7 +676,8 @@ test("a row's condition is read once, and its words and tone are tables over it"
  * elsewhere, the caller says whether that elsewhere is open.
  */
 test("a promoted leaf leaves the row's controls only while Preferences can draw it", async () => {
-  const { promotedValues, promotingPlugins, controlValues, showsPromotedLink } = await import("./rows.ts")
+  const { rowValues, promotedValues, promotingPlugins, controlValues, showsPromotedLink, fullyPromoted } =
+    await import("./rows.ts")
   const git: BuiltPlugin = {
     name: "git", running: true, state: "running",
     configurationValues: [
@@ -684,18 +685,44 @@ test("a promoted leaf leaves the row's controls only while Preferences can draw 
       { key: "log", value: "on", setBy: "default", says: "keep a log" },
     ],
   }
-  expect(promotedValues(git).map(one => one.key)).toEqual(["commit"])
+  expect(promotedValues(rowValues(git)).map(one => one.key)).toEqual(["commit"])
   expect(promotingPlugins({ built: [git, { name: "kolu", running: true, state: "running" }] })).toEqual(["git"])
   // A plugin that is OFF contributes no heading: its rows would draw nothing.
   expect(promotingPlugins({ built: [{ ...git, running: false, state: "off" }] })).toEqual([])
   expect(promotingPlugins({ built: [{ ...git, running: false, state: "pending" }] })).toEqual([])
-  expect(controlValues(git, true).map(one => one.key)).toEqual(["log"])
-  expect(controlValues(git, false).map(one => one.key)).toEqual(["commit", "log"])
-  expect(showsPromotedLink(git, true)).toBe(true)
-  expect(showsPromotedLink(git, false)).toBe(false)
+  expect(controlValues(rowValues(git), true).map(one => one.key)).toEqual(["log"])
+  expect(controlValues(rowValues(git), false).map(one => one.key)).toEqual(["commit", "log"])
+  expect(showsPromotedLink(rowValues(git), true)).toBe(true)
+  expect(showsPromotedLink(rowValues(git), false)).toBe(false)
+  // A row whose EVERY leaf is promoted has nothing left here, which is what
+  // makes `configuration.open` land in the other panel.
+  const promoted: BuiltPlugin = { ...git, configurationValues: [git.configurationValues![0]!] }
+  expect(fullyPromoted(rowValues(promoted), true)).toBe(true)
+  expect(fullyPromoted(rowValues(git), true)).toBe(false)
+  expect(fullyPromoted(rowValues(promoted), false)).toBe(false)
   // A row that promoted nothing never shows the link, wherever it is.
   const plain: BuiltPlugin = { name: "kolu", running: true, state: "running",
     configurationValues: [{ key: "watch", value: "1m", setBy: "default", says: "how often" }] }
-  expect(showsPromotedLink(plain, true)).toBe(false)
-  expect(promotedValues({ name: "off", running: false, state: "off" })).toEqual([])
+  expect(showsPromotedLink(rowValues(plain), true)).toBe(false)
+  expect(promotedValues(rowValues({ name: "off", running: false, state: "off" }))).toEqual([])
+})
+
+/**
+ * AN OLDER SERVE PUBLISHES NO `configurationValues` — the reader's values and
+ * the build-patch pairs are two arms of one reading, and the second is what a
+ * panel draws when the first is absent. Promotion must not have cost that: a
+ * row that carries `config` still shows its settings (and shows them HERE, since
+ * a serve that publishes no values has published no `preference` either).
+ */
+test("a serve with no configuration values still shows its patch pairs", async () => {
+  const { rowValues, controlValues, showsPromotedLink } = await import("./rows.ts")
+  const patched: BuiltPlugin = { name: "kolu", running: true, state: "running", config: { "held-for": "2m", watch: "on" } }
+  expect(rowValues(patched)).toEqual([
+    { key: "held-for", value: "2m", setBy: "default", says: "" },
+    { key: "watch", value: "on", setBy: "default", says: "" },
+  ])
+  expect(controlValues(rowValues(patched), true).map(one => one.key)).toEqual(["held-for", "watch"])
+  expect(showsPromotedLink(rowValues(patched), true)).toBe(false)
+  // A row with neither is empty rather than undefined.
+  expect(rowValues({ name: "tabs", running: true, state: "running" })).toEqual([])
 })
