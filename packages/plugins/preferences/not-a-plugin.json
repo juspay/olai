@@ -1,8 +1,6 @@
 {
-  "git": [
-    "src/Preferences.tsx"
-  ],
-  "theme": [
-    "src/Preferences.tsx"
+  "//outlines": "The panel's Outlines heading key, owned by preferences' HEADINGS table, not a dependency on the outlines plugin.",
+  "outlines": [
+    "src/index.ts"
   ]
 }

@@ -125,10 +125,10 @@ test("a name the link cannot hold is refused HERE, where the title is spelled", 
 test("layouts require a written name on creation and rename", () => {
   const at = "/s/house.olai/%23missing"
   const naming = { kind: "layout", at, panes: "house.olai · /#missing" } as const
-  expect(askingFor(naming).question).toBe("a name for this layout — Escape backs out")
+  expect(askingFor(naming).question).toBe("Name this layout")
   expect(wrote(naming, " Planning ")).toEqual({ verb: "pin", at, name: "Planning" })
   const pin = pinned({ at, target: { kind: "layout", workspace: routes.layoutIn(at)! } })
   for (const request of [naming, { kind: "rename", pin } as const]) {
-    expect(namedEdit(request, "  ")).toEqual(Result.fail("a layout needs a name"))
+    expect(namedEdit(request, "  ")).toEqual(Result.fail("A layout needs a name"))
   }
 })

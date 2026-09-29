@@ -1,5 +1,5 @@
 import { createSignal, lazy, Show } from "solid-js"
-import { HOVER_REVEAL } from "@olai/ui-primitives/touch.ts"
+import { OFFER_REVEAL } from "@olai/ui-primitives/touch.ts"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { agoOf, createNow as createAgeClock } from "@olai/web/client/ago.ts"
@@ -31,25 +31,30 @@ export function Standing(props: { readonly node: string; readonly record?: strin
       else saying.say({ tone: "alarm", text: result.failure.message, kind: result.failure._tag })
     } finally { setStarting(false) }
   }
-  return <Show when={roster.engines().length > 0}>
-    <span class="relative inline-flex items-center gap-1">
-      <Show when={roster.at(props.node)} fallback={
-        <button type="button" class={`${QUIET_PILL} ${HOVER_REVEAL} inline-flex items-center gap-1 border-dashed whitespace-nowrap`}
+  // A STANDING IS INFORMATION and is drawn on every device, whatever the
+  // engines: a row whose agent is working, or waiting on you, says so. The
+  // START is an OFFER, and only one that works: none without an engine to
+  // start, and on a phone none until this row is the one tapped
+  // (`OFFER_REVEAL`) — the `•••` menu and a long press carry it as well.
+  return <>
+    <Show when={roster.at(props.node)} fallback={
+      <Show when={roster.engines().length > 0}>
+        <button type="button" class={`${QUIET_PILL} ${OFFER_REVEAL} gap-1 border-dashed whitespace-nowrap`}
           data-testid={TESTID.agentStart} data-agent={props.node} disabled={starting()}
           onClick={event => {
             event.stopPropagation()
             // Availability decides the gesture, not how many engine plugins
-            // shipped. Missing engines remain visible when a menu is needed.
+            // shipped: one engine starts at once, several ask which.
             const only = roster.only()
             if (only !== null) void start(only.id)
             else setMenu(event.currentTarget)
-          }}><AgentMark id={roster.engines()[0]?.id ?? ""} />start an agent</button>
-      }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>
-      <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.standings()}
-        close={() => setMenu(null)} pick={agent => void start(agent)} />}</Show>
-      <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-xs" />}</Show>
-    </span>
-  </Show>
+          }}><AgentMark id={roster.engines()[0]?.id ?? ""} />Start an agent</button>
+      </Show>
+    }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>
+    <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.standings()}
+      close={() => setMenu(null)} pick={agent => void start(agent)} />}</Show>
+    <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-label" />}</Show>
+  </>
 }
 
 function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
@@ -57,7 +62,7 @@ function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
   const now = createNow(busy)
   const age = createAgeClock()
   const look = () => LOOK[props.row.standing]
-  return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded px-1 text-xs text-muted enabled:hover:bg-rule"
+  return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1 text-label text-muted enabled:hover:bg-rule"
     classList={{ "text-doing": props.row.standing === "needs-you" }}
     disabled={props.row.session === null} title={look().detail}
     data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
@@ -65,7 +70,7 @@ function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
     onClick={event => { event.stopPropagation(); unfolded(props.record ?? props.row.id) ? fold(props.record ?? props.row.id) : unfold(props.record ?? props.row.id) }}>
     <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
     {look().label}
-    <Show when={busy() && props.row.since}>{since => <span class="font-mono"> · {outFor(since(), now())}</span>}</Show>
-    <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="font-mono"> · {agoOf(said().at, age())}</span>}</Show>
+    <Show when={busy() && props.row.since}>{since => <span class="tabular-nums"> · {outFor(since(), now())}</span>}</Show>
+    <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="tabular-nums"> · {agoOf(said().at, age())}</span>}</Show>
   </button>
 }

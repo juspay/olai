@@ -2,7 +2,9 @@
  * THE SHELL'S GEOMETRY, as the file tree's rail reads it — held for the activation that
  * declared it.
  *
- * One verb: opening the directory column from its collapsed rail.
+ * Two verbs: opening the directory column from its collapsed rail, and
+ * bringing the sidebar into view (the drawer, on a phone) for a new-file box
+ * opened from a page.
  *
  * It arrives on `layout.shell` (`olai-plugin-layout/contract`), declared on
  * ``./browser.tsx`'s `shell` component`. It used to arrive as bare accessors imported from
@@ -26,3 +28,7 @@ const provider = heldService<Shell>()
 export const holdShell = provider.hold
 
 export const setSidebarOpen = (open: boolean): void => provider.read()?.setSidebarOpen(open)
+
+/** Put the sidebar in view — the drawer on a phone — so a box opened from a
+ *  page (`files.state`'s `open`) is a box a person can see. */
+export const revealSidebar = (): void => provider.read()?.revealSidebar()

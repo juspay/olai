@@ -39,7 +39,6 @@
 export type KeyAction =
   | "palette"
   | "sidebar"
-  | "panel"
   | "undo"
   | "redo"
   | "closePane"
@@ -69,13 +68,11 @@ const onApple = (platform?: string): boolean =>
  *
  *   ⌘K / Ctrl+K   — command palette
  *   ⌘\ / Ctrl+\   — toggle sidebar
- *   ⌘J / Ctrl+J   — toggle chat
  *   ⌘Z / Ctrl+Z   — undo the last edit this tab made
  *   ⌘⇧Z / Ctrl+⇧Z — redo it
  *
- * ⌘J / Ctrl+J and Ctrl+K shadow browser chrome defaults (downloads / search
- * bar) — deliberate, so keyboard editing could not claim those combos later,
- * and it has not.
+ * Ctrl+K shadows a browser chrome default (the search bar) — deliberate, so
+ * keyboard editing could not claim that combo later, and it has not.
  *
  * ⌘Z is the one chord with a SHIFTED twin, which is why `shift` is a field
  * rather than a blanket "no shift" test in the matcher: undo and redo are one
@@ -103,7 +100,6 @@ export const CHORDS: ReadonlyArray<
 > = [
   { key: "k", action: "palette", whileEditing: true },
   { key: "\\", action: "sidebar", whileEditing: false },
-  { key: "j", action: "panel", whileEditing: false },
   { key: "z", action: "undo", whileEditing: false },
   { key: "z", action: "redo", whileEditing: false, shift: true },
   // The browser owns bare ⌘W / Ctrl+W (close the tab). This is the
@@ -112,7 +108,7 @@ export const CHORDS: ReadonlyArray<
   // pointer faces of the same verb.
   { key: "w", action: "closePane", whileEditing: true, shift: true },
   // ⌘O / Ctrl+O — Workflowy's "show or hide completed", on the FOCUSED page:
-  // the strip's Done flip (filter/DoneFlip.tsx) by key instead of by pointer.
+  // the page's `finished` box (filter/DoneFlip.tsx) by key instead of by pointer.
   // `whileEditing: true`, for the flip's own reason: "what about here?" is a
   // question about the page under the caret, not about the caret — and the
   // letter claims nothing a text field means, so a draft being typed is left
@@ -168,12 +164,18 @@ export const matchChord = <T extends { readonly key: string; readonly shift?: bo
   ) ?? null
 }
 
+/** `<input>` types that hold no text: a box, a switch, a button. A caret is
+ *  never in one, so a chord pressed while one has focus is the app's — a
+ *  finished box just ticked must not leave ⌘Z dead until somebody clicks away. */
+const NOT_TEXT = new Set(["checkbox", "radio", "button", "submit", "reset", "range", "color"])
+
 /** Is the event target (or its composed path) an editable field? */
 export const isEditingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof Element)) return false
   const el =
     target.closest("input, textarea, select, [contenteditable=true]") ??
     (target instanceof HTMLElement && target.isContentEditable ? target : null)
+  if (el instanceof HTMLInputElement && NOT_TEXT.has(el.type)) return false
   return el !== null
 }
 
@@ -670,15 +672,14 @@ export const SHORTCUTS: ReadonlyArray<{
   {
     group: "Anywhere",
     keys: [
-      { keys: "⌘K / Ctrl+K", what: "the command palette" },
-      { keys: "⌘\\ / Ctrl+\\", what: "show or hide the directory" },
-      { keys: "⌘J / Ctrl+J", what: "show or hide the agent" },
-      { keys: "⌘Z / Ctrl+Z", what: "take back your last edit on this outline" },
-      { keys: "⌘⇧Z / Ctrl+⇧Z", what: "put it back" },
-      { keys: "⌘⇧W / Ctrl+⇧W", what: "close the focused pane" },
+      { keys: "⌘K / Ctrl+K", what: "Command palette" },
+      { keys: "⌘\\ / Ctrl+\\", what: "Show or hide the sidebar" },
+      { keys: "⌘Z / Ctrl+Z", what: "Undo your last edit on this outline" },
+      { keys: "⌘⇧Z / Ctrl+⇧Z", what: "Redo" },
+      { keys: "⌘⇧W / Ctrl+⇧W", what: "Close the focused pane" },
       {
         keys: "⌘O / Ctrl+O",
-        what: "show this page's finished work, or hide it again",
+        what: "Show or hide finished items on this page",
       },
     ],
   },
@@ -687,72 +688,72 @@ export const SHORTCUTS: ReadonlyArray<{
     keys: [
       {
         keys: "Alt+← / Alt+→",
-        what: "move focus to the pane on that side, when you are not typing",
+        what: "Move to the pane on that side when not typing",
       },
-      { keys: "Alt+click", what: "open a link in the pane to the right" },
-      { keys: "Alt+Shift+click", what: "open it in a new pane to the right" },
+      { keys: "Alt+click", what: "Open a link in the pane to the right" },
+      { keys: "Alt+Shift+click", what: "Open a link in a new pane to the right" },
     ],
   },
   {
     group: "In a row",
     keys: [
-      { keys: "Click a title", what: "put the caret where you clicked" },
-      { keys: "Enter", what: "commit, and open the next line", action: "add" },
-      { keys: "Enter at the start", what: "insert a blank line above", action: "insert" },
-      { keys: "Enter mid-line", what: "split the row in two there", action: "split" },
+      { keys: "Click a title", what: "Put the cursor where you clicked" },
+      { keys: "Enter", what: "Finish the row and start the next", action: "add" },
+      { keys: "Enter at the start", what: "Insert a blank row above", action: "insert" },
+      { keys: "Enter mid-line", what: "Split the row in two", action: "split" },
       {
         keys: "Backspace at the start",
-        what: "join this row onto the one above",
+        what: "Join this row onto the one above",
         action: "merge",
       },
-      { keys: "Tab", what: "indent under the row above", action: "in" },
-      { keys: "Shift+Tab", what: "outdent, after the old parent", action: "out" },
-      { keys: "Alt+Shift+↑ (Mac: ⌘⇧↑ too)", what: "move up among its siblings", action: "up" },
-      { keys: "Alt+Shift+↓ (Mac: ⌘⇧↓ too)", what: "move down among its siblings", action: "down" },
-      { keys: "⌘. / Alt+.", what: "zoom into this row", action: "zoomIn" },
-      { keys: "⌘, / Alt+,", what: "zoom out of it again", action: "zoomOut" },
-      { keys: "Ctrl+Space", what: "fold this branch, or unfurl it", action: "fold" },
-      { keys: "⌘↑ / Ctrl+↑", what: "fold this branch", action: "collapse" },
-      { keys: "⌘↓ / Ctrl+↓", what: "unfold it again", action: "expand" },
-      { keys: "⌘Enter / Ctrl+Enter", what: "tick it off, or take that back", action: "toggle" },
+      { keys: "Tab", what: "Indent under the row above", action: "in" },
+      { keys: "Shift+Tab", what: "Outdent", action: "out" },
+      { keys: "Alt+Shift+↑ (Mac: ⌘⇧↑ too)", what: "Move up", action: "up" },
+      { keys: "Alt+Shift+↓ (Mac: ⌘⇧↓ too)", what: "Move down", action: "down" },
+      { keys: "⌘. / Alt+.", what: "Zoom into this row", action: "zoomIn" },
+      { keys: "⌘, / Alt+,", what: "Zoom out", action: "zoomOut" },
+      { keys: "Ctrl+Space", what: "Collapse or expand this row", action: "fold" },
+      { keys: "⌘↑ / Ctrl+↑", what: "Collapse this row", action: "collapse" },
+      { keys: "⌘↓ / Ctrl+↓", what: "Expand this row", action: "expand" },
+      { keys: "⌘Enter / Ctrl+Enter", what: "Mark done, or undo that", action: "toggle" },
       {
         keys: "⌥Enter / Alt+Enter",
-        what: "call it off, or take that back",
+        what: "Mark cancelled, or undo that",
         action: "cancel-mark",
       },
       {
         keys: "⌘⇧Enter / Ctrl+⇧Enter",
-        what: "walk the mark on: to do, then doing, then none",
+        what: "Cycle the mark: to do, doing, none",
         action: "walk",
       },
       {
         keys: "⌘⇧D / Ctrl+⇧D",
-        what: "duplicate the row, and everything under it",
+        what: "Duplicate the row and everything under it",
         action: "duplicate",
       },
       {
         keys: "⌘⇧M / Ctrl+⇧M",
-        what: "move the row under a node you search for, anywhere in the set",
+        what: "Move the row under another row you search for",
         action: "moveTo",
       },
-      { keys: "Shift+Enter", what: "write the note under it", action: "note" },
-      { keys: "↑ / ↓", what: "walk to the row above or below", action: "prev" },
+      { keys: "Shift+Enter", what: "Write a note under the row", action: "note" },
+      { keys: "↑ / ↓", what: "Go to the row above or below", action: "prev" },
       {
         keys: "← / → at either end",
-        what: "into the line before it or after it",
+        what: "Go to the row before or after",
         action: "left",
       },
       {
         keys: "Shift+↑ / Shift+↓",
-        what: "start picking rows, from this one",
+        what: "Start selecting rows from this one",
         action: "selectUp",
       },
       {
         keys: "⌘A / Ctrl+A twice",
-        what: "the line, then the row and the ones beside it",
+        what: "Select the text, then this row and its siblings",
         action: "selectAll",
       },
-      { keys: "Escape", what: "drop what you were typing", action: "cancel" },
+      { keys: "Escape", what: "Discard what you were typing", action: "cancel" },
     ],
   },
   {
@@ -764,39 +765,39 @@ export const SHORTCUTS: ReadonlyArray<{
     // and a widget nobody can discover is a widget nobody uses.
     group: "While typing a title",
     keys: [
-      { keys: "!", what: "a day, in words — `tomorrow`, `next fri`, `aug 20`" },
-      { keys: "# / @", what: "a tag this set already uses" },
-      { keys: "((", what: "search for a node, and mirror it here" },
-      { keys: "↓", what: "the next row of the list", list: "next" },
-      { keys: "↑", what: "the row above it", list: "prev" },
-      { keys: "Enter", what: "take the row the list is on", list: "take" },
-      { keys: "Escape", what: "put the list away and keep typing", list: "dismiss" },
+      { keys: "!", what: "A date in words: `tomorrow`, `next fri`, `aug 20`" },
+      { keys: "# / @", what: "A tag you already use" },
+      { keys: "((", what: "Search for a row and mirror it here" },
+      { keys: "↓", what: "Next suggestion", list: "next" },
+      { keys: "↑", what: "Previous suggestion", list: "prev" },
+      { keys: "Enter", what: "Pick the highlighted suggestion", list: "take" },
+      { keys: "Escape", what: "Close the list and keep typing", list: "dismiss" },
     ],
   },
   {
     // The bulk half. Every key here is the row key one group up, over the rows
     // that are picked instead of over the row the caret is in — which is why
     // the sentences read the same with a plural in them.
-    group: "With rows picked",
+    group: "With rows selected",
     keys: [
-      { keys: "Drag a bullet", what: "move the rows, subtrees and all" },
-      { keys: "⌘-click / Ctrl-click", what: "add a row to the pick, or take it out" },
-      { keys: "Shift-click", what: "pick everything between" },
-      { keys: "Shift+↑ / Shift+↓", what: "take one more row, or give one back" },
-      { keys: "⌘A / Ctrl+A", what: "widen to the whole page" },
-      { keys: "Tab / Shift+Tab", what: "indent them, or take them out again" },
-      { keys: "Alt+Shift+↑/↓ (Mac: ⌘⇧↑/↓ too)", what: "move them among their siblings" },
-      { keys: "⌘Enter / Ctrl+Enter", what: "tick them off, or take that back" },
-      { keys: "Escape", what: "put the pick away" },
+      { keys: "Drag a bullet", what: "Move the rows and everything under them" },
+      { keys: "⌘-click / Ctrl-click", what: "Add a row to the selection, or remove it" },
+      { keys: "Shift-click", what: "Select everything between" },
+      { keys: "Shift+↑ / Shift+↓", what: "Select one more row, or one fewer" },
+      { keys: "⌘A / Ctrl+A", what: "Select the whole page" },
+      { keys: "Tab / Shift+Tab", what: "Indent or outdent them" },
+      { keys: "Alt+Shift+↑/↓ (Mac: ⌘⇧↑/↓ too)", what: "Move them up or down" },
+      { keys: "⌘Enter / Ctrl+Enter", what: "Mark them done, or undo that" },
+      { keys: "Escape", what: "Clear the selection" },
     ],
   },
   {
     group: "In a note",
     keys: [
-      { keys: "Click a note", what: "put the caret in it" },
-      { keys: "Enter", what: "a new line — a note is prose" },
-      { keys: "Shift+Enter", what: "close it, and render it again" },
-      { keys: "Escape", what: "drop what you were typing" },
+      { keys: "Click a note", what: "Put the cursor in it" },
+      { keys: "Enter", what: "New line" },
+      { keys: "Shift+Enter", what: "Finish the note" },
+      { keys: "Escape", what: "Discard what you were typing" },
     ],
   },
 ]

@@ -27,6 +27,7 @@ import {
   PREFS_HINT,
   PREFS_PANEL,
   PREFS_ROW,
+  PREFS_SWITCH,
   PREFS_TRIGGER,
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
@@ -72,8 +73,8 @@ export const hintOf = async (
 /**
  * Press one segment of one row, and wait for the panel to say it took.
  *
- * ONE spelling for every segmented row there is — Done, Notes, Size, Git —
- * because they are one control (`client/settings/Segmented.tsx`) and the wait
+ * ONE spelling for every segmented row there is — Row density, Size, and the
+ * repository rows — because they are one control (`ui-primitives/Segmented.tsx`) and the wait
  * is the subtle half: pressing and carrying on races the render, and each row
  * having its own copy of that wait is how the third one gets it slightly wrong.
  */
@@ -93,5 +94,32 @@ export const pickChoice = async (
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
     .catch(() => {
       throw new Error(`the ${pref} row never took "${value}"`);
+    });
+};
+
+/**
+ * Set one yes-or-no row — Show finished, Alerts, Sound — to `on`, and wait for
+ * the switch to say it took.
+ *
+ * Every binary preference is a switch now (`ui-primitives/Switch.tsx`, test id
+ * `prefs-switch`), not an `Off | On` pair of segments: its state is
+ * `aria-checked`, and a press flips it. So this presses only when the switch
+ * is not already where it is asked to be — a press on a switch that is already
+ * on would turn it off.
+ */
+export const setSwitch = async (
+  page: Page,
+  pref: string,
+  on: boolean,
+): Promise<void> => {
+  await showPreferences(page);
+  const toggle = page.locator(`${PREFS_ROW}${attr("data-pref", pref)} ${PREFS_SWITCH}`);
+  await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if ((await toggle.getAttribute("aria-checked")) !== String(on)) await toggle.click();
+  await toggle
+    .and(page.locator(attr("aria-checked", String(on))))
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+    .catch(() => {
+      throw new Error(`the ${pref} switch never went ${on ? "on" : "off"}`);
     });
 };

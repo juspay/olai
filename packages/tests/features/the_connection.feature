@@ -2,14 +2,15 @@
 Feature: A dead wire freezes the app, and a replaced server is recoverable
   A page that is live and a page whose server died look identical when nothing
   says otherwise: both keep showing the last thing they were told. So the page
-  says. A pill in the app header reports the connection in every shape of the
-  app, and it is green only while a server is actually answering.
+  says. On a desktop the header's health dot reports the connection (its row
+  reads `Connected` only while a server is actually answering), and in every
+  shape of the app a dead wire is a card over the page.
 
   And since the browser stopped holding the vault, saying so is not enough.
   Every page, every search, every filter is a QUESTION now, so a page left
   interactive under a dead socket is a page of doors that pretend — which is why
   the human's ruling (`brainstorming/vault-in-browser.md` §5b) is that the app
-  FREEZES: an overlay covers it, wearing the pill's own words, and nothing
+  FREEZES: an overlay covers it, in the words the dot uses, and nothing
   underneath answers a press or a chord until the wire comes back. This app is
   live or nothing, and this is the "or nothing".
 
@@ -59,6 +60,7 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
     When the browser goes offline
     Then the connection is "reconnecting"
     And the app is frozen under the offline overlay
+    And the offline overlay reads "Connection lost" over "Reconnecting…"
     And the page under it takes neither a press nor a chord
     # The rows the server answered are still the rows behind the overlay:
     # `herbs`, the `garden` above it, and the two under it that a match keeps
@@ -103,6 +105,8 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
     # The one frozen state with something to offer besides waiting, and the
     # offer is on the overlay rather than on a screen of its own.
     And the overlay offers a reload
+    And the offline overlay reads "The server restarted" over "Reload the page to keep working."
+    And the overlay's reload is called "Reload"
     When I reload from the overlay
     Then the connection is "live"
     And the outline list is shown

@@ -43,9 +43,9 @@ export type Naming =
 export const askingFor = (naming: Naming): Line => ({
   kind: "line",
   label: naming.kind === "rename" ? "Rename" : "Pin",
-  question: isLayout(naming) ? "a name for this layout — Escape backs out" : naming.kind === "pin"
-    ? "a name for this pin — Enter with nothing pins it unnamed"
-    : "a name for this pin — Enter with nothing takes the name off",
+  question: isLayout(naming) ? "Name this layout" : naming.kind === "pin"
+    ? "Name this pin, or leave it blank"
+    : "Rename this pin, or leave it blank",
   // WHAT NOTHING MEANS, shown rather than promised: the name this door takes
   // with an empty box.
   placeholder: naming.kind === "layout" ? naming.panes : naming.kind === "pin" ? naming.bare : naming.pin.bare,
@@ -74,7 +74,7 @@ export const namedEdit = (
   naming: Naming,
   name: string,
 ): Result.Result<Edit, string> => {
-  if (isLayout(naming) && name.trim() === "") return Result.fail("a layout needs a name")
+  if (isLayout(naming) && name.trim() === "") return Result.fail("A layout needs a name")
   if (naming.kind !== "rename") {
     const named = name.trim()
     return Result.succeed(

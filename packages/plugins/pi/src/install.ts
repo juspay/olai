@@ -33,7 +33,7 @@ import type { NotHere } from "@olai/acp/engine"
 
 /** WHAT A PERSON READS. The same word as the plugin's id here, which is a fact
  *  about this agent's own name rather than a rule. */
-export const NAME = "pi"
+export const NAME = "Pi"
 
 /** ...AND WHAT A MACHINE WITHOUT THE ADAPTER IS TOLD. `where` is `null`
  *  because there is no place a person gets this from: the pin is olai's, it

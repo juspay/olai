@@ -9,6 +9,18 @@ When("I press new chat in Chats", async function(this: OlaiWorld) {
   await this.showSidebar();
   await this.press(this.page.locator(fresh));
 });
+When("I press {string} on new chat in Chats", async function(this: OlaiWorld, key: string) {
+  await this.showSidebar();
+  const plus = this.page.locator(fresh);
+  await plus.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => await plus.isEnabled(), "the Chats + to be ready");
+  await plus.focus();
+  await this.page.keyboard.press(key);
+});
+Then("the engine menu is shut and new chat in Chats has focus", async function(this: OlaiWorld) {
+  await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => await this.page.locator(fresh).evaluate(el => document.activeElement === el), "focus to return to the Chats +");
+});
 When("I pick new chat in the Agents palette", async function(this: OlaiWorld) {
   await this.page.locator(`${PALETTE_ITEM}${attr("data-id", "new-chat")}`).click();
 });
@@ -42,18 +54,11 @@ Then("new chat in Chats is starting", async function(this: OlaiWorld) {
   await this.waitUntil(async () => await this.page.locator(fresh).getAttribute("aria-busy") === "true", "creation to stay pending");
   assert.ok(await this.page.locator(fresh).isDisabled());
 });
-Then("new chat in Chats is unavailable", async function(this: OlaiWorld) {
-  await this.showSidebar();
-  await this.waitUntil(async () => await this.page.locator(fresh).isDisabled(), "no engine to disable creation");
-});
 Then("the Inbox contains no chat children", function(this: OlaiWorld) {
   assert.equal(this.servedNodesSoFar("_olai/Inbox.olai").filter(node => node.parent === "chats").length, 0);
 });
 Then("the palette says a new conversation is already starting", async function(this: OlaiWorld) {
-  await this.page.getByText("a new conversation is already starting", { exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-});
-Then("the palette says no agent engine is available", async function(this: OlaiWorld) {
-  await this.page.getByText("no agent engine is available", { exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.page.getByText("A new chat is already starting", { exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 Then("the refused new chat leaves a plain Inbox node as {string}", async function(this: OlaiWorld, name: string) {
   await this.waitUntil(async () => await this.page.locator(fresh).isEnabled(), "the refused creation to become retryable");

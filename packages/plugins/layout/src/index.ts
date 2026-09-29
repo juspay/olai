@@ -18,13 +18,22 @@ export interface SidebarSeat {
 }
 export const sidebar = location<SidebarSeat>("layout.sidebar", "one")
 
+/** Where a tool's door is drawn: the desktop bar (`header`), the foot of the
+ *  desktop health popover (`health`), or the phone drawer's foot (`closet`). */
+export type ToolWhere = "header" | "health" | "closet"
+
 /** Application tools can be drawn in the header or mobile directory footer.
- * Placement is shell policy; each entry owns its own controls and child seats. */
+ * Placement is shell policy; each entry owns its own controls and child seats.
+ * `desktop` says which desktop seat the entry asks for, in the seats' own
+ * words: the bar itself (`header`, the default) or the foot of the health
+ * popover (`health`), for a door that is read occasionally rather than reached
+ * for by habit. */
 export interface LayoutTool {
-  readonly body: (props: { readonly where: "header" | "closet" }) => JSX.Element
+  readonly body: (props: { readonly where: ToolWhere }) => JSX.Element
   readonly headerOrder: number
   readonly closetOrder: number
   readonly mobileWithoutSidebar?: boolean
+  readonly desktop?: Exclude<ToolWhere, "closet">
 }
 export const tools = location<LayoutTool>("layout.tools")
 
@@ -103,7 +112,7 @@ export const strip = location<() => JSX.Element>("layout.strip", "one")
  * runs under another layout entirely (`olai-plugin-test-layout`,
  * `alternate_layout.feature`), so a row that waited for this one would be a row
  * that could not. With no shell mounted the readings answer what they have
- * always answered — a phone-width viewport, a shut panel, an open sidebar —
+ * always answered — a phone-width viewport and an open sidebar —
  * and the presses do nothing.
  */
 export interface Shell {
@@ -112,18 +121,19 @@ export interface Shell {
   readonly sidebarOpen: Accessor<boolean>
   readonly setSidebarOpen: (open: boolean) => void
   readonly toggleSidebar: () => void
+  /** Put the sidebar in view — the column out of its rail on a desktop, the
+   *  drawer on a phone — for a control outside it that opens something in it
+   *  (an empty page's `New outline` opening the files row's path box). */
+  readonly revealSidebar: () => void
   /** Live width, clamped to the current viewport. */
   readonly sidebarWidth: Accessor<number>
   readonly setSidebarWidth: (px: number, opts?: SetOptions) => void
-  /** Is the right panel open? Minimized is the other of the two states. */
-  readonly panelOpen: Accessor<boolean>
-  readonly setPanelOpen: (open: boolean) => void
-  readonly togglePanel: () => void
   readonly panelWidth: Accessor<number>
   readonly setPanelWidth: (px: number, opts?: SetOptions) => void
   readonly panelSnap: Accessor<ChatSnap>
   readonly setPanelSnap: (snap: ChatSnap) => void
-  /** Put both panels back to their defaults — the palette's command. */
+  /** Put the sidebar (and the seat's panel) back to default widths — the
+   *  palette's command. */
   readonly resetPanelWidths: () => void
   /** The panel's own drag handle, drawn by whoever is in the seat. The BOX is
    *  the shell's and what is inside it is the tenant's, so the handle travels

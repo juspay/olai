@@ -20,9 +20,9 @@ export const chordsOf = (tabs: TabsState): ReadonlyArray<AppChord> => {
     if (tabs.drawn()) press()
   }
   return [
-    { key: ".", shift: true, whileEditing: true, said: "show the next tab", press: drawn(() => tabs.step(1)) },
-    { key: ",", shift: true, whileEditing: true, said: "show the previous tab", press: drawn(() => tabs.step(-1)) },
-    { key: "o", shift: true, whileEditing: true, said: "open a new tab on the front page", press: drawn(() => { tabs.open(lone(HOME_ROUTE)) }) },
-    { key: "x", shift: true, whileEditing: true, said: "close the tab in front", press: drawn(() => tabs.close(tabs.front())) },
+    { key: ".", shift: true, whileEditing: true, said: "Next tab", press: drawn(() => tabs.step(1)) },
+    { key: ",", shift: true, whileEditing: true, said: "Previous tab", press: drawn(() => tabs.step(-1)) },
+    { key: "o", shift: true, whileEditing: true, said: "New tab", press: drawn(() => { tabs.open(lone(HOME_ROUTE)) }) },
+    { key: "x", shift: true, whileEditing: true, said: "Close tab", press: drawn(() => tabs.close(tabs.front())) },
   ]
 }

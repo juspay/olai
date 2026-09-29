@@ -440,7 +440,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
         setRefused(null)
         const scope = await sendingScope()
         if (scope === null) {
-          setRefused(new UsageFailure({ reason: "the conversation did not open; your message was kept" }))
+          setRefused(new UsageFailure({ reason: "The chat didn't open. Your message was kept." }))
           return false
         }
         const outcome = await runAsync(chatWire().procedures.conversation.send({

@@ -10,12 +10,12 @@ test("the browser diff draws unreadable after vault withdrawal and cancels the r
   const [vault, setVault] = createSignal<Pick<Directory, "outlineDiff"> | undefined>({ outlineDiff: () => Effect.onInterrupt(Effect.never, () => Effect.sync(() => { cancelled++ })) })
   const view = createRoot(dispose => ({ dispose, ...createOutlineDiff(vault, () => ({ path: "a.olai", oldText: null, newText: "new bytes" })) }))
   await turn()
-  expect(view.line()).toBe("reading outline changes…")
+  expect(view.line()).toBe("Loading…")
   setVault(undefined)
   await turn()
   expect(cancelled).toBe(1)
   expect(view.read()).toBeUndefined()
-  expect(view.line()).toBe("the outline is unreadable, so what changed in it cannot be told")
+  expect(view.line()).toBe("Can't read the outline to show changes")
   setVault({ outlineDiff: () => Effect.succeed({ _tag: "Changes" as const, changes: [] }) })
   await turn()
   expect(view.read()).toEqual({ _tag: "Changes", changes: [] })
@@ -30,7 +30,7 @@ test("a disposed browser diff cancels its request and an absent vault never thro
   createRoot(dispose => {
     const absent = createOutlineDiff(() => undefined, () => ({ path: "a.olai", oldText: null, newText: "" }))
     // Effects settle as the root returns, so read on the following microtask.
-    queueMicrotask(() => { expect(absent.line()).toContain("unreadable"); dispose() })
+    queueMicrotask(() => { expect(absent.line()).toContain("Can't read the outline"); dispose() })
   })
   await turn()
 })

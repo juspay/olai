@@ -67,7 +67,7 @@ Feature: The filter reaches every page that draws nodes
     When I filter the page by "bathroom"
     Then the node "rails" is not shown
     And the node "ferry" is not shown
-    And the filter found "no matches of 3"
+    And the filter found "No matches of 3"
     And the day does not say it is empty
 
   @corpus:journal
@@ -91,7 +91,11 @@ Feature: The filter reaches every page that draws nodes
   @corpus:agenda
   Scenario: The agenda narrows day by day, and the silences close up
     When I open the agenda
-    Then the spine's "late" rows are "permit, visas, posts"
+    # The agenda has the box and not the finished box: its pick was never
+    # about the agenda (settings/done.ts's pageFileOf).
+    Then the filter box says "Filter" when empty
+    And this page offers no Done flip
+    And the spine's "late" rows are "permit, visas, posts"
     And the spine's "late" days are "2019-10-30, 2019-11-03, 2019-11-05"
     When I filter the page by "posts"
     # Two of the three days had nothing left on them, so they left the line —
@@ -122,7 +126,7 @@ Feature: The filter reaches every page that draws nodes
     # Not even the today dot: now is a place on a line, and a line with one dot
     # and nothing either side of it is a diagram of nothing.
     Then the agenda draws no spine
-    And the filter found "no matches of 3"
+    And the filter found "No matches of 3"
     # ...and the page does not claim the agenda is empty, which is a different
     # thing and would be untrue.
     And the agenda does not say it is empty

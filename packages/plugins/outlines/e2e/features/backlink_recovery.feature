@@ -12,7 +12,7 @@ Feature: Backlink navigation follows replacement sources
     And I open the node "backlink-target"
     And I mark the page
     When I open the referenced-by section
-    Then the referenced-by "sees this" row reads "original source"
+    Then the referenced-by "Sees this" row reads "original source"
 
   Scenario: Replacing the reference kind updates the open list even when its count is unchanged
     When I rewrite "source.olai" as:
@@ -20,8 +20,8 @@ Feature: Backlink navigation follows replacement sources
       {"id":"backlink-source","ord":"a0","title":"a mention of @backlink-target"}
       """
     Then the page says it is referenced by 1 things
-    And the referenced-by "mentions this" row reads "a mention of @backlink-target"
-    And the referenced-by section draws no "sees this" row
+    And the referenced-by "Mentions this" row reads "a mention of @backlink-target"
+    And the referenced-by section draws no "Sees this" row
     When I follow the referenced-by link to "backlink-source"
     Then the zoomed node is "backlink-source"
     And the breadcrumbs are "source.olai"
@@ -42,7 +42,7 @@ Feature: Backlink navigation follows replacement sources
       """
     Then the page says it is referenced by 1 things
     When I open the referenced-by section
-    Then the referenced-by "sees this" row reads "relocated source"
+    Then the referenced-by "Sees this" row reads "relocated source"
     When I follow the referenced-by link to "backlink-source"
     Then the zoomed node is "backlink-source"
     And the breadcrumbs are "replacement.olai, replacement outline"
@@ -61,7 +61,7 @@ Feature: Backlink navigation follows replacement sources
     And I use the original browser tab
     Then the journal chrome is absent
     And the referenced-by section is still open
-    And the referenced-by "sees this" row reads "original source"
+    And the referenced-by "Sees this" row reads "original source"
     When I follow the referenced-by link to "backlink-source"
     Then the zoomed node is "backlink-source"
     When I go back

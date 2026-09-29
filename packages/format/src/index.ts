@@ -219,6 +219,7 @@ export {
   holdsBody,
   holdsText,
   isFetched,
+  nameOf,
   stemOf,
   textKind,
   unkept,

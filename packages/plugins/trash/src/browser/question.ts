@@ -53,9 +53,7 @@ export const trashQuestion = (
     : ` and the ${under === 1 ? "row" : `${under} rows`} under ${
       going_ === 1 ? "it" : "them"
     }`
-  return `Move ${named}${beneath} to the Trash? ${
-    one ? "It keeps its id" : "They keep their ids"
-  }, and the Trash in the sidebar is where to put ${one ? "it" : "them"} back.`
+  return `Move ${named}${beneath} to Trash? You can put ${one ? "it" : "them"} back from Trash in the sidebar.`
 }
 
 /**
@@ -105,8 +103,6 @@ export const emptyQuestion = (
   // (`@olai/ops`' `plan.ts`).
   const rows = one ? "the one row" : `all ${count} rows`
   const it = one ? "it" : "them"
-  const leave = one ? "record leaves" : "records leave"
-  return `Permanently delete ${rows} in the Trash? Nothing in olai puts ${it} ` +
-    `back — the ${leave} the trash the way every other write does, so what ` +
-    `survives is whatever git has already recorded.`
+  return `Permanently delete ${rows} in Trash? olai can't bring ${it} back. ` +
+    `Only what git has already saved can be recovered.`
 }

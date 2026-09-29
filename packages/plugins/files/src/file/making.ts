@@ -20,7 +20,8 @@ export interface Making {
   /** Which kind of file this door mints — the tree's own glyph, so a row that
    *  makes an outline looks like the outlines above it. */
   readonly of: string
-  /** The affordance's own words, in the sidebar. */
+  /** The affordance's own words: its item in the Outlines heading's `+`
+   *  menu. */
   readonly label: string
   /** What the empty box suggests — a path, because a file's name IS its
    *  address in this app (the sidebar, the URL and every reading of the set
@@ -44,10 +45,10 @@ export interface Making {
 
 export const MAKING_OUTLINE = (row: string): Making => ({
   of: row,
-  label: "+ New outline",
+  label: "New outline",
   placeholder: "notes/plan",
   aria:
-    "path of the new outline, relative to the served directory — the configured row’s suffix is added if you leave it off",
+    "Name of the new outline, like notes/plan",
   testids: {
     open: TESTID.newOutline,
     path: TESTID.newOutlinePath,
@@ -57,10 +58,10 @@ export const MAKING_OUTLINE = (row: string): Making => ({
 
 export const MAKING_DOCUMENT = (row: string): Making => ({
   of: row,
-  label: "+ New document",
+  label: "New document",
   placeholder: "notes/idea",
   aria:
-    "path of the new document, relative to the served directory — the document suffix is added if you leave it off",
+    "Name of the new document, like notes/idea",
   testids: {
     open: TESTID.newDocument,
     path: TESTID.newDocumentPath,

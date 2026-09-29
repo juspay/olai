@@ -32,7 +32,7 @@ export const components = {
   }) }),
   controls: definePlugin({ name: "controls", needs: [alertsChannel, rendererSlots], apply: Effect.gen(function*() {
     const channel = yield* alertsChannel
-    yield* (yield* rendererSlots).contribute(sections, () => <AlertRows channel={channel} />)
+    yield* (yield* rendererSlots).contribute(sections, { heading: "notifications" as const, order: 0, body: () => <AlertRows channel={channel} /> })
   }) }),
   "tab-attention": definePlugin({ name: "tab-attention", needs: [alertsChannel, appearance], apply: Effect.gen(function*() {
     const channel = yield* alertsChannel

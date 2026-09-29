@@ -111,12 +111,12 @@ export function DropTarget(props: {
 
       <Show when={depth() > 0 || props.carrying}>
         <div
-          class={`pointer-events-none absolute inset-0 ${WITHIN.cover} flex items-center justify-center rounded border-2 border-dashed border-accent bg-paper/85`}
+          class={`pointer-events-none absolute inset-0 ${WITHIN.cover} flex items-center justify-center rounded-control border-2 border-dashed border-accent bg-paper/80`}
           data-testid={TESTID.chatDrop}
           data-carrying={props.carrying ?? undefined}
         >
-          <span class="rounded border border-accent px-2 py-1 font-mono text-xs text-accent">
-            {props.carrying ?? "drop to attach"}
+          <span class="rounded-control border border-accent px-2 py-1 text-label text-accent">
+            {props.carrying ?? "Drop to attach"}
           </span>
         </div>
       </Show>

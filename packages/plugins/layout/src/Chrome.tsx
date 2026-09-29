@@ -60,9 +60,10 @@ import { hung } from "./faces.ts"
  * for the plugins THIS SERVE COMPOSED, which is now the only kind of plugin this
  * tab has.
  *
- * The `place` word is the SHELL's to interpret and `../AppHeader.tsx` is where
- * it is spent: `cluster` is the standing row of pills, desktop only, after the
- * connection state; `lead` is the seat ahead of them that gives way first and
+ * The `place` word is the SHELL's to interpret and `./Header.tsx` is where
+ * it is spent: `cluster` is a row of the desktop health popover
+ * (`./Health.tsx`), after the connection's; `lead` is the seat in the bar
+ * ahead of the dot that gives way first and
  * that a phone still draws. It arrived with the search box — the one face in
  * this bar that has always been in front of the pills and has always had a
  * phone arm — and it is the same small vocabulary `sidebar.entry` already takes

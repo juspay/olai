@@ -53,8 +53,8 @@
  * fold half pays, because a row the pick hides is exactly as present as a row
  * a fold hides — in the READING — and a landing whose answer depended on how
  * the reader reads would be a link that works for one of them. What the
- * reveal never is is the pick's word: nothing is stored, the flip's strip
- * and its `·` stand untouched, and the reveal dies with the page it was
+ * reveal never is is the pick's word: nothing is stored, the `finished` box
+ * and its `reset` stand untouched, and the reveal dies with the page it was
  * owed on — the fold half SPENDS the memory's write (a fold is the reader's
  * own case-by-case memory, and closing it again is one triangle), where the
  * pick is the reader's STANDING claim about the page, and a landing minting
@@ -258,8 +258,8 @@ export type Aim =
  */
 export const missedSays = (id: string, target: string | null): string =>
   target === null
-    ? `${id} — nothing by that name is drawn on this page`
-    : `${id} — what it names is not drawn on this page`
+    ? `${id} — not found`
+    : `${id} — not shown on this page`
 
 /**
  * What a FAILED ASK says — {@link missedSays}'s sibling, for the landing
@@ -270,7 +270,7 @@ export const missedSays = (id: string, target: string | null): string =>
  * lie in the miss's own words.
  */
 export const failedSays = (id: string): string =>
-  `${id} — the set could not be asked what it names`
+  `${id} — couldn’t look this up. Try again.`
 
 /**
  * Which of the chain's own ANCESTORS are shut — the write the landing act

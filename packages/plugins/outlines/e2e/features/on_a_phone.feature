@@ -125,10 +125,11 @@ Feature: On a phone
     And I mark the page
     When I hold a finger on the node "kitchen"
     Then the node menu is open
-    # The pointer's catalog, both halves of it: what changes the reading, and
+    # The pointer's catalog, top to bottom: what changes the reading, and
     # what changes the directory.
     And the node menu offers "Zoom in"
-    And the node menu offers "Complete"
+    And the node menu offers "Mark"
+    And the node menu offers "Move to Trash"
     # The middle of a row is its TITLE, and a tap there opens the editor. This
     # is that collision, on the gesture most likely to meet it — the same
     # `swallowGhost()` the bullet scenario below locks the link half of, and
@@ -143,10 +144,30 @@ Feature: On a phone
     And the node "kitchen" is expanded
     When I hold a finger on the node "kitchen"
     Then the node menu is open
-    When I tap "Collapse" in the node menu
+    When I tap "Zoom in" in the node menu
+    Then the zoomed node is "kitchen"
+    And the node menu is closed
+
+  @corpus:good @phone
+  Scenario: A thumb opens a submenu, and a verb in it does what it says
+    # A submenu has no room beside the panel on a phone, so it slides back
+    # over it (`overlap`). The tap that opens it must leave the panel up —
+    # the ghost-eater lets a tap on an entry that OPENS alone — and the tap
+    # on the verb inside it must not also press the row under it.
+    Given I open the outline "house.olai"
+    And I mark the page
+    And the node "kitchen" is expanded
+    When I hold a finger on the node "kitchen"
+    Then the node menu is open
+    When I tap "More" open in the node menu
+    Then the node menu's "More" is open
+    And the node menu is open
+    When I tap "More › Collapse all" in the node menu
     Then the node "kitchen" is collapsed
     And the children of "kitchen" are hidden
     And the node menu is closed
+    And the address is "/house.olai"
+    And the page has not reloaded
 
   @corpus:good @phone
   Scenario: A verb chosen with a thumb does not also press the row under it
@@ -161,7 +182,7 @@ Feature: On a phone
     When I hold a finger on the node "kitchen"
     Then the node menu is open
     When I tap "Move to Trash" in the node menu
-    Then the node menu asks "Move “kitchen remodel #home” and the 7 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
+    Then the node menu asks "Move “kitchen remodel #home” and the 7 rows under it to Trash? You can put them back from Trash in the sidebar."
     And the address is "/house.olai"
     And the page has not reloaded
 
@@ -187,6 +208,27 @@ Feature: On a phone
     Then the outline has scrolled
     And the node menu is closed
     And no row is being edited
+
+  # ── what a plugin offers on a row ─────────────────────────────────────
+  #
+  # A pointer reveals a plugin's offer — chat's `Start an agent` — when a hand
+  # is on the row. A phone has no hover, and an offer drawn permanently on
+  # every line took a line of its own per row: five rows filled the screen.
+  # So on a phone it is drawn on the ACTIVE row only, the one a finger tapped.
+  # What a row already HAS is not an offer: an agent standing on a row says
+  # so on every row, tapped or not.
+
+  @corpus:lanes @phone
+  Scenario: A plugin's offer waits for the tapped row, and a standing always shows
+    Given I open the outline "lanes.olai"
+    Then the agent standing on "door-implement" is drawn
+    And the agent offer on "lane-fresh" is not drawn
+    And the agent offer on "lane-quiet" is not drawn
+    When I tap the title of "lane-fresh"
+    Then the agent offer on "lane-fresh" is drawn
+    And the agent offer on "lane-quiet" is not drawn
+    And the agent standing on "door-implement" is drawn
+    And there should be no page errors
 
   # ── the bullet is the handle, on a finger as on a mouse ───────────────
   #

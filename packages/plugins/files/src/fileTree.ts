@@ -16,7 +16,7 @@
  * reference and rebuild the whole sidebar on one membership change.
  */
 import type { Claims } from "@olai/format"
-import { fileKind, stemOf } from "@olai/format"
+import { fileKind, nameOf } from "@olai/format"
 
 /** One row of the tree. A directory carries its own root-relative path so
  *  collapse state can key on it without re-walking parents; a file carries
@@ -36,8 +36,8 @@ export type FileRow =
       readonly kind: "file"
       /** Stable place id for `<Key by="key">` — `file:<path>`. */
       readonly key: string
-      /** The stem the row draws — the suffix that claimed the file is the
-       *  glyph's to say (`stemOf`), so `AGENTS.md` is `AGENTS`. */
+      /** The name the row draws, the tab's too (`nameOf`): a document drops
+       *  its suffix, so `AGENTS.md` is `AGENTS`; `report.pdf` keeps it. */
       readonly name: string
       /** Root-relative path the page routes already use. */
       readonly file: string
@@ -89,12 +89,12 @@ const freeze = (claims: Claims, node: Building, prefix: string): ReadonlyArray<F
     rows.push({
       kind: "file",
       key: `file:${entry.file}`,
-      name: stemOf(claims, entry.file),
+      name: nameOf(claims, entry.file),
       file: entry.file,
       of: entry.of,
     })
   }
-  // Stems and folder names share the same ordering in each tree.
+  // File and folder names share the same ordering in each tree.
   rows.sort((left, right) => {
     const a = sortKey(left)
     const b = sortKey(right)

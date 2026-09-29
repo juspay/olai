@@ -146,7 +146,7 @@ describe("which rows are drawn in a lane", () => {
     // saying even when the other half is missing, and it is the LANE that says
     // so rather than every row that draws one.
     expect(laneOf(row("tool:call-1", "tool:gone"), NOTHING, nameOf))
-      .toEqual({ parent: "tool:gone", label: "a subagent" })
+      .toEqual({ parent: "tool:gone", label: "A subagent" })
   })
 
   test("a subagent's question names its lane even where a call would not", () => {
@@ -189,7 +189,7 @@ describe("which rows are drawn in a lane", () => {
 
   test("a question from an agent the panel never saw start still says somebody", () => {
     expect(laneOf(asked("ask:1", "tool:gone"), row("tool:gone"), nameOf))
-      .toEqual({ parent: "tool:gone", label: "a subagent" })
+      .toEqual({ parent: "tool:gone", label: "A subagent" })
   })
 
   test("a row whose own key is another agent's does not answer for it", () => {

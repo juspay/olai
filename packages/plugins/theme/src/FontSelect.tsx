@@ -26,7 +26,7 @@ import type { Appearance } from "./index.ts"
 export function FontSelect(props: { readonly state: Appearance }) {
   return (
     <select
-      class="max-w-full rounded border border-rule bg-paper px-2 py-1.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      class="min-h-11 max-w-[12rem] rounded-control border border-rule bg-paper px-2 text-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1"
       style={{ "font-family": props.state.font.current().sans }}
       data-testid={TESTID.fontSelect}
       value={props.state.font.current().name}

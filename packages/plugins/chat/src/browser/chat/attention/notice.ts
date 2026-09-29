@@ -102,6 +102,6 @@ const bodyOf = (asking: number, asked: Asked | undefined): string => {
   const more = others === 0 ? "" : ` (and ${others} more)`
   const line = asked === undefined ? undefined : openingLine(asked.text)
   return line === undefined
-    ? `is waiting on your answer${more}`
+    ? `Waiting on your answer${more}`
     : `${line}${more}`
 }

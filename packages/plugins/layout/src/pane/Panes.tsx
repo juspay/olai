@@ -30,7 +30,7 @@ type Pane,
 import { desktop } from "../layout/live.ts"
 import { PANES_LONE,PANES_SPLIT } from "../layout/sheet.ts"
 import { PANE_RAIL_PX,snap } from "./geometry.ts"
-import { labelOf } from "../routing.ts"
+import { nameOf } from "../routing.ts"
 
 export { PANE_MIN_PX,PANE_RAIL_PX } from "./geometry.ts"
 
@@ -150,7 +150,7 @@ function Header(props: { readonly index: number; readonly pane: Pane }) {
 
   return (
     <div
-      class="flex shrink-0 cursor-grab items-center gap-1 border-b border-rule/70 bg-desk px-2 py-1"
+      class="flex shrink-0 cursor-grab items-center gap-1 border-b border-rule/60 bg-desk px-2 py-1"
       data-testid={TESTID.paneHeader}
       data-pane={String(props.index)}
       data-pane-focused={focused() ? "true" : undefined}
@@ -179,17 +179,17 @@ function Header(props: { readonly index: number; readonly pane: Pane }) {
         })
       }}
     >
-      <span class="min-w-0 flex-1 truncate font-mono text-xs text-muted">
-        {labelOf(props.pane.route)}
+      <span class="min-w-0 flex-1 truncate text-label text-muted">
+        {nameOf(props.pane.route)}
       </span>
       <button
         type="button"
-        class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-muted hover:text-ink`}
+        class={`${TARGET_BOX} inline-flex items-center justify-center rounded-control text-muted hover:text-ink`}
         data-testid={TESTID.paneClose}
-        aria-label={`close ${labelOf(props.pane.route)}`}
+        aria-label={`Close ${nameOf(props.pane.route)}`}
         onClick={() => router.close(props.index)}
       >
-        <span aria-hidden="true" class="text-base leading-none">×</span>
+        <span aria-hidden="true" class="text-title leading-none">×</span>
       </button>
     </div>
   )
@@ -201,21 +201,21 @@ function Rail(props: { readonly index: number; readonly pane: Pane }) {
   return (
     <button
       type="button"
-      class="flex w-9 shrink-0 flex-col items-center gap-2 border-x border-rule/70 bg-desk py-3 text-muted hover:text-ink"
+      class="flex w-9 shrink-0 flex-col items-center gap-2 border-x border-rule/60 bg-desk py-3 text-muted hover:text-ink"
       classList={{ "ring-2 ring-inset ring-accent": focused() }}
       style={{ width: `${PANE_RAIL_PX}px` }}
       data-testid={TESTID.paneRail}
       data-pane={String(props.index)}
-      aria-label={`expand ${labelOf(props.pane.route)}`}
+      aria-label={`Expand ${nameOf(props.pane.route)}`}
       onClick={() => {
         router.expand(props.index)
         router.focus(props.index)
       }}
     >
       <span
-        class="origin-center font-mono text-[0.65rem] tracking-wide [writing-mode:vertical-rl] [text-orientation:mixed]"
+        class="origin-center text-caption tracking-wide [writing-mode:vertical-rl] [text-orientation:mixed]"
       >
-        {labelOf(props.pane.route)}
+        {nameOf(props.pane.route)}
       </span>
     </button>
   )
@@ -235,7 +235,7 @@ function Divider(props: {
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="resize panes"
+      aria-label="Resize panes"
       data-testid={TESTID.paneResize}
       data-left={String(props.left)}
       data-right={String(props.right)}
@@ -276,10 +276,10 @@ function TabStrip() {
   const router = useRouter()
   return (
     <div
-      class="flex shrink-0 gap-1 overflow-x-auto border-b border-rule/70 bg-desk px-2 py-1"
+      class="flex shrink-0 gap-1 overflow-x-auto border-b border-rule/60 bg-desk px-2 py-1"
       data-testid={TESTID.paneTabs}
       role="tablist"
-      aria-label="panes"
+      aria-label="Panes"
     >
       <For each={panesOf(router.workspace())}>
         {(pane, i) => {
@@ -290,7 +290,7 @@ function TabStrip() {
               role="tab"
               aria-selected={focused()}
               aria-current={focused() ? "page" : undefined}
-              class="shrink-0 truncate rounded px-2 py-1 font-mono text-xs text-muted hover:text-ink"
+              class="shrink-0 truncate rounded-control px-2 py-1 text-label text-muted hover:text-ink"
               classList={{
                 "bg-panel text-ink ring-1 ring-accent": focused(),
               }}
@@ -298,7 +298,7 @@ function TabStrip() {
               data-pane={String(i())}
               onClick={() => router.focus(i())}
             >
-              {labelOf(pane.route)}
+              {nameOf(pane.route)}
             </button>
           )
         }}

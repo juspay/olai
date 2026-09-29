@@ -167,13 +167,13 @@ test("no file here spells the same-file law — it is the format's", () => {
 // The BAND, not the alarm token: this client paints alarm on a dozen shapes
 // (a badge, a bubble, a banner, a dashed chat entry) and each of those is its
 // own thing. What may not recur is the shortlist panels' alarmed band — the
-// rule at 40% with the same hue at 5% behind it — which three panels drew by
+// rule at 40% with the same hue at 10% behind it — which three panels drew by
 // hand until they were one call, and which a fourth panel would copy from
 // whichever of them it was written beside. The pattern grips the pair rather
 // than either half, because either half alone is a shape somebody else is
 // entitled to.
 test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () => {
-  expect(filesSpelling(/border-alarm\/40[^"'`]*bg-alarm\/5/)).toEqual([
+  expect(filesSpelling(/border-b border-alarm\/40[^"'`]*bg-alarm\/10/)).toEqual([
     "web/src/client/SaidLine.tsx"
   ])
 })
@@ -252,7 +252,8 @@ test("overlays that hang over the outline mount on overlayRoot", () => {
   expect(filesSpelling(/overlayRoot\s*\(/)).toEqual([
     "plugins/outlines/src/browser/complete/Completions.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
-    "plugins/outlines/src/browser/menu/MenuSaid.tsx"
+    "plugins/outlines/src/browser/menu/MenuSaid.tsx",
+    "plugins/outlines/src/browser/menu/Panel.tsx"
   ])
 })
 
@@ -429,6 +430,7 @@ test("address recognition has one door: parseAddress( is called only in routes.t
 test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
   expect(filesSpelling(/@kobalte\/core\/dropdown-menu/)).toEqual([
     "plugins/chat/src/browser/agents/EngineMenu.tsx",
+    "plugins/files/src/NewMenu.tsx",
     "plugins/outlines/src/browser/menu/Confirm.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
     "plugins/outlines/src/browser/menu/Panel.tsx",
@@ -550,6 +552,7 @@ test("every dynamic import() the client spells takes a literal the bundler can r
     "plugins/chat/src/browser/agents/FreshStart.tsx",
     "plugins/chat/src/browser/agents/NewChat.tsx",
     "plugins/chat/src/browser/agents/Standing.tsx",
+    "plugins/files/src/Files.tsx",
     "plugins/kolu/src/appliance/props/LivePane.tsx",
     "plugins/outlines/src/browser/menu/chunk.ts",
     "plugins/tabs/src/chunk.ts",
@@ -593,6 +596,7 @@ test("the stack is joined directly only where the gestures are not dismissOn's",
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
     "plugins/chat/src/browser/agents/EngineMenu.tsx",
     "plugins/chat/src/browser/chat/CompletionMenu.tsx",
+    "plugins/files/src/NewMenu.tsx",
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/Shortcuts.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",

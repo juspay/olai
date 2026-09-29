@@ -34,7 +34,7 @@ import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
 import { answering } from "@olai/tests/harness/shortlist.ts";
 
-import { POLL_TIMEOUT, PROP_EDIT } from "@olai/tests/harness/world.ts";
+import { oneLine, POLL_TIMEOUT, PROP_EDIT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { FAST_NODE_IDLE_MS } from "@olai/tests/harness/node_idle.ts";
 
@@ -528,7 +528,7 @@ When("I start a fresh session", async function (this: OlaiWorld) {
   const fresh = this.chat(FRESH);
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
-  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
+  await this.page.getByRole("button", { name: "Start fresh chat", exact: true }).click();
 });
 
 /** PRESS THE FRESH SESSION AND NAME THE ENGINE — the multi-engine form of the
@@ -541,7 +541,7 @@ When("I start a fresh session with {string}", async function (this: OlaiWorld, e
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
   await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).click();
-  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
+  await this.page.getByRole("button", { name: "Start fresh chat", exact: true }).click();
 });
 
 /** PRESS THE CLOSE sentinel in the agent line — the gesture that takes the
@@ -633,7 +633,7 @@ Then("the past session {string} is selected", async function (this: OlaiWorld, t
 });
 
 When("I return to the node agent's current session", async function (this: OlaiWorld) {
-  const button = this.chatRoot().getByRole("button", { name: "current session ↩", exact: true });
+  const button = this.chatRoot().getByRole("button", { name: "Back to current chat ↩", exact: true });
   const session = await button.getAttribute("data-session-id");
   assert.ok(session);
   await button.click();
@@ -895,12 +895,21 @@ When("I request a fresh session without confirming", async function (this: OlaiW
   await this.page.getByRole("group", { name: "Confirm fresh start", exact: true }).waitFor({ state: "visible" });
 });
 
+/** What the confirmation says will happen — the sentence that makes the
+ *  gesture safe to press, read where it is asked. */
+Then("the fresh-session confirmation says {string}", async function (this: OlaiWorld, words: string) {
+  const asking = this.page.getByRole("group", { name: "Confirm fresh start", exact: true });
+  await asking.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(async () => oneLine(await asking.innerText()).includes(words),
+    `the fresh-session confirmation to say ${JSON.stringify(words)}`);
+});
+
 When("I cancel the fresh session", async function (this: OlaiWorld) {
   await this.page.getByRole("group", { name: "Confirm fresh start", exact: true }).getByRole("button", { name: "Cancel", exact: true }).click();
 });
 
 When("I confirm the fresh session", async function (this: OlaiWorld) {
-  await this.page.getByRole("button", { name: "Start fresh conversation", exact: true }).click();
+  await this.page.getByRole("button", { name: "Start fresh chat", exact: true }).click();
 });
 
 Then("the fresh-session confirmation is absent", async function (this: OlaiWorld) {

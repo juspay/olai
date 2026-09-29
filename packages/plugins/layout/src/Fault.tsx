@@ -45,38 +45,41 @@ import { TARGET } from "@olai/ui-primitives/touch.ts"
 export function Fault(props: { readonly text: string }) {
   return (
     <main class="min-h-dvh max-w-none bg-paper px-8 py-10" data-testid={TESTID.fault}>
-      <h1 class={`${PAGE_TITLE} mb-2 italic text-alarm`}>This page broke</h1>
+      <h1 class={`${PAGE_TITLE} mb-2 italic text-alarm`}>Something went wrong on this page</h1>
       <Lede>
-        Not the outlines — olai itself. Something in this page threw while it was
-        being drawn, so what was on screen is gone and nothing here will update
-        again. Nothing this app draws touches the files on disk.
+        Your files are safe. Reload to try again.
       </Lede>
-      {/* Verbatim, and scrollable rather than wrapped away: this text is what
-          a bug report is made of, and a fault surface that summarised the
-          fault would be the white tab with extra steps. */}
-      <pre
-        class="mb-4 max-w-full overflow-x-auto rounded border border-rule bg-rule/30 p-3 text-xs text-ink"
-        data-testid={TESTID.faultDetail}
-      >
-        {props.text}
-      </pre>
-      <div class="flex flex-wrap items-center gap-4">
+      <div class="mb-6 flex flex-wrap items-center gap-4">
         <Reload onReload={reloadForUpdate} />
         {/* Quieter than the button on purpose: leaving the page is the second
             answer, and it is the right one only once the first has been tried.
             A plain `<a>` — this is a document navigation, which is the whole
             point of offering it. */}
         <a
-          class={`inline-flex ${TARGET} items-center text-sm text-muted underline md:min-h-0`}
+          class={`inline-flex ${TARGET} items-center text-body text-muted underline md:min-h-0`}
           // Through `routes.ts` like every other address this app writes: it is
           // the one bijection between a URL and what it means, and it is pure —
           // nothing about the page being down stops it answering.
           href={hrefOfPlain(HOME_ROUTE)}
           data-testid={TESTID.faultHome}
         >
-          Start over on the first outline
+          Go home
         </a>
       </div>
+      {/* The technical half, one press away: verbatim, and scrollable rather
+          than wrapped away, because this text is what a bug report is made of
+          and a fault surface that summarised the fault would be the white tab
+          with extra steps. Behind `Details` so the first thing a person reads
+          is what to do, not a stack. */}
+      <details class="max-w-full">
+        <summary class="cursor-pointer text-body text-muted hover:text-ink">Details</summary>
+        <pre
+          class="mt-2 max-w-full overflow-x-auto rounded-control border border-rule bg-rule/20 p-3 font-mono text-label text-ink"
+          data-testid={TESTID.faultDetail}
+        >
+          {props.text}
+        </pre>
+      </details>
     </main>
   )
 }

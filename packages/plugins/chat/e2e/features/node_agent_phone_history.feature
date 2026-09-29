@@ -5,7 +5,7 @@ Feature: Node chat history remains usable in phone folds
     And I open the outline "house.olai"
     When I hold a finger on the node "install"
     Then the node menu is open
-    When I choose "Start an agent session" from the node menu
+    When I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     When I ask the agent "phone cabinet first"
     Then the agent has answered "phone cabinet first" exactly once
@@ -45,13 +45,13 @@ Feature: Node chat history remains usable in phone folds
     And I open the outline "house.olai"
     When I hold a finger on the node "install"
     Then the node menu is open
-    When I choose "Start an agent session" from the node menu
+    When I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     When I type "unsent cabinet thought" into the chat
     And I close the agent fold
     And I hold a finger on the node "order"
     Then the node menu is open
-    When I choose "Start an agent session" from the node menu
+    When I choose "Start an agent" from the node menu
     Then the panel header names the node agent "order the new cabinets"
     And the chat input reads ""
     When I ask the agent "phone order thought"

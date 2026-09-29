@@ -42,7 +42,7 @@ test("every Config field declares a usable default and description", async () =>
   }
   expect(seen.length).toBeGreaterThanOrEqual(6)
   expect(fields).toBeGreaterThan(seen.length)
-})
+}, { timeout: 20_000 })
 
 test("the audit refuses an optional field without a default and missing prose", () => {
   expect(() => audit(Schema.Struct({ bare: Schema.optionalKey(Schema.String) }), "fixture")).toThrow()

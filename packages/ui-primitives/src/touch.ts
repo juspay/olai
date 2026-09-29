@@ -182,6 +182,27 @@ export const HOVER_REVEAL =
   "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100"
 
 /**
+ * Reveal for an OFFER a plugin hangs on a row — a verb a person may want
+ * here, as against a fact about the row (which is always drawn).
+ *
+ * Above 48rem it is {@link HOVER_REVEAL}'s: in the row's box, invisible until
+ * a hand is on the row or the keyboard is on a control in it.
+ *
+ * Below 48rem it is NOT drawn at all until the row is the ACTIVE one — the row
+ * a finger tapped, which the row line says with `data-active`. A phone has no
+ * hover to wait for, and an offer drawn permanently on every line took a line
+ * of its own per row: five rows filled the screen.
+ *
+ * It carries the DISPLAY (`hidden`, then `inline-flex` where it shows), so the
+ * element wearing it must not spell a display of its own — two display
+ * utilities on one box are settled by emission order, not by the page.
+ */
+export const OFFER_REVEAL =
+  "hidden items-center group-data-[active]/row:inline-flex md:inline-flex " +
+  "md:opacity-0 md:group-hover/row:opacity-100 " +
+  "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100"
+
+/**
  * Reveal for the `•••` menu button — hover/focus-only, and no phone branch,
  * because the button it is on is not drawn below md at all ({@link MENU_CELL}).
  * An opacity there would be an opacity on a `display: none` box.

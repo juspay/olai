@@ -12,6 +12,8 @@ export const TESTID = {
   fileDir: "file-dir",
   fileDirToggle: "file-dir-toggle",
   fileGlyph: "file-glyph",
+  newFile: "new-file",
+  newFileMenu: "new-file-menu",
   newDocument: "new-document",
   newDocumentPath: "new-document-path",
   newDocumentSaid: "new-document-said",

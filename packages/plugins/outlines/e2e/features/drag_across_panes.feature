@@ -89,13 +89,13 @@ Feature: Dragging a row from one pane into the other
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it over the title of "mint" in pane 1
     Then the drop is refused by "garden.olai"
-    And the refused pane says "another file"
+    And the refused pane says "only moves a row within its own outline"
     And no drop line is drawn
     # And the promise is kept when the hand lets go: the same sentence, on the
     # bar every other refused gesture over these rows says its piece on, and the
     # row exactly where it was.
     When I let go
-    Then the pick says "another file"
+    Then the pick says "only moves a row within its own outline"
     And the node "knobs" is a child of "install" in pane 0
     And "house.olai" holds the node "knobs"
     And there should be no page errors
@@ -134,12 +134,12 @@ Feature: Dragging a row from one pane into the other
     And I mark the page
     And I pick up the bullet of "install" in pane 0 and hold it over the title of "handles" in pane 1
     Then the drop is refused by "house.olai"
-    And the refused pane says "inside what you are carrying"
+    And the refused pane says "every row in this pane is part of what you’re dragging"
     # ...and NOT the file rule's words, which is the whole reason there are two
     # sentences: nothing here is about files at all.
-    And the refused pane does not say "another file"
+    And the refused pane does not say "only moves a row within its own outline"
     And no drop line is drawn
     When I let go
-    Then the pick says "inside what you are carrying"
+    Then the pick says "every row in this pane is part of what you’re dragging"
     And the node "install" is a child of "kitchen" in pane 0
     And there should be no page errors

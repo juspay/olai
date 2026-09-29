@@ -30,7 +30,7 @@ probe and choices without disabling the other engines. Choices follow the
 server's current engine roster.
 
 A conversation belongs to one engine for its lifetime. The *start an agent*
-pill and *new chat* button appear when at least one engine is available. They
+pill and the Chats heading's `+` (new chat) appear when at least one engine is available. They
 start immediately when exactly one engine is available. With two or more, the
 menu lists all enabled engines in bundle order: available engines are pickable;
 missing ones are greyed out with their reason, without a link inside the
@@ -336,7 +336,7 @@ While the list is up, ↑/↓ walk it — through both blocks, one cursor — Ta
 
 ## Pointing back at a node
 
-Ids in the panel are pressable, and pressing one shows you that node: the row scrolls into view and says it is the one being talked about. If it is not drawn on the page you are reading — another outline, a branch you have collapsed — you are landed on its own file's page instead, unfolded to the row and sat on it, because *show this node* promised the row and a collapse may not hide what an address asked for. Neither may the page's DONE PICK: a landing whose target exists but is hidden as done **reveals it for the visit** — it is the row somebody was SENT, and the pick is a default, not a wall. The reveal mints nothing: the flip's strip and its `·` stand exactly as you left them (the page's own word and the panel's default are never touched, and leaving the page ends the courtesy — the pick hides the row again on your next visit, which is what it says). The address in the bar is the row's own (`house.olai#order`), never the zoom (`/#id` stays the permalink it always was). That `#` half may also spell a PLACEMENT's own id — `house.olai#kitchen-herbs`, the mirror's own record rather than the node's, which is how `outlines_read`'s `mirrors` hands a board row to whoever asks: the landing lands on the mirror row itself when the page draws it, and when the page does not, the id resolves the way the backticked press below resolves it — to the node the placement stands for — and the landing's own depth-first rule answers for that. And a fragment naming no row the opened page draws says so rather than arriving silently at the top of it: one alarm line in the voice every refused act in this app speaks, gone the way transient notices go, because a broken link and a working one used to be the same screen.
+Ids in the panel are pressable, and pressing one shows you that node: the row scrolls into view and says it is the one being talked about. If it is not drawn on the page you are reading — another outline, a branch you have collapsed — you are landed on its own file's page instead, unfolded to the row and sat on it, because *show this node* promised the row and a collapse may not hide what an address asked for. Neither may the page's DONE PICK: a landing whose target exists but is hidden as done **reveals it for the visit** — it is the row somebody was SENT, and the pick is a default, not a wall. The reveal mints nothing: the `finished` box and its `reset` stand exactly as you left them (the page's own word and the panel's default are never touched, and leaving the page ends the courtesy — the pick hides the row again on your next visit, which is what it says). The address in the bar is the row's own (`house.olai#order`), never the zoom (`/#id` stays the permalink it always was). That `#` half may also spell a PLACEMENT's own id — `house.olai#kitchen-herbs`, the mirror's own record rather than the node's, which is how `outlines_read`'s `mirrors` hands a board row to whoever asks: the landing lands on the mirror row itself when the page draws it, and when the page does not, the id resolves the way the backticked press below resolves it — to the node the placement stands for — and the landing's own depth-first rule answers for that. And a fragment naming no row the opened page draws says so rather than arriving silently at the top of it: one alarm line in the voice every refused act in this app speaks, gone the way transient notices go, because a broken link and a working one used to be the same screen.
 
 Three things in the conversation are ids, and none of them is a syntax anybody had to invent:
 
@@ -540,7 +540,7 @@ That counts ANOTHER TAB of the same olai, too. Two tabs are two documents and on
 
 **A turn merely FINISHING is silent, on purpose.** An agent that has finished will still have finished in five minutes; a chime for every turn is a chime people switch off, and it would take the one that matters with it.
 
-Two rows owned by **chat** in **preferences** decide its alerts — **Alerts**, and **Alert sound** beneath it — and both start ON. They are two rows rather than one because they are two questions: turning the chime off in a quiet office should not also cost you the notification. Turning Alerts off silences all three, and puts the icon back.
+Two switches under **Notifications** in **preferences**, owned by the **alerts** row, decide its alerts — **Alerts**, and **Sound** beneath it — and both start ON. With Alerts off, Sound is drawn dimmed and does not move. They are two rows rather than one because they are two questions: turning the chime off in a quiet office should not also cost you the notification. Turning Alerts off silences all three, and puts the icon back.
 
 A third row, **Reminders**, belongs to the journal and defaults on. It sends a daily
 notification about owed work through the same channel. A reminder is not a
@@ -736,7 +736,7 @@ or a title in the palette to reach every agent, including those beyond the Chats
 cap. Palette rows name their standing and use the same navigation rule. Both
 regions and the palette contribution withdraw with chat.
 
-The **new chat** row heads Chats and the Agents palette. It ensures `Chats` in
+The **`+`** on the Chats heading, and the **new chat** row of the Agents palette, are one action. It ensures `Chats` in
 the Inbox, mints a child titled **new conversation**, then starts its chosen
 engine and unfolds that child. With one engine it starts immediately; several
 offer engine names, in the sidebar menu or as palette rows. Both faces share one

@@ -13,6 +13,7 @@ Feature: The header shows who you are
   Scenario: Direct access draws anonymous
     When I open the app
     Then the header shows anonymous
+    And the identity chip is a circle the size of the preferences gear
     And there should be no page errors
 
   Scenario: An email login is the gravatar of that address
@@ -20,6 +21,7 @@ Feature: The header shows who you are
     When I open the app
     Then the header shows the identity "ada@example.com"
     And the identity picture is the gravatar of "ada@example.com"
+    And the identity chip is a circle the size of the preferences gear
     And there should be no page errors
 
   Scenario: The picture the proxy sends is the one drawn

@@ -17,16 +17,20 @@
  * what the SERVE is running, for everybody looking at it — which is a different
  * kind of thing from a theme, and still wants a door of its own.
  *
- * Each row draws schema-derived controls inline, with descriptions in titles,
- * source dots and file problems. The link beside its name opens its node. An enable switch
+ * A ROW AT REST IS ONE LINE: the name a person reads, a few words of state
+ * only when it is stuck, and the switch. Everything else — the schema-derived
+ * knobs, environment readouts, the link to its node, the plugin's own face,
+ * the full sentence about what is wrong and a session-only note — is the row's
+ * DETAIL, a label/value list behind its disclosure. A row filed under Needs
+ * attention starts expanded, because its detail is what to do. An enable switch
  * writes `on` through the ordinary write door, then waits for the revision and
  * root-owned reconcile before releasing the press. The infrastructure rows
- * needed to read and write that file retain a session-only switch.
+ * needed to read and write that file retain a session-only switch, and say so
+ * in their detail rather than in a legend at the foot.
  *
- * Shared facts are drawn once: the settings file in the header, source and
- * session legends and private memory at the foot. Only failed or waiting rows
- * add a reason beneath their controls; repeating ordinary status made the old
- * panel a vertical wall of text.
+ * The Server section closes the list, shut by default: the address, log
+ * policy, allowed origins, whether an access token is set and the state folder,
+ * each under a plain label with the raw value in monospace.
  *
  * ## What is on it, and what is NOT
  *
@@ -38,21 +42,19 @@
  * over holds that as an equality; this file is written so there is nothing for
  * it to catch.
  *
- * A ROW HAS A NAME, INLINE KNOBS AND ENABLE SWITCH. Sections collapse, while
- * knobs need no additional gesture. The row's switch expresses off states;
- * a dashed ring records a session-only switch without repeating the legend.
+ * Groups start shut, showing their counts; the row's switch expresses off
+ * states, and a dashed ring still marks a session-only switch.
  *
- * AND A ROW WHOSE PLUGIN HAS MORE TO SAY DRAWS ITS OWN FACE — below the row's
- * sentence, above the confirm, because that is the order a person reads in
- * (`./slots.ts`'s `plugins.row`). The same face answers `needs()`, which the
+ * AND A ROW WHOSE PLUGIN HAS MORE TO SAY DRAWS ITS OWN FACE — in the row's
+ * detail, below the row's sentence, because that is the order a person reads
+ * in (`./slots.ts`'s `plugins.row`). The same face answers `needs()`, which the
  * walk here passes straight into `./rows.ts`, so a plugin that is running,
- * faultless and still waiting on somebody is filed under Needs you with the
- * broken rows rather than sitting among the healthy ones.
+ * faultless and still waiting on somebody is filed under Needs attention with
+ * the broken rows rather than sitting among the healthy ones.
  *
- * THE LABEL IS THE NAME, VERBATIM — not prettified into `Kolu`. It is the
- * settings namespace, the namespace its members are composed under and the docs
- * slug, and a label that title-cased it would be the one spelling of a plugin's
- * name coming apart on the one screen that tells you what to type.
+ * THE LABEL IS THE BUILD'S — `olai.yml`'s `label`, read through the host's
+ * look like `section` — and the plugin's own name, the settings namespace
+ * a person types, stays on the row as its detail's short name.
  *
  * A row still has the same parts: its label, control, what the choice means,
  * and where it came from. What this file owns is the walk and its rendering;
@@ -115,17 +117,23 @@ import { Control } from "./Control.tsx"
 
 import {
   type PluginPick,
+  CONDITION_TONE,
+  CONDITION_WORDS,
+  conditionSaid,
   configurationLinkLabel,
-  configurationAuthored,
+  displayName,
   enableLabel,
+  environmentValue,
   environmentVisible,
   groupCount,
+  labelOf,
   pluginConfig,
   pluginConfirm,
   pluginGroups,
   pluginRows,
   pluginSwitch,
-  rowCopy,
+  rowCondition,
+  sentenceOf,
 } from "./rows.ts"
 
 export function Panel(props: {
@@ -178,11 +186,14 @@ export function Panel(props: {
     const group = groups().find(group => group.rows.some(row => row.name === name))
     if (group === undefined) return
     props.state.setGroupOpen(group.label, true)
+    props.state.setExpanded(name, true)
     queueMicrotask(() => {
       if (!active || props.state.requested() !== name) return
       const row = element?.querySelector<HTMLElement>(`[data-pref="${CSS.escape(pluginPref(name))}"]`)
       row?.scrollIntoView({ block: "nearest" })
-      row?.querySelector<HTMLElement>("input, select, button")?.focus({ preventScroll: true })
+      // The first knob in its detail where it has one, else the row's own
+      // disclosure or switch.
+      ;(row?.querySelector<HTMLElement>(".plugins-detail :is(input, select, button)") ?? row?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true })
       props.state.revealed(name)
     })
   })
@@ -231,7 +242,7 @@ export function Panel(props: {
     if (group !== undefined) props.state.setGroupOpen(group.label, true)
     if (pick === "off") {
       const plugin = rows().find((one) => one.name === name)
-      const cost = plugin === undefined ? null : pluginConfirm(plugin, props.management.look(name))
+      const cost = plugin === undefined ? null : pluginConfirm(plugin, (one) => props.management.look(one), plugins())
       if (cost !== null && confirming() !== name) {
         setConfirming(name)
         setRefused(null)
@@ -279,78 +290,106 @@ export function Panel(props: {
     void approveDefinition({ name, version, forever }, setApproving, setRefused)
   }
 
+  const rosterFile = (): string => plugins().configurationFile ?? CONFIGURATION_FILE
   return (
-    <section ref={el => { element = el; props.inside(el) }} class="plugins-grid-panel" tabindex="-1" data-testid={TESTID.pluginsPanel} aria-label="plugins">
-      <header class="plugins-grid-head">
-        <strong>⧉ plugins</strong>
-        <Show when={props.state.file()} fallback={<span class="text-xs text-muted">{plugins().configurationFile ?? CONFIGURATION_FILE}</span>}>
-          {File => { const Link = File(); return <span class="text-xs text-muted" onClick={() => props.state.door.setOpen(false)}><Link
-            file={plugins().configurationFile ?? CONFIGURATION_FILE} label={plugins().configurationFile ?? CONFIGURATION_FILE} title={`Open ${plugins().configurationFile ?? CONFIGURATION_FILE}`} testid={TESTID.pluginsFile}>
-            {plugins().configurationFile ?? CONFIGURATION_FILE} ↗
+    <section ref={el => { element = el; props.inside(el) }} class="plugins-panel" tabindex="-1" data-testid={TESTID.pluginsPanel} aria-label="Plugins">
+      <header class="plugins-head">
+        <strong class="plugins-title">Plugins</strong>
+        <Show when={props.state.file()} fallback={<span class="plugins-head-file">{rosterFile().split("/").pop()}</span>}>
+          {File => { const Link = File(); return <span class="plugins-head-file" onClick={() => props.state.door.setOpen(false)}><Link
+            file={rosterFile()} label={rosterFile()} title={`Open ${rosterFile()}`} testid={TESTID.pluginsFile}>
+            {rosterFile().split("/").pop()} ↗
           </Link></span> }}
         </Show>
       </header>
-      <div class="plugins-grid-body"><div class="plugins-grid-columns">
+      <div class="plugins-body">
+        <Show when={plugins().configurationAvailable === false && plugins().built.length > 0}>
+          <p class="plugins-notice">{rosterFile().split("/").pop()} can't be read, so switches here reset when olai restarts.</p>
+        </Show>
+        <Show when={refused()}>{said => <p class="plugins-notice plugins-alarm" data-testid={TESTID.pluginsRefused}>{said()}</p>}</Show>
+        <Show when={plugins().configurationError}>{error => <p class="plugins-notice plugins-alarm" data-testid={TESTID.pluginConfigError}>{error()}</p>}</Show>
         <For each={groups().map(group => group.label)}>{label => {
           const current = () => groups().find(group => group.label === label)!
           const group = { label, get rows() { return current().rows }, get needs() { return current().needs }, get collapsed() { return current().collapsed } }
-          return <section class="plugins-grid-group" data-testid={TESTID.pluginGroup} data-section={group.label}
+          return <section class="plugins-group" data-testid={TESTID.pluginGroup} data-section={group.label}
             data-needs={group.needs ? "true" : undefined} data-collapsed={groupOpen(group) ? undefined : "true"}>
-            <details open={groupOpen(group)} class="group/section" onToggle={event => {
+            <details open={groupOpen(group)} onToggle={event => {
               if (!event.currentTarget.isConnected) return
               const next = event.currentTarget.open
               if (next !== groupOpen(group)) toggleGroup(group.label, next)
             }}>
-              <summary class="plugins-grid-heading">
-                <span class={`font-bold uppercase tracking-wide ${group.needs ? "text-alarm" : ""}`}><span class="group-open/section:hidden">▸ </span><span class="hidden group-open/section:inline">▾ </span>{group.label}</span>
-                <span class="text-muted" data-group-count>{groupCount(group.rows)}</span>
+              <summary class="plugins-heading">
+                <Chevron />
+                <span class="plugins-heading-label">{group.label}</span>
+                <span class="plugins-heading-count" data-group-count>{group.needs ? group.rows.length : groupCount(group.rows)}</span>
               </summary>
-              <For each={group.rows.map(plugin => plugin.name)}>{name => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!}
-                face={rowFaces().get(name)}
-                panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}</For>
+              <div class="plugins-rows">
+                <For each={group.rows.map(plugin => plugin.name)}>{name => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!}
+                  face={rowFaces().get(name)} needs={group.needs}
+                  panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}</For>
+              </div>
             </details>
           </section>
         }}</For>
-        <Show when={plugins().instance}>{instance => <section class="plugins-grid-group">
-          <details data-testid={TESTID.thisServe} open={props.state.opened()["This serve"] ?? true} onToggle={event => {
-            if (event.currentTarget.isConnected) props.state.setGroupOpen("This serve", event.currentTarget.open)
+        <Show when={plugins().instance}>{instance => <section class="plugins-group">
+          <details data-testid={TESTID.thisServe} open={props.state.opened()[SERVER] ?? false} onToggle={event => {
+            if (event.currentTarget.isConnected) props.state.setGroupOpen(SERVER, event.currentTarget.open)
           }}>
-            <summary class="plugins-grid-heading"><strong class="uppercase tracking-wide">This serve</strong><span class="text-muted">{instance().host}:{instance().port}</span></summary>
-            <div class="plugins-grid-row">
-              <span class="plugins-grid-name"><span>log</span><NodeLink node={instance().configurationNode} state={props.state} /></span>
-              <div class="plugins-grid-knobs col-span-2"><Controls labels={false} name="olai" values={instance().policy} configure={props.management.configure} frozen={frozen()} /></div>
-              <div class="plugins-grid-extra flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted">
-                <span>hostname {instance().hostname}{instance().hostnameAuthor === undefined ? "" : ` ·${instance().hostnameAuthor}`}</span>
-                <span>host {instance().host} ·{instance().hostAuthor}</span><span>port {instance().port} ·{instance().portAuthor}</span>
-                <span>origins {instance().origins.join(", ") || "none"}</span><span>bearer {instance().bearer.set ? "set" : "unset"}</span>
-              </div>
-            </div>
+            <summary class="plugins-heading">
+              <Chevron />
+              <span class="plugins-heading-label">{SERVER}</span>
+              <span class="plugins-heading-count">{instance().hostname}</span>
+            </summary>
+            <dl class="plugins-detail plugins-server">
+              <dt>Address</dt>
+              <dd><code>{instance().host}:{instance().port}</code></dd>
+              <dt>Machine name</dt>
+              <dd><code>{instance().hostname}</code></dd>
+              <Controls name="olai" values={instance().policy} configure={props.management.configure} frozen={frozen()} />
+              <dt>Allowed origins</dt>
+              <dd><Show when={instance().origins.length > 0} fallback={<span class="plugins-muted">None</span>}>
+                <span class="plugins-list"><For each={instance().origins}>{origin => <code>{origin}</code>}</For></span>
+              </Show></dd>
+              <dt>Access token</dt>
+              <dd>{instance().bearer.set ? "Set" : "Not set"}</dd>
+              <dt>State folder</dt>
+              <dd data-testid={TESTID.pluginsStarted}><code>$XDG_STATE_HOME/olai</code></dd>
+              <Show when={instance().configurationNode && props.state.file()}>
+                <dt>Saved in</dt>
+                <dd><NodeLink node={instance().configurationNode} state={props.state} /></dd>
+              </Show>
+            </dl>
           </details>
         </section>}</Show>
       </div>
-      <Show when={refused()}>{said => <p class="text-xs text-alarm" data-testid={TESTID.pluginsRefused}>{said()}</p>}</Show>
-      <Show when={plugins().configurationError}>{error => <p class="text-xs text-alarm" data-testid={TESTID.pluginConfigError}>{error()}</p>}</Show>
-      </div>
-      <footer class="plugins-grid-foot" data-testid={TESTID.pluginsStarted}>
-        <span class="flex flex-wrap items-center gap-3"><span><span class="text-done">●</span> {configurationAuthored}</span><span><span class="mr-1 inline-block h-2.5 w-3.5 rounded-full border border-dashed border-muted" />session-only</span></span>
-        <span>memory · $XDG_STATE_HOME/olai</span>
-      </footer>
     </section>
   )
 }
 
+/** The Server section's heading, and its key on inspector state's open map. */
+const SERVER = "Server"
+
+/** `hidden` keeps the chevron's width so a row with nothing to open lines its
+ *  name up with the rows that have one. */
+function Chevron(props: { readonly hidden?: boolean }) {
+  return <svg class="plugins-chevron" style={props.hidden ? { visibility: "hidden" } : undefined} viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+    <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+}
+
 function NodeLink(props: { readonly node: { readonly file: string; readonly id: string } | undefined; readonly state: InspectorState }) {
-  return <Show when={props.node && props.state.file()}>{File => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <span onClick={() => props.state.door.setOpen(false)}><Link
-    file={props.node!.file} at={props.node!.id} label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>↗</Link></span> }}</Show>
+  return <Show when={props.node && props.state.file()}>{File => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <span class="plugins-link" onClick={() => props.state.door.setOpen(false)}><Link
+    file={props.node!.file} at={props.node!.id} label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></span> }}</Show>
 }
 
 function Environment(props: { readonly values: ReadonlyArray<EnvironmentReading> }) {
-  return <For each={props.values.filter(environmentVisible)}>{one => (
-    <span class="plugins-grid-env"
-      data-testid={TESTID.pluginConfig} data-config={one.key} data-value={one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")} data-set-by="env" title={`${one.says ?? one.key} · ${one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}`}>
-      {one.key.toLowerCase().split("_").at(-1)} env · {one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")}
-    </span>
-  )}</For>
+  return <For each={props.values.filter(environmentVisible)}>{one => <>
+    <dt title={one.key}>{sentenceOf(one.says || one.key)}</dt>
+    <dd class="plugins-env" data-testid={TESTID.pluginConfig} data-config={one.key} data-value={environmentValue(one)} data-set-by="env">
+      <span class={one.set ? "" : "plugins-muted"}>{one.kind === "secret" ? (one.set ? "Set" : "Not set") : one.value === undefined ? "Not set" : <code>{one.value}</code>}</span>
+      <code class="plugins-env-key">{one.key}</code>
+    </dd>
+  </>}</For>
 }
 
 function PluginRow(props: {
@@ -358,6 +397,8 @@ function PluginRow(props: {
   /** WHAT THIS ROW'S OWN PLUGIN HUNG — `undefined` where it hung nothing, and
    *  then the row draws exactly what it drew before this slot existed. */
   readonly face: PluginsRowFace | undefined
+  /** Filed under Needs attention: its detail starts expanded. */
+  readonly needs: boolean
   readonly panel: {
     readonly state: InspectorState
     readonly management: BrowserManagement
@@ -374,89 +415,105 @@ function PluginRow(props: {
   const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
-  const copy = () => rowCopy(plugin(), props.plugins(), look(), props.panel.management.reports())
-  const cost = () => pluginConfirm(plugin(), look())
-  const state = () => pluginState(plugin())
+  const shown = () => displayName(plugin(), look())
+  const condition = () => rowCondition(plugin(), props.panel.management.reports(), props.face?.needs() === true)
+  const copy = () => { const now = condition(); return now === null ? null : conditionSaid(now) }
+  const tone = () => { const now = condition(); return now === null || CONDITION_TONE[now.kind] === undefined ? "" : `plugins-${CONDITION_TONE[now.kind]}` }
+  const cost = () => pluginConfirm(plugin(), (one) => props.panel.management.look(one), props.plugins())
+  const session = () => plugin().switchPersistence === "session" || props.plugins().configurationAvailable === false
+  const environment = () => (plugin().environment ?? []).filter(environmentVisible)
+  const broken = () => condition()?.kind === "tabFailed"
+  /** Whether the row has anything to show beyond its short name. A row that
+   *  does not draws no chevron and does not open: a press that reveals only
+   *  the name already on it is a door to nothing. */
+  const reveals = () => copy() !== null || props.face !== undefined || broken() || plugin().source !== undefined ||
+    values().length > 0 || environment().length > 0 || session() ||
+    (plugin().configurationNode !== undefined && Boolean(props.panel.state.file()))
+  const open = () => reveals() && (props.panel.state.expanded()[plugin().name] ?? props.needs)
+  const detailId = `plugins-detail-${plugin().name}`
   return (
-    <div data-testid={PRIMITIVE.prefsRow} data-pref={pluginPref(plugin().name)} class="plugins-grid-row" data-off={!plugin().running ? "true" : undefined} data-plugin-line>
-      <span class="plugins-grid-name"><span>{plugin().name}</span><NodeLink node={plugin().configurationNode} state={props.panel.state} /></span>
-      <div class="plugins-grid-knobs">
-        <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
-        <Environment values={plugin().environment ?? []} />
+    <div data-testid={PRIMITIVE.prefsRow} data-pref={pluginPref(plugin().name)} class="plugins-row" data-off={!plugin().running ? "true" : undefined}
+      data-open={open() ? "true" : undefined} data-plugin-line>
+      <div class="plugins-line">
+        <Show when={reveals()} fallback={
+          <span class="plugins-name" title={shown() !== plugin().name ? plugin().name : undefined}>
+            <Chevron hidden />
+            <span class="plugins-name-text">{shown()}</span>
+          </span>
+        }>
+          <button type="button" class="plugins-name" aria-expanded={open()} aria-controls={detailId}
+            onClick={() => props.panel.state.setExpanded(plugin().name, !open())}>
+            <Chevron />
+            <span class="plugins-name-text">{shown()}</span>
+          </button>
+        </Show>
+        <Show when={condition()}>{now => <span class={`plugins-status ${tone()}`}>{CONDITION_WORDS[now().kind]}</span>}</Show>
+        <Switch label={enableLabel(shown())} on={strip().value === "on"} frozen={strip().frozen}
+          session={session()} onPick={value => props.set(plugin().name, value)} />
       </div>
-      <Switch label={enableLabel(plugin().name)} on={strip().value === "on"} frozen={strip().frozen}
-        session={plugin().switchPersistence === "session" || props.plugins().configurationAvailable === false} onPick={value => props.set(plugin().name, value)} />
-      <div class="plugins-grid-extra">
-      <Show when={copy()}>
-        {(said) => (
-          <p
-            class={`pb-1 text-xs leading-relaxed ${
-              state() === "failed" ? "text-alarm" : state() === "waiting" ? "text-doing" : "text-muted"
-            }`}
-            data-testid={PRIMITIVE.prefsHint}
-          >
-            {said()}
-          </p>
-        )}
-      </Show>
-      {/* WHAT THE ROW'S OWN PLUGIN SAYS AND OFFERS — below the row's own
-          sentence, above the confirm a press raises, because the order is the
-          order a person reads in: what the serve is doing, then what they have
-          to do about it, then what leaving would cost.
-
-          The FACE owns both halves of its drawing, sentence and verbs alike:
-          the row's `rowCopy` speaks for the serve's reading of the build, and a
-          connected account is the plugin's own business with a person. Nothing
-          is drawn where the plugin hung no face — which is most rows. */}
-      <Show when={props.face}>{(face) => face().body()}</Show>
       <Show when={props.confirming() === plugin().name && cost()}>
         {(said) => (
-          <div
-            class="mb-1.5 rounded-md border border-alarm/25 bg-alarm/5 px-2.5 py-2"
-            data-testid={TESTID.pluginConfirm}
-          >
-            <p class="mb-2 text-xs leading-relaxed text-ink">{said()}</p>
-            <div class="flex gap-1.5">
-              <button
-                type="button"
-                class="rounded border border-rule px-2 py-0.5 text-xs"
-                data-testid={TESTID.pluginConfirmKeep}
-                onClick={() => props.dismissConfirm()}
-              >
-                Keep on
-              </button>
-              <button
-                type="button"
-                class="rounded border border-alarm/45 px-2 py-0.5 text-xs text-alarm"
-                data-testid={TESTID.pluginConfirmOff}
-                onClick={() => props.set(plugin().name, "off")}
-              >
-                Turn off
-              </button>
+          <div class="plugins-confirm" data-testid={TESTID.pluginConfirm}>
+            <p>{said()}</p>
+            <div class="plugins-confirm-verbs">
+              <button type="button" data-testid={TESTID.pluginConfirmKeep} onClick={() => props.dismissConfirm()}>Keep on</button>
+              <button type="button" class="plugins-alarm" data-testid={TESTID.pluginConfirmOff} onClick={() => props.set(plugin().name, "off")}>Turn off</button>
             </div>
           </div>
         )}
       </Show>
-      <Show when={plugin().source !== undefined}>
-        <Defined
-          plugin={plugin()}
-          approving={props.approving}
-          approve={props.approve}
-          read={props.panel.state.read().get(plugin().name)}
-          onRead={props.panel.state.nowRead}
-        />
-      </Show>
-      <Show when={plugin().running && [...props.panel.management.reports()].some(([name, report]) =>
-        (name === plugin().name || name.startsWith(plugin().name + "/")) && report.state === "failed") }>
-        <Show when={props.panel.management.requiresReload(plugin().name)} fallback={
-          <button type="button" disabled={props.panel.management.changing()} onClick={() => { void props.panel.management.retry() }}>
-            Retry browser activation
-          </button>
-        }>
-          <p>Reload to recover this browser module. Save any unfinished edits first.</p>
-          <button type="button" onClick={() => props.panel.management.reload()}>Reload page</button>
+      <div class="plugins-detail-wrap" id={detailId} hidden={!open()}>
+        <Show when={copy()}>
+          {(said) => (
+            <p class={`plugins-said ${tone()}`} data-testid={PRIMITIVE.prefsHint}>
+              {said()}
+            </p>
+          )}
         </Show>
-      </Show>
+        {/* WHAT THE ROW'S OWN PLUGIN SAYS AND OFFERS — below the row's own
+            sentence, above its knobs, because that is the order a person
+            reads in: what the serve is doing, then what they have to do about
+            it. The FACE owns both halves of its drawing, sentence and verbs
+            alike; nothing is drawn where the plugin hung no face. */}
+        <Show when={props.face}>{(face) => <div class="plugins-face">{face().body()}</div>}</Show>
+        <Show when={broken()}>
+          <div class="plugins-actions">
+            <Show when={props.panel.management.requiresReload(plugin().name)} fallback={
+              <button type="button" disabled={props.panel.management.changing()} onClick={() => { void props.panel.management.retry() }}>
+                Try again
+              </button>
+            }>
+              <p>Reload the page to fix this. Save any unfinished edits first.</p>
+              <button type="button" onClick={() => props.panel.management.reload()}>Reload</button>
+            </Show>
+          </div>
+        </Show>
+        <Show when={plugin().source !== undefined}>
+          <Defined
+            plugin={plugin()}
+            approving={props.approving}
+            approve={props.approve}
+            read={props.panel.state.read().get(plugin().name)}
+            onRead={props.panel.state.nowRead}
+          />
+        </Show>
+        <dl class="plugins-detail">
+          <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
+          <Show when={environment().length > 0}><Environment values={environment()} /></Show>
+          {/* The name a person types in the settings file, where the row's
+              label is not already it — and the link to its node there. */}
+          <Show when={shown() !== plugin().name}>
+            <dt>Short name</dt>
+            <dd><code>{plugin().name}</code></dd>
+          </Show>
+          <Show when={plugin().configurationNode && props.panel.state.file()}>
+            <dt>Saved in</dt>
+            <dd><NodeLink node={plugin().configurationNode} state={props.panel.state} /></dd>
+          </Show>
+        </dl>
+        <Show when={session()}>
+          <p class="plugins-note">This switch resets when olai restarts.</p>
+        </Show>
       </div>
     </div>
   )
@@ -471,12 +528,18 @@ function Controls(props: {
   readonly name: string
   readonly values: ReadonlyArray<PolicyValue>
   readonly configure: BrowserManagement["configure"]
-  readonly labels?: boolean
   readonly frozen?: string
 }) {
   // Keys preserve drafts across unrelated publications; the reading stays live.
-  return <For each={props.values.map(one => one.key)}>{key => <Control name={props.name}
-    label={props.labels} value={props.values.find(one => one.key === key)!} configure={props.configure} frozen={props.frozen} />}</For>
+  // One label/value pair per knob: the label is the key in words, and the
+  // schema's own description is its tooltip.
+  return <For each={props.values.map(one => one.key)}>{key => {
+    const value = () => props.values.find(one => one.key === key)!
+    return <>
+      <dt title={value().says || undefined}>{labelOf(key)}</dt>
+      <dd><Control name={props.name} label={false} value={value()} configure={props.configure} frozen={props.frozen} /></dd>
+    </>
+  }}</For>
 }
 
 /**
@@ -550,7 +613,7 @@ function Defined(props: {
         return (
           <details
             open={pending()}
-            class="rounded border border-line/60 p-2 text-xs"
+            class="rounded-control border border-line/60 p-2 text-label"
             data-testid={TESTID.pluginsSource}
             data-plugin={props.plugin.name}
             data-version={said().version}
@@ -576,7 +639,7 @@ function Defined(props: {
                     </p>
                     <button
                       type="button"
-                      class="rounded border border-line px-2 py-1"
+                      class="rounded-control border border-line px-2 py-1"
                       onClick={() => props.onRead(props.plugin.name, said().version)}
                     >
                       I have read it
@@ -587,7 +650,7 @@ function Defined(props: {
                 <div class="mt-2 flex gap-2">
                   <button
                     type="button"
-                    class="rounded border border-line px-2 py-1"
+                    class="rounded-control border border-line px-2 py-1"
                     disabled={frozen()}
                     data-testid={TESTID.pluginsApprove}
                     onClick={() => props.approve(props.plugin.name, said().version, false)}
@@ -596,7 +659,7 @@ function Defined(props: {
                   </button>
                   <button
                     type="button"
-                    class="rounded border border-line px-2 py-1"
+                    class="rounded-control border border-line px-2 py-1"
                     disabled={frozen()}
                     data-testid={TESTID.pluginsApproveAlways}
                     onClick={() => props.approve(props.plugin.name, said().version, true)}

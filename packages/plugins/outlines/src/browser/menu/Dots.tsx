@@ -42,7 +42,7 @@ import { MENU_CELL, MENU_REVEAL } from "@olai/ui-primitives/touch.ts"
  */
 export const DOTS =
   `${MENU_CELL} ${MENU_REVEAL} cursor-pointer border-0 bg-transparent p-0 ` +
-  "text-[0.65rem] leading-none tracking-[0.05em] text-muted hover:text-ink"
+  "text-caption leading-none tracking-[0.05em] text-muted hover:text-ink"
 
 /**
  * The `•••` before anybody has pressed it: the same three dots, drawn by a
@@ -69,8 +69,8 @@ export function Dots(props: { readonly onArm: () => void }) {
       data-testid={TESTID.nodeMenu}
       aria-haspopup="true"
       aria-expanded={false}
-      aria-label="node menu"
-      title="node menu"
+      aria-label="More"
+      title="More"
       onPointerDown={arm}
       onKeyDown={(event) => {
         if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return

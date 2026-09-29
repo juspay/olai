@@ -65,9 +65,9 @@ export function Segmented<T extends string>(props: {
             // its border with its neighbour, so a ring on the pressed one would
             // sit on top of the edge beside it. `-inset` rather than an offset
             // for the same reason: the ring has to stay inside the strip.
-            class={`${TARGET} inline-flex items-center px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:min-h-0 md:py-1 ${
+            class={`${TARGET} inline-flex items-center px-3 text-label focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:min-h-0 md:py-1 ${
               isInForce(choice.value)
-                ? "bg-accent/15 text-ink"
+                ? "bg-accent/10 text-ink"
                 : `text-muted ${frozen() ? "" : "hover:text-ink"}`
             }`}
             data-testid={TESTID.prefsChoice}

@@ -20,7 +20,7 @@ export function Sidebar(props: SidebarRegionProps) {
           type="button"
           class={`fixed inset-x-0 bottom-0 top-[var(--height-header)] ${LAYER.page} bg-ink/40 md:hidden`}
           data-testid={TESTID.sidebarScrim}
-          aria-label="close the directory"
+          aria-label="Close sidebar"
           onClick={() => props.onClose()}
         />
       </Show>
@@ -51,10 +51,10 @@ export function Sidebar(props: SidebarRegionProps) {
             cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-full border border-paper/20 bg-ink text-paper/65 hover:bg-paper/10 hover:text-paper md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-full border border-paper/20 bg-ink text-paper/60 hover:bg-paper/10 hover:text-paper md:inline-flex md:min-h-8 md:min-w-8`}
           data-testid={TESTID.sidebarCollapse}
-          aria-label="collapse the sidebar to the icon rail"
-          title="collapse sidebar"
+          aria-label="Collapse sidebar"
+          title="Collapse sidebar"
           onClick={() => setSidebarOpen(false)}
         >
           <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
@@ -91,9 +91,22 @@ export function Sidebar(props: SidebarRegionProps) {
           <Regions at="shelf" props={props} />
           <Regions at="files" props={props} />
         </div>
+        {/* THE FOOT: entries placed `foot` (Trash), pinned under the scrolling
+            list so they stay in view however long it runs — above the drawer's
+            own foot on a phone, and beside the collapse button on a desktop,
+            which is what the right padding leaves room for. Drawn by the
+            placement word the entry declared, never by who contributed it; an
+            empty foot (the trash row off) takes no room. */}
+        <div
+          class="shrink-0 px-3 pb-2 pt-1 empty:hidden md:pr-12"
+          data-testid={TESTID.sidebarFoot}
+          onClick={() => props.onClose()}
+        >
+          <PluginEntries place="foot" />
+        </div>
         <Show when={props.foot}>
           {(foot) => (
-            <div class="shrink-0 border-t border-paper/15 p-3">
+            <div class="shrink-0 border-t border-paper/10 p-3">
               {foot()}
             </div>
           )}

@@ -64,7 +64,7 @@
 import { Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
-import type { MenuAction } from "./action.ts"
+import type { MenuEntry } from "./action.ts"
 import { dropdownNow, menuFailure, menuReady } from "./chunk.ts"
 import type { MenuDoor } from "./door.ts"
 import { Dots } from "./Dots.tsx"
@@ -73,7 +73,7 @@ import { createPicking } from "./picking.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 
 export function NodeMenu(props: {
-  readonly actions: ReadonlyArray<MenuAction>
+  readonly actions: ReadonlyArray<MenuEntry>
   /** How this row's menu is reached, and whether it is open — the ROW's,
    *  because below `md` the door is a long press on markup this component does
    *  not own, and the panel then hangs off that same markup (`./door.ts`). */
@@ -102,7 +102,7 @@ export function NodeMenu(props: {
     const failed = props.door.armed() ? menuFailure() : undefined
     return failed === undefined
       ? picking.said()
-      : { tone: "alarm", text: `${failed.message} — reloading is the way to try again.` }
+      : { tone: "alarm", text: `The menu didn’t load. Reload the page to try again. (${failed.message})` }
   }
 
   return (

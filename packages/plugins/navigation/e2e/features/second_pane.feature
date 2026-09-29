@@ -103,6 +103,28 @@ Feature: The second pane
     And the document in pane 1 is scrolled to the heading "Lists"
     And there should be no page errors
 
+  Scenario: A pane's header says the page's name, not its address
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    Then pane 0's header reads "house", and its close button is called "Close house"
+    And pane 1's header reads "install", and its close button is called "Close install"
+    When I open the address "/s/kitchen-sink.md%23code/garden.olai"
+    Then pane 0's header reads "kitchen-sink", and its close button is called "Close kitchen-sink"
+    And pane 1's header reads "garden", and its close button is called "Close garden"
+    And there should be no page errors
+
+  Scenario: A collapsed pane's rail says its name, and is called Expand
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    And I collapse pane 1 by dragging its divider
+    Then the pane rail 1 reads "install", and is called "Expand install"
+
+  Scenario: On a narrow screen the pane tabs say the pages' names
+    When I open the address "/s/house.olai/%23install?f=1"
+    And I shrink the window to a phone
+    Then the pane tabs read "house | install"
+    And there should be no page errors
+
   Scenario: A pane below the minimum width collapses to a rail
     Given I open the outline "house.olai"
     When I alt-click the zoom of "install"

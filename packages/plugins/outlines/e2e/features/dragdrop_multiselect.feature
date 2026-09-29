@@ -195,7 +195,7 @@ Feature: Dragging rows, and picking several
     # under a caret that is not there.
     When I pick the title of "handles"
     And I press "Tab"
-    Then the pick says "no row above it"
+    Then the pick says "no row above to indent under"
     And the node "handles" is a child of "install"
 
   # ── taking one back ──────────────────────────────────────────────────
@@ -272,7 +272,7 @@ Feature: Dragging rows, and picking several
     # `Move to Trash` on a mirror at all.
     When I pick the title of "kitchen-herbs"
     Then the pick does not offer the Trash
-    And the pick notes "a placement is in the pick"
+    And the pick notes "A mirrored row is selected"
 
   # ── the fifth picking gesture: drag across ───────────────────────────
   #

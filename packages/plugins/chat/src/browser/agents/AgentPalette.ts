@@ -14,7 +14,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   const [choosing, choose] = createSignal(false)
   createEffect(() => { if (!palette()?.open()) choose(false) })
   const start = async (agent: string) => {
-    const said = creation === undefined ? { tone: "alarm" as const, text: "chat is unavailable" } : await creation.start(agent)
+    const said = creation === undefined ? { tone: "alarm" as const, text: "Chat isn't available" } : await creation.start(agent)
     return said === undefined ? {} : { keepOpen: true, said }
   }
   return { items: (): ReadonlyArray<PaletteItem> => {
@@ -23,20 +23,24 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       search: `agents new chat ${engine.name}`.toLowerCase(), taking: atOnce,
       action: { kind: "run", run: () => start(engine.id) },
     }))
-    return [{ id: "new-chat", label: "new chat", place: "Agents", search: "agents new chat", taking: atOnce,
+    // ONLY WHAT WORKS: with no engine this machine can start, there is no
+    // `new chat` row to choose — the plugins panel says why.
+    const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 ? [] : [{
+      id: "new-chat", label: "New chat", place: "Agents", search: "agents new chat", taking: atOnce,
       action: { kind: "run", run: async () => {
         const only = agents.only()
         if (only !== null) return start(only.id)
-        if (agents.engines().length === 0) return { keepOpen: true, said: { tone: "alarm", text: "no agent engine is available" } }
+        if (agents.engines().length === 0) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
         choose(true)
         return { keepOpen: true }
-      } } }, ...byActivity(agents.rows()).map((row): PaletteItem => ({
+      } } }]
+    return [...creating, ...byActivity(agents.rows()).map((row): PaletteItem => ({
       id: `agent-${row.id}`, label: row.title, hint: LOOK[row.standing].label,
       place: "Agents", search: `agents ${row.title}`.toLowerCase(), taking: atOnce,
       action: { kind: "run", run: async () => {
         const nav = navigation()
-        if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "navigation is unavailable" } }
-        if (!focusAgent(route => nav.go(route), row)) return { keepOpen: true, said: { tone: "alarm", text: "the vault is unavailable" } }
+        if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "Can't open this right now" } }
+        if (!focusAgent(route => nav.go(route), row)) return { keepOpen: true, said: { tone: "alarm", text: "Your notes aren't available" } }
         return {}
       } },
     }))]

@@ -593,6 +593,11 @@ export const CALENDAR = selector(PLUGIN_TESTID.calendar);
 export const CALENDAR_DAY = selector(PLUGIN_TESTID.calendarDay);
 export const CALENDAR_PREV = selector(PLUGIN_TESTID.calendarPrev);
 export const CALENDAR_NEXT = selector(PLUGIN_TESTID.calendarNext);
+/** The `Today` row the month folds under: the link to today's page, and the
+ *  chevron that unfolds the month (`aria-expanded` says whether it is). */
+export const CALENDAR_ROW = selector(PLUGIN_TESTID.calendarRow);
+export const CALENDAR_TODAY = selector(PLUGIN_TESTID.calendarToday);
+export const CALENDAR_TOGGLE = selector(PLUGIN_TESTID.calendarToggle);
 /** One day, as a page: `/d/<date>` and `/today`. */
 export const DAY_PAGE = selector(PLUGIN_TESTID.dayPage);
 /** The day page's + day note — shown on any day without a note. */
@@ -617,6 +622,38 @@ export const TRASH_LINK = selector(TESTID.trashLink);
 /** Shown when the address names no file the directory holds. The sidebar stays.
  *  Distinct from {@link NOT_FOUND}, which is a `/#id` that names no node. */
 export const NOTHING = selector(TESTID.nothing);
+
+/** What a regular expression reads as syntax, to be taken literally. */
+const REGEXP_SPECIAL = /[.*+?^${}()|[\]\\]/g;
+
+/**
+ * THE EMPTY PAGE ON SCREEN — the one shared component every page with nothing
+ * on it draws (`@olai/web/client/Empty.tsx`), and the one helper every step
+ * about it reads through.
+ *
+ * Its heading is the element carrying {@link NOTHING}; the quieter line under
+ * it is that heading's sibling in one block; the page's one button sits beside
+ * that block. `line` picks the heading by its exact words — the SAME testid a
+ * sidebar or a second pane may also be drawing, so words and visibility both
+ * decide — and without it the first visible heading is the one meant.
+ */
+export const emptyPage = (page: Page, line?: string) => {
+  const shown = page.locator(NOTHING).locator("visible=true");
+  const exactly = (words: string): RegExp =>
+    new RegExp("^\\s*" + words.replace(REGEXP_SPECIAL, "\\$&") + "\\s*$");
+  const said = (line === undefined ? shown : shown.filter({ hasText: exactly(line) })).first();
+  return {
+    /** The heading. */
+    said,
+    /** The heading and the line under it, in order. */
+    lines: said.locator("xpath=../p"),
+    /** The line under the heading. */
+    detail: said.locator("xpath=following-sibling::p"),
+    /** The block holding the words and the button beside them. */
+    block: said.locator("xpath=../.."),
+  };
+};
+
 /** Shown in the main pane when `/#<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when the store never published a
@@ -631,6 +668,14 @@ export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is
  *  reporting is its `data-connection`, never its colour. */
 export const CONNECTION = selector(TESTID.connection);
+/** THE BAR'S ONE HEALTH DOT (desktop). `data-health` is `healthy` / `notice` /
+ *  `alarm`, `data-connection` the connection's own state, and its
+ *  `aria-label` names what is wrong in each readout's words. */
+export const HEALTH = selector(TESTID.health);
+/** ...and the popover it opens. The connection, the Commit readout and every
+ *  plugin's readout are ROWS of it now, drawn only while it is open — which is
+ *  why steps that read or press them go through `openStatus` / `readStatus`. */
+export const HEALTH_PANEL = selector(TESTID.healthPanel);
 /**
  * The row of pills in the header that are about the APP, and the two halves of
  * the tombstone over the retired `● git` readout.
@@ -645,51 +690,20 @@ export const CONNECTION = selector(TESTID.connection);
  */
 export const APP_CHROME = selector(TESTID.appChrome);
 
-/** The default desktop inventory of that row, in order. Plugin Headers grow
- *  here in registry order without a bar edit, so "the header shows one git
- *  indicator" counts Commit pills rather than treating this list as a closed
- *  set. The list is still the inventory a person reads, and a second control
- *  reporting on git is the decision the git-indicator step is here to catch.
- *  The theme pill was the fifth entry until `preferences-panel`. */
+/** The default desktop inventory of that row, in order: the calm bar. The
+ *  connection, the Commit readout, every plugin's readout and the uptime line
+ *  are ROWS of the health popover now, not chips in the bar, and the plugins
+ *  door is that popover's foot. The Commit readout is still the only control
+ *  anywhere in the chrome that reports on the repository, which is what the
+ *  git-indicator step guards — it now counts rows of the popover. */
 export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
-  // The search box, and beside it the magnifier a phone gets instead (the bar
-  // has no room for a box at 390pt, and a phone has no ⌘K). Added here as the
-  // deliberate edit this list exists to demand: the row gained a DOOR, not a
-  // second answer about git — the Commit pill is still the only control in it
-  // that reports on the repository, which is the whole of what the fence
-  // below guards.
+  // The search box, and beside it the magnifier a phone gets instead.
   PLUGIN_TESTID.headerSearch,
   PLUGIN_TESTID.headerSearchOpen,
-  TESTID.connection,
-  // The padi link, between the two promises it sits with: whether this page is
-  // still READING (the connection, before it) and whether what is written to it
-  // is KEPT (the Commit pill, after it). This is the third — whether it can see
-  // kolu's terminals.
-  //
-  // Added as the deliberate edit this list demands, and it does NOT weaken what
-  // the fence guards. `one-git-indicator` is about a SECOND control answering
-  // for GIT, and this one answers for a padi socket: it never reports a
-  // repository state, it draws from `cells.kolu` and from nothing else, and the
-  // assertion below still holds that the Commit pill is the only control in the
-  // row that reports on the repository. Chrome that is orthogonal grows the
-  // list by one; chrome that answers a question already answered is what the
-  // list exists to stop, and this is the first kind.
-  PLUGIN_TESTID.padi,
-  PLUGIN_TESTID.commitPill,
-  // How long THIS process has been the one answering — furniture, beside
-  // the committed pill, the same register. Added as the deliberate edit
-  // this list demands: it does not answer for git (the fence below still
-  // holds that the Commit pill is the only control in the row that does),
-  // it draws from `app.get`'s start instant and from nothing else, and a
-  // second process-start chip would be the redundancy this list exists to
-  // stop.
-  TESTID.uptime,
-  PLUGIN_TESTID.chatToggle,
+  // ONE dot for everything the bar used to stand a pill for.
+  TESTID.health,
   TESTID.prefsTrigger,
-  // Who is looking, last — an icon about the request, not about git. A
-  // PLUGIN's id since identity became a row: it hangs in the app.viewer
-  // seat, so a serve without that row has one fewer chip here and the
-  // fence below is about what the ROW draws when it is running.
+  // Who is looking, last — a plugin's face in the app.viewer seat.
   PLUGIN_TESTID.identity,
 ];
 
@@ -751,6 +765,12 @@ export const PLUGINS_MOVED = selector(TESTID.pluginsMoved);
 export const PREFS_ROW = selector(TESTID.prefsRow);
 export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
+/** A yes-or-no row's switch: `role="switch"`, its state `aria-checked`. Every
+ *  binary preference (Show finished, Alerts, Sound) is one of these. */
+export const PREFS_SWITCH = selector(TESTID.prefsSwitch);
+/** The choice in force, named quietly beside a row's label where the control
+ *  does not spell it out (the theme swatches). */
+export const PREFS_VALUE = selector(TESTID.prefsValue);
 export const PREFS_SCOPE = selector(TESTID.prefsScope);
 export const PREFS_SET_BY = selector(TESTID.prefsSetBy);
 export const COMMIT_RESUME = selector(PLUGIN_TESTID.commitResume);
@@ -1696,6 +1716,56 @@ export class OlaiWorld extends World {
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
 
+  /**
+   * Put the health popover up, and leave it up — for a step about to PRESS a
+   * row in it (the Commit readout, kolu's, the plugins door).
+   *
+   * On a desktop the status readouts are rows of that popover and exist only
+   * while it is open; on a phone there is no dot, the rows are not drawn at
+   * all, and this does nothing — which is why it is one call at the top of
+   * those steps rather than a `@phone` branch inside each. Idempotent: an open
+   * popover is left alone, because pressing the dot again would shut it.
+   */
+  async openStatus(page: Page = this.page): Promise<void> {
+    const dot = page.locator(HEALTH);
+    if (!(await dot.isVisible())) return;
+    const panel = page.locator(HEALTH_PANEL);
+    if (await panel.isVisible()) return;
+    await dot.click();
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
+
+  /**
+   * Read something off the health popover's rows WITHOUT leaving the page
+   * changed: open it if it is shut, run `read`, then shut it again and put the
+   * caret back where it was — opening a popover moves focus into it, and a
+   * step that only LOOKED must not have taken the caret out of an editor a
+   * later step types into. Already open (a scenario that opened it, or a row's
+   * own panel above it) is read in place and left open.
+   */
+  async readStatus<T>(read: () => Promise<T>): Promise<T> {
+    const dot = this.page.locator(HEALTH);
+    const panel = this.page.locator(HEALTH_PANEL);
+    if (!(await dot.isVisible()) || (await panel.isVisible())) return read();
+    await this.page.evaluate(() => {
+      (window as unknown as { __olaiStatusFocus?: Element | null }).__olaiStatusFocus =
+        document.activeElement;
+    });
+    await this.openStatus();
+    try {
+      return await read();
+    } finally {
+      if (await panel.isVisible()) await dot.click();
+      await panel.waitFor({ state: "hidden", timeout: POLL_TIMEOUT }).catch(() => undefined);
+      await this.page.evaluate(() => {
+        const held = window as unknown as { __olaiStatusFocus?: Element | null };
+        const was = held.__olaiStatusFocus;
+        delete held.__olaiStatusFocus;
+        if (was instanceof HTMLElement && was !== document.body && was.isConnected) was.focus();
+      });
+    }
+  }
+
   async expandReference(): Promise<void> {
     await this.showSidebar();
     const toggle = this.page.getByTestId(TESTID.referenceToggle);
@@ -1801,6 +1871,23 @@ export class OlaiWorld extends World {
   }
 
 
+  /**
+   * THE MONTH, UNFOLDED — the sidebar's calendar is shut under its `Today` row
+   * by default, so a step about a day's cell opens it first. Idempotent: an
+   * open month is left open, and the preference this writes is the reader's
+   * own (`olai.sidebar.calendar`), exactly as a click would write it.
+   */
+  async openCalendar(page: Page = this.page): Promise<void> {
+    // Already unfolded (a phone's shut drawer still holds it): asserting a
+    // day's facts must not open the drawer over the page as a side effect.
+    if ((await page.locator(CALENDAR).count()) > 0) return;
+    await this.showSidebar(page);
+    const toggle = page.locator(CALENDAR_TOGGLE);
+    await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+    await page.locator(CALENDAR).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
+
   /** One day of the month in the sidebar. */
   calendarDay(date: string): Locator {
     return this.page.locator(daySelector(date));
@@ -1904,26 +1991,113 @@ export class OlaiWorld extends World {
   }
 
   /**
-   * Quiet groups start collapsed. A scenario that names a row in one has to
-   * open the heading first — the same press a person makes — or the wait for
-   * visible is a wait for a summary.
+   * Put the plugins panel up, the way a person gets to it, unless it is up.
+   *
+   * On a desktop the door is the `Plugins` row at the foot of the health
+   * popover, so the dot is pressed first; picking the row shuts the popover and
+   * the panel hangs from the dot. On a phone the door is a row of the sidebar
+   * drawer. A returning layout can restore an open panel before its trigger,
+   * which is why the panel is checked for on every turn of the wait.
    */
-  async showPluginRow(plugin: string): Promise<Locator> {
+  async showPlugins(): Promise<Locator> {
+    const panel = this.pluginsPanel();
+    if ((await panel.count()) > 0) return panel;
+    const trigger = this.page.locator(PLUGINS_TRIGGER).locator("visible=true");
+    await this.waitUntil(async () => {
+      if ((await panel.count()) > 0 || (await trigger.isVisible())) return true;
+      if (await this.page.locator(HEALTH).isVisible()) await this.openStatus().catch(() => undefined);
+      else await this.showSidebar().catch(() => undefined);
+      return (await panel.count()) > 0 || (await trigger.isVisible());
+    }, "the plugins panel or its trigger");
+    if ((await panel.count()) > 0) return panel;
+    await this.press(trigger);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    return panel;
+  }
+
+  /**
+   * Put the plugins panel away, the way a person does: Escape on it.
+   *
+   * NOT its trigger. On a desktop the trigger is the `Plugins` row of the
+   * health popover, and picking it shut that popover — there is nothing there
+   * to press. Escape shuts the panel and the caret goes back to the health dot
+   * it hangs from; on a phone Escape shuts the panel over the drawer the same
+   * way.
+   */
+  async hidePlugins(): Promise<void> {
+    const panel = this.pluginsPanel();
+    if ((await panel.count()) === 0) return;
+    await panel.press("Escape");
+    await this.page.locator(PLUGINS_PANEL).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+    const health = this.page.locator(HEALTH_PANEL);
+    if (await health.isVisible()) {
+      await this.press(this.page.locator(HEALTH));
+      await health.waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+    }
+  }
+
+  /**
+   * One plugin's row, on screen and OPEN.
+   *
+   * Two presses stand between the panel and a row's detail, and this makes
+   * both — the ones a person makes. Every group (Needs attention, Agents,
+   * Notes, Connections, Interface, Your plugins, and Server at the foot) is a
+   * `<details>` that may be shut, and every row in it is a one-line summary —
+   * name, status, switch — whose sentence, face, knobs and source sit behind
+   * its name button (`aria-expanded`, `aria-controls` its detail). A row
+   * filed under Needs attention starts open; a row with nothing to reveal has
+   * no button and nothing to open.
+   *
+   * `detail: false` stops after the group, for a step that only wants the
+   * row's line (its switch) and must not move the row's own open state.
+   */
+  async showPluginRow(
+    plugin: string,
+    options: { readonly detail?: boolean } = {},
+  ): Promise<Locator> {
     const panel = this.pluginsPanel();
     const row = panel.locator(`${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
     await row.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
     // Walk from the row, not from a group selector: after a shell remount the
     // heading is still a `<details>` wrapping the row, and a CSS walk that
     // missed it left every quiet row hidden.
-    const opened = await row.evaluate((el) => {
-      const details = el.closest("details");
-      if (!(details instanceof HTMLDetailsElement) || details.open) return false;
-      const summary = details.querySelector(":scope > summary");
-      if (summary instanceof HTMLElement) summary.click();
-      details.open = true;
-      return true;
-    });
-    if (opened) await this.waitForFrame();
+    //
+    // AND WALK AGAIN until the row is on screen: an approval or a switch moves
+    // a row between groups — out of Needs attention, which is open, into its
+    // own group, which starts shut — and the row the first walk opened a group
+    // for is then a different element in a different, shut group.
+    const reveal = async (): Promise<boolean> =>
+      await row.evaluate((el) => {
+        const details = el.closest("details");
+        if (!(details instanceof HTMLDetailsElement) || details.open) return false;
+        const summary = details.querySelector(":scope > summary");
+        if (summary instanceof HTMLElement) summary.click();
+        details.open = true;
+        return true;
+      }, undefined, { timeout: 1000 }).catch(() => false);
+    await this.waitUntil(async () => {
+      if (await reveal()) await this.waitForFrame();
+      return await row.isVisible();
+    }, `the ${plugin} row to be on screen in its group`);
+    if (options.detail === false) return row;
+    // The row's own name button: the one that controls its detail block.
+    // A PRESS IS A TOGGLE, and the row's open state can move under it: a
+    // roster republish that files the row under Needs attention opens it by
+    // default, and a press aimed at the shut row then shuts it. So the state
+    // is read again after every press and pressed again while it says shut —
+    // never one press followed by a long wait for an answer it undid.
+    const name = row.locator(`button${attr("aria-controls", `plugins-detail-${plugin}`)}`);
+    const open = async (): Promise<boolean> =>
+      (await name.count()) === 0 ||
+      (await name.getAttribute("aria-expanded", { timeout: 1000 }).catch(() => null)) === "true";
+    await this.waitUntil(async () => {
+      if (await open()) return true;
+      await name.click({ timeout: 2000 }).catch(async () => {
+        await name.evaluate((el) => { if (el instanceof HTMLElement) el.click(); }).catch(() => undefined);
+      });
+      await this.waitForFrame();
+      return await open();
+    }, `the ${plugin} row's detail to open`, 45_000);
     return row;
   }
 
@@ -2399,6 +2573,7 @@ export class OlaiWorld extends World {
     fact: "data-dated" | "data-noted" | "data-today" | "data-open",
     expected: boolean,
   ): Promise<void> {
+    await this.openCalendar();
     await this.expectAttribute(
       daySelector(date),
       fact,

@@ -61,19 +61,18 @@ export const SAID: {
 } = {
   connected: {
     mark: { glyph: "✓", tint: "text-done" },
-    sentence: "is attached, the agent says",
+    sentence: "is connected",
   },
   handed: {
     mark: null,
-    sentence:
-      "was handed to this conversation; the agent has not said whether it attached",
+    sentence: "was offered, not yet confirmed",
   },
   unattached: {
     mark: { glyph: "×", tint: "text-alarm" },
-    sentence: "did not attach to this conversation",
+    sentence: "didn't connect to this chat",
   },
   missing: {
     mark: { glyph: "×", tint: "text-alarm" },
-    sentence: "is missing from this conversation",
+    sentence: "is missing from this chat",
   },
 }

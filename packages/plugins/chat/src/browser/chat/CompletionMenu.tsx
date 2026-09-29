@@ -125,6 +125,11 @@ function RowLabel(props: { readonly row: MenuRow }) {
   )
 }
 
+/** A section's heading in words a person reads. The section KEY stays what
+ *  `./naming.ts` files it under (it is the `data-section` a test asks for);
+ *  only what is drawn is said plainly. */
+const SECTION_WORDS: Readonly<Record<string, string>> = { files: "Files", nodes: "Rows" }
+
 export function CompletionMenu(props: {
   readonly completing: Completing | null
   readonly rows: ReadonlyArray<MenuRow>
@@ -249,7 +254,7 @@ export function CompletionMenu(props: {
     // be answering a question this list is not asked. The `•••` menu's
     // portal is the escape for overlays that live IN the outline.
     <ul
-      class={`absolute bottom-full left-2 right-2 ${WITHIN.pop} mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
+      class={`absolute bottom-full left-2 right-2 ${WITHIN.pop} mb-1 max-h-64 list-none overflow-y-auto rounded-surface border border-rule/60 bg-panel p-1 shadow-raised`}
       data-testid={TESTID.chatCompletion}
       data-kind={props.completing?.kind}
       data-asked={props.asked}
@@ -274,17 +279,17 @@ export function CompletionMenu(props: {
                 label rather than something to take. */}
             <Show when={row().section !== props.rows[index - 1]?.section}>
               <li
-                class="px-2 pb-0.5 pt-1 font-mono text-[0.625rem] uppercase tracking-wide text-muted"
+                class="px-2 pb-0.5 pt-1 text-caption uppercase tracking-wide text-muted"
                 data-testid={TESTID.chatCompletionSection}
                 data-section={row().section}
               >
-                {row().section}
+                {SECTION_WORDS[row().section ?? ""] ?? row().section}
               </li>
             </Show>
             <li>
               <button
                 type="button"
-                class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
+                class={`block w-full truncate rounded-control px-2 py-1 text-left text-label ${
                   index === selection.selected() ? "bg-rule" : ""
                 }`}
                 data-testid={TESTID.chatCompletionRow}
@@ -305,7 +310,7 @@ export function CompletionMenu(props: {
         )}
       </Index>
       <Show when={requiresSelection(props.completing)}>
-        <li class="px-2 py-1 text-xs text-muted">
+        <li class="px-2 py-1 text-label text-muted">
           {selection.selected() !== null ? "Enter completes" : "↑/↓ select · Tab completes · Enter sends"}
         </li>
       </Show>

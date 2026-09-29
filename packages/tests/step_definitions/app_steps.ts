@@ -5,11 +5,13 @@
  */
 
 import * as assert from "node:assert";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { HYDRATION_TIMEOUT, ROOT } from "../support/world.ts";
+import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration";
+
+import { emptyPage, HYDRATION_TIMEOUT, oneLine, ROOT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 When("I open the app", async function (this: OlaiWorld) {
@@ -117,6 +119,76 @@ Then("the page has not reloaded", async function (this: OlaiWorld) {
   );
 });
 
+
+// ── an empty page ──────────────────────────────────────────────────────
+//
+// Every page with nothing on it draws one shared component
+// (`@olai/web/client/Empty.tsx`): the leaf, a line saying what is empty, a
+// quieter line under it saying what will appear here, and at most one button
+// doing the obvious next thing. Here rather than in each plugin's steps
+// because the SHAPE is shared; what each page says is the scenario's.
+
+const emptyLines = async (world: OlaiWorld, line: string): Promise<string[]> => {
+  const { said, lines } = emptyPage(world.page, line);
+  await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  return (await lines.allInnerTexts()).map(oneLine);
+};
+
+Then(
+  "the empty page says {string} over {string}",
+  async function (this: OlaiWorld, line: string, detail: string) {
+    const lines = await emptyLines(this, line);
+    assert.deepStrictEqual(lines, [line, detail], `the empty page reads ${JSON.stringify(lines)}`);
+  },
+);
+
+Then("the empty page says {string} and nothing more", async function (this: OlaiWorld, line: string) {
+  const lines = await emptyLines(this, line);
+  assert.deepStrictEqual(lines, [line], `the empty page reads ${JSON.stringify(lines)}`);
+});
+
+Then(
+  "the empty page {string} offers {string}",
+  async function (this: OlaiWorld, line: string, action: string) {
+    const { said, block } = emptyPage(this.page, line);
+    await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const buttons = (await block.getByRole("button").allInnerTexts()).map(oneLine);
+    assert.deepStrictEqual(buttons, [action], `the empty page offers ${JSON.stringify(buttons)}`);
+  },
+);
+
+Then("the empty page {string} offers nothing to press", async function (this: OlaiWorld, line: string) {
+  const { said, block } = emptyPage(this.page, line);
+  await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await block.getByRole("button").count(), 0, "an empty page with nothing to do offers a button");
+});
+
+When(
+  "I press {string} on the empty page {string}",
+  async function (this: OlaiWorld, action: string, line: string) {
+    const { said, block } = emptyPage(this.page, line);
+    await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.press(block.getByRole("button", { name: action, exact: true }));
+  },
+);
+
+/**
+ * A DIRECTORY WITH NOTHING IN IT — not even the settings file this harness
+ * authors into every served copy (`support/hooks.ts`, `writeFixturePolicy`,
+ * which pins the log format). The front page falls back to a convention
+ * outline when it is the only one (`@olai/format`'s `page.ts`, held by its
+ * `page.test.ts`), so while that file is there the front page is the
+ * settings outline, and a scenario about a directory holding nothing would be
+ * asking about one that holds something. Removed before the app opens; the
+ * serve follows the file live.
+ */
+Given("the served directory holds no file at all", function (this: OlaiWorld) {
+  rmSync(join(this.scratch(), CONFIGURATION_FILE), { force: true });
+  // A dotfile is nothing a page draws (the fixture's own `.gitkeep`).
+  const left = readdirSync(this.scratch(), { recursive: true, withFileTypes: true })
+    .filter((one) => one.isFile() && !one.name.startsWith("."));
+  assert.deepStrictEqual(left.map((one) => one.name), [], "the served directory still holds files");
+});
 
 /** Close the app's live connections before a persistence-only server restart.
  * Reconnect workflows keep their tab open and exercise the connection overlay. */

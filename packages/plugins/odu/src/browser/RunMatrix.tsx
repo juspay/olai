@@ -54,7 +54,7 @@ const spanOf = (cell: RunCell, now: number, clocks: OduClocks): string => {
 
 /** ...and the exact figure on the hover, where there is one to be exact about. */
 const spanTitle = (cell: RunCell, clocks: OduClocks): string | undefined =>
-  cell.ms === null ? undefined : `took ${clocks.exactOf(cell.ms / 1000)}`
+  cell.ms === null ? undefined : `Took ${clocks.exactOf(cell.ms / 1000)}`
 
 export function RunMatrix(context: BlockContext) {
   const runs = useRuns()
@@ -85,7 +85,7 @@ function Matrix(props: { readonly run: CiRun }) {
   }
   return (
     <div
-      class="mb-1 overflow-x-auto rounded border border-rule bg-panel px-2 py-1 font-mono text-xs"
+      class="mb-1 overflow-x-auto rounded-control border border-rule bg-panel px-2 py-1 font-mono text-label"
       data-testid={TESTID.ciMatrix}
       data-run={props.run.id}
       data-live={liveOf(props.run.state) ? "yes" : "no"}

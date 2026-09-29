@@ -22,7 +22,7 @@ test("the plain page is the two numbers and nothing else", () => {
 // and a page that never held one look identical without it.
 test("a query that found nothing still says how much there was to find it in", () => {
   expect(countLine({ shown: 0, held: 57, hiddenAsDone: 0 }))
-    .toBe("no matches of 57")
+    .toBe("No matches of 57")
 })
 
 // The three truths at once, which is the line this whole file exists for: what
@@ -43,9 +43,9 @@ test("one held-back match is a match, not 1 matches", () => {
 // MORE matches" than the nothing on screen.
 test("nothing drawn and something hidden drops the word `more`", () => {
   expect(countLine({ shown: 0, held: 57, hiddenAsDone: 3 }))
-    .toBe("no matches of 57 — 3 matches hidden as done")
+    .toBe("No matches of 57 — 3 matches hidden as done")
   expect(countLine({ shown: 0, held: 57, hiddenAsDone: 1 }))
-    .toBe("no matches of 57 — 1 match hidden as done")
+    .toBe("No matches of 57 — 1 match hidden as done")
 })
 
 
@@ -73,7 +73,7 @@ test("rows that answer an older query say so instead of counting", () => {
 
 // ...and the wait word is a promise, so it may only be said while something is
 // coming. A first query whose call failed has no answer and no answer on the
-// way: the failure line beside this one is the news, and `filtering…` left up
+// way: the failure line beside this one is the news, and `Filtering…` left up
 // over it would be the page waiting for something nobody is fetching.
 test("a failed call says nothing here, because the line below is the news", () => {
   expect(countSaid({ answering: null, failure: "the wire is gone", counts: COUNTS }))

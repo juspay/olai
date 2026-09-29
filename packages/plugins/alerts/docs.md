@@ -11,15 +11,21 @@ withdrawal consumers stop first, then the badge clears, audio closes, listeners
 leave and retained preference setters are invalidated. A second seam activation
 is refused. Reactivation reads current storage and permission.
 
-The `controls` component contributes **Alerts** and **Alert sound**, both default
-on, to `preferences.sections`. Alert sound is frozen while Alerts is off.
-Alerts off gates every device and immediately clears the badge. The Allow
-notifications button offers a real gesture for permission requests.
+The `controls` component contributes two switches, **Alerts** and **Sound**,
+both default on, to `preferences.sections` as one `{ group, order, body }`
+entry under the **Notifications** group. Under Alerts one short line says *When
+the agent needs you* — or, only while it applies, *Notifications are blocked in
+this browser* or *This browser can't show notifications*. With Alerts off,
+Sound is dimmed and disabled, and so is journal's **Reminders** switch in the
+same group. Alerts off gates every device and immediately clears the badge.
+The **Allow notifications** button, drawn only while Alerts is on and the
+browser has neither granted nor refused, offers a real gesture for permission
+requests.
 
 The `tab-attention` component alone writes `theme.appearance`'s `chrome.waiting`;
 its withdrawal clears that mark. Chat is the badge's only claimant: it counts
 questions. Its `attention` component names `alerts.channel`, so removing this row
-leaves the panel, forms and header toggle standing, while attention waits and
+leaves conversations and their forms standing, while attention waits and
 nothing rings. Removing preferences or theme does not stop notification delivery.
 Journal names the same service on its `reminders` component. Without it,
 reminders wait and their preference row leaves, while calendar, day and agenda

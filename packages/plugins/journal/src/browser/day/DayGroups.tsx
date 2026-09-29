@@ -57,7 +57,7 @@ function Group(props: {
     <section class="mb-6" data-testid={TESTID.dayGroup} data-file={props.group.file}>
       <Dynamic
         component={props.heading}
-        class="m-0 mb-2 font-mono text-xs text-muted"
+        class="m-0 mb-2 font-mono text-label text-muted"
       >
         <Link route={atFile(props.group.file)} class={CRUMB}>
           {props.group.file}

@@ -7,7 +7,6 @@ Feature: The ••• menu writes
   consistency violation (MCP and Web ops must be consistent; never deviate)
   rather than a missing feature, and these are the verbs that close it for the
   mouse.
-      | Move to…           |
 
   Every one of them is ONE op through the same write gate the agent's tools go
   through, nothing is echoed, and what the ops layer refuses is quoted where
@@ -23,16 +22,30 @@ Feature: The ••• menu writes
     And I mark the page
 
   Scenario: A row with no mark is offered all four, and nothing to clear
+    # The marks are one entry, `Mark ›`, and the four are in the submenu it
+    # opens — in the order a task moves through, `Cancelled` last.
     When I open the node menu of "handles"
-    Then the node menu offers "Mark todo"
-    And the node menu offers "Mark doing"
-    And the node menu offers "Complete"
-    And the node menu offers "Cancel"
-    And the node menu does not offer "Clear mark"
+    And I open "Mark" in the node menu
+    Then the node menu's "Mark" offers:
+      | To do     |
+      | Doing     |
+      | Done      |
+      | Cancelled |
+
+  Scenario: A marked row is offered the other three, and the clear
+    # `knobs` is todo: `To do` again is the one request the ops layer refuses
+    # for asking about nothing, so it is not offered back.
+    When I open the node menu of "knobs"
+    And I open "Mark" in the node menu
+    Then the node menu's "Mark" offers:
+      | Doing     |
+      | Done      |
+      | Cancelled |
+      | Clear     |
 
   Scenario: Marking a node writes the mark, and the page follows the file
     When I open the node menu of "handles"
-    And I choose "Mark doing" from the node menu
+    And I choose "Mark › Doing" from the node menu
     Then the node "handles" has status "doing"
     And "house.olai" holds a node marked doing titled "choose the handles"
     And the page has not reloaded
@@ -40,10 +53,10 @@ Feature: The ••• menu writes
 
   Scenario: Clearing a mark takes it off, and the entry goes with it
     When I open the node menu of "knobs"
-    And I choose "Clear mark" from the node menu
+    And I choose "Mark › Clear" from the node menu
     Then the node "knobs" has no status
     When I open the node menu of "knobs"
-    Then the node menu does not offer "Clear mark"
+    Then the node menu does not offer "Mark › Clear"
 
   Scenario: Walking finished work backwards takes two clicks, and the ops layer says why
     # The refusal a person MUST see, in the ops layer's own words: nothing
@@ -51,14 +64,14 @@ Feature: The ••• menu writes
     # calls is what an agent makes, so two clicks is what the menu asks for —
     # a menu that quietly sent both would be the web doing what MCP cannot.
     When I open the node menu of "demo"
-    And I choose "Mark doing" from the node menu
+    And I choose "Mark › Doing" from the node menu
     Then the node menu of "demo" says "`take out the old counters` is done. Undo that first — nothing should decide on your behalf that finished work is not finished."
     And the node "demo" has status "done"
     When I open the node menu of "demo"
-    And I choose "Clear mark" from the node menu
+    And I choose "Mark › Clear" from the node menu
     Then the node "demo" has no status
     When I open the node menu of "demo"
-    And I choose "Mark doing" from the node menu
+    And I choose "Mark › Doing" from the node menu
     Then the node "demo" has status "doing"
 
   Scenario: A write that landed with something to say says it here too
@@ -68,10 +81,10 @@ Feature: The ••• menu writes
     # cabinets` once `pick the knobs` has stopped being one, so ticking it off
     # is the moment somebody might want to tick the branch.
     When I open the node menu of "knobs"
-    And I choose "Clear mark" from the node menu
+    And I choose "Mark › Clear" from the node menu
     Then the node "knobs" has no status
     When I open the node menu of "hinges"
-    And I choose "Complete" from the node menu
+    And I choose "Mark › Done" from the node menu
     Then the node "hinges" has status "done"
     And the node menu of "hinges" remarks "every task under `install the cabinets` is done now"
 
@@ -79,12 +92,13 @@ Feature: The ••• menu writes
     # The same rule the checkbox and Ctrl+Enter follow: what a node SAYS is
     # edited on the node, wherever the reader is standing.
     When I open the node menu of "kitchen-herbs"
-    And I choose "Mark todo" from the node menu
+    And I choose "Mark › To do" from the node menu
     Then "garden.olai" holds a node marked todo titled "the herb bed by the door"
 
   Scenario: Clearing a date removes the field, and the badge with it
+    # Taking a date back off is filed under `More ›`, away from `Change date…`.
     When I open the node menu of "order"
-    And I choose "Clear date" from the node menu
+    And I choose "More › Clear date" from the node menu
     Then the node "order" shows no date
     And "house.olai" holds the node "order" with no date
 
@@ -92,9 +106,9 @@ Feature: The ••• menu writes
     # What `outlines_unmirror` does, from the row it is about: the placement's own
     # record goes, the node it showed stays exactly where it lives.
     When I open the node menu of "kitchen-herbs"
-    Then the node menu offers "Remove this placement"
+    Then the node menu offers "More › Remove from here"
     And the node menu does not offer "Move to Trash"
-    When I choose "Remove this placement" from the node menu
+    When I choose "More › Remove from here" from the node menu
     Then "house.olai" no longer holds the node "kitchen-herbs"
     And "garden.olai" holds the node "herbs"
     And the node "kitchen-herbs" is not shown
@@ -115,7 +129,7 @@ Feature: The ••• menu writes
     # menu on an element the next frame replaces, and the panel never appears.
     Then the node "install" is not shown
     When I open the node menu of "kitchen-herbs"
-    And I choose "Remove this placement" from the node menu
+    And I choose "More › Remove from here" from the node menu
     Then the node menu of "kitchen-herbs" says "`kitchen-herbs` is still named by `order` (`see`, house.olai:2) — retiring it would leave that pointing at nothing. Re-point it at `herbs` (the node this placement shows), or retire it first."
     And "house.olai" holds the node "kitchen-herbs"
 
@@ -146,7 +160,7 @@ Feature: The ••• menu writes
     # outliner reads back as a level and what a paste-in parser will look for.
     Given this browser's clipboard records what is copied
     When I open the node menu of "install"
-    And I choose "Copy as text" from the node menu
+    And I choose "More › Copy as text" from the node menu
     Then the clipboard holds:
       """
       install the cabinets
@@ -159,7 +173,7 @@ Feature: The ••• menu writes
   Scenario: A note rides under its node, one level deeper
     Given this browser's clipboard records what is copied
     When I open the node menu of "order"
-    And I choose "Copy as text" from the node menu
+    And I choose "More › Copy as text" from the node menu
     Then the clipboard holds:
       """
       order the new cabinets
@@ -174,8 +188,8 @@ Feature: The ••• menu writes
   Scenario: A copy the browser refused says so, instead of nothing
     Given this browser's clipboard refuses
     When I open the node menu of "kitchen"
-    And I choose "Copy as text" from the node menu
-    Then the node menu of "kitchen" says "couldn't copy as text"
+    And I choose "More › Copy as text" from the node menu
+    Then the node menu of "kitchen" says "“Copy as text” didn’t work"
 
   Scenario: A copy that LANDED says so too
     # The other half of the scenario above, and the reason it is worth a
@@ -187,5 +201,5 @@ Feature: The ••• menu writes
     # a remark from arriving dressed as a refusal.
     Given this browser's clipboard records what is copied
     When I open the node menu of "kitchen"
-    And I choose "Copy link to node" from the node menu
-    Then the node menu of "kitchen" remarks "link copied"
+    And I choose "More › Copy link" from the node menu
+    Then the node menu of "kitchen" remarks "Link copied"

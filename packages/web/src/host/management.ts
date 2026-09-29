@@ -7,6 +7,7 @@ import { app } from "./runtime.ts"
 const looks = new Map(ROWS.map((row) => [row.id, {
   switchHint: row.switchHint,
   section: row.section,
+  ...(row.label === undefined ? {} : { label: row.label }),
   ...(row.quiet === true ? { quiet: true } : {}),
   ...(row.disabled === true ? { optIn: true } : {}),
 }]))

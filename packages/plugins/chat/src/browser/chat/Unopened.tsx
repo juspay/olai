@@ -15,7 +15,7 @@ export function Unopened(
 ) {
   return (
     <div
-      class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6 text-sm text-muted"
+      class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6 text-body text-muted"
       data-testid={TESTID.chatUnopened}
     >
       <p class="m-0 mb-3 text-ink">
@@ -23,23 +23,22 @@ export function Unopened(
             its own conversation, so "could not open `fake-stored-old`" would
             be this panel putting a name to a choice nobody made. */}
         {props.unopened.what === null
-          ? "The agent would not open a conversation."
-          : "The agent would not open that conversation."}
+          ? "The agent couldn't open a chat."
+          : "The agent couldn't open that chat."}
       </p>
 
       {/* Its own line and its own id, for `Missing.tsx`'s reason: the REASON is
           what this face exists for, and `break-words` because it can carry a
           session id or a method name into a 26rem drawer. */}
       <p
-        class="m-0 mb-3 break-words font-mono text-xs text-alarm"
+        class="m-0 mb-3 break-words text-label text-alarm"
         data-testid={TESTID.chatUnopenedWhy}
       >
         {props.unopened.why}
       </p>
 
       <p class="m-0 mb-3">
-        The conversation could not be opened. You can keep using the outlines
-        and try again when the cause has cleared.
+        Your notes still work. Try again once the problem is fixed.
       </p>
 
       {/* The header's own quiet pill, at the header's own scale — this sits in
@@ -51,7 +50,7 @@ export function Unopened(
         data-testid={TESTID.chatReopen}
         onClick={() => props.chat.reopen()}
       >
-        try again
+        Try again
       </button>
 
       {/* WHAT THAT BUTTON WAS TOLD, when it was told something. The panel's

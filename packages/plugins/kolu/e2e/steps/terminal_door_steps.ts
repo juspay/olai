@@ -215,15 +215,18 @@ const PADI = `[data-testid="padi"]`;
 Then(
   "the padi indicator says {string}",
   async function (this: OlaiWorld, status: string) {
-    const pill = this.page.locator(PADI).first();
-    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The STATE as an attribute rather than the label's words: the closed set
-    // is the contract, and a label that changed wording would fail a scenario
-    // about a state that had not moved.
-    await this.waitUntil(
-      async () => (await pill.getAttribute("data-padi")) === status,
-      `the padi indicator to say ${JSON.stringify(status)}`,
-    );
+    // A row of the health popover on a desktop, read with it up.
+    await this.readStatus(async () => {
+      const pill = this.page.locator(PADI).first();
+      await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+      // The STATE as an attribute rather than the label's words: the closed set
+      // is the contract, and a label that changed wording would fail a scenario
+      // about a state that had not moved.
+      await this.waitUntil(
+        async () => (await pill.getAttribute("data-padi")) === status,
+        `the padi indicator to say ${JSON.stringify(status)}`,
+      );
+    });
   },
 );
 
@@ -243,8 +246,11 @@ Then(
       state: "visible",
       timeout: POLL_TIMEOUT,
     });
+    // ...and counted with the health popover UP, where the row would be: shut,
+    // it draws no readout rows at all, and zero would prove nothing.
+    const rows = await this.readStatus(() => this.page.locator(PADI).count());
     assert.equal(
-      await this.page.locator(PADI).count(),
+      rows,
       0,
       "a serve that composed no kolu should hang no padi readout in the bar",
     );
@@ -257,7 +263,7 @@ Then(
     // The SENTENCE, off `aria-label` rather than a tooltip a mouse has to
     // find. A skew that did not name both versions would leave a reader
     // knowing something is wrong and not which way to move.
-    const said = await this.page.locator(PADI).first().getAttribute("aria-label");
+    const said = await this.readStatus(() => this.page.locator(PADI).first().getAttribute("aria-label"));
     assert.ok(
       said?.includes(says),
       `the padi indicator should explain "${says}" — it said "${said}"`,

@@ -44,6 +44,9 @@ export const TESTID = {
   nodeMenu: "node-menu",
   nodeMenuPanel: "node-menu-panel",
   nodeMenuItem: "node-menu-item",
+  /** A submenu's panel (`Mark ›`, `More ›`, a plugin's choice); `data-sub`
+   *  names the entry that opened it. */
+  nodeMenuSub: "node-menu-sub",
   nodeMenuConfirm: "node-menu-confirm",
   nodeMenuSaid: "node-menu-said",
   blocked: "blocked",
@@ -112,11 +115,14 @@ export const TESTID = {
   filterBar: "filter-bar",
   filterInput: "filter-input",
   doneFlip: "done-flip",
+  doneToggle: "done-toggle",
   doneRelease: "done-release",
   filterCount: "filter-count",
   filterClear: "filter-clear",
   filterRefusal: "filter-refusal",
   filterFailure: "filter-failure",
+  nothingNewOutline: "nothing-new-outline",
+  missingGoHome: "nothing-go-home",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

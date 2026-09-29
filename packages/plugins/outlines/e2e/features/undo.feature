@@ -210,7 +210,7 @@ Feature: Undo
     # That is the replay contract already documented for every inverse here
     # ("a refusal partway stops there"), not a hole opened by this rule: the
     # first call is a legal write on its own, nothing is lost, and the row is
-    # one `Mark todo` away from where a blocked node should be. It is drawn
+    # one `Mark › To do` away from where a blocked node should be. It is drawn
     # rather than swallowed, which is the whole of what is owed.
     When I click the title of "demo"
     And I press "Control+Enter"
@@ -378,7 +378,7 @@ Feature: Undo
     # Redo is dead: the indent branched away from it. If the replay had filed
     # its entry after the indent cleared the side, this would tick `hinges`
     # back to done.
-    Then the undo says "nothing to redo"
+    Then the undo says "Nothing to redo"
     And the node "hinges" has status "todo"
     And the node "knobs" is a child of "hinges"
 
@@ -388,7 +388,7 @@ Feature: Undo
     And I click away from the editor
     And I press "ControlOrMeta+z"
     And I press "ControlOrMeta+z"
-    Then the undo says "nothing to undo"
+    Then the undo says "Nothing to undo"
     # The sentence was about an undo that is now two edits ago; a person who
     # has carried on working is not still being told about it.
     When I click the title of "knobs"
@@ -430,7 +430,7 @@ Feature: Undo
     And I click away from the editor
     And I open the outline "garden.olai"
     And I press "ControlOrMeta+z"
-    Then the undo says "nothing to undo"
+    Then the undo says "Nothing to undo"
     And there should be no page errors
 
   Scenario: ...and a zoom into one of its own rows is not leaving it

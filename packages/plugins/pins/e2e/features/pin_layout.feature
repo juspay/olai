@@ -12,7 +12,7 @@ Feature: Pinning layouts
     When I open the address "/s/house.olai/garden.olai?w=25,75&f=1"
     And I widen the first pane by dragging its divider
     And I pin the layout
-    Then the palette asks "a name for this layout — Escape backs out"
+    Then the palette asks "Name this layout"
     When I name the pin "Planning"
     Then the pin "/s/house.olai/garden.olai" is named "Planning"
     And the pin "/s/house.olai/garden.olai" has a split mark
@@ -57,8 +57,8 @@ Feature: Pinning layouts
     When I open the address "/s/house.olai/garden.olai"
     And I pin the layout
     And I name the pin ""
-    Then the palette says "a layout needs a name"
-    And the palette asks "a name for this layout — Escape backs out"
+    Then the palette says "A layout needs a name"
+    And the palette asks "Name this layout"
     When I press "Escape"
     Then "_olai/Pins.olai" holds nothing
     When I press "ControlOrMeta+Shift+p"
@@ -87,8 +87,8 @@ Feature: Pinning layouts
       | [Planning](/s/house.olai/garden.olai?w=20,80&f=1) |
     When I rename the pin "/s/house.olai/garden.olai"
     And I name the pin ""
-    Then the palette says "a layout needs a name"
-    And the palette asks "a name for this layout — Escape backs out"
+    Then the palette says "A layout needs a name"
+    And the palette asks "Name this layout"
     When I name the pin "Today"
     Then the pin "/s/house.olai/garden.olai" is named "Today"
     And "_olai/Pins.olai" holds a node titled "[Today](/s/house.olai/garden.olai?w=20,80&f=1)"
@@ -226,7 +226,7 @@ Feature: Pinning layouts
     When I open the address "/s/house.olai/garden.olai"
     And I pin the layout
     And I type "Planning" into the palette
-    Then the palette asks "a name for this layout — Escape backs out"
+    Then the palette asks "Name this layout"
     And the palette does not offer "Pin this layout…"
     And the palette does not offer "Pin this page"
     And the palette box holds "Planning"

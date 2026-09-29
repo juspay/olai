@@ -4,7 +4,7 @@ Feature: Session settings belong to the node conversation that offered them
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     And the node agent's fold is ready
     And I open the session settings
@@ -12,7 +12,7 @@ Feature: Session settings belong to the node conversation that offered them
     And I enable fast mode
     And I open the session settings
     And I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "order the new cabinets"
     And the node agent's fold is ready
     And I ask the agent "settings"
@@ -35,7 +35,7 @@ Feature: Session settings belong to the node conversation that offered them
     And the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     And the node agent's fold is ready
     And I open the session settings
@@ -43,7 +43,7 @@ Feature: Session settings belong to the node conversation that offered them
     And I hold incoming updates to the original browser tab
     And I open another browser tab
     And I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "order the new cabinets"
     And the node agent's fold is ready
     And I use the original browser tab
@@ -67,7 +67,7 @@ Feature: Session settings belong to the node conversation that offered them
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     And the node agent's fold is ready
     When I remember this conversation as "before rebuild"
@@ -102,7 +102,7 @@ Feature: Session settings belong to the node conversation that offered them
     And I open the outline "house.olai"
     When I hold a finger on the node "install"
     Then the node menu is open
-    When I choose "Start an agent session" from the node menu
+    When I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     When I ask the agent "settings"
     Then the agent's answer mentions "reasoning=medium, mode=code, fast=false"

@@ -17,7 +17,6 @@ export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
   | { readonly kind: "shortcuts" }
   | { readonly kind: "toggle-sidebar" }
-  | { readonly kind: "toggle-panel" }
   | { readonly kind: "reset-widths" }
   | { readonly kind: "close-pane" }
   /**
@@ -207,15 +206,15 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   {
     id: "nav-home",
     label: "Go home",
-    hint: "open the first outline",
+    hint: "Open the first outline",
     action: { kind: "route", route: HOME_ROUTE },
     taking: atOnce,
     search: "go home outline first",
   },
   {
     id: "nav-trash",
-    label: "Go to the Trash",
-    hint: "what was put away",
+    label: "Go to Trash",
+    hint: "Deleted items",
     action: { kind: "route", route: { kind: "trash" } },
     taking: atOnce,
     search: "go to trash archive archived put away restore put back",
@@ -229,28 +228,20 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "toggle sidebar panel rail directory",
   },
   {
-    id: "panel-agent",
-    label: "Toggle agent panel",
-    hint: "⌘J",
-    action: { kind: "toggle-panel" },
-    taking: atOnce,
-    search: "toggle agent panel conversation",
-  },
-  {
     id: "shortcuts",
     label: "Keyboard shortcuts",
-    hint: "every key",
+    hint: "All keys",
     action: { kind: "shortcuts" },
     taking: atOnce,
     search: "keyboard shortcuts keys help reference bindings",
   },
   {
     id: "reset-widths",
-    label: "Reset panel widths",
-    hint: "defaults",
+    label: "Reset sidebar width",
+    hint: "Back to default",
     action: { kind: "reset-widths" },
     taking: atOnce,
-    search: "reset panel widths sidebar default size",
+    search: "reset sidebar width panel default size",
   },
   {
     id: "close-pane",

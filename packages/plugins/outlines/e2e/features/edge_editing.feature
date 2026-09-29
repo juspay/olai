@@ -28,7 +28,7 @@ Feature: Writing a node's edges — `see` and `after`
 
   Scenario: Linking to a node from the menu writes the `see` the agent writes
     When I open the node menu of "handles"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     Then the see panel is open on "handles"
     When I search the edge panel for "compost"
     And I choose "the compost heap" from the edge panel
@@ -44,7 +44,7 @@ Feature: Writing a node's edges — `see` and `after`
   # (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md`'s 4.12).
   Scenario: Enter does not take a row the query has already moved past
     When I open the node menu of "handles"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     And I search the edge panel for "compost"
     When I retype the edge panel's search as "mint" and press Enter at once
     # Waited out whole: by the time the rows answer the new query, anything
@@ -62,7 +62,7 @@ Feature: Writing a node's edges — `see` and `after`
     # `see` links inside the note it expands, so a node with references and no
     # note has nowhere else to put an `×`.
     When I open the node menu of "order"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     Then the edge panel holds "herbs"
     When I drop "herbs" in the edge panel
     Then "house.olai" holds the node "order" seeing nothing
@@ -72,7 +72,7 @@ Feature: Writing a node's edges — `see` and `after`
     # One stack, whichever hand made the edit — and the inverse of `see add` is
     # `see remove`, derived from the snapshot the write was judged against.
     When I open the node menu of "handles"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     And I search the edge panel for "compost"
     And I choose "the compost heap" from the edge panel
     Then "house.olai" holds the node "handles" seeing "compost"
@@ -92,7 +92,7 @@ Feature: Writing a node's edges — `see` and `after`
     # the row, and it moved because the FIELD did.
     Given the node "knobs" is not blocked
     When I open the node menu of "knobs"
-    And I choose "Wait for a node…" from the node menu
+    And I choose "More › Wait for…" from the node menu
     Then the after panel is open on "knobs"
     When I search the edge panel for "order the new cabinets"
     And I choose "order the new cabinets" from the edge panel
@@ -107,7 +107,7 @@ Feature: Writing a node's edges — `see` and `after`
     # the write actually changed. And the row is the proof it reached the FILE
     # — blockedness is derived, so a dim that lifts is the set answering.
     When I open the node menu of "knobs"
-    And I choose "Wait for a node…" from the node menu
+    And I choose "More › Wait for…" from the node menu
     And I search the edge panel for "order the new cabinets"
     And I choose "order the new cabinets" from the edge panel
     Then "house.olai" holds the node "knobs" after "order"
@@ -142,7 +142,7 @@ Feature: Writing a node's edges — `see` and `after`
     # sentence `outlines_after` gives an agent — never a summary, and never a
     # silently disabled row.
     When I open the node menu of "order"
-    And I choose "Wait for a node…" from the node menu
+    And I choose "More › Wait for…" from the node menu
     And I search the edge panel for "install the cabinets"
     And I choose "install the cabinets" from the edge panel
     Then the edge panel says "closes a loop"
@@ -269,10 +269,10 @@ Feature: Writing a node's edges — `see` and `after`
     # exactly the drift the one-reading doctrine is about — so this is the door
     # furthest from where they landed, holding the line.
     When I open the node menu of "hinges"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "agent" holding "claude-opus" on "hinges"
     When I open the node menu of "handles"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     Then the see panel is open on "handles"
     When I search the edge panel for "hinges"
     Then the edge panel hit "pick the hinges" shows the property "agent" holding "claude-opus"
@@ -287,7 +287,7 @@ Feature: Writing a node's edges — `see` and `after`
     # press would narrow the tree out from under an open write. The chip
     # claims the press; the page's filter is the witness.
     When I open the node menu of "handles"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     Then the see panel is open on "handles"
     When I search the edge panel for "garden"
     And I choose "garden #outdoors" from the edge panel

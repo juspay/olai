@@ -9,7 +9,7 @@ Feature: A stale fresh-session action cannot create a chat for a removed node
       """
     And I open the outline "removed-agent.olai"
     When I open the node menu of "removed-agent"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "Temporary node agent"
     And the node agent's fold is ready
     When I ask the agent "before removal"

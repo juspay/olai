@@ -1,15 +1,19 @@
 @corpus:good
 Feature: The theme is a pick, and it is yours
-  Named palettes, in the Theme row of the preferences panel
-  (`preferences.feature`). Pressing one writes `data-theme` on `<html>`, this
-  browser remembers it, and the sheet repaints — every colour on the page is a
-  custom property, so one attribute re-answers all of them at once.
+  Named palettes, as ten swatches in the Theme row of the preferences panel
+  (`preferences.feature`) — each painted in its own paper with a wedge of its
+  accent, lights first, then darks. Pressing one writes `data-theme` on
+  `<html>`, this browser remembers it, and the sheet repaints — every colour on
+  the page is a custom property, so one attribute re-answers all of them at
+  once. A swatch carries no word; its name is its tooltip and its accessible
+  name, and a keyboard reaches it with Tab and picks it with Space or Enter.
 
   The panel STAYS OPEN on a pick, unlike the pill-and-popover this row replaced:
   a palette is judged by looking at the page it paints, and shutting the surface
   after every press would make comparing two of them a matter of reopening it.
-  What that pill promised — it NAMED the theme in force — is kept by the row's
-  own hint, which is what "the theme row names the theme in force" asserts.
+  What that pill promised — it NAMED the theme in force — is kept by the name
+  drawn beside the row's label, which is what "the theme row names the theme
+  in force" asserts.
 
   It is CLIENT state, all of it. Nothing about a pick reaches the server: it is
   stored in this browser, the same way the agent drawer's open state is, so two
@@ -52,6 +56,27 @@ Feature: The theme is a pick, and it is yours
     And the lit theme chip is "pitch"
     And the paper colour has changed
     And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A keyboard picks a swatch, and the caret stays where it was
+    # Tab reaches the swatches (they are the panel's first controls), Space
+    # and Enter each press one, and the panel stays open with the caret still
+    # on the swatch just pressed — so the next arrow of Tabs starts from there,
+    # not from the top of the page.
+    When I open the app
+    And I open the preferences
+    And I Tab to the "pitch" swatch
+    And I press "Space"
+    Then the page is in the theme "pitch"
+    And the lit theme chip is "pitch"
+    And the theme row names the theme in force
+    And the "pitch" swatch has the focus
+    When I Tab to the "ember" swatch
+    And I press "Enter"
+    Then the page is in the theme "ember"
+    And the theme row names the theme in force
+    And the "ember" swatch has the focus
+    And every theme chip agrees with what it announces
     And there should be no page errors
 
   Scenario: The pick is there before the page has finished parsing

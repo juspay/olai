@@ -29,6 +29,18 @@ export function DeleteFile(props: { readonly file: string }) {
   return <Show when={provider.read()?.Delete} keyed>{(Control) => <Control {...props} />}</Show>
 }
 
+/** Opens the new-file box for a kind, where the files row draws it — `false`
+ *  with no files row mounted, when there is no box to open. */
+export const openNewFile = (of: string): boolean => {
+  const controls = provider.read()
+  if (controls === undefined) return false
+  controls.open(of)
+  return true
+}
+
+/** Whether a files row is mounted to open one at all. */
+export const canOpenNewFile = (): boolean => provider.read() !== undefined
+
 /** ...and the box that names a new one. */
 export function NewFile(props: Parameters<FileControls["New"]>[0]) {
   return <Show when={provider.read()?.New} keyed>{(Control) => <Control {...props} />}</Show>

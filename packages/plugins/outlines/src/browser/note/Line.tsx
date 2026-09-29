@@ -64,7 +64,7 @@ export function NoteLine(props: {
       data-testid={props.hit === true ? IDS_OUTLINES.descHit : IDS_OUTLINES.desc}
       data-preview="true"
       data-open="false"
-      title="edit the note"
+      title="Edit note"
       onClick={(event) => {
         event.stopPropagation()
         // Keyboard and screen-reader activation has no x to measure: the

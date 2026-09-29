@@ -49,15 +49,15 @@ export function DayMint(props: { readonly date: string }) {
     <Show when={useDocumentActions()}><div class="flex flex-col items-end gap-2">
       <button
         type="button"
-        class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
+        class="cursor-pointer rounded-control border border-rule bg-transparent px-2 py-0.5 text-body text-muted hover:bg-rule/60 hover:text-ink"
         data-testid={TESTID.dayMint}
         disabled={sending()}
         aria-busy={sending()}
-        aria-label={`create ${props.date}'s note`}
-        title={`create ${props.date}'s note`}
+        aria-label={`Create a note for ${props.date}`}
+        title={`Create a note for ${props.date}`}
         onClick={() => void mint()}
       >
-        {sending() ? "Creating…" : "+ day note"}
+        {sending() ? "Creating…" : "+ Day note"}
       </button>
       <Refused said={said()} testid={TESTID.dayMintSaid} />
     </div></Show>

@@ -4,7 +4,15 @@ import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"
 
 export type RowActions = (node: string) => ReadonlyArray<RowAction>
 
-export interface RowAction {
+/**
+ * What a plugin hangs on a row's `•••`: one verb, or ONE ENTRY THAT OPENS A
+ * CHOICE of verbs ({@link RowChoice}). Core decides where a plugin's entries sit
+ * and draws the choice as a submenu; the plugin says only the words, the
+ * presses, and which half each belongs to.
+ */
+export type RowAction = RowVerb | RowChoice
+
+export interface RowVerb {
   /** This plugin's own word for the verb — a testid and a list key, never an
    *  address. Two plugins may spell it the same: what a reader keys the list by
    *  is this beside the plugin's own name, which {@link Hung} carries and this
@@ -28,6 +36,24 @@ export interface RowAction {
   readonly writes: boolean
   /** Act on the node shown; return a sentence when the action is refused. */
   readonly run: (node: string) => string | void | Promise<string | void>
+}
+
+/**
+ * ONE ENTRY, SEVERAL WAYS TO DO IT — `Start an agent ›` and its engines. Drawn
+ * as a submenu, so a verb that varies by a choice costs the menu one line
+ * rather than one per option. The plugin hands its whole choice, however many
+ * options it has: core draws a choice of one as that option's press under this
+ * entry's label (a submenu with a single entry is a click that asks nothing),
+ * and a choice of none as nothing at all.
+ */
+export interface RowChoice {
+  /** This plugin's own word for the entry, as {@link RowVerb.id}. */
+  readonly id: string
+  readonly label: string
+  /** Which half the entry sits in, as {@link RowVerb.writes}. */
+  readonly writes: boolean
+  /** The options, in the order they are offered. */
+  readonly choices: ReadonlyArray<RowVerb>
 }
 
 export interface PropEntry {

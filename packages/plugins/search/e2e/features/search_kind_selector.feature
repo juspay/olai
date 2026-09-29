@@ -14,21 +14,21 @@ Feature: Search can narrow to nodes or files for the session
   Scenario: Kind is applied before the cap and survives closing the palette
     When I press the palette shortcut
     And I type "zinnia" into the palette
-    Then the search segment "Nodes" shows count 1
+    Then the search segment "Rows" shows count 1
     And the search segment "Files" shows count 2
-    When I pick search kind "Nodes"
+    When I pick search kind "Rows"
     Then the palette lists the node "Keep a note"
     And the palette lists no document "zinnia.md"
     And the palette lists no document "zinnia.olai"
     When I press "Escape"
     And I press the palette shortcut
-    Then search kind "Nodes" is selected
+    Then search kind "Rows" is selected
 
   Scenario: Tab cycles kinds while the caret remains in the box
     When I press the palette shortcut
     And I type "zinnia" into the palette
     And I press "Tab"
-    Then search kind "Nodes" is selected
+    Then search kind "Rows" is selected
     When I press "Tab"
     Then search kind "Files" is selected
     When I press "Tab"
@@ -39,7 +39,7 @@ Feature: Search can narrow to nodes or files for the session
     When I press the palette shortcut
     And I type "is:done" into the palette
     And I pick search kind "Files"
-    Then the palette found "0 matches"
+    Then the palette found "No matches"
     And search kind "Files" is selected
     And there should be no page errors
 
@@ -61,24 +61,24 @@ Feature: Search can narrow to nodes or files for the session
   Scenario: A reconnect keeps the selected kind and re-asks it
     When I press the palette shortcut
     And I type "zinnia" into the palette
-    And I pick search kind "Nodes"
+    And I pick search kind "Rows"
     Then the palette lists the node "Keep a note"
     When the browser goes offline
     Then the connection is "reconnecting"
     When the browser comes back online
     Then the connection is "live"
-    And search kind "Nodes" is selected
+    And search kind "Rows" is selected
     And the palette lists the node "Keep a note"
     And the palette lists no document "zinnia.md"
 
   Scenario: The header cycles kinds and keeps refusals visible
     When I search the header for "is:open"
     And I press "Tab"
-    Then search kind "Nodes" is selected
+    Then search kind "Rows" is selected
     When I press "Tab"
     Then search kind "Files" is selected
     And the search refuses "is:open" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
-    And the header search found "0 matches"
+    And the header search found "No matches"
 
   Scenario: Picking Files leaves the move picker node-only
     When I press the palette shortcut

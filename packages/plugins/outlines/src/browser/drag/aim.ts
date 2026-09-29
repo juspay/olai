@@ -133,11 +133,9 @@ const aimedAt = (
  */
 const whyNot = (field: Aimed, carried: string): string =>
   field.file === carried
-    ? `every row drawn in \`${field.file}\` here is inside what you are carrying, ` +
-      `so there is nowhere in this pane to put it`
-    : `\`${field.file}\` is another file, and this row lives in \`${carried}\` — a ` +
-      `drag lands between rows of the outline it is carrying, and this pane draws ` +
-      `none of them. Use Move to… (⌘⇧M) to send it to another outline.`
+    ? `There’s nowhere here to drop it: every row in this pane is part of what you’re dragging.`
+    : `A drag only moves a row within its own outline (\`${carried}\`). ` +
+      `Use Move to… (⌘⇧M) to move it to \`${field.file}\`.`
 
 /**
  * What a pointer at `(x, y)` is asking of these pages — the ONE thing this

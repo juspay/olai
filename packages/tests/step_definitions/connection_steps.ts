@@ -25,6 +25,7 @@ import { startOwnServer, stopOwnServer } from "../support/hooks.ts";
 import { pressed } from "../support/settling.ts";
 import {
   CONNECTION,
+  HEALTH,
   FILTER_INPUT,
   HYDRATION_TIMEOUT,
   OFFLINE,
@@ -95,6 +96,25 @@ Then("the app is frozen under the offline overlay", async function (this: OlaiWo
   // behind it, which is a wire's clock rather than a render's.
   await overlay.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const shown = (await overlay.innerText()).replace(/\s+/g, " ");
+  // On a desktop the connection's words ride the health dot: its tip carries
+  // each piece of news as `label — sentence`, the connection's among them, in
+  // `client/connection/status.ts`'s own words. The overlay is the other reader
+  // of that table: its card says what HAPPENED (`Connection lost`, `The server
+  // restarted`) and what is being done about it (`Reconnecting…`), so the
+  // connection's LABEL on the dot has to be one of the card's lines — the two
+  // cannot name the state differently.
+  const dot = this.page.locator(HEALTH);
+  if ((await dot.count()) > 0) {
+    const tip = (await dot.getAttribute("title")) ?? "";
+    const labels = tip.split("\n").slice(1).map((one) => one.split(" — ")[0]!.trim());
+    const card = (await overlay.locator("h2, p").allInnerTexts()).map((one) => one.trim());
+    assert.ok(
+      labels.some((label) => card.includes(label)),
+      `the health dot's tip ${JSON.stringify(tip)} names no state the overlay's card ` +
+        `${JSON.stringify(card)} says — the dot and the freeze are two readers of one wire`,
+    );
+    return;
+  }
   const pill = this.page.locator(CONNECTION);
   if ((await pill.count()) > 0) {
     const said = await pill.getAttribute("title");
@@ -197,6 +217,36 @@ Then("the overlay offers a reload", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.page
     .locator(`${OFFLINE} ${RELOAD}`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * WHAT THE FREEZE CARD SAYS, in the words a person reads: its heading, and
+ * under it the line about what is being done (`Connection lost` over
+ * `Reconnecting…`), or `—` for a card with no second line. Quoted here on
+ * purpose: this is the copy, and a card that went back to the wire's raw state
+ * names would pass every step that only compares the card with the dot.
+ */
+Then(
+  "the offline overlay reads {string} over {string}",
+  async function (this: OlaiWorld, title: string, line: string) {
+    const overlay = this.page.locator(OFFLINE);
+    await overlay.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => (await overlay.locator("h2").innerText()).trim() === title,
+      `the freeze card's heading to read ${JSON.stringify(title)}`,
+    );
+    const lines = (await overlay.locator("p").allInnerTexts()).map((one) => one.trim());
+    if (line === "—") assert.deepStrictEqual(lines, [], "the card draws a second line it should not");
+    else assert.ok(lines.includes(line), `the freeze card says ${JSON.stringify(lines)}, not ${JSON.stringify(line)}`);
+  },
+);
+
+/** The reload is a button a person can name, not only a test id. */
+Then("the overlay's reload is called {string}", async function (this: OlaiWorld, name: string) {
+  await this.page
+    .locator(OFFLINE)
+    .getByRole("button", { name, exact: true })
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 

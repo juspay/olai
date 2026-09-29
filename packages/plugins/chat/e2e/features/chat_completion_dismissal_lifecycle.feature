@@ -50,14 +50,14 @@ Feature: Dismissed chat completions stay attached to their draft
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When I open the node menu of "install"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "install the cabinets"
     And the node agent's fold is ready
     When I type "discuss @finishes" into the chat
     Then the completion offers "finishes.md"
     When I press "Escape" in the chat
     And I open the node menu of "order"
-    And I choose "Start an agent session" from the node menu
+    And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "order the new cabinets"
     And the node agent's fold is ready
     When I type "discuss @finishes" into the chat

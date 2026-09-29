@@ -5,11 +5,11 @@ Feature: Property additions respect concurrent browser writes
     When I open another browser tab
     And I use the original browser tab
     And I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I draft the property <key> holding "submitted" on "handles"
     And I use the other browser tab
     And I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "audit" on "handles"
     Then "house.olai" holds the node "handles" with "stage" set to "audit"
     When I use the original browser tab
@@ -34,11 +34,11 @@ Feature: Property additions respect concurrent browser writes
     When I open another browser tab
     And I use the original browser tab
     And I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I draft the property "stage" holding "submitted" on "handles"
     And I use the other browser tab
     And I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "owner" holding "Alex" on "handles"
     Then "house.olai" holds the node "handles" with "owner" set to "Alex"
     When I use the original browser tab

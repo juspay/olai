@@ -30,6 +30,18 @@ Feature: A new chat has an Inbox node from its first message
     And there should be no page errors
 
   @codex
+  Scenario: The Chats heading's + is keyboard-reachable, and Escape hands focus back
+    # The separate `new chat` row left with the 2026-09 simplification; the
+    # heading carries a `+` over the same engine menu.
+    Given I open the outline "house.olai"
+    When I press "Enter" on new chat in Chats
+    Then the agent engine menu offers "Claude Code"
+    When I press "Escape"
+    Then the engine menu is shut and new chat in Chats has focus
+    And the Inbox contains no chat children
+    And there should be no page errors
+
+  @codex
   Scenario Outline: Chats offers the same engine menu as the aside on <screen>
     Given I open the outline "house.olai"
     When I press new chat in Chats
@@ -93,13 +105,16 @@ Feature: A new chat has an Inbox node from its first message
     And the Inbox has 1 filed conversations
 
   @no-agent
-  Scenario: Without an engine neither face creates a conversation
+  Scenario: Without an agent neither face creates a conversation
+    # The + stays pressable: it opens the agent menu, which says why there is
+    # nothing to pick. The palette offers no New chat row at all.
     Given I open the outline "house.olai"
-    Then new chat in Chats is unavailable
-    When I press the palette shortcut
+    When I press new chat in Chats
+    Then the agent menu says no agent is set up
+    When I press "Escape"
+    And I press the palette shortcut
     And I type "Agents" into the palette
-    And I pick new chat in the Agents palette
-    Then the palette says no agent engine is available
+    Then the palette does not offer "New chat"
     And the Inbox contains no chat children
 
   Scenario: A refused start leaves its plain node available for retry

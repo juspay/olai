@@ -39,19 +39,11 @@ import type { JSX } from "solid-js"
 
 /** The chrome pill's look — classes rather than a component, because what the
  *  readout draws INSIDE the pill (a dot, a word, a warning word beside it) is
- *  this plugin's and only the box is the bar's. */
+ *  this plugin's and only the box is the bar's. The dot's colour is the
+ *  state's tone, painted from the layout contract's one table. */
 export interface PillLook {
   readonly PILL: string
   readonly DOT: string
-  /** The infrastructure-warning register: a warm coat on the chip... */
-  readonly PILL_WARN_COAT: string
-  /** ...a hollow dot... */
-  readonly DOT_HOLLOW_WARN: string
-  /** ...and a warm word beside it. Amber, and a THIRD family on purpose: the
-   *  bar's violet is what an agent's ask for a human wears, and something of
-   *  the machine's own being broken must never be one glance's confusion with
-   *  it. */
-  readonly TEXT_WARN: string
 }
 
 /** The panel that hangs off the pill — whether it is up, where it sits, and the

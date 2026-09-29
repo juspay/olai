@@ -138,6 +138,8 @@ export interface BundleRow {
   readonly switchHint?: string
   /** The plugins panel group this row sits in. Verbatim on screen. */
   readonly section: string
+  /** The name a person reads on the plugins panel row. Absent draws the id. */
+  readonly label?: string
   /** The group may start collapsed when every member is running and quiet. */
   readonly quiet?: boolean
 }

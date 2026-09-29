@@ -59,10 +59,20 @@ Feature: The rest of Workflowy's chords
   Scenario: Ctrl+O shows this page's finished work, and hides it again
     Given I open the outline "house.olai"
     Then the node "demo" is not shown
+    And this page's Done flip says "hidden"
     When I press "Control+o"
+    Then the node "demo" is shown
+    # The chord and the `finished` box are one pick: the box moves with it.
+    And this page's Done flip says "shown"
+    And the Done flip is this page's own
+    When I press "Control+o"
+    Then the node "demo" is not shown
+    And this page's Done flip says "hidden"
+    When I show the done nodes
     Then the node "demo" is shown
     When I press "Control+o"
     Then the node "demo" is not shown
+    And this page's Done flip says "hidden"
 
   @share-scratch
   @scratch:good

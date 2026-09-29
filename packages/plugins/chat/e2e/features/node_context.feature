@@ -57,7 +57,7 @@ Feature: The outline and the chat point at each other
     # The reference a transcript carries most often: every write through the
     # ops layer draws this row, and the reply has always named the node.
     When I ask the agent "done order"
-    Then the chat says the write "marked done"
+    Then the chat says the write "Done"
     When I press the node "order" in the write
     Then the node "order" is focused
     # ...IN PLACE, which is the half a lit-up row cannot say on its own: the
@@ -137,7 +137,7 @@ Feature: The outline and the chat point at each other
     And the node "order" is focused
     # And the pick is the witness beside the landed row: `demo` was finished
     # long before this scenario and stays hidden, the flip still answers
-    # "Hidden", and no word of this page's was minted for the row the press
+    # "hidden", and no word of this page's was minted for the row the press
     # owed — the reveal is the landing's, never the page's.
     And the node "demo" is not shown
     And this page's Done flip says "hidden"

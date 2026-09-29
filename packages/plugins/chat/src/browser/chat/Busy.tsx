@@ -51,11 +51,11 @@ import type { Chat } from "./state.ts"
  * words wide beside a model name and says the terse version.
  */
 const saying = (doing: Doing): string => {
-  if (doing.kind === "waiting") return "waiting on your answer"
+  if (doing.kind === "waiting") return "Waiting on your answer"
   if (doing.kind === "starting") {
-    return doing.agent === null ? "starting…" : `starting ${doing.agent}…`
+    return doing.agent === null ? "Starting…" : `Starting ${doing.agent}…`
   }
-  return doing.agent === null ? "working…" : `${doing.agent} is working…`
+  return doing.agent === null ? "Working…" : `${doing.agent} is working…`
 }
 
 /** The strip. Drawn between the transcript and the box (`../agents/Fold.tsx`). */
@@ -68,7 +68,7 @@ export function Busy(props: { readonly chat: Chat }) {
     <Show when={doing()}>
       {(what) => (
         <div
-          class="flex shrink-0 items-center gap-2 border-t border-rule/70 px-3 py-1.5 text-xs text-doing"
+          class="flex shrink-0 items-center gap-2 border-t border-rule/60 px-3 py-1.5 text-label text-doing"
           data-testid={TESTID.chatBusy}
           aria-live="polite"
         >

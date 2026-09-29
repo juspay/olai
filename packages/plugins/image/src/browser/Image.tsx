@@ -54,7 +54,7 @@ export function Image(props: { readonly file: string }) {
          page saying the same thing in two voices. Not empty either — a
          picture that IS the page is never decoration. */
       alt={(() => { const claims = servedDirectory()?.claims(); return claims === undefined ? props.file : stemOf(claims, props.file) })()}
-      class="block h-auto max-w-full rounded border border-rule"
+      class="block h-auto max-w-full rounded-control border border-rule"
       data-testid={TESTID.imageView}
       data-file={props.file}
     />

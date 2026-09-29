@@ -17,7 +17,7 @@
  *                   a pseudo-element has no text, so a shape distinction is
  *                   silence to a screen reader;
  *   today           a ring, wherever it falls and whatever else it is;
- *   you are here    FILLED — ink ground, paper number. The day you are reading
+ *   you are here    FILLED — the accent wash, paper number. The day you are reading
  *                   is not a shade of a day, it is the day. It outranks its own
  *                   hover, because the pointer is still over the cell that was
  *                   just clicked.
@@ -49,8 +49,8 @@ import { dayRoute } from "../routes.ts"
  *  smallest target in this app and the one a finger is likeliest to miss into
  *  the day beside it. `w-full` so the hit area is the grid cell, not the
  *  number. */
-const BOX = `flex ${TARGET} relative w-full items-center justify-center rounded-lg border ` +
-  "text-xs tabular-nums no-underline md:min-h-6"
+const BOX = `flex ${TARGET} relative w-full items-center justify-center rounded-control border ` +
+  "text-label tabular-nums no-underline md:min-h-6"
 
 /** The dot, as the pseudo-element it has to be — it sits UNDER the number
  *  rather than beside it, and `currentColor` is what makes it follow the cell
@@ -112,7 +112,7 @@ export function Day(props: {
     live()
       ? `${props.date}, ${
         props.dated
-          ? props.noted ? "has a note and dated nodes" : "has dated nodes"
+          ? props.noted ? "has a note and dated items" : "has dated items"
           : "has a note"
       }`
       : props.date
@@ -121,17 +121,21 @@ export function Day(props: {
   // does rather than the way the stylesheet happened to be sorted. Today and
   // open together is the ring around the fill: the ring says which day it is,
   // the fill says you are standing on it.
+  // ON THE SPINE'S GROUND (`./Calendar.tsx`): paper words on ink, so a quiet
+  // day is paper at half strength and the day being read wears the column's
+  // own current-page wash — the accent behind paper, as a current row does
+  // (`olai-plugin-layout/entry`'s `ENTRY_SHAPE`).
   const ink = (): string =>
     props.open
       ? "text-paper"
       : props.today
       ? "text-accent"
       : live()
-      ? "text-ink"
-      : "text-muted"
-  const ground = (): string => props.open ? "bg-ink" : "hover:bg-rule"
+      ? "text-paper"
+      : "text-paper/40"
+  const ground = (): string => props.open ? "bg-accent/20" : "hover:bg-paper/10"
   const ring = (): string =>
-    props.today ? "border-accent" : props.open ? "border-ink" : "border-transparent"
+    props.today ? "border-accent" : "border-transparent"
 
   const look = (): string =>
     [

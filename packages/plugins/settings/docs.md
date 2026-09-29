@@ -19,7 +19,7 @@ reader and the root’s patches to settle. It creates the file and namespace whe
 needed, preserving other properties. The vault and reader switches remain
 session-only so either can be restored from the panel; their owners are derived
 from the offers table. Their switches wear dashed rings. Without this reader,
-every enable switch wears that ring; the foot legend explains it. A broken file
+every enable switch wears that ring, and the panel says above its groups that switches reset when olai restarts. A broken file
 is named and must be repaired before a durable press can write.
 
 The follower ignores file `on` values on the vault and configuration reader

@@ -62,9 +62,9 @@ Feature: The fourth mark — "not happening" is a stored fact
     Then the title of "knobs" is not struck through
     And there should be no page errors
 
-  Scenario: The ••• menu writes it too, in the mouse's own word
+  Scenario: The ••• menu writes it too, under Mark
     When I open the node menu of "knobs"
-    And I choose "Cancel" from the node menu
+    And I choose "Mark › Cancelled" from the node menu
     Then the node "knobs" has status "cancelled"
     And the node "knobs" shows a crossed checkbox
     And there should be no page errors

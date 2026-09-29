@@ -1,25 +1,22 @@
 /**
- * The named palettes, as chips: every chip is a theme, wearing the theme it
- * offers, and pressing one picks it.
+ * The named palettes, as swatches: every swatch is a theme, painted in that
+ * theme's paper with a dot of its accent, and pressing one picks it.
  *
- * It draws the strip and nothing else — no popover, no trigger. It used to own
- * both, as the header's theme pill (`Picker.tsx`, retired with
- * `preferences-panel`): the pill named the theme in force and opened these
- * chips under itself, which was a second popover in a bar that now has one, and
- * a control that is a preference sitting outside the place preferences are set.
- * The strip is a row of `settings/`'s panel now, and the theme it is in is
- * named by that row's hint — so nothing the pill promised is gone, it is said
- * where the rest of them are said.
+ * Swatches rather than the ten text chips they replaced, because a palette is
+ * judged by its colours and not by its name — and ten words in two rows was
+ * the busiest thing on the preferences panel. The name is still there for
+ * whoever wants it: each swatch's tooltip and accessible name, and the one in
+ * force beside the row's label (`./AppearanceRows.tsx`).
  *
- * Persistence, the storage event, the boot script and the contrast promise are
- * untouched by any of that: this file only draws.
+ * Lights first, then darks, in one wrapping row.
  *
  * ARIA is plain toggle buttons with `aria-pressed`, inside the group the
  * settings row names. A `listbox`/`option` would misstate the control (no
- * arrow-key roving, no `aria-activedescendant`) and would forbid `aria-pressed`
- * on the options.
+ * arrow-key roving, no `aria-activedescendant`).
  *
- * There is still no "system" chip and no "auto": a theme is a pick.
+ * The panel STAYS OPEN on a pick: a palette is judged by looking at the page it
+ * paints. Persistence, the storage event and the boot script are untouched by
+ * any of that: this file only draws.
  */
 import { TESTID } from "olai-plugin-theme/testids"
 import { createSelector, For } from "solid-js"
@@ -29,48 +26,42 @@ import type { Appearance } from "./index.ts"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 
+/** A palette's name as a person reads it. */
+export const paletteLabel = (name: string): string => name.charAt(0).toUpperCase() + name.slice(1)
+
+const ORDERED = [...PALETTES].sort((a, b) =>
+  a.scheme === b.scheme ? 0 : a.scheme === "light" ? -1 : 1)
+
 export function ThemeChips(props: { readonly state: Appearance }) {
-  // `createSelector` rather than `currentTheme() === palette.name`, which is
-  // what this was: that form subscribes every chip to the theme, so a pick
-  // re-runs every chip to change two attributes — and the table is meant
-  // to grow. This notifies exactly the chip that lit and the one that went out.
+  // `createSelector`: a pick notifies exactly the swatch that lit and the one
+  // that went out, rather than every swatch.
   const isInForce = createSelector(() => props.state.theme.current().name)
 
   return (
-    <For each={PALETTES}>
+    <For each={ORDERED}>
       {(palette) => (
         <button
           type="button"
-          // A chip is small type in a wrapped row; the touch rule applies to
-          // the box a finger aims at, and below 48rem this is one of them
-          // (../touch.ts).
-          //
-          // TWO rings, and they are the same ring for two different questions:
-          // `aria-pressed` is which theme is in force, `focus-visible` is where
-          // the caret is. The second is not decoration here — a chip paints
-          // itself in the palette it offers, so a focused pitch chip is a
-          // black pill wearing whatever outline the browser gives it against
-          // black. The ring is the PAGE's accent rather than the chip's,
-          // for the same reason: it has to be visible against the chip.
-          class={`${TARGET_BOX} inline-flex flex-none items-center justify-center rounded-full border px-2 font-mono text-[0.6875rem] leading-none ring-offset-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-accent aria-pressed:ring-offset-1 md:min-h-0 md:min-w-0 md:py-1`}
-          style={{
-            background: palette.colors.paper,
-            color: palette.colors.ink,
-            "border-color": palette.colors.rule,
-          }}
+          // The button is the target (44px on a phone, `../touch.ts`); the
+          // swatch inside it is the drawing. The ring says which is in force,
+          // and the focus ring where the caret is — the page's accent, so it
+          // shows against any swatch.
+          class={`${TARGET_BOX} group inline-flex flex-none items-center justify-center rounded-full focus-visible:outline-none md:min-h-0 md:min-w-0 md:p-0`}
           data-testid={TESTID.themeChip}
           data-value={palette.name}
-          // Spelled out rather than handed a boolean: the chips that are NOT in
-          // force have to announce that, and an attribute a framework drops
-          // when it is false announces nothing at all.
+          title={paletteLabel(palette.name)}
+          aria-label={paletteLabel(palette.name)}
           aria-pressed={isInForce(palette.name) ? "true" : "false"}
-          // The panel stays OPEN on a pick, unlike the menu-shaped popover this
-          // strip used to live in: a palette is judged by looking at the page
-          // it paints, and shutting the surface after every press would make
-          // comparing two of them a matter of reopening it.
           onClick={() => props.state.theme.pick(palette)}
         >
-          {palette.name}
+          <span
+            aria-hidden="true"
+            class="relative block size-7 rounded-full md:size-6 border ring-offset-2 ring-offset-panel group-hover:scale-105 group-focus-visible:ring-2 group-focus-visible:ring-accent group-aria-pressed:ring-2 group-aria-pressed:ring-ink/60 motion-safe:transition-transform"
+            style={{
+              background: `linear-gradient(135deg, ${palette.colors.paper} 0 55%, ${palette.colors.accent} 55% 100%)`,
+              "border-color": palette.colors.rule,
+            }}
+          />
         </button>
       )}
     </For>

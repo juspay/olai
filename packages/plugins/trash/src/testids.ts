@@ -2,6 +2,7 @@
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
   trashLink: "trash-link",
+  railTrash: "rail-trash",
   trashPage: "trash-page",
   trashGroup: "trash-group",
   trashRow: "trash-row",

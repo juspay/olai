@@ -60,7 +60,33 @@ If a directory that used to serve comes up EMPTY, its outlines predate the renam
 
 It binds to loopback by default because the surface is unauthenticated: anyone who can reach the port can read every outline under the directory — and, since the keyboard editor arrived, change one.
 
-The page it serves follows the disk — save a file, `git pull`, drop in a new outline, and it updates in place — and a pill in its header is green only while a server is actually answering; drop the connection and the app freezes under an overlay that says so, thawing by itself when the wire comes back; restart the server under an open tab and that overlay offers a reload, because nothing else recovers that one. Beside the committed pill a quiet chip says how long THIS process has been up (`up 2h`, the start instant on the chip) — the server's start, ticked in the tab; the page that loads after that reload reads `up 12s` because it is a new page against a new process. It reads on a phone and installs as one (there is no offline mode, on purpose — a cached copy of an outline is a copy that has stopped being true; the one service worker an installed olai registers caches nothing and is there so the agent can tell you it is waiting on you). A ⚙ in the header (or, on a phone, at the foot of the directory drawer) opens the preferences — one of the named palettes, the typeface, how big the page is set, how much of a row is drawn by default, whether finished work is drawn — the panel's word is the default, hidden until somebody says otherwise, and a page says it beside its own filter — whether the agent stopping on a question reaches you when you are not looking and whether that makes a sound ([docs/chat.md](chat.md#when-it-is-waiting-on-you)), stored in the browser and sent nowhere. Git policy belongs to the vault and can be edited on the plugins panel. A `⧉` beside it (on a phone, another row in that same drawer) opens the plugins panel — which integrations this server is running, why each is in the state it is in, and a switch per row that moves the running serve ([below](#which-integrations-this-serve-runs)); `⌘K` opens a command palette, where the keyboard-shortcut list also lives, where a zoomed node's own verbs are offered, and where `+ a line` captures that line to the directory's inbox without leaving the page ([docs/editing.md](editing.md)). Search has a box in the header and lives in that palette too — the same reading an agent's `search_nodes` gets, jump on Enter; on a phone the header's magnifier opens the palette ([docs/search.md](search.md)). It needs nothing installed.
+The page it serves follows the disk. Save a file, `git pull`, or drop in a new outline, and the page updates in place. It needs nothing installed.
+
+On a desktop the header holds the wordmark, the search box (placeholder `Search`), one health dot, the Preferences gear and the face of whoever is signed in. The dot covers everything that reports on the app: the connection, git's Commit row, and each integration's readout (kolu, odu, mail, spaces). It is green when all is well, amber when something wants attention (writes waiting to be committed, a watcher gone quiet, a connection re-dialling), and red when something is broken (the server restarted under the tab, a version skew, a fault). A readout with nothing wrong and nothing running (`Not a git folder`, `No kolu`) is quiet and never colours it. Its accessible name and tooltip say what is wrong in the readout's own words — `Status: all good`, or `Status: <news> · <news>` — so a dropped connection is heard without a click.
+
+Press the dot (or Tab to it and press Enter) for a popover with one row per readout, each with a dot of its own tone and its words. A quiet row draws no dot. The rows stand worst first — red, then amber, then green, then quiet — keeping their usual order within a tone, with the uptime line and the Plugins row always last. The rows are:
+
+- the connection: `Connected`, `Connecting…`, `Reconnecting…`, `Partly connected` (some updates are not arriving), or `The server restarted`;
+- git's Commit row (for example `Not a git folder`), which opens the commit panel;
+- each running integration's row (kolu's opens its feed);
+- a quiet line saying how long this server process has been running, `Running for 2h`, with `Running since <instant>` on its tip. The page that loads after a restart reads `Running for 12s`, because it is a new page against a new process;
+- at the foot, a **Plugins** row. Picking it shuts the popover and opens the plugins panel ([below](#which-integrations-this-serve-runs)), hanging from the dot; Escape shuts the panel and puts the caret back on the dot.
+
+A plugin that is switched off has no row.
+
+When the connection drops, the page freezes under a card that says `Connection lost` / `Reconnecting…`, and thaws by itself when the connection comes back. The first connect says `Connecting…`. If the server restarted under an open tab, the card says `The server restarted` / `Reload the page to keep working.` with a `Reload` button, because only a reload recovers that one. If the page itself breaks, it shows `Something went wrong on this page` / `Your files are safe. Reload to try again.` with `Reload` and `Go home`; the technical text is inside a closed `Details` disclosure.
+
+A phone's header has no dot. It shows a banner under the bar only when there is news, and the Preferences and Plugins doors are rows at the foot of the sidebar drawer. olai reads on a phone and installs as one. There is no offline mode, on purpose: a cached copy of an outline is a copy that has stopped being true. The one service worker an installed olai registers caches nothing; it is there so the agent can tell you it is waiting on you.
+
+The Preferences gear opens a panel stored in the browser and sent nowhere:
+
+- **Appearance**: Theme (a row of named palette swatches), Font, and Size. The default interface typeface is Inter.
+- **Outlines**: `Row density` (Compact, Cozy, Open) and a `Show finished` switch. Finished work is hidden by default; its hint says `Pages can override this`, which a page does with the `finished` box beside its own filter.
+- **Notifications**: `Alerts` (whether the agent stopping on a question reaches you when you are not looking) and `Sound` switches ([docs/chat.md](chat.md#when-it-is-waiting-on-you)), and, with the journal row, `Reminders` ([plugins/journal.md](plugins/journal.md#reminders)).
+
+Git policy belongs to the vault and is edited on the plugins panel.
+
+`⌘K` opens a command palette. The keyboard-shortcut list lives there, a zoomed row's own verbs are offered there, and `+ a line` captures that line to the directory's inbox without leaving the page ([docs/editing.md](editing.md)). Search has a box in the header and lives in that palette too. It is the same reading an agent's `search_nodes` gets, and Enter jumps to the result; on a phone the header's search button opens the palette ([docs/search.md](search.md)).
 
 ### One olai per directory
 
@@ -95,9 +121,9 @@ Put it behind a reverse proxy or `tailscale serve` and the browser's origin will
 
 ### Who is looking
 
-A reverse proxy in front of olai can say who made the request. olai trusts **one configurable family of header names** — a login, and optionally an email, a display name and a picture — and the header bar draws who is looking as an icon, top right, in the same chip as prefs: **anonymous** when no login came (direct access, a local `just run`), the person when one did, or that the door failed. The words are the tooltip, and they say the display name with the login beside it (`Sridhar Ratnakumar (srid@github)`) — on a shared vault, which account this is is the whole question. Absence is a face, not a missing chip.
+A reverse proxy in front of olai can say who made the request. olai trusts **one configurable family of header names** — a login, and optionally an email, a display name and a picture — and the header bar draws who is looking as a face, top right, beside the Preferences gear: **anonymous** when no login came (direct access, a local `just run`), the person when one did, or that the door failed. The words are the tooltip, and they say the display name with the login beside it (`Sridhar Ratnakumar (srid@github)`) — on a shared vault, which account this is is the whole question. Absence is a face, not a missing one.
 
-All of that is a **plugin** — the `identity` row, on by default ([plugins/identity.md](plugins/identity.md)). A serve with `on: no` on its identity node reads no headers at all: every request is nobody, a capture records no `captured-by`, and there is no chip in the bar — not an anonymous one, an absent one. Header names are properties of the `identity` node in `_olai/Settings.olai`; edits reapply the row.
+All of that is a **plugin** — the `identity` row, on by default ([plugins/identity.md](plugins/identity.md)). A serve with `on: no` on its identity node reads no headers at all: every request is nobody, a capture records no `captured-by`, and there is no face in the bar — not an anonymous one, an absent one. Header names are properties of the `identity` node in `_olai/Settings.olai`; edits reapply the row.
 
 Default wiring is `tailscale serve`'s own four headers. **The login is not necessarily an email**: on a Google, Microsoft or Okta tailnet `Tailscale-User-Login` *is* the address, which is why the email claim defaults to the same header — but on a GitHub- or passkey-backed one it reads `srid@github`, which is Tailscale's spelling of that account and not an address anybody can hash. The same family covers other proxies — one feature, not one per proxy:
 
@@ -173,7 +199,7 @@ Logging policy is on the top-level `olai` node of `_olai/Settings.olai`:
 
 `log-level` accepts `debug`, `info`, `warn`, or `error`, defaulting to `info`. Debug includes the agent's stderr feed; failed turns already report stderr at warn. `log-format` accepts `auto`, `logfmt`, or `pretty`; auto selects pretty on a TTY and logfmt elsewhere. Both follow revisions live, including existing callback emitters. Before the vault is available, the process uses defaults.
 
-Use **This serve** on `⧉` to edit Log level and Log format with the same controls as plugin settings. Both write the `olai` node and apply live without a restart. Hostname, host, bound port, allowed origins and bearer set/unset remain read-only, with their actual authors. The bearer value is never published there.
+Use the **Server** section at the bottom of the plugins panel to edit Log level and Log format with the same controls as plugin settings. Both write the `olai` node and apply without a restart. The section's other lines are read-only: Address (host and bound port), Machine name, Allowed origins, Access token (`Set` or `Not set`; the value is never published there), State folder, and Saved in.
 
 A SIGINT writes `olai web: received SIGINT` to stderr before the process unwinds. Effect still treats the interrupt as a successful stop and exits 130 — the shipped user unit counts 130 as success so `systemctl stop` is not a failed unit. That one line is what lets a journal tell a signaled death from a deliberate stop.
 
@@ -239,25 +265,25 @@ Whether writes record themselves and commits push is policy of the directory, sh
 
 Each plugin's `Config` schema declares its defaults, descriptions and controls. The git row on the plugins panel draws commit and push controls inline. A ● marks values set in the file; an explicit value equal to the default is still authored. **Use default** removes that property from the file. `GitState.policy` reports the decoded policy in force. Stale files under `$XDG_STATE_HOME/olai/git/` are inert.
 
-Turning the git row off removes the ledger, pill and tools. Setting `commit: off` keeps a mounted ledger that has been told not to record.
+Turning the git row off removes the ledger, the Commit row and the tools. Setting `commit: off` keeps a mounted ledger that has been told not to record.
 
 **A refused commit or push pauses the loop**, and that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. The one gesture that does is **Resume**, on the commit panel, drawn only while the loop is actually stopped.
 
 That pause is a fact about the DIRECTORY, held by the server. A reload does not clear it, a second tab does not clear it, and turning the row off and on again does not clear it; pressing Resume clears it for every reader at once. It used to live in the tab that made the attempt, which meant a reload was a silent retry, a second tab knew nothing about the stop, and a headless serve had no loop to stop.
 
-**Restarting the process is the one thing that does clear it.** Nothing about a refusal is written down, so a `systemctl restart`, a deploy or a crash brings up a server with no stop and no words. That is deliberate for the stop: a restart is an operator's act where a reload is not. It would be wrong for the WORDS on their own, because the unit restarts on its own and the count would go quiet again — so **a boot re-earns them**: with `push: auto` and commits the upstream does not have, the server makes one push at startup (the same bare `git push`, never a force, never a pull) and whatever git answers is on the chip at once. With `push: off`, with nothing to send, or on a branch with no upstream at all, a boot attempts nothing — a branch nobody has ever pushed is not a branch that is behind.
+**Restarting the process is the one thing that does clear it.** Nothing about a refusal is written down, so a `systemctl restart`, a deploy or a crash brings up a server with no stop and no words. That is deliberate for the stop: a restart is an operator's act where a reload is not. It would be wrong for the WORDS on their own, because the unit restarts on its own and the count would go quiet again — so **a boot re-earns them**: with `push: auto` and commits the upstream does not have, the server makes one push at startup (the same bare `git push`, never a force, never a pull) and whatever git answers is on the Commit row at once. With `push: off`, with nothing to send, or on a branch with no upstream at all, a boot attempts nothing — a branch nobody has ever pushed is not a branch that is behind.
 
 Theme, typeface, size, note density and finished work are untouched by any of this. They are personal view choices, per browser, and there is nothing about them for a server to have an opinion on.
 
 ## Which integrations this serve runs
 
-Olai is a bundle: its shell, content readers and editors, and integrations are plugins. The file says which run. The plugins panel — `⧉` in the header, or in the phone directory drawer — reads that choice and writes it when you press a switch. olai does not know the difference between the integrations themselves.
+Olai is a bundle: its shell, content readers and editors, and integrations are plugins. The file says which run. The plugins panel — the **Plugins** row at the foot of the header's health-dot popover, or at the foot of the phone's sidebar drawer — reads that choice and writes it when you press a switch. olai does not know the difference between the integrations themselves.
 
 **Content and navigation are plugins too.** `outlines` and `markdown` own their readers and editors independently. `navigation` owns routes, focus, history and the palette; `layout` supplies the frame. `files`, `pins`, `capture` and `trash` contribute their own browsing and actions. Disabling `files` removes its browser while vault-owned file metadata remains available to open content. Disabling a content provider removes its handlers and UI; unrelated editors retain their state. `vault-plugins` owns source discovery, approval and compiled chunks, and disabling it unloads the definitions it owns. Approval write reservations remain in force while that policy is absent.
 
 **The CONVERSATION is one** ([plugins/chat.md](plugins/chat.md)) — the panel, the transcript, the agents section, the door on an agent's row, pointer carries and the palette's `>`. It is on by default like the rest, and it is the row everything else on this list leans on: an engine, a doorbell and a mirror each name a door the chat row stands behind, so a serve that leaves chat out leaves those `waiting`, and the plugins panel says so per row.
 
-**The LEDGER is one** ([plugins/git.md](plugins/git.md)) — the pill, the commit panel, and the quiet-window loop. It is on by default. A serve that leaves it out still writes; nobody records the writes, and there is no pill.
+**The LEDGER is one** ([plugins/git.md](plugins/git.md)) — the Commit row in the health popover, the commit panel, and the quiet-window loop. It is on by default. A serve that leaves it out still writes; nobody records the writes, and there is no Commit row.
 
 **The JOURNAL is one** ([plugins/journal.md](plugins/journal.md)) — the calendar, `/today`, day pages, Agenda and its owed badge. It is also on by default. Leaving `journal` out removes those routes and faces while leaving the `date` and `repeat` fields in your files untouched.
 
@@ -285,10 +311,10 @@ before that deadline.
 |---|---|---|
 | vault | every policy and behaviour knob, including which rows run | `_olai/Settings.olai`, in git |
 | env | credentials and machine resources | process environment, wrapper, or `environmentFile` |
-| browser | how this tab reads | `⚙`, localStorage |
+| browser | how this tab reads | the Preferences gear, localStorage |
 | memory (not a settings door) | private plugin records, named but never opened by the panel | `$XDG_STATE_HOME/olai/<plugin>/<hash>.json` |
 
-Memory is a separate machine-local record. The panel foot names `memory · $XDG_STATE_HOME/olai` beside the source-dot and session-ring legend, and never opens memory.
+Memory is a separate machine-local record. The panel's Server section names it as `State folder` (`$XDG_STATE_HOME/olai`) and never opens it.
 
 ### Settings declarations
 
@@ -296,13 +322,17 @@ Each plugin's `Config` schema is the sole declaration of keys, defaults, validat
 
 The reader selects `Settings.olai` by case-folded basename, shallowest path first, then path order. Missing file, node or leaf uses defaults. An invalid leaf defaults and warns once; the input shows the refused file text in alarm, with the schema message and effective default beneath it; a broken line defaults all rows and names the broken file on the panel. Repair restores the reading. Boot enables the vault and reader profile first, then folds the first policy reading into the remaining row patches before enabling them. A row the file disables never applies. There is no second disk reader before the vault lock.
 
-The plugins panel is a wide square with two columns of collapsible sections, each heading counting on and off rows. Phones use one column. Every row draws its name, inline knobs and a switch labelled `Enable <row>` without a caption. There is no summary or per-row disclosure. Short lowercase labels come from the leaf keys, and schema descriptions are tooltips. Up to four choices use segmented buttons, longer choices a select, booleans a switch, and numbers/text compact inputs. A ● marks file-authored values; its tooltip says `set in Settings.olai`, and ↺ removes the property. Defaults have no marker. Off rows dim their knobs but leave them editable. Enter or blur saves; Escape reverts a draft without closing the panel.
+The plugins panel is a list of collapsible groups, each heading with a count. **Needs attention** comes first and starts open when any row needs a person. Then come the sections `olai.yml` names (such as Agents, Notes, Connections, Interface), then **Your plugins** (plugins defined in the vault), and **Server** at the bottom. Every other group starts closed.
+
+Each row is one line: the plugin's name, a short status only when it is stuck (`Failed`, `Needs approval`, `Starting…`, `Can't start`, `Failed in this tab`, `Starting in this tab`, `Needs setup`), and a switch named `Enable <name>` after the name the row shows (`Enable Git`). Pressing the name expands the row's detail: a sentence about its state, whatever the plugin itself shows there, its knobs, its environment readings, its source (for a vault-defined plugin), its `Short name` where the label differs, and `Saved in`, a link to its node in the settings file. Rows under Needs attention start expanded. A row with nothing more to show has no chevron.
+
+Knob labels come from the leaf keys, and schema descriptions are tooltips. Up to four choices use segmented buttons, longer choices a select, booleans a switch, and numbers/text compact inputs. A ● marks file-authored values; its tooltip says `set in Settings.olai`, and ↺ removes the property. Defaults have no marker. Off rows dim their knobs but leave them editable. Enter or blur saves; Escape reverts a draft without closing the panel.
 
 The browser’s `plugins.configure({ name, key, value })` validates the value with the leaf’s schema before writing through the ordinary ops door. A dotted key targets its section child; a missing row or section is created with the write. `null` removes the leaf. The control waits for the resulting revision and reconciliation. Validation refusals appear at the control and leave the file unchanged. If the reader withdraws after an accepted write, the settlement refusal says that the file retains it. Two tabs use the last accepted edit; other revisions do not discard a draft being typed. These changes are ordinary ledger-visible edits and follow the directory’s commit policy.
 
 Knob edits have no session fallback. An absent reader freezes controls with the tooltip “Settings can be edited when the configuration reader is running”; a broken file freezes them with the tooltip “Repair _olai/Settings.olai before changing settings” (using the selected file’s path). Reader-owner switches show a dashed session-only ring for recovery, but their knobs use the same durable controls.
 
-Environment readings follow the controls and stay read-only. Wrapper-provided executable paths are `·wrapper`; explicit resource inputs are `·env`, including explicit nix-store paths. Secrets show only set/unset. A ↗ beside the row name appears on hover or focus when the node exists, opening it in the outliner for direct editing. The panel header opens the whole settings file. The first panel edit creates a missing node.
+Environment readings follow the controls and stay read-only. Wrapper-provided executable paths are `·wrapper`; explicit resource inputs are `·env`, including explicit nix-store paths. Secrets show only `Set` or `Not set`. When the row's node exists, its `Saved in` link opens it in the outliner for direct editing. The panel header opens the whole settings file. The first panel edit creates a missing node.
 
 ### Environment doors
 
@@ -329,13 +359,13 @@ The wrapper records which defaults it supplied in `OLAI_WRAPPER_DEFAULTS`; this 
 
 ### The switch, and how long it lasts
 
-**The plugins panel has a switch on every row**, grouped by the section `olai.yml` names, with quiet groups (transports, this tab, pages) collapsed while they are healthy. A press on the heading opens one and the panel keeps that through roster redraws and the rebuild a switch causes; folding the group back up would make the walk unusable. Plugins written into the vault sit in **Defined here**; a pending definition is **Needs you** until somebody approves it. Pressing a switch moves the running serve. Turn kolu off and its Dock rows stop being drawn, its chip leaves the bar, its members leave the wire and the words it taught the vault go back to being ordinary text — no reload, no restart, and the page follows on its own. Turn it back on and all of it returns. A row that carries others, or that has a `switchHint`, asks before Off.
+**The plugins panel has a switch on every row**, grouped by the section `olai.yml` names. Groups of the app's own machinery (transports, this tab, pages) sort after the others. A press on a heading opens its group, and the panel keeps it open through roster redraws and the rebuild a switch causes. Plugins written into the vault sit in **Your plugins**; a pending definition sits under **Needs attention** as `Needs approval` until somebody approves it. Pressing a switch moves the running serve. Turn kolu off and its Dock rows stop being drawn, its row leaves the health popover, its members leave the wire and the words it taught the vault go back to being ordinary text — no reload, no restart, and the page follows on its own. Turn it back on and all of it returns. A row that carries others, or that has a `switchHint`, asks before Off.
 
 **A switch writes `on` to the file**, through the ordinary write door, then waits for the next revision and reconciliation. It creates a missing namespace while preserving siblings. The edit appears in the ledger and follows the directory's commit policy. A restart reads the file again.
 
-The vault and settings-reader switches are session-only to keep their own recovery door available; their owners are derived from services, not hardcoded names. Their switches wear a dashed ring, explained in the foot legend. When the reader is absent, every enable switch wears that ring. Applied patches stand when the reader withdraws; a returning vault publishes and patches again. A broken file must be repaired before a durable switch writes. The follower ignores `on` on both reader owners and warns once per row and file, so file policy cannot lock its own reader out. Their session switches can stop and reopen them without a disk edit.
+The vault and settings-reader switches are session-only to keep their own recovery door available; their owners are derived from services, not hardcoded names. Their switches wear a dashed ring, and the row's detail says `This switch resets when olai restarts.` When the settings file can't be read, every enable switch wears that ring and the panel says at the top that switches reset when olai restarts. Applied patches stand when the reader withdraws; a returning vault publishes and patches again. A broken file must be repaired before a durable switch writes. The follower ignores `on` on both reader owners and warns once per row and file, so file policy cannot lock its own reader out. Their session switches can stop and reopen them without a disk edit.
 
-**Every browser sees it**, because it is not this browser's setting. A flip made in one tab moves the roster the server publishes, and every other tab pointed at the same server follows it — the same standing as the connection dot, and the reason these rows are not on the preferences panel with the theme.
+**Every browser sees it**, because it is not this browser's setting. A flip made in one tab moves the roster the server publishes, and every other tab pointed at the same server follows it — the same standing as the connection row, and the reason these rows are not on the preferences panel with the theme.
 
 **There is no CLI verb for it**, deliberately. `olai surface` speaks to a running server, and a plugin flip is not one of the things it can ask for: enablement is authored in the outline or by a person at the panel. Nor is there a `--dump-config` — the panel *is* the table.
 
@@ -365,7 +395,7 @@ Old `hold/`, `wake/`, `heard/` and `mirror/` files are not read or migrated. Cha
 
 ### What being off means
 
-**A serve with an integration off is not a degraded serve**, and the word is literal: the connection indicator stays green. Nothing is parked and nothing is half-wired — the integration's members are not on the wire at all, its tab half is never mounted so nothing subscribes to them, it hangs no chip in the bar, it probes for nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.
+**A serve with an integration off is not a degraded serve**, and the word is literal: the health dot stays green. Nothing is parked and nothing is half-wired — the integration's members are not on the wire at all, its tab half is never mounted so nothing subscribes to them, it hangs no row in the health popover, it probes for nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.
 
 **And it is the same nothing whichever door turned it off.** A row disabled in the file and a row somebody switched off at the panel a minute ago are one state, not two: the plugin's registrations are undone as it goes — the words it taught, the doorbell it declared, the members it served, the seats it filled — so once teardown has finished what is left behind is absence rather than a disabled copy of anything. The vocabulary in particular follows the fibers rather than the boot: a kind whose plugin you just switched off stops being a kind on the running serve, and its values are read as the plain text any undeclared key already is.
 
@@ -523,11 +553,14 @@ The plugins panel derives its inline format control from that schema. `format` n
 
 The web defaults include `ui-renderer`, `navigation`, `layout`, `sidebar`, `preferences`, and `theme`. The first three supply the normal shell; content providers such as `outlines` and `markdown` render files. `files` supplies browsing and creation; `pins`, `capture`, and `trash` add their controls. `preferences` owns browser choices and `theme` their appearance. Enablement is authored in the file. Surface and test-minimal profiles omit browser rows. A browser row selected by the host is not proof it activated in a tab.
 
-If a browser plugin fails to load, its row in the plugins panel shows the error
-and offers **Retry browser activation**. Successfully running browser plugins
-keep their state. If startup cannot mount a shell, **Retry browser startup**
-appears in the startup error view and retries the host's selection. Neither
-retry changes the server's configured selection.
+If a browser plugin fails to load, its row moves under **Needs attention** in
+the plugins panel with the status `Failed in this tab`. Its detail shows the
+error and offers **Try again**, or **Reload** when the browser has cached the
+broken module and only a reload can fetch it again. Successfully running
+browser plugins keep their state. If startup cannot mount a shell, the page
+shows `olai couldn't start` with **Try again**, which retries the host's
+selection (or **Reload page** when only a reload can help). Neither changes the
+server's configured selection.
 
 `plugin-inspector` owns the plugins panel; excluding it removes that UI without
 stopping host management. Its state survives shell replacement, while disabling

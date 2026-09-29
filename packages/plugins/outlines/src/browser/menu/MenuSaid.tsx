@@ -92,7 +92,7 @@ export function MenuSaid(props: { readonly said: Said | null }) {
                     later sticky heading. */}
                 <SaidLine
                   said={message()}
-                  class={`fixed ${LAYER.row} m-0 max-w-[24rem] w-max rounded border border-rule/70 bg-panel px-2 py-1 text-xs shadow-md`}
+                  class={`fixed ${LAYER.row} m-0 max-w-[24rem] w-max rounded-control border border-rule/60 bg-panel px-2 py-1 text-label shadow-raised`}
                   style={{ left: `${spot().left}px`, top: `${spot().top}px` }}
                   testid={TESTID.nodeMenuSaid}
                 />

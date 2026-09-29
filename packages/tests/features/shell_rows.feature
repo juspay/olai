@@ -143,7 +143,7 @@ Feature: The renderer and layout are browser rows
     And I open the plugins panel
     And I switch the plugin "alerts" on
     And I open the preferences
-    Then the Alerts row explains "silent"
+    Then the Alerts row explains "When the agent needs you"
     And the alert sound cannot be set
     And Reminders cannot be set
     And there should be no page errors
@@ -154,7 +154,7 @@ Feature: The renderer and layout are browser rows
     And I press Escape on the preferences
     And I open the plugins panel
     And I switch the plugin "chat" off
-    Then the Alerts row explains "silent"
+    Then the Alerts row explains "When the agent needs you"
     And the alert sound cannot be set
     And Reminders cannot be set
     And there should be no page errors

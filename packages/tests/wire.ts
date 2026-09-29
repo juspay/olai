@@ -397,6 +397,9 @@ const pages = async (
   await page.locator('[data-testid="document-body"]').waitFor({ timeout: 30_000 })
   await mark("a document is opened")
 
+  // The month is folded under the sidebar's Today row until it is opened.
+  const toggle = page.locator('[data-testid="calendar-toggle"]')
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click()
   await page.locator('[data-testid="calendar-day"][data-date="2026-08-12"] a').click()
   await page.locator('[data-testid="day-page"]').waitFor({ timeout: 30_000 })
   await mark("a day page is opened")
@@ -513,10 +516,15 @@ const chat = async (
   const panel = page.locator('[data-testid="chat-panel"]')
   await page.goto(base)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
-  // Whether the panel is open is remembered per browser, and this context is a
-  // fresh one — but the toggle is a TOGGLE, so a click on an open panel shuts
-  // it. Ask first.
-  if (!(await panel.isVisible())) await page.locator('[data-testid="chat-toggle"]').click()
+  // A NEW CHAT, the way a person starts one: the `+` on the sidebar's Chats
+  // heading. It starts at once with one agent and asks which with several —
+  // the first one listed is taken. The conversation folds open under its Inbox
+  // row, and the fold carries the same `chat-panel` status the old side panel
+  // did (there is no side panel, and no toggle, any more).
+  await page.locator('[data-testid="chat-new"]').click()
+  const agents = page.locator('[data-testid="agent-engine-menu"]')
+  await agents.or(panel).first().waitFor({ state: "visible", timeout: 30_000 })
+  if (await agents.isVisible()) await agents.locator("[data-engine]").first().click()
   await panel.waitFor({ state: "visible", timeout: 30_000 })
   // THE AGENT HAS FINISHED HANDSHAKING, or there is not one — and the second
   // is said HERE, in the words of the thing that is wrong, rather than left to
@@ -542,7 +550,7 @@ const chat = async (
         "AGENT=$PWD/../plugins/claude/e2e/fake/claude-agent-acp SESSION=chat bash wire.sh",
     )
   }
-  await mark("the app opens and the panel is opened")
+  await mark("the app opens and a new chat is opened")
 
   /**
    * One turn: ask, and time TWO things that are not the same thing.

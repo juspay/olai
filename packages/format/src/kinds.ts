@@ -1,6 +1,7 @@
 /** File membership is a snapshot supplied by the vault, never a built-in roster. */
 import { Schema } from "effect"
 import type { OutlineFormat } from "./format.ts"
+import { basenameOf } from "./paths.ts"
 
 /** The data part of a claim, shared by wire readings. */
 export const ClaimData = Schema.Struct({
@@ -61,6 +62,14 @@ export const bareOf = (claims: Claims, path: string): string => {
   return path
 }
 export const stemOf = (claims: Claims, path: string): string => bareOf(claims, path.slice(path.lastIndexOf("/") + 1))
+/** The name a file is drawn by, in the sidebar and in a tab alike: a document
+ * (a kept kind — an outline, a markdown file) drops the suffix that claimed it
+ * (`garden.olai` is `garden`); every other file keeps it, since the suffix is
+ * how a person tells `report.pdf` from `report.csv`. */
+export const nameOf = (claims: Claims, path: string): string => {
+  const base = basenameOf(path)
+  return claimOf(claims, path)?.kept === true ? bareOf(claims, base) : base
+}
 export const holdsBody = (claims: Claims, kind: string): boolean => {
   const claim = claims.byKind.get(kind)
   return claim !== undefined && claim.holds !== "nodes"

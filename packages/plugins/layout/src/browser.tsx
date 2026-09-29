@@ -24,8 +24,8 @@ import Frame from "./Frame.tsx"
 import { contentStatus,name,overlays,type Shell,sidebar,strip,tools } from "./index.ts"
 import { trackDesktop } from "./layout/media-owner.ts"
 import {
-  desktop, panelOpen, panelSnap, panelWidth, resetPanelWidths, setPanelOpen, setPanelSnap,
-  setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, toggleSidebar, togglePanel,
+  desktop, panelSnap, panelWidth, resetPanelWidths, setPanelSnap,
+  revealSidebar, setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, toggleSidebar,
 } from "./layout/live.ts"
 import { followLayout } from "./layout/prefs-owner.ts"
 
@@ -50,8 +50,8 @@ export default definePlugin({
     // `./layout/live.ts`). The readings are installed by the root
     // contribution's `activate` below, on this same activation.
     yield* (yield* Offers).own("shell", (): Shell => ({
-      desktop, sidebarOpen, setSidebarOpen, toggleSidebar, sidebarWidth, setSidebarWidth,
-      panelOpen, setPanelOpen, togglePanel, panelWidth, setPanelWidth, panelSnap, setPanelSnap,
+      desktop, sidebarOpen, setSidebarOpen, toggleSidebar, revealSidebar, sidebarWidth, setSidebarWidth,
+      panelWidth, setPanelWidth, panelSnap, setPanelSnap,
       resetPanelWidths, PanelHandle,
     }))
     yield* slots.contribute(root, () => <ErrorBoundary fallback={(error) => {

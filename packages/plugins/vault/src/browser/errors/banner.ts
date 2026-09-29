@@ -117,6 +117,6 @@ export const troubleIn = (
  */
 export const SAID: Record<FileState, string> = {
   unreadable: "could not be read",
-  unparsed: "has lines that do not parse",
-  invalid: "says something the set cannot hold",
+  unparsed: "has lines that can't be read",
+  invalid: "conflicts with other outlines",
 }

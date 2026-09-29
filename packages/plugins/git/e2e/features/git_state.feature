@@ -47,8 +47,8 @@ Feature: What git is doing is on screen, in ONE indicator
     # said dimly, as the setting it is.
     Then the header shows one git indicator
     And the commit pill says "off"
-    And the commit pill reads "commits off"
-    And the commit pill explains "commits are off for this server"
+    And the commit pill reads "Commits off"
+    And the commit pill explains "Commits are turned off"
     And the commit pill is not alarming
     And the commit pill cannot be pressed
     And there should be no page errors
@@ -61,9 +61,11 @@ Feature: What git is doing is on screen, in ONE indicator
     # count of what is pending cannot express.
     Then the header shows one git indicator
     And the commit pill says "never"
-    And the commit pill reads "no commits yet"
-    And the commit pill explains "this directory is a git repository"
+    And the commit pill reads "No commits yet"
+    And the commit pill explains "This is a git repository"
     And the commit pill is not alarming
+    # Healthy, and the bar's one dot says so: nothing here is news.
+    And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:good @git:none
@@ -72,10 +74,12 @@ Feature: What git is doing is on screen, in ONE indicator
     # told off.
     Then the header shows one git indicator
     And the commit pill says "no-repo"
-    And the commit pill reads "no git here"
-    And the commit pill explains "not a git work tree"
+    And the commit pill reads "Not a git folder"
+    And the commit pill explains "isn't a git repository"
     And the commit pill is not alarming
     And the commit pill cannot be pressed
+    # A setting, not a fault: the row is quiet and it does not colour the dot.
+    And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:good @git:broken
@@ -87,13 +91,17 @@ Feature: What git is doing is on screen, in ONE indicator
     # the one a keyboard can still reach.
     Then the header shows one git indicator
     And the commit pill says "error"
-    And the commit pill reads "git error"
+    And the commit pill reads "Git error"
     # The mark, positively. It is what a reader SCANS for, and a face that lost
     # its glyph would pass every other assertion on this scenario.
     And the commit pill is alarming
     And the commit pill explains "dubious ownership"
     When I hover the commit pill
-    Then a tip says "git failed here, so writes are landing on disk but are not being committed — fatal: detected dubious ownership in repository"
+    Then a tip says "Git failed here, so changes are saved but not committed — fatal: detected dubious ownership in repository"
+    # ...and the bar's one dot is red with the row's own words, so the fault is
+    # heard with the popover shut.
+    And the health dot is "alarm"
+    And the health dot names "Git error"
     And there should be no page errors
 
   @scratch:good @git:broken

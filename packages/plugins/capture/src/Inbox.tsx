@@ -27,7 +27,7 @@ export function Inbox(props: {
         <Show when={props.broken}>
           {/* No margin of its own: the row has one gap and this is on it — the
               tree's own mark, said the same way (see `File` below). */}
-          <span class="text-alarm" title="this file could not be read">
+          <span class="text-alarm" title="Couldn't open this file">
             ⚠
           </span>
         </Show>

@@ -91,7 +91,7 @@ Feature: Duplicating a subtree
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen-herbs"
     Then the node menu does not offer "Duplicate"
-    And the node menu offers "Remove this placement"
+    And the node menu offers "More › Remove from here"
 
   Scenario: ⌘Z puts the copy in the Trash, and ⌘⇧Z brings it back
     # An undo takes back what THIS write made, and what a duplicate makes is a

@@ -9,7 +9,7 @@
   ],
   "files": [
     "src/browser.tsx",
-    "src/browser/NotFound.tsx",
+    "src/browser/Nothing.tsx",
     "src/browser/focus.ts",
     "src/browser/fold/memory.ts",
     "src/browser/page.ts",
@@ -64,6 +64,7 @@
     "src/browser/page.ts",
     "src/browser/select/SelectionBar.tsx",
     "src/browser/select/bulk.ts",
+    "src/contracts/changes.ts",
     "src/surface.ts",
     "src/testids.ts",
     "src/tools.ts"
@@ -71,5 +72,8 @@
   "vault": [
     "src/server.ts",
     "src/tools.ts"
-  ]
+  ],
+  "//files": "The empty page says olai can't open some `files`: the word, not the files row.",
+  "//preferences": "browser.tsx registers this plugin's rows with the preferences panel through its declared contract.",
+  "//trash": "A write's story reads `Moved to Trash`: the Trash a person sees, not the trash row."
 }

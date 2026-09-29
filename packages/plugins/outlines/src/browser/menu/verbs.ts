@@ -162,11 +162,30 @@ export type Does =
  *  a list of verbs rather than a list of wrappers. */
 const sends = (edit: Edit): Does => ({ kind: "edit", edit })
 
+/**
+ * WHERE a verb sits in the `•••` menu (`./actions.ts` draws the groups in this
+ * order, a rule between each):
+ *
+ *   - `mark`  — the status marks, under one `Mark ›` entry;
+ *   - `plan`  — when and where to find it: the date, the repeat rule, the pin;
+ *   - `place` — where it lives: move it, copy it;
+ *   - `more`  — reached for rarely, under `More ›`;
+ *   - `away`  — `Move to Trash`, last and alone.
+ *
+ * A VALUE ON THE VERB rather than a list in the menu, so a new verb says where
+ * it belongs at the one place it is written, and the palette — which lists
+ * the same catalog flat — simply ignores it. WITHIN a group the menu keeps
+ * this catalog's order, so where a verb is pushed is where it is drawn.
+ */
+export type Group = "mark" | "plan" | "place" | "more" | "away"
+
 /** One write the menu offers: what it is called, what it does, and what it
  *  asks first — if it asks anything. */
 export interface Verb {
   readonly id: string
   readonly label: string
+  /** Which group of the `•••` menu it sits in ({@link Group}). */
+  readonly group: Group
   /** What choosing it does. A VALUE: the wire, the refusal, the line that says
    *  so and the picker are all `./actions.ts`'s and `../writes.ts`'s. */
   readonly does: Does
@@ -194,10 +213,10 @@ export interface Verb {
  * is the rarest of the four and the one nobody should reach by accident.
  */
 const MARK_MENU = {
-  todo: { at: 0, label: "Mark todo" },
-  doing: { at: 1, label: "Mark doing" },
-  done: { at: 2, label: "Complete" },
-  cancelled: { at: 3, label: "Cancel" },
+  todo: { at: 0, label: "To do" },
+  doing: { at: 1, label: "Doing" },
+  done: { at: 2, label: "Done" },
+  cancelled: { at: 3, label: "Cancelled" },
 } as const satisfies Record<Status, { readonly at: number; readonly label: string }>
 
 /** That table, read in its own order — off {@link MARKS}, so the entries are
@@ -240,40 +259,6 @@ export const writeVerbs = (
   const shown = subject.shows
 
   if (shown !== undefined) {
-    // THE SHELF, and it is FIRST among the writes for the reason the divider
-    // above them exists at all: the order of this list is a fence, and the
-    // entry a hand reaches for most often should not sit next to the one that
-    // takes a subtree away.
-    //
-    // ONE ENTRY WITH TWO LABELS, because pinning is a STATE rather than an
-    // event (`../pins/pinning.ts`): the shelf either holds this node's page or
-    // it does not, and a menu offering both at once would make a reader choose
-    // between two words while looking at a row that already knows which one
-    // applies.
-    //
-    // It names the node the row SHOWS rather than the record standing there —
-    // the rule a mark and a date already follow. A pin is a door to a PAGE,
-    // and a mirror's page is its target's; storing the placement's id instead
-    // would leave a pin that stops resolving the day somebody retires that
-    // placement, which is a write about a line and not about the shelf.
-    const pinned = pinnedAt(routes, shelf, atNode(shown.node.id))
-    verbs.push(
-      pinned === undefined
-        ? {
-          id: "pin",
-          label: "Pin to sidebar",
-          does: sends({ verb: "pin", at: hrefOfPlain(atNode(shown.node.id)) }),
-        }
-        : {
-          id: "unpin",
-          label: "Unpin from sidebar",
-          // The pin's OWN node, which is the one thing on the shelf this verb
-          // is about — never the node it opens. Archived rather than erased:
-          // that is the removal the set has, and it is what makes an unpin
-          // undoable and reversible from the Trash.
-          does: sends({ verb: "trash", id: pinned.id }),
-        },
-    )
     // *START AN AGENT SESSION* STOOD HERE, one entry per installed engine, and
     // it is gone with the rest of chat: a conversation is a plugin's, and this
     // catalog is core's. It is `olai-plugin-chat`'s browser half now, hung in
@@ -294,6 +279,7 @@ export const writeVerbs = (
       if (subject.status === mark) continue
       verbs.push({
         id: `mark-${mark}`,
+        group: "mark",
         label,
         does: sends({ verb: "mark", id: shown.node.id, mark }),
       })
@@ -301,7 +287,8 @@ export const writeVerbs = (
     if (subject.status !== undefined) {
       verbs.push({
         id: "clear-mark",
-        label: "Clear mark",
+        group: "mark",
+        label: "Clear",
         does: sends({ verb: "mark", id: shown.node.id, mark: null }),
       })
     }
@@ -325,15 +312,11 @@ export const writeVerbs = (
     // hold "one way to say no date" up.
     verbs.push({
       id: "set-date",
+      group: "plan",
       label: shown.node.date === undefined ? "Set date…" : "Change date…",
       does: { kind: "pick-date" },
     })
     if (shown.node.date !== undefined) {
-      verbs.push({
-        id: "clear-date",
-        label: "Clear date",
-        does: sends(datePick(shown.node.id, "")),
-      })
       // THE REPEAT RULE, and it is offered ONLY on a dated row — which is the
       // one place this menu fences a write rather than offering it and letting
       // the ops layer answer. It is not a policy of the menu's: the format
@@ -348,17 +331,45 @@ export const writeVerbs = (
       // constructor the picker's empty option sends (`../date/repeat.ts`).
       verbs.push({
         id: "set-repeat",
+        group: "plan",
         label: shown.node.repeat === undefined ? "Set repeat…" : "Change repeat…",
         does: { kind: "pick-repeat" },
       })
-      if (shown.node.repeat !== undefined) {
-        verbs.push({
-          id: "clear-repeat",
-          label: "Stop repeating",
-          does: sends(repeatPick(shown.node.id, "")),
-        })
-      }
     }
+    // THE SHELF, LAST of its group: the date and the rule are about the node,
+    // the pin is about the sidebar.
+    //
+    // ONE ENTRY WITH TWO LABELS, because pinning is a STATE rather than an
+    // event (`../pins/pinning.ts`): the shelf either holds this node's page or
+    // it does not, and a menu offering both at once would make a reader choose
+    // between two words while looking at a row that already knows which one
+    // applies.
+    //
+    // It names the node the row SHOWS rather than the record standing there —
+    // the rule a mark and a date already follow. A pin is a door to a PAGE,
+    // and a mirror's page is its target's; storing the placement's id instead
+    // would leave a pin that stops resolving the day somebody retires that
+    // placement, which is a write about a line and not about the shelf.
+    const pinned = pinnedAt(routes, shelf, atNode(shown.node.id))
+    verbs.push(
+      pinned === undefined
+        ? {
+          id: "pin",
+          group: "plan",
+          label: "Pin to sidebar",
+          does: sends({ verb: "pin", at: hrefOfPlain(atNode(shown.node.id)) }),
+        }
+        : {
+          id: "unpin",
+          group: "plan",
+          label: "Unpin from sidebar",
+          // The pin's OWN node, which is the one thing on the shelf this verb
+          // is about — never the node it opens. Archived rather than erased:
+          // that is the removal the set has, and it is what makes an unpin
+          // undoable and reversible from the Trash.
+          does: sends({ verb: "trash", id: pinned.id }),
+        },
+    )
     // THE PROPERTIES: ONE entry, and only on a node that carries none.
     //
     // This used to be `Add property…` plus an `Edit <key>…` and a
@@ -386,6 +397,7 @@ export const writeVerbs = (
     if (customEntries(customOf(shown.node), placement).length === 0) {
       verbs.push({
         id: "prop-add",
+        group: "more",
         label: "Add property…",
         does: { kind: "add-prop" },
       })
@@ -404,6 +416,7 @@ export const writeVerbs = (
     for (const one of RELATIONS) {
       verbs.push({
         id: `edge-${one.relation}`,
+        group: "more",
         label: one.verb,
         does: { kind: "pick-edge", relation: one.relation },
       })
@@ -424,6 +437,7 @@ export const writeVerbs = (
   // cannot carry one.
   verbs.push({
     id: "move-to",
+    group: "place",
     label: "Move to…",
     does: { kind: "pick-move" },
   })
@@ -440,10 +454,20 @@ export const writeVerbs = (
   if (isMirror(subject.record)) {
     verbs.push({
       id: "remove-placement",
-      label: "Remove this placement",
+      group: "more",
+      label: "Remove from here",
       does: sends({ verb: "unmirror", id: subject.record.id }),
     })
-  } else if (shown !== undefined) {
+  }
+  // TAKING A DATE OR A RULE BACK OFF — the ends of the two pairs above, pushed
+  // here so they close `More ›`, after the placement verb.
+  if (shown?.node.date !== undefined) {
+    verbs.push({ id: "clear-date", group: "more", label: "Clear date", does: sends(datePick(shown.node.id, "")) })
+    if (shown.node.repeat !== undefined) {
+      verbs.push({ id: "clear-repeat", group: "more", label: "Stop repeating", does: sends(repeatPick(shown.node.id, "")) })
+    }
+  }
+  if (!isMirror(subject.record) && shown !== undefined) {
     // A COPY of this row and everything under it, as the sibling below.
     //
     // Drawn on a node's own row and not on a mirror of it — the same split the
@@ -457,6 +481,7 @@ export const writeVerbs = (
     // something away; this one only adds, and ⌘Z takes it back.
     verbs.push({
       id: "duplicate",
+      group: "place",
       label: "Duplicate",
       does: sends({ verb: "duplicate", id: subject.record.id }),
     })
@@ -479,6 +504,7 @@ export const writeVerbs = (
     // tool is still `outlines_trash`; only the surface a person reads renames.
     verbs.push({
       id: "trash",
+      group: "away",
       label: "Move to Trash",
       does: sends({ verb: "trash", id: shown.node.id }),
       // Counted over the SET rather than over this row's children: what the

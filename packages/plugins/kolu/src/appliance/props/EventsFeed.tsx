@@ -74,11 +74,11 @@ export function EventRow(props: {
           // THE PULSE, in one line — see the fold for the sentence of a
           // watcher that has nothing else to say.
           <div class="flex items-baseline gap-2">
-            <span class="shrink-0 text-[0.6875rem] text-muted" aria-hidden="true">
+            <span class="shrink-0 text-caption text-muted" aria-hidden="true">
               ⌁
             </span>
-            <span class="min-w-0 flex-1 text-[0.6875rem] text-muted">{line().words}</span>
-            <span class="shrink-0 text-[0.6875rem] text-muted">{line().age}</span>
+            <span class="min-w-0 flex-1 text-caption text-muted">{line().words}</span>
+            <span class="shrink-0 text-caption text-muted">{line().age}</span>
           </div>
         )
         : (
@@ -106,16 +106,16 @@ export function EventRow(props: {
                 <RowLabel
                   markdown={line().who === "" ? props.event.row!.terminal : line().who}
                   render={(markdown) => markdown}
-                  class="min-w-0 text-[0.8125rem] leading-4"
+                  class="min-w-0 text-body leading-4"
                   color={line().labelColor === ""
                     ? undefined
                     : line().labelColor}
                 />
-                <span class="ml-auto shrink-0 text-[0.6875rem] text-muted">
+                <span class="ml-auto shrink-0 text-caption text-muted">
                   {line().age}
                 </span>
               </div>
-              <div class="text-[0.6875rem] text-muted" data-testid={TESTID.eventsWords}>
+              <div class="text-caption text-muted" data-testid={TESTID.eventsWords}>
                 {line().words}
               </div>
             </div>
@@ -145,7 +145,7 @@ export function EventsFeed(): JSX.Element {
     <Show
       when={events().length !== 0}
       fallback={
-        <p class="text-[0.8125rem] text-muted" data-testid={TESTID.eventsEmpty}>
+        <p class="text-body text-muted" data-testid={TESTID.eventsEmpty}>
           {padiSaid(fleet.link()).detail}
         </p>
       }
@@ -153,7 +153,7 @@ export function EventsFeed(): JSX.Element {
       <ol
         class="flex flex-col gap-2"
         data-testid={TESTID.eventsFeed}
-        aria-label="what recently wanted attention"
+        aria-label="Recent activity"
       >
         <For each={events()}>
           {(event) => <EventRow event={event} now={() => fleet.now()} />}

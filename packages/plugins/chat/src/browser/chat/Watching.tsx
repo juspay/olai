@@ -92,13 +92,13 @@ function Strip(props: { readonly chat: Chat }) {
   const now = createNow(() => true)
   return (
     <section
-      class="shrink-0 border-b border-rule/70 bg-panel px-3 py-1.5 font-mono text-[0.6875rem] leading-snug"
+      class="shrink-0 border-b border-rule/60 bg-panel px-3 py-1.5 text-caption leading-snug"
       data-testid={TESTID.chatWatching}
       // NOT "background tasks" any more, which is what it said and is now
       // half the truth: agents are on this strip too, and telling a screen
       // reader that five subagents are background tasks is naming one kind of
       // thing after the other. What both are is STILL RUNNING.
-      aria-label="still running"
+      aria-label="Still running"
     >
       <p class="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
         <For each={out()}>
@@ -163,7 +163,7 @@ function Strip(props: { readonly chat: Chat }) {
               >
                 <button
                   type="button"
-                  class="flex min-w-0 items-baseline gap-1 rounded-sm text-ink hover:text-accent aria-pressed:text-accent focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  class="flex min-w-0 items-baseline gap-1 rounded-control text-ink hover:text-accent aria-pressed:text-accent focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   data-testid={TESTID.chatWatchingTask}
                   data-kind={task.kind}
                   data-row={task.row}

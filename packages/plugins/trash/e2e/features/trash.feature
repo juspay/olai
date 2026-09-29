@@ -24,11 +24,41 @@ Feature: The trash can be seen into, taken out of, and emptied
     Given I open the outline "house.olai"
     And I mark the page
 
+  Scenario: The Trash door is pinned at the sidebar's foot and opens the Trash
+    # One quiet row under the scrolling list, the trash row's own `foot`
+    # entry — it used to nest in the files row's vault group, whose lifetime it
+    # shared.
+    Then the Trash door is pinned at the sidebar's foot
+    When I open the Trash
+    Then the Trash is empty
+    And the Trash door is the current page
+    And there should be no page errors
+
+  Scenario: The collapsed rail keeps the Trash at its foot
+    When I collapse the sidebar
+    And I open the Trash from the rail
+    Then the Trash is empty
+    And there should be no page errors
+
+  @phone
+  Scenario: On a phone the Trash sits above the drawer's own foot, a finger's size
+    When I tap the burger
+    Then the Trash door is pinned at the sidebar's foot
+    And the Trash door is at least a finger's size
+    When I tap the Trash door
+    Then the Trash is empty
+    And there should be no page errors
+
   Scenario: The trash starts empty, and says so rather than erroring
     # No archive file exists in the fixture at all — the archive op creates
     # it on first use, so an absent archive IS an empty trash.
     When I open the Trash
     Then the Trash is empty
+    # Said, with what will appear here — and nothing to press: an empty Trash
+    # has no next step.
+    And the empty page says "Trash is empty" over "Deleted outlines and rows appear here."
+    And the empty page "Trash is empty" offers nothing to press
+    And there should be no page errors
 
   Scenario: What is moved to the Trash is listed there, whole
     When I open the node menu of "install"
@@ -181,7 +211,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     # and one trash file is why the two piles are already one emptying.
     When I open the outline "Daily/2026-08.olai"
     And I open the node menu of "catch-up"
-    And I choose "Link to a node…" from the node menu
+    And I choose "More › Link to…" from the node menu
     Then the see panel is open on "catch-up"
     When I search the edge panel for "knobs"
     # The hit's place line names its ancestry — `kitchen remodel #home` — and
@@ -208,7 +238,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     # same crumb the pill-press above lands on, here a RECORD line),
     # `August 2026` for catch-up, and the two rows themselves.
     And I press Empty trash
-    Then the Trash asks "Permanently delete all 7 rows in the Trash? Nothing in olai puts them back — the records leave the trash the way every other write does, so what survives is whatever git has already recorded."
+    Then the Trash asks "Permanently delete all 7 rows in Trash? olai can't bring them back. Only what git has already saved can be recovered."
     When I confirm emptying the Trash
     Then "_olai/Trash.olai" holds nothing
     And the Trash is empty

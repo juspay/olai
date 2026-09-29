@@ -37,7 +37,7 @@ export function EdgeVerbs(props: {
         {(one) => (
           <button
             type="button"
-            class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-1.5 py-0.5 text-xs text-muted hover:bg-rule/50 hover:text-ink`}
+            class={`${TARGET} md:min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-1.5 py-0.5 text-label text-muted hover:bg-rule/40 hover:text-ink`}
             data-testid={TESTID.edgeVerb}
             data-relation={one.relation}
             // `aria-expanded` and nothing beside it: whether this panel is up

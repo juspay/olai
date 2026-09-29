@@ -245,7 +245,7 @@ export function Shortlist(props: {
     >
       <input
         type="text"
-        class={`${TARGET} md:min-h-0 w-full rounded border border-rule bg-paper px-2 py-1 text-sm text-ink outline-none focus:border-accent`}
+        class={`${TARGET} md:min-h-0 w-full rounded-control border border-rule bg-paper px-2 py-1 text-body text-ink outline-none focus:border-accent`}
         data-testid={props.testids.box}
         aria-label={props.label}
         placeholder={props.label}
@@ -320,7 +320,7 @@ export function Shortlist(props: {
         {(failure) => (
           <SaidLine
             said={{ tone: "alarm", text: failure() }}
-            class="m-0 mt-1 font-mono text-xs"
+            class="m-0 mt-1 text-label"
             testid={props.testids.failed}
           />
         )}

@@ -158,7 +158,7 @@ export function Tip(props: {
         // `whitespace-pre-line` rather than plain wrapping: a story told in
         // LINES (the ⏱ chip's rounds, one per line) must not collapse into
         // one run — and a text without newlines is drawn exactly as before.
-        class={`pointer-events-none fixed ${props.layer ?? LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-sm border border-rule/70 bg-panel px-2 py-1 text-xs whitespace-pre-line text-ink shadow-sm`}
+        class={`pointer-events-none fixed ${props.layer ?? LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-control border border-rule/60 bg-panel px-2 py-1 text-label whitespace-pre-line text-ink shadow-raised`}
         style={{ left: `${drawn.at.left}px`, top: `${drawn.at.top}px` }}
         data-testid={TESTID.tip}
         role="presentation"

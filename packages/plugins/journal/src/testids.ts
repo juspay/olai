@@ -2,6 +2,10 @@
  * the ownership move so existing scenarios remain the contract. */
 export const TESTID = {
   calendar: "calendar",
+  calendarRow: "calendar-row",
+  calendarToday: "calendar-today",
+  calendarTodayDate: "calendar-today-date",
+  calendarToggle: "calendar-toggle",
   calendarDay: "calendar-day",
   calendarPrev: "calendar-prev",
   calendarNext: "calendar-next",

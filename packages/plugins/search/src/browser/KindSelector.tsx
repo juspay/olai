@@ -7,7 +7,7 @@ const choicesFor = (claims: Claims): ReadonlyArray<{ readonly value: Kind; reado
   const categories = new Set([...claims.byKind.values()].map(claim => claim.holds === "nodes" ? "node" : "file"))
   return [
     { value: undefined, label: "All" },
-    ...(categories.has("node") ? [{ value: "node" as const, label: "Nodes" }] : []),
+    ...(categories.has("node") ? [{ value: "node" as const, label: "Rows" }] : []),
     ...(categories.has("file") ? [{ value: "file" as const, label: "Files" }] : []),
   ]
 }
@@ -27,9 +27,9 @@ export function KindSelector(props: { readonly claims: () => Claims; readonly st
   return <div role="radiogroup" aria-label="Search kind" class="flex gap-1 px-3 py-2">
     <For each={choicesFor(props.claims())}>{choice => <button type="button" role="radio" aria-checked={props.state.pick() === choice.value}
       aria-label={choice.label} tabIndex={-1}
-      class={`rounded px-3 py-1 text-xs ${props.state.pick() === choice.value ? "bg-rule text-ink" : "text-muted hover:bg-rule/60"}`}
+      class={`rounded-control px-3 py-1 text-label ${props.state.pick() === choice.value ? "bg-rule text-ink" : "text-muted hover:bg-rule/60"}`}
       onMouseDown={event => event.preventDefault()} onClick={() => props.state.set(choice.value)}>
-      {choice.label}{" "}<span hidden={count(choice.value) === undefined} class="ml-2 font-mono text-[0.6875rem]">{count(choice.value)}</span>
+      {choice.label}{" "}<span hidden={count(choice.value) === undefined} class="ml-2 tabular-nums text-caption">{count(choice.value)}</span>
     </button>}</For>
   </div>
 }

@@ -12,9 +12,10 @@ import { definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { desktop, holdShell } from "./browser/shell.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
 import { Effect } from "effect"
-import { createSignal, Show } from "solid-js"
+import { createRoot, createSignal, Show } from "solid-js"
 
 import { Commit } from "./browser/commit/Commit.tsx"
+import { createGitStatus } from "./browser/commit/status.ts"
 import { type GitClient, holdGitWire } from "./browser/wire.ts"
 
 export { name, surface } from "./wire.ts"
@@ -53,9 +54,20 @@ export default definePlugin({
      */
     const [live, setLive] = createSignal(true)
 
+    // THE READOUT'S STATUS for the bar's health dot, read while the popover
+    // that draws the row is shut (`./browser/commit/status.ts`). Its own root,
+    // acquired after the wire is held and BEFORE the registration, so the
+    // registration is withdrawn first and the root is disposed after — the
+    // bar never reads a status whose owner has gone.
+    const status = yield* Effect.acquireRelease(
+      Effect.sync(() => createRoot(dispose => ({ dispose, read: createGitStatus() }))),
+      owned => Effect.sync(owned.dispose),
+    )
+
     yield* slots.register("app.header", {
       place: "cluster",
       body: () => <Show when={live()}><Commit /></Show>,
+      status: status.read,
     })
     // The phone's news belongs below the header, before the page content.
     yield* slots.register("app.banner", () => (

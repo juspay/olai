@@ -1,5 +1,6 @@
 /**
- * The month, in the sidebar — the way into the journal.
+ * The month, in the sidebar — the way into the journal, folded under the
+ * `Today` row until a reader opens it (`../sidebar.tsx`, `./fold.ts`).
  *
  * There is no journal FILE. A day is a question asked of every dated node in
  * every outline (`@olai/format`'s date derivations), so this aggregates the
@@ -95,26 +96,28 @@ export function Calendar(props: {
 
   return (
     <section
-      // No horizontal pad below md: `p-3` plus the drawer's `p-3` left
-      // 41px cells on a 390pt phone, under the 44px finger rule.
+      // ON THE COLUMN'S OWN GROUND, not a card: the month used to be a bright
+      // paper card on the dark spine, the loudest thing on screen. Unfolded
+      // under the `Today` row (`../sidebar.tsx`) it reads as part of the list.
+      // No horizontal pad below md, so seven cells in the phone drawer still
+      // clear the 44px finger rule.
       //
-      // THE MONTH IS THE COLUMN'S BIGGEST SPENDER — ~240px of the 328px a
-      // 400px window leaves under the bar — and the file tree has to clear
-      // the fold below it (`../layout/entry.ts`, and the scenario it names).
-      // So the padding here, the heading's size and the day cell's `md:min-h`
-      // are a budget: grow any of them and re-read that note first.
-      class="olai-card mb-1 rounded-3xl bg-paper py-3 shadow-none md:p-3"
+      // A reader who keeps it open spends ~220px of a short window on it, and
+      // the file tree has to clear the fold below (`olai-plugin-layout/entry`,
+      // and the scenario it names) — so the heading's size and the day cell's
+      // `md:min-h` are a budget: grow either and re-read that note first.
+      class="mb-2 mt-1 md:px-1"
       data-testid={TESTID.calendar}
       data-month={month()}
     >
       <header class="mb-1 flex items-center justify-between gap-1">
-        <Step label="the month before" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
+        <Step label="Previous month" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
           ‹
         </Step>
-        <h2 class="m-0 font-serif text-sm font-medium italic tracking-tight text-ink">
+        <h2 class="m-0 text-body font-medium text-paper/80">
           {monthLabel(month())}
         </h2>
-        <Step label="the month after" testid={TESTID.calendarNext} onStep={() => page(1)}>
+        <Step label="Next month" testid={TESTID.calendarNext} onStep={() => page(1)}>
           ›
         </Step>
       </header>
@@ -122,7 +125,7 @@ export function Calendar(props: {
       <div class="grid grid-cols-7 gap-px">
         <For each={WEEKDAY_HEADINGS}>
           {(weekday) => (
-            <div class="text-center text-[0.625rem] text-muted" aria-hidden="true">
+            <div class="text-center text-caption text-paper/40" aria-hidden="true">
               {weekday}
             </div>
           )}
@@ -162,7 +165,7 @@ function Step(props: {
       // A chevron is a small thing to hit, and unlike a day of the month it
       // has no grid column to fill it out — so it takes the box both ways
       // (../touch.ts).
-      class={`inline-flex ${TARGET_BOX} cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1 text-xs text-muted hover:bg-rule hover:text-ink md:min-h-0 md:min-w-0`}
+      class={`inline-flex ${TARGET_BOX} cursor-pointer items-center justify-center rounded-control border-0 bg-transparent px-1 text-label text-paper/60 hover:bg-paper/10 hover:text-paper md:min-h-0 md:min-w-6`}
       data-testid={props.testid}
       aria-label={props.label}
       onClick={props.onStep}

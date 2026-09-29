@@ -21,10 +21,37 @@
  * should have to be edited to add a third readout.
  */
 
+/**
+ * How bad a readout's state is, worst last — decided ONCE, in the state's own
+ * table, and read by both the row that draws it and the bar's health dot that
+ * folds every row. Two decisions (a row colour and a separate dot tone) are
+ * two answers that can disagree, and did: an amber dot over a list with no
+ * amber row in it.
+ *
+ *   - `healthy` — working, and saying so.
+ *   - `quiet` — nothing wrong and nothing running: `No kolu`, `Not a git
+ *     folder`. It paints no dot and never colours the health dot.
+ *   - `notice` — wants attention, is not broken: writes waiting, a watcher
+ *     gone quiet, a connection re-dialling.
+ *   - `alarm` — broken: a replaced server, a version skew, a fault.
+ */
+export type Tone = "healthy" | "quiet" | "notice" | "alarm"
+
+/** THE ONE PAINT per tone — the dot's colour and, where a row's words carry
+ *  the tone too, their ink. Theme tokens only. `quiet`'s dot is empty: the
+ *  {@link DOT} box still stands, so the words stay aligned with the rows that
+ *  wear one. */
+export const TONE: Readonly<Record<Tone, { readonly dot: string; readonly text: string }>> = {
+  healthy: { dot: "bg-done", text: "" },
+  quiet: { dot: "", text: "" },
+  notice: { dot: "bg-doing", text: "text-doing" },
+  alarm: { dot: "bg-alarm", text: "text-alarm" },
+}
+
 /** How one state of a readout is drawn. */
 export interface Look {
-  /** The dot. A background utility, because the dot IS the colour. */
-  readonly dot: string
+  /** How bad it is — the row's dot and the health dot's vote. */
+  readonly tone: Tone
   /** Two or three words, on screen next to the dot. */
   readonly label: string
   /** What that means, spelled out — the longer sentence a reader gets from the
@@ -35,55 +62,31 @@ export interface Look {
 
 import { LAYER } from "./layer.ts"
 
-/** The pill both readouts wear, minus the width each one caps itself at. Quiet
- *  by construction — a border, paper and muted text — because chrome that
- *  competes with the outline is chrome a reader learns to skip.
+/** THE STATUS ROW every chrome readout wears — the connection, the Commit
+ *  readout, each plugin's (kolu, odu, mail, spaces) and the uptime line. It
+ *  used to be a rounded chip standing in the bar; the bar now carries ONE
+ *  health dot and these are the rows of the popover it opens
+ *  (`olai-plugin-layout`'s `Health.tsx`), so the shape is a row on the
+ *  panel's ground: ink words, no border, a quiet hover where the row is a
+ *  control (`enabled:` matches a button and never a span, so a readout that
+ *  opens nothing does not pretend to).
  *
  *  No `truncate` here, and no `min-w-0` either. Those belong on the LABEL
- *  inside — the connection's words, the Commit pill's sentence — because
- *  putting them on this box was how a 360pt bar crushed the Commit pill to an
- *  empty oval: `min-w-0` let the box shrink past its mark, and `overflow:
- *  hidden` (what `truncate` is) clipped the mark that `shrink-0` had promised
- *  would stay. The label already truncates. The box is a chip.
+ *  inside, because `overflow: hidden` on this box would clip the mark.
  *
- *  Height matches {@link ICON_BUTTON} below 48rem, so a live pill and the
- *  agent toggle are one toolbar rather than a compact chip beside two 44px
- *  circles. Released on a pointer, same as that button. */
+ *  44px tall below 48rem for a thumb; the popover is desktop-only today, but a
+ *  row is a row wherever it lands. */
 export const PILL =
-  "flex items-center gap-1.5 rounded-full border border-paper/20 " +
-  "bg-paper/10 px-2 py-1.5 text-xs text-paper/80 sm:gap-2 sm:px-3 " +
+  "flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-body " +
+  "text-ink/80 enabled:hover:bg-pill/60 enabled:cursor-pointer " +
   "min-h-11 md:min-h-0"
 
-/** The dot itself, which the state's own `dot` utility colours. */
+/** The same row's shape for a DOOR at the foot of the popover (the plugins
+ *  panel's): the readout row, always a control. */
+export const STATUS_ROW = PILL
+
+/** The dot itself, which {@link TONE} colours. */
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
-
-/**
- * THE INFRASTRUCTURE-WARNING REGISTER — the pill's one non-status face.
- *
- * The bar's loud colours already have a ruling: violet (`styles.css`'s
- * `--color-alarm` and `--color-doing`'s siblings) is what an AGENT's ask
- * for a human wears — the board's `blocked` column, the skew chip's
- * "upgrade me". The PILL's new face (the watcher gone silent) is the
- * other kind of wrong: something of this machine's OWN is broken, rather
- * than a human is owed, and it gets AMBER as a third, smaller family so
- * the two are never one glance's confusion. The inks are the prototype's
- * own (`projects/olai/prototypes/pill-mock.png`): a hollow dot, a warm
- * coat on the chip, and a warm word beside it.
- */
-export const PILL_WARN_COAT = "!border-[#e0a83c] shadow-[0_0_0_1px_#e0a83c66]"
-/** The dot's HOLLOW face — the same round, emptied. */
-export const DOT_HOLLOW_WARN = "!bg-transparent border-2 !border-[#e0a83c]"
-/** The quiet sentence's ink, beside the dot's. */
-export const TEXT_WARN = "text-[#f0c46a]"
-
-/**
- * THE ALARM REGISTER — a refused post, a missing permission. Same ink
- * git's error face wears (`text-alarm`), so a Spaces fault is not the
- * amber of "the watcher went quiet".
- */
-export const PILL_ALARM_COAT = "!border-alarm shadow-[0_0_0_1px] shadow-alarm/40"
-export const DOT_HOLLOW_ALARM = "!bg-transparent border-2 !border-alarm"
-export const TEXT_ALARM = "text-alarm"
 
 /**
  * The other shape in the bar: a BUTTON with a glyph on it — the agent toggle
@@ -100,7 +103,7 @@ export const TEXT_ALARM = "text-alarm"
  */
 export const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center gap-1 rounded-full " +
-  "border border-paper/20 bg-paper/10 px-2 py-1.5 font-mono text-xs text-paper/80 hover:text-paper sm:px-3 " +
+  "border border-paper/20 bg-paper/10 px-2 py-1.5 text-label text-paper/80 hover:text-paper sm:px-3 " +
   "min-h-11 md:min-h-0"
 
 /**
@@ -111,7 +114,7 @@ export const ICON_BUTTON =
  */
 export const BANNER =
   "flex min-h-11 w-full items-center gap-2 border-b border-rule bg-paper " +
-  "px-4 py-2.5 text-left text-sm"
+  "px-4 py-2.5 text-left text-body"
 
 /**
  * THE BOX A PORTALLED PANEL WEARS — the preferences panel, the plugins panel,
@@ -143,4 +146,4 @@ export const BANNER =
  */
 export const PANEL_BOX = `fixed ${LAYER.over} ` +
   "flex min-h-0 flex-col overflow-y-auto overflow-x-hidden overscroll-contain " +
-  "rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none"
+  "rounded-surface border-0 bg-panel p-4 text-body shadow-overlay ring-1 ring-rule/40 focus:outline-none"

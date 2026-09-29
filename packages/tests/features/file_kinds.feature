@@ -23,11 +23,11 @@ Feature: File kinds follow their claiming rows
     When I close the plugins panel
     Then no outline file is listed
     And the Inbox and Pins entries explain the configured row is off
-    And the file-kind page says "No row claims `.olai`"
+    And the file-kind page says "olai can't open .olai files."
     When I navigate within the tab to "/_olai/Inbox.olai"
-    Then the file-kind page says "No row claims `.olai`"
+    Then the file-kind page says "olai can't open .olai files."
     When I navigate within the tab to "/_olai/Pins.olai"
-    Then the file-kind page says "No row claims `.olai`"
+    Then the file-kind page says "olai can't open .olai files."
     When I navigate within the tab to "/trash"
     Then the file-kind page says "the outline-olai row is off"
     When I navigate within the tab to "/agenda"
@@ -61,7 +61,7 @@ Feature: File kinds follow their claiming rows
     Then no PDF file is listed
     And fresh heads exclude "reports/q3.pdf"
     And media for "reports/q3.pdf" answers 404
-    And the file-kind page says "No row claims `.pdf`"
+    And the file-kind page says "olai can't open .pdf files."
     When I open the plugins panel
     And I switch the plugin "pdf" on
     And I close the plugins panel
@@ -109,7 +109,7 @@ Feature: File kinds follow their claiming rows
       * Not a registered format
       """
     And I open the address "/notes.org"
-    Then the file-kind page says "No row claims `.org`"
+    Then the file-kind page says "olai can't open .org files."
     And the unclaimed file "notes.org" is absent and refused by the outline tool
     And there should be no page errors
 
@@ -136,7 +136,7 @@ Feature: File kinds follow their claiming rows
     Then the connection is "live"
     And no PDF file is listed
     And fresh heads exclude "reports/q3.pdf"
-    And the file-kind page says "No row claims `.pdf`"
+    And the file-kind page says "olai can't open .pdf files."
     When I open the plugins panel
     And I switch the plugin "pdf" on
     And I close the plugins panel
@@ -152,7 +152,8 @@ Feature: File kinds follow their claiming rows
     When I open the plugins panel
     And I switch the plugin "outlines" off
     And I close the plugins panel
-    Then the file-kind page says "The browser page for files claimed by the outline-olai row is unavailable."
+    Then the file-kind page says "This page can't be opened"
+    And the file-kind page says "The plugin that opens outlines is turned off."
     And the held file "house.olai" has the plain-file fallback
     When I open the plugins panel
     And I switch the plugin "outlines" on

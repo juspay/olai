@@ -60,6 +60,17 @@ test("every row names a plugins panel section", () => {
   }
 })
 
+/** The panel reads a row by its label; a row without one would show its
+ *  settings id among the names a person reads, and two rows sharing a label
+ *  could not be told apart. */
+test("every row names a distinct label for the plugins panel", () => {
+  const labels = ROWS.map((row) => row.label)
+  for (const [index, label] of labels.entries()) {
+    expect([ROWS[index]!.id, typeof label === "string" && label.length > 0]).toEqual([ROWS[index]!.id, true])
+  }
+  expect(new Set(labels).size).toBe(labels.length)
+})
+
 test("policy defaults belong to schemas; no YAML row carries config", () => {
   const source = readFileSync(new URL("../olai.yml", import.meta.url), "utf8")
   expect(source).not.toMatch(/^\s+config:/m)

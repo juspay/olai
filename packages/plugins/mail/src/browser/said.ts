@@ -13,46 +13,47 @@
  * appliance over.
  */
 
+import type { BarStatus } from "olai-plugin-layout/slots"
+
 import type { Account } from "../wire.ts"
 
-export interface Said {
-  readonly dot: string
-  readonly label: string
-  readonly detail: string
-}
-
-export const mailSaid = (account: Account): Said => {
+/**
+ * ONE READING, for the row and the bar's health dot alike (`olai-plugin-layout`'s
+ * `BarStatus`), so the two cannot disagree. A fault is broken; no account is
+ * quiet — the ordinary state of a serve nobody pointed at a mailbox.
+ */
+export const mailSaid = (account: Account): BarStatus => {
   switch (account.status) {
     case "connected":
       return {
-        // STILL THE QUIET COAT WHILE A RETRY IS RUNNING, because the mailbox is
-        // still working: the token in the generated config is live, and what is
+        // STILL HEALTHY WHILE A RETRY IS RUNNING, because the mailbox is still
+        // working: the token in the generated config is live, and what is
         // failing is the broker's next one (`../account.ts` says why the arm
         // stays `connected`). The words carry the trouble; the colour would be
         // a lie about a `gmail` call that would answer.
-        dot: "bg-done",
-        label: `mail ${account.address ?? ""}`.trim(),
+        tone: "healthy",
+        label: `Mail ${account.address ?? ""}`.trim(),
         detail: account.retrying
-          ? `connected as ${account.address ?? "an unknown address"} — ${account.reason ?? "the next token is being retried"}`
-          : `connected as ${account.address ?? "an unknown address"}`,
+          ? `Connected as ${account.address ?? "an unknown address"}. ${account.reason ?? "Retrying sign-in…"}`
+          : `Connected as ${account.address ?? "an unknown address"}`,
       }
     case "absent":
       return {
-        dot: "bg-muted",
-        label: "no mail",
+        tone: "quiet",
+        label: "No mail",
         // The absent arm's reason is not a fault: it says what a connect would
         // still need (the two credential doors). See `../wire.ts`.
-        detail: account.reason ?? "no Gmail account is connected to this serve.",
+        detail: account.reason ?? "No Gmail account connected",
       }
     case "fault":
       return {
-        dot: "bg-alarm",
-        label: "mail fault",
+        tone: "alarm",
+        label: "Mail error",
         // THE WORDS BESIDE THE FIELD: `retrying` is what the cell carries
         // (`../wire.ts`), and `— retrying` is what a reader is told, composed
         // here because copy belongs to a renderer. A wait heals itself, so the
         // tooltip says so rather than promising a fix nobody has to make.
-        detail: `${account.reason ?? "this serve's Gmail connection is not working, and it gave no reason."}${account.retrying ? " — retrying" : ""}`,
+        detail: `${account.reason ?? "Gmail isn't working and gave no reason."}${account.retrying ? " Retrying…" : ""}`,
       }
   }
 }

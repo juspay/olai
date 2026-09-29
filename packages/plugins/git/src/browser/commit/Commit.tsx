@@ -61,26 +61,22 @@
  * which the preferences at the other end of the bar are the second consumer of.
  */
 
-import { Show } from "solid-js"
+import { For, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import {
-  AUTO_PAUSED,
-  explain,
   faceOf,
+  readingOf,
   isInert,
-  isNews,
   loopIn,
-  markOf,
   newsSays,
-  PUSH_REFUSED,
   unpushedIn,
 } from "./said.ts"
 import { Panel } from "./Panel.tsx"
 import { desktop } from "../shell.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { BANNER, PILL } from "@olai/web/client/readout.ts"
+import { BANNER, DOT, PILL, TONE } from "@olai/web/client/readout.ts"
 import { createPopover } from "@olai/web/client/popover.ts"
 import { createCommit } from "./state.ts"
 import { TESTID } from "../../testids.ts"
@@ -93,9 +89,6 @@ export function Commit() {
    *  owned; the loop is the server's now, so this is a reading and every tab
    *  makes the same one. */
   const auto = () => loopIn(commit.git())
-  /** Why the loop stopped, or `null` — the fact the words and the chip both
-   *  ask about. */
-  const paused = () => commit.git().paused
   // Whether the panel is up, where it goes, and the ways it shuts
   // (`../popover.ts`, shared with the preferences at the other end of the bar).
   // It used to be `note/expand.ts` — the row note's "open until you click
@@ -109,15 +102,18 @@ export function Commit() {
 
   const face = () => faceOf(commit.pending(), commit.heard(), commit.git())
   const inert = () => isInert(face())
-  /** One reading of the sentence for the two places it has to be: the tip a
-   *  pointer opens, and the label everything else gets. */
-  const said = () => explain(face(), commit.pending(), commit.git())
+  /** THE ONE READING (`./said.ts`): the tone the dot wears — the same one the
+   *  bar's health dot folds — the first words, the riders, and the sentence for
+   *  the two places it has to be: the tip a pointer opens, and the label
+   *  everything else gets. */
+  const read = () => readingOf(face(), commit.pending(), commit.git())
+  const said = () => read().detail
 
   /**
    * How long ago the last commit was, for the one face that has one — and `""`
    * everywhere else.
    *
-   * Beside {@link says} rather than inside it, because it is the half the bar
+   * Beside the first words rather than inside them, because it is the half the bar
    * gives up first: at 390pt the header has five things in it, and `· 3m ago` is
    * the only piece of any label that a reader can lose and still be told what
    * they came to find out. It is drawn from `sm` up; the exact instant, with
@@ -145,39 +141,12 @@ export function Commit() {
    */
   const unpushed = () => unpushedIn(commit.pending())
 
-  /** What the pill says. One line per state, and the reason each is worth its
-   *  own words rather than a count is in the header above. */
-  const says = () => {
-    switch (face()) {
-      // Not a claim about the directory — a claim about this page, which has
-      // not been told anything yet.
-      case "unknown":
-        return "…"
-      case "off":
-        return "commits off"
-      case "no-repo":
-        return "no git here"
-      // What the readout this pill absorbed used to say in its own chip. The
-      // WORDS are the consequence rather than the cause — git's own account of
-      // what happened is a paragraph, and it rides the tip and the aria-label.
-      case "error":
-        return "git error"
-      case "never":
-        return "no commits yet"
-      case "committed":
-        return "committed"
-      default:
-        return `${commit.waiting()} uncommitted`
-    }
-  }
-
-  /** What git said when it last refused a push, or `null`. It overrules the
-   *  ✓ and colours the count, because a number that is not coming down is a
-   *  number with a reason (`./said.ts`). */
+  /** What git said when it last refused a push, or `null` — an attribute here;
+   *  its words are one of {@link read}'s riders. */
   const pushSaid = () => commit.git().pushSaid
 
   const showPill = () => desktop()
-  const showBanner = () => !desktop() && isNews(face(), commit.pending(), commit.git())
+  const showBanner = () => !desktop() && (read().tone === "notice" || read().tone === "alarm")
   const line = () => newsSays(face(), commit.pending(), commit.git())
 
   return (
@@ -214,7 +183,7 @@ export function Commit() {
           // it painted the label the colour of the bar. The tip is a hover;
           // asking what the pill says made the pill unreadable.
           class={`${PILL} min-w-9 max-w-[9rem] sm:max-w-none ${
-            inert() ? "opacity-60" : "hover:text-paper"
+            inert() ? "opacity-60" : ""
           }`}
           data-testid={TESTID.commitPill}
           // The STATE as an attribute, so a scenario asserts on which face this
@@ -243,52 +212,31 @@ export function Commit() {
             if (!inert()) panel.toggle()
           }}
         >
-          <Show when={markOf(face(), commit.git())}>
-            {(mark) => (
-              <span class={`shrink-0 ${mark().tone ?? ""}`} aria-hidden="true">
-                {mark().glyph}
-              </span>
-            )}
-          </Show>
-          <span class="min-w-0 truncate">{says()}</span>
+          {/* The dot, in the reading's tone — the same tone the bar's health
+              dot folds, so a dot that is not green always has this row's
+              colour under it when git is why. A quiet face paints none, and
+              the dot-wide box still stands so the words line up. */}
+          <span class={`${DOT} ${TONE[read().tone].dot}`} data-health={read().tone} aria-hidden="true" />
+          <span class="min-w-0 truncate">{read().says}</span>
           {/* The first thing the bar gives up — see {@link ago}. */}
           <Show when={ago() !== ""}>
             <span class="hidden shrink-0 sm:block">· {ago()}</span>
           </Show>
-          {/* What is recorded and not shared — see {@link unpushed}. It stays at
-              every width, unlike the recency beside it: "3 unpushed" is news,
-              and the panel behind this pill is where the Push button lives. */}
-          <Show when={unpushed() > 0}>
-            <span class={`shrink-0 ${pushSaid() === null ? "" : "text-alarm"}`}>
-              · {unpushed()} unpushed
-            </span>
-          </Show>
-          {/* ... and WHY it is not coming down. `push-failure-invisible` in one
-              span: the count alone was every word of the truth except the one
-              that mattered, and the reason existed nowhere but one tab's
-              memory. Git's own words are a gesture away, on this pill's own
-              label and in the panel. It is drawn even at zero unpushed, which
-              cannot normally happen — the server clears the refusal the moment
-              there is nothing unshared — so if it ever does, it is news. */}
-          <Show when={pushSaid() !== null}>
-            <span class="shrink-0 text-alarm">· {PUSH_REFUSED}</span>
-          </Show>
-          {/* A loop that has STOPPED, which is the one thing Auto-commit has to
-              say out loud: its promise is that nobody watches it, so silence
-              after a failure is how a person finds out days later from
-              `git log`. It stays at every width, like the unpushed count and
-              unlike the recency — and the reason is a gesture away, in the
-              panel and on this pill's own label. */}
-          <Show when={paused() !== null}>
-            <span class="shrink-0 text-alarm">· {AUTO_PAUSED}</span>
-          </Show>
+          {/* THE RIDERS — what is recorded and not shared, WHY it is not coming
+              down (`push-failure-invisible`), and a loop that has STOPPED.
+              Each stays at every width, unlike the recency: each is news, and
+              git's own words are a gesture away, on this pill's own label and
+              in the panel. They wear the reading's ink. */}
+          <For each={read().riders}>
+            {(rider) => <span class={`shrink-0 ${TONE[read().tone].text}`}>· {rider}</span>}
+          </For>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
               — `../anchor.ts` picks the side with the room. Not below 40rem:
               the bar holds five things at 390pt, and a caret is the cheapest of
               them to give up — what it says is "there is more", which the words
               beside it would rather spend the pixels saying. */}
           <Show when={!inert()}>
-            <span class="hidden shrink-0 sm:inline" aria-hidden="true">
+            <span class="ml-auto hidden shrink-0 text-muted sm:inline" aria-hidden="true">
               {panel.open() ? "▴" : "▾"}
             </span>
           </Show>
@@ -299,11 +247,7 @@ export function Commit() {
         <button
           type="button"
           ref={panel.setTrigger}
-          class={`${BANNER} justify-between ${
-            face() === "error" || paused() !== null || pushSaid() !== null
-              ? "text-alarm"
-              : "text-doing"
-          }`}
+          class={`${BANNER} justify-between ${TONE[read().tone].text}`}
           data-testid={TESTID.gitNews}
           data-state={face()}
           data-uncommitted={commit.waiting()}

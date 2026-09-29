@@ -38,20 +38,37 @@ When("the browser module can be fetched again", async function (this: OlaiWorld)
   this.errors = this.errors.filter((error) => error !== expected);
 });
 
+/** A browser half that failed to start is a row under Needs attention in the
+ *  plugins panel, open, with `Try again` in its detail — the panel's, never the
+ *  startup card's button of the same name. */
+const retryInPanel = (world: OlaiWorld) =>
+  world.pluginsPanel().getByRole("button", { name: "Try again", exact: true });
+
+/** The host's own card when the renderer itself cannot start: `olai couldn't
+ *  start`, the reason, and `Try again` (or `Reload page` once a retry cannot
+ *  help). Plain DOM, drawn with no renderer at all (`host/boot-status.ts`). */
+const startupCard = (world: OlaiWorld) => world.page.getByRole("alert", { name: "olai couldn't start" });
+
+/** Where a retry cannot help — the failed module is cached — the offer becomes
+ *  a reload: `Reload page` on the startup card, or `Reload` in the failed
+ *  row's detail in the plugins panel. */
+const reloadOffer = (world: OlaiWorld) =>
+  world.page.getByRole("button", { name: /^Reload( page)?$/ }).first();
+
 When("I retry the failed browser activation", async function (this: OlaiWorld) {
-  await this.page.getByRole("button", { name: "Retry browser activation", exact: true }).click();
+  await retryInPanel(this).click();
 });
 
 Then("the browser activation has recovered", async function (this: OlaiWorld) {
-  await this.page.getByRole("button", { name: "Retry browser activation", exact: true }).waitFor({ state: "hidden" });
+  await retryInPanel(this).waitFor({ state: "hidden" });
 });
 
 Then("browser startup reports its failure", async function (this: OlaiWorld) {
-  await this.page.getByRole("alert", { name: "Browser startup failed" }).waitFor({ state: "visible" });
+  await startupCard(this).waitFor({ state: "visible" });
 });
 
 When("I retry browser startup", async function (this: OlaiWorld) {
-  await this.page.getByRole("button", { name: "Retry browser startup", exact: true }).click();
+  await startupCard(this).getByRole("button", { name: "Try again", exact: true }).click();
 });
 
 Then("layout has released its document styles and viewport observers", async function (this: OlaiWorld) {
@@ -93,7 +110,7 @@ When("the browser selection endpoint recovers", async function (this: OlaiWorld)
 });
 
 Then("browser startup has recovered", async function (this: OlaiWorld) {
-  await this.page.getByRole("alert", { name: "Browser startup failed" }).waitFor({ state: "hidden" });
+  await startupCard(this).waitFor({ state: "hidden" });
   await this.page.waitForFunction(() => (document.getElementById("root")?.childElementCount ?? 0) > 0);
 });
 
@@ -138,15 +155,15 @@ When("the static dependency can be fetched again", function (this: OlaiWorld) {
 });
 
 Then("browser recovery offers a reload for the cached dependency failure", async function (this: OlaiWorld) {
-  await this.page.getByRole("button", { name: "Reload page", exact: true }).waitFor({ state: "visible" });
-  await this.page.getByRole("button", { name: /^Retry browser/ }).waitFor({ state: "detached" });
+  await reloadOffer(this).waitFor({ state: "visible" });
+  await this.page.getByRole("button", { name: "Try again", exact: true }).waitFor({ state: "detached" });
   assert.equal(dependencyFailures.get(this)?.requests, 1, "retrying an entry cannot refetch its cached failed dependency");
 });
 
 When("I reload using browser recovery", async function (this: OlaiWorld) {
   await Promise.all([
     this.page.waitForEvent("load"),
-    this.page.getByRole("button", { name: "Reload page", exact: true }).click(),
+    reloadOffer(this).click(),
   ]);
   await this.waitUntil(async () => dependencyFailures.get(this)?.requests === 2, "a new document to refetch the previously failed dependency");
 });

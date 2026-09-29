@@ -264,7 +264,7 @@ Feature: Documents become writable
     Then the document editor is open
     When I cancel the document editor
     And I press "ControlOrMeta+z"
-    Then the undo says "nothing to undo"
+    Then the undo says "Nothing to undo"
 
   # A `/d/<anything>` is a day page without a note, so the button is the same
   # door; a date that isn't a day is the server's to refuse, verbatim. The
@@ -291,7 +291,7 @@ Feature: Documents become writable
     And I mark the page
     Then the file's delete is offered
     When I press Delete file
-    Then the deletion asks "Delete notes/palette.md? Nothing in olai puts it back — it leaves the directory the way every other write does, so what survives is whatever git has already recorded."
+    Then the deletion asks "Delete notes/palette.md? olai can't bring it back. Only what git has already saved can be recovered."
     # Cancel first, so the door and the way out of it are one scenario's: a
     # question that cannot be dropped is one nobody should have been asked.
     And I cancel deleting the file
@@ -338,7 +338,7 @@ Feature: Documents become writable
     When I open the empty outline "scratch.olai"
     Then the file's delete is offered
     When I press Delete file
-    Then the deletion asks "Delete scratch.olai? Nothing in olai puts it back — it leaves the directory the way every other write does, so what survives is whatever git has already recorded."
+    Then the deletion asks "Delete scratch.olai? olai can't bring it back. Only what git has already saved can be recovered."
     When I confirm deleting the file
     Then the outline list does not link to "scratch.olai"
     And the main pane says there is no outline "scratch.olai"

@@ -25,7 +25,7 @@
  */
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 export const QUIET_PILL =
-  "rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
+  "rounded-control border border-rule px-2 py-1 text-label text-muted hover:text-ink"
 
 /**
  * Its opposite number: the verb that GOES AHEAD with the one thing a confirm
@@ -43,7 +43,7 @@ export const QUIET_PILL =
  * the alarm colour, so the resting state has to say it has none.
  */
 export const ALARM_PILL =
-  "rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10"
+  "rounded-control border border-alarm bg-transparent px-2 py-1 text-label text-alarm hover:bg-alarm/10"
 
 /**
  * The way OUT of a panel a row opened — `Cancel` on the three panels that ask
@@ -62,4 +62,4 @@ export const ALARM_PILL =
  * are panels rather than chrome, and a panel offers a pointer.
  */
 export const PANEL_OUT =
-  `${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink`
+  `${TARGET} md:min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-2 py-1 text-body text-muted hover:text-ink`

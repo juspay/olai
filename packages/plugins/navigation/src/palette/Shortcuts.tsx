@@ -82,32 +82,32 @@ export function Shortcuts(props: {
         data-testid={TESTID.shortcuts}
         role="dialog"
         aria-modal="true"
-        aria-label="keyboard shortcuts"
+        aria-label="Keyboard shortcuts"
       >
         <button
           type="button"
           class="absolute inset-0 cursor-default"
-          aria-label="close the shortcuts"
+          aria-label="Close"
           onClick={() => props.onClose()}
         />
         <div
-          class={`relative ${WITHIN.raised} max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-2xl border-0 bg-panel p-4 shadow-xl ring-1 ring-rule/40`}
+          class={`relative ${WITHIN.raised} max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-surface border-0 bg-panel p-4 shadow-overlay ring-1 ring-rule/40`}
         >
           <For each={[...groups()]}>
             {(group) => (
               <section class="mb-4 last:mb-0">
-                <h2 class="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                <h2 class="m-0 mb-1 text-label font-semibold uppercase tracking-wide text-muted">
                   {group.group}
                 </h2>
                 <ul class="m-0 list-none p-0">
                   <For each={[...group.keys]}>
                     {(shortcut) => (
                       <li
-                        class="flex items-baseline justify-between gap-4 py-0.5 text-sm"
+                        class="flex items-baseline justify-between gap-4 py-0.5 text-body"
                         data-testid={TESTID.shortcut}
                       >
                         <span class="text-ink">{shortcut.what}</span>
-                        <kbd class="shrink-0 rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted">
+                        <kbd class="shrink-0 rounded-control border border-rule px-1.5 py-0.5 font-mono text-caption text-muted">
                           {shortcut.keys}
                         </kbd>
                       </li>

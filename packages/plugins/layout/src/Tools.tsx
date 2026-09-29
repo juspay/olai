@@ -1,15 +1,19 @@
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
-import { tools } from "./index.ts"
+import { tools, type ToolWhere } from "./index.ts"
 
 export function Tools(props: {
   readonly slots: RendererSlots
-  readonly where: "header" | "closet"
+  readonly where: ToolWhere
   readonly mobileWithoutSidebar?: boolean
 }) {
   const entries = () => props.slots.read(tools)
     .filter((entry) => !props.mobileWithoutSidebar || entry.value.mobileWithoutSidebar)
-    .sort((a, b) => props.where === "header"
-      ? a.value.headerOrder - b.value.headerOrder : a.value.closetOrder - b.value.closetOrder)
+    // The two desktop seats split the entries between them; the phone drawer
+    // (and the phone bar without one) keeps every door it always had.
+    .filter((entry) => props.where === "closet" || props.mobileWithoutSidebar === true ||
+      (entry.value.desktop ?? "header") === props.where)
+    .sort((a, b) => props.where === "closet"
+      ? a.value.closetOrder - b.value.closetOrder : a.value.headerOrder - b.value.headerOrder)
   return <For each={entries()}>{({ value: tool }) => <tool.body where={props.where} />}</For>
 }

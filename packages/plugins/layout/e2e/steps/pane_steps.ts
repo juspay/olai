@@ -284,6 +284,45 @@ Then("pane {int} keeps its title {string} above its scroller", async function(th
     `pane ${index} title scrolled away: ${JSON.stringify({ bar, box, top })}`)
 })
 
+// ── what a pane is called ──────────────────────────────────────────────
+//
+// A pane's header, its collapsed rail and its narrow-screen tab say the page's
+// NAME — a document by its stem, the way the sidebar and the tab strip say it
+// (`garden`, not `/garden.olai`), a node by its id, `Home` for the front page
+// — and the close and expand buttons carry that name in their accessible
+// names, so a screen reader hears which pane a press acts on.
+
+const words = async (locator: ReturnType<OlaiWorld["page"]["locator"]>): Promise<string> =>
+  (await locator.innerText()).replace(/[×\s]+$/u, "").trim();
+
+Then(
+  "pane {int}'s header reads {string}, and its close button is called {string}",
+  async function (this: OlaiWorld, index: number, name: string, close: string) {
+    const header = this.page.locator(`${PANE_HEADER}${attr("data-pane", String(index))}`);
+    await header.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(async () => (await words(header)) === name,
+      `pane ${index}'s header to read ${JSON.stringify(name)}`);
+    assert.strictEqual(await header.locator(PANE_CLOSE).getAttribute("aria-label"), close);
+  },
+);
+
+Then(
+  "the pane rail {int} reads {string}, and is called {string}",
+  async function (this: OlaiWorld, index: number, name: string, expand: string) {
+    const rail = this.page.locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
+    await rail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual((await rail.innerText()).trim(), name);
+    assert.strictEqual(await rail.getAttribute("aria-label"), expand);
+  },
+);
+
+Then("the pane tabs read {string}", async function (this: OlaiWorld, names: string) {
+  await this.waitUntil(
+    async () => (await this.page.locator(PANE_TAB).allInnerTexts()).map((one) => one.trim()).join(" | ") === names,
+    `the pane tabs to read ${JSON.stringify(names)}`,
+  );
+});
+
 When("I widen the first pane by dragging its divider", async function (this: OlaiWorld) {
   const handle = this.page.locator(PANE_RESIZE).first();
   const box = await handle.boundingBox();

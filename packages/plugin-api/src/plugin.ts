@@ -186,8 +186,9 @@ export interface AppClocks {
   readonly tickingOf: (elapsedMs: number) => string
 }
 
-/** THE CHROME PILL'S LOOK — the geometry the app's bar is a fixed height for,
- *  and the amber register it paints an infrastructure warning in.
+/** THE CHROME PILL'S LOOK — the geometry the app's bar is a fixed height for.
+ *  The dot's colour is not here: it is the state's tone, painted from
+ *  `olai-plugin-layout/slots`' one table.
  *
  *  CLASSES rather than a component, because what a readout draws INSIDE the
  *  pill is the plugin's (a dot, a word, a second word in the warning ink) and
@@ -196,12 +197,6 @@ export interface AppClocks {
 export interface PillLook {
   readonly PILL: string
   readonly DOT: string
-  readonly PILL_WARN_COAT: string
-  readonly DOT_HOLLOW_WARN: string
-  readonly TEXT_WARN: string
-  readonly PILL_ALARM_COAT: string
-  readonly DOT_HOLLOW_ALARM: string
-  readonly TEXT_ALARM: string
 }
 
 /**

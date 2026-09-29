@@ -1,75 +1,59 @@
+/**
+ * THE WAY TO WHAT WAS PUT AWAY — one quiet row at the column's foot, and its
+ * icon at the rail's.
+ *
+ * A `sidebar.entry` placed `foot`: the sidebar pins it under the scrolling list
+ * so it stays in view however long the tree runs (the 2026-09 simplification).
+ * It used to nest under the files row's vault group, which made the Trash's
+ * presence depend on the file tree being mounted — a door into this row's own
+ * page, withdrawn by another row's lifetime. Now it comes and goes with this
+ * row alone.
+ *
+ * Always drawn while the row stands, like the agenda: an empty trash is a fact
+ * a reader may want, not a control to hide until it would say something. It is
+ * current when the ROUTE is the trash page — the trash belongs to no one file.
+ */
 import { TESTID } from "olai-plugin-trash/testids"
 
-import { CONTROL } from "@olai/ui-primitives/touch.ts"
+import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
 
-import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
-import type { Route } from "olai-plugin-navigation/routes"
+import { ENTRY_SHAPE } from "olai-plugin-layout/entry"
 import { Link,useRouter } from "olai-plugin-navigation/routing"
-import { Show,type JSX } from "solid-js"
-const DOOR = `${ENTRY_SHAPE} ${ROW_GAP} text-paper/65`
-function DoorRow(props: {
-  readonly route: Route
-  readonly testid: string
-  readonly current: boolean
-  readonly title?: string
-  readonly broken?: boolean
-  readonly children: JSX.Element
-}) {
-  return (
-    <li class="mb-0.5">
-      <Link
-        route={props.route}
-        class={DOOR}
-        testid={props.testid}
-        current={props.current}
-        title={props.title}
-        broken={props.broken}
-      >
-        {props.children}
-      </Link>
-    </li>
-  )
-}
 
-
-function FileAnatomy(props: {
-  readonly name: string
-  readonly broken: boolean
-}) {
-  return (
-    <>
-      {/* The fold control's box, empty: a file has no triangle, and leaving
-          the cell out put its glyph where a folder's triangle sits — so the
-          four drawings that were supposed to be one column
-          (`./file/icons.tsx`) never were. The outline tree already holds
-          this seat open (`./Tree.tsx`'s HOVER_CELL fallback). */}
-      <span class={CONTROL} aria-hidden="true" />
-      {/* Which kind of file this is — the thing four characters of extension
-          were carrying on their own (`./file/icons.tsx`). */}
-      <span class="min-w-0 truncate">{props.name}</span>
-      <Show when={props.broken}>
-        {/* No margin of its own: the row has one gap and this is on it. */}
-        <span class="text-alarm" title="this file could not be read">
-          ⚠
-        </span>
-      </Show>
-    </>
-  )
-}
-
+const TRASH_ROUTE = { kind: "trash" } as const
 
 export function Trash() {
   const router = useRouter()
-
   return (
-    <DoorRow
-      route={{ kind: "trash" }}
+    <Link
+      route={TRASH_ROUTE}
+      // The quiet ink says what the row is: a door onto a page, not one more
+      // file of the reader's own.
+      class={`${ENTRY_SHAPE} text-paper/60`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
-      {/* Not a file: no glyph, like the parent — a file kind's drawing
-          would lie about a page that is none of them. */}
-      <FileAnatomy name="Trash" broken={false} />
-    </DoorRow>
+      {/* No glyph and no fold seat: a door of the column like Agenda and
+          Today, so it shares their left edge rather than the tree's. */}
+      <span class="min-w-0 truncate">Trash</span>
+    </Link>
+  )
+}
+
+/** The same door, collapsed: the rail's foot. */
+export function TrashRail() {
+  const router = useRouter()
+  return (
+    <RailButton testid={TESTID.railTrash} label="Open Trash" title="Trash" onClick={() => router.go(TRASH_ROUTE)}>
+      <TrashGlyph class="size-4" />
+    </RailButton>
+  )
+}
+
+function TrashGlyph(props: { readonly class: string }) {
+  return (
+    <svg viewBox="0 0 16 16" class={props.class} aria-hidden="true" fill="currentColor">
+      <path d="M6.5 1.75a.75.75 0 0 0-.75.75V3H3a.75.75 0 0 0 0 1.5h.3l.66 8.6A1.75 1.75 0 0 0 5.7 14.75h4.6a1.75 1.75 0 0 0 1.74-1.65l.66-8.6H13A.75.75 0 0 0 13 3h-2.75v-.5a.75.75 0 0 0-.75-.75zm-1.7 2.75h6.4l-.65 8.49a.25.25 0 0 1-.25.26H5.7a.25.25 0 0 1-.25-.26z" />
+    </svg>
   )
 }

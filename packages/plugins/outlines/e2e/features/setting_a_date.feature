@@ -59,7 +59,7 @@ Feature: Setting a date from the web
     # what the row carries. Clearing keeps the verb #124 gave it, unchanged.
     When I open the node menu of "order"
     Then the node menu offers "Change date…"
-    And the node menu offers "Clear date"
+    And the node menu offers "More › Clear date"
     And the node menu does not offer "Set date…"
 
   Scenario: An emptied box is the menu's own Clear date, and it clears
@@ -204,10 +204,10 @@ Feature: Setting a date from the web
     Then the node "install" is not shown
     When I open the date picker on "order"
     Then the date picker holds "2026-08-10" at "14:30"
-    And the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. A changed day or time is written in this browser's time zone."
+    And the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. A new day or time is saved in your time zone."
     And the date picker's button is dead
     When I draft the date "2026-12-01"
-    Then the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. Pressing writes 2026-12-01T14:30:00-05:00, in this browser's time zone."
+    Then the date picker says "Scheduled for 2026-08-10T14:30:00-07:00. This saves 2026-12-01T14:30:00-05:00, in your time zone."
     When I press the date picker's button
     Then "house.olai" holds the node "order" dated "2026-12-01T14:30:00-05:00"
     And there should be no page errors
@@ -225,7 +225,7 @@ Feature: Setting a date from the web
     When I open the date picker on "order"
     Then the date picker holds "2026-08-10" at "14:30"
     And the date picker's button is dead
-    And the date picker says "Scheduled for 2026-08-10 14:30. A changed day or time is written in this browser's time zone."
+    And the date picker says "Scheduled for 2026-08-10 14:30. A new day or time is saved in your time zone."
     And there should be no page errors
 
   @zone:America/New_York
@@ -238,7 +238,7 @@ Feature: Setting a date from the web
     And I choose "Set date…" from the node menu
     And I draft the date "2026-03-08"
     And I draft the time "02:30"
-    Then the date picker says "There is no 02:30 on 2026-03-08 in this browser's time zone, so pressing writes 2026-03-08T03:30:00-04:00."
+    Then the date picker says "There is no 02:30 on 2026-03-08 in your time zone, so this saves 2026-03-08T03:30:00-04:00."
     When I press the date picker's button
     Then "house.olai" holds the node "knobs" dated "2026-03-08T03:30:00-04:00"
     And there should be no page errors

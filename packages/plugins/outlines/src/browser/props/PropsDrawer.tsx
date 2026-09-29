@@ -370,7 +370,7 @@ export function PropsDrawer(props: {
             set in the mono face and the values are not, and two faces centred
             against each other sit on two baselines. */}
         <div
-          class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-[0.8125rem] leading-snug"
+          class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-body leading-snug"
           data-testid={IDS_UI_PRIMITIVES.props}
         >
         {/* `<Key>`, not `<For>`, for the reason the tree uses it
@@ -435,8 +435,8 @@ export function PropsDrawer(props: {
             type="button"
             class={`${CHIP} cursor-pointer items-baseline rounded-full text-muted hover:text-accent`}
             data-testid={IDS_OUTLINES.propAdd}
-            title="add a property"
-            aria-label="add a property"
+            title="Add property"
+            aria-label="Add property"
             onClick={(event) => {
               event.stopPropagation()
               setEditing(null)
@@ -497,7 +497,7 @@ export function PropsDrawer(props: {
         {(said) => (
           <SaidLine
             said={said()}
-            class="mb-1 font-mono text-xs"
+            class="mb-1 text-label"
             testid={IDS_OUTLINES.propSaid}
           />
         )}
@@ -593,7 +593,7 @@ function Chip(props: {
       class={CHIP}
       classList={{
         "items-baseline rounded-full": !folds(),
-        "items-start rounded-lg": folds(),
+        "items-start rounded-control": folds(),
       }}
       data-testid={IDS_UI_PRIMITIVES.prop}
       data-key={props.entry.key}
@@ -779,7 +779,7 @@ function Plain(props: { readonly value: string; readonly onOpen?: () => void }) 
         <button
           type="button"
           class="cursor-text text-left hover:text-accent"
-          title="change this"
+          title="Change"
           onClick={(event) => {
             event.stopPropagation()
             open()()
@@ -916,7 +916,7 @@ function NewChip(props: {
       <Box
         testid={IDS_OUTLINES.propEditKey}
         value=""
-        placeholder="key"
+        placeholder="Name"
         focus
         mono
         onInput={setKey}
@@ -926,7 +926,7 @@ function NewChip(props: {
       <Box
         testid={IDS_OUTLINES.propEdit}
         value=""
-        placeholder="value"
+        placeholder="Value"
         wide
         ref={(element) => (box = element)}
         onInput={setValue}
@@ -997,16 +997,16 @@ function Box(props: {
   return (
     <input
       type="text"
-      class={`${TARGET} md:min-h-0 min-w-0 rounded border border-rule bg-paper px-1 py-0 text-ink`}
+      class={`${TARGET} md:min-h-0 min-w-0 rounded-control border border-rule bg-paper px-1 py-0 text-ink`}
       classList={{
-        "font-mono text-[0.6875rem] w-16": props.mono === true,
+        "font-mono text-caption w-16": props.mono === true,
         // `min-w-*` beside the `flex-1`, and it is load-bearing rather than
         // taste: `flex: 1 1 0%` in a SHRINK-TO-FIT box (the chip is an
         // `inline-flex`) resolves to no width at all when the box is empty,
         // because there is no content for the chip to size itself around. An
         // add chip on a 390pt screen drew a key box and a value box nobody
         // could see or type in.
-        "flex-1 min-w-28 text-[0.8125rem]": props.wide === true,
+        "flex-1 min-w-28 text-body": props.wide === true,
       }}
       data-testid={props.testid}
       data-key={props.about}

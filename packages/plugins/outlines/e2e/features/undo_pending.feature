@@ -53,11 +53,11 @@ Feature: Undo follows an edit whose acknowledgement has not reached the browser
     When I follow the outline "garden.olai" while updates are delayed
     And I release incoming updates to the original browser tab
     And I press "ControlOrMeta+z"
-    Then the undo says "nothing to undo"
+    Then the undo says "Nothing to undo"
     And "house.olai" holds a node whose note ends "— measured twice"
     When I click the outline "house.olai"
     And I press "ControlOrMeta+z"
-    Then the undo says "nothing to undo"
+    Then the undo says "Nothing to undo"
     And "house.olai" holds a node whose note ends "— measured twice"
     And the page has not reloaded
     And there should be no page errors

@@ -76,8 +76,8 @@ export function Glyph(props: {
       // the 44px rule is argued and where everything that moves with it lives.
       class={`${CONTROL} group/glyph relative select-none text-center no-underline ${tone()}`}
       testid={TESTID.zoom}
-      title={props.status === undefined ? "zoom into this node" : FACE[props.status].hint}
-      label={`zoom into ${props.id}`}
+      title={props.status === undefined ? "Zoom in" : FACE[props.status].hint}
+      label="Zoom in"
       // The halo is a FACT about the reading, not a colour: a scenario asks
       // for it the same way it asks for data-collapsed on the row.
       halo={halo()}
@@ -85,7 +85,7 @@ export function Glyph(props: {
       {/* Halo behind the glyph — always for collapsed; also on hover, so the
           one control that navigates has a Workflowy-style affordance. */}
       <span
-        class="pointer-events-none absolute left-1/2 top-1/2 h-[0.95rem] w-[0.95rem] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-muted/55 bg-muted/15 group-hover/glyph:visible"
+        class="pointer-events-none absolute left-1/2 top-1/2 h-[0.95rem] w-[0.95rem] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-muted/60 bg-muted/10 group-hover/glyph:visible"
         classList={{ invisible: !halo() }}
         aria-hidden="true"
       />

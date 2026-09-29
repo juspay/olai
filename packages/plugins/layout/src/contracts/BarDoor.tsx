@@ -49,28 +49,49 @@
  * their own headers, because the argument for spending a seat in a bar this app
  * does not hand out lightly is genuinely per-door — and `AppHeader.tsx` places
  * them, because a door does not choose its seat.
+ *
+ * ## The health seat
+ *
+ * A `health` door is MOUNTED beside the bar's health dot, not inside the
+ * popover the dot opens: only its ROW goes into that popover's foot, portalled
+ * there while the popover is drawn ({@link HealthSeat}, which `../Health.tsx`
+ * provides). So its panel needs nothing of the popover — picking the row shuts
+ * the popover and opens the panel, anchored to the dot, and a panel whose open
+ * state is {@link BarDoor.held} is drawn again by the door that is always
+ * standing when the shell is rebuilt.
  */
 
-import { type JSX, Show } from "solid-js"
+import { createContext, type JSX, Show, useContext } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import type { Anchor } from "@olai/web/client/anchor.ts"
+import type { ToolWhere } from "olai-plugin-layout/contract"
 import { ENTRY_SHAPE, ROW_GAP } from "olai-plugin-layout/entry"
 import { createPopover, type HeldOpen } from "@olai/web/client/popover.ts"
-import { ICON_BUTTON } from "@olai/web/client/readout.ts"
+import { ICON_BUTTON, STATUS_ROW } from "@olai/web/client/readout.ts"
+
+/** What the health dot lends a door in its seat: the dot (the panel's anchor,
+ *  and where the caret goes back to), the popover's foot while it is drawn,
+ *  and the gesture that shuts the popover. Layout's own wiring between two of
+ *  its files — the dot provides it, a door in that seat reads it. */
+export const HealthSeat = createContext<{
+  readonly dot: () => HTMLElement | undefined
+  readonly foot: () => HTMLElement | undefined
+  readonly shut: () => void
+}>()
 
 export function BarDoor(props: {
-  /** `closet` is the phone drawer row. Default is the header chip. */
-  readonly where?: "header" | "closet"
-  /** One character, drawn `aria-hidden` — the word beside it is the name. */
+  /** `closet` is the phone drawer row, `health` a row at the foot of the
+   *  desktop health popover. Default is the header chip, which is the GLYPH
+   *  alone: the word rides the accessible name and the tip. */
+  readonly where?: ToolWhere
+  /** One character, drawn `aria-hidden` — the word is the name. */
   readonly glyph: string
-  /** The word in the BAR, where space is what it is. */
-  readonly header: string
-  /** ...and the word in the phone DRAWER, which is a column of rows and can
-   *  afford the longer one. Two props rather than one because `prefs` and
-   *  `preferences` are the same door said in two widths, and a door whose two
-   *  widths happen to agree passes the same string twice. */
-  readonly closet: string
+  /** The door's word: drawn beside the glyph on a row (the phone drawer, the
+   *  health popover), and the accessible name of the glyph-only bar chip. The
+   *  bar used to draw a short second word (`prefs`) beside the glyph; a calm
+   *  bar draws the glyph and nothing else, so one word is enough. */
+  readonly name: string
   /** The hover sentence: what is behind this door, in the words a person who
    *  has not opened it yet would use. */
   readonly title: string
@@ -94,30 +115,49 @@ export function BarDoor(props: {
   const popover = createPopover(props.held === undefined ? {} : { held: props.held })
   const open = popover.open
   const closet = () => props.where === "closet"
+  const health = () => props.where === "health"
+  // In the health seat the panel hangs off the DOT, which is always standing,
+  // rather than off a row that is only drawn while the popover is.
+  const seat = health() ? useContext(HealthSeat) : undefined
+  if (seat !== undefined) popover.setTrigger(seat.dot())
 
-  return (
-    <>
+  const trigger = (
       <button
         type="button"
-        ref={popover.setTrigger}
+        ref={(el) => {
+          if (seat === undefined) popover.setTrigger(el)
+        }}
         class={
           closet()
             ? `${ENTRY_SHAPE} ${ROW_GAP} w-full text-paper/80`
-            : `${ICON_BUTTON} border ${
-              open() ? "border-accent text-paper" : "border-paper/25"
+            : health()
+            ? `${STATUS_ROW} ${open() ? "bg-pill/60" : ""}`
+            : `${ICON_BUTTON} size-8 !p-0 border ${
+              open() ? "border-accent text-paper" : "border-paper/20"
             }`
         }
         data-testid={props.testid}
         aria-expanded={open()}
         aria-haspopup="true"
         title={props.title}
-        onClick={() => popover.toggle()}
+        onClick={() => {
+          seat?.shut()
+          popover.toggle()
+        }}
       >
-        <span aria-hidden="true">{props.glyph}</span>
-        <span class={closet() ? undefined : "sr-only sm:not-sr-only"}>
-          {closet() ? props.closet : props.header}
+        <span aria-hidden="true" class={health() ? "inline-block w-2 text-center text-muted" : undefined}>{props.glyph}</span>
+        <span class={closet() || health() ? undefined : "sr-only"}>
+          {props.name}
         </span>
       </button>
+  )
+
+  return (
+    <>
+      {seat === undefined
+        ? trigger
+        // KEYED: each opening draws a fresh foot, and the row follows it there.
+        : <Show when={seat.foot()} keyed>{(foot) => <Portal mount={foot}>{trigger}</Portal>}</Show>}
       {/* Out of the bar entirely — see this file's header. */}
       <Show when={open() ? popover.at() : null}>
         {(at) => <Portal>{props.panel(at(), popover.setPanel)}</Portal>}

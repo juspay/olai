@@ -100,7 +100,7 @@ function Row(props: { readonly server: ChatServer }) {
           this panel implying a path it does not have. */}
       <Show when={props.server.where}>
         {(where) => (
-          <p class="truncate pl-3 text-muted/70" title={where()}>{where()}</p>
+          <p class="truncate pl-3 text-muted/80" title={where()}>{where()}</p>
         )}
       </Show>
     </div>

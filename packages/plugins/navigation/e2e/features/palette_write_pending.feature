@@ -44,17 +44,17 @@ Feature: Palette write responses belong to the interaction that sent them
     And there should be no page errors
 
     Examples:
-      | node    | command    | file        | mark | title                     |
-      | handles | Mark todo  | house.olai  | todo | choose the handles        |
-      | demo    | Mark doing | house.olai  | done | take out the old counters |
-      | mint    | Complete   | garden.olai | done | split the mint            |
+      | node    | command      | file        | mark  | title                     |
+      | handles | Mark: To do  | house.olai  | todo  | choose the handles        |
+      | knobs   | Mark: Doing  | house.olai  | doing | pick the knobs            |
+      | mint    | Mark: Done   | garden.olai | done  | split the mint            |
 
   Scenario: A successful write leaves a newer query in the same palette open
     Given incoming updates to this browser tab can be held
     And I open the node "handles"
     When I press the palette shortcut
-    And I type "Mark todo" into the palette
-    Then the palette offers "Mark todo"
+    And I type "Mark: To do" into the palette
+    Then the palette offers "Mark: To do"
     When I hold incoming updates to the original browser tab
     And I press "Enter" without waiting
     And I type "garden" into the palette

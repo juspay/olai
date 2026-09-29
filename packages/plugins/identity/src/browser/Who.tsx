@@ -28,6 +28,11 @@ import { Match, Show, Switch, type JSX } from "solid-js"
 
 import { LAYER } from "@olai/web/client/layer.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
+
+/** On a desktop the chip is a circle the size of the bar's health dot and
+ *  preferences gear beside it, so the right end of the bar reads as one row
+ *  of three round marks. A phone keeps its 44px target unchanged. */
+const DESKTOP_ROUND = "md:size-8 md:!p-0"
 import { TESTID } from "../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Who as Person } from "./viewer/asking.ts"
@@ -53,17 +58,17 @@ export function Who(props: { readonly viewer: Viewer }) {
     >
       <Switch>
         <Match when={face() === "asking"}>
-          <Icon label="asking who is looking" dim>
+          <Icon label="Checking who you are…" dim>
             <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={face() === "none"}>
-          <Icon label="anonymous">
+          <Icon label="Not signed in">
             <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={face() === "error"}>
-          <Icon label="could not tell who is looking" alarm>
+          <Icon label="Couldn't check who you are" alarm>
             <UserIcon class="size-4" />
           </Icon>
         </Match>
@@ -84,7 +89,7 @@ function Icon(props: {
   return (
     <Tip text={props.label} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} border border-paper/25 ${
+        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/20 ${
           props.alarm === true ? "text-alarm" : "text-paper/80"
         } ${props.dim === true ? "opacity-50" : ""}`}
         aria-label={props.label}
@@ -102,7 +107,7 @@ function Chip(props: { readonly person: Person }) {
   return (
     <Tip text={saying(props.person)} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} border border-paper/25 ${
+        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/20 ${
           props.person.picture === null ? "text-paper/80" : "p-1.5"
         }`}
         aria-label={saying(props.person)}

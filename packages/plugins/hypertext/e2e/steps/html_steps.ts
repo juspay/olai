@@ -1020,7 +1020,7 @@ Then(
     await saysThat(
       this,
       HYPERTEXT_SAID,
-      "does not serve",
+      "isn't in this folder",
       "preview's refusal",
       "alarm",
     );

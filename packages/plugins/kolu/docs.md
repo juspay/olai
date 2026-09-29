@@ -10,11 +10,11 @@ One olai per directory, one padi per machine, one connection between them. The B
 
 Which padi it dials is `$PADI_SOCKET` where that is set, and otherwise the rendezvous path kolu derives from its state root — so the two of them find each other with nothing written down. Both are on this machine, which makes the machine the thing worth naming: olai already titles itself after its host (`olai [machine]` — [running.md](../running.md)), so the fleet on the page is that host's kolu, and two boxes are two tabs you can tell apart. There is no cross-machine fleet, and this page is not a step towards one.
 
-Beside the connection pill in the header is the readout for the link, and it has three states rather than two:
+A row of the header's health-dot popover is the readout for the link, and it has three states rather than two (a skew turns the dot red, a quiet watcher amber, no padi at all leaves it alone):
 
-- `● kolu` in the done green — a padi answered and the fleet is live;
-- `● no kolu`, dim — nothing is answering, and the tip names **where olai looked**, because *looked where?* is the first thing anybody asks;
-- `● kolu skew` in the alarm colour — a padi answered but this build cannot speak to it, and the tip names **both** versions.
+- `● kolu` in the done green — a padi answered and the fleet is live. Its tip says when the watcher last checked in; when that is more than twice its cadence ago the row reads `kolu · No check-in for 47m` and the dot turns amber, because the mirror is still connected and only the watch has gone quiet;
+- `● No kolu`, dim — nothing is answering, and the tip names **where olai looked** (`kolu isn't running at …`), because *looked where?* is the first thing anybody asks;
+- `● kolu: update needed` in the alarm colour — a padi answered but this build cannot speak to it, and the tip names **both** versions.
 
 The third is why the readout is not a boolean. *Start kolu* and *these two builds disagree* have opposite fixes, and a skew reported as absent would send a reader to start a kolu that is already running.
 
@@ -77,7 +77,7 @@ A re-telling carries its own **count**, read off the event as padi counted it �
 
 The watch is the SERVER's — one watcher, one ring of the last roughly two hundred events, and every browser is a reader of it. The ring itself is **attention only** — heartbeats are nowhere on it; a feed of migrated rows would be the same distraction the usernames they fold back to would be.
 
-The liveness lives on the PILL instead, which is where the feed's own bar already was: `watcher pulse 2m ago` in the hover while it is healthy (the fold's first register, `fresh`), and — crossed past **2 × the vault's `heartbeat` knob** — the pill's loud amber face: the chip's dot hollow, its border and ring warming, and its words naming it as `watcher quiet 47m` until the next beat. That double-cadence is the pill's own margin: the fold counts the beat's stamp against `everyMs` right beside the pulse's record, so a tab answering on its own clock need never guess the vault's cadence. **The beat itself is stamped when the watchdog answers**: the subscription's leading frame — even an empty one, which is its way of saying "alive and nothing matching" — and every batch after it. The consequence, deliberate: ten days into a quiet capped fleet the ring has heard everything it will ever hear, and the pill WILL cross into amber two windows after the last answer — the register's truthful face under a finite nag, not a fault finding a voice. A padi link flapping under olai fires nothing new: the fence re-leads the standing set on every reconnect, and olai's ring drops a re-telling at its own door, keyed by the daemon's episode stamp — a `since` bridged rather than re-dated. (A [knob edit](#the-watchs-pacing-lives-in-_olaiKoluolai) re-asks the question and honestly re-reports what stands; the edit is yours, the flap is not.)
+The liveness lives on the header's padi readout instead, which is where the feed's own bar already was: `Checked in 2m ago` in its tip while it is healthy (the fold's first register, `fresh`), and — crossed past **2 × the vault's `heartbeat` knob** — its amber face (its `notice` tone): the row's dot amber, and its words naming it as `No check-in for 47m` until the next beat. The header's health dot turns amber with it and names `kolu · No check-in for 47m`, so it is heard with the popover shut. That double-cadence is the pill's own margin: the fold counts the beat's stamp against `everyMs` right beside the pulse's record, so a tab answering on its own clock need never guess the vault's cadence. **The beat itself is stamped when the watchdog answers**: the subscription's leading frame — even an empty one, which is its way of saying "alive and nothing matching" — and every batch after it. The consequence, deliberate: ten days into a quiet capped fleet the ring has heard everything it will ever hear, and the pill WILL cross into amber two windows after the last answer — the register's truthful face under a finite nag, not a fault finding a voice. A padi link flapping under olai fires nothing new: the fence re-leads the standing set on every reconnect, and olai's ring drops a re-telling at its own door, keyed by the daemon's episode stamp — a `since` bridged rather than re-dated. (A [knob edit](#the-watchs-pacing-lives-in-_olaiKoluolai) re-asks the question and honestly re-reports what stands; the edit is yours, the flap is not.)
 
 **The watch's pacing lives in `_olai/Settings.olai`**, edited through the drawer's wrench:
 
@@ -96,9 +96,9 @@ The file is yours, not installed: without it the watch runs its defaults (one mi
 
 **What arrived is a control over a different surface**, which is why the two are a trade rather than a swap. The wake filter file a conversation is scoped to (below) decides which terminals wake THAT CONVERSATION; it says nothing about the events drawer, which goes on drawing the whole fleet. A mute was one machine-wide *never, for everybody* over a log a person chooses to open; a filter file is one person's answer, per conversation, over a message that arrives unasked. The second is the one worth having and the second is what the doorbell needed — but a reader who wanted the drawer itself quieter has nothing to reach for, and that is the cost, named here rather than left to be discovered.
 
-**The drawer’s wrench opens Kolu’s controls on the plugins panel.** The watch’s fields are inline beside its row name, with descriptions in tooltips and a ● for values set in the file. Enter or blur writes a valid duration such as `90s`; Escape reverts the draft. A bare number is refused before writing, with its message beside the input. ↺ removes the property. The live watch follows the accepted revision without losing its activation.
+**The drawer’s wrench opens Kolu’s controls on the plugins panel.** The watch’s fields are in the Kolu row’s detail, opened for you, with descriptions in tooltips and a ● for values set in the file. Enter or blur writes a valid duration such as `90s`; Escape reverts the draft. A bare number is refused before writing, with its message beside the input. ↺ removes the property. The live watch follows the accepted revision without losing its activation.
 
-The wrench works before a settings file exists: the first edit creates the `kolu` node and its `watch` child. A broken file opens frozen controls with the repair reason in their tooltips. The ↗ beside the row name opens its node for editing the outline itself. The wrench consumes the inspector’s declared service through an optional component; disabling the inspector removes the wrench while the feed continues, and re-enabling restores it.
+The wrench works before a settings file exists: the first edit creates the `kolu` node and its `watch` child. A broken file opens frozen controls with the repair reason in their tooltips. `Saved in` in the row’s detail opens its node for editing the outline itself. The wrench consumes the inspector’s declared service through an optional component; disabling the inspector removes the wrench while the feed continues, and re-enabling restores it.
 
 ## The second doorbell — a conversation woken by the fleet
 
@@ -192,12 +192,12 @@ The `derived` line names three populations, not one: what **rings**, what was `u
 
 A machine not running kolu is the ordinary case, not a fault. There is no row, and in its place a **sentence** — never a grey row, which would claim the terminal is sitting there doing nothing, and that is a different and wrong fact:
 
-- `this terminal is no longer in the fleet — it has been closed or retired.`
-- `this names 3 terminals — write more of the id to say which.` (a prefix too short to be one terminal)
-- `no padi is running — olai looked at …/padi-a1b2c3/padi.sock.`
-- `no padi is answering at …/padi-a1b2c3/padi.sock, which is where $PADI_SOCKET points.` (somebody SAID where it would be, and it is not there — a different fact from having looked in the default place)
-- `olai is not watching a padi here.` (no socket at all: a run drawn outside the fleet, or a server in the first instant of its life. "olai looked at ." is not a sentence)
-- `kolu at … speaks padi 99.0, and this olai speaks 12.0 — one of the two needs an upgrade.`
+- `This terminal was closed.`
+- `3 terminals match. Type more of the id.` (a prefix too short to be one terminal)
+- `kolu isn't running. Looked at …/padi-a1b2c3/padi.sock.`
+- `kolu isn't running at …/padi-a1b2c3/padi.sock (from $PADI_SOCKET).` (somebody SAID where it would be, and it is not there — a different fact from having looked in the default place)
+- `kolu isn't set up.` (no socket at all: a run drawn outside the fleet, or a server in the first instant of its life. "Looked at ." is not a sentence)
+- `kolu and olai versions don't match (padi 99.0, olai 12.0). Update one of them.`
 
 None of those are things kolu's row has a face for, because from kolu's side they do not happen. They are olai's to say, and they are words rather than a shape for the same reason the header readout has three states: *we cannot see* must never be drawn as *we looked and it is quiet*.
 

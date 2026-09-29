@@ -269,7 +269,7 @@ Then("the agenda is empty", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** The other side of it, for a page a FILTER emptied. "Nothing is due." is a
+/** The other side of it, for a page a FILTER emptied. "Nothing due" is a
  *  claim about the AGENDA; a query that selected none of it is a claim about
  *  the query, and the bar is where that one is made. A page saying both would
  *  be telling the reader nothing is late while three things are. */

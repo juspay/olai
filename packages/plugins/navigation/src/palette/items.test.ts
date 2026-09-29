@@ -49,7 +49,15 @@ test("empty query returns every shell item", () => {
 
 test("filter matches label and search haystack", () => {
   expect(filterItems("toggle sidebar").map((i) => i.id)).toEqual(["panel-sidebar"])
-  expect(filterItems("agent").map((i) => i.id)).toEqual(["panel-agent"])
+  expect(filterItems("reset sidebar").map((i) => i.id)).toEqual(["reset-widths"])
+})
+
+// ⌘J and its row left with the chat dock: nothing in the palette opens an
+// agent panel any more, and nothing still answers to its old words.
+test("no row toggles an agent panel", () => {
+  expect(SHELL_ITEMS.some((i) => i.id === "panel-agent")).toBe(false)
+  expect(filterItems("toggle agent panel")).toEqual([])
+  expect(SHELL_ITEMS.find((i) => i.id === "reset-widths")?.label).toBe("Reset sidebar width")
 })
 
 /** A document row names its own file and opens it. */

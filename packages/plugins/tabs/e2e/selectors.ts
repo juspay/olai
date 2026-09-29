@@ -14,6 +14,6 @@ export const TAB = selector(TESTID.tabsTab);
 export const CLOSE = selector(TESTID.tabsClose);
 export const NEW = selector(TESTID.tabsNew);
 export const DOT = selector(TESTID.tabsDot);
-export const ADDRESS = selector(TESTID.tabsAddress);
+export const TITLE = selector(TESTID.tabsTitle);
 export const MENU = selector(TESTID.tabsMenu);
 export const SHORTCUT = selector(ALL.shortcut);

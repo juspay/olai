@@ -59,6 +59,6 @@ Feature: Browser history restores positions across outline and document renderin
     When I alt-click the zoom of "scroll-row-0"
     Then there are 2 panes
     When I scroll pane 0 to its middle
-    Then pane 0 keeps its title "scroll-history.olai" above its scroller
+    Then pane 0 keeps its title "scroll-history" above its scroller
     And pane 1 keeps its title "scroll-row-0" above its scroller
     And the split workspace stays within the window

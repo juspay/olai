@@ -51,7 +51,7 @@ export function ContextChips(props: {
         <Key each={props.nodes} by="id">
           {(node) => (
             <li
-              class="flex max-w-full items-center gap-1 rounded border border-accent/40 bg-paper px-1.5 py-0.5 text-[0.6875rem]"
+              class="flex max-w-full items-center gap-1 rounded-control border border-accent/40 bg-paper px-1.5 py-0.5 text-caption"
               data-testid={TESTID.chatContextChip}
               data-node={node().id}
             >
@@ -76,7 +76,7 @@ export function ContextChips(props: {
                   <button
                     type="button"
                     class="shrink-0 text-muted hover:text-alarm"
-                    aria-label={`send without ${node().title}`}
+                    aria-label={`Send without ${node().title}`}
                     data-testid={TESTID.chatContextRemove}
                     onClick={() => remove()(node().id)}
                   >

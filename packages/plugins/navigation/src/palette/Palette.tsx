@@ -96,7 +96,7 @@ import { atOnce,spend } from "@olai/web/client/settled.ts"
 
 import { useToday } from "./clock.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
-import { desktop, resetPanelWidths, togglePanel } from "./shell.ts"
+import { desktop, resetPanelWidths } from "./shell.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { isLone } from "olai-plugin-navigation/workspace"
@@ -534,7 +534,6 @@ export function Palette(props: {
     if (action.kind === "route") props.go(action.route)
     else if (action.kind === "shortcuts") setKeys(true)
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
-    else if (action.kind === "toggle-panel") togglePanel()
     else if (action.kind === "reset-widths") resetPanelWidths()
     else if (action.kind === "close-pane") router.close()
     close()
@@ -556,7 +555,7 @@ export function Palette(props: {
     setSending(true)
     setSaid(null)
     const adapter = adapters().find(adapter=>adapter.accepts?.(edit))
-    void (adapter?.write?.(edit) ?? Promise.resolve({tone:"alarm" as const,text:"No enabled capability can perform this action."})).then((line) => {
+    void (adapter?.write?.(edit) ?? Promise.resolve({tone:"alarm" as const,text:"Nothing here can do that right now."})).then((line) => {
       setSending(false)
       if (!current()) return
       if (line === undefined) {
@@ -626,7 +625,7 @@ export function Palette(props: {
       setSending(false)
       if (paletteRevision !== opened || queryRevision !== submitted || !prefixes().includes(prefix)) return
       console.error("Palette prefix action failed", failure)
-      setSaid({ tone: "alarm", text: "The action failed. Please try again." })
+      setSaid({ tone: "alarm", text: "That didn't work. Try again." })
     })
   }
 
@@ -678,7 +677,7 @@ export function Palette(props: {
         setAskError(refusal)
       },
       (fault: unknown) => {
-        if (current()) setAskError(`“${command.said}” could not be reached — see the console.`)
+        if (current()) setAskError(`“${command.said}” didn't work. Try again.`)
         console.error(`olai: the palette command "${command.prefix}" threw`, fault)
       },
     )
@@ -823,7 +822,6 @@ export function Palette(props: {
       event.preventDefault()
       if (match.action === "palette") return // Navigation owns this shortcut.
       if (match.action === "sidebar") props.toggleDirectory()
-      if (match.action === "panel") togglePanel()
       // Reached only with the caret nowhere — both chords are
       // `whileEditing: false`, so a draft keeps the platform's own undo and
       // Escape keeps abandoning.
@@ -849,12 +847,12 @@ export function Palette(props: {
         data-testid={TESTID.palette}
         role="dialog"
         aria-modal="true"
-        aria-label="command palette"
+        aria-label="Command palette"
       >
         <button
           type="button"
           class="absolute inset-0 cursor-default"
-          aria-label="close the palette"
+          aria-label="Close"
           data-testid={TESTID.paletteScrim}
           // Asked of the stack like the key is, and for the same reason: this
           // is the palette's other dismissal, and a press on a full-screen
@@ -869,12 +867,12 @@ export function Palette(props: {
           }}
         />
         <div
-          class={`relative ${WITHIN.raised} flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-2xl border-0 bg-panel shadow-xl ring-1 ring-rule/40 md:h-auto`}
+          class={`relative ${WITHIN.raised} flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule/40 md:h-auto`}
         >
           <input
             ref={input}
             type="text"
-            class="w-full shrink-0 border-b border-rule bg-transparent px-4 py-3 font-serif text-base italic text-ink outline-none placeholder:text-muted md:px-5 md:py-4 md:text-lg"
+            class="w-full shrink-0 border-b border-rule bg-transparent px-4 py-3 font-serif text-title italic text-ink outline-none placeholder:text-muted md:px-5 md:py-4 md:text-title"
             data-testid={TESTID.paletteInput}
             placeholder={boxSays()}
             value={query()}
@@ -954,7 +952,7 @@ export function Palette(props: {
             {(message) => (
               <SaidLine
                 said={message()}
-                class="m-0 border-b border-rule px-4 py-2 font-mono text-xs"
+                class="m-0 border-b border-rule px-4 py-2 text-label"
                 testid={TESTID.paletteSaid}
               />
             )}
@@ -987,8 +985,8 @@ export function Palette(props: {
                     each={items()}
                     by="id"
                     fallback={
-                      <li class="px-3 py-2 font-mono text-xs text-muted">
-                        no matches
+                      <li class="px-3 py-2 text-label text-muted">
+                        No matches
                       </li>
                     }
                   >
@@ -1027,7 +1025,7 @@ export function Palette(props: {
                 <SearchCount
                   of={nodes}
                   empty={nodes.answering() !== null}
-                  class="m-0 shrink-0 border-t border-rule px-4 py-2 font-mono text-xs text-muted"
+                  class="m-0 shrink-0 border-t border-rule px-4 py-2 text-label text-muted"
                 />
               </>
             }
@@ -1108,7 +1106,7 @@ function Composing(props: {
   readonly testid: string
 }) {
   return (
-    <div class="px-4 py-3 font-mono text-xs text-muted" data-testid={props.testid}>
+    <div class="px-4 py-3 text-label text-muted" data-testid={props.testid}>
       <Show when={props.text.trim() !== ""} fallback={<span>{props.empty}</span>}>
         <span>
           {props.lead}: <span class="text-ink">{props.text}</span>

@@ -15,7 +15,7 @@
 
 import { expect, test } from "bun:test"
 
-import { lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
+import { frozenLookOf, lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
 /** The states the table answers for, DERIVED from it — which is not a table
  *  checked against itself, because membership is already a type-level
@@ -46,7 +46,7 @@ const readoutOf = (status: SurfaceReadoutStatus): SurfaceReadout =>
 // at the handshake — the wire retired, never to dial again — must not be drawn
 // as a healthy one, nor as the transient drop it was once projected as.
 test("a retired wire is drawn as neither live nor merely reconnecting", () => {
-  expect(LOOK.retired.dot).not.toBe(LOOK.live.dot)
+  expect(LOOK.retired.tone).not.toBe(LOOK.live.tone)
   expect(LOOK.retired.label).not.toBe(LOOK.live.label)
   expect(LOOK.retired.label).not.toBe(LOOK.reconnecting.label)
 })
@@ -54,9 +54,23 @@ test("a retired wire is drawn as neither live nor merely reconnecting", () => {
 test("only a live connection is drawn as one", () => {
   for (const state of STATES.filter((s) => s !== "live")) {
     const look = lookOf(readoutOf(state))
-    expect(look.dot).not.toBe(LOOK.live.dot)
+    expect(look.tone).not.toBe(LOOK.live.tone)
     expect(look.label).not.toBe(LOOK.live.label)
   }
+})
+
+// Each state's tone is the one its row paints AND the one the health dot folds,
+// so it is pinned per state: a wire re-dialling or a subscription gone quiet
+// wants attention, only a replaced server is broken, and a first dial not yet
+// answered is nothing at all.
+test("every state has its one tone", () => {
+  expect(Object.fromEntries(STATES.map((state) => [state, lookOf(readoutOf(state)).tone]))).toEqual({
+    connecting: "quiet",
+    live: "healthy",
+    reconnecting: "notice",
+    retired: "alarm",
+    degraded: "notice",
+  })
 })
 
 test("every state says something, and says it differently", () => {
@@ -82,4 +96,34 @@ test("the degraded detail names what stopped", () => {
 // state was in would be the split this collapses.
 test("every state is drawn through one function", () => {
   for (const state of TABLED) expect(lookOf(readoutOf(state))).toBe(LOOK[state])
+})
+
+// The rows the health popover reads, in the words a person reads there.
+test("the connection's words are plain", () => {
+  expect(LOOK.live.label).toBe("Connected")
+  expect(LOOK.connecting.label).toBe("Connecting…")
+  expect(LOOK.reconnecting.label).toBe("Reconnecting…")
+  expect(LOOK.retired.label).toBe("The server restarted")
+})
+
+// THE FREEZE CARD: what happened as its heading, and what is being done about
+// it under that. A dropped wire is `Connection lost` over `Reconnecting…`; a
+// replaced server is its own words over the Reload the card draws.
+test("the freeze card says what happened, then what is being done", () => {
+  expect(frozenLookOf({ status: "reconnecting", needsReload: false }))
+    .toEqual({ title: "Connection lost", line: "Reconnecting…" })
+  expect(frozenLookOf({ status: "connecting", needsReload: false })).toEqual({ title: "Connecting…" })
+  expect(frozenLookOf({ status: "retired", needsReload: true }))
+    .toEqual({ title: "The server restarted", line: "Reload the page to keep working." })
+})
+
+// The health dot folds the very tone the row paints — there is no second
+// reading of the connection for the dot to disagree with.
+test("the dot's tone: live is healthy, a first connect is quiet, only a replaced server is an alarm", () => {
+  expect(lookOf(readoutOf("live")).tone).toBe("healthy")
+  expect(lookOf(readoutOf("connecting")).tone).toBe("quiet")
+  expect(lookOf(readoutOf("retired")).tone).toBe("alarm")
+  for (const state of STATES.filter((s) => s !== "live" && s !== "connecting" && s !== "retired")) {
+    expect(lookOf(readoutOf(state)).tone).toBe("notice")
+  }
 })

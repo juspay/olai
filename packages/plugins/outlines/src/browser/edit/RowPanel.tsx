@@ -161,7 +161,7 @@ export function RowPanel(props: {
         <button
           ref={submit}
           type="submit"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-sm text-ink hover:bg-rule disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent`}
+          class={`${TARGET} md:min-h-0 cursor-pointer rounded-control border border-rule bg-transparent px-2 py-1 text-body text-ink hover:bg-rule disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent`}
           data-testid={props.ids.set}
           disabled={sending() || !props.press().writes}
         >
@@ -180,7 +180,7 @@ export function RowPanel(props: {
 
       <Show when={props.notice}>
         {(notice) => (
-          <p class="mt-1 mb-0 text-xs leading-snug text-muted" data-testid={props.ids.notice}>
+          <p class="mt-1 mb-0 text-label leading-snug text-muted" data-testid={props.ids.notice}>
             {notice()}
           </p>
         )}
@@ -194,7 +194,7 @@ export function RowPanel(props: {
           // sits: under the form, in the panel that opened.
           <SaidLine
             said={message()}
-            class="mt-1 mb-0 text-[0.8125rem] leading-snug"
+            class="mt-1 mb-0 text-body leading-snug"
             testid={props.ids.said}
           />
         )}

@@ -21,7 +21,8 @@ import { Effect } from "effect"
 
 import { AgendaPage } from "./browser/agenda/AgendaPage.tsx"
 import { DayPage } from "./browser/day/DayPage.tsx"
-import { AgendaEntry, CalendarSection, JournalRail } from "./browser/sidebar.tsx"
+import { AgendaEntry, JournalRail, TodayEntry } from "./browser/sidebar.tsx"
+import { followCalendar } from "./browser/calendar/fold.ts"
 import { agenda as agendaKind, agendaRoute, day as dayKind, dayRoute } from "./browser/routes.ts"
 import { type JournalClient, holdJournalWire } from "./browser/wire.ts"
 import { name, surface } from "./wire.ts"
@@ -81,18 +82,24 @@ export default definePlugin({
       body: AgendaEntry,
       rail: JournalRail,
     })
-    yield* slots.register("sidebar.section", { said: "Calendar", body: CalendarSection })
+    // TODAY, directly under Agenda: one row that goes to today's page, with the
+    // month folded under a chevron (`./browser/sidebar.tsx`). A `top` entry and
+    // not a section, so it stands among the column's first doors rather than
+    // after the plugin sections. Whether the month is open is this browser's
+    // preference, followed for as long as this activation stands.
+    yield* slots.register("sidebar.entry", { place: "top", body: TodayEntry })
+    yield* Effect.acquireRelease(Effect.sync(followCalendar), stop => Effect.sync(stop))
     yield* slots.register("app.palette", {
       id: "nav-today",
       label: "Go to today",
-      hint: "journal for this day",
+      hint: "Today's page",
       search: "go to today journal day calendar",
       href: dayKind.href({ today: true }),
     })
     yield* slots.register("app.palette", {
       id: "nav-agenda",
-      label: "Go to the agenda",
-      hint: "what is due",
+      label: "Go to Agenda",
+      hint: "What's due",
       search: "go to agenda due overdue upcoming owed",
       href: agendaKind.href({}),
     })
@@ -137,8 +144,8 @@ export const components = {
   }) }),
   "reminder-controls": definePlugin({ name: "reminder-controls", needs: [alertsChannel, rendererSlots], apply: Effect.gen(function*() {
     const channel = yield* alertsChannel
-    yield* (yield* rendererSlots).contribute(sections, () =>
-      <Show when={reminderState.read()}>{state => <ReminderRow channel={channel} state={state()} />}</Show>)
+    yield* (yield* rendererSlots).contribute(sections, { heading: "notifications" as const, order: 1, body: () =>
+      <Show when={reminderState.read()}>{state => <ReminderRow channel={channel} state={state()} />}</Show> })
   }) }),
   /** Where a minted note is opened, DECLARED — a component of its own so the
    *  calendar, the agenda and every day page keep working with no document row

@@ -139,7 +139,7 @@ export function Face(props: {
             took the row and left the name as `c…`. It can shrink now, and
             the full query rides `title` for the half that does not fit. */}
         <span
-          class="min-w-0 max-w-[55%] truncate rounded bg-current/15 px-1 font-mono text-[0.65rem]"
+          class="min-w-0 max-w-[55%] truncate rounded-control bg-current/10 px-1 font-mono text-caption"
           data-testid={TESTID.addressFilter}
           title={filter()}
         >

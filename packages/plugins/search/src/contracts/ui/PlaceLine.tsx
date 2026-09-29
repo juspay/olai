@@ -10,7 +10,7 @@ const Separator = () => <span data-place="separator" class="whitespace-pre">{" Â
 
 export function PlaceLine(props: {
   readonly claims: Claims | undefined; readonly place: Place; readonly testid?: string }) {
-  return <span class="flex w-full min-w-0 overflow-hidden font-mono text-[0.6875rem] text-muted" data-testid={props.testid}>
+  return <span class="flex w-full min-w-0 overflow-hidden text-caption text-muted" data-testid={props.testid}>
     <span class="shrink-0" data-place="file">{props.place.file}</span>
     <Show when={props.place.middle}>{middle => <span class="min-w-0 truncate" data-place="middle"><Separator /><TitleHtml drawing={renderTitle(props.claims, middle(), "", { links: false })} /></span>}</Show>
     <Show when={props.place.nearest}>{nearest => <span class="max-w-[45%] shrink-0 truncate" data-place="nearest"><Separator /><TitleHtml drawing={renderTitle(props.claims, nearest(), "", { links: false })} /></span>}</Show>

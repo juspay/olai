@@ -53,32 +53,30 @@ export function Banner(props: { readonly trouble: Trouble }) {
 
   return (
     <aside
-      class="mb-6 rounded border border-alarm bg-alarm/5 px-4 py-3"
+      class="mb-6 rounded-control border border-alarm bg-alarm/10 px-4 py-3"
       data-testid={TESTID.staleBanner}
     >
       <Show
         when={props.trouble.kind === "files"}
         fallback={
           <>
-            <h2 class="m-0 mb-1 text-base font-bold text-alarm">
+            <h2 class="m-0 mb-1 text-title font-bold text-alarm">
               Showing the last good version
             </h2>
             <Lede>
-              The served directory cannot be read right now, so the outline below
-              is the one from before it went away. Nothing here is wrong with
-              your files, and nothing needs reloading — it catches up on its own
-              once the directory can be read again.
+              olai can't read this folder right now, so this is the version
+              from before. Your files are fine, and there is nothing to reload:
+              this updates on its own once the folder can be read again.
             </Lede>
           </>
         }
       >
-        <h2 class="m-0 mb-1 text-base font-bold text-alarm">
+        <h2 class="m-0 mb-1 text-title font-bold text-alarm">
           {named() === 1 ? "One file is broken" : `${named()} files are broken`}
         </h2>
         <Lede>
-          Everything else here is live and can be edited — a broken file costs
-          you that file and nothing else. Open one to see what it says; fix it
-          and it comes back on its own, with nothing to reload.
+          Everything else works as usual. Open a broken file to see what is
+          wrong; once it is fixed it comes back on its own.
         </Lede>
       </Show>
       <ul class="m-0 mt-2 list-none p-0">
@@ -99,12 +97,12 @@ export function Banner(props: { readonly trouble: Trouble }) {
               <Show
                 when={props.trouble.kind === "files"}
                 fallback={
-                  <code class="mr-2 font-mono text-[0.8125rem] text-muted">{one.file}</code>
+                  <code class="mr-2 font-mono text-body text-muted">{one.file}</code>
                 }
               >
                 <Link
                   route={atFile(one.file)}
-                  class="mr-2 font-mono text-[0.8125rem] text-muted underline"
+                  class="mr-2 font-mono text-body text-muted underline"
                   testid={TESTID.brokenFileLink}
                   broken
                 >

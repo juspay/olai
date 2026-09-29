@@ -4,12 +4,25 @@
 import { location,serviceTag } from "@olai/plugin-api/contracts"
 import type { JSX } from "solid-js"
 export const name = "files"
-export const fileTypes = location<{readonly Create: () => JSX.Element}>("files.types")
+/** ONE KIND OF FILE a reader can start from the sidebar, contributed by the
+ *  kind's own row (outlines, markdown). `making` is the item it puts in the
+ *  Outlines heading's `+` menu — `undefined` while the kind cannot mint (no
+ *  outline row configured), and then there is no item. `Create` is its path
+ *  box, drawn under the heading and empty until the item opens it. */
+export interface FileType {
+ readonly making: () => import("./file/making.ts").Making | undefined
+ readonly Create: () => JSX.Element
+}
+export const fileTypes = location<FileType>("files.types")
 export const fileState = serviceTag<FileControls>("files.state")
 
 export interface FileControls {
  readonly Delete: (props:{readonly file:string})=>JSX.Element
  readonly New: (props:{readonly making:import("./file/making.ts").Making;readonly create:(file:string)=>Promise<string|null>})=>JSX.Element
+ /** Open the new-file box for one kind — the same thing picking that kind's
+  *  item in the Outlines heading's `+` menu does. For a page that offers the
+  *  first file of a kind (an empty directory's `New outline`). */
+ readonly open: (of:import("./file/making.ts").Making["of"])=>void
 }
 /**
  * ## THE TWO WRAPPERS LEFT THIS DOOR, and the signal behind them went with

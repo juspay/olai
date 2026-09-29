@@ -34,17 +34,17 @@ export function Unpushed(props: { readonly commit: Commit }) {
       <Show when={said()}>
         {(words) => (
           <p
-            class="flex items-baseline gap-2 text-xs text-muted"
+            class="flex items-baseline gap-2 text-label text-muted"
             data-testid={TESTID.commitUnpushed}
             data-commits={props.commit.pending().unpushed?.commits ?? 0}
           >
             <span class="min-w-0 truncate">{words()}</span>
-            {/* Not `../pill.ts`'s quiet pill: this verb sits INSIDE a text-xs
+            {/* Not `../pill.ts`'s quiet pill: this verb sits INSIDE a text-label
                 line, so it keeps py-0.5 — the shared py-1 would thicken the
                 unpushed line it lives on. */}
             <button
               type="button"
-              class="ml-auto shrink-0 rounded border border-rule px-2 py-0.5 hover:text-ink disabled:opacity-50"
+              class="ml-auto shrink-0 rounded-control border border-rule px-2 py-0.5 hover:text-ink disabled:opacity-50"
               data-testid={TESTID.commitPush}
               disabled={props.commit.pushing()}
               onClick={() => props.commit.push()}
@@ -63,7 +63,7 @@ export function Unpushed(props: { readonly commit: Commit }) {
           reloaded since. */}
       <Show when={trouble()}>
         {(words) => (
-          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.commitPushRefused}>
+          <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitPushRefused}>
             {words()}
           </p>
         )}

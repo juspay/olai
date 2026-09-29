@@ -1,20 +1,20 @@
 import { createCarry } from "@olai/web/client/carry.ts"
 import { landings } from "./landings.ts"
 import type { CarriedPath } from "./carry.ts"
-/** A DOOR at the foot of the column: Trash. It is not a row of the tree above
- *  it — it opens a file that tree does not draw — and the quiet ink is what
- *  says so, since a door drawn in the list's own ink would read as one more
- *  file. Inbox used to sit here; it moved up beside Agenda (human,
- *  2026-08-20). */
+/** THE FILE LIST of the directory column: the Outlines heading and its `+`,
+ *  the tree, Reference, and the vault's own `_olai/` files. The Trash is not
+ *  drawn here — it is the trash row's own entry at the column's foot. */
 
 import { TESTID } from "olai-plugin-files/testids"
-import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from "@olai/format"
+import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, nameOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
 createSelector,
+createSignal,
 For,
 type JSX,
+lazy,
 Match,
 Show,
 Switch,
@@ -29,18 +29,20 @@ import { drawingOf } from "./drawings.ts"
 import { ancestorDirs,dirsIn,type FileRow,fileTree } from "olai-plugin-files/fileTree.ts"
 import { openFolders,toggleFolder } from "olai-plugin-files/fold/folders.ts"
 
-import { ENTRY_SHAPE,REGION,ROW_GAP } from "olai-plugin-layout/entry"
+import { ENTRY_SHAPE,HEAD_ACTION,REGION,REGION_HEAD,REGION_LABEL,ROW_GAP } from "olai-plugin-layout/entry"
 import { atFile,type Route } from "olai-plugin-navigation/routes"
 import { Link } from "olai-plugin-navigation/routing"
 import { useServed } from "./vault.ts"
 
 
 import type { SidebarRegionProps } from "olai-plugin-sidebar/contract"
-import { vaultEntries } from "olai-plugin-sidebar/contract"
 import { fileTypes } from "./contract.ts"
+import type { Making } from "olai-plugin-files/making"
+import { openNewFile } from "./file/NewFile.tsx"
+const NewMenu = lazy(() => import("./NewMenu.tsx"))
 
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
-const DOOR = `${ENTRY} text-paper/65`
+const DOOR = `${ENTRY} text-paper/60`
 
 /** A directory row: folds, does not navigate. Same SHAPE and ink as a file —
  *  the padding, the gap, the type — because a muted folder in a column of
@@ -78,8 +80,8 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // entry that lit and the one that went out.
   const isActive = createSelector(() => props.active)
   // The archives are not in the tree: an `_olai/Trash.olai` is not an outline a
-  // reader opens and edits, and the Trash entry below the tree is its one
-  // door. Filtered here rather than upstream because every other reader of
+  // reader opens and edits, and the Trash entry at the column's foot (the
+  // trash row's own) is its one door. Filtered here rather than upstream because every other reader of
   // `files` — the page model, the trash itself — wants the whole list.
   // THE PATHS, out of the context that holds them under a MEMBERSHIP equality
   // (`./served.tsx`) — not off the faces, and that is the difference between a
@@ -89,8 +91,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   const served = useServed()
   // ...and the SECOND rule the tree draws by, which is a ruling and not a
   // preference: the outlines olai named for itself do not sit among the
-  // reader's own — the column's FOOT is their home (the vault group below),
-  // the way the Trash has always had its own there.
+  // reader's own — the vault group below the tree is their home.
   const tree = createMemo(() => {
     const claims = servedDirectory()?.claims()
     return claims === undefined ? [] : fileTree(claims, served().filter(file => !isTrashed(claims, file) && !inOlaiDir(file)), "nodes")
@@ -159,38 +160,41 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
     toggle,
   }
 
+  // THE KINDS A READER CAN START HERE, as the `+` menu lists them: each kind's
+  // own row contributes its item (`files.types`), and a kind that cannot mint
+  // right now (no outline row configured) has none. No kinds, no `+` — a
+  // button that opens an empty menu is a dead control.
+  const kinds = () => props.slots.read(fileTypes)
+  const makings = () => kinds().flatMap(({ value }) => { const making = value.making(); return making === undefined ? [] : [making] })
+
   return <>
           <section class={REGION} data-testid={TESTID.sidebarFiles}>
-            <div class="mb-1 px-2 text-xs text-paper/65">Outlines</div>
+            <div class={REGION_HEAD}>
+              <h2 class={REGION_LABEL}>Outlines</h2>
+              <Show when={makings().length > 0}>
+                <NewFileButton items={makings()} />
+              </Show>
+            </div>
+            {/* The path boxes the `+` menu opens — an outline's
+                (./outline/NewOutline.tsx) and a document's
+                (./document/NewDocument.tsx), both the one box
+                (./file/NewFile.tsx). Drawn under the heading that asked for
+                them, above the list they will add to; each draws nothing until
+                its item is picked. */}
+            <For each={kinds()}>{({ value: kind }) => <kind.Create />}</For>
             <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
               <Key each={tree()} by="key">
                 {(row) => <Entry row={row()} view={view} />}
               </Key>
             </ul>
-            {/* Directly under the tree, because the tree is what it adds to:
-                the two ways to a FILE that does not exist yet — an outline
-                (./outline/NewOutline.tsx) and a document
-                (./document/NewDocument.tsx), both drawing the one path box
-                (./file/NewFile.tsx). The outline first, because the tree above
-                it is mostly outlines and because that is the file this app is
-                about.
-
-                Set off by a hairline of their own INSIDE the region rather than
-                made a region of their own: they belong to the tree — a reader
-                looking for "how do I make one" looks at the end of the list of
-                them — and what they needed was to stop reading as two more
-                files, which is what a rule and a gap say. */}
-            <div class="mt-2 border-t border-paper/15 pt-2">
-              <For each={props.slots.read(fileTypes)}>{({ value: kind }) => <kind.Create />}</For>
-            </div>
           </section>
 
           <Show when={references().length > 0}>
             <section class={REGION} data-testid={TESTID.reference} data-count={references().length}>
-              <button type="button" class={`${ENTRY} w-full text-paper/65`} data-testid={TESTID.referenceToggle} aria-expanded={reference.open()} onClick={reference.toggle}>
-                <span class={`${CONTROL} text-paper/55`} aria-hidden="true"><svg class="size-2.5 shrink-0 transition-transform duration-100" classList={{ "-rotate-90": !reference.open() }} viewBox="0 0 10 10" fill="currentColor"><path d="M2 3.25 L8 3.25 L5 7.25 Z" /></svg></span>
+              <button type="button" class={`${ENTRY} w-full text-paper/60`} data-testid={TESTID.referenceToggle} aria-expanded={reference.open()} onClick={reference.toggle}>
+                <span class={`${CONTROL} text-paper/60`} aria-hidden="true"><svg class="size-2.5 shrink-0 transition-transform duration-100" classList={{ "-rotate-90": !reference.open() }} viewBox="0 0 10 10" fill="currentColor"><path d="M2 3.25 L8 3.25 L5 7.25 Z" /></svg></span>
                 <Glyph of="folder" />
-                <span>Reference</span><span class="ml-auto font-mono text-xs">{references().length}</span>
+                <span>Reference</span><span class="ml-auto tabular-nums text-label">{references().length}</span>
               </button>
               <Show when={reference.open()}>
                 <ul class="m-0 list-none p-0" data-testid={TESTID.referenceList}>
@@ -200,20 +204,22 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
             </section>
           </Show>
 
-          {/* THE COLUMN'S FOOT — the vault's own furniture, under ONE
-              special parent named after the house itself: the `_olai/`
-              outlines AND the way out (the Trash) nest under "olai"
-              (ruled 2026-08-31: one mechanism, one parent, one door for
-              the vault's own furniture — the Trash's top-level entry used
-              to sit alone here and is absorbed). The parent is no page:
-              the rows under it are the doors, each in the quiet ink of a
-              door rather than the list's — not this reader's corpus, but
-              pages this reader may well open (the watch's config is the
-              one the drawer's wrench lands on). An empty group is the
-              parent and the Trash alone (the shelf's own rule: never an
-              empty box); the Trash is always there, always was. Inbox
-              used to sit here; it moved up beside Agenda (human,
-              2026-08-20). */}
+          {/* THE VAULT'S OWN FILES — the `_olai/` outlines (Pins, Settings,
+              the Inbox), under ONE special parent named after the house
+              itself (ruled 2026-08-31: one mechanism, one parent for the
+              vault's own furniture). The parent is no page: the rows under
+              it are the doors, each in the quiet ink of a door rather than
+              the list's — not this reader's corpus, but pages this reader
+              may well open (the watch's config is the one the drawer's
+              wrench lands on).
+
+              DRAWN ONLY WHEN IT HOLDS SOMETHING. The Trash used to nest here
+              too and kept the group always drawn; it is the trash row's own
+              `foot` entry now (2026-09 simplification), pinned at the
+              column's foot by the sidebar, so a directory with no `_olai/`
+              file shows no empty parent (the shelf's own rule: never an
+              empty box). */}
+          <Show when={vault().length > 0}>
           <section class={REGION}>
             <ul class="m-0 list-none p-0">
               <li class="mb-0.5">
@@ -240,13 +246,46 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
                       />
                     )}
                   </Key>
-                  <For each={props.slots.read(vaultEntries)}>{({ value: Entry }) => <Entry {...props} />}</For>
                 </ul>
               </li>
             </ul>
           </section>
+          </Show>
 </>
 }
+/** THE `+` ON THE OUTLINES HEADING: a real button (Tab reaches it, Enter and
+ *  Space press it) that opens the new-file menu (`./NewMenu.tsx`) under
+ *  itself. Picking an item opens that kind's path box under the heading. */
+function NewFileButton(props: { readonly items: ReadonlyArray<Making> }) {
+  const [menu, setMenu] = createSignal<HTMLElement | null>(null)
+  // A press on the `+` while its menu is up is the menu's outside-press: it
+  // has already shut by the time the click lands, and the click must not open
+  // it again.
+  let shutting = false
+  return <>
+    <button type="button" class={HEAD_ACTION} data-testid={TESTID.newFile}
+      aria-label="New file" title="New outline or document" aria-haspopup="menu" aria-expanded={menu() !== null}
+      onPointerDown={() => { shutting = menu() !== null }}
+      onClick={(event) => {
+        // The sidebar body puts the phone drawer away on any click that
+        // bubbles to it; opening a menu is not leaving.
+        event.stopPropagation()
+        if (shutting) { shutting = false; setMenu(null); return }
+        setMenu(menu() === null ? event.currentTarget : null)
+      }}>
+      <PlusGlyph />
+    </button>
+    <Show when={menu()}>{anchor => <NewMenu anchor={anchor()} items={props.items}
+      close={() => setMenu(null)} pick={(making) => { setMenu(null); openNewFile(making.of) }} />}</Show>
+  </>
+}
+
+function PlusGlyph() {
+  return <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="currentColor">
+    <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5H8.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75z" />
+  </svg>
+}
+
 function DoorRow(props: {
   readonly route: Route
   readonly testid: string
@@ -297,7 +336,7 @@ function FileAnatomy(props: {
       <span class="min-w-0 truncate">{props.name}</span>
       <Show when={props.broken}>
         {/* No margin of its own: the row has one gap and this is on it. */}
-        <span class="text-alarm" title="this file could not be read">
+        <span class="text-alarm" title="This file couldn't be read">
           ⚠
         </span>
       </Show>
@@ -331,7 +370,7 @@ function VaultFile(props: {
 }) {
   const name = () => {
     const claims = servedDirectory()?.claims()
-    return claims === undefined ? props.file : stemOf(claims, props.file)
+    return claims === undefined ? props.file : nameOf(claims, props.file)
   }
   const of = () => servedDirectory()?.kindOf(props.file) ?? null
   const unreadable = () => servedDirectory()?.claims().byKind.get(of() ?? "")?.holds === "nodes" && props.broken.has(props.file)
@@ -348,15 +387,6 @@ function VaultFile(props: {
   )
 }
 
-/** The way to what was put away, at the foot of the column — below the file
- *  tree because that is where a trash sits, and OUTSIDE it because an archive
- *  is not an outline to open and edit ({@link fileTree} never sees one).
- *  Always drawn, like the agenda: an empty trash is a fact a reader may want,
- *  not a control to hide until it would say something.
- *
- *  Whether it is the page being read is asked of the ROUTE, exactly as the
- *  agenda asks: the trash belongs to no one file — it is every archive under
- *  the directory — so `active` has nothing to say about it. */
 /** The way to what has been CAPTURED — the outline a `⌘K` `+` lands in, one
  *  click from wherever the reader is, beside Agenda.
  *
@@ -432,14 +462,14 @@ function Dir(props: {
         class={DIR}
         data-testid={TESTID.fileDirToggle}
         aria-expanded={!folded()}
-        aria-label={folded() ? `expand ${props.row.name}` : `collapse ${props.row.name}`}
+        aria-label={folded() ? `Expand ${props.row.name}` : `Collapse ${props.row.name}`}
         title={props.row.path}
         onClick={(event) => {
           event.stopPropagation()
           props.view.toggle(props.row.path)
         }}
       >
-        <span class={`${CONTROL} text-paper/55`} aria-hidden="true">
+        <span class={`${CONTROL} text-paper/60`} aria-hidden="true">
           {/* Same weight as the glyphs beside it, not a font triangle at
               0.55rem: that mark sat in the same cell and still read as a
               different drawing. */}

@@ -17,6 +17,7 @@ import {
   HYDRATION_TIMEOUT,
   OUTLINE_TREE,
   POLL_TIMEOUT,
+  SIDEBAR,
   SIDEBAR_BODY,
   TRASH_LINK,
 } from "@olai/tests/harness/world.ts";
@@ -78,7 +79,9 @@ Then("Inbox sits beside Agenda", async function (this: OlaiWorld) {
   await this.page
     .locator(INBOX_LINK)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const doors = `${SIDEBAR_BODY} ${AGENDA_LINK}, ${SIDEBAR_BODY} ${INBOX_LINK}, ${SIDEBAR_BODY} ${TRASH_LINK}`;
+  // The whole column, not only its scrolling body: the Trash stands in the
+  // sidebar's pinned foot, below the list.
+  const doors = `${SIDEBAR} ${AGENDA_LINK}, ${SIDEBAR} ${INBOX_LINK}, ${SIDEBAR} ${TRASH_LINK}`;
   const order = await this.page
     .locator(doors)
     .evaluateAll((all) => all.map((one) => one.getAttribute("data-testid")));

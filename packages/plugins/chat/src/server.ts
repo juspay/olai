@@ -664,6 +664,11 @@ export default definePlugin({
       } satisfies ImplementSurfaceDeps<typeof surface.spec>,
       published: (bound) => {
         mine = bound as Ctx
+        // A vault revision can land before this surface is bound. `seen`
+        // still records the seats, and `republishAgents` no-ops until `mine`
+        // exists. With no engine running, nothing else republishes, so the
+        // roster cell would stay empty and a row's standing would never draw.
+        republishAgents()
       },
     })
 

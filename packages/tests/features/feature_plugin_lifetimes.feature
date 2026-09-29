@@ -25,6 +25,7 @@ Feature: Directory features have independent browser lifetimes
     And I switch the plugin "<feature>" off
     And I use the original browser tab
     Then the directory feature "<feature>" is absent in this tab
+    And every sidebar part of "<feature>" is absent in this tab
     And the row "handles" kept every element it had
     And the surviving title editor has keyboard focus
     When I type "|"
@@ -33,6 +34,7 @@ Feature: Directory features have independent browser lifetimes
     And I switch the plugin "<feature>" on
     And I use the original browser tab
     Then the directory feature "<feature>" is present in this tab
+    And every sidebar part of "<feature>" is present in this tab
     And the row "handles" kept every element it had
     And the surviving title editor has keyboard focus
     When I click away from the editor
@@ -47,6 +49,7 @@ Feature: Directory features have independent browser lifetimes
       | capture |
       | trash   |
       | chat    |
+      | journal |
 
   Scenario: Files restores Reference and folder preferences when its activation returns
     Given I open the outline "house.olai"

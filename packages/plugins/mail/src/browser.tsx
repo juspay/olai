@@ -43,6 +43,7 @@ import type {} from "olai-plugin-layout/slots"
 import type {} from "olai-plugin-plugin-inspector/slots"
 
 import { MailReadout } from "./browser/Mail.tsx"
+import { mailSaid } from "./browser/said.ts"
 import { type MailClient, MailRow, mailNeedsYou } from "./browser/Row.tsx"
 import { MAIL_UNCONNECTED, type Account, name, surface } from "./wire.ts"
 
@@ -82,13 +83,15 @@ export default definePlugin({
     )
 
     yield* slots.register("conversation.wake", context => <MailWake {...context} />)
-    yield* slots.register("delivery.mark", () => <span aria-label="mail">✉</span>)
+    yield* slots.register("delivery.mark", () => <span aria-label="Mail">✉</span>)
 
     yield* slots.register("tool.reply", { fileOf: () => null, story })
 
     yield* slots.register("app.header", {
       place: "cluster",
       body: () => <MailReadout app={bar} account={owned.account} />,
+      // The bar's health dot reads this; same root, same lifetime as the row.
+      status: () => mailSaid(owned.account()),
     })
 
     /** THIS ROW'S OWN FACE IN THE PLUGINS PANEL. The key is the registering

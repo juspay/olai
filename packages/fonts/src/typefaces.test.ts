@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 
 import {
+  DEFAULT_TYPEFACE,
   FONT_GROUPS,
   FONT_NAMES,
   FONT_TOKENS,
@@ -27,6 +28,18 @@ test("every typeface answers the three tokens", () => {
       expect(face[token].length).toBeGreaterThan(0)
     }
   }
+})
+
+// THE DEFAULT'S THREE JOBS, as ruled: the interface in a proportional face
+// (Inter), because the duospace Quattro read as code beside real code and
+// made every label look like one; titles in Literata; code in iA Writer Mono.
+// Quattro stays a pick of its own.
+test("the default olai typeface sets the interface in Inter", () => {
+  expect(DEFAULT_TYPEFACE.name).toBe("olai")
+  expect(DEFAULT_TYPEFACE.sans.split(",")[0]?.trim()).toBe("Inter")
+  expect(DEFAULT_TYPEFACE.serif.split(",")[0]?.trim()).toBe("Literata")
+  expect(DEFAULT_TYPEFACE.mono.split(",")[0]?.trim()).toBe('"iA Writer Mono"')
+  expect(TYPEFACES.some((face) => face.sans.startsWith('"iA Writer Quattro"'))).toBe(true)
 })
 
 test("the groups partition the table, in table order inside each", () => {

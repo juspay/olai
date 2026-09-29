@@ -357,11 +357,20 @@ the originating row; a successful action returns nothing. A plugin can therefore
 explain an expected failure, such as a full node-agent pool, without depending on
 core's presentation types. An optional `confirm` sentence asks the row menu to
 show its existing confirmation controls before calling `run`; cancellation or
-dismissing the menu does not invoke the action.
+dismissing the menu does not invoke the action. A choice of verbs under one
+label (`RowChoice`, such as chat's engines) is handed whole; the menu draws it as
+a submenu, as that verb alone when it holds one, and not at all when it holds none.
+
+An entry may instead be a choice: `{ id, label, writes, choices }`, where
+`choices` is a list of ordinary actions. The menu draws it as a submenu, so a
+verb with several options (chat's `Start an agent ›`, one entry per engine) costs
+the top level one line. A plugin with only one option hands a plain action. Every
+entry says whether it `writes`; the menu groups the reads before the writes and
+keeps `Move to Trash` last.
 
 ### chrome and mount
 
-`chrome` is a component in the header bar (kolu's padi pill). `mount` is the
+`chrome` is a component in the header (kolu's padi readout, a row of the health-dot popover). `mount` is the
 plugin's component in the page body, mounted once per tab, where it opens its
 single subscription however many rows draw.
 
@@ -379,8 +388,8 @@ single subscription however many rows draw.
 
 | Word | Meaning |
 | --- | --- |
-| `cluster` | the standing row of pills, desktop only, after the connection state |
-| `lead` | the single seat ahead of them, drawn on phones too, which may shrink to nothing before any pill loses a character |
+| `cluster` | a status readout: a row of the desktop health-dot popover, ordered worst first with the connection's row (alarm, notice, healthy, quiet; mount order within a tone). It may declare a reactive `status` (`tone`, `label`, `detail`) from state its own activation owns; the row paints its dot from the same tone through the one `TONE` table, and the dot wears the worst tone among them |
+| `lead` | the seat in the bar ahead of the dot, drawn on phones too, which may shrink to nothing before the dot or a door does |
 
 ### mark
 
@@ -777,7 +786,7 @@ absent at every moment, not only at boot.
   kolu.on = no   ⇒   kolu's row is patched `disabled` and never applies
 
                       no sibling surface        no probe run
-                      no wire tag               no chrome pill
+                      no wire tag               no header readout
                       no handler                no tab half mounted
                       no expose row             no dressing licensed
                       no surface/kolu/ at all   its kinds validate as plain text
@@ -919,7 +928,7 @@ appliance olai has a judgement about. Smaller shape, same rules.
   its own optional `row` component. It consumes the `chat.engines` service's
   `row(name)` face and registers it in `plugins.row` under the engine's own
   identity. The imported door contains only a tag and interface, never a
-  component factory. Missing engines belong in **Needs you**; when chat is
+  component factory. Missing engines belong in **Needs attention**; when chat is
   absent the component pends.
 - Put the absence sentence in `src/install.ts`, spent by the server probe:
   a `NotHere` whose `why` is a whole sentence the reader does not compose.

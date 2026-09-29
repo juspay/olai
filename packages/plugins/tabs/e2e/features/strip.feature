@@ -9,7 +9,9 @@ Feature: Tabs above the panes
     Then there is 1 tab
     And tab 0 is in front
     And tab 0 holds "/house.olai"
-    And the tab strip reads the address "/house.olai"
+    And tab 0 is titled "house"
+    And tab 0's tooltip is "/house.olai"
+    And the tab strip spells no address
     And there should be no page errors
 
   Scenario: Following a door changes the tab in front and keeps the count
@@ -17,8 +19,8 @@ Feature: Tabs above the panes
     When I click the outline "garden.olai"
     Then there is 1 tab
     And tab 0 holds "/garden.olai"
-    And tab 0 is titled "garden.olai"
-    And the tab strip reads the address "/garden.olai"
+    And tab 0 is titled "garden"
+    And tab 0's tooltip is "/garden.olai"
     And there should be no page errors
 
   Scenario: Open in new tab from a link's menu adds a tab behind
@@ -74,6 +76,16 @@ Feature: Tabs above the panes
     Then there is 1 tab
     And tab 0 is in front
     And the address is "/garden.olai"
+    And there should be no page errors
+
+  Scenario: A tab's close button is at its right edge, and says which tab it closes
+    Given I open the outline "house.olai"
+    When I choose "Open in new tab" from the menu of the document link "finishes.md"
+    Then tab 0's close button sits at its right edge, called "Close house"
+    And tab 1's close button sits at its right edge, called "Close finishes"
+    When I close tab 1 with its button
+    Then there is 1 tab
+    And tab 0 holds "/house.olai"
     And there should be no page errors
 
   Scenario: Closing the last tab leaves a front-page tab
@@ -143,10 +155,10 @@ Feature: Tabs above the panes
     And I type "keyboard shortcuts" into the palette
     And I choose "Keyboard shortcuts" from the palette
     Then the shortcuts are showing
-    And the shortcuts list "show the next tab" as "⌘⇧. / Ctrl+⇧."
-    And the shortcuts list "show the previous tab" as "⌘⇧, / Ctrl+⇧,"
-    And the shortcuts list "open a new tab on the front page" as "⌘⇧O / Ctrl+⇧O"
-    And the shortcuts list "close the tab in front" as "⌘⇧X / Ctrl+⇧X"
+    And the shortcuts list "Next tab" as "⌘⇧. / Ctrl+⇧."
+    And the shortcuts list "Previous tab" as "⌘⇧, / Ctrl+⇧,"
+    And the shortcuts list "New tab" as "⌘⇧O / Ctrl+⇧O"
+    And the shortcuts list "Close tab" as "⌘⇧X / Ctrl+⇧X"
     And there should be no page errors
 
   Scenario: A split stays inside its tab
@@ -156,7 +168,7 @@ Feature: Tabs above the panes
     Then there are 2 panes
     And there are 2 tabs
     And tab 0 holds the address in the bar
-    And tab 0 is titled "house.olai + install"
+    And tab 0 is titled "house + install"
     When I press tab 1
     Then there are 1 panes
     And the address is "/garden.olai"

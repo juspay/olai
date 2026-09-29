@@ -8,9 +8,9 @@
  * deliberate, and this file is its house:
  *
  *   - the ring-pulse (the `fresh` register), so the pill's inspection face
- *     says `watcher pulse 2m ago` and the coat takes NOTHING; and
+ *     says `Checked in 2m ago` and the coat takes NOTHING; and
  *   - the quiet-fold's threshold, `everyMs * 2` — the pill's arithmetic,
- *     spelled as `watcher quiet 47m` when it crosses; and
+ *     spelled as `No check-in for 47m` when it crosses; and
  *   - the pre-beat window (no pulse IN yet), so the door's first drawing
  *     is the same quiet face it wears while a fresh link simply hasn't
  *     stamped you recency yet.
@@ -42,12 +42,12 @@ const pulse = (ageMs: number, everyMs: number): WatchPulse => ({
 test("the beat speaks plainly while it is fresh — the inspection sentence", () => {
   const said = padiSaid(connectedLink, pulse(120_000, 60_000), T0)
   expect(said.beat?.kind).toBe("fresh")
-  expect(said.beat?.said).toBe("watcher pulse 2m ago")
-  expect(said.detail).toBe("mirror connected · watcher pulse 2m ago")
+  expect(said.beat?.said).toBe("Checked in 2m ago")
+  expect(said.detail).toBe("Connected · Checked in 2m ago")
   // And the register paint is quiet: no hollow, no amber, the dot says
   // as `connected` always did.
   expect(said.label).toBe("kolu")
-  expect(said.dot).toBe("bg-done")
+  expect(said.tone).toBe("healthy")
 })
 
 test("the register crosses at `everyMs * 2`, the pill's house margin", () => {
@@ -60,18 +60,19 @@ test("the register crosses at `everyMs * 2`, the pill's house margin", () => {
   // And the register's words move with it: the sentence the drawer spells
   // gets the same `ago`, but the VERB folds from pulse to quiet the beat
   // IT folded.
-  expect(beatOf(half, T0).said).toBe("watcher pulse 1m ago")
-  expect(beatOf(over, T0).said).toBe("watcher quiet 2m")
+  expect(beatOf(half, T0).said).toBe("Checked in 1m ago")
+  expect(beatOf(over, T0).said).toBe("No check-in for 2m")
 })
 
 test("the quiet register is loud enough to name the piece that went down", () => {
   const said = padiSaid(connectedLink, pulse(47 * 60_000, 60_000), T0)
   expect(said.beat?.kind).toBe("quiet")
-  expect(said.beat?.said).toBe("watcher quiet 47m")
+  expect(said.beat?.said).toBe("No check-in for 47m")
+  expect(said.tone).toBe("notice")
   // The coat is the prototype's amber — the one draw outside the link's
   // three faces this fold owns — and the words the hid-hover eats carry
   // the same phrase.
-  expect(said.detail).toBe("mirror connected · watcher quiet 47m")
+  expect(said.detail).toBe("Connected · No check-in for 47m")
 })
 
 test("a fresh link that never stamped is not a quiet one — the pre-beat face", () => {
@@ -80,7 +81,7 @@ test("a fresh link that never stamped is not a quiet one — the pre-beat face",
   // answers `kolu` the way it did before the vault had a watcher to weigh.
   const said = padiSaid(connectedLink, null, T0)
   expect(said.beat).toBeNull()
-  expect(said.detail).toContain("connected to padi")
+  expect(said.detail).toBe("Connected. Terminals on this page are live.")
 })
 
 test("the beat says nothing once the link has failed — the fault is the link's", () => {
@@ -90,5 +91,6 @@ test("the beat says nothing once the link has failed — the fault is the link's
   const absent: KoluLink = { ...connectedLink, status: "absent" }
   const said = padiSaid(absent, pulse(5_000, 30_000), T0)
   expect(said.beat).toBeNull()
-  expect(said.dot).toBe("bg-muted")
+  expect(said.tone).toBe("quiet")
+  expect(padiSaid({ ...connectedLink, status: "skew" }).tone).toBe("alarm")
 })

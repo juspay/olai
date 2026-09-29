@@ -33,20 +33,20 @@ Feature: The ⌘K palette writes
     # simply absent until the address says which node the reader is looking at.
     When I press the palette shortcut
     Then the palette offers "Go to today"
-    And the palette does not offer "Mark todo"
+    And the palette does not offer "Mark: To do"
     And the palette does not offer "Move to Trash"
 
   Scenario: Zoomed, the palette offers what that node can take
     # `kitchen` is doing, has no date, and is a node rather than a placement —
-    # so no `Mark doing` (it carries one), no `Clear date`, no `Remove this
+    # so no `Mark: Doing` (it carries one), no `Clear date`, no `Remove this
     # placement`.
     Given I open the node "kitchen"
     When I press the palette shortcut
-    Then the palette offers "Mark todo"
-    And the palette offers "Complete"
-    And the palette offers "Clear mark"
+    Then the palette offers "Mark: To do"
+    And the palette offers "Mark: Done"
+    And the palette offers "Mark: Clear"
     And the palette offers "Move to Trash"
-    And the palette does not offer "Mark doing"
+    And the palette does not offer "Mark: Doing"
     And the palette does not offer "Clear date"
 
   Scenario: The verbs that ask something first are not in it — all three of them
@@ -65,7 +65,7 @@ Feature: The ⌘K palette writes
 
   Scenario: An untouched palette has nothing chosen, so Enter writes nothing
     # What lets the op rows sit FIRST — where a reader can see them — without a
-    # stray keypress meaning `Mark todo`. A highlight is where the arrows start
+    # stray keypress meaning `Mark: To do`. A highlight is where the arrows start
     # from, not a choice somebody made; the first character typed is the choice.
     Given I open the node "kitchen"
     When I press the palette shortcut
@@ -73,7 +73,7 @@ Feature: The ⌘K palette writes
     Then the command palette is open
     And "house.olai" holds a node marked doing titled "kitchen remodel #home"
     # The arrows select a named op among all current plugin contributions.
-    When I move the palette cursor to "Mark todo"
+    When I move the palette cursor to "Mark: To do"
     And I press "Enter"
     Then "house.olai" holds a node marked todo titled "kitchen remodel #home"
 
@@ -83,7 +83,7 @@ Feature: The ⌘K palette writes
     # scenario claims is that the WRITE re-rendered in place.
     And I mark the page
     When I press the palette shortcut
-    And I choose "Mark doing" from the palette
+    And I choose "Mark: Doing" from the palette
     Then the command palette is closed
     And "house.olai" holds a node marked doing titled "choose the handles"
     And the page has not reloaded
@@ -93,7 +93,7 @@ Feature: The ⌘K palette writes
     Given I open the node "handles"
     When I press the palette shortcut
     And I type "handles" into the palette
-    Then the palette offers "Complete"
+    Then the palette offers "Mark: Done"
 
   Scenario: A refusal is quoted where it was asked, and the palette stays up
     # The ops layer's own words, verbatim — nothing decides on somebody's
@@ -102,7 +102,7 @@ Feature: The ⌘K palette writes
     # presses is what an agent makes and what the ••• menu asks for.
     Given I open the node "demo"
     When I press the palette shortcut
-    And I choose "Mark doing" from the palette
+    And I choose "Mark: Doing" from the palette
     Then the palette says "`take out the old counters` is done. Undo that first — nothing should decide on your behalf that finished work is not finished."
     And the command palette is open
     And the node "demo" has status "done"
@@ -114,7 +114,7 @@ Feature: The ⌘K palette writes
     # somebody might want to tick the branch — and now can.
     Given I open the node "mint"
     When I press the palette shortcut
-    And I choose "Complete" from the palette
+    And I choose "Mark: Done" from the palette
     Then the palette remarks "every task under `the herb bed by the door` is done now"
     And "garden.olai" holds a node marked done titled "split the mint"
 
@@ -131,7 +131,7 @@ Feature: The ⌘K palette writes
     Given I open the node "install"
     When I press the palette shortcut
     And I choose "Move to Trash" from the palette
-    Then the palette asks "Move “install the cabinets” and the 3 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
+    Then the palette asks "Move “install the cabinets” and the 3 rows under it to Trash? You can put them back from Trash in the sidebar."
     And "house.olai" holds a node titled "install the cabinets"
 
   Scenario: The question takes the caret, and Tab cycles its two ways out
@@ -193,7 +193,7 @@ Feature: The ⌘K palette writes
     # ••• entry do.
     Given I open the node "handles"
     When I press the palette shortcut
-    And I choose "Mark doing" from the palette
+    And I choose "Mark: Doing" from the palette
     # The CLOSE rather than the disk: the palette shuts in the same answer that
     # files the inverse, so it is the signal that there is something on the
     # stack. The file can be written a beat before that answer reaches the tab.
@@ -218,7 +218,7 @@ Feature: The ⌘K palette writes
   Scenario: The line about to become a node is previewed, so Enter is never a guess
     When I press the palette shortcut
     And I type "+ buy the walnut stain" into the palette
-    Then the palette previews the capture "capture to the Inbox: buy the walnut stain"
+    Then the palette previews the capture "Capture to the Inbox: buy the walnut stain"
 
   Scenario: A capture mints the inbox on first use and lands the line in it
     # The directory has no inbox, so the write is a `create` seeded with this
@@ -235,7 +235,7 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
     Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
-    And the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    And the palette remarks "Captured “buy the walnut stain” to _olai/Inbox.olai"
     And there should be no page errors
 
   Scenario: A second Enter on the first capture is not a second write
@@ -261,7 +261,7 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I type "+ buy the walnut stain" into the palette
     And I press "Enter" twice without waiting
-    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    Then the palette remarks "Captured “buy the walnut stain” to _olai/Inbox.olai"
     And "_olai/Inbox.olai" holds exactly 1 node titled "buy the walnut stain"
     And there should be no page errors
 
@@ -305,7 +305,7 @@ Feature: The ⌘K palette writes
     And I capture "buy the walnut stain" from the palette
     # The palette's own line rather than the disk, for the reason the op
     # scenario gives: it is said in the answer that files the inverse.
-    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    Then the palette remarks "Captured “buy the walnut stain” to _olai/Inbox.olai"
     And "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
     # The palette first: ⌘Z is dead while the box has the caret, because an
     # input has the platform's own undo in it — the same rule a draft follows.

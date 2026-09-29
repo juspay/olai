@@ -41,7 +41,7 @@ import { atFile } from "olai-plugin-navigation/routes"
 import { name, browserState, documentBodies, properties, type MarkdownBrowser } from "./index.ts"
 import { client } from "./client.ts"
 import { runAsync } from "@olai/web/client/run.ts"
-import { NewDocument } from "./browser/document/NewDocument.tsx"
+import { documentMaking, NewDocument } from "./browser/document/NewDocument.tsx"
 import { propertyRoutes } from "olai-plugin-outlines/contract"
 
 export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect.gen(function*() {
@@ -137,7 +137,7 @@ export const components = {
     yield* slots.contribute(documentBodies, EmbeddedDocument)
   }) }),
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {
-    yield* (yield* rendererSlots).contribute(fileTypes, { Create: NewDocument })
+    yield* (yield* rendererSlots).contribute(fileTypes, { making: documentMaking, Create: NewDocument })
   }) }),
 }
 

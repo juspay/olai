@@ -13,7 +13,7 @@
  * that has five things in it at 390pt cannot spend one of them on a second door
  * to a panel that is already there — the same argument `one-git-indicator`
  * settled for the two git chips. What the pill promised (it NAMED the theme in
- * force) is kept: the theme row's hint names it, one gesture further in, and
+ * force) is kept: the theme row names it beside its label, one gesture in, and
  * the page itself is painted in it — which is the difference from the
  * connection and the commit pill, whose facts are invisible unless a control
  * says them and which therefore may never be a gesture away.
@@ -25,24 +25,25 @@
  */
 import { TESTID } from "olai-plugin-preferences/testids"
 import { BarDoor } from "olai-plugin-layout/bar-door"
+import type { ToolWhere } from "olai-plugin-layout/contract"
 import { Panel } from "./Panel.tsx"
 
 
 import type { Contribution } from "@olai/plugin-api"
-import type { JSX } from "solid-js"
+import type { Section } from "./index.ts"
 export function Preferences(props: {
-  readonly sections: () => ReadonlyArray<Contribution<() => JSX.Element>>
-  /** `closet` is the phone drawer row. Default is the header chip. */
-  readonly where?: "header" | "closet"
+  readonly sections: () => ReadonlyArray<Contribution<Section>>
+  /** `closet` is the phone drawer row, `health` a row of the desktop health
+   *  popover. Default is the header chip. */
+  readonly where?: ToolWhere
 }) {
   return (
     <BarDoor
       where={props.where}
       glyph="⚙"
-      header="prefs"
-      closet="preferences"
+      name="Preferences"
       testid={TESTID.prefsTrigger}
-      title="preferences: theme, type, finished work, and whether git commits and pushes on its own"
+      title="Preferences"
       panel={(at, inside) => <Panel at={at} inside={inside} sections={props.sections} />}
     />
   )

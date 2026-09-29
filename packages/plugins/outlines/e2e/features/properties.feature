@@ -54,8 +54,8 @@ Feature: Properties on a node, from the web
     # end of — and this is the ONE entry the menu still carries about
     # properties.
     When I open the node menu of "handles"
-    Then the node menu offers "Add property…"
-    When I choose "Add property…" from the node menu
+    Then the node menu offers "More › Add property…"
+    When I choose "More › Add property…" from the node menu
     # ...and the menu says NOTHING: an entry answers with what it has to say,
     # and opening a box has nothing to say.
     Then the node menu of "handles" says nothing
@@ -78,11 +78,11 @@ Feature: Properties on a node, from the web
     # ONE DOOR AT A TIME. The `+` at the end of the run is the door wherever
     # there is a run; the menu entry is the door only where there is not.
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "agent" holding "claude-opus" on "handles"
     Then the node "handles" shows the property "agent" holding "claude-opus"
     When I open the node menu of "handles"
-    Then the node menu does not offer "Add property…"
+    Then the node menu does not offer "More › Add property…"
     And the node menu does not offer "Edit agent…"
     And the node menu does not offer "Remove agent"
     When I press "Escape"
@@ -94,7 +94,7 @@ Feature: Properties on a node, from the web
 
   Scenario: A chip is edited in place — press its key, type, press Enter
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "review" on "handles"
     Then the node "handles" shows the property "stage" holding "review"
     When I edit the property "stage" on "handles"
@@ -118,7 +118,7 @@ Feature: Properties on a node, from the web
     # a silenced one is the cure being worse than the bug, and a twice-heard
     # one is the bug itself, spelled by the pointer instead of by Enter.
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "review" on "handles"
     When I edit the property "stage" on "handles"
     And I type "addressing" into the property editor on "handles" without pressing Enter
@@ -138,7 +138,7 @@ Feature: Properties on a node, from the web
     # the typed "submitted" never sent, the file still saying "addressing":
     # the pinned bug reborn as a silent miss.
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "review" on "handles"
     When I edit the property "stage" on "handles"
     And I type "addressing" into the property editor on "handles"
@@ -158,7 +158,7 @@ Feature: Properties on a node, from the web
     # The gesture rule, in the direction a reader reaches first. A link goes
     # where it says; everything else in a chip opens it.
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "review" on "handles"
     When I press the value of "stage" on "handles"
     Then the property editor on "handles" holds "review"
@@ -166,7 +166,7 @@ Feature: Properties on a node, from the web
 
   Scenario: Clearing the value removes the property — the op's own reading
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "review" on "handles"
     Then the node "handles" shows the property "stage" holding "review"
     When I edit the property "stage" on "handles"
@@ -387,7 +387,7 @@ Feature: Properties on a node, from the web
 
   Scenario: Escape writes nothing, and neither does opening a chip and leaving it
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "review" on "handles"
     When I edit the property "stage" on "handles"
     And I leave the property editor on "handles" without pressing Enter
@@ -411,7 +411,7 @@ Feature: Properties on a node, from the web
     # is; on a page ABOUT the node it is the whole reason the system half
     # exists, since an id is what every tool call takes.
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "review" on "handles"
     Then the node "handles" shows the property "stage" holding "review"
     And the node "handles" shows no property "id"
@@ -432,7 +432,7 @@ Feature: Properties on a node, from the web
     # The question the auto-show ruling had to answer: does opening a row say
     # anything twice? It cannot — the run is not behind the mark.
     When I open the node menu of "order"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "stage" holding "review" on "order"
     Then the node "order" shows the property "stage" holding "review"
     And the node "order" shows a pilcrow
@@ -541,7 +541,7 @@ Feature: Properties on a node, from the web
     # it (`md:min-h-0`).
     When I hold a finger on the node "handles"
     Then the node menu is open
-    When I tap "Add property…" in the node menu
+    When I tap "More › Add property…" in the node menu
     Then the property editor on "handles" fits the screen
     When I write the property "pr" holding "https://github.com/juspay/olai/pull/179" on "handles"
     Then the node "handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/179"
@@ -570,7 +570,7 @@ Feature: Properties on a node, from the web
     # bought: write a fact on a node, then ask the header box for it and get the
     # fact back on the row, without opening anything.
     When I open the node menu of "handles"
-    And I choose "Add property…" from the node menu
+    And I choose "More › Add property…" from the node menu
     And I write the property "agent" holding "claude-opus" on "handles"
     And I add a property on "handles"
     And I write the property "pr" holding "https://github.com/juspay/olai/pull/192" on "handles"

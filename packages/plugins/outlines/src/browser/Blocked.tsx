@@ -33,7 +33,7 @@ export function Blocked(props: {
 }) {
   return (
     <NodeRefs
-      label="blocked by"
+      label="Blocked by"
       refs={props.blocked.map((one) => refOf(one.at))}
       testid={TESTID.blocked}
     />

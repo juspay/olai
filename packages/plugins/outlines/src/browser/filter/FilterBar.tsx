@@ -45,7 +45,7 @@
  * page is a link, and Back leaves the filter rather than un-typing it.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
-import { Show } from "solid-js"
+import { createSignal, Show } from "solid-js"
 
 import type { Asked } from "./asking.ts"
 import { DoneFlip } from "./DoneFlip.tsx"
@@ -54,16 +54,15 @@ import { listKey } from "@olai/web/client/keys.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
+import { createOffer } from "../complete/offer.tsx"
 import { countSaid } from "./count.ts"
+import { FILTER_FORMS, type FilterForm } from "./forms.ts"
 import type { Narrowing } from "./narrowing.ts"
 
-/** What the box says when it is empty — the whole grammar in one line, because
- *  an operator language nobody is told about is a feature nobody uses. The two
- *  compositions go early rather than last: a box this narrow clips its end, and
- *  what survives a clip is the front (`../search/place.ts` makes the same
- *  argument about a row). */
-const PLACEHOLDER =
-  `filter — words, "a phrase", a OR b, #tag, is:done, has:desc, date:last-week, changed:today, -not`
+/** What the box says when it is empty: one word. The grammar an operator
+ *  language needs somebody to be told about is the hint under the focused
+ *  box (`./forms.ts`), not a manual in the placeholder. */
+const PLACEHOLDER = "Filter"
 
 export function FilterBar(props: {
   /** What the PAGE found — the count, the words, the rows behind it. */
@@ -91,6 +90,26 @@ export function FilterBar(props: {
       counts: props.narrowing.counts(),
     })
 
+  // THE HINT: the grammar's forms, offered under the box while it is focused
+  // and empty, and put away by Escape until the box is next focused. Typing
+  // takes it away by making the box not empty. It is the completion box the
+  // row editor uses (`../complete/offer.tsx`), so it is drawn from this row's
+  // overlay socket and goes when this bar does.
+  let input: HTMLInputElement | undefined
+  const [focused, setFocused] = createSignal(false)
+  const [shut, setShut] = createSignal(false)
+  const put = ({ form, select }: FilterForm): void => {
+    if (input === undefined) return
+    input.value = form
+    input.setSelectionRange(select[0], select[1])
+    props.onType(form)
+  }
+  const hint = createOffer({
+    showing: () => focused() && !shut() && props.narrowing.text() === "",
+    offered: FILTER_FORMS.map((one) => ({ id: one.form, label: one.form, hint: one.hint, choose: () => put(one) })),
+    dismiss: () => setShut(true),
+  })
+
   return (
     <div
       class="mb-6"
@@ -109,43 +128,64 @@ export function FilterBar(props: {
       // about one question.
       data-asked={props.narrowing.answering() ?? undefined}
     >
-      <div class="flex max-w-xl items-center gap-1">
-        {/* `text`, not `search`: a `type="search"` input draws the browser's
-            own clear cross, and this bar already has one of its own — two
-            crosses side by side, one of which no scenario can press
-            portably. The header's box keeps `search` precisely because it has
-            no cross of its own to collide with. */}
-        <input
-          type="text"
-          class="min-w-0 flex-1 rounded-full border-0 bg-desk/70 px-4 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted ring-1 ring-rule/40 focus:ring-2 focus:ring-accent/40"
-          data-testid={TESTID.filterInput}
-          placeholder={PLACEHOLDER}
-          aria-label="filter this page"
-          value={props.narrowing.text()}
-          onInput={(event) => props.onType(event.currentTarget.value)}
-          // WHICH key empties it is the registry's (`../keys.ts`'s list layer,
-          // the same one the header box asks); what `dismiss` MEANS here is
-          // this bar's — the box empties and the page gets the caret back.
-          // The other three answers belong to a shortlist, and this bar has
-          // none, so they are left to the input.
-          onKeyDown={(event) => {
-            if (listKey(event) !== "dismiss") return
-            event.preventDefault()
-            props.onType("")
-            event.currentTarget.blur()
-          }}
-        />
-        <Show when={props.narrowing.active()}>
-          <button
-            type="button"
-            class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-muted hover:text-ink`}
-            data-testid={TESTID.filterClear}
-            aria-label="clear the filter"
-            onClick={() => props.onType("")}
-          >
-            <span aria-hidden="true" class="text-base leading-none">×</span>
-          </button>
-        </Show>
+      {/* ONE LINE, phone included: a short box that gives way, and the
+          finished toggle that never does. */}
+      <div class="flex items-center gap-4">
+        {/* The box and its clear cross, which is what the hint hangs under —
+            the completion box hangs from its host's PARENT. */}
+        <div class="relative flex min-w-0 flex-1 items-center md:w-80 md:flex-none">
+          {/* `text`, not `search`: a `type="search"` input draws the browser's
+              own clear cross, and this bar already has one of its own — two
+              crosses side by side, one of which no scenario can press
+              portably. The header's box keeps `search` precisely because it
+              has no cross of its own to collide with. */}
+          <input
+            ref={input}
+            type="text"
+            role="combobox"
+            class="min-h-11 w-full min-w-0 rounded-control border border-rule/60 bg-paper py-1.5 pl-3 pr-11 text-body md:pr-9 text-ink outline-none placeholder:text-muted focus:border-accent/60 focus:ring-2 focus:ring-accent/20 md:min-h-0"
+            data-testid={TESTID.filterInput}
+            placeholder={PLACEHOLDER}
+            aria-label="Filter"
+            aria-autocomplete="list"
+            aria-expanded={focused() && !shut() && props.narrowing.text() === ""}
+            value={props.narrowing.text()}
+            onFocus={() => {
+              setShut(false)
+              setFocused(true)
+            }}
+            onBlur={() => setFocused(false)}
+            onInput={(event) => props.onType(event.currentTarget.value)}
+            // THE HINT HEARS A KEY FIRST while it is up: the arrows walk it,
+            // Enter puts the form under the cursor in, and Escape puts it away
+            // with the caret still here. Otherwise WHICH key empties the box
+            // is the registry's (`../keys.ts`'s list layer, the same one the
+            // header box asks); what `dismiss` MEANS here is this bar's — the
+            // box empties and the page gets the caret back.
+            onKeyDown={(event) => {
+              if (hint.key(event)) {
+                event.preventDefault()
+                return
+              }
+              if (listKey(event) !== "dismiss") return
+              event.preventDefault()
+              props.onType("")
+              event.currentTarget.blur()
+            }}
+          />
+          <Show when={props.narrowing.active()}>
+            <button
+              type="button"
+              class={`${TARGET_BOX} absolute inset-y-0 right-0 inline-flex items-center justify-center rounded-control text-muted hover:text-ink md:min-h-0 md:min-w-0 md:w-8`}
+              data-testid={TESTID.filterClear}
+              aria-label="Clear filter"
+              onClick={() => props.onType("")}
+            >
+              <span aria-hidden="true" class="text-title leading-none">×</span>
+            </button>
+          </Show>
+          <hint.Panel />
+        </div>
         {/* The page's own done-pick, when the page is one that has one
             (settings/done.ts): "what about here?" is a filter-bar question,
             not a settings one. */}
@@ -160,7 +200,7 @@ export function FilterBar(props: {
       <Show when={props.narrowing.active() && said()}>
         {(line) => (
           <p
-            class="m-0 mt-1 font-mono text-xs text-muted"
+            class="m-0 mt-1 text-label text-muted"
             data-testid={TESTID.filterCount}
             // A READOUT rather than something said about a write, which is why
             // it is not a `SaidLine` (`../SaidLine.tsx` owns the two MOODS a
@@ -181,7 +221,7 @@ export function FilterBar(props: {
           left here is where the lines sit and what this bar calls them. */}
       <Refusals
         of={props.narrowing.refusals()}
-        class="m-0 mt-1 font-mono text-xs"
+        class="m-0 mt-1 text-label"
         testid={TESTID.filterRefusal}
       />
 
@@ -192,7 +232,7 @@ export function FilterBar(props: {
         {(said) => (
           <SaidLine
             said={{ tone: "alarm", text: said() }}
-            class="m-0 mt-1 font-mono text-xs"
+            class="m-0 mt-1 text-label"
             testid={TESTID.filterFailure}
           />
         )}

@@ -28,7 +28,7 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
 import { alertsOn } from "@olai/tests/harness/alerts.ts";
-import { CHAT_ASK, CHAT_PANEL, CHAT_TOGGLE, POLL_TIMEOUT, attr } from "@olai/tests/harness/world.ts";
+import { CHAT_ASK, CHAT_PANEL, POLL_TIMEOUT, attr } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** The message the notification worker posts to an open window when its banner
@@ -69,26 +69,6 @@ Given("the notification worker is ready", async function (this: OlaiWorld) {
     POLL_TIMEOUT,
   );
 });
-
-/**
- * The header toggle carries `data-asking` and always has — the one thing a
- * shut panel says on screen, and a button nobody is looking at.
- *
- * It is here rather than beside the composer's own "waiting on you" because
- * that line lives INSIDE the panel, and every scenario in this feature has the
- * panel shut. It is what makes an assertion of ABSENCE honest: the question
- * really did arrive, and this browser really did say nothing about it.
- */
-Then(
-  "the agent button says the agent is waiting on me",
-  async function (this: OlaiWorld) {
-    await this.expectAttribute(this.chatSelector(CHAT_TOGGLE),
-      "data-asking",
-      "true",
-      "the agent toggle",
-    );
-  },
-);
 
 // ── the banner ─────────────────────────────────────────────────────────
 

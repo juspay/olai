@@ -107,8 +107,8 @@ export function Markdown(props: {
       {(failed) => (
         <div class={classes()} data-testid={props.testid} data-markdown="failed">
           <p class="text-alarm">
-            {failed().message} — this is the file's own text, unrendered.
-            Reloading is the way to try again.
+            Couldn't format this file, so it's shown as plain text. Reload to
+            try again. ({failed().message})
           </p>
           <div class="whitespace-pre-wrap">{props.source}</div>
         </div>

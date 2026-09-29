@@ -39,7 +39,7 @@ export function UndoSaid(props: { readonly said: Said | null }) {
               `../SaidLine.tsx`'s, once, for all five. */}
           <SaidLine
             said={said()}
-            class={`mt-2 max-w-lg rounded border bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug shadow-sm ${
+            class={`mt-2 max-w-lg rounded-surface border bg-paper px-3 py-1.5 text-body leading-snug shadow-raised ${
               said().tone === "alarm" ? "border-alarm" : "border-rule"
             }`}
             testid={TESTID.undoSaid}

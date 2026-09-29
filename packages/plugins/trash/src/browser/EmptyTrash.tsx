@@ -104,7 +104,7 @@ export function EmptyTrash(props: {
           <Switch>
             <Match when={confirm.where() === "asking"}>
               <p
-                class="m-0 flex-1 text-sm text-ink"
+                class="m-0 flex-1 text-body text-ink"
                 data-testid={TESTID.trashEmptyConfirm}
               >
                 {emptyQuestion(going())}
@@ -157,7 +157,7 @@ export function EmptyTrash(props: {
         {(line) => (
           <SaidLine
             said={line()}
-            class="m-0 mt-2 text-sm"
+            class="m-0 mt-2 text-body"
             testid={TESTID.trashPageSaid}
           />
         )}

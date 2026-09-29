@@ -60,6 +60,16 @@ export const monthLabel = (month: string): string =>
     ? `${MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`
     : month
 
+/** "Sep 28" — the date on the sidebar's `Today` row. The month's first three
+ *  letters from the same English list {@link monthLabel} reads, and the day
+ *  without its leading zero; text that is not a date is drawn as it came. */
+export const shortDay = (date: string): string => {
+  const month = MONTHS[Number(date.slice(5, 7)) - 1]
+  return isMonth(date.slice(0, 7)) && month !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? `${month.slice(0, 3)} ${dayNumber(date)}`
+    : date
+}
+
 /**
  * One month as whole weeks: an ISO date per day, `null` for the days at either
  * end that belong to another month.

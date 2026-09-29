@@ -4,21 +4,38 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 
 
 import { NO_ROSTER, type BuiltPlugin, type PluginRoster } from "@olai/surface"
+import type { RowReport } from "@olai/plugin-api"
 import { expect, test } from "bun:test"
 
 import {
+  CONDITION_TONE,
+  CONDITION_WORDS,
+  conditionSaid,
+  displayName,
+  environmentValue,
   groupCount,
+  sentenceOf,
   NEEDS_YOU,
   pluginConfig,
   pluginConfirm,
   pluginGroups,
-  pluginHint,
   pluginRows,
-  rowCopy,
   pluginSwitch,
+  rowCondition,
   THIS_VAULT,
 } from "./rows.ts"
 
+/** The sentence a row's detail draws, read the way the panel reads it. */
+const pluginHint = (plugin: BuiltPlugin, reports?: ReadonlyMap<string, RowReport>): string | null => {
+  const now = rowCondition(plugin, reports)
+  return now === null ? null : conditionSaid(now)
+}
+
+/** The few words beside a row's name, read the way the panel reads them. */
+const rowStatus = (plugin: BuiltPlugin, reports?: ReadonlyMap<string, RowReport>, needs = false): string | null => {
+  const now = rowCondition(plugin, reports, needs)
+  return now === null ? null : CONDITION_WORDS[now.kind]
+}
 
 
 const roster = (
@@ -141,8 +158,9 @@ test("only failed and waiting rows explain their absence", () => {
 
   expect(pluginHint(only(optIn))).toBeNull()
   expect(pluginHint(only(off))).toBeNull()
-  expect(pluginHint(only(waiting))).toContain("waiting for something it needs")
+  expect(pluginHint(only(waiting))).toBe("Starting…")
   expect(pluginHint(only(failed))).toContain("Failed to start")
+  expect(pluginHint(only(failed))).toContain("Switch it off and on to try again.")
   expect(pluginHint(only(switched))).toBeNull()
 
   const said = [optIn, off, waiting, failed, switched].map((sent) => pluginHint(only(sent)))
@@ -233,8 +251,7 @@ test("a waiting row names the services nobody is behind", () => {
   // named two doors is short of two, and `it` would be wrong about both.
   const two = only(row("waiting", undefined, ["deliveries", "watching"]))
   expect(pluginHint(two)).toContain("deliveries, watching")
-  expect(pluginHint(two)).toContain("them")
-  expect(pluginHint(waiting)).toContain("it")
+  expect(pluginHint(waiting)).toBe("Can't start: another plugin it needs isn't running (deliveries).")
 })
 
 /**
@@ -249,10 +266,8 @@ test("a waiting row names the services nobody is behind", () => {
  * reader the first half.
  */
 test("a wait with nothing named yet keeps the sentence it always had", () => {
-  expect(pluginHint(only(row("waiting")))).toContain("waiting for something it needs")
-  expect(pluginHint(only(row("waiting", undefined, [])))).toContain(
-    "waiting for something it needs",
-  )
+  expect(pluginHint(only(row("waiting")))).toBe("Starting…")
+  expect(pluginHint(only(row("waiting", undefined, [])))).toBe("Starting…")
 })
 
 /**
@@ -278,6 +293,12 @@ test("a running row that carries others names them", () => {
   // ...and it says what pressing Off would DO, which is the whole of why the
   // names are on screen rather than the fact that they exist.
   expect(said).toContain("Turning it off")
+  // ...and the panel names them by the label a person reads on their rows.
+  const labels: Record<string, string> = { kolu: "Kolu" }
+  expect(pluginConfirm(carrier, (name) => ({ label: labels[name] }))).toBe("Turning it off also stops Kolu, odu.")
+  // A row that carries nobody asks only when the build gave it a switchHint.
+  expect(pluginConfirm(only(row("running")))).toBeNull()
+  expect(pluginConfirm(only(row("running")), () => ({ switchHint: "Careful." }))).toBe("Careful.")
 })
 
 /**
@@ -354,9 +375,8 @@ test("a press freezes only that row's strip, and does not move it", () => {
 
 
 test("session exceptions use the legend and never add row prose", () => {
-  const value = roster(["alpha"])
-  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, value)).toBeNull()
-  expect(rowCopy({ name: "alpha", running: true, switchPersistence: "file" }, value)).toBeNull()
+  expect(pluginHint({ name: "alpha", running: true, switchPersistence: "session" })).toBeNull()
+  expect(pluginHint({ name: "alpha", running: true, switchPersistence: "file" })).toBeNull()
 })
 
 
@@ -404,9 +424,9 @@ test("a structured policy is readable instead of an object placeholder", () => {
  * `olai.yml` because it is not in `olai.yml`. Presence of `source` is the
  * whole of the distinction, and the group is one word for every such row —
  * so a second definition does not invent a second heading, and a pending
- * one is Needs you rather than a silent neighbour of an approved one.
+ * one is Needs attention rather than a silent neighbour of an approved one.
  */
-test("vault-defined plugins are Defined here; pending ones are Needs you", () => {
+test("vault-defined plugins are Your plugins; pending ones are Needs attention", () => {
   const defined = (
     name: string,
     state: "running" | "pending",
@@ -431,30 +451,111 @@ test("vault-defined plugins are Defined here; pending ones are Needs you", () =>
     ],
   }
   const look = (name: string) =>
-    name === "alpha" || name === "beta" ? { section: "Conversation" } : {}
+    name === "alpha" || name === "beta" ? { section: "Agents" } : {}
   const groups = pluginGroups(sent, look)
-  expect(groups.map((group) => group.label)).toEqual([NEEDS_YOU, "Conversation", THIS_VAULT])
+  expect(THIS_VAULT).toBe("Your plugins")
+  expect(NEEDS_YOU).toBe("Needs attention")
+  expect(groups.map((group) => group.label)).toEqual([NEEDS_YOU, "Agents", THIS_VAULT])
   expect(groups[0]!.rows.map((row) => row.name)).toEqual(["delta", "beta"])
+  expect(groups[0]!.collapsed).toBe(false)
   expect(groups[1]!.rows.map((row) => row.name)).toEqual(["alpha"])
   expect(groups[2]!.rows.map((row) => row.name)).toEqual(["gamma"])
-  expect(groups[2]!.collapsed).toBe(false)
+  // Every ordinary group starts shut, the vault's own included.
+  expect(groups[1]!.collapsed).toBe(true)
+  expect(groups[2]!.collapsed).toBe(true)
 })
 
-test("a quiet healthy group starts collapsed, and opt-in rows remain reachable", () => {
+/**
+ * AT REST THE PANEL IS ITS HEADINGS AND THEIR COUNTS: every ordinary group
+ * starts collapsed whether or not it is quiet, and the quiet ones — the app's
+ * own machinery — sort after the rest, whatever order the roster sent.
+ */
+test("every ordinary group starts collapsed, and quiet groups sort last", () => {
   const sent: PluginRoster = {
     built: [
-      { name: "alpha", running: true, state: "running" },
-      { name: "beta", running: false, state: "optIn" },
+      { name: "shell", running: true, state: "running" },
+      { name: "claude", running: true, state: "running" },
+      { name: "codex", running: false, state: "off" },
     ],
   }
   const look = (name: string) =>
-    name === "alpha"
-      ? { section: "Shell", quiet: true }
-      : { section: "Fixtures", quiet: true, optIn: true }
+    name === "shell" ? { section: "Interface", quiet: true } : { section: "Agents" }
   const groups = pluginGroups(sent, look)
-  expect(groups.map((group) => group.label)).toEqual(["Shell", "Fixtures"])
-  expect(groups[0]!.collapsed).toBe(true)
-  expect(groupCount(groups[0]!.rows)).toBe("1 on")
+  expect(groups.map((group) => group.label)).toEqual(["Agents", "Interface"])
+  expect(groups.every((group) => group.collapsed && !group.needs)).toBe(true)
+  expect(groupCount(groups[0]!.rows)).toBe("1 on · 1 off")
+  expect(groupCount(groups[1]!.rows)).toBe("1 on")
+  expect(groupCount([{ name: "x", running: false }])).toBe("1 off")
+})
+
+/**
+ * FIXTURES NOBODY ASKED FOR ARE NOT LISTED — a group whose every row the build
+ * ships off and none of which runs. The moment one runs, the group is back,
+ * so nothing a serve turns on is hidden from it.
+ */
+test("a group of opt-in rows none of which runs is hidden until one runs", () => {
+  const fixtures = (running: boolean): PluginRoster => ({
+    built: [
+      { name: "alpha", running: true, state: "running" },
+      { name: "beta", running, state: running ? "running" : "optIn" },
+      { name: "gamma", running: false, state: "optIn" },
+    ],
+  })
+  const look = (name: string) =>
+    name === "alpha"
+      ? { section: "Interface", quiet: true }
+      : { section: "Test fixtures", quiet: true, optIn: true }
+  expect(pluginGroups(fixtures(false), look).map((group) => group.label)).toEqual(["Interface"])
+  const shown = pluginGroups(fixtures(true), look)
+  expect(shown.map((group) => group.label)).toEqual(["Interface", "Test fixtures"])
+  expect(shown[1]!.rows.map((row) => row.name)).toEqual(["beta", "gamma"])
+  expect(groupCount(shown[1]!.rows)).toBe("1 on · 1 off")
+  // An opt-in row that sits in a group with an ordinary one keeps its group.
+  const mixed = (name: string) => name === "gamma" ? { section: "Connections", optIn: true } : { section: "Connections" }
+  expect(pluginGroups(fixtures(false), mixed).map((group) => group.label)).toEqual(["Connections"])
+})
+
+test("a row reads the build's label; vault-defined rows and unlabelled rows read their name", () => {
+  const built: BuiltPlugin = { name: "claude", running: true }
+  expect(displayName(built, { label: "Claude Code" })).toBe("Claude Code")
+  expect(displayName(built)).toBe("claude")
+  const defined: BuiltPlugin = {
+    name: "local-tool",
+    running: true,
+    source: { node: "n", file: "plugins.olai", version: "v", approved: true, server: "export {}" },
+  }
+  expect(displayName(defined, { label: "Ignored" })).toBe("local-tool")
+})
+
+/**
+ * THE FEW WORDS BESIDE A ROW'S NAME are only for a row that is stuck; a row
+ * that is on and fine, or off because somebody left it off, says nothing.
+ */
+test("a row's short state is drawn only when it is not fine", () => {
+  for (const state of ["running", "off", "optIn", "switched"]) {
+    expect([state, rowStatus(only(row(state)))]).toEqual([state, null])
+  }
+  expect(rowStatus(only(row("failed", "no")))).toBe("Failed")
+  expect(rowStatus(only(row("pending")))).toBe("Needs approval")
+  expect(rowStatus(only(row("waiting")))).toBe("Starting…")
+  expect(rowStatus(only(row("waiting", undefined, ["deliveries"])))).toBe("Can't start")
+  const live = only(row("running"))
+  expect(rowStatus(live, new Map([["alpha", { state: "failed", fault: "x" }]]))).toBe("Failed in this tab")
+  expect(rowStatus(live, new Map([["alpha/extra", { state: "waiting" }]]))).toBe("Starting in this tab")
+  expect(rowStatus(live, new Map([["alphabet", { state: "failed" }]]))).toBeNull()
+  expect(rowStatus(live, new Map(), true)).toBe("Needs setup")
+  const shell: BuiltPlugin = { name: "shell", running: true, state: "running", browserOnly: true }
+  expect(rowStatus(shell)).toBeNull()
+  expect(rowStatus(shell, new Map([["other", { state: "running" }]]))).toBe("Starting in this tab")
+  expect(rowStatus(shell, new Map([["shell", { state: "running" }]]))).toBeNull()
+})
+
+test("an environment reading reads as a sentence and a secret says only whether it is set", () => {
+  expect(sentenceOf("the executable")).toBe("The executable")
+  expect(environmentValue({ key: "TOKEN", kind: "secret", set: true, says: "credential" })).toBe("set")
+  expect(environmentValue({ key: "TOKEN", kind: "secret", set: false, says: "credential" })).toBe("unset")
+  expect(environmentValue({ key: "EXE", kind: "resource", set: true, value: "/bin/x", says: "x" })).toBe("/bin/x")
+  expect(environmentValue({ key: "EXE", kind: "resource", set: false, says: "x" })).toBe("unset")
 })
 
 /**
@@ -503,10 +604,8 @@ test("a build whose faces ask for nothing keeps the groups it always had", () =>
 })
 
 test("a file-authored off state and session exceptions have no row sentence", () => {
-  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false }, { built: [], configurationFile: "_olai/Settings.olai" })).toBeNull()
-  for (const configurationAvailable of [false, true]) {
-    expect(rowCopy({ name: "alpha", running: true, switchPersistence: "session" }, { built: [], configurationAvailable })).toBeNull()
-  }
+  expect(pluginHint({ name: "alpha", running: false, state: "off", desiredOn: false })).toBeNull()
+  expect(pluginHint({ name: "alpha", running: true, switchPersistence: "session" })).toBeNull()
 })
 
 import { environmentVisible } from "./rows.ts"
@@ -547,4 +646,25 @@ test("inline controls replace summary and defaults identifiers", () => {
   expect(Object.values(TESTID)).toContain("plugin-knob")
   expect(Object.values(TESTID)).not.toContain("plugin-summary")
   expect(Object.values(TESTID)).not.toContain("plugin-defaults")
+})
+
+/**
+ * ONE READING, THREE TABLES: the few words, the sentence and the tone all come
+ * from the row's tagged condition, so a fault in this tab is an alarm because
+ * of what it IS, not because its words happen to start with "Failed".
+ */
+test("a row's condition is read once, and its words and tone are tables over it", () => {
+  const live: BuiltPlugin = { name: "alpha", running: true, state: "running" }
+  const failed = rowCondition(live, new Map<string, RowReport>([["alpha/panel", { state: "failed", fault: "no canvas" }], ["alpha", { state: "waiting" }]]))
+  expect(failed?.kind).toBe("tabFailed")
+  expect(CONDITION_WORDS.tabFailed).toBe("Failed in this tab")
+  expect(CONDITION_TONE.tabFailed).toBe("alarm")
+  expect(conditionSaid(failed!)).toBe("In this tab (panel): failed to start. no canvas In this tab: still starting.")
+  expect(rowCondition(live, new Map<string, RowReport>([["alpha", { state: "waiting", missing: ["slots"] }]]))?.kind).toBe("tabStarting")
+  expect(rowCondition({ ...live, browserOnly: true }, new Map<string, RowReport>([["beta", { state: "running" }]]))?.kind).toBe("tabStarting")
+  expect(rowCondition({ ...live, browserOnly: true })).toBeNull()
+  expect(rowCondition(live, new Map(), true)?.kind).toBe("setup")
+  expect(conditionSaid({ kind: "setup" })).toBeNull()
+  expect(rowCondition(only(row("waiting", undefined, ["deliveries"])))?.kind).toBe("blocked")
+  expect(CONDITION_TONE[rowCondition(only(row("failed")))!.kind]).toBe("alarm")
 })

@@ -269,7 +269,7 @@ Feature: The agenda — what is owed, on one line of time
     And every date is taken off "work.olai"
     And something is scheduled for today in "work.olai"
     Then the agenda entry nudges with 1 on today
-    And the agenda entry says "Agenda — 1 on today"
+    And the agenda entry says "Agenda — 1 due today"
     And the page has not reloaded
 
   @scratch:agenda
@@ -280,7 +280,7 @@ Feature: The agenda — what is owed, on one line of time
     # One number on a 13px row, and it is the one that decides whether to press.
     Then the agenda entry is on fire with 3 late
     And the agenda entry also carries 1 on today
-    And the agenda entry says "Agenda — 3 overdue, 1 on today"
+    And the agenda entry says "Agenda — 3 overdue, 1 due today"
     And the page has not reloaded
 
   @scratch:agenda
@@ -309,6 +309,8 @@ Feature: The agenda — what is owed, on one line of time
     When every date is taken off "life.olai"
     And every date is taken off "work.olai"
     Then the agenda is empty
+    And the empty page says "Nothing due" over "Rows with a date show up here."
+    And the empty page "Nothing due" offers nothing to press
     And the agenda draws no spine
     # Not a dead end: the directory is still the way on.
     And the outline list is shown

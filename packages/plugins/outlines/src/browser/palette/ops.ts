@@ -98,7 +98,9 @@ export const opItems = (
         // item called `archive` would collide with this one the day somebody
         // adds it.
         id: `op-${verb.id}`,
-        label: verb.label,
+        // A mark's menu word (`To do`, `Clear`) reads under its `Mark ›`
+        // submenu; listed flat here it needs that heading back.
+        label: verb.group === "mark" ? `Mark: ${verb.label}` : verb.label,
         // WHICH NODE, on the second line — the same slot a search hit puts its
         // ancestry in, and wanted here for the same reason: a bare `Complete`
         // in a list of strangers does not say what it would complete. The

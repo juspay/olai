@@ -1,7 +1,7 @@
 import {expect,test} from "bun:test"
 import {followLayout} from "./prefs-owner.ts"
 import {PANEL_OPEN_KEY,SIDEBAR_WIDTH_KEY} from "./prefs.ts"
-import {panelOpen,setPanelOpen,setSidebarWidth,sidebarWidth} from "./live.ts"
+import {setSidebarWidth,sidebarWidth} from "./live.ts"
 
 test("layout owns fresh preferences, listeners and stopped setters",()=>{
  const oldWindow=Object.getOwnPropertyDescriptor(globalThis,"window")
@@ -18,22 +18,24 @@ test("layout owns fresh preferences, listeners and stopped setters",()=>{
  let stop:undefined|(()=>void)
  try {
   stop=followLayout()
-  expect(panelOpen()).toBe(true)
   expect(sidebarWidth()).toBe(360)
-  expect(listeners.get("storage")?.size).toBe(5)
+  expect(listeners.get("storage")?.size).toBe(4)
   expect(listeners.get("resize")?.size).toBe(1)
   setSidebarWidth(440,{persist:false})
   expect(sidebarWidth()).toBe(440)
   stop();stop=undefined
   expect(listeners.get("storage")?.size).toBe(0)
   expect(listeners.get("resize")?.size).toBe(0)
-  setPanelOpen(false)
-  expect(stored.get(PANEL_OPEN_KEY)).toBe("true")
+  setSidebarWidth(300)
+  expect(stored.get(SIDEBAR_WIDTH_KEY)).toBe("360")
   stored.set(SIDEBAR_WIDTH_KEY,"280")
   stop=followLayout()
   expect(sidebarWidth()).toBe(280)
+  // The legacy open/shut key is stored but no longer read or followed.
   for(const fn of listeners.get("storage")??[])fn({key:PANEL_OPEN_KEY,newValue:"false"})
-  expect(panelOpen()).toBe(false)
+  expect(stored.get(PANEL_OPEN_KEY)).toBe("true")
+  for(const fn of listeners.get("storage")??[])fn({key:SIDEBAR_WIDTH_KEY,newValue:"320"})
+  expect(sidebarWidth()).toBe(320)
  } finally {
   stop?.()
   if(oldWindow)Object.defineProperty(globalThis,"window",oldWindow);else Reflect.deleteProperty(globalThis,"window")

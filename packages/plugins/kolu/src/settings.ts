@@ -26,7 +26,7 @@ export const Watch = Schema.Struct({
     { expected: "a non-negative duration with a unit" },
   )).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(millis(DEFAULT_WATCH.heldForMs))),
-    Schema.annotate({ description: "how long a terminal holds attention before a report" }),
+    Schema.annotate({ description: "How long a terminal waits before it is reported" }),
   ),
   nag: Schema.String.check(Schema.makeFilter(
     (value) => watchProblem("nag", value),
@@ -34,21 +34,21 @@ export const Watch = Schema.Struct({
   )).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(millis(DEFAULT_WATCH.nagMs.ms)
       + (DEFAULT_WATCH.nagMs.count === undefined ? "" : `/${DEFAULT_WATCH.nagMs.count}`))),
-    Schema.annotate({ description: "the reminder interval, optionally capped with /count" }),
+    Schema.annotate({ description: "Time between reminders, optionally capped with /count" }),
   ),
   heartbeat: Schema.String.check(Schema.makeFilter(
     (value) => watchProblem("heartbeat", value),
     { expected: "a positive duration with a unit" },
   )).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(millis(DEFAULT_WATCH.heartbeatMs))),
-    Schema.annotate({ description: "how long a silent watch remains healthy" }),
+    Schema.annotate({ description: "How long a quiet watch still counts as healthy" }),
   ),
 })
 
 export const Config = Schema.Struct({
   watch: Watch.pipe(
     Schema.withDecodingDefaultKey(Effect.sync(() => Schema.decodeUnknownSync(Watch)({}))),
-    Schema.annotate({ description: "terminal attention and watch pacing" }),
+    Schema.annotate({ description: "Terminal alerts and timing" }),
   ),
 })
 

@@ -201,7 +201,6 @@ export function NodeLine(props: {
             is more of this" — and the facts follow it. */}
         {props.mark}
         {props.aside}
-        <PluginAsides node={props.node} record={props.record} />
         {/* THE DATE RIDES HERE TOO, and it did not always: it was a sibling
             outside this cell, which with a `flex-1` title meant the right edge
             of the pane. That was tolerable while the column stopped at a
@@ -225,6 +224,15 @@ export function NodeLine(props: {
         <Show when={props.repeat}>
           {(repeat) => <RepeatBadge repeat={repeat()} onPick={props.onPickRepeat} />}
         </Show>
+        {/* A PLUGIN'S FACE comes AFTER the row's own controls, because some of
+            it is an OFFER: on a phone an offer is drawn only on the active row
+            (`OFFER_REVEAL`), and pressing the date or repeat pill is what makes
+            the row active — it takes the focus. Drawn before the pills, the
+            offer appeared between the press and the release and pushed the pill
+            out from under the finger, so the release landed on the line and
+            opened the title editor instead of the picker. After them, it can
+            appear without moving anything a person is pressing. */}
+        <PluginAsides node={props.node} record={props.record} />
         {/* The rest of the line, and it belongs to the title: a click anywhere
             along a row opens its editor, exactly as it did when the title span
             itself was the thing that stretched. */}

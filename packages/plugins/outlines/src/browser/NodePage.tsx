@@ -131,7 +131,7 @@ function Zoom(props: {
               the stacking order is the whole mechanism, so the line follows
               the chrome's height whatever the layout publishes. */}
           <div class={`sticky top-[var(--height-chrome)] ${LAYER.page} h-0 md:hidden`} aria-hidden="true">
-            <p class="m-0 truncate border-b border-rule bg-paper py-2 font-serif text-base italic" data-testid={TESTID.zoomPinnedTitle}>
+            <p class="m-0 truncate border-b border-rule bg-paper py-2 font-serif text-title italic" data-testid={TESTID.zoomPinnedTitle}>
               <NodeTitle title={props.zoomed.shows.node.title} from={props.zoomed.shows.file} links={false} />
             </p>
           </div>
@@ -237,7 +237,7 @@ function Zoom(props: {
                 has nowhere else to put. */}
             <StartLine
               at={{ kind: "under", id: props.zoomed.shows.node.id }}
-              label="Nothing under this node — write the first line under it."
+              label="Nothing here yet. Write the first line."
             />
           </Show>
         }
@@ -261,5 +261,5 @@ const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
 ): string =>
   zoomed.children.length > 0 && doneHiddenOn(zoomed.shows.file)
-    ? "Everything under this node is done, and the Done flip is hiding finished work."
-    : "Nothing under this node."
+    ? "Everything here is finished, and finished items are hidden."
+    : "Nothing here yet."

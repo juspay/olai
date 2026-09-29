@@ -43,6 +43,7 @@ import {
   SIDEBAR_RAIL,
   SIDEBAR_RESIZE,
   SIDEBAR_SCRIM,
+  SHORTCUTS,
   SIDEBAR_TOGGLE,
 } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
@@ -235,8 +236,45 @@ When("I press the sidebar shortcut", async function (this: OlaiWorld) {
   await pressed(this, "ControlOrMeta+\\");
 });
 
-When("I press the chat shortcut", async function (this: OlaiWorld) {
+/**
+ * ⌘J / Ctrl+J, WATCHED. It used to toggle the agent panel, and it left with
+ * the chat dock: the app no longer claims the chord, so the browser keeps it.
+ * A listener added last on the window sees the keydown after every handler the
+ * app has, and records whether any of them took it (`defaultPrevented`).
+ */
+When("I press the old agent-panel chord", async function (this: OlaiWorld) {
+  await this.page.evaluate(() => {
+    const seen = window as unknown as { __olaiJ?: boolean[] };
+    seen.__olaiJ = [];
+    window.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "j") seen.__olaiJ!.push(event.defaultPrevented);
+    });
+  });
   await pressed(this, "ControlOrMeta+j");
+});
+
+Then("the app left the chord to the browser", async function (this: OlaiWorld) {
+  const taken = await this.page.evaluate(() => (window as unknown as { __olaiJ?: boolean[] }).__olaiJ ?? []);
+  assert.deepStrictEqual(taken, [false], "the app took ⌘J, or the keydown never reached the window");
+  // Nothing was opened, and nothing was written for a panel that is not there.
+  assert.equal(await this.page.locator("[role=dialog]:visible").count(), 0, "⌘J opened a dialog");
+  assert.equal(
+    await this.page.evaluate(() => window.localStorage.getItem("olai.chat.open")),
+    null,
+    "⌘J wrote the old agent-panel preference",
+  );
+});
+
+/** The keyboard-shortcuts sheet names every chord the app answers; ⌘J is not
+ *  one of them any more. */
+Then("the shortcuts list no chord with J", async function (this: OlaiWorld) {
+  const rows = this.page.locator(`${SHORTCUTS} kbd`);
+  await rows.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const keys = (await rows.allInnerTexts()).map((one) => one.trim());
+  assert.ok(
+    !keys.some((one) => /⌘J|Ctrl\+J/i.test(one)),
+    `the shortcuts sheet still lists ${JSON.stringify(keys.filter((one) => /J/.test(one)))}`,
+  );
 });
 
 // ── the header's search box ────────────────────────────────────────────

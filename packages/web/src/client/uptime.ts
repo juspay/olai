@@ -32,10 +32,10 @@ export const upOf = (startedAt: string, now: number): string => {
   const then = instantOf(startedAt)
   if (then === null) return ""
   const since = Math.max(0, now - then)
-  if (since < MINUTE) return `up ${Math.floor(since / SECOND)}s`
-  if (since < HOUR) return `up ${Math.floor(since / MINUTE)}m`
-  if (since < DAY) return `up ${Math.floor(since / HOUR)}h`
-  return `up ${Math.floor(since / DAY)}d`
+  if (since < MINUTE) return `Running for ${Math.floor(since / SECOND)}s`
+  if (since < HOUR) return `Running for ${Math.floor(since / MINUTE)}m`
+  if (since < DAY) return `Running for ${Math.floor(since / HOUR)}h`
+  return `Running for ${Math.floor(since / DAY)}d`
 }
 
 /**
@@ -57,7 +57,7 @@ export const stillSeconds = (startedAt: string, now: number): boolean => {
  */
 export const sinceOf = (startedAt: string): string => {
   if (instantOf(startedAt) === null) return ""
-  return `up since ${startedAt}`
+  return `Running since ${startedAt}`
 }
 
 /**

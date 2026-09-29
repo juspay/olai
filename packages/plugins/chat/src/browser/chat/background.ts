@@ -115,4 +115,4 @@ export const endedOf = (entry: ChatEntry | undefined): string | null =>
   armedOf(entry)?.ended ?? null
 
 /** What the rail says while a task is out. */
-const STILL = "still running…"
+const STILL = "Still running…"

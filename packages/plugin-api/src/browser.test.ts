@@ -62,12 +62,6 @@ const CLOCKS = {
 const PILL = {
   PILL: "pill",
   DOT: "dot",
-  PILL_WARN_COAT: "warn",
-  DOT_HOLLOW_WARN: "dot-warn",
-  TEXT_WARN: "text-warn",
-  PILL_ALARM_COAT: "alarm",
-  DOT_HOLLOW_ALARM: "dot-alarm",
-  TEXT_ALARM: "text-alarm",
 }
 
 /** A tab's runtime with the furniture on it, as `@olai/web` opens one. The

@@ -67,8 +67,18 @@ const REDIRECT_PATH = "/_olai/mail/oauth"
 /** The mail row's own face, inside the panel's row for this plugin. The row the
  *  panel draws is `data-pref="plugin-mail"` (`olai-plugin-plugin-inspector`'s
  *  own testid), and the face this plugin hung on it is `mail-row`. */
-const rowFace = async (world: OlaiWorld) =>
-  (await world.showPluginRow("mail")).locator(attr("data-testid", TESTID.mailRow))
+const rowFace = async (world: OlaiWorld) => {
+  const row = await world.showPluginRow("mail")
+  // The face is drawn in the row's DETAIL. A mail row with no account sits
+  // under Needs attention, open; a connected one sits shut under
+  // Connections, so its chevron is pressed — only while it reads shut.
+  const disclosure = row.locator(".plugins-line button.plugins-name").first()
+  if ((await disclosure.getAttribute("aria-expanded", { timeout: 2000 }).catch(() => null)) === "false") {
+    await disclosure.click({ timeout: 2000 }).catch(() => undefined)
+    await world.waitForFrame()
+  }
+  return row.locator(attr("data-testid", TESTID.mailRow))
+}
 
 /** One of the row's two buttons. */
 const rowButton = async (world: OlaiWorld, action: string) =>
@@ -106,12 +116,15 @@ Then(
     // `.first()` for the reason odu's own readout step gives: the header is
     // drawn in two places (the bar and the phone drawer) and both are this one
     // face's reading of one cell.
-    const readout = this.page.locator(attr("data-testid", TESTID.mail)).first()
-    await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-    await this.waitUntil(
-      async () => (await readout.getAttribute("data-mail")) === status,
-      `the mail pill to read ${status}`,
-    )
+    // A row of the health popover on a desktop, read with it up.
+    await this.readStatus(async () => {
+      const readout = this.page.locator(attr("data-testid", TESTID.mail)).first()
+      await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      await this.waitUntil(
+        async () => (await readout.getAttribute("data-mail")) === status,
+        `the mail pill to read ${status}`,
+      )
+    })
   },
 )
 
@@ -125,22 +138,27 @@ Then("the mail pill is not drawn", async function (this: OlaiWorld) {
   //
   // `:visible` because the header is drawn twice (the bar and the phone
   // drawer), and a hidden copy in a shut drawer is not a pill anybody reads.
-  await this.waitUntil(
+  //
+  // Asked with the health popover UP, where the row would be: with it shut no
+  // readout row is drawn at all, and "absent" would be true of every plugin.
+  await this.readStatus(() => this.waitUntil(
     async () =>
       (await this.page.locator(`${attr("data-testid", TESTID.mail)}:visible`).count()) === 0,
     "the mail pill to be gone",
-  )
+  ))
 })
 
 Then(
   "the mail pill names the address {string}",
   async function (this: OlaiWorld, address: string) {
-    const readout = this.page.locator(attr("data-testid", TESTID.mail)).first()
-    await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-    await this.waitUntil(
-      async () => (await readout.getAttribute("data-address")) === address,
-      `the mail pill to name ${address}`,
-    )
+    await this.readStatus(async () => {
+      const readout = this.page.locator(attr("data-testid", TESTID.mail)).first()
+      await readout.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      await this.waitUntil(
+        async () => (await readout.getAttribute("data-address")) === address,
+        `the mail pill to name ${address}`,
+      )
+    })
   },
 )
 
@@ -152,7 +170,7 @@ Then("the mail row is off", async function (this: OlaiWorld) {
   // it), and this is what makes "and no pill is drawn" a claim about THIS row
   // rather than about a page that has not read the roster yet.
   const swap = (await this.showPluginRow("mail")).getByRole("switch", {
-    name: "Enable mail",
+    name: "Enable Mail",
     exact: true,
   })
   await this.waitUntil(

@@ -91,12 +91,12 @@ export function Diff(props: {
   return (
     <div
       onPointerDown={carry.touch} onContextMenu={carry.heldMenu}
-      class="mt-1 min-w-0 overflow-hidden rounded border border-rule"
+      class="mt-1 min-w-0 overflow-hidden rounded-control border border-rule"
       data-testid={TESTID.chatDiff}
       data-path={props.diff.path}
       data-expanded={open()}
     >
-      <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
+      <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-caption">
         <Grip text={words()} carry={carry} />
         <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
@@ -105,14 +105,14 @@ export function Diff(props: {
             rewritten, and the counts alone cannot say it: a new file is all
             additions, and so is a file everything was appended to. */}
         <Show when={computed().created}>
-          <span class="shrink-0 text-done">new</span>
+          <span class="shrink-0 text-done">New</span>
         </Show>
         {/* The two sides were too far apart to line up, so every row below is
             a change and the first ones are the top of the old file. Said out
             loud rather than drawn as though it were an ordinary diff. */}
         <Show when={computed().wholesale}>
           <span class="shrink-0 text-muted" data-testid={TESTID.chatDiffWholesale}>
-            rewritten whole
+            Rewritten whole
           </span>
         </Show>
         <Show when={computed().added > 0}>
@@ -123,7 +123,7 @@ export function Diff(props: {
         </Show>
       </p>
 
-      <div class="min-w-0 font-mono text-[0.6875rem] leading-5">
+      <div class="min-w-0 font-mono text-caption leading-5">
         <For each={shown()}>
           {(line) => (
             <div
@@ -136,7 +136,7 @@ export function Diff(props: {
                   and shows where it used to be. Two columns is what a diff
                   tool with a full pane does; this is 26rem wide. */}
               <span
-                class="select-none pr-2 text-right text-muted/70"
+                class="select-none pr-2 text-right text-muted/80"
                 aria-hidden="true"
                 data-testid={TESTID.chatDiffGutter}
               >
@@ -145,7 +145,7 @@ export function Diff(props: {
               <Show
                 when={line.kind !== "gap"}
                 fallback={
-                  <span class="col-span-2 min-w-0 text-muted/70">⋯ {line.hidden} unchanged</span>
+                  <span class="col-span-2 min-w-0 text-muted/80">⋯ {line.hidden} unchanged</span>
                 }
               >
                 <span
@@ -180,12 +180,12 @@ export function Diff(props: {
       <Show when={more() > 0}>
         <button
           type="button"
-          class="w-full border-t border-rule px-2 py-1 text-left font-mono text-[0.6875rem] text-muted hover:text-ink"
+          class="w-full border-t border-rule px-2 py-1 text-left font-mono text-caption text-muted hover:text-ink"
           data-testid={TESTID.chatDiffExpand}
           aria-expanded={open()}
           onClick={() => toggleFold(props.id)}
         >
-          {open() ? "show less" : `+${more()} more lines`}
+          {open() ? "Show less" : `+${more()} more lines`}
         </button>
       </Show>
     </div>

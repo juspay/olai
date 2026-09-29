@@ -302,7 +302,7 @@ export function DescEditor(props: {
  * said-line's mood is one decision for the whole client, and where it hangs is
  * the caller's.
  */
-const UNDER_EDITOR = "mt-0.5 mb-1 text-[0.8125rem] leading-snug"
+const UNDER_EDITOR = "mt-0.5 mb-1 text-body leading-snug"
 
 /**
  * What the last write said, under the editor it was typed in.

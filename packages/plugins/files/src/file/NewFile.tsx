@@ -6,7 +6,7 @@
  * written by copying `+ New document`, which is the concept-multiplication
  * every review catches (`parity-create-outline`). What the two actually differ
  * about is FOUR WORDS and where a landed write goes; everything else — the
- * quiet affordance that becomes a path box, the caret arriving in it, Enter,
+ * menu item that opens a path box, the caret arriving in it, Enter,
  * Escape, the empty box that asks for nothing, the refusal drawn verbatim
  * underneath, the click that must not close the mobile drawer — was the same
  * decision twice, free to drift the day one of them grew a fifth.
@@ -38,12 +38,9 @@
 import { servedDirectory } from "../vault.ts"
 import { createSignal,Show } from "solid-js"
 
-import { CONTROL } from "@olai/ui-primitives/touch.ts"
 import { meantAt } from "olai-plugin-files/completing"
-import { Glyph } from "../glyphs.tsx"
 import { Refused } from "@olai/web/client/Refused.tsx"
 import type { Making } from "olai-plugin-files/making"
-import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
 
 const newDraft = () => ({
   open: createSignal(false),
@@ -56,6 +53,19 @@ const newDraft = () => ({
 // Sidebar components rebuild when plugins change. Each file kind keeps its
 // draft and pending response identity until the user closes or submits it.
 const drafts = new Map<Making["of"], ReturnType<typeof newDraft>>()
+const draftOf = (of: Making["of"]) => {
+  const draft = drafts.get(of) ?? newDraft()
+  drafts.set(of, draft)
+  return draft
+}
+
+/** OPEN THE BOX for one kind of file — what the Outlines heading's `+` menu
+ *  does when a reader picks `New outline` or `New document` (`../NewMenu.tsx`).
+ *  The box itself is still the kind's own `Create`, drawn under the heading;
+ *  this only says it is asked for. A box already open keeps what it holds. */
+export const openNewFile = (of: Making["of"]): void => {
+  draftOf(of).open[1](true)
+}
 
 export function NewFile(props: {
   /** What this door is called, and the names the browser tests find it by. */
@@ -66,8 +76,7 @@ export function NewFile(props: {
    *  itself away. */
   readonly create: (file: string) => Promise<string | null>
 }) {
-  const draft = drafts.get(props.making.of) ?? newDraft()
-  drafts.set(props.making.of, draft)
+  const draft = draftOf(props.making.of)
   const [open, setOpen] = draft.open
   const [path, setPath] = draft.path
   const [said, setSaid] = draft.said
@@ -110,33 +119,16 @@ export function NewFile(props: {
     }
   }
 
+  // CLOSED, IT DRAWS NOTHING: the way in is the Outlines heading's `+` menu
+  // (`../NewMenu.tsx`), which opens this draft by kind ({@link openNewFile}).
+  // The quiet `+ New …` row each kind used to draw under the tree left with
+  // the 2026-09 simplification.
   return (
-    <div class="mt-1">
-      <Show
-        when={open()}
-        fallback={
-          <button
-            type="button"
-            class={`${ENTRY_SHAPE} ${ROW_GAP} w-full cursor-pointer border-0 bg-transparent text-left`}
-            data-testid={props.making.testids.open}
-            onClick={(event) => {
-              // The sidebar body closes the mobile drawer on any click that
-              // bubbles to it; opening a box to type in is not leaving.
-              event.stopPropagation()
-              setOpen(true)
-            }}
-          >
-            {/* The fold-control's box, empty, so this glyph sits in the tree's
-                column rather than where a folder's triangle sits. */}
-            <span class={CONTROL} aria-hidden="true" />
-            <Glyph of={props.making.of} />
-            {props.making.label}
-          </button>
-        }
-      >
+    <Show when={open()}>
+      <div class="mb-1 px-1">
         <input
           type="text"
-          class="w-full rounded border border-rule bg-panel px-2 py-1 font-mono text-[0.8125rem] text-ink outline-none focus:border-accent"
+          class="w-full rounded-control border border-rule bg-panel px-2 py-1 text-body text-ink outline-none focus:border-accent"
           data-testid={props.making.testids.path}
           aria-label={props.making.aria}
           aria-busy={sending()}
@@ -165,11 +157,11 @@ export function NewFile(props: {
           }}
         />
         <div class="mt-1">
-          <Show when={sending()}><span role="status" class="text-xs text-muted">Creating…</span></Show>
+          <Show when={sending()}><span role="status" class="text-label text-muted">Creating…</span></Show>
           <Refused said={said()} testid={props.making.testids.said} compact />
         </div>
-      </Show>
-    </div>
+      </div>
+    </Show>
   )
 }
 

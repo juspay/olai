@@ -16,16 +16,19 @@ import { HYDRATION_TIMEOUT, POLL_TIMEOUT, ZOOM } from "@olai/tests/harness/world
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 import { TABS_KEY } from "../../src/persist.ts";
-import { ADDRESS, CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB } from "../selectors.ts";
+import { CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB, TITLE } from "../selectors.ts";
 
 const tabAt = (world: OlaiWorld, index: number) => world.page.locator(`${TAB}${attr("data-tab", String(index))}`);
 
 const tabsNow = async (world: OlaiWorld) =>
-  world.page.locator(TAB).evaluateAll((faces) => faces.map((face) => ({
+  world.page.locator(TAB).evaluateAll((faces, title) => faces.map((face) => ({
     href: face.getAttribute("data-href"),
     front: face.getAttribute("data-tab-front") === "true",
-    title: face.getAttribute("title"),
-  })));
+    // What the tab SAYS, and what it says on hover — two facts now: the name,
+    // and the address it holds.
+    title: face.querySelector(title)?.textContent?.trim() ?? null,
+    tip: face.getAttribute("title"),
+  })), TITLE);
 
 /** Wait for the strip to say something, and say what it held when it would not. */
 const untilTabs = async (
@@ -74,8 +77,31 @@ Then("the tabs hold {string}", async function (this: OlaiWorld, hrefs: string) {
     `the tabs to hold ${hrefs}`);
 });
 
-Then("the tab strip reads the address {string}", async function (this: OlaiWorld, href: string) {
-  await this.waitUntil(async () => (await this.page.locator(ADDRESS).innerText()).trim() === href, `the strip's address to read ${href}`);
+/** The address is on each tab's tooltip — there is no readout beside the strip. */
+Then("tab {int}'s tooltip is {string}", async function (this: OlaiWorld, index: number, tip: string) {
+  await untilTabs(this, (tabs) => tabs[index]?.tip === tip, `tab ${index}'s tooltip to be ${tip}`);
+});
+
+Then("the tab strip spells no address", async function (this: OlaiWorld) {
+  const strip = this.page.locator(STRIP);
+  await strip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const text = await strip.innerText();
+  assert.ok(!text.includes("/"), `the strip reads ${JSON.stringify(text)}, which spells an address`);
+});
+
+When("I let the page use the clipboard", async function (this: OlaiWorld) {
+  await this.context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(this.page.url()).origin });
+});
+
+Then("the clipboard holds the link to {string}", async function (this: OlaiWorld, href: string) {
+  const wanted = new URL(href, this.page.url()).href;
+  let held = "";
+  try {
+    await this.waitUntil(async () => (held = await this.page.evaluate(() => navigator.clipboard.readText())) === wanted,
+      `the clipboard to hold ${wanted}`);
+  } catch {
+    throw new Error(`the clipboard to hold ${wanted}, and it holds ${JSON.stringify(held)}`);
+  }
 });
 
 Then("there is no tab strip", async function (this: OlaiWorld) {
@@ -112,6 +138,38 @@ When("I close tab {int} with its button", async function (this: OlaiWorld, index
   await tab.locator(CLOSE).click();
   await settled(this);
 });
+
+/**
+ * WHERE THE CLOSE BUTTON SITS, and what it is called. At the tab's right edge,
+ * after the name — the last thing in the tab, the place a hand reaches for —
+ * with the tooltip `Close tab` and an accessible name that says WHICH tab.
+ * Measured on the tab in front, whose button is always drawn; a background
+ * tab's shows on hover.
+ */
+Then(
+  "tab {int}'s close button sits at its right edge, called {string}",
+  async function (this: OlaiWorld, index: number, name: string) {
+    const tab = tabAt(this, index);
+    await tab.hover();
+    const close = tab.locator(CLOSE);
+    await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(await close.getAttribute("aria-label"), name);
+    assert.equal(await close.getAttribute("title"), "Close tab");
+    const [face, button, title] = await Promise.all([tab.boundingBox(), close.boundingBox(), tab.locator(TITLE).boundingBox()]);
+    assert.ok(face !== null && button !== null && title !== null, "the tab, its name or its button has no box");
+    // Right-aligned: nothing but the tab's own padding after the button.
+    const gap = face.x + face.width - (button.x + button.width);
+    assert.ok(gap >= 0 && gap <= 8, `the close button ends ${gap}px short of the tab's right edge`);
+    // ...and after the name, not before it.
+    assert.ok(button.x >= title.x + title.width - 1, "the close button sits before the tab's name");
+    // The last element in the tab: nothing is drawn to its right.
+    assert.equal(
+      await close.evaluate((el) => el.nextElementSibling === null),
+      true,
+      "something is drawn after the close button",
+    );
+  },
+);
 
 When("I press the new tab button", async function (this: OlaiWorld) {
   await this.page.locator(NEW).click();

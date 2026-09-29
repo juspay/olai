@@ -142,14 +142,14 @@ const toneOf = (run: CiRun, tally: RunTally, verdict: string | null): CiTone => 
 const titleOf = (run: CiRun): string => {
   const which = identityOf(run)
   const lanes = run.lanes.length === 0 ? "" : ` · ${run.lanes.join(" ")}`
-  const where = run.repoRoot === "" ? "checkout unknown" : run.repoRoot
+  const where = run.repoRoot === "" ? "Unknown checkout" : run.repoRoot
   const state = run.state === "unknown"
-    ? "unknown run"
+    ? "Unknown run"
     : liveOf(run.state)
-    ? "the run is up"
+    ? "Running"
     : run.state === "owner_lost"
-    ? "owner lost"
-    : "settled"
+    ? "Stopped unexpectedly"
+    : "Finished"
   return `${which} · ${run.id}${lanes} · ${state} · ${where}`
 }
 

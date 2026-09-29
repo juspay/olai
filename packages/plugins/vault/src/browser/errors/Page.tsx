@@ -47,7 +47,7 @@ export function Page(props: { readonly verdict: Verdict }) {
     <main class={`${SHEET} max-w-none px-8 py-10`} data-testid={TESTID.errorView}>
       <h1 class={`${PAGE_TITLE} mb-2 italic text-alarm`}>
         {errors().length === 0
-          ? "Nothing to serve"
+          ? "olai can't read this folder"
           : `${errors().length} ${errors().length === 1 ? "error" : "errors"}`}
       </h1>
       <Lede>
@@ -55,8 +55,8 @@ export function Page(props: { readonly verdict: Verdict }) {
           // The page is decided by the directory's own state and the report
           // arrives on its own subscription — so for the frame between them
           // there is nothing served and nothing yet to say about it.
-          ? "The served directory has never loaded. Fetching the report…"
-          : "Nothing has been served from this directory yet, so there is no sidebar and no tree. Nothing below is about the CONTENTS of your outlines — a directory that cannot be listed has no files to be wrong — and it catches up on its own once it can be read again."}
+          ? "Loading the details…"
+          : "olai can't read this folder, so there is nothing to show yet. Your outlines are not the problem. Check that the folder exists and that olai is allowed to open it; this page updates on its own once it can."}
       </Lede>
       <Report errors={errors()} />
     </main>

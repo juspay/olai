@@ -125,7 +125,7 @@ Then(
     );
     assert.equal(
       await slot.locator("[aria-label]").getAttribute("aria-label"),
-      "could not tell who is looking",
+      "Couldn't check who you are",
     );
     await iconOnly(slot);
     assert.equal(
@@ -183,8 +183,8 @@ Then("the header shows anonymous", async function (this: OlaiWorld) {
   assert.equal(
     await slot.getAttribute("aria-label")
       ?? await slot.locator("[aria-label]").getAttribute("aria-label"),
-    "anonymous",
-    "anonymous must be a spoken face, not an empty slot",
+    "Not signed in",
+    "anonymous must be a spoken face (`Not signed in`), not an empty slot",
   );
   await iconOnly(slot);
   assert.equal(
@@ -241,6 +241,29 @@ Then("the identity chip draws no picture", async function (this: OlaiWorld) {
     "a person with no picture drew no silhouette either",
   );
 });
+
+/**
+ * ONE ROW OF ROUND MARKS at the right end of a desktop bar: the chip is a
+ * circle, the size of the preferences gear beside it — whether it draws a
+ * picture or the silhouette. Geometry is the claim here (a pill-shaped chip
+ * among round marks is the regression), so it is measured, not read off a
+ * class.
+ */
+Then(
+  "the identity chip is a circle the size of the preferences gear",
+  async function (this: OlaiWorld) {
+    const chip = this.page.locator(`${APP_HEADER} ${IDENTITY} [aria-label]`).first();
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const box = await this.box(chip, "the identity chip");
+    const gear = await this.box(this.page.locator(`${APP_HEADER} ${selector(PLUGIN_TESTID.prefsTrigger)}`).first(), "the preferences gear");
+    assert.ok(Math.abs(box.width - box.height) <= 1,
+      `the identity chip is ${box.width}×${box.height}, not a circle`);
+    assert.ok(Math.abs(box.width - gear.width) <= 1 && Math.abs(box.height - gear.height) <= 1,
+      `the identity chip is ${box.width}×${box.height} beside a ${gear.width}×${gear.height} gear`);
+    const radius = await chip.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius));
+    assert.ok(radius >= box.width / 2 - 1, `the identity chip's corners are ${radius}px on a ${box.width}px chip`);
+  },
+);
 
 const drawnPicture = async (world: OlaiWorld): Promise<string> => {
   const src = await world.page

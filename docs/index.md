@@ -6,10 +6,10 @@ olai serves a directory of outlines and Markdown files as a web app that people 
 
 | Page | What it covers |
 | --- | --- |
-| [running.md](running.md) | Serving a directory: `olai web` and its flags, the home-manager module, vault policy, the MCP endpoint at `/mcp`, quick capture, and identity behind a reverse proxy. |
+| [running.md](running.md) | Serving a directory: `olai web` and its flags, the header's health dot, preferences and the plugins panel, the home-manager module, vault policy, the MCP endpoint at `/mcp`, quick capture, and identity behind a reverse proxy. |
 | [editing.md](editing.md) | Editing an outline by hand: keys, drag and drop, multi-select, drafts, undo, the sidebar, pinning, and writing a document. |
 | [search.md](search.md) | The query language and its operators (`is:`, `has:`, `date:`, `created:`, `changed:`, `prop:`, `-`, quoted phrases, `OR`), what a result row shows, and the in-page filter. |
-| [git.md](git.md) | The git integration: commit modes, automatic commits, the status pill, integration before push, stops and Resume, and the audit view. |
+| [git.md](git.md) | The git integration: commit modes, automatic commits, the Commit row, integration before push, stops and Resume, and the audit view. |
 | [chat.md](chat.md) | The chat agent: which agents olai finds, binding a conversation to a node, ACP adapter overrides, node tools, pictures, and how a conversation wakes. |
 | [live-properties.md](live-properties.md) | Properties whose value updates on its own, how a plugin turns one on, and the two shapes a live face takes. |
 | [format.md](format.md) | The file format: record shapes, fields, status, references, days, the pinned shelf, which file types are served, and merge safety. |
@@ -63,7 +63,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | Page | What it covers |
 | --- | --- |
 | [plugins/ui-renderer.md](plugins/ui-renderer.md) | The Solid renderer and scope-owned extension locations. |
-| [plugins/layout.md](plugins/layout.md) | The root page layout: panels, header, banner, and viewer slots. |
+| [plugins/layout.md](plugins/layout.md) | The root page layout: panels, the header and its health dot, banners, and viewer slots. |
 | [plugins/navigation.md](plugins/navigation.md) | Addresses, history, pane focus, and the command palette. |
 | [plugins/tabs.md](plugins/tabs.md) | Several pages open as tabs above the panes, each with its own Back and Forward. |
 | [plugins/sidebar.md](plugins/sidebar.md) | The directory column and the rail beside it, and their extension slots. |
@@ -72,10 +72,10 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/files.md](plugins/files.md) | Browsing the served directory and creating new files from the UI. |
 | [plugins/pins.md](plugins/pins.md) | The pinned shelf in the sidebar: ordering and the pin commands. |
 | [plugins/capture.md](plugins/capture.md) | Quick capture into the inbox, and its command palette prefix. |
-| [plugins/trash.md](plugins/trash.md) | Browsing trashed nodes, restoring them, and emptying the trash. |
+| [plugins/trash.md](plugins/trash.md) | Browsing trashed rows, restoring them, and emptying Trash. |
 | [plugins/alerts.md](plugins/alerts.md) | Notification permission, sound and badges owned by a tab-only channel row. |
 | [plugins/preferences.md](plugins/preferences.md) | The preferences panel and the slot other plugins add controls to. |
-| [plugins/theme.md](plugins/theme.md) | Light and dark appearance, stored per browser and exposed in preferences. |
+| [plugins/theme.md](plugins/theme.md) | Palette, typeface and page size, stored per browser and set under Appearance in preferences. |
 | [plugins/plugin-inspector.md](plugins/plugin-inspector.md) | Plugin switches, activation reports, and retry. |
 
 ### File kinds

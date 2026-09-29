@@ -138,6 +138,7 @@ NodeId,
 addressOf,
 fileKind,
 type PageReading,
+nameOf,
 type PageRequest,
 parseAddress,
 type Shown,
@@ -828,6 +829,9 @@ export interface Routing {
   /** A short name for a page — a pane's header, a tab's title before its page
    *  has reported one. {@link labelIn}. */
   readonly label: (route: Route) => string
+  /** What a page on a whole DOCUMENT is called where a strip of names is
+   *  drawn — a tab. {@link nameIn}. */
+  readonly name: (route: Route) => string | undefined
 }
 
 /**
@@ -848,11 +852,33 @@ export interface Routing {
 export const labelIn = (pages: MountedPages, route: Route): string => {
   if (route.kind === "at") {
     const address = route.address
-    if (address === null) return "outline"
+    if (address === null) return "Home"
     return address.kind === "node" ? address.id : address.path
   }
-  if (route.kind === "plugin") return routeFaceIn(pages, route)?.route.breadcrumb(route.value) ?? "plugin"
-  return "trash"
+  if (route.kind === "plugin") return routeFaceIn(pages, route)?.route.breadcrumb(route.value) ?? "Page"
+  return "Trash"
+}
+
+/**
+ * THE NAME A FILE GOES BY — the files sidebar's word for it, so a tab and the
+ * sidebar row it was opened from cannot disagree: `@olai/format`'s `nameOf`
+ * over the same claims (`garden.olai` is `garden`, `art/report.pdf` is
+ * `report.pdf`).
+ *
+ * Only for an address that opens a claimed file WHOLE or at a heading of it:
+ * a node, a row and a plugin page are named by what they show, which is the
+ * page's own report. `undefined` for those, and before the claims have been
+ * read.
+ *
+ * Two open documents can share a stem (`notes.md` beside `notes.olai`,
+ * `a/x.olai` beside `b/x.olai`); telling them apart is the caller's, which
+ * falls back to {@link labelIn}'s whole path for exactly those.
+ */
+export const nameIn = (table: Claims | undefined, route: Route): string | undefined => {
+  if (table === undefined || route.kind !== "at") return undefined
+  const address = route.address
+  if (address === null || (address.kind !== "document" && address.kind !== "heading")) return undefined
+  return fileKind(table, address.path) === null ? undefined : nameOf(table, address.path)
 }
 
 export const routingOver = (claims: () => Claims | undefined, pages: () => MountedPages): Routing => ({
@@ -865,4 +891,5 @@ export const routingOver = (claims: () => Claims | undefined, pages: () => Mount
   routeOf: (address) => routeOfIn(claims(), pages(), address),
   samePage: (a, b) => samePageIn(claims(), pages(), a, b),
   label: (route) => labelIn(pages(), route),
+  name: (route) => nameIn(claims(), route),
 })

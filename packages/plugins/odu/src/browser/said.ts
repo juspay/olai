@@ -5,37 +5,38 @@
  * (`odu web --background`). `skew` names both versions.
  */
 
+import type { BarStatus } from "olai-plugin-layout/slots"
 import type { OduLink } from "olai-plugin-odu/appliance/wire"
 
-export interface Said {
-  readonly dot: string
-  readonly label: string
-  readonly detail: string
-}
-
-export const oduSaid = (link: OduLink): Said => {
+/**
+ * ONE READING, for the row and the bar's health dot alike (`olai-plugin-layout`'s
+ * `BarStatus`): the label, the sentence, and how bad it is. A skew is broken;
+ * no odu at all is quiet — nothing is wrong with a serve that does not watch
+ * one.
+ */
+export const oduSaid = (link: OduLink): BarStatus => {
   switch (link.status) {
     case "connected":
       return {
-        dot: "bg-done",
+        tone: "healthy",
         label: "odu",
-        detail: `connected to odu at ${link.origin}`,
+        detail: `Connected to ${link.origin}`,
       }
     case "skew":
       return {
-        dot: "bg-alarm",
-        label: "odu skew",
+        tone: "alarm",
+        label: "odu: update needed",
         detail:
-          `odu at ${link.origin} speaks ${link.protocolVersion ?? "?"} and this olai speaks ${link.speaks} — one of the two needs an upgrade.`,
+          `odu and olai versions don't match (odu ${link.protocolVersion ?? "?"}, olai ${link.speaks}). Update one of them.`,
       }
     case "absent":
       return {
-        dot: "bg-muted",
-        label: "no odu",
+        tone: "quiet",
+        label: "No odu",
         detail:
           link.origin === ""
-            ? "this olai is not watching an odu service."
-            : `no odu is answering at ${link.origin} — run \`odu web --background\`.`,
+            ? "odu isn't set up"
+            : `odu isn't running at ${link.origin}. Run \`odu web --background\`.`,
       }
   }
 }

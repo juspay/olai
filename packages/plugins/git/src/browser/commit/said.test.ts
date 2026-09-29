@@ -29,12 +29,14 @@ import {
   DETAIL,
   explain,
   faceOf,
+  gitStatusOf,
   HOW,
+  saysOf,
   isInert,
   isNews,
   localOf,
-  MARK,
-  markOf,
+  FACE_TONE,
+  readingOf,
   newsSays,
   unpushedIn,
   PUSH_REFUSED,
@@ -149,29 +151,48 @@ test("never committed is not the same as committed, on the same empty tree", () 
 
 // ── what it wears ──────────────────────────────────────────────────────
 
-test("the two settings and the page that has not heard wear no mark, and cannot be pressed", () => {
+test("the two settings and the page that has not heard are quiet, and cannot be pressed", () => {
   for (const face of ["unknown", "off", "no-repo"] as const) {
-    expect(MARK[face]).toBeNull()
+    expect(FACE_TONE[face]).toBe("quiet")
     expect(isInert(face)).toBe(true)
   }
 })
 
-test("a healthy repository is quiet, and not a second green claim", () => {
-  // The retired readout's rule, and it outlives it: the connection dot beside
-  // this pill is the page's one green claim, and a second one lit permanently
-  // in the ordinary case dilutes the thing a reader actually scans for.
-  // Quiet is also no extra paint: a `text-muted` tick is a paper-page token
-  // and vanishes into the ink header this mark actually lives on.
-  expect(MARK.committed).toEqual({ glyph: "✓" })
-  expect(MARK.never).toBeNull()
-  expect(MARK.waiting).toBeNull()
+// Every face's one tone — the row's dot and the health dot's vote alike.
+test("every face has its one tone", () => {
+  expect(FACE_TONE).toEqual({
+    unknown: "quiet",
+    off: "quiet",
+    "no-repo": "quiet",
+    error: "alarm",
+    blocked: "notice",
+    waiting: "notice",
+    committed: "healthy",
+    never: "healthy",
+  })
 })
 
-test("the two a person can act on are marked", () => {
-  // A repository mid-rebase will take a commit once they finish; a git that
-  // failed will not. Same warning glyph; the faces themselves tell them apart.
-  expect(MARK.blocked?.glyph).toBe("⚠")
-  expect(MARK.error?.glyph).toBe("⚠")
+// The bug the one-tone rule was filed for: the health dot was amber for
+// `2 uncommitted` while git's row drew no dot at all. The row and the status
+// are one reading now, so whatever the dot says, the row says too.
+test("the row wears a tone for writes waiting, and the riders move it", () => {
+  const cases = [
+    ["waiting", waiting(2), git(), "notice"],
+    ["committed", behind(2), git(), "notice"],
+    ["committed", behind(1), git({ pushSaid: "rejected" }), "alarm"],
+    ["waiting", waiting(1), stopped("conflict"), "alarm"],
+    ["error", surveyed(READY), gitSaid("fatal: nope"), "alarm"],
+    ["never", surveyed(READY), git(), "healthy"],
+  ] as const
+  for (const [face, pending, state, tone] of cases) {
+    const row = readingOf(face, pending, state)
+    expect(row.tone).toBe(tone)
+    expect(gitStatusOf(face, pending, state)).toEqual({
+      tone,
+      label: [row.says, ...row.riders].join(" · "),
+      detail: row.detail,
+    })
+  }
 })
 
 test("the fault is reachable, because its whole point is the reason on it", () => {
@@ -197,7 +218,7 @@ test("a phone only interrupts the page when git has news", () => {
 test("the phone banner is one line, and waiting outranks unpushed", () => {
   expect(newsSays("waiting", waiting(6), git())).toBe("6 uncommitted — tap to record")
   expect(newsSays("blocked", waiting(2), git())).toBe("2 uncommitted — repository busy")
-  expect(newsSays("error", surveyed(READY), git())).toBe("git error — tap to see")
+  expect(newsSays("error", surveyed(READY), git())).toBe("Git error — tap to see")
   expect(newsSays("committed", behind(3), git())).toBe("3 unpushed — tap to push")
   expect(newsSays("committed", surveyed(READY), git())).toBe("")
 })
@@ -242,7 +263,7 @@ test("the sentence a stopped loop leaves names Resume, on both sentences", () =>
   // The header carries git's own account of what happened; the panel points at
   // it rather than printing the same paragraph twice in one popover.
   expect(said).toContain("no upstream")
-  expect(AUTO_STOPPED).toContain("what git said is below")
+  expect(AUTO_STOPPED).toContain("Git's message is below")
 })
 
 test("a phone is interrupted by a stopped loop, on a face that is otherwise quiet", () => {
@@ -303,7 +324,7 @@ test("a busy repository says which interruption it is in", () => {
   const busy = surveyed({ _tag: "Blocked", reason: "rebase", said: "" }, {
     unreadable: ["garden.olai"],
   })
-  expect(explain("blocked", busy, GIT_OFF)).toContain("a rebase is in progress")
+  expect(explain("blocked", busy, GIT_OFF)).toContain("A rebase is in progress")
 })
 
 test("a state with nothing to quote reads as its own sentence", () => {
@@ -315,9 +336,9 @@ test("the panel's line about a broken git is not the line about an absent one", 
   // Same rule as the pill's, one layer down: "there is nowhere to commit to"
   // over a git that FAILED would be the collapse #108 exists to have ended.
   const said = "fatal: detected dubious ownership in repository"
-  expect(because({ _tag: "Unusable", said })).toContain("could not be asked")
+  expect(because({ _tag: "Unusable", said })).toContain("couldn't read this folder")
   expect(verbatim({ _tag: "Unusable", said })).toBe(said)
-  expect(because({ _tag: "NoRepo" })).toBe("there is nowhere to commit to")
+  expect(because({ _tag: "NoRepo" })).toBe("There is nowhere to commit to")
 })
 
 // ── the whole repository, and what is not shared ───────────────────────
@@ -328,11 +349,11 @@ test("the panel's line about a broken git is not the line about an absent one", 
  * reader who is not told that has to work out why it is there.
  */
 test("the scope line says which part of the repository olai serves", () => {
-  expect(scopeOf("docs/")).toBe("whole repository · olai serves docs/")
-  // Served AT the root, where the two are the same directory and "serves " with
+  expect(scopeOf("docs/")).toBe("Whole repository · olai shows docs/")
+  // Served AT the root, where the two are the same directory and "shows " with
   // nothing after it would read as a rendering fault.
-  expect(scopeOf("")).toContain("whole repository")
-  expect(scopeOf("")).not.toEndWith("serves ")
+  expect(scopeOf("")).toBe("Whole repository")
+  expect(scopeOf("")).not.toEndWith("shows ")
 })
 
 /**
@@ -411,18 +432,17 @@ test("a refused push says what git said, and a successful one says nothing", () 
   expect(git().pushSaid).toBeNull()
 })
 
-test("a failing push takes the tick off the pill, whatever the face is saying", () => {
+test("a failing push turns the pill to alarm, whatever the face is saying", () => {
   const said = "! [rejected] master -> master (non-fast-forward)"
   // The ordinary healthy chip, which is the one that lied.
-  expect(MARK.committed?.glyph).toBe("✓")
-  expect(markOf("committed", git())?.glyph).toBe("✓")
-  expect(markOf("committed", git({ pushSaid: said }))).toEqual({
-    glyph: "⚠",
-    tone: "text-alarm",
+  expect(readingOf("committed", surveyed(READY), git()).tone).toBe("healthy")
+  expect(readingOf("committed", surveyed(READY), git({ pushSaid: said }))).toMatchObject({
+    tone: "alarm",
+    riders: [PUSH_REFUSED],
   })
-  // ... and it overrules a face that wears no mark at all, too.
-  expect(markOf("waiting", git())).toBe(null)
-  expect(markOf("waiting", git({ pushSaid: said }))?.glyph).toBe("⚠")
+  // ... and it overrules a face that is only a notice, too.
+  expect(readingOf("waiting", waiting(1), git()).tone).toBe("notice")
+  expect(readingOf("waiting", waiting(1), git({ pushSaid: said })).tone).toBe("alarm")
 })
 
 test("the sentence says the push was refused, and hands over git's words", () => {
@@ -521,7 +541,7 @@ test("a refusal that stopped the loop is quoted once, not twice", () => {
   )
   expect(sentence.split(words)).toHaveLength(2)
   // ... and the loop is still reported, with the gesture that starts it again.
-  expect(sentence).toContain("auto-commit is paused")
+  expect(sentence).toContain("Auto-commit is paused")
   expect(sentence).toContain("Resume")
   // A stop with a reason nothing else quoted still carries it.
   expect(explain("committed", surveyed(READY), stopped(words))).toContain(words)
@@ -558,4 +578,57 @@ test("filing names its own writer and counts writes, including the Chats root", 
   expect(wroteOf("filer", 1)).toBe("olai filed into the Inbox · 1 write")
   expect(wroteOf("filer", 3)).toBe("olai filed into the Inbox · 3 writes")
   expect(WHO.auto).toBe("auto-commit")
+})
+
+// ── the readout as the health dot reads it ─────────────────────────────
+
+test("no repository and commits off are quiet: they never colour the dot", () => {
+  const none = surveyed({ _tag: "NoRepo" })
+  expect(gitStatusOf("no-repo", none, git({ status: "none" }))).toMatchObject({ tone: "quiet", label: "Not a git folder" })
+  expect(gitStatusOf("off", surveyed({ _tag: "Off" }), GIT_OFF)).toMatchObject({ tone: "quiet", label: "Commits off" })
+})
+
+test("committed is healthy, writes waiting and unpushed commits are a notice", () => {
+  expect(gitStatusOf("committed", surveyed(READY), git()).tone).toBe("healthy")
+  expect(gitStatusOf("waiting", waiting(3), git())).toMatchObject({ tone: "notice", label: "3 uncommitted" })
+  expect(gitStatusOf("committed", behind(2), git())).toMatchObject({ tone: "notice", label: "Committed · 2 unpushed" })
+})
+
+test("a git error, a refused push and a paused loop are alarms, in the row's own words", () => {
+  expect(gitStatusOf("error", surveyed(READY), gitSaid("fatal: nope")).tone).toBe("alarm")
+  expect(gitStatusOf("committed", behind(1), git({ pushSaid: "rejected" })))
+    .toMatchObject({ tone: "alarm", label: `Committed · 1 unpushed · ${PUSH_REFUSED}` })
+  expect(gitStatusOf("waiting", waiting(1), stopped("conflict")))
+    .toMatchObject({ tone: "alarm", label: `1 uncommitted · ${AUTO_PAUSED}` })
+})
+
+test("the status's words are the row's words, and its sentence is the row's tip", () => {
+  const pending = waiting(2)
+  expect(saysOf("waiting", 2)).toBe("2 uncommitted")
+  expect(gitStatusOf("waiting", pending, git()).detail).toBe(explain("waiting", pending, git()))
+})
+
+test("every face lands on the dot's tone its argument names", () => {
+  // A page not yet told anything is quiet, like the two settings: it has no
+  // claim to make, and the dot must not go amber while the survey is in flight.
+  expect(gitStatusOf("unknown", NOTHING_PENDING, GIT_OFF)).toMatchObject({ tone: "quiet", label: "…" })
+  // A clean repository olai has not committed in is working, not news.
+  expect(gitStatusOf("never", surveyed(READY), git())).toMatchObject({ tone: "healthy", label: "No commits yet" })
+  expect(gitStatusOf("committed", surveyed(READY), git())).toMatchObject({ tone: "healthy", label: "Committed" })
+  // A busy repository with writes waiting wants attention; it is not broken.
+  const busy = surveyed({ _tag: "Blocked", reason: "merge", said: "" }, { unreadable: ["garden.olai"] })
+  expect(gitStatusOf("blocked", busy, git())).toMatchObject({ tone: "notice", label: "1 uncommitted" })
+  // The fault face is an alarm in its own two words.
+  expect(gitStatusOf("error", surveyed(READY), gitSaid("fatal: nope")))
+    .toMatchObject({ tone: "alarm", label: "Git error" })
+})
+
+test("a rider outranks a healthy face: a stopped loop over a clean tree is an alarm", () => {
+  expect(gitStatusOf("committed", surveyed(READY), stopped("no upstream")))
+    .toMatchObject({ tone: "alarm", label: `Committed · ${AUTO_PAUSED}` })
+  expect(gitStatusOf("never", surveyed(READY), git({ pushSaid: "rejected" })))
+    .toMatchObject({ tone: "alarm", label: `No commits yet · ${PUSH_REFUSED}` })
+  // ...and a healthy face with commits nobody else has is a notice.
+  expect(gitStatusOf("never", behind(1), git()))
+    .toMatchObject({ tone: "notice", label: "No commits yet · 1 unpushed" })
 })

@@ -124,22 +124,22 @@ export function Panel(props: {
       tabindex="-1"
       data-testid={TESTID.commitPanel}
       data-repo={pending().repo._tag}
-      aria-label="uncommitted changes"
+      aria-label="Uncommitted changes"
     >
       {/* What was last recorded, and by whom — the other half of the question
           "is this directory being audited". `null` is not an absence to hide:
           it means olai has never committed here, which is the one thing a
           count of what is pending can never say. */}
-      <p class="wrap-anywhere text-xs text-muted" data-testid={TESTID.commitLast}>
+      <p class="wrap-anywhere text-label text-muted" data-testid={TESTID.commitLast}>
         <Show
           when={pending().last}
-          fallback={<>olai has not committed in this directory yet</>}
+          fallback={<>olai hasn't committed in this folder yet</>}
         >
           {(last) => (
             <>
               <span class="text-ink">{last().message}</span>
               {" · "}
-              {last().writer === null ? "writer not recorded" : WHO[last().writer!]}
+              {last().writer === null ? "unknown author" : WHO[last().writer!]}
               {" · "}
               {agoOf(last().at, props.now)}
               {" · "}
@@ -150,7 +150,7 @@ export function Panel(props: {
       </p>
 
       <Show when={pending().outlines.length > 0}>
-        <Rule>outlines</Rule>
+        <Rule>Outlines</Rule>
         <Outlines
           outlines={pending().outlines}
           changes={pending().changes}
@@ -160,7 +160,7 @@ export function Panel(props: {
       </Show>
 
       <Show when={pending().others.length > 0}>
-        <Rule>other files</Rule>
+        <Rule>Other files</Rule>
         <Others others={pending().others} selection={selection} />
       </Show>
 
@@ -168,9 +168,9 @@ export function Panel(props: {
           bytes are the bytes — but nothing can be said about what changed in
           it, and saying nothing at all would be the panel lying by omission. */}
       <Show when={pending().unreadable.length > 0}>
-        <p class="wrap-anywhere text-xs text-muted" data-testid={TESTID.commitUnreadable}>
-          {pending().unreadable.join(", ")} changed, but does not parse — what
-          is in it cannot be shown.
+        <p class="wrap-anywhere text-label text-muted" data-testid={TESTID.commitUnreadable}>
+          {pending().unreadable.join(", ")} changed, but can't be read, so its
+          changes can't be shown.
         </p>
       </Show>
 
@@ -178,7 +178,7 @@ export function Panel(props: {
           because "why is my README in here" is a question the rows themselves
           cannot answer. */}
       <Show when={anything()}>
-        <p class="text-xs text-muted" data-testid={TESTID.commitScope}>
+        <p class="text-label text-muted" data-testid={TESTID.commitScope}>
           {scopeOf(pending().served)}
         </p>
       </Show>
@@ -187,7 +187,7 @@ export function Panel(props: {
           clears on a commit, so it is empty after a restart and knows nothing
           about an edit made in vim. Absent is a perfectly good answer. */}
       <Show when={pending().wrote.length > 0}>
-        <p class="text-xs text-muted" data-testid={TESTID.commitWriters}>
+        <p class="text-label text-muted" data-testid={TESTID.commitWriters}>
           {pending().wrote.map((wrote, at) =>
             `${at > 0 ? " · " : ""}${wroteOf(wrote.writer, wrote.ops)}`
           ).join("")}
@@ -206,12 +206,12 @@ export function Panel(props: {
           The HEADER's own sentence carries the words, because the header has
           nowhere else to put them (`./said.ts`). */}
       <Show when={props.commit.git().paused !== null}>
-        <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
+        <p class="text-label text-alarm" data-testid={TESTID.commitAutoPaused}>
           ⚠ {AUTO_STOPPED}
         </p>
         <button
           type="button"
-          class="self-start rounded border border-rule px-3 py-1.5 text-xs hover:text-ink"
+          class="self-start rounded-control border border-rule px-3 py-1.5 text-label hover:text-ink"
           data-testid={TESTID.commitResume}
           onClick={() => props.commit.resume()}
         >
@@ -230,7 +230,7 @@ export function Panel(props: {
           broken git is a thing they are in the middle of. */}
       <Show when={!ready()}>
         <p
-          class={`text-xs ${
+          class={`text-label ${
             pending().repo._tag === "Unusable" ? "text-alarm" : "text-doing"
           }`}
           data-testid={TESTID.commitBlocked}
@@ -245,9 +245,9 @@ export function Panel(props: {
           // Tall enough for a composed message, which is a subject, a blank
           // line and its first detail line: the shorter box cut the detail in
           // half and looked like a rendering fault rather than a scroll.
-          class="min-h-24 w-full resize-y rounded border border-rule bg-paper p-2 font-mono text-xs"
+          class="min-h-24 w-full resize-y rounded-control border border-rule bg-paper p-2 text-label"
           data-testid={TESTID.commitMessage}
-          aria-label="commit message"
+          aria-label="Commit message"
           value={draft()}
           onInput={(event) => setTyped(event.currentTarget.value)}
         />
@@ -260,7 +260,7 @@ export function Panel(props: {
           when it happened. */}
       <Show when={commitRefused(props.commit.git())}>
         {(said) => (
-          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.commitRefused}>
+          <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitRefused}>
             {said()}
           </p>
         )}
@@ -272,7 +272,7 @@ export function Panel(props: {
           did nothing is the failure this whole feature is about. */}
       <Show when={props.commit.refused()}>
         {(said) => (
-          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.commitCallRefused}>
+          <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitCallRefused}>
             {said()}
           </p>
         )}
@@ -290,7 +290,7 @@ export function Panel(props: {
           either way: a person who does not want to wait out the window meant
           it. */}
       <Show when={promised()}>
-        <p class="text-xs text-muted" data-testid={TESTID.commitAutoArmed}>
+        <p class="text-label text-muted" data-testid={TESTID.commitAutoArmed}>
           {AUTO_ARMED}
         </p>
       </Show>
@@ -298,7 +298,7 @@ export function Panel(props: {
       <Show when={anything()}>
         <button
           type="button"
-          class="self-end rounded border border-rule px-3 py-1.5 text-xs hover:text-ink disabled:opacity-50"
+          class="self-end rounded-control border border-rule px-3 py-1.5 text-label hover:text-ink disabled:opacity-50"
           data-testid={TESTID.commitNow}
           disabled={
             !ready() ||
@@ -321,7 +321,7 @@ export function Panel(props: {
  *  not have to infer where one stops. */
 function Rule(props: { readonly children: string }) {
   return (
-    <p class="flex items-center gap-2 text-[0.65rem] uppercase tracking-wide text-muted">
+    <p class="flex items-center gap-2 text-caption uppercase tracking-wide text-muted">
       <span class="shrink-0">{props.children}</span>
       <span class="h-px grow bg-rule" aria-hidden="true" />
     </p>
