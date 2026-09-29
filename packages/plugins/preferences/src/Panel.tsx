@@ -36,8 +36,8 @@ import { createMemo, For } from "solid-js"
 
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { PANEL_BOX } from "@olai/web/client/readout.ts"
-import { SCOPE_WORDS, type Section } from "./index.ts"
-import { groupsOf, runsOf } from "./groups.ts"
+import type { Section } from "./index.ts"
+import { groupsOf, runsOf, SCOPE_WORDS } from "./groups.ts"
 
 export function Panel(props: {
   readonly sections: () => ReadonlyArray<Contribution<Section>>
@@ -46,11 +46,11 @@ export function Panel(props: {
   /** Register this surface with the click-away, since it is portalled. */
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
-  /** WHAT THE PANEL DRAWS: the groups, and the runs they make. Both readings
-   *  are this package's own and both are pure (`./groups.ts`) — what is left
-   *  here is the drawing. */
-  const groups = createMemo(() => groupsOf(props.sections()))
-  const runs = createMemo(() => runsOf(groups()))
+  /** WHAT THE PANEL DRAWS: the runs the contributions make, each of them
+   *  groups of one scope and the line that closes them. Both readings are this
+   *  package's own and both are pure (`./groups.ts`) — what is left here is the
+   *  drawing. */
+  const runs = createMemo(() => runsOf(groupsOf(props.sections())))
 
   return (
     <section

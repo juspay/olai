@@ -1,5 +1,4 @@
 import { location, serviceTag } from "@olai/plugin-api/contracts"
-import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import type { JSX } from "solid-js"
 export const name = "preferences"
 
@@ -43,16 +42,15 @@ export interface PluginHeading {
 export type HeadingName = Heading | PluginHeading
 
 /**
- * WHERE A GROUP'S CHOICE IS KEPT, and what its scope line says. A fixed
- * heading's rows are this browser's; a promoted leaf's are the serve's —
- * written to `_olai/Settings.olai` for everybody using this directory.
+ * WHERE A CONTRIBUTION'S CHOICES ARE KEPT. A fixed heading's rows are this
+ * browser's; a promoted leaf's are the serve's — written to
+ * `_olai/Settings.olai` for everybody using this directory.
+ *
+ * A contributor names one of these and stops there: WHAT THE PANEL SAYS about a
+ * scope is the panel's own (`./groups.ts`'s `SCOPE_WORDS`), so no plugin spells
+ * a sentence about somebody else's storage.
  */
 export type Scope = "browser" | "shared"
-
-export const SCOPE_WORDS: Record<Scope, string> = {
-  browser: "Saved in this browser only.",
-  shared: `Saved in ${CONFIGURATION_FILE.split("/").pop()}, for everyone using this directory.`,
-}
 
 /**
  * One contribution to the preferences panel: rows, under a heading, at a place

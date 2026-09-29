@@ -98,7 +98,12 @@ the contribution, so a plugin that one day draws browser-local rows under its
 own heading says `browser` and is ordered and labelled with this browser's rows.
 Two entries under one heading should agree; the panel draws a group as `shared`
 if any of them says so, because the one arrangement the ordering exists to
-prevent is a shared row under the browser-only line.
+prevent is a shared row under the browser-only line. What the panel SAYS about a
+scope is the panel's own (`src/groups.ts`'s `SCOPE_WORDS`): a contributor names
+a `Scope` value and never spells a sentence about somebody else's storage.
+
+The grouping and the runs are `src/groups.ts` (`groupsOf`, `runsOf`), pure and
+tested on their own; `src/Panel.tsx` is the drawing.
 
 Browser-local groups draw first — the table's own headings in table order, then
 plugin headings by label — and shared groups follow, plugin headings by label.

@@ -11,6 +11,7 @@ import type { RowReport } from "@olai/plugin-api"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
 import type { PluginLook } from "@olai/surface/management"
+import type { PreferencesPanel } from "olai-plugin-preferences/contract"
 
 /** The rows to draw, in the order the build lists its plugins. A build with no
  *  plugins, and a page that has not heard from the server yet, both draw none —
@@ -425,22 +426,30 @@ export const promotedValues = (values: ReadonlyArray<PolicyReading>): ReadonlyAr
 export const promotingPlugins = (roster: PluginRoster): ReadonlyArray<string> =>
   pluginRows(roster).filter((plugin) => plugin.running && promotedValues(rowValues(plugin)).length > 0).map((plugin) => plugin.name)
 
-/** WHICH LEAVES THE DETAIL STILL DRAWS: a promoted leaf is drawn in the
- *  preferences panel while its plugin runs and that panel can draw it, so it
- *  leaves this row's controls; everything else stays. */
-export const controlValues = (values: ReadonlyArray<PolicyReading>, promotedAway: boolean): ReadonlyArray<PolicyReading> =>
-  values.filter((one) => !promotedAway || one.preference !== true)
+/** WHAT THIS ROW DRAWS, as ONE reading — because two places ask it and they
+ *  may not disagree: the row itself (which control, or the link) and the
+ *  inspector's own `open(name)` (whether there is anything here to open at all).
+ *
+ *  `preferences` is the panel that draws a promoted leaf, held or absent — the
+ *  second fact the rule needs, since a promoted leaf is away only while its
+ *  plugin runs AND that panel is there to take it. */
+export interface RowSettings {
+  /** The leaves the row's detail still draws. */
+  readonly knobs: ReadonlyArray<PolicyReading>
+  /** Whether the one link stands in place of the promoted leaves. */
+  readonly link: boolean
+  /** Whether EVERY leaf the row declares is drawn in the other panel — nothing
+   *  here to open, which is what sends `open(name)` there instead. */
+  readonly allAway: boolean
+}
 
-/** WHERE THE ONE LINK REPLACES THE PROMOTED CONTROLS — its plugin is running
- *  and the preferences panel is up to take it. */
-export const showsPromotedLink = (values: ReadonlyArray<PolicyReading>, promotedAway: boolean): boolean =>
-  promotedAway && promotedValues(values).length > 0
-
-/** WHETHER THE LINK IS ALL THAT IS LEFT — every leaf this row declares is
- *  drawn in the preferences panel, so there is no control here to open and a
- *  person asking for this row's settings wants the other panel. */
-export const fullyPromoted = (values: ReadonlyArray<PolicyReading>, promotedAway: boolean): boolean =>
-  showsPromotedLink(values, promotedAway) && controlValues(values, true).length === 0
+export const rowSettings = (plugin: BuiltPlugin, preferences: PreferencesPanel | undefined): RowSettings => {
+  const values = rowValues(plugin)
+  const promoted = promotedValues(values)
+  const away = plugin.running && preferences !== undefined && promoted.length > 0
+  const knobs = away ? values.filter((one) => one.preference !== true) : values
+  return { knobs, link: away, allAway: away && knobs.length === 0 }
+}
 
 /** WHY THE CONTROLS WILL NOT MOVE — the reader is absent, the file is broken,
  *  or a change is landing. The same sentence every knob's tooltip carries. */

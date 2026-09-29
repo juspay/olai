@@ -16,8 +16,8 @@
  */
 import { expect, test } from "bun:test"
 import type { Contribution } from "@olai/plugin-api"
-import { groupsOf, runsOf } from "./groups.ts"
-import { SCOPE_WORDS, type Scope, type Section } from "./index.ts"
+import { groupsOf, runsOf, SCOPE_WORDS } from "./groups.ts"
+import type { Scope, Section } from "./index.ts"
 
 /** One contribution whose body draws nothing: what this file is about is the
  *  structure, and a body that drew a row would change nothing about it. */

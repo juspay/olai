@@ -21,8 +21,19 @@
  * precedes a run of `shared`: the browser-only line can never sit above a
  * shared row.
  */
+import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import type { Contribution } from "@olai/plugin-api"
 import { HEADINGS, type PluginHeading, type Scope, type Section } from "./index.ts"
+
+/** WHAT A RUN CLOSES WITH — the panel's words for a scope, kept HERE rather
+ *  than in the contribution contract because the panel is their only reader:
+ *  a contributor names a `Scope` value, and `@olai/plugin-api/configuration`'s
+ *  constant is not dragged into every contributor's graph to spell a sentence
+ *  none of them draws. */
+export const SCOPE_WORDS: Record<Scope, string> = {
+  browser: "Saved in this browser only.",
+  shared: `Saved in ${CONFIGURATION_FILE.split("/").pop()}, for everyone using this directory.`,
+}
 
 /** One heading as the panel draws it. `key` is the fixed heading's key or the
  *  plugin's name — what `data-group` carries. The label is a READER: a plugin
