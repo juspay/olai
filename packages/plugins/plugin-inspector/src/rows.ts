@@ -451,9 +451,24 @@ export const rowSettings = (plugin: BuiltPlugin, preferences: PreferencesPanel |
   return { knobs, link: away, allAway: away && knobs.length === 0 }
 }
 
-/** WHY THE CONTROLS WILL NOT MOVE — the reader is absent, the file is broken,
- *  or a change is landing. The same sentence every knob's tooltip carries. */
-export const configurationFrozen = (roster: PluginRoster, changing: boolean): string | undefined =>
+/**
+ * WHY THE CONTROLS WILL NOT MOVE — the reader is absent, or the file is broken:
+ * reasons that STAY. The same sentence every knob's tooltip carries.
+ *
+ * NOT "a change is landing", which used to be here: that one passes in a few
+ * milliseconds, and a control that becomes `disabled` while it has the caret is
+ * blurred BY THE BROWSER, to `<body>`. The reconnect dialog that follows
+ * (`@olai/web/client/connection/Offline.tsx`'s `showModal`) then records the
+ * BODY as the focus it took, so `close()` hands the caret back there instead of
+ * to the field — and `Control.tsx`'s blur, which commits a draft, fires on the
+ * way past. Somebody who typed nothing and asked for nothing loses the caret
+ * and the text. A press made while a change is landing needs no freeze: it goes
+ * out and the transport answers it. The ENABLE SWITCHES keep the guard, drawn
+ * `aria-disabled` rather than `disabled` (`@olai/ui-primitives/Switch.tsx`), so
+ * a flip cannot be pressed on either side of a redial and cannot be blurred
+ * either.
+ */
+export const configurationFrozen = (roster: PluginRoster): string | undefined =>
   roster.configurationAvailable !== true ? configurationUnavailable
     : roster.configurationError !== undefined ? configurationBroken(roster.configurationFile)
-    : changing ? "Applying the change…" : undefined
+    : undefined

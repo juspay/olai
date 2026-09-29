@@ -39,7 +39,7 @@ export function PromotedRows(props: {
     const row = plugin()
     return row === undefined ? [] : promotedValues(rowValues(row))
   }
-  const frozen = () => configurationFrozen(roster() ?? NO_ROSTER, props.management.changing())
+  const frozen = () => configurationFrozen(roster() ?? NO_ROSTER)
   return (
     <Show when={plugin()?.running === true}>
       {/* ONE ROW PER LEAF, addressed as `plugin-<plugin>-<key>`: the plugin

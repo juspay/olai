@@ -52,7 +52,9 @@ the inspector's own control, so the authored marker, the reset, invalid text
 handling, refusals and Escape behave identically in both panels. A heading
 whose plugin is not running is not drawn — its contribution is withdrawn, live,
 with no reload. A reader that is absent or a file that is broken freezes those
-controls with the server's refusal.
+controls with the server's refusal; a change landing does not, so the field
+somebody is typing in keeps the caret (`olai-plugin-plugin-inspector/docs.md`
+has the account).
 
 ## The contribution contract
 

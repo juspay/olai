@@ -3,6 +3,7 @@
 import { createEffect, createSignal, For, onCleanup, Show, Switch, Match } from "solid-js"
 import type { BrowserManagement } from "@olai/surface/management"
 import { run } from "@olai/web/client/run.ts"
+import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"
 import { TESTID } from "./testids.ts"
 import { configurationAuthored, controlOf, labelOf, knobLabel, knobUnit, knobWidth, knobAuthored, type PolicyReading } from "./rows.ts"
 
@@ -42,6 +43,20 @@ export function Control(props: {
     })
   }
   const saveDraft = () => { if (dirty) save(draft()) }
+  /**
+   * WHETHER THIS BLUR IS A LEAVE — a person moving on, which is a save, or the
+   * APP TAKING THE KEYBOARD, which is not. The reconnect freeze is a modal
+   * `<dialog>` (`@olai/web/client/connection/Offline.tsx`), and it blurs
+   * whatever had the caret while the wire is away; `takingOfflineFocus` is how
+   * that call is spelled on this side of the wire, and the outlines' editors
+   * read the same flag for the same reason
+   * (`@olai-plugin-outlines/browser/edit/RowEditor.tsx`). Saving on that blur
+   * writes a half-typed draft into the shared file because a plugin was
+   * toggled in another tab — a write nobody asked for, from a page whose wire
+   * is gone.
+   */
+  const leaving = (event: FocusEvent) =>
+    event.relatedTarget !== reset && !takingOfflineFocus()
   // Bound natively on the input: Solid's delegated listener runs at document,
   // where the popover's Escape dismissal would already have spent the key.
   const keyboard = (event: KeyboardEvent) => {
@@ -83,7 +98,7 @@ export function Control(props: {
             step={metadata()?.kind === "number" && (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).integer ? 1 : "any"}
             placeholder={metadata()?.kind === "text" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "text" }>).expected : undefined}
             onInput={event => { dirty = true; setDraft(event.currentTarget.value); setRefused(undefined) }}
-            onBlur={event => { if (event.relatedTarget !== reset) saveDraft() }} on:keydown={keyboard} />
+            onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} />
           <Show when={metadata()?.kind === "number" && knobUnit(props.value.key)}>{unit => <span class="plugins-knob-key">{unit()}</span>}</Show>
         </Match>
       </Switch>

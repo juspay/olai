@@ -75,10 +75,13 @@
  * `./rows.ts`'s `pluginSwitch`, which is the whole decision the signal feeds.
  *
  * The pending flag is cleared when the write, revision and reconcile settle.
- * Controls also stay frozen while the browser reconciles the roster: a state frame may land
- * before its socket replacement finishes, and a second press on that old socket
- * would be interrupted. Server-only rows retain this component, so remounting
- * it cannot be relied on to supply that barrier.
+ * The ENABLE SWITCH stays frozen while the browser reconciles the roster — a
+ * state frame may land before its socket replacement finishes, and a second
+ * press on that old socket would be interrupted — and it can, because a frozen
+ * switch is `aria-disabled` rather than `disabled` (`./Switch.tsx`). The KNOBS
+ * cannot take that guard: `disabled` on the focused field is a blur the browser
+ * makes, and the reconnect dialog then hands the caret back to the body instead
+ * of the field (`./rows.ts`'s `configurationFrozen` has the whole account).
  *
  * ## Where the panel goes is not this file's decision
  *
@@ -173,7 +176,7 @@ export function Panel(props: {
   const roster = props.management.roster()
   const plugins = (): PluginRoster => roster() ?? NO_ROSTER
   const rows = createMemo(() => pluginRows(plugins()))
-  const frozen = () => configurationFrozen(plugins(), props.management.changing())
+  const frozen = () => configurationFrozen(plugins())
   /** WHAT EVERY ROW'S OWN PLUGIN HUNG — one map per publication of the table,
    *  so the grouping below, the row lookups and the drawings all read the same
    *  answer rather than rebuilding it per field getter. */
@@ -532,7 +535,7 @@ function PluginRow(props: {
           />
         </Show>
         <dl class="plugins-detail">
-          <Controls name={plugin().name} values={drawn().knobs} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
+          <Controls name={plugin().name} values={drawn().knobs} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins())} />
           {/* A PROMOTED LEAF IS NOT DRAWN HERE while its plugin runs and the
               preferences panel is up: one link, in their place, that shuts this
               panel and opens that one. The plugin's own leaves stay editable in

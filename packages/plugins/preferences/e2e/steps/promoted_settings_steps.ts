@@ -189,9 +189,13 @@ Then(
   "the preference {string} has focus",
   async function (this: OlaiWorld, pref: string) {
     const knob = preferenceKnob(this, pref);
-    assert.equal(
-      await knob.locator("input, select, [aria-pressed]").first().evaluate((el) => el === document.activeElement),
-      true,
+    // WAITED FOR, like every other reading in this file: the freeze hands the
+    // caret back when the wire returns, which is the same moment the change
+    // lands, so the assertion is about where the caret ENDS UP rather than
+    // about a frame in the middle of the redial.
+    await this.waitUntil(
+      async () => await knob.locator("input, select, [aria-pressed]").first().evaluate((el) => el === document.activeElement),
+      `the ${pref} preference to have the caret`,
     );
   },
 );

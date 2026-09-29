@@ -142,6 +142,41 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And file "_olai/Settings.olai" has namespace "mail" setting "poll" as "<absent>"
     And there should be no page errors
 
+  @scratch:good @rows-on:mail @mail-himalaya:mailbox
+  Scenario: A draft in the panel survives a contribution changing in another tab
+    # TWO HALVES OF ONE PROMISE. THE ROWS ARE KEYED, so a change elsewhere
+    # rebuilds only what changed — an unkeyed row is torn down and built again,
+    # and `Control.tsx` keeps its draft in the MOUNTED control, so the typist
+    # would come back to the committed reading. And THE FREEZE IS NOT A LEAVE:
+    # the reconnect a roster change forces opens the client's `<dialog>`
+    # (`showModal`), which takes the keyboard for a moment, and a blur into it
+    # must not be read as somebody leaving the field. Switching `outlines` off
+    # in another tab is a contribution of a different heading going away, and
+    # the typist typed nothing since and asked for nothing.
+    Given I open the app
+    And I mark the page
+    And I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"mail-settings","ord":"a0","title":"mail","custom":{"on":"yes","poll":"1h"}}
+      """
+    When I open the preferences
+    And the preference "plugin-mail-poll" shows "1h"
+    And I type "1h2" into the preference "plugin-mail-poll"
+    Then the preference "plugin-mail-poll" input reads "1h2"
+    When I open another browser tab
+    And I open the plugins panel
+    And I switch the plugin "outlines" off
+    And I use the original browser tab
+    Then the preferences have no "Outlines" heading
+    And the preference "plugin-mail-poll" input reads "1h2"
+    # NOT WRITTEN: the blur the freeze caused was not a leave, so the shared
+    # property still holds the value it held when the typing began — while the
+    # input, which is where the draft lives, still holds the draft.
+    And file "_olai/Settings.olai" has namespace "mail" setting "poll" as "1h"
+    And the preference "plugin-mail-poll" has focus
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: A pick made elsewhere lands in an open panel
     # A CHANGE FROM OUTSIDE: another tab writes the setting, and then the file
     # itself is rewritten. The panel a person is looking at follows both — the

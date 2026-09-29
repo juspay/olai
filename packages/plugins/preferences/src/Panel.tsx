@@ -37,12 +37,16 @@ import { createMemo, For } from "solid-js"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { PANEL_BOX } from "@olai/web/client/readout.ts"
 import type { Section } from "./index.ts"
-import { groupsOf, runsOf, SCOPE_WORDS } from "./groups.ts"
+import { type Group, groupsOf, type Run, runsOf, SCOPE_WORDS } from "./groups.ts"
 
 export function Panel(props: {
   readonly sections: () => ReadonlyArray<Contribution<Section>>
-  /** Where to sit, in viewport pixels — see `@olai/web/client/anchor.ts`. */
-  readonly at: Anchor
+  /** Where to sit, in viewport pixels, as a READER — see
+   *  `@olai/web/client/anchor.ts` and `olai-plugin-layout`'s `BarDoor`: a
+   *  re-measure moves this panel, and rebuilding it would take the caret out of
+   *  whatever a person is typing into (`Control.tsx` keeps a draft in the
+   *  mounted control). */
+  readonly at: () => Anchor
   /** Register this surface with the click-away, since it is portalled. */
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
@@ -56,7 +60,7 @@ export function Panel(props: {
     <section
       ref={props.inside}
       class={`${PANEL_BOX} gap-3 max-md:!py-3 md:gap-5`}
-      style={styleOf(props.at)}
+      style={styleOf(props.at())}
       // Focusable, never in the tab order: opening puts the caret here so a
       // keyboard is standing IN the panel, and Tab from here is the first control.
       tabindex="-1"
@@ -67,34 +71,58 @@ export function Panel(props: {
           a run holds the line AND the groups it closes. That is what keeps a
           group whose body drew no row from taking the line with it — the group
           hides itself (`:not(:has([data-pref]))`), and a run all of whose groups
-          hid hides with them. */}
-      <For each={runs()}>
-        {(run) => (
-          <div
-            class="flex flex-col gap-3 md:gap-5 [&:not(:has([data-pref]))]:hidden"
-            data-testid={TESTID.prefsRun}
-            data-scope={run.scope}
-          >
-            <For each={run.groups}>
-              {(group) => (
-                <section
-                  class="[&:not(:has([data-pref]))]:hidden"
-                  aria-label={group.label()}
-                  data-testid={TESTID.prefsGroup}
-                  data-group={group.key}
-                >
-                  <h3 class="mb-1 text-label font-medium text-muted">{group.label()}</h3>
-                  <div class="divide-y divide-rule/40">
-                    <For each={group.entries}>{(entry) => entry.value.body()}</For>
-                  </div>
-                </section>
-              )}
-            </For>
-            <p class="text-label text-muted" data-testid={TESTID.prefsScope} data-scope={run.scope}>
-              {SCOPE_WORDS[run.scope]}
-            </p>
-          </div>
-        )}
+          hid hides with them.
+
+          AND BOTH ARE ITERATED BY KEY, because `groupsOf` builds fresh objects
+          every time the contributions move and `For` keys by identity: a list of
+          objects would tear down every run and every group on any change, and
+          with them every mounted body — the draft in `Control.tsx` belongs to
+          the MOUNTED control, so a typist would lose the text and the caret
+          because somebody switched an unrelated plugin off in another tab. A
+          run's key is its scope and a group's is the key `data-group` carries
+          (every other run and group is that one's identity in the panel); the
+          objects are looked up fresh on every read, so the DOM is kept and the
+          current words and rows are the ones drawn. */}
+      <For each={runs().map((run) => run.scope)}>
+        {(scope) => {
+          const run = (): Run => runs().find((one) => one.scope === scope)!
+          return (
+            <div
+              class="flex flex-col gap-3 md:gap-5 [&:not(:has([data-pref]))]:hidden"
+              data-testid={TESTID.prefsRun}
+              data-scope={scope}
+            >
+              <For each={run().groups.map((group) => group.key)}>
+                {(key) => {
+                  const group = (): Group => run().groups.find((one) => one.key === key)!
+                  return (
+                    <section
+                      class="[&:not(:has([data-pref]))]:hidden"
+                      aria-label={group().label()}
+                      data-testid={TESTID.prefsGroup}
+                      data-group={key}
+                    >
+                      <h3 class="mb-1 text-label font-medium text-muted">{group().label()}</h3>
+                      <div class="divide-y divide-rule/40">
+                        {/* ...AND THE ENTRIES THEMSELVES need no key of their own:
+                            they are the renderer's own contribution objects, and
+                            `Locations.read` returns STABLE identities across
+                            revisions ("a change elsewhere must not recreate an
+                            editor which still owns the same location"), so a
+                            contribution still contributed keeps its row and its
+                            body is not called again. */}
+                        <For each={group().entries}>{(entry) => entry.value.body()}</For>
+                      </div>
+                    </section>
+                  )
+                }}
+              </For>
+              <p class="text-label text-muted" data-testid={TESTID.prefsScope} data-scope={scope}>
+                {SCOPE_WORDS[scope]}
+              </p>
+            </div>
+          )
+        }}
       </For>
     </section>
   )
