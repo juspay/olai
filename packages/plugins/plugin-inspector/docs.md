@@ -160,14 +160,13 @@ reset beside it. Default values have no marker. Invalid file text appears in an
 alarmed input with the schema message and effective default beneath it; its
 reset can remove the malformed property. Enter or blur saves; Escape restores
 the accepted reading without closing the panel. Drafts survive unrelated roster
-updates, because the rows are keyed (a change elsewhere rebuilds only what
-changed) and because a blur the APP causes is not a save: the reconnect freeze
-is a modal dialog that takes the keyboard (`takingOfflineFocus`, the same flag
-the outlines' editors read), so a draft is left unwritten and the caret comes
-back with the wire. The controls are not disabled while a change is landing, for
-that same half of the reason: a field made `disabled` under the caret is blurred
-by the browser, to the body — and the dialog's own focus restoration then hands
-the caret to the body as well (see `./src/rows.ts`'s `configurationFrozen`).
+updates and a caret comes back with them: the rows are KEYED, so a change
+elsewhere rebuilds only what changed; a control the roster froze keeps its draft
+in the mounted control and refuses the write that the blur would otherwise make
+(`onBlur` reads `takingOfflineFocus`, the same flag the outlines' editors read,
+so a blur the APP caused is not a save); and the shell hands the keyboard back
+when the reconnect dialog closes (`@olai/web/client/connection/focus.ts`), which
+the browser alone cannot do once the control was disabled under the caret.
 
 `plugins.configure` is a browser procedure. It validates the leaf before an
 ordinary file write, creates a missing namespace or section child, and waits

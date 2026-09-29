@@ -176,7 +176,7 @@ export function Panel(props: {
   const roster = props.management.roster()
   const plugins = (): PluginRoster => roster() ?? NO_ROSTER
   const rows = createMemo(() => pluginRows(plugins()))
-  const frozen = () => configurationFrozen(plugins())
+  const frozen = () => configurationFrozen(plugins(), props.management.changing())
   /** WHAT EVERY ROW'S OWN PLUGIN HUNG — one map per publication of the table,
    *  so the grouping below, the row lookups and the drawings all read the same
    *  answer rather than rebuilding it per field getter. */
@@ -535,7 +535,7 @@ function PluginRow(props: {
           />
         </Show>
         <dl class="plugins-detail">
-          <Controls name={plugin().name} values={drawn().knobs} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins())} />
+          <Controls name={plugin().name} values={drawn().knobs} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
           {/* A PROMOTED LEAF IS NOT DRAWN HERE while its plugin runs and the
               preferences panel is up: one link, in their place, that shuts this
               panel and opens that one. The plugin's own leaves stay editable in

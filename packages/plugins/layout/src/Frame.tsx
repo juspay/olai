@@ -27,10 +27,12 @@ import { contentStatus,overlays,sidebar,strip } from "./index.ts"
 import {
 createEffect,
 onCleanup,
+onMount,
 Show
 } from "solid-js"
 
 import { Offline } from "@olai/web/client/connection/Offline.tsx"
+import { rememberFocus } from "@olai/web/client/connection/focus.ts"
 import { Panes } from "olai-plugin-layout/pane/Panes.tsx"
 import { PluginBanners } from "./Chrome.tsx"
 import { PluginsMounted } from "./Mounted.tsx"
@@ -48,6 +50,12 @@ import { Tools } from "./Tools.tsx"
 
 export default function Frame(props: { readonly slots: RendererSlots; readonly router: import("olai-plugin-navigation/contract").Navigation }) {
   const router = props.router
+  // THE CARET'S MEMORY, for the freeze this frame draws: the dialog takes the
+  // keyboard when the wire goes and hands it back when it returns, and the
+  // element it goes back to is remembered here rather than guessed by the
+  // browser — see `@olai/web/client/connection/focus.ts` for the half of that
+  // the browser cannot do. Disposed with the frame, which is the app's life.
+  onMount(() => rememberFocus())
 
   // The phone drawer is this frame's for as long as it is drawn — a signal in
   // `./layout/live.ts` so `layout.shell`'s `revealSidebar` can open it from a
