@@ -5,19 +5,29 @@
  * those integrations without withdrawing their independent state providers;
  * theme's storage observers and selected values therefore remain effective.
  * The same entry supplies desktop and drawer presentations with explicit order.
- * Remaining notebook controls must become feature-owned section contributions. */
-import { definePlugin } from "@olai/plugin-api"
+ *
+ * IT ALSO OFFERS THE ONE DOOR onto the panel — `preferences.open` — so a link
+ * elsewhere (`olai-plugin-plugin-inspector`'s promoted rows and its plugins-panel
+ * "Set in Preferences") can land somebody here without importing this package's
+ * panel or its state. The open bit lives HERE, in this activation, because the
+ * door's panel can be asked to open from outside the shell that draws it, and a
+ * rebuilt shell must draw the door again with the same answer. */
+import { definePlugin, Offers } from "@olai/plugin-api"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { tools } from "olai-plugin-layout/contract"
+import { createSignal } from "solid-js"
 import { Effect } from "effect"
 import { Preferences } from "./Preferences.tsx"
 import { name, sections } from "./index.ts"
 
 export default definePlugin({
-  name, needs: [rendererSlots], apply: Effect.gen(function*() {
+  name, needs: [Offers, rendererSlots], apply: Effect.gen(function*() {
+    const offers = yield* Offers
     const slots = yield* rendererSlots
+    const [open, setOpen] = createSignal(false)
+    yield* offers.own("open", () => ({ open: () => setOpen(true) }))
     yield* slots.contribute(tools, {
-      body: (props) => <Preferences where={props.where} sections={() => slots.read(sections)} />,
+      body: (props) => <Preferences where={props.where} sections={() => slots.read(sections)} door={{ open, setOpen }} />,
       headerOrder: 20, closetOrder: 10, mobileWithoutSidebar: true,
     }, { children: [sections] })
   }),

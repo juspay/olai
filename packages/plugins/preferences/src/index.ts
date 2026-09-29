@@ -1,4 +1,5 @@
-import { location } from "@olai/plugin-api/contracts"
+import { location, serviceTag } from "@olai/plugin-api/contracts"
+import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import type { JSX } from "solid-js"
 export const name = "preferences"
 
@@ -16,14 +17,60 @@ export const HEADINGS = [
 export type Heading = (typeof HEADINGS)[number]["key"]
 
 /**
+ * A heading NAMED AFTER A PLUGIN — the settings a plugin marked as preferences.
+ *
+ * A promoted leaf (`@olai/plugin-api/configuration`'s `preference`) is drawn
+ * here, under its plugin's heading, and moves out of the plugins panel while
+ * that plugin is running. The two fields are the plugin's own name (the
+ * settings namespace its rows are grouped by) and the words a person reads,
+ * which the contributor reads off the roster rather than importing the plugin.
+ */
+export interface PluginHeading {
+  /** The plugin's `name` — the settings namespace. Contributions naming the
+   *  same plugin are drawn together under one heading. */
+  readonly plugin: string
+  /** The words a person reads. */
+  readonly label: string
+}
+
+/** Either a key of {@link HEADINGS} or a {@link PluginHeading}. */
+export type HeadingName = Heading | PluginHeading
+
+/**
+ * WHERE A GROUP'S CHOICE IS KEPT, and what its scope line says. A fixed
+ * heading's rows are this browser's; a plugin heading's rows are the serve's —
+ * written to `_olai/Settings.olai` for everybody using this directory.
+ */
+export type Scope = "browser" | "shared"
+
+export const SCOPE_WORDS: Record<Scope, string> = {
+  browser: "Saved in this browser only.",
+  shared: `Saved in ${CONFIGURATION_FILE.split("/").pop()}, for everyone using this directory.`,
+}
+
+/**
  * One contribution to the preferences panel: rows, under a heading, at a place
  * within it. A heading whose contributors are all switched off is not drawn.
  */
 export interface Section {
-  /** The heading these rows sit under — a key of {@link HEADINGS}. */
-  readonly heading: Heading
+  /** The heading these rows sit under — a key of {@link HEADINGS}, or a
+   *  plugin-named heading carrying the plugin's name and its label. */
+  readonly heading: HeadingName
   /** Lower first, among the contributions under the same heading only. */
   readonly order: number
   readonly body: () => JSX.Element
 }
 export const sections = location<Section>("preferences.sections")
+
+/**
+ * OPEN THE PREFERENCES PANEL — the one verb the panel offers, so a link
+ * elsewhere can land somebody here without importing the panel or its state.
+ *
+ * A component of the inspector offers it while Preferences is up; a consumer
+ * holds it as an optional dependency and draws its own control when the door
+ * is absent. Mirrors the inspector's own `configuration.open(name)`.
+ */
+export interface PreferencesPanel {
+  readonly open: () => void
+}
+export const preferencesPanel = serviceTag<PreferencesPanel>("preferences.open")
