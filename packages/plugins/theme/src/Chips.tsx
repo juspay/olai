@@ -2,13 +2,14 @@
  * The named palettes, as swatches: every swatch is a theme, painted in that
  * theme's paper with a dot of its accent, and pressing one picks it.
  *
- * Swatches rather than the ten text chips they replaced, because a palette is
- * judged by its colours and not by its name — and ten words in two rows was
- * the busiest thing on the preferences panel. The name is still there for
+ * Swatches rather than the text chips they replaced, because a palette is
+ * judged by its colours and not by its name — and eighteen words in two rows
+ * was the busiest thing on the preferences panel. The name is still there for
  * whoever wants it: each swatch's tooltip and accessible name, and the one in
  * force beside the row's label (`./AppearanceRows.tsx`).
  *
- * Lights first, then darks, in one wrapping row.
+ * Lights first, then darks, in one wrapping row, each scheme in hue order —
+ * the row reads as the wheel (`@olai/appearance/palettes.ts`).
  *
  * ARIA is plain toggle buttons with `aria-pressed`, inside the group the
  * settings row names. A `listbox`/`option` would misstate the control (no
