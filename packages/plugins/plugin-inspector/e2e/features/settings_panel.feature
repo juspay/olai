@@ -3,7 +3,12 @@ Feature: Edit plugin settings on the panel
   The controls write the vault file and sit in each row's detail, one press
   behind its chevron.
 
+  @rows-off:preferences
   Scenario: The one-column panel exposes controls and the keyboard reaches a row's first knob
+    # WITH PREFERENCES OFF the promoted leaves are controls again — this is the
+    # row's own fallback (`promoted_settings.feature` holds the other side): a
+    # plugin's promoted settings are drawn in the preferences panel only while
+    # that panel is up, and here it is not.
     Given I open the app
     When I open the plugins panel
     Then the plugins panel is one column and has no horizontal overflow
@@ -40,7 +45,7 @@ Feature: Edit plugin settings on the panel
     And there should be no page errors
 
   @git:repo
-  Scenario: Enable git, choose Auto, see the write in the ledger and keep it across a restart
+  Scenario: Enable git, choose Auto in the preferences, see the write in the ledger and keep it across a restart
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """
@@ -50,20 +55,22 @@ Feature: Edit plugin settings on the panel
     Then the plugin "git" is off without prose
     When I switch the plugin "git" on
     Then the plugin "git" line reads "Git" beside its labelled enable switch
-    And I pick "auto" for "git" setting "commit"
-    Then the plugins panel shows "git" configured "commit" as "auto"
-    And the plugin "git" marks "commit" as authored by "vault"
-    And file "_olai/Settings.olai" has namespace "git" setting "commit" as "auto"
     When I close the plugins panel
+    And I open the preferences
+    Then the preference "plugin-git-commit" is drawn under the heading "Git"
+    When I pick "auto" in the preference "plugin-git-commit"
+    Then file "_olai/Settings.olai" has namespace "git" setting "commit" as "auto"
+    And the preference "plugin-git-commit" is marked as authored by "vault"
+    When I press Escape on the preferences
     And I open the commit panel
     Then the commit ledger includes the "git" settings namespace
     When I leave the app
     And the server stops
     And the server starts again on the same port
     And I open the app
-    And I open the plugins panel
-    And I expand the plugin "git"
-    Then the plugins panel shows "git" configured "commit" as "auto"
+    And I open the preferences
+    Then the preference "plugin-git-commit" shows "auto"
+    And the preference "plugin-git-commit" is marked as authored by "vault"
     And there should be no page errors
 
   Scenario: A section edit creates its nodes, rejects a bare number, and Use default removes the key
@@ -134,19 +141,30 @@ Feature: Edit plugin settings on the panel
     And file "_olai/Settings.olai" has namespace "kolu" setting "watch.nag" as "<absent>"
     And there should be no page errors
 
-  Scenario: Refused choices and numbers retain the actual file spelling in the input
+  Scenario: A refused number keeps the actual file spelling in its input
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"bad-number","ord":"a1","title":"chat","custom":{"idle-ms":"whenever"}}
+      """
+    And I open the plugins panel
+    Then the "chat" setting "idle-ms" shows refused file text "whenever" inline with default "172800000"
+    When I use the default for "chat" setting "idle-ms"
+    Then the "chat" setting "idle-ms" has no problem
+    And there should be no page errors
+
+  Scenario: A refused promoted choice keeps the actual file spelling in its input
+    # The SAME code draws it, one panel over: `commit` is a promoted leaf, so
+    # the input that keeps the unaccepted spelling is the preferences panel's.
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"bad-choice","ord":"a0","title":"git","custom":{"commit":"sometimes"}}
-      {"id":"bad-number","ord":"a1","title":"chat","custom":{"idle-ms":"whenever"}}
       """
-    And I open the plugins panel
-    Then the "git" setting "commit" shows refused file text "sometimes" inline with default "manual"
-    And the "chat" setting "idle-ms" shows refused file text "whenever" inline with default "172800000"
-    When I use the default for "git" setting "commit"
-    Then the "git" setting "commit" has no problem
-    And the plugin "git" has inline controls
+    And I open the preferences
+    Then the preference "plugin-git-commit" shows refused file text "sometimes" inline with default "manual"
+    When I use the default for the preference "plugin-git-commit"
+    Then the preference "plugin-git-commit" has no problem
     And there should be no page errors
 
   @rows-off:settings
@@ -186,8 +204,8 @@ Feature: Edit plugin settings on the panel
     When I tap the burger
     And I open the plugins panel
     Then the plugins panel has one column and fits the phone
-    When I expand the plugin "git"
-    Then the plugin "git" has inline controls
+    When I expand the plugin "kolu"
+    Then the plugin "kolu" has inline controls
     And the plugins panel has one column and fits the phone
     And there should be no page errors
 

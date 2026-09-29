@@ -61,7 +61,7 @@ Feature: One place to set how this browser reads
     And I open the preferences
     Then the preferences are open
     And the preferences panel opens downward, clear of the bar
-    And the preferences are headed "Appearance, Outlines, Notifications"
+    And the preferences are headed "Appearance, Outlines, Notifications, Git"
     And the panel says these preferences are this browser's
     And there should be no page errors
 
@@ -74,7 +74,7 @@ Feature: One place to set how this browser reads
     When I open the app
     And I open the preferences
     Then the preferences panel fits the screen
-    And the preferences are headed "Appearance, Outlines, Notifications"
+    And the preferences are headed "Appearance, Outlines, Notifications, Git"
     And there should be no page errors
 
   Scenario: With Alerts off, Sound and Reminders are dimmed and do not move

@@ -5,6 +5,11 @@ Feature: The plugins panel reads as headings, one line per plugin
   about it sits in its detail, behind a chevron. A row with nothing more to
   say has no chevron at all. The Server section closes the list, shut too.
 
+  A scenario that reads git's **promoted** settings — `commit` and `push` are
+  drawn in the preferences panel — pins that panel off (`@rows-off:preferences`),
+  which is the row's own fallback: with no preferences panel the inspector draws
+  those controls itself. `promoted_settings.feature` holds the promoted path.
+
   @scratch:good
   Scenario: Groups start shut with their counts, and fixtures nobody asked for are not listed
     Given I open the app
@@ -27,6 +32,7 @@ Feature: The plugins panel reads as headings, one line per plugin
     And there should be no page errors
 
   @scratch:good @git:repo
+  @rows-off:preferences
   Scenario: A row's detail opens and shuts behind its chevron
     Given I open the app
     When I open the plugins panel
@@ -62,6 +68,7 @@ Feature: The plugins panel reads as headings, one line per plugin
     And there should be no page errors
 
   @scratch:good
+  @rows-off:preferences
   Scenario: An open row stays open while another plugin is switched and the roster republishes
     Given I open the app
     When I open the plugins panel

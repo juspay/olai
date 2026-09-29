@@ -1,5 +1,10 @@
 @scratch:good @git:repo
 Feature: Git policy travels with the vault
+  A scenario that reads git's **promoted** settings — `commit` and `push` are drawn in the
+  preferences panel — pins that panel off (`@rows-off:preferences`), which is the row's
+  own fallback: with no preferences panel the inspector draws those controls itself.
+  `promoted_settings.feature` holds the promoted path.
+
   The panel reads the git node's properties and names their authors.
   Editing that node re-applies the row for every browser of this serve.
 
@@ -24,6 +29,7 @@ Feature: Git policy travels with the vault
     Then the panel says these preferences are this browser's
     And there should be no page errors
 
+  @rows-off:preferences
   Scenario: The git row always names the policy in force
     When I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "manual"
@@ -31,6 +37,7 @@ Feature: Git policy travels with the vault
     And there should be no page errors
 
   @policy:git.commit=auto
+  @rows-off:preferences
   Scenario: commit: auto is the git row's config on the plugins panel
     When I open the plugins panel
     Then the plugins panel shows "git" configured "commit" as "auto"

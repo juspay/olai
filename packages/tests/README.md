@@ -551,12 +551,12 @@ The names are not written down twice. A row's `e2e/selectors.ts` imports that ro
 | `[data-testid="commit-message"]` / `[data-testid="commit-now"]` | the message box, and the button |
 | `[data-testid="prefs-trigger"]` | the header's gear, named `Preferences` (on a phone, a row at the foot of the sidebar drawer) |
 | `[data-testid="prefs-panel"]` | the panel it opens, portalled out of the header |
-| `[data-testid="prefs-row"][data-pref]` | one preference on it, grouped under Appearance (`theme`, `font`, `size`), Outlines (`density` — Row density, `done` — Show finished) and Notifications (`alerts`, `alert-sound`, and the journal's reminders) |
+| `[data-testid="prefs-row"][data-pref]` | one preference on it, grouped under Appearance (`theme`, `font`, `size`), Outlines (`density` — Row density, `done` — Show finished), Notifications (`alerts`, `alert-sound`, and the journal's reminders) and, for a promoted config leaf, `plugin-<plugin>-<key>` under a heading named after the plugin |
 | `[data-testid="prefs-hint"]` | that row's one short quiet line, where the label alone does not say what the control does; most rows have none |
 | `[data-testid="prefs-choice"][data-value]` | one segment of a named choice (Compact / Cozy / Open); `aria-pressed` says which is in force (`support/preferences.ts`'s `pickChoice`) |
 | `[data-testid="prefs-switch"]` | a yes-or-no row's switch — `role="switch"`, its state `aria-checked` (`support/preferences.ts`'s `setSwitch`) |
 | `[data-testid="prefs-value"]` | the choice in force named beside a row's label where the control does not spell it out (the theme swatches) |
-| `[data-testid="prefs-scope"]` | the footer line: these are this browser's, and are never sent |
+| `[data-testid="prefs-scope"][data-scope]` | one group's scope line, closing a run of groups that share it: `browser` (these are this browser's, and are never sent) or `shared` (written to `_olai/Settings.olai` for everybody using this directory) |
 | `[data-testid="theme-chip"][data-value]` | one swatch of the Theme row, with the palette's name as its accessible name; `aria-pressed` says whether it is the one in force |
 
 ## Adding a test
