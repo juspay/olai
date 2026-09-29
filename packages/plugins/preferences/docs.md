@@ -70,11 +70,13 @@ A contribution to `preferences.sections` is a `Section`:
 interface Section {
   readonly heading: HeadingName   // a key of HEADINGS, or a plugin heading
   readonly order: number          // lower first, among this heading's rows only
+  readonly scope: "browser" | "shared"   // where these choices are kept
   readonly body: () => JSX.Element
 }
 
-// ...where a plugin heading carries the plugin's name and the label a person reads.
-interface PluginHeading { readonly plugin: string; readonly label: string }
+// ...where a plugin heading carries the plugin's name and a READER for the
+// words a person reads — the build's label, which comes off the roster.
+interface PluginHeading { readonly plugin: string; readonly label: () => string }
 ```
 
 So a contributor names where its rows go and never spells a fixed heading's
@@ -88,9 +90,16 @@ provider with nothing to offer yet) leaves its heading hidden rather than drawn
 over nothing. Each heading's group carries its key as `data-group` — the
 plugin's name for a plugin heading.
 
-Fixed headings draw first, in the table's order; plugin headings follow, sorted
-by their label. That ordering is what makes the scope lines honest: every
-browser-local group precedes every shared one.
+**`scope` is DECLARED, never inferred**: where a value is kept is a fact about
+the contribution, so a plugin that one day draws browser-local rows under its
+own heading says `browser` and is ordered and labelled with this browser's rows.
+Two entries under one heading should agree; the panel draws a group as `shared`
+if any of them says so, because the one arrangement the ordering exists to
+prevent is a shared row under the browser-only line.
+
+Browser-local groups draw first — the table's own headings in table order, then
+plugin headings by label — and shared groups follow, plugin headings by label.
+That ordering is what makes the scope lines honest.
 
 ## Opening it from elsewhere
 

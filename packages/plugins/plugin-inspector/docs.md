@@ -90,12 +90,15 @@ TWO MORE COMPONENTS, each an independent fiber under this row:
 
 - **`preferences`** contributes the promoted rows to `preferences.sections`. It
   names no plugin: it reads the roster (`browser-management`) for the plugins
-  that are running and marked something as a preference, and registers one
-  section per plugin — under a scope of its own, so a plugin switched off in
-  another tab withdraws its heading with no reload, and switching it back on
-  registers it again. The Solid subscription to the roster is acquired under
-  this component's own owner and released with it, and the rows are the same
-  `Control.tsx` the panel's own rows wear.
+  that are running and marked something as a preference, and holds ONE HEADING
+  PER PLUGIN IN A SCOPE OF ITS OWN (`src/promoted.ts`) — a registration is a
+  claim on a key, so the scope is what gives it back: a plugin switched off in
+  another tab has its heading released with no reload, and switching it back on
+  claims the key again rather than dying on one it still held. One finalizer on
+  this component closes whatever is left. The heading's words are a reader (the
+  build's label, off the roster) and the rows are the same `Control.tsx` the
+  panel's own rows wear. The Solid subscription to the roster is acquired under
+  this component's own owner and released with it.
 - **`preferences-door`** holds the optional `preferences.open` service for as
   long as that panel is up. When it is absent the component is `waiting`,
   nothing is held, and `tools` draws the promoted controls itself.
@@ -105,6 +108,11 @@ roster arrives through `browser-management`, and the panel's door arrives
 through the `preferencesPanel` tag and this package's own `heldService` holder.
 Disabling the inspector withdraws both without resetting the settings reader or
 the inspector's state.
+
+AND THE VERB THE PANEL OFFERS lands where the settings are: a consumer's
+`configuration.open(name)` for a row whose every leaf is promoted opens the
+preferences panel instead of revealing a link to it. Asking for a setting should
+reach it, not a door to it.
 
 The host adapter provides roster readings, reports, switching, configuration
 writes and retry without handing over a notebook client or importing this
