@@ -80,7 +80,7 @@ import { TESTID } from "../../testids.ts"
  * be it. Not `alarm` or `doing` either — nothing is wrong and nothing is in
  * flight; something happened that somebody asked to be told about. And not the
  * prototype's violet, tempting as a fourth hue is: a colour outside the table
- * is a colour ten palettes have no answer for and no contrast test can hold
+ * is a colour eighteen palettes have no answer for and no contrast test can hold
  * (`../theme/contrast.test.ts`), which is how a face ends up unreadable on the
  * one theme nobody tried it in.
  *

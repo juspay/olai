@@ -28,7 +28,7 @@ import {
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
 } from "@olai/web/testlib";
-import { THEME_NAMES } from "@olai/appearance/palettes.ts";
+import { PALETTES, THEME_NAMES } from "@olai/appearance/palettes.ts";
 
 import { focusedOn } from "@olai/tests/harness/caret.ts";
 import { manifestOf } from "@olai/tests/harness/manifest.ts";
@@ -156,6 +156,37 @@ Then(
 /** The Theme row, by the preference it sets. */
 const themeRow = (world: OlaiWorld) =>
   world.page.locator(`${PREFS_ROW}${attr("data-pref", "theme")}`);
+
+/**
+ * Every row of the table, picked and read back off the page it paints.
+ *
+ * The sheet is GENERATED from the table (`appearance/src/css.ts`), one block
+ * per row, so the honest check of the whole eighteen is the round trip rather
+ * than a spot check of the two or three scenarios name. It is written against
+ * the table and not against a hex, which is this file's rule — a retune is a
+ * retune in one place — and a row whose block was dropped, mistyped, or given
+ * another row's values fails here, in the browser that paints it.
+ */
+Then("every palette paints the page it names", async function (this: OlaiWorld) {
+  const wrong: Array<string> = [];
+  for (const palette of PALETTES) {
+    await pick(this, palette.name);
+    const painted = await this.page.evaluate(
+      (property) =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue(property)
+          .trim(),
+      PAPER,
+    );
+    if (painted.toLowerCase() !== palette.colors.paper.toLowerCase()) {
+      wrong.push(
+        `${palette.name}: the page paints ${painted || "(nothing)"}, ` +
+          `the table says ${palette.colors.paper}`,
+      );
+    }
+  }
+  assert.deepStrictEqual(wrong, [], "a palette does not paint the page it names");
+});
 
 // ── the keyboard ───────────────────────────────────────────────────────
 

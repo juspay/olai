@@ -15,10 +15,24 @@
  * sticker on every ground. Reef and aurora were the first two rows that
  * were ours; the table is now only that kind of row.
  *
- * Ten palettes. Lights first (reef leading, the default), then darks. Each
- * occupies a cell of light/dark × paper hue, so the chips are a spectrum
- * rather than a pile. Named for a place, a material or a phenomenon — never
- * "light", "dark", or someone else's flavour.
+ * EIGHTEEN PALETTES: eight hue families, each a light row and a dark one,
+ * and two neutral picks that sit outside the hue claim — chalk, the quietest
+ * reading, and pitch, the OLED black. The rows are the wheel, in order:
+ * lights first in hue order, then darks in hue order, the neutrals last, so
+ * the chips read as a spectrum rather than a pile. Named for a place, a
+ * material or a phenomenon — never "light", "dark", or someone else's
+ * flavour; and a family's two rows are the same thing seen twice, which is
+ * why reef's night is the abyss and sky's is midnight.
+ *
+ * The cells are 45° apart, and that is a claim the tests hold rather than a
+ * picture in this comment: every 60° sector of the wheel carries a light row
+ * AND a dark one, so a colour a person likes is there in either polarity; no
+ * two papers of one scheme sit within 30° of each other; and no two accents
+ * of one scheme are closer than 0.05 in OKLCH distance — two and a half
+ * just-noticeable differences, measured through `./hues.ts`. A row's hue is
+ * its cell; its accent is the foreign note that cell wants, placed so the
+ * accents cover the wheel too — the blue-violet note on the green page, the
+ * olive on the violet one.
  *
  * ## The vocabulary
  *
@@ -101,107 +115,151 @@ export interface Palette {
  *  wants the interface (`PALETTES` below); only the two derivations under it
  *  want the literals. */
 const TABLE = [
-  // The lagoon under the palm: sea-glass paper, forest frame, coral accent.
-  // The default, and the first palette that was ours.
-  {
-    name: "reef",
-    scheme: "light",
-    colors: {
-      paper: "#D7F0E8",
-      desk: "#C5E6DC",
-      panel: "#E8F7F2",
-      pill: "#B5DDD2",
-      ink: "#14352F",
-      muted: "#467269",
-      rule: "#9CC9BE",
-      accent: "#B34219",
-      done: "#1E7656",
-      doing: "#8F5A00",
-      alarm: "#C13349",
-    },
-  },
-  // The leaf the outline is written on: dried palm green, dark-green ink.
-  // The name is the palette; nothing here is "light". Sea-blue accent is the
-  // water beside the palm.
-  {
-    name: "leaf",
-    scheme: "light",
-    colors: {
-      paper: "#E4ECCA",
-      desk: "#EDF2DC",
-      panel: "#EFF4DC",
-      pill: "#F5F8E6",
-      ink: "#2C4222",
-      muted: "#536440",
-      rule: "#CDD8AB",
-      accent: "#2B6A8F",
-      done: "#2F642B",
-      doing: "#885411",
-      alarm: "#A84A5E",
-    },
-  },
-  // Aged palm leaf, iron-gall ink: the outline as a manuscript. Warm paper,
-  // brown-black ink, verdigris for the one foreign note a copper dye would
-  // give.
-  {
-    name: "manuscript",
-    scheme: "light",
-    colors: {
-      paper: "#F0E7D2",
-      desk: "#F5EDDD",
-      panel: "#F7F0E2",
-      pill: "#FAF4E6",
-      ink: "#3D2F1B",
-      muted: "#65573E",
-      rule: "#DCCEAC",
-      accent: "#296559",
-      done: "#4A6529",
-      doing: "#884D11",
-      alarm: "#9E4444",
-    },
-  },
-  // Dusty rose paper, plum frame, teal accent. The warm-pink cell of the
-  // wheel — a blush that still reads as a page, not as a wash on white.
+  // Dusty rose paper, plum frame; a green note for the one foreign colour. The wheel's red cell.
   {
     name: "bloom",
     scheme: "light",
     colors: {
-      paper: "#F1DFE3",
-      desk: "#E6CCD2",
+      paper: "#F1DFE4",
+      desk: "#E6CCD3",
       panel: "#F8EDEF",
-      pill: "#DDB6BF",
-      ink: "#381925",
-      muted: "#6C4251",
-      rule: "#CFAAB3",
-      accent: "#1E7166",
+      pill: "#DDB6C0",
+      ink: "#381926",
+      muted: "#6C4252",
+      rule: "#CFAAB4",
+      accent: "#426F48",
       done: "#246B47",
       doing: "#865C13",
       alarm: "#992929",
     },
   },
-  // Morning sky: pale blue paper, ink-blue frame, terracotta accent. The
-  // light twin of aurora's navy, and the cool cell that a gray "vintage"
-  // never occupied.
+  // Ripe apricot paper, a sea-blue note. The warm cell between the rose and the cream.
+  {
+    name: "apricot",
+    scheme: "light",
+    colors: {
+      paper: "#FFDECE",
+      desk: "#FCD2C0",
+      panel: "#FFECE0",
+      pill: "#F5C5AF",
+      ink: "#41261A",
+      muted: "#765546",
+      rule: "#E3BCAB",
+      accent: "#006C84",
+      done: "#256638",
+      doing: "#824F00",
+      alarm: "#9F3541",
+    },
+  },
+  // Aged palm leaf, iron-gall ink: the outline as a manuscript. Verdigris for the one foreign note a copper dye would give.
+  {
+    name: "manuscript",
+    scheme: "light",
+    colors: {
+      paper: "#EFE7D2",
+      desk: "#F4EDDD",
+      panel: "#F6F0E2",
+      pill: "#F9F4E6",
+      ink: "#3C2F1B",
+      muted: "#64573E",
+      rule: "#DBCFAC",
+      accent: "#1A5B54",
+      done: "#4A6529",
+      doing: "#884D11",
+      alarm: "#9E4444",
+    },
+  },
+  // The leaf the outline is written on: dried palm green, dark-green ink, a blue note beside it.
+  {
+    name: "leaf",
+    scheme: "light",
+    colors: {
+      paper: "#DBEFD0",
+      desk: "#E7F4E0",
+      panel: "#E8F6E0",
+      pill: "#F0F9E9",
+      ink: "#1F442C",
+      muted: "#486649",
+      rule: "#C0DBB4",
+      accent: "#4E689C",
+      done: "#2F642B",
+      doing: "#885411",
+      alarm: "#A84A5E",
+    },
+  },
+  // The lagoon under the palm: sea-glass paper, forest frame, coral accent. The default.
+  {
+    name: "reef",
+    scheme: "light",
+    colors: {
+      paper: "#D6F0EA",
+      desk: "#C4E6DF",
+      panel: "#E7F7F3",
+      pill: "#B4DDD5",
+      ink: "#133531",
+      muted: "#45726C",
+      rule: "#9BC9C1",
+      accent: "#B43C45",
+      done: "#1E7656",
+      doing: "#8F5A00",
+      alarm: "#C13349",
+    },
+  },
+  // Morning sky: pale blue paper, ink-blue frame, a gold note. The light twin of midnight.
   {
     name: "sky",
     scheme: "light",
     colors: {
-      paper: "#D2E2EF",
-      desk: "#BFD2E3",
-      panel: "#E4EEF6",
-      pill: "#A8C4DC",
-      ink: "#15263C",
-      muted: "#42556C",
-      rule: "#9CB4C9",
-      accent: "#9A4E13",
+      paper: "#CFE3EC",
+      desk: "#BBD4E0",
+      panel: "#E2EFF4",
+      pill: "#A2C7D7",
+      ink: "#0B283A",
+      muted: "#3B5769",
+      rule: "#97B6C5",
+      accent: "#9B4D18",
       done: "#206F52",
       doing: "#8A590F",
       alarm: "#99293B",
     },
   },
-  // Near-white, high contrast: every pair this client paints clears AA. Kept
-  // as a pick, not the default — a page that wants the quietest reading still
-  // has it, and contrast.ts still holds the promise.
+  // Iris paper — the violet cell of the wheel, with the olive a violet field is read against.
+  {
+    name: "iris",
+    scheme: "light",
+    colors: {
+      paper: "#DDE6FF",
+      desk: "#D1DCFB",
+      panel: "#EBF1FF",
+      pill: "#C3D0F5",
+      ink: "#252D45",
+      muted: "#525D7A",
+      rule: "#B9C5E7",
+      accent: "#784F00",
+      done: "#236436",
+      doing: "#804C00",
+      alarm: "#9C323E",
+    },
+  },
+  // Orchid paper: the magenta cell, with the green a magenta flower is read against.
+  {
+    name: "orchid",
+    scheme: "light",
+    colors: {
+      paper: "#EFE0F7",
+      desk: "#E7D4F0",
+      panel: "#F8EDFD",
+      pill: "#DEC7E9",
+      ink: "#36273D",
+      muted: "#685571",
+      rule: "#D2BCDD",
+      accent: "#6D6900",
+      done: "#1E6032",
+      doing: "#7B4800",
+      alarm: "#972E3A",
+    },
+  },
+  // Near-white, high contrast: every pair this client paints clears AA. Kept as a pick, not the default.
   {
     name: "chalk",
     scheme: "light",
@@ -220,30 +278,151 @@ const TABLE = [
       alarm: "#8E3348",
     },
   },
-
-  // ── darks ────────────────────────────────────────────────────────────
-
-  // Pitch with a sky: navy paper, pale-sky frame, teal lights. The first
-  // dark that was ours.
+  // Madder root, steeped dark: the night of the rose, with a lamp of the same dye.
+  {
+    name: "madder",
+    scheme: "dark",
+    colors: {
+      paper: "#210E14",
+      desk: "#2F171E",
+      panel: "#3D1F29",
+      pill: "#4C2934",
+      ink: "#F3D5DD",
+      muted: "#B38C97",
+      rule: "#4A2A34",
+      accent: "#FD8A8C",
+      done: "#49A675",
+      doing: "#B78F08",
+      alarm: "#E1728B",
+    },
+  },
+  // Walnut and cream, gold for the fire. The warm dark — manuscript's night.
+  {
+    name: "ember",
+    scheme: "dark",
+    colors: {
+      paper: "#21140E",
+      desk: "#312018",
+      panel: "#3F2B1F",
+      pill: "#4E3729",
+      ink: "#EEE3D4",
+      muted: "#B49C8A",
+      rule: "#4F392D",
+      accent: "#F29A35",
+      done: "#60C78B",
+      doing: "#EECB58",
+      alarm: "#E87382",
+    },
+  },
+  // Brandy in a glass: amber gone dark, a chartreuse note. The night of the apricot and the manuscript.
+  {
+    name: "brandy",
+    scheme: "dark",
+    colors: {
+      paper: "#1D1300",
+      desk: "#291E00",
+      panel: "#362800",
+      pill: "#433300",
+      ink: "#E7DEC4",
+      muted: "#A49775",
+      rule: "#3F3414",
+      accent: "#BDBE53",
+      done: "#45A271",
+      doing: "#B48C00",
+      alarm: "#DD6E87",
+    },
+  },
+  // Spruce at night: the dark of the leaf, with a spring-green note.
+  {
+    name: "spruce",
+    scheme: "dark",
+    colors: {
+      paper: "#0E1809",
+      desk: "#172310",
+      panel: "#1F2F16",
+      pill: "#293C1E",
+      ink: "#D4E4CD",
+      muted: "#8BA081",
+      rule: "#2A3B20",
+      accent: "#7FD189",
+      done: "#43A070",
+      doing: "#B28900",
+      alarm: "#DA6C85",
+    },
+  },
+  // The deep under the lagoon: near-black water, a bright cyan note.
+  {
+    name: "abyss",
+    scheme: "dark",
+    colors: {
+      paper: "#021A15",
+      desk: "#042520",
+      panel: "#05322B",
+      pill: "#093E36",
+      ink: "#C6E6DF",
+      muted: "#76A399",
+      rule: "#113E36",
+      accent: "#49D2EA",
+      done: "#409E6E",
+      doing: "#AF8700",
+      alarm: "#D86A83",
+    },
+  },
+  // Midnight blue: the night of the sky, with the same azure lifted.
+  {
+    name: "midnight",
+    scheme: "dark",
+    colors: {
+      paper: "#031820",
+      desk: "#05232D",
+      panel: "#082F3C",
+      pill: "#0D3B4B",
+      ink: "#C6E4F0",
+      muted: "#779FB0",
+      rule: "#133B49",
+      accent: "#7BBEFA",
+      done: "#3C9A6A",
+      doing: "#AC8400",
+      alarm: "#D46680",
+    },
+  },
+  // Pitch with a sky: violet navy paper, pale frame, the aurora's own teal.
   {
     name: "aurora",
     scheme: "dark",
     colors: {
-      paper: "#0A1220",
-      desk: "#121C30",
-      panel: "#1A2742",
-      pill: "#243352",
-      ink: "#D5E8F5",
-      muted: "#7A93B0",
-      rule: "#2A3C58",
-      accent: "#4EE0C8",
+      paper: "#0D1120",
+      desk: "#161B30",
+      panel: "#1F2642",
+      pill: "#2A3152",
+      ink: "#D7E7F6",
+      muted: "#7F91B1",
+      rule: "#2F3A58",
+      accent: "#51E0C5",
       done: "#7EE0A8",
       doing: "#F0C04A",
       alarm: "#F07090",
     },
   },
-  // True black: an OLED panel spends nothing on #000000, and the outline is
-  // mostly background. Olive frame, the night of the leaf.
+  // Plum paper, lilac frame, a rose note. The violet cell's night.
+  {
+    name: "dusk",
+    scheme: "dark",
+    colors: {
+      paper: "#1D1022",
+      desk: "#2A1A31",
+      panel: "#362441",
+      pill: "#422E51",
+      ink: "#E1D4EC",
+      muted: "#A58EB6",
+      rule: "#473153",
+      accent: "#DE88CC",
+      done: "#6BC799",
+      doing: "#EEC658",
+      alarm: "#E87DA1",
+    },
+  },
+  // True black: an OLED panel spends nothing on #000000. Olive frame, the night of the leaf.
   {
     name: "pitch",
     scheme: "dark",
@@ -255,47 +434,10 @@ const TABLE = [
       ink: "#C9D6B4",
       muted: "#77836A",
       rule: "#242B1E",
-      accent: "#6FAECE",
+      accent: "#96A1D7",
       done: "#7FC97A",
       doing: "#D9A85A",
       alarm: "#D68B9A",
-    },
-  },
-  // Walnut and cream, gold for the fire. The warm dark — manuscript's night,
-  // a cell nothing in the old table occupied.
-  {
-    name: "ember",
-    scheme: "dark",
-    colors: {
-      paper: "#21140D",
-      desk: "#312017",
-      panel: "#3E2B1E",
-      pill: "#4D3728",
-      ink: "#EDE3D4",
-      muted: "#B39D89",
-      rule: "#4E392C",
-      accent: "#F29A36",
-      done: "#60C78B",
-      doing: "#EECB58",
-      alarm: "#E87382",
-    },
-  },
-  // Plum paper, lilac frame, peach accent. The violet cell of the wheel.
-  {
-    name: "dusk",
-    scheme: "dark",
-    colors: {
-      paper: "#1C1023",
-      desk: "#291A32",
-      panel: "#352442",
-      pill: "#412E52",
-      ink: "#E0D4ED",
-      muted: "#A38FB7",
-      rule: "#463154",
-      accent: "#EE8F58",
-      done: "#6BC799",
-      doing: "#EEC658",
-      alarm: "#E87DA1",
     },
   },
 ] as const satisfies ReadonlyArray<Palette>
