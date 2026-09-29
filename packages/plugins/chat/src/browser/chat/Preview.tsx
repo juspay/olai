@@ -3,19 +3,18 @@
  * Page shelves grow in the pane scroll. Fold shelves bound their own scroll.
  */
 
-import { createEffect, For, Show } from "solid-js"
+import { For, Show } from "solid-js"
 
 import type { ChatEntry } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
 import type { Lane } from "./lanes.ts"
 import { useConversationUI } from "./ui.tsx"
-import { scrollHostOf } from "./host.ts"
 import { railOf } from "./rail.ts"
 import { Row } from "./Row.tsx"
 import { sentOf, whoOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
-export function Preview(props: { readonly chat: Chat; readonly unbounded?: boolean }) {
+export function Preview(props: { readonly chat: Chat; readonly page?: boolean }) {
   const { previewing } = useConversationUI().previewing
   /** WHICH agent, and whether it is one this conversation still has. A key that
    *  named a row of the last conversation — or of a turn that has been cleared
@@ -28,44 +27,16 @@ export function Preview(props: { readonly chat: Chat; readonly unbounded?: boole
     return entry === undefined || whoOf(entry) === null ? null : { row, entry }
   }
   return (
-    <Show when={of()}>{(open) => <Shelf chat={props.chat} open={open()} unbounded={props.unbounded} />}</Show>
+    <Show when={of()}>{(open) => <Shelf chat={props.chat} open={open()} page={props.page} />}</Show>
   )
 }
 
 function Shelf(props: {
   readonly chat: Chat
-  readonly unbounded?: boolean
+  readonly page?: boolean
   readonly open: { readonly row: string; readonly entry: ChatEntry }
 }) {
-  const { closePreview, owed, placed, togglePreview } = useConversationUI().previewing
-  let box: HTMLElement | undefined
-  /**
-   * A DOOR PRESSED IN THE PAGE'S PINNED HEAD opens this a scroll away from the
-   * finger: the reader is at the newest line and the shelf is above the whole
-   * transcript. So the press says where its block ends (`./previewing.ts`) and
-   * the shelf comes up to that line — unless it is already on screen under it,
-   * where moving it would only be motion.
-   *
-   * The scroll is upward, which is a reader leaving the bottom as far as
-   * {@link ./Transcript.tsx} can tell, so new text stops pulling the pane back
-   * down off the shelf that was just asked for. A fold owes nothing: its shelf
-   * is the next thing under its strip.
-   */
-  createEffect(() => {
-    const floor = owed()
-    if (floor === null) return
-    // The row is read so that a second door, pressed with the shelf already
-    // open, is answered like the first.
-    void props.open.row
-    if (props.unbounded && box !== undefined) {
-      const top = box.getBoundingClientRect().top
-      if (top < floor || top > window.innerHeight / 2) {
-        const host = scrollHostOf(box)
-        host.scrollTop += top - floor
-      }
-    }
-    placed()
-  })
+  const { closePreview, previewing, togglePreview } = useConversationUI().previewing
   const calls = () => props.chat.lanes().get(props.open.row) ?? EMPTY
   /** The lane every row in here is in — MINTED ONCE for the whole shelf rather
    *  than asked of {@link ./lanes.ts} per row, and with no label at all.
@@ -92,9 +63,8 @@ function Shelf(props: {
   }
   return (
     <section
-      ref={box}
       class="flex min-h-0 flex-col border-b border-rule/60 bg-panel"
-      classList={{ "max-h-96 shrink": !props.unbounded }}
+      classList={{ "max-h-96 shrink": !props.page }}
       data-testid={TESTID.chatPreview}
       data-row={props.open.row}
       aria-label="Agent's work"
@@ -148,7 +118,7 @@ function Shelf(props: {
         <span class="min-w-0 truncate">{sentOf(props.open.entry)}</span>
       </p>
       <div class="min-h-0 px-3 pb-2 text-ink"
-        classList={{ "olai-scroll flex-1 overflow-x-hidden overflow-y-auto": !props.unbounded }}>
+        classList={{ "olai-scroll flex-1 overflow-x-hidden overflow-y-auto": !props.page }}>
         <Show
           when={calls().length > 0}
           fallback={

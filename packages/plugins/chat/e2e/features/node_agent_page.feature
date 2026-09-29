@@ -101,11 +101,8 @@ Feature: A node's page holds its memory and conversation
     Then the strip lists 1 agents still out
     When I scroll to the bottom of the page
     Then the page's standing strips are on screen in its pinned head
-    # The door is a scroll away from the shelf it opens, so the shelf comes to
-    # the reader rather than opening where nobody is looking.
     When I open "read every note" from the strip
     Then the agent's work is open, and it is "read every note"
-    And the agent's work is on screen under the pinned head
     When the agent is released
     Then the strip lists no agent still out
     And there should be no page errors

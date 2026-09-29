@@ -40,7 +40,10 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   }}</Show>
 }
 
-export function Conversation(props: { readonly chat: Chat; readonly unbounded?: boolean; readonly node: string }) {
+/** `page` is the node page's face: the pane is the scroll, so the transcript is
+ * uncapped, the composer pins to the bottom, and the standing strips are drawn
+ * in the page's pinned head instead of here. */
+export function Conversation(props: { readonly chat: Chat; readonly page?: boolean; readonly node: string }) {
   let box: HTMLDivElement | undefined
   let insert: ((text: Insertion) => void) | undefined
   const [carrying, setCarrying] = createSignal<string | null>(null)
@@ -67,11 +70,11 @@ export function Conversation(props: { readonly chat: Chat; readonly unbounded?: 
     <ElapsedProvider live={live()}>
       {/* A page's strips are in its pinned head, where its scroll cannot
           carry them off (`../chat/Strips.tsx`). */}
-      <Show when={!props.unbounded}><Strips chat={props.chat} /></Show>
+      <Show when={!props.page}><Strips chat={props.chat} /></Show>
       <History chat={props.chat} node={props.node} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget ref={element => { box = element }} carrying={carrying()} onFiles={files => void holding.take(files)}>
-        <Preview chat={props.chat} unbounded={props.unbounded} /><Transcript chat={props.chat} unbounded={props.unbounded} />
-        <div class={props.unbounded ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
+        <Preview chat={props.chat} page={props.page} /><Transcript chat={props.chat} page={props.page} />
+        <div class={props.page ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
           <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} onInsert={write => { insert = write; return () => { if (insert === write) insert = undefined } }} />
         </div>
       </DropTarget>}>{unopened => <Unopened chat={props.chat} unopened={unopened()} />}</Show>

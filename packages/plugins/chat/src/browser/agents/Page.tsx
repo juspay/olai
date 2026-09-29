@@ -100,18 +100,16 @@ function usePage(node: Accessor<string>) {
  * what the pane's scroll cannot carry away (`../chat/Strips.tsx`). */
 export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
-  return <Show when={page()?.chat()} keyed>{chat => {
-    let head: HTMLDivElement | undefined
-    return <ConversationUIProvider value={chat.ui}>
-      <div ref={head} data-testid={TESTID.agentPageHead} data-agent={props.node}>
+  return <Show when={page()?.chat()} keyed>{chat =>
+    <ConversationUIProvider value={chat.ui}>
+      <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
         <AgentLine chat={chat} node={props.node} page />
-        {/* The floor is the box this head is positioned in — the page's pinned
-            header, whoever draws it — so a shelf lands clear of that box's own
-            padding rather than under it. */}
-        <Strips chat={chat} floor={() => (head?.offsetParent ?? head)?.getBoundingClientRect().bottom} />
+        {/* What the conversation has standing, where the pane's scroll cannot
+            carry it off (`../chat/Strips.tsx`). */}
+        <Strips chat={chat} />
       </div>
     </ConversationUIProvider>
-  }}</Show>
+  }</Show>
 }
 
 export function PageFoot(props: { readonly node: string }) {
@@ -119,7 +117,7 @@ export function PageFoot(props: { readonly node: string }) {
   return <Show when={page()}>{owner =>
     <div class="mt-6" data-testid={TESTID.agentPageFoot} data-agent={props.node}>
       <Show when={owner().chat()} keyed fallback={<PlainComposer node={props.node} page={owner()} />}>{chat =>
-        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} unbounded /></ConversationUIProvider>
+        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} page /></ConversationUIProvider>
       }</Show>
     </div>
   }</Show>

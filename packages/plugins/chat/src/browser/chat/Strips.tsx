@@ -10,9 +10,6 @@
  * strips drawn above the transcript left with the memory above them, so a
  * reader at the newest line could not see that three agents were still out.
  * The page draws this in its pinned head instead (`../agents/Page.tsx`).
- *
- * `floor` is the pinned caller's: the viewport line its block ends at, which a
- * door on the strip hands to the shelf it opens (`./previewing.ts`).
  */
 
 import { Plan } from "./Plan.tsx"
@@ -21,6 +18,6 @@ import type { Chat } from "./state.ts"
 import { Wake } from "./Wake.tsx"
 import { Watching } from "./Watching.tsx"
 
-export function Strips(props: { readonly chat: Chat; readonly floor?: () => number | undefined }) {
-  return <><Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} floor={props.floor} /><Wake chat={props.chat} /></>
+export function Strips(props: { readonly chat: Chat }) {
+  return <><Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} /><Wake chat={props.chat} /></>
 }

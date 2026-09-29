@@ -95,7 +95,6 @@ import { TESTID } from "../../testids.ts"
 import { wholeYet } from "./attention/whole.ts"
 import { declaringFailure } from "../references.ts"
 import { laneOf } from "./lanes.ts"
-import { scrollHostOf } from "./host.ts"
 import { NEAR } from "./near.ts"
 import { useConversationUI } from "./ui.tsx"
 import { railOf, sameRail } from "./rail.ts"
@@ -113,7 +112,7 @@ import type { Chat } from "./state.ts"
  *  for, spelled off the panel's own declared handles rather than off a class. */
 const WAITING_ASK = `${selector(TESTID.chatAsk)}[data-asking="true"]`
 
-export function Transcript(props: { readonly chat: Chat; readonly unbounded?: boolean }) {
+export function Transcript(props: { readonly chat: Chat; readonly page?: boolean }) {
   const [revealing, setRevealing] = props.chat.ui.reveal
   const revealed = () => setRevealing(false)
   const { previewing } = useConversationUI().previewing
@@ -122,7 +121,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
   let outer: HTMLElement | undefined
-  const scrollPane = () => props.unbounded ? outer : pane
+  const scrollPane = () => props.page ? outer : pane
   /** Should new text pull the view down with it? True until the reader scrolls
    *  away from the bottom, and true again the moment they come back. */
   let following = true
@@ -158,8 +157,10 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
 
   onMount(() => {
     if (content === undefined || pane === undefined) return
-    if (props.unbounded) {
-      outer = scrollHostOf(pane)
+    if (props.page) {
+      let parent = pane.parentElement
+      while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
+      outer = parent ?? document.documentElement
       const target = outer === document.documentElement ? window : outer
       target.addEventListener("scroll", scrolled, { passive: true })
       onCleanup(() => target.removeEventListener("scroll", scrolled))
@@ -185,7 +186,7 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
     // that is owed is honoured whenever the geometry moves — and it was only
     // ever watching half the geometry.
     grown.observe(pane)
-    if (props.unbounded && outer !== undefined) {
+    if (props.page && outer !== undefined) {
       grown.observe(outer)
       const resized = () => { if (following) jump() }
       window.addEventListener("resize", resized)
@@ -359,16 +360,16 @@ export function Transcript(props: { readonly chat: Chat; readonly unbounded?: bo
       // (`./DropTarget.tsx`) becomes the scrollport, carrying the composer
       // away with the rows. `overscroll-contain` stops a wheel at the end of
       // this pane from moving the page beside it.
-      style={{ "max-height": props.unbounded ? undefined : "24rem" }}
+      style={{ "max-height": props.page ? undefined : "24rem" }}
       class="min-w-0 px-3 py-2 text-ink"
       classList={{
-        "olai-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain": !props.unbounded,
+        "olai-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain": !props.page,
         "min-h-0": previewing() === null,
         "min-h-[7rem]": previewing() !== null,
       }}
       data-testid={TESTID.chatTranscript}
       ref={pane}
-      onScroll={props.unbounded ? undefined : scrolled}
+      onScroll={props.page ? undefined : scrolled}
       // A press the chips decline is still a press on the agent's markdown, and
       // an anchor in there is an address in this vault: a `.md` link the
       // renderer resolved (`../markdown/rewrite.ts`) or an app path the agent

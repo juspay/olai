@@ -15,7 +15,6 @@ import {
   ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import {
-  CHAT_PREVIEW,
   CHAT_ROSTER,
   CHAT_SEND,
   CHAT_TRANSCRIPT,
@@ -127,13 +126,6 @@ Then("the page's standing strips are on screen in its pinned head", async functi
     assert.ok(box.y >= bar.y + bar.height - 1 && box.y + box.height <= composer.y,
       `${name} is not on screen between the bar and the composer: ${JSON.stringify({ box, bar, composer })}`);
   }
-});
-Then("the agent's work is on screen under the pinned head", async function(this: OlaiWorld) {
-  await this.waitUntil(async () => {
-    const shelf = await this.chat(CHAT_PREVIEW).boundingBox();
-    const pinned = await this.page.locator(head).boundingBox();
-    return shelf !== null && pinned !== null && shelf.y >= pinned.y + pinned.height - 1 && shelf.y < this.viewport().height / 2;
-  }, "the shelf to come up under the pinned head", POLL_TIMEOUT);
 });
 Then("the plain node composer has no available engine", async function(this: OlaiWorld) {
   await this.page.locator(plain).locator(selector(PLUGIN_TESTID.chatNoAgent)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });

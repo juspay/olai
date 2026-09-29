@@ -5,7 +5,6 @@ import { createSignal } from "solid-js"
 
 export const createPreviewing = () => {
 const [open, setOpen] = createSignal<string | null>(null)
-const [floor, setFloor] = createSignal<number | null>(null)
 
 /** The `Agent` frame whose calls are being read, or `null` — which is nearly
  *  every moment of nearly every conversation. */
@@ -18,25 +17,8 @@ const isPreviewing = (row: string): boolean => open() === row
 /** Open this agent's work — or close it, when it is the one already open. The
  *  door is the same control both ways round, because a reader who presses the
  *  agent they are already reading means *put it away*. */
-const togglePreview = (row: string, under?: number): void => {
-  const opening = open() !== row
-  setOpen(opening ? row : null)
-  setFloor(opening && under !== undefined ? under : null)
-}
-
-/** WHERE THE SHELF IS OWED, when the door that opened it is not beside it.
- *
- *  A node page pins its strip in the page's head and draws the shelf in the
- *  pane's scroll (`../agents/Page.tsx`), so a press up there can open a shelf
- *  a screen away from the reader. The door says where its own pinned block
- *  ends — a viewport line, measured at the press — and the shelf brings itself
- *  under that line and calls {@link placed}. A request rather than a call, for
- *  `reveal`'s reason: the press is what MOUNTS the shelf. A row's own door in
- *  the transcript asks for nothing, so a reader is never moved off the row they
- *  pressed. */
-const owed = floor
-const placed = (): void => {
-  setFloor(null)
+const togglePreview = (row: string): void => {
+  setOpen((was) => (was === row ? null : row))
 }
 
 /** ... and close whatever is open, from the two places that are not a door.
@@ -51,8 +33,7 @@ const placed = (): void => {
  *  the toggle. */
 const closePreview = (): void => {
   setOpen(null)
-  setFloor(null)
 }
 
-return { previewing, isPreviewing, togglePreview, closePreview, owed, placed }
+return { previewing, isPreviewing, togglePreview, closePreview }
 }

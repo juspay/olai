@@ -459,7 +459,7 @@ That report is how an async agent comes back, too. The harness injects the compl
 │ ↳ 7 calls
 ```
 
-**Under it, the rail says the agent is working and the door says how much it has done.** Press the door and that agent's calls open in a shelf above the conversation — the same rows, behind the same rail, with the same folds, the same diffs and the same clocks they would have had in the column. It is the same drawing moved, never a summary of it. On a node page the shelf grows in the pane’s single scroll, and a door pressed on the pinned strip scrolls the shelf up under the page's head; in an inline fold it keeps its own bounded scroll.
+**Under it, the rail says the agent is working and the door says how much it has done.** Press the door and that agent's calls open in a shelf above the conversation — the same rows, behind the same rail, with the same folds, the same diffs and the same clocks they would have had in the column. It is the same drawing moved, never a summary of it. On a node page the shelf grows in the pane’s single scroll; in an inline fold it keeps its own bounded scroll.
 
 The door is drawn only once there is something behind it. An agent that has just been sent out has made no calls yet — its first act is to read its instructions, which produces nothing — and the rail above already says the true thing about that stretch. An agent that finished having called nothing has its whole answer in the row's own fold.
 

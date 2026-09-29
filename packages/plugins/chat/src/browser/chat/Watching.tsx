@@ -70,17 +70,12 @@ import { LIVE_DOT } from "./live.ts"
 import { useConversationUI } from "./ui.tsx"
 import type { Chat } from "./state.ts"
 
-export function Watching(props: {
-  readonly chat: Chat
-  /** Where a PINNED strip's block ends, for the shelf a door opens a scroll
-   *  away from it (`./previewing.ts`). Absent in a fold, whose shelf is the
-   *  next thing under the strip. */
-  readonly floor?: () => number | undefined
-}) {
+export function Watching(props: { readonly chat: Chat }) {
+  const { isPreviewing, togglePreview } = useConversationUI().previewing
   const out = () => props.chat.state().watching
   return (
     <Show when={out().length > 0}>
-      <Strip chat={props.chat} floor={props.floor} />
+      <Strip chat={props.chat} />
     </Show>
   )
 }
@@ -91,7 +86,7 @@ export function Watching(props: {
  * because `createNow` starts a timer, and a timer started in a body that is
  * drawn on every conversation is a timer running on every conversation.
  */
-function Strip(props: { readonly chat: Chat; readonly floor?: () => number | undefined }) {
+function Strip(props: { readonly chat: Chat }) {
   const { isPreviewing, togglePreview } = useConversationUI().previewing
   const out = () => props.chat.state().watching
   const now = createNow(() => true)
@@ -177,7 +172,7 @@ function Strip(props: { readonly chat: Chat; readonly floor?: () => number | und
                   // and a reader alternating between two of them has nothing
                   // else up here to tell them which they are reading.
                   aria-pressed={isPreviewing(task.row)}
-                  onClick={() => togglePreview(task.row, props.floor?.())}
+                  onClick={() => togglePreview(task.row)}
                 >
                   <Said />
                 </button>
