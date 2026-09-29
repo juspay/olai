@@ -113,15 +113,24 @@ const openSub = async (
   gesture: "click" | "tap",
 ): Promise<Locator> => {
   const sub = subOf(world, label);
-  // OPEN IS THE ENTRY'S WORD (`data-expanded`), not the submenu's
-  // visibility: opening a sibling shuts this one, and a submenu on its way
-  // out is still on screen for a moment — read as open, it was never pressed
-  // and then left.
-  if ((await trigger.getAttribute("data-expanded")) === null) {
-    await sub.waitFor({ state: "detached", timeout: POLL_TIMEOUT });
-    await world.press(trigger, gesture);
-  }
-  await sub.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const expanded = async (): Promise<boolean> =>
+    (await trigger.getAttribute("data-expanded", { timeout: 2000 }).catch(() => null)) !== null;
+  await world.waitUntil(async () => {
+    // OPEN IS THE ENTRY'S WORD (`data-expanded`), not the submenu's
+    // visibility: opening a sibling shuts this one, and a submenu on its way
+    // out is still on screen for a moment — read as open, it was never pressed
+    // and then left.
+    if (await expanded()) return true;
+    // ...AND A PRESS THAT LANDED NOWHERE IS PRESSED AGAIN, which is the menu's
+    // LIVENESS rather than slack. The entries are contributions: a plugin
+    // switched off in another tab withdraws them, and the menu is rebuilt under
+    // whoever has it open — a press aimed at the frame that just went is a
+    // press that never happened. The entry's own word decides, so a press that
+    // DID take is never repeated.
+    await sub.waitFor({ state: "detached", timeout: 2000 }).catch(() => undefined);
+    await world.press(trigger, gesture).catch(() => undefined);
+    return await sub.waitFor({ state: "visible", timeout: 3000 }).then(() => true, async () => await expanded());
+  }, `the node menu's ${JSON.stringify(label)} submenu to open`);
   return sub;
 };
 
