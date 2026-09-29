@@ -91,7 +91,7 @@
  * state belong to the inspector, so navigation withdrawal drops the links
  * without forgetting what this reader opened.
  */
-import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
+import { CONFIGURATION_FILE, type EnvironmentReading } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
@@ -120,7 +120,9 @@ import {
   CONDITION_TONE,
   CONDITION_WORDS,
   conditionSaid,
+  configurationFrozen,
   configurationLinkLabel,
+  controlValues,
   displayName,
   enableLabel,
   environmentValue,
@@ -132,9 +134,12 @@ import {
   pluginGroups,
   pluginRows,
   pluginSwitch,
+  promotedLinkLabel,
   rowCondition,
   sentenceOf,
+  showsPromotedLink,
 } from "./rows.ts"
+import { preferencesPanel } from "./preferences-door.ts"
 
 export function Panel(props: {
   readonly state: InspectorState
@@ -413,6 +418,12 @@ function PluginRow(props: {
 }) {
   const plugin = (): BuiltPlugin => props.plugin
   const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
+  /** WHETHER THE PROMOTED LEAVES HAVE LEFT THIS ROW — its plugin is running and
+   *  the preferences panel is up to draw them. Read live, so switching the
+   *  panel off (`../preferences`) brings the controls back without a reload. */
+  const promotedAway = (): boolean => plugin().running && preferencesPanel() !== undefined
+  const knobs = (): ReadonlyArray<PolicyValue> => controlValues(plugin(), promotedAway())
+  const promotes = (): boolean => showsPromotedLink(plugin(), promotedAway())
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const shown = () => displayName(plugin(), look())
@@ -427,7 +438,7 @@ function PluginRow(props: {
    *  does not draws no chevron and does not open: a press that reveals only
    *  the name already on it is a door to nothing. */
   const reveals = () => copy() !== null || props.face !== undefined || broken() || plugin().source !== undefined ||
-    values().length > 0 || environment().length > 0 || session() ||
+    knobs().length > 0 || promotes() || environment().length > 0 || session() ||
     (plugin().configurationNode !== undefined && Boolean(props.panel.state.file()))
   const open = () => reveals() && (props.panel.state.expanded()[plugin().name] ?? props.needs)
   const detailId = `plugins-detail-${plugin().name}`
@@ -498,7 +509,21 @@ function PluginRow(props: {
           />
         </Show>
         <dl class="plugins-detail">
-          <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
+          <Controls name={plugin().name} values={knobs()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
+          {/* A PROMOTED LEAF IS NOT DRAWN HERE while its plugin runs and the
+              preferences panel is up: one link, in their place, that shuts this
+              panel and opens that one. The plugin's own leaves stay editable in
+              the preferences panel; while it is off, or Preferences is, the
+              controls above are unchanged. */}
+          <Show when={promotes()}>
+            <dt>Preferences</dt>
+            <dd>
+              <button type="button" class="plugins-link" data-testid={TESTID.pluginPreferenceLink}
+                onClick={() => { props.panel.state.door.setOpen(false); preferencesPanel()!.open() }}>
+                {promotedLinkLabel}
+              </button>
+            </dd>
+          </Show>
           <Show when={environment().length > 0}><Environment values={environment()} /></Show>
           {/* The name a person types in the settings file, where the row's
               label is not already it — and the link to its node there. */}
@@ -518,11 +543,6 @@ function PluginRow(props: {
     </div>
   )
 }
-
-const configurationFrozen = (roster: PluginRoster, changing: boolean): string | undefined =>
-  roster.configurationAvailable !== true ? configurationUnavailable
-    : roster.configurationError !== undefined ? configurationBroken(roster.configurationFile)
-    : changing ? "Applying the change…" : undefined
 
 function Controls(props: {
   readonly name: string

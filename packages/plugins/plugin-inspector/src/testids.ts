@@ -13,6 +13,7 @@ export const TESTID = {
   pluginProblem: "plugin-problem",
   pluginsFile: "plugins-file",
   pluginConfigLink: "plugin-config-link",
+  pluginPreferenceLink: "plugin-preference-link",
   pluginConfigError: "plugin-config-error",
   pluginSwitch: "plugin-switch",
   pluginGroup: "plugin-group",

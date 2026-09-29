@@ -13,14 +13,20 @@ import { definePlugin, Faces, Offers, serviceTag, Links } from "@olai/plugin-api
 import { browserManagement } from "@olai/surface/management"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { tools } from "olai-plugin-layout/contract"
-import { Effect } from "effect"
+import { sections, preferencesPanel } from "olai-plugin-preferences/contract"
+import { NO_ROSTER } from "@olai/surface"
+import { createEffect, createRoot } from "solid-js"
+import { Effect, Fiber, Queue, Stream } from "effect"
 import { name, type ConfigurationPanel } from "./index.ts"
 import { createInspectorState, type InspectorState } from "./state.ts"
 import { Plugins } from "./Plugins.tsx"
 import { approvals as sourceApprovals } from "olai-plugin-vault-plugins/contract"
 import { holdApprovals } from "./approvals.ts"
 import { holdRowFaces, rowFaces } from "./faces.ts"
+import { holdPreferencesPanel } from "./preferences-door.ts"
+import { PromotedRows } from "./PromotedRows.tsx"
 import { pluginsRow } from "./slots.ts"
+import { promotingPlugins } from "./rows.ts"
 
 const inspectorState = serviceTag<InspectorState>("plugin-inspector.state")
 export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
@@ -63,5 +69,65 @@ export const components = {
       // nobody declared would sit waiting instead of drawing (`./slots.ts`).
       children: [pluginsRow],
     })
+  }) }),
+  /** THE ONE HOLD ON THE PREFERENCES PANEL'S DOOR — a component of its own so
+   *  `tools` keeps drawing rows when Preferences is switched off. When the
+   *  service is absent this component is `waiting`, nothing is held, and the
+   *  plugins panel draws the control itself (`./preferences-door.ts`). */
+  "preferences-door": definePlugin({ name: "preferences-door", needs: [preferencesPanel], apply: Effect.gen(function*() {
+    const panel = yield* preferencesPanel
+    yield* Effect.acquireRelease(Effect.sync(() => holdPreferencesPanel(panel)), stop => Effect.sync(stop))
+  }) }),
+  /** THE PROMOTED SETTINGS, contributed to the preferences panel under a
+   *  heading named after each promoting plugin. The headings are discovered
+   *  from the roster, so this component names no plugin and imports no plugin's
+   *  package; the rows it draws are the same `./Control.tsx` the plugins panel
+   *  uses (`./PromotedRows.tsx`).
+   *
+   *  A Solid effect watches the roster and reports the promoting plugins into a
+   *  queue; the Effect side registers one section per plugin, each in a scope
+   *  of its own under this component's, so disabling the inspector or
+   *  Preferences withdraws every row without touching inspector state or the
+   *  settings reader. */
+  preferences: definePlugin({ name: "preferences", needs: [browserManagement, rendererSlots], apply: Effect.gen(function*() {
+    const management = yield* browserManagement
+    const slots = yield* rendererSlots
+    const found = yield* Queue.unbounded<ReadonlyArray<string>>()
+    /** ONE FIBER PER HEADING, so a plugin that stops can take its heading with
+     *  it: interrupting the fiber closes the scope the registration lives in,
+     *  which is the withdrawal, and a plugin switched back on is registered
+     *  again under the same key. */
+    const held = new Map<string, Fiber.Fiber<void, never>>()
+    yield* Effect.acquireRelease(
+      Effect.sync(() => createRoot((dispose) => {
+        const roster = management.roster()
+        let last: string | undefined
+        createEffect(() => {
+          const names = promotingPlugins(roster() ?? NO_ROSTER)
+          const signature = names.join("\u0000")
+          if (signature === last) return
+          last = signature
+          Queue.offerUnsafe(found, names)
+        })
+        return dispose
+      })),
+      (dispose) => Effect.sync(dispose),
+    )
+    yield* Effect.forkScoped(Stream.runForEach(Stream.fromQueue(found), (names) => Effect.gen(function*() {
+      for (const [plugin, fiber] of [...held]) {
+        if (names.includes(plugin)) continue
+        held.delete(plugin)
+        yield* Fiber.interrupt(fiber)
+      }
+      for (const plugin of names) {
+        if (held.has(plugin)) continue
+        const label = management.look(plugin).label ?? plugin
+        held.set(plugin, yield* Effect.forkScoped(slots.contribute(sections, {
+          heading: { plugin, label },
+          order: 0,
+          body: () => <PromotedRows plugin={plugin} management={management} />,
+        }, { key: plugin })))
+      }
+    })))
   }) }),
 }

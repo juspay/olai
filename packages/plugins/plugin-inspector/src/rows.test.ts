@@ -668,3 +668,34 @@ test("a row's condition is read once, and its words and tone are tables over it"
   expect(rowCondition(only(row("waiting", undefined, ["deliveries"])))?.kind).toBe("blocked")
   expect(CONDITION_TONE[rowCondition(only(row("failed")))!.kind]).toBe("alarm")
 })
+
+/**
+ * A PROMOTED LEAF MOVES OUT OF THE ROW — but only while its plugin runs and
+ * there is a preferences panel up to draw it. The two readings are separate so
+ * a scenario can tell them apart: the roster says whether the leaf is drawn
+ * elsewhere, the caller says whether that elsewhere is open.
+ */
+test("a promoted leaf leaves the row's controls only while Preferences can draw it", async () => {
+  const { promotedValues, promotingPlugins, controlValues, showsPromotedLink } = await import("./rows.ts")
+  const git: BuiltPlugin = {
+    name: "git", running: true, state: "running",
+    configurationValues: [
+      { key: "commit", value: "manual", setBy: "default", says: "when a write is recorded", preference: true },
+      { key: "log", value: "on", setBy: "default", says: "keep a log" },
+    ],
+  }
+  expect(promotedValues(git).map(one => one.key)).toEqual(["commit"])
+  expect(promotingPlugins({ built: [git, { name: "kolu", running: true, state: "running" }] })).toEqual(["git"])
+  // A plugin that is OFF contributes no heading: its rows would draw nothing.
+  expect(promotingPlugins({ built: [{ ...git, running: false, state: "off" }] })).toEqual([])
+  expect(promotingPlugins({ built: [{ ...git, running: false, state: "pending" }] })).toEqual([])
+  expect(controlValues(git, true).map(one => one.key)).toEqual(["log"])
+  expect(controlValues(git, false).map(one => one.key)).toEqual(["commit", "log"])
+  expect(showsPromotedLink(git, true)).toBe(true)
+  expect(showsPromotedLink(git, false)).toBe(false)
+  // A row that promoted nothing never shows the link, wherever it is.
+  const plain: BuiltPlugin = { name: "kolu", running: true, state: "running",
+    configurationValues: [{ key: "watch", value: "1m", setBy: "default", says: "how often" }] }
+  expect(showsPromotedLink(plain, true)).toBe(false)
+  expect(promotedValues({ name: "off", running: false, state: "off" })).toEqual([])
+})

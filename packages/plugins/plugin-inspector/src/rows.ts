@@ -6,7 +6,7 @@
  * Drafts and pending requests belong to the mounted controls, while section
  * state belongs to the inspector activation. Neither is another policy store.
  */
-import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
+import { type EnvironmentReading, CONFIGURATION_FILE, configurationBroken, configurationUnavailable } from "@olai/plugin-api/configuration"
 import type { RowReport } from "@olai/plugin-api"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
@@ -382,6 +382,9 @@ export const enableLabel = (name: string): string => `Enable ${name}`
 
 export const configurationAuthored = `set in ${CONFIGURATION_FILE.split("/").pop()}`
 export const configurationLinkLabel = `Open in ${CONFIGURATION_FILE.split("/").pop()}`
+/** ONE LINK REPLACES A PROMOTED LEAF'S CONTROL, where the panel that drew it
+ *  is up. The words say where the setting went, not what the control does. */
+export const promotedLinkLabel = "Set in Preferences"
 
 /** An environment reading's own description as a label: its first letter
  *  raised, nothing else touched. */
@@ -400,3 +403,35 @@ export const knobUnit = (key: string): string | undefined => {
 export const knobWidth = (value: PolicyReading): string => value.control?.kind === "number" ? "9ch"
   : /(?:header|template)$/.test(value.key) ? "22ch" : "6ch"
 export const knobAuthored = (value: PolicyReading): boolean => value.setBy !== "default"
+
+/** WHAT THIS ROW PROMOTED — the leaves its declaration marked as preferences
+ *  (`@olai/plugin-api/configuration`'s `preference`). Empty on every row that
+ *  promoted nothing, which is every row with no annotation. */
+export const promotedValues = (plugin: BuiltPlugin): ReadonlyArray<PolicyReading> =>
+  (plugin.configurationValues ?? []).filter((one) => one.preference === true)
+
+/** THE PLUGINS THAT PROMOTED ANYTHING AND ARE RUNNING NOW, in build order —
+ *  the headings the preferences panel needs, discovered from the roster rather
+ *  than by naming any plugin's package. A plugin that is off contributes no
+ *  heading: its rows would draw nothing, and a heading drawn over nothing is
+ *  the one thing this panel refuses. */
+export const promotingPlugins = (roster: PluginRoster): ReadonlyArray<string> =>
+  pluginRows(roster).filter((plugin) => plugin.running && promotedValues(plugin).length > 0).map((plugin) => plugin.name)
+
+/** WHICH LEAVES THE DETAIL STILL DRAWS: a promoted leaf is drawn in the
+ *  preferences panel while its plugin runs and that panel can draw it, so it
+ *  leaves this row's controls; everything else stays. */
+export const controlValues = (plugin: BuiltPlugin, promotedAway: boolean): ReadonlyArray<PolicyReading> =>
+  (plugin.configurationValues ?? []).filter((one) => !promotedAway || one.preference !== true)
+
+/** WHERE THE ONE LINK REPLACES THE PROMOTED CONTROLS — its plugin is running
+ *  and the preferences panel is up to take it. */
+export const showsPromotedLink = (plugin: BuiltPlugin, promotedAway: boolean): boolean =>
+  promotedAway && promotedValues(plugin).length > 0
+
+/** WHY THE CONTROLS WILL NOT MOVE — the reader is absent, the file is broken,
+ *  or a change is landing. The same sentence every knob's tooltip carries. */
+export const configurationFrozen = (roster: PluginRoster, changing: boolean): string | undefined =>
+  roster.configurationAvailable !== true ? configurationUnavailable
+    : roster.configurationError !== undefined ? configurationBroken(roster.configurationFile)
+    : changing ? "Applying the change…" : undefined
