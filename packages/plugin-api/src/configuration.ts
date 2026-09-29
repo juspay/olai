@@ -10,6 +10,31 @@ export const configurationFileIn = (claims: Claims, paths: Iterable<string>): st
   .filter(path => stemOf(claims, path).toLowerCase() === "settings" && claims.byKind.get(fileKind(claims, path) ?? "")?.holds === "nodes")
   .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))[0]
 
+/** THE ONE ANNOTATION A DECLARATION ADDS TO A LEAF IT PROMOTES — see
+ *  {@link preference}. Declared here so this module can READ it, and typed so a
+ *  declaration that spells it by hand still type-checks. */
+declare module "effect/Schema" {
+  namespace Annotations {
+    interface Annotations {
+      /** Draw this leaf in the Preferences panel rather than the plugins panel. */
+      readonly preference?: boolean | undefined
+    }
+  }
+}
+
+/**
+ * MARK A CONFIG SCHEMA LEAF AS A PREFERENCE.
+ *
+ * A promoted leaf is drawn in the Preferences panel under a heading named after
+ * its plugin, and moves out of the plugins panel while that plugin is running.
+ * It is the same annotation style as `Schema.annotate({ description })`: the
+ * flag travels on the reading this module decodes (`PolicyValue.preference`),
+ * so the browser learns it from the roster and imports no plugin package. A
+ * leaf without it behaves exactly as it did before.
+ */
+export const preference = <S extends Schema.Top>(self: S): S["Rebuild"] =>
+  Schema.annotate({ preference: true })(self)
+
 export type Control =
   | { readonly kind: "choice"; readonly options: ReadonlyArray<string> }
   | { readonly kind: "switch" }
@@ -64,6 +89,9 @@ export interface PolicyValue {
   readonly setBy: "vault" | "default"
   readonly says: string
   readonly control: Control
+  /** The declaration marked this leaf a preference ({@link preference}): it is
+   *  drawn under its plugin's heading in the Preferences panel. */
+  readonly preference?: boolean
   readonly problem?: { readonly raw: string; readonly why: string }
 }
 export interface PolicyRow {
@@ -135,7 +163,7 @@ export const decodePolicy = (
       }
     }
     config[key] = value
-    values.push({ key: full, value, setBy, says: SchemaAST.resolveDescription(field.type) ?? "", control: policyControl(field.type), ...(problem === undefined ? {} : { problem }) })
+    values.push({ key: full, value, setBy, says: SchemaAST.resolveDescription(field.type) ?? "", control: policyControl(field.type), ...(SchemaAST.resolveAt<boolean>("preference")(field.type) === true ? { preference: true } : {}), ...(problem === undefined ? {} : { problem }) })
   }
   return { config, values }
 }

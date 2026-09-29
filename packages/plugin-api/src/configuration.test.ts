@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
-import { coerceLeaf, policyControl } from "./configuration.ts"
+import { coerceLeaf, decodePolicy, policyControl, preference } from "./configuration.ts"
 
 test("boolean and numeric spellings share the decoder; bounds and filters describe controls", () => {
   expect(policyControl(Schema.Boolean.ast)).toEqual({ kind: "switch" })
@@ -17,4 +17,16 @@ test("boolean and numeric spellings share the decoder; bounds and filters descri
   expect(policyControl(text.ast)).toEqual({ kind: "text", expected: "seconds with a unit" })
   expect(() => coerceLeaf(text, "60")).toThrow("seconds with a unit")
   expect(policyControl(Schema.Array(Schema.String).ast)).toEqual({ kind: "text" })
+})
+
+test("a declaration marks a leaf a preference, and the flag travels on its reading", () => {
+  const Config = Schema.Struct({
+    plain: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed("a")), Schema.annotate({ description: "kept in the plugins panel" })),
+    promoted: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed("b")), Schema.annotate({ description: "drawn in Preferences" }), preference),
+  })
+  const values = decodePolicy(Config, [], undefined, () => {}).values
+  expect(values.find(one => one.key === "plain")?.preference).toBeUndefined()
+  expect(values.find(one => one.key === "promoted")?.preference).toBe(true)
+  // The two annotations MERGE: promoting a leaf does not cost it its description.
+  expect(values.find(one => one.key === "promoted")?.says).toBe("drawn in Preferences")
 })

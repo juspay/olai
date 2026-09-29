@@ -94,6 +94,9 @@ const PolicyValue = Schema.Struct({
   key: Schema.String, value: Schema.Unknown, setBy: Schema.Literals(["vault", "default"]), says: Schema.String,
   // Old serves still decode; their readings remain read-only without metadata.
   control: Schema.optionalKey(PolicyControl),
+  // A declaration that marks this leaf a preference draws it in the Preferences
+  // panel; absent on every older serve and every unmarked leaf.
+  preference: Schema.optionalKey(Schema.Boolean),
   problem: Schema.optionalKey(Schema.Struct({ raw: Schema.String, why: Schema.String })),
 })
 

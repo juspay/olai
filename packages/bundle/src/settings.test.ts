@@ -156,3 +156,20 @@ test("mail declares a two-minute poll knob with duration validation", async () =
   expect(Schema.decodeUnknownSync(Config)({ poll: "1s" })).toEqual({ poll: "1s" })
   expect(() => Schema.decodeUnknownSync(Config)({ poll: "0s" })).toThrow()
 })
+
+/** WHICH LEAVES A PERSON SETS FOR THEMSELVES, as an equality rather than a
+ *  promise: a leaf drawn in the preferences panel moved out of the plugins
+ *  panel, so promoting an operator setting (an address, a credential, a path, a
+ *  limit) or demoting a person-facing one is a visible change here rather than
+ *  a quiet drift across two panels. */
+test("only person-facing leaves are promoted, and no operator row promotes one", async () => {
+  const promoted: string[] = []
+  for (const row of ROWS) {
+    if (row.browserOnly) continue
+    const { default: plugin } = await import(row.name) as { default: Plugin }
+    if (plugin.config === undefined) continue
+    for (const value of decodePolicy(plugin.config, [], undefined, () => {}).values)
+      if (value.preference === true) promoted.push(`${row.id}.${value.key}`)
+  }
+  expect(promoted).toEqual(["git.commit", "git.push", "mail.poll"])
+})

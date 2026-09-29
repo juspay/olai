@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect"
+import { preference } from "@olai/plugin-api/configuration"
 const units: Record<string, number> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }
 /** Same whole-number, unit and timer bounds as kolu's poll settings. */
 export const pollMillis = (value: string): number | undefined => {
@@ -8,6 +9,6 @@ export const pollMillis = (value: string): number | undefined => {
 }
 export const Config = Schema.Struct({
   poll: Schema.String.check(Schema.makeFilter(value => pollMillis(value) !== undefined, { expected: "a positive duration with a unit (500ms, 30s, 2m, 1h, 1d), at most 2147483647ms" })).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed("2m")), Schema.annotate({ description: "How often agents check for new mail" }),
+    Schema.withDecodingDefaultKey(Effect.succeed("2m")), Schema.annotate({ description: "How often agents check for new mail" }), preference,
   ),
 })
