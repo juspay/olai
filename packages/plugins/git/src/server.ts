@@ -32,6 +32,7 @@ import {
   Vault,
   VaultViews,
 } from "@olai/plugin-api/services"
+import { preference } from "@olai/plugin-api/configuration"
 import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
 import type { Ops as Gate } from "@olai/ops"
@@ -55,10 +56,12 @@ export const Config = Schema.Struct({
   commit: Schema.Literals(COMMIT_MODES).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(COMMIT_DEFAULT)),
     Schema.annotate({ description: "when a write is recorded" }),
+    preference,
   ),
   push: Schema.Literals(PUSH_MODES).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(PUSH_DEFAULT)),
     Schema.annotate({ description: "when recorded writes are pushed" }),
+    preference,
   ),
 })
 export type Config = typeof Config.Type

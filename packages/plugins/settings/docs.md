@@ -14,6 +14,13 @@ The service contract is `ConfigurationSource`; roster values travel as
 `configurationValues`, with `setBy` naming the vault or the default. Those
 generic names keep the implementation independent of the row that offers it.
 
+A leaf may also carry `preference` — the `preference` annotation a declaration
+sets (`@olai/plugin-api/configuration`) — which says the leaf is drawn in the
+preferences panel rather than the plugins panel. The roster carries that flag on
+every built row's reading, and the serve supplies each row's schema defaults
+beside this reader, so a promoted heading and its controls are known even when
+this row is switched off; only the values then come from the defaults.
+
 The panel switch writes `on` through the ordinary write door, then waits for this
 reader and the root’s patches to settle. It creates the file and namespace when
 needed, preserving other properties. The vault and reader switches remain

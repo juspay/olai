@@ -1,8 +1,14 @@
 @scratch:good @git:repo
 Feature: Plugin schemas supply the panel's default policy
+  A scenario that reads git's **promoted** settings — `commit` and `push` are drawn in the
+  preferences panel — pins that panel off (`@rows-off:preferences`), which is the row's
+  own fallback: with no preferences panel the inspector draws those controls itself.
+  `promoted_settings.feature` holds the promoted path.
+
   YAML carries no config. The schema declaration supplies the values for
   every configurable row, including an opt-in row and a nested section.
 
+  @rows-off:preferences
   Scenario: Defaults remain visible without a config block on a bundle row
     Given I open the app
     When I open the plugins panel

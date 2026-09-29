@@ -5,6 +5,7 @@ export const TESTID = {
   prefsPanel: "prefs-panel",
   prefsScope: "prefs-scope",
   prefsGroup: "prefs-group",
+  prefsRun: "prefs-run",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

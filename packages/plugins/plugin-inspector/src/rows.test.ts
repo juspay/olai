@@ -4,6 +4,7 @@ import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 
 
 import { NO_ROSTER, type BuiltPlugin, type PluginRoster } from "@olai/surface"
+import type { PreferencesPanel } from "olai-plugin-preferences/contract"
 import type { RowReport } from "@olai/plugin-api"
 import { expect, test } from "bun:test"
 
@@ -667,4 +668,72 @@ test("a row's condition is read once, and its words and tone are tables over it"
   expect(conditionSaid({ kind: "setup" })).toBeNull()
   expect(rowCondition(only(row("waiting", undefined, ["deliveries"])))?.kind).toBe("blocked")
   expect(CONDITION_TONE[rowCondition(only(row("failed")))!.kind]).toBe("alarm")
+})
+
+/** The panel that draws a promoted leaf, as a row is told about it: a service
+ *  value that exists, or `undefined` where nobody holds one. */
+const PANEL_UP: PreferencesPanel = { open: () => {} }
+
+/**
+ * A PROMOTED LEAF MOVES OUT OF THE ROW — but only while its plugin runs and
+ * there is a preferences panel up to draw it. The two readings are separate so
+ * a scenario can tell them apart: the roster says whether the leaf is drawn
+ * elsewhere, the caller says whether that elsewhere is open.
+ */
+test("a promoted leaf leaves the row's controls only while Preferences can draw it", async () => {
+  const { rowValues, promotedValues, promotingPlugins, rowSettings } = await import("./rows.ts")
+  const git: BuiltPlugin = {
+    name: "git", running: true, state: "running",
+    configurationValues: [
+      { key: "commit", value: "manual", setBy: "default", says: "when a write is recorded", preference: true },
+      { key: "log", value: "on", setBy: "default", says: "keep a log" },
+    ],
+  }
+  const there = PANEL_UP
+  expect(promotedValues(rowValues(git)).map(one => one.key)).toEqual(["commit"])
+  expect(promotingPlugins({ built: [git, { name: "kolu", running: true, state: "running" }] })).toEqual(["git"])
+  // A plugin that is OFF contributes no heading: its rows would draw nothing.
+  expect(promotingPlugins({ built: [{ ...git, running: false, state: "off" }] })).toEqual([])
+  expect(promotingPlugins({ built: [{ ...git, running: false, state: "pending" }] })).toEqual([])
+  // ONE READING of what the row draws: the leaves it keeps, whether the link
+  // stands in their place, and whether nothing at all is left here.
+  expect(rowSettings(git, there).knobs.map(one => one.key)).toEqual(["log"])
+  expect(rowSettings(git, undefined).knobs.map(one => one.key)).toEqual(["commit", "log"])
+  expect(rowSettings(git, there).link).toBe(true)
+  expect(rowSettings(git, undefined).link).toBe(false)
+  // A row whose EVERY leaf is promoted has nothing left here, which is what
+  // makes `configuration.open` land in the other panel.
+  const promoted: BuiltPlugin = { ...git, configurationValues: [git.configurationValues![0]!] }
+  expect(rowSettings(promoted, there).allAway).toBe(true)
+  expect(rowSettings(git, there).allAway).toBe(false)
+  expect(rowSettings(promoted, undefined).allAway).toBe(false)
+  // A row that promoted NOTHING never shows the link and never counts as away.
+  const plain: BuiltPlugin = { name: "kolu", running: true, state: "running",
+    configurationValues: [{ key: "watch", value: "1m", setBy: "default", says: "how often" }] }
+  expect(rowSettings(plain, there).knobs.map(one => one.key)).toEqual(["watch"])
+  expect(rowSettings(plain, there)).toMatchObject({ link: false, allAway: false })
+  // A row whose plugin is OFF keeps every leaf here, link or no link.
+  expect(rowSettings({ ...git, running: false, state: "off" }, there).knobs.map(one => one.key)).toEqual(["commit", "log"])
+  expect(promotedValues(rowValues({ name: "off", running: false, state: "off" }))).toEqual([])
+})
+
+/**
+ * AN OLDER SERVE PUBLISHES NO `configurationValues` — the reader's values and
+ * the build-patch pairs are two arms of one reading, and the second is what a
+ * panel draws when the first is absent. Promotion must not have cost that: a
+ * row that carries `config` still shows its settings (and shows them HERE, since
+ * a serve that publishes no values has published no `preference` either).
+ */
+test("a serve with no configuration values still shows its patch pairs", async () => {
+  const { rowValues, rowSettings } = await import("./rows.ts")
+  const there = PANEL_UP
+  const patched: BuiltPlugin = { name: "kolu", running: true, state: "running", config: { "held-for": "2m", watch: "on" } }
+  expect(rowValues(patched)).toEqual([
+    { key: "held-for", value: "2m", setBy: "default", says: "" },
+    { key: "watch", value: "on", setBy: "default", says: "" },
+  ])
+  expect(rowSettings(patched, there).knobs.map(one => one.key)).toEqual(["held-for", "watch"])
+  expect(rowSettings(patched, there).link).toBe(false)
+  // A row with neither is empty rather than undefined.
+  expect(rowValues({ name: "tabs", running: true, state: "running" })).toEqual([])
 })

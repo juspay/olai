@@ -6,11 +6,12 @@
  * Drafts and pending requests belong to the mounted controls, while section
  * state belongs to the inspector activation. Neither is another policy store.
  */
-import { type EnvironmentReading, CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
+import { type EnvironmentReading, CONFIGURATION_FILE, configurationBroken, configurationUnavailable } from "@olai/plugin-api/configuration"
 import type { RowReport } from "@olai/plugin-api"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
 import type { PluginLook } from "@olai/surface/management"
+import type { PreferencesPanel } from "olai-plugin-preferences/contract"
 
 /** The rows to draw, in the order the build lists its plugins. A build with no
  *  plugins, and a page that has not heard from the server yet, both draw none —
@@ -382,6 +383,9 @@ export const enableLabel = (name: string): string => `Enable ${name}`
 
 export const configurationAuthored = `set in ${CONFIGURATION_FILE.split("/").pop()}`
 export const configurationLinkLabel = `Open in ${CONFIGURATION_FILE.split("/").pop()}`
+/** ONE LINK REPLACES A PROMOTED LEAF'S CONTROL, where the panel that drew it
+ *  is up. The words say where the setting went, not what the control does. */
+export const promotedLinkLabel = "Set in Preferences"
 
 /** An environment reading's own description as a label: its first letter
  *  raised, nothing else touched. */
@@ -400,3 +404,74 @@ export const knobUnit = (key: string): string | undefined => {
 export const knobWidth = (value: PolicyReading): string => value.control?.kind === "number" ? "9ch"
   : /(?:header|template)$/.test(value.key) ? "22ch" : "6ch"
 export const knobAuthored = (value: PolicyReading): boolean => value.setBy !== "default"
+
+/** WHAT A ROW'S SETTINGS ARE, read in one place: the reader's published values
+ *  where a serve has them, and the build-patch pairs the row carries where it
+ *  has not — an older serve publishes no `configurationValues`, and its rows
+ *  still draw their `config`. */
+export const rowValues = (plugin: BuiltPlugin): ReadonlyArray<PolicyReading> =>
+  plugin.configurationValues ?? pluginConfig(plugin).map(([key, value]) => ({ key, value, setBy: "default" as const, says: "" }))
+
+/** WHAT THIS ROW PROMOTED — the leaves its declaration marked as preferences
+ *  (`@olai/plugin-api/configuration`'s `preference`). Empty on every row that
+ *  promoted nothing, which is every row with no annotation. */
+export const promotedValues = (values: ReadonlyArray<PolicyReading>): ReadonlyArray<PolicyReading> =>
+  values.filter((one) => one.preference === true)
+
+/** THE PLUGINS THAT PROMOTED ANYTHING AND ARE RUNNING NOW, in build order —
+ *  the headings the preferences panel needs, discovered from the roster rather
+ *  than by naming any plugin's package. A plugin that is off contributes no
+ *  heading: its rows would draw nothing, and a heading drawn over nothing is
+ *  the one thing this panel refuses. */
+export const promotingPlugins = (roster: PluginRoster): ReadonlyArray<string> =>
+  pluginRows(roster).filter((plugin) => plugin.running && promotedValues(rowValues(plugin)).length > 0).map((plugin) => plugin.name)
+
+/** WHAT THIS ROW DRAWS, as ONE reading — because two places ask it and they
+ *  may not disagree: the row itself (which control, or the link) and the
+ *  inspector's own `open(name)` (whether there is anything here to open at all).
+ *
+ *  `preferences` is the panel that draws a promoted leaf, held or absent — the
+ *  second fact the rule needs, since a promoted leaf is away only while its
+ *  plugin runs AND that panel is there to take it. */
+export interface RowSettings {
+  /** The leaves the row's detail still draws. */
+  readonly knobs: ReadonlyArray<PolicyReading>
+  /** Whether the one link stands in place of the promoted leaves. */
+  readonly link: boolean
+  /** Whether EVERY leaf the row declares is drawn in the other panel — nothing
+   *  here to open, which is what sends `open(name)` there instead. */
+  readonly allAway: boolean
+}
+
+export const rowSettings = (plugin: BuiltPlugin, preferences: PreferencesPanel | undefined): RowSettings => {
+  const values = rowValues(plugin)
+  const promoted = promotedValues(values)
+  const away = plugin.running && preferences !== undefined && promoted.length > 0
+  const knobs = away ? values.filter((one) => one.preference !== true) : values
+  return { knobs, link: away, allAway: away && knobs.length === 0 }
+}
+
+/**
+ * WHY THE CONTROLS WILL NOT MOVE — the reader is absent, the file is broken, or
+ * a change is landing. The same sentence every knob's tooltip carries.
+ *
+ * THE THIRD REASON IS A GUARD, not a wait for a state to settle: a switch's
+ * press can publish its new state before the browser has finished replacing the
+ * socket it doomed (`@olai/web/client/wire.ts`'s `rosterChanging`), and a
+ * `configure` sent into that window is written into a connection that is going
+ * away — it is answered by nobody, so the knob sits `pending` forever and the
+ * write never happens. Measured: with the guard in place the press waits and
+ * lands; without it, 10 of 10 runs of `settings_panel`'s *An absent reader
+ * freezes knobs and enabling it restores editing* lost the write, and the serve
+ * never logged the call at all. `disabled` is how a press is refused here, and
+ * the two things that costs are paid elsewhere rather than dropped: a draft
+ * lives in the MOUNTED control and the rows are keyed (`./Panel.tsx`'s
+ * `Controls`, `./PromotedRows.tsx`), and a caret the app takes is handed back
+ * by the app that took it (`@olai/web/client/connection/Offline.tsx` — the
+ * dialog a redial shows is a modal `<dialog>`, and `showModal` blurs whatever
+ * had the keyboard).
+ */
+export const configurationFrozen = (roster: PluginRoster, changing: boolean): string | undefined =>
+  roster.configurationAvailable !== true ? configurationUnavailable
+    : roster.configurationError !== undefined ? configurationBroken(roster.configurationFile)
+    : changing ? "Applying the change…" : undefined

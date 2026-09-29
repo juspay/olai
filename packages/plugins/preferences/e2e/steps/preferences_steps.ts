@@ -186,13 +186,16 @@ Then("the preferences trigger has the focus", async function (this: OlaiWorld) {
 Then(
   "the panel says these preferences are this browser's",
   async function (this: OlaiWorld) {
-    // ONE quiet line at the foot, said once for every row above it: whose
-    // these are (this browser's) and that they go no further ("only").
-    const said = (await this.page.locator(PREFS_SCOPE).innerText()).trim();
+    // ONE QUIET LINE PER RUN OF ONE SCOPE: the browser-local groups share a
+    // line that says whose these are (this browser's) and that they go no
+    // further ("only"); the shared groups share the other. What this step is
+    // about is the FIRST of those, which is the one a person reads under the
+    // rows this browser actually owns.
+    const said = await this.page.locator(PREFS_SCOPE).allInnerTexts();
     assert.ok(
-      /this browser only/i.test(said),
-      `the panel's scope line says "${said}", which does not say these are ` +
-        "kept in this browser and nowhere else",
+      said.some((one) => /this browser only/i.test(one)),
+      `the panel's scope lines say ${JSON.stringify(said)}, none of which says ` +
+        "these are kept in this browser and nowhere else",
     );
   },
 );

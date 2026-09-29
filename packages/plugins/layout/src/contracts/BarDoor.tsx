@@ -98,8 +98,11 @@ export function BarDoor(props: {
   readonly testid: string
   /** What opens. A FUNCTION rather than an element, because the panel must be
    *  created inside the `Show` — built eagerly it would exist (and subscribe)
-   *  while the door is shut. */
-  readonly panel: (at: Anchor, inside: (el: HTMLElement | undefined) => void) => JSX.Element
+   *  while the door is shut. `at` is a READER for a reason the panel's contents
+   *  make plain: a panel that re-measures (its own height changed, the window
+   *  moved) must be REPOSITIONED, not rebuilt — a rebuilt portal re-inserts the
+   *  DOM, and re-inserting a subtree whose input has the caret blurs it. */
+  readonly panel: (at: () => Anchor, inside: (el: HTMLElement | undefined) => void) => JSX.Element
   /** WHERE "IS IT UP" LIVES, for the one door whose own contents can rebuild
    *  the tree under it (`./plugins/opened.ts`). Absent on every other, and
    *  absent is a fresh signal disposed with this component — which is what a
@@ -158,9 +161,17 @@ export function BarDoor(props: {
         ? trigger
         // KEYED: each opening draws a fresh foot, and the row follows it there.
         : <Show when={seat.foot()} keyed>{(foot) => <Portal mount={foot}>{trigger}</Portal>}</Show>}
-      {/* Out of the bar entirely — see this file's header. */}
-      <Show when={open() ? popover.at() : null}>
-        {(at) => <Portal>{props.panel(at(), popover.setPanel)}</Portal>}
+      {/* Out of the bar entirely — see this file's header.
+          ONE PORTAL FOR THE WHOLE OPENING, keyed by whether it is up rather than
+          by where it goes: the condition is a BOOLEAN, so a re-measure that
+          moves the anchor re-runs nothing but the panel's own style. Keyed by
+          the anchor instead, a panel whose height changed (a contribution
+          arriving or leaving, mid-draft) would be torn out of the DOM and put
+          back — and a focused input in a re-inserted subtree loses the caret. */}
+      <Show when={open() && popover.at() !== null}>
+        {/* `at()` is not null here and cannot return to null while the door is
+            up (`measure` only ever sets a box), so the reader asserts it. */}
+        <Portal>{props.panel(() => popover.at()!, popover.setPanel)}</Portal>
       </Show>
     </>
   )

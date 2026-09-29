@@ -1,5 +1,12 @@
 {
   "vault": [
     "src/approval.ts"
-  ]
+  ],
+  "preferences": [
+    "src/Panel.tsx",
+    "src/browser.tsx",
+    "src/preferences-door.ts",
+    "src/rows.ts"
+  ],
+  "//preferences": "The inspector draws a promoted leaf's control in the preferences panel: `browser.tsx` contributes the rows and holds the panel's open door, `Panel.tsx` shows the link in place of a promoted control, `rows.ts` carries the link's words (`Set in Preferences`), and `preferences-door.ts` names the contract it holds."
 }

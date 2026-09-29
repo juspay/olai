@@ -15,17 +15,17 @@ Feature: A heading in the preferences is its contributors
     Given I open the app
     And I mark the page
     When I open the preferences
-    Then the preferences are headed "Appearance, Outlines, Notifications"
+    Then the preferences are headed "Appearance, Outlines, Notifications, Git"
     When I open another browser tab
     And I open the plugins panel
     And I switch the plugin "outlines" off
     And I use the original browser tab
     Then the preferences have no "Outlines" heading
-    And the preferences are headed "Appearance, Notifications"
+    And the preferences are headed "Appearance, Notifications, Git"
     When I use the other browser tab
     And I switch the plugin "outlines" on
     And I use the original browser tab
-    Then the preferences are headed "Appearance, Outlines, Notifications"
+    Then the preferences are headed "Appearance, Outlines, Notifications, Git"
     And the page has not reloaded
     And there should be no page errors
 
@@ -36,16 +36,16 @@ Feature: A heading in the preferences is its contributors
     Given I open the app
     And I mark the page
     When I open the preferences
-    Then the preferences are headed "Appearance, Outlines, Notifications"
+    Then the preferences are headed "Appearance, Outlines, Notifications, Git"
     When I open another browser tab
     And I open the plugins panel
     And I switch the plugin "alerts" off
     And I use the original browser tab
     Then the preferences have no "Notifications" heading
-    And the preferences are headed "Appearance, Outlines"
+    And the preferences are headed "Appearance, Outlines, Git"
     When I use the other browser tab
     And I switch the plugin "alerts" on
     And I use the original browser tab
-    Then the preferences are headed "Appearance, Outlines, Notifications"
+    Then the preferences are headed "Appearance, Outlines, Notifications, Git"
     And the page has not reloaded
     And there should be no page errors

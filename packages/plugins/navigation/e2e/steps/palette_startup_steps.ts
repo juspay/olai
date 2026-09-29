@@ -10,7 +10,11 @@ Then("the palette input has keyboard focus", async function(this: OlaiWorld) {
 When("I open the node {string} through a held reconnect", async function(this: OlaiWorld, id: string) {
   // Hash navigation needs no HTTP request: the header remains painted while
   // Offline's real capture listener refuses every application shortcut.
-  const beforeOffline = this.errors.length;
+  //
+  // The ledger is told before the wire goes: the disconnection Chromium reports
+  // below is this scenario's own doing (`OlaiWorld.offlineFrom`), and the
+  // feature's closing `there should be no page errors` reads it that way.
+  this.noteOutage();
   await this.context.setOffline(true);
   await this.page.getByTestId(TESTID.offline).waitFor({ state: "visible" });
   const settle = this.settle;
@@ -33,12 +37,5 @@ When("I open the node {string} through a held reconnect", async function(this: O
     this.settle = settle;
     await this.context.setOffline(false);
     await opening;
-    // Chromium reports the network we deliberately disconnected. Keep every
-    // product error and every diagnostic from before this controlled outage.
-    this.errors = this.errors.filter((error, index) => index < beforeOffline || !(
-      error === "console.error: Failed to load resource: net::ERR_INTERNET_DISCONNECTED" ||
-      (error.startsWith("console.error: WebSocket connection to 'ws://127.0.0.1:") &&
-        error.endsWith("failed: Error in connection establishment: net::ERR_INTERNET_DISCONNECTED"))
-    ));
   }
 });

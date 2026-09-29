@@ -73,13 +73,13 @@ import { TESTID } from "@olai/web/client/testids.ts"
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 import { createEffect, createMemo, onCleanup, Show } from "solid-js"
 
-import { withOfflineFocus } from "./focus.ts"
+import { handBackFocus, withOfflineFocus, type FocusMemory } from "./focus.ts"
 import { reachable } from "./reaching.ts"
 import { frozenLookOf, type SurfaceReadout } from "./status.ts"
 import { Reload } from "../Reload.tsx"
 
 
-export function Offline(props: { readonly readout: SurfaceReadout }) {
+export function Offline(props: { readonly readout: SurfaceReadout; readonly memory: FocusMemory }) {
   let overlay!: HTMLDialogElement
   /**
    * The freeze, as one bit — the reachability rule, read from the one module
@@ -95,6 +95,13 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
    * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.1).
    */
   const frozen = createMemo(() => !reachable(props.readout))
+  /** The hand-back in progress, if any. ONE at a time: it is cancelled before a
+   *  new one starts, when the freeze goes back up, and when this component
+   *  leaves — the three ways a frame could otherwise outlive the dialog that
+   *  started it, or a second hand-back could run underneath the first. */
+  let handing: (() => void) | undefined
+  const stopHanding = () => { handing?.(); handing = undefined }
+  onCleanup(stopHanding)
   const look = () => frozenLookOf(props.readout)
 
   // OPENING IS A CALL, not a class: the top layer is only entered through
@@ -102,14 +109,25 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
   // `open` because a second call on an open dialog throws.
   createEffect(() => {
     if (frozen()) {
+      // THE KEYBOARD IS TAKEN AGAIN: a hand-back still waiting on the last
+      // freeze is over — the dialog it was for is up again.
+      stopHanding()
       if (!overlay.open) withOfflineFocus(() => overlay.showModal())
       return
     }
     // The wire came back. Closing hands focus back to whatever had it when the
-    // freeze began — the browser's own restoration, which is what makes
-    // "the page resumes" true for a reader who was mid-row rather than only for
-    // the pixels.
-    if (overlay.open) overlay.close()
+    // freeze began: the browser restores it when nothing moved the caret
+    // first, and `./focus.ts` hands it back when something did — a control the
+    // roster froze goes `disabled` under the caret, which is a blur the browser
+    // makes, and the dialog that opens after it would otherwise record the
+    // <body> as the focus it took and restore the caret to the top of the
+    // document. "The page resumes" is then true for a reader who was mid-row,
+    // not only for the pixels.
+    if (overlay.open) {
+      overlay.close()
+      stopHanding()
+      handing = handBackFocus(props.memory)
+    }
   })
 
   // THE CHORDS, for as long as the freeze is up. Capture on the window, which

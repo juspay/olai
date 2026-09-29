@@ -75,10 +75,13 @@
  * `./rows.ts`'s `pluginSwitch`, which is the whole decision the signal feeds.
  *
  * The pending flag is cleared when the write, revision and reconcile settle.
- * Controls also stay frozen while the browser reconciles the roster: a state frame may land
- * before its socket replacement finishes, and a second press on that old socket
- * would be interrupted. Server-only rows retain this component, so remounting
- * it cannot be relied on to supply that barrier.
+ * The ENABLE SWITCH stays frozen while the browser reconciles the roster — a
+ * state frame may land before its socket replacement finishes, and a second
+ * press on that old socket would be interrupted — and it can, because a frozen
+ * switch is `aria-disabled` rather than `disabled` (`./Switch.tsx`). The KNOBS
+ * cannot take that guard: `disabled` on the focused field is a blur the browser
+ * makes, and the reconnect dialog then hands the caret back to the body instead
+ * of the field (`./rows.ts`'s `configurationFrozen` has the whole account).
  *
  * ## Where the panel goes is not this file's decision
  *
@@ -91,7 +94,7 @@
  * state belong to the inspector, so navigation withdrawal drops the links
  * without forgetting what this reader opened.
  */
-import { CONFIGURATION_FILE, configurationUnavailable, configurationBroken, type EnvironmentReading } from "@olai/plugin-api/configuration"
+import { CONFIGURATION_FILE, type EnvironmentReading } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
@@ -115,11 +118,13 @@ import type { PluginsRowFace } from "./slots.ts"
 import { Switch } from "./Switch.tsx"
 import { Control } from "./Control.tsx"
 
+import type { RowSettings } from "./rows.ts"
 import {
   type PluginPick,
   CONDITION_TONE,
   CONDITION_WORDS,
   conditionSaid,
+  configurationFrozen,
   configurationLinkLabel,
   displayName,
   enableLabel,
@@ -127,14 +132,25 @@ import {
   environmentVisible,
   groupCount,
   labelOf,
-  pluginConfig,
   pluginConfirm,
   pluginGroups,
   pluginRows,
   pluginSwitch,
+  promotedLinkLabel,
   rowCondition,
+  rowSettings,
   sentenceOf,
 } from "./rows.ts"
+import { preferencesPanel } from "./preferences-door.ts"
+
+/** THE ONE GESTURE THAT REACHES A PROMOTED SETTING: shut this panel and open the
+ *  one that has the control. Written once because the row's link and the reveal
+ *  above are the same gesture — and it is the reveal that must DEFER it (see
+ *  its own note: it runs while this panel is being mounted). */
+const intoPreferences = (state: InspectorState): void => {
+  state.door.setOpen(false)
+  preferencesPanel()?.open()
+}
 
 export function Panel(props: {
   readonly state: InspectorState
@@ -183,8 +199,21 @@ export function Panel(props: {
   createEffect(() => {
     const name = props.state.requested()
     if (name === undefined) return
+    const plugin = rows().find((row) => row.name === name)
     const group = groups().find(group => group.rows.some(row => row.name === name))
     if (group === undefined) return
+    // A ROW WHOSE EVERY LEAF IS PROMOTED has nothing to open HERE — the one
+    // control it would reveal is a link to the other panel, and somebody asking
+    // for the row's settings wants the setting, not a door to it. So the
+    // request lands where the settings are, and this panel shuts behind them.
+    if (plugin !== undefined && rowSettings(plugin, preferencesPanel()).allAway) {
+      props.state.revealed(name)
+      // DEFERRED, like the focus below: this effect runs while the panel it
+      // belongs to is being mounted (opening the door is what drew it), and
+      // shutting that door from inside its own render leaves the portal behind.
+      queueMicrotask(() => { if (active) intoPreferences(props.state) })
+      return
+    }
     props.state.setGroupOpen(group.label, true)
     props.state.setExpanded(name, true)
     queueMicrotask(() => {
@@ -412,7 +441,15 @@ function PluginRow(props: {
   readonly approving: () => string | null
 }) {
   const plugin = (): BuiltPlugin => props.plugin
-  const values = (): ReadonlyArray<PolicyValue> => plugin().configurationValues ?? pluginConfig(plugin()).map(([key, value]) => ({ key, value, setBy: "default", says: "" }))
+  /** WHAT THIS ROW DRAWS, read live: the promoted leaves are away only while
+   *  their plugin runs AND the panel that takes them is up, so switching that
+   *  panel off (`../preferences`) brings the controls back without a reload.
+   *  The reading is one object (`rows.ts`) because the row, the link and the
+   *  panel's own `open` must agree about it. */
+  /** WHAT THIS ROW DRAWS — named for the drawing rather than for the settings
+   *  row it is about, which is a plugin's name and may not be spelled here
+   *  (`@olai/bundle`'s fence is right about that). */
+  const drawn = (): RowSettings => rowSettings(plugin(), preferencesPanel())
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const shown = () => displayName(plugin(), look())
@@ -427,7 +464,7 @@ function PluginRow(props: {
    *  does not draws no chevron and does not open: a press that reveals only
    *  the name already on it is a door to nothing. */
   const reveals = () => copy() !== null || props.face !== undefined || broken() || plugin().source !== undefined ||
-    values().length > 0 || environment().length > 0 || session() ||
+    drawn().knobs.length > 0 || drawn().link || environment().length > 0 || session() ||
     (plugin().configurationNode !== undefined && Boolean(props.panel.state.file()))
   const open = () => reveals() && (props.panel.state.expanded()[plugin().name] ?? props.needs)
   const detailId = `plugins-detail-${plugin().name}`
@@ -498,7 +535,21 @@ function PluginRow(props: {
           />
         </Show>
         <dl class="plugins-detail">
-          <Controls name={plugin().name} values={values()} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
+          <Controls name={plugin().name} values={drawn().knobs} configure={props.panel.management.configure} frozen={configurationFrozen(props.plugins(), props.panel.management.changing())} />
+          {/* A PROMOTED LEAF IS NOT DRAWN HERE while its plugin runs and the
+              preferences panel is up: one link, in their place, that shuts this
+              panel and opens that one. The plugin's own leaves stay editable in
+              the preferences panel; while it is off, or Preferences is, the
+              controls above are unchanged. */}
+          <Show when={drawn().link}>
+            <dt>Preferences</dt>
+            <dd>
+              <button type="button" class="plugins-link" data-testid={TESTID.pluginPreferenceLink}
+                onClick={() => intoPreferences(props.panel.state)}>
+                {promotedLinkLabel}
+              </button>
+            </dd>
+          </Show>
           <Show when={environment().length > 0}><Environment values={environment()} /></Show>
           {/* The name a person types in the settings file, where the row's
               label is not already it — and the link to its node there. */}
@@ -518,11 +569,6 @@ function PluginRow(props: {
     </div>
   )
 }
-
-const configurationFrozen = (roster: PluginRoster, changing: boolean): string | undefined =>
-  roster.configurationAvailable !== true ? configurationUnavailable
-    : roster.configurationError !== undefined ? configurationBroken(roster.configurationFile)
-    : changing ? "Applying the change…" : undefined
 
 function Controls(props: {
   readonly name: string

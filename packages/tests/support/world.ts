@@ -125,6 +125,14 @@ import { attr } from "./selectors.ts";
  * took the pathname alone would answer `/` for every zoomed page — the front
  * page, and an assertion quietly passing for the wrong screen.
  */
+/** WHAT CHROMIUM SAYS WHEN THIS SUITE CUTS ITS WIRE — the exact lines
+ *  `setOffline(true)` produces, matched in full so that no product diagnostic
+ *  can hide behind them. See `OlaiWorld.offlineFrom`. */
+const OUTAGE_NOISE = (error: string): boolean =>
+  error === "console.error: Failed to load resource: net::ERR_INTERNET_DISCONNECTED" ||
+  (error.startsWith("console.error: WebSocket connection to 'ws://127.0.0.1:") &&
+    error.endsWith("failed: Error in connection establishment: net::ERR_INTERNET_DISCONNECTED"))
+
 export const placeOf = (url: URL): string => url.pathname + url.hash;
 
 /** The place AND the query, in the URL's own order — which is why a narrowed
@@ -1241,6 +1249,33 @@ export class OlaiWorld extends World {
    *  silent client-side exception behind a green UI assertion is exactly the
    *  bug an e2e suite exists to catch. */
   errors: string[] = [];
+
+  /** WHERE A CONTROLLED OUTAGE BEGAN — the lowest index `errors` had when this
+   *  suite cut the wire ITSELF (`the browser goes offline`, and the held
+   *  reconnect that does the same inside one step). Chromium reports the
+   *  network its own renderer could not reach — `Failed to load resource:
+   *  net::ERR_INTERNET_DISCONNECTED`, and the same for the socket — and that is
+   *  a fact about the wire the suite took away, not about the page: a client
+   *  that keeps drawing an embed while the wire is gone is doing its job.
+   *  Everything BEFORE this index is untouched, and everything after it that is
+   *  not one of those two lines is a product error like any other. A
+   *  LOW-WATER MARK rather than the last cut's index, because a second outage
+   *  must not turn the first one's noise into the page's doing. */
+  offlineFrom: number | undefined = undefined
+
+  /** The wire is about to be cut on purpose. See {@link offlineFrom}. */
+  noteOutage(): void {
+    this.offlineFrom = Math.min(this.offlineFrom ?? this.errors.length, this.errors.length);
+  }
+
+  /** WHAT THE PAGE DID WRONG — {@link errors} without the lines this suite's
+   *  own outages produce. What a feature asserts on. */
+  pageErrors(): ReadonlyArray<string> {
+    const from = this.offlineFrom;
+    return from === undefined
+      ? this.errors
+      : this.errors.filter((error, index) => index < from || !OUTAGE_NOISE(error));
+  }
 
   /** Every URL the page has asked for, in order, collected by the same hook.
    *  Two questions are asked of it and they are different questions: whether

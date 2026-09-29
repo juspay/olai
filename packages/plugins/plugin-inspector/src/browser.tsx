@@ -13,14 +13,21 @@ import { definePlugin, Faces, Offers, serviceTag, Links } from "@olai/plugin-api
 import { browserManagement } from "@olai/surface/management"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { tools } from "olai-plugin-layout/contract"
-import { Effect } from "effect"
+import { sections, preferencesPanel } from "olai-plugin-preferences/contract"
+import { NO_ROSTER } from "@olai/surface"
+import { createEffect, createRoot } from "solid-js"
+import { Cause, Effect, Queue, Stream } from "effect"
 import { name, type ConfigurationPanel } from "./index.ts"
 import { createInspectorState, type InspectorState } from "./state.ts"
 import { Plugins } from "./Plugins.tsx"
 import { approvals as sourceApprovals } from "olai-plugin-vault-plugins/contract"
 import { holdApprovals } from "./approvals.ts"
 import { holdRowFaces, rowFaces } from "./faces.ts"
+import { heldHeadings } from "./promoted.ts"
+import { holdPreferencesPanel } from "./preferences-door.ts"
+import { PromotedRows } from "./PromotedRows.tsx"
 import { pluginsRow } from "./slots.ts"
+import { promotingPlugins } from "./rows.ts"
 
 const inspectorState = serviceTag<InspectorState>("plugin-inspector.state")
 export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
@@ -63,5 +70,67 @@ export const components = {
       // nobody declared would sit waiting instead of drawing (`./slots.ts`).
       children: [pluginsRow],
     })
+  }) }),
+  /** THE ONE HOLD ON THE PREFERENCES PANEL'S DOOR — a component of its own so
+   *  `tools` keeps drawing rows when Preferences is switched off. When the
+   *  service is absent this component is `waiting`, nothing is held, and the
+   *  plugins panel draws the control itself (`./preferences-door.ts`). */
+  "preferences-door": definePlugin({ name: "preferences-door", needs: [preferencesPanel], apply: Effect.gen(function*() {
+    const panel = yield* preferencesPanel
+    yield* Effect.acquireRelease(Effect.sync(() => holdPreferencesPanel(panel)), stop => Effect.sync(stop))
+  }) }),
+  /** THE PROMOTED SETTINGS, contributed to the preferences panel under a
+   *  heading named after each promoting plugin. The headings are discovered
+   *  from the roster, so this component names no plugin and imports no plugin's
+   *  package; the rows it draws are the same `./Control.tsx` the plugins panel
+   *  uses (`./PromotedRows.tsx`).
+   *
+   *  A Solid effect watches the roster and reports the promoting plugins into a
+   *  queue; the Effect side keeps one heading per plugin in a scope of its own
+   *  (`./promoted.ts`), so a plugin switched off has its heading RELEASED and
+   *  one switched back on claims the key again. Disabling the inspector closes
+   *  every remaining heading from one finalizer, without touching inspector
+   *  state or the settings reader. */
+  preferences: definePlugin({ name: "preferences", needs: [browserManagement, rendererSlots], apply: Effect.gen(function*() {
+    const management = yield* browserManagement
+    const slots = yield* rendererSlots
+    const headings = heldHeadings(slots, sections)
+    yield* Effect.addFinalizer(() => headings.close)
+    const found = yield* Queue.unbounded<ReadonlyArray<string>>()
+    yield* Effect.acquireRelease(
+      Effect.sync(() => createRoot((dispose) => {
+        const roster = management.roster()
+        createEffect(() => {
+          // EVERY FRAME REACHES THE RECONCILER, with no signature to dedupe it
+          // away: a claim that FAILED is not in `held`, and a frame the roster
+          // did not change is the only other one that could try it again —
+          // `reconcile` is idempotent, so a frame that changed nothing costs a
+          // scan of the map and nothing else. (Dedupe by names here would have
+          // made a failed claim permanent until a plugin was switched.)
+          Queue.offerUnsafe(found, promotingPlugins(roster() ?? NO_ROSTER))
+        })
+        return dispose
+      })),
+      (dispose) => Effect.sync(dispose),
+    )
+    // THE LABEL IS A READER, not a snapshot: the words are the build's
+    // (`PluginLook.label`, read off the roster), so a rebuilt roster's words
+    // reach the heading without re-registering it.
+    yield* Effect.forkScoped(Stream.runForEach(Stream.fromQueue(found), (names) =>
+      headings.reconcile(names, {
+        heading: (plugin) => ({ plugin, label: () => management.look(plugin).label ?? plugin }),
+        body: (plugin) => () => <PromotedRows plugin={plugin} management={management} />,
+      }).pipe(
+        // A FRAME THAT DIES IS REPORTED AND THE NEXT FRAME STILL RUNS. The
+        // stream is this component's whole life, so ending it on one bad frame
+        // would leave every later roster change unread: headings that stopped
+        // appearing and — worse — stopped being withdrawn. A claim's own
+        // failure is handled inside (`./promoted.ts`); this is the last resort,
+        // and an INTERRUPT is not a failure — it is this component closing.
+        Effect.catchCauseIf(
+          (cause) => !Cause.hasInterruptsOnly(cause),
+          (cause) => Effect.logError("olai: one preference heading frame could not be reconciled", cause),
+        ),
+      )))
   }) }),
 }

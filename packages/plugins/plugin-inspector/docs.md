@@ -86,6 +86,34 @@ shell withdraws the rendered integration without resetting the provider's
 reading history. Removing the inspector closes its state; re-enabling creates a
 fresh activation.
 
+TWO MORE COMPONENTS, each an independent fiber under this row:
+
+- **`preferences`** contributes the promoted rows to `preferences.sections`. It
+  names no plugin: it reads the roster (`browser-management`) for the plugins
+  that are running and marked something as a preference, and holds ONE HEADING
+  PER PLUGIN IN A SCOPE OF ITS OWN (`src/promoted.ts`) — a registration is a
+  claim on a key, so the scope is what gives it back: a plugin switched off in
+  another tab has its heading released with no reload, and switching it back on
+  claims the key again rather than dying on one it still held. One finalizer on
+  this component closes whatever is left. The heading's words are a reader (the
+  build's label, off the roster) and the rows are the same `Control.tsx` the
+  panel's own rows wear. The Solid subscription to the roster is acquired under
+  this component's own owner and released with it.
+- **`preferences-door`** holds the optional `preferences.open` service for as
+  long as that panel is up. When it is absent the component is `waiting`,
+  nothing is held, and `tools` draws the promoted controls itself.
+
+Neither puts a live value across a package boundary through an import: the
+roster arrives through `browser-management`, and the panel's door arrives
+through the `preferencesPanel` tag and this package's own `heldService` holder.
+Disabling the inspector withdraws both without resetting the settings reader or
+the inspector's state.
+
+AND THE VERB THE PANEL OFFERS lands where the settings are: a consumer's
+`configuration.open(name)` for a row whose every leaf is promoted opens the
+preferences panel instead of revealing a link to it. Asking for a setting should
+reach it, not a door to it.
+
 The host adapter provides roster readings, reports, switching, configuration
 writes and retry without handing over a notebook client or importing this
 plugin. Cell subscriptions are acquired under the consuming component's Solid
@@ -114,12 +142,31 @@ or fewer choices use segmented buttons, longer choices a select; booleans use
 switches and text/numbers use compact inputs. Numeric bounds, units and format
 hints stay available. Off rows keep their settings editable.
 
+**A PROMOTED LEAF IS NOT DRAWN HERE.** A config schema leaf a plugin marks as a
+preference (`preference` on the schema annotation, read by
+`@olai/plugin-api/configuration`) is drawn in the preferences panel instead,
+under a heading named after the plugin, and this row shows one **Set in
+Preferences** link where those controls were — the link shuts this panel and
+opens that one through `preferences.open`. Nothing is imported to know this: the
+flag travels on the roster's `configurationValues`, and the link appears only
+while the plugin runs and the panel that draws the row is up. While the plugin
+is OFF, or the preferences row is disabled, the controls are drawn here exactly
+as they were, so the setting stays editable from whichever panel can move it.
+The inspector's own `configuration.open(name)` still lands on the link, which is
+the row's first control when every leaf is promoted.
+
 A file-authored value has a ● with the tooltip `set in Settings.olai` and a ↺
 reset beside it. Default values have no marker. Invalid file text appears in an
 alarmed input with the schema message and effective default beneath it; its
 reset can remove the malformed property. Enter or blur saves; Escape restores
 the accepted reading without closing the panel. Drafts survive unrelated roster
-updates.
+updates and a caret comes back with them: the rows are KEYED, so a change
+elsewhere rebuilds only what changed; a control the roster froze keeps its draft
+in the mounted control and refuses the write that the blur would otherwise make
+(`onBlur` reads `takingOfflineFocus`, the same flag the outlines' editors read,
+so a blur the APP caused is not a save); and the shell hands the keyboard back
+when the reconnect dialog closes (`@olai/web/client/connection/focus.ts`), which
+the browser alone cannot do once the control was disabled under the caret.
 
 `plugins.configure` is a browser procedure. It validates the leaf before an
 ordinary file write, creates a missing namespace or section child, and waits

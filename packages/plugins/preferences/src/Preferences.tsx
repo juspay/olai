@@ -26,6 +26,7 @@
 import { TESTID } from "olai-plugin-preferences/testids"
 import { BarDoor } from "olai-plugin-layout/bar-door"
 import type { ToolWhere } from "olai-plugin-layout/contract"
+import type { HeldOpen } from "@olai/web/client/popover.ts"
 import { Panel } from "./Panel.tsx"
 
 
@@ -33,6 +34,10 @@ import type { Contribution } from "@olai/plugin-api"
 import type { Section } from "./index.ts"
 export function Preferences(props: {
   readonly sections: () => ReadonlyArray<Contribution<Section>>
+  /** WHERE THE DOOR'S OPEN STATE LIVES — this browser plugin's activation,
+   *  because the panel is opened from elsewhere (`preferences.open`) and a
+   *  rebuilt shell must draw it again. */
+  readonly door: HeldOpen
   /** `closet` is the phone drawer row, `health` a row of the desktop health
    *  popover. Default is the header chip. */
   readonly where?: ToolWhere
@@ -40,6 +45,7 @@ export function Preferences(props: {
   return (
     <BarDoor
       where={props.where}
+      held={props.door}
       glyph="⚙"
       name="Preferences"
       testid={TESTID.prefsTrigger}

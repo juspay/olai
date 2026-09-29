@@ -1,30 +1,37 @@
 @scratch:good @git:repo
 Feature: The vault settings file applies policy to running rows
+  A scenario that reads git's **promoted** settings — `commit` and `push` are drawn in the
+  preferences panel — pins that panel off (`@rows-off:preferences`), which is the row's
+  own fallback: with no preferences panel the inspector draws those controls itself.
+  `promoted_settings.feature` holds the promoted path.
+
   Each top-level node names a row. Edits pass through the vault's revision
   reader and Cordis reconciles the row; malformed leaves keep defaults.
 
   Scenario: Editing one leaf preserves valid siblings and updates the panel
+    # A PROMOTED LEAF IS DRAWN IN THE PREFERENCES PANEL (git's `commit` and
+    # `push` are), so that is where the decoded value is read. Each rewrite
+    # replaces the whole file, which is why these read the promoted rows rather
+    # than pinning Preferences off in every block.
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"off","push":"off"}}
       """
-    And I open the plugins panel
-    And I expand the plugin "git"
-    Then the plugins panel shows "git" configured "commit" as "off"
+    And I open the preferences
+    Then the preference "plugin-git-commit" shows "off"
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"wrong","push":"off"}}
       """
-    Then the plugins panel shows "git" configured "commit" as "manual"
-    And the plugins panel shows "git" configured "push" as "off"
+    Then the preference "plugin-git-commit" shows "manual"
+    And the preference "plugin-git-push" shows "off"
     When I rewrite "_olai/Settings.olai" as:
       """
       {"id":"git-policy","ord":"a0","title":"git","custom":{"commit":"still-wrong","push":"auto"}}
       """
-    Then the plugin "git" keeps its control visible when "commit" becomes "manual"
-    And the plugins panel shows "git" configured "commit" as "manual"
-    And the plugins panel shows "git" configured "push" as "auto"
+    Then the preference "plugin-git-commit" shows refused file text "still-wrong" inline with default "manual"
+    And the preference "plugin-git-push" shows "auto"
     And there should be no page errors
 
   Scenario: The selected namespace follows file precedence and deletion
@@ -55,6 +62,7 @@ Feature: The vault settings file applies policy to running rows
     Then the plugin "journal" is off without prose
     And there should be no page errors
 
+  @rows-off:preferences
   Scenario: A switch authors a durable namespace and links to it
     Given I open the app
     When I open the plugins panel
@@ -91,13 +99,13 @@ Feature: The vault settings file applies policy to running rows
       """
       {"id":"policy-target","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
-    And I open the plugins panel
-    And I expand the plugin "git"
-    Then the plugins panel shows "git" configured "commit" as "off"
-    And the plugin "git" marks "commit" as authored by "vault"
-    And the plugins panel shows "git" configured "push" as "off"
-    And the plugin "git" marks "push" as authored by "default"
-    When I follow the policy link for "git"
+    And I open the preferences
+    Then the preference "plugin-git-commit" shows "off"
+    And the preference "plugin-git-commit" is marked as authored by "vault"
+    And the preference "plugin-git-push" shows "off"
+    And the preference "plugin-git-push" is marked as authored by "default"
+    When I open the plugins panel
+    And I follow the policy link for "git"
     Then the policy link targets node "policy-target"
     And there should be no page errors
 
@@ -107,10 +115,10 @@ Feature: The vault settings file applies policy to running rows
       """
       {"id":"policy-return","ord":"a0","title":"git","custom":{"commit":"off"}}
       """
-    And I open the plugins panel
-    And I expand the plugin "git"
-    Then the plugins panel shows "git" configured "commit" as "off"
-    When I switch the plugin "navigation" off
+    And I open the preferences
+    Then the preference "plugin-git-commit" shows "off"
+    When I open the plugins panel
+    And I switch the plugin "navigation" off
     Then the plugin "git" has no policy link
     When I rewrite "_olai/Settings.olai" as:
       """
@@ -170,7 +178,7 @@ Feature: The vault settings file applies policy to running rows
     And file "_olai/Settings.olai" has namespace "journal" setting "on" as "<before>"
 
     When the terminal agent sets property "commit" on "agent-policy" to "off"
-    Then the plugins panel shows "git" configured "commit" as "off"
+    Then the preference "plugin-git-commit" shows "off"
     And file "_olai/Settings.olai" has namespace "git" setting "commit" as "off"
 
     Examples:

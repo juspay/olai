@@ -621,6 +621,7 @@ running now.
 | One settings file, two kinds of server | it travels between hand-started and Nix-managed servers. Nix supplies machine resources (`dataDir`, `host`, `port`, `environmentFile`), not a second policy declaration. Only the composition root patches loader rows |
 | Config changes re-apply a row | unless it declares `configUpdates: "live"`, in which case it owns its revision subscription through declared services; the composition root leaves its activation config alone and still applies enablement. The static choice grants no loader capability |
 | RUNNING is read off the runtime | a requested row may wait on a missing service or fail during `apply`, so configuration is not evidence of activation. The roster carries actual state beside per-leaf values and `setBy` readings, so defaults and authored values stay distinguishable even when equal. Unknown namespaces have no row to patch and leave existing rows unchanged |
+| A leaf may be marked a preference | a declaration annotates a leaf with `preference` (`@olai/plugin-api/configuration`), and the flag travels on the roster's reading beside `control` and `says`. The serve supplies every built row's schema defaults beside the reader, so a promoted leaf and its reading are known even when the settings row is off; the browser draws it in the preferences panel under a plugin-named heading, and the inspector's row shows a link instead of the control while the plugin runs. No plugin package is imported to learn this |
 
 The build-time default lives in the row itself:
 
