@@ -3991,13 +3991,13 @@ When("I attempt session setting {string} to {string}", async function (this: Ola
   await this.chatLine().getByRole("combobox", { name, exact: true }).selectOption(value);
 });
 Then("the execution plan contains {string} as {string}", async function (this: OlaiWorld, text: string, status: string) {
-  await this.chatRoot().getByLabel("Execution plan", { exact: true }).locator(`li${attr("data-status", status)}`).filter({ hasText: text }).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.chatLine().getByLabel("Execution plan", { exact: true }).locator(`li${attr("data-status", status)}`).filter({ hasText: text }).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 Then("the execution plan omits {string}", async function (this: OlaiWorld, text: string) {
-  await this.chatRoot().getByLabel("Execution plan", { exact: true }).getByText(text, { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+  await this.chatLine().getByLabel("Execution plan", { exact: true }).getByText(text, { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
 });
 Then("there is no execution plan", async function (this: OlaiWorld) {
-  await this.chatRoot().getByLabel("Execution plan", { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+  await this.chatLine().getByLabel("Execution plan", { exact: true }).waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
 });
 Then("terminal output contains {string}", async function (this: OlaiWorld, text: string) {
   await this.waitUntil(async () => (await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).allTextContents()).some(output => output.includes(text)), "terminal output: " + text, HYDRATION_TIMEOUT);

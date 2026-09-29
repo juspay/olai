@@ -15,8 +15,10 @@ import {
   ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import {
+  CHAT_ROSTER,
   CHAT_SEND,
   CHAT_TRANSCRIPT,
+  CHAT_WATCHING,
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
@@ -113,6 +115,17 @@ Then("the page head has scrolled away and the transcript has most of the screen"
   const below = await this.box(this.page.locator(PINNED_TITLE), "the pinned node name");
   const reading = Math.min(composer.y, transcript.y + transcript.height) - Math.max(below.y + below.height, transcript.y);
   assert.ok(reading >= height / 2, `the transcript reads through ${reading}px of a ${height}px screen: ${JSON.stringify({ below, transcript, composer })}`);
+});
+Then("the page's standing strips are on screen in its pinned head", async function(this: OlaiWorld) {
+  const bar = await this.box(this.page.locator(APP_HEADER), "the app header");
+  const composer = await this.box(this.chat(CHAT_INPUT), "the composer");
+  for (const [strip, name] of [[CHAT_ROSTER, "the tools strip"], [CHAT_WATCHING, "the still-running strip"]] as const) {
+    assert.equal(await this.page.locator(`${head} ${strip}`).count(), 1, `${name} is not in the page head`);
+    assert.equal(await this.page.locator(`${foot} ${strip}`).count(), 0, `${name} is drawn in the scroll as well`);
+    const box = await this.box(this.page.locator(`${head} ${strip}`), name);
+    assert.ok(box.y >= bar.y + bar.height - 1 && box.y + box.height <= composer.y,
+      `${name} is not on screen between the bar and the composer: ${JSON.stringify({ box, bar, composer })}`);
+  }
 });
 Then("the plain node composer has no available engine", async function(this: OlaiWorld) {
   await this.page.locator(plain).locator(selector(PLUGIN_TESTID.chatNoAgent)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });

@@ -14,7 +14,7 @@ import { Row } from "./Row.tsx"
 import { sentOf, whoOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
-export function Preview(props: { readonly chat: Chat; readonly unbounded?: boolean }) {
+export function Preview(props: { readonly chat: Chat; readonly page?: boolean }) {
   const { previewing } = useConversationUI().previewing
   /** WHICH agent, and whether it is one this conversation still has. A key that
    *  named a row of the last conversation — or of a turn that has been cleared
@@ -27,13 +27,13 @@ export function Preview(props: { readonly chat: Chat; readonly unbounded?: boole
     return entry === undefined || whoOf(entry) === null ? null : { row, entry }
   }
   return (
-    <Show when={of()}>{(open) => <Shelf chat={props.chat} open={open()} unbounded={props.unbounded} />}</Show>
+    <Show when={of()}>{(open) => <Shelf chat={props.chat} open={open()} page={props.page} />}</Show>
   )
 }
 
 function Shelf(props: {
   readonly chat: Chat
-  readonly unbounded?: boolean
+  readonly page?: boolean
   readonly open: { readonly row: string; readonly entry: ChatEntry }
 }) {
   const { closePreview, previewing, togglePreview } = useConversationUI().previewing
@@ -64,7 +64,7 @@ function Shelf(props: {
   return (
     <section
       class="flex min-h-0 flex-col border-b border-rule/60 bg-panel"
-      classList={{ "max-h-96 shrink": !props.unbounded }}
+      classList={{ "max-h-96 shrink": !props.page }}
       data-testid={TESTID.chatPreview}
       data-row={props.open.row}
       aria-label="Agent's work"
@@ -118,7 +118,7 @@ function Shelf(props: {
         <span class="min-w-0 truncate">{sentOf(props.open.entry)}</span>
       </p>
       <div class="min-h-0 px-3 pb-2 text-ink"
-        classList={{ "olai-scroll flex-1 overflow-x-hidden overflow-y-auto": !props.unbounded }}>
+        classList={{ "olai-scroll flex-1 overflow-x-hidden overflow-y-auto": !props.page }}>
         <Show
           when={calls().length > 0}
           fallback={

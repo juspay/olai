@@ -34,10 +34,11 @@
  * this maps them onto each collection's verbs — a changed path is an upsert of
  * that file's new slice, a removed one is a remove of its key. With ONE
  * invented verb, and it is this change's: a key that LEFT in a revision the
- * store cannot name (`resync` forgets the stamp table the `removed` diff is
- * taken against) is in NO listing's `removed`, so the projection mints that
- * remove itself ({@link mintedOf}) rather than leaving every open subscriber
- * holding a file nobody has.
+ * store did not name (a `resync` used to forget the stamp table the `removed`
+ * diff is taken against; `@olai/store`'s `probe.forget` now keeps which files
+ * it held, and this stays as the belt) is in NO listing's `removed`, so the
+ * projection mints that remove itself ({@link mintedOf}) rather than leaving
+ * every open subscriber holding a file nobody has.
  *
  * TWO functions and not one, which is the shape a row-owned member forces and
  * the one deliberate cost of the split. `frame` is the reading of the revision
@@ -119,9 +120,10 @@
  * WHAT IT RESTS ON, said out loud because it is now load-bearing rather than
  * merely true: {@link Moved}'s `changed` names every path the probe DECODED, so
  * a file that ARRIVED is always in it — a new path has no cached stamp and
- * cannot be skipped. `removed` is weaker: it is the listing's diff against a
- * stamp table a `resync` is entitled to forget, so a DEPARTURE can go unnamed.
- * So a named departure is taken at its word (it can only be true — the store
+ * cannot be skipped. `removed` is the listing's diff against the stamp table,
+ * which a `resync` used to forget wholesale — a DEPARTURE went unnamed. The
+ * store's forget now keeps membership, so that hole is closed at the source;
+ * the arithmetic below stays as the belt. So a named departure is taken at its word (it can only be true — the store
  * does not invent one) and an unnamed one is caught by arithmetic (`complete`,
  * below) and then MINTED into the delta: `changeOf` ends every revision with
  * one delta shape — a remove is a remove whether the store named it or this

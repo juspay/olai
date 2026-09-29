@@ -132,9 +132,11 @@ second. A conversation opens at its newest line — once, when its history has
 arrived, rather than scrolling through that history as it loads. New text follows only while
 you are at the bottom; scrolling up keeps your place. A fold bounds its
 transcript, while a zoomed page scrolls the containing pane with the conversation.
-On a wide screen the page's head — title and agent line — stays pinned above
-it; on a phone the head scrolls away so the transcript gets the screen, and the
-node's name stays pinned on one line under the app header.
+On a wide screen the page's head — title, agent line, and the strips that say
+what the conversation has standing (plan, tools, what is still running, alerts)
+— stays pinned above it, so a reader at the newest line still sees that an
+agent is out; on a phone the head scrolls away so the transcript gets the
+screen, and the node's name stays pinned on one line under the app header.
 
 Unsent words, attachments and nodes chosen through `@` belong to their
 conversation in this tab. Closing a fold, visiting history, or rebuilding an
@@ -689,8 +691,9 @@ the same conversation, and does not cancel ongoing work.
 The fold begins with the agent line: engine, model, context usage, working cue,
 **fresh start**, **close the agent**, and **open the page ›**. Its transcript is
 bounded; the composer and activity controls remain below it. Zooming into the
-node puts the agent line under the title and above the property drawer, the
-subtree below the drawer, and the conversation and composer after the subtree.
+node puts the agent line and the standing strips under the title and above the
+property drawer, the subtree below the drawer, and the conversation and
+composer after the subtree.
 The page's transcript is unbounded and the containing pane scrolls. Head and
 foot share one reading per page; two panes remain independent readers. The
 session property is omitted from outline rows and remains editable in the

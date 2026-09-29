@@ -250,7 +250,9 @@ export interface Probe<F, E> {
 }
 
 interface Cached<F, E> {
-  readonly stamp: Stamp
+  /** `null` once {@link Probe.forget} has dropped it: the file is still
+   *  counted as held, and the next {@link Probe.run} re-reads it. */
+  readonly stamp: Stamp | null
   readonly decoded: Result.Result<F, E>
   /** The fingerprint of the bytes `decoded` was decoded FROM, or `null`
    *  where there were no bytes: a file the codec answered by NAME
@@ -374,8 +376,18 @@ export const make = <F, S, E>(
       forget: (paths: Iterable<string>) =>
         Ref.update(cache, (cached) => {
           if (cached === null) return null
+          // The STAMP is forgotten, never the MEMBERSHIP. Deleting the entry
+          // would make "this file was here" unknowable too, and a run that
+          // follows would diff against a table without it: a file that left
+          // meanwhile is named `removed` by nobody, and one that was the LAST
+          // file leaves an empty listing equal in size to an empty table —
+          // "settled", so the snapshot goes on holding a file that is gone,
+          // and no backstop ever disagrees with the probe again.
           const kept = new Map(cached)
-          for (const path of paths) kept.delete(path)
+          for (const path of paths) {
+            const entry = kept.get(path)
+            if (entry !== undefined) kept.set(path, { ...entry, stamp: null })
+          }
           return kept
         }),
 
@@ -391,7 +403,7 @@ export const make = <F, S, E>(
 
           const stale = [...stamps].filter(([path, stamp]) => {
             const cached = previous?.get(path)
-            return cached === undefined || !sameStamp(cached.stamp, stamp)
+            return cached === undefined || cached.stamp === null || !sameStamp(cached.stamp, stamp)
           })
           // Nothing new and nothing gone — so nothing the codec could say has
           // changed. The size check is what catches a DELETION, which leaves no
@@ -459,7 +471,9 @@ export const make = <F, S, E>(
             })
           }
 
-          const next = new Map<string, Cached<F, E>>()
+          // Stamped off this listing, every entry: a forgotten stamp is a fact
+          // about the table BEFORE a run, never after one.
+          const next = new Map<string, Cached<F, E> & { readonly stamp: Stamp }>()
           const changed: Array<string> = []
           for (const [path, stamp] of stamps) {
             const looked = fresh.get(path)

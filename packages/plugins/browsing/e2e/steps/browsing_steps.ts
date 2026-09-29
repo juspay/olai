@@ -34,6 +34,6 @@ Then("the browser MCP scratch has been removed", function (this: OlaiWorld) {
   assert.deepEqual(readdirSync(runtime(this)).filter(name => name.startsWith("olai-browser-")), [])
 })
 Then("this conversation has no browser MCP server", async function (this: OlaiWorld) {
-  const names = await this.chatRoot().getByTestId(TESTID.chatServer).evaluateAll(rows => rows.map(row => row.getAttribute("data-server")))
+  const names = await this.chatLine().getByTestId(TESTID.chatServer).evaluateAll(rows => rows.map(row => row.getAttribute("data-server")))
   assert.ok(!names.includes("browser"))
 })

@@ -597,6 +597,37 @@ test("a revision names the file that moved and nothing else", () =>
       expect(gone?.removed).toEqual(["b.txt"])
     })))
 
+// A VERIFIED look forgets the stamps, not which files the table held. It used
+// to forget both, so a deletion that no cheap look had seen yet was diffed
+// against an empty table: named `removed` by nobody, and — when it took the
+// LAST file — an empty listing the same size as that empty table, which read
+// as "settled". Nothing was published, the snapshot went on holding the file,
+// and every later look agreed with the probe that nothing had moved. The e2e
+// harness hit it removing a fixture's only file under a live server while the
+// page's first read asked for the verified class.
+test("a verified look after the last file left publishes the removal", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, remove }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      expect(Object.keys(before?.value.text ?? {})).toEqual(["a.txt"])
+      remove("a.txt")
+      yield* store.refresh("verified")
+      const after = yield* snapshotOf(store)
+      expect(after?.rev).toBe((before?.rev ?? 0) + 1)
+      expect(after?.value.text).toEqual({})
+      expect(after?.removed).toEqual(["a.txt"])
+    })))
+
+test("a verified look names a departure beside a file that stayed", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, remove }) =>
+    Effect.gen(function*() {
+      remove("b.txt")
+      yield* store.refresh("verified")
+      const after = yield* snapshotOf(store)
+      expect(Object.keys(after?.value.text ?? {})).toEqual(["a.txt"])
+      expect(after?.removed).toEqual(["b.txt"])
+    })))
+
 // The summary spans the gap between two PUBLISHED revisions, not one probe. A
 // probe whose set is refused publishes nothing, and the file it re-decoded is
 // still what changed when a later probe finally validates — a consumer told

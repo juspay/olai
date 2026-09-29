@@ -86,6 +86,27 @@ Feature: A node's page holds its memory and conversation
     And the page title has the phone's whole line
     And there should be no page errors
 
+  # The strips are standing facts — which tools, who is still out, what may
+  # ring — and the page's scroll is the PANE's, so drawn above the transcript
+  # they left with the memory above them. A reader at the newest line is the
+  # one who wonders whether an agent is still out.
+  Scenario: A page pins what its conversation has standing over the scroll
+    Given I open the plain node composer for "install"
+    When I send "hello" from the plain node composer
+    Then the node page conversation is ready for "install"
+    And the agent is idle
+    When I ask for a tall page answer
+    Then the agent is idle
+    When I ask the agent "subagent slow"
+    Then the strip lists 1 agents still out
+    When I scroll to the bottom of the page
+    Then the page's standing strips are on screen in its pinned head
+    When I open "read every note" from the strip
+    Then the agent's work is open, and it is "read every note"
+    When the agent is released
+    Then the strip lists no agent still out
+    And there should be no page errors
+
   @node-idle-fast
   Scenario: Leaving the page releases both slot faces' shared reading
     Given the harness keeps distinct sessions on disk

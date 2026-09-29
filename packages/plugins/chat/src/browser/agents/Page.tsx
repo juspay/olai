@@ -16,6 +16,7 @@ import { useAgents } from "./answered.tsx"
 import { agentReadings } from "./reading.ts"
 import { createNodeConversation } from "./conversation.ts"
 import { AgentLine } from "./AgentLine.tsx"
+import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
 import { NoAgent } from "../chat/NoAgent.tsx"
 import { EngineAbsence } from "./EngineAbsence.tsx"
@@ -94,11 +95,19 @@ function usePage(node: Accessor<string>) {
   return createMemo(() => pane === undefined ? undefined : agentReadings()?.page(pane, node(), () => createPageSession(node())))
 }
 
+/** The agent line and, under it, what the conversation has standing. The
+ * strips are HERE rather than above the transcript because the page's head is
+ * what the pane's scroll cannot carry away (`../chat/Strips.tsx`). */
 export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
   return <Show when={page()?.chat()} keyed>{chat =>
     <ConversationUIProvider value={chat.ui}>
-      <div data-testid={TESTID.agentPageHead} data-agent={props.node}><AgentLine chat={chat} node={props.node} page /></div>
+      <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
+        <AgentLine chat={chat} node={props.node} page />
+        {/* What the conversation has standing, where the pane's scroll cannot
+            carry it off (`../chat/Strips.tsx`). */}
+        <Strips chat={chat} />
+      </div>
     </ConversationUIProvider>
   }</Show>
 }
@@ -108,7 +117,7 @@ export function PageFoot(props: { readonly node: string }) {
   return <Show when={page()}>{owner =>
     <div class="mt-6" data-testid={TESTID.agentPageFoot} data-agent={props.node}>
       <Show when={owner().chat()} keyed fallback={<PlainComposer node={props.node} page={owner()} />}>{chat =>
-        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} unbounded /></ConversationUIProvider>
+        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} page /></ConversationUIProvider>
       }</Show>
     </div>
   }</Show>
