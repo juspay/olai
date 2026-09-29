@@ -11,7 +11,8 @@ Its preferences integration is a separate component. It contributes the
 "appearance"`, a key of preferences' `HEADINGS` table, which puts it first in
 the panel; `order: 0` within it) only while that location exists:
 
-- **Theme** — ten swatches, lights first then darks, each painted in its
+- **Theme** — eighteen swatches: the eight hue families, lights first then
+  darks, then the two neutral picks, each painted in its
   palette's paper with a wedge of its accent. A swatch carries no word: its
   name is its tooltip and accessible name, and the theme in force is named once
   beside the row's label. Tab reaches the swatches and Space or Enter picks one;

@@ -1,6 +1,6 @@
 @corpus:good
 Feature: The theme is a pick, and it is yours
-  Named palettes, as ten swatches in the Theme row of the preferences panel
+  Named palettes, as eighteen swatches in the Theme row of the preferences panel
   (`preferences.feature`) — each painted in its own paper with a wedge of its
   accent, lights first, then darks. Pressing one writes `data-theme` on
   `<html>`, this browser remembers it, and the sheet repaints — every colour on

@@ -22,7 +22,7 @@ Today's headings and their contributors:
 
 | heading | rows | contributed by |
 | --- | --- | --- |
-| Appearance | Theme (ten swatches, the one in force named beside the label), Font, Size | `theme` |
+| Appearance | Theme (eighteen swatches, the one in force named beside the label), Font, Size | `theme` |
 | Outlines | Row density, Show finished | `outlines` |
 | Notifications | Alerts, Sound | `alerts` |
 | | Reminders | `journal` |
