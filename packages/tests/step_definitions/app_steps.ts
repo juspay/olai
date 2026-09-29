@@ -40,10 +40,13 @@ Then(
 )
 
 Then("there should be no page errors", function (this: OlaiWorld) {
+  // `pageErrors` rather than the raw ledger: the wire this suite cut on purpose
+  // is not the page's error (`OlaiWorld.offlineFrom`).
+  const errors = this.pageErrors();
   assert.deepStrictEqual(
-    this.errors,
+    errors,
     [],
-    `the page reported ${this.errors.length} error(s):\n  ${this.errors.join("\n  ")}`,
+    `the page reported ${errors.length} error(s):\n  ${errors.join("\n  ")}`,
   );
 });
 

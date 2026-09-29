@@ -265,6 +265,10 @@ Then("the overlay's reload is called {string}", async function (this: OlaiWorld,
  * else in this suite can reach.
  */
 When("the browser goes offline", async function (this: OlaiWorld) {
+  // TOLD TO THE LEDGER FIRST: Chromium is about to report the network this
+  // suite is taking away, and `there should be no page errors` has to read that
+  // as the suite's doing rather than the page's (`OlaiWorld.offlineFrom`).
+  this.noteOutage();
   await this.page.context().setOffline(true);
 });
 
