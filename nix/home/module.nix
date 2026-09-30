@@ -5,16 +5,15 @@
 let
   cfg = config.services.olai;
 
-  # Process location and listener only; policy belongs to the served file.
-  webArgs = [
-    (lib.getExe cfg.package)
-    "web"
-    cfg.dataDir
-    "--port"
-    (toString cfg.port)
-    "--host"
-    cfg.host
-  ];
+  # The argv is `../runtime.nix` — the same module the flake exposes as `lib`,
+  # so a container and this service cannot drift. Process location and
+  # listener only; policy belongs to the served file.
+  runtime = import ../runtime.nix { inherit lib; };
+
+  webArgs = runtime.webArgs {
+    package = cfg.package;
+    inherit (cfg) dataDir host port;
+  };
 in
 {
   options.services.olai = {
@@ -38,7 +37,7 @@ in
 
     host = lib.mkOption {
       type = lib.types.str;
-      default = "127.0.0.1";
+      default = runtime.defaultHost;
       description = "Address to listen on. olai has no auth; keep this loopback (or behind Tailscale).";
     };
 
@@ -68,11 +67,12 @@ in
 
     port = lib.mkOption {
       type = lib.types.port;
-      default = 7714;
+      default = runtime.defaultPort;
       description = ''
-        Port to listen on. 7714 is olai's production/deploy port ("olai" on a
-        phone keypad). The CLI itself binds port 0 unless --port is given;
-        this module always passes --port, so a user service does not wander.
+        Port to listen on; 7714 ("olai" on a phone keypad) is
+        `nix/runtime.nix`'s default. The CLI itself binds port 0 unless --port
+        is given; this module always passes --port, so a user service does not
+        wander.
       '';
     };
 

@@ -6,7 +6,7 @@ olai serves a directory of outlines and Markdown files as a web app that people 
 
 | Page | What it covers |
 | --- | --- |
-| [running.md](running.md) | Serving a directory: `olai web` and its flags, the header's health dot, preferences and the plugins panel, the home-manager module, vault policy, the MCP endpoint at `/mcp`, quick capture, and identity behind a reverse proxy. |
+| [running.md](running.md) | Serving a directory: `olai web` and its flags, the header's health dot, preferences and the plugins panel, the home-manager module and the same launch configuration for containers, vault policy, the MCP endpoint at `/mcp`, quick capture, and identity behind a reverse proxy. |
 | [editing.md](editing.md) | Editing an outline by hand: keys, drag and drop, multi-select, drafts, undo, the sidebar, pinning, and writing a document. |
 | [search.md](search.md) | The query language and its operators (`is:`, `has:`, `date:`, `created:`, `changed:`, `prop:`, `-`, quoted phrases, `OR`), what a result row shows, and the in-page filter. |
 | [git.md](git.md) | The git integration: commit modes, automatic commits, the Commit row, integration before push, stops and Resume, and the audit view. |
