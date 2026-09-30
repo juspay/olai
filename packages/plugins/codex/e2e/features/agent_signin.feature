@@ -175,7 +175,7 @@ Feature: Signing in to Codex from inside olai
     And I remember this conversation as "before-sign-in"
     And the agent needs a sign-in
     When I open the fold history
-    And I start a fresh session
+    And I start a fresh session with "codex"
     Then the panel says the conversation could not be opened
     And the panel offers a sign-in
     When I press the sign-in for "chat-gpt-device-code"

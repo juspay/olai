@@ -119,6 +119,7 @@ const binding = (
     // the word this kind claims (`../kinds.ts`). It is spent by the refusal
     // below and by nothing else, which is why this stub records no key.
     key: () => SESSION_TYPE,
+    exclusive: work => work,
     write: (node, value) => Effect.sync(() => void wrote.push({ node, value })),
     remove: (node) => Effect.sync(() => void removed.push(node)),
   }
@@ -215,3 +216,31 @@ test("closing an unbound node refuses, and nothing is written", async () => {
   expect(at.removed).toEqual([])
   expect(at.wrote).toEqual([])
 })
+
+for (const changed of [false, true]) {
+  test(`an auth-refused first start ${changed ? "cannot overwrite a later binding" : "commits its real session after sign-in"}`, async () => {
+    const it = chatOpening([])
+    let current: ReturnType<Binding["boundAt"]> = null
+    const writes: string[] = []
+    let finish: ((to: { agent: string; session: string }) => Effect.Effect<void, import("@olai/format").OpFailure>) | undefined
+    const at: Binding = {
+      ...binding(null),
+      boundAt: () => current,
+      write: (_node, value) => Effect.sync(() => {
+        writes.push(value)
+        const [engine, session] = value.split(":")
+        current = { engine: engine!, session: session ?? null, title: "node" }
+      }),
+    }
+    const pending: Chat = { ...it.chat, startAgentSession: (_node, _agent, committed) => Effect.sync(() => {
+      finish = committed
+      return null
+    }) }
+    expect(await Effect.runPromise(startAgentSession(pending, at, { node: "a", agent: "codex" }))).toBeNull()
+    expect(writes).toEqual(["codex"])
+    if (changed) current = { engine: "claude", session: "elsewhere", title: "node" }
+    const result = await Effect.runPromise(Effect.result(finish!({ agent: "codex", session: "opened" })))
+    expect(result._tag).toBe(changed ? "Failure" : "Success")
+    expect(writes).toEqual(changed ? ["codex"] : ["codex", "codex:opened"])
+  })
+}

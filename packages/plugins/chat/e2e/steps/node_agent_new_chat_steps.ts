@@ -37,7 +37,7 @@ Then("the new chat palette offers engines {string}", async function(this: OlaiWo
 Then("the new Inbox conversation is unfolded as {string} with engine {string}", async function(this: OlaiWorld, name: string, engine: string) {
   let id: string | undefined;
   await this.waitUntil(async () => {
-    const found = this.servedNodesSoFar("_olai/Inbox.olai").find(node => node.parent === "chats" && node.title === "new conversation" && String((node.custom as Record<string, unknown> | undefined)?.["chat-agent-session"]).startsWith(`${engine}:`));
+    const found = this.servedNodesSoFar("_olai/Inbox.olai").find(node => node.parent === "chats" && node.title === "new conversation" && String((node.custom as Record<string, unknown> | undefined)?.["chat-agent-session"] ?? (node.custom as Record<string, unknown> | undefined)?.["agent-session"]).startsWith(`${engine}:`));
     id = found?.id as string | undefined;
     return id !== undefined;
   }, "the new node's session binding", HYDRATION_TIMEOUT);

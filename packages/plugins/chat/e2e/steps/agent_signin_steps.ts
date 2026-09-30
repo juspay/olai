@@ -284,7 +284,8 @@ Then("the pending Inbox conversation is unfolded as {string} with engine {string
   await this.waitUntil(async () => {
     const found = this.servedNodesSoFar("_olai/Inbox.olai").find(node => node.parent === "chats"
       && node.title === "new conversation"
-      && (node.custom as Record<string, unknown> | undefined)?.["chat-agent-session"] === engine);
+      && ((node.custom as Record<string, unknown> | undefined)?.["chat-agent-session"]
+        ?? (node.custom as Record<string, unknown> | undefined)?.["agent-session"]) === engine);
     id = found?.id as string | undefined;
     return id !== undefined;
   }, "the new node to name only its engine before authentication", HYDRATION_TIMEOUT);

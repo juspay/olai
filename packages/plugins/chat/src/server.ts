@@ -515,7 +515,13 @@ export default definePlugin({
      *  carrier names is the one a writer should prefer — a vault's own migration
      *  row over the word this kind claims. */
     const bindingPermit = yield* Semaphore.make(1)
+    const creationPermit = yield* Semaphore.make(1)
     const binding: Binding = {
+      exclusive: work => bindingPermit.withPermit(work),
+      changed: Effect.gen(function*() {
+        mine?.cells.sessionsRevision.set(++sessionsRevision)
+        if (filer !== null) yield* filer.full
+      }),
       boundAt: (node) => nodeAgents.nodeAt(node),
       key: () => nodeAgents.key(),
       write: (node, value) =>
@@ -591,7 +597,7 @@ export default definePlugin({
       newChat: ({ input }: { input: { agent: string } }) =>
         withChat(open => {
           const gate = ops.gate as WriteGate
-          return bindingPermit.withPermit(newChat({ current: vault.inbox.current, read: gate.read,
+          return creationPermit.withPermit(newChat({ current: vault.inbox.current, read: gate.read,
             write: request => gate.run(request, "filer"),
             start: (node, agent, committed) => Effect.gen(function*() {
               // Ops has committed the new node, but revision delivery may still
@@ -613,7 +619,7 @@ export default definePlugin({
         return node === null ? null : { node: node.id, file: node.file, agent: node.engine, session: node.session }
       }),
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
-        withChat((open) => bindingPermit.withPermit(startAgentSession(open, binding, input))).pipe(
+        withChat((open) => startAgentSession(open, binding, input)).pipe(
           // Publish after both the binding and its history link are written.
           Effect.tap(() => Effect.gen(function*() {
             mine?.cells.sessionsRevision.set(++sessionsRevision)

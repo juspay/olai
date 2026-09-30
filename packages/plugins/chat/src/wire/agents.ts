@@ -62,6 +62,8 @@ export const NodeAgentRow = Schema.Struct({
   /** Session lifecycle is per node, so it travels on the row rather than being
    * inferred from whichever conversation the foreground panel happens to show. */
   standing: AgentStanding,
+  /** A live node panel holds an opening refusal, even without a session id. */
+  unopened: Schema.optionalKey(Schema.Boolean),
   since: Schema.optionalKey(Schema.String),
   waiting: Schema.Int,
   /**

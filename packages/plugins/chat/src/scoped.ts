@@ -36,6 +36,7 @@ export interface LiveSession {
   readonly since?: string
   readonly status: ReturnType<Panel["state"]>["status"]
   readonly asking: number
+  readonly unopened?: boolean
 }
 
 /** The public chat is the scheduler over panels, with every acquired node
@@ -744,6 +745,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
     const reading: Chat["reading"] = (to, observer) => Effect.gen(function*() {
         if ("node" in to) {
+          if (!seatableAt(to.node)) return yield* new UsageFailure({ reason: "the node is no longer available" })
           yield* Effect.acquireRelease(Effect.sync(() => {
             const held = nodeReaders.get(to.node) ?? new Set<ReadingObserver>()
             held.add(observer)
@@ -761,11 +763,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             const state = slot.panel.state()
             // A refused open belongs to this seat. Reading it must not replace
             // the pending new/resume operation with another load.
-            if (state.unopened === null && bound !== null
+            if (state.unopened === null && bound?.session != null
               && (state.session === null || state.session.id !== bound.session || agentIn(state)?.id !== bound.engine || state.status === "gone")) {
-              yield* Effect.catch(bound.session === null
-                ? slot.panel.newSession(bound.engine)
-                : slot.panel.loadSession(bound.engine, bound.session), () => Effect.void)
+              yield* Effect.catch(slot.panel.loadSession(bound.engine, bound.session), () => Effect.void)
             }
             observer.state(slot.panel.state())
             observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
@@ -822,6 +822,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           status: slot.state.status,
           since: slot.since,
           asking: slot.state.asking,
+          unopened: slot.state.unopened !== null,
         } satisfies LiveSession]),
       ),
       overheard: () => root.overheard(),
@@ -888,11 +889,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if ("node" in to) {
           const slot = nodes.get(JSON.stringify([to.node, null, null]))
           if (slot === undefined || slot.closing || scope !== slot.panel.state().uploadScope) {
-            return Effect.fail(new UsageFailure({ reason: "the node panel changed; this action was not applied" }))
+            return Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" }))
           }
           return working(to.node, undefined, ({ slot: held }) => held === slot
             ? use(held.panel)
-            : Effect.fail(new UsageFailure({ reason: "the node panel changed; this action was not applied" })))
+            : Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" })))
         }
         const matches = (panel: Panel) => {
           const state = panel.state()
@@ -976,10 +977,23 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 yield* flush(slot)
                 if (committed !== undefined) yield* committed({ agent, session: session.id })
               })
-              const result = yield* Effect.result(slot.panel.newSession(agent, completed))
+              const result = yield* Effect.acquireUseRelease(
+                Effect.sync(() => { slot.mutingReaders = true }),
+                () => Effect.result(slot.panel.newSession(agent, completed)),
+                () => Effect.sync(() => { slot.mutingReaders = false }),
+              )
               if (result._tag === "Failure") {
                 const state = slot.panel.state()
-                if (state.unopened !== null && state.signIn?.kind === "choosing") return null
+                if (state.unopened !== null && state.signIn?.kind === "choosing") {
+                  // A pending sign-in must reach the current node's readers
+                  // before there is a new binding. Other failed starts retain
+                  // the existing reader face and report their gesture's error.
+                  for (const reader of readingListeners(slot)) {
+                    reader.state(state)
+                    reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+                  }
+                  return null
+                }
                 return yield* result.failure
               }
               const session = slot.panel.state().session!

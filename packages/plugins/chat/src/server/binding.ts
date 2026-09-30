@@ -71,6 +71,9 @@ export interface Binding {
    * key for the sentence to be helpful.
    */
   readonly key: () => string
+  /** Serialize binding claims, including a completion reached after sign-in. */
+  readonly exclusive: <A>(work: Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
+  readonly changed?: Effect.Effect<void, OpFailure>
   /** ONE PROPERTY, WRITTEN, through the gate a keystroke goes through. */
   readonly write: (node: string, value: string) => Effect.Effect<void, OpFailure>
   /** ONE PROPERTY, TAKEN OFF — the same door, spelled the op's own removal
@@ -123,15 +126,28 @@ export const startAgentSession = (
   input: { readonly node: string; readonly agent: string },
 ): Effect.Effect<Conversing | null, OpFailure> =>
   Effect.gen(function*() {
-    const was = binding.boundAt(input.node)
+    const was = yield* binding.exclusive(Effect.sync(() => binding.boundAt(input.node)))
+    let expected = was
+    const unchanged = () => {
+      const at = binding.boundAt(input.node)
+      return at?.engine === expected?.engine && at?.session === expected?.session
+    }
     const now = yield* chat.startAgentSession(input.node, input.agent, now => Effect.gen(function*() {
-      yield* binding.write(input.node, sessionValue(now.agent, now.session))
-      if (was?.session != null && (was.engine !== now.agent || was.session !== now.session)) {
-        yield* chat.replaced({ agent: was.engine, session: was.session }, now)
-      }
+      yield* binding.exclusive(Effect.gen(function*() {
+        if (!unchanged()) return yield* new UsageFailure({ reason: "the node's binding changed while this chat was opening" })
+        yield* binding.write(input.node, sessionValue(now.agent, now.session))
+        if (was?.session != null && (was.engine !== now.agent || was.session !== now.session)) {
+          yield* chat.replaced({ agent: was.engine, session: was.session }, now)
+        }
+      }))
+      if (binding.changed !== undefined) yield* binding.changed
     }))
     // Only the engine is durable before authentication. No invented session
     // id is written, and a fresh start keeps its predecessor until it succeeds.
-    if (now === null && was === null) yield* binding.write(input.node, sessionValue(input.agent, null))
+    if (now === null && was === null) yield* binding.exclusive(Effect.gen(function*() {
+      if (!unchanged()) return yield* new UsageFailure({ reason: "the node's binding changed while this chat was opening" })
+      yield* binding.write(input.node, sessionValue(input.agent, null))
+      expected = { engine: input.agent, session: null, title: "" }
+    }))
     return now
   })

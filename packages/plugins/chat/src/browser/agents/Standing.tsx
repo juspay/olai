@@ -64,9 +64,9 @@ function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
   const look = () => LOOK[props.row.standing]
   return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1 text-label text-muted enabled:hover:bg-rule"
     classList={{ "text-doing": props.row.standing === "needs-you" }}
-    title={look().detail}
+    disabled={props.row.session === null && props.row.unopened !== true} title={look().detail}
     data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
-    aria-expanded={unfolded(props.record ?? props.row.id)}
+    aria-expanded={props.row.session === null && props.row.unopened !== true ? undefined : unfolded(props.record ?? props.row.id)}
     onClick={event => { event.stopPropagation(); unfolded(props.record ?? props.row.id) ? fold(props.record ?? props.row.id) : unfold(props.record ?? props.row.id) }}>
     <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
     {look().label}

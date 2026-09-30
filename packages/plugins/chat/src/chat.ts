@@ -3151,7 +3151,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // it: what the agent said is still what happened, and the buttons are
         // what a person can do about it. `Try again` stays where it is, and is
         // honest — the retry is exactly what signing in makes work.
-        ...(askingToSignIn(failure) ? { signIn: { kind: "choosing" as const } } : {}),
+        signIn: askingToSignIn(failure) ? { kind: "choosing" } : null,
       })
     }
 
