@@ -42,6 +42,12 @@ for (const point of [null, "answer-1"]) {
         expect(requests.findLast(request => request.method === "session/prompt").params.sessionId)
           .toBe(refusal === null ? "session-2" : "session-1")
         if (point !== null) expect(requests.find(request => request.method === "session/fork").params._meta).toEqual(airForkAt(point))
+        if (refusal === "load" || refusal === "mode") {
+          rmSync(join(cwd, `refuse-${refusal}`))
+          events.length = 0
+          await run(agent.newSession)
+          expect(events.some(event => event._tag === "said" && event.text === "late failed replay")).toBe(false)
+        }
       } finally { await run(agent.stop); rmSync(cwd, { recursive: true, force: true }) }
     })
   }

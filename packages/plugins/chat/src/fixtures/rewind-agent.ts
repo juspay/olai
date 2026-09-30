@@ -2,12 +2,16 @@
 import { appendFileSync, existsSync } from "node:fs"
 import { createInterface } from "node:readline"
 let next = 0
+let failed: string | null = null
 const send = (value: unknown) => process.stdout.write(JSON.stringify(value) + "\n")
 for await (const line of createInterface({ input: process.stdin })) {
   const request = JSON.parse(line)
   appendFileSync("requests.log", line + "\n")
   const reply = (result: unknown) => send({ jsonrpc: "2.0", id: request.id, result })
-  const refuse = () => send({ jsonrpc: "2.0", id: request.id, error: { code: -32602, message: "fixture refused " + request.method } })
+  const refuse = () => {
+    if (["session/load", "session/set_mode"].includes(request.method)) failed = request.params.sessionId
+    send({ jsonrpc: "2.0", id: request.id, error: { code: -32602, message: "fixture refused " + request.method } })
+  }
   const update = (text: string) => send({ jsonrpc: "2.0", method: "session/update", params: {
     sessionId: request.params.sessionId,
     update: { sessionUpdate: "agent_message_chunk", messageId: "answer-1", content: { type: "text", text } },
@@ -17,6 +21,11 @@ for await (const line of createInterface({ input: process.stdin })) {
       sessionCapabilities: { list: {}, ...(process.argv.includes("--no-fork") ? {} : { fork: {} }) } } }); break
     case "session/list": reply({ sessions: [] }); break
     case "session/new":
+      if (failed !== null) {
+        send({ jsonrpc: "2.0", method: "session/update", params: { sessionId: failed,
+          update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "late failed replay" } } } })
+        failed = null
+      }
     case "session/fork":
       if (existsSync("refuse-open")) refuse()
       else reply({ sessionId: `session-${++next}` })
