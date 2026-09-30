@@ -257,18 +257,16 @@ On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130
 
 ### The same launch configuration without home-manager
 
-The command is not the module's. It is the same `nix/runtime.nix` the flake
-exposes as `lib`, which is what lets a container (K3s and friends) run the
-command a home-manager service would run, with no user session and no
-systemd/launchd. The module's `host` and `port` defaults come from there too.
+Use `olai.lib.webArgs` to construct the same command the home-manager service
+runs:
 
 ```nix
 # in the deployment's flake, with olai as an input
 argv = olai.lib.webArgs {
   package = olai.packages.${pkgs.stdenv.hostPlatform.system}.olai;
-  dataDir = "/notes";   # the served directory; a string, not a Nix path
-  host = "0.0.0.0";     # olai.lib.defaultHost is 127.0.0.1
-  port = 7714;          # olai.lib.defaultPort
+  dataDir = "/notes";   # required; a string, not a Nix path
+  host = "0.0.0.0";     # default: olai.lib.defaultHost (127.0.0.1)
+  port = 7714;          # default: olai.lib.defaultPort
 };
 # [ "/nix/store/…/bin/olai" "web" "/notes" "--port" "7714" "--host" "0.0.0.0" ]
 ```
@@ -276,9 +274,8 @@ argv = olai.lib.webArgs {
 The list is execv's, so a directory with spaces stays one argument; escape it
 (`lib.escapeShellArgs`) only where a supervisor parses a command line.
 
-Which plugins run is not here — it is vault policy (`on` on a row's node in
-`_olai/Settings.olai`, [Which integrations this serve runs](#which-integrations-this-serve-runs)),
-never a launch flag.
+Which plugins run is not a launch flag: it is vault policy (`on` on a row's
+node in `_olai/Settings.olai`, [Which integrations this serve runs](#which-integrations-this-serve-runs)).
 
 ## The git policy
 

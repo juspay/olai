@@ -1,8 +1,5 @@
-# The flake's public `lib` output consumed the way a container consumes it: no
-# home-manager, no supervisor. `nix/home/check.nix` proves the supervisor
-# wiring; this proves the half with no supervisor — the argv, the shared
-# defaults, and argument passing. It takes `runtime` rather than importing
-# `nix/runtime.nix`, so what is tested is the wiring the flake publishes.
+# The flake's public `lib` output as a container takes it: no home-manager,
+# no supervisor. `nix/home/check.nix` proves the supervisor wiring.
 { pkgs, runtime }:
 let
   inherit (pkgs) lib;

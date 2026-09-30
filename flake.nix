@@ -54,12 +54,9 @@
       eachSystem = f: builtins.mapAttrs (_: ctx: f ctx) perSystem;
     in
     {
-      # The launch configuration, without a supervisor: the argv `olai web`
-      # takes and the defaults for it. `nix/home/module.nix` builds its
-      # systemd/launchd command out of this same module, so a container
-      # (K3s and friends) can reuse the home-manager service's command
-      # without importing home-manager. Nixpkgs' `lib` from the pin, so this
-      # output does not depend on a system.
+      # The launch command and its defaults, without a supervisor: a container
+      # takes the home-manager service's argv without importing home-manager.
+      # Nixpkgs' `lib` from the pin, so this output is system-free.
       lib = import ./nix/runtime.nix {
         lib = import ((import ./npins).nixpkgs + "/lib");
       };
@@ -126,9 +123,8 @@
             inherit pkgs;
             module = ./nix/home/module.nix;
           };
-          # The same launch configuration taken through the PUBLIC output
-          # (`self.lib`), the way a container takes it: no home-manager, no
-          # supervisor.
+          # The same command through the PUBLIC `lib` output, the way a
+          # container takes it: no home-manager, no supervisor.
           runtime = import ./nix/runtime-check.nix { inherit pkgs; runtime = self.lib; };
           # The registry fold's contract/collision refusals over fixture
           # containers, asserted at eval time by packages/bundle/nix/fold-check.nix.

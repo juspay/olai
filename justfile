@@ -430,10 +430,9 @@ plugin-fold:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# The same launch configuration taken directly — `nix/runtime.nix` through the
-# flake's `lib` output, the way a container takes it (no home-manager, no
-# supervisor). Cheap: eval plus a one-line build. See nix/runtime-check.nix.
-[doc("Check the launch configuration without a supervisor")]
+# The same command through the flake's `lib` output — no home-manager, no
+# supervisor. See nix/runtime-check.nix.
+[doc("Check the launch command without a supervisor")]
 runtime:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).runtime --no-link --accept-flake-config
 

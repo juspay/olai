@@ -5,9 +5,9 @@
 let
   cfg = config.services.olai;
 
-  # The argv is `../runtime.nix` — the same module the flake exposes as `lib`,
-  # so a container and this service cannot drift. Process location and
-  # listener only; policy belongs to the served file.
+  # The command is `../runtime.nix` — the same module the flake exposes as
+  # `lib`, so this service and a container cannot drift; this file adds only
+  # the supervisor.
   runtime = import ../runtime.nix { inherit lib; };
 
   webArgs = runtime.webArgs {
