@@ -170,7 +170,8 @@ test("a node's new session waits for its matching draft owner while auth refusal
     await settle()
     // The binding has not arrived. Seeing "next" here would invite typing
     // into an owner about to be replaced by the binding's next reader.
-    expect(first.state().session?.id).toBe("first")
+    expect(first.state().session).toBeNull()
+    expect(first.state().status).toBe("off")
     const next = createRoot(dispose => {
       closeNext = dispose
       return createChatState({ node: "one" }, { agent: "alpha", session: "next" })

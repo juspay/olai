@@ -251,12 +251,15 @@ export const createChatState = (conv: PanelAddress, expected?: Conversing | null
   // reaches this tab. Keep that frame away from the previous session's draft
   // owner: otherwise typing into the new-looking composer is lost on remount.
   // Sessionless refusals still belong to the node and must remain visible.
-  return createMemo<ChatState>(previous => {
+  // Surface cells reconcile in place, so keeping the previous object would
+  // still expose its changed session. Show the opening state until the draft
+  // owner matches instead of retaining that mutable reading.
+  return createMemo<ChatState>(() => {
     const next = cell() ?? CHAT_OFF
     if (expected !== undefined && next.session !== null
-      && (expected === null || next.session.id !== expected.session || agentIn(next)?.id !== expected.agent)) return previous
+      && (expected === null || next.session.id !== expected.session || agentIn(next)?.id !== expected.agent)) return CHAT_OFF
     return next
-  }, CHAT_OFF)
+  })
 }
 
 // A procedure can settle after the drawer that started it was remounted. Its
