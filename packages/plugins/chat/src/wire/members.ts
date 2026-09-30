@@ -478,7 +478,7 @@ const parent = Schema.optionalKey(Schema.String)
  * collection that records something that did NOT happen.
  */
 export const UserEntry = Schema.Struct({
-  rewindable: Schema.optionalKey(Schema.Boolean),
+  rewindable: Schema.Boolean,
   ...chatEntryHead,
   kind: Schema.Literal("user"),
   text: Schema.String,
@@ -1365,7 +1365,7 @@ export const Talking = Schema.Union([
      * for.
      */
     steers: Schema.Boolean,
-    rewinds: Schema.optionalKey(Schema.Boolean),
+    rewinds: Schema.Boolean,
     /**
      * ... and whether it HOLDS what you send while it is busy, running it when
      * the turn it is working on is over.

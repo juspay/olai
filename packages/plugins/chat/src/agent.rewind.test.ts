@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -30,6 +30,7 @@ for (const point of [null, "answer-1"]) {
         if (refusal !== null) {
           expect(events).toEqual([])
           expect(remembered).toEqual(["session-1"])
+          expect((await run(agent.sessions)).length).toBe(1)
         } else {
           expect(remembered).toEqual(["session-1", "session-2"])
           expect(events.filter(event => event._tag === "said").map(event => event.text))
@@ -69,6 +70,33 @@ for (const unsupported of ["leg", "handshake"]) {
       expect(events.find(event => event._tag === "advertised")).toMatchObject({ rewinds: false })
       expect((await run(Effect.result(agent.rewind(null))))._tag).toBe("Failure")
       expect(readFileSync(join(cwd, "requests.log"), "utf8")).not.toContain('"session/fork"')
+    } finally { await run(agent.stop); rmSync(cwd, { recursive: true, force: true }) }
+  })
+}
+
+for (const canDelete of [true, false]) {
+  test(`interrupted rewind withdraws preparation with ${canDelete ? "delete" : "close"}`, async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "olai-rewind-interrupt-"))
+    const agent = await run(make({ id: "fixture", leg: { ...SAYS_NOTHING, forkAt: airForkAt },
+      command: process.execPath,
+      args: [join(import.meta.dirname, "fixtures/rewind-agent.ts"), ...(canDelete ? [] : ["--no-delete"])],
+      cwd, tools: () => null, memory: { recall: Effect.succeed(null), remember: () => Effect.void }, onEvent: () => {},
+    }))
+    try {
+      await run(agent.boot)
+      writeFileSync(join(cwd, "hold-load"), "")
+      const fiber = Effect.runFork(agent.rewind("answer-1"))
+      const deadline = Date.now() + 2000
+      while (!readFileSync(join(cwd, "requests.log"), "utf8").includes('"session/load"') && Date.now() < deadline) {
+        await run(Effect.sleep("10 millis"))
+      }
+      expect(readFileSync(join(cwd, "requests.log"), "utf8")).toContain('"session/load"')
+      await run(Fiber.interrupt(fiber))
+      const requests = readFileSync(join(cwd, "requests.log"), "utf8").trim().split("\n").map(line => JSON.parse(line))
+      expect(requests.findLast(request => request.method === `session/${canDelete ? "delete" : "close"}`)?.params.sessionId).toBe("session-2")
+      expect((await run(agent.sessions)).length).toBe(canDelete ? 1 : 2)
+      await run(agent.prompt("original still works"))
+      expect(readFileSync(join(cwd, "requests.log"), "utf8")).toContain('"sessionId":"session-1","prompt"')
     } finally { await run(agent.stop); rmSync(cwd, { recursive: true, force: true }) }
   })
 }

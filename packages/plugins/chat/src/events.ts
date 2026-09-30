@@ -198,7 +198,7 @@ export type AgentEvent =
    */
   | {
     readonly _tag: "advertised"
-    readonly rewinds?: boolean
+    readonly rewinds: boolean
     /** It takes a message INTO the turn it is running, if asked on purpose.
      *  What the composer draws its one interrupting control from. */
     readonly steers: boolean

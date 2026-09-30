@@ -296,6 +296,11 @@ export interface Reported {
   readonly said: string
 }
 
+/** AIR v1 keeps the named agent message (or its containing turn). */
+export const airForkAt = (messageId: string): NonNullable<Meta> => ({
+  jetbrains: { air: { fork: { version: 1, messageId } } },
+})
+
 /**
  * One agent's answers.
  *
@@ -304,11 +309,6 @@ export interface Reported {
  * one over, `olai-plugin-chat`'s `agents/roster.ts` says which of them this machine
  * can start, and its `agent.ts` does the talking.
  */
-/** AIR v1 keeps the named agent message (or its containing turn). */
-export const airForkAt = (messageId: string): NonNullable<Meta> => ({
-  jetbrains: { air: { fork: { version: 1, messageId } } },
-})
-
 export interface Leg {
   /** Only adapters that implement a message cutoff may opt in. */
   readonly forkAt?: (messageId: string) => NonNullable<Meta>

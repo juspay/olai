@@ -110,13 +110,17 @@ Screenshots: [session settings](images/acp/acp-session-settings.png), [execution
 
 ## Rewinding
 
-When a Claude Code or Codex conversation is idle, your messages offer **Rewind to here**. The action immediately opens a separate session containing the conversation before that message, then puts its text into the composer. Edit it or send it unchanged. Rewinding the first message opens a fresh session.
+When a Claude Code or Codex conversation is idle, your messages offer **Rewind to here** beside the bubble. On a mouse or trackpad it appears on hover or keyboard focus; touch screens show it directly. The action immediately opens a separate session containing the conversation before that message, then puts its text into the composer. Edit it or send it unchanged. Rewinding the first message opens a fresh session.
 
 The original conversation remains under **Past sessions**. An existing draft stays with that original session; the new composer receives the selected message. Any words typed into the new composer while the request finishes are kept after the prefilled text. Uploaded attachments must be attached again.
 
-Rewinding changes conversation context only. **Files the agent changed are not reverted.** Opencode, omp and pi do not offer message cutoffs, so they show no action. A row whose preceding answer has no usable protocol identity also has no action. History previews must be returned to the current chat before rewinding.
+Rewinding changes conversation context only. **Files the agent changed are not reverted.** Opencode, omp and pi do not offer message cutoffs, so they show no action. A row whose preceding answer has no usable protocol identity, or whose preceding turn ended on a tool or other activity after its last answer, also has no action. History previews must be returned to the current chat before rewinding.
 
-The server refuses rewind while a turn or queued delivery remains. A send that waits behind a successful rewind is refused and its words stay with the original session; it cannot be redirected into the fork. A failed fork or replay leaves the current session, transcript and draft intact and reports the error. The fork is prepared inside the existing node-agent scope and adopted only after replay succeeds; it retains the same process and tool credential. The node's session pointer and supersession record follow the existing fresh-session replacement path.
+The server refuses rewind while a turn or queued delivery remains. A failed fork or replay leaves the current session, transcript and draft intact and reports the error. The fork is prepared inside the existing node-agent scope and adopted only after replay succeeds; it retains the same process and tool credential. The node's session pointer and supersession record follow the existing fresh-session replacement path.
+
+Failed or interrupted preparation deletes the new session when the adapter advertises `session/delete`, falling back to `session/close` if available. Cleanup is best-effort: a close releases live resources but can leave stored history, and an adapter with neither method (or one that refuses cleanup) can leave a duplicate in past sessions. Olai fences late notifications from the failed preparation either way.
+
+A fork inherits the current conversation's remembered model choice, including choices observed from `/model`; the same restoration rule as reopening a session applies. Other settings come from the adapter's load response rather than being copied from the old session. Olai reapplies its engine permission policy before adopting the fork.
 
 ## Which conversation you come back to
 
@@ -204,6 +208,8 @@ Two things follow from it being the agent's number:
 What a session has **cost** is on the wire too, and is deliberately not drawn: it is a different question, asked at a different moment, and a second number there would buy nothing for the one this line exists to answer.
 
 ## Talking while it works
+
+A send waiting for a conversation replacement is bound to the conversation it was written for. If a fresh start, load or rewind changes that identity before the send gets the opening permit, the send is refused. Its words are restored to that original conversation's composer, including when its view has already closed; reopening it retrieves the draft. The replacement never receives those words implicitly.
 
 **The box never locks. With Codex, messages sent while it works steer the running turn.** Olai uses the adapter’s steering feature rather than opening another prompt. The turn’s completion clears the working indicator. If the turn finishes just before steering arrives, Olai starts a normal prompt for the message and tracks its completion and cancellation.
 

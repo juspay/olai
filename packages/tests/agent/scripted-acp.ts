@@ -1323,6 +1323,13 @@ const attaching = (named: string | undefined): { attachments?: Array<{ path: str
 }
 
 const runTurn = async (id: unknown, text: string): Promise<void> => {
+  if (text === "two message items") {
+    for (const [messageId, prose] of [["item-one", "First answer item."], ["item-two", "Second answer item."]]) {
+      notify("session/update", { sessionId, update: { sessionUpdate: "agent_message_chunk", messageId, content: { type: "text", text: prose } } })
+    }
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
   cancelled = false
   noise(`fake agent: ${text}`)
 
@@ -2966,7 +2973,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           // of a fresh directory, not a capability missing. Which canned rows
           // it returns stays the stored knob's — see the header and
           // {@link minted}.
-          sessionCapabilities: { list: {}, ...(existsSync(`${cwd}/.agent-no-fork`) ? {} : { fork: {} }) },
+          sessionCapabilities: { list: {}, delete: {}, close: {}, ...(existsSync(`${cwd}/.agent-no-fork`) ? {} : { fork: {} }) },
           // IT HOLDS A PROMPT SENT WHILE IT IS BUSY — said where the real
           // adapter says it, inside the capabilities, in its own `_meta`
           // corner. Nothing about this file's behaviour depends on saying it
@@ -3047,6 +3054,9 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },
       })
       return
+
+    case "session/delete": sessionStore(cwd).delete(String(params["sessionId"])); reply(id, {}); return
+    case "session/close": reply(id, {}); return
 
     case "session/fork": {
       if (existsSync(`${cwd}/.agent-refuse-fork`)) { refuse(id, -32602, "fork refused by fixture"); return }

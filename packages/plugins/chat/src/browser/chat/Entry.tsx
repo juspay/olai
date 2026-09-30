@@ -55,7 +55,7 @@
  * gap now, because the list is what has rows to put gaps between.
  */
 import { servedDirectory } from "../vault.ts"
-import { agentIn, SAYING_MS } from "olai-plugin-chat/wire"
+import { SAYING_MS } from "olai-plugin-chat/wire"
 import type { ChatEntry, Delivery } from "olai-plugin-chat/wire"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -144,7 +144,7 @@ const bubbleOf = (fate: Delivery | undefined): string => fatedOf(fate) ?? SENT
 /** The two shapes a `user` row's column takes. Yours is a bubble as wide as its
  *  words, over on the right; a machine's is the full column, because it is a
  *  paragraph rather than a remark and reads as one. */
-const MINE_COLUMN = "ml-auto flex w-fit max-w-[85%] flex-col items-end"
+const MINE_COLUMN = "relative group/rewind ml-auto flex w-fit max-w-[min(85%,calc(100%_-_5rem))] flex-col items-end"
 const RANG_COLUMN = "flex w-full flex-col items-start"
 
 /** What the agent said is not in a file, so there is no path to name — and the
@@ -313,11 +313,9 @@ export function Entry(props: {
                 )}
               </Show>
             </Show>
-            {/* Keep the row's height during a turn: removing actions above the
-                viewport can look like an upward scroll and release following. */}
-            <Show when={!rang() && user().rewindable === true && agentIn(props.chat.state())?.rewinds === true}>
-              <button type="button" class="text-label text-faint hover:text-ink"
-                classList={{ invisible: !props.chat.canRewind() }} disabled={!props.chat.canRewind()}
+            <Show when={!rang() && user().rewindable && props.chat.canRewind()}>
+              <button type="button" data-testid={TESTID.chatRewind}
+                class="absolute right-full top-0 mr-2 w-16 text-label text-faint hover:text-ink [@media(pointer:fine)]:opacity-0 [@media(pointer:fine)]:group-hover/rewind:opacity-100 [@media(pointer:fine)]:group-focus-within/rewind:opacity-100"
                 onClick={() => props.chat.rewind(user().id)}>Rewind to here</button>
             </Show>
             {/* IT DID NOT LAND — and the words are still here, which is the

@@ -1,5 +1,3 @@
-import { sessionValue } from "@olai/format"
-import { newChat } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -68,6 +66,9 @@ import { newChat } from "./server/new-chat.ts"
  * `olai-plugin-chat/server` and the loader mounts this module's DEFAULT export
  * as a fiber.
  */
+import { sessionValue } from "@olai/format"
+import { newChat } from "./server/new-chat.ts"
+
 
 import { deliveryProvision } from "./server/deliveries.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
@@ -569,7 +570,7 @@ export default definePlugin({
           if (node === null || node.session !== input.conv.session || row?.kind !== "user") {
             return yield* new UsageFailure({ reason: "rewind requires the node's current conversation" })
           }
-          const now = yield* open.startAgentSession(node.id, input.conv.agent,
+          const now = yield* open.rewindAgentSession(node.id, input.conv.agent,
             { session: input.conv.session, scope: input.scope, id: input.id })
           yield* binding.write(node.id, sessionValue(now.agent, now.session))
           yield* open.replaced(input.conv, now)

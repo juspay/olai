@@ -1,13 +1,14 @@
+/** Resolve history against the live binding and acquire the visible conversation.
+ * The caller’s Solid owner releases its subscription and question tracking;
+ * shared drafts and visits remain owned by the chat activation.
+ */
 import { keepMessage } from "../chat/message-draft.ts"
 import { createEffect, createMemo, type Accessor } from "solid-js"
 import { createChat } from "../chat/state.ts"
 import { createAsked } from "../chat/attention/asked.ts"
 import { agentReadings, readAgent } from "./reading.ts"
 
-/** Resolve history against the live binding and acquire the visible conversation.
- * The caller’s Solid owner releases its subscription and question tracking;
- * shared drafts and visits remain owned by the chat activation.
- */
+
 export const createNodeConversation = (node: Accessor<string>) => {
   const reading = agentReadings()
   const pair = createMemo(() => {

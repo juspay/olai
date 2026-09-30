@@ -19,7 +19,7 @@ const head = { seq: 0, since: "2026-08-31T12:00:00.000Z" }
 const said = (extra: Partial<UserEntry> = {}): UserEntry => ({
   ...head,
   id: "user-1",
-  kind: "user",
+  kind: "user", rewindable: false,
   text: "what is left on the lane?",
   ...extra,
 })

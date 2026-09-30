@@ -3,7 +3,7 @@
  * replay contains that session's actual messages. The canned protocol fixtures
  * remain available for tests that need their precise frames. */
 import { randomUUID } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 export const SESSION_STORE_MARKER = ".agent-persistent-sessions"
@@ -26,6 +26,7 @@ export const sessionStore = (cwd: string) => {
     enabled: existsSync(directory),
     newId: () => `audit-session-${randomUUID()}`,
     read,
+    delete: (id: string) => { if (valid(id)) rmSync(file(id), { force: true }) },
     fork: (id: string, messageId: string): string | null => {
       const saved = read(id)
       const index = saved?.updates.findLastIndex(update => update["messageId"] === messageId) ?? -1

@@ -34,7 +34,7 @@ const user = (text: string): UserEntry => ({
   id: "user:1",
   seq: 0,
   since: "2026-08-21T12:00:00.000Z",
-  kind: "user",
+  kind: "user", rewindable: false,
   text,
 })
 

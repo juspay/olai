@@ -1,4 +1,3 @@
-import { airForkAt } from "@olai/acp/engine"
 /**
  * CODEX-ACP'S WIRE, read conservatively.
  *
@@ -9,6 +8,8 @@ import { airForkAt } from "@olai/acp/engine"
  * a call may cost a click, while guessing could grant authority nobody gave.
  *
  */
+import { airForkAt } from "@olai/acp/engine"
+
 import { namedExactly, type Leg, type Meta, type Reported } from "@olai/acp/engine"
 
 const fieldIn = (value: unknown, key: string): unknown =>

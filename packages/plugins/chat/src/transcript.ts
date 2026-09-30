@@ -126,7 +126,7 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 /** The six fields {@link Transcript} derives, named once — the list is
  *  spelled in three casts and a public type below, and four spellings of one
  *  list is one of them being missed the day a seventh is derived. */
-type Derived = "id" | "seq" | "since" | "streaming" | "stranded" | "resumed"
+type Derived = "rewindable" | "id" | "seq" | "since" | "streaming" | "stranded" | "resumed"
 
 const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<E, Derived> => {
   switch (entry.kind) {
@@ -192,12 +192,15 @@ const minted = (
   entry: RowContent,
   derived: { readonly id: string; readonly seq: number; readonly since: string },
   marks: {
+    readonly rewindable: boolean
     readonly streaming: boolean
     readonly stranded: boolean
     readonly resumed: string | undefined
   },
 ): ChatEntry => {
   switch (entry.kind) {
+    case "user":
+      return { ...entry, ...derived, rewindable: marks.rewindable }
     case "agent":
       return marks.streaming
         ? { ...entry, ...derived, streaming: true as const }
@@ -406,15 +409,13 @@ export class Transcript {
     return this.#entries
   }
 
-  /** Everything, gone — a new session, or one being loaded. The removes are
-   *  reported so a subscriber's own copy empties rather than accumulating two
-   *  conversations. */
   // Protocol identities stay server-side, keyed by local transcript rows.
   #messageIds = new Map<string, string>()
   #points = new Map<string, string | null>()
   #lastAgent: string | undefined
   #hasUser = false
 
+  /** Inclusive safe cutoff before this user row; absent means unavailable. */
   forkPoint(id: string): string | null | undefined { return this.#points.get(id) }
 
   #point(key: string): void {
@@ -425,6 +426,9 @@ export class Transcript {
     this.#lastAgent = undefined
   }
 
+  /** Everything, gone — a new session, or one being loaded. The removes are
+   *  reported so a subscriber's own copy empties rather than accumulating two
+   *  conversations. */
   clear(): Change {
     this.#messageIds.clear()
     this.#points.clear()
@@ -667,8 +671,7 @@ export class Transcript {
     this.#open = this.#next(kind)
     if (messageId !== undefined) this.#messageIds.set(this.#open, messageId)
     if (kind === "user") this.#point(this.#open)
-    return both(closed, this.#put(this.#open, kind === "user"
-      ? { kind, text, rewindable: this.#points.has(this.#open) } : { kind, text }))
+    return both(closed, this.#put(this.#open, { kind, text }))
   }
 
   /**
@@ -860,6 +863,7 @@ export class Transcript {
       readonly armed?: Armed | undefined
     },
   ): Change {
+    this.#lastAgent = undefined
     const key = toolKey(id)
     const current = this.#entries.get(key)
     const held = current?.kind === "tool" ? current : undefined
@@ -1318,6 +1322,7 @@ export class Transcript {
   } {
     const key = this.#next(kind)
     if (kind === "user") this.#point(key)
+    else if (kind !== "agent") this.#lastAgent = undefined
     return {
       key,
       change: both(
@@ -1369,6 +1374,7 @@ export class Transcript {
       since: existing?.since ?? this.#stamp(),
     }
     const next = minted(entry, derived, {
+      rewindable: this.#points.has(key),
       streaming: entry.kind === "agent" && key === this.#open,
       stranded: entry.kind === "tool" && this.#stranded.has(key),
       resumed: entry.kind === "tool" ? this.#outings.get(key) : undefined,

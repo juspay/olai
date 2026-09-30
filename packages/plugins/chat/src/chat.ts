@@ -837,7 +837,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * that was there before the agent said it took one is a person pressing
      * *interrupt* at an agent that will refuse it.
      */
-    const SAYS_NOTHING = { steers: false, queues: false } as const
+    const SAYS_NOTHING = { steers: false, queues: false, rewinds: false } as const
 
     /**
      * ... and what the CURRENT agent has said, once it has.
@@ -849,7 +849,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * is one assignment per boot; folded into `talking` it would be a field
      * every writer of that member had to remember not to flatten.
      */
-    let advertises: { readonly steers: boolean; readonly queues: boolean; readonly rewinds?: boolean } = SAYS_NOTHING
+    let advertises: { readonly steers: boolean; readonly queues: boolean; readonly rewinds: boolean } = SAYS_NOTHING
 
     /**
      * Whether THIS CONVERSATION has ever held a message behind a running turn.

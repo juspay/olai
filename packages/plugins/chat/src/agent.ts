@@ -398,6 +398,8 @@ interface Live {
   readonly child: Child
   readonly connection: ClientConnection
   readonly canList: boolean
+  readonly canDelete: boolean
+  readonly canClose: boolean
   readonly canFork: boolean
   readonly canLoad: boolean
 }
@@ -1486,6 +1488,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           connection,
           canList: capabilities?.sessionCapabilities?.list != null,
           canLoad: capabilities?.loadSession === true,
+          canDelete: capabilities?.sessionCapabilities?.delete != null,
+          canClose: capabilities?.sessionCapabilities?.close != null,
           canFork: capabilities?.sessionCapabilities?.fork != null,
         }
       })
@@ -1709,47 +1713,37 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  ({@link Options.probes}). Asked FRESH every time a session is opened
      *  rather than once at boot, so a daemon started after olai is picked up by
      *  the next conversation instead of the next restart. */
-    const servers = Effect.map(
-      // THE LIST IS ASKED FOR FIRST, and it can wait: the composition root
-      // dispatches an event to collect it, and a listener that awaited before
-      // contributing would otherwise be dropped with nothing red
-      // ({@link Options.probes}). What comes back is the same list `probed` has
-      // always taken, and the bounded concurrency below is untouched.
-      Effect.flatMap(
-        options.probes?.() ?? Effect.succeed([]),
-        probed,
-      ),
-      // ONE probing answers both halves, and both are read off the ONE array
-      // this callback is handed. `handedIn` takes what a session is given, and
-      // `missingIn` takes what a person is owed about the ones it was not —
-      // which used to be dropped here on the grounds that nothing drew it.
-      // Something does now (`mcp-fail-visible`), and it reads the same answers
-      // rather than probing a second time: two probings could disagree, and the
-      // one a session was opened on is the one that is true about it.
-      (found) => {
-        const handing = mcpServersOf(options.tools(), handedIn(found))
-        // Remembered as they are handed over, because "the tools we gave this
-        // conversation" is exactly the set the permission handler allows
-        // without asking — and it is decided per conversation.
-        //
-        // OFF `handing` AND NOT OFF THE ROSTER BELOW, which is built from the
-        // same array one line down. The roster is a thing to LOOK at and this
-        // is the set that decides which permission requests are answered
-        // without a person, so it is read from the literal list going on the
-        // wire rather than from a display model that could one day grow a row
-        // for a server nobody handed over ({@link ./servers.ts} says why it
-        // deliberately does not).
-        given = handing.map((server) => server.name)
-        // Before the session, always — and now on EVERY conversation rather
-        // than only on a broken one. A roster is the answer to "which servers
-        // does this conversation have?", which is a question about a healthy
-        // session as much as a failed one — and a panel told only about
-        // failures leaves the other answer to the model, which is the incident
-        // this comes from (`mcp-roster-visible`).
-        announce(rosterOf(handing, missingIn(found)))
-        return handing
-      },
+    const probeServers = Effect.map(
+      Effect.flatMap(options.probes?.() ?? Effect.succeed([]), probed),
+      found => ({ handing: mcpServersOf(options.tools(), handedIn(found)), missing: missingIn(found) }),
     )
+    const publishServers = (found: Effect.Success<typeof probeServers>): ReadonlyArray<McpServer> => {
+      given = found.handing.map(server => server.name)
+      announce(rosterOf(found.handing, found.missing))
+      return found.handing
+    }
+    const servers = Effect.map(probeServers, publishServers)
+
+    /** A prepared session belongs to this opening until it is adopted. Delete
+     *  persisted history when supported; otherwise release the adapter's live
+     *  resources. Cleanup never replaces the preparation's original failure. */
+    const withdrawPrepared = (at: Live, id: string): Effect.Effect<void> => Effect.gen(function*() {
+      closed.add(id)
+      for (const method of [
+        ...(at.canDelete ? [methods.agent.session.delete] : []),
+        ...(at.canClose ? [methods.agent.session.close] : []),
+      ]) {
+        const result = yield* Effect.result(ask(at.connection, method, { sessionId: id }))
+        if (result._tag === "Success") return
+        yield* Effect.logWarning(`prepared session cleanup failed: ${result.failure.why}`)
+      }
+    })
+
+    const presentSession = (at: Live, id: string, response: NewSessionResponse | LoadSessionResponse | null,
+      wanted: string | null): Effect.Effect<void> => Effect.gen(function*() {
+      prologue = options.leg.prologueIn(response)
+      yield* restore(at, id, response?.configOptions, wanted)
+    })
 
     const fresh = (at: Live): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
@@ -1772,8 +1766,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // pulled — see the microtask argument at `Leg.prologueIn`. An adapter
         // that reorders ships the banner to the transcript instead, which is
         // the safe direction.
-        prologue = options.leg.prologueIn(made)
-        readModel(made.configOptions)
+        yield* presentSession(at, made.sessionId, made, null)
         yield* askForBypass(at, made.sessionId, made.configOptions)
         yield* entered(made.sessionId, null, "new", started)
       })
@@ -1830,7 +1823,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // and this line of it after. A `session/load` that announces a
         // prologue of its own arms it here; this adapter's answers `null`,
         // and null is "drop nothing", the whole of the claim.
-        prologue = options.leg.prologueIn(loaded ?? null)
+
         // AFTER THE ANSWER, and that ordering is the whole of one bug. Entering
         // a conversation is what this module records being IN one — it sets the
         // session every later verb acts on, and it writes the note the next boot
@@ -1843,7 +1836,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // they are rows, and `replayStarted` has already emptied the transcript
         // for them — so what the panel is short of in between is the title,
         // which it gets a moment later along with everything else.
-        yield* restore(at, id, loaded?.configOptions, wanted)
+        yield* presentSession(at, id, loaded ?? null, wanted)
         yield* askForBypass(at, id, loaded?.configOptions)
         yield* entered(id, title, "loaded", started)
       })
@@ -1961,35 +1954,38 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         },
       )
 
+    /** Select policy without publishing or changing the current ownership. */
+    const selectBypass = (at: Live, id: string): Effect.Effect<boolean | string, AgentGone> => Effect.gen(function*() {
+      const mode = options.leg.bypassMode
+      if (mode === null) return false
+      const result = yield* Effect.result(ask(at.connection, methods.agent.session.setMode, { sessionId: id, modeId: mode }))
+      if (result._tag === "Success") return true
+      const why = `could not select permission mode ${mode} for session ${id}: ${result.failure.why}`
+      if (options.leg.bypassModeRequired === true) return yield* new AgentGone({ gone: result.failure.gone, why })
+      return `${why}; continuing with the adapter's existing permission mode`
+    })
+
     /** Apply the engine's permission policy before activating the session.
      *  Some engines require it; others retain their permission backstop when
      *  the adapter refuses. Neither refusal is silent. */
     const askForBypass = (
       at: Live, id: string, config: ReadonlyArray<SessionConfigOption> | null | undefined,
     ): Effect.Effect<void, AgentGone> => Effect.gen(function*() {
-      const mode = options.leg.bypassMode
-      if (mode === null) return
-      const result = yield* Effect.result(ask(at.connection, methods.agent.session.setMode, {
-        sessionId: id,
-        modeId: mode,
-      }))
+      const result = yield* Effect.result(selectBypass(at, id))
       if (result._tag === "Failure") {
-        const why = `could not select permission mode ${mode} for session ${id}: ${result.failure.why}`
-        if (options.leg.bypassModeRequired === true) {
-          // Replay and settings can arrive before selection. Withdraw that
-          // provisional visit and fence its late notifications just like a
-          // session we left; no active session or memory claim was made.
-          closed.add(id)
-          leaving()
-          show(null)
-          emit({ _tag: "sessionOver", why: "refused" })
-          return yield* new AgentGone({ gone: result.failure.gone, why })
-        }
-        trouble(`${why}; continuing with the adapter's existing permission mode`)
-        return
+        closed.add(id)
+        leaving()
+        show(null)
+        emit({ _tag: "sessionOver", why: "refused" })
+        return yield* result.failure
       }
-      reflectBypass(mode, config)
+      publishBypass(result.success, config)
     })
+
+    const publishBypass = (result: boolean | string, config: ReadonlyArray<SessionConfigOption> | null | undefined): void => {
+      if (typeof result === "string") trouble(result)
+      else if (result && options.leg.bypassMode !== null) reflectBypass(options.leg.bypassMode, config)
+    }
 
     const reflectBypass = (mode: string, config: ReadonlyArray<SessionConfigOption> | null | undefined): void => {
       // set_mode may acknowledge without publishing config_option_update.
@@ -2355,26 +2351,25 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         const started = yield* Clock.monotonicTimeNanos
         // Prepare in the existing owner without releasing the old session.
         // Probes and the live roster remain untouched until adoption succeeds.
-        const found = yield* Effect.flatMap(options.probes?.() ?? Effect.succeed([]), probed)
-        const mcpServers = mcpServersOf(options.tools(), handedIn(found))
-        const made = (yield* ask(at.connection, point === null ? methods.agent.session.new : "session/fork", {
+        const wanted = modelFor(old)
+        const found = yield* probeServers
+        const mcpServers = found.handing
+        let adopted = false
+        return yield* Effect.acquireUseRelease(
+        Effect.map(ask(at.connection, point === null ? methods.agent.session.new : methods.agent.session.fork, {
           cwd: options.cwd, mcpServers,
           ...(point === null ? openMeta : { sessionId: old,
             _meta: { ...openMeta._meta, ...forkAt(point) } }),
-        })) as NewSessionResponse
+        }), response => response as NewSessionResponse),
+        made => Effect.gen(function*() {
         if (made.sessionId === old) return yield* new AgentGone({ gone: "refused", why: "the adapter did not create a separate session" })
         const pending = { sessions: new Set([made.sessionId]), updates: [] as Array<() => void> }
-        let selectedMode = false
+        let selectedMode: boolean | string = false
         staged = pending
         const prepared = yield* Effect.result(Effect.ensuring(Effect.gen(function*() {
           const loaded = point === null ? made : (yield* ask(at.connection, methods.agent.session.load,
             { sessionId: made.sessionId, cwd: options.cwd, mcpServers, ...openMeta }, LOAD_TIMEOUT)) as LoadSessionResponse
-          if (options.leg.bypassMode !== null) {
-            const mode = yield* Effect.result(ask(at.connection, methods.agent.session.setMode,
-              { sessionId: made.sessionId, modeId: options.leg.bypassMode }))
-            if (mode._tag === "Failure" && options.leg.bypassModeRequired === true) return yield* mode.failure
-            selectedMode = mode._tag === "Success"
-          }
+          selectedMode = yield* selectBypass(at, made.sessionId)
           return loaded
         }), Effect.sync(() => {
           staged = null
@@ -2387,19 +2382,24 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // scope, process and credential are retained throughout.
         leaving()
         activeSession = made.sessionId
+        adopted = true
         closed.delete(made.sessionId)
         emit({ _tag: "sessionOver", why: "load" })
         replaying = true
         emit({ _tag: "replayStarted" })
-        given = mcpServers.map(server => server.name)
-        announce(rosterOf(mcpServers, missingIn(found)))
-        prologue = options.leg.prologueIn(prepared.success)
+        publishServers(found)
         for (const replay of pending.updates) replay()
         replaying = false
         emit({ _tag: "replayEnded" })
-        readModel(prepared.success.configOptions)
-        if (selectedMode && options.leg.bypassMode !== null) reflectBypass(options.leg.bypassMode, prepared.success.configOptions)
+        // The new identity inherits the old model choice, including for the
+        // next restart. Other config controls use the adapter's loaded values.
+        held = { agent: options.id, session: made.sessionId, model: wanted }
+        yield* presentSession(at, made.sessionId, prepared.success, wanted)
+        publishBypass(selectedMode, prepared.success.configOptions)
         yield* entered(made.sessionId, null, point === null ? "new" : "loaded", started)
+        }),
+        made => adopted || made.sessionId === old ? Effect.void : withdrawPrepared(at, made.sessionId),
+        )
       })),
       newSession: opening((at) =>
         Effect.gen(function*() {

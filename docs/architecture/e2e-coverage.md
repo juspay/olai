@@ -88,7 +88,7 @@ Each row names the user actions to audit, the feature files that exist, and what
 
 ## Rewind coverage
 
-The existing split agent-page scrolling scenario also checks that hiding rewind actions during a turn preserves the transcript's geometry and keeps new answers following the bottom.
+The existing split agent-page scrolling scenario also checks that rewind actions stay outside layout flow and hiding them during a turn preserves the transcript's geometry and keeps new answers following the bottom.
 
 `chat_rewind.feature` covers editing and sending unchanged on Claude and Codex, retaining the preceding answer, first-message fresh sessions, old-session drafts and history reopening, message IDs restored by replay on both engines, fork/load failures and retry, a stale browser's mid-turn request, absent controls on opencode, missing adapter capabilities or message IDs, unchanged files after rewind, the phone workflow, and a concurrent send retaining its original-session draft instead of entering the fork. `transcript.rewind.test.ts` covers split chunks, distinct message boundaries, missing IDs, queued/unanswered turns and clearing old cutoffs. `agent.rewind.test.ts` checks creation, replay and required-mode failures before ownership moves, both capability opt-ins, and ordered native child activity during replay.
 
@@ -397,3 +397,5 @@ open the plugins panel through the health popover and put it away with Escape
 (picking the Plugins row shuts the popover; Escape hands the caret back to the
 health dot), and `setSwitch` drives a
 preference switch.
+
+Review coverage adds persisted-session counts after failed preparation, deletion/close on interruption, unsafe tool-tail cutoffs, picker and CLI model choices across rewind and restart, and distinct Codex message items as separate paragraphs (including replay and unavailable history actions). The real pinned Claude ACP 0.81.2 was also driven over stdio: `initialize`, AIR `session/fork` at `msg-1`, then `session/load` on the same connection replayed exactly the first question and answer, with the answer's `messageId` still `msg-1`. No model call was sent; the adapter advertised both delete and close.

@@ -1,5 +1,3 @@
-import { airForkAt } from "@olai/acp/engine"
-import { refusalIn } from "@olai/surface"
 /**
  * What the Claude Code adapter MEANS by what it sends — olai's first leg
  * (`@olai/acp/engine`'s `Leg`), meaning unchanged from the day it was the only
@@ -38,6 +36,9 @@ import { refusalIn } from "@olai/surface"
  * aliases its picker offers for the ids its CLI reports — is {@link ./models.ts},
  * beside this file, and rides over on {@link Leg.models}.
  */
+import { airForkAt } from "@olai/acp/engine"
+import { refusalIn } from "@olai/surface"
+
 
 import {
   allowingOurs,

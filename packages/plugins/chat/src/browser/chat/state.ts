@@ -1,7 +1,3 @@
-import { keepMessage } from "./message-draft.ts"
-import type { Json } from "../../json.ts"
-import type { Refusal } from "../../slots.ts"
-import { Effect } from "effect"
 /**
  * The conversation, as this tab sees it.
  *
@@ -47,6 +43,11 @@ import { Effect } from "effect"
  * ({@link ./run.ts} is the edge itself). A procedure returns an `Effect`, a
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
+import { keepMessage } from "./message-draft.ts"
+import type { Json } from "../../json.ts"
+import type { Refusal } from "../../slots.ts"
+import { Effect } from "effect"
+
 
 import { agentIn, type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
@@ -149,12 +150,13 @@ export interface Chat {
    *  rub out the last one's. The caller collects them and says them once
    *  ({@link Chat.refuse}). */
   readonly attach: (file: File, progress?: UploadProgress) => Promise<Uploaded>
+  /** Whether this current conversation can fork; apply it to a user row. */
+  readonly canRewind: Accessor<boolean>
+  readonly rewind: (id: string) => void
   /** Try a message the agent would not take again — `id` is the row's own key,
    *  and the SERVER still holds the prompt behind it. Nothing is rebuilt here:
    *  the row carries its pictures by name, and a retry assembled from what is
    *  on screen would be a different message. */
-  readonly canRewind: Accessor<boolean>
-  readonly rewind: (id: string) => void
   readonly resend: (id: string) => void
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean, done: () => void) => void
   readonly setModel: (agent: string, session: string, value: string, done: () => void) => void
@@ -493,7 +495,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
           },
         )
       }),
-    canRewind: () => options.current?.() !== false && state().status === "idle"
+    canRewind: () => options.current?.() === true && state().status === "idle"
       && agentIn(state())?.rewinds === true,
     rewind: (id) => {
       setRefused(null)

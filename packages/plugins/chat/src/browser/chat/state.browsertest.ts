@@ -21,7 +21,7 @@ test("two Chats read and send to their own conversations and keep refusals separ
           ...CHAT_OFF, status: "idle", uploadScope: `scope-${to.session}`,
           session: { id: to.session, title: null, updatedAt: null },
         } : { kind: "snapshot", entries: member === "transcript" ? [["user:1", {
-          kind: "user", id: "user:1", seq: 1, since: "2026-09-11T00:00:00Z", text: to.session,
+          kind: "user", rewindable: false, id: "user:1", seq: 1, since: "2026-09-11T00:00:00Z", text: to.session,
         }]] : [] })
         return `${to.session}/${member}`
       }), key => Effect.sync(() => { released.push(key) }))),

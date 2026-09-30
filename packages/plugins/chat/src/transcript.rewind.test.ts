@@ -32,3 +32,17 @@ test("replay keeps message boundaries and the final agent message's identity", (
   expect(transcript.forkPoint(rows[3]!.id)).toBeUndefined()
   expect(transcript.forkPoint(transcript.user("fresh").key)).toBeNull()
 })
+
+for (const status of ["in_progress", "completed"] as const) {
+  test(`a turn ending on a ${status} tool has no safe prose cutoff`, () => {
+    const transcript = new Transcript()
+    transcript.user("first")
+    transcript.say("calling a tool", "a1")
+    transcript.tool("call", { title: "read", status })
+    transcript.settle()
+    expect(transcript.forkPoint(transcript.user("next").key)).toBeUndefined()
+    transcript.say("finished", "a2")
+    transcript.settle()
+    expect(transcript.forkPoint(transcript.user("safe now").key)).toBe("a2")
+  })
+}

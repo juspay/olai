@@ -84,6 +84,9 @@ Feature: Rewind a conversation into a separate session
     Then rewind reports a failure
     And the chat input reads "my draft"
     And the agent has answered "second answer" exactly once
+    And the agent store contains 1 conversation
+    When I open the fold history
+    Then the panel says this agent has had 0 past sessions
     When the rewind fixture accepts requests
     And I rewind my message "second answer"
     Then the chat input reads "second answer"
@@ -175,3 +178,46 @@ Feature: Rewind a conversation into a separate session
     Then the chat input reads "concurrent words"
     When I use the original browser tab
     Then the chat input reads "second answer"
+
+  Scenario Outline: Rewind keeps the model selected by <selection>
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "first answer"
+    Then the agent is idle
+    When <selection>
+    Then the agent is idle
+    And I ask the agent "second answer"
+    Then the agent is idle
+    And the panel header names the model "Fake Two"
+    When I rewind my message "second answer"
+    Then the chat input reads "second answer"
+    And the panel header names the model "Fake Two"
+    When I send the chat message
+    Then the agent is idle
+    And the panel header names the model "Fake Two"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    Then the panel header names the model "Fake Two"
+    Examples:
+      | selection |
+      | I choose the chat model "Fake Two" |
+      | I ask the agent "model fake-model-2" |
+
+  @codex
+  Scenario: Distinct Codex message items remain separate answer paragraphs
+    When I open the "codex" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "two message items"
+    Then the agent is idle
+    And the two answer items occupy separate rows
+    When I ask the agent "next question"
+    Then the agent is idle
+    When I rewind my message "next question"
+    Then the chat input reads "next question"
+    And the two answer items occupy separate rows
+    When I open the fold history
+    And I open the past session "two message items"
+    Then the chat offers no rewind actions

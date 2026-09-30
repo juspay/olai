@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { appendFileSync, existsSync } from "node:fs"
 import { createInterface } from "node:readline"
+const sessions = new Set<string>()
 let next = 0
 let failed: string | null = null
 const send = (value: unknown) => process.stdout.write(JSON.stringify(value) + "\n")
@@ -18,8 +19,10 @@ for await (const line of createInterface({ input: process.stdin })) {
   } })
   switch (request.method) {
     case "initialize": reply({ protocolVersion: 1, agentCapabilities: { loadSession: true,
-      sessionCapabilities: { list: {}, ...(process.argv.includes("--no-fork") ? {} : { fork: {} }) } } }); break
-    case "session/list": reply({ sessions: [] }); break
+      sessionCapabilities: { list: {}, close: {}, ...(process.argv.includes("--no-delete") ? {} : { delete: {} }), ...(process.argv.includes("--no-fork") ? {} : { fork: {} }) } } }); break
+    case "session/list": reply({ sessions: [...sessions].map(sessionId => ({ sessionId, cwd: process.cwd() })) }); break
+    case "session/delete": sessions.delete(request.params.sessionId); reply({}); break
+    case "session/close": reply({}); break
     case "session/new":
       if (failed !== null) {
         send({ jsonrpc: "2.0", method: "session/update", params: { sessionId: failed,
@@ -28,9 +31,10 @@ for await (const line of createInterface({ input: process.stdin })) {
       }
     case "session/fork":
       if (existsSync("refuse-open")) refuse()
-      else reply({ sessionId: `session-${++next}` })
+      else { const sessionId = `session-${++next}`; sessions.add(sessionId); reply({ sessionId }) }
       break
     case "session/load":
+      if (existsSync("hold-load")) break
       for (const [sessionId, entry] of [
         [request.params.sessionId, { sessionUpdate: "subagent_spawned", subagentSessionId: "child-session", name: "Explorer", task: "inspect history" }],
         ["child-session", { sessionUpdate: "tool_call", toolCallId: "child-tool", title: "read history", status: "completed" }],

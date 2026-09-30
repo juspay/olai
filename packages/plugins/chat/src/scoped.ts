@@ -51,7 +51,10 @@ export interface Chat extends Panel {
   readonly startAgentSession: (
     node: string,
     agent: string,
-    rewind?: { readonly session: string; readonly scope: string | null; readonly id: string },
+  ) => Effect.Effect<Conversing, OpFailure>
+  /** Replace only the current conversation, retaining it if preparation fails. */
+  readonly rewindAgentSession: (node: string, agent: string,
+    rewind: { readonly session: string; readonly scope: string | null; readonly id: string },
   ) => Effect.Effect<Conversing, OpFailure>
 }
 
@@ -779,6 +782,49 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }))
       })
 
+    /** Shared ownership and reader handoff for named opening operations. */
+    const replaceSession = (node: string, agent: string,
+      open: (slot: NodeSlot) => Effect.Effect<void, OpFailure>,
+    ): Effect.Effect<Conversing, OpFailure> =>
+        !seatableAt(node)
+          ? Effect.fail(new UsageFailure({
+            reason: `node ${node} is no longer available for an agent session`,
+          }))
+          : working(node, undefined, ({ slot }) =>
+            slot.opening.withPermit(Effect.gen(function*() {
+              activate(slot)
+              const previous = slot.state.session === null ? null : {
+                agent: agentIn(slot.state)?.id, session: slot.state.session.id,
+              }
+              const before = [...slot.panel.entries()].map(([id]) => id)
+              yield* Effect.acquireUseRelease(
+                Effect.sync(() => { slot.mutingReaders = true }),
+                () => open(slot),
+                () => Effect.sync(() => { slot.mutingReaders = false }),
+              )
+              const session = slot.panel.state().session
+              if (session === null) return yield* new UsageFailure({
+                reason: `${agent} opened no conversation to bind to this node`,
+              })
+              // Some adapters/fixtures may reuse an identity after changing
+              // engines. The newly opened pair is current, never superseded.
+              slot.superseded.delete(readingKey({ agent, session: session.id }))
+              if (previous?.agent !== undefined
+                && (previous.agent !== agent || previous.session !== session.id)) {
+                slot.superseded.add(readingKey({ agent: previous.agent, session: previous.session }))
+              }
+              // Retain old identities for this slot's lifetime: readers may
+              // already hold a binding snapshot when persistence catches up.
+              // A harness may return the same identity for fresh start. Its
+              // existing readers still need the new state and cleared replay.
+              for (const reader of listeners(slot.state) ?? []) {
+                reader.state(slot.state)
+                reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+              }
+              yield* flush(slot)
+              return { agent, session: session.id }
+            })))
+
     return {
       reading,
       entries: () => panelOf().entries(),
@@ -889,55 +935,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * else. A scope is a seat and a seat is a node ({@link acquire}); which
        * node this is for is the argument.
        */
-      startAgentSession: (node, agent, rewind) =>
-        !seatableAt(node)
-          ? Effect.fail(new UsageFailure({
-            reason: `node ${node} is no longer available for an agent session`,
-          }))
-          : working(node, undefined, ({ slot }) =>
-            slot.opening.withPermit(Effect.gen(function*() {
-              if (rewind !== undefined && (slot.state.session?.id !== rewind.session
-                || agentIn(slot.state)?.id !== agent || slot.state.uploadScope !== rewind.scope)) {
-                return yield* new UsageFailure({ reason: "the conversation changed; rewind was not applied" })
-              }
-              if (rewind !== undefined && (pending.get(node)?.length ?? 0) > 0) {
-                return yield* new BusyFailure({ reason: "queued deliveries must finish before rewinding" })
-              }
-              activate(slot)
-              const previousState = slot.state
-              if (rewind === undefined) options.onConversationClosed?.(slot.state)
-              const previous = slot.state.session === null ? null : {
-                agent: agentIn(slot.state)?.id, session: slot.state.session.id,
-              }
-              const before = [...slot.panel.entries()].map(([id]) => id)
-              yield* Effect.acquireUseRelease(
-                Effect.sync(() => { slot.mutingReaders = true }),
-                () => rewind === undefined ? slot.panel.newSession(agent) : slot.panel.rewind(rewind.id),
-                () => Effect.sync(() => { slot.mutingReaders = false }),
-              )
-              if (rewind !== undefined) options.onConversationClosed?.(previousState)
-              const session = slot.panel.state().session
-              if (session === null) return yield* new UsageFailure({
-                reason: `${agent} opened no conversation to bind to this node`,
-              })
-              // Some adapters/fixtures may reuse an identity after changing
-              // engines. The newly opened pair is current, never superseded.
-              slot.superseded.delete(readingKey({ agent, session: session.id }))
-              if (previous?.agent !== undefined
-                && (previous.agent !== agent || previous.session !== session.id)) {
-                slot.superseded.add(readingKey({ agent: previous.agent, session: previous.session }))
-              }
-              // Retain old identities for this slot's lifetime: readers may
-              // already hold a binding snapshot when persistence catches up.
-              // A harness may return the same identity for fresh start. Its
-              // existing readers still need the new state and cleared replay.
-              for (const reader of listeners(slot.state) ?? []) {
-                reader.state(slot.state)
-                reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
-              }
-              yield* flush(slot)
-              return { agent, session: session.id }
-            }))),
+      startAgentSession: (node, agent) => replaceSession(node, agent, slot => Effect.gen(function*() {
+        options.onConversationClosed?.(slot.state)
+        yield* slot.panel.newSession(agent)
+      })),
+      rewindAgentSession: (node, agent, rewind) => replaceSession(node, agent, slot => Effect.gen(function*() {
+        if (slot.state.session?.id !== rewind.session || agentIn(slot.state)?.id !== agent
+          || slot.state.uploadScope !== rewind.scope) {
+          return yield* new UsageFailure({ reason: "the conversation changed; rewind was not applied" })
+        }
+        if ((pending.get(node)?.length ?? 0) > 0) {
+          return yield* new BusyFailure({ reason: "queued deliveries must finish before rewinding" })
+        }
+        const previous = slot.state
+        yield* slot.panel.rewind(rewind.id)
+        options.onConversationClosed?.(previous)
+      })),
       chooseAgent: (agent) => {
         activateRoot()
         return root.chooseAgent(agent)
