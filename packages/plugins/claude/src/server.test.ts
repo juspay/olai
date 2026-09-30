@@ -17,7 +17,7 @@
 import { AGENT_ENV } from "@olai/acp/engine"
 import { describe, expect, test } from "bun:test"
 
-import { ENGINE } from "./server.ts"
+import { ENGINE, REMOTE_SIGNALS } from "./server.ts"
 import { INSTALL } from "./install.ts"
 
 const CWD = "/vault"
@@ -34,12 +34,20 @@ describe("finding the Claude Code adapter on a host", () => {
         cwd: CWD,
         found: nowhere,
       }),
-    ).toEqual({ command: "/nix/store/x/bin/claude-agent-acp", args: [] })
+    ).toEqual({
+      command: "/nix/store/x/bin/claude-agent-acp",
+      args: [],
+      // THE FIVE VARIABLES THE ADAPTER GUESSES FROM, taken away from every
+      // spawn of it: olai is the remote end of a browser, and the person is
+      // not somewhere else ({@link REMOTE_SIGNALS}, and `olai-plugin-chat`'s
+      // `agent.ts` for what the removal does for a sign-in).
+      unset: REMOTE_SIGNALS,
+    })
   })
 
   test("a command line, not a path: the adapter is often `node <file>`", () => {
     expect(ENGINE.at({ env: { [AGENT_ENV]: "node /a/index.js" }, cwd: CWD, found: nowhere }))
-      .toEqual({ command: "node", args: ["/a/index.js"] })
+      .toEqual({ command: "node", args: ["/a/index.js"], unset: REMOTE_SIGNALS })
   })
 
   test("nothing baked in is this engine's own sentence, and NOTHING is looked for on a path", () => {
@@ -58,6 +66,20 @@ describe("finding the Claude Code adapter on a host", () => {
     })
     expect(at).toBe(INSTALL)
     expect(probed).toBe(false)
+  })
+
+  test("the variables the adapter reads as \"remote\" are its own ssh and browser signals", () => {
+    // ASSERTED BY NAME, because the whole value of the list is that it is those
+    // five: `acp-agent.js` (0.81.2) computes `isRemote` from exactly these, and
+    // a sixth added or one dropped is a change in which login methods the
+    // adapter offers (`olai-plugin-chat`'s `agent.ts` is where that is drawn).
+    expect([...REMOTE_SIGNALS].sort()).toEqual([
+      "CLAUDE_CODE_REMOTE",
+      "NO_BROWSER",
+      "SSH_CLIENT",
+      "SSH_CONNECTION",
+      "SSH_TTY",
+    ])
   })
 
   test("an empty adapter path leaves this engine unavailable, saying so", () => {

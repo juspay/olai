@@ -1,9 +1,10 @@
 /**
- * The two payloads that ask a PERSON something, projected into one shape — and
- * the answer projected back.
+ * The payloads that ask a PERSON something, projected into one shape — and
+ * the answers projected back.
  *
- * ACP has two of them and they arrive by different methods, but a reader is
- * being asked the same kind of thing by both, so the panel draws one thing:
+ * ACP has three of them and they arrive by different methods, but a reader is
+ * being asked the same kind of thing by all three, so the panel draws one
+ * thing:
  *
  *   - **`elicitation/create`, form mode.** A JSON Schema of primitive-typed
  *     properties. The Claude Code adapter renders its `AskUserQuestion` tool
@@ -12,6 +13,12 @@
  *     "Other" box marked with a shared `_meta` key — and the answers go back as
  *     that tool's own `updatedInput`. MCP servers attached to the session reach
  *     the same method, with schemas of their own shape.
+ *   - **`elicitation/create`, URL mode.** No fields at all: a URL, a message,
+ *     and a person who is expected to go and do something at the other end
+ *     ({@link urlOf}). A device-code sign-in is one, and so is an MCP server's
+ *     OAuth — the agent tells the panel where to send them and says when it is
+ *     done (`elicitation/complete`), so the panel's job is the link and the
+ *     name of the machine it goes to.
  *   - **`session/request_permission`.** A list of named options for one tool
  *     call. That is a single-select with the options already spelled out, so it
  *     becomes exactly that: one field, one choice per option.
@@ -58,7 +65,7 @@ import type {
   RequestPermissionRequest,
 } from "@agentclientprotocol/sdk"
 
-import { type AskAnswer, type AskChoice, type AskField, YES_NO } from "./wire.ts"
+import { type AskAnswer, type AskChoice, type AskField, type AskLink, YES_NO } from "./wire.ts"
 
 /**
  * A payload this vocabulary cannot say — the one word this package refuses in.
@@ -95,6 +102,18 @@ export interface Form {
    * that is a fact about the form rather than a field somebody forgot.
    */
   readonly toolCall: string | null
+  /**
+   * WHERE THE AGENT SENT THE PERSON, for the one elicitation that asks for no
+   * fields at all — ACP's `mode: "url"` ({@link urlOf}), or `null` for every
+   * question that is a thing to fill in.
+   *
+   * A field rather than a third arm of some union, because the two are not two
+   * kinds of question: a URL elicitation has an EMPTY form and one fact beside
+   * it, and what draws it is the same row the form draws with the fields left
+   * out. A union would make every reader of this answer a `switch` about
+   * something that only changes which part of the row is worth reading.
+   */
+  readonly link: AskLink | null
 }
 
 /**
@@ -120,7 +139,82 @@ export const formOf = (request: CreateElicitationRequest): Form | Refused => {
   const fields = fieldsOf((request as { requestedSchema?: ElicitationSchema }).requestedSchema)
   return fields instanceof Refused
     ? fields
-    : { message: request.message, fields, toolCall: toolCallOf(request) }
+    : { message: request.message, fields, toolCall: toolCallOf(request), link: null }
+}
+
+/**
+ * A URL elicitation, as the same row a form is — with no fields and a place to
+ * go instead.
+ *
+ * THE OTHER MODE, and the reason it is a reader beside {@link formOf} rather
+ * than an arm inside it: what this returns is not an undrawable form. The
+ * reader above refuses a mode it does not know, and that refusal was the whole
+ * of how a URL elicitation was handled until this existed — a person was never
+ * shown the page the agent had sent them to, and the login that needed it
+ * could not be finished from inside olai at all. So the two modes get one
+ * answer each and the caller asks which by `mode`, which is the protocol's own
+ * discriminator and the only thing that tells them apart.
+ *
+ * A URL THIS END CANNOT PARSE is carried through whole rather than refused, and
+ * that is a decision rather than leniency: the panel's job here is to hand a
+ * person a link and to NAME the machine it goes to ({@link hostOf}), and
+ * refusing would leave the one case where somebody most needs to look at the
+ * string they were given with nothing on screen at all. The agent put it there;
+ * the row shows it.
+ */
+export const urlOf = (request: CreateElicitationRequest): Form | Refused => {
+  // THE MODE, checked here rather than through the SDK's own guard, because
+  // this module takes no runtime dependency on the SDK (its imports are types,
+  // and `./manifest.test.ts` holds that). What the check must keep out is a
+  // mode this vocabulary does not know: the protocol's union carries a
+  // catch-all arm for vendor spellings, and one of those must not be read for a
+  // URL just because it happens to sit beside one.
+  if (request.mode !== "url") {
+    return new Refused(
+      `the agent sent a \`${request.mode}\` elicitation, which names no place to go`,
+    )
+  }
+  const url = urlIn(request)
+  if (url === null) {
+    return new Refused("the agent sent a URL elicitation with nothing to open")
+  }
+  return {
+    message: request.message,
+    fields: [],
+    toolCall: toolCallOf(request),
+    link: { url, host: hostOf(url) },
+  }
+}
+
+/** The URL itself, read only where the mode has said this IS one — and through
+ *  a check because the type cannot say it: the catch-all arm carries an index
+ *  signature, so `url` off this union is `unknown` however it was narrowed. */
+const urlIn = (request: CreateElicitationRequest): string | null => {
+  if (!("url" in request)) return null
+  const url = request.url
+  return typeof url === "string" && url !== "" ? url : null
+}
+
+/**
+ * Which machine a link goes to, for the line beside it.
+ *
+ * The HOST rather than the whole URL, because that is the fact the card exists
+ * to put in front of a person: what a link asks of them is that they hand
+ * something to whoever is on the other end, and `github.com` is that answer
+ * while a two-hundred-character callback URL is not. The port rides along where
+ * there is one (`localhost:1455`), since a sign-in to a loopback page is a
+ * different sentence from one to a vendor.
+ *
+ * An UNPARSEABLE URL comes back whole, which is the honest failure: the string
+ * the agent sent is what a person can act on, and inventing a host out of it
+ * would be this end guessing where they are about to be sent.
+ */
+export const hostOf = (url: string): string => {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
 }
 
 /** Which call a session-scoped elicitation was asked from. A cast because the
@@ -256,6 +350,9 @@ export const PERMISSION_FIELD = "permission"
 export const permissionFormOf = (request: RequestPermissionRequest): Form => ({
   message: textOr(request.toolCall.title, "The agent is asking for permission"),
   toolCall: request.toolCall.toolCallId,
+  // A permission is a choice, so it names no place: the one member that can
+  // is a URL elicitation ({@link urlOf}).
+  link: null,
   fields: [{
     key: PERMISSION_FIELD,
     label: null,

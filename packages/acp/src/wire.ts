@@ -64,6 +64,29 @@ export const AskField = Schema.Struct({
 export type AskField = typeof AskField.Type
 
 /**
+ * A place an agent sent a person INSTEAD of asking them to fill something in.
+ *
+ * ACP's other elicitation mode: `mode: "url"` carries a URL and nothing to
+ * type, and the agent completes it on its own — a device-code sign-in is told
+ * when the person finished at the vendor's page (`elicitation/complete`), and a
+ * server's OAuth is told the same way. So the panel's job is to SAY where to
+ * go and to get out of the way, which is the whole of what this card is.
+ *
+ * `host` is here rather than computed where it is drawn, and for the reason
+ * that makes it worth a field rather than a call to `new URL`: what the panel
+ * is showing is WHICH MACHINE a person is about to hand credentials to, and
+ * that question has to be answerable from the value the agent sent without a
+ * browser's parser deciding whether it parses. A URL this end cannot parse is
+ * carried through whole ({@link ./asks.ts}'s `hostOf`), so the line says where
+ * it really goes instead of going blank about it.
+ */
+export const AskLink = Schema.Struct({
+  url: Schema.String,
+  host: Schema.String,
+})
+export type AskLink = typeof AskLink.Type
+
+/**
  * What was picked or typed for one field.
  *
  * Always TEXT, however the field is typed: a number field's answer is the

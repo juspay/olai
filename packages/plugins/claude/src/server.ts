@@ -37,6 +37,22 @@ import { INSTALL, NAME } from "./install.ts"
 import { CLAUDE } from "./leg.ts"
 import { name } from "./index.ts"
 
+/**
+ * THE VARIABLES THE ADAPTER READS AS "THIS PERSON IS SOMEWHERE ELSE", and must
+ * not: `acp-agent.js` (0.81.2) computes `isRemote` as exactly
+ * `NO_BROWSER || SSH_CONNECTION || SSH_CLIENT || SSH_TTY || CLAUDE_CODE_REMOTE`,
+ * and on a remote session it drops its paste-a-code login methods in favour of a
+ * full-screen `claude /login`. Olai runs on the far side of a browser and is
+ * always that remote session; the person is not.
+ */
+export const REMOTE_SIGNALS: ReadonlyArray<string> = [
+  "NO_BROWSER",
+  "SSH_CONNECTION",
+  "SSH_CLIENT",
+  "SSH_TTY",
+  "CLAUDE_CODE_REMOTE",
+]
+
 /** The plugin's word, re-exported for the reason every tenant's server door
  *  re-exports it: one entry per plugin, and one spelling of the key — and
  *  because `@olai/bundle` reads it off the module its ROW names to prove that a
@@ -63,7 +79,30 @@ export const ENGINE: Registering = {
   // ENGINE'S OWN ({@link ./install.ts}'s `INSTALL`, the same words that used
   // to ride the browser slot), handed back rather than dropped so the roster
   // can publish the row.
-  at: (where): Adapter | NotHere => adapterFrom(where.env[AGENT_ENV]) ?? INSTALL,
+  at: (where): Adapter | NotHere => {
+    const adapter = adapterFrom(where.env[AGENT_ENV])
+    if (adapter === null) return INSTALL
+    return {
+      ...adapter,
+      // FIVE VARIABLES THE ADAPTER MUST NOT HEAR, and every one of them is a
+      // question olai can answer better. The pinned adapter reads them to
+      // decide the person is somewhere else (`NO_BROWSER`, `SSH_CONNECTION`,
+      // `SSH_CLIENT`, `SSH_TTY`, `CLAUDE_CODE_REMOTE`) and, on a session it
+      // calls remote, offers only its own full-screen `claude /login` — a TUI
+      // this panel has no terminal for. Olai IS the remote end: the person is
+      // at a browser, olai runs the sign-in and draws it. So the adapter is
+      // told nothing about where it is running, and it offers the
+      // paste-a-code methods this panel can run instead (`olai-plugin-chat`'s
+      // `agent.ts` is where they become a row).
+      //
+      // STRIPPED RATHER THAN GUESSED AT, because a variable that happens to be
+      // set on somebody's host is not a fact about the person using the panel:
+      // an SSH session that started olai, a development container that exports
+      // `CLAUDE_CODE_REMOTE`, a `NO_BROWSER` in a shell profile. None of them
+      // changes who is looking at the screen.
+      unset: REMOTE_SIGNALS,
+    }
+  },
   // ACP has no system prompt on any wire, this one included, so the standing
   // instruction rides the first turn — where a person can read what their agent
   // was told. `@olai/acp/engine`'s `PromptChannel` argues it, and `olai-plugin-chat`

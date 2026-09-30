@@ -61,6 +61,23 @@ export interface Adapter {
    *  read a third one, its child's. Omitted for adapters that want nothing, so a
    *  child inherits exactly what olai has. */
   readonly env?: Readonly<Record<string, string>>
+  /**
+   * ... AND THE VARIABLES IT MUST NOT SEE, removed from that same spawn.
+   *
+   * The other direction, which `env` cannot express: an adapter that reads the
+   * environment to GUESS something — the pinned Claude Code adapter reads
+   * `NO_BROWSER`, `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY` and
+   * `CLAUDE_CODE_REMOTE` to decide the person is remote, and on a remote
+   * session offers only a full-screen login TUI — has no way to be told that
+   * the guess is wrong about a CLIENT that runs its own terminal. Olai is such
+   * a client and is always "remote", so the engine names what its adapter must
+   * not be told, and the SPAWN (which is chat's) does the removal.
+   *
+   * A list of names rather than a predicate: the plugin knew which variables it
+   * meant, and a callback here would be that decision spelled a second time in
+   * the package that spawns.
+   */
+  readonly unset?: ReadonlyArray<string>
 }
 
 /**

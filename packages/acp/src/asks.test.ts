@@ -18,7 +18,16 @@ import type {
 } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 
-import { contentOf, formOf, PERMISSION_FIELD, permissionFormOf, Refused } from "./asks.ts"
+import {
+  contentOf,
+  type Form,
+  formOf,
+  hostOf,
+  PERMISSION_FIELD,
+  permissionFormOf,
+  Refused,
+  urlOf,
+} from "./asks.ts"
 import { type AskField, YES_NO } from "./wire.ts"
 
 /** The shape `askUserQuestionsToCreateRequest` builds for ONE single-select
@@ -268,6 +277,61 @@ describe("a permission request, as the same form", () => {
       "default",
       "plan",
     ])
+  })
+})
+
+describe("a place to go, as the same row", () => {
+  /** Codex's device-code sign-in, as `createUrlElicitationRequester` sends it
+   *  (`codex-acp`'s `dist/index.js`: `elicitUrl` → `modes.client.elicitation.create`
+   *  with the login's own `elicitationId`). The one difference that matters
+   *  here is the scope: this is REQUEST-scoped, because it happens before any
+   *  session exists. */
+  const deviceCode: CreateElicitationRequest = {
+    mode: "url",
+    requestId: 7,
+    url: "https://chatgpt.com/device",
+    elicitationId: "login-3",
+    message: "Sign in to ChatGPT and enter this code: WXYZ-12345",
+  }
+
+  test("the message is the agent's own and the fields are none", () => {
+    const form = urlOf(deviceCode)
+    expect(form).not.toBeInstanceOf(Refused)
+    const card = form as Form
+    expect(card.message).toBe("Sign in to ChatGPT and enter this code: WXYZ-12345")
+    expect(card.fields).toEqual([])
+    expect(card.link).toEqual({ url: "https://chatgpt.com/device", host: "chatgpt.com" })
+  })
+
+  test("a session-scoped one names the call it was asked from", () => {
+    // An MCP server's OAuth reaches the same reader with a session and a call;
+    // the row is the same row and the provenance is the protocol's own field.
+    const form = urlOf({ ...deviceCode, toolCallId: "call-4", sessionId: "s1" } as CreateElicitationRequest)
+    expect((form as Form).toolCall).toBe("call-4")
+    expect((form as Form).link?.host).toBe("chatgpt.com")
+  })
+
+  test("a form is not a place to go", () => {
+    expect(urlOf(oneQuestion)).toBeInstanceOf(Refused)
+  })
+
+  test("a mode this vocabulary does not know is refused, not read for a URL", () => {
+    // The protocol keeps a catch-all arm for vendor modes, and one of those
+    // must not be read as if it were this one.
+    const custom = { mode: "_vendor", message: "?", url: "https://example.com" } as CreateElicitationRequest
+    expect(urlOf(custom)).toBeInstanceOf(Refused)
+  })
+
+  test("a URL this end cannot parse is carried whole", () => {
+    // The honest failure: somebody has to be able to read the string they were
+    // given, and a host invented out of it would be this end guessing where
+    // they are about to be sent.
+    expect(hostOf("not a url")).toBe("not a url")
+  })
+
+  test("the host keeps its port", () => {
+    // A loopback sign-in is a different sentence from a vendor's.
+    expect(hostOf("http://localhost:1455/auth/callback?code=x")).toBe("localhost:1455")
   })
 })
 
