@@ -910,7 +910,10 @@ export const make = <F, S, E>(
           // set that still holds the file, under the rev that already stood.
           // The cache entry itself the run drops the ordinary way, beside
           // every other removal a disk ever sees.
-          yield* probe.forget(writes.map((change) => change.path))
+          // A removal-only commit has no stamps to forget. In particular,
+          // removing an already absent file must stay quiet; forgetting an
+          // empty table explicitly asks for revalidation on a verified look.
+          if (writes.length > 0) yield* probe.forget(writes.map((change) => change.path))
           // Handed the promises this write made, so what it reads back is the
           // set already judged rather than an equal one. The verdict rides
           // along too, still carrying that set — and if something else moved
