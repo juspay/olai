@@ -257,11 +257,16 @@ let isCodex = false
  *  fakes are worth having. */
 const emit = emitter(OUT)
 const { notify: sendNotification, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
+
 const notify = (method: string, params: unknown): void => {
   if (method === "session/update" && typeof params === "object" && params !== null
     && "sessionId" in params && typeof params.sessionId === "string"
     && "update" in params && typeof params.update === "object" && params.update !== null) {
-    sessionStore(cwd).update(params.sessionId, params.update as Record<string, unknown>)
+    const update = params.update as Record<string, unknown>
+    if (update["sessionUpdate"] === "agent_message_chunk" && update["messageId"] === undefined) {
+      update["messageId"] = crypto.randomUUID()
+    }
+    sessionStore(cwd).update(params.sessionId, update)
   }
   sendNotification(method, params)
 }
@@ -2956,7 +2961,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           // of a fresh directory, not a capability missing. Which canned rows
           // it returns stays the stored knob's — see the header and
           // {@link minted}.
-          sessionCapabilities: { list: {} },
+          sessionCapabilities: { list: {}, fork: {} },
           // IT HOLDS A PROMPT SENT WHILE IT IS BUSY — said where the real
           // adapter says it, inside the capabilities, in its own `_meta`
           // corner. Nothing about this file's behaviour depends on saying it
@@ -3037,6 +3042,17 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },
       })
       return
+
+    case "session/fork": {
+      if (existsSync(`${cwd}/.agent-refuse-fork`)) { refuse(id, -32602, "fork refused by fixture"); return }
+      const meta = params["_meta"] as { jetbrains?: { air?: { fork?: { version?: number; messageId?: string } } } } | undefined
+      const point = meta?.jetbrains?.air?.fork
+      const forked = point?.version === 1 && typeof point.messageId === "string"
+        ? sessionStore(cwd).fork(String(params["sessionId"]), point.messageId) : null
+      if (forked === null) { refuse(id, -32602, "unknown fork point"); return }
+      reply(id, { sessionId: forked })
+      return
+    }
 
     case "session/load":
       // BEFORE ANY OF IT — no `openSession`, no replay, no move of `sessionId`.

@@ -108,6 +108,16 @@ Terminal-backed tool calls show stdout and stderr as they arrive, followed by th
 
 Screenshots: [session settings](images/acp/acp-session-settings.png), [execution plan](images/acp/acp-execution-plan.png), [terminal output](images/acp/acp-terminal-output.png).
 
+## Rewinding
+
+When a Claude Code or Codex conversation is idle, your messages offer **Rewind to here**. The action immediately opens a separate session containing the conversation before that message, then puts its text into the composer. Edit it or send it unchanged. Rewinding the first message opens a fresh session.
+
+The original conversation remains under **Past sessions**. An existing draft stays with that original session; the new composer receives the selected message. Any words typed into the new composer while the request finishes are kept after the prefilled text. Uploaded attachments must be attached again.
+
+Rewinding changes conversation context only. **Files the agent changed are not reverted.** Opencode, omp and pi do not offer message cutoffs, so they show no action. A row whose preceding answer has no usable protocol identity also has no action. History previews must be returned to the current chat before rewinding.
+
+The server refuses rewind while a turn or queued delivery remains. A failed fork or replay leaves the current session, transcript and draft intact and reports the error. The fork is prepared inside the existing node-agent scope and adopted only after replay succeeds; it retains the same process and tool credential. The node's session pointer and supersession record follow the existing fresh-session replacement path.
+
 ## Which conversation you come back to
 
 Server boot opens no conversation. Reload folds every outline conversation;

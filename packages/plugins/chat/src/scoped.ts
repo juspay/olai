@@ -51,6 +51,7 @@ export interface Chat extends Panel {
   readonly startAgentSession: (
     node: string,
     agent: string,
+    rewind?: { readonly session: string; readonly scope: string | null; readonly id: string },
   ) => Effect.Effect<Conversing, OpFailure>
 }
 
@@ -839,6 +840,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       send: (...args) => foreground((panel) => panel.send(...args)),
       attach: (chunk) => foreground((panel) => panel.attach(chunk)),
       resend: (id) => foreground((panel) => panel.resend(id)),
+      rewind: (id) => foreground((panel) => panel.rewind(id)),
       cancel: foreground((panel) => panel.cancel),
       inConversation: (to, scope, use) => Effect.suspend(() => {
         const matches = (panel: Panel) => {
@@ -887,24 +889,30 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * else. A scope is a seat and a seat is a node ({@link acquire}); which
        * node this is for is the argument.
        */
-      startAgentSession: (node, agent) =>
+      startAgentSession: (node, agent, rewind) =>
         !seatableAt(node)
           ? Effect.fail(new UsageFailure({
             reason: `node ${node} is no longer available for an agent session`,
           }))
           : working(node, undefined, ({ slot }) =>
             slot.opening.withPermit(Effect.gen(function*() {
+              if (rewind !== undefined && (slot.state.session?.id !== rewind.session
+                || agentIn(slot.state)?.id !== agent || slot.state.uploadScope !== rewind.scope)) {
+                return yield* new UsageFailure({ reason: "the conversation changed; rewind was not applied" })
+              }
               activate(slot)
-              options.onConversationClosed?.(slot.state)
+              const previousState = slot.state
+              if (rewind === undefined) options.onConversationClosed?.(slot.state)
               const previous = slot.state.session === null ? null : {
                 agent: agentIn(slot.state)?.id, session: slot.state.session.id,
               }
               const before = [...slot.panel.entries()].map(([id]) => id)
               yield* Effect.acquireUseRelease(
                 Effect.sync(() => { slot.mutingReaders = true }),
-                () => slot.panel.newSession(agent),
+                () => rewind === undefined ? slot.panel.newSession(agent) : slot.panel.rewind(rewind.id),
                 () => Effect.sync(() => { slot.mutingReaders = false }),
               )
+              if (rewind !== undefined) options.onConversationClosed?.(previousState)
               const session = slot.panel.state().session
               if (session === null) return yield* new UsageFailure({
                 reason: `${agent} opened no conversation to bind to this node`,

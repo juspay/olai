@@ -409,7 +409,27 @@ export class Transcript {
   /** Everything, gone — a new session, or one being loaded. The removes are
    *  reported so a subscriber's own copy empties rather than accumulating two
    *  conversations. */
+  // Protocol identities stay server-side, keyed by local transcript rows.
+  #messageIds = new Map<string, string>()
+  #points = new Map<string, string | null>()
+  #lastAgent: string | undefined
+  #hasUser = false
+
+  forkPoint(id: string): string | null | undefined { return this.#points.get(id) }
+
+  #point(key: string): void {
+    const point = this.#hasUser ? this.#lastAgent : null
+    this.#hasUser = true
+    if (point !== undefined) this.#points.set(key, point)
+    // A missing answer after this user must not reuse an older turn's point.
+    this.#lastAgent = undefined
+  }
+
   clear(): Change {
+    this.#messageIds.clear()
+    this.#points.clear()
+    this.#lastAgent = undefined
+    this.#hasUser = false
     const removes = [...this.#entries.keys()]
     this.#entries.clear()
     this.#undelivered.clear()
@@ -469,7 +489,10 @@ export class Transcript {
     readonly key: string
     readonly change: Change
   } {
-    return this.#row("user", text, extra)
+    const row = this.#row("user", text, extra)
+    this.#point(row.key)
+    return { key: row.key, change: both(row.change,
+      this.#put(row.key, { kind: "user", text, ...extra, rewindable: this.#points.has(row.key) })) }
   }
 
   /**
@@ -592,8 +615,10 @@ export class Transcript {
 
   /** One chunk of the agent's prose. Appends to the entry already open, or
    *  opens one. */
-  say(text: string): Change {
-    return this.#grow("agent", text)
+  say(text: string, messageId?: string): Change {
+    const change = this.#grow("agent", text, messageId)
+    this.#lastAgent = this.#open === null ? undefined : this.#messageIds.get(this.#open)
+    return change
   }
 
   /**
@@ -610,8 +635,8 @@ export class Transcript {
    * one caller that keeps its key ({@link user}), because olai has the whole of
    * it before anything is on the wire.
    */
-  userSaid(text: string): Change {
-    return this.#grow("user", text)
+  userSaid(text: string, messageId?: string): Change {
+    return this.#grow("user", text, messageId)
   }
 
   /**
@@ -623,10 +648,11 @@ export class Transcript {
    * words and the agent's answer to them, so an agent chunk appended to an open
    * user row would put the answer inside the question.
    */
-  #grow(kind: "agent" | "user", text: string): Change {
+  #grow(kind: "agent" | "user", text: string, messageId?: string): Change {
     const open = this.#open
     const current = open === null ? undefined : this.#entries.get(open)
-    if (open !== null && current?.kind === kind) {
+    if (open !== null && current?.kind === kind
+      && (messageId === undefined || this.#messageIds.get(open) === messageId)) {
       // THE PIECE GOES OUT; THE WHOLE IS KEPT. The row here grows by the chunk
       // — it is the transcript's own copy and every later publish of this row
       // reads it — and what is REPORTED is the chunk and where it belongs
@@ -641,7 +667,10 @@ export class Transcript {
     // it: there is nothing on the far end to append to. It costs one chunk.
     const closed = this.#close()
     this.#open = this.#next(kind)
-    return both(closed, this.#put(this.#open, { kind, text }))
+    if (messageId !== undefined) this.#messageIds.set(this.#open, messageId)
+    if (kind === "user") this.#point(this.#open)
+    return both(closed, this.#put(this.#open, kind === "user"
+      ? { kind, text, rewindable: this.#points.has(this.#open) } : { kind, text }))
   }
 
   /**

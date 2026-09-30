@@ -46,7 +46,7 @@ export type AgentEvent =
   | { readonly _tag: "settings"; readonly settings: ReadonlyArray<SessionSetting> }
   | { readonly _tag: "plan"; readonly entries: ReadonlyArray<PlanStep> }
   /** The agent's prose, one chunk as it arrived. */
-  | { readonly _tag: "said"; readonly text: string }
+  | { readonly _tag: "said"; readonly text: string; readonly messageId?: string }
   /** What a PERSON said, ONE CHUNK as it arrived — the same unit `said`
    *  carries, because it is the same unit the wire carries. Only a REPLAY
    *  brings these: live, we already know what was sent, because we sent it,
@@ -56,7 +56,7 @@ export type AgentEvent =
    *  This used to read "a user message", and the consumer wrote a ROW per
    *  event on the strength of it — so a replayed message came back as one
    *  bubble per piece the agent had kept it in. */
-  | { readonly _tag: "userSaid"; readonly text: string }
+  | { readonly _tag: "userSaid"; readonly text: string; readonly messageId?: string }
   /**
    * A tool call, as we last heard of it — announced or moved.
    *
@@ -198,6 +198,7 @@ export type AgentEvent =
    */
   | {
     readonly _tag: "advertised"
+    readonly rewinds?: boolean
     /** It takes a message INTO the turn it is running, if asked on purpose.
      *  What the composer draws its one interrupting control from. */
     readonly steers: boolean

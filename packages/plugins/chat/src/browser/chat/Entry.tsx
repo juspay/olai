@@ -313,6 +313,10 @@ export function Entry(props: {
                 )}
               </Show>
             </Show>
+            <Show when={!rang() && user().rewindable === true && props.chat.canRewind()}>
+              <button type="button" data-testid="chat-rewind" class="text-label text-faint hover:text-ink"
+                onClick={() => props.chat.rewind(user().id)}>Rewind to here</button>
+            </Show>
             {/* IT DID NOT LAND — and the words are still here, which is the
                 whole of the promise. The bubble goes dashed and edged rather
                 than being replaced by a notice, because what a person wants to

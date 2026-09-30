@@ -1,3 +1,4 @@
+import { keepMessage } from "./message-draft.ts"
 import type { Json } from "../../json.ts"
 import type { Refusal } from "../../slots.ts"
 import { Effect } from "effect"
@@ -152,6 +153,8 @@ export interface Chat {
    *  and the SERVER still holds the prompt behind it. Nothing is rebuilt here:
    *  the row carries its pictures by name, and a retry assembled from what is
    *  on screen would be a different message. */
+  readonly canRewind: Accessor<boolean>
+  readonly rewind: (id: string) => void
   readonly resend: (id: string) => void
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean, done: () => void) => void
   readonly setModel: (agent: string, session: string, value: string, done: () => void) => void
@@ -233,7 +236,7 @@ export const createChatState = (conv: Conversing): Accessor<ChatState> => {
 
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-export const createChat = (conv: Conversing, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void } = {}): Chat => {
+export const createChat = (conv: Conversing, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void; readonly current?: () => boolean; readonly rewound?: (to: Conversing, text: string) => void } = {}): Chat => {
   const ui = options.ui ?? createConversationUI()
   const { closePreview } = ui.previewing
   const [refused, setRefused] = ui.refused
@@ -490,6 +493,20 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
           },
         )
       }),
+    canRewind: () => options.current?.() !== false && state().status === "idle"
+      && state().talking?.kind === "agent" && (state().talking as { rewinds?: boolean }).rewinds === true,
+    rewind: (id) => {
+      setRefused(null)
+      setStarting(value => value + 1)
+      const done = () => setStarting(value => Math.max(0, value - 1))
+      run(chatWire().procedures.conversation.rewind({ conv, scope: state().uploadScope, id }),
+        failure => { setRefused(failure); done() },
+        answer => {
+          if (options.rewound !== undefined) options.rewound(answer.conv, answer.text)
+          else keepMessage(ui.messages, JSON.stringify([answer.conv.agent, answer.conv.session]), answer.text)
+          done()
+        })
+    },
     resend: (id) => verb(chatWire().procedures.conversation.resend({ conv, scope: state().uploadScope, id })),
     setSetting: (agent, session, config, value, done) => verb(chatWire().procedures.conversation.setSetting({ agent, session, config, value }), done),
     setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),

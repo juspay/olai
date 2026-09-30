@@ -1,3 +1,4 @@
+import { airForkAt } from "@olai/acp/engine"
 /**
  * CODEX-ACP'S WIRE, read conservatively.
  *
@@ -51,6 +52,7 @@ export const serversInUpdate = (update: unknown): ReadonlyArray<Reported> | null
 }
 
 export const CODEX: Leg = {
+  forkAt: airForkAt,
   spelling: null,
   mcpCall: (frame, servers) => {
     const server = fieldIn(frame.rawInput, "server")

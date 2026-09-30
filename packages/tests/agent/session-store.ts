@@ -26,11 +26,19 @@ export const sessionStore = (cwd: string) => {
     enabled: existsSync(directory),
     newId: () => `audit-session-${randomUUID()}`,
     read,
+    fork: (id: string, messageId: string): string | null => {
+      const saved = read(id)
+      const index = saved?.updates.findLastIndex(update => update["messageId"] === messageId) ?? -1
+      if (saved === null || index < 0) return null
+      const forked = `audit-session-${randomUUID()}`
+      write(forked, { ...saved, updatedAt: new Date().toISOString(), updates: saved.updates.slice(0, index + 1) })
+      return forked
+    },
     prompt: (id: string, text: string) => {
       if (!valid(id)) return
       const saved = read(id) ?? { title: text.split("\n")[0] ?? text, updatedAt: "", updates: [] }
       saved.updatedAt = new Date().toISOString()
-      saved.updates.push({ sessionUpdate: "user_message_chunk", content: { type: "text", text } })
+      saved.updates.push({ sessionUpdate: "user_message_chunk", messageId: randomUUID(), content: { type: "text", text } })
       write(id, saved)
     },
     update: (id: string, update: Record<string, unknown>) => {

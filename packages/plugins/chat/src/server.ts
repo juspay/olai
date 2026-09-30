@@ -1,3 +1,4 @@
+import { sessionValue } from "@olai/format"
 import { newChat } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
@@ -561,6 +562,20 @@ export default definePlugin({
         )),
       attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] & { conv: Conversing } }) =>
         withChat((open) => open.inConversation(input.conv, input.uploadScope, (panel) => panel.attach(input))),
+      rewind: ({ input }: { input: { conv: Conversing; scope: string | null; id: string } }) =>
+        withChat(open => bindingPermit.withPermit(open.inConversation(input.conv, input.scope, panel => Effect.gen(function*() {
+          const node = nodeAgents.agentAt(input.conv)
+          const row = panel.entries().get(input.id)
+          if (node === null || node.session !== input.conv.session || row?.kind !== "user") {
+            return yield* new UsageFailure({ reason: "rewind requires the node's current conversation" })
+          }
+          const now = yield* open.startAgentSession(node.id, input.conv.agent,
+            { session: input.conv.session, scope: input.scope, id: input.id })
+          yield* binding.write(node.id, sessionValue(now.agent, now.session))
+          yield* open.replaced(input.conv, now)
+          mine?.cells.sessionsRevision.set(++sessionsRevision)
+          return { conv: now, text: row.text }
+        })))),
       resend: ({ input }: { input: { conv: Conversing; scope: string | null; id: string } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.resend(input.id))),
       cancel: ({ input }: { input: { conv: Conversing; scope: string | null } }) => withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.cancel)),

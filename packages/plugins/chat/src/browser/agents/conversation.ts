@@ -1,3 +1,4 @@
+import { keepMessage } from "../chat/message-draft.ts"
 import { createEffect, createMemo, type Accessor } from "solid-js"
 import { createChat } from "../chat/state.ts"
 import { createAsked } from "../chat/attention/asked.ts"
@@ -17,7 +18,15 @@ export const createNodeConversation = (node: Accessor<string>) => {
   const chat = createMemo(() => {
     const to = pair()
     if (to === null) return null
-    const chat = createChat(to, { ui: reading?.ui(to), visit: to => reading?.visit(node(), to) })
+    const chat = createChat(to, {
+      ui: reading?.ui(to), visit: to => reading?.visit(node(), to),
+      current: () => reading?.agents.at(node())?.session === to.session,
+      rewound: (next, text) => {
+        const ui = reading?.ui(next)
+        if (ui !== undefined) keepMessage(ui.messages, JSON.stringify([next.agent, next.session]), text)
+        reading?.visit(node())
+      },
+    })
     readAgent(node(), chat)
     const question = createAsked(chat)
     createEffect(() => chat.ui.question[1](question()))

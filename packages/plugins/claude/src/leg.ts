@@ -1,3 +1,4 @@
+import { airForkAt } from "@olai/acp/engine"
 import { refusalIn } from "@olai/surface"
 /**
  * What the Claude Code adapter MEANS by what it sends — olai's first leg
@@ -761,6 +762,7 @@ const initIn = (params: unknown): { readonly [key: string]: unknown } | undefine
  * ONE that could be wrong, since a Claude call id is an opaque `toolu_…`.
  */
 export const CLAUDE: Leg = {
+  forkAt: airForkAt,
   spelling,
   mcpCall: mcpCallBy(spelling),
   replyIn,

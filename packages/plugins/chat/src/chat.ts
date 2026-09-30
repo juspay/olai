@@ -409,6 +409,7 @@ export interface Panel {
    *  is the same message rather than a browser's reconstruction of it. Refuses
    *  when that row is not waiting to be sent, which two tabs can genuinely
    *  race. */
+  readonly rewind: (id: string) => Effect.Effect<void, OpFailure>
   readonly resend: (id: string) => Effect.Effect<void, OpFailure>
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean) => Effect.Effect<void, OpFailure>
   readonly setModel: (agent: string, session: string, value: string) => Effect.Effect<void, OpFailure>
@@ -847,7 +848,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * is one assignment per boot; folded into `talking` it would be a field
      * every writer of that member had to remember not to flatten.
      */
-    let advertises: { readonly steers: boolean; readonly queues: boolean } = SAYS_NOTHING
+    let advertises: { readonly steers: boolean; readonly queues: boolean; readonly rewinds?: boolean } = SAYS_NOTHING
 
     /**
      * Whether THIS CONVERSATION has ever held a message behind a running turn.
@@ -919,6 +920,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       id: row.id,
       name: row.name,
       queues: advertises.queues,
+      rewinds: advertises.rewinds === true,
       // BOTH HALVES, in the one bit the composer reads: the agent said it
       // takes an interruption, AND this conversation is one where taking it
       // still ends. A client deriving that from two fields would be a second
@@ -1425,14 +1427,14 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       if (evidence === "shown") shown++
       switch (event._tag) {
         case "said":
-          publish(transcript.say(event.text))
+          publish(transcript.say(event.text, event.messageId))
           return
         case "userSaid":
           // A replay only: live, we put the user's own message in ourselves
           // when the turn was accepted — whole, because we have the whole of it
           // before anything is on the wire. A replay does not arrive whole, so
           // the chunks accumulate the way the agent's own prose does.
-          publish(transcript.userSaid(event.text))
+          publish(transcript.userSaid(event.text, event.messageId))
           return
         case "toolTerminals":
           publish(transcript.tool(event.id, { terminals: event.terminals }))
@@ -1495,7 +1497,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           move({ commands: event.commands })
           return
         case "advertised":
-          advertises = { steers: event.steers, queues: event.queues }
+          advertises = { steers: event.steers, queues: event.queues, rewinds: event.rewinds === true }
           // ON `talking`, because it is a fact about WHO this panel is talking
           // to and that is the one member that answers for an agent. A frame
           // with nobody bound is a handshake that finished after its agent was
@@ -3254,6 +3256,24 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // an upload. It also makes the collision suffix sound within a process:
       // two tabs pasting `shot.png` at the same moment cannot both pick it.
       attach: (chunk) => switching.withPermit(files.receive(chunk)),
+      rewind: (id) => switching.withPermit(opening.withPermit(Effect.gen(function*() {
+        const to = conversationOf()
+        if (turns.busy || (to !== null && held.waiting(to).length > 0)) {
+          return yield* new BusyFailure({ reason: "wait for all turns and queued messages before rewinding" })
+        }
+        const row = transcript.entries().get(id)
+        const point = transcript.forkPoint(id)
+        if (row?.kind !== "user" || row.rang !== undefined || point === undefined || advertises.rewinds !== true || talking === null) {
+          return yield* new UsageFailure({ reason: "that message has no usable rewind point" })
+        }
+        move({ status: "booting" })
+        const result = yield* Effect.result(talking.agent.rewind(point))
+        settled()
+        if (result._tag === "Failure") return yield* asFailure(result.failure)
+        yield* files.discard
+        move({})
+        listings.forget(talking.row.id)
+      }))),
       resend,
       // A cancel the agent never took is a refusal like any other, and the
       // click that asked for it is what hears about it — the same treatment

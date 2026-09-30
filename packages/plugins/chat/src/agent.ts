@@ -332,6 +332,7 @@ export interface Agent {
   /** Apply an advertised model value to the conversation the caller selected. */
   readonly setSetting: (session: string, config: string, value: string | boolean) => Effect.Effect<void, AgentGone>
   readonly setModel: (session: string, value: string) => Effect.Effect<void, AgentGone>
+  readonly rewind: (point: string | null) => Effect.Effect<void, AgentGone>
   readonly newSession: Effect.Effect<void, AgentGone>
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
   /** The stored conversations for this directory, newest first. */
@@ -397,6 +398,7 @@ interface Live {
   readonly child: Child
   readonly connection: ClientConnection
   readonly canList: boolean
+  readonly canFork: boolean
   readonly canLoad: boolean
 }
 
@@ -720,7 +722,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         : { outcome: { outcome: "selected", optionId: picked } }
     }
 
+    let staged: { id: string; updates: SessionNotification[] } | null = null
     const onUpdate = (notification: SessionNotification): void => {
+      if (staged?.id === notification.sessionId) { staged.updates.push(notification); return }
       // WHOSE SESSION, the same fence the forwarded `init` sits behind. A
       // chunk of the conversation that just closed, landing after
       // `sessionOver` has emptied the transcript, is how a new conversation
@@ -752,7 +756,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             prologue = null
             return
           }
-          if (text !== "") emit({ _tag: "said", text })
+          if (text !== "") emit({ _tag: "said", text, ...(update.messageId == null ? {} : { messageId: update.messageId }) })
           return
         }
         case "user_message_chunk": {
@@ -795,7 +799,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             return
           }
           if (!replaying) return
-          if (text !== "") emit({ _tag: "userSaid", text })
+          if (text !== "") emit({ _tag: "userSaid", text, ...(update.messageId == null ? {} : { messageId: update.messageId }) })
           return
         }
         // Announce and update are ONE event: the protocol distinguishes them
@@ -1453,6 +1457,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             steers: options.leg.steering !== null
               && options.leg.steering.advertised(initialized),
             queues: options.leg.queues(initialized),
+            rewinds: options.leg.forkAt !== undefined && capabilities?.sessionCapabilities?.fork != null && capabilities?.loadSession === true,
           })
         }
         // AFTER the handshake, not after `spawn` returns: an exec failure
@@ -1471,6 +1476,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           connection,
           canList: capabilities?.sessionCapabilities?.list != null,
           canLoad: capabilities?.loadSession === true,
+          canFork: capabilities?.sessionCapabilities?.fork != null,
         }
       })
 
@@ -2324,6 +2330,48 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       setSetting,
       setModel: (session, value) => setSetting(session, models?.config ?? "", value),
       cancel,
+      rewind: (point) => opening((at) => Effect.gen(function*() {
+        const old = activeSession
+        const forkAt = options.leg.forkAt
+        if (old === null || !at.canFork || !at.canLoad || forkAt === undefined) {
+          return yield* new AgentGone({ gone: "refused", why: "this conversation cannot rewind" })
+        }
+        const started = yield* Clock.monotonicTimeNanos
+        // Prepare in the existing owner without releasing the old session.
+        // Probes and the live roster remain untouched until adoption succeeds.
+        const mcpServers = mcpServersOf(options.tools(), handedIn(yield* Effect.flatMap(options.probes?.() ?? Effect.succeed([]), probed)))
+        const made = (yield* ask(at.connection, point === null ? methods.agent.session.new : "session/fork", {
+          cwd: options.cwd, mcpServers,
+          ...(point === null ? openMeta : { sessionId: old,
+            _meta: { ...openMeta._meta, ...forkAt(point) } }),
+        })) as NewSessionResponse
+        const pending = { id: made.sessionId, updates: [] as SessionNotification[] }
+        staged = pending
+        const prepared = yield* Effect.result(Effect.ensuring(Effect.gen(function*() {
+          const loaded = point === null ? made : (yield* ask(at.connection, methods.agent.session.load,
+            { sessionId: made.sessionId, cwd: options.cwd, mcpServers, ...openMeta }, LOAD_TIMEOUT)) as LoadSessionResponse
+          if (options.leg.bypassMode !== null) {
+            const mode = yield* Effect.result(ask(at.connection, methods.agent.session.setMode,
+              { sessionId: made.sessionId, modeId: options.leg.bypassMode }))
+            if (mode._tag === "Failure" && options.leg.bypassModeRequired === true) return yield* mode.failure
+          }
+          return loaded
+        }), Effect.sync(() => { staged = null })))
+        if (prepared._tag === "Failure") return yield* prepared.failure
+        // No await separates withdrawal from the replay's adoption. The node
+        // scope, process and credential are retained throughout.
+        leaving()
+        activeSession = made.sessionId
+        closed.delete(made.sessionId)
+        emit({ _tag: "sessionOver", why: "load" })
+        replaying = true
+        emit({ _tag: "replayStarted" })
+        for (const update of pending.updates) onUpdate(update)
+        replaying = false
+        emit({ _tag: "replayEnded" })
+        readModel(prepared.success.configOptions)
+        yield* entered(made.sessionId, null, point === null ? "new" : "loaded", started)
+      })),
       newSession: opening((at) =>
         Effect.gen(function*() {
           // BEFORE the break, so the question is settled on the row it is
