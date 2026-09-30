@@ -109,8 +109,6 @@ let
     true;
 
   # --- only bootstrap and environment options remain ---------------------
-  # No plugin-selection option: which rows run is vault policy (`on` in
-  # _olai/Settings.olai), not process configuration.
   _removed =
     assert builtins.attrNames linux.options.services.olai ==
       [ "dataDir" "enable" "environmentFile" "host" "package" "port" ];
