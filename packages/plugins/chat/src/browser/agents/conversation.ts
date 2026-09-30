@@ -18,16 +18,17 @@ export const createNodeConversation = (node: Accessor<string>) => {
   const chat = createMemo(() => {
     const to = pair()
     if (to === null) return null
+    const owner = node()
     const chat = createChat(to, {
-      ui: reading?.ui(to), visit: to => reading?.visit(node(), to),
-      current: () => reading?.agents.at(node())?.session === to.session,
+      ui: reading?.ui(to), visit: to => reading?.visit(owner, to),
+      current: () => reading?.agents.at(owner)?.session === to.session,
       rewound: (next, text) => {
         const ui = reading?.ui(next)
         if (ui !== undefined) keepMessage(ui.messages, JSON.stringify([next.agent, next.session]), text)
-        reading?.visit(node())
+        reading?.visit(owner)
       },
     })
-    readAgent(node(), chat)
+    readAgent(owner, chat)
     const question = createAsked(chat)
     createEffect(() => chat.ui.question[1](question()))
     return chat
