@@ -1323,13 +1323,6 @@ const attaching = (named: string | undefined): { attachments?: Array<{ path: str
 }
 
 const runTurn = async (id: unknown, text: string): Promise<void> => {
-  if (text === "two message items") {
-    for (const [messageId, prose] of [["item-one", "First answer item."], ["item-two", "Second answer item."]]) {
-      notify("session/update", { sessionId, update: { sessionUpdate: "agent_message_chunk", messageId, content: { type: "text", text: prose } } })
-    }
-    reply(id, { stopReason: "end_turn" })
-    return
-  }
   cancelled = false
   noise(`fake agent: ${text}`)
 
@@ -1339,6 +1332,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
   const [verb, ...rest] = commandWords(text)
   const argument = rest.join(" ")
+
+  if (verb === "two" && argument === "message items") {
+    for (const [messageId, prose] of [["item-one", "First answer item."], ["item-two", "Second answer item."]]) {
+      notify("session/update", { sessionId, update: { sessionUpdate: "agent_message_chunk", messageId, content: { type: "text", text: prose } } })
+    }
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
 
   const mailWords = [verb, ...rest].join(" ")
   const property = /^set property (\S+) (\S+) (\S+)$/.exec(mailWords)

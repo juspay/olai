@@ -784,6 +784,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
     /** Shared ownership and reader handoff for named opening operations. */
     const replaceSession = (node: string, agent: string,
+      check: (slot: NodeSlot) => Effect.Effect<void, OpFailure>,
       open: (slot: NodeSlot) => Effect.Effect<void, OpFailure>,
     ): Effect.Effect<Conversing, OpFailure> =>
         !seatableAt(node)
@@ -792,6 +793,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }))
           : working(node, undefined, ({ slot }) =>
             slot.opening.withPermit(Effect.gen(function*() {
+              yield* check(slot)
               activate(slot)
               const previous = slot.state.session === null ? null : {
                 agent: agentIn(slot.state)?.id, session: slot.state.session.id,
@@ -935,7 +937,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * else. A scope is a seat and a seat is a node ({@link acquire}); which
        * node this is for is the argument.
        */
-      startAgentSession: (node, agent) => replaceSession(node, agent, slot => Effect.gen(function*() {
+      startAgentSession: (node, agent) => replaceSession(node, agent, () => Effect.void, slot => Effect.gen(function*() {
         options.onConversationClosed?.(slot.state)
         yield* slot.panel.newSession(agent)
       })),
@@ -947,6 +949,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if ((pending.get(node)?.length ?? 0) > 0) {
           return yield* new BusyFailure({ reason: "queued deliveries must finish before rewinding" })
         }
+      }), slot => Effect.gen(function*() {
         const previous = slot.state
         yield* slot.panel.rewind(rewind.id)
         options.onConversationClosed?.(previous)
