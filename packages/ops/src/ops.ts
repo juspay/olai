@@ -524,6 +524,16 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     Effect.gen(function*() {
       const store = yield* currentStore
       let repairs = REPAIRS
+      // Keep the last plan and the evidence from lost races local to this write.
+      // Claims swaps spend the same budget as stale writes, but are our own
+      // revalidation failing to catch up, not evidence of another file writer.
+      let summary: string | undefined
+      let staleWrites = 0
+      let claimsSwaps = 0
+      let firstRev: number | undefined
+      let lastRev: number | undefined
+      let observedRev = 0
+      const moved = new Map<string, { count: number; removed: boolean }>()
       /**
        * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
        * below answers: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
@@ -600,6 +610,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
 
         if (snapshot.value.claims !== options.claims.current) {
           races += 1
+          claimsSwaps += 1
           yield* Effect.mapError(store.refresh("verified"), failure => new ValidationFailure({ reason: failure.message, verdict: NOTHING_WRONG }))
           continue
         }
@@ -647,6 +658,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           return yield* planned.failure
         }
         const { files, documents = [], removed = [], ...about } = planned.success
+        summary = about.summary
 
         if (rule !== undefined) {
           if (rule._tag === "closed") {
@@ -686,11 +698,24 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           // A store that moved is the retry; anything else is a disk that
           // cannot be written, which no re-plan will fix.
           //
-          // THE ONE SITE THAT COUNTS ({@link ROUNDS}): this is what a lost
-          // race IS — another writer reached the gate first — and every
-          // other way round this loop is a repair, which is not one.
+          // A stale write spends a race just as a claims swap does above;
+          // a repair spends neither. Read the published diff after each lost
+          // gate, including the last, so the refusal can name what moved.
+          // Repeated reads of one revision are not repeated file movements.
           if (outcome.failure._tag === "StaleWrite") {
             races++
+            staleWrites++
+            firstRev ??= outcome.failure.baseRev
+            lastRev = outcome.failure.currentRev
+            const { snapshot: newer } = yield* store.read("cheap")
+            if (newer !== null && newer.rev > Math.max(observedRev, snapshot.rev)) {
+              observedRev = newer.rev
+              const removed = new Set(newer.removed)
+              for (const path of new Set([...newer.changed, ...newer.removed])) {
+                const held = moved.get(path)
+                moved.set(path, { count: (held?.count ?? 0) + 1, removed: removed.has(path) || held?.removed === true })
+              }
+            }
             continue
           }
           return yield* new ValidationFailure({
@@ -846,10 +871,20 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
       }
 
+      const subject = summary === undefined ? "this write" : `\`${summary}\``
+      const paths = [...moved].sort(([a, left], [b, right]) => right.count - left.count || a.localeCompare(b))
+      const named = paths.slice(0, 4).map(([path, movement]) =>
+        `\`${path}\`${movement.removed ? " removed" : ""} ${movement.count === staleWrites ? "every time" : movement.count === 1 ? "once" : `${movement.count} times`}`)
+      if (paths.length > 4) named.push(`and ${paths.length - 4} more`)
       return yield* new BusyFailure({
-        reason:
-          `the outlines kept changing under this write — ${ROUNDS} attempts, each from a ` +
-          `fresh read, all overtaken. Something else is writing continuously.`,
+        reason: staleWrites === 0
+          ? `${subject} was not written: the set of file kinds the directory is judged by changed ${claimsSwaps} times ` +
+            `while this write was being planned and a refresh never caught up. ` +
+            `That is olai's own fault, not the directory's — restarting the server clears it.`
+          : `${subject} was not written: the directory changed under it on ${staleWrites === ROUNDS ? `all ${ROUNDS}` : `${staleWrites} of ${ROUNDS}`} attempts ` +
+            `(revision ${firstRev} → ${lastRev})${named.length === 0 ? "" : ` — ${named.join(", ")}`}. ` +
+            (claimsSwaps === 0 ? "" : `The set of file kinds also changed ${claimsSwaps} times. `) +
+            `Something is rewriting ${named.length === 0 ? "the directory" : "those files"}; wait for it to stop, or stop it, then try again.`,
       })
     })
 
