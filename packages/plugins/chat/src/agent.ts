@@ -722,15 +722,19 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         : { outcome: { outcome: "selected", optionId: picked } }
     }
 
-    let staged: { id: string; updates: Array<() => void> } | null = null
+    let staged: { sessions: Set<string>; updates: Array<() => void> } | null = null
     const stage = (session: string, replay: () => void): boolean => {
       const root = sessionRoot(session)
       if (staged === null || root === activeSession) return false
+      staged.sessions.add(session)
       staged.updates.push(replay)
       return true
     }
     const onActivity = (session: string, update: Parameters<Activity["read"]>[1]): void => {
-      if (stage(session, () => onActivity(session, update))) return
+      if (stage(session, () => onActivity(session, update))) {
+        if (update.kind === "child") staged?.sessions.add(update.id)
+        return
+      }
       if (fromElsewhere(sessionRoot(session), activeSession, closed)) return
       if (update.kind === "child") closed.delete(update.id)
       activity?.read(session, update)
@@ -2359,7 +2363,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             _meta: { ...openMeta._meta, ...forkAt(point) } }),
         })) as NewSessionResponse
         if (made.sessionId === old) return yield* new AgentGone({ gone: "refused", why: "the adapter did not create a separate session" })
-        const pending = { id: made.sessionId, updates: [] as Array<() => void> }
+        const pending = { sessions: new Set([made.sessionId]), updates: [] as Array<() => void> }
         let selectedMode = false
         staged = pending
         const prepared = yield* Effect.result(Effect.ensuring(Effect.gen(function*() {
@@ -2372,7 +2376,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             selectedMode = mode._tag === "Success"
           }
           return loaded
-        }), Effect.sync(() => { staged = null })))
+        }), Effect.sync(() => {
+          staged = null
+          // Fence every prepared identity, including on interruption. Adoption
+          // reopens the root and each child as its declaration is replayed.
+          for (const session of pending.sessions) closed.add(session)
+        })))
         if (prepared._tag === "Failure") return yield* prepared.failure
         // No await separates withdrawal from the replay's adoption. The node
         // scope, process and credential are retained throughout.
