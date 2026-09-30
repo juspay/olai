@@ -259,6 +259,7 @@ export const surface = defineSurface({
         output: Schema.NullOr(Schema.Struct({ node: Schema.String, file: Schema.String, agent: Schema.String, session: Schema.NullOr(Schema.String) })),
         error: ChatFailure,
       },
+      /** Null means the node panel holds an auth-refused open for sign-in. */
       startAgentSession: {
         input: Schema.Struct({
           /** The node whose property is about to name the session — the id the

@@ -47,8 +47,10 @@ function createPageSession(node: string): PageSession {
     const value = chat()
     const state = value?.state()
     const text = draft()
-    if (value === null || state?.talking?.kind !== "agent" || state.session === null || text === "") return
-    keepMessage(value.ui.messages, JSON.stringify([state.talking.id, state.session.id]), text, true)
+    const to = pair()
+    if (value === null || to === null || state?.talking?.kind !== "agent"
+      || state.session?.id !== to.session || state.talking.id !== to.agent || text === "") return
+    keepMessage(reading.ui(to).messages, JSON.stringify([to.agent, to.session]), text, true)
     setDraft("")
   })
   const ready = (to: Conversing): Promise<Chat | null> => new Promise(resolve => {

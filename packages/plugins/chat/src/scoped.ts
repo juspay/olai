@@ -891,7 +891,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           if (slot === undefined || slot.closing || scope !== slot.panel.state().uploadScope) {
             return Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" }))
           }
-          return working(to.node, undefined, ({ slot: held }) => held === slot
+          return working(to.node, undefined, ({ slot: held }) => held === slot && scope === held.panel.state().uploadScope
             ? use(held.panel)
             : Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" })))
         }

@@ -219,8 +219,14 @@ Feature: Signing in to Claude from inside olai
     And the panel offers a sign-in
     When I press the sign-in for "claude-ai-login"
     Then the sign-in is running "claude-ai-login"
+    When I open another browser tab
+    And I unfold node agent "kitchen"
+    Then the sign-in is running "claude-ai-login"
     When I type "123456" into the sign-in
     Then the panel offers no sign-in
     And the panel shows no such refusal
     And the agent is idle
+    And the open conversation has session id "fake-session-1"
+    When I use the original browser tab
+    Then the panel offers no sign-in
     And the open conversation has session id "fake-session-1"

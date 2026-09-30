@@ -435,6 +435,7 @@ export interface Panel {
    *  ({@link ./agents/roster.ts}). The agent is an ARGUMENT because every new
    *  chat asks which one — there is no default to fall back on, and a verb that
    *  could be called without one would be a place for a default to grow. */
+  /** The optional node binding completion stays with an auth-refused retry. */
   readonly newSession: (agent: string, completed?: Effect.Effect<void, OpFailure>) => Effect.Effect<void, OpFailure>
   /** Answer the question the panel is holding: THIS is the agent, now open the
    *  conversation you would have opened.

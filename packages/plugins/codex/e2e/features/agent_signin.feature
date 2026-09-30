@@ -153,6 +153,14 @@ Feature: Signing in to Codex from inside olai
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "Authentication required"
     And the panel offers a sign-in
+    When I cancel the sign-in
+    Then the panel offers no sign-in
+    And the panel says the conversation could not be opened
+    When I try to open it again
+    Then the panel offers a sign-in
+    When I reload the page
+    And I unfold node agent "lane-fresh"
+    Then the panel offers a sign-in
     When I press the sign-in for "chat-gpt-device-code"
     Then the card sends them to "chatgpt.com"
     When the person finishes signing in
@@ -175,7 +183,7 @@ Feature: Signing in to Codex from inside olai
     And I remember this conversation as "before-sign-in"
     And the agent needs a sign-in
     When I open the fold history
-    And I start a fresh session with "codex"
+    And I start a fresh session with "Codex"
     Then the panel says the conversation could not be opened
     And the panel offers a sign-in
     When I press the sign-in for "chat-gpt-device-code"

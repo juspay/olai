@@ -21,7 +21,7 @@ export const createAgentReadings = (agents: Roster) => {
   let alive = true
   onCleanup(() => { alive = false; for (const stop of [...waiting]) stop(); cache.clear() })
   const ui = (to: PanelAddress) => {
-    const key = JSON.stringify("node" in to ? ["node", to.node] : [to.agent, to.session])
+    const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
     let value = cache.get(key)
     if (value === undefined) { value = createConversationUI(previews); cache.set(key, value) }
     return value

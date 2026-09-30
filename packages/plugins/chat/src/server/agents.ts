@@ -262,7 +262,7 @@ const standingOf = (
   agent: NodeAgent,
   live: LiveSession | undefined,
 ): Agents[number]["standing"] => {
-  if (agent.session === null) return "unbound"
+  if (agent.session === null) return live?.unopened === true ? "needs-you" : "unbound"
   if (live === undefined) return "asleep"
   if (live.status === "off" || live.status === "gone") return "gone"
   if (live.status === "booting") return "waking"

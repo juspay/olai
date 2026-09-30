@@ -19,7 +19,7 @@ export const createNodeConversation = (node: Accessor<string>) => {
     const agent = reading?.agents.at(node())
     return agent !== undefined && (agent.session !== null || agent.unopened === true)
   })
-  const address = createMemo<PanelAddress>(() => reading?.visiting(node()) ?? { node: node() }, undefined,
+  const address = createMemo<PanelAddress>(() => reading?.visiting(node()) ?? { node: node() }, { node: node() },
     { equals: (a, b) => JSON.stringify(a) === JSON.stringify(b) })
   const chat = createMemo(() => {
     const to = pair()
