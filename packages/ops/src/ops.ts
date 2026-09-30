@@ -528,22 +528,21 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
       // Keep the last plan and the evidence from lost races local to this write.
       // Claims mismatches spend the same budget as stale writes, but are our own
       // revalidation failing to catch up, not evidence of another file writer.
+      // Their sum counts invalidated attempts; repairs have their own allowance.
       let summary: string | undefined
       let staleWrites = 0
       let claimsMismatches = 0
       let firstRev: number | undefined
       let lastRev: number | undefined
-      let observedRev = 0
-      const moved = new Map<string, { count: number; removed: number }>()
+      const movements = new Map<string, { rounds: number; removals: number }>()
       let lostBaseRev: number | undefined
       const observeRace = (snapshot: Snapshot<Reading> | null) => {
         if (lostBaseRev === undefined) return
-        if (snapshot !== null && snapshot.rev > Math.max(observedRev, lostBaseRev)) {
-          observedRev = snapshot.rev
+        if (snapshot !== null && snapshot.rev > lostBaseRev) {
           const removed = new Set(snapshot.removed)
           for (const path of new Set([...snapshot.changed, ...snapshot.removed])) {
-            const held = moved.get(path)
-            moved.set(path, { count: (held?.count ?? 0) + 1, removed: (held?.removed ?? 0) + (removed.has(path) ? 1 : 0) })
+            const held = movements.get(path)
+            movements.set(path, { rounds: (held?.rounds ?? 0) + 1, removals: (held?.removals ?? 0) + (removed.has(path) ? 1 : 0) })
           }
         }
         lostBaseRev = undefined
@@ -606,7 +605,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           const resynced = yield* Effect.result(store.refresh("verified"))
           return Result.isSuccess(resynced)
         })
-      for (let races = 0; races < ROUNDS;) {
+      while (staleWrites + claimsMismatches < ROUNDS) {
         // The CHEAP class, and the write gate is why it is enough: a plan is
         // derived from this revision and then judged against `baseRev` inside
         // the gate, which probes on its way in. A tree that moved under the
@@ -624,7 +623,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
 
         if (snapshot.value.claims !== options.claims.current) {
-          races += 1
           claimsMismatches += 1
           yield* Effect.mapError(store.refresh("verified"), failure => new ValidationFailure({ reason: failure.message, verdict: NOTHING_WRONG }))
           continue
@@ -718,7 +716,6 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           // spends neither. The next round's read supplies both its plan and
           // this race's evidence, without counting one revision twice.
           if (outcome.failure._tag === "StaleWrite") {
-            races++
             staleWrites++
             firstRev ??= outcome.failure.baseRev
             lastRev = outcome.failure.currentRev
@@ -881,16 +878,16 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
       // The final lost gate has no next round to read its evidence.
       if (lostBaseRev !== undefined) observeRace((yield* store.read("cheap")).snapshot)
       const subject = summary === undefined ? "this write" : `\`${summary}\``
-      const paths = [...moved].sort(([a, left], [b, right]) => right.count - left.count || a.localeCompare(b))
+      const paths = [...movements].sort(([a, left], [b, right]) => right.rounds - left.rounds || a.localeCompare(b))
       const frequency = (count: number) => count === 1 ? "once" : count === staleWrites ? "every time" : `${count} times`
       const named = paths.slice(0, 4).map(([path, movement]) => {
-        const removal = movement.removed === movement.count
+        const removal = movement.removals === movement.rounds
           ? " removed"
           : ""
-        const sometimesRemoved = movement.removed > 0 && movement.removed < movement.count
-          ? ` (removed ${frequency(movement.removed)})`
+        const sometimesRemoved = movement.removals > 0 && movement.removals < movement.rounds
+          ? ` (removed ${frequency(movement.removals)})`
           : ""
-        return `\`${path}\`${removal} ${frequency(movement.count)}${sometimesRemoved}`
+        return `\`${path}\`${removal} ${frequency(movement.rounds)}${sometimesRemoved}`
       })
       if (paths.length > 4) named.push(`and ${paths.length - 4} more`)
       return yield* new BusyFailure({
