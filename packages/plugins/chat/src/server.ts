@@ -564,6 +564,26 @@ export default definePlugin({
       resend: ({ input }: { input: { conv: Conversing; scope: string | null; id: string } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.resend(input.id))),
       cancel: ({ input }: { input: { conv: Conversing; scope: string | null } }) => withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.cancel)),
+      // THE SIGN-IN TRIO, routed like every other conversation verb — through
+      // `inConversation`, which is what makes a stale tab's press land on the
+      // conversation it was drawn for rather than on whichever one is in front.
+      //
+      // THE ONE THING THAT MAKES THE MATCHING WORK HERE: an agent that refused
+      // to open a conversation for want of a signature still has a row on
+      // screen, and `inConversation` matches a panel with no session by the
+      // conversation it FAILED to open (`../chat.ts`'s `refusedOpen` writes
+      // it). So the buttons on that face address the panel they belong to,
+      // which is the same courtesy `reopen` already gets.
+      signIn: ({ input }: { input: { conv: Conversing; scope: string | null; method: string | null } }) =>
+        withChat((open) =>
+          open.inConversation(input.conv, input.scope, (panel) => panel.signIn(input.method))
+        ),
+      signInInput: ({ input }: { input: { conv: Conversing; scope: string | null; text: string } }) =>
+        withChat((open) =>
+          open.inConversation(input.conv, input.scope, (panel) => panel.signInInput(input.text))
+        ),
+      signInCancel: ({ input }: { input: { conv: Conversing; scope: string | null } }) =>
+        withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.signInCancel)),
       setSetting: ({ input }: { input: { agent: string; session: string; config: string; value: string | boolean } }) =>
         withChat((open) => open.inConversation(input, undefined, panel => panel.setSetting(input.agent, input.session, input.config, input.value))),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>

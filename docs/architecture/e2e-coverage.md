@@ -388,3 +388,52 @@ open the plugins panel through the health popover and put it away with Escape
 (picking the Plugins row shuts the popover; Escape hands the caret back to the
 health dot), and `setSwitch` drives a
 preference switch.
+
+## Signing in to an agent, from inside olai (#636)
+
+The panel runs the sign-in an adapter hands over, or waits on one the agent
+drives, and both ends are exercised against the scripted ACP agent — which grew
+the other half of that contract: `authMethods` in its handshake, an
+`authenticate` that drives a device-code flow, and ACP's `-32000` on the three
+verbs that can refuse for want of a signature (`session/new`, `session/load`, a
+turn).
+
+- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (7 scenarios,
+  the terminal kind): the handed-over command runs, prints its URL as a
+  *clickable link*, reads a code and exits 0; a code it does not accept is
+  answered and asked for again with the process still up; a code that fails the
+  attempt outright leaves the output on screen as the failure with a way to try
+  again; cancelling takes the row away and (proved by a second attempt starting
+  afresh rather than attaching) stops what was running; two browser tabs watch
+  one attempt and either can finish it; a REFUSED TURN leaves the message marked
+  *not sent*, hands its words back to the composer, and the sign-in reopens the
+  same conversation with the box still holding them; and an agent that advertised
+  no method gets `/login` delivered as an ordinary message with no row.
+- **`packages/plugins/codex/e2e/features/agent_signin.feature`** (3 scenarios,
+  the agent kind): a conversation refused for want of a signature is signed in to
+  through the device-code card and opens itself afterwards; backing out leaves
+  nothing running (the adapter's own refusal of the cancelled login does not put
+  the row back); and a mid-conversation refusal is signed in to and the words
+  come back to the box.
+- **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
+  plugin because the feature is the panel's: arm the agent
+  (`.agent-needs-auth`), say the person finished at a vendor's page
+  (`.agent-at-the-page`, which is the only way this suite can model a page it
+  cannot visit), press a method by its ADVERTISED id, type into the process's
+  own line, and read the row, the card and the link.
+- **The remote-signal strip is tested by construction, not by the machine's
+  environment.** The claude fake is given `SSH_CONNECTION` on the server, and it
+  mimics the pinned adapter's own test — on a "remote" session it offers only
+  the full-screen method. If `Adapter.unset` ever stops taking the five
+  variables away, the methods that appear change and every one of those scenarios
+  fails at its first press.
+- **Unit** (`packages/acp/src/asks.test.ts`, `packages/plugins/chat/src/agent.test.ts`,
+  `packages/plugins/claude/src/server.test.ts`): the URL-elicitation reader
+  (message, host with its port, an unparseable URL carried whole, a vendor mode
+  refused rather than read for a URL); `-32000` read as a refusal AND as a
+  sign-in while `-32602` is neither; the environment rule (the named variables
+  removed, everything else kept, olai's own environment untouched); and the
+  engine's five names pinned by hand.
+- Open: no live `claude auth login` or Codex device-code flow is driven — the
+  command and the page are the fakes — and the card's browser-side look (its
+  colours, its phone layout) has no visual assertion.

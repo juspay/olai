@@ -90,7 +90,7 @@
  */
 import type { Advertised } from "@olai/plugin-api/services"
 
-import { type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
+import { type Attached, type AttachChunk, type AuthMethod, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type SignIn, type Talking } from "olai-plugin-chat/wire"
 import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
@@ -410,6 +410,24 @@ export interface Panel {
    *  when that row is not waiting to be sent, which two tabs can genuinely
    *  race. */
   readonly resend: (id: string) => Effect.Effect<void, OpFailure>
+  /**
+   * SIGN IN — with a method the agent advertised (`./wire/members.ts`'s
+   * {@link AuthMethod}), or with `null` for the chooser.
+   *
+   * The chooser is the panel's own: `/login` was pressed and the row that lists
+   * the methods goes up, which is all this does. A named method is the AGENT's
+   * work, and it is FORKED — a terminal method is a person pasting a code into a
+   * process that may live for minutes, so nothing about this call waits for it.
+   * What the row shows in between arrives as `signIn` events, and what happens
+   * at the end is {@link signedIn}.
+   */
+  readonly signIn: (method: string | null) => Effect.Effect<void, OpFailure>
+  /** One line to the process a terminal sign-in is running — the code it asked
+   *  for. Refuses when nothing is waiting for one. */
+  readonly signInInput: (text: string) => Effect.Effect<void, OpFailure>
+  /** Stop it, or dismiss a finished attempt's row. The row goes either way,
+   *  which is what a person pressing *cancel* asked for. */
+  readonly signInCancel: Effect.Effect<void, OpFailure>
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean) => Effect.Effect<void, OpFailure>
   readonly setModel: (agent: string, session: string, value: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
@@ -614,6 +632,10 @@ interface Bound {
 interface Undelivered {
   readonly gone: AcpAgent.Gone
   readonly why: string
+  /** ... and whether the agent said no for want of a signature — the one
+   *  refusal a row can say more about than "Not sent" ({@link UserEntry}'s
+   *  `auth`). */
+  readonly auth?: boolean
 }
 
 /**
@@ -677,6 +699,9 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
   replayEnded: "arrived",
   askSettled: "neither",
   commands: "neither",
+  // A sign-in is olai's own account of a process it is running, said while no
+  // turn is in flight (a sign-in is what happens when a turn could not start).
+  signIn: "neither",
   // The handshake, which is olai asking rather than the agent volunteering —
   // and which happens before any turn, so it could not be evidence about one.
   advertised: "neither",
@@ -810,6 +835,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         command: row.adapter.command,
         args: row.adapter.args,
         env: row.adapter.env,
+        // ... AND WHAT IT MUST NOT SEE, which is the same row's data read from
+        // the other direction: `env` can only add, and an adapter that guesses
+        // something off the environment it is started in says here which
+        // variables to take away (`@olai/acp/engine`'s `Adapter.unset`).
+        unset: row.adapter.unset,
         cwd: options.cwd,
         tools: options.tools,
         probes: options.probes,
@@ -835,7 +865,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * that was there before the agent said it took one is a person pressing
      * *interrupt* at an agent that will refuse it.
      */
-    const SAYS_NOTHING = { steers: false, queues: false } as const
+    const SAYS_NOTHING = {
+      steers: false,
+      queues: false,
+      methods: [] as ReadonlyArray<AuthMethod>,
+    }
 
     /**
      * ... and what the CURRENT agent has said, once it has.
@@ -847,7 +881,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * is one assignment per boot; folded into `talking` it would be a field
      * every writer of that member had to remember not to flatten.
      */
-    let advertises: { readonly steers: boolean; readonly queues: boolean } = SAYS_NOTHING
+    let advertises: {
+      readonly steers: boolean
+      readonly queues: boolean
+      readonly methods: ReadonlyArray<AuthMethod>
+    } = SAYS_NOTHING
 
     /**
      * Whether THIS CONVERSATION has ever held a message behind a running turn.
@@ -925,6 +963,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // copy of a rule this end already knows, which is the argument
       // `../../web/src/client/chat/busy.ts` makes for every decision like it.
       steers: advertises.steers && !queuedHere,
+      // ... AND WHAT IT CAN BE SIGNED IN WITH, which is the third thing this
+      // member answers for and the only one a person PRESSES rather than reads:
+      // an agent that offered no way in shows no `/login` at all, exactly as an
+      // agent that offered no commands shows no command list.
+      methods: advertises.methods,
     })
 
     /** Who this panel is talking to, said again — the one door for everything
@@ -1484,7 +1527,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           return
         }
         case "asked":
-          publish(transcript.ask(event.id, event.message, event.fields, event.parent))
+          publish(transcript.ask(event.id, event.message, event.fields, event.parent, event.link))
           move({ asking: asking() })
           return
         case "askSettled":
@@ -1494,8 +1537,19 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         case "commands":
           move({ commands: event.commands })
           return
+        case "signIn":
+          // REPLACED, never merged, and that is what makes the agent the one
+          // writer of an attempt: the row this event carries IS the attempt, and
+          // a panel that patched it field by field would be a second place
+          // deciding what a sign-in currently is.
+          move({ signIn: event.signIn })
+          return
         case "advertised":
-          advertises = { steers: event.steers, queues: event.queues }
+          advertises = {
+            steers: event.steers,
+            queues: event.queues,
+            methods: event.methods,
+          }
           // ON `talking`, because it is a fact about WHO this panel is talking
           // to and that is the one member that answers for an agent. A frame
           // with nobody bound is a handshake that finished after its agent was
@@ -1749,6 +1803,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           talking: bound(row),
           model: null,
           trouble: null,
+          // ... AND A SIGN-IN ROW ABOUT SOMEBODY ELSE GOES WITH IT. The attempt
+          // it drew was the outgoing agent's, and that agent has just been
+          // stopped (`./agent.ts` kills a login with its scope) — so a row left
+          // up would offer buttons on behalf of a process that no longer
+          // exists, on the strength of an advertisement from another one.
+          signIn: null,
         })
         const made = yield* spawn(row, receive)
         talking = { row, agent: made }
@@ -2280,7 +2340,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * in the conversation.
      */
     const undeliverable = (key: string, prompt: string, failed: Undelivered): void => {
-      markUndelivered(key, prompt, failed.gone)
+      markUndelivered(key, prompt, failed.gone, failed.auth === true)
       if (failed.gone === "unanswered") publish(transcript.add("notice", failed.why))
       move({ trouble: failed.why })
     }
@@ -2296,9 +2356,16 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  exactly one of `Gone`'s three values says no to it — so naming the two
      *  that say yes would be this line having an opinion about which ways a
      *  message can fail to go, which is the thing it does not have to have. */
-    const markUndelivered = (key: string, prompt: string, gone: AcpAgent.Gone): void => {
+    const markUndelivered = (
+      key: string,
+      prompt: string,
+      gone: AcpAgent.Gone,
+      auth = false,
+    ): void => {
       publish(
-        gone === "unanswered" ? transcript.unanswered(key) : transcript.refused(key, prompt),
+        gone === "unanswered"
+          ? transcript.unanswered(key)
+          : transcript.refused(key, prompt, auth),
       )
     }
 
@@ -2542,7 +2609,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               // that undelivered would contradict the answer sitting above it.
               // What has changed is that "did it arrive" is now answerable —
               // by the turn's own silence, and by `Gone` where it is not.
-              if (quiet() || refusedWhileQueued) markUndelivered(key, prompt, outcome.failure.gone)
+              if (quiet() || refusedWhileQueued) {
+                markUndelivered(key, prompt, outcome.failure.gone, outcome.failure.auth === true)
+              }
+              // ... AND THE WAY TO SIGN IN, when the reason nothing was taken is
+              // that nobody is signed in. Said BEFORE the status below, because
+              // the turn is over either way — what changes is that this panel
+              // now has something to offer, and it is offered while the row
+              // saying "Not sent" is still on screen under it.
+              if (askingToSignIn(outcome.failure)) move({ signIn: { kind: "choosing" } })
               // WHETHER THERE IS STILL AN AGENT, which is a different question
               // from whether the turn ran and is answered by the same value: a
               // turn the agent REFUSED is a turn that ended — the process is
@@ -3010,6 +3085,22 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  the agent's own words and the offer to try again — and stays IDLE,
      *  because the agent answered and is therefore running ({@link
      *  ../../surface/src/chat.ts}'s `Unopened`). */
+    /**
+     * WHETHER THIS REFUSAL IS SOMETHING A SIGN-IN WOULD FIX — the half of
+     * {@link AcpAgent.AgentGone}'s `auth` that needs the AGENT to have offered a
+     * way in.
+     *
+     * BOTH HALVES, and the second is not a formality: an agent can say
+     * "authenticate first" and then advertise no method at all (a credential
+     * file somebody has to create by hand, an agent whose auth is its own
+     * environment), and a row with no buttons on it is a panel asking a person
+     * to do something it cannot help with. Those refusals stay what they were —
+     * the agent's own words, with a retry — which is also what happens for
+     * every refusal that is not about a signature at all.
+     */
+    const askingToSignIn = (failure: AcpAgent.AgentGone): boolean =>
+      failure.auth === true && advertises.methods.length > 0
+
     const refusedOpen = (
       failure: AcpAgent.AgentGone,
       again: Effect.Effect<void, AcpAgent.AgentGone>,
@@ -3050,8 +3141,99 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // answered before and what nearly every conversation is.
         bound: boundTo(what),
         servers: [],
+        // ... AND THE WAY OUT OF THIS FACE, when the way out is a signature.
+        // The row goes up beside the refusal it explains rather than instead of
+        // it: what the agent said is still what happened, and the buttons are
+        // what a person can do about it. `Try again` stays where it is, and is
+        // honest — the retry is exactly what signing in makes work.
+        ...(askingToSignIn(failure) ? { signIn: { kind: "choosing" as const } } : {}),
       })
     }
+
+    /**
+     * SIGN IN — the chooser, or one method of it ({@link Panel.signIn}).
+     *
+     * THE CHOOSER IS THE PANEL'S AND THE ATTEMPT IS THE AGENT'S, which is the
+     * split this whole member is built on: pressing `/login` asks for a row and
+     * has nothing to do with any process, while running a method is the agent
+     * spawning one and reporting on it. So the first arm is a `move` and nothing
+     * else, and the second is a fork — the attempt may last minutes, and what
+     * happens while it runs arrives as `signIn` events (`./agent.ts`).
+     *
+     * WHAT HAPPENS AT THE END is {@link signedIn}, and only on success: a failed
+     * attempt leaves its own row on screen (the output IS the failure), and a
+     * cancelled one leaves nothing, which the panel has already done.
+     */
+    const signIn = (method: string | null): Effect.Effect<void, OpFailure> =>
+      Effect.suspend(() => {
+        if (method === null) {
+          move({ signIn: { kind: "choosing" } })
+          return Effect.void
+        }
+        const at = talking
+        if (at === null) {
+          return Effect.fail(
+            new UsageFailure({
+              reason: "no agent has been chosen for this panel yet — pick one to start",
+            }),
+          )
+        }
+        return aside(Effect.gen(function*() {
+          const outcome = yield* at.agent.signIn(method)
+          if (outcome !== "signed-in") return
+          yield* Effect.catch(signedIn(at), (failure) =>
+            Effect.sync(() => move({ trouble: failure.reason })))
+        }))
+      })
+
+    /**
+     * ... AND THE CONVERSATION COMES BACK, because the process at the other end
+     * has just been told who it is.
+     *
+     * REOPENING RATHER THAN CARRYING ON, which is the shape Zed's flow has and
+     * the shape the protocol asks for: the session on the wire was opened by an
+     * agent that had not been signed in yet, and a `/model`, a provider and a
+     * resume all hang off that agent's own auth state. What is opened is the
+     * conversation this panel was in — RESUME, by its own id, so the words
+     * somebody had typed are still theirs (the composer's draft is keyed by the
+     * conversation, and a fresh id would drop them) — or, when the refusal was
+     * at the OPEN and there is no conversation to come back to, whatever that
+     * boot would have picked.
+     *
+     * A failure is a NOTICE and not a second row: the sign-in itself worked,
+     * which is the thing the person pressed, and what did not work is the
+     * conversation — which already has faces of its own.
+     */
+    const signedIn = (at: Bound): Effect.Effect<void, OpFailure> =>
+      Effect.suspend(() => {
+        const session = state.session?.id ?? state.unopened?.what ?? null
+        return session === null
+          ? openWith(at.row.id, (agent) => agent.boot)
+          : openWith(at.row.id, (agent) => agent.loadSession(session))
+      })
+
+    /** One line to the process a terminal sign-in is running
+     *  ({@link Panel.signInInput}). A refusal from the agent is the caller's to
+     *  read: nothing is waiting for a line, or the sign-in is one the AGENT
+     *  runs and there is no process to type into. */
+    const signInInput = (text: string): Effect.Effect<void, OpFailure> =>
+      onAgent((agent) => Effect.mapError(agent.signInInput(text), asFailure))
+
+    /**
+     * ... AND OUT OF IT ({@link Panel.signInCancel}).
+     *
+     * The ROW goes first and unconditionally, because both things a person means
+     * by pressing it are about the row: stop this, and get it off my screen. The
+     * agent is told after, and what it does with the news depends on what it has
+     * — a running process is killed, an agent-side attempt has its question
+     * handed back, and a finished attempt has nothing to stop at all. A cancel
+     * with no agent bound still clears the row, since the row is this panel's.
+     */
+    const signInCancel: Effect.Effect<void, OpFailure> = Effect.suspend(() => {
+      const at = talking
+      move({ signIn: null })
+      return at === null ? Effect.void : Effect.asVoid(at.agent.signInCancel)
+    })
 
     /** ... and a conversation is open, so neither half of that is true any
      *  more. Called wherever one is entered, which is the only thing that can
@@ -3084,7 +3266,18 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // a conversation. Written in both halves of the pair because they are one
       // rule, and a pair where only one half remembers is how the other one
       // ends up forgetting.
-      move({ status: "gone", trouble: why, unopened: null, servers: [] })
+      move({
+        status: "gone",
+        trouble: why,
+        unopened: null,
+        servers: [],
+        // ... AND A SIGN-IN GOES WITH THE PROCESS IT WAS ABOUT. The agent
+        // stopped emitting anything when it died, so nothing else will ever
+        // move this row — and buttons that press nothing are how somebody
+        // finds out. The attempt itself died with the subprocess (`./agent.ts`
+        // kills a login with its scope).
+        signIn: null,
+      })
     }
 
     /**
@@ -3255,6 +3448,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // two tabs pasting `shot.png` at the same moment cannot both pick it.
       attach: (chunk) => switching.withPermit(files.receive(chunk)),
       resend,
+      signIn,
+      signInInput,
+      signInCancel,
       // A cancel the agent never took is a refusal like any other, and the
       // click that asked for it is what hears about it — the same treatment
       // `sessions` gets, and for the same reason: a verb that could not be

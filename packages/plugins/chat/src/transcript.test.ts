@@ -1352,6 +1352,7 @@ describe("questions", () => {
     expect(rows(transcript)[0]).toMatchObject({ kind: "ask", text: "Shall I?" })
     expect(asKind(rows(transcript)[0], "ask")?.ask).toEqual({
       fields,
+      link: null,
       outcome: { how: "answered", answers: [{ key: "question_0", values: ["yes"] }] },
     })
   })

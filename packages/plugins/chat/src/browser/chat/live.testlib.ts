@@ -50,7 +50,7 @@ export const askRow = (
     seq,
     id,
     text,
-    ask: { fields: [], outcome: settled ? { how: "answered", answers: [] } : null },
+    ask: { fields: [], link: null, outcome: settled ? { how: "answered", answers: [] } : null },
   } as unknown as ChatEntry)
 
 export interface Live<T> {

@@ -59,7 +59,7 @@ test("a NOTICE is olai's own words — including the teaching preamble", () => {
 test("an ASK is what the STANDING already says, so it is not the line", () => {
   expect(line(
     { kind: "agent", text: "the mirror lane is in flight" },
-    { kind: "ask", text: "which timezone?", ask: { fields: [], outcome: null } },
+    { kind: "ask", text: "which timezone?", ask: { fields: [], link: null, outcome: null } },
   )).toBe("the mirror lane is in flight")
 })
 

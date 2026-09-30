@@ -21,7 +21,7 @@ import { RequestError } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
-import { adopt, fromElsewhere, goneOf, make } from "./agent.ts"
+import { adopt, authOf, childEnvOf, fromElsewhere, goneOf, make } from "./agent.ts"
 import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
 import type { Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
@@ -160,6 +160,66 @@ describe("what a failure says about whether the message went", () => {
     ) {
       expect(goneOf(cause)).not.toBe("unreachable")
     }
+  })
+})
+
+describe("what a refusal says about a signature", () => {
+  /** ACP's own code for "authenticate first" — the one number a sign-in row is
+   *  drawn out of (`-32000` in the protocol's table, and the code the pinned
+   *  adapters answer with from `session/new`, `session/load` and a turn
+   *  alike). */
+  const AUTH_REQUIRED = -32000
+
+  test("the protocol's auth-required code is a sign-in", () => {
+    expect(authOf(new RequestError(AUTH_REQUIRED, "Authentication required"))).toBe(true)
+    // ... AND IT IS STILL A REFUSAL: the agent answered and the request can
+    // honestly be offered again, which is what the panel's two faces are drawn
+    // out of. The two readings are of one rejection and neither overrides the
+    // other.
+    expect(goneOf(new RequestError(AUTH_REQUIRED, "Authentication required"))).toBe("refused")
+  })
+
+  test("the code a failed sign-in answers with is NOT one", () => {
+    // The pinned Codex adapter answers `authenticate` with `invalidParams` when
+    // its own login did not go through. That is "the attempt failed", which the
+    // sign-in row says in the agent's own words — not "you are not signed in",
+    // which is what puts the chooser back on screen.
+    expect(authOf(new RequestError(-32602, "Invalid params"))).toBe(false)
+  })
+
+  test("silence is not a signature either", () => {
+    // A dead pipe, a deadline, something nothing has seen before: none of them
+    // is an agent asking to be signed in, and a row offering a sign-in because
+    // a connection died would be a row about the wrong thing.
+    expect(authOf(new Error("ACP connection closed"))).toBe(false)
+    expect(authOf("something nobody has seen before")).toBe(false)
+    expect(authOf(null)).toBe(false)
+  })
+})
+
+describe("the environment a spawned child gets", () => {
+  test("the adapter's unset list is removed and everything else survives", () => {
+    // The rule a remote-detecting adapter depends on: olai IS the far end of a
+    // browser, so the variables that mean "somewhere else" are taken away from
+    // its spawn — and taking them away may not cost anything else.
+    const env = childEnvOf(
+      { PATH: "/bin", SSH_CONNECTION: "10.0.0.1 1 2", KEEP: "yes" },
+      { EXTRA: "1" },
+      ["NO_BROWSER", "SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY", "CLAUDE_CODE_REMOTE"],
+    )
+    expect(env).toEqual({ PATH: "/bin", KEEP: "yes", EXTRA: "1" })
+  })
+
+  test("olai's own environment is not edited", () => {
+    // A removal done on `process.env` itself would outlive the spawn and change
+    // every later child of this process — including the next agent's.
+    const base: NodeJS.ProcessEnv = { SSH_TTY: "/dev/pts/1", PATH: "/bin" }
+    childEnvOf(base, undefined, ["SSH_TTY"])
+    expect(base).toEqual({ SSH_TTY: "/dev/pts/1", PATH: "/bin" })
+  })
+
+  test("an adapter that unset nothing inherits exactly what it was given", () => {
+    expect(childEnvOf({ PATH: "/bin" }, undefined, undefined)).toEqual({ PATH: "/bin" })
   })
 })
 

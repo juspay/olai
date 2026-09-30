@@ -63,22 +63,41 @@
  * puts `AskUserQuestion` in `disallowedTools`, so the agent cannot ask a
  * structured question — it has to guess, or write the question into prose and
  * hope.
+ *
+ * `elicitation.url` is TRUE as well, and it used to be deliberately absent.
+ * The argument against it was that a URL elicitation sends a person out of the
+ * panel to a page olai knows nothing about, which is a different bargain — and
+ * that argument is still right about the bargain and wrong about the
+ * conclusion, so the bargain is what got drawn: the card says where the link
+ * goes and to WHICH MACHINE, the page is opened by the browser rather than by
+ * this process, and `elicitation/complete` is what says the agent is satisfied.
+ * Without it the Codex adapter withholds its device-code sign-in method
+ * entirely, so an agent that needs signing in has no way to be signed in from
+ * inside olai — which is what this capability is for.
+ *
+ * `auth.terminal` (plus the `_meta["terminal-auth"]` corner the pinned Claude
+ * adapter reads) is what makes an agent offer a sign-in a CLIENT can run: with
+ * it, the adapter hands over a command that prints a URL and reads a code, and
+ * without it the same adapter offers only its own full-screen TUI — a screen
+ * this panel cannot draw. Both are declared because the two adapters read one
+ * each, and what happens after the offer is {@link signIn}'s.
  */
 import type { Advertised } from "@olai/plugin-api/services"
 
-import { Terminals } from "./terminals.ts"
-import { terminalMetaIn } from "@olai/acp"
+import { tailBytes, Terminals } from "./terminals.ts"
+import { terminalMetaIn, urlOf } from "@olai/acp"
 import { type Child, start as startChild } from "@olai/child"
 
 import {
   client as acpClient,
+  CreateElicitationRequest,
   type ClientConnection,
   methods,
   RequestError,
 } from "@agentclientprotocol/sdk"
 import type {
+  AuthMethodTerminal,
   ContentBlock,
-  CreateElicitationRequest,
   CreateElicitationResponse,
   InitializeResponse,
   ListSessionsResponse,
@@ -106,7 +125,7 @@ import {
 } from "@olai/acp"
 import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
-import type { ChatServer } from "olai-plugin-chat/wire"
+import type { AuthMethod, ChatServer, SignIn, SignInLink } from "olai-plugin-chat/wire"
 import type { Reported } from "@olai/acp/engine"
 import type { AskAnswer } from "@olai/acp/wire"
 import { Clock, Schema, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
@@ -195,6 +214,23 @@ export type Gone = "refused" | "unreachable" | "unanswered"
 export class AgentGone extends Data.TaggedError("AgentGone")<{
   readonly gone: Gone
   readonly why: string
+  /**
+   * ... AND WHETHER IT SAID NO FOR WANT OF A SIGNATURE — the one refusal with
+   * something to DO about it.
+   *
+   * A field rather than a fourth {@link Gone}, because it answers a different
+   * question and the two are true at once: `gone` says whether there is still
+   * an agent and whether the request can honestly be offered again (an
+   * auth-required refusal is `refused` on both counts — the agent answered, and
+   * the next attempt is a real attempt), and this says the one thing a caller
+   * can act on beyond retrying.
+   *
+   * Read off the protocol's own code (`-32000`), which is the only place it is
+   * ever said: ACP spells "authenticate first" as an error response, so an
+   * agent that wants a sign-in before it will open a session or run a turn says
+   * so exactly once, here.
+   */
+  readonly auth?: boolean
 }> {
   override get message(): string {
     return this.why
@@ -237,6 +273,26 @@ export interface Options {
    *  `Adapter.env`), merged over this process's own at the spawn — pi-acp's
    *  `PI_ACP_PI_COMMAND` is the one row that uses it today. */
   readonly env?: Readonly<Record<string, string>>
+  /**
+   * ENVIRONMENT VARIABLES THIS ADAPTER MUST NOT SEE — removed from its spawn,
+   * where {@link Options.env} can only add to it.
+   *
+   * An engine whose adapter guesses things off the environment says so here,
+   * as data, and the removal happens at the spawn because that is the one place
+   * a child's environment exists. The pinned Claude Code adapter is the reason
+   * this field is here at all: it reads `NO_BROWSER`, `SSH_CONNECTION`,
+   * `SSH_CLIENT`, `SSH_TTY` and `CLAUDE_CODE_REMOTE` to decide whether the
+   * person is REMOTE, and on a remote session it offers only a full-screen
+   * login TUI instead of the paste-a-code flow this panel can run. Olai
+   * *is* a remote server and none of those variables is a fact about the
+   * person sitting at the browser, so the adapter is told nothing about them
+   * (`olai-plugin-claude`'s registration is where the five names are).
+   *
+   * A LIST OF NAMES and not a predicate, because there is nothing to decide:
+   * the plugin knew which variables it meant, and a callback here would be that
+   * decision spelled in a second package.
+   */
+  readonly unset?: ReadonlyArray<string>
   /** The directory the agent works in — the served directory, absolute. It is
    *  what makes stored sessions findable: an agent keys its conversations by
    *  the directory it was started in. */
@@ -356,6 +412,47 @@ export interface Agent {
     id: string,
     answers: ReadonlyArray<AskAnswer> | null,
   ) => Effect.Effect<boolean, UsageFailure>
+  /**
+   * SIGN IN, with one of the methods the handshake advertised.
+   *
+   * This RUNS THE WHOLE ATTEMPT and answers when it is over, which is the one
+   * shape that fits both kinds: a terminal method is a process a person types a
+   * code into from wherever they are sitting, so a caller must not be able to
+   * wait on it by accident — it forks this and lets the row do the waiting
+   * ({@link ./chat.ts}). Everything in between is reported as {@link
+   * ./events.ts}'s `signIn`.
+   *
+   * ONE ATTEMPT PER AGENT, and a second call while one is in flight is that
+   * claim: the same method answers `attached` — the caller has attached to the
+   * attempt it can already see, and nothing new was spawned — and a different
+   * one refuses, because two sign-ins at once is two processes writing the same
+   * credential store.
+   *
+   * FAILS when the method is not one this agent offers, when the process could
+   * not be started at all, and when the agent refused the attempt. A sign-in
+   * that ran and failed is NOT a failure here: it answers `failed`, having said
+   * why on the row a person is reading ({@link ./events.ts}'s `signIn`).
+   */
+  readonly signIn: (method: string) => Effect.Effect<SignedIn, AgentGone>
+  /**
+   * One line for the process {@link signIn} started — the code a Claude
+   * subscription sign-in asks somebody to paste back.
+   *
+   * A LINE rather than a stream, and the newline is added HERE: what a person
+   * types is a code, and every one of these CLIs reads it by line. That is the
+   * same kind of protocol fact as everything else this file owns.
+   *
+   * FAILS when there is nothing to write to — no attempt, or an agent method,
+   * which has no process behind it.
+   */
+  readonly signInInput: (text: string) => Effect.Effect<void, AgentGone>
+  /**
+   * STOP IT — the process is killed, or the question the agent is waiting on is
+   * handed back unanswered. Answers whether there was anything to stop, which
+   * is what a caller says something different about (a cancel with nothing to
+   * cancel is a stale tab, not a failure).
+   */
+  readonly signInCancel: Effect.Effect<boolean>
   readonly stop: Effect.Effect<void>
   readonly stopWithReason: (reason: StopReason) => Effect.Effect<void>
 }
@@ -374,6 +471,116 @@ export type StopReason =
 
 /** The ACP major version this client speaks. */
 const PROTOCOL = 1
+
+/**
+ * How a sign-in ended, from the caller's side of {@link Agent.signIn}.
+ *
+ * Four values because four different things are done about them, and none is a
+ * failure of the VERB: `signed-in` is the one that reopens the conversation,
+ * `failed` is already on screen as the attempt's own output (the row a person
+ * is reading), `cancelled` is somebody's press and needs nobody told, and
+ * `attached` is a second press that joined the first.
+ */
+export type SignedIn = "signed-in" | "failed" | "cancelled" | "attached"
+
+/**
+ * ACP's `_meta` corner a `terminal` auth method carries the command it wants run
+ * in — the pinned Claude Code adapter's own spelling (`acp-agent.js`: the
+ * method's `args` are the ADAPTER's argv, and this is the whole command line a
+ * client is meant to run *instead of* its own).
+ */
+const TERMINAL_AUTH = "terminal-auth"
+
+/** What running a `terminal` method takes. */
+interface TerminalAuth {
+  readonly command: string
+  readonly args: ReadonlyArray<string>
+  /** The method's own environment, over olai's own. */
+  readonly env: Readonly<Record<string, string>>
+}
+
+/**
+ * ONE METHOD, as this file reads it: the shape the panel draws, and what
+ * running it takes.
+ *
+ * The two halves live together because they are one advertisement, and they go
+ * to two different places: `method` is what travels to the browser
+ * ({@link ./events.ts}'s `advertised`), and `run` is a command line this
+ * process spawns and no browser has any business holding.
+ */
+interface Offered {
+  readonly method: AuthMethod
+  /** What running it takes, or `null` for a method the AGENT runs — which
+   *  needs no command, only the wait ({@link SignIn}'s `agent` arm). */
+  readonly run: TerminalAuth | null
+}
+
+/**
+ * THE SIGN-IN IN FLIGHT, if there is one — held here because the two things
+ * that act on it arrive by different roads: a person's keystroke
+ * ({@link Agent.signInInput}) and the agent's own completion notification.
+ *
+ * One per agent, which is what makes a second press attach to the process
+ * already running rather than spawn a second one.
+ */
+interface Attempt {
+  readonly method: string
+  /** What the method is called, for the row that draws it — the label the
+   *  advertisement gave it. */
+  readonly label: string
+  /** One line to the process's stdin, or `null` for an agent method. */
+  readonly write: ((line: string) => void) | null
+  /** Take it back: kill the process, or hand the agent back the question it is
+   *  waiting on. A promise because a SHUTDOWN awaits it — a kill left in flight
+   *  as the panel goes is the same class of thing the terminals beside this
+   *  one wait for — while a cancel button does not. */
+  readonly stop: () => Promise<void>
+  /**
+   * The page this attempt is waiting on, once the agent has sent one — the
+   * elicitation's own id (which is what `elicitation/complete` names) and the
+   * two ways it can end.
+   *
+   * Written by the protocol callback and read by the completion notification
+   * and by {@link Agent.signInCancel}, which is why it is a mutable field of a
+   * record both can reach rather than a local of either.
+   */
+  link: {
+    readonly elicitationId: string
+    /** The agent is satisfied, or the person has backed out — both answer the
+     *  request the agent is holding open, and the difference is what the agent
+     *  does next (carry on, or cancel the login at its end). */
+    readonly answer: (action: "accept" | "decline") => void
+    /** The row's value, for the completion notification to mark done. */
+    readonly view: SignInLink
+  } | null
+}
+
+/**
+ * ... AND WHAT IS TAKEN OUT OF IT ({@link Options.unset}), which is the one
+ * rule about a child's environment this file owns.
+ *
+ * A `delete` on a COPY and never on what was handed in: `process.env` is olai's
+ * own environment, an adapter is not entitled to edit it, and a mutation there
+ * would outlive the spawn for every later child of this process.
+ *
+ * Exported for its own test, which is the only way this rule can be checked
+ * without a subprocess: what a spawned process's environment IS is a fact about
+ * the call, and the call is this function.
+ */
+export const childEnvOf = (
+  base: NodeJS.ProcessEnv,
+  extra: Readonly<Record<string, string>> | undefined,
+  unset: ReadonlyArray<string> | undefined,
+): NodeJS.ProcessEnv => {
+  const env: NodeJS.ProcessEnv = { ...base, ...extra }
+  for (const name of unset ?? []) delete env[name]
+  return env
+}
+
+/** How much of a sign-in's output is kept. The same order as a terminal's own
+ *  cap, and for the same reason: this is a URL and a prompt, and a process that
+ *  printed a book is not one a person is reading. */
+const SIGN_IN_CAP = 64 * 1024
 
 /** A cancel that could not be delivered, said the same way on both of its
  *  paths — the refusal a caller gets, and the `trouble` the deferred one
@@ -514,6 +721,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       options.onEvent(event)
     }
 
+    /** The sign-in row, said the one way ({@link ./events.ts}'s `signIn`): one
+     *  event per move, so nothing can change the attempt without the panel
+     *  hearing about it. */
+    const emitSignIn = (signIn: SignIn | null): void => {
+      emit({ _tag: "signIn", signIn })
+    }
+
     const activity = options.leg.nativeActivity ? new Activity(emit) : null
     const sessionRoot = (id: string): string => activity?.root(id) ?? id
     const callId = (session: string, id: string): string => activity?.toolId(session, id) ?? id
@@ -527,6 +741,47 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const terminalSession = (session: string): void => {
       if (sessionRoot(session) !== activeSession || replaying) throw RequestError.invalidParams("inactive terminal session")
     }
+
+    /**
+     * HOW TO SIGN IN, as this agent advertised it at the handshake — empty
+     * until one has happened, and for an agent with nothing to offer.
+     *
+     * Held rather than re-read, because `initialize` happens once and the
+     * command a `terminal` method wants run is a spawn-time fact
+     * ({@link Offered}): what the browser is told is the half a button needs,
+     * and this is where the other half waits for the press.
+     */
+    let offered: ReadonlyArray<Offered> = []
+
+    /** THE SIGN-IN IN FLIGHT, if any ({@link Attempt}). */
+    let attempt: Attempt | null = null
+
+    /** Whether the attempt in flight was taken back by a person rather than
+     *  ending on its own — read where it ends, so a cancel is not reported as
+     *  a failure (`olai-plugin-chat`'s `SignIn` says the row goes instead). */
+    let cancelling = false
+
+    /**
+     * THE URL ELICITATIONS THIS CONVERSATION IS WAITING ON, by the agent's own
+     * id — the handle `elicitation/complete` names, mapped to the question row
+     * that is on screen for it.
+     *
+     * A map rather than a field, because a session can hold more than one at a
+     * time: two MCP servers signing in at once is two rows, and a completion
+     * has to reach the one the agent meant.
+     */
+    const waitingLinks = new Map<string, string>()
+
+    /**
+     * THE ENVIRONMENT A CHILD OF THIS AGENT GETS: olai's own, plus what a
+     * caller adds, minus what this adapter asked not to see.
+     *
+     * One function because there are two children now — the agent itself and
+     * the process a `terminal` sign-in runs — and the subtraction has to be the
+     * same for both or the second one is a hole in the first one's fence.
+     */
+    const childEnv = (extra?: Readonly<Record<string, string>>): NodeJS.ProcessEnv =>
+      childEnvOf(process.env, { ...options.env, ...extra }, options.unset)
 
     const trouble = (message: string) => {
       tell(Effect.logWarning(message))
@@ -602,6 +857,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       if (activeSession !== null) closed.add(activeSession)
       terminalCleanup = Promise.all([terminalCleanup, terminals.clear()]).then(() => undefined)
       terminalTools.clear()
+      // The URL elicitations this conversation was waiting on go with it: their
+      // rows are withdrawn below, and a completion arriving afterwards names a
+      // question nobody is holding (`waitingLinks`).
+      waitingLinks.clear()
       questions.withdrawAll()
       calls.forget()
       activity?.clear(closed)
@@ -641,13 +900,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * A form drawn in nobody's name is drawn as the main agent's, which is the
      * one thing a subagent's question must not say.
      */
-    const put = (form: Form, signal: AbortSignal, session?: string): Promise<Questions.Settled> =>
+    const put = (
+      form: Form,
+      signal: AbortSignal,
+      session?: string,
+      /** Told the id this question is known by, beside the row it publishes —
+       *  which is what a caller that has to settle it from ANOTHER event (a URL
+       *  elicitation's completion) holds on to. */
+      known?: (id: string) => void,
+    ): Promise<Questions.Settled> =>
       questions.ask(form, signal, (id) => {
+        known?.(id)
         emit({
           _tag: "asked",
           id,
           message: form.message,
           fields: form.fields,
+          link: form.link,
           parent: (session === undefined ? undefined : activity?.parent(session)) ?? calls.about(form.toolCall, session).parent,
         })
       })
@@ -659,10 +928,134 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       trouble(`the agent asked something this panel cannot draw — ${why}`)
     }
 
+    /**
+     * THE OTHER MODE — a place to go rather than something to fill in.
+     *
+     * Which of two rows it becomes is decided by the SCOPE the agent sent it
+     * with, and that is the protocol's own way of saying who is asking: a
+     * SESSION-scoped one belongs to the conversation and is drawn in it, as the
+     * same question row a form is, with a link instead of fields
+     * ({@link waitingLinks} settles it when the agent says the page is done). A
+     * REQUEST-scoped one belongs to a request outside any session — which here
+     * means a {@link signIn}, the one request this panel makes before a
+     * conversation exists — and is drawn by that attempt's own row.
+     */
+    const onUrlElicitation = async (
+      params: CreateElicitationRequest,
+      signal: AbortSignal,
+    ): Promise<CreateElicitationResponse> => {
+      const form = urlOf(params)
+      if (form instanceof Refused) {
+        undrawable(form.reason)
+        return { action: "decline" }
+      }
+      const named = "sessionId" in params ? params.sessionId : undefined
+      if (typeof named !== "string") return await onLoginLink(params, form)
+      if (fromElsewhere(sessionRoot(named), activeSession, closed)) return { action: "cancel" }
+      const settling = CreateElicitationRequest.isUrl(params) ? params.elicitationId : null
+      const settled = await put(form, signal, named, (id) => {
+        // Held under the AGENT'S OWN id, which is the only name
+        // `elicitation/complete` says. An elicitation with no id cannot be
+        // completed by name, so nothing holds it and the row is settled by a
+        // person like every other question.
+        if (settling !== null) waitingLinks.set(settling, id)
+      })
+      // THE SAME THREE ENDINGS a form has, and the same reading of them: a
+      // person who dismissed it declined, a withdrawal cancels, and an
+      // answered one — which for a URL is the agent saying the page is done —
+      // accepts with the empty content a field-less schema takes.
+      if (settled.outcome.how === "declined") return { action: "decline" }
+      if (settled.outcome.how === "withdrawn") return { action: "cancel" }
+      return { action: "accept", content: settled.content }
+    }
+
+    /**
+     * ... AND THE ONE A SIGN-IN IS WAITING ON, which is the same payload with
+     * no session to put it in.
+     *
+     * The promise this returns is what the agent is blocked on for the whole of
+     * a device-code sign-in — a person at a vendor's page, minutes of it — so it
+     * is deliberately not answered here: {@link onElicitationComplete} answers
+     * it accept when the agent says the page is done, and
+     * {@link Agent.signInCancel} answers it decline when somebody gives up. What
+     * this does is put the page on the row and record where to reach it.
+     *
+     * A request-scoped URL elicitation that is NOT part of a sign-in is
+     * declined, and that is a claim rather than a fallback: the only requests
+     * this panel makes outside a session are sign-ins, so a link that belongs to
+     * none of them is a link to something nothing here asked for, and putting it
+     * nowhere would hang the agent on a question nobody was shown.
+     */
+    const onLoginLink = async (
+      params: CreateElicitationRequest,
+      form: Form,
+    ): Promise<CreateElicitationResponse> => {
+      const running = attempt
+      const link = form.link
+      if (running === null || running.write !== null || link === null) {
+        undrawable("the agent sent a link for something that is not a sign-in")
+        return { action: "decline" }
+      }
+      let answer!: (action: "accept" | "decline") => void
+      const held = new Promise<CreateElicitationResponse>((resolve) => {
+        answer = (action) =>
+          resolve(action === "accept" ? { action: "accept", content: {} } : { action: "decline" })
+      })
+      const view: SignInLink = { ...link, message: form.message, done: false }
+      running.link = {
+        elicitationId: CreateElicitationRequest.isUrl(params) ? params.elicitationId : "",
+        answer,
+        view,
+      }
+      emitSignIn({ kind: "agent", method: running.method, label: running.label, link: view, why: null })
+      return await held
+    }
+
+    /**
+     * THE AGENT SAYS A PAGE IT SENT SOMEBODY TO IS DONE.
+     *
+     * One notification, two things that could be waiting on it, and only one of
+     * them can be true: a conversation's question row, or the sign-in row whose
+     * request this elicitation belongs to. Both end the same way — the row
+     * records that the agent is satisfied, and the request the agent is holding
+     * is answered accept, since the agent has just said it has what it needed.
+     *
+     * The row for a sign-in STAYS until the sign-in itself answers: a card that
+     * disappeared the moment the page said done would leave a person watching
+     * nothing while the agent finished.
+     */
+    const onElicitationComplete = (params: unknown): void => {
+      const id = completionIdOf(params)
+      if (id === null) return
+      const asking = waitingLinks.get(id)
+      if (asking !== undefined) {
+        waitingLinks.delete(id)
+        questions.answer(asking, [])
+        return
+      }
+      const link = attempt?.link
+      if (link === undefined || link === null || link.elicitationId !== id) return
+      const running = attempt
+      if (running === null) return
+      emitSignIn({
+        kind: "agent",
+        method: running.method,
+        label: running.label,
+        link: { ...link.view, done: true },
+        why: null,
+      })
+      link.answer("accept")
+    }
+
     const onElicitation = async (
       params: CreateElicitationRequest,
       signal: AbortSignal,
     ): Promise<CreateElicitationResponse> => {
+      // WHICH MODE, before anything else: the two draw different rows and the
+      // reader of one REFUSES the other (`@olai/acp`'s `formOf` and `urlOf`
+      // each say so), so the dispatch is what keeps a place-to-go from being
+      // refused as an undrawable form.
+      if (params.mode === "url") return await onUrlElicitation(params, signal)
       const named = "sessionId" in params ? params.sessionId : undefined
       if (typeof named === "string" && fromElsewhere(sessionRoot(named), activeSession, closed)) return { action: "cancel" }
       const form = formOf(params)
@@ -1220,14 +1613,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             startChild(options.command, [...options.args], {
               cwd: options.cwd,
               processGroup: true,
-              // The row's extra env OVER olai's own: the child wants
-              // everything this process has PLUS what its adapter was told
-              // (a `pi` the probe found on a search path this process's PATH
-              // may not share), and `undefined` is exactly the shape the spawn
-              // already had — no key rewritten, no key dropped.
-              env: options.env === undefined
-                ? undefined
-                : { ...process.env, ...options.env },
+              // The row's extra env OVER olai's own — one key only when the row
+              // asked for one — minus whatever this adapter must not see (a
+              // `pi` the probe found on a search path this process's PATH may
+              // not share; the five variables the Claude Code adapter reads as
+              // "the person is remote"). Built unconditionally now rather than
+              // inherited when the row asked for nothing: `undefined` cannot
+              // express a removal, and the value is the same one either way.
+              env: childEnv(),
               stdio: ["pipe", "pipe", "pipe"],
               // stdout is the ACP protocol; stealing it would be the
               // transport this file still owns. stderr is drained by the
@@ -1369,6 +1762,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // ask because `initialize` said we can draw one.
           .onRequest(methods.client.elicitation.create, (context) =>
             onElicitation(context.params, context.signal))
+          // ... AND ITS OTHER HALF, which only a URL elicitation ever sends: the
+          // page a person was sent to has been dealt with, so the row can say so
+          // and the request the agent is holding can be answered
+          // ({@link onElicitationComplete}).
+          .onNotification(methods.client.elicitation.complete, (context) => {
+            onElicitationComplete(context.params)
+          })
           .onRequest(methods.client.terminal.create, ({ params }) => {
             terminalSession(params.sessionId)
             return terminals.create(params)
@@ -1389,14 +1789,28 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // Not an editor: the agent reaches the outlines through the ops
                 // tools or not at all.
                 fs: { readTextFile: false, writeTextFile: false },
-                // A form we can draw, and deliberately not a URL: `elicitation.url`
-                // sends a person out of the panel to a page olai knows nothing
-                // about, which is a different bargain and its own decision. An
-                // empty object is how the protocol spells "yes" here.
-                elicitation: { form: {} },
+                // BOTH MODES, and the URL half is a decision this file used to
+                // record the other way. What changed is not the bargain — a
+                // person does leave the panel for a page olai knows nothing
+                // about — but what it costs to refuse it: the Codex adapter
+                // withholds its device-code sign-in method entirely from a
+                // client that does not advertise this (`getCodexAuthMethods`),
+                // so the one flow that could sign somebody in from inside olai
+                // never appears. The bargain is drawn instead: the card names
+                // the machine the link goes to and the page is the browser's to
+                // open, never this process's.
+                elicitation: { form: {}, url: {} },
+                // A SIGN-IN WE CAN RUN. `auth.terminal` is the protocol's own
+                // spelling and `_meta["terminal-auth"]` is the pinned Claude
+                // adapter's (`acp-agent.js`: it lists its paste-a-code methods
+                // only for a client that advertises one of these, and falls
+                // back to a full-screen TUI login this panel cannot draw). Both
+                // are declared because the two adapters read one each.
+                auth: { terminal: true },
                 terminal: true,
                 _meta: {
                   ...(options.leg.terminalOutput ? { terminal_output: true } : {}),
+                  "terminal-auth": true,
                   ...extension.clientMeta,
                 },
                 session: { configOptions: { boolean: {} } },
@@ -1448,11 +1862,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // the asymmetry closed rather than a bug fixed — one line, and the
         // pattern is already the file's.
         if (!stopped) {
+          // WHAT IT OFFERS TO SIGN IN WITH, read once here and kept for the
+          // press: the half a button needs travels (below), and the command
+          // line a `terminal` method wants run stays where the spawn happens.
+          offered = methodsIn(initialized, options.command)
           emit({
             _tag: "advertised",
             steers: options.leg.steering !== null
               && options.leg.steering.advertised(initialized),
             queues: options.leg.queues(initialized),
+            methods: offered.map((one) => one.method),
           })
         }
         // AFTER the handshake, not after `spawn` returns: an exec failure
@@ -1999,6 +2418,227 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     })
 
     /**
+     * SIGN IN — {@link Agent.signIn}'s own argument, and the four ways it ends.
+     *
+     * THE PROCESS AND NOT A CONVERSATION, which is the whole reason this does
+     * not boot: signing in is what an agent is asked for when opening a session
+     * was REFUSED for want of a signature, so a path that insisted on a session
+     * first would refuse to run the one thing that fixes the refusal. It takes
+     * the live process when there is one and starts one when there is not
+     * ({@link bringUpProcess}), and neither the session list nor the memory is
+     * touched.
+     *
+     * ONE ATTEMPT PER AGENT, and a press while one is in flight is that claim:
+     * the same method ATTACHES (the caller is looking at the row the attempt is
+     * already drawing, and a second process writing the same credential store is
+     * the one thing this must not do), and a different one is refused with a
+     * sentence.
+     */
+    const signIn = (method: string): Effect.Effect<SignedIn, AgentGone> =>
+      Effect.gen(function*() {
+        if (stopped) return yield* shuttingDown()
+        const found = offered.find((one) => one.method.id === method)
+        if (found === undefined) {
+          return yield* new AgentGone({
+            gone: "refused",
+            why: `\`${method}\` is not a sign-in this agent offers`,
+          })
+        }
+        const running = attempt
+        if (running !== null) {
+          if (running.method === method) return "attached"
+          return yield* new AgentGone({
+            gone: "refused",
+            why: `a sign-in is already running (${running.label})`,
+          })
+        }
+        const at = yield* bringUpProcess
+        return yield* Effect.ensuring(
+          found.run === null ? runAgent(at, found) : runTerminal(found, found.run),
+          // THE CLAIM GOES LAST, whatever happened: a second press is refused
+          // while this one lives, and the next attempt must be able to start.
+          Effect.sync(() => {
+            attempt = null
+            cancelling = false
+          }),
+        )
+      })
+
+    /**
+     * A TERMINAL METHOD: a process this panel runs, whose output is the row.
+     *
+     * The environment it gets is `BROWSER=true` over everything else
+     * ({@link childEnv}), and that one variable is not decoration: the `claude`
+     * CLI opens a browser when it thinks one is available, and on a server that
+     * is either an error or somebody's OTHER desktop. `true` is the traditional
+     * way of saying "there is no browser here, print the URL" — which is exactly
+     * the flow this panel draws.
+     *
+     * Exit 0 is the whole of "it worked", which is the contract every one of
+     * these CLIs keeps; anything else leaves the output on the row AS the
+     * failure, because for a CLI the output is what a person needs to read.
+     */
+    const runTerminal = (found: Offered, run: TerminalAuth): Effect.Effect<SignedIn, AgentGone> =>
+      Effect.gen(function*() {
+        const method = found.method.id
+        const label = found.method.name
+        let output = ""
+        const say = (running: boolean, code: number | null): void => {
+          emitSignIn({ kind: "terminal", method, label, output, running, code, why: null })
+        }
+        const child = yield* Effect.try({
+          try: () =>
+            startChild(run.command, [...run.args], {
+              cwd: options.cwd,
+              // Its own group, like the agent's: this process is ours and a
+              // cancel must reach whatever it started.
+              processGroup: true,
+              env: childEnv({ BROWSER: "true", ...run.env }),
+              stdio: ["pipe", "pipe", "pipe"],
+              // Both pipes are read here, so neither may be drained behind our
+              // back — the row IS the reader.
+              drain: { stdout: false, stderr: false },
+            }),
+          catch: (cause) =>
+            new AgentGone({
+              gone: "unreachable",
+              why: `could not run \`${run.command}\`: ${reasonOf(cause)}`,
+            }),
+        })
+        const appended = (chunk: string): void => {
+          output = tailBytes(output + chunk, SIGN_IN_CAP).output
+          say(true, null)
+        }
+        for (const stream of [child.stdout, child.stderr]) {
+          stream?.setEncoding("utf8")
+          stream?.on("data", appended)
+        }
+        // A write to a process that has gone is not this row's news: the close
+        // below is, and an unhandled `error` on a pipe would be a stack trace
+        // on olai's stderr for somebody typing into a finished login.
+        child.stdin?.on("error", () => {})
+        say(true, null)
+        attempt = {
+          method,
+          label,
+          write: (line) => {
+            if (child.stdin === null || child.stdin.destroyed) return
+            child.stdin.write(line)
+          },
+          stop: () => child.stop().then(() => undefined),
+          link: null,
+        }
+        // The same refusal the agent itself can meet: a command that is not
+        // there fails AFTER `spawn` returned, so it arrives here rather than in
+        // the `catch` above. Said on the row, because the row is what a person
+        // is looking at.
+        void child.unstartable.then((why) => {
+          if (attempt?.method !== method) return
+          output = tailBytes(`${output}${why}\n`, SIGN_IN_CAP).output
+          emitSignIn({ kind: "terminal", method, label, output, running: false, code: null, why })
+        })
+        // THE WAIT, with the kill behind it: this fiber is the panel's (it runs
+        // the attempt to its end, `./chat.ts`), and when it goes — a cancel, a
+        // shutdown, the engine switched off — the process goes with it. A stop
+        // of a process that has already closed is a no-op (`@olai/child`: ESRCH
+        // is success), so the ordinary ending pays nothing for the guarantee.
+        const close = yield* Effect.ensuring(
+          Effect.promise(() => child.closed),
+          Effect.promise(() => child.stop()),
+        )
+        if (child.failed() !== undefined) return "failed"
+        if (cancelling) {
+          emitSignIn(null)
+          return "cancelled"
+        }
+        if (close.code === 0) {
+          emitSignIn(null)
+          return "signed-in"
+        }
+        say(false, close.code)
+        return "failed"
+      })
+
+    /**
+     * AN AGENT METHOD: a page, a person, and the agent's word for when it is
+     * done. Nothing here is a process — what this panel runs is the WAIT.
+     *
+     * The request is FORKED so that a cancel can take it back, and it has no
+     * deadline at all: a device-code sign-in is somebody finding their password
+     * and their phone. What ends it is the adapter answering, which for the
+     * pinned Codex adapter happens the moment its own login completes.
+     */
+    const runAgent = (at: Live, found: Offered): Effect.Effect<SignedIn, AgentGone> =>
+      Effect.gen(function*() {
+        const method = found.method.id
+        const label = found.method.name
+        const say = (link: SignInLink | null, why: string | null): void => {
+          emitSignIn({ kind: "agent", method, label, link, why })
+        }
+        say(null, null)
+        const request = yield* Effect.forkChild(
+          ask(at.connection, methods.agent.authenticate, { methodId: method }, null),
+        )
+        attempt = {
+          method,
+          label,
+          write: null,
+          stop: () => {
+            // BOTH HALVES, in this order: the question the agent is holding
+            // goes back unanswered — which is what makes a device-code login
+            // cancel the login at ITS end rather than wait forever — and then
+            // our request is taken back, since nothing is left to hear from it.
+            const link = attempt?.method === method ? attempt.link : null
+            link?.answer("decline")
+            return Effect.runPromise(Fiber.interrupt(request))
+          },
+          link: null,
+        }
+        const outcome = yield* Effect.result(Fiber.join(request))
+        if (cancelling) {
+          emitSignIn(null)
+          return "cancelled"
+        }
+        if (outcome._tag === "Failure") {
+          say(null, outcome.failure.why)
+          return "failed"
+        }
+        emitSignIn(null)
+        return "signed-in"
+      })
+
+    /** One line for the process a sign-in is running ({@link
+     *  Agent.signInInput}). Refuses when there is nothing behind it, which is
+     *  both "no attempt" and "the agent is running this one". */
+    const signInInput = (text: string): Effect.Effect<void, AgentGone> =>
+      Effect.suspend(() => {
+        const write = attempt?.write ?? null
+        if (write === null) {
+          return Effect.fail(
+            new AgentGone({
+              gone: "refused",
+              why: "no sign-in is waiting for a line to be typed into it",
+            }),
+          )
+        }
+        return Effect.sync(() => write(`${text}\n`))
+      })
+
+    /** ... and stopping it ({@link Agent.signInCancel}). The boolean is
+     *  whether there was anything to stop: a cancel with nothing behind it is a
+     *  stale tab, and the panel says nothing about those. */
+    const signInCancel: Effect.Effect<boolean> = Effect.sync(() => {
+      const running = attempt
+      if (running === null) return false
+      // Set BEFORE the stop, because the fiber that owns the attempt reads it
+      // on the way out: which of the two endings it is depends on whether a
+      // PERSON asked, and this is the only moment that is known.
+      cancelling = true
+      void running.stop()
+      return true
+    })
+
+    /**
      * The boot itself, WITHOUT the permit — so that a caller which has to hold
      * that permit across more than a boot can ({@link opening}).
      *
@@ -2288,14 +2928,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const at = live
       if (at !== null) requestedStops.set(at.child, { reason, session: activeSession })
       live = null
+      // A SIGN-IN IS THIS AGENT'S PROCESS TOO, and the scope going away is
+      // exactly what the claim is tied to: a login left running would keep
+      // printing at nobody and could still write a credential after the engine
+      // it belongs to was switched off. Stopped here rather than in `leaving`,
+      // which is about a CONVERSATION — a sign-in outlives the session it is
+      // for, and is often the reason there is no session at all.
+      const signing = attempt
+      cancelling = true
       leaving()
       activeSession = null
       // Close the protocol and process before joining requests waiting on it.
       if (at !== null) at.connection.close()
       await Promise.all([
-        at?.child.stop(), terminalCleanup,
+        at?.child.stop(), terminalCleanup, signing?.stop(),
         ...alongside.map((fiber) => Effect.runPromise(Fiber.interrupt(fiber))),
       ])
+      attempt = null
     })
 
     const setSetting = (session: string, config: string, value: string | boolean) =>
@@ -2372,6 +3021,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           if (took instanceof UsageFailure) return Effect.fail(took)
           return Effect.succeed(took === "settled")
         }),
+      signIn,
+      signInInput,
+      signInCancel,
       stop: stopWithReason("stopped by app"),
       stopWithReason,
     }
@@ -2421,6 +3073,7 @@ const ask = (
       new AgentGone({
         gone: goneOf(cause),
         why: `\`${method}\` failed: ${reasonOf(cause)}`,
+        auth: authOf(cause),
       }),
   })
   if (timeout === null) return call
@@ -2484,6 +3137,31 @@ export const goneOf = (cause: unknown): Gone =>
   cause instanceof RequestError ? "refused" : "unanswered"
 
 /**
+ * ... AND WHETHER IT SAID NO FOR WANT OF A SIGNATURE — ACP's own `-32000`
+ * ("Authentication required"), which is the only way an agent ever asks to be
+ * signed in: the protocol spells it as an error RESPONSE to whatever was
+ * refused, so an agent that needs one says so on `session/new`, on
+ * `session/load` and on a turn alike, and every one of those reaches this file
+ * through {@link ask}.
+ *
+ * ONE CODE, read where the code is: a `RequestError` whose number is that one.
+ * It is deliberately not guessed from the message — "not signed in" is prose and
+ * an agent may write any sentence it likes around it — and it is deliberately
+ * not widened to the SDK's other `invalidParams` (`-32602`) that the pinned
+ * Codex adapter answers a failed `authenticate` with, because that one is
+ * "the sign-in did not go through" rather than "you are not signed in".
+ *
+ * Exported for its own test, beside {@link goneOf}: they are the two readings of
+ * one rejection and the panel's auth row is drawn out of the pair.
+ */
+export const authOf = (cause: unknown): boolean =>
+  cause instanceof RequestError && cause.code === AUTH_REQUIRED
+
+/** ACP's code for "authenticate first" — the protocol's own number, named once
+ *  so the two readers of a rejection sit beside the constant they read. */
+const AUTH_REQUIRED = -32000
+
+/**
  * Whether a notification is about a conversation this panel is not in.
  *
  * A named session is about one conversation. It is from elsewhere when that
@@ -2528,6 +3206,98 @@ const notify = (
   })
 
 // ── reading the payloads ───────────────────────────────────────────────
+
+/**
+ * WHAT AN AGENT WILL SIGN SOMEBODY IN WITH, out of the handshake — the two
+ * halves of one advertisement, read once.
+ *
+ * Three kinds exist in the protocol and TWO are offered here, which is a
+ * decision rather than a filter that fell out:
+ *
+ *   - `terminal` — a command this panel runs. The command line comes from the
+ *     method's own `_meta` corner where the adapter wrote one (`TERMINAL_AUTH`;
+ *     the pinned Claude adapter puts the whole thing there, argv included), and
+ *     otherwise from the protocol's own sentence about the field: these `args`
+ *     are for the AGENT BINARY, which is the command olai spawned. Either way it
+ *     is a command this process knows how to run, and `BROWSER=true` is added at
+ *     the spawn ({@link runTerminal}).
+ *   - `agent` — the agent runs it. All the panel has to do is wait, and draw the
+ *     page the agent sends when it sends one.
+ *   - `env_var` — NO. A method that wants an API key typed into a form is a
+ *     credential box, which is a different feature with a different argument to
+ *     make (where the key is kept, what happens to it, whether it is ever shown
+ *     again). Offering the button without that argument would be offering
+ *     something this panel cannot finish.
+ *
+ * A method whose name is empty is dropped too, because a button with no word on
+ * it is one nobody can press on purpose.
+ */
+const methodsIn = (
+  response: InitializeResponse,
+  command: string,
+): ReadonlyArray<Offered> => {
+  const offered: Array<Offered> = []
+  for (const method of response.authMethods ?? []) {
+    if (method.name === "") continue
+    // `in` rather than a read of `type`, because the protocol's union has an
+    // arm that carries NO discriminator at all — the plain `agent` method —
+    // and reading the field off that arm is not a thing the type allows.
+    const marked = "type" in method ? method : null
+    if (marked?.type === "env_var") continue
+    const wire: AuthMethod = {
+      id: method.id,
+      name: method.name,
+      description: method.description ?? null,
+      kind: marked?.type === "terminal" ? "terminal" : "agent",
+    }
+    if (marked?.type !== "terminal") {
+      offered.push({ method: wire, run: null })
+      continue
+    }
+    const written = terminalAuthIn(marked)
+    offered.push({
+      method: wire,
+      run: {
+        command: written?.command ?? command,
+        args: written?.args ?? [...(marked.args ?? [])],
+        env: written?.env ?? { ...marked.env },
+      },
+    })
+  }
+  return offered
+}
+
+/** The command line a `terminal` method asks for in its own `_meta`, or `null`
+ *  when it wrote none — in which case the protocol's `args` are for the agent
+ *  binary olai already knows. */
+const terminalAuthIn = (
+  method: AuthMethodTerminal,
+): { command: string; args: ReadonlyArray<string>; env: Readonly<Record<string, string>> } | null => {
+  const corner = method._meta?.[TERMINAL_AUTH]
+  if (typeof corner !== "object" || corner === null) return null
+  if (!("command" in corner) || typeof corner.command !== "string" || corner.command === "") return null
+  const args = "args" in corner && Array.isArray(corner.args)
+    ? corner.args.filter((one): one is string => typeof one === "string")
+    : []
+  const env: Record<string, string> = { ...method.env }
+  if ("env" in corner && typeof corner.env === "object" && corner.env !== null) {
+    for (const [name, value] of Object.entries(corner.env)) {
+      if (typeof value === "string") env[name] = value
+    }
+  }
+  return { command: corner.command, args, env }
+}
+
+/** Which elicitation a completion notification is about. The protocol's own
+ *  field, read defensively because a notification is not a request: an agent
+ *  that sent a shape this end cannot use gets nothing done about it rather than
+ *  an exception inside a callback. */
+const completionIdOf = (params: unknown): string | null => {
+  if (typeof params !== "object" || params === null) return null
+  if (!("elicitationId" in params)) return null
+  const id = params.elicitationId
+  return typeof id === "string" && id !== "" ? id : null
+}
 
 /**
  * What a content block says — and, when it is not prose, THAT IT WAS THERE.

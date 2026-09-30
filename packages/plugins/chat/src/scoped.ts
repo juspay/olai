@@ -837,6 +837,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
       },
       send: (...args) => foreground((panel) => panel.send(...args)),
+      // THE SIGN-IN TRIO, routed the way every other gesture is. The server
+      // reaches a node's panel through `inConversation` (which is where the
+      // conversation a press was drawn for is resolved); these three exist
+      // because the AGGREGATE is a `Panel` too, and a session-less panel —
+      // an open refused for want of a signature — is the one case where the
+      // foreground panel IS the answer.
+      signIn: (method) => foreground((panel) => panel.signIn(method)),
+      signInInput: (text) => foreground((panel) => panel.signInInput(text)),
+      signInCancel: foreground((panel) => panel.signInCancel),
       attach: (chunk) => foreground((panel) => panel.attach(chunk)),
       resend: (id) => foreground((panel) => panel.resend(id)),
       cancel: foreground((panel) => panel.cancel),

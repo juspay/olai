@@ -131,6 +131,18 @@ export const CHAT_DELIVERY = selector(TESTID.chatDelivery);
 export const CHAT_QUEUED = selector(TESTID.chatQueued);
 export const CHAT_RESEND = selector(TESTID.chatResend);
 export const CHAT_WAITING = selector(TESTID.chatWaiting);
+export const CHAT_LINK = selector(TESTID.chatLink);
+export const CHAT_LINK_OPEN = selector(TESTID.chatLinkOpen);
+/** THE SIGN-IN ROW — the panel's own, drawn above whichever face the body
+ *  picks (`../src/browser/agents/Fold.tsx`). `data-kind` is the arm, so a
+ *  scenario asserts WHICH state a sign-in is in rather than that some row is
+ *  there. */
+export const CHAT_SIGN_IN = selector(TESTID.chatSignIn);
+export const CHAT_SIGN_IN_STATUS = selector(TESTID.chatSignInStatus);
+export const CHAT_SIGN_IN_OUTPUT = selector(TESTID.chatSignInOutput);
+export const CHAT_SIGN_IN_INPUT = selector(TESTID.chatSignInInput);
+export const CHAT_SIGN_IN_CANCEL = selector(TESTID.chatSignInCancel);
+export const CHAT_SIGN_IN_RETRY = selector(TESTID.chatSignInRetry);
 export const CHAT_SEND = selector(TESTID.chatSend);
 /** The other send: put these words INTO the turn the agent is running. Drawn
  *  only while there is a turn to interrupt and only for an agent that said it

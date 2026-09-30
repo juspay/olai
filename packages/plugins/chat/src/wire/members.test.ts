@@ -247,7 +247,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       kind: "ask",
       text: "Allow `Bash`?",
       parent: "tool:agent-1",
-      ask: { fields: [], outcome: null },
+      ask: { fields: [], link: null, outcome: null },
     },
   },
   {
@@ -260,6 +260,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       text: "Shall I?",
       ask: {
         fields: [],
+        link: null,
         outcome: { how: "answered", answers: [{ key: "question_0", values: ["yes"] }] },
       },
     },

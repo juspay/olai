@@ -524,6 +524,120 @@ const holdsLoad = (): boolean => existsSync(`${cwd}/${MARKER.holdLoad}`)
  */
 const silent = (): boolean => existsSync(`${cwd}/${MARKER.saysNothing}`)
 
+/**
+ * WHETHER THIS AGENT NEEDS A SIGNATURE FIRST — ACP's `-32000`, on the three
+ * verbs that can carry it: opening a conversation, loading one, and a turn.
+ *
+ * TWO DOT-FILES, and the pair is the whole mechanism: a scenario arms
+ * {@link MARKER.needsAuth} to say the machine has no credential, and whichever
+ * sign-in COMPLETES leaves {@link MARKER.signedIn} — the login script for the
+ * method olai runs (`./fake-login.ts`), this file for the one it runs itself
+ * ({@link authenticateDeviceCode}). Read at the moment of the request rather
+ * than at boot, because one of the two paths that opens a conversation is a
+ * SERVER STARTING and the other is a person pressing something.
+ *
+ * A FILE AND NOT A FLAG, so that both ends see it: the login runs in a process
+ * of its own, and "I have signed in" is exactly the kind of news a filesystem
+ * carries between two processes that never meet.
+ */
+const needsSignature = (): boolean =>
+  existsSync(`${cwd}/${MARKER.needsAuth}`) && !existsSync(`${cwd}/${MARKER.signedIn}`)
+
+/** Whether the person has finished at a vendor's page — a marker a scenario
+ *  writes, since this suite cannot visit one. Consumed by the elicitation that
+ *  was waiting on it, so a second sign-in in the same scenario waits again
+ *  rather than passing at once. */
+const waitAtThePage = async (): Promise<boolean> => {
+  const marker = `${cwd}/${MARKER.atThePage}`
+  for (let waited = 0; waited < LOGIN_LIMIT_MS; waited += 100) {
+    if (existsSync(marker)) {
+      rmSync(marker, { force: true })
+      return true
+    }
+    await new Promise((done) => setTimeout(done, 100))
+  }
+  return false
+}
+
+/** Long enough that a scenario has time to say the person finished at a page,
+ *  short enough that a scenario which forgot to fails on its own assertion. */
+const LOGIN_LIMIT_MS = 20_000
+
+/**
+ * THE PINNED CLAUDE ADAPTER'S OWN REMOTE TEST, reproduced — `acp-agent.js`
+ * (0.81.2) computes `isRemote` from exactly these five, and on a remote session
+ * it offers only its full-screen TUI login instead of the paste-a-code methods.
+ *
+ * A FAKE THAT FEELS REMOTE IS THE POINT: `olai-plugin-claude` strips these from
+ * its adapter's spawn (`Adapter.unset`), and the harness sets one of them on
+ * the server so that this test is not a fact about the CI machine's
+ * environment. If the strip ever goes, the methods this file offers change and
+ * every sign-in scenario fails at the first press — which is the only way a
+ * regression in "the adapter must not hear this" can be caught.
+ */
+const REMOTE_SIGNALS = ["NO_BROWSER", "SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY", "CLAUDE_CODE_REMOTE"]
+
+const feelsRemote = (): boolean =>
+  REMOTE_SIGNALS.some((name) => (process.env[name] ?? "") !== "")
+
+/** The command line a `terminal` method hands the client, in the shape the real
+ *  adapter writes — `process.execPath` plus its own argv (`acp-agent.js`), which
+ *  for this file is bun plus the login script beside it. */
+const terminalAuth = (mode: string, label: string) => ({
+  command: process.execPath,
+  args: [join(import.meta.dirname, "fake-login.ts"), mode],
+  label,
+})
+
+/** THE METHODS THIS AGENT OFFERS, which is the one handshake field a scenario
+ *  can spend: an agent with none is an agent `/login` is not a gesture for
+ *  (`.agent-says-nothing`), and the two engines offer the two KINDS a client
+ *  has to draw — a process it runs (Claude) and a page it waits on (Codex). */
+const authMethodsOffered = (): ReadonlyArray<Record<string, unknown>> => {
+  if (silent()) return []
+  if (isCodex) {
+    return [
+      // NOT OFFERED BY OLAI — an `env_var` method is a credential box, which is
+      // a different feature (`olai-plugin-chat`'s `agent.ts` drops it). It is
+      // here so a scenario can assert the drop rather than trust the comment.
+      { id: "api-key", name: "API Key", description: "Use an API key to authenticate", type: "env_var" },
+      {
+        id: "chat-gpt-device-code",
+        name: "ChatGPT (device code)",
+        description: "Sign in to ChatGPT by opening a verification page and entering a one-time code",
+      },
+    ]
+  }
+  if (feelsRemote()) {
+    return [{
+      id: "claude-login",
+      name: "Log in with Claude",
+      description: "Run `claude /login` in the terminal",
+      type: "terminal",
+      args: ["--cli"],
+      _meta: { "terminal-auth": terminalAuth("tui", "Claude Login") },
+    }]
+  }
+  return [
+    {
+      id: "claude-ai-login",
+      name: "Claude Subscription",
+      description: "Use Claude subscription ",
+      type: "terminal",
+      args: ["--cli", "auth", "login", "--claudeai"],
+      _meta: { "terminal-auth": terminalAuth("login", "Claude Login") },
+    },
+    {
+      id: "console-login",
+      name: "Anthropic Console",
+      description: "Use Anthropic Console (API usage billing)",
+      type: "terminal",
+      args: ["--cli", "auth", "login", "--console"],
+      _meta: { "terminal-auth": terminalAuth("login", "Anthropic Console Login") },
+    },
+  ]
+}
+
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation.
  *
@@ -1300,6 +1414,18 @@ const canElicit = (): boolean => {
     | null
     | undefined
   return elicitation?.form != null
+}
+
+/** Whether the client said it can draw a URL elicitation. The same presence
+ *  test as {@link canElicit}, one key over — and the reason a scenario can
+ *  assert that OLAI ITSELF asked for this capability rather than trusting the
+ *  line in its `initialize`. */
+const clientCanElicitUrl = (): boolean => {
+  const elicitation = capabilities["elicitation"] as
+    | { url?: unknown }
+    | null
+    | undefined
+  return elicitation?.url != null
 }
 
 /** `… attaching invoice.pdf, notes.txt` — the files a drafting phrase names.
@@ -2684,6 +2810,25 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  if (verb === "oauth") {
+    // `oauth <server>` — an MCP server asking to be signed in to, FROM INSIDE a
+    // conversation: the URL elicitation an agent sends when a server it was
+    // handed wants OAuth, drawn in the conversation as a card because that is
+    // where the request came from. The turn stays open until the person
+    // finishes at the page (`.agent-at-the-page`) — which is the half a client
+    // has to get right, since a card that vanished on the press would leave
+    // the turn hanging with nothing on screen.
+    if (!clientCanElicitUrl()) {
+      say("this client does not draw a URL elicitation")
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    await authenticateMcpServer(argument === "" ? "example" : argument)
+    say(`signed in to \`${argument === "" ? "example" : argument}\`.`)
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "external") {
     // `external <server> <tool> <json-args>` — the whole of what a scenario
     // can ask of somebody else's program the client handed in. The args are
@@ -2935,6 +3080,81 @@ const steerTurn = (id: unknown, params: Record<string, unknown>): void => {
   setTimeout(answer, steerDelayMs)
 }
 
+/**
+ * A SIGN-IN THE AGENT RUNS ITSELF — Codex's device code, as `codex-acp` drives
+ * it (`dist/index.js`: `authenticateWithChatGptDeviceCode`).
+ *
+ * Three moves and one race, all of them the real adapter's: press the vendor
+ * for a code, put the URL and the code in front of the person as a URL
+ * ELICITATION (request-scoped, because it happens before any session exists),
+ * and then wait for whichever comes first — the person finishing at the page,
+ * or backing out. Finishing sends `elicitation/complete` and answers the
+ * authenticate request; backing out is the elicitation's own answer, and it
+ * cancels the login at this end exactly as Codex does (`accountLoginCancel`).
+ *
+ * A PERSON AT A PAGE IS A MARKER HERE ({@link MARKER.atThePage}), because this
+ * suite cannot visit one: a step writes it, the elicitation consumes it.
+ */
+const authenticateDeviceCode = async (id: unknown): Promise<void> => {
+  const elicitationId = `device-${++nextLink}`
+  const code = "WXYZ-12345"
+  const answered = request("elicitation/create", {
+    mode: "url",
+    requestId: id,
+    url: "https://chatgpt.com/device",
+    elicitationId,
+    message: `Sign in to ChatGPT and enter this code: ${code}`,
+  })
+  const done = await Promise.race([
+    waitAtThePage().then((at) => at ? { kind: "at-the-page" as const } : { kind: "gave-up" as const }),
+    answered.then((response) => ({ kind: "answered" as const, response })),
+  ])
+  if (done.kind === "answered") {
+    const accepted = typeof done.response === "object" && done.response !== null &&
+      "action" in done.response && done.response.action === "accept"
+    if (!accepted) {
+      // BACKED OUT: the login is cancelled at this end and the request that
+      // asked for it fails, which is what the panel draws as an attempt that
+      // did not go through.
+      refuse(id, -32602, "the sign-in was cancelled")
+      return
+    }
+  }
+  if (done.kind === "gave-up") {
+    refuse(id, -32603, "the device-code sign-in was never completed")
+    return
+  }
+  // THE CREDENTIAL, then the client's own word that the page is done with.
+  appendFileSync(`${cwd}/${MARKER.signedIn}`, "")
+  notify("elicitation/complete", { elicitationId })
+  reply(id, {})
+}
+
+/** The elicitations this process has sent, for ids that are unique per run —
+ *  a completion names one, and a client that matched a stale id would be told
+ *  about somebody else's page. */
+let nextLink = 0
+
+/** ... AND ONE FROM INSIDE A CONVERSATION, which is where an MCP server's
+ *  OAuth lands (`codex-acp`'s `authenticateMcpServer`): session-scoped, tied to
+ *  the turn that was running when the server asked. The panel's job is the same
+ *  card in a different place, which is the whole reason a scenario drives this
+ *  one too. */
+const authenticateMcpServer = async (server: string): Promise<void> => {
+  const elicitationId = `mcp-oauth-${++nextLink}`
+  const answered = request("elicitation/create", {
+    mode: "url",
+    sessionId,
+    message: `Authenticate with MCP server ${server}`,
+    url: `https://${server}.example/oauth?state=fake`,
+    elicitationId,
+  })
+  void answered
+  const at = await waitAtThePage()
+  if (!at) return
+  notify("elicitation/complete", { elicitationId })
+}
+
 const handle = async (message: Record<string, unknown>): Promise<void> => {
   const id = message["id"]
   const method = message["method"]
@@ -2966,6 +3186,12 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           ...(silent() || isCodex ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
+        // ... AND HOW TO SIGN IN, when this agent has a way — the protocol's
+        // own array, beside the capabilities. Read by the client only when it
+        // advertised `auth.terminal` / `_meta["terminal-auth"]`, which is why
+        // the methods a scenario sees are also evidence about what the client
+        // said ({@link authMethodsOffered}).
+        authMethods: authMethodsOffered(),
         // ... and IT TAKES AN INTERRUPTION, in the top-level `_meta` beside
         // the capabilities, which is where the steering extension's own
         // contract puts it and where the real adapter puts it.
@@ -3012,6 +3238,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/new":
+      if (needsSignature()) {
+        refuse(id, -32000, "Authentication required")
+        return
+      }
       if (refusesToOpen("new")) {
         refuse(id, -32603, "this agent will not start a conversation in this directory")
         return
@@ -3039,6 +3269,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/load":
+      if (needsSignature()) {
+        refuse(id, -32000, "Authentication required")
+        return
+      }
       // BEFORE ANY OF IT — no `openSession`, no replay, no move of `sessionId`.
       // An agent that refuses a load has not opened anything, so a client left
       // pointing at the conversation it asked for is a client the agent never
@@ -3136,6 +3370,13 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/prompt": {
       const text = promptTextOf(params)
+      // THE THIRD PLACE A SIGNATURE IS ASKED FOR, and the one a person meets
+      // mid-conversation: the session opened (this agent was signed in, or
+      // nobody had said otherwise yet) and the TURN is what it will not run.
+      if (needsSignature()) {
+        refuse(id, -32000, "Authentication required")
+        return
+      }
       sessionStore(cwd).prompt(sessionId, text)
       // It is not waiting any more: this is the turn now.
       waiting.delete(id)
@@ -3165,6 +3406,21 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         // very queue its client just stopped keeping.
         steered.length = 0
       }
+      return
+    }
+
+    case "authenticate": {
+      const methodId = typeof params["methodId"] === "string" ? params["methodId"] : ""
+      if (isCodex && methodId === "chat-gpt-device-code") {
+        await authenticateDeviceCode(id)
+        return
+      }
+      // THE METHODS OLAI RUNS never come here: a `terminal` method is a process
+      // the CLIENT starts (`olai-plugin-chat`'s `runTerminal`), which is the
+      // whole point of that kind, and the pinned Claude adapter's own
+      // `authenticate` handles gateway methods only. Refused in the protocol's
+      // own words, so a client that asked anyway is told.
+      refuse(id, -32601, `no such method: authenticate ${methodId}`)
       return
     }
 

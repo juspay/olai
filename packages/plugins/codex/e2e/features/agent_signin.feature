@@ -1,0 +1,72 @@
+@codex @scratch:chat
+Feature: Signing in to Codex from inside olai
+  Codex's adapter drives its own sign-in and asks the panel for one thing: a
+  page, with the code the person has to type into it. That is ACP's URL
+  elicitation, and it arrives before any conversation exists — which is the
+  whole reason the panel draws it in its own row rather than in a transcript.
+
+  Background:
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "house.olai"
+
+  @signin
+  Scenario: A conversation refused for want of a signature is signed in to and opened
+    # ARMED BEFORE THE AGENT STARTS, so the refusal a person meets is the OPEN:
+    # there is no conversation at all, which is the case the row has to be
+    # drawable in without a transcript.
+    When the agent needs a sign-in
+    And I open the "codex" agent on node "kitchen"
+    Then the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "Authentication required"
+    And the panel offers a sign-in
+    And the sign-in offers "chat-gpt-device-code"
+    # AN `env_var` METHOD IS NOT OFFERED: a credential box is a feature this
+    # panel does not have, and a button that could not finish what it started
+    # would be worse than no button.
+    And the sign-in does not offer "api-key"
+    When I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    And the card links to "https://chatgpt.com/device"
+    And the card says "Sign in to ChatGPT and enter this code: WXYZ-12345"
+    When the person finishes signing in
+    Then the card is done with
+    Then the panel offers no sign-in
+    # THE CONVERSATION OPENS ITSELF once the agent has what it was missing, and
+    # the face that said it could not be opened goes with it.
+    And the panel shows no such refusal
+    And the agent is idle
+
+  @signin
+  Scenario: Backing out of a device-code sign-in leaves nothing running
+    When I open the "codex" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I type "/login" into the chat
+    And I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When I cancel the sign-in
+    Then the panel offers no sign-in
+    # The agent's own answer to a cancelled login is a refusal, and it must not
+    # put the row back: the press is what a person meant, and the row went when
+    # they made it. A second attempt proves the first is over.
+    When I type "/login" into the chat
+    And I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    And the agent is idle
+
+  @signin
+  Scenario: A signature the agent wanted mid-conversation is asked for and given
+    When I open the "codex" agent on node "kitchen"
+    And the node agent's fold is ready
+    And the agent needs a sign-in
+    When I ask the agent "hello"
+    Then the panel offers a sign-in
+    And the chat shows my message "hello" as "refused"
+    When I press the sign-in for "chat-gpt-device-code"
+    Then the card says "Sign in to ChatGPT and enter this code: WXYZ-12345"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    And the agent is idle
+    And the chat input reads "hello"

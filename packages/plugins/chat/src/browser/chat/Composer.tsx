@@ -154,6 +154,11 @@ import type { Chat } from "./state.ts"
 const CONTROL =
   "flex h-8 shrink-0 items-center justify-center rounded-control border text-label"
 
+/** OLAI'S OWN SLASH WORD — the one command this panel answers itself, for an
+ *  agent that offered a way to sign in. Spelled once because two places need
+ *  it: the row in the completion list, and the guard in the send. */
+const LOGIN = "login"
+
 export function Composer(props: {
   readonly chat: Chat
   /** The files attached and not yet sent. Made by the panel, because the
@@ -221,6 +226,26 @@ export function Composer(props: {
    *  half that is true of an agent with no interruption at all — which is what
    *  makes them two questions rather than one. */
   const promised = () => working() && agentIn(props.chat.state())?.queues === true
+
+  /** WHETHER THIS AGENT HAS A WAY IN — the handshake's own advertisement, read
+   *  by the two places `/login` exists: the completion row and the send. */
+  const signInOffered = () => (agentIn(props.chat.state())?.methods.length ?? 0) > 0
+
+  /**
+   * ... AND THE WORDS COME BACK TO THE BOX when the reason they did not go is
+   * that nobody is signed in.
+   *
+   * READ ONLY WHEN THE BOX IS EMPTY, and only once per row
+   * ({@link Chat.takeBack}, which is where the once lives): reading it on every
+   * keystroke is what makes a hand-back rather than a fight, and reading it at
+   * all is what keeps somebody's own words from being stranded in a transcript
+   * that is about to be replayed away.
+   */
+  createEffect(() => {
+    if (draft() !== "") return
+    const words = props.chat.takeBack()
+    if (words !== null) setDraft(words)
+  })
 
 
   /**
@@ -338,8 +363,8 @@ export function Composer(props: {
     const completing = found()
     if (completing === null) return []
     switch (completing.kind) {
-      case "command":
-        return props.chat
+      case "command": {
+        const commands = props.chat
           .state()
           .commands.filter((command) => command.name.startsWith(completing.query))
           .map((command) => ({
@@ -352,6 +377,27 @@ export function Composer(props: {
             taking: atOnce,
             take: () => accept(command.name),
           }))
+        // `/login` IS OLAI'S OWN WORD and it is listed where the agent's are,
+        // because that is where a person looks for it. It is a row and not an
+        // entry in `state.commands`, and the difference matters: that array is
+        // THE AGENT'S list, published from its own `available_commands_update`,
+        // and a name this end added to it would be olai telling a browser that
+        // the agent offers something it does not.
+        //
+        // ONLY FOR AN AGENT WITH SOMETHING TO OFFER (`talking.methods`, the
+        // handshake's own advertisement): with none, `/login` is a message like
+        // any other and must not be listed as a command.
+        if (signInOffered() && "login".startsWith(completing.query)) {
+          commands.unshift({
+            value: LOGIN,
+            label: `/${LOGIN}`,
+            hint: `Sign in to ${agentIn(props.chat.state())?.name ?? "this agent"}`,
+            taking: atOnce,
+            take: () => accept(LOGIN),
+          })
+        }
+        return commands
+      }
       case "name":
         // WHAT THE DIRECTORY HOLDS UNDER THAT WORD — the files and the nodes,
         // in one list of eight, which is `./naming.ts`'s rule and its argument.
@@ -436,6 +482,24 @@ export function Composer(props: {
   const send = async (interrupt = false) => {
     const uploadScope = props.chat.state().uploadScope
     const text = draft()
+    // `/login` ASKED FOR, WHICH IS A GESTURE AND NOT A MESSAGE. The line is
+    // exactly the word — a command is the whole line (`./completion.ts`) — and
+    // it only counts for an agent that advertised a way in; for every other one
+    // it is sent as the message it looks like, which is what `pi` and `omp`
+    // expect of it.
+    //
+    // HANDLED BESIDE THE SEND rather than in the completer, because both doors
+    // onto this box reach here: a row taken off the list and the word typed out
+    // by hand are the same line.
+    if (text.trim() === `/${LOGIN}` && signInOffered()) {
+      setDraft("")
+      setCaret(0)
+      setAsked(false)
+      setDismissed(null)
+      input?.focus()
+      props.chat.signIn(null)
+      return
+    }
     if (
       text.trim() === "" &&
       props.holding.pending().length === 0 &&

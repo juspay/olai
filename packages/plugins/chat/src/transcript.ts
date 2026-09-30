@@ -57,7 +57,7 @@ import { isDeepStrictEqual } from "node:util"
 import { isRunningStatus, isTaskOut, sentToDo } from "olai-plugin-chat/wire"
 import type { Armed, ChatEntry, Delivery, Saying, Spawned, ToolEntry, TerminalView, ToolStatus, Json } from "olai-plugin-chat/wire"
 import type { OpFailure } from "@olai/format"
-import type { AskField, AskOutcome, FileDiff } from "@olai/acp/wire"
+import type { AskField, AskLink, AskOutcome, FileDiff } from "@olai/acp/wire"
 export interface Change {
   readonly upserts: ReadonlyArray<readonly [string, ChatEntry]>
   readonly removes: ReadonlyArray<string>
@@ -529,11 +529,16 @@ export class Transcript {
    * changes nothing rather than minting one, which is {@link settleAsk}'s rule
    * and for its reason. The prompt is not kept either: there is no row for it
    * to belong to.
+   *
+   * `auth` marks the ONE refusal with a reason that changes what a reader does
+   * with the row — the agent would not take the words because nobody is signed
+   * in (`./wire/members.ts`'s `UserEntry.auth`). It rides the same mark rather
+   * than a call of its own because it is the same fact about the same row.
    */
-  refused(key: string, prompt: string): Change {
+  refused(key: string, prompt: string, auth = false): Change {
     if (!this.#entries.has(key)) return EMPTY
     this.#undelivered.set(key, prompt)
-    return this.#mark(key, "refused")
+    return this.#mark(key, "refused", auth)
   }
 
   /**
@@ -574,7 +579,7 @@ export class Transcript {
   /** The `delivery` field, said or unsaid, without minting a row for a key
    *  that has gone. Private because the field never moves without the prompt
    *  map beside it — which is the whole reason both live here. */
-  #mark(key: string, delivery: Delivery | null): Change {
+  #mark(key: string, delivery: Delivery | null, auth = false): Change {
     const current = this.#entries.get(key)
     // Only a user row carries a delivery. A mark on any other kind was always
     // a type lie the flat struct could not catch; the union makes it a no-op
@@ -582,12 +587,12 @@ export class Transcript {
     if (current === undefined || current.kind !== "user") return EMPTY
     // `delivery` comes off along with the derived fields, for the same reason
     // `contentOf` takes those: this line is what DECIDES it, and a spread of
-    // the old entry would carry the previous answer past the decision.
-    const { delivery: _delivery, ...content } = contentOf(current)
-    return this.#put(
-      key,
-      delivery === null ? content : { ...content, delivery },
-    )
+    // the old entry would carry the previous answer past the decision. The
+    // reason goes with it for the identical reason: a row that stopped being
+    // refused for want of a signature must stop saying it was.
+    const { delivery: _delivery, auth: _auth, ...content } = contentOf(current)
+    if (delivery === null) return this.#put(key, content)
+    return this.#put(key, { ...content, delivery, ...(auth ? { auth: true as const } : {}) })
   }
 
   /** One chunk of the agent's prose. Appends to the entry already open, or
@@ -1207,13 +1212,19 @@ export class Transcript {
     // unattributed form without a type error, which is the bug this argument
     // exists to close ({@link ./events.ts} draws the same line one layer up).
     parent: string | undefined,
+    // WHERE THE QUESTION SENDS THEM, for the one elicitation that asks for no
+    // fields (`./events.ts`'s `asked`). `null` for every form, which is what
+    // makes this the same row with one part left out rather than a second kind
+    // of row: what is drawn is the ask, and the link is what it has INSTEAD of
+    // fields.
+    link: AskLink | null = null,
   ): Change {
     return both(
       this.#close(),
       this.#put(id, {
         kind: "ask",
         text: message,
-        ask: { fields, outcome: null },
+        ask: { fields, outcome: null, link },
         ...(parent === undefined ? {} : { parent: toolKey(parent) }),
       }),
     )
@@ -1239,7 +1250,7 @@ export class Transcript {
     // one — so the class is unrepresentable rather than documented.
     return this.#put(id, {
       ...contentOf(current),
-      ask: { fields: current.ask.fields, outcome },
+      ask: { fields: current.ask.fields, link: current.ask.link, outcome },
     })
   }
 

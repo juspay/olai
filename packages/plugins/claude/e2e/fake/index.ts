@@ -8,6 +8,15 @@
  * (rather than spelled by the harness) because this plugin owns its own path.
  * `env` turns the harness's `@agent-stored` flag into the stored-sessions env
  * this engine's core reads.
+ *
+ * IT ALSO ARMS ONE OF THE FIVE VARIABLES THE ADAPTER READS AS "REMOTE" —
+ * `SSH_CONNECTION`, which is set on the SERVER this row starts, and would
+ * therefore be inherited by the adapter unless this engine's own registration
+ * takes it away (`Adapter.unset`, `../src/server.ts`). The fake adapter mimics
+ * that test (`acp-agent.js`: on a remote session it offers only a full-screen
+ * login), so a regression in the strip shows up as a sign-in method that is no
+ * longer offered rather than as a fact about whatever machine CI happens to
+ * run on.
  */
 import { resolve } from "node:path";
 import type { Fake } from "@olai/tests/harness/fake.ts";
@@ -18,6 +27,8 @@ export const fake: Fake = {
     knob: "OLAI_ACP_AGENT",
     exe: resolve(import.meta.dirname, "claude-agent-acp"),
   },
-  env: ({ stored }): Readonly<Record<string, string>> =>
-    stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {},
+  env: ({ stored }): Readonly<Record<string, string>> => ({
+    ...(stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+    SSH_CONNECTION: "10.0.0.1 40222 10.0.0.2 22",
+  }),
 };

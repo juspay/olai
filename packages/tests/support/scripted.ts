@@ -127,6 +127,23 @@ export const MARKER = {
    *  to: no promise about a message sent mid-turn, and no interruption
    *  offered. */
   saysNothing: ".agent-says-nothing",
+  /** Make this agent REFUSE to open a conversation, and to run a turn, UNTIL
+   *  IT HAS BEEN SIGNED IN — ACP's `-32000`, the whole of how an agent asks
+   *  for a signature. Released by {@link signedIn}, which is what
+   *  a completed sign-in leaves behind: the login script writes it for the
+   *  method olai runs, and the agent writes it for the one it runs itself.
+   *
+   *  TWO FILES RATHER THAN ONE that a scenario adds and removes, because the
+   *  two ends are different files that never meet: a step says "this machine
+   *  needs a signature" at the start of a scenario, and whichever sign-in
+   *  COMPLETES leaves the other. */
+  needsAuth: ".agent-needs-auth",
+  /** ... AND IT HAS BEEN: the credential a sign-in left behind. See
+   *  {@link needsAuth}. */
+  signedIn: ".agent-signed-in",
+  /** Say the person has finished at a vendor's page — what a device-code or an
+   *  OAuth elicitation waits for, since this suite cannot visit one. */
+  atThePage: ".agent-at-the-page",
 } as const
 
 /** The release marker, by its old name — {@link MARKER}'s `release`. */
