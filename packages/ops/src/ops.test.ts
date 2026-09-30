@@ -2381,3 +2381,22 @@ test("a revision-only race does not invent file names", () =>
     expect(failure.message).toContain("revision 1 → 6")
     expect(failure.message).not.toContain("every time")
   })))
+
+test("mixed races keep the last plan and distinguish file movement from claims", () =>
+  withOps({}, fixture => Effect.gen(function*() {
+    const table = { current: TEST_CLAIMS }
+    fakingCommit(fixture, (_, write) => {
+      table.current = { ...TEST_CLAIMS }
+      return Effect.fail(new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 }))
+    })
+    const ops = Ops.make({
+      claims: table, format: "outline-olai", root: fixture.root,
+      store: { ...fixture.store, refresh: () => Effect.void },
+    })
+    const failure = yield* Effect.flip(ops.run({ op: "create", file: "sdf.olai" }, "web"))
+    expect(failure._tag).toBe("BusyFailure")
+    expect(failure.message).toContain("`create: sdf.olai` was not written")
+    expect(failure.message).toContain("1 of 5 attempts (revision 1 → 2)")
+    expect(failure.message).toContain("file kinds also changed 4 times")
+    expect(failure.message).not.toContain("all 5")
+  })))
