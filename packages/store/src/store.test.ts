@@ -401,6 +401,21 @@ test("a probe that finds nothing changed publishes nothing", () =>
       expect((yield* snapshotOf(store))?.rev).toBe(1)
     })))
 
+test("an empty verified refresh validates and publishes; a cheap look stays quiet", () =>
+  withStore({}, ({ store }) =>
+    Effect.gen(function*() {
+      validations = []
+      yield* store.refresh("cheap")
+      expect((yield* snapshotOf(store))?.rev).toBe(1)
+      expect(validations).toEqual([])
+      yield* store.refresh("verified")
+      expect((yield* snapshotOf(store))?.rev).toBe(2)
+      expect(validations).toEqual([[]])
+      yield* store.refresh("cheap")
+      expect((yield* snapshotOf(store))?.rev).toBe(2)
+      expect(validations).toEqual([[]])
+    })))
+
 test("only the file whose stamp moved is read again", () =>
   withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, write }) =>
     Effect.gen(function*() {

@@ -63,6 +63,7 @@ import {
 } from "@olai/format"
 import { Effect, Result, SubscriptionRef } from "effect"
 
+import type { Snapshot } from "@olai/store"
 import type { Store } from "./deps.ts"
 import { type SessionRule, barred, doorRefusal } from "./door.ts"
 import { type Context, plan, scoping } from "./plan.ts"
@@ -524,6 +525,28 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     Effect.gen(function*() {
       const store = yield* currentStore
       let repairs = REPAIRS
+      // Keep the last plan and the evidence from lost races local to this write.
+      // Claims mismatches spend the same budget as stale writes, but are our own
+      // revalidation failing to catch up, not evidence of another file writer.
+      // Their sum counts invalidated attempts; repairs have their own allowance.
+      let summary: string | undefined
+      let staleWrites = 0
+      let claimsMismatches = 0
+      let firstRev: number | undefined
+      let lastRev: number | undefined
+      const movements = new Map<string, { rounds: number; removals: number }>()
+      let lostBaseRev: number | undefined
+      const observeRace = (snapshot: Snapshot<Reading> | null) => {
+        if (lostBaseRev === undefined) return
+        if (snapshot !== null && snapshot.rev > lostBaseRev) {
+          const removed = new Set(snapshot.removed)
+          for (const path of new Set([...snapshot.changed, ...snapshot.removed])) {
+            const held = movements.get(path)
+            movements.set(path, { rounds: (held?.rounds ?? 0) + 1, removals: (held?.removals ?? 0) + (removed.has(path) ? 1 : 0) })
+          }
+        }
+        lostBaseRev = undefined
+      }
       /**
        * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
        * below answers: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
@@ -582,13 +605,14 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           const resynced = yield* Effect.result(store.refresh("verified"))
           return Result.isSuccess(resynced)
         })
-      for (let races = 0; races < ROUNDS;) {
+      while (staleWrites + claimsMismatches < ROUNDS) {
         // The CHEAP class, and the write gate is why it is enough: a plan is
         // derived from this revision and then judged against `baseRev` inside
         // the gate, which probes on its way in. A tree that moved under the
         // plan comes back `StaleWrite` and the round runs again — the drift
         // this read cannot see is the drift the gate is there to catch.
         const { snapshot } = yield* store.read("cheap")
+        observeRace(snapshot)
         if (snapshot === null) {
           const errors = yield* SubscriptionRef.get(store.errors)
           return yield* new ValidationFailure({
@@ -599,7 +623,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
 
         if (snapshot.value.claims !== options.claims.current) {
-          races += 1
+          claimsMismatches += 1
           yield* Effect.mapError(store.refresh("verified"), failure => new ValidationFailure({ reason: failure.message, verdict: NOTHING_WRONG }))
           continue
         }
@@ -647,6 +671,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           return yield* planned.failure
         }
         const { files, documents = [], removed = [], ...about } = planned.success
+        summary = about.summary
 
         if (rule !== undefined) {
           if (rule._tag === "closed") {
@@ -686,11 +711,15 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           // A store that moved is the retry; anything else is a disk that
           // cannot be written, which no re-plan will fix.
           //
-          // THE ONE SITE THAT COUNTS ({@link ROUNDS}): this is what a lost
-          // race IS — another writer reached the gate first — and every
-          // other way round this loop is a repair, which is not one.
+          // This is the one site a lost gate race is observed ({@link ROUNDS}).
+          // It spends the same budget as a claims mismatch above; a repair
+          // spends neither. The next round's read supplies both its plan and
+          // this race's evidence, without counting one revision twice.
           if (outcome.failure._tag === "StaleWrite") {
-            races++
+            staleWrites++
+            firstRev ??= outcome.failure.baseRev
+            lastRev = outcome.failure.currentRev
+            lostBaseRev = outcome.failure.baseRev
             continue
           }
           return yield* new ValidationFailure({
@@ -846,10 +875,29 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
       }
 
+      // The final lost gate has no next round to read its evidence.
+      if (lostBaseRev !== undefined) observeRace((yield* store.read("cheap")).snapshot)
+      const subject = summary === undefined ? "this write" : `\`${summary}\``
+      const paths = [...movements].sort(([a, left], [b, right]) => right.rounds - left.rounds || a.localeCompare(b))
+      const frequency = (count: number) => count === 1 ? "once" : count === staleWrites ? "every time" : `${count} times`
+      const named = paths.slice(0, 4).map(([path, movement]) => {
+        const removal = movement.removals === movement.rounds
+          ? " removed"
+          : ""
+        const sometimesRemoved = movement.removals > 0 && movement.removals < movement.rounds
+          ? ` (removed ${frequency(movement.removals)})`
+          : ""
+        return `\`${path}\`${removal} ${frequency(movement.rounds)}${sometimesRemoved}`
+      })
+      if (paths.length > 4) named.push(`and ${paths.length - 4} more`)
       return yield* new BusyFailure({
-        reason:
-          `the outlines kept changing under this write — ${ROUNDS} attempts, each from a ` +
-          `fresh read, all overtaken. Something else is writing continuously.`,
+        reason: staleWrites === 0
+          ? `${subject} was not written: the directory's set of file kinds was out of date on all ${claimsMismatches} attempts ` +
+            `and a refresh never caught up. That is olai's own fault, not the directory's — restart the server.`
+          : `${subject} was not written: the directory changed under it on ${staleWrites === ROUNDS ? `all ${ROUNDS}` : `${staleWrites} of ${ROUNDS}`} attempts ` +
+            `(revision ${firstRev} → ${lastRev})${named.length === 0 ? "" : ` — ${named.join(", ")}`}. ` +
+            (claimsMismatches === 0 ? "" : `The directory's set of file kinds was also out of date on ${claimsMismatches} attempts. `) +
+            `Something is rewriting ${named.length === 0 ? "the directory" : "those files"}; wait for it to stop, or stop it, then try again.`,
       })
     })
 

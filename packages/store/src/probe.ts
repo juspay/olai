@@ -247,6 +247,9 @@ export interface Probe<F, E> {
    *  accepted trade; for one this process just made it is not, because a
    *  browser waiting on the frame would never get it. */
   readonly forget: (paths: Iterable<string>) => Effect.Effect<void>
+  /** Ask the next run to validate even if no files moved. The store's
+   *  verified look uses this when the vocabulary may have changed. */
+  readonly revalidate: Effect.Effect<void>
 }
 
 interface Cached<F, E> {
@@ -330,6 +333,8 @@ export const make = <F, S, E>(
     // from it.
     const cache = yield* Ref.make<ReadonlyMap<string, Cached<F, E>> | null>(null)
 
+    const revalidation = yield* Ref.make(false)
+
     return {
       current: Effect.map(
         Ref.get(cache),
@@ -373,6 +378,8 @@ export const make = <F, S, E>(
           return looked.filter((path) => path !== null)
         }),
 
+      revalidate: Ref.set(revalidation, true),
+
       forget: (paths: Iterable<string>) =>
         Ref.update(cache, (cached) => {
           if (cached === null) return null
@@ -398,6 +405,7 @@ export const make = <F, S, E>(
 
       run: (promised) =>
         Effect.gen(function*() {
+          const mustRevalidate = yield* Ref.getAndSet(revalidation, false)
           const previous = yield* Ref.get(cache)
           const stamps = yield* disk.listing(codec.match)
 
@@ -409,7 +417,10 @@ export const make = <F, S, E>(
           // changed. The size check is what catches a DELETION, which leaves no
           // stale entry behind to be noticed by. Asked here, off the one diff,
           // rather than by a second walk that would have to agree with it.
-          const settled = previous !== null && stale.length === 0 &&
+          // An explicit revalidation cannot settle on an empty listing:
+          // the codec must publish the current claims after a file kind joins.
+          // Forgetting stamps alone says nothing about that vocabulary.
+          const settled = !mustRevalidate && previous !== null && stale.length === 0 &&
             previous.size === stamps.size
           if (settled) return null
 

@@ -548,6 +548,8 @@ Every error names its location: `file:line` of the bad record (the record’s fi
 
 The server is the only writer; git merges are the only edits that bypass it, and validation on load catches those. A write goes: re-validate the whole edited set → same-directory temp file(s) → atomic rename (all files or none) → commit. Validation comes FIRST, over the set the write would produce, so a refused write costs nothing on disk: the bytes are under names nothing reads, or they were never written at all.
 
+A write that keeps losing races is refused after five attempts. When other writers move the directory, the refusal names the files and revision span observed so you can tell what is being rewritten. A refusal that instead blames the set of file kinds is olai's own revalidation bug; restarting the server clears it.
+
 Writers emit canonical field order, literal UTF-8 (no `\uXXXX` escaping beyond JSON's structural escapes), no blank lines, exactly one trailing newline. Readers tolerate blank lines.
 
 **There is one writer, and callers do not assemble bytes.** A writer is handed the records of a whole file and hands back the whole file, so every separator — the newline between two records, the one at the end, the absence of a blank line — has exactly one owner. That is not tidiness: a caller that built its own bytes once produced two records glued onto one line, out of a write that every layer above believed had succeeded, and the file that came out was one no reader could parse. The shape is what makes it unrepresentable, and there is a test that says so.

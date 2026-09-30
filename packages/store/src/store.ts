@@ -636,6 +636,9 @@ export const make = <F, S, E>(
       freshness === "cheap" ? cycled : gate.withPermit(
         Effect.gen(function*() {
           yield* probe.forget((yield* probe.current).keys())
+          // A verified look also asks the codec about its current vocabulary.
+          // With no files, forgetting stamps alone has nothing to invalidate.
+          yield* probe.revalidate
           yield* cycle
         }),
       )

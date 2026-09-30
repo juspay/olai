@@ -20,7 +20,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { admits, bodyOf, implicatedBy, isMirror, isRegular, markdownIn, type OutlineError, type OutlineSet, NO_KINDS, outlinePaths, verdictOf, type OpFailure, type WriteRequest as Request, type WriteResult as Applied } from "@olai/format"
+import { claims, type Claims, admits, bodyOf, implicatedBy, isMirror, isRegular, markdownIn, type OutlineError, type OutlineSet, NO_KINDS, outlinePaths, verdictOf, type OpFailure, type WriteRequest as Request, type WriteResult as Applied } from "@olai/format"
 import { parseOutline } from "olai-plugin-outline-olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import * as Store from "@olai/store"
@@ -78,6 +78,7 @@ const withOps = <A>(
   // `@olai/store`'s own fixture.
   use: (fixture: Fixture) => Effect.Effect<A, unknown>,
   options: {
+    readonly claims?: { current: Claims }
     readonly realClock?: boolean
     readonly onRefusal?: Ops.Options["onRefusal"]
   } = {},
@@ -90,9 +91,9 @@ const withOps = <A>(
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
   return Effect.gen(function*() {
-    const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
+    const store = yield* Store.make({ root, codec: options.claims === undefined ? codec : codecFor(NO_KINDS, options.claims), watch: false, settle: "10 millis" })
     const refusals: Array<string> = []
-    const ops = Ops.make({claims: { current: TEST_CLAIMS }, format: "outline-olai",
+    const ops = Ops.make({claims: options.claims ?? { current: TEST_CLAIMS }, format: "outline-olai",
       store,
       root,
       // The planner's own fixture context by default — ids from `n1`, one fixed
@@ -648,6 +649,17 @@ const fakingCommit = (
     return answer(attempts, write) ?? committed(write)
   }
   return () => attempts
+}
+
+/** Count the gate's reads without changing the snapshots it sees. */
+const countingReads = (fixture: Fixture): (() => number) => {
+  const read = fixture.store.read
+  let reads = 0
+  ;(fixture.store as { read: typeof read }).read = (freshness) => {
+    reads += 1
+    return read(freshness)
+  }
+  return () => reads
 }
 
 /** The resync door, wrapped so a test can say whether the repair ever
@@ -2318,10 +2330,110 @@ test("claims mismatch spends the bounded retry budget even if refresh publishes 
     let refreshes = 0
     const ops = Ops.make({
       claims: { current: { ...TEST_CLAIMS } }, format: "outline-olai", root: fixture.root,
-      store: { ...fixture.store, refresh: freshness => { refreshes++; return fixture.store.refresh(freshness) } },
+      store: { ...fixture.store, refresh: () => { refreshes++; return Effect.void } },
     })
     const result = yield* Effect.result(ops.run({ op: "title", id: "n", title: "after" }, "mcp"))
     expect(Result.isFailure(result)).toBe(true)
+    if (Result.isFailure(result)) {
+      expect(result.failure._tag).toBe("BusyFailure")
+      expect(result.failure.message).toContain("this write was not written")
+      expect(result.failure.message).toContain("file kinds")
+      expect(result.failure.message).toContain("out of date on all 5 attempts")
+      expect(result.failure.message).toContain("olai's own fault")
+      expect(result.failure.message).not.toContain("rewriting")
+    }
     expect(refreshes).toBe(5)
     expect(fixture.read("a.olai")).toContain("before")
+  })))
+
+
+test("the first outline lands after file kinds register on an empty directory", () => {
+  const table = { current: claims([]) }
+  return withOps({}, fixture => Effect.gen(function*() {
+    const before = (yield* fixture.store.read("cheap")).snapshot
+    expect(before?.value.claims).toBe(table.current)
+    table.current = TEST_CLAIMS
+    yield* run(fixture, { op: "create", file: "sdf.olai" })
+    expect(fixture.read("sdf.olai")).toBe("")
+    expect((yield* fixture.store.read("cheap")).snapshot?.value.claims).toBe(TEST_CLAIMS)
+  }), { claims: table })
+})
+
+test("five stale writes name the plan, revisions, frequent paths and removals", () =>
+  withOps({ "gone.olai": "" }, fixture => Effect.gen(function*() {
+    const reads = countingReads(fixture)
+    const attempts = fakingCommit(fixture, (attempt, write) => Effect.gen(function*() {
+      fixture.write("_olai/Terminals.olai", `{"id":"terminal","ord":"a0","title":"${"x".repeat(attempt)}"}\n`)
+      if (attempt === 1) {
+        fs.unlinkSync(path.join(fixture.root, "gone.olai"))
+        for (const file of ["Inbox", "Other", "Third", "Fourth"]) fixture.write(`${file}.olai`, "")
+      }
+      yield* fixture.store.refresh("cheap")
+      return yield* new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 })
+    }))
+    const failure = yield* Effect.flip(fixture.ops.run({ op: "create", file: "sdf.olai" }, "web"))
+    expect(attempts()).toBe(5)
+    expect(reads()).toBe(6) // Initial plan, four replans, and the final race's evidence.
+    expect(failure._tag).toBe("BusyFailure")
+    expect(failure.message).toContain("`create: sdf.olai` was not written")
+    expect(failure.message).toContain("all 5 attempts (revision 1 → 6)")
+    expect(failure.message).toContain("`_olai/Terminals.olai` every time")
+    expect(failure.message).toContain("`gone.olai` removed once")
+    expect(failure.message).toContain("`Inbox.olai` once")
+    expect(failure.message).toContain("and 2 more")
+    expect(fixture.read("sdf.olai")).toBeNull()
+  })))
+
+test("a revision-only race does not invent file names", () =>
+  withOps({}, fixture => Effect.gen(function*() {
+    fakingCommit(fixture, (attempt, write) => Effect.fail(
+      new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + attempt }),
+    ))
+    const failure = yield* Effect.flip(fixture.ops.run({ op: "create", file: "sdf.olai" }, "web"))
+    expect(failure._tag).toBe("BusyFailure")
+    expect(failure.message).toContain("revision 1 → 6")
+    expect(failure.message).not.toContain("every time")
+  })))
+
+test("mixed races keep the last plan and distinguish file movement from claims", () =>
+  withOps({}, fixture => Effect.gen(function*() {
+    const table = { current: TEST_CLAIMS }
+    fakingCommit(fixture, (_, write) => {
+      table.current = { ...TEST_CLAIMS }
+      return Effect.fail(new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 }))
+    })
+    const ops = Ops.make({
+      claims: table, format: "outline-olai", root: fixture.root,
+      store: { ...fixture.store, refresh: () => Effect.void },
+    })
+    const failure = yield* Effect.flip(ops.run({ op: "create", file: "sdf.olai" }, "web"))
+    expect(failure._tag).toBe("BusyFailure")
+    expect(failure.message).toContain("`create: sdf.olai` was not written")
+    expect(failure.message).toContain("1 of 5 attempts (revision 1 → 2)")
+    expect(failure.message).toContain("file kinds was also out of date on 4 attempts")
+    expect(failure.message).not.toContain("all 5")
+  })))
+
+test("a removed and recreated path is not described as removed every time", () =>
+  withOps({ "other.olai": "" }, fixture => Effect.gen(function*() {
+    fakingCommit(fixture, (attempt, write) => Effect.gen(function*() {
+      if (attempt === 1) fs.unlinkSync(path.join(fixture.root, "other.olai"))
+      else fixture.write("other.olai", `{"id":"other","ord":"a0","title":"${"x".repeat(attempt)}"}\n`)
+      yield* fixture.store.refresh("cheap")
+      return yield* new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 })
+    }))
+    const failure = yield* Effect.flip(fixture.ops.run({ op: "create", file: "sdf.olai" }, "web"))
+    expect(failure.message).toContain("`other.olai` every time (removed once)")
+  })))
+
+
+test("a successful retry uses its next planning read for the lost race's evidence", () =>
+  withOps({}, fixture => Effect.gen(function*() {
+    const reads = countingReads(fixture)
+    fakingCommit(fixture, (attempt, write) => attempt === 1
+      ? Effect.fail(new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 }))
+      : undefined)
+    yield* run(fixture, { op: "create", file: "sdf.olai" })
+    expect(reads()).toBe(2)
+    expect(fixture.read("sdf.olai")).toBe("")
   })))

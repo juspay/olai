@@ -1,6 +1,26 @@
 @scratch:empty
 Feature: A new vault can become useful through the browser
 
+  Scenario: The first sidebar outline lands after plugins start over an empty directory
+    # The harness normally seeds Settings.olai before boot. Remove it while
+    # stopped so this serve actually starts with no claimed files.
+    Given the server stops
+    And the served directory holds no file at all
+    When the server starts again on the same port
+    And I open the app
+    And I open the plugins panel
+    Then the plugin "outline-olai" is running
+    When I close the plugins panel
+    And I mark the page
+    And I create the outline "sdf" from the sidebar
+    Then the file "sdf.olai" has been created
+    And the address is "/sdf.olai"
+    And the outline list links to "sdf.olai"
+    And the page has not reloaded
+    When I reload the page
+    Then the outline list links to "sdf.olai"
+    And there should be no page errors
+
   Scenario: An empty directory says so, and New outline opens the sidebar's box
     # The page's one button is the next step, and the box it opens is the
     # sidebar's own `+` › New outline box — not a second one on the page.
