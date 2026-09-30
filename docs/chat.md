@@ -116,7 +116,7 @@ The original conversation remains under **Past sessions**. An existing draft sta
 
 Rewinding changes conversation context only. **Files the agent changed are not reverted.** Opencode, omp and pi do not offer message cutoffs, so they show no action. A row whose preceding answer has no usable protocol identity also has no action. History previews must be returned to the current chat before rewinding.
 
-The server refuses rewind while a turn or queued delivery remains. A failed fork or replay leaves the current session, transcript and draft intact and reports the error. The fork is prepared inside the existing node-agent scope and adopted only after replay succeeds; it retains the same process and tool credential. The node's session pointer and supersession record follow the existing fresh-session replacement path.
+The server refuses rewind while a turn or queued delivery remains. A send that waits behind a successful rewind is refused and its words stay with the original session; it cannot be redirected into the fork. A failed fork or replay leaves the current session, transcript and draft intact and reports the error. The fork is prepared inside the existing node-agent scope and adopted only after replay succeeds; it retains the same process and tool credential. The node's session pointer and supersession record follow the existing fresh-session replacement path.
 
 ## Which conversation you come back to
 

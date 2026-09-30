@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { writeFileSync, rmSync } from "node:fs"
+import { writeFileSync, rmSync, existsSync } from "node:fs"
 import { join } from "node:path"
 import { Then, When } from "@olai/tests/harness/runner.ts"
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts"
@@ -47,4 +47,8 @@ When("the rewind fixture does not advertise fork", function(this: OlaiWorld) {
 })
 Then("my message {string} has no rewind action", async function(this: OlaiWorld, text: string) {
   assert.equal(await message(this, text).getByRole("button", { name: "Rewind to here", exact: true }).count(), 0)
+})
+
+Then("the rewind is waiting for replay", async function(this: OlaiWorld) {
+  await this.waitUntil(() => existsSync(join(this.scratch(), ".agent-loading")), "the fork's replay request to reach the adapter")
 })

@@ -148,3 +148,28 @@ Feature: Rewind a conversation into a separate session
     And I ask the agent "first answer"
     Then the agent is idle
     And the chat offers no rewind actions
+
+  Scenario: A concurrent send cannot be redirected into the fork
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "first answer"
+    Then the agent is idle
+    When I ask the agent "second answer"
+    Then the agent is idle
+    When I open another browser tab
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I use the original browser tab
+    And the next conversation load will hang
+    And I rewind my message "second answer"
+    Then the rewind is waiting for replay
+    When I use the other browser tab
+    And I ask the agent "concurrent words"
+    And the agent is released
+    Then the agent is idle
+    And the rewind transcript contains "first answer" but not "concurrent words"
+    When I open the fold history
+    And I open the past session "first answer"
+    Then the chat input reads "concurrent words"
+    When I use the original browser tab
+    Then the chat input reads "second answer"

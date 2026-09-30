@@ -2053,6 +2053,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       steer = false,
     ): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
+        const addressed = conversationOf()
         const said = text.trim()
         // A picture on its own IS a message — "what is this" with a
         // screenshot under it is the usual way of asking — and so is a node on
@@ -2076,6 +2077,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // The permit covers the ROW as well as the delivery, deliberately: a
         // row written before the replay is a row the replay takes away.
         yield* opening.withPermit(Effect.gen(function*() {
+          const now = conversationOf()
+          if (addressed !== null && (now?.agent !== addressed.agent || now.session !== addressed.session)) {
+            return yield* new UsageFailure({ reason: "the conversation changed while this message waited; your words were not sent" })
+          }
           // WHAT A NODE AGENT IS TOLD, if this conversation belongs to one and
           // has not been told yet — INSIDE the permit, with the delivery it
           // rides under.

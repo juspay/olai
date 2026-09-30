@@ -3071,7 +3071,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // ...and BEFORE any of it too, for the same reason: a load that is still
       // on the wire has opened nothing, and what a scenario looks at in that
       // window is a client that is between conversations.
-      if (holdsLoad()) await released()
+      if (holdsLoad()) {
+        writeFileSync(`${cwd}/.agent-loading`, "")
+        await released()
+      }
       {
         const directory = typeof params["cwd"] === "string" ? params["cwd"] : cwd
         const disk = sessionStore(directory)
