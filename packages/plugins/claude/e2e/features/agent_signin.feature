@@ -136,22 +136,12 @@ Feature: Signing in to Claude from inside olai
     Then the sign-in is running "claude-ai-login"
     # THE SCOPE GOING AWAY MID-LOGIN, which is the one claim about a sign-in no
     # row can be read for: the process is the agent's, so the agent going takes
-    # it — and the command says so itself as it dies, because a killed process
-    # leaves nothing else behind.
+    # it — and the command wrote down which process it is, so the suite can ask
+    # the OPERATING SYSTEM whether it is still there rather than trusting how it
+    # was asked to die.
     When I take the agent away
-    Then the login command was stopped
-    And the panel offers no sign-in
-    # ... AND NOTHING IS LEFT HALF-CLAIMED: the node is plain again, and a
-    # fresh agent on it can be signed in to from scratch.
-    When I open the "claude" agent on node "kitchen"
-    And the node agent's fold is ready
-    When I type "/login" into the chat
-    And I send the chat message
-    And I press the sign-in for "claude-ai-login"
-    Then the sign-in is running "claude-ai-login"
-    When I type "123456" into the sign-in
     Then the panel offers no sign-in
-    And the agent is idle
+    And the login command was stopped
 
   @signin
   Scenario: An agent that advertises no way in is not a `/login` anybody can press

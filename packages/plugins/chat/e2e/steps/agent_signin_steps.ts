@@ -236,19 +236,49 @@ When("I take the agent away", async function (this: OlaiWorld) {
 /**
  * ... AND THE COMMAND IT WAS RUNNING IS DEAD.
  *
- * A killed process leaves nothing behind but its exit, so the command says so
- * itself on the way out (`packages/tests/agent/fake-login.ts`'s SIGTERM
- * handler). This is the assertion behind `chat.md`'s "the scope going away does
- * the same" — the one claim about a sign-in that no row can be read for.
+ * The command writes down which process it is when it starts
+ * (`packages/tests/agent/fake-login.ts`), and this asks the OPERATING SYSTEM
+ * whether that process is still there — which is the only account of "gone" that
+ * does not depend on how a process is asked to die. This is the assertion behind
+ * `chat.md`'s "the scope going away does the same": the one claim about a sign-in
+ * that no row can be read for.
  */
 Then("the login command was stopped", async function (this: OlaiWorld) {
-  const marker = path.join(this.scratch(), MARKER.loginStopped);
+  const written = path.join(this.scratch(), MARKER.loginPid);
   await this.waitUntil(
-    async () => fs.existsSync(marker),
+    async () => {
+      if (!fs.existsSync(written)) return false;
+      const pid = Number.parseInt(fs.readFileSync(written, "utf8").trim(), 10);
+      return Number.isSafeInteger(pid) && !alive(pid);
+    },
     "the login command to be stopped",
     HYDRATION_TIMEOUT,
   );
 });
+
+/**
+ * Whether that pid is still a process.
+ *
+ * `kill(pid, 0)` is the portable half — it asks the kernel about the process and
+ * signals nothing — and it answers "there is SOMETHING with this number", which
+ * a reused pid would satisfy long after the login died. So the command line is
+ * asked too, where the platform offers one: a process that is not this script is
+ * somebody else, and counting it as the login would fail a run that went fine.
+ */
+const alive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0);
+  } catch {
+    return false;
+  }
+  try {
+    return fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("fake-login");
+  } catch {
+    // No `/proc` to ask (not Linux): the kernel's answer stands, which is the
+    // pessimistic direction — a reused pid reads as still running.
+    return true;
+  }
+};
 
 Then("the card is done with", async function (this: OlaiWorld) {
   await this.waitUntil(

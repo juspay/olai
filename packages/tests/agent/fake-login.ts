@@ -38,19 +38,16 @@ import { join } from "node:path"
 import { MARKER } from "../support/scripted.ts"
 
 /**
- * A SIGNAL IS THE CLIENT SAYING STOP, and this is where the claim that it worked
- * is recorded: a killed process leaves nothing else behind. Installed FIRST, so
- * a cancellation that lands before the login is even asked anything is still
- * said.
+ * WHO THIS PROCESS IS, said as soon as it starts.
  *
- * `143` rather than `0`: a sign-in that was stopped did not succeed, and a
- * client that read the exit code as the outcome (it does not — a cancel is read
- * from its own flag) would be told the truth.
+ * The suite holds the panel to "the scope going away kills the command" by
+ * looking this number up and asking whether it is still there (`olai-plugin-chat`'s
+ * e2e steps). That is a claim about the PROCESS rather than about a signal being
+ * caught: a handler that writes a goodbye would be reporting one way of dying,
+ * and a process that says nothing on its way out is the same evidence as one
+ * that was never asked to.
  */
-process.on("SIGTERM", () => {
-  appendFileSync(join(process.cwd(), MARKER.loginStopped), "")
-  process.exit(143)
-})
+appendFileSync(join(process.cwd(), MARKER.loginPid), `${process.pid}\n`)
 
 const DEFAULT_CODE = "123456"
 

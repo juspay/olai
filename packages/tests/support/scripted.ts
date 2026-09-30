@@ -144,11 +144,12 @@ export const MARKER = {
   /** Say the person has finished at a vendor's page — what a device-code or an
    *  OAuth elicitation waits for, since this suite cannot visit one. */
   atThePage: ".agent-at-the-page",
-  /** THE LOGIN COMMAND WAS STOPPED, written by the command itself as it dies
-   *  (`./fake-login.ts`'s own SIGTERM handler): the one way the suite can hold
-   *  the panel to "the scope going away kills it", since a process that is gone
-   *  leaves nothing else behind to read. */
-  loginStopped: ".agent-login-stopped",
+  /** WHICH PROCESS THE LOGIN COMMAND IS, written by the command itself as it
+   *  starts (`./fake-login.ts`). The one way the suite can hold the panel to
+   *  "the scope going away kills it": a killed process leaves nothing else to
+   *  read, and a handler that says goodbye on its way out is a claim about ONE
+   *  signal rather than about being gone. */
+  loginPid: ".agent-login-pid",
 } as const
 
 /** The release marker, by its old name — {@link MARKER}'s `release`. */
