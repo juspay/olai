@@ -19,10 +19,13 @@
  * rather than attach (`Agent.signIn`).
  */
 
+import { appendFileSync } from "node:fs"
+
 /** A MODULE and not a script, which is what keeps this bench's `write` from
  *  redeclaring the `write` beside it in the program: a top-level `const` in a
- *  file with no import or export belongs to the whole of it. Every fixture in
- *  this directory says so, and the one that did not is what caught this. */
+ *  file with no import or export belongs to the whole of it. The import above
+ *  settles it, and every fixture in this directory says so one way or another —
+ *  the one that did not is what caught this. */
 export {}
 
 /**

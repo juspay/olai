@@ -1905,7 +1905,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // WHAT IT OFFERS TO SIGN IN WITH, read once here and kept for the
           // press: the half a button needs travels (below), and the command
           // line a `terminal` method wants run stays where the spawn happens.
-          offered = methodsIn(initialized, options.command)
+          offered = methodsIn(initialized, options.command, options.args)
           emit({
             _tag: "advertised",
             steers: options.leg.steering !== null
