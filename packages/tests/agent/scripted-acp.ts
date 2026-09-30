@@ -543,13 +543,24 @@ const silent = (): boolean => existsSync(`${cwd}/${MARKER.saysNothing}`)
 const needsSignature = (): boolean =>
   existsSync(`${cwd}/${MARKER.needsAuth}`) && !existsSync(`${cwd}/${MARKER.signedIn}`)
 
-/** Whether the person has finished at a vendor's page — a marker a scenario
- *  writes, since this suite cannot visit one. Consumed by the elicitation that
- *  was waiting on it, so a second sign-in in the same scenario waits again
- *  rather than passing at once. */
-const waitAtThePage = async (): Promise<boolean> => {
+/**
+ * Whether the person has finished at a vendor's page — a marker a scenario
+ * writes, since this suite cannot visit one. Consumed by the elicitation that
+ * was waiting on it, so a second sign-in in the same scenario waits again
+ * rather than passing at once.
+ *
+ * `still` is the THIRD argument and it is load-bearing: a sign-in can end
+ * because the person backed out, and this loop outlives it. Left running, the
+ * abandoned poller would be the one to consume the NEXT scenario step's marker
+ * — which is how a second attempt in one scenario was failed by the first
+ * attempt's ghost (`released` takes the same argument for the same reason).
+ * It is checked BEFORE the marker, so a poller that lost its race cannot take
+ * one on the way out.
+ */
+const waitAtThePage = async (still: () => boolean = () => true): Promise<boolean> => {
   const marker = `${cwd}/${MARKER.atThePage}`
   for (let waited = 0; waited < LOGIN_LIMIT_MS; waited += 100) {
+    if (!still()) return false
     if (existsSync(marker)) {
       rmSync(marker, { force: true })
       return true
@@ -2824,7 +2835,11 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       return
     }
     await authenticateMcpServer(argument === "" ? "example" : argument)
-    say(`signed in to \`${argument === "" ? "example" : argument}\`.`)
+    // NO BACKTICKS: the answer is drawn as MARKDOWN (`olai-plugin-chat`'s agent
+    // rows), so a pair of them becomes a code span and the markers never reach
+    // the page — a scenario asserting the sentence would be asserting
+    // punctuation the renderer ate.
+    say(`signed in to ${argument === "" ? "example" : argument}.`)
     reply(id, { stopReason: "end_turn" })
     return
   }
@@ -3105,10 +3120,19 @@ const authenticateDeviceCode = async (id: unknown): Promise<void> => {
     elicitationId,
     message: `Sign in to ChatGPT and enter this code: ${code}`,
   })
+  // ONE DECISION, two racers, and the loser stands down: `settled` is what
+  // tells the poller to stop looking for a page nobody is at any more.
+  let settled = false
   const done = await Promise.race([
-    waitAtThePage().then((at) => at ? { kind: "at-the-page" as const } : { kind: "gave-up" as const }),
-    answered.then((response) => ({ kind: "answered" as const, response })),
+    waitAtThePage(() => !settled).then((at) =>
+      at ? { kind: "at-the-page" as const } : { kind: "gave-up" as const }
+    ),
+    answered.then((response) => {
+      settled = true
+      return { kind: "answered" as const, response }
+    }),
   ])
+  settled = true
   if (done.kind === "answered") {
     const accepted = typeof done.response === "object" && done.response !== null &&
       "action" in done.response && done.response.action === "accept"
@@ -3142,15 +3166,23 @@ let nextLink = 0
  *  one too. */
 const authenticateMcpServer = async (server: string): Promise<void> => {
   const elicitationId = `mcp-oauth-${++nextLink}`
+  // THE SAME RACE, one racer lighter: a session-scoped elicitation is answered
+  // by the client when a person dismisses the card, and that answer is the only
+  // other way this ends. The poller still stands down on it, for the reason
+  // {@link waitAtThePage} gives.
+  let settled = false
   const answered = request("elicitation/create", {
     mode: "url",
     sessionId,
     message: `Authenticate with MCP server ${server}`,
     url: `https://${server}.example/oauth?state=fake`,
     elicitationId,
-  })
-  void answered
-  const at = await waitAtThePage()
+  }).then(() => { settled = true })
+  const at = await Promise.race([
+    waitAtThePage(() => !settled),
+    answered.then(() => false),
+  ])
+  settled = true
   if (!at) return
   notify("elicitation/complete", { elicitationId })
 }

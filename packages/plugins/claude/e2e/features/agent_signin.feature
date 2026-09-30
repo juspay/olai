@@ -15,6 +15,7 @@ Feature: Signing in to Claude from inside olai
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     When I type "/login" into the chat
+    And I send the chat message
     Then the panel offers a sign-in
     And the sign-in offers "claude-ai-login"
     And the sign-in offers "console-login"
@@ -31,6 +32,7 @@ Feature: Signing in to Claude from inside olai
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     When I type "/login" into the chat
+    And I send the chat message
     And I press the sign-in for "console-login"
     Then the sign-in is running "console-login"
     When I type "000000" into the sign-in
@@ -47,6 +49,7 @@ Feature: Signing in to Claude from inside olai
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     When I type "/login" into the chat
+    And I send the chat message
     And I press the sign-in for "claude-ai-login"
     Then the sign-in is running "claude-ai-login"
     When I type "expired" into the sign-in
@@ -63,6 +66,7 @@ Feature: Signing in to Claude from inside olai
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     When I type "/login" into the chat
+    And I send the chat message
     And I press the sign-in for "claude-ai-login"
     Then the sign-in is running "claude-ai-login"
     When I cancel the sign-in
@@ -71,6 +75,7 @@ Feature: Signing in to Claude from inside olai
     # attempt still in flight answers a second press by attaching to it, so a
     # row that comes back is a row that was started afresh.
     When I type "/login" into the chat
+    And I send the chat message
     And I press the sign-in for "claude-ai-login"
     Then the sign-in is running "claude-ai-login"
     When I type "123456" into the sign-in
@@ -82,6 +87,7 @@ Feature: Signing in to Claude from inside olai
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     When I type "/login" into the chat
+    And I send the chat message
     And I press the sign-in for "claude-ai-login"
     Then the sign-in is running "claude-ai-login"
     When I open another browser tab
@@ -144,4 +150,4 @@ Feature: Signing in to Claude from inside olai
     And the card says "Authenticate with MCP server example"
     When the person finishes signing in
     Then the card is done with
-    And the agent's answer mentions "signed in to `example`"
+    And the agent's answer mentions "signed in to example"

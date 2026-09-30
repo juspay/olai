@@ -123,8 +123,8 @@ instance. Pending callbacks cannot navigate a later chat activation.
 Chat owns engine and agent-roster cells and a session revision for history
 invalidation. State, transcript deltas and streaming prose are conversation-keyed
 streams taking the exact engine/session pair. Sends, attachments, settings,
-questions and retries carry their conversation identity; stale scope tokens
-refuse rather than acting on another conversation. Multiple browser readers
+questions, retries and the sign-in trio all carry their conversation identity;
+stale scope tokens refuse rather than acting on another conversation. Multiple browser readers
 share the server's conversation scope. A server restart reopens each retained
 reading and replays its transcript.
 

@@ -398,8 +398,8 @@ the other half of that contract: `authMethods` in its handshake, an
 verbs that can refuse for want of a signature (`session/new`, `session/load`, a
 turn).
 
-- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (7 scenarios,
-  the terminal kind): the handed-over command runs, prints its URL as a
+- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (8 scenarios,
+  the terminal kind, on the `chat` corpus): the handed-over command runs, prints its URL as a
   *clickable link*, reads a code and exits 0; a code it does not accept is
   answered and asked for again with the process still up; a code that fails the
   attempt outright leaves the output on screen as the failure with a way to try
@@ -410,11 +410,14 @@ turn).
   same conversation with the box still holding them; and an agent that advertised
   no method gets `/login` delivered as an ordinary message with no row.
 - **`packages/plugins/codex/e2e/features/agent_signin.feature`** (3 scenarios,
-  the agent kind): a conversation refused for want of a signature is signed in to
-  through the device-code card and opens itself afterwards; backing out leaves
-  nothing running (the adapter's own refusal of the cancelled login does not put
-  the row back); and a mid-conversation refusal is signed in to and the words
-  come back to the box.
+  the agent kind, on the `lanes` corpus because the refused-open case needs a
+  binding the vault already carries): a conversation refused for want of a
+  signature is signed in to through the device-code card and opens itself
+  afterwards — including that the `env_var` method the fake also advertises is
+  NOT offered; backing out leaves nothing running (the adapter's own refusal of
+  the cancelled login does not put the row back, proved by a second attempt
+  starting afresh); and a mid-conversation refusal is signed in to, with the
+  words handed back to the box.
 - **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
   plugin because the feature is the panel's: arm the agent
   (`.agent-needs-auth`), say the person finished at a vendor's page

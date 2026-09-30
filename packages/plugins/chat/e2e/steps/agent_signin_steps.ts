@@ -95,10 +95,22 @@ Then("the panel offers a sign-in", async function (this: OlaiWorld) {
   );
 });
 
-/** A READ, not a wait: what a gesture left standing. A row that is gone is gone
- *  for good unless something puts it back, so waiting would only blur it. */
+/** WAITED FOR, and the wait is not a licence: a sign-in that SUCCEEDED is a
+ *  process exiting and a frame coming back, so the row is on screen for a beat
+ *  after the last thing a person did. What is claimed is the end state — that
+ *  it goes and does not come back on its own — and a row a press already took
+ *  away satisfies this on the first look.
+ *
+ *  IT IS ALSO WHAT A FAILURE LOOKS LIKE FROM HERE, deliberately: a row that
+ *  stays (because the sign-in failed, or because a cancelled attempt's own
+ *  refusal put it back) is a timeout at this line rather than a green run with
+ *  a stale control on screen. */
 Then("the panel offers no sign-in", async function (this: OlaiWorld) {
-  assert.equal(await this.chat(CHAT_SIGN_IN).count(), 0, "a sign-in row is still on screen");
+  await this.waitUntil(
+    async () => (await this.chat(CHAT_SIGN_IN).count()) === 0,
+    "the sign-in row to go",
+    HYDRATION_TIMEOUT,
+  );
 });
 
 Then("the sign-in offers {string}", async function (this: OlaiWorld, method: string) {
