@@ -43,7 +43,7 @@ default:
 [parallel]
 [metadata("ci")]
 [doc("Run all checks in the CI pipeline")]
-check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module plugin-fold
+check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module runtime plugin-fold
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # Each plugin's `npmTrees` leg is its own — the pi engine's MCP bridge tests
@@ -429,6 +429,12 @@ plugin-fold:
 [doc("Check the Home Manager module")]
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
+
+# The same command through the flake's `lib` output — no home-manager, no
+# supervisor. See nix/runtime-check.nix.
+[doc("Check the launch command without a supervisor")]
+runtime:
+    nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).runtime --no-link --accept-flake-config
 
 # What a keystroke costs — on a generated vault, and for the newest of them in
 # a real git repository. FOURTEEN of them, and each is a

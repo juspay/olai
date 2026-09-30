@@ -255,6 +255,28 @@ Keep that file out of the nix store and `chmod 600`, one `NAME=value` per line. 
 
 On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130`. Since the SIGTERM guard, a stray `kill -TERM` of the main pid is no longer an exit at all — it is refused and named in the journal (see Logging, above) — so `Restart=always` is what brings back the deaths that still happen: SIGKILL, the OOM killer, a crash. A `systemctl --user stop olai` is a systemd stop, which `Restart=` never overrides. On macOS the agent is `KeepAlive.SuccessfulExit=false` and `Crashed=true` — a 130 exit already restarts there, because launchd treats non-zero as unsuccessful. The 2026-08-20 incident (an outside SIGTERM, `on-failure` + `SuccessExitStatus=130`, hours of dark ledger) is [the RCA](https://github.com/juspay/oss.olai/blob/main/projects/olai/RCA/2026-08-20-olai-service-sigterm.md).
 
+### The same launch configuration without home-manager
+
+Use `olai.lib.webArgs` to construct the same command the home-manager service
+runs:
+
+```nix
+# in the deployment's flake, with olai as an input
+argv = olai.lib.webArgs {
+  package = olai.packages.${pkgs.stdenv.hostPlatform.system}.olai;
+  dataDir = "/notes";   # required; a string, not a Nix path
+  host = "0.0.0.0";     # default: olai.lib.defaultHost (127.0.0.1)
+  port = 7714;          # default: olai.lib.defaultPort
+};
+# [ "/nix/store/…/bin/olai" "web" "/notes" "--port" "7714" "--host" "0.0.0.0" ]
+```
+
+The list is execv's, so a directory with spaces stays one argument; escape it
+(`lib.escapeShellArgs`) only where a supervisor parses a command line.
+
+Which plugins run is not a launch flag: it is vault policy (`on` on a row's
+node in `_olai/Settings.olai`, [Which integrations this serve runs](#which-integrations-this-serve-runs)).
+
 ## The git policy
 
 Whether writes record themselves and commits push is policy of the directory, shared by every browser. Set it on the `git` node in `_olai/Settings.olai`:

@@ -54,6 +54,13 @@
       eachSystem = f: builtins.mapAttrs (_: ctx: f ctx) perSystem;
     in
     {
+      # The launch command and its defaults, without a supervisor: a container
+      # takes the home-manager service's argv without importing home-manager.
+      # Nixpkgs' `lib` from the pin, so this output is system-free.
+      lib = import ./nix/runtime.nix {
+        lib = import ((import ./npins).nixpkgs + "/lib");
+      };
+
       packages = eachSystem ({ pkgs, b2n }:
         let
           olai = import ./default.nix { inherit pkgs b2n rev; };
@@ -116,6 +123,9 @@
             inherit pkgs;
             module = ./nix/home/module.nix;
           };
+          # The same command through the PUBLIC `lib` output, the way a
+          # container takes it: no home-manager, no supervisor.
+          runtime = import ./nix/runtime-check.nix { inherit pkgs; runtime = self.lib; };
           # The registry fold's contract/collision refusals over fixture
           # containers, asserted at eval time by packages/bundle/nix/fold-check.nix.
           plugin-fold = import ./packages/bundle/nix/fold-check.nix {
