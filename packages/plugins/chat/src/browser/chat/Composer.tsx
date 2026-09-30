@@ -459,6 +459,26 @@ export function Composer(props: {
   )
 
   /**
+   * THE BOX IS SPENT — one gesture has consumed the line, so the words go, the
+   * caret goes with them (an empty box's caret is at its start, and a stale
+   * offset would arm the next `@` against the sentence just sent), the
+   * completion list is dismissed, and the caret stays where it already is
+   * unless something took it: a person who does two things in a row should not
+   * have to aim at the box for the second.
+   *
+   * ONE FUNCTION because there are two gestures that spend a line — sending it,
+   * and `/login` — and they differing in anything above this would be one of
+   * them quiet about the caret.
+   */
+  const spend = () => {
+    setDraft("")
+    setCaret(0)
+    setAsked(false)
+    setDismissed(null)
+    input?.focus()
+  }
+
+  /**
    * Send, and PUT IT BACK if the server would not take it.
    *
    * The box is cleared immediately, because it has to be: a send that waited
@@ -492,11 +512,7 @@ export function Composer(props: {
     // onto this box reach here: a row taken off the list and the word typed out
     // by hand are the same line.
     if (text.trim() === `/${LOGIN}` && signInOffered()) {
-      setDraft("")
-      setCaret(0)
-      setAsked(false)
-      setDismissed(null)
-      input?.focus()
+      spend()
       props.chat.signIn(null)
       return
     }
@@ -521,15 +537,7 @@ export function Composer(props: {
     const recoverDraft = recover()
     setRetry(false)
     setTaken(new Set<string>())
-    setDraft("")
-    // The caret goes with the words: an empty box's caret is at its start, and
-    // a stale offset would arm the next `@` against the sentence just sent.
-    setCaret(0)
-    setAsked(false)
-    setDismissed(null)
-    // Where the caret already is, unless something took it — a person sending
-    // two messages in a row should not have to aim at the box for the second.
-    input?.focus()
+    spend()
 
     const sent = await props.chat.send(
       text,

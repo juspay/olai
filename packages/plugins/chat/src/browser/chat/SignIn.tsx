@@ -23,7 +23,7 @@
  * the whole reason the attempt is the agent's and not this component's.
  */
 
-import type { AskLink, AuthMethod, SignIn as Attempt } from "olai-plugin-chat/wire"
+import type { AuthMethod, SignIn as Attempt, SignInLink } from "olai-plugin-chat/wire"
 import { agentIn } from "olai-plugin-chat/wire"
 import { createSignal, For, type JSX, Show } from "solid-js"
 
@@ -32,8 +32,10 @@ import { LinkCard } from "./LinkCard.tsx"
 import { linkify } from "./links.ts"
 import type { Chat } from "./state.ts"
 
+/** The one arm drawn as a process's own words — named because the renderer
+ *  below takes it as its argument, and `Extract` at the call site would be the
+ *  same sentence spelled where nobody looks for it. */
 type Terminal = Extract<Attempt, { kind: "terminal" }>
-type AgentMethod = Extract<Attempt, { kind: "agent" }>
 
 /** Whether the attempt in front of a reader is still going — asked of the arm,
  *  because the three of them say it in three ways. A chooser waits for nobody:
@@ -146,9 +148,9 @@ export function SignIn(props: { readonly chat: Chat }) {
 
   /** THE PAGE an agent method sent somebody to, which is the whole of what
    *  there is to do about that arm until the agent says it is done. */
-  const card = (link: AskLink & { readonly message: string; readonly done: boolean }): JSX.Element => (
+  const card = (link: SignInLink): JSX.Element => (
     <div class="mt-2">
-      <LinkCard message={link.message} link={link} done={link.done} />
+      <LinkCard message={link.message} url={link.url} host={link.host} done={link.done} />
     </div>
   )
 
@@ -181,12 +183,7 @@ export function SignIn(props: { readonly chat: Chat }) {
       case "agent":
         return held.link === null
           ? <p class="m-0 mt-2 text-label text-muted">Waiting for the agent…</p>
-          : card({
-            url: held.link.url,
-            host: held.link.host,
-            message: held.link.message,
-            done: held.link.done,
-          })
+          : card(held.link)
     }
   }
 

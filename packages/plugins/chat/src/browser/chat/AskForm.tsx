@@ -147,7 +147,8 @@ export function AskForm(props: {
             // type into the page, so it is the one thing here that must be read
             // exactly.
             message={props.entry.text}
-            link={where()}
+            url={where().url}
+            host={where().host}
             // THE AGENT'S OWN WORD that the page is finished with, which for
             // one of these is the whole of what anybody is waiting on. A person
             // pressing dismiss declines it, and the row then says so
