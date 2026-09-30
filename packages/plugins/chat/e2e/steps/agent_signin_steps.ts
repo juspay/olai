@@ -189,7 +189,10 @@ Then(
   async function (this: OlaiWorld, url: string) {
     await this.waitUntil(
       async () =>
-        (await this.chat(CHAT_SIGN_IN_OUTPUT).locator(`a[href="${url}"]`).count()) > 0,
+        // `attr` and not an interpolated selector: the URL is a value from
+        // outside this file, and `../selectors.test.ts` is the fence that says
+        // so (`@olai/tests/harness/selectors.ts` is where the escaping lives).
+        (await this.chat(CHAT_SIGN_IN_OUTPUT).locator(`a${attr("href", url)}`).count()) > 0,
       `the sign-in to link ${url}`,
       HYDRATION_TIMEOUT,
     );
