@@ -21,7 +21,10 @@ export const createNodeConversation = (node: Accessor<string>) => {
     const owner = node()
     const chat = createChat(to, {
       ui: reading?.ui(to), visit: to => reading?.visit(owner, to),
-      current: () => reading?.agents.at(owner)?.session === to.session,
+      current: () => {
+        const bound = reading?.agents.at(owner)
+        return bound?.engine === to.agent && bound.session === to.session
+      },
       rewound: (next, text) => {
         const ui = reading?.ui(next)
         if (ui !== undefined) keepMessage(ui.messages, JSON.stringify([next.agent, next.session]), text)
