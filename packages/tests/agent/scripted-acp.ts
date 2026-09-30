@@ -264,7 +264,8 @@ const notify = (method: string, params: unknown): void => {
     && "sessionId" in params && typeof params.sessionId === "string"
     && "update" in params && typeof params.update === "object" && params.update !== null) {
     const update = params.update as Record<string, unknown>
-    if (update["sessionUpdate"] === "agent_message_chunk" && update["messageId"] === undefined) {
+    if (update["sessionUpdate"] === "agent_message_chunk" && update["messageId"] === undefined
+      && !existsSync(`${cwd}/.agent-omit-message-ids`)) {
       const messageId = messageIds.get(params.sessionId) ?? crypto.randomUUID()
       messageIds.set(params.sessionId, messageId)
       update["messageId"] = messageId
@@ -2965,7 +2966,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           // of a fresh directory, not a capability missing. Which canned rows
           // it returns stays the stored knob's — see the header and
           // {@link minted}.
-          sessionCapabilities: { list: {}, fork: {} },
+          sessionCapabilities: { list: {}, ...(existsSync(`${cwd}/.agent-no-fork`) ? {} : { fork: {} }) },
           // IT HOLDS A PROMPT SENT WHILE IT IS BUSY — said where the real
           // adapter says it, inside the capabilities, in its own `_meta`
           // corner. Nothing about this file's behaviour depends on saying it

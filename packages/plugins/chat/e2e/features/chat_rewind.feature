@@ -30,6 +30,10 @@ Feature: Rewind a conversation into a separate session
       | claude | second answer |
       | codex  | edited answer |
       | codex  | second answer |
+    @phone
+    Examples:
+      | engine | sending       |
+      | claude | edited answer |
 
   Scenario: The first message rewinds to a fresh session and preserves the old draft
     When I open the "claude" agent on node "install"
@@ -108,6 +112,36 @@ Feature: Rewind a conversation into a separate session
   @opencode
   Scenario: Engines without message cutoffs offer no rewind
     When I open the "opencode" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "first answer"
+    Then the agent is idle
+    And the chat offers no rewind actions
+
+  Scenario: Files changed after the cutoff remain changed
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "first answer"
+    Then the agent is idle
+    When I ask the agent "done hinges"
+    Then the agent is idle
+    And "house.olai" holds a node marked done titled "pick the hinges"
+    When I rewind my message "done hinges"
+    Then the chat input reads "done hinges"
+    And "house.olai" holds a node marked done titled "pick the hinges"
+
+  Scenario: A missing message identity cannot silently fork the entire conversation
+    When the rewind fixture omits message identities
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "first answer"
+    Then the agent is idle
+    When I ask the agent "second answer"
+    Then the agent is idle
+    And my message "second answer" has no rewind action
+
+  Scenario: An adapter that does not advertise fork gets no control
+    When the rewind fixture does not advertise fork
+    And I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I ask the agent "first answer"
     Then the agent is idle

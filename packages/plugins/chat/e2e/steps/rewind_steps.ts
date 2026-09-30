@@ -38,3 +38,13 @@ Then("the chat offers no rewind actions", async function(this: OlaiWorld) {
   await this.waitUntil(async () => await this.chatRoot().getByRole("button", { name: "Rewind to here", exact: true }).count() === 0,
     "rewind to be unavailable")
 })
+
+When("the rewind fixture omits message identities", function(this: OlaiWorld) {
+  writeFileSync(join(this.scratch(), ".agent-omit-message-ids"), "")
+})
+When("the rewind fixture does not advertise fork", function(this: OlaiWorld) {
+  writeFileSync(join(this.scratch(), ".agent-no-fork"), "")
+})
+Then("my message {string} has no rewind action", async function(this: OlaiWorld, text: string) {
+  assert.equal(await message(this, text).getByRole("button", { name: "Rewind to here", exact: true }).count(), 0)
+})

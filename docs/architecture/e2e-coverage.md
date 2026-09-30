@@ -88,9 +88,9 @@ Each row names the user actions to audit, the feature files that exist, and what
 
 ## Rewind coverage
 
-`chat_rewind.feature` covers editing and sending unchanged on Claude and Codex, retaining the preceding answer, first-message fresh sessions, old-session drafts and history reopening, message IDs restored by replay on both engines, fork/load failures and retry, a stale browser's mid-turn request, and absent controls on opencode. `transcript.rewind.test.ts` covers split chunks, distinct message boundaries, missing IDs, queued/unanswered turns and clearing old cutoffs.
+`chat_rewind.feature` covers editing and sending unchanged on Claude and Codex, retaining the preceding answer, first-message fresh sessions, old-session drafts and history reopening, message IDs restored by replay on both engines, fork/load failures and retry, a stale browser's mid-turn request, absent controls on opencode, missing adapter capabilities or message IDs, unchanged files after rewind, and the phone workflow. `transcript.rewind.test.ts` covers split chunks, distinct message boundaries, missing IDs, queued/unanswered turns and clearing old cutoffs.
 
-The Claude 0.81.2 adapter and its pinned SDK 0.3.280 were also exercised against a disposable local transcript: forking at the first assistant answer returned exactly the first question and answer. This verifies the inclusive cutoff without a model request. Codex 1.13.1's `SessionFork.ts` resolves the ACP item to a containing turn and passes `lastTurnId` to the app server; the browser workflows use its fake rather than a live model.
+The Claude 0.81.2 adapter and its pinned SDK 0.3.280 were also exercised against a disposable local transcript: forking at the first assistant answer returned exactly the first question and answer. This verifies the inclusive cutoff without a model request. Codex 1.13.1's `SessionFork.ts` resolves the ACP item to a containing turn and passes `lastTurnId` to the app server, whose pinned request contract explicitly defines it as inclusive; the browser workflows use its fake rather than a live model.
 
 ## Session lifecycle fixtures
 
