@@ -25,6 +25,18 @@
  *  this directory says so, and the one that did not is what caught this. */
 export {}
 
+/**
+ * ... AND IT IS ALSO A LOGIN, when it is handed the one argument its second
+ * method names. That method writes no command line of its own, which is the
+ * protocol's other spelling: the client then runs THE AGENT BINARY with those
+ * args, and this file is that binary — so a bench that wanted the fallback
+ * exercised has to have something sensible to do when it is what runs.
+ */
+if (process.argv.includes("--other")) {
+  appendFileSync(process.env["OLAI_TEST_LOGIN_LOG"] ?? "", "other\n")
+  process.exit(0)
+}
+
 let pending = ""
 const write = (value: unknown): void => {
   process.stdout.write(`${JSON.stringify(value)}\n`)

@@ -536,9 +536,14 @@ interface Attempt {
    * between reading the slot and filling it.
    */
   readonly method: string
-  /** What the method is called, for the row that draws it — the label the
-   *  advertisement gave it. */
-  readonly label: string
+  /** What the method is called, for the row that draws it.
+   *
+   *  THE METHOD'S OWN ID until the advertisement has been read, and the name it
+   *  gave after: the claim has to exist BEFORE the handshake (that ordering is
+   *  what makes it atomic) and the handshake is what knows the name. Nothing
+   *  draws a row before the advertisement is in, so the id is only ever read by
+   *  the refusal a second press gets. */
+  label: string
   /** One line to the process's stdin, or `null` while there is no process —
    *  and forever, for an agent method, which has none. */
   write: ((line: string) => void) | null
@@ -2476,13 +2481,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // one tick would otherwise both walk through.
       Effect.suspend(() => {
         if (stopped) return shuttingDown()
-        const found = offered.find((one) => one.method.id === method)
-        if (found === undefined) {
-          return Effect.fail(new AgentGone({
-            gone: "refused",
-            why: `\`${method}\` is not a sign-in this agent offers`,
-          }))
-        }
+        // WHETHER THIS IS EVEN A METHOD is asked FURTHER DOWN, once there is an
+        // advertisement to ask: a cold agent has `offered` empty until it has
+        // handshaken, and the handshake is one of the things the claim below
+        // has to be taken before.
         const running = attempt
         if (running !== null) {
           if (running.method === method) return Effect.succeed("attached" as const)
@@ -2495,24 +2497,38 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // between them, so a second caller — another tab, another press, the
         // same tick — reads a slot that is already full and attaches or is
         // refused. The record starts EMPTY ON PURPOSE (no process, no line, a
-        // `stop` that does nothing yet) and the runner fills it in as the thing
-        // it is about to own appears; a stop that lands in that window sets
-        // `stopping`, which the runner reads the moment there is something to
-        // act on.
-        attempt = {
-          method: found.method.id,
-          label: found.method.name,
+        // `stop` that does nothing yet, the method's id where its name will go)
+        // and the runner fills it in as the thing it is about to own appears; a
+        // stop that lands in that window sets `stopping`, which the runner
+        // reads the moment there is something to act on.
+        const claim: Attempt = {
+          method,
+          label: method,
           write: null,
           stopping: false,
           stop: () => Promise.resolve(),
           link: null,
         }
+        attempt = claim
         return Effect.ensuring(
           Effect.gen(function*() {
             const at = yield* bringUpProcess
+            // ... AND ONLY NOW can the advertisement be read, because the
+            // handshake above is what fills it. A method this agent does not
+            // offer is refused HERE rather than before the claim: the claim is
+            // what a cold start must not be able to walk through twice, and it
+            // cannot be taken after a yield.
+            const found = offered.find((one) => one.method.id === method)
+            if (found === undefined) {
+              return yield* new AgentGone({
+                gone: "refused",
+                why: `\`${method}\` is not a sign-in this agent offers`,
+              })
+            }
+            claim.label = found.method.name
             return found.run === null
-              ? yield* runAgent(at, found)
-              : yield* runTerminal(found, found.run)
+              ? yield* runAgent(claim, at, found)
+              : yield* runTerminal(claim, found, found.run)
           }),
           // ... AND THE CLAIM IS LET GO, whatever happened — which takes the
           // record's own `stopping` with it, there being no flag left to reset.
@@ -2536,7 +2552,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * these CLIs keeps; anything else leaves the output on the row AS the
      * failure, because for a CLI the output is what a person needs to read.
      */
-    const runTerminal = (found: Offered, run: TerminalAuth): Effect.Effect<SignedIn, AgentGone> =>
+    const runTerminal = (
+      claim: Attempt,
+      found: Offered,
+      run: TerminalAuth,
+    ): Effect.Effect<SignedIn, AgentGone> =>
       Effect.gen(function*() {
         const method = found.method.id
         const label = found.method.name
@@ -2563,16 +2583,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               why: `could not run \`${run.command}\`: ${reasonOf(cause)}`,
             }),
         })
-        // THE RECORD THIS RUNNER IS FILLING IN, held rather than read off the
-        // module slot every time: everything below is about THIS attempt, and
-        // the slot is only consulted to ask whether it is still ours.
-        const claim = attempt
-        // NOTHING IS DRAWN FOR A CANCELLED ATTEMPT, and the chunks are why:
+        // NOTHING IS DRAWN FOR A STOPPED ATTEMPT, and the chunks are why:
         // a process that was killed still has whatever it wrote in flight, and
         // a chunk that landed between the kill and the close would re-draw the
         // row the cancel just took away — for a moment, until the close said
         // otherwise, which is the one frame nobody should see.
-        const stopped = (): boolean => claim?.stopping === true
+        const stopped = (): boolean => claim.stopping
         const appended = (chunk: string): void => {
           if (stopped()) return
           output = tailBytes(output + chunk, SIGN_IN_CAP).output
@@ -2588,13 +2604,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         child.stdin?.on("error", () => {})
         // ... AND THE CLAIM GETS ITS HANDS: the process exists from here on, so
         // a stop that arrived before it did has something to kill at last.
-        if (claim !== null) {
-          claim.write = (line) => {
-            if (child.stdin === null || child.stdin.destroyed) return
-            child.stdin.write(line)
-          }
-          claim.stop = () => child.stop().then(() => undefined)
+        claim.write = (line) => {
+          if (child.stdin === null || child.stdin.destroyed) return
+          child.stdin.write(line)
         }
+        claim.stop = () => child.stop().then(() => undefined)
         // A STOP THAT BEAT THE SPAWN is acted on here rather than never: the
         // claim is taken before the process is, which is the price of the
         // atomicity, and this is where it is paid.
@@ -2651,7 +2665,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * Awaiting hands back the Exit instead, which is what a reading of "how did
      * it end" wants anyway.
      */
-    const runAgent = (at: Live, found: Offered): Effect.Effect<SignedIn, AgentGone> =>
+    const runAgent = (
+      claim: Attempt,
+      at: Live,
+      found: Offered,
+    ): Effect.Effect<SignedIn, AgentGone> =>
       Effect.gen(function*() {
         const method = found.method.id
         const label = found.method.name
@@ -2665,24 +2683,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // ... AND THE CLAIM LEARNS WHERE THE REQUEST IS, so a stop that arrived
         // while the agent was still being reached takes it back the moment
         // there is something to take back.
-        const claim = attempt
-        const stopped = (): boolean => claim?.stopping === true
-        if (claim !== null) {
-          claim.stop = () => {
-            // BOTH HALVES, in this order: the question the agent is holding
-            // goes back unanswered — which is what makes a device-code login
-            // cancel the login at ITS end rather than wait forever — and then
-            // our request is taken back, since nothing is left to hear from it.
-            const link = claim.link
-            link?.answer("decline")
-            return Effect.runPromise(Fiber.interrupt(request))
-          }
+        const stopped = (): boolean => claim.stopping
+        claim.stop = () => {
+          // BOTH HALVES, in this order: the question the agent is holding goes
+          // back unanswered — which is what makes a device-code login cancel the
+          // login at ITS end rather than wait forever — and then our request is
+          // taken back, since nothing is left to hear from it.
+          claim.link?.answer("decline")
+          return Effect.runPromise(Fiber.interrupt(request))
         }
         // A STOP THAT BEAT THE FORK is acted on here rather than never, for the
         // reason the terminal runner's is: the claim is taken before the
         // request is, and this is where that is paid for.
         if (stopped()) {
-          claim?.link?.answer("decline")
+          claim.link?.answer("decline")
           yield* Fiber.interrupt(request)
           emitSignIn(null)
           return "cancelled"
@@ -3336,6 +3350,11 @@ const notify = (
 const methodsIn = (
   response: InitializeResponse,
   command: string,
+  /** The agent's own argv, which a method that wrote no command line of its own
+   *  is read against: the protocol says such a method's `args` are "additional
+   *  arguments to pass when running the AGENT BINARY", so the command line is
+   *  this agent's own with them appended. */
+  baseArgs: ReadonlyArray<string>,
 ): ReadonlyArray<Offered> => {
   const offered: Array<Offered> = []
   for (const method of response.authMethods ?? []) {
@@ -3362,7 +3381,7 @@ const methodsIn = (
       method: wire,
       run: {
         command: written?.command ?? command,
-        args: written?.args ?? [...(terminal.args ?? [])],
+        args: written?.args ?? [...baseArgs, ...(terminal.args ?? [])],
         env: written?.env ?? { ...terminal.env },
       },
     })

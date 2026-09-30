@@ -289,11 +289,27 @@ describe("who gets a sign-in attempt", () => {
         ),
       )
       // ONE of them ran and one of them was refused, whichever order the two
-      // fibers got there in.
+      // fibers got there in — and the one that ran is a sign-in either way,
+      // because `other-login` writes no command line of its own and is read
+      // against this agent's argv (`methodsIn`).
+      const ran = outcomes.filter((outcome) => outcome._tag === "Success")
+      expect(ran).toHaveLength(1)
+      expect(ran[0]?._tag === "Success" ? ran[0].success : null).toBe("signed-in")
       const refused = outcomes.filter((outcome) => outcome._tag === "Failure")
       expect(refused).toHaveLength(1)
       expect(refused[0]?._tag === "Failure" ? refused[0].failure.why : "")
         .toContain("already running")
+      expect(spawned()).toBe(1)
+    })
+  })
+
+  test("a method that wrote no command line runs the agent binary with its own args", async () => {
+    // THE PROTOCOL'S OTHER SPELLING, and the one the pinned pi adapter actually
+    // uses: a `terminal` method may carry no `_meta["terminal-auth"]` at all,
+    // and the args are then "additional arguments to pass when running the
+    // agent binary" — the BINARY, which is what the client spawns.
+    await bench(async ({ agent, spawned }) => {
+      expect(await Effect.runPromise(agent.signIn("other-login"))).toBe("signed-in")
       expect(spawned()).toBe(1)
     })
   })
