@@ -238,8 +238,7 @@ export interface Probe<F, E> {
    */
   readonly decode: (path: string, contents: string) => Promised<F, E>
   /** Forget these files' stamps, so the next {@link run} re-reads them
-   *  whatever the file system says about mtime and size. Even an empty list
-   *  requests a new validation: file kinds may have changed without any files.
+   *  whatever the file system says about mtime and size.
    *
    *  This is what makes a commit's own write visible. Stamps are mtime+size
    *  (a deliberately coarse, cheap comparison — see {@link ./disk.ts}), and a
@@ -248,6 +247,9 @@ export interface Probe<F, E> {
    *  accepted trade; for one this process just made it is not, because a
    *  browser waiting on the frame would never get it. */
   readonly forget: (paths: Iterable<string>) => Effect.Effect<void>
+  /** Ask the next run to validate even if no files moved. The store's
+   *  verified look uses this when the vocabulary may have changed. */
+  readonly revalidate: Effect.Effect<void>
 }
 
 interface Cached<F, E> {
@@ -331,7 +333,7 @@ export const make = <F, S, E>(
     // from it.
     const cache = yield* Ref.make<ReadonlyMap<string, Cached<F, E>> | null>(null)
 
-    const forgotten = yield* Ref.make(false)
+    const revalidation = yield* Ref.make(false)
 
     return {
       current: Effect.map(
@@ -376,8 +378,10 @@ export const make = <F, S, E>(
           return looked.filter((path) => path !== null)
         }),
 
+      revalidate: Ref.set(revalidation, true),
+
       forget: (paths: Iterable<string>) =>
-        Effect.andThen(Ref.set(forgotten, true), Ref.update(cache, (cached) => {
+        Ref.update(cache, (cached) => {
           if (cached === null) return null
           // The STAMP is forgotten, never the MEMBERSHIP. Deleting the entry
           // would make "this file was here" unknowable too, and a run that
@@ -392,7 +396,7 @@ export const make = <F, S, E>(
             if (entry !== undefined) kept.set(path, { ...entry, stamp: null })
           }
           return kept
-        })),
+        }),
 
       decode: (path: string, contents: string) => ({
         contents,
@@ -401,7 +405,7 @@ export const make = <F, S, E>(
 
       run: (promised) =>
         Effect.gen(function*() {
-          const wasForgotten = yield* Ref.getAndSet(forgotten, false)
+          const mustRevalidate = yield* Ref.getAndSet(revalidation, false)
           const previous = yield* Ref.get(cache)
           const stamps = yield* disk.listing(codec.match)
 
@@ -413,10 +417,10 @@ export const make = <F, S, E>(
           // changed. The size check is what catches a DELETION, which leaves no
           // stale entry behind to be noticed by. Asked here, off the one diff,
           // rather than by a second walk that would have to agree with it.
-          // A forgotten table is not settled even when both listings are empty:
-          // validation must publish the current claims after a file kind joins.
-          // Otherwise every first write keeps seeing the old claims forever.
-          const settled = !wasForgotten && previous !== null && stale.length === 0 &&
+          // An explicit revalidation cannot settle on an empty listing:
+          // the codec must publish the current claims after a file kind joins.
+          // Forgetting stamps alone says nothing about that vocabulary.
+          const settled = !mustRevalidate && previous !== null && stale.length === 0 &&
             previous.size === stamps.size
           if (settled) return null
 
