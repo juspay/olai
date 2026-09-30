@@ -245,38 +245,49 @@ When("I take the agent away", async function (this: OlaiWorld) {
  */
 Then("the login command was stopped", async function (this: OlaiWorld) {
   const written = path.join(this.scratch(), MARKER.loginPid);
-  await this.waitUntil(
-    async () => {
-      if (!fs.existsSync(written)) return false;
-      const pid = Number.parseInt(fs.readFileSync(written, "utf8").trim(), 10);
-      return Number.isSafeInteger(pid) && !alive(pid);
-    },
-    "the login command to be stopped",
-    HYDRATION_TIMEOUT,
-  );
+  try {
+    await this.waitUntil(
+      async () => stillRunning(written) === null,
+      "the login command to be stopped",
+      HYDRATION_TIMEOUT,
+    );
+  } catch {
+    // SAID WITH THE EVIDENCE, because the two ways this can be wrong want
+    // different fixes and a bare timeout cannot tell them apart: nothing was
+    // ever written down, or something is still there — and if something is,
+    // WHAT it is decides whether the command survived or its number was reused
+    // by a later process.
+    assert.fail(`the login command was not stopped — ${stillRunning(written)} (${written})`);
+  }
 });
 
-/**
- * Whether that pid is still a process.
+/** Whether the command is still there — `null` once it is not, which is also
+ *  what a pid nobody is using answers.
  *
- * `kill(pid, 0)` is the portable half — it asks the kernel about the process and
- * signals nothing — and it answers "there is SOMETHING with this number", which
- * a reused pid would satisfy long after the login died. So the command line is
- * asked too, where the platform offers one: a process that is not this script is
- * somebody else, and counting it as the login would fail a run that went fine.
- */
-const alive = (pid: number): boolean => {
+ * `kill(pid, 0)` asks the kernel and signals nothing; it answers "there is
+ * SOMETHING with this number", so the command line is asked too and a process
+ * that is not this script is somebody else's number, arriving late. */
+const stillRunning = (written: string): string | null => {
+  if (!fs.existsSync(written)) return "no pid was written";
+  const pid = Number.parseInt(fs.readFileSync(written, "utf8").trim(), 10);
+  if (!Number.isSafeInteger(pid)) return `the pid file says ${JSON.stringify(fs.readFileSync(written, "utf8"))}`;
   try {
     process.kill(pid, 0);
   } catch {
-    return false;
+    return null;
   }
+  const line = commandLineOf(pid);
+  return line !== null && !line.includes("fake-login") ? null : line ?? `pid ${pid} is running`;
+};
+
+/** The command line a pid is running, or `null` where the platform does not say
+ *  (no `/proc`), which is the pessimistic direction: an unanswered question
+ *  reads as "still here". */
+const commandLineOf = (pid: number): string | null => {
   try {
-    return fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("fake-login");
+    return fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ").trim();
   } catch {
-    // No `/proc` to ask (not Linux): the kernel's answer stands, which is the
-    // pessimistic direction — a reused pid reads as still running.
-    return true;
+    return null;
   }
 };
 
