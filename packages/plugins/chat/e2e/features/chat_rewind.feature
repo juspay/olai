@@ -262,3 +262,35 @@ Feature: Rewind a conversation into a separate session
     Then the chat input reads "second answer"
     When I open the session settings
     Then session setting "Reasoning" is "medium"
+
+  Scenario Outline: Dismissing edit with <dismissal> preserves the chat
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "first answer"
+    Then the agent is idle
+    When I ask the agent "second answer"
+    Then the agent is idle
+    When I type "draft stays here" into the chat
+    And I remember this conversation as "original"
+    And I ask to edit my message "second answer"
+    Then no fork request has reached the agent
+    When I dismiss editing with "<dismissal>"
+    Then the panel is in the remembered conversation "original"
+    And the chat input reads "draft stays here"
+    And the agent has answered "first answer" exactly once
+    And the agent has answered "second answer" exactly once
+    And the agent store contains 1 conversation
+    And no fork request has reached the agent
+    And there should be no page errors
+
+    Examples:
+      | dismissal  |
+      | Cancel     |
+      | Escape     |
+      | click-away |
+    @phone
+    Examples:
+      | dismissal  |
+      | Cancel     |
+      | Escape     |
+      | click-away |

@@ -2,12 +2,12 @@
  * The caller’s Solid owner releases its subscription and question tracking;
  * shared drafts and visits remain owned by the chat activation.
  */
+import { conversationKey } from "../chat/ui.tsx"
 import { keepMessage } from "../chat/message-draft.ts"
 import { createEffect, createMemo, type Accessor } from "solid-js"
 import { createChat } from "../chat/state.ts"
 import { createAsked } from "../chat/attention/asked.ts"
 import { agentReadings, readAgent } from "./reading.ts"
-
 
 export const createNodeConversation = (node: Accessor<string>) => {
   const reading = agentReadings()
@@ -28,7 +28,7 @@ export const createNodeConversation = (node: Accessor<string>) => {
       },
       rewound: (next, text) => {
         const ui = reading?.ui(next)
-        if (ui !== undefined) keepMessage(ui.messages, JSON.stringify([next.agent, next.session]), text)
+        if (ui !== undefined) keepMessage(ui.messages, conversationKey(next), text)
         reading?.visit(owner)
       },
     })

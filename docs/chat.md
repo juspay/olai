@@ -110,7 +110,7 @@ Screenshots: [session settings](images/acp/acp-session-settings.png), [execution
 
 ## Rewinding
 
-When a Claude Code or Codex conversation is idle, your messages offer **Rewind to here** beside the bubble. On a mouse or trackpad it appears on hover or keyboard focus; touch screens show it directly. The action immediately opens a separate session containing the conversation before that message, then puts its text into the composer. Edit it or send it unchanged. Rewinding the first message opens a fresh session.
+When a Claude Code or Codex conversation is idle, your messages offer a small pencil button, **Edit from here**, beside the bubble. On a mouse or trackpad it appears on hover or keyboard focus; touch screens show it directly. Pressing it asks for confirmation: later messages leave this chat, the original stays under **Past sessions**, and files are not reverted. Choose **Edit from here** to open a separate session containing the conversation before that message and put its text into the composer. **Cancel**, Escape, or clicking away closes the question without sending a request or changing the conversation, transcript, or draft. Edit it or send it unchanged. Rewinding the first message opens a fresh session.
 
 The original conversation remains under **Past sessions**. An existing draft stays with that original session; the new composer receives the selected message. Any words typed into the new composer while the request finishes are kept after the prefilled text. Uploaded attachments must be attached again.
 
@@ -120,7 +120,7 @@ The server refuses rewind while a turn or queued delivery remains. A failed fork
 
 Failed or interrupted preparation deletes the new session when the adapter advertises `session/delete`, falling back to `session/close` if available. Cleanup is best-effort: a close releases live resources but can leave stored history, and an adapter with neither method (or one that refuses cleanup) can leave a duplicate in past sessions. Olai fences late notifications from the failed preparation either way.
 
-A fork inherits the current conversation's remembered model choice, including choices observed from `/model`; the same restoration rule as reopening a session applies. Other settings come from the adapter's load response rather than being copied from the old session. Olai reapplies its engine permission policy before adopting the fork.
+A fork inherits the current conversation's remembered model choice, including choices observed from `/model`; the same restoration rule as reopening a session applies. Other settings come from the adapter's load response rather than being copied from the old session. Olai reapplies its engine permission policy before adopting the fork. Permission selection prepares a deferred publication; confirmed settings or an optional refusal are published only after adoption. The existing node-agent scope owns that work throughout.
 
 ## Which conversation you come back to
 

@@ -3064,6 +3064,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     case "session/close": reply(id, {}); return
 
     case "session/fork": {
+      writeFileSync(`${cwd}/.agent-fork-requested`, "")
       if (existsSync(`${cwd}/.agent-refuse-fork`)) { refuse(id, -32602, "fork refused by fixture"); return }
       const meta = params["_meta"] as { jetbrains?: { air?: { fork?: { version?: number; messageId?: string } } } } | undefined
       const point = meta?.jetbrains?.air?.fork

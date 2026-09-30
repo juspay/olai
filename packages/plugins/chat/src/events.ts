@@ -45,9 +45,9 @@ export type AgentEvent =
   | { readonly _tag: "toolTerminals"; readonly id: string; readonly terminals: readonly TerminalView[] }
   | { readonly _tag: "settings"; readonly settings: ReadonlyArray<SessionSetting> }
   | { readonly _tag: "plan"; readonly entries: ReadonlyArray<PlanStep> }
-  /** The agent's prose, one chunk as it arrived. */
   /** Non-prose agent activity cannot be used as a message cutoff. */
   | { readonly _tag: "cutoffLost" }
+  /** The agent's prose, one chunk as it arrived. */
   | { readonly _tag: "said"; readonly text: string; readonly messageId?: string }
   /** What a PERSON said, ONE CHUNK as it arrived — the same unit `said`
    *  carries, because it is the same unit the wire carries. Only a REPLAY

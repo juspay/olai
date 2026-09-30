@@ -48,7 +48,6 @@ import type { Json } from "../../json.ts"
 import type { Refusal } from "../../slots.ts"
 import { Effect } from "effect"
 
-
 import { agentIn, type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
@@ -59,7 +58,7 @@ import { type Call, run, runAsync } from "@olai/web/client/run.ts"
 import { attaching, type UploadProgress } from "./attach.ts"
 import { createRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
-import { createConversationUI, type ConversationUI } from "./ui.tsx"
+import { conversationKey, createConversationUI, type ConversationUI } from "./ui.tsx"
 
 /**
  * What became of one upload — THREE arms, because there are three answers and
@@ -505,7 +504,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
         failure => { setRefused(failure); done() },
         answer => {
           if (options.rewound !== undefined) options.rewound(answer.conv, answer.text)
-          else keepMessage(ui.messages, JSON.stringify([answer.conv.agent, answer.conv.session]), answer.text)
+          else keepMessage(ui.messages, conversationKey(answer.conv), answer.text)
           done()
         })
     },

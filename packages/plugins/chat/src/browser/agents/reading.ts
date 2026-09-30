@@ -3,7 +3,7 @@ import { createPreviews } from "../chat/previews.ts"
 import { createEffect, createRoot, createSignal, onCleanup } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { Conversing } from "../../sessions.ts"
-import { createConversationUI } from "../chat/ui.tsx"
+import { conversationKey, createConversationUI } from "../chat/ui.tsx"
 import type { Chat } from "../chat/state.ts"
 import type { Roster } from "./answered.tsx"
 import { createPageOwners } from "./page-owners.ts"
@@ -20,7 +20,7 @@ export const createAgentReadings = (agents: Roster) => {
   let alive = true
   onCleanup(() => { alive = false; for (const stop of [...waiting]) stop(); cache.clear() })
   const ui = (to: Conversing) => {
-    const key = JSON.stringify([to.agent, to.session])
+    const key = conversationKey(to)
     let value = cache.get(key)
     if (value === undefined) { value = createConversationUI(previews); cache.set(key, value) }
     return value

@@ -123,9 +123,9 @@ export const movesRows = (change: Change): boolean =>
  */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
-/** The six fields {@link Transcript} derives, named once — the list is
+/** The fields {@link Transcript} derives, named once — the list is
  *  spelled in three casts and a public type below, and four spellings of one
- *  list is one of them being missed the day a seventh is derived. */
+ *  list is one of them being missed the day another field is derived. */
 type Derived = "rewindable" | "id" | "seq" | "since" | "streaming" | "stranded" | "resumed"
 
 const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<E, Derived> => {
@@ -650,9 +650,10 @@ export class Transcript {
    * decides whether the open entry is the right one to grow: a tool frame
    * closes whatever was open. Different protocol message IDs also start new
    * rows: consecutive Codex items remain distinct paragraphs, and their last
-   * identity remains an exact cutoff. Without that boundary, nothing closes a paragraph between a person's
-   * words and the agent's answer to them, so an agent chunk appended to an open
-   * user row would put the answer inside the question.
+   * identity remains an exact cutoff. Without that boundary, nothing closes a
+   * paragraph between a person's words and the agent's answer to them, so an
+   * agent chunk appended to an open user row would put the answer inside the
+   * question.
    */
   #grow(kind: "agent" | "user", text: string, messageId?: string): Change {
     messageId = messageId?.trim() || undefined

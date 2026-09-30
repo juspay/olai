@@ -8,7 +8,7 @@ import { runAsync } from "@olai/web/client/run.ts"
 import { TESTID } from "../../testids.ts"
 import type { Conversing } from "../../sessions.ts"
 import { type Chat } from "../chat/state.ts"
-import { ConversationUIProvider } from "../chat/ui.tsx"
+import { conversationKey, ConversationUIProvider } from "../chat/ui.tsx"
 import { keepMessage } from "../chat/message-draft.ts"
 import { pageReadings } from "../pages.ts"
 import { chatWire } from "../wire.ts"
@@ -74,7 +74,7 @@ function createPageSession(node: string): PageSession {
       }
       const to = result.success
       const ui = reading.ui(to)
-      const key = JSON.stringify([to.agent, to.session])
+      const key = conversationKey(to)
       // Preserve words typed after the first send as an ordinary unsent draft.
       keepMessage(ui.messages, key, draft())
       setDraft("")

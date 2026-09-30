@@ -1,3 +1,4 @@
+import type { Conversing } from "../../sessions.ts"
 import { createPreviews } from "./previews.ts"
 import type { OpFailure } from "@olai/format"
 import { createMessageMemory } from "./message-draft.ts"
@@ -8,6 +9,9 @@ import { createArmed } from "./armed.ts"
 import { createDrafts } from "./drafts.ts"
 import { createFolds } from "./folds.ts"
 import { createPreviewing } from "./previewing.ts"
+
+/** Identity shared by this tab's conversation UI and composer drafts. */
+export const conversationKey = (to: Conversing): string => JSON.stringify([to.agent, to.session])
 
 export const createConversationUI = (previews = createPreviews()) => ({
   previews, uploadScope: createSignal<string | null>(null),

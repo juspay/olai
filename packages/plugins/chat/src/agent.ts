@@ -1958,14 +1958,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       )
 
     /** Select policy without publishing or changing the current ownership. */
-    const selectBypass = (at: Live, id: string): Effect.Effect<boolean | string, AgentGone> => Effect.gen(function*() {
+    const prepareBypass = (
+      at: Live, id: string, config: ReadonlyArray<SessionConfigOption> | null | undefined,
+    ): Effect.Effect<() => void, AgentGone> => Effect.gen(function*() {
       const mode = options.leg.bypassMode
-      if (mode === null) return false
+      if (mode === null) return () => {}
       const result = yield* Effect.result(ask(at.connection, methods.agent.session.setMode, { sessionId: id, modeId: mode }))
-      if (result._tag === "Success") return true
+      if (result._tag === "Success") return () => reflectBypass(mode, config)
       const why = `could not select permission mode ${mode} for session ${id}: ${result.failure.why}`
       if (options.leg.bypassModeRequired === true) return yield* new AgentGone({ gone: result.failure.gone, why })
-      return `${why}; continuing with the adapter's existing permission mode`
+      return () => trouble(`${why}; continuing with the adapter's existing permission mode`)
     })
 
     /** Apply the engine's permission policy before activating the session.
@@ -1974,7 +1976,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const askForBypass = (
       at: Live, id: string, config: ReadonlyArray<SessionConfigOption> | null | undefined,
     ): Effect.Effect<void, AgentGone> => Effect.gen(function*() {
-      const result = yield* Effect.result(selectBypass(at, id))
+      const result = yield* Effect.result(prepareBypass(at, id, config))
       if (result._tag === "Failure") {
         closed.add(id)
         leaving()
@@ -1982,13 +1984,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         emit({ _tag: "sessionOver", why: "refused" })
         return yield* result.failure
       }
-      publishBypass(result.success, config)
+      result.success()
     })
-
-    const publishBypass = (result: boolean | string, config: ReadonlyArray<SessionConfigOption> | null | undefined): void => {
-      if (typeof result === "string") trouble(result)
-      else if (result && options.leg.bypassMode !== null) reflectBypass(options.leg.bypassMode, config)
-    }
 
     const reflectBypass = (mode: string, config: ReadonlyArray<SessionConfigOption> | null | undefined): void => {
       // set_mode may acknowledge without publishing config_option_update.
@@ -2371,8 +2368,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             const prepared = yield* Effect.ensuring(Effect.gen(function*() {
               const loaded = point === null ? made : (yield* ask(at.connection, methods.agent.session.load,
                 { sessionId: made.sessionId, cwd: options.cwd, mcpServers, ...openMeta }, LOAD_TIMEOUT)) as LoadSessionResponse
-              const mode = yield* selectBypass(at, made.sessionId)
-              return { loaded, mode }
+              const publishMode = yield* prepareBypass(at, made.sessionId, loaded.configOptions)
+              return { loaded, publishMode }
             }), Effect.sync(() => {
               staged = null
               // Fence every prepared identity, including on interruption. Adoption
@@ -2396,7 +2393,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // next restart. Other config controls use the adapter's loaded values.
             held = { agent: options.id, session: made.sessionId, model: wanted }
             yield* presentSession(at, made.sessionId, prepared.loaded, wanted)
-            publishBypass(prepared.mode, prepared.loaded.configOptions)
+            prepared.publishMode()
             yield* entered(made.sessionId, null, point === null ? "new" : "loaded", started)
           }),
           made => adopted || made.sessionId === old ? Effect.void : withdrawPrepared(at, made.sessionId),
