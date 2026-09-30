@@ -258,14 +258,18 @@ let isCodex = false
 const emit = emitter(OUT)
 const { notify: sendNotification, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
 
+const messageIds = new Map<string, string>()
 const notify = (method: string, params: unknown): void => {
   if (method === "session/update" && typeof params === "object" && params !== null
     && "sessionId" in params && typeof params.sessionId === "string"
     && "update" in params && typeof params.update === "object" && params.update !== null) {
     const update = params.update as Record<string, unknown>
     if (update["sessionUpdate"] === "agent_message_chunk" && update["messageId"] === undefined) {
-      update["messageId"] = crypto.randomUUID()
+      const messageId = messageIds.get(params.sessionId) ?? crypto.randomUUID()
+      messageIds.set(params.sessionId, messageId)
+      update["messageId"] = messageId
     }
+    if (["user_message_chunk", "tool_call", "tool_call_update"].includes(String(update["sessionUpdate"]))) messageIds.delete(params.sessionId)
     sessionStore(cwd).update(params.sessionId, update)
   }
   sendNotification(method, params)
@@ -3152,6 +3156,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/prompt": {
       const text = promptTextOf(params)
+      messageIds.delete(sessionId)
       sessionStore(cwd).prompt(sessionId, text)
       // It is not waiting any more: this is the turn now.
       waiting.delete(id)

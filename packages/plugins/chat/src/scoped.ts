@@ -900,6 +900,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 || agentIn(slot.state)?.id !== agent || slot.state.uploadScope !== rewind.scope)) {
                 return yield* new UsageFailure({ reason: "the conversation changed; rewind was not applied" })
               }
+              if (rewind !== undefined && (pending.get(node)?.length ?? 0) > 0) {
+                return yield* new BusyFailure({ reason: "queued deliveries must finish before rewinding" })
+              }
               activate(slot)
               const previousState = slot.state
               if (rewind === undefined) options.onConversationClosed?.(slot.state)

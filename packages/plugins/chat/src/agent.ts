@@ -1978,6 +1978,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         trouble(`${why}; continuing with the adapter's existing permission mode`)
         return
       }
+      reflectBypass(mode, config)
+    })
+
+    const reflectBypass = (mode: string, config: ReadonlyArray<SessionConfigOption> | null | undefined): void => {
       // set_mode may acknowledge without publishing config_option_update.
       // Reflect its confirmed value only in an advertised mode control that
       // actually offers that value; unrelated settings retain their last update.
@@ -1989,7 +1993,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         return { ...option, currentValue: mode }
       })
       if (changed) emit({ _tag: "settings", settings: settings.filter((option) => option.id !== models?.config) })
-    })
+    }
 
     /** The subprocess, and nothing about a conversation. Its own step because
      *  the two things a caller can want are genuinely different: {@link boot}
@@ -2133,9 +2137,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           : use(at, id)
       })
 
+    let prompting = 0
     const prompt = (text: string) =>
       withSession((at, id) =>
-        Effect.gen(function*() {
+        Effect.acquireUseRelease(Effect.sync(() => { prompting++ }), () => Effect.gen(function*() {
           // A cancel that arrived during the handshake is sent the moment the
           // prompt is on the wire, so every cancelled turn ends the same way.
           //
@@ -2203,7 +2208,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             { stopReason, duration },
           )
           return stopReason
-        })
+        }), () => Effect.sync(() => { prompting-- }))
       )
 
     /**
@@ -2331,6 +2336,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       setModel: (session, value) => setSetting(session, models?.config ?? "", value),
       cancel,
       rewind: (point) => opening((at) => Effect.gen(function*() {
+        if (prompting > 0) return yield* new AgentGone({ gone: "refused", why: "a turn is running; wait before rewinding" })
         const old = activeSession
         const forkAt = options.leg.forkAt
         if (old === null || !at.canFork || !at.canLoad || forkAt === undefined) {
@@ -2339,13 +2345,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         const started = yield* Clock.monotonicTimeNanos
         // Prepare in the existing owner without releasing the old session.
         // Probes and the live roster remain untouched until adoption succeeds.
-        const mcpServers = mcpServersOf(options.tools(), handedIn(yield* Effect.flatMap(options.probes?.() ?? Effect.succeed([]), probed)))
+        const found = yield* Effect.flatMap(options.probes?.() ?? Effect.succeed([]), probed)
+        const mcpServers = mcpServersOf(options.tools(), handedIn(found))
         const made = (yield* ask(at.connection, point === null ? methods.agent.session.new : "session/fork", {
           cwd: options.cwd, mcpServers,
           ...(point === null ? openMeta : { sessionId: old,
             _meta: { ...openMeta._meta, ...forkAt(point) } }),
         })) as NewSessionResponse
+        if (made.sessionId === old) return yield* new AgentGone({ gone: "refused", why: "the adapter did not create a separate session" })
         const pending = { id: made.sessionId, updates: [] as SessionNotification[] }
+        let selectedMode = false
         staged = pending
         const prepared = yield* Effect.result(Effect.ensuring(Effect.gen(function*() {
           const loaded = point === null ? made : (yield* ask(at.connection, methods.agent.session.load,
@@ -2354,6 +2363,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             const mode = yield* Effect.result(ask(at.connection, methods.agent.session.setMode,
               { sessionId: made.sessionId, modeId: options.leg.bypassMode }))
             if (mode._tag === "Failure" && options.leg.bypassModeRequired === true) return yield* mode.failure
+            selectedMode = mode._tag === "Success"
           }
           return loaded
         }), Effect.sync(() => { staged = null })))
@@ -2369,7 +2379,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         for (const update of pending.updates) onUpdate(update)
         replaying = false
         emit({ _tag: "replayEnded" })
+        given = mcpServers.map(server => server.name)
+        announce(rosterOf(mcpServers, missingIn(found)))
+        prologue = options.leg.prologueIn(prepared.success)
         readModel(prepared.success.configOptions)
+        if (selectedMode && options.leg.bypassMode !== null) reflectBypass(options.leg.bypassMode, prepared.success.configOptions)
         yield* entered(made.sessionId, null, point === null ? "new" : "loaded", started)
       })),
       newSession: opening((at) =>

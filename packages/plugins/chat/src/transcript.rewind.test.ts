@@ -11,7 +11,7 @@ test("rewind points use the immediately preceding answer, never an earlier turn"
   expect(transcript.forkPoint(second)).toBe("a1")
   const third = transcript.user("queued or unanswered").key
   expect(transcript.forkPoint(third)).toBeUndefined()
-  transcript.say("answer without an identity")
+  transcript.say("answer without an identity", "   ")
   transcript.settle()
   expect(transcript.forkPoint(transcript.user("no cutoff").key)).toBeUndefined()
 })

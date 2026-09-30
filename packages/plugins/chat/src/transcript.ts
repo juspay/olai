@@ -489,10 +489,7 @@ export class Transcript {
     readonly key: string
     readonly change: Change
   } {
-    const row = this.#row("user", text, extra)
-    this.#point(row.key)
-    return { key: row.key, change: both(row.change,
-      this.#put(row.key, { kind: "user", text, ...extra, rewindable: this.#points.has(row.key) })) }
+    return this.#row("user", text, extra)
   }
 
   /**
@@ -649,6 +646,7 @@ export class Transcript {
    * user row would put the answer inside the question.
    */
   #grow(kind: "agent" | "user", text: string, messageId?: string): Change {
+    messageId = messageId?.trim() || undefined
     const open = this.#open
     const current = open === null ? undefined : this.#entries.get(open)
     if (open !== null && current?.kind === kind
@@ -1319,11 +1317,12 @@ export class Transcript {
     readonly change: Change
   } {
     const key = this.#next(kind)
+    if (kind === "user") this.#point(key)
     return {
       key,
       change: both(
         closing ? this.#close() : EMPTY,
-        this.#put(key, { kind, text, ...extra } as Extract<RowContent, { kind: K }>),
+        this.#put(key, { kind, text, ...extra, ...(kind === "user" ? { rewindable: this.#points.has(key) } : {}) } as Extract<RowContent, { kind: K }>),
       ),
     }
   }

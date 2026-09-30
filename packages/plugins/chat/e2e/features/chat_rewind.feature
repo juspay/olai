@@ -96,6 +96,7 @@ Feature: Rewind a conversation into a separate session
     And I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I ask the agent "hold"
+    And I ask the agent "queued answer"
     Then the chat offers no rewind actions
     When I use the original browser tab
     And I click the stale rewind action for "first answer"
