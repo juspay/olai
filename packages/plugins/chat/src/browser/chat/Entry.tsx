@@ -55,7 +55,7 @@
  * gap now, because the list is what has rows to put gaps between.
  */
 import { servedDirectory } from "../vault.ts"
-import { SAYING_MS } from "olai-plugin-chat/wire"
+import { agentIn, SAYING_MS } from "olai-plugin-chat/wire"
 import type { ChatEntry, Delivery } from "olai-plugin-chat/wire"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -313,8 +313,11 @@ export function Entry(props: {
                 )}
               </Show>
             </Show>
-            <Show when={!rang() && user().rewindable === true && props.chat.canRewind()}>
+            {/* Keep the row's height during a turn: removing actions above the
+                viewport can look like an upward scroll and release following. */}
+            <Show when={!rang() && user().rewindable === true && agentIn(props.chat.state())?.rewinds === true}>
               <button type="button" class="text-label text-faint hover:text-ink"
+                classList={{ invisible: !props.chat.canRewind() }} disabled={!props.chat.canRewind()}
                 onClick={() => props.chat.rewind(user().id)}>Rewind to here</button>
             </Show>
             {/* IT DID NOT LAND — and the words are still here, which is the
