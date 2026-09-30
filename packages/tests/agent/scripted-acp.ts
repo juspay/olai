@@ -3029,6 +3029,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/new":
+      if (existsSync(`${cwd}/.agent-hold-new`)) {
+        writeFileSync(`${cwd}/.agent-loading`, "")
+        await released()
+      }
       if (refusesToOpen("new")) {
         refuse(id, -32603, "this agent will not start a conversation in this directory")
         return

@@ -415,6 +415,9 @@ export class Transcript {
   #lastAgent: string | undefined
   #hasUser = false
 
+  /** Agent activity after prose makes its inclusive cutoff incomplete. */
+  invalidateForkPoint(): void { this.#lastAgent = undefined }
+
   /** Inclusive safe cutoff before this user row; absent means unavailable. */
   forkPoint(id: string): string | null | undefined { return this.#points.get(id) }
 
@@ -645,7 +648,9 @@ export class Transcript {
    *
    * ONE function for the two kinds that arrive in pieces, and the KIND is what
    * decides whether the open entry is the right one to grow: a tool frame
-   * closes whatever was open, but nothing closes a paragraph between a person's
+   * closes whatever was open. Different protocol message IDs also start new
+   * rows: consecutive Codex items remain distinct paragraphs, and their last
+   * identity remains an exact cutoff. Without that boundary, nothing closes a paragraph between a person's
    * words and the agent's answer to them, so an agent chunk appended to an open
    * user row would put the answer inside the question.
    */
@@ -1327,7 +1332,7 @@ export class Transcript {
       key,
       change: both(
         closing ? this.#close() : EMPTY,
-        this.#put(key, { kind, text, ...extra, ...(kind === "user" ? { rewindable: this.#points.has(key) } : {}) } as Extract<RowContent, { kind: K }>),
+        this.#put(key, { kind, text, ...extra } as Extract<RowContent, { kind: K }>),
       ),
     }
   }

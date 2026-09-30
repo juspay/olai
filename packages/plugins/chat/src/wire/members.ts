@@ -478,6 +478,7 @@ const parent = Schema.optionalKey(Schema.String)
  * collection that records something that did NOT happen.
  */
 export const UserEntry = Schema.Struct({
+  /** The server has a safe cutoff before this row; protocol IDs stay private. */
   rewindable: Schema.Boolean,
   ...chatEntryHead,
   kind: Schema.Literal("user"),

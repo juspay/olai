@@ -669,6 +669,7 @@ interface Teaching {
  */
 const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "neither" } = {
   said: "shown",
+  cutoffLost: "arrived",
   tool: "shown",
   asked: "shown",
   usage: "arrived",
@@ -1514,7 +1515,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         case "settings":
           move({ settings: event.settings })
           return
+        case "cutoffLost":
+          transcript.invalidateForkPoint()
+          return
         case "plan":
+          transcript.invalidateForkPoint()
           move({ plan: event.entries })
           return
         case "models":

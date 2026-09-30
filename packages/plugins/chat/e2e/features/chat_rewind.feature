@@ -13,6 +13,7 @@ Feature: Rewind a conversation into a separate session
     Then the agent is idle
     When I ask the agent "second answer"
     Then the agent is idle
+    And the rewind control sits beside the bubble without moving it
     When I remember this conversation as "original"
     And I rewind my message "second answer"
     Then the panel has a different conversation from "original"
@@ -179,7 +180,7 @@ Feature: Rewind a conversation into a separate session
     When I use the original browser tab
     Then the chat input reads "second answer"
 
-  Scenario Outline: Rewind keeps the model selected by <selection>
+  Scenario Outline: Rewind keeps the model selected by <selection> at <cutoff>
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I ask the agent "first answer"
@@ -189,8 +190,8 @@ Feature: Rewind a conversation into a separate session
     And I ask the agent "second answer"
     Then the agent is idle
     And the panel header names the model "Fake Two"
-    When I rewind my message "second answer"
-    Then the chat input reads "second answer"
+    When I rewind my message "<cutoff>"
+    Then the chat input reads "<cutoff>"
     And the panel header names the model "Fake Two"
     When I send the chat message
     Then the agent is idle
@@ -202,9 +203,11 @@ Feature: Rewind a conversation into a separate session
     And the node agent's fold is ready
     Then the panel header names the model "Fake Two"
     Examples:
-      | selection |
-      | I choose the chat model "Fake Two" |
-      | I ask the agent "model fake-model-2" |
+      | selection                                  | cutoff        |
+      | I choose the chat model "Fake Two"          | second answer |
+      | I ask the agent "model fake-model-2"        | second answer |
+      | I choose the chat model "Fake Two"          | first answer  |
+      | I ask the agent "model fake-model-2"        | first answer  |
 
   @codex
   Scenario: Distinct Codex message items remain separate answer paragraphs
@@ -221,3 +224,41 @@ Feature: Rewind a conversation into a separate session
     When I open the fold history
     And I open the past session "two message items"
     Then the chat offers no rewind actions
+
+  Scenario: A concurrent send cannot be redirected by a fresh start
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "original answer"
+    Then the agent is idle
+    When I remember this conversation as "before fresh"
+    And I hold incoming updates to the original browser tab
+    And I open another browser tab
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And the next fresh conversation will hang
+    And I start a fresh session
+    Then the rewind is waiting for replay
+    When I use the original browser tab
+    And I ask the agent "words for original"
+    And the agent is released
+    And I release incoming updates to the original browser tab
+    Then the panel has a different conversation from "before fresh"
+    And the rewind transcript is empty
+    When I open the fold history
+    And I open the past session "original answer"
+    Then the chat input reads "words for original"
+
+  Scenario: Rewind reads other settings from the adapter's loaded session
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I ask the agent "first answer"
+    Then the agent is idle
+    When I open the session settings
+    And I set session setting "Reasoning" to "high"
+    And I open the session settings
+    And I ask the agent "second answer"
+    Then the agent is idle
+    When I rewind my message "second answer"
+    Then the chat input reads "second answer"
+    When I open the session settings
+    Then session setting "Reasoning" is "medium"

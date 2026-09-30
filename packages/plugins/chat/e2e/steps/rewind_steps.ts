@@ -63,3 +63,25 @@ Then("the two answer items occupy separate rows", async function(this: OlaiWorld
     && await rows.filter({ hasText: "Second answer item." }).count() === 1, "both answer items")
   assert.equal(await rows.filter({ hasText: "First answer item." }).filter({ hasText: "Second answer item." }).count(), 0)
 })
+
+Then("the rewind control sits beside the bubble without moving it", async function(this: OlaiWorld) {
+  const action = this.chat(selector(PLUGIN_TESTID.chatRewind)).last()
+  const geometry = await action.evaluate(button => {
+    const bubble = button.parentElement!
+    const before = bubble.getBoundingClientRect()
+    const box = button.getBoundingClientRect()
+    const style = button.getAttribute("style")
+    button.style.display = "none"
+    const after = bubble.getBoundingClientRect()
+    if (style === null) button.removeAttribute("style"); else button.setAttribute("style", style)
+    return { x: box.x, right: box.right, bubbleX: before.x, before: before.height, after: after.height }
+  })
+  assert.equal(geometry.before, geometry.after)
+  assert.ok(geometry.x >= 0 && geometry.right <= geometry.bubbleX)
+  await action.hover()
+  await this.waitUntil(async () => await action.evaluate(button => getComputedStyle(button).opacity === "1"), "hover to reveal rewind")
+})
+
+When("the next fresh conversation will hang", function(this: OlaiWorld) {
+  writeFileSync(join(this.scratch(), ".agent-hold-new"), "")
+})

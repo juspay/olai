@@ -777,6 +777,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           if (text !== "") emit({ _tag: "said", text, ...(update.messageId == null ? {} : { messageId: update.messageId }) })
           return
         }
+        case "agent_thought_chunk":
+          emit({ _tag: "cutoffLost" })
+          return
         case "user_message_chunk": {
           const text = textOf(update.content)
           // A TASK-NOTIFICATION is not a person speaking. The harness injects
@@ -2356,49 +2359,47 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         const mcpServers = found.handing
         let adopted = false
         return yield* Effect.acquireUseRelease(
-        Effect.map(ask(at.connection, point === null ? methods.agent.session.new : methods.agent.session.fork, {
-          cwd: options.cwd, mcpServers,
-          ...(point === null ? openMeta : { sessionId: old,
-            _meta: { ...openMeta._meta, ...forkAt(point) } }),
-        }), response => response as NewSessionResponse),
-        made => Effect.gen(function*() {
-        if (made.sessionId === old) return yield* new AgentGone({ gone: "refused", why: "the adapter did not create a separate session" })
-        const pending = { sessions: new Set([made.sessionId]), updates: [] as Array<() => void> }
-        let selectedMode: boolean | string = false
-        staged = pending
-        const prepared = yield* Effect.result(Effect.ensuring(Effect.gen(function*() {
-          const loaded = point === null ? made : (yield* ask(at.connection, methods.agent.session.load,
-            { sessionId: made.sessionId, cwd: options.cwd, mcpServers, ...openMeta }, LOAD_TIMEOUT)) as LoadSessionResponse
-          selectedMode = yield* selectBypass(at, made.sessionId)
-          return loaded
-        }), Effect.sync(() => {
-          staged = null
-          // Fence every prepared identity, including on interruption. Adoption
-          // reopens the root and each child as its declaration is replayed.
-          for (const session of pending.sessions) closed.add(session)
-        })))
-        if (prepared._tag === "Failure") return yield* prepared.failure
-        // No await separates withdrawal from the replay's adoption. The node
-        // scope, process and credential are retained throughout.
-        leaving()
-        activeSession = made.sessionId
-        adopted = true
-        closed.delete(made.sessionId)
-        emit({ _tag: "sessionOver", why: "load" })
-        replaying = true
-        emit({ _tag: "replayStarted" })
-        publishServers(found)
-        for (const replay of pending.updates) replay()
-        replaying = false
-        emit({ _tag: "replayEnded" })
-        // The new identity inherits the old model choice, including for the
-        // next restart. Other config controls use the adapter's loaded values.
-        held = { agent: options.id, session: made.sessionId, model: wanted }
-        yield* presentSession(at, made.sessionId, prepared.success, wanted)
-        publishBypass(selectedMode, prepared.success.configOptions)
-        yield* entered(made.sessionId, null, point === null ? "new" : "loaded", started)
-        }),
-        made => adopted || made.sessionId === old ? Effect.void : withdrawPrepared(at, made.sessionId),
+          Effect.map(ask(at.connection, point === null ? methods.agent.session.new : methods.agent.session.fork, {
+            cwd: options.cwd, mcpServers,
+            ...(point === null ? openMeta : { sessionId: old,
+              _meta: { ...openMeta._meta, ...forkAt(point) } }),
+          }), response => response as NewSessionResponse),
+          made => Effect.gen(function*() {
+            if (made.sessionId === old) return yield* new AgentGone({ gone: "refused", why: "the adapter did not create a separate session" })
+            const pending = { sessions: new Set([made.sessionId]), updates: [] as Array<() => void> }
+            staged = pending
+            const prepared = yield* Effect.ensuring(Effect.gen(function*() {
+              const loaded = point === null ? made : (yield* ask(at.connection, methods.agent.session.load,
+                { sessionId: made.sessionId, cwd: options.cwd, mcpServers, ...openMeta }, LOAD_TIMEOUT)) as LoadSessionResponse
+              const mode = yield* selectBypass(at, made.sessionId)
+              return { loaded, mode }
+            }), Effect.sync(() => {
+              staged = null
+              // Fence every prepared identity, including on interruption. Adoption
+              // reopens the root and each child as its declaration is replayed.
+              for (const session of pending.sessions) closed.add(session)
+            }))
+            // No await separates withdrawal from the replay's adoption. The node
+            // scope, process and credential are retained throughout.
+            leaving()
+            activeSession = made.sessionId
+            adopted = true
+            closed.delete(made.sessionId)
+            emit({ _tag: "sessionOver", why: "load" })
+            replaying = true
+            emit({ _tag: "replayStarted" })
+            publishServers(found)
+            for (const replay of pending.updates) replay()
+            replaying = false
+            emit({ _tag: "replayEnded" })
+            // The new identity inherits the old model choice, including for the
+            // next restart. Other config controls use the adapter's loaded values.
+            held = { agent: options.id, session: made.sessionId, model: wanted }
+            yield* presentSession(at, made.sessionId, prepared.loaded, wanted)
+            publishBypass(prepared.mode, prepared.loaded.configOptions)
+            yield* entered(made.sessionId, null, point === null ? "new" : "loaded", started)
+          }),
+          made => adopted || made.sessionId === old ? Effect.void : withdrawPrepared(at, made.sessionId),
         )
       })),
       newSession: opening((at) =>

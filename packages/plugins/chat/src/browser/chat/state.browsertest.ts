@@ -139,3 +139,29 @@ test("a paragraph opening wakes the row that grows and the row that stopped, not
     await Effect.runPromise(Scope.close(activation, Exit.void))
   }
 })
+
+test("rewind requires explicit current-conversation ownership", async () => {
+  const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
+    unary: () => Effect.void,
+    stream: (tag) => Stream.succeed(tag.split("/").at(-2) === "state" ? {
+      ...CHAT_OFF, status: "idle", uploadScope: "scope",
+      session: { id: "one", title: null, updatedAt: null },
+      talking: { kind: "agent", id: "alpha", name: "Alpha", rewinds: true, queues: false, steers: false },
+    } : { kind: "snapshot", entries: [] }),
+  }, () => true) }))
+  const activation = Scope.makeUnsafe()
+  await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
+  let current = true
+  const owned = createRoot(dispose => ({ dispose, chat: createChat({ agent: "alpha", session: "one" }, { current: () => current }) }))
+  const unowned = createRoot(dispose => ({ dispose, chat: createChat({ agent: "alpha", session: "one" }) }))
+  try {
+    await settle()
+    expect(owned.chat.canRewind()).toBe(true)
+    current = false
+    expect(owned.chat.canRewind()).toBe(false)
+    expect(unowned.chat.canRewind()).toBe(false)
+  } finally {
+    owned.dispose(); unowned.dispose(); wire.dispose()
+    await Effect.runPromise(Scope.close(activation, Exit.void))
+  }
+})

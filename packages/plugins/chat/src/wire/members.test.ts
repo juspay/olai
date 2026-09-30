@@ -38,6 +38,8 @@ import {
  * than this pin — see the negative cases below.
  */
 const ChatEntryFlat = Schema.Struct({
+  // Added by rewind; required only on the user arm of the current union.
+  rewindable: Schema.optionalKey(Schema.Boolean),
   id: Schema.String,
   seq: Schema.Int,
   since: Schema.String,
