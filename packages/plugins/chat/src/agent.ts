@@ -725,7 +725,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     let staged: { id: string; updates: Array<() => void> } | null = null
     const stage = (session: string, replay: () => void): boolean => {
       const root = sessionRoot(session)
-      if (staged === null || root === activeSession || closed.has(root)) return false
+      if (staged === null || root === activeSession) return false
       staged.updates.push(replay)
       return true
     }
@@ -1191,6 +1191,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       return fromElsewhere(named, activeSession, closed)
     }
 
+    const onRawMessage = (params: unknown): void => {
+      const session = (params as { readonly sessionId?: unknown } | null)?.sessionId
+      if (typeof session === "string" && stage(session, () => onRawMessage(params))) return
+      if (elsewhere(params)) return
+      readLiveModel(params)
+      readLiveServers(params)
+    }
+
     const readLiveServers = (params: unknown): void => {
       reportServers(options.leg.rawMessages?.serversIn(params) ?? null)
     }
@@ -1360,21 +1368,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           : opened.onNotification(
             raw.method,
             (params: unknown) => params,
-            (context) => {
-              // WHOSE SESSION, asked once for both readers. Everything this
-              // notification carries is a fact about ONE conversation — the
-              // model it runs and the servers it got — and the adapter stamps
-              // the session it is about on every one of them.
-              if (elsewhere(context.params)) return
-              readLiveModel(context.params)
-              // The same message, read for the other thing it carries. TWO
-              // readers over one notification rather than one that answers
-              // both: the model moves the header and the servers move the
-              // roster, they are true at different rates, and a single reader
-              // returning a pair would make every message that changed one of
-              // them look like news about both.
-              readLiveServers(context.params)
-            },
+            (context) => { onRawMessage(context.params) },
           ))
           // Allowed without asking when it is one of the tools we handed this
           // session, and PUT IN FRONT OF A PERSON otherwise — the rule, and
@@ -2388,12 +2382,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         emit({ _tag: "sessionOver", why: "load" })
         replaying = true
         emit({ _tag: "replayStarted" })
-        for (const replay of pending.updates) replay()
-        replaying = false
-        emit({ _tag: "replayEnded" })
         given = mcpServers.map(server => server.name)
         announce(rosterOf(mcpServers, missingIn(found)))
         prologue = options.leg.prologueIn(prepared.success)
+        for (const replay of pending.updates) replay()
+        replaying = false
+        emit({ _tag: "replayEnded" })
         readModel(prepared.success.configOptions)
         if (selectedMode && options.leg.bypassMode !== null) reflectBypass(options.leg.bypassMode, prepared.success.configOptions)
         yield* entered(made.sessionId, null, point === null ? "new" : "loaded", started)
