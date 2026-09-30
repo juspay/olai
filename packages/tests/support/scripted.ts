@@ -144,6 +144,11 @@ export const MARKER = {
   /** Say the person has finished at a vendor's page — what a device-code or an
    *  OAuth elicitation waits for, since this suite cannot visit one. */
   atThePage: ".agent-at-the-page",
+  /** THE LOGIN COMMAND WAS STOPPED, written by the command itself as it dies
+   *  (`./fake-login.ts`'s own SIGTERM handler): the one way the suite can hold
+   *  the panel to "the scope going away kills it", since a process that is gone
+   *  leaves nothing else behind to read. */
+  loginStopped: ".agent-login-stopped",
 } as const
 
 /** The release marker, by its old name — {@link MARKER}'s `release`. */

@@ -24,6 +24,8 @@ import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
 import { MARKER } from "@olai/tests/harness/scripted.ts";
 import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
+import { selector } from "@olai/web/testlib";
 
 import { oneLine } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
@@ -207,6 +209,43 @@ Then("the card says {string}", async function (this: OlaiWorld, text: string) {
       return oneLine(await card.innerText()).includes(text);
     },
     `the card to say "${text}"`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/**
+ * TAKE THE AGENT AWAY, mid-anything — the seat released, which is the scope
+ * going out from under whatever it was running.
+ *
+ * The CLOSE control is the gesture a person has (it takes the node's binding
+ * property off and the seat closes), and what it is held to here is the panel's
+ * own face: the fold this row was drawn in is GONE, because there is no agent
+ * left for it to be about.
+ */
+When("I take the agent away", async function (this: OlaiWorld) {
+  const node = this.activeAgent;
+  assert.ok(node, "open a named node agent first");
+  const close = this.chat(selector(PLUGIN_TESTID.chatCloseAgent));
+  await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await close.click();
+  await this.page
+    .locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(node))}`)
+    .waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT });
+});
+
+/**
+ * ... AND THE COMMAND IT WAS RUNNING IS DEAD.
+ *
+ * A killed process leaves nothing behind but its exit, so the command says so
+ * itself on the way out (`packages/tests/agent/fake-login.ts`'s SIGTERM
+ * handler). This is the assertion behind `chat.md`'s "the scope going away does
+ * the same" — the one claim about a sign-in that no row can be read for.
+ */
+Then("the login command was stopped", async function (this: OlaiWorld) {
+  const marker = path.join(this.scratch(), MARKER.loginStopped);
+  await this.waitUntil(
+    async () => fs.existsSync(marker),
+    "the login command to be stopped",
     HYDRATION_TIMEOUT,
   );
 });

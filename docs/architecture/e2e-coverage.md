@@ -389,7 +389,7 @@ open the plugins panel through the health popover and put it away with Escape
 health dot), and `setSwitch` drives a
 preference switch.
 
-## Signing in to an agent, from inside olai (#636)
+## Signing in to an agent, from inside olai (#639)
 
 The panel runs the sign-in an adapter hands over, or waits on one the agent
 drives, and both ends are exercised against the scripted ACP agent — which grew
@@ -398,7 +398,7 @@ the other half of that contract: `authMethods` in its handshake, an
 verbs that can refuse for want of a signature (`session/new`, `session/load`, a
 turn).
 
-- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (8 scenarios,
+- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (9 scenarios,
   the terminal kind, on the `chat` corpus): the handed-over command runs, prints its URL as a
   *clickable link*, reads a code and exits 0; a code it does not accept is
   answered and asked for again with the process still up; a code that fails the
@@ -408,8 +408,12 @@ turn).
   one attempt and either can finish it; a REFUSED TURN leaves the message marked
   *not sent*, hands its words back to the composer, and the sign-in reopens the
   same conversation with the box still holding them; and an agent that advertised
-  no method gets `/login` delivered as an ordinary message with no row.
-- **`packages/plugins/codex/e2e/features/agent_signin.feature`** (3 scenarios,
+  no method gets `/login` delivered as an ordinary message with no row; and a
+  sign-in running when the AGENT IS TAKEN AWAY is stopped by it — the command
+  records its own death (`fake-login.ts`'s SIGTERM handler, the suite's only way
+  to hold a panel to "the process went with the scope"), and a fresh agent on
+  the same node signs in from scratch afterwards.
+- **`packages/plugins/codex/e2e/features/agent_signin.feature`** (4 scenarios,
   the agent kind, on the `lanes` corpus because the refused-open case needs a
   binding the vault already carries): a conversation refused for want of a
   signature is signed in to through the device-code card and opens itself
@@ -417,7 +421,9 @@ turn).
   NOT offered; backing out leaves nothing running (the adapter's own refusal of
   the cancelled login does not put the row back, proved by a second attempt
   starting afresh); and a mid-conversation refusal is signed in to, with the
-  words handed back to the box.
+  words handed back to the box; and a device-code sign-in running when the agent
+  is taken away goes with it, with a fresh agent on the same node signing in
+  from scratch.
 - **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
   plugin because the feature is the panel's: arm the agent
   (`.agent-needs-auth`), say the person finished at a vendor's page

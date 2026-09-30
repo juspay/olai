@@ -868,8 +868,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     const SAYS_NOTHING = {
       steers: false,
       queues: false,
+      // ... AND NOTHING TO SIGN IN WITH, asserted rather than inferred: `as
+      // const` over the record is what keeps the two flags' shape readonly,
+      // which is the shape every reader of {@link advertises} sees.
       methods: [] as ReadonlyArray<AuthMethod>,
-    }
+    } as const
 
     /**
      * ... and what the CURRENT agent has said, once it has.

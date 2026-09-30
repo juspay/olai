@@ -71,6 +71,34 @@ Feature: Signing in to Codex from inside olai
     And the agent is idle
 
   @signin
+  Scenario: A device-code sign-in stops with the agent it belongs to
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "lanes.olai"
+    When I open the "codex" agent on node "lane-fresh"
+    And the node agent's fold is ready
+    When I type "/login" into the chat
+    And I send the chat message
+    And I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    # THE SCOPE GOING AWAY MID-LOGIN. What the panel can be held to here is its
+    # own face — the fold is gone, because the agent the row belonged to is —
+    # and the adapter this attempt was driven from is that same agent's process,
+    # so the wait for the card is a wait on a process that no longer exists.
+    When I take the agent away
+    Then the panel offers no sign-in
+    # ... AND A FRESH AGENT ON THE SAME NODE IS SIGNED IN TO FROM SCRATCH.
+    When I open the "codex" agent on node "lane-fresh"
+    And the node agent's fold is ready
+    When I type "/login" into the chat
+    And I send the chat message
+    And I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    And the agent is idle
+
+  @signin
   Scenario: A signature the agent wanted mid-conversation is asked for and given
     Given I open the app
     And I show the done nodes

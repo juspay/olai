@@ -20,8 +20,11 @@
 import { RequestError } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 
-import { adopt, authOf, childEnvOf, fromElsewhere, goneOf, make } from "./agent.ts"
+import { type Agent, adopt, authOf, childEnvOf, fromElsewhere, goneOf, make } from "./agent.ts"
 import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
 import type { Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
@@ -220,6 +223,79 @@ describe("the environment a spawned child gets", () => {
 
   test("an adapter that unset nothing inherits exactly what it was given", () => {
     expect(childEnvOf({ PATH: "/bin" }, undefined, undefined)).toEqual({ PATH: "/bin" })
+  })
+})
+
+describe("who gets a sign-in attempt", () => {
+  /** A bench agent whose handshake offers two `terminal` methods, each running
+   *  the same script — which records its own spawn, the one observation that
+   *  says how many PROCESSES there were. */
+  const bench = async (
+    body: (it: { agent: Agent; spawned: () => number }) => Promise<void>,
+  ): Promise<void> => {
+    const cwd = mkdtempSync(join(tmpdir(), "olai-signin-"))
+    const log = join(cwd, "spawns.log")
+    const agent = await Effect.runPromise(make({
+      id: "auth-agent",
+      leg: SAYS_NOTHING,
+      command: process.execPath,
+      args: [join(import.meta.dirname, "fixtures/auth-agent.ts")],
+      env: {
+        OLAI_TEST_LOGIN_SCRIPT: join(import.meta.dirname, "fixtures/auth-login.ts"),
+        OLAI_TEST_LOGIN_LOG: log,
+      },
+      cwd,
+      tools: () => null,
+      memory: REMEMBERS_NOTHING,
+      onEvent: () => {},
+    }))
+    try {
+      await body({
+        agent,
+        spawned: () =>
+          existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).length : 0,
+      })
+    } finally {
+      await Effect.runPromise(agent.stop)
+      rmSync(cwd, { recursive: true, force: true })
+    }
+  }
+
+  test("two presses in one instant take ONE attempt, and the second attaches", async () => {
+    // THE RACE THE CLAIM EXISTS FOR: nothing yields between reading the slot and
+    // filling it, so the second caller — another tab, the same tick — finds it
+    // taken. Exercised as concurrency rather than as a sequence: pressed one
+    // after the other, an attempt that has already ENDED is a new attempt, which
+    // is the ordinary case and says nothing about this one.
+    await bench(async ({ agent, spawned }) => {
+      const outcomes = await Effect.runPromise(
+        Effect.forEach([1, 2], () => agent.signIn("fake-login"), { concurrency: "unbounded" }),
+      )
+      expect([...outcomes].sort()).toEqual(["attached", "signed-in"])
+      expect(spawned()).toBe(1)
+    })
+  })
+
+  test("a different method while one is running is refused, not attached", async () => {
+    // Two presses on two methods is two credential stores being written at
+    // once, which is the one thing this must not do — so the second is told no
+    // in words rather than quietly joining the first.
+    await bench(async ({ agent, spawned }) => {
+      const outcomes = await Effect.runPromise(
+        Effect.forEach(
+          ["fake-login", "other-login"],
+          (method) => Effect.result(agent.signIn(method)),
+          { concurrency: "unbounded" },
+        ),
+      )
+      // ONE of them ran and one of them was refused, whichever order the two
+      // fibers got there in.
+      const refused = outcomes.filter((outcome) => outcome._tag === "Failure")
+      expect(refused).toHaveLength(1)
+      expect(refused[0]?._tag === "Failure" ? refused[0].failure.why : "")
+        .toContain("already running")
+      expect(spawned()).toBe(1)
+    })
   })
 })
 

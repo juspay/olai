@@ -37,6 +37,21 @@ import { join } from "node:path"
 
 import { MARKER } from "../support/scripted.ts"
 
+/**
+ * A SIGNAL IS THE CLIENT SAYING STOP, and this is where the claim that it worked
+ * is recorded: a killed process leaves nothing else behind. Installed FIRST, so
+ * a cancellation that lands before the login is even asked anything is still
+ * said.
+ *
+ * `143` rather than `0`: a sign-in that was stopped did not succeed, and a
+ * client that read the exit code as the outcome (it does not — a cancel is read
+ * from its own flag) would be told the truth.
+ */
+process.on("SIGTERM", () => {
+  appendFileSync(join(process.cwd(), MARKER.loginStopped), "")
+  process.exit(143)
+})
+
 const DEFAULT_CODE = "123456"
 
 /** A code that ends the attempt instead of asking again. */

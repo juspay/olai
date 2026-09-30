@@ -128,7 +128,7 @@ import { emitter, reasonOf } from "@olai/log"
 import type { AuthMethod, ChatServer, SignIn, SignInLink } from "olai-plugin-chat/wire"
 import type { Reported } from "@olai/acp/engine"
 import type { AskAnswer } from "@olai/acp/wire"
-import { Clock, Schema, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
+import { Cause, Clock, Schema, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
 import { acceptsSetting, settingsIn } from "./agents/settings.ts"
@@ -524,17 +524,34 @@ interface Offered {
  * already running rather than spawn a second one.
  */
 interface Attempt {
+  /**
+   * THE CLAIM IS THE RECORD, and it is taken BEFORE the attempt has anything
+   * behind it ({@link signIn}): the fields below are filled in as the process
+   * (or the request) appears, and until they are, `stop` is a no-op the runner
+   * notices on its way past.
+   *
+   * That ordering is the whole of the mutual exclusion, and it is why nothing
+   * here is `readonly`: the check-then-act a fiber would otherwise be free to
+   * interleave is one step, because a claim is written down and nothing yields
+   * between reading the slot and filling it.
+   */
   readonly method: string
   /** What the method is called, for the row that draws it — the label the
    *  advertisement gave it. */
   readonly label: string
-  /** One line to the process's stdin, or `null` for an agent method. */
-  readonly write: ((line: string) => void) | null
+  /** One line to the process's stdin, or `null` while there is no process —
+   *  and forever, for an agent method, which has none. */
+  write: ((line: string) => void) | null
   /** Take it back: kill the process, or hand the agent back the question it is
    *  waiting on. A promise because a SHUTDOWN awaits it — a kill left in flight
    *  as the panel goes is the same class of thing the terminals beside this
-   *  one wait for — while a cancel button does not. */
-  readonly stop: () => Promise<void>
+   *  one wait for — while a cancel button does not.
+   *
+   * CALLABLE FROM THE INSTANT THE CLAIM EXISTS, which is what makes the claim
+   * safe to take early: a cancel that arrives before there is anything to stop
+   * is remembered by the runner (`cancelling`) and acted on the moment there
+   * is. */
+  stop: () => Promise<void>
   /**
    * The page this attempt is waiting on, once the agent has sent one — the
    * elicitation's own id (which is what `elicitation/complete` names) and the
@@ -545,7 +562,10 @@ interface Attempt {
    * record both can reach rather than a local of either.
    */
   link: {
-    readonly elicitationId: string
+    /** The id `elicitation/complete` will name, or `null` for an elicitation
+     *  the agent gave none — which nothing can complete by name, so the row is
+     *  settled by a person or by the sign-in ending. */
+    readonly elicitationId: string | null
     /** The agent is satisfied, or the person has backed out — both answer the
      *  request the agent is holding open, and the difference is what the agent
      *  does next (carry on, or cancel the login at its end). */
@@ -990,6 +1010,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       params: CreateElicitationRequest,
       form: Form,
     ): Promise<CreateElicitationResponse> => {
+      // A CANCEL ALREADY ASKED FOR THIS ONE'S END, so the page is answered away
+      // rather than drawn: the row the cancel took down must not come back
+      // because the agent got as far as sending its card.
+      if (cancelling) return { action: "decline" }
       const running = attempt
       const link = form.link
       if (running === null || running.write !== null || link === null) {
@@ -1003,7 +1027,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       })
       const view: SignInLink = { ...link, message: form.message, done: false }
       running.link = {
-        elicitationId: CreateElicitationRequest.isUrl(params) ? params.elicitationId : "",
+        // `null` for a request that named no elicitation id — which is a
+        // request nothing can complete by name, so the row settles by a person
+        // or by the sign-in ending. (`onUrlElicitation` only calls this for a
+        // URL mode, so today that arm is a type's, not a payload's.)
+        elicitationId: CreateElicitationRequest.isUrl(params) ? params.elicitationId : null,
         answer,
         view,
       }
@@ -1036,7 +1064,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const link = attempt?.link
       if (link === undefined || link === null || link.elicitationId !== id) return
       const running = attempt
-      if (running === null) return
+      // ... AND THE SAME GUARD HERE, met from the other side: the agent saying
+      // its page is done is not news about an attempt somebody already took
+      // back, and the row it would draw is one nobody is running.
+      if (running === null || cancelling) return
       emitSignIn({
         kind: "agent",
         method: running.method,
@@ -2435,28 +2466,50 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * sentence.
      */
     const signIn = (method: string): Effect.Effect<SignedIn, AgentGone> =>
-      Effect.gen(function*() {
-        if (stopped) return yield* shuttingDown()
+      // `suspend`, NOT `gen`: everything below the claim has to happen with
+      // NOTHING yielded in between, and a generator's body is allowed to be
+      // suspended at every `yield*` — which is exactly the gap two presses in
+      // one tick would otherwise both walk through.
+      Effect.suspend(() => {
+        if (stopped) return shuttingDown()
         const found = offered.find((one) => one.method.id === method)
         if (found === undefined) {
-          return yield* new AgentGone({
+          return Effect.fail(new AgentGone({
             gone: "refused",
             why: `\`${method}\` is not a sign-in this agent offers`,
-          })
+          }))
         }
         const running = attempt
         if (running !== null) {
-          if (running.method === method) return "attached"
-          return yield* new AgentGone({
+          if (running.method === method) return Effect.succeed("attached" as const)
+          return Effect.fail(new AgentGone({
             gone: "refused",
             why: `a sign-in is already running (${running.label})`,
-          })
+          }))
         }
-        const at = yield* bringUpProcess
-        return yield* Effect.ensuring(
-          found.run === null ? runAgent(at, found) : runTerminal(found, found.run),
-          // THE CLAIM GOES LAST, whatever happened: a second press is refused
-          // while this one lives, and the next attempt must be able to start.
+        // THE CLAIM, TAKEN HERE: read-then-write with no suspension point
+        // between them, so a second caller — another tab, another press, the
+        // same tick — reads a slot that is already full and attaches or is
+        // refused. The record starts EMPTY ON PURPOSE (no process, no line, a
+        // `stop` that does nothing yet) and the runner fills it in as the thing
+        // it is about to own appears; a cancel in that window is acted on the
+        // moment there is something to act on, because the runner reads
+        // `cancelling` on its way past.
+        attempt = {
+          method: found.method.id,
+          label: found.method.name,
+          write: null,
+          stop: () => Promise.resolve(),
+          link: null,
+        }
+        return Effect.ensuring(
+          Effect.gen(function*() {
+            const at = yield* bringUpProcess
+            return found.run === null
+              ? yield* runAgent(at, found)
+              : yield* runTerminal(found, found.run)
+          }),
+          // ... AND THE CLAIM IS LET GO, whatever happened.
           Effect.sync(() => {
             attempt = null
             cancelling = false
@@ -2505,7 +2558,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               why: `could not run \`${run.command}\`: ${reasonOf(cause)}`,
             }),
         })
+        // NOTHING IS DRAWN FOR A CANCELLED ATTEMPT, and the chunks are why:
+        // a process that was killed still has whatever it wrote in flight, and
+        // a chunk that landed between the kill and the close would re-draw the
+        // row the cancel just took away — for a moment, until the close said
+        // otherwise, which is the one frame nobody should see.
         const appended = (chunk: string): void => {
+          if (cancelling) return
           output = tailBytes(output + chunk, SIGN_IN_CAP).output
           say(true, null)
         }
@@ -2517,23 +2576,31 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // below is, and an unhandled `error` on a pipe would be a stack trace
         // on olai's stderr for somebody typing into a finished login.
         child.stdin?.on("error", () => {})
-        say(true, null)
-        attempt = {
-          method,
-          label,
-          write: (line) => {
+        // ... AND THE CLAIM GETS ITS HANDS: the process exists from here on, so
+        // a cancel that arrived before it did has something to kill at last.
+        const claim = attempt
+        if (claim !== null) {
+          claim.write = (line) => {
             if (child.stdin === null || child.stdin.destroyed) return
             child.stdin.write(line)
-          },
-          stop: () => child.stop().then(() => undefined),
-          link: null,
+          }
+          claim.stop = () => child.stop().then(() => undefined)
         }
+        // A CANCEL THAT BEAT THE SPAWN is acted on here rather than never: the
+        // claim is taken before the process is, which is the price of the
+        // atomicity, and this is where it is paid.
+        if (cancelling) {
+          yield* Effect.promise(() => child.stop())
+          emitSignIn(null)
+          return "cancelled"
+        }
+        say(true, null)
         // The same refusal the agent itself can meet: a command that is not
         // there fails AFTER `spawn` returned, so it arrives here rather than in
         // the `catch` above. Said on the row, because the row is what a person
         // is looking at.
         void child.unstartable.then((why) => {
-          if (attempt?.method !== method) return
+          if (cancelling || attempt?.method !== method) return
           output = tailBytes(`${output}${why}\n`, SIGN_IN_CAP).output
           emitSignIn({ kind: "terminal", method, label, output, running: false, code: null, why })
         })
@@ -2567,6 +2634,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * deadline at all: a device-code sign-in is somebody finding their password
      * and their phone. What ends it is the adapter answering, which for the
      * pinned Codex adapter happens the moment its own login completes.
+     *
+     * THE END IS AWAITED, NOT JOINED, and that is not a style choice: joining
+     * an interrupted fiber INTERRUPTS THE JOINER, so the cancel arm below would
+     * never run and the promise that a cancelled sign-in says nothing would
+     * hold only by accident — `Effect.ensuring` cleaning up on the way past.
+     * Awaiting hands back the Exit instead, which is what a reading of "how did
+     * it end" wants anyway.
      */
     const runAgent = (at: Live, found: Offered): Effect.Effect<SignedIn, AgentGone> =>
       Effect.gen(function*() {
@@ -2579,28 +2653,42 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         const request = yield* Effect.forkChild(
           ask(at.connection, methods.agent.authenticate, { methodId: method }, null),
         )
-        attempt = {
-          method,
-          label,
-          write: null,
-          stop: () => {
+        // ... AND THE CLAIM LEARNS WHERE THE REQUEST IS, so a cancel that
+        // arrived while the agent was still being reached takes it back the
+        // moment there is something to take back.
+        const claim = attempt
+        if (claim !== null) {
+          claim.stop = () => {
             // BOTH HALVES, in this order: the question the agent is holding
             // goes back unanswered — which is what makes a device-code login
             // cancel the login at ITS end rather than wait forever — and then
             // our request is taken back, since nothing is left to hear from it.
-            const link = attempt?.method === method ? attempt.link : null
+            const link = claim.link
             link?.answer("decline")
             return Effect.runPromise(Fiber.interrupt(request))
-          },
-          link: null,
+          }
         }
-        const outcome = yield* Effect.result(Fiber.join(request))
+        // A CANCEL THAT BEAT THE FORK is acted on here rather than never, for
+        // the reason the terminal runner's is: the claim is taken before the
+        // request is, and this is where that is paid for.
         if (cancelling) {
+          claim?.link?.answer("decline")
+          yield* Fiber.interrupt(request)
+          emitSignIn(null)
+          return "cancelled"
+        }
+        const outcome = yield* Fiber.await(request)
+        // A CANCEL READS AS A CANCEL whichever half of it lands first: the
+        // press sets `cancelling`, and the interrupt it asks for comes back
+        // here as an exit whose cause is nothing but an interruption — the same
+        // shape an agent scope going away leaves, which is the other way this
+        // attempt can end without anything to say.
+        if (cancelling || (outcome._tag === "Failure" && Cause.hasInterrupts(outcome.cause))) {
           emitSignIn(null)
           return "cancelled"
         }
         if (outcome._tag === "Failure") {
-          say(null, outcome.failure.why)
+          say(null, reasonOf(outcome.cause))
           return "failed"
         }
         emitSignIn(null)
@@ -2935,7 +3023,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // which is about a CONVERSATION — a sign-in outlives the session it is
       // for, and is often the reason there is no session at all.
       const signing = attempt
-      cancelling = true
+      // ... AND ONLY WHEN THERE IS ONE: `cancelling` describes an attempt being
+      // taken back by somebody, and a shutdown with no attempt in flight is not
+      // that (`stopped` is what makes the flag's other readers moot, and this is
+      // the flag saying only what it means).
+      if (signing !== null) cancelling = true
       leaving()
       activeSession = null
       // Close the protocol and process before joining requests waiting on it.
