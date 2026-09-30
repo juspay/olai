@@ -45,8 +45,10 @@ export type AgentEvent =
   | { readonly _tag: "toolTerminals"; readonly id: string; readonly terminals: readonly TerminalView[] }
   | { readonly _tag: "settings"; readonly settings: ReadonlyArray<SessionSetting> }
   | { readonly _tag: "plan"; readonly entries: ReadonlyArray<PlanStep> }
+  /** Non-prose agent activity cannot be used as a message cutoff. */
+  | { readonly _tag: "cutoffLost" }
   /** The agent's prose, one chunk as it arrived. */
-  | { readonly _tag: "said"; readonly text: string }
+  | { readonly _tag: "said"; readonly text: string; readonly messageId?: string }
   /** What a PERSON said, ONE CHUNK as it arrived — the same unit `said`
    *  carries, because it is the same unit the wire carries. Only a REPLAY
    *  brings these: live, we already know what was sent, because we sent it,
@@ -56,7 +58,7 @@ export type AgentEvent =
    *  This used to read "a user message", and the consumer wrote a ROW per
    *  event on the strength of it — so a replayed message came back as one
    *  bubble per piece the agent had kept it in. */
-  | { readonly _tag: "userSaid"; readonly text: string }
+  | { readonly _tag: "userSaid"; readonly text: string; readonly messageId?: string }
   /**
    * A tool call, as we last heard of it — announced or moved.
    *
@@ -185,7 +187,7 @@ export type AgentEvent =
    * running agent the panel cannot work out for itself.
    *
    * Not `initialize`'s payload and deliberately not near it: what crosses is
-   * two booleans a leg read (`@olai/acp/engine`'s `Leg`), so nothing above this
+   * capability flags the protocol and leg read (`@olai/acp/engine`'s `Leg`), so nothing above this
    * file learns that agents advertise anything, let alone where.
    *
    * ONCE PER AGENT rather than per session, because that is when it is said:
@@ -198,6 +200,8 @@ export type AgentEvent =
    */
   | {
     readonly _tag: "advertised"
+    /** Both load/fork capabilities and the engine's message-cutoff opt-in. */
+    readonly rewinds: boolean
     /** It takes a message INTO the turn it is running, if asked on purpose.
      *  What the composer draws its one interrupting control from. */
     readonly steers: boolean

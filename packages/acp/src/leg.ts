@@ -296,6 +296,11 @@ export interface Reported {
   readonly said: string
 }
 
+/** AIR v1 keeps the named agent message (or its containing turn). */
+export const airForkAt = (messageId: string): NonNullable<Meta> => ({
+  jetbrains: { air: { fork: { version: 1, messageId } } },
+})
+
 /**
  * One agent's answers.
  *
@@ -305,6 +310,8 @@ export interface Reported {
  * can start, and its `agent.ts` does the talking.
  */
 export interface Leg {
+  /** Only adapters that implement a message cutoff may opt in. */
+  readonly forkAt?: (messageId: string) => NonNullable<Meta>
   /** Adapter prefix before an MCP tool name, or null when carried structurally. */
   readonly spelling: ((server: string) => string) | null
   /** DISPLAY ONLY. Match a call against servers handed to this session;

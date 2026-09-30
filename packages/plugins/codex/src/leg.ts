@@ -8,6 +8,8 @@
  * a call may cost a click, while guessing could grant authority nobody gave.
  *
  */
+import { airForkAt } from "@olai/acp/engine"
+
 import { namedExactly, type Leg, type Meta, type Reported } from "@olai/acp/engine"
 
 const fieldIn = (value: unknown, key: string): unknown =>
@@ -51,6 +53,7 @@ export const serversInUpdate = (update: unknown): ReadonlyArray<Reported> | null
 }
 
 export const CODEX: Leg = {
+  forkAt: airForkAt,
   spelling: null,
   mcpCall: (frame, servers) => {
     const server = fieldIn(frame.rawInput, "server")

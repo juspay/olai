@@ -1,6 +1,6 @@
 import { createSignal, lazy, Show } from "solid-js"
 import { memoryOf } from "@olai/format"
-import { ALARM_PILL, QUIET_PILL } from "@olai/web/client/pill.ts"
+import { QUIET_PILL } from "@olai/web/client/pill.ts"
 import { run } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
@@ -12,6 +12,7 @@ import type { Row } from "./roster.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { createConfirming } from "@olai/web/client/confirming.ts"
 import { freshStartQuestion } from "./fresh-start.ts"
+import { ConfirmReplacement } from "../ConfirmReplacement.tsx"
 import { TESTID } from "../../testids.ts"
 
 /** The engine menu, loaded on the first press that needs it — the same lazy
@@ -36,10 +37,6 @@ export function FreshStart(props: {
     if (starting() || confirm.where() === "asking") return
     setChosen(engine)
     confirm.ask()
-  }
-  const cancel = (): void => {
-    confirm.drop()
-    trigger?.focus()
   }
 
   /** The fresh start itself, on whichever engine the press named. */
@@ -93,16 +90,8 @@ export function FreshStart(props: {
       title={`Start over, keeping memory in ${memoryOf(props.agent)}`}
       onClick={pressed}>Fresh start</button>
     <Show when={confirm.where() === "asking"}>
-      <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-label"
-        onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); cancel() } }}>
-        <span>{freshStartQuestion(props.agent.title)}</span>
-        <span class="mt-2 flex gap-2">
-          <button type="button" class={ALARM_PILL} onClick={() => fresh(chosen())}>Start fresh chat</button>
-          <button type="button" class={QUIET_PILL}
-            ref={element => queueMicrotask(() => { if (element.isConnected) element.focus() })}
-            onClick={cancel}>Cancel</button>
-        </span>
-      </span>
+      <ConfirmReplacement label="Confirm fresh start" question={freshStartQuestion(props.agent.title)}
+        action="Start fresh chat" trigger={() => trigger} confirm={() => fresh(chosen())} cancel={confirm.drop} />
     </Show>
     <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.chatFreshSaid} class="mt-1 text-label" />}</Show>
     <Show when={menu()}>

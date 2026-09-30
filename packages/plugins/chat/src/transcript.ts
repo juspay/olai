@@ -123,10 +123,10 @@ export const movesRows = (change: Change): boolean =>
  */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
-/** The six fields {@link Transcript} derives, named once — the list is
+/** The fields {@link Transcript} derives, named once — the list is
  *  spelled in three casts and a public type below, and four spellings of one
- *  list is one of them being missed the day a seventh is derived. */
-type Derived = "id" | "seq" | "since" | "streaming" | "stranded" | "resumed"
+ *  list is one of them being missed the day another field is derived. */
+type Derived = "rewindable" | "id" | "seq" | "since" | "streaming" | "stranded" | "resumed"
 
 const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<E, Derived> => {
   switch (entry.kind) {
@@ -192,12 +192,15 @@ const minted = (
   entry: RowContent,
   derived: { readonly id: string; readonly seq: number; readonly since: string },
   marks: {
+    readonly rewindable: boolean
     readonly streaming: boolean
     readonly stranded: boolean
     readonly resumed: string | undefined
   },
 ): ChatEntry => {
   switch (entry.kind) {
+    case "user":
+      return { ...entry, ...derived, rewindable: marks.rewindable }
     case "agent":
       return marks.streaming
         ? { ...entry, ...derived, streaming: true as const }
@@ -406,10 +409,34 @@ export class Transcript {
     return this.#entries
   }
 
+  // Protocol identities stay server-side, keyed by local transcript rows.
+  #messageIds = new Map<string, string>()
+  #points = new Map<string, string | null>()
+  #lastAgent: string | undefined
+  #hasUser = false
+
+  /** Agent activity after prose makes its inclusive cutoff incomplete. */
+  invalidateForkPoint(): void { this.#lastAgent = undefined }
+
+  /** Inclusive safe cutoff before this user row; absent means unavailable. */
+  forkPoint(id: string): string | null | undefined { return this.#points.get(id) }
+
+  #point(key: string): void {
+    const point = this.#hasUser ? this.#lastAgent : null
+    this.#hasUser = true
+    if (point !== undefined) this.#points.set(key, point)
+    // A missing answer after this user must not reuse an older turn's point.
+    this.#lastAgent = undefined
+  }
+
   /** Everything, gone — a new session, or one being loaded. The removes are
    *  reported so a subscriber's own copy empties rather than accumulating two
    *  conversations. */
   clear(): Change {
+    this.#messageIds.clear()
+    this.#points.clear()
+    this.#lastAgent = undefined
+    this.#hasUser = false
     const removes = [...this.#entries.keys()]
     this.#entries.clear()
     this.#undelivered.clear()
@@ -592,8 +619,10 @@ export class Transcript {
 
   /** One chunk of the agent's prose. Appends to the entry already open, or
    *  opens one. */
-  say(text: string): Change {
-    return this.#grow("agent", text)
+  say(text: string, messageId?: string): Change {
+    const change = this.#grow("agent", text, messageId)
+    this.#lastAgent = this.#open === null ? undefined : this.#messageIds.get(this.#open)
+    return change
   }
 
   /**
@@ -610,8 +639,8 @@ export class Transcript {
    * one caller that keeps its key ({@link user}), because olai has the whole of
    * it before anything is on the wire.
    */
-  userSaid(text: string): Change {
-    return this.#grow("user", text)
+  userSaid(text: string, messageId?: string): Change {
+    return this.#grow("user", text, messageId)
   }
 
   /**
@@ -619,14 +648,19 @@ export class Transcript {
    *
    * ONE function for the two kinds that arrive in pieces, and the KIND is what
    * decides whether the open entry is the right one to grow: a tool frame
-   * closes whatever was open, but nothing closes a paragraph between a person's
-   * words and the agent's answer to them, so an agent chunk appended to an open
-   * user row would put the answer inside the question.
+   * closes whatever was open. Different protocol message IDs also start new
+   * rows: consecutive Codex items remain distinct paragraphs, and their last
+   * identity remains an exact cutoff. Without that boundary, nothing closes a
+   * paragraph between a person's words and the agent's answer to them, so an
+   * agent chunk appended to an open user row would put the answer inside the
+   * question.
    */
-  #grow(kind: "agent" | "user", text: string): Change {
+  #grow(kind: "agent" | "user", text: string, messageId?: string): Change {
+    messageId = messageId?.trim() || undefined
     const open = this.#open
     const current = open === null ? undefined : this.#entries.get(open)
-    if (open !== null && current?.kind === kind) {
+    if (open !== null && current?.kind === kind
+      && (messageId === undefined || this.#messageIds.get(open) === messageId)) {
       // THE PIECE GOES OUT; THE WHOLE IS KEPT. The row here grows by the chunk
       // — it is the transcript's own copy and every later publish of this row
       // reads it — and what is REPORTED is the chunk and where it belongs
@@ -641,6 +675,8 @@ export class Transcript {
     // it: there is nothing on the far end to append to. It costs one chunk.
     const closed = this.#close()
     this.#open = this.#next(kind)
+    if (messageId !== undefined) this.#messageIds.set(this.#open, messageId)
+    if (kind === "user") this.#point(this.#open)
     return both(closed, this.#put(this.#open, { kind, text }))
   }
 
@@ -833,6 +869,7 @@ export class Transcript {
       readonly armed?: Armed | undefined
     },
   ): Change {
+    this.#lastAgent = undefined
     const key = toolKey(id)
     const current = this.#entries.get(key)
     const held = current?.kind === "tool" ? current : undefined
@@ -1290,6 +1327,8 @@ export class Transcript {
     readonly change: Change
   } {
     const key = this.#next(kind)
+    if (kind === "user") this.#point(key)
+    else if (kind !== "agent") this.#lastAgent = undefined
     return {
       key,
       change: both(
@@ -1341,6 +1380,7 @@ export class Transcript {
       since: existing?.since ?? this.#stamp(),
     }
     const next = minted(entry, derived, {
+      rewindable: this.#points.has(key),
       streaming: entry.kind === "agent" && key === this.#open,
       stranded: entry.kind === "tool" && this.#stranded.has(key),
       resumed: entry.kind === "tool" ? this.#outings.get(key) : undefined,

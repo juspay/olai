@@ -131,7 +131,7 @@ import { createSearch } from "../search.ts"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { useServed } from "../vault.ts"
 import { TESTID } from "../../testids.ts"
-import { useConversationUI } from "./ui.tsx"
+import { conversationKey, useConversationUI } from "./ui.tsx"
 import { Attachments } from "./Attachments.tsx"
 import {
   type Completing,
@@ -169,7 +169,7 @@ export function Composer(props: {
     const agent = agentIn(state)
     return agent === null || state.session === null
       ? null
-      : JSON.stringify([agent.id, state.session.id])
+      : conversationKey({ agent: agent.id, session: state.session.id })
   }, props.chat.ui.messages)
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */

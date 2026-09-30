@@ -257,11 +257,21 @@ let isCodex = false
  *  fakes are worth having. */
 const emit = emitter(OUT)
 const { notify: sendNotification, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
+
+const messageIds = new Map<string, string>()
 const notify = (method: string, params: unknown): void => {
   if (method === "session/update" && typeof params === "object" && params !== null
     && "sessionId" in params && typeof params.sessionId === "string"
     && "update" in params && typeof params.update === "object" && params.update !== null) {
-    sessionStore(cwd).update(params.sessionId, params.update as Record<string, unknown>)
+    const update = params.update as Record<string, unknown>
+    if (update["sessionUpdate"] === "agent_message_chunk" && update["messageId"] === undefined
+      && !existsSync(`${cwd}/.agent-omit-message-ids`)) {
+      const messageId = messageIds.get(params.sessionId) ?? crypto.randomUUID()
+      messageIds.set(params.sessionId, messageId)
+      update["messageId"] = messageId
+    }
+    if (["user_message_chunk", "tool_call", "tool_call_update"].includes(String(update["sessionUpdate"]))) messageIds.delete(params.sessionId)
+    sessionStore(cwd).update(params.sessionId, update)
   }
   sendNotification(method, params)
 }
@@ -1322,6 +1332,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
   const [verb, ...rest] = commandWords(text)
   const argument = rest.join(" ")
+
+  if (verb === "two" && argument === "message items") {
+    for (const [messageId, prose] of [["item-one", "First answer item."], ["item-two", "Second answer item."]]) {
+      notify("session/update", { sessionId, update: { sessionUpdate: "agent_message_chunk", messageId, content: { type: "text", text: prose } } })
+    }
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
 
   const mailWords = [verb, ...rest].join(" ")
   const property = /^set property (\S+) (\S+) (\S+)$/.exec(mailWords)
@@ -2956,7 +2974,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           // of a fresh directory, not a capability missing. Which canned rows
           // it returns stays the stored knob's — see the header and
           // {@link minted}.
-          sessionCapabilities: { list: {} },
+          sessionCapabilities: { list: {}, delete: {}, close: {}, ...(existsSync(`${cwd}/.agent-no-fork`) ? {} : { fork: {} }) },
           // IT HOLDS A PROMPT SENT WHILE IT IS BUSY — said where the real
           // adapter says it, inside the capabilities, in its own `_meta`
           // corner. Nothing about this file's behaviour depends on saying it
@@ -3012,6 +3030,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/new":
+      if (existsSync(`${cwd}/.agent-hold-new`)) {
+        writeFileSync(`${cwd}/.agent-loading`, "")
+        await released()
+      }
       if (refusesToOpen("new")) {
         refuse(id, -32603, "this agent will not start a conversation in this directory")
         return
@@ -3038,6 +3060,21 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       })
       return
 
+    case "session/delete": sessionStore(cwd).delete(String(params["sessionId"])); reply(id, {}); return
+    case "session/close": reply(id, {}); return
+
+    case "session/fork": {
+      writeFileSync(`${cwd}/.agent-fork-requested`, "")
+      if (existsSync(`${cwd}/.agent-refuse-fork`)) { refuse(id, -32602, "fork refused by fixture"); return }
+      const meta = params["_meta"] as { jetbrains?: { air?: { fork?: { version?: number; messageId?: string } } } } | undefined
+      const point = meta?.jetbrains?.air?.fork
+      const forked = point?.version === 1 && typeof point.messageId === "string"
+        ? sessionStore(cwd).fork(String(params["sessionId"]), point.messageId) : null
+      if (forked === null) { refuse(id, -32602, "unknown fork point"); return }
+      reply(id, { sessionId: forked })
+      return
+    }
+
     case "session/load":
       // BEFORE ANY OF IT — no `openSession`, no replay, no move of `sessionId`.
       // An agent that refuses a load has not opened anything, so a client left
@@ -3050,7 +3087,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // ...and BEFORE any of it too, for the same reason: a load that is still
       // on the wire has opened nothing, and what a scenario looks at in that
       // window is a client that is between conversations.
-      if (holdsLoad()) await released()
+      if (holdsLoad()) {
+        writeFileSync(`${cwd}/.agent-loading`, "")
+        await released()
+      }
       {
         const directory = typeof params["cwd"] === "string" ? params["cwd"] : cwd
         const disk = sessionStore(directory)
@@ -3136,6 +3176,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/prompt": {
       const text = promptTextOf(params)
+      messageIds.delete(sessionId)
       sessionStore(cwd).prompt(sessionId, text)
       // It is not waiting any more: this is the turn now.
       waiting.delete(id)

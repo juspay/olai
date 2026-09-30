@@ -332,6 +332,7 @@ export interface Agent {
   /** Apply an advertised model value to the conversation the caller selected. */
   readonly setSetting: (session: string, config: string, value: string | boolean) => Effect.Effect<void, AgentGone>
   readonly setModel: (session: string, value: string) => Effect.Effect<void, AgentGone>
+  readonly rewind: (point: string | null) => Effect.Effect<void, AgentGone>
   readonly newSession: Effect.Effect<void, AgentGone>
   readonly loadSession: (id: string) => Effect.Effect<void, AgentGone>
   /** The stored conversations for this directory, newest first. */
@@ -397,6 +398,9 @@ interface Live {
   readonly child: Child
   readonly connection: ClientConnection
   readonly canList: boolean
+  readonly canDelete: boolean
+  readonly canClose: boolean
+  readonly canFork: boolean
   readonly canLoad: boolean
 }
 
@@ -720,7 +724,25 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         : { outcome: { outcome: "selected", optionId: picked } }
     }
 
+    let staged: { sessions: Set<string>; updates: Array<() => void> } | null = null
+    const stage = (session: string, replay: () => void): boolean => {
+      const root = sessionRoot(session)
+      if (staged === null || root === activeSession) return false
+      staged.sessions.add(session)
+      staged.updates.push(replay)
+      return true
+    }
+    const onActivity = (session: string, update: Parameters<Activity["read"]>[1]): void => {
+      if (stage(session, () => onActivity(session, update))) {
+        if (update.kind === "child") staged?.sessions.add(update.id)
+        return
+      }
+      if (fromElsewhere(sessionRoot(session), activeSession, closed)) return
+      if (update.kind === "child") closed.delete(update.id)
+      activity?.read(session, update)
+    }
     const onUpdate = (notification: SessionNotification): void => {
+      if (stage(notification.sessionId, () => onUpdate(notification))) return
       // WHOSE SESSION, the same fence the forwarded `init` sits behind. A
       // chunk of the conversation that just closed, landing after
       // `sessionOver` has emptied the transcript, is how a new conversation
@@ -752,9 +774,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             prologue = null
             return
           }
-          if (text !== "") emit({ _tag: "said", text })
+          if (text !== "") emit({ _tag: "said", text, ...(update.messageId == null ? {} : { messageId: update.messageId }) })
           return
         }
+        case "agent_thought_chunk":
+          emit({ _tag: "cutoffLost" })
+          return
         case "user_message_chunk": {
           const text = textOf(update.content)
           // A TASK-NOTIFICATION is not a person speaking. The harness injects
@@ -795,7 +820,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             return
           }
           if (!replaying) return
-          if (text !== "") emit({ _tag: "userSaid", text })
+          if (text !== "") emit({ _tag: "userSaid", text, ...(update.messageId == null ? {} : { messageId: update.messageId }) })
           return
         }
         // Announce and update are ONE event: the protocol distinguishes them
@@ -1175,6 +1200,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       return fromElsewhere(named, activeSession, closed)
     }
 
+    const onRawMessage = (params: unknown): void => {
+      const session = (params as { readonly sessionId?: unknown } | null)?.sessionId
+      if (typeof session === "string" && stage(session, () => onRawMessage(params))) return
+      if (elsewhere(params)) return
+      readLiveModel(params)
+      readLiveServers(params)
+    }
+
     const readLiveServers = (params: unknown): void => {
       reportServers(options.leg.rawMessages?.serversIn(params) ?? null)
     }
@@ -1322,7 +1355,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           })
         const stream = streamOver(child)
         const extension = activity === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
-          if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity.read(session, update)
+          onActivity(session, update)
         })
         // The agent's own message, forwarded verbatim because the call that
         // OPENED this conversation asked for it (the leg's `openMeta`, on
@@ -1344,21 +1377,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           : opened.onNotification(
             raw.method,
             (params: unknown) => params,
-            (context) => {
-              // WHOSE SESSION, asked once for both readers. Everything this
-              // notification carries is a fact about ONE conversation — the
-              // model it runs and the servers it got — and the adapter stamps
-              // the session it is about on every one of them.
-              if (elsewhere(context.params)) return
-              readLiveModel(context.params)
-              // The same message, read for the other thing it carries. TWO
-              // readers over one notification rather than one that answers
-              // both: the model moves the header and the servers move the
-              // roster, they are true at different rates, and a single reader
-              // returning a pair would make every message that changed one of
-              // them look like news about both.
-              readLiveServers(context.params)
-            },
+            (context) => { onRawMessage(context.params) },
           ))
           // Allowed without asking when it is one of the tools we handed this
           // session, and PUT IN FRONT OF A PERSON otherwise — the rule, and
@@ -1453,6 +1472,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             steers: options.leg.steering !== null
               && options.leg.steering.advertised(initialized),
             queues: options.leg.queues(initialized),
+            rewinds: options.leg.forkAt !== undefined && capabilities?.sessionCapabilities?.fork != null && capabilities?.loadSession === true,
           })
         }
         // AFTER the handshake, not after `spawn` returns: an exec failure
@@ -1471,6 +1491,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           connection,
           canList: capabilities?.sessionCapabilities?.list != null,
           canLoad: capabilities?.loadSession === true,
+          canDelete: capabilities?.sessionCapabilities?.delete != null,
+          canClose: capabilities?.sessionCapabilities?.close != null,
+          canFork: capabilities?.sessionCapabilities?.fork != null,
         }
       })
 
@@ -1693,47 +1716,37 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  ({@link Options.probes}). Asked FRESH every time a session is opened
      *  rather than once at boot, so a daemon started after olai is picked up by
      *  the next conversation instead of the next restart. */
-    const servers = Effect.map(
-      // THE LIST IS ASKED FOR FIRST, and it can wait: the composition root
-      // dispatches an event to collect it, and a listener that awaited before
-      // contributing would otherwise be dropped with nothing red
-      // ({@link Options.probes}). What comes back is the same list `probed` has
-      // always taken, and the bounded concurrency below is untouched.
-      Effect.flatMap(
-        options.probes?.() ?? Effect.succeed([]),
-        probed,
-      ),
-      // ONE probing answers both halves, and both are read off the ONE array
-      // this callback is handed. `handedIn` takes what a session is given, and
-      // `missingIn` takes what a person is owed about the ones it was not —
-      // which used to be dropped here on the grounds that nothing drew it.
-      // Something does now (`mcp-fail-visible`), and it reads the same answers
-      // rather than probing a second time: two probings could disagree, and the
-      // one a session was opened on is the one that is true about it.
-      (found) => {
-        const handing = mcpServersOf(options.tools(), handedIn(found))
-        // Remembered as they are handed over, because "the tools we gave this
-        // conversation" is exactly the set the permission handler allows
-        // without asking — and it is decided per conversation.
-        //
-        // OFF `handing` AND NOT OFF THE ROSTER BELOW, which is built from the
-        // same array one line down. The roster is a thing to LOOK at and this
-        // is the set that decides which permission requests are answered
-        // without a person, so it is read from the literal list going on the
-        // wire rather than from a display model that could one day grow a row
-        // for a server nobody handed over ({@link ./servers.ts} says why it
-        // deliberately does not).
-        given = handing.map((server) => server.name)
-        // Before the session, always — and now on EVERY conversation rather
-        // than only on a broken one. A roster is the answer to "which servers
-        // does this conversation have?", which is a question about a healthy
-        // session as much as a failed one — and a panel told only about
-        // failures leaves the other answer to the model, which is the incident
-        // this comes from (`mcp-roster-visible`).
-        announce(rosterOf(handing, missingIn(found)))
-        return handing
-      },
+    const probeServers = Effect.map(
+      Effect.flatMap(options.probes?.() ?? Effect.succeed([]), probed),
+      found => ({ handing: mcpServersOf(options.tools(), handedIn(found)), missing: missingIn(found) }),
     )
+    const publishServers = (found: Effect.Success<typeof probeServers>): ReadonlyArray<McpServer> => {
+      given = found.handing.map(server => server.name)
+      announce(rosterOf(found.handing, found.missing))
+      return found.handing
+    }
+    const servers = Effect.map(probeServers, publishServers)
+
+    /** A prepared session belongs to this opening until it is adopted. Delete
+     *  persisted history when supported; otherwise release the adapter's live
+     *  resources. Cleanup never replaces the preparation's original failure. */
+    const withdrawPrepared = (at: Live, id: string): Effect.Effect<void> => Effect.gen(function*() {
+      closed.add(id)
+      for (const method of [
+        ...(at.canDelete ? [methods.agent.session.delete] : []),
+        ...(at.canClose ? [methods.agent.session.close] : []),
+      ]) {
+        const result = yield* Effect.result(ask(at.connection, method, { sessionId: id }))
+        if (result._tag === "Success") return
+        yield* Effect.logWarning(`prepared session cleanup failed: ${result.failure.why}`)
+      }
+    })
+
+    const presentSession = (at: Live, id: string, response: NewSessionResponse | LoadSessionResponse | null,
+      wanted: string | null): Effect.Effect<void> => Effect.gen(function*() {
+      prologue = options.leg.prologueIn(response)
+      yield* restore(at, id, response?.configOptions, wanted)
+    })
 
     const fresh = (at: Live): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
@@ -1756,8 +1769,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // pulled — see the microtask argument at `Leg.prologueIn`. An adapter
         // that reorders ships the banner to the transcript instead, which is
         // the safe direction.
-        prologue = options.leg.prologueIn(made)
-        readModel(made.configOptions)
+        yield* presentSession(at, made.sessionId, made, null)
         yield* askForBypass(at, made.sessionId, made.configOptions)
         yield* entered(made.sessionId, null, "new", started)
       })
@@ -1814,7 +1826,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // and this line of it after. A `session/load` that announces a
         // prologue of its own arms it here; this adapter's answers `null`,
         // and null is "drop nothing", the whole of the claim.
-        prologue = options.leg.prologueIn(loaded ?? null)
+
         // AFTER THE ANSWER, and that ordering is the whole of one bug. Entering
         // a conversation is what this module records being IN one — it sets the
         // session every later verb acts on, and it writes the note the next boot
@@ -1827,7 +1839,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // they are rows, and `replayStarted` has already emptied the transcript
         // for them — so what the panel is short of in between is the title,
         // which it gets a moment later along with everything else.
-        yield* restore(at, id, loaded?.configOptions, wanted)
+        yield* presentSession(at, id, loaded ?? null, wanted)
         yield* askForBypass(at, id, loaded?.configOptions)
         yield* entered(id, title, "loaded", started)
       })
@@ -1945,33 +1957,37 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         },
       )
 
+    /** Select policy without publishing or changing the current ownership. */
+    const prepareBypass = (
+      at: Live, id: string, config: ReadonlyArray<SessionConfigOption> | null | undefined,
+    ): Effect.Effect<() => void, AgentGone> => Effect.gen(function*() {
+      const mode = options.leg.bypassMode
+      if (mode === null) return () => {}
+      const result = yield* Effect.result(ask(at.connection, methods.agent.session.setMode, { sessionId: id, modeId: mode }))
+      if (result._tag === "Success") return () => reflectBypass(mode, config)
+      const why = `could not select permission mode ${mode} for session ${id}: ${result.failure.why}`
+      if (options.leg.bypassModeRequired === true) return yield* new AgentGone({ gone: result.failure.gone, why })
+      return () => trouble(`${why}; continuing with the adapter's existing permission mode`)
+    })
+
     /** Apply the engine's permission policy before activating the session.
      *  Some engines require it; others retain their permission backstop when
      *  the adapter refuses. Neither refusal is silent. */
     const askForBypass = (
       at: Live, id: string, config: ReadonlyArray<SessionConfigOption> | null | undefined,
     ): Effect.Effect<void, AgentGone> => Effect.gen(function*() {
-      const mode = options.leg.bypassMode
-      if (mode === null) return
-      const result = yield* Effect.result(ask(at.connection, methods.agent.session.setMode, {
-        sessionId: id,
-        modeId: mode,
-      }))
+      const result = yield* Effect.result(prepareBypass(at, id, config))
       if (result._tag === "Failure") {
-        const why = `could not select permission mode ${mode} for session ${id}: ${result.failure.why}`
-        if (options.leg.bypassModeRequired === true) {
-          // Replay and settings can arrive before selection. Withdraw that
-          // provisional visit and fence its late notifications just like a
-          // session we left; no active session or memory claim was made.
-          closed.add(id)
-          leaving()
-          show(null)
-          emit({ _tag: "sessionOver", why: "refused" })
-          return yield* new AgentGone({ gone: result.failure.gone, why })
-        }
-        trouble(`${why}; continuing with the adapter's existing permission mode`)
-        return
+        closed.add(id)
+        leaving()
+        show(null)
+        emit({ _tag: "sessionOver", why: "refused" })
+        return yield* result.failure
       }
+      result.success()
+    })
+
+    const reflectBypass = (mode: string, config: ReadonlyArray<SessionConfigOption> | null | undefined): void => {
       // set_mode may acknowledge without publishing config_option_update.
       // Reflect its confirmed value only in an advertised mode control that
       // actually offers that value; unrelated settings retain their last update.
@@ -1983,7 +1999,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         return { ...option, currentValue: mode }
       })
       if (changed) emit({ _tag: "settings", settings: settings.filter((option) => option.id !== models?.config) })
-    })
+    }
 
     /** The subprocess, and nothing about a conversation. Its own step because
      *  the two things a caller can want are genuinely different: {@link boot}
@@ -2127,9 +2143,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           : use(at, id)
       })
 
+    let prompting = 0
     const prompt = (text: string) =>
       withSession((at, id) =>
-        Effect.gen(function*() {
+        Effect.acquireUseRelease(Effect.sync(() => { prompting++ }), () => Effect.gen(function*() {
           // A cancel that arrived during the handshake is sent the moment the
           // prompt is on the wire, so every cancelled turn ends the same way.
           //
@@ -2197,7 +2214,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             { stopReason, duration },
           )
           return stopReason
-        })
+        }), () => Effect.sync(() => { prompting-- }))
       )
 
     /**
@@ -2324,6 +2341,64 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       setSetting,
       setModel: (session, value) => setSetting(session, models?.config ?? "", value),
       cancel,
+      rewind: (point) => opening((at) => Effect.gen(function*() {
+        if (prompting > 0) return yield* new AgentGone({ gone: "refused", why: "a turn is running; wait before rewinding" })
+        const old = activeSession
+        const forkAt = options.leg.forkAt
+        if (old === null || !at.canFork || !at.canLoad || forkAt === undefined) {
+          return yield* new AgentGone({ gone: "refused", why: "this conversation cannot rewind" })
+        }
+        const started = yield* Clock.monotonicTimeNanos
+        // Prepare in the existing owner without releasing the old session.
+        // Probes and the live roster remain untouched until adoption succeeds.
+        const wanted = modelFor(old)
+        const found = yield* probeServers
+        const mcpServers = found.handing
+        let adopted = false
+        return yield* Effect.acquireUseRelease(
+          Effect.map(ask(at.connection, point === null ? methods.agent.session.new : methods.agent.session.fork, {
+            cwd: options.cwd, mcpServers,
+            ...(point === null ? openMeta : { sessionId: old,
+              _meta: { ...openMeta._meta, ...forkAt(point) } }),
+          }), response => response as NewSessionResponse),
+          made => Effect.gen(function*() {
+            if (made.sessionId === old) return yield* new AgentGone({ gone: "refused", why: "the adapter did not create a separate session" })
+            const pending = { sessions: new Set([made.sessionId]), updates: [] as Array<() => void> }
+            staged = pending
+            const prepared = yield* Effect.ensuring(Effect.gen(function*() {
+              const loaded = point === null ? made : (yield* ask(at.connection, methods.agent.session.load,
+                { sessionId: made.sessionId, cwd: options.cwd, mcpServers, ...openMeta }, LOAD_TIMEOUT)) as LoadSessionResponse
+              const publishMode = yield* prepareBypass(at, made.sessionId, loaded.configOptions)
+              return { loaded, publishMode }
+            }), Effect.sync(() => {
+              staged = null
+              // Fence every prepared identity, including on interruption. Adoption
+              // reopens the root and each child as its declaration is replayed.
+              for (const session of pending.sessions) closed.add(session)
+            }))
+            // No await separates withdrawal from the replay's adoption. The node
+            // scope, process and credential are retained throughout.
+            leaving()
+            activeSession = made.sessionId
+            adopted = true
+            closed.delete(made.sessionId)
+            emit({ _tag: "sessionOver", why: "load" })
+            replaying = true
+            emit({ _tag: "replayStarted" })
+            publishServers(found)
+            for (const replay of pending.updates) replay()
+            replaying = false
+            emit({ _tag: "replayEnded" })
+            // The new identity inherits the old model choice, including for the
+            // next restart. Other config controls use the adapter's loaded values.
+            held = { agent: options.id, session: made.sessionId, model: wanted }
+            yield* presentSession(at, made.sessionId, prepared.loaded, wanted)
+            prepared.publishMode()
+            yield* entered(made.sessionId, null, point === null ? "new" : "loaded", started)
+          }),
+          made => adopted || made.sessionId === old ? Effect.void : withdrawPrepared(at, made.sessionId),
+        )
+      })),
       newSession: opening((at) =>
         Effect.gen(function*() {
           // BEFORE the break, so the question is settled on the row it is

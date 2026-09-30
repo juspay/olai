@@ -1,4 +1,3 @@
-import { refusalIn } from "@olai/surface"
 /**
  * What the Claude Code adapter MEANS by what it sends — olai's first leg
  * (`@olai/acp/engine`'s `Leg`), meaning unchanged from the day it was the only
@@ -37,6 +36,9 @@ import { refusalIn } from "@olai/surface"
  * aliases its picker offers for the ids its CLI reports — is {@link ./models.ts},
  * beside this file, and rides over on {@link Leg.models}.
  */
+import { airForkAt } from "@olai/acp/engine"
+import { refusalIn } from "@olai/surface"
+
 
 import {
   allowingOurs,
@@ -761,6 +763,7 @@ const initIn = (params: unknown): { readonly [key: string]: unknown } | undefine
  * ONE that could be wrong, since a Claude call id is an opaque `toolu_…`.
  */
 export const CLAUDE: Leg = {
+  forkAt: airForkAt,
   spelling,
   mcpCall: mcpCallBy(spelling),
   replyIn,

@@ -38,6 +38,8 @@ import {
  * than this pin — see the negative cases below.
  */
 const ChatEntryFlat = Schema.Struct({
+  // Added by rewind; required only on the user arm of the current union.
+  rewindable: Schema.optionalKey(Schema.Boolean),
   id: Schema.String,
   seq: Schema.Int,
   since: Schema.String,
@@ -103,7 +105,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       id: "user:1",
       seq: 0,
       since: SINCE,
-      kind: "user",
+      kind: "user", rewindable: false,
       text: "hello",
     },
   },
@@ -113,7 +115,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       id: "user:2",
       seq: 1,
       since: SINCE,
-      kind: "user",
+      kind: "user", rewindable: false,
       text: "done order",
       context: [CONTEXT],
       attachments: ["shot.png"],
@@ -126,7 +128,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       id: "user:3",
       seq: 11,
       since: SINCE,
-      kind: "user",
+      kind: "user", rewindable: false,
       text: "and check the other one",
       queued: true,
     },
@@ -142,7 +144,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       id: "user:4",
       seq: 12,
       since: SINCE,
-      kind: "user",
+      kind: "user", rewindable: false,
       text: "olai · kolu · two terminals waiting · 14:32",
       rang: "kolu",
     },
@@ -336,7 +338,7 @@ const REJECTED: ReadonlyArray<{ name: string; row: unknown }> = [
   },
   {
     name: "queued: false",
-    row: { ...HEAD, kind: "user", queued: false },
+    row: { ...HEAD, kind: "user", rewindable: false, queued: false },
   },
   {
     name: "stranded: false",
@@ -356,7 +358,7 @@ test("a kind-wrong extra key is dropped at decode, not re-emitted", () => {
   // The sanitizing direction: the old struct re-emitted `status` on a user
   // row; the union accepts the bytes and encodes without the key. Same bytes
   // for well-formed rows; a second producer's junk does not round-trip.
-  const row = { ...HEAD, kind: "user", status: "pending" }
+  const row = { ...HEAD, kind: "user", rewindable: false, status: "pending" }
   expect(Schema.is(ChatEntryFlat)(row)).toBe(true)
   const back = decodeUnion(row)
   expect(back.kind).toBe("user")
@@ -378,7 +380,7 @@ test("a non-call row with a status is unrepresentable", () => {
     id: "user:1",
     seq: 0,
     since: SINCE,
-    kind: "user" as const,
+    kind: "user" as const, rewindable: false,
     text: "hello",
   }
   const asUser: UserEntry = user

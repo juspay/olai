@@ -155,6 +155,12 @@ export const surface = defineSurface({
         }),
         error: ChatFailure,
       },
+      /** Fork before a user message and return its text for the replacement draft. */
+      rewind: {
+        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String), id: Schema.String }),
+        output: Schema.Struct({ conv: Conversing, text: Schema.String }),
+        error: ChatFailure,
+      },
       /**
        * Try a message the agent would not take AGAIN — `id` is the `user`
        * row's own key, the one carrying `delivery: "refused"`.
@@ -377,6 +383,7 @@ export const faces = {
     saying: "resource",
     "conversation.send": "tool",
     "conversation.resend": "tool",
+    "conversation.rewind": "tool",
     "conversation.attach": "tool",
     "conversation.cancel": "tool",
     "conversation.setModel": "tool",

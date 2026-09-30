@@ -12,6 +12,7 @@
     "src/browser/chat/CompletionMenu.tsx",
     "src/browser/chat/Composer.tsx",
     "src/browser/chat/DropTarget.tsx",
+    "src/browser/chat/Rewind.tsx",
     "src/browser/chat/holding.ts",
     "src/browser/chat/naming.ts",
     "src/chat.ts"
@@ -70,5 +71,5 @@
     "src/server.ts"
   ],
   "//alerts": "The wake strip's accessible label says `alerts` as an ordinary word, not the alerts row.",
-  "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row."
+  "//files": "The completion heading and rewind confirmation use `Files` for documents on disk, not the files plugin."
 }

@@ -1,6 +1,3 @@
-import type { Json } from "../../json.ts"
-import type { Refusal } from "../../slots.ts"
-import { Effect } from "effect"
 /**
  * The conversation, as this tab sees it.
  *
@@ -46,8 +43,12 @@ import { Effect } from "effect"
  * ({@link ./run.ts} is the edge itself). A procedure returns an `Effect`, a
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
+import { keepMessage } from "./message-draft.ts"
+import type { Json } from "../../json.ts"
+import type { Refusal } from "../../slots.ts"
+import { Effect } from "effect"
 
-import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
+import { agentIn, type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { type Accessor, createEffect, createMemo, createSelector, createSignal, on, onCleanup } from "solid-js"
@@ -57,7 +58,7 @@ import { type Call, run, runAsync } from "@olai/web/client/run.ts"
 import { attaching, type UploadProgress } from "./attach.ts"
 import { createRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
-import { createConversationUI, type ConversationUI } from "./ui.tsx"
+import { conversationKey, createConversationUI, type ConversationUI } from "./ui.tsx"
 
 /**
  * What became of one upload — THREE arms, because there are three answers and
@@ -148,6 +149,9 @@ export interface Chat {
    *  rub out the last one's. The caller collects them and says them once
    *  ({@link Chat.refuse}). */
   readonly attach: (file: File, progress?: UploadProgress) => Promise<Uploaded>
+  /** Whether this current conversation can fork; apply it to a user row. */
+  readonly canRewind: Accessor<boolean>
+  readonly rewind: (id: string) => void
   /** Try a message the agent would not take again — `id` is the row's own key,
    *  and the SERVER still holds the prompt behind it. Nothing is rebuilt here:
    *  the row carries its pictures by name, and a retry assembled from what is
@@ -233,7 +237,7 @@ export const createChatState = (conv: Conversing): Accessor<ChatState> => {
 
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-export const createChat = (conv: Conversing, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void } = {}): Chat => {
+export const createChat = (conv: Conversing, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void; readonly current?: () => boolean; readonly rewound?: (to: Conversing, text: string) => void } = {}): Chat => {
   const ui = options.ui ?? createConversationUI()
   const { closePreview } = ui.previewing
   const [refused, setRefused] = ui.refused
@@ -490,6 +494,20 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
           },
         )
       }),
+    canRewind: () => options.current?.() === true && state().status === "idle"
+      && agentIn(state())?.rewinds === true,
+    rewind: (id) => {
+      setRefused(null)
+      setStarting(value => value + 1)
+      const done = () => setStarting(value => Math.max(0, value - 1))
+      run(chatWire().procedures.conversation.rewind({ conv, scope: state().uploadScope, id }),
+        failure => { setRefused(failure); done() },
+        answer => {
+          if (options.rewound !== undefined) options.rewound(answer.conv, answer.text)
+          else keepMessage(ui.messages, conversationKey(answer.conv), answer.text)
+          done()
+        })
+    },
     resend: (id) => verb(chatWire().procedures.conversation.resend({ conv, scope: state().uploadScope, id })),
     setSetting: (agent, session, config, value, done) => verb(chatWire().procedures.conversation.setSetting({ agent, session, config, value }), done),
     setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),

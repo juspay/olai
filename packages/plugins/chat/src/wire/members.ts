@@ -478,6 +478,8 @@ const parent = Schema.optionalKey(Schema.String)
  * collection that records something that did NOT happen.
  */
 export const UserEntry = Schema.Struct({
+  /** The server has a safe cutoff before this row; protocol IDs stay private. */
+  rewindable: Schema.Boolean,
   ...chatEntryHead,
   kind: Schema.Literal("user"),
   text: Schema.String,
@@ -1364,6 +1366,7 @@ export const Talking = Schema.Union([
      * for.
      */
     steers: Schema.Boolean,
+    rewinds: Schema.Boolean,
     /**
      * ... and whether it HOLDS what you send while it is busy, running it when
      * the turn it is working on is over.

@@ -54,6 +54,7 @@
  * have broken a rail over there with nothing to catch it. The list owns the
  * gap now, because the list is what has rows to put gaps between.
  */
+import { Rewind } from "./Rewind.tsx"
 import { servedDirectory } from "../vault.ts"
 import { SAYING_MS } from "olai-plugin-chat/wire"
 import type { ChatEntry, Delivery } from "olai-plugin-chat/wire"
@@ -144,7 +145,7 @@ const bubbleOf = (fate: Delivery | undefined): string => fatedOf(fate) ?? SENT
 /** The two shapes a `user` row's column takes. Yours is a bubble as wide as its
  *  words, over on the right; a machine's is the full column, because it is a
  *  paragraph rather than a remark and reads as one. */
-const MINE_COLUMN = "ml-auto flex w-fit max-w-[85%] flex-col items-end"
+const MINE_COLUMN = "relative group/rewind ml-auto flex w-fit max-w-[min(85%,calc(100%_-_2rem))] flex-col items-end [@media(pointer:coarse)]:max-w-[min(85%,calc(100%_-_3rem))]"
 const RANG_COLUMN = "flex w-full flex-col items-start"
 
 /** What the agent said is not in a file, so there is no path to name — and the
@@ -312,6 +313,9 @@ export function Entry(props: {
                   <Rang entry={user()} by={who} fated={fatedOf(user().delivery)} />
                 )}
               </Show>
+            </Show>
+            <Show when={!rang() && user().rewindable && props.chat.canRewind()}>
+              <Rewind chat={props.chat} id={user().id} />
             </Show>
             {/* IT DID NOT LAND — and the words are still here, which is the
                 whole of the promise. The bubble goes dashed and edged rather

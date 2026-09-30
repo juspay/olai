@@ -648,6 +648,7 @@ export const TESTID = {
    *  again, or `unanswered`, which deliberately carries none. The words stay in
    *  the bubble above it either way. */
   chatDelivery: "chat-delivery",
+  chatRewind: "chat-rewind",
   chatResend: "chat-resend",
   /** The composer saying the turn is stopped on YOU: the agent asked something
    *  and is waiting for the form above to be answered. */

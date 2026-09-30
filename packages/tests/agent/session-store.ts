@@ -3,7 +3,7 @@
  * replay contains that session's actual messages. The canned protocol fixtures
  * remain available for tests that need their precise frames. */
 import { randomUUID } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 export const SESSION_STORE_MARKER = ".agent-persistent-sessions"
@@ -26,11 +26,20 @@ export const sessionStore = (cwd: string) => {
     enabled: existsSync(directory),
     newId: () => `audit-session-${randomUUID()}`,
     read,
+    delete: (id: string) => { if (valid(id)) rmSync(file(id), { force: true }) },
+    fork: (id: string, messageId: string): string | null => {
+      const saved = read(id)
+      const index = saved?.updates.findLastIndex(update => update["messageId"] === messageId) ?? -1
+      if (saved === null || index < 0) return null
+      const forked = `audit-session-${randomUUID()}`
+      write(forked, { ...saved, updatedAt: new Date().toISOString(), updates: saved.updates.slice(0, index + 1) })
+      return forked
+    },
     prompt: (id: string, text: string) => {
       if (!valid(id)) return
       const saved = read(id) ?? { title: text.split("\n")[0] ?? text, updatedAt: "", updates: [] }
       saved.updatedAt = new Date().toISOString()
-      saved.updates.push({ sessionUpdate: "user_message_chunk", content: { type: "text", text } })
+      saved.updates.push({ sessionUpdate: "user_message_chunk", messageId: randomUUID(), content: { type: "text", text } })
       write(id, saved)
     },
     update: (id: string, update: Record<string, unknown>) => {
