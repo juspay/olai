@@ -103,10 +103,14 @@ A tool call is not instantaneous, so a frame is not just a status that flips. `t
 
 `initialize` advertises `elicitation.form`, and that one line is what lets the agent ask anything at all: without it the Claude Code adapter puts `AskUserQuestion` in `disallowedTools`, so an agent that wanted to check which of two things you meant had to guess, or write the question into prose and hope somebody answered it in the next message.
 
-With it, two ACP methods reach a person and both are drawn as the same thing — a form in the transcript, which is a row rather than a modal, so it is still there afterwards saying what was asked and what was chosen:
+`initialize` also advertises `elicitation.url`, which is what makes the Codex adapter offer its device-code sign-in at all, and `auth.terminal` (plus the `_meta["terminal-auth"]` corner the pinned Claude adapter reads), which is what makes an adapter hand over a sign-in this panel can RUN instead of offering only its own full-screen TUI.
+
+With them, three ACP payloads reach a person. Two are drawn as the same thing — a form in the transcript, which is a row rather than a modal, so it is still there afterwards saying what was asked and what was chosen:
 
 - **`elicitation/create`**, form mode: a JSON Schema of primitive-typed properties. The adapter renders `AskUserQuestion` into one (a titled `oneOf` per single-select, an array with a titled `anyOf` per multi-select, and beside each question its own free-text "Other" box), and feeds the answers back as that tool's own `updatedInput`. MCP servers on the session reach the same method with schemas of their own.
 - **`session/request_permission`**: a list of named options for one tool call, which is a single-select with the options already spelled out.
+
+The third is the same row with no fields and a link instead — **`elicitation/create`**, URL mode — and WHERE it is drawn is decided by the scope the agent sent it with, which is the protocol's own way of saying who is asking: session-scoped (an MCP server's OAuth) lands in the conversation, as a card with the message, the destination host and a link, and is settled by the agent's `elicitation/complete`; request-scoped (a device-code sign-in, which happens before any session exists) belongs to the sign-in row that request is part of, and goes with it. `agent.ts` also reads the protocol's auth-required code (`-32000`) off any rejection, which is the one refusal with a way out, and holds the attempt — one process or one wait per agent, so two tabs watch one sign-in.
 
 `@olai/acp` projects both, purely, so what a form looks like for a question nobody has asked yet is a unit test. A property whose type this panel has no control for makes the whole request UNDRAWABLE: it is declined and said out loud, because half a form is one somebody submits believing they answered all of it. Both directions answer with a value or that package's own `Refused` — one kind of no for a question that cannot be drawn and an answer that does not fit its question — and `questions.ts` translates it into the `UsageFailure` the rest of olai refuses things with, at the seam, once.
 

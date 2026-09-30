@@ -14,10 +14,11 @@
  *
  * ## The ORDERS are opposite, and each is the guarantee
  *
- * {@link startAgentSession} opens the conversation FIRST: `newSession` has
- * RESOLVED by the time the state is read, so the id written down is a
- * conversation that exists. The other order would leave a property naming a
- * session nobody opened every time the agent failed to start.
+ * {@link startAgentSession} writes a session id only after opening succeeds.
+ * An auth-refused first start writes only the engine, allowing the node panel
+ * to be read before a session exists. The node-owned retry retains the binding
+ * completion and predecessor; signing in retries that exact open, then commits
+ * its real session id and lineage. Other refusals still write nothing.
  *
  * {@link assignSession} writes the property FIRST, because nothing has to be
  * opened — both halves are about things that already exist — and the durable one
@@ -70,6 +71,9 @@ export interface Binding {
    * key for the sentence to be helpful.
    */
   readonly key: () => string
+  /** Serialize binding claims, including a completion reached after sign-in. */
+  readonly exclusive: <A>(work: Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
+  readonly changed?: Effect.Effect<void, OpFailure>
   /** ONE PROPERTY, WRITTEN, through the gate a keystroke goes through. */
   readonly write: (node: string, value: string) => Effect.Effect<void, OpFailure>
   /** ONE PROPERTY, TAKEN OFF — the same door, spelled the op's own removal
@@ -112,22 +116,38 @@ export const closeAgent = (
  * agent that answers `session/new` with an id it already had (the scripted one
  * does) must not supersede a session with itself.
  *
- * NOT CONDITIONAL. The write overwrites whatever the key holds: the property is
- * what the person just pressed a menu entry to set, and the value it held is the
- * engine that press named anyway.
+ * The write replaces the binding the gesture observed, under the shared claim
+ * permit. A delayed sign-in must not overwrite a binding changed by another
+ * gesture while authentication was pending.
  */
 export const startAgentSession = (
   chat: Chat,
   binding: Binding,
   input: { readonly node: string; readonly agent: string },
-): Effect.Effect<Conversing, OpFailure> =>
+): Effect.Effect<Conversing | null, OpFailure> =>
   Effect.gen(function*() {
-    const was = binding.boundAt(input.node)
-    const now = yield* chat.startAgentSession(input.node, input.agent)
-    yield* binding.write(input.node, sessionValue(now.agent, now.session))
-    if (was?.session != null && was.session !== now.session) {
-      yield* chat.replaced({ agent: was.engine, session: was.session }, now)
+    const was = yield* binding.exclusive(Effect.sync(() => binding.boundAt(input.node)))
+    let expected = was
+    const unchanged = () => {
+      const at = binding.boundAt(input.node)
+      return at?.engine === expected?.engine && at?.session === expected?.session
     }
-
+    const now = yield* chat.startAgentSession(input.node, input.agent, now => Effect.gen(function*() {
+      yield* binding.exclusive(Effect.gen(function*() {
+        if (!unchanged()) return yield* new UsageFailure({ reason: "the node's binding changed while this chat was opening" })
+        yield* binding.write(input.node, sessionValue(now.agent, now.session))
+        if (was?.session != null && (was.engine !== now.agent || was.session !== now.session)) {
+          yield* chat.replaced({ agent: was.engine, session: was.session }, now)
+        }
+      }))
+      if (binding.changed !== undefined) yield* binding.changed
+    }))
+    // Only the engine is durable before authentication. No invented session
+    // id is written, and a fresh start keeps its predecessor until it succeeds.
+    if (now === null && was === null) yield* binding.exclusive(Effect.gen(function*() {
+      if (!unchanged()) return yield* new UsageFailure({ reason: "the node's binding changed while this chat was opening" })
+      yield* binding.write(input.node, sessionValue(input.agent, null))
+      expected = { engine: input.agent, session: null, title: "" }
+    }))
     return now
   })

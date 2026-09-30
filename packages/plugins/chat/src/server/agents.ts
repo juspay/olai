@@ -245,6 +245,7 @@ export const joined = (
     standing: standingOf(agent, live.get(agent.id)),
     ...(live.get(agent.id)?.since === undefined ? {} : { since: live.get(agent.id)!.since }),
     waiting: live.get(agent.id)?.asking ?? 0,
+    ...(live.get(agent.id)?.unopened === true ? { unopened: true } : {}),
     // The one fact olai writes back that a face draws, `null`-on-the-wire
     // where the record carries an absent key: the wire is a decoded value a
     // browser reads per frame, and an optional key there would be one more
@@ -261,7 +262,7 @@ const standingOf = (
   agent: NodeAgent,
   live: LiveSession | undefined,
 ): Agents[number]["standing"] => {
-  if (agent.session === null) return "unbound"
+  if (agent.session === null) return live?.unopened === true ? "needs-you" : "unbound"
   if (live === undefined) return "asleep"
   if (live.status === "off" || live.status === "gone") return "gone"
   if (live.status === "booting") return "waking"

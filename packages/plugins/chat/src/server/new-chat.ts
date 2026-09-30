@@ -9,7 +9,8 @@ export interface NewChat {
   readonly start: (node: string, agent: string, committed: Reading) => Effect.Effect<unknown, OpFailure>
 }
 /** Three ordinary acts: ensure Chats, mint a child, then start its session.
- * A refused start leaves the minted plain node available for another gesture. */
+ * An auth-refused start returns its engine-only node for the sign-in panel.
+ * Other refusals leave the minted plain node available for another gesture. */
 export const newChat = (owner: NewChat, agent: string): Effect.Effect<string, OpFailure> => Effect.gen(function*() {
   const file = owner.current()
   if (file === null) return yield* new UsageFailure({ reason: "the Inbox is unavailable; no conversation was created" })

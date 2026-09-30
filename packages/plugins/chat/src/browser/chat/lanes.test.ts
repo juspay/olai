@@ -38,7 +38,7 @@ const asked = (id: string, parent?: string): ChatEntry => ({
   since: "2026-08-21T12:00:00.000Z",
   kind: "ask",
   text: id,
-  ask: { fields: [], outcome: null },
+  ask: { fields: [], link: null, outcome: null },
   ...(parent === undefined ? {} : { parent }),
 })
 

@@ -55,6 +55,7 @@ import {
   AskAnswer,
   AskChoice,
   AskField,
+  AskLink,
   AskOutcome,
   FileDiff,
   Usage,
@@ -87,7 +88,7 @@ import { Schema } from "effect"
  * package with no protocol payload in it: the projections over ACP's own
  * payloads ride the main entry, and only `olai-plugin-chat` reads those.
  */
-export { AskAnswer, AskChoice, AskField, AskOutcome, FileDiff, Usage, YES_NO }
+export { AskAnswer, AskChoice, AskField, AskLink, AskOutcome, FileDiff, Usage, YES_NO }
 
 /**
  * A question the agent asked, and what became of it.
@@ -101,6 +102,18 @@ export { AskAnswer, AskChoice, AskField, AskOutcome, FileDiff, Usage, YES_NO }
  */
 export const Ask = Schema.Struct({
   fields: Schema.Array(AskField),
+  /**
+   * WHERE THE QUESTION SENDS THEM, for the one elicitation that is a place to
+   * go rather than something to fill in (ACP's URL mode, `@olai/acp`'s
+   * `urlOf`): empty {@link fields} and a link, and the row draws the link
+   * instead of a form.
+   *
+   * On the ask rather than as a seventh kind of entry, because it IS an ask:
+   * it blocks on a person, it is answered or declined through the same two
+   * verbs, it counts toward {@link ChatState.asking}, and the one thing that
+   * differs — what is drawn — is the last thing a reader needs to know.
+   */
+  link: Schema.NullOr(AskLink),
   outcome: Schema.NullOr(AskOutcome),
 })
 export type Ask = typeof Ask.Type
@@ -540,6 +553,29 @@ export const UserEntry = Schema.Struct({
    * so the row stops advertising a failure that has stopped being true.
    */
   delivery: Schema.optionalKey(Delivery),
+  /**
+   * ... AND WHY, on the one refusal that has something to do about it: the
+   * agent would not take the message because nobody is signed in.
+   *
+   * A second field beside {@link Delivery} rather than a third value of it, and
+   * that is the same call `Gone` makes one layer down: `delivery` answers "may I
+   * honestly offer these words again?" — which is YES here, the same as any
+   * other refusal — and this answers a question that only exists for this one.
+   * Folding it in would make every reader of the fate answer two questions with
+   * one word, and the losing direction is silent: a panel that read the reason
+   * as the retry policy, or the retry policy as the reason.
+   *
+   * What it is FOR is the box. A person who typed a message and met a sign-in
+   * wall has the words in two places and wants them in one: the panel hands
+   * them back to the composer when the sign-in row goes up ({@link
+   * ../browser/chat/Composer.tsx}), and this is the field it reads to know which
+   * message it is handing back. *Send again* stays beside it, because the row
+   * is still the record of what did not go.
+   *
+   * Absent rather than `false` for {@link queued}'s reason: the writer only ever
+   * writes `true`.
+   */
+  auth: Schema.optionalKey(Schema.Literal(true)),
   /**
    * A MACHINE SAID THIS, AND WHICH ONE — the plugin's `name`, as data.
    *
@@ -1306,6 +1342,108 @@ export const AgentChoice = Schema.Union([
 export type AgentChoice = typeof AgentChoice.Type
 
 /**
+ * ONE WAY TO SIGN IN, as an agent advertised it at the handshake.
+ *
+ * WHAT THE PANEL IS TOLD is the half that decides what a button does, and the
+ * other half — the command line a `terminal` method wants run — is deliberately
+ * NOT here. A command and its arguments are what this machine spawns, and the
+ * panel that would draw them is the browser ({@link ../../agent.ts} keeps them
+ * where the spawn happens). What a person needs on screen is a name and a
+ * sentence.
+ *
+ * `kind` is the whole of the difference a button has:
+ *
+ *   - `terminal` — THIS panel runs something and draws what it says. A
+ *     subscription sign-in on the Claude Code adapter is one: the adapter hands
+ *     over a command that prints a URL and waits for a code, and the panel owns
+ *     the process, the output it streams and the line somebody types back.
+ *   - `agent` — the AGENT runs it. Something happens at the other end of a URL
+ *     and the agent says when it is done, so all this panel has is the page to
+ *     send a person to and the wait.
+ */
+export const AuthMethod = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  /** The agent's own second line about the method, or `null` — drawn as the
+   *  button's tooltip rather than under it, because the chooser is a list of
+   *  things to press and not a page to read. */
+  description: Schema.NullOr(Schema.String),
+  kind: Schema.Literals(["terminal", "agent"]),
+})
+export type AuthMethod = typeof AuthMethod.Type
+
+/** The page an agent sent a person to, and how far it got. */
+export const SignInLink = Schema.Struct({
+  url: Schema.String,
+  /** Which machine it goes to — {@link ../../agent.ts} computes it where the
+   *  payload is read, because the question a person is answering is "who am I
+   *  about to hand this to" and a browser's URL parser is not the authority on
+   *  a string the agent sent. */
+  host: Schema.String,
+  /** The agent's own message, which for a device-code sign-in carries the code
+   *  to type into the page. */
+  message: Schema.String,
+  /** The agent has said the elicitation is complete. The row stays until the
+   *  sign-in itself answers, so what a person sees in between is "finished at
+   *  the page, waiting for the agent" rather than the card silently vanishing. */
+  done: Schema.Boolean,
+})
+export type SignInLink = typeof SignInLink.Type
+
+/**
+ * A SIGN-IN THE PANEL IS OFFERING OR RUNNING.
+ *
+ * THREE ARMS, and each is a different thing a person can do something about:
+ *
+ *   - `choosing` — nothing is running and there is a method to pick. The panel
+ *     shows one button per {@link AuthMethod} the agent advertised, and this arm
+ *     is also what puts a sign-in on screen at all: it is what `/login` asks for,
+ *     and what the panel falls into when an agent refuses something because
+ *     nobody is signed in.
+ *   - `terminal` — a method this PANEL runs ({@link AuthMethod}'s own note). The
+ *     row is the process: its output so far, verbatim and clickable, one input
+ *     line that writes to its stdin, and a way out. Exit 0 is the end of it —
+ *     the row goes and the panel reopens the conversation — and anything else
+ *     leaves the output on screen AS the failure, because for a CLI sign-in the
+ *     output is what a person needs to read.
+ *   - `agent` — a method the AGENT runs. There is no process and no stdin: there
+ *     is a page ({@link SignInLink}) while the agent waits on it, and then
+ *     whatever the agent answers.
+ *
+ * `why` is the OTHER way an attempt ends — it could not be started, or the agent
+ * refused it — and it is a sentence rather than a code because the two arms
+ * would otherwise say it in two vocabularies. An arm with `why` set is finished
+ * and failed; a `terminal` arm with `running: false` and a `code` is finished
+ * and failed for the reason the output says.
+ */
+export const SignIn = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("choosing") }),
+  Schema.Struct({
+    kind: Schema.Literal("terminal"),
+    /** Which method this is running — the id a button was pressed with. */
+    method: Schema.String,
+    /** ... and what to call it, out of the same advertisement. */
+    label: Schema.String,
+    /** Everything the process has said, stdout and stderr interleaved as they
+     *  arrived, oldest first and capped at the tail. */
+    output: Schema.String,
+    running: Schema.Boolean,
+    /** How it ended, once it has: the process's own exit code, or `null` when it
+     *  was signalled. */
+    code: Schema.NullOr(Schema.Int),
+    why: Schema.NullOr(Schema.String),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("agent"),
+    method: Schema.String,
+    label: Schema.String,
+    link: Schema.NullOr(SignInLink),
+    why: Schema.NullOr(Schema.String),
+  }),
+])
+export type SignIn = typeof SignIn.Type
+
+/**
  * WHO the panel is talking to — or that it is waiting to be told which.
  *
  * ONE MEMBER RATHER THAN THREE, and that is the shape carrying the rule instead
@@ -1381,6 +1519,23 @@ export const Talking = Schema.Union([
      * olai's fact about its own turns.
      */
     queues: Schema.Boolean,
+    /**
+     * HOW TO SIGN IN, when the agent offers a way at all — the handshake's
+     * `authMethods`, in the panel's spelling ({@link AuthMethod}).
+     *
+     * ON THE AGENT for the reason the two flags above are: it is something
+     * THIS AGENT said about ITSELF at the handshake, it is true for as long as
+     * the process lives rather than for as long as a conversation does, and the
+     * composer is the place that already asks who it is talking to. Empty is
+     * the ordinary answer — most agents have nothing to offer, and nothing on
+     * screen changes for them; `/login` is not intercepted for an agent with
+     * none of these, exactly as a `/compact` nobody implements is not.
+     *
+     * The METHODS THEMSELVES are drawn from this, and what a button then does
+     * is a gesture ({@link ../../wire.ts}'s `signIn`) rather than a fact — one
+     * of them is a process this end runs and the other is a wait on the agent.
+     */
+    methods: Schema.Array(AuthMethod),
   }),
   /**
    * Several agents are installed and nobody has said which this conversation is
@@ -1741,6 +1896,20 @@ export const ChatState = Schema.Struct({
   usage: Schema.NullOr(Usage),
   commands: Schema.Array(Command),
   /**
+   * A SIGN-IN THE PANEL IS OFFERING OR RUNNING, or `null` — see {@link SignIn},
+   * which is where the three arms and the two writers are argued.
+   *
+   * ON THE STATE rather than as a transcript row, and that is decided by the
+   * case that has no transcript at all: an agent that refuses to OPEN a
+   * conversation because nobody is signed in has no session, so there is no
+   * conversation for a row to be in and the panel is drawn from this cell alone
+   * (`../browser/agents/Fold.tsx` puts it above whichever face the body picks).
+   * It is also what makes two tabs share one sign-in, which is the whole point
+   * of the attempt being the AGENT's — a terminal method is one process and one
+   * output stream, and a row per tab would be two.
+   */
+  signIn: Schema.NullOr(SignIn),
+  /**
    * WHICH engines this serve mounted and what each is standing, in the order
    * the picker draws them.
    *
@@ -1921,6 +2090,11 @@ export const CHAT_OFF: ChatState = {
   models: [],
   usage: null,
   commands: [],
+  // NOBODY IS BEING ASKED TO SIGN IN, which is the honest default for a panel
+  // that has not been told anything yet: `/login` on an agent with no methods
+  // is a message like any other, and a row offering nothing would be worse than
+  // no row at all.
+  signIn: null,
   roster: [],
   talking: null,
   asking: 0,

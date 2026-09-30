@@ -26,6 +26,7 @@ import { DropTarget } from "../chat/DropTarget.tsx"
 import { createHolding } from "../chat/holding.ts"
 import { ElapsedProvider } from "../chat/elapsing.tsx"
 import { Unopened } from "../chat/Unopened.tsx"
+import { SignIn } from "../chat/SignIn.tsx"
 
 export function Fold(props: { readonly node: string; readonly record?: string }) {
   const agents = useAgents()
@@ -72,6 +73,14 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
           carry them off (`../chat/Strips.tsx`). */}
       <Show when={!props.page}><Strips chat={props.chat} /></Show>
       <History chat={props.chat} node={props.node} />
+      {/* A SIGN-IN IS THE PANEL'S, not the conversation's, and it is drawn HERE
+          for exactly that reason: an agent that refused to OPEN a conversation
+          because nobody is signed in has no session, so the body below is the
+          face that says the open failed and there is no transcript to put a row
+          in. Above the branch, it is on screen either way — and above the
+          scroll rather than under it, because a control a person has to press
+          may not be something they have to find (`../chat/SignIn.tsx`). */}
+      <SignIn chat={props.chat} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget ref={element => { box = element }} carrying={carrying()} onFiles={files => void holding.take(files)}>
         <Preview chat={props.chat} page={props.page} /><Transcript chat={props.chat} page={props.page} />
         <div class={props.page ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>

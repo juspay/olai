@@ -6,10 +6,10 @@ import type { OpFailure } from "@olai/format"
 
 import { type Cadence, cadence } from "../cadence.ts"
 import type { Chat } from "../scoped.ts"
-import type { Conversing } from "../sessions.ts"
+import type { PanelAddress } from "../wire/session.ts"
 import { CHAT_OFF, type ChatEntry, type ChatState, type Saying } from "../wire.ts"
 
-class Key extends Data.Class<Conversing> {}
+class Key extends Data.Class<{ readonly node: string | null; readonly agent: string | null; readonly session: string | null }> {}
 
 type Sink<A> = (value: A) => void
 type Rows<T> = CollectionDeltasMsg<string, T>
@@ -24,7 +24,8 @@ interface Reading {
 
 export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.gen(function*() {
   const held = yield* RcMap.make({
-    lookup: (to: Conversing) => Effect.gen(function*() {
+    lookup: (key: Key) => Effect.gen(function*() {
+      const to: PanelAddress = key.node !== null ? { node: key.node } : { agent: key.agent!, session: key.session! }
       let state: ChatState = CHAT_OFF
       const entries = new Map<string, ChatEntry>()
       const states = new Set<Sink<ChatState>>()
@@ -44,17 +45,17 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
         state: (value) => { state = value; for (const send of states) send(value) },
         transcript: clock.publish,
       }).pipe(Effect.catch(failure => Effect.sync(() => {
-        state = { ...CHAT_OFF, status: "idle", unopened: { what: to.session, why: failure.message } }
+        state = { ...CHAT_OFF, status: "idle", unopened: { what: "session" in to ? to.session : null, why: failure.message } }
         for (const send of states) send(state)
       }))))
       return { state: () => state, entries, clock, states, rows, pieces }
     }),
   })
 
-  const subscribe = <A>(to: Conversing, connect: (
+  const subscribe = <A>(to: PanelAddress, connect: (
     value: Reading, send: Sink<A>,
   ) => Set<Sink<A>>) => Stream.callback<A, OpFailure>((queue) => Effect.gen(function*() {
-    const value = yield* RcMap.get(held, new Key(to))
+    const value = yield* RcMap.get(held, new Key("node" in to ? { node: to.node, agent: null, session: null } : { node: null, ...to }))
     const send: Sink<A> = (frame) => { Queue.offerUnsafe(queue, frame) }
     yield* Effect.acquireRelease(
       Effect.sync(() => {
@@ -67,15 +68,15 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
   })).pipe(Stream.orDie)
 
   return {
-    state: { source: (to: Conversing) => subscribe<ChatState>(to, (value, send) => {
+    state: { source: (to: PanelAddress) => subscribe<ChatState>(to, (value, send) => {
       send(value.state())
       return value.states
     }) },
-    transcript: { source: (to: Conversing) => subscribe<Rows<ChatEntry>>(to, (value, send) => {
+    transcript: { source: (to: PanelAddress) => subscribe<Rows<ChatEntry>>(to, (value, send) => {
       send({ kind: "snapshot", entries: [...value.entries] })
       return value.rows
     }) },
-    saying: { source: (to: Conversing) => subscribe<Rows<Saying>>(to, (value, send) => {
+    saying: { source: (to: PanelAddress) => subscribe<Rows<Saying>>(to, (value, send) => {
       send({ kind: "snapshot", entries: [...value.clock.onWire()] })
       return value.pieces
     }) },

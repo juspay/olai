@@ -2,6 +2,7 @@ import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
 import { createEffect, createRoot, createSignal, onCleanup } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
+import type { PanelAddress } from "../../wire/session.ts"
 import type { Conversing } from "../../sessions.ts"
 import { createConversationUI } from "../chat/ui.tsx"
 import type { Chat } from "../chat/state.ts"
@@ -19,8 +20,8 @@ export const createAgentReadings = (agents: Roster) => {
   const waiting = new Set<() => void>()
   let alive = true
   onCleanup(() => { alive = false; for (const stop of [...waiting]) stop(); cache.clear() })
-  const ui = (to: Conversing) => {
-    const key = JSON.stringify([to.agent, to.session])
+  const ui = (to: PanelAddress) => {
+    const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
     let value = cache.get(key)
     if (value === undefined) { value = createConversationUI(previews); cache.set(key, value) }
     return value

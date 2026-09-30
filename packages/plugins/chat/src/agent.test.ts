@@ -20,8 +20,11 @@
 import { RequestError } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 
-import { adopt, fromElsewhere, goneOf, make } from "./agent.ts"
+import { type Agent, adopt, authOf, childEnvOf, fromElsewhere, goneOf, make } from "./agent.ts"
 import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
 import type { Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
@@ -160,6 +163,155 @@ describe("what a failure says about whether the message went", () => {
     ) {
       expect(goneOf(cause)).not.toBe("unreachable")
     }
+  })
+})
+
+describe("what a refusal says about a signature", () => {
+  /** ACP's own code for "authenticate first" — the one number a sign-in row is
+   *  drawn out of (`-32000` in the protocol's table, and the code the pinned
+   *  adapters answer with from `session/new`, `session/load` and a turn
+   *  alike). */
+  const AUTH_REQUIRED = -32000
+
+  test("the protocol's auth-required code is a sign-in", () => {
+    expect(authOf(new RequestError(AUTH_REQUIRED, "Authentication required"))).toBe(true)
+    // ... AND IT IS STILL A REFUSAL: the agent answered and the request can
+    // honestly be offered again, which is what the panel's two faces are drawn
+    // out of. The two readings are of one rejection and neither overrides the
+    // other.
+    expect(goneOf(new RequestError(AUTH_REQUIRED, "Authentication required"))).toBe("refused")
+  })
+
+  test("the code a failed sign-in answers with is NOT one", () => {
+    // The pinned Codex adapter answers `authenticate` with `invalidParams` when
+    // its own login did not go through. That is "the attempt failed", which the
+    // sign-in row says in the agent's own words — not "you are not signed in",
+    // which is what puts the chooser back on screen.
+    expect(authOf(new RequestError(-32602, "Invalid params"))).toBe(false)
+  })
+
+  test("silence is not a signature either", () => {
+    // A dead pipe, a deadline, something nothing has seen before: none of them
+    // is an agent asking to be signed in, and a row offering a sign-in because
+    // a connection died would be a row about the wrong thing.
+    expect(authOf(new Error("ACP connection closed"))).toBe(false)
+    expect(authOf("something nobody has seen before")).toBe(false)
+    expect(authOf(null)).toBe(false)
+  })
+})
+
+describe("the environment a spawned child gets", () => {
+  test("the adapter's unset list is removed and everything else survives", () => {
+    // The rule a remote-detecting adapter depends on: olai IS the far end of a
+    // browser, so the variables that mean "somewhere else" are taken away from
+    // its spawn — and taking them away may not cost anything else.
+    const env = childEnvOf(
+      { PATH: "/bin", SSH_CONNECTION: "10.0.0.1 1 2", KEEP: "yes" },
+      { EXTRA: "1" },
+      ["NO_BROWSER", "SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY", "CLAUDE_CODE_REMOTE"],
+    )
+    expect(env).toEqual({ PATH: "/bin", KEEP: "yes", EXTRA: "1" })
+  })
+
+  test("olai's own environment is not edited", () => {
+    // A removal done on `process.env` itself would outlive the spawn and change
+    // every later child of this process — including the next agent's.
+    const base: NodeJS.ProcessEnv = { SSH_TTY: "/dev/pts/1", PATH: "/bin" }
+    childEnvOf(base, undefined, ["SSH_TTY"])
+    expect(base).toEqual({ SSH_TTY: "/dev/pts/1", PATH: "/bin" })
+  })
+
+  test("an adapter that unset nothing inherits exactly what it was given", () => {
+    expect(childEnvOf({ PATH: "/bin" }, undefined, undefined)).toEqual({ PATH: "/bin" })
+  })
+})
+
+describe("who gets a sign-in attempt", () => {
+  /** A bench agent whose handshake offers two `terminal` methods, each running
+   *  the same script — which records its own spawn, the one observation that
+   *  says how many PROCESSES there were. */
+  const bench = async (
+    body: (it: { agent: Agent; spawned: () => number }) => Promise<void>,
+  ): Promise<void> => {
+    const cwd = mkdtempSync(join(tmpdir(), "olai-signin-"))
+    const log = join(cwd, "spawns.log")
+    const agent = await Effect.runPromise(make({
+      id: "auth-agent",
+      leg: SAYS_NOTHING,
+      command: process.execPath,
+      args: [join(import.meta.dirname, "fixtures/auth-agent.ts")],
+      env: {
+        OLAI_TEST_LOGIN_SCRIPT: join(import.meta.dirname, "fixtures/auth-login.ts"),
+        OLAI_TEST_LOGIN_LOG: log,
+      },
+      cwd,
+      tools: () => null,
+      memory: REMEMBERS_NOTHING,
+      onEvent: () => {},
+    }))
+    try {
+      await body({
+        agent,
+        spawned: () =>
+          existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).length : 0,
+      })
+    } finally {
+      await Effect.runPromise(agent.stop)
+      rmSync(cwd, { recursive: true, force: true })
+    }
+  }
+
+  test("two presses in one instant take ONE attempt, and the second attaches", async () => {
+    // THE RACE THE CLAIM EXISTS FOR: nothing yields between reading the slot and
+    // filling it, so the second caller — another tab, the same tick — finds it
+    // taken. Exercised as concurrency rather than as a sequence: pressed one
+    // after the other, an attempt that has already ENDED is a new attempt, which
+    // is the ordinary case and says nothing about this one.
+    await bench(async ({ agent, spawned }) => {
+      const outcomes = await Effect.runPromise(
+        Effect.forEach([1, 2], () => agent.signIn("fake-login"), { concurrency: "unbounded" }),
+      )
+      expect([...outcomes].sort()).toEqual(["attached", "signed-in"])
+      expect(spawned()).toBe(1)
+    })
+  })
+
+  test("a different method while one is running is refused, not attached", async () => {
+    // Two presses on two methods is two credential stores being written at
+    // once, which is the one thing this must not do — so the second is told no
+    // in words rather than quietly joining the first.
+    await bench(async ({ agent, spawned }) => {
+      const outcomes = await Effect.runPromise(
+        Effect.forEach(
+          ["fake-login", "other-login"],
+          (method) => Effect.result(agent.signIn(method)),
+          { concurrency: "unbounded" },
+        ),
+      )
+      // ONE of them ran and one of them was refused, whichever order the two
+      // fibers got there in — and the one that ran is a sign-in either way,
+      // because `other-login` writes no command line of its own and is read
+      // against this agent's argv (`methodsIn`).
+      const ran = outcomes.filter((outcome) => outcome._tag === "Success")
+      expect(ran).toHaveLength(1)
+      expect(ran[0]?._tag === "Success" ? ran[0].success : null).toBe("signed-in")
+      const refused = outcomes.filter((outcome) => outcome._tag === "Failure")
+      expect(refused).toHaveLength(1)
+      expect(refused[0]?._tag === "Failure" ? refused[0].failure.why : "")
+        .toContain("already running")
+      expect(spawned()).toBe(1)
+    })
+  })
+
+  test("a method that wrote no command line runs the agent binary with its own args", async () => {
+    // THE PROTOCOL'S OTHER SPELLING, and the one the pinned pi adapter actually
+    // uses: a `terminal` method may carry no `_meta["terminal-auth"]` at all,
+    // and the args are then "additional arguments to pass when running the
+    // agent binary" — the BINARY, which is what the client spawns.
+    await bench(async ({ agent, spawned }) => {
+      expect(await Effect.runPromise(agent.signIn("other-login"))).toBe("signed-in")
+      expect(spawned()).toBe(1)
+    })
   })
 })
 

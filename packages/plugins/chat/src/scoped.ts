@@ -13,6 +13,7 @@ import { makePanel } from "./chat.ts"
 import { here } from "./agents/roster.ts"
 import * as Memory from "./memory.ts"
 import type { Conversing } from "./sessions.ts"
+import type { PanelAddress } from "./wire/session.ts"
 import type { Change } from "./transcript.ts"
 import { succeeded } from "./succession.ts"
 import { pastOf } from "./lineage.ts"
@@ -35,6 +36,7 @@ export interface LiveSession {
   readonly since?: string
   readonly status: ReturnType<Panel["state"]>["status"]
   readonly asking: number
+  readonly unopened?: boolean
 }
 
 /** The public chat is the scheduler over panels, with every acquired node
@@ -42,16 +44,17 @@ export interface LiveSession {
 export interface Chat extends Panel {
   readonly sessionsFor: (agent: string) => Effect.Effect<Listed>
   /** A reader owns its hold until its Effect scope closes. */
-  readonly reading: (to: Conversing, observer: ReadingObserver) => Effect.Effect<Panel, OpFailure, Scope.Scope>
+  readonly reading: (to: PanelAddress, observer: ReadingObserver) => Effect.Effect<Panel, OpFailure, Scope.Scope>
   /** Apply a browser gesture only to the conversation it was drawn for. */
-  readonly inConversation: <A>(to: Conversing, scope: string | null | undefined, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
+  readonly inConversation: <A>(to: PanelAddress, scope: string | null | undefined, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
   readonly live: () => ReadonlyMap<string, LiveSession>
   /** Compatibility metadata verb; assignment never opens or relocates a process. */
   readonly assignedTo: (node: string, to: Conversing) => Effect.Effect<void>
   readonly startAgentSession: (
     node: string,
     agent: string,
-  ) => Effect.Effect<Conversing, OpFailure>
+    committed?: (to: Conversing) => Effect.Effect<void, OpFailure>,
+  ) => Effect.Effect<Conversing | null, OpFailure>
 }
 
 export interface ReadingObserver {
@@ -171,6 +174,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const closing = new Map<NodeSlot, Deferred.Deferred<void>>()
     const readers = new Map<string, Set<ReadingObserver>>()
     const readerNodes = new Map<ReadingObserver, string>()
+    const nodeReaders = new Map<string, Set<ReadingObserver>>()
     let knownEngines = new Set(here(options.roster()).map(row => row.id))
     const readingKey = (to: Conversing) => JSON.stringify([to.agent, to.session])
     const listeners = (state: ReturnType<Panel["state"]>) => {
@@ -178,9 +182,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       const session = state.session?.id ?? state.unopened?.what
       return agent == null || session == null ? undefined : readers.get(readingKey({ agent: agent.id, session }))
     }
-    const readingListeners = (slot: NodeSlot) => listeners(slot.state)
-      ?? (slot.openingFor === null ? undefined : readers.get(readingKey(slot.openingFor)))
-      ?? (slot.readingFor === null ? undefined : readers.get(readingKey(slot.readingFor)))
+    const readingListeners = (slot: NodeSlot) => new Set([
+      ...(!slot.history ? nodeReaders.get(slot.node) ?? [] : []),
+      ...(listeners(slot.state)
+        ?? (slot.openingFor === null ? undefined : readers.get(readingKey(slot.openingFor)))
+        ?? (slot.readingFor === null ? undefined : readers.get(readingKey(slot.readingFor))) ?? []),
+    ])
     const read = (slot: NodeSlot) => (readingListeners(slot)?.size ?? 0) > 0
       || [...readerNodes.values()].includes(slot.node)
     const pending = new Map<string, Array<PendingDelivery>>()
@@ -737,6 +744,34 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }))
 
     const reading: Chat["reading"] = (to, observer) => Effect.gen(function*() {
+        if ("node" in to) {
+          if (!seatableAt(to.node)) return yield* new UsageFailure({ reason: "the node is no longer available" })
+          yield* Effect.acquireRelease(Effect.sync(() => {
+            const held = nodeReaders.get(to.node) ?? new Set<ReadingObserver>()
+            held.add(observer)
+            nodeReaders.set(to.node, held)
+            readerNodes.set(observer, to.node)
+            return held
+          }), held => Effect.sync(() => {
+            held.delete(observer)
+            readerNodes.delete(observer)
+            if (held.size === 0) nodeReaders.delete(to.node)
+            for (const slot of nodes.values()) armIdle(slot)
+          }))
+          return yield* working(to.node, undefined, ({ slot }) => slot.opening.withPermit(Effect.gen(function*() {
+            const bound = nodeAt(to.node)
+            const state = slot.panel.state()
+            // A refused open belongs to this seat. Reading it must not replace
+            // the pending new/resume operation with another load.
+            if (state.unopened === null && bound?.session != null
+              && (state.session === null || state.session.id !== bound.session || agentIn(state)?.id !== bound.engine || state.status === "gone")) {
+              yield* Effect.catch(slot.panel.loadSession(bound.engine, bound.session), () => Effect.void)
+            }
+            observer.state(slot.panel.state())
+            observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
+            return slot.panel
+          })))
+        }
         yield* Effect.acquireRelease(Effect.sync(() => {
           const key = readingKey(to)
           const held = readers.get(key) ?? new Set<ReadingObserver>()
@@ -787,6 +822,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           status: slot.state.status,
           since: slot.since,
           asking: slot.state.asking,
+          unopened: slot.state.unopened !== null,
         } satisfies LiveSession]),
       ),
       overheard: () => root.overheard(),
@@ -837,10 +873,28 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
       },
       send: (...args) => foreground((panel) => panel.send(...args)),
+      // THE SIGN-IN TRIO, routed the way every other gesture is. The server
+      // reaches a node's panel through `inConversation` (which is where the
+      // conversation a press was drawn for is resolved); these three exist
+      // because the AGGREGATE is a `Panel` too, and a session-less panel —
+      // an open refused for want of a signature — is the one case where the
+      // foreground panel IS the answer.
+      signIn: (method) => foreground((panel) => panel.signIn(method)),
+      signInInput: (text) => foreground((panel) => panel.signInInput(text)),
+      signInCancel: foreground((panel) => panel.signInCancel),
       attach: (chunk) => foreground((panel) => panel.attach(chunk)),
       resend: (id) => foreground((panel) => panel.resend(id)),
       cancel: foreground((panel) => panel.cancel),
       inConversation: (to, scope, use) => Effect.suspend(() => {
+        if ("node" in to) {
+          const slot = nodes.get(JSON.stringify([to.node, null, null]))
+          if (slot === undefined || slot.closing || scope !== slot.panel.state().uploadScope) {
+            return Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" }))
+          }
+          return working(to.node, undefined, ({ slot: held }) => held === slot && scope === held.panel.state().uploadScope
+            ? use(held.panel)
+            : Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" })))
+        }
         const matches = (panel: Panel) => {
           const state = panel.state()
           return agentIn(state)?.id === to.agent
@@ -887,7 +941,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * else. A scope is a seat and a seat is a node ({@link acquire}); which
        * node this is for is the argument.
        */
-      startAgentSession: (node, agent) =>
+      startAgentSession: (node, agent, committed) =>
         !seatableAt(node)
           ? Effect.fail(new UsageFailure({
             reason: `node ${node} is no longer available for an agent session`,
@@ -900,31 +954,49 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 agent: agentIn(slot.state)?.id, session: slot.state.session.id,
               }
               const before = [...slot.panel.entries()].map(([id]) => id)
-              yield* Effect.acquireUseRelease(
+              const completed = Effect.gen(function*() {
+                const session = slot.panel.state().session
+                if (session === null) return yield* new UsageFailure({
+                  reason: `${agent} opened no conversation to bind to this node`,
+                })
+                // Some adapters/fixtures may reuse an identity after changing
+                // engines. The newly opened pair is current, never superseded.
+                slot.superseded.delete(readingKey({ agent, session: session.id }))
+                if (previous?.agent !== undefined
+                  && (previous.agent !== agent || previous.session !== session.id)) {
+                  slot.superseded.add(readingKey({ agent: previous.agent, session: previous.session }))
+                }
+                // Retain old identities for this slot's lifetime: readers may
+                // already hold a binding snapshot when persistence catches up.
+                // A harness may return the same identity for fresh start. Its
+                // existing readers still need the new state and cleared replay.
+                for (const reader of readingListeners(slot)) {
+                  reader.state(slot.state)
+                  reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+                }
+                yield* flush(slot)
+                if (committed !== undefined) yield* committed({ agent, session: session.id })
+              })
+              const result = yield* Effect.acquireUseRelease(
                 Effect.sync(() => { slot.mutingReaders = true }),
-                () => slot.panel.newSession(agent),
+                () => Effect.result(slot.panel.newSession(agent, completed)),
                 () => Effect.sync(() => { slot.mutingReaders = false }),
               )
-              const session = slot.panel.state().session
-              if (session === null) return yield* new UsageFailure({
-                reason: `${agent} opened no conversation to bind to this node`,
-              })
-              // Some adapters/fixtures may reuse an identity after changing
-              // engines. The newly opened pair is current, never superseded.
-              slot.superseded.delete(readingKey({ agent, session: session.id }))
-              if (previous?.agent !== undefined
-                && (previous.agent !== agent || previous.session !== session.id)) {
-                slot.superseded.add(readingKey({ agent: previous.agent, session: previous.session }))
+              if (result._tag === "Failure") {
+                const state = slot.panel.state()
+                if (state.unopened !== null && state.signIn?.kind === "choosing") {
+                  // A pending sign-in must reach the current node's readers
+                  // before there is a new binding. Other failed starts retain
+                  // the existing reader face and report their gesture's error.
+                  for (const reader of readingListeners(slot)) {
+                    reader.state(state)
+                    reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+                  }
+                  return null
+                }
+                return yield* result.failure
               }
-              // Retain old identities for this slot's lifetime: readers may
-              // already hold a binding snapshot when persistence catches up.
-              // A harness may return the same identity for fresh start. Its
-              // existing readers still need the new state and cleared replay.
-              for (const reader of listeners(slot.state) ?? []) {
-                reader.state(slot.state)
-                reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
-              }
-              yield* flush(slot)
+              const session = slot.panel.state().session!
               return { agent, session: session.id }
             }))),
       chooseAgent: (agent) => {

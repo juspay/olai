@@ -388,3 +388,64 @@ open the plugins panel through the health popover and put it away with Escape
 (picking the Plugins row shuts the popover; Escape hands the caret back to the
 health dot), and `setSwitch` drives a
 preference switch.
+
+## Signing in to an agent, from inside olai (#639)
+
+The panel runs the sign-in an adapter hands over, or waits on one the agent
+drives, and both ends are exercised against the scripted ACP agent — which grew
+the other half of that contract: `authMethods` in its handshake, an
+`authenticate` that drives a device-code flow, and ACP's `-32000` on the three
+verbs that can refuse for want of a signature (`session/new`, `session/load`, a
+turn).
+
+- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (12 scenarios,
+  the terminal kind, on the `chat` corpus): the handed-over command runs, prints its URL as a
+  *clickable link*, reads a code and exits 0; a code it does not accept is
+  answered and asked for again with the process still up; a code that fails the
+  attempt outright leaves the output on screen as the failure with a way to try
+  again; cancelling takes the row away and (proved by a second attempt starting
+  afresh rather than attaching) stops what was running; two browser tabs watch
+  one attempt and either can finish it; a REFUSED TURN leaves the message marked
+  *not sent*, hands its words back to the composer, and the sign-in reopens the
+  same conversation with the box still holding them; and an agent that advertised
+  no method gets `/login` delivered as an ordinary message with no row; and a
+  sign-in running when the ENGINE IS SWITCHED OFF is stopped by it — the command
+  writes down which process it is (`fake-login.ts`), and the step asks the
+  operating system whether that process is still there, which is the only
+  account of "gone" that does not depend on how a process was asked to die. The
+  gesture is the engine switch and not the fold's own close, and that distinction
+  is worth pinning: closing an agent releases the node's binding and leaves its
+  scope to be evicted, so its subprocess is still there to be found.
+- **`packages/plugins/codex/e2e/features/agent_signin.feature`** (8 scenarios,
+  the agent kind, on the `lanes` corpus): a conversation refused for want of a
+  signature is signed in to through the device-code card and opens itself
+  afterwards — including that the `env_var` method the fake also advertises is
+  NOT offered; backing out leaves nothing running (the adapter's own refusal of
+  the cancelled login does not put the row back, proved by a second attempt
+  starting afresh); and a mid-conversation refusal is signed in to, with the
+  words handed back to the box; and a device-code sign-in running when its engine
+  is switched off goes with it — the row is gone because the agent it belonged to
+  is, and the card can no longer arrive from a process that is not there.
+- Both engines cover an auth-refused Chats `+`, a listed conversation resumed by its original id, and starting on an untouched node. Codex also covers a refused fresh start with stored conversations available, asserting the new session id and binding after sign-in. The first-start cases assert an engine-only binding before authentication; there is no fabricated session id. Node-addressed readings retain the refusal before any transcript exists. The untouched-node cases also cancel and retry, reload the page while authentication is still needed, and complete one terminal sign-in from another tab. Existing fresh-start and writable-history scenarios also caught a binding-delivery race: the new session could appear under the previous draft owner, so typing before the binding arrived lost those words. A node reader now waits for a session matching its draft owner before showing that session. The surface-client regression test also exercises in-place state reconciliation: while the binding lags, the reader exposes the opening state instead of retaining a mutable previous frame.
+- **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
+  plugin because the feature is the panel's: arm the agent
+  (`.agent-needs-auth`), say the person finished at a vendor's page
+  (`.agent-at-the-page`, which is the only way this suite can model a page it
+  cannot visit), press a method by its ADVERTISED id, type into the process's
+  own line, and read the row, the card and the link.
+- **The remote-signal strip is tested by construction, not by the machine's
+  environment.** The claude fake is given `SSH_CONNECTION` on the server, and it
+  mimics the pinned adapter's own test — on a "remote" session it offers only
+  the full-screen method. If `Adapter.unset` ever stops taking the five
+  variables away, the methods that appear change and every one of those scenarios
+  fails at its first press.
+- **Unit** (`packages/acp/src/asks.test.ts`, `packages/plugins/chat/src/agent.test.ts`,
+  `packages/plugins/claude/src/server.test.ts`): the URL-elicitation reader
+  (message, host with its port, an unparseable URL carried whole, a vendor mode
+  refused rather than read for a URL); `-32000` read as a refusal AND as a
+  sign-in while `-32602` is neither; the environment rule (the named variables
+  removed, everything else kept, olai's own environment untouched); and the
+  engine's five names pinned by hand.
+- Open: no live `claude auth login` or Codex device-code flow is driven — the
+  command and the page are the fakes — and the card's browser-side look (its
+  colours, its phone layout) has no visual assertion.

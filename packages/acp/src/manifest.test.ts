@@ -233,10 +233,12 @@ describe("the manifest", () => {
       "contentOf",
       "diffsOf",
       "formOf",
+      "hostOf",
       "nativeActivity",
       "permissionFormOf",
       "relativeTo",
       "terminalMetaIn",
+      "urlOf",
       "usageIn",
     ])
     // ... and the wire half carries the vocabulary alone: no payload reader
@@ -245,6 +247,7 @@ describe("the manifest", () => {
       "AskAnswer",
       "AskChoice",
       "AskField",
+      "AskLink",
       "AskOutcome",
       "FileDiff",
       "Usage",

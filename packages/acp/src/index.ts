@@ -25,9 +25,11 @@ export {
   contentOf,
   type Form,
   formOf,
+  hostOf,
   PERMISSION_FIELD,
   permissionFormOf,
   Refused,
+  urlOf,
 } from "./asks.ts"
 export { diffsOf, relativeTo } from "./diffs.ts"
 export { usageIn } from "./usage.ts"

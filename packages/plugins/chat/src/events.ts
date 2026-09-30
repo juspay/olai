@@ -14,8 +14,19 @@
  * the caller that asked is the one waiting.
  */
 
-import type { SessionSetting, PlanStep, TerminalView, Armed, ChatServer, Spawned, ToolStatus, Json } from "olai-plugin-chat/wire"
-import type { AskField, AskOutcome, FileDiff, Usage } from "@olai/acp/wire"
+import type {
+  SessionSetting,
+  PlanStep,
+  TerminalView,
+  Armed,
+  AuthMethod,
+  ChatServer,
+  SignIn,
+  Spawned,
+  ToolStatus,
+  Json,
+} from "olai-plugin-chat/wire"
+import type { AskField, AskLink, AskOutcome, FileDiff, Usage } from "@olai/acp/wire"
 /** A slash command the agent offers. */
 export interface Command {
   readonly name: string
@@ -160,6 +171,18 @@ export type AgentEvent =
     readonly message: string
     readonly fields: ReadonlyArray<AskField>
     /**
+     * WHERE THE QUESTION SENDS THEM, for the one elicitation that asks for no
+     * fields at all — ACP's URL mode ({@link @olai/acp}'s `urlOf`). The message
+     * above is the same message the card shows, so what this adds is the two
+     * facts a link is: the place, and which machine it is
+     * (`@olai/acp/wire`'s `AskLink`).
+     *
+     * `null` for every question that is a thing to fill in, which is nearly all
+     * of them — a permission request among them, since picking an option is an
+     * answer and going somewhere is not.
+     */
+    readonly link: AskLink | null
+    /**
      * WHICH agent is asking: the `Agent` call the question came out of, by
      * that call's own id — or `undefined` for one the main agent asked itself.
      *
@@ -205,6 +228,17 @@ export type AgentEvent =
      *  over. What lets the composer promise a person their words will be got
      *  to, on the agent's own word. */
     readonly queues: boolean
+    /**
+     * ... AND HOW TO SIGN IN, if it offers a way — the handshake's
+     * `authMethods`, read into what a button needs ({@link AuthMethod}).
+     *
+     * Here rather than in {@link signIn}'s event, because it is the same kind
+     * of fact as the two above: something the agent said about itself at the
+     * handshake, true for the life of the process, and read by the composer
+     * before anybody has asked for anything. Empty for an agent with nothing to
+     * offer, which is most of them.
+     */
+    readonly methods: ReadonlyArray<AuthMethod>
   }
   /**
    * The MCP servers this conversation has, and how each one stands — the whole
@@ -227,6 +261,23 @@ export type AgentEvent =
    * that can be refined by whoever knows better, and only ever by them
    * ({@link ./servers.ts}'s `movedBy`).
    */
+  /**
+   * A SIGN-IN, as it stands — the whole value, replaced rather than merged,
+   * and `null` when there is none ({@link SignIn}).
+   *
+   * ONE EVENT FOR THE WHOLE THING, so there is one place a sign-in can be and
+   * no path that moves the wire without moving the row. It is not a per-chunk
+   * stream like `saying` is: what a terminal method prints is short, bounded,
+   * and read as a whole — a URL, a prompt, a refusal — and the panel draws it
+   * exactly as it stands, so the whole value is the honest unit.
+   *
+   * The PANEL also writes this member of its own state, and the split is worth
+   * naming: the CHOOSER is a panel's (somebody pressed `/login`, or an agent
+   * refused something for want of a signature), and an ATTEMPT is the agent's —
+   * it is the one holding the process, and it is what says when the attempt is
+   * over.
+   */
+  | { readonly _tag: "signIn"; readonly signIn: SignIn | null }
   | { readonly _tag: "servers"; readonly servers: ReadonlyArray<ChatServer> }
   /** The model this session runs, labelled the way the agent labels its own. */
   | { readonly _tag: "model"; readonly name: string | null }

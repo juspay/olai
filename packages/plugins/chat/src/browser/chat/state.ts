@@ -47,7 +47,7 @@ import { Effect } from "effect"
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
 
-import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
+import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, type PanelAddress, agentIn, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { type Accessor, createEffect, createMemo, createSelector, createSignal, on, onCleanup } from "solid-js"
@@ -182,6 +182,25 @@ export interface Chat {
   /** ... or decline it, which the agent is told about as such. */
   readonly decline: (id: string, done?: () => void) => void
   /**
+   * SIGN IN — with one of the agent's methods, or with `null` for the chooser
+   * the composer's `/login` asks for (`./Composer.tsx`).
+   *
+   * The row that follows is NOT optimistic: nothing is set here, and what a
+   * person sees is the server's `signIn` frame. That is what makes two tabs one
+   * sign-in — a terminal method is one process and one output stream, and a
+   * local copy of it would be a second.
+   */
+  readonly signIn: (method: string | null) => void
+  /** One line to the process a terminal sign-in is running. */
+  readonly signInInput: (text: string) => void
+  /** Stop it, or dismiss a finished attempt's row. */
+  readonly signInCancel: () => void
+  /**
+   * THE WORDS THE AGENT WOULD NOT TAKE because nobody is signed in, handed back
+   * to the box ONCE — see {@link Chat.takeBack}.
+   */
+  readonly takeBack: () => string | null
+  /**
    * POINT ONE PLUGIN'S DOORBELL AT ONE FILE, for this conversation — or, with
    * `file: null`, at nothing, which is how one is turned off.
    *
@@ -223,21 +242,33 @@ export interface Chat {
  * message is a module snapshot in `last.ts`, written only while the open panel
  * is mounted — never a second transcript subscription.
  */
-export const createChatState = (conv: Conversing): Accessor<ChatState> => {
+export const createChatState = (conv: PanelAddress, expected?: Conversing | null): Accessor<ChatState> => {
   const cell = chatWire().streams.state.use(() => conv)
   // The cell always has a value: the spec declares a default, and the framework
   // seeds the subscription with it — so `off` is what a page reads before the
   // first frame, which is exactly what it should read.
-  return () => cell() ?? CHAT_OFF
+  // A node stream can announce its new session before the binding projection
+  // reaches this tab. Keep that frame away from the previous session's draft
+  // owner: otherwise typing into the new-looking composer is lost on remount.
+  // Sessionless refusals still belong to the node and must remain visible.
+  // Surface cells reconcile in place, so keeping the previous object would
+  // still expose its changed session. Show the opening state until the draft
+  // owner matches instead of retaining that mutable reading.
+  return createMemo<ChatState>(() => {
+    const next = cell() ?? CHAT_OFF
+    if (expected !== undefined && next.session !== null
+      && (expected === null || next.session.id !== expected.session || agentIn(next)?.id !== expected.agent)) return CHAT_OFF
+    return next
+  })
 }
 
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-export const createChat = (conv: Conversing, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void } = {}): Chat => {
+export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly expected?: Conversing | null; readonly visit?: (to: Conversing) => void } = {}): Chat => {
   const ui = options.ui ?? createConversationUI()
   const { closePreview } = ui.previewing
   const [refused, setRefused] = ui.refused
-  const served = createChatState(conv)
+  const served = createChatState(conv, options.expected)
   const transcript = chatWire().streams.transcript.useCollection(conv, transcriptRows)
   // THE ROW STILL BEING SAID, in pieces. A second subscription rather than a
   // second delivery of the first, and the reason a streaming answer costs the
@@ -299,6 +330,46 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
   const rows = createRows(transcript.fold)
 
   /**
+   * THE WORDS THE AGENT WOULD NOT TAKE BECAUSE NOBODY IS SIGNED IN, handed back
+   * to the box — ONCE per row, which is what makes it a hand-back rather than a
+   * loop.
+   *
+   * WHY IT LIVES HERE and not in the row's own drawing: a refused message is
+   * marked `delivery: "refused"` with the words still in the bubble and a *send
+   * again* under it ({@link ./Entry.tsx}) — that is what this panel says about a
+   * message that did not go, and it stays true here. What is different about
+   * this one refusal is that there is somewhere better for the words to be
+   * while a person deals with it: the box they typed them into. Zed's flow does
+   * the same, and the reason is the round trip — the conversation is ABOUT to be
+   * reopened (`olai-plugin-chat`'s `signedIn`), the transcript is about to be
+   * cleared or replayed, and a row the agent never received is not something to
+   * leave a person scrolling for.
+   *
+   * ONCE, KEYED BY THE ROW: an effect that handed the words back whenever the
+   * box was empty would fight anybody who deleted them (`./Composer.tsx` reads
+   * this on every keystroke of an empty box).
+   */
+  let handedBack: string | null = null
+  const takeBack = (): string | null => {
+    // ONLY WHILE SOMEBODY IS BEING ASKED TO SIGN IN, which is the one moment
+    // the box is the better place for these words: `/login` on an agent that
+    // needs no signature must not reach back for an old refusal.
+    if (served().signIn === null) return null
+    const keys = rows.keys()
+    for (let at = keys.length - 1; at >= 0; at--) {
+      const row = entry(keys[at]!)()
+      // The NEWEST thing a person said, which is the only candidate: whatever is
+      // below it in the column is either somebody else's message or one that
+      // was answered long ago.
+      if (row === undefined || row.kind !== "user") continue
+      if (row.auth !== true || row.delivery !== "refused" || handedBack === row.id) return null
+      handedBack = row.id
+      return row.text
+    }
+    return null
+  }
+
+  /**
    * A VERB THAT OPENS A CONVERSATION IS IN FLIGHT — this tab's own reading,
    * true from the click rather than from the server's first frame.
    *
@@ -334,7 +405,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
   })
   createEffect(() => {
     const current = served()
-    if (current.unopened === null && (current.session?.id !== conv.session || current.uploadScope === null)) return
+    if (current.unopened === null && (("session" in conv ? current.session?.id !== conv.session : current.session === null) || current.uploadScope === null)) return
     const scope = current.unopened === null ? current.uploadScope : null
     for (const settle of awaiting()) settle(scope)
     if (awaiting().size > 0) setAwaiting(new Set<(scope: string | null) => void>())
@@ -342,7 +413,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
   const sendingScope = (): Promise<string | null> => {
     const current = served()
     if (disposed || current.unopened !== null) return Promise.resolve(null)
-    if (current.session?.id === conv.session && current.uploadScope !== null) return Promise.resolve(current.uploadScope)
+    if (("session" in conv ? current.session?.id === conv.session : current.session !== null) && current.uploadScope !== null) return Promise.resolve(current.uploadScope)
     return new Promise(resolve => setAwaiting(before => new Set([...before, resolve])))
   }
 
@@ -491,6 +562,10 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
         )
       }),
     resend: (id) => verb(chatWire().procedures.conversation.resend({ conv, scope: state().uploadScope, id })),
+    signIn: (method) => verb(chatWire().procedures.conversation.signIn({ conv, scope: state().uploadScope, method })),
+    signInInput: (text) => verb(chatWire().procedures.conversation.signInInput({ conv, scope: state().uploadScope, text })),
+    signInCancel: () => verb(chatWire().procedures.conversation.signInCancel({ conv, scope: state().uploadScope })),
+    takeBack,
     setSetting: (agent, session, config, value, done) => verb(chatWire().procedures.conversation.setSetting({ agent, session, config, value }), done),
     setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),
     cancel: () => verb(chatWire().procedures.conversation.cancel({ conv, scope: state().uploadScope })),
@@ -505,7 +580,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
       chatWire().procedures.conversation.scope({ agent, session, plugin, pick }).pipe(Effect.asVoid, Effect.mapError(error => ({ reason: String(error) }))),
     reopen: () => opens(chatWire().procedures.conversation.reopen({ conv, scope: state().uploadScope })),
     answer: (id, answers, done) =>
-      verb(chatWire().procedures.conversation.answer({ conv, id, answers }), done),
-    decline: (id, done) => verb(chatWire().procedures.conversation.decline({ conv, id }), done),
+      verb(chatWire().procedures.conversation.answer({ conv, scope: state().uploadScope, id, answers }), done),
+    decline: (id, done) => verb(chatWire().procedures.conversation.decline({ conv, scope: state().uploadScope, id }), done),
   }
 }

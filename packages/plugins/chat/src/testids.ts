@@ -413,6 +413,34 @@ export const TESTID = {
   chatAskDismiss: "chat-ask-dismiss",
   /** What became of a question, once it stopped waiting. */
   chatAskOutcome: "chat-ask-outcome",
+  /** A LINK CARD — a place the agent sent somebody instead of a form, drawn in
+   *  a conversation's question row or in the sign-in row. `data-host` is the
+   *  machine the link goes to, `data-done` whether the agent has said the page
+   *  is finished with. */
+  chatLink: "chat-link",
+  /** The link itself, as an anchor. Its text is the host. */
+  chatLinkOpen: "chat-link-open",
+  /**
+   * A SIGN-IN the panel is offering or running. `data-kind` is the arm
+   * (`choosing`, `terminal`, `agent`), `data-method` the method it is running
+   * where there is one.
+   */
+  chatSignIn: "chat-sign-in",
+  /** One button of the chooser. `data-method` is the id it is pressed with,
+   *  and the accessible name is the method's own. */
+  chatSignInMethod: "chat-sign-in-method",
+  /** What the sign-in is doing, in its own words ("Running…", "Waiting for
+   *  you", "Exit 1"). */
+  chatSignInStatus: "chat-sign-in-status",
+  /** What a terminal method has printed, as it stands. */
+  chatSignInOutput: "chat-sign-in-output",
+  /** The one line that writes to that process's stdin. */
+  chatSignInInput: "chat-sign-in-input",
+  /** Out of it: kill the process, hand back the question, or dismiss a
+   *  finished attempt. */
+  chatSignInCancel: "chat-sign-in-cancel",
+  /** The way back into an attempt that ran and failed. */
+  chatSignInRetry: "chat-sign-in-retry",
   /** A tool call's row; `data-tool-status` is the agent's own status. */
   chatTool: "chat-tool",
   /** The line that opens a tool call. Named rather than found as "the button

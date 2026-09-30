@@ -31,6 +31,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 import { AskControl } from "./AskControl.tsx"
+import { LinkCard } from "./LinkCard.tsx"
 import { useConversationUI } from "./ui.tsx"
 import type { Chat } from "./state.ts"
 
@@ -50,6 +51,10 @@ export function AskForm(props: {
   const { draftAnswers, draftOf, forgetDraft, setDraft } = useConversationUI().drafts
   const ask = () => props.entry.ask
   const waiting = () => ask().outcome === null
+  /** WHERE THIS QUESTION SENDS THEM, for the one elicitation that asks for no
+   *  fields at all (ACP's URL mode): the row draws a card instead of a form,
+   *  and the only move a person has is to dismiss it. */
+  const link = () => ask().link
 
   /** The fields to draw as blocks: everything that is not somebody else's
    *  "other" box. */
@@ -124,10 +129,34 @@ export function AskForm(props: {
       data-asking={waiting()}
       data-how={ask().outcome?.how ?? ""}
     >
-      {/* The agent's own words. Quoted rather than rendered, like a user
-          message: a question is a sentence somebody has to read exactly,
-          and a `#` in it is a `#`. */}
-      <p class="m-0 whitespace-pre-wrap text-body">{props.entry.text}</p>
+      <Show
+        when={link()}
+        fallback={
+          <>
+            {/* The agent's own words. Quoted rather than rendered, like a user
+                message: a question is a sentence somebody has to read exactly,
+                and a `#` in it is a `#`. */}
+            <p class="m-0 whitespace-pre-wrap text-body">{props.entry.text}</p>
+          </>
+        }
+      >
+        {(where) => (
+          <LinkCard
+            // The MESSAGE is the row's own text, which is where the elicitation
+            // put it — a device-code sign-in carries the code a person has to
+            // type into the page, so it is the one thing here that must be read
+            // exactly.
+            message={props.entry.text}
+            url={where().url}
+            host={where().host}
+            // THE AGENT'S OWN WORD that the page is finished with, which for
+            // one of these is the whole of what anybody is waiting on. A person
+            // pressing dismiss declines it, and the row then says so
+            // ({@link SAID}).
+            done={!waiting()}
+          />
+        )}
+      </Show>
 
       <div class="mt-2 flex flex-col gap-3">
         <For each={blocks()}>
@@ -189,15 +218,20 @@ export function AskForm(props: {
         }
       >
         <div class="mt-2 flex items-center gap-2">
-          <button
-            type="button"
-            class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent disabled:opacity-60"
-            data-testid={TESTID.chatAskSubmit}
-            disabled={sending()}
-            onClick={submit}
-          >
-            Answer
-          </button>
+          {/* NO "ANSWER" ON A QUESTION WITH NO FIELDS: a place to go is
+              finished by the agent, and a button here would be a person
+              claiming they had done something only the other end can see. */}
+          <Show when={link() === null}>
+            <button
+              type="button"
+              class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent disabled:opacity-60"
+              data-testid={TESTID.chatAskSubmit}
+              disabled={sending()}
+              onClick={submit}
+            >
+              Answer
+            </button>
+          </Show>
           {/* Not `../pill.ts`'s quiet pill: this row's height is set by
               the accent "answer" beside it, so dismiss keeps h-8/px-3 —
               the shared px-2/py-1 would shrink it out of the pair. */}
@@ -208,7 +242,7 @@ export function AskForm(props: {
             disabled={sending()}
             onClick={dismiss}
           >
-            Dismiss
+            {link() === null ? "Dismiss" : "Cancel"}
           </button>
         </div>
       </Show>

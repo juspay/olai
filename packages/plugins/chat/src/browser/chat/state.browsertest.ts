@@ -2,9 +2,9 @@ import { expect, test } from "bun:test"
 import { buildSurfaceClient } from "@kolu/surface/solid"
 import { Effect, Exit, Queue, Scope, Stream } from "effect"
 import { createMemo, createRoot } from "solid-js"
-import { CHAT_OFF, surface, type Conversing } from "../../wire.ts"
+import { CHAT_OFF, surface, type ChatState, type Conversing } from "../../wire.ts"
 import { holdChatWire } from "../wire.ts"
-import { createChat } from "./state.ts"
+import { createChat, createChatState } from "./state.ts"
 
 const settle = async () => { for (let i = 0; i < 8; i++) await Bun.sleep(0) }
 
@@ -136,6 +136,54 @@ test("a paragraph opening wakes the row that grows and the row that stopped, not
     expect(opened.chat.entry("agent:5")()?.text).toBe("said 5")
   } finally {
     readers(); opened.dispose(); wire.dispose()
+    await Effect.runPromise(Scope.close(activation, Exit.void))
+  }
+})
+
+
+test("a node's new session waits for its matching draft owner while auth refusals remain visible", async () => {
+  const queues = new Set<Queue.Enqueue<unknown>>()
+  let current: ChatState = {
+    ...CHAT_OFF, status: "idle", uploadScope: "first-lifetime",
+    talking: { kind: "agent", id: "alpha", name: "Alpha", steers: false, queues: false, methods: [] },
+    session: { id: "first", title: null, updatedAt: null },
+  }
+  const publish = (state: ChatState) => {
+    current = state
+    for (const queue of queues) Queue.offerUnsafe(queue, state)
+  }
+  const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
+    unary: () => Effect.void,
+    stream: () => Stream.callback<unknown>(queue => Effect.acquireRelease(Effect.sync(() => {
+      queues.add(queue)
+      Queue.offerUnsafe(queue, current)
+    }), () => Effect.sync(() => { queues.delete(queue) }))),
+  }, () => true) }))
+  const activation = Scope.makeUnsafe()
+  await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
+  const first = createRoot(dispose => ({ dispose, state: createChatState({ node: "one" }, { agent: "alpha", session: "first" }) }))
+  let closeNext = () => {}
+  try {
+    await settle()
+    expect(first.state().session?.id).toBe("first")
+    publish({ ...current, uploadScope: "next-lifetime", session: { id: "next", title: null, updatedAt: null } })
+    await settle()
+    // The binding has not arrived. Seeing "next" here would invite typing
+    // into an owner about to be replaced by the binding's next reader.
+    expect(first.state().session).toBeNull()
+    expect(first.state().status).toBe("off")
+    const next = createRoot(dispose => {
+      closeNext = dispose
+      return createChatState({ node: "one" }, { agent: "alpha", session: "next" })
+    })
+    await settle()
+    expect(next().session?.id).toBe("next")
+    publish({ ...current, session: null, unopened: { what: null, why: "Authentication required" }, signIn: { kind: "choosing" } })
+    await settle()
+    expect(next().signIn?.kind).toBe("choosing")
+    expect(next().unopened?.why).toBe("Authentication required")
+  } finally {
+    first.dispose(); closeNext(); wire.dispose()
     await Effect.runPromise(Scope.close(activation, Exit.void))
   }
 })

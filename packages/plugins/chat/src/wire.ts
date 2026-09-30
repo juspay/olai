@@ -1,5 +1,5 @@
 /**
- * CHAT'S OWN SURFACE — the conversation, the roster, and the fourteen verbs, in
+ * CHAT'S OWN SURFACE — the conversation, the roster, and the eighteen verbs, in
  * chat's own package, under chat's own sibling key.
  *
  * ## What this is not, any more
@@ -38,7 +38,7 @@
  */
 
 import { collection } from "@kolu/surface"
-import { Conversing } from "./wire/session.ts"
+import { Conversing, PanelAddress } from "./wire/session.ts"
 import { collectionDeltasSchema, defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
@@ -94,9 +94,9 @@ export const surface = defineSurface({
     },
   },
   streams: {
-    state: { inputSchema: Conversing, outputSchema: ChatState, arrayKey: "name" },
-    transcript: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
-    saying: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
+    state: { inputSchema: PanelAddress, outputSchema: ChatState, arrayKey: "name" },
+    transcript: { inputSchema: PanelAddress, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
+    saying: { inputSchema: PanelAddress, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
   },
   procedures: {
     conversation: {
@@ -105,7 +105,7 @@ export const surface = defineSurface({
        *  open tab stays in step and a slow turn does not hold a call open. */
       send: {
         input: Schema.Struct({
-          conv: Conversing,
+          conv: PanelAddress,
           scope: Schema.NullOr(Schema.String),
           text: Schema.String,
           /**
@@ -176,7 +176,7 @@ export const surface = defineSurface({
        * able to produce.
        */
       resend: {
-        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String), id: Schema.String }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.NullOr(Schema.String), id: Schema.String }),
         error: ChatFailure,
       },
       /** One chunk of a picture, into the conversation's tmp directory.
@@ -189,7 +189,7 @@ export const surface = defineSurface({
        *  questions — `attach` says where the bytes landed, `send` says a turn
        *  was accepted — and a file is N calls to one send. */
       attach: {
-        input: Schema.Struct({ ...AttachChunk.fields, conv: Conversing }),
+        input: Schema.Struct({ ...AttachChunk.fields, conv: PanelAddress }),
         output: Attached,
         error: ChatFailure,
       },
@@ -197,7 +197,45 @@ export const surface = defineSurface({
        *  Legal while the agent is still booting — the cancel is remembered
        *  and sent with the prompt. An outdated tab cannot cancel another node. */
       cancel: {
-        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.NullOr(Schema.String) }),
+        error: ChatFailure,
+      },
+      /**
+       * SIGN IN — `/login`'s verb, and the buttons under it.
+       *
+       * `method: null` is the CHOOSER and a method id is one press of it. Two
+       * shapes in one verb rather than a `start` beside a `choose`, because the
+       * difference between them is not two gestures: both are the same gesture
+       * (a person asking to be signed in), and the panel's own row is what turns
+       * one into the other.
+       *
+       * It is NOT `send` with a magic line. `/login` is the composer's word for
+       * it — the one place a person types it — and the composer is what decides
+       * that a line reading `/login` against an agent with methods is THIS verb
+       * rather than a prompt ({@link ./browser/chat/Composer.tsx}).
+       */
+      signIn: {
+        input: Schema.Struct({
+          conv: PanelAddress,
+          scope: Schema.NullOr(Schema.String),
+          method: Schema.NullOr(Schema.String),
+        }),
+        error: ChatFailure,
+      },
+      /** One line for the process a terminal sign-in is running — the code it
+       *  asked for. The newline is the SERVER's to add (`./agent.ts`): what a
+       *  person typed is a code, and every one of these CLIs reads it by line. */
+      signInInput: {
+        input: Schema.Struct({
+          conv: PanelAddress,
+          scope: Schema.NullOr(Schema.String),
+          text: Schema.String,
+        }),
+        error: ChatFailure,
+      },
+      /** Stop a sign-in, or dismiss a finished attempt's row. */
+      signInCancel: {
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       setSetting: {
@@ -221,6 +259,7 @@ export const surface = defineSurface({
         output: Schema.NullOr(Schema.Struct({ node: Schema.String, file: Schema.String, agent: Schema.String, session: Schema.NullOr(Schema.String) })),
         error: ChatFailure,
       },
+      /** Null means the node panel holds an auth-refused open for sign-in. */
       startAgentSession: {
         input: Schema.Struct({
           /** The node whose property is about to name the session — the id the
@@ -229,7 +268,7 @@ export const surface = defineSurface({
           /** ... and the engine to open it with, off that node's property. */
           agent: Schema.String,
         }),
-        output: Conversing,
+        output: Schema.NullOr(Conversing),
         error: ChatFailure,
       },
       /** RELEASE a node's agent: the binding property is taken off, the seat
@@ -253,7 +292,7 @@ export const surface = defineSurface({
        *  the way it keeps the prompt behind an undelivered message. Refuses
        *  when there is nothing waiting to be opened again. */
       reopen: {
-        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       /** EVERY installed agent's stored conversations for this directory,
@@ -273,7 +312,8 @@ export const surface = defineSurface({
        *  which is why both are verbs rather than a write to the transcript. */
       answer: {
         input: Schema.Struct({
-          conv: Conversing,
+          conv: PanelAddress,
+          scope: Schema.optional(Schema.NullOr(Schema.String)),
           id: Schema.String,
           answers: Schema.Array(AskAnswer),
         }),
@@ -282,7 +322,7 @@ export const surface = defineSurface({
       /** Dismiss one, honestly: the agent is told a person declined to answer,
        *  and never handed an answer nobody gave. */
       decline: {
-        input: Schema.Struct({ conv: Conversing, id: Schema.String }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.optional(Schema.NullOr(Schema.String)), id: Schema.String }),
         error: ChatFailure,
       },
       /**
@@ -353,7 +393,7 @@ export const surface = defineSurface({
  * conversation rather than a reader of it. The roster is a paint instruction for
  * a column — the vault half of it is `prop:chat-agent-session`, which an agent
  * types into `search_nodes` and is answered with the NODES, and what this member
- * adds is the overheard line and a state dot. And the fourteen verbs are
+ * adds is the overheard line and a state dot. And the eighteen verbs are
  * gestures a person made in a panel: an agent that wanted to send itself a
  * message would be the strangest loop in this tree.
  *
@@ -379,6 +419,9 @@ export const faces = {
     "conversation.resend": "tool",
     "conversation.attach": "tool",
     "conversation.cancel": "tool",
+    "conversation.signIn": "tool",
+    "conversation.signInInput": "tool",
+    "conversation.signInCancel": "tool",
     "conversation.setModel": "tool",
     "conversation.setSetting": "tool",
     "conversation.newChat": "tool",

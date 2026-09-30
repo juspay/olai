@@ -4,6 +4,10 @@ import { Schema } from "effect"
 export const Conversing = Schema.Struct({ agent: Schema.String, session: Schema.String })
 export type Conversing = typeof Conversing.Type
 
+/** A node panel exists before the agent has granted it a session. */
+export const PanelAddress = Schema.Union([Conversing, Schema.Struct({ node: Schema.String })])
+export type PanelAddress = typeof PanelAddress.Type
+
 const SettingInfo = { id: Schema.String, name: Schema.String, description: Schema.String }
 export const SessionSetting = Schema.Union([
   Schema.Struct({ ...SettingInfo, type: Schema.Literal("select"), currentValue: Schema.String,

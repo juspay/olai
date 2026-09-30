@@ -19,7 +19,14 @@ import { busyIn } from "./busy.ts"
 const LIVE: ChatState = {
   ...CHAT_OFF,
   status: "idle",
-  talking: { kind: "agent", id: "opencode", name: "opencode", steers: false, queues: false },
+  talking: {
+    kind: "agent",
+    id: "opencode",
+    name: "opencode",
+    steers: false,
+    queues: false,
+    methods: [],
+  },
 }
 
 describe("when the panel is busy with nothing at all", () => {
