@@ -722,9 +722,21 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         : { outcome: { outcome: "selected", optionId: picked } }
     }
 
-    let staged: { id: string; updates: SessionNotification[] } | null = null
+    let staged: { id: string; updates: Array<() => void> } | null = null
+    const stage = (session: string, replay: () => void): boolean => {
+      const root = sessionRoot(session)
+      if (staged === null || root === activeSession || closed.has(root)) return false
+      staged.updates.push(replay)
+      return true
+    }
+    const onActivity = (session: string, update: Parameters<Activity["read"]>[1]): void => {
+      if (stage(session, () => onActivity(session, update))) return
+      if (fromElsewhere(sessionRoot(session), activeSession, closed)) return
+      if (update.kind === "child") closed.delete(update.id)
+      activity?.read(session, update)
+    }
     const onUpdate = (notification: SessionNotification): void => {
-      if (staged?.id === notification.sessionId) { staged.updates.push(notification); return }
+      if (stage(notification.sessionId, () => onUpdate(notification))) return
       // WHOSE SESSION, the same fence the forwarded `init` sits behind. A
       // chunk of the conversation that just closed, landing after
       // `sessionOver` has emptied the transcript, is how a new conversation
@@ -1326,7 +1338,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           })
         const stream = streamOver(child)
         const extension = activity === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
-          if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity.read(session, update)
+          onActivity(session, update)
         })
         // The agent's own message, forwarded verbatim because the call that
         // OPENED this conversation asked for it (the leg's `openMeta`, on
@@ -2353,7 +2365,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             _meta: { ...openMeta._meta, ...forkAt(point) } }),
         })) as NewSessionResponse
         if (made.sessionId === old) return yield* new AgentGone({ gone: "refused", why: "the adapter did not create a separate session" })
-        const pending = { id: made.sessionId, updates: [] as SessionNotification[] }
+        const pending = { id: made.sessionId, updates: [] as Array<() => void> }
         let selectedMode = false
         staged = pending
         const prepared = yield* Effect.result(Effect.ensuring(Effect.gen(function*() {
@@ -2376,7 +2388,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         emit({ _tag: "sessionOver", why: "load" })
         replaying = true
         emit({ _tag: "replayStarted" })
-        for (const update of pending.updates) onUpdate(update)
+        for (const replay of pending.updates) replay()
         replaying = false
         emit({ _tag: "replayEnded" })
         given = mcpServers.map(server => server.name)

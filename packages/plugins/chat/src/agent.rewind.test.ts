@@ -15,7 +15,7 @@ for (const point of [null, "answer-1"]) {
       const cwd = mkdtempSync(join(tmpdir(), "olai-rewind-"))
       const events: AgentEvent[] = []
       const remembered: string[] = []
-      const agent = await run(make({ id: "fixture", leg: { ...SAYS_NOTHING, forkAt: airForkAt,
+      const agent = await run(make({ id: "fixture", leg: { ...SAYS_NOTHING, forkAt: airForkAt, nativeActivity: true,
         bypassMode: "full", bypassModeRequired: true }, command: process.execPath,
         args: [join(import.meta.dirname, "fixtures/rewind-agent.ts")], cwd, tools: () => null,
         memory: { recall: Effect.succeed(null), remember: value => Effect.sync(() => { remembered.push(value.session) }) },
@@ -34,6 +34,8 @@ for (const point of [null, "answer-1"]) {
           expect(remembered).toEqual(["session-1", "session-2"])
           expect(events.filter(event => event._tag === "said").map(event => event.text))
             .toEqual(point === null ? [] : ["preceding answer"])
+          expect(events.filter(event => event._tag === "tool").map(event => event.title))
+            .toEqual(point === null ? [] : ["Explorer", "read history", undefined])
         }
         await run(agent.prompt("still usable"))
         const requests = readFileSync(join(cwd, "requests.log"), "utf8").trim().split("\n").map(line => JSON.parse(line))

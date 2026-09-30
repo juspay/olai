@@ -22,6 +22,11 @@ for await (const line of createInterface({ input: process.stdin })) {
       else reply({ sessionId: `session-${++next}` })
       break
     case "session/load":
+      for (const [sessionId, entry] of [
+        [request.params.sessionId, { sessionUpdate: "subagent_spawned", subagentSessionId: "child-session", name: "Explorer", task: "inspect history" }],
+        ["child-session", { sessionUpdate: "tool_call", toolCallId: "child-tool", title: "read history", status: "completed" }],
+        [request.params.sessionId, { sessionUpdate: "subagent_state_update", subagentSessionId: "child-session", state: "completed" }],
+      ]) send({ jsonrpc: "2.0", method: "session/update", params: { sessionId, update: entry } })
       update("preceding answer")
       if (existsSync("refuse-load")) refuse()
       else reply({})
