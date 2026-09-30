@@ -2400,3 +2400,15 @@ test("mixed races keep the last plan and distinguish file movement from claims",
     expect(failure.message).toContain("file kinds also changed 4 times")
     expect(failure.message).not.toContain("all 5")
   })))
+
+test("a removed and recreated path is not described as removed every time", () =>
+  withOps({ "other.olai": "" }, fixture => Effect.gen(function*() {
+    fakingCommit(fixture, (attempt, write) => Effect.gen(function*() {
+      if (attempt === 1) fs.unlinkSync(path.join(fixture.root, "other.olai"))
+      else fixture.write("other.olai", `{"id":"other","ord":"a0","title":"${"x".repeat(attempt)}"}\n`)
+      yield* fixture.store.refresh("cheap")
+      return yield* new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 })
+    }))
+    const failure = yield* Effect.flip(fixture.ops.run({ op: "create", file: "sdf.olai" }, "web"))
+    expect(failure.message).toContain("`other.olai` every time (removed once)")
+  })))

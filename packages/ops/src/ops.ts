@@ -533,7 +533,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
       let firstRev: number | undefined
       let lastRev: number | undefined
       let observedRev = 0
-      const moved = new Map<string, { count: number; removed: boolean }>()
+      const moved = new Map<string, { count: number; removed: number }>()
       /**
        * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
        * below answers: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
@@ -713,7 +713,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
               const removed = new Set(newer.removed)
               for (const path of new Set([...newer.changed, ...newer.removed])) {
                 const held = moved.get(path)
-                moved.set(path, { count: (held?.count ?? 0) + 1, removed: removed.has(path) || held?.removed === true })
+                moved.set(path, { count: (held?.count ?? 0) + 1, removed: (held?.removed ?? 0) + (removed.has(path) ? 1 : 0) })
               }
             }
             continue
@@ -873,8 +873,16 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
 
       const subject = summary === undefined ? "this write" : `\`${summary}\``
       const paths = [...moved].sort(([a, left], [b, right]) => right.count - left.count || a.localeCompare(b))
-      const named = paths.slice(0, 4).map(([path, movement]) =>
-        `\`${path}\`${movement.removed ? " removed" : ""} ${movement.count === staleWrites ? "every time" : movement.count === 1 ? "once" : `${movement.count} times`}`)
+      const frequency = (count: number) => count === 1 ? "once" : count === staleWrites ? "every time" : `${count} times`
+      const named = paths.slice(0, 4).map(([path, movement]) => {
+        const removal = movement.removed === movement.count
+          ? " removed"
+          : ""
+        const sometimesRemoved = movement.removed > 0 && movement.removed < movement.count
+          ? ` (removed ${frequency(movement.removed)})`
+          : ""
+        return `\`${path}\`${removal} ${frequency(movement.count)}${sometimesRemoved}`
+      })
       if (paths.length > 4) named.push(`and ${paths.length - 4} more`)
       return yield* new BusyFailure({
         reason: staleWrites === 0
