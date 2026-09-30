@@ -51,5 +51,5 @@ Then("my message {string} has no rewind action", async function(this: OlaiWorld,
 })
 
 Then("the rewind is waiting for replay", async function(this: OlaiWorld) {
-  await this.waitUntil(() => existsSync(join(this.scratch(), ".agent-loading")), "the fork's replay request to reach the adapter")
+  await this.waitUntil(async () => existsSync(join(this.scratch(), ".agent-loading")), "the fork's replay request to reach the adapter")
 })

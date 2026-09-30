@@ -48,7 +48,7 @@ import { Effect } from "effect"
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
 
-import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
+import { agentIn, type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { type Accessor, createEffect, createMemo, createSelector, createSignal, on, onCleanup } from "solid-js"
@@ -494,7 +494,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
         )
       }),
     canRewind: () => options.current?.() !== false && state().status === "idle"
-      && state().talking?.kind === "agent" && (state().talking as { rewinds?: boolean }).rewinds === true,
+      && agentIn(state())?.rewinds === true,
     rewind: (id) => {
       setRefused(null)
       setStarting(value => value + 1)

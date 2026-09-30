@@ -409,8 +409,9 @@ export interface Panel {
    *  is the same message rather than a browser's reconstruction of it. Refuses
    *  when that row is not waiting to be sent, which two tabs can genuinely
    *  race. */
-  readonly rewind: (id: string) => Effect.Effect<void, OpFailure>
   readonly resend: (id: string) => Effect.Effect<void, OpFailure>
+  /** Prepare and adopt a fork before this user row, while idle. */
+  readonly rewind: (id: string) => Effect.Effect<void, OpFailure>
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean) => Effect.Effect<void, OpFailure>
   readonly setModel: (agent: string, session: string, value: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
