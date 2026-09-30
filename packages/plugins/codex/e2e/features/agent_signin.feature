@@ -81,12 +81,16 @@ Feature: Signing in to Codex from inside olai
     And I send the chat message
     And I press the sign-in for "chat-gpt-device-code"
     Then the card sends them to "chatgpt.com"
-    # THE SCOPE GOING AWAY MID-LOGIN. What the panel can be held to here is its
-    # own face — the fold is gone, because the agent the row belonged to is —
-    # and the adapter this attempt was being driven from is that same agent's
-    # process, so the card it was waiting on has nothing left to arrive from.
-    When I take the agent away
+    # THE SCOPE GOING AWAY MID-LOGIN. The engine is switched off — the gesture
+    # that actually stops the scope; closing the agent releases the node's
+    # binding and leaves it to be evicted — and what the panel can be held to is
+    # its own face: no row, because the agent it belonged to is gone.
+    When I open the plugins panel
+    And I switch the plugin "codex" off
     Then the panel offers no sign-in
+    # Back on, for the scenarios after this one: the switch is remembered by the
+    # scratch vault. The agent the card belonged to does not come back with it.
+    When I switch the plugin "codex" on
 
   @signin
   Scenario: A signature the agent wanted mid-conversation is asked for and given

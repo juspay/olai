@@ -409,10 +409,13 @@ turn).
   *not sent*, hands its words back to the composer, and the sign-in reopens the
   same conversation with the box still holding them; and an agent that advertised
   no method gets `/login` delivered as an ordinary message with no row; and a
-  sign-in running when the AGENT IS TAKEN AWAY is stopped by it — the command
+  sign-in running when the ENGINE IS SWITCHED OFF is stopped by it — the command
   writes down which process it is (`fake-login.ts`), and the step asks the
   operating system whether that process is still there, which is the only
-  account of "gone" that does not depend on how a process was asked to die.
+  account of "gone" that does not depend on how a process was asked to die. The
+  gesture is the engine switch and not the fold's own close, and that distinction
+  is worth pinning: closing an agent releases the node's binding and leaves its
+  scope to be evicted, so its subprocess is still there to be found.
 - **`packages/plugins/codex/e2e/features/agent_signin.feature`** (4 scenarios,
   the agent kind, on the `lanes` corpus because the refused-open case needs a
   binding the vault already carries): a conversation refused for want of a
@@ -421,8 +424,8 @@ turn).
   NOT offered; backing out leaves nothing running (the adapter's own refusal of
   the cancelled login does not put the row back, proved by a second attempt
   starting afresh); and a mid-conversation refusal is signed in to, with the
-  words handed back to the box; and a device-code sign-in running when the agent
-  is taken away goes with it — the row is gone because the agent it belonged to
+  words handed back to the box; and a device-code sign-in running when its engine
+  is switched off goes with it — the row is gone because the agent it belonged to
   is, and the card can no longer arrive from a process that is not there.
 - **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
   plugin because the feature is the panel's: arm the agent

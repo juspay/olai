@@ -134,14 +134,26 @@ Feature: Signing in to Claude from inside olai
     And I send the chat message
     And I press the sign-in for "claude-ai-login"
     Then the sign-in is running "claude-ai-login"
-    # THE SCOPE GOING AWAY MID-LOGIN, which is the one claim about a sign-in no
-    # row can be read for: the process is the agent's, so the agent going takes
-    # it — and the command wrote down which process it is, so the suite can ask
-    # the OPERATING SYSTEM whether it is still there rather than trusting how it
-    # was asked to die.
-    When I take the agent away
+    # THE SCOPE GOING AWAY MID-LOGIN, which is the one claim about a sign-in that
+    # no row can be read for: the process is the agent's, so the agent going
+    # takes it — and the command wrote down which process it is, so the suite
+    # asks the OPERATING SYSTEM whether it is still there rather than trusting
+    # how it was asked to die.
+    #
+    # THE ENGINE SWITCHED OFF is the gesture that does it, and that is a fact
+    # worth pinning: CLOSING THE AGENT (the fold's own control) releases the
+    # node's binding and leaves the scope to be evicted, so the subprocess — and
+    # this login with it — is still there afterwards. A test that closed the
+    # agent and then looked for a dead process would be asserting a disposal
+    # nobody made.
+    When I open the plugins panel
+    And I switch the plugin "claude" off
     Then the panel offers no sign-in
-    And the login command was stopped
+    # AND PUT BACK: the switch is a preference the scratch vault remembers, so a
+    # scenario that left the engine off would take the engine out from under the
+    # ones after it. The process stays gone, which is what the next line asks.
+    When I switch the plugin "claude" on
+    Then the login command was stopped
 
   @signin
   Scenario: An agent that advertises no way in is not a `/login` anybody can press

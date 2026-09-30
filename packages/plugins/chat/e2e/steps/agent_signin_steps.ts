@@ -213,36 +213,6 @@ Then("the card says {string}", async function (this: OlaiWorld, text: string) {
   );
 });
 
-/**
- * TAKE THE AGENT AWAY, mid-anything — the seat released, which is the scope
- * going out from under whatever it was running.
- *
- * The CLOSE control is the gesture a person has (it takes the node's binding
- * property off and the seat closes), and what it is held to here is the panel's
- * own face: the fold this row was drawn in is GONE, because there is no agent
- * left for it to be about.
- */
-When("I take the agent away", async function (this: OlaiWorld) {
-  const node = this.activeAgent;
-  assert.ok(node, "open a named node agent first");
-  const close = this.chat(selector(PLUGIN_TESTID.chatCloseAgent));
-  await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await close.click();
-  await this.page
-    .locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(node))}`)
-    .waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT });
-});
-
-/**
- * ... AND THE COMMAND IT WAS RUNNING IS DEAD.
- *
- * The command writes down which process it is when it starts
- * (`packages/tests/agent/fake-login.ts`), and this asks the OPERATING SYSTEM
- * whether that process is still there — which is the only account of "gone" that
- * does not depend on how a process is asked to die. This is the assertion behind
- * `chat.md`'s "the scope going away does the same": the one claim about a sign-in
- * that no row can be read for.
- */
 Then("the login command was stopped", async function (this: OlaiWorld) {
   const written = path.join(this.scratch(), MARKER.loginPid);
   try {
