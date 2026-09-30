@@ -25,7 +25,7 @@ export const createNodeConversation = (node: Accessor<string>) => {
     const to = pair()
     if (!hasPanel()) return null
     const at = address()
-    const chat = createChat(at, { ui: reading?.ui(to ?? at), visit: to => reading?.visit(node(), to) })
+    const chat = createChat(at, { expected: to, ui: reading?.ui(to ?? at), visit: to => reading?.visit(node(), to) })
     readAgent(node(), chat)
     const question = createAsked(chat)
     createEffect(() => chat.ui.question[1](question()))

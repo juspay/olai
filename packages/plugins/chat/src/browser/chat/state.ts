@@ -47,7 +47,7 @@ import { Effect } from "effect"
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
 
-import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, type PanelAddress, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
+import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, type PanelAddress, agentIn, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { type Accessor, createEffect, createMemo, createSelector, createSignal, on, onCleanup } from "solid-js"
@@ -242,21 +242,30 @@ export interface Chat {
  * message is a module snapshot in `last.ts`, written only while the open panel
  * is mounted — never a second transcript subscription.
  */
-export const createChatState = (conv: PanelAddress): Accessor<ChatState> => {
+export const createChatState = (conv: PanelAddress, expected?: Conversing | null): Accessor<ChatState> => {
   const cell = chatWire().streams.state.use(() => conv)
   // The cell always has a value: the spec declares a default, and the framework
   // seeds the subscription with it — so `off` is what a page reads before the
   // first frame, which is exactly what it should read.
-  return () => cell() ?? CHAT_OFF
+  // A node stream can announce its new session before the binding projection
+  // reaches this tab. Keep that frame away from the previous session's draft
+  // owner: otherwise typing into the new-looking composer is lost on remount.
+  // Sessionless refusals still belong to the node and must remain visible.
+  return createMemo<ChatState>(previous => {
+    const next = cell() ?? CHAT_OFF
+    if (expected !== undefined && next.session !== null
+      && (expected === null || next.session.id !== expected.session || agentIn(next)?.id !== expected.agent)) return previous
+    return next
+  }, CHAT_OFF)
 }
 
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void } = {}): Chat => {
+export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly expected?: Conversing | null; readonly visit?: (to: Conversing) => void } = {}): Chat => {
   const ui = options.ui ?? createConversationUI()
   const { closePreview } = ui.previewing
   const [refused, setRefused] = ui.refused
-  const served = createChatState(conv)
+  const served = createChatState(conv, options.expected)
   const transcript = chatWire().streams.transcript.useCollection(conv, transcriptRows)
   // THE ROW STILL BEING SAID, in pieces. A second subscription rather than a
   // second delivery of the first, and the reason a streaming answer costs the

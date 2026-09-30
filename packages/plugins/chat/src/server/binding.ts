@@ -116,9 +116,9 @@ export const closeAgent = (
  * agent that answers `session/new` with an id it already had (the scripted one
  * does) must not supersede a session with itself.
  *
- * NOT CONDITIONAL. The write overwrites whatever the key holds: the property is
- * what the person just pressed a menu entry to set, and the value it held is the
- * engine that press named anyway.
+ * The write replaces the binding the gesture observed, under the shared claim
+ * permit. A delayed sign-in must not overwrite a binding changed by another
+ * gesture while authentication was pending.
  */
 export const startAgentSession = (
   chat: Chat,
