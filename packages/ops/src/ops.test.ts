@@ -651,6 +651,17 @@ const fakingCommit = (
   return () => attempts
 }
 
+/** Count the gate's reads without changing the snapshots it sees. */
+const countingReads = (fixture: Fixture): (() => number) => {
+  const read = fixture.store.read
+  let reads = 0
+  ;(fixture.store as { read: typeof read }).read = (freshness) => {
+    reads += 1
+    return read(freshness)
+  }
+  return () => reads
+}
+
 /** The resync door, wrapped so a test can say whether the repair ever
  *  knocked on it: the byte check standing in front is only a guarantee if a
  *  NO from it keeps THIS latched. */
@@ -2327,7 +2338,7 @@ test("claims mismatch spends the bounded retry budget even if refresh publishes 
       expect(result.failure._tag).toBe("BusyFailure")
       expect(result.failure.message).toContain("this write was not written")
       expect(result.failure.message).toContain("file kinds")
-      expect(result.failure.message).toContain("changed 5 times")
+      expect(result.failure.message).toContain("out of date on all 5 attempts")
       expect(result.failure.message).toContain("olai's own fault")
       expect(result.failure.message).not.toContain("rewriting")
     }
@@ -2350,6 +2361,7 @@ test("the first outline lands after file kinds register on an empty directory", 
 
 test("five stale writes name the plan, revisions, frequent paths and removals", () =>
   withOps({ "gone.olai": "" }, fixture => Effect.gen(function*() {
+    const reads = countingReads(fixture)
     const attempts = fakingCommit(fixture, (attempt, write) => Effect.gen(function*() {
       fixture.write("_olai/Terminals.olai", `{"id":"terminal","ord":"a0","title":"${"x".repeat(attempt)}"}\n`)
       if (attempt === 1) {
@@ -2361,6 +2373,7 @@ test("five stale writes name the plan, revisions, frequent paths and removals", 
     }))
     const failure = yield* Effect.flip(fixture.ops.run({ op: "create", file: "sdf.olai" }, "web"))
     expect(attempts()).toBe(5)
+    expect(reads()).toBe(6) // Initial plan, four replans, and the final race's evidence.
     expect(failure._tag).toBe("BusyFailure")
     expect(failure.message).toContain("`create: sdf.olai` was not written")
     expect(failure.message).toContain("all 5 attempts (revision 1 → 6)")
@@ -2397,7 +2410,7 @@ test("mixed races keep the last plan and distinguish file movement from claims",
     expect(failure._tag).toBe("BusyFailure")
     expect(failure.message).toContain("`create: sdf.olai` was not written")
     expect(failure.message).toContain("1 of 5 attempts (revision 1 → 2)")
-    expect(failure.message).toContain("file kinds also changed 4 times")
+    expect(failure.message).toContain("file kinds was also out of date on 4 attempts")
     expect(failure.message).not.toContain("all 5")
   })))
 
@@ -2411,4 +2424,16 @@ test("a removed and recreated path is not described as removed every time", () =
     }))
     const failure = yield* Effect.flip(fixture.ops.run({ op: "create", file: "sdf.olai" }, "web"))
     expect(failure.message).toContain("`other.olai` every time (removed once)")
+  })))
+
+
+test("a successful retry uses its next planning read for the lost race's evidence", () =>
+  withOps({}, fixture => Effect.gen(function*() {
+    const reads = countingReads(fixture)
+    fakingCommit(fixture, (attempt, write) => attempt === 1
+      ? Effect.fail(new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 }))
+      : undefined)
+    yield* run(fixture, { op: "create", file: "sdf.olai" })
+    expect(reads()).toBe(2)
+    expect(fixture.read("sdf.olai")).toBe("")
   })))

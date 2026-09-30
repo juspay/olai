@@ -63,6 +63,7 @@ import {
 } from "@olai/format"
 import { Effect, Result, SubscriptionRef } from "effect"
 
+import type { Snapshot } from "@olai/store"
 import type { Store } from "./deps.ts"
 import { type SessionRule, barred, doorRefusal } from "./door.ts"
 import { type Context, plan, scoping } from "./plan.ts"
@@ -525,15 +526,28 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
       const store = yield* currentStore
       let repairs = REPAIRS
       // Keep the last plan and the evidence from lost races local to this write.
-      // Claims swaps spend the same budget as stale writes, but are our own
+      // Claims mismatches spend the same budget as stale writes, but are our own
       // revalidation failing to catch up, not evidence of another file writer.
       let summary: string | undefined
       let staleWrites = 0
-      let claimsSwaps = 0
+      let claimsMismatches = 0
       let firstRev: number | undefined
       let lastRev: number | undefined
       let observedRev = 0
       const moved = new Map<string, { count: number; removed: number }>()
+      let lostBaseRev: number | undefined
+      const observeRace = (snapshot: Snapshot<Reading> | null) => {
+        if (lostBaseRev === undefined) return
+        if (snapshot !== null && snapshot.rev > Math.max(observedRev, lostBaseRev)) {
+          observedRev = snapshot.rev
+          const removed = new Set(snapshot.removed)
+          for (const path of new Set([...snapshot.changed, ...snapshot.removed])) {
+            const held = moved.get(path)
+            moved.set(path, { count: (held?.count ?? 0) + 1, removed: (held?.removed ?? 0) + (removed.has(path) ? 1 : 0) })
+          }
+        }
+        lostBaseRev = undefined
+      }
       /**
        * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
        * below answers: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
@@ -599,6 +613,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         // plan comes back `StaleWrite` and the round runs again — the drift
         // this read cannot see is the drift the gate is there to catch.
         const { snapshot } = yield* store.read("cheap")
+        observeRace(snapshot)
         if (snapshot === null) {
           const errors = yield* SubscriptionRef.get(store.errors)
           return yield* new ValidationFailure({
@@ -610,7 +625,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
 
         if (snapshot.value.claims !== options.claims.current) {
           races += 1
-          claimsSwaps += 1
+          claimsMismatches += 1
           yield* Effect.mapError(store.refresh("verified"), failure => new ValidationFailure({ reason: failure.message, verdict: NOTHING_WRONG }))
           continue
         }
@@ -698,24 +713,16 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
           // A store that moved is the retry; anything else is a disk that
           // cannot be written, which no re-plan will fix.
           //
-          // A stale write spends a race just as a claims swap does above;
-          // a repair spends neither. Read the published diff after each lost
-          // gate, including the last, so the refusal can name what moved.
-          // Repeated reads of one revision are not repeated file movements.
+          // This is the one site a lost gate race is observed ({@link ROUNDS}).
+          // It spends the same budget as a claims mismatch above; a repair
+          // spends neither. The next round's read supplies both its plan and
+          // this race's evidence, without counting one revision twice.
           if (outcome.failure._tag === "StaleWrite") {
             races++
             staleWrites++
             firstRev ??= outcome.failure.baseRev
             lastRev = outcome.failure.currentRev
-            const { snapshot: newer } = yield* store.read("cheap")
-            if (newer !== null && newer.rev > Math.max(observedRev, snapshot.rev)) {
-              observedRev = newer.rev
-              const removed = new Set(newer.removed)
-              for (const path of new Set([...newer.changed, ...newer.removed])) {
-                const held = moved.get(path)
-                moved.set(path, { count: (held?.count ?? 0) + 1, removed: (held?.removed ?? 0) + (removed.has(path) ? 1 : 0) })
-              }
-            }
+            lostBaseRev = outcome.failure.baseRev
             continue
           }
           return yield* new ValidationFailure({
@@ -871,6 +878,8 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
         }
       }
 
+      // The final lost gate has no next round to read its evidence.
+      if (lostBaseRev !== undefined) observeRace((yield* store.read("cheap")).snapshot)
       const subject = summary === undefined ? "this write" : `\`${summary}\``
       const paths = [...moved].sort(([a, left], [b, right]) => right.count - left.count || a.localeCompare(b))
       const frequency = (count: number) => count === 1 ? "once" : count === staleWrites ? "every time" : `${count} times`
@@ -886,12 +895,11 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
       if (paths.length > 4) named.push(`and ${paths.length - 4} more`)
       return yield* new BusyFailure({
         reason: staleWrites === 0
-          ? `${subject} was not written: the set of file kinds the directory is judged by changed ${claimsSwaps} times ` +
-            `while this write was being planned and a refresh never caught up. ` +
-            `That is olai's own fault, not the directory's — restarting the server clears it.`
+          ? `${subject} was not written: the directory's set of file kinds was out of date on all ${claimsMismatches} attempts ` +
+            `and a refresh never caught up. That is olai's own fault, not the directory's — restart the server.`
           : `${subject} was not written: the directory changed under it on ${staleWrites === ROUNDS ? `all ${ROUNDS}` : `${staleWrites} of ${ROUNDS}`} attempts ` +
             `(revision ${firstRev} → ${lastRev})${named.length === 0 ? "" : ` — ${named.join(", ")}`}. ` +
-            (claimsSwaps === 0 ? "" : `The set of file kinds also changed ${claimsSwaps} times. `) +
+            (claimsMismatches === 0 ? "" : `The directory's set of file kinds was also out of date on ${claimsMismatches} attempts. `) +
             `Something is rewriting ${named.length === 0 ? "the directory" : "those files"}; wait for it to stop, or stop it, then try again.`,
       })
     })
