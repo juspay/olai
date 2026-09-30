@@ -156,7 +156,8 @@ Feature: Rewind a conversation into a separate session
     Then the agent is idle
     When I ask the agent "second answer"
     Then the agent is idle
-    When I open another browser tab
+    When I remember this conversation as "before concurrent"
+    And I open another browser tab
     And I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I use the original browser tab
@@ -167,7 +168,7 @@ Feature: Rewind a conversation into a separate session
     And I ask the agent "concurrent words"
     And the agent is released
     And the rewind fixture accepts requests
-    Then the agent is idle
+    Then the panel has a different conversation from "before concurrent"
     And the rewind transcript contains "first answer" but not "concurrent words"
     When I open the fold history
     And I open the past session "first answer"
