@@ -2319,7 +2319,7 @@ test("claims mismatch spends the bounded retry budget even if refresh publishes 
     let refreshes = 0
     const ops = Ops.make({
       claims: { current: { ...TEST_CLAIMS } }, format: "outline-olai", root: fixture.root,
-      store: { ...fixture.store, refresh: freshness => { refreshes++; return fixture.store.refresh(freshness) } },
+      store: { ...fixture.store, refresh: () => { refreshes++; return Effect.void } },
     })
     const result = yield* Effect.result(ops.run({ op: "title", id: "n", title: "after" }, "mcp"))
     expect(Result.isFailure(result)).toBe(true)

@@ -238,7 +238,8 @@ export interface Probe<F, E> {
    */
   readonly decode: (path: string, contents: string) => Promised<F, E>
   /** Forget these files' stamps, so the next {@link run} re-reads them
-   *  whatever the file system says about mtime and size.
+   *  whatever the file system says about mtime and size. Even an empty list
+   *  requests a new validation: file kinds may have changed without any files.
    *
    *  This is what makes a commit's own write visible. Stamps are mtime+size
    *  (a deliberately coarse, cheap comparison — see {@link ./disk.ts}), and a
