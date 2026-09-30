@@ -166,6 +166,7 @@ Feature: Rewind a conversation into a separate session
     When I use the other browser tab
     And I ask the agent "concurrent words"
     And the agent is released
+    And the rewind fixture accepts requests
     Then the agent is idle
     And the rewind transcript contains "first answer" but not "concurrent words"
     When I open the fold history

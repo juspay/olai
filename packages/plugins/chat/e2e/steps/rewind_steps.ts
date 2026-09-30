@@ -29,6 +29,7 @@ When("the rewind fixture refuses {string}", function(this: OlaiWorld, operation:
 })
 When("the rewind fixture accepts requests", function(this: OlaiWorld) {
   for (const operation of ["fork", "load"]) rmSync(join(this.scratch(), `.agent-refuse-${operation}`), { force: true })
+  rmSync(join(this.scratch(), ".agent-hold-load"), { force: true })
 })
 Then("rewind reports a failure", async function(this: OlaiWorld) {
   await this.waitUntil(async () => (await this.chat(selector(PLUGIN_TESTID.chatRefused)).innerText()).length > 0,
