@@ -330,6 +330,8 @@ export const make = <F, S, E>(
     // from it.
     const cache = yield* Ref.make<ReadonlyMap<string, Cached<F, E>> | null>(null)
 
+    const forgotten = yield* Ref.make(false)
+
     return {
       current: Effect.map(
         Ref.get(cache),
@@ -374,7 +376,7 @@ export const make = <F, S, E>(
         }),
 
       forget: (paths: Iterable<string>) =>
-        Ref.update(cache, (cached) => {
+        Effect.andThen(Ref.set(forgotten, true), Ref.update(cache, (cached) => {
           if (cached === null) return null
           // The STAMP is forgotten, never the MEMBERSHIP. Deleting the entry
           // would make "this file was here" unknowable too, and a run that
@@ -389,7 +391,7 @@ export const make = <F, S, E>(
             if (entry !== undefined) kept.set(path, { ...entry, stamp: null })
           }
           return kept
-        }),
+        })),
 
       decode: (path: string, contents: string) => ({
         contents,
@@ -398,6 +400,7 @@ export const make = <F, S, E>(
 
       run: (promised) =>
         Effect.gen(function*() {
+          const wasForgotten = yield* Ref.getAndSet(forgotten, false)
           const previous = yield* Ref.get(cache)
           const stamps = yield* disk.listing(codec.match)
 
@@ -409,7 +412,10 @@ export const make = <F, S, E>(
           // changed. The size check is what catches a DELETION, which leaves no
           // stale entry behind to be noticed by. Asked here, off the one diff,
           // rather than by a second walk that would have to agree with it.
-          const settled = previous !== null && stale.length === 0 &&
+          // A forgotten table is not settled even when both listings are empty:
+          // validation must publish the current claims after a file kind joins.
+          // Otherwise every first write keeps seeing the old claims forever.
+          const settled = !wasForgotten && previous !== null && stale.length === 0 &&
             previous.size === stamps.size
           if (settled) return null
 
