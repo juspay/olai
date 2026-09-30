@@ -21,7 +21,8 @@ Feature: Rewind a conversation into a separate session
     When I type "<sending>" into the chat
     And I send the chat message
     Then the agent has answered "<sending>" exactly once
-    And the panel says this agent has had 1 past session
+    When I open the fold history
+    Then the panel says this agent has had 1 past session
     And there should be no page errors
 
     Examples:
@@ -46,7 +47,8 @@ Feature: Rewind a conversation into a separate session
     Then the panel has a different conversation from "original"
     And the chat input reads "first answer"
     And the rewind transcript is empty
-    When I open the past session "first answer"
+    When I open the fold history
+    And I open the past session "first answer"
     Then the chat input reads "draft kept in original"
     And the agent has answered "first answer" exactly once
 
