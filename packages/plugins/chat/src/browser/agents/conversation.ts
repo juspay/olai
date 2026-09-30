@@ -16,8 +16,9 @@ export const createNodeConversation = (node: Accessor<string>) => {
   }, null, { equals: (a, b) => a?.agent === b?.agent && a?.session === b?.session })
   const chat = createMemo(() => {
     const to = pair()
-    if (to === null) return null
-    const chat = createChat(to, { ui: reading?.ui(to), visit: to => reading?.visit(node(), to) })
+    if (reading?.agents.at(node()) === undefined) return null
+    const address = reading?.visiting(node()) ?? { node: node() }
+    const chat = createChat(address, { ui: reading?.ui(to ?? address), visit: to => reading?.visit(node(), to) })
     readAgent(node(), chat)
     const question = createAsked(chat)
     createEffect(() => chat.ui.question[1](question()))

@@ -103,7 +103,7 @@ import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
 import { Deferred, Duration, Effect, Semaphore } from "effect"
 
-import type { Conversing } from "./sessions.ts"
+import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
 import type { Ops as WriteGate } from "@olai/ops"
 import { makeFiler } from "./server/filer.ts"
@@ -543,7 +543,7 @@ export default definePlugin({
       // told is the set's answer rather than the tab's, and an id nothing
       // declares refuses the send instead of quietly sending a message with no
       // subject.
-      send: ({ input }: { input: { conv: Conversing; scope: string | null; text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
+      send: ({ input }: { input: { conv: PanelAddress; scope: string | null; text: string; attachments?: ReadonlyArray<string>; context?: ReadonlyArray<string>; steer?: boolean } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, (panel) =>
           Effect.flatMap(ops.reading, (at) => {
             const context = contextFor(at as Reading, input.context ?? [])
@@ -559,11 +559,11 @@ export default definePlugin({
             )
           })
         )),
-      attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] & { conv: Conversing } }) =>
+      attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] & { conv: PanelAddress } }) =>
         withChat((open) => open.inConversation(input.conv, input.uploadScope, (panel) => panel.attach(input))),
-      resend: ({ input }: { input: { conv: Conversing; scope: string | null; id: string } }) =>
+      resend: ({ input }: { input: { conv: PanelAddress; scope: string | null; id: string } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.resend(input.id))),
-      cancel: ({ input }: { input: { conv: Conversing; scope: string | null } }) => withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.cancel)),
+      cancel: ({ input }: { input: { conv: PanelAddress; scope: string | null } }) => withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.cancel)),
       // THE SIGN-IN TRIO, routed like every other conversation verb — through
       // `inConversation`, which is what makes a stale tab's press land on the
       // conversation it was drawn for rather than on whichever one is in front.
@@ -574,15 +574,15 @@ export default definePlugin({
       // conversation it FAILED to open (`../chat.ts`'s `refusedOpen` writes
       // it). So the buttons on that face address the panel they belong to,
       // which is the same courtesy `reopen` already gets.
-      signIn: ({ input }: { input: { conv: Conversing; scope: string | null; method: string | null } }) =>
+      signIn: ({ input }: { input: { conv: PanelAddress; scope: string | null; method: string | null } }) =>
         withChat((open) =>
           open.inConversation(input.conv, input.scope, (panel) => panel.signIn(input.method))
         ),
-      signInInput: ({ input }: { input: { conv: Conversing; scope: string | null; text: string } }) =>
+      signInInput: ({ input }: { input: { conv: PanelAddress; scope: string | null; text: string } }) =>
         withChat((open) =>
           open.inConversation(input.conv, input.scope, (panel) => panel.signInInput(input.text))
         ),
-      signInCancel: ({ input }: { input: { conv: Conversing; scope: string | null } }) =>
+      signInCancel: ({ input }: { input: { conv: PanelAddress; scope: string | null } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope, (panel) => panel.signInCancel)),
       setSetting: ({ input }: { input: { agent: string; session: string; config: string; value: string | boolean } }) =>
         withChat((open) => open.inConversation(input, undefined, panel => panel.setSetting(input.agent, input.session, input.config, input.value))),
@@ -629,13 +629,13 @@ export default definePlugin({
             if (filer !== null) yield* filer.full
           })),
         ),
-      reopen: ({ input }: { input: { conv: Conversing; scope: string | null } }) =>
+      reopen: ({ input }: { input: { conv: PanelAddress; scope: string | null } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope ?? undefined, (panel) => panel.state().unopened === null ? Effect.void : panel.reopen)),
       sessions: () => withChat((open) => open.sessions),
-      answer: ({ input }: { input: { conv: Conversing; id: string; answers: Parameters<Chat.Chat["answer"]>[1] } }) =>
-        withChat((open) => open.inConversation(input.conv, undefined, panel => panel.answer(input.id, input.answers))),
-      decline: ({ input }: { input: { conv: Conversing; id: string } }) =>
-        withChat((open) => open.inConversation(input.conv, undefined, panel => panel.answer(input.id, null))),
+      answer: ({ input }: { input: { conv: PanelAddress; scope?: string | null; id: string; answers: Parameters<Chat.Chat["answer"]>[1] } }) =>
+        withChat((open) => open.inConversation(input.conv, input.scope, panel => panel.answer(input.id, input.answers))),
+      decline: ({ input }: { input: { conv: PanelAddress; scope?: string | null; id: string } }) =>
+        withChat((open) => open.inConversation(input.conv, input.scope, panel => panel.answer(input.id, null))),
       // WHOSE doorbell a conversation may be pointed at — the gate, and the
       // sentence a refusal reaches a person in ({@link ./server/doorbell.ts}).
       scope: (

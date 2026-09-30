@@ -712,9 +712,9 @@ const withLaggingBinding = async (use: (bench: {
 
 test("a completed fresh-start routes a reader of the lagging binding to history", async () => {
   await withLaggingBinding(async ({ chat, bind, read }) => {
-    const first = await run(chat.startAgentSession("one", "alpha"))
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
     bind(first.session)
-    const second = await run(chat.startAgentSession("one", "alpha"))
+    const second = (await run(chat.startAgentSession("one", "alpha")))!
     const history = await run(read(first.session))
     expect(history.state().session?.id).toBe(first.session)
     expect(chat.state().session?.id).toBe(second.session)
@@ -752,7 +752,7 @@ test("a fresh-start queued behind a third opener supersedes the late reader's se
 
 test("a held history load leaves the live opening permit available", async () => {
   await withLaggingBinding(async ({ chat, bind, read, probe }) => {
-    const first = await run(chat.startAgentSession("one", "alpha"))
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
     bind(first.session)
     await run(chat.startAgentSession("one", "alpha"))
     await run(Effect.scoped(Effect.gen(function*() {
@@ -779,10 +779,10 @@ test("a held history load leaves the live opening permit available", async () =>
 
 test("explicit navigation to a superseded session uses history despite a lagging binding", async () => {
   await withLaggingBinding(async ({ chat, bind, read }) => {
-    const first = await run(chat.startAgentSession("one", "alpha"))
+    const first = (await run(chat.startAgentSession("one", "alpha")))!
     bind(first.session)
     const live = await run(read(first.session))
-    const second = await run(chat.startAgentSession("one", "alpha"))
+    const second = (await run(chat.startAgentSession("one", "alpha")))!
     await run(chat.loadSession(first.agent, first.session))
     // Navigation selects history for the foreground, without replacing the
     // session held by the original live panel or rewriting the binding.

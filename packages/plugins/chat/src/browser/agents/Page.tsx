@@ -43,6 +43,14 @@ function createPageSession(node: string): PageSession {
   const [draft, setDraft] = createSignal("")
   const [starting, setStarting] = createSignal(false)
   const [failure, setFailure] = createSignal<string | null>(null)
+  createEffect(() => {
+    const value = chat()
+    const state = value?.state()
+    const text = draft()
+    if (value === null || state?.talking === null || state?.talking === undefined || state.session === null || text === "") return
+    keepMessage(value.ui.messages, JSON.stringify([state.talking.id, state.session.id]), text, true)
+    setDraft("")
+  })
   const ready = (to: Conversing): Promise<Chat | null> => new Promise(resolve => {
     if (!alive) { resolve(null); return }
     createRoot(dispose => {
@@ -73,6 +81,7 @@ function createPageSession(node: string): PageSession {
         return
       }
       const to = result.success
+      if (to === null) { setDraft(text); return }
       const ui = reading.ui(to)
       const key = JSON.stringify([to.agent, to.session])
       // Preserve words typed after the first send as an ordinary unsent draft.

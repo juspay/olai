@@ -180,3 +180,47 @@ Feature: Signing in to Claude from inside olai
     When the person finishes signing in
     Then the card is done with
     And the agent's answer mentions "signed in to example"
+
+  @signin
+  Scenario: A new chat refused for auth runs the terminal login and then opens
+    Given the agent needs a sign-in
+    When I press new chat in Chats
+    Then the pending Inbox conversation is unfolded as "new-chat" with engine "claude"
+    And the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "Authentication required"
+    And the panel offers a sign-in
+    When I press the sign-in for "claude-ai-login"
+    Then the sign-in is running "claude-ai-login"
+    When I type "123456" into the sign-in
+    Then the panel offers no sign-in
+    And the panel shows no such refusal
+    And the agent is idle
+    And the new Inbox conversation is unfolded as "new-chat" with engine "claude"
+
+  @signin @agent-stored
+  Scenario: A listed Claude chat resumes after terminal sign-in
+    Given the agent needs a sign-in
+    When I open the filed conversation "the last conversation" as node "listed-chat"
+    Then the panel says the conversation could not be opened
+    And the panel offers a sign-in
+    When I press the sign-in for "claude-ai-login"
+    Then the sign-in is running "claude-ai-login"
+    When I type "123456" into the sign-in
+    Then the panel offers no sign-in
+    And the panel shows no such refusal
+    And the agent is idle
+    And the open conversation has session id "fake-stored-new"
+
+  @signin
+  Scenario: An untouched node opens its first Claude session after terminal sign-in
+    Given the agent needs a sign-in
+    When I open the "claude" agent on node "kitchen"
+    Then the panel says the conversation could not be opened
+    And the panel offers a sign-in
+    When I press the sign-in for "claude-ai-login"
+    Then the sign-in is running "claude-ai-login"
+    When I type "123456" into the sign-in
+    Then the panel offers no sign-in
+    And the panel shows no such refusal
+    And the agent is idle
+    And the open conversation has session id "fake-session-1"

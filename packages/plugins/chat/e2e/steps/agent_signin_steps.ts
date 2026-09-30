@@ -278,3 +278,23 @@ Then("the card links to {string}", async function (this: OlaiWorld, url: string)
     POLL_TIMEOUT,
   );
 });
+
+Then("the pending Inbox conversation is unfolded as {string} with engine {string}", async function(this: OlaiWorld, name: string, engine: string) {
+  let id: string | undefined;
+  await this.waitUntil(async () => {
+    const found = this.servedNodesSoFar("_olai/Inbox.olai").find(node => node.parent === "chats"
+      && node.title === "new conversation"
+      && (node.custom as Record<string, unknown> | undefined)?.["chat-agent-session"] === engine);
+    id = found?.id as string | undefined;
+    return id !== undefined;
+  }, "the new node to name only its engine before authentication", HYDRATION_TIMEOUT);
+  assert.ok(id);
+  this.nodeNames.set(name, id);
+  this.activeAgent = name;
+  await this.chatRoot().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then("the open conversation has session id {string}", async function(this: OlaiWorld, session: string) {
+  await this.waitUntil(async () => await this.chat(selector(PLUGIN_TESTID.chatPanel)).getAttribute("data-session-id") === session,
+    `the intended session ${session} to be opened`, HYDRATION_TIMEOUT);
+});

@@ -14,10 +14,11 @@
  *
  * ## The ORDERS are opposite, and each is the guarantee
  *
- * {@link startAgentSession} opens the conversation FIRST: `newSession` has
- * RESOLVED by the time the state is read, so the id written down is a
- * conversation that exists. The other order would leave a property naming a
- * session nobody opened every time the agent failed to start.
+ * {@link startAgentSession} writes a session id only after opening succeeds.
+ * An auth-refused first start writes only the engine, allowing the node panel
+ * to be read before a session exists. The node-owned retry retains the binding
+ * completion and predecessor; signing in retries that exact open, then commits
+ * its real session id and lineage. Other refusals still write nothing.
  *
  * {@link assignSession} writes the property FIRST, because nothing has to be
  * opened — both halves are about things that already exist — and the durable one
@@ -120,14 +121,17 @@ export const startAgentSession = (
   chat: Chat,
   binding: Binding,
   input: { readonly node: string; readonly agent: string },
-): Effect.Effect<Conversing, OpFailure> =>
+): Effect.Effect<Conversing | null, OpFailure> =>
   Effect.gen(function*() {
     const was = binding.boundAt(input.node)
-    const now = yield* chat.startAgentSession(input.node, input.agent)
-    yield* binding.write(input.node, sessionValue(now.agent, now.session))
-    if (was?.session != null && was.session !== now.session) {
-      yield* chat.replaced({ agent: was.engine, session: was.session }, now)
-    }
-
+    const now = yield* chat.startAgentSession(input.node, input.agent, now => Effect.gen(function*() {
+      yield* binding.write(input.node, sessionValue(now.agent, now.session))
+      if (was?.session != null && (was.engine !== now.agent || was.session !== now.session)) {
+        yield* chat.replaced({ agent: was.engine, session: was.session }, now)
+      }
+    }))
+    // Only the engine is durable before authentication. No invented session
+    // id is written, and a fresh start keeps its predecessor until it succeeds.
+    if (now === null && was === null) yield* binding.write(input.node, sessionValue(input.agent, null))
     return now
   })

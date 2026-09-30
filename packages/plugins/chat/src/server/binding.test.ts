@@ -79,10 +79,11 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     resend: () => elsewhere,
     cancel: elsewhere,
     newSession: () => Effect.sync(() => void (at += 1)),
-    startAgentSession: (_node: string, agent: string) => Effect.gen(function*() {
+    startAgentSession: (_node: string, agent: string, committed?: (to: { agent: string; session: string }) => Effect.Effect<void, import("@olai/format").OpFailure>) => Effect.gen(function*() {
       at += 1
       const session = opens[at]
       if (session === undefined || session === null) return yield* new UsageFailure({ reason: `${agent} opened no conversation to bind to this node` })
+      if (committed !== undefined) yield* committed({ agent, session })
       return { agent, session }
     }),
     chooseAgent: () => elsewhere,

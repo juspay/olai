@@ -398,7 +398,7 @@ the other half of that contract: `authMethods` in its handshake, an
 verbs that can refuse for want of a signature (`session/new`, `session/load`, a
 turn).
 
-- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (9 scenarios,
+- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (12 scenarios,
   the terminal kind, on the `chat` corpus): the handed-over command runs, prints its URL as a
   *clickable link*, reads a code and exits 0; a code it does not accept is
   answered and asked for again with the process still up; a code that fails the
@@ -416,9 +416,8 @@ turn).
   gesture is the engine switch and not the fold's own close, and that distinction
   is worth pinning: closing an agent releases the node's binding and leaves its
   scope to be evicted, so its subprocess is still there to be found.
-- **`packages/plugins/codex/e2e/features/agent_signin.feature`** (4 scenarios,
-  the agent kind, on the `lanes` corpus because the refused-open case needs a
-  binding the vault already carries): a conversation refused for want of a
+- **`packages/plugins/codex/e2e/features/agent_signin.feature`** (8 scenarios,
+  the agent kind, on the `lanes` corpus): a conversation refused for want of a
   signature is signed in to through the device-code card and opens itself
   afterwards — including that the `env_var` method the fake also advertises is
   NOT offered; backing out leaves nothing running (the adapter's own refusal of
@@ -427,6 +426,7 @@ turn).
   words handed back to the box; and a device-code sign-in running when its engine
   is switched off goes with it — the row is gone because the agent it belonged to
   is, and the card can no longer arrive from a process that is not there.
+- Both engines cover an auth-refused Chats `+`, a listed conversation resumed by its original id, and starting on an untouched node. Codex also covers a refused fresh start with stored conversations available, asserting the new session id and binding after sign-in. The first-start cases assert an engine-only binding before authentication; there is no fabricated session id. Node-addressed readings retain the refusal before any transcript exists.
 - **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
   plugin because the feature is the panel's: arm the agent
   (`.agent-needs-auth`), say the person finished at a vendor's page

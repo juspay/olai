@@ -47,7 +47,7 @@ import { Effect } from "effect"
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
 
-import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
+import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, type PanelAddress, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { type Accessor, createEffect, createMemo, createSelector, createSignal, on, onCleanup } from "solid-js"
@@ -242,7 +242,7 @@ export interface Chat {
  * message is a module snapshot in `last.ts`, written only while the open panel
  * is mounted — never a second transcript subscription.
  */
-export const createChatState = (conv: Conversing): Accessor<ChatState> => {
+export const createChatState = (conv: PanelAddress): Accessor<ChatState> => {
   const cell = chatWire().streams.state.use(() => conv)
   // The cell always has a value: the spec declares a default, and the framework
   // seeds the subscription with it — so `off` is what a page reads before the
@@ -252,7 +252,7 @@ export const createChatState = (conv: Conversing): Accessor<ChatState> => {
 
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-export const createChat = (conv: Conversing, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void } = {}): Chat => {
+export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly visit?: (to: Conversing) => void } = {}): Chat => {
   const ui = options.ui ?? createConversationUI()
   const { closePreview } = ui.previewing
   const [refused, setRefused] = ui.refused
@@ -393,7 +393,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
   })
   createEffect(() => {
     const current = served()
-    if (current.unopened === null && (current.session?.id !== conv.session || current.uploadScope === null)) return
+    if (current.unopened === null && (("session" in conv ? current.session?.id !== conv.session : current.session === null) || current.uploadScope === null)) return
     const scope = current.unopened === null ? current.uploadScope : null
     for (const settle of awaiting()) settle(scope)
     if (awaiting().size > 0) setAwaiting(new Set<(scope: string | null) => void>())
@@ -401,7 +401,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
   const sendingScope = (): Promise<string | null> => {
     const current = served()
     if (disposed || current.unopened !== null) return Promise.resolve(null)
-    if (current.session?.id === conv.session && current.uploadScope !== null) return Promise.resolve(current.uploadScope)
+    if (("session" in conv ? current.session?.id === conv.session : current.session !== null) && current.uploadScope !== null) return Promise.resolve(current.uploadScope)
     return new Promise(resolve => setAwaiting(before => new Set([...before, resolve])))
   }
 
@@ -568,7 +568,7 @@ export const createChat = (conv: Conversing, options: { readonly ui?: Conversati
       chatWire().procedures.conversation.scope({ agent, session, plugin, pick }).pipe(Effect.asVoid, Effect.mapError(error => ({ reason: String(error) }))),
     reopen: () => opens(chatWire().procedures.conversation.reopen({ conv, scope: state().uploadScope })),
     answer: (id, answers, done) =>
-      verb(chatWire().procedures.conversation.answer({ conv, id, answers }), done),
-    decline: (id, done) => verb(chatWire().procedures.conversation.decline({ conv, id }), done),
+      verb(chatWire().procedures.conversation.answer({ conv, scope: state().uploadScope, id, answers }), done),
+    decline: (id, done) => verb(chatWire().procedures.conversation.decline({ conv, scope: state().uploadScope, id }), done),
   }
 }

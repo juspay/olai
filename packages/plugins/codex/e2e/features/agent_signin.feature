@@ -9,12 +9,6 @@ Feature: Signing in to Codex from inside olai
   Scenario: A conversation refused for want of a signature is signed in to and opened
     Given I open the app
     And I show the done nodes
-    # THE BINDING IS IN THE VAULT, so this node HAS a conversation before
-    # anything is started or refused: the marker can then be armed and the BOOT
-    # that opens it refused, which is the case with no transcript at all for the
-    # row to live in. Starting an agent on an untouched node cannot show it —
-    # the start gesture's own procedure never gets its conversation, so a
-    # refusal leaves no binding and no fold to draw a row in.
     And I rewrite "lanes.olai" as:
       """
       {"id":"install","ord":"a0","title":"install the cabinets","doing":true,"custom":{"agent-session":"codex:install-session"}}
@@ -109,3 +103,85 @@ Feature: Signing in to Codex from inside olai
     Then the panel offers no sign-in
     And the agent is idle
     And the chat input reads "hello"
+
+  @signin
+  Scenario: Chats plus keeps an auth-refused new conversation visible until it opens
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "lanes.olai"
+    And the agent needs a sign-in
+    When I press new chat in Chats
+    And I choose new chat engine "Codex"
+    Then the pending Inbox conversation is unfolded as "new-chat" with engine "codex"
+    And the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "Authentication required"
+    And the panel offers a sign-in
+    When I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    And the panel shows no such refusal
+    And the agent is idle
+    And the new Inbox conversation is unfolded as "new-chat" with engine "codex"
+    When I ask the agent "opened after signing in"
+    Then the agent has answered "opened after signing in" exactly once
+
+  @signin
+  Scenario: A listed Codex chat resumes its own session after signing in
+    Given I open the app
+    And I show the done nodes
+    And the agent needs a sign-in
+    When I open the filed "codex" conversation "the last conversation" as node "listed-chat"
+    Then the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "Authentication required"
+    And the panel offers a sign-in
+    When I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    And the panel shows no such refusal
+    And the agent is idle
+    And the open conversation has session id "fake-stored-new"
+
+  @signin
+  Scenario: Starting Codex on an untouched node offers sign-in before a session exists
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "lanes.olai"
+    And the agent needs a sign-in
+    When I open the "codex" agent on node "lane-fresh"
+    Then the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "Authentication required"
+    And the panel offers a sign-in
+    When I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    And the panel shows no such refusal
+    And the agent is idle
+    And the open conversation has session id "fake-session-1"
+    And the vault node "lane-fresh" has property "agent-session" holding "codex:fake-session-1"
+
+  @signin
+  Scenario: An auth-refused fresh start retries new instead of resuming a stored chat
+    Given the harness keeps distinct sessions on disk
+    And I open the app
+    And I show the done nodes
+    And I open the outline "lanes.olai"
+    When I open the "codex" agent on node "lane-fresh"
+    And the node agent's fold is ready
+    When I ask the agent "the previous conversation"
+    Then the agent is idle
+    And I remember this conversation as "before-sign-in"
+    And the agent needs a sign-in
+    When I open the fold history
+    And I start a fresh session
+    Then the panel says the conversation could not be opened
+    And the panel offers a sign-in
+    When I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    And the panel shows no such refusal
+    And the agent is idle
+    And the panel has a different conversation from "before-sign-in"

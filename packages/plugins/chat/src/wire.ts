@@ -38,7 +38,7 @@
  */
 
 import { collection } from "@kolu/surface"
-import { Conversing } from "./wire/session.ts"
+import { Conversing, PanelAddress } from "./wire/session.ts"
 import { collectionDeltasSchema, defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
@@ -94,9 +94,9 @@ export const surface = defineSurface({
     },
   },
   streams: {
-    state: { inputSchema: Conversing, outputSchema: ChatState, arrayKey: "name" },
-    transcript: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
-    saying: { inputSchema: Conversing, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
+    state: { inputSchema: PanelAddress, outputSchema: ChatState, arrayKey: "name" },
+    transcript: { inputSchema: PanelAddress, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
+    saying: { inputSchema: PanelAddress, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
   },
   procedures: {
     conversation: {
@@ -105,7 +105,7 @@ export const surface = defineSurface({
        *  open tab stays in step and a slow turn does not hold a call open. */
       send: {
         input: Schema.Struct({
-          conv: Conversing,
+          conv: PanelAddress,
           scope: Schema.NullOr(Schema.String),
           text: Schema.String,
           /**
@@ -176,7 +176,7 @@ export const surface = defineSurface({
        * able to produce.
        */
       resend: {
-        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String), id: Schema.String }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.NullOr(Schema.String), id: Schema.String }),
         error: ChatFailure,
       },
       /** One chunk of a picture, into the conversation's tmp directory.
@@ -189,7 +189,7 @@ export const surface = defineSurface({
        *  questions — `attach` says where the bytes landed, `send` says a turn
        *  was accepted — and a file is N calls to one send. */
       attach: {
-        input: Schema.Struct({ ...AttachChunk.fields, conv: Conversing }),
+        input: Schema.Struct({ ...AttachChunk.fields, conv: PanelAddress }),
         output: Attached,
         error: ChatFailure,
       },
@@ -197,7 +197,7 @@ export const surface = defineSurface({
        *  Legal while the agent is still booting — the cancel is remembered
        *  and sent with the prompt. An outdated tab cannot cancel another node. */
       cancel: {
-        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       /**
@@ -216,7 +216,7 @@ export const surface = defineSurface({
        */
       signIn: {
         input: Schema.Struct({
-          conv: Conversing,
+          conv: PanelAddress,
           scope: Schema.NullOr(Schema.String),
           method: Schema.NullOr(Schema.String),
         }),
@@ -227,7 +227,7 @@ export const surface = defineSurface({
        *  person typed is a code, and every one of these CLIs reads it by line. */
       signInInput: {
         input: Schema.Struct({
-          conv: Conversing,
+          conv: PanelAddress,
           scope: Schema.NullOr(Schema.String),
           text: Schema.String,
         }),
@@ -235,7 +235,7 @@ export const surface = defineSurface({
       },
       /** Stop a sign-in, or dismiss a finished attempt's row. */
       signInCancel: {
-        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       setSetting: {
@@ -267,7 +267,7 @@ export const surface = defineSurface({
           /** ... and the engine to open it with, off that node's property. */
           agent: Schema.String,
         }),
-        output: Conversing,
+        output: Schema.NullOr(Conversing),
         error: ChatFailure,
       },
       /** RELEASE a node's agent: the binding property is taken off, the seat
@@ -291,7 +291,7 @@ export const surface = defineSurface({
        *  the way it keeps the prompt behind an undelivered message. Refuses
        *  when there is nothing waiting to be opened again. */
       reopen: {
-        input: Schema.Struct({ conv: Conversing, scope: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       /** EVERY installed agent's stored conversations for this directory,
@@ -311,7 +311,8 @@ export const surface = defineSurface({
        *  which is why both are verbs rather than a write to the transcript. */
       answer: {
         input: Schema.Struct({
-          conv: Conversing,
+          conv: PanelAddress,
+          scope: Schema.optional(Schema.NullOr(Schema.String)),
           id: Schema.String,
           answers: Schema.Array(AskAnswer),
         }),
@@ -320,7 +321,7 @@ export const surface = defineSurface({
       /** Dismiss one, honestly: the agent is told a person declined to answer,
        *  and never handed an answer nobody gave. */
       decline: {
-        input: Schema.Struct({ conv: Conversing, id: Schema.String }),
+        input: Schema.Struct({ conv: PanelAddress, scope: Schema.optional(Schema.NullOr(Schema.String)), id: Schema.String }),
         error: ChatFailure,
       },
       /**

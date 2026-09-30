@@ -435,7 +435,7 @@ export interface Panel {
    *  ({@link ./agents/roster.ts}). The agent is an ARGUMENT because every new
    *  chat asks which one — there is no default to fall back on, and a verb that
    *  could be called without one would be a place for a default to grow. */
-  readonly newSession: (agent: string) => Effect.Effect<void, OpFailure>
+  readonly newSession: (agent: string, completed?: Effect.Effect<void, OpFailure>) => Effect.Effect<void, OpFailure>
   /** Answer the question the panel is holding: THIS is the agent, now open the
    *  conversation you would have opened.
    *
@@ -1992,8 +1992,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     const openWith = (
       id: string,
       use: (agent: AcpAgent.Agent) => Effect.Effect<void, AcpAgent.AgentGone>,
+      completed?: Effect.Effect<void, OpFailure>,
     ): Effect.Effect<void, OpFailure> =>
-      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use)))
+      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use), completed))
 
     /**
      * What every installed agent has stored here — the question, answerable.
@@ -3071,7 +3072,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * is not always a thing anybody named: a boot adopts its own, and a
      * description would be this file re-deciding that on a retry.
      */
-    let unopened: { readonly again: Effect.Effect<void, AcpAgent.AgentGone> } | null = null
+    let unopened: { readonly again: Effect.Effect<void, AcpAgent.AgentGone>; readonly completed?: Effect.Effect<void, OpFailure> } | null = null
 
     /**
      * WHICH CONVERSATION THE OPEN IN FLIGHT IS FOR, as the verb doing it said
@@ -3107,8 +3108,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     const refusedOpen = (
       failure: AcpAgent.AgentGone,
       again: Effect.Effect<void, AcpAgent.AgentGone>,
+      completed?: Effect.Effect<void, OpFailure>,
     ): void => {
-      unopened = { again }
+      unopened = { again, completed }
       // WHAT WAS REFUSED, as an address — which is the whole of the second
       // claim below. `talking` is the agent that answered: an open that never
       // reached one fails `unreachable` and is not this face at all.
@@ -3201,7 +3203,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * somebody had typed are still theirs (the composer's draft is keyed by the
      * conversation, and a fresh id would drop them) — or, when the refusal was
      * at the OPEN and there is no conversation to come back to, whatever that
-     * boot would have picked.
+     * open requested. A pending open retains its exact operation and binding
+     * completion; a refused fresh start must never adopt a stored conversation.
      *
      * A failure is a NOTICE and not a second row: the sign-in itself worked,
      * which is the thing the person pressed, and what did not work is the
@@ -3209,6 +3212,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      */
     const signedIn = (at: Bound): Effect.Effect<void, OpFailure> =>
       Effect.suspend(() => {
+        const waiting = unopened
+        if (waiting !== null) return changeSession(waiting.again, waiting.completed)
         const session = state.session?.id ?? state.unopened?.what ?? null
         return session === null
           ? openWith(at.row.id, (agent) => agent.boot)
@@ -3294,6 +3299,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      */
     const changeSession = (
       what: Effect.Effect<void, AcpAgent.AgentGone>,
+      completed?: Effect.Effect<void, OpFailure>,
     ): Effect.Effect<void, OpFailure> =>
       switching.withPermit(
         Effect.gen(function*() {
@@ -3317,12 +3323,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // than reporting a dead process, and holds what it would take to
             // ask again.
             if (outcome.failure.gone === "refused") {
-              refusedOpen(outcome.failure, what)
+              refusedOpen(outcome.failure, what, completed)
             } else {
               wentAway(outcome.failure.message)
             }
             return yield* asFailure(outcome.failure)
           }
+          if (completed !== undefined) yield* completed
           settled()
           // ... AND WHATEVER A DOORBELL HELD FOR THE CONVERSATION JUST OPENED
           // GOES IN, as its first message.
@@ -3465,7 +3472,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // WITH the agent that was chosen, always: every new chat asks, so there
       // is no arm here that picks one. An id off a stale tab is refused in
       // words rather than started.
-      newSession: (id: string) => openWith(id, (agent) => agent.newSession),
+      newSession: (id: string, completed) => openWith(id, (agent) => agent.newSession, completed),
       // The answer to the panel's own question, which is not the same verb: a
       // boot that stopped to ask has not asked for a NEW conversation, so what
       // this opens is the one that agent's own boot would have adopted —
@@ -3513,7 +3520,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           )
         }
         unopened = null
-        return changeSession(waiting.again)
+        return changeSession(waiting.again, waiting.completed)
       }),
       // ... WEARING THE SUPERSESSIONS OLAI ITSELF MADE ({@link
       // ./succession.ts}). The overlay is here, at the one door every reader of
