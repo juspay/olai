@@ -48,9 +48,9 @@
       },
       "branch": "effect4",
       "submodules": false,
-      "revision": "3df9826a8b7da7e544a18f535b3279dc3e5a36cf",
-      "url": "https://github.com/juspay/kolu/archive/3df9826a8b7da7e544a18f535b3279dc3e5a36cf.tar.gz",
-      "hash": "sha256-FtWnjEAtilJnt+46Ydc+H2PxwOl8nROxQt6DM66Pslg="
+      "revision": "9afc64b80b8942552881b91f5180f39b6cefe9f0",
+      "url": "https://github.com/juspay/kolu/archive/9afc64b80b8942552881b91f5180f39b6cefe9f0.tar.gz",
+      "hash": "sha256-SAYFD3njHLNVTv6mmSFw9Rd32EZ0+tx3yBoKaolrk9c="
     },
     "nixpkgs": {
       "type": "Git",
@@ -74,9 +74,9 @@
       },
       "branch": "effect4",
       "submodules": false,
-      "revision": "0b117328730888008b10d40c8f8a0ad237d14a44",
-      "url": "https://github.com/juspay/odu/archive/0b117328730888008b10d40c8f8a0ad237d14a44.tar.gz",
-      "hash": "sha256-nMj4HWJLj5GTLXhka/affq3A+aDcah/YS42IR+6RoqM="
+      "revision": "f3be00a1ff86c0ab41f61c301f9337280cd8a8ef",
+      "url": "https://github.com/juspay/odu/archive/f3be00a1ff86c0ab41f61c301f9337280cd8a8ef.tar.gz",
+      "hash": "sha256-HpKkKM7lJafvTIxUFbzqcUMByU87EfKIGnE+Ot6glnA="
     },
     "osfacts": {
       "type": "Git",

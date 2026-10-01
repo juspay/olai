@@ -215,6 +215,8 @@ kolu-deps:
 # The bundle exports ONE merged map of plugin npm externals. Its fold rejects
 # conflicting declarations before this check runs; compare that canonical map
 # against root/workspace manifests and overrides using the shared checker.
+# OLAI_PLUGIN_EXTERNALS contains dependency names/versions, not plugin names;
+# per-plugin attribution is lost by that fold (already true on master).
 [doc("Check dependency versions against every plugin's pin")]
 plugin-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh plugins "$OLAI_PLUGIN_EXTERNALS"'
