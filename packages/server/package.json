@@ -14,7 +14,7 @@
   "//main": "src/serve.ts, not src/main.ts: main.ts ends in a top-level run that starts the server and installs signal handlers, so a resolver honouring `main` over `exports` would boot a listener on import. The binary is reached as a script path (default.nix, the justfile), never as a module.",
   "//dependencies": "Runtime dependencies support generic host composition, transports, process shutdown and the application command-line client. The bundle owns the selected module catalogue, application surface and exposure maps. Plugin packages below are test-only contracts and fixtures.",
   "dependencies": {
-    "@effect/platform-node": "4.0.0-rc.112",
+    "@effect/platform-node": "4.0.0",
     "@olai/acp": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/log": "workspace:*",
@@ -26,7 +26,7 @@
     "@olai/state": "workspace:*",
     "@olai/store": "workspace:*",
     "@olai/surface": "workspace:*",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0",
     "@olai/edit-intents": "workspace:*"
   },
   "//ws": "Not here any more, and that is the point of serveSurfaceApp: no source in this package names a websocket implementation. `ws` is the hydrated @kolu/surface-app's own peer dependency, declared at the ROOT with the rest of them (bunfig.toml has the argument).",

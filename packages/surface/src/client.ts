@@ -12,7 +12,7 @@ import type { SurfaceReadFace } from "@kolu/surface/project"
 import type { FaceExposure } from "@kolu/surface/expose"
 
 import type { SurfaceHandlers } from "@kolu/surface/server"
-import type { Rpc, RpcGroup } from "effect/unstable/rpc"
+import type { Rpc, RpcGroup } from "effect/rpc"
 type Bound = { readonly group: RpcGroup.RpcGroup<Rpc.Any>; readonly handlers: SurfaceHandlers }
 
 // ── The client, typed ────────────────────────────────────────────────────

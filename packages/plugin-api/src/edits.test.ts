@@ -22,7 +22,7 @@ const edit = { verb: "title" as const, id: "writer-test", title: "new" }
 const writer = (said: string) => () => Effect.fail(new NotFoundFailure({ reason: said }))
 const sent = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(Effect.result(effect))
 const scope = () => Effect.runPromise(Scope.make())
-const close = (one: Scope.Scope) => Effect.runPromise(Scope.close(one, Exit.void))
+const close = (one: Scope.Closeable) => Effect.runPromise(Scope.close(one, Exit.void))
 const claim = (
   table: EditWriters,
   verbs: ReadonlyArray<string>,

@@ -16,6 +16,6 @@
   },
   "//dependencies": "`effect` only. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared and that is not an omission \u2014 they are hydrated from the npins pin (nix/cordis.nix) into the ROOT node_modules the way every `@kolu/*` member is, and a manifest naming one would send bun to a registry that does not have it. `scripts/check-hydrated-deps.sh` is what holds their versions; the fence is what holds the fact that this package is the only one allowed to name them.",
   "dependencies": {
-    "effect": "4.0.0-rc.112"
+    "effect": "4.0.0"
   }
 }

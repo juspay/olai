@@ -39,7 +39,7 @@ import type { RootedSurfaceClients } from "@kolu/surface/client"
 import type { ResolvedEndpoint, SurfaceCliConnection } from "@kolu/surface-cli"
 import { resolveExpose } from "@kolu/surface-mcp"
 import { Effect, Stream } from "effect"
-import { Command, Flag } from "effect/unstable/cli"
+import { Command, Flag } from "effect/cli"
 
 import { AGENT_SIBLINGS } from "@olai/bundle/agent-face"
 import { type McpConnection, McpUnreachable, openMcp } from "./mcpClient.ts"
@@ -58,7 +58,7 @@ import { type McpConnection, McpUnreachable, openMcp } from "./mcpClient.ts"
  * library's own words.
  */
 export const endpointFlags = {
-  url: Flag.string("url").pipe(
+  url: Flag.String("url").pipe(
     Flag.withDescription(
       "the olai server to call — the same address a browser opens (required; no default)",
     ),
