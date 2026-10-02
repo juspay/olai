@@ -18,15 +18,6 @@ Feature: The sidebar and command palette
     When I reload the page
     Then the sidebar width survived the reload
 
-  @no-agent @scratch:chat
-  Scenario: A palette question without an engine opens the absence face
-    Given I open the app
-    When I press the palette shortcut
-    And I ask the palette "> please do the thing"
-    Then new chat shows the no-agent face
-    And the Inbox contains no chat children
-    And there should be no page errors
-
   @corpus:good
   Scenario: The command palette opens from the keyboard
     Given I open the outline "house.olai"

@@ -232,20 +232,6 @@ export type SlotFaces = { [S in SlotName]: SlotDefinitions[S] extends {readonly 
  */
 
 
-/**
- * A VERB BEHIND A PALETTE PREFIX — `app.command`.
- *
- * `prefix` is the character the palette dispatches on and is the plugin’s to
- * choose; a collision with one core already answers is refused by the palette,
- * in its own words, for {@link AppChord}’s reason.
- *
- * `run` answers the REFUSAL or nothing, which is the one place this differs
- * from a row verb: the palette is a box a person is looking at with a line they
- * just typed in it, so a send that was turned down has to be able to say so
- * there rather than only in a panel that may be shut.
- */
-
-
 /** One face, with the plugin that hung it — what a walk over a plugin-keyed slot
  *  or a LIST slot reads. The name is on the row because the app has occasion to
  *  use it (a testid, a mark looked up by the word core stamped on a chat row, the

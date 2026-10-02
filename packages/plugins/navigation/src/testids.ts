@@ -10,7 +10,6 @@ export const TESTID = {
   paletteInput: "palette-input",
   paletteList: "palette-list",
   paletteItem: "palette-item",
-  paletteAsk: "palette-ask",
   paletteItemPlace: "palette-item-place",
   paletteItemProp: "palette-item-prop",
   paletteSaid: "palette-said",

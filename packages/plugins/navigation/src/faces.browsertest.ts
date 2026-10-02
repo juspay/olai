@@ -5,7 +5,7 @@
  * ## What this is about
  *
  * The renderer settles `app.route` into the claim table (`./pages.ts`); the
- * palette draws `app.command` and `app.palette`. Both are components of this
+ * palette draws `app.palette` and answers `app.keys`. Both are components of this
  * row, and both are handed the SAME `Faces` object — a slot table is one thing
  * ui-renderer gives everybody. They held into ONE holder, and they do not stop
  * together: the palette additionally names `layout.shell` and the clock, so

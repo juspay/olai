@@ -230,7 +230,7 @@ What a session has **cost** is on the wire too, and is deliberately not drawn: i
 
 The button says **send** the whole time, because that is what it does the whole time. Cancel sits beside it rather than replacing it: sending and stopping are two things you can want at the same moment, and while a turn runs they are usually the two you are choosing between. `interrupt` appears between them while a turn is running, on an agent that takes one.
 
-**Sending belongs to the conversation shown when you press it.** A delayed tab cannot send, interrupt or retry a message in a different node selected by another tab. Retry controls carry the conversation identity as well as the message ID, since each transcript numbers its messages independently. Refused text, chosen `@` handles and uploaded files return to their original conversation, including after a drawer remount; text typed while the refusal was in flight is retained after the recovered message. Refusals also remain visible when a response arrives after the drawer was reopened. The palette’s `>` command checks the same conversation identity and keeps a refused command in its input.
+**Sending belongs to the conversation shown when you press it.** A delayed tab cannot send, interrupt or retry a message in a different node selected by another tab. Retry controls carry the conversation identity as well as the message ID, since each transcript numbers its messages independently. Refused text, chosen `@` handles and uploaded files return to their original conversation, including after a drawer remount; text typed while the refusal was in flight is retained after the recovered message. Refusals also remain visible when a response arrives after the drawer was reopened.
 
 **Cancel belongs to the conversation shown when you press it.** Another tab opening a different node does not redirect the control: it still cancels this conversation. If this conversation’s process lifetime has changed, the stale control refuses with “the conversation changed”.
 
@@ -298,16 +298,6 @@ The dashed composer on a plain node is not a landing. File rows do not land in
 outlines, and document pages do not take these carries. A transcript row dropped
 between outline rows becomes a node: first line title, remaining lines note,
 with one undo entry.
-
-The palette's `>` sends to the focused row's nearest ancestor agent after
-unfolding it. With no focused row, a zoomed node supplies that target, including
-a node that already has a bound agent. This lookup works with search off. With no agent above the focused
-row (or zoomed node), it opens **New chat** carrying the words and presets that
-node as the visible location. With neither, it preserves the current New chat
-location (initially **Inbox › Chats**). Repeated `>` appends to that draft; while
-a send is starting it refuses and retains the new words in the palette.
-Nothing is sent until Send. An unbound ancestor still refuses with **This agent
-has no chat. Start one first.**, preserving the palette text.
 
 An armed chip displays the node title returned by the outline reference service;
 it falls back to the ID while unresolved or while that service is unavailable.

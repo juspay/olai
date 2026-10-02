@@ -181,9 +181,9 @@ test("a second submit while one is in flight is refused before anything else is 
 })
 
 test("inside a level the box is the level's: no prefix and no filter reads it, but a question still stands over it", () => {
-  const command = { prefix: ">", said: "ask", placeholder: "", run: () => Promise.resolve(null) }
-  expect(boxOf("> hello", null, [command], [], true)).toEqual({ kind: "level" })
-  expect(boxOf("> hello", null, [command], [], false).kind).toBe("command")
+  const prefix = { value: "+", label: "capture", empty: "", testid: "capture", after: "+ ", run: async () => ({ tone: "aside" as const, text: "captured" }) }
+  expect(boxOf("+ hello", null, [prefix], true)).toEqual({ kind: "level" })
+  expect(boxOf("+ hello", null, [prefix], false).kind).toBe("prefix")
   const question = { kind: "confirm" as const, label: "Go", question: "Sure?", edit: { verb: "trash", id: "x" } as never }
-  expect(boxOf("", question, [command], [], true).kind).toBe("answering")
+  expect(boxOf("", question, [prefix], true).kind).toBe("answering")
 })

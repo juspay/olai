@@ -64,10 +64,9 @@
  * defects would hide the second class inside the first — which is the whole
  * reason this is a `_tag` test and not a `catch`.
  *
- * It lived in `chat/` while the conversation was the only thing with verbs.
- * The palette's `>` ask was the second caller and the row editor is the third,
- * so it sits at the client's root now — one edge, named once, wherever a
- * procedure is called from.
+ * It sits at the client's root rather than in any one feature because several
+ * callers share it — one edge, named once, wherever a procedure is called
+ * from.
  */
 
 import { BusyFailure, isOpFailure, type OpFailure } from "@olai/format"

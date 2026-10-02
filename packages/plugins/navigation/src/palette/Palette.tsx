@@ -30,18 +30,13 @@
  * and the box empties for the next one. Where the inbox IS is the server's
  * (`../../../../server/src/edit.ts`), for the same reason every placement is.
  *
- * ## …and the third thing, which is somebody else's
+ * ## …and what the palette adapters bring
  *
- * **A PLUGIN'S PREFIX** ({@link commands}). `>` used to be spelled here: this
- * file held the character, the sentence beside it, a call to the chat
- * procedure, and the composer's armed-node strip so a send from the palette
- * carried what a send from the panel would. All of it moved with the
- * conversation, into `packages/plugins/chat`, and what is left here is the read
- * of `@olai/plugin-api`'s `app.command` slot. Core keeps the BOX — this input,
- * the prefix strip under it, the shortlist, and the row a refusal is drawn in —
- * and the plugin brings the word, the placeholder and the press. A serve
- * running no plugin that wants a prefix offers none, and `>` is then a
- * character somebody typed into a filter.
+ * **AN ADAPTER'S PREFIX** ({@link prefixes}). A palette adapter may offer one
+ * typed character — capture's `+` is one — with its own label, placeholder and
+ * press; core keeps the BOX — this input, the prefix strip under it, and the
+ * row a refusal is drawn in. A serve running no adapter that offers a prefix
+ * has none, and any character is then just a filter somebody typed.
  *
  * ## What it says afterwards
  *
@@ -52,14 +47,13 @@
  * closes the palette, which is what choosing a command means.
  *
  * The search uses `run` with a real failure handler (run.ts forbids a silent
- * one); a plugin's command answers its own refusal, which lands in the same
+ * one); an adapter's prefix answers its own refusal, which lands in the same
  * row.
  */
 import { fileClaims } from "../pages.ts"
 import type {} from "olai-plugin-search/box"
 import { paletteOnly } from "../faces.ts"
 import { TESTID } from "olai-plugin-navigation/testids"
-import type { AppCommand } from "olai-plugin-navigation/slots"
 import { type Navigation,paletteAdapters } from "../index.ts"
 import { readLocation } from "../locations.ts"
 import { Key } from "@solid-primitives/keyed"
@@ -98,7 +92,7 @@ import { atOnce,spend } from "@olai/web/client/settled.ts"
 
 import { useToday } from "./clock.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
-import { desktop, resetPanelWidths } from "./shell.ts"
+import { resetPanelWidths } from "./shell.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { isLone } from "olai-plugin-navigation/workspace"
@@ -108,7 +102,6 @@ boxOf,
 chordsIn,
 prefixesIn,
 type PalettePrefix,
-commandsIn,
 filterItems,
 hitItems,
 type PaletteItem,
@@ -133,7 +126,7 @@ import { Shortcuts } from "./Shortcuts.tsx"
  *  the list, at this door's own gutter. The alarm's SKIN is
  *  `../SaidLine.tsx`'s (`ALARM_BAND`, shared with the two narrower
  *  panels); the `px-4` is the palette's, because its rows set it. Three things
- *  this panel can alarm about — a command a plugin turned down, a search that
+ *  this panel can alarm about — a write an adapter turned down, a search that
  *  fell over, a token the grammar cannot read — and one band. */
 const ALERT_ROW = `${ALARM_BAND} px-4`
 
@@ -222,16 +215,9 @@ export function Palette(props: {
    */
   const lit = createSelector(() => (chosen() ? cursor.at() : -1))
   /**
-   * WHAT A PREFIX'S OWN VERB HAD TO SAY WHEN IT WOULD NOT GO — the refusal a
-   * plugin's `run` answers with, in that plugin's words.
-   *
-   * It kept the `ask` in its name through the move, and deliberately: the row
-   * it is drawn in, the testid a scenario waits on and the promise it makes (a
-   * palette that STAYS OPEN over the line that was refused) are all unchanged,
-   * and renaming them would be this file's rename spilling into
-   * `../testids.ts` and every step that reads it. What changed is who writes
-   * the sentence, which is a fact about {@link runCommand} rather than about
-   * the slot it lands in.
+   * WHAT A LEVEL'S OWN VERB HAD TO SAY WHEN IT WOULD NOT GO — the refusal a
+   * level's submit answers with, in its adapter's words, drawn in a row that
+   * keeps the palette OPEN over the line that was refused.
    *
    * Separate from {@link said}, which is what a WRITE this palette made had to
    * say. Two answers about two different acts, so a person reading a refusal
@@ -280,26 +266,15 @@ export function Palette(props: {
    * of the list by construction rather than by the order four readers ask in.
    */
   /**
-   * WHAT THE PLUGINS HAVE PUT BEHIND A PREFIX — the `app.command` slot, read
-   * the way every other slot in this client is read (`../plugins/runtime.ts`'s
-   * `hung`, already in the bundle's order), and refused where a plugin claims a
-   * character the palette already answers.
+   * WHAT THE PALETTE ADAPTERS HAVE PUT BEHIND A PREFIX — read off the live
+   * `paletteAdapters` location, first claimant keeping a character
+   * ({@link prefixesIn}), so an adapter withdrawn frees its prefix with it.
    *
-   * The refusal is a READ over a list rather than a rule the slot could keep:
-   * `app.command` has no key, so nothing under it can see that `+` is the
-   * capture — the same argument `app.keys` makes about a chord `../keys.ts`
-   * already spends. {@link commandsIn} is where the check and its sentence
-   * live, next to the grammar that dispatches on what survives it, because the
-   * two are one decision: a prefix this palette will not answer must not be a
-   * prefix this palette will parse.
-   *
-   * A MEMO, so the whole thing — the walk, the collision check and its warning
-   * — is spent once per change to the slot table rather than once per keystroke
-   * per reader, and so the empty case costs an array read.
+   * A MEMO, so the walk and the collision check are spent once per change to
+   * the location rather than once per keystroke per reader.
    */
   const prefixes = createMemo(() => prefixesIn(readLocation(paletteAdapters).flatMap(entry =>
     entry.value.prefix ? [{ owner: entry.owner, value: entry.value.prefix }] : [])))
-  const commands = createMemo<ReadonlyArray<AppCommand>>(() => commandsIn(paletteFaces("app.command"), prefixes()))
   /** ...and the chords plugins registered, answered after the core table by
    *  the same rule and refused where that table already answers (`./items.ts`'s
    *  `chordsIn`). */
@@ -331,7 +306,7 @@ export function Palette(props: {
   const { top, valueTop, crumbs } = levels
   const depth = levels.depth
 
-  const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes(), depth() > 0))
+  const box = createMemo(() => boxOf(query(), paletteAsking(), prefixes(), depth() > 0))
   /** A level owns the box — unless a question has borrowed it. */
   const inLevel = () => box().kind === "level"
   /** The text in the box, wherever it is kept. */
@@ -346,11 +321,10 @@ export function Palette(props: {
    *  is how "Enter with nothing" becomes something a reader can see rather
    *  than a promise.
    *
-   *  THE PREFIXES IT NAMES ARE THE ONES THERE ARE. Core's `+` is always in it;
-   *  a plugin's is in it in the plugin's own words, and a serve running none
-   *  teaches neither the character nor the sentence — a placeholder promising
-   *  `> ask the agent` on a serve with no agent is this app teaching a key that
-   *  does nothing. */
+   *  THE PREFIXES IT NAMES ARE THE ONES THERE ARE. An adapter's prefix is in
+   *  it in the adapter's own words, and a serve running none teaches neither
+   *  the character nor the sentence — a placeholder promising a prefix nothing
+   *  answers is this app teaching a key that does nothing. */
   const boxSays = () => {
     const it = box()
     if (it.kind === "level") {
@@ -360,18 +334,12 @@ export function Palette(props: {
     if (it.kind === "answering" && it.question.kind === "line") {
       return it.question.placeholder
     }
-    // The full teaching line is wider than a 360pt box at this type size, and a
-    // placeholder that ends `agent, -` is worse than a shorter one — so the
-    // phone names only what core keeps, and a plugin's word is read off the
-    // prefix strip the moment its character is typed.
-    if (!desktop()) return ["Jump", "toggle", ...prefixes().map(prefix => `${prefix.value} ${prefix.label}`)].join(", ") + "…"
-    const commandWords = commands().map((command) => `${command.prefix} ${command.said}`)
-    return ["Jump", "toggle", ...commandWords, ...prefixes().map(prefix => `${prefix.value} ${prefix.label}`)].join(", ") + "…"
+    return ["Jump", "toggle", ...prefixes().map(prefix => `${prefix.value} ${prefix.label}`)].join(", ") + "…"
   }
 
   /**
    * WHAT THIS BOX IS ASKING — the query, or `null` while it is asking nothing:
-   * the palette is shut, or the line carries a prefix. Neither `>` nor `+` is a
+   * the palette is shut, or the line carries a prefix. A prefixed line is not a
    * lookup, and asking for one would spend a round trip per keystroke on a
    * sentence nobody is looking things up with.
    *
@@ -717,62 +685,8 @@ export function Palette(props: {
     })
   }
 
-  /**
-   * THE LINE, HANDED OVER — and the palette says what came back.
-   *
-   * ## What this used to be
-   *
-   * `sendAsk`: the chat procedure called from here, with the composer's armed
-   * nodes released before the call and put back on a refusal, so a send from
-   * the palette carried the same message a send from the panel would, and the
-   * chat panel opened either way. Every line of that was about a conversation,
-   * and it went with the conversation — `packages/plugins/chat` owns the strip,
-   * the procedure and the panel, and its `app.command` face is the one thing it
-   * hangs here. Whether the panel opens on a send is that plugin's decision to
-   * make now, in the place that knows what a panel is.
-   *
-   * ## What is left, which is the palette's half
-   *
-   * WHETHER TO STAY OPEN. `null` is "it landed", and choosing a command that
-   * landed closes the palette exactly as choosing any other row does; a string
-   * is the refusal, in the plugin's own words, drawn in the row this box
-   * already draws one in — so a person is left looking at their line and the
-   * reason it did not go, which is the whole of why the slot lets a command
-   * answer at all.
-   *
-   * A THROWN promise is not a refusal and is not drawn as one: a refusal is a
-   * sentence somebody wrote for a reader, and a fault is a plugin that broke.
-   * It still cannot be silent — that is the rule `../run.ts` keeps for every
-   * other call this app makes — so the box says the one true thing it can say
-   * about it and the console gets the fault itself.
-   *
-   * An EMPTY line is not sent, which is the one judgement core keeps over these
-   * words: the prefix strip below already says there is nothing to send yet,
-   * and a `run` handed `""` would be this palette asking a plugin to refuse
-   * something nobody typed.
-   */
-  const runCommand = (command: AppCommand, text: string) => {
-    if (text.trim() === "") return
-    const current = currentInteraction()
-    setAskError(null)
-    void command.run(text).then(
-      (refusal) => {
-        if (!current()) return
-        if (refusal === null) {
-          close()
-          return
-        }
-        setAskError(refusal)
-      },
-      (fault: unknown) => {
-        if (current()) setAskError(`“${command.said}” didn't work. Try again.`)
-        console.error(`olai: the palette command "${command.prefix}" threw`, fault)
-      },
-    )
-  }
-
   const confirm = () => {
-    // THE QUESTION FIRST, above both prefixes, for the reason the Switch draws
+    // THE QUESTION FIRST, above any prefix, for the reason the Switch draws
     // it first: it is up because somebody chose the verb that asks it, and
     // nothing they type next may quietly become the answer — nor may Enter
     // quietly become something ELSE while it is standing there. Read the other
@@ -790,10 +704,6 @@ export function Palette(props: {
     }
     if (it.kind === "level" && untrack(valueTop) !== undefined) {
       levels.submit()
-      return
-    }
-    if (it.kind === "command") {
-      runCommand(it.command, it.text)
       return
     }
     if (it.kind === "prefix") {
@@ -1210,27 +1120,10 @@ export function Palette(props: {
                 />
               )}
             </Match>
-            {/* Both prefixes preview the SAME way, because they are the same
-                promise: these are the words Enter is about to send, and Enter
-                is never a guess. Two arms rather than one because the two
-                testids are all that differ, and the slot a scenario waits on
-                has to say which prefix it is.
-
-                THE WORDS IN THIS ONE ARE THE PLUGIN'S, both of them: `said` is
-                what the line is for, and `placeholder` is what to say while
-                there is no line yet. Core composes neither — it would have to
-                spell the character and the verb to do it, which is exactly the
-                sentence that moved out of this file. */}
-            <Match when={only(box(), "command")}>
-              {(box) => (
-                <Composing
-                  text={box().text}
-                  lead={box().command.said}
-                  empty={box().command.placeholder}
-                  testid={TESTID.paletteAsk}
-                />
-              )}
-            </Match>
+            {/* A prefix previews the words Enter is about to send, because
+                Enter is never a guess. THE WORDS ARE THE ADAPTER'S, both of
+                them: `label` is what the line is for, and `empty` is what to
+                say while there is no line yet — core composes neither. */}
             <Match when={only(box(), "prefix")}>
               {(box) => (
                 <Composing
@@ -1252,15 +1145,14 @@ export function Palette(props: {
 /**
  * What a prefix is ABOUT to send, in the slot the list would be in.
  *
- * One component for every prefix: a capture and a plugin's command make the
- * same promise to the reader — these are the words, verbatim, that Enter will
- * send — and two spellings of that promise would be two chances for one of them
- * to stop showing what it is going to do.
+ * One component for every prefix: each makes the same promise to the reader —
+ * these are the words, verbatim, that Enter will send — and two spellings of
+ * that promise would be two chances for one of them to stop showing what it is
+ * going to do.
  *
  * The two sentences are PARAMETERS rather than a branch on which prefix it is,
  * which is what lets a prefix core has never heard of be drawn here: `lead` and
- * `empty` are the capture's own words in one arm and the plugin's `said` and
- * `placeholder` in the other.
+ * `empty` are the adapter's own words.
  */
 function Composing(props: {
   /** The line as it stands, after the prefix. */

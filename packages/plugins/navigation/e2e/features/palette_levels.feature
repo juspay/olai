@@ -143,7 +143,7 @@ Feature: Levels in the command palette
     Then the palette option "plain" is chosen
     When I press "ArrowUp"
     Then the palette option "quiet" is chosen
-    # A prefix character inside a level is text: neither `+` nor `>` is read.
+    # A prefix character inside a level is text: `+` is not read.
     When I type "say + > hello" into the palette
     Then the palette options are "plain, urgent, quiet"
     And the palette option "quiet" is chosen

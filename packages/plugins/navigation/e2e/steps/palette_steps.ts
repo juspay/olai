@@ -27,7 +27,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts";
 import { retypedAndPressed, retypedAndTaken } from "@olai/tests/harness/atonce.ts";
 import { countsNothing, foundCount } from "@olai/tests/harness/counted.ts";
 import { WAITING, waitsIllegibly } from "@olai/tests/harness/paints.ts";
-import { inTheMood, saysThat } from "@olai/tests/harness/said.ts";
+import { saysThat } from "@olai/tests/harness/said.ts";
 import { keysSettled, pressed } from "@olai/tests/harness/settling.ts";
 import { answered } from "@olai/tests/harness/shortlist.ts";
 import {
@@ -36,7 +36,6 @@ import {
   HYDRATION_TIMEOUT,
   oneLine,
   PALETTE,
-  PALETTE_ASK_ERROR,
   PALETTE_CAPTURE,
   PALETTE_CONFIRM,
   PALETTE_INPUT,
@@ -160,19 +159,6 @@ When(
     await keysSettled(this);
   },
 );
-
-/** The `>` ask fell over, and the row that says so is a refusal like any other
- *  — the MOOD is read, not just the presence, because that row is drawn by the
- *  same component every other alarm in this client is. Through
- *  `../support/said.ts`, which is where this suite asks a line what mood it is
- *  in; the text is not asserted here because what the agent failed with is the
- *  agent's to word. */
-Then("the palette shows an ask error", async function (this: OlaiWorld) {
-  await this.page
-    .locator(PALETTE_ASK_ERROR)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await inTheMood(this, PALETTE_ASK_ERROR, "alarm", "the palette's ask error");
-});
 
 Then(
   "the palette box holds {string}",
