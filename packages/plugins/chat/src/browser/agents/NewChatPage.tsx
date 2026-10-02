@@ -21,7 +21,12 @@ export function NewChatPage() {
   const send = () => { const id = engine(); if (id !== undefined) void owner.start(id) }
   const label = () => { const at = owner.location(); return at.kind === "default" ? "In: Inbox › Chats" : `${at.kind === "on" ? "On" : "In"}: ${trail(at.node)}` }
   const focus = () => input?.focus()
-  onMount(focus)
+  onMount(() => {
+    // Palette actions close and restore their old focus after navigation's
+    // microtasks. This face owns the later focus, and cancels it on departure.
+    const frame = requestAnimationFrame(focus)
+    onCleanup(() => cancelAnimationFrame(frame))
+  })
   return <section class="mx-auto w-full max-w-2xl p-4" data-testid={TESTID.newChatPage}>
     <h1 class="text-title">New chat</h1>
     <button type="button" class="mb-3 rounded-control border border-rule px-3 py-2 text-body" data-testid={TESTID.newChatLocation} onClick={() => pick(!picking())}>{label()} ▾</button>
