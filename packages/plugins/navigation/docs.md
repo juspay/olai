@@ -146,9 +146,12 @@ selection. Each boundary reads that same fact:
 - Contextual palette adapters declare availability. The palette omits their
   items and refuses pending confirmations at write dispatch. Search, shell
   commands, capture and navigation remain available.
-- A pending page withdraws its history actions and Finished control. Bulk
+- A pending page withdraws its Finished control. Bulk
   selection ignores page commands; the palette skips unavailable adapters'
   shortcuts.
+- Undo remains available: its inverse edits already name their subjects, and
+  its owner clears the stack when the file changes, including pending saves.
+  It does not infer an edit target from the retained page.
 - Page content and its portalled outline controls carry the static
   `PAGE_SUBJECT` marker with their owning pane index, including in portals.
   Navigation's activation-owned capture listener only
@@ -156,7 +159,9 @@ selection. Each boundary reads that same fact:
   escape/zoom gestures; it never cancels unbound browser keys or input outside
   the retained controls. The listener is removed before navigation is disposed.
 
-The retained page and palette reuse **Loading…** as the cue. A stream error is
+The retained page and palette reuse **Loading…** as the cue. The page cue takes
+no layout space, preserving scroll restoration, and the input marker uses
+`display: contents` so the editable page still fills its flex parent. A stream error is
 shown explicitly instead. Failure does not make an old answer current:
 `pending` remains true until another request is answered, but links, Back and
 search remain usable, so the reader can leave a failed or indefinitely held

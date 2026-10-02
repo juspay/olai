@@ -171,7 +171,10 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   // derived beside it (`../App.tsx`).
   useReadings().join(here, reading)
   const navigation = useRouter() as import("olai-plugin-navigation/contract").Navigation
-  navigation.report(here, () => ({ pending: reading.pending(), failure: reading.failure()?.message, history: reading.pending() ? undefined : useUndo(), title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
+  // History owns explicit inverse edits, not a subject inferred from this
+  // reading. Its file boundary is cleared by the outline palette owner even
+  // before the destination arrives; keep its empty-stack feedback available.
+  navigation.report(here, () => ({ pending: reading.pending(), failure: reading.failure()?.message, history: useUndo(), title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
 
   const page = createMemo(() => reading.page()?.shows)
 
@@ -233,7 +236,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
 
   return (
     <main
-      class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
+      class={`relative flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
         !desktop() ? "pb-16" : ""
       }`}
       data-testid={IDS_NAVIGATION.pane}
@@ -294,11 +297,11 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
           />
         </Show>
         <Show when={reading.pending() && page() !== undefined}>
-          <p class="m-0 py-8 text-muted" role="status">
+          <p class="pointer-events-none absolute top-0 m-0 text-muted" role="status">
             {reading.failure() === undefined ? "Loading…" : `Could not load page: ${reading.failure()!.message}`}
           </p>
         </Show>
-        <div {...{ [PAGE_SUBJECT]: String(here()) }} aria-busy={reading.pending()}>
+        <div class="contents" {...{ [PAGE_SUBJECT]: String(here()) }} aria-busy={reading.pending()}>
         {/* NOTHING YET, AND ONLY EVER ONCE PER PANE: navigation asks the server
             (the design's §5a ruling — round-tripping is acceptable and nothing
             is cached), so there is one honest beat between an address and the
