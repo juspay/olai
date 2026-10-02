@@ -90,7 +90,7 @@ import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "sol
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { useShowNode } from "../references.ts"
-import { useFollow, useShown } from "olai-plugin-navigation/routing"
+import { useFollow, useShown, useMaybeRouter } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
 import { wholeYet } from "./attention/whole.ts"
 import { declaringFailure } from "../references.ts"
@@ -118,6 +118,8 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   const show = useShowNode()
   const follow = useFollow()
   const shown = useShown()
+  const router = useMaybeRouter()
+  let grown: ResizeObserver | undefined
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
   let outer: HTMLElement | undefined
@@ -138,7 +140,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
 
   const jump = (): void => {
     if (!shown()) return
-    bindScroll()
     const host = scrollPane()
     if (host === undefined) return
     host.scrollTop = host.scrollHeight
@@ -164,7 +165,12 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     if (!props.page || !pane || !shown()) return
     let parent = pane.parentElement
     while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
-    outer = parent ?? document.documentElement
+    const next = parent ?? document.documentElement
+    if (outer !== next) {
+      if (outer !== undefined) grown?.unobserve(outer)
+      outer = next
+      grown?.observe(outer)
+    }
     const target = outer === document.documentElement ? window : outer
     if (listening === target) return
     listening?.removeEventListener("scroll", scrolled)
@@ -174,6 +180,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   onCleanup(() => listening?.removeEventListener("scroll", scrolled))
   createEffect(() => {
     restoringVisibility = true
+    router?.split()
     if (!shown()) return
     const frame = requestAnimationFrame(() => { bindScroll(); if (following) jump(); restoringVisibility = false })
     onCleanup(() => cancelAnimationFrame(frame))
@@ -185,7 +192,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
     // event for it. New text is followed from here. The jump's own `scroll`
     // arrives later and is recognised by `assignedTop`, not by a flag.
-    const grown = new ResizeObserver(() => {
+    grown = new ResizeObserver(() => {
       if (following) jump()
     })
     grown.observe(content)
@@ -202,13 +209,13 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     // that is owed is honoured whenever the geometry moves — and it was only
     // ever watching half the geometry.
     grown.observe(pane)
-    if (props.page && outer !== undefined) {
-      grown.observe(outer)
-      const resized = () => { if (following) jump() }
+    if (props.page) {
+      if (outer !== undefined) grown.observe(outer)
+      const resized = () => { bindScroll(); if (following) jump() }
       window.addEventListener("resize", resized)
       onCleanup(() => window.removeEventListener("resize", resized))
     }
-    onCleanup(() => grown.disconnect())
+    onCleanup(() => grown?.disconnect())
   })
 
   // Opening a conversation is not "new text arrived while reading". The

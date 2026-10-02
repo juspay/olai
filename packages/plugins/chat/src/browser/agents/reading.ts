@@ -6,7 +6,8 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 import type { PanelAddress } from "../../wire/session.ts"
 import type { Conversing } from "../../sessions.ts"
 import { createConversationUI } from "../chat/ui.tsx"
-import type { Chat } from "../chat/state.ts"
+import { createChat, type Chat } from "../chat/state.ts"
+import { createAsked } from "../chat/attention/asked.ts"
 import type { Roster } from "./answered.tsx"
 import { createPageOwners } from "./page-owners.ts"
 import type { PageSession } from "./Page.tsx"
@@ -16,16 +17,19 @@ export const createAgentReadings = (agents: Roster) => {
   const page = createPageOwners<PageSession>()
   const previews = createPreviews()
   const reveals = new Set<string>()
-  const shown = new Map<Chat, () => boolean>()
+  const shown = new Map<Chat, Set<() => boolean>>()
+  const isShown = (chat: Chat) => [...(shown.get(chat) ?? [])].some(visible => visible())
+  const memberships = new Map<string, Map<Chat, number>>()
   const owner = getOwner()
   const cache = new Map<string, { value: ReturnType<typeof createConversationUI>; dispose: () => void }>()
+  const conversations = new Map<string, { value: Chat; dispose: () => void; leases: number }>()
   const awaitingEmpty = new Map<ReturnType<typeof createConversationUI>, () => void>()
   const joined = new Map<ReturnType<typeof createConversationUI>, number>()
   const [visits, setVisits] = createStore<Record<string, Conversing | undefined>>({})
   const waiting = new Set<() => void>()
   const needsSurfaces = new Set<HTMLElement>()
   let alive = true
-  onCleanup(() => { alive = false; for (const stop of [...awaitingEmpty.values()]) stop(); for (const stop of [...waiting]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
+  onCleanup(() => { alive = false; for (const entry of conversations.values()) entry.dispose(); conversations.clear(); for (const stop of [...awaitingEmpty.values()]) stop(); for (const stop of [...waiting]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
   const ui = (to: PanelAddress) => {
     const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
     let entry = cache.get(key)
@@ -38,7 +42,9 @@ export const createAgentReadings = (agents: Roster) => {
   const emptyUI = (value: ReturnType<typeof createConversationUI>) =>
     ![...value.messages.values()].some(([read]) => read().text !== "") &&
     ![...value.holding.values()].some(bin => bin.pending().length > 0 || bin.sending() > 0) &&
-    value.drafts.empty() && value.pendingSends[0]() === 0
+    value.drafts.empty() && value.pendingSends[0]() === 0 && value.starting[0]() === 0 &&
+    value.folds.empty() && value.armed.armedNodes().length === 0 &&
+    value.previewing.previewing() === null && value.refused[0]() === null
   const evictUI = (value: ReturnType<typeof createConversationUI>) => {
     for (const [key, entry] of cache) if (entry.value === value) {
       cache.delete(key)
@@ -50,6 +56,10 @@ export const createAgentReadings = (agents: Roster) => {
     const count = (joined.get(value) ?? 1) - 1
     if (count > 0) { joined.set(value, count); return }
     joined.delete(value)
+    // An address handover acquires its replacement within the same update.
+    // Give that owner a chance to lease the same UI before considering eviction.
+    queueMicrotask(() => {
+    if (!alive || joined.has(value) || awaitingEmpty.has(value)) return
     if (emptyUI(value)) { evictUI(value); return }
     // A dispatched upload/send can finish after its last page leaves. Its UI
     // stays until that work clears, then releases without needing another visit.
@@ -63,12 +73,38 @@ export const createAgentReadings = (agents: Roster) => {
         evictUI(value)
       })
     }))
+    })
   }
-
+  const retainUI = (value: ReturnType<typeof createConversationUI>) => {
+    awaitingEmpty.get(value)?.()
+    joined.set(value, (joined.get(value) ?? 0) + 1)
+    let held = true
+    return () => { if (held) { held = false; releaseUI(value) } }
+  }
 
   const [readings, setReadings] = createStore<Record<string, ReadonlySet<Chat> | undefined>>({})
   return {
-    agents, ui, page, newChat,
+    agents, ui, page, newChat, retainUI,
+    conversation: (to: PanelAddress, expected: Conversing | null) => {
+      const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
+      let entry = conversations.get(key)
+      if (entry === undefined) {
+        entry = runWithOwner(owner, () => createRoot(dispose => {
+          const value = createChat(to, { expected, ui: ui(to) })
+          value.ui.question.bind(createAsked(value))
+          return { value, dispose, leases: 0 }
+        }))!
+        conversations.set(key, entry)
+      }
+      const held = entry
+      held.leases++
+      onCleanup(() => {
+        if (--held.leases !== 0 || conversations.get(key) !== held) return
+        conversations.delete(key)
+        held.dispose()
+      })
+      return held.value
+    },
     needsSurface: (element: HTMLElement) => {
       needsSurfaces.add(element)
       onCleanup(() => needsSurfaces.delete(element))
@@ -98,24 +134,33 @@ export const createAgentReadings = (agents: Roster) => {
       })
     }),
     reveal: (node: string) => {
-      const live = [...(readings[node] ?? [])].filter(chat => shown.get(chat)?.())
+      const live = [...(readings[node] ?? [])].filter(chat => isShown(chat))
       if (live.length === 0) reveals.add(node)
       else for (const chat of live) chat.ui.reveal[1](true)
     },
     at: (node: string) => readings[node],
-    isShown: (chat: Chat) => shown.get(chat)?.() === true,
+    isShown,
     join: (node: string, chat: Chat, visible: () => boolean) => {
-      awaitingEmpty.get(chat.ui)?.()
-      joined.set(chat.ui, (joined.get(chat.ui) ?? 0) + 1)
-      shown.set(chat, visible)
+      const release = retainUI(chat.ui)
+      const views = shown.get(chat) ?? new Set<() => boolean>()
+      views.add(visible)
+      shown.set(chat, views)
+      const members = memberships.get(node) ?? new Map<Chat, number>()
+      members.set(chat, (members.get(chat) ?? 0) + 1)
+      memberships.set(node, members)
       createEffect(() => { if (visible() && reveals.delete(node)) chat.ui.reveal[1](true) })
       setReadings(node, new Set([...(readings[node] ?? []), chat]))
       onCleanup(() => {
-        shown.delete(chat)
-        releaseUI(chat.ui)
-        const members = new Set(readings[node])
+        views.delete(visible)
+        if (views.size === 0) shown.delete(chat)
+        release()
+        const remaining = members.get(chat)! - 1
+        if (remaining > 0) { members.set(chat, remaining); return }
         members.delete(chat)
-        setReadings(node, members.size === 0 ? undefined : members)
+        if (members.size === 0) memberships.delete(node)
+        const kept = new Set(readings[node])
+        kept.delete(chat)
+        setReadings(node, kept.size === 0 ? undefined : kept)
       })
     },
   }

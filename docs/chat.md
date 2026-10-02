@@ -927,3 +927,19 @@ Every ACP engine gets the same headless, isolated browser handoff. Failed probes
 show the plugin's explanation in chat; an empty `OLAI_BROWSER_MCP` omits it.
 Screenshots and downloads use plugin-owned temporary scratch, removed when the
 row stops, rather than the vault or the agent's working directory.
+
+Question fields keep drafts by field key, and choice buttons keep their element
+identity by protocol value. Waiting-form reveal follows current document order.
+Outline diffs clear their previous answer when the file, texts, or vault owner
+changes, so a failed refresh cannot display stale changes. Transcript following
+reuses its scroll host while text streams; geometry changes and a hidden pane's
+first reveal attach the appropriate scroll and resize observers.
+
+The chat activation owns one live conversation reading per agent/session pair
+(or per node while unbound). Page and folded views lease that reading; hiding
+or folding a retained view keeps its lease, and the last view's disposal stops
+the reading. Per-view history actions still address their own node. UI state
+has a separate lease: open tool details, armed context, previews, refusals,
+question drafts, and starting or sending work prevent eviction. A same-update
+address handover preserves that UI, and asynchronous opening holds it until
+its success or refusal is recorded.

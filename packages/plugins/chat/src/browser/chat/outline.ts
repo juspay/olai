@@ -14,6 +14,7 @@ export const createOutlineDiff = (vault: Accessor<Pick<Directory, "outlineDiff">
   const request = createMemo(diff, undefined, { equals: (a, b) => a.path === b.path && a.oldText === b.oldText && a.newText === b.newText })
   createEffect(() => {
     const directory = vault(), change = request()
+    setRead(undefined)
     setFailed(false)
     if (directory === undefined) { setFailed(true); return }
     const controller = new AbortController()

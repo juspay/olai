@@ -85,6 +85,8 @@ function createPageSession(node: string): PageSession {
       const to = result.success
       if (to === null) { setDraft(text); return }
       const ui = reading.ui(to)
+      const releaseUI = reading.retainUI(ui)
+      try {
       const key = JSON.stringify([to.agent, to.session])
       // Preserve words typed after the first send as an ordinary unsent draft.
       keepMessage(ui.messages, key, draft())
@@ -96,6 +98,7 @@ function createPageSession(node: string): PageSession {
       } else if (!await value.send(text, [], [])) {
         keepMessage(ui.messages, key, text, true)
       }
+      } finally { releaseUI() }
     } finally { setStarting(false) }
   }
   return { chat, draft, setDraft, starting, failure, start }

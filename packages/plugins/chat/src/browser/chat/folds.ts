@@ -47,5 +47,5 @@ const toggleFold = (id: string): void => {
   setUnfolded(id, value => !value)
 }
 
-return { isUnfolded, toggleFold }
+return { empty: () => !Object.values(unfolded).some(Boolean), isUnfolded, toggleFold }
 }

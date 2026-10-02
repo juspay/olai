@@ -1,7 +1,9 @@
+import { createAgentReadings } from "../agents/reading.ts"
+import type { Roster } from "../agents/answered.tsx"
 import { expect, test } from "bun:test"
 import { buildSurfaceClient } from "@kolu/surface/solid"
 import { Effect, Exit, Queue, Scope, Stream } from "effect"
-import { createMemo, createRoot } from "solid-js"
+import { createMemo, createRoot, createSignal } from "solid-js"
 import { CHAT_OFF, surface, type ChatState, type Conversing } from "../../wire.ts"
 import { holdChatWire } from "../wire.ts"
 import { createChat, createChatState } from "./state.ts"
@@ -184,6 +186,46 @@ test("a node's new session waits for its matching draft owner while auth refusal
     expect(next().unopened?.why).toBe("Authentication required")
   } finally {
     first.dispose(); closeNext(); wire.dispose()
+    await Effect.runPromise(Scope.close(activation, Exit.void))
+  }
+})
+
+test("conversation views lease one activation-owned reading until the last view leaves", async () => {
+  let opened = 0, released = 0
+  const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
+    unary: () => Effect.void,
+    stream: (tag) => Stream.callback<unknown>(queue => Effect.acquireRelease(
+      Effect.sync(() => {
+        opened++
+        Queue.offerUnsafe(queue, tag.split("/").at(-2) === "state" ? CHAT_OFF : { kind: "snapshot", entries: [] })
+      }), () => Effect.sync(() => { released++ }))),
+  }, () => true) }))
+  const activation = Scope.makeUnsafe()
+  await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
+  const pair = { agent: "alpha", session: "shared" }
+  const view = () => createRoot(dispose => {
+    const chat = owner.reading.conversation(pair, pair)
+    const [shown, setShown] = createSignal(true)
+    owner.reading.join("node", chat, shown)
+    return { dispose, chat, setShown }
+  })
+  const first = view(), second = view()
+  try {
+    await settle()
+    expect(first.chat).toBe(second.chat)
+    expect(opened).toBe(3)
+    first.setShown(false)
+    await settle()
+    expect(released).toBe(0)
+    first.dispose()
+    await settle()
+    expect(released).toBe(0)
+    second.dispose()
+    await settle()
+    expect(released).toBe(3)
+  } finally {
+    first.dispose(); second.dispose(); owner.dispose(); wire.dispose()
     await Effect.runPromise(Scope.close(activation, Exit.void))
   }
 })

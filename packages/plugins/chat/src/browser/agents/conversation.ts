@@ -1,8 +1,7 @@
 import { useShown } from "olai-plugin-navigation/routing"
-import { createEffect, createMemo, createRoot, createSignal, onCleanup, untrack, type Accessor } from "solid-js"
+import { createMemo, untrack, type Accessor } from "solid-js"
 import type { PanelAddress } from "../../wire/session.ts"
-import { createChat } from "../chat/state.ts"
-import { createAsked } from "../chat/attention/asked.ts"
+import type { Chat } from "../chat/state.ts"
 import { agentReadings, readAgent } from "./reading.ts"
 
 /** Resolve history against the live binding and acquire the visible conversation.
@@ -27,24 +26,19 @@ export const createNodeConversation = (node: Accessor<string>) => {
     return visited === undefined ? { node: node() } : { agent: visited.agent, session: visited.session }
   }, { node: node() },
     { equals: (a, b) => "node" in a ? "node" in b && a.node === b.node : "session" in b && a.agent === b.agent && a.session === b.session })
-  const [chat, setChat] = createSignal<ReturnType<typeof createChat> | null>(null)
-  createEffect(() => {
+  const chat = createMemo<Chat | null>(() => {
+    if (!reading || !hasPanel()) return null
     const to = pair()
-    const available = hasPanel()
-    const at = address()
+    // Once bound, the session pair is the subscription identity. Switching
+    // from a node address to the same history entry keeps the same reading.
+    const at = to ?? address()
     const id = node()
-    if (!available) { setChat(null); return }
-    const dispose = untrack(() => createRoot(dispose => {
-      onCleanup(() => setChat(null))
-      const owned = createChat(at, { expected: to, ui: reading?.ui(to ?? at), visit: to => reading?.visit(id, to) })
-      readAgent(id, owned, shown)
-      const question = createAsked(owned)
-      owned.ui.question.bind(question)
-      setChat(owned)
-      // Register this explicit root with the effect that owns the address.
-      return dispose
-    }))
-    onCleanup(dispose)
+    return untrack(() => {
+      const shared = reading.conversation(at, to)
+      const view: Chat = { ...shared, loadSession: (agent, session) => reading.visit(id, { agent, session }) }
+      readAgent(id, view, shown)
+      return view
+    })
   })
   return { pair, chat }
 }

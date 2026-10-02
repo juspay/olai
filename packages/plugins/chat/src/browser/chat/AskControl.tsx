@@ -20,7 +20,8 @@
  */
 
 import { type AskField, YES_NO } from "@olai/acp/wire"
-import { For, Match, Show, Switch } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { Match, Show, Switch } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 
@@ -116,32 +117,32 @@ function Chips(props: {
 }) {
   return (
     <div class="flex flex-wrap gap-1.5">
-      <For each={props.choices}>
+      <Key each={props.choices} by="value">
         {(choice) => (
           <button
             type="button"
             class={`min-h-11 rounded-control border px-2 py-1 text-left text-body ${
-              props.picked(choice.value)
+              props.picked(choice().value)
                 ? "border-accent text-accent"
                 : "border-rule text-ink hover:border-accent"
             } disabled:hover:border-rule`}
             data-testid={TESTID.chatAskChoice}
-            data-value={choice.value}
-            aria-pressed={props.picked(choice.value)}
+            data-value={choice().value}
+            aria-pressed={props.picked(choice().value)}
             disabled={props.disabled}
-            onClick={() => props.onPick(choice.value, props.many)}
+            onClick={() => props.onPick(choice().value, props.many)}
           >
-            <span class="block">{choice.label}</span>
+            <span class="block">{choice().label}</span>
             {/* The option's own second line, when the agent wrote one. Dim and
                 under the label rather than in a `title`: what an option MEANS
                 is most of what a person is choosing between, and hover is not
                 something a thumb has. */}
-            <Show when={choice.hint}>
+            <Show when={choice().hint}>
               {(hint) => <span class="block text-label text-muted">{hint()}</span>}
             </Show>
           </button>
         )}
-      </For>
+      </Key>
     </div>
   )
 }

@@ -19,7 +19,7 @@ test("palette ancestor metadata shares the conversation's UI, not its pending no
 })
 
 
-test("the last reader releases empty UI and a pending send releases after completion", () => {
+test("the last reader releases empty UI and a pending send releases after completion", async () => {
   const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
   const pair = { agent: "claude", session: "session" }
   const ui = owner.reading.ui(pair)
@@ -36,7 +36,46 @@ test("the last reader releases empty UI and a pending send releases after comple
   ui.pendingSends[1](1)
   second()
   expect(owner.reading.ui(pair)).toBe(ui)
+  await Promise.resolve()
   ui.pendingSends[1](0)
   expect(owner.reading.ui(pair)).not.toBe(ui)
   owner.dispose()
+})
+
+test("UI leases retain folds, armed context, previews and starting operations", async () => {
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
+  const pair = { agent: "claude", session: "kept" }
+  try {
+    const ui = owner.reading.ui(pair)
+    const release = owner.reading.retainUI(ui)
+    ui.folds.toggleFold("tool")
+    ui.armed.armNode("node")
+    ui.previewing.togglePreview("child")
+    ui.starting[1](1)
+    release()
+    await Promise.resolve()
+    expect(owner.reading.ui(pair)).toBe(ui)
+    ui.folds.toggleFold("tool")
+    ui.armed.disarmNode("node")
+    ui.previewing.togglePreview("child")
+    expect(owner.reading.ui(pair)).toBe(ui)
+    ui.starting[1](0)
+    expect(owner.reading.ui(pair)).not.toBe(ui)
+  } finally { owner.dispose() }
+})
+
+test("a same-update UI handover acquires before empty state can be evicted", async () => {
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
+  const pair = { agent: "claude", session: "handover" }
+  try {
+    const ui = owner.reading.ui(pair)
+    const first = owner.reading.retainUI(ui)
+    first()
+    const second = owner.reading.retainUI(owner.reading.ui(pair))
+    await Promise.resolve()
+    expect(owner.reading.ui(pair)).toBe(ui)
+    second()
+    await Promise.resolve()
+    expect(owner.reading.ui(pair)).not.toBe(ui)
+  } finally { owner.dispose() }
 })

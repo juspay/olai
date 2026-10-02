@@ -5,7 +5,8 @@ import { createContext, createSignal, onCleanup, useContext } from "solid-js"
 export const createWaitingForms = () => {
   const [forms, setForms] = createSignal<ReadonlyArray<{ element: HTMLElement; waiting: () => boolean }>>([])
   return {
-    first: () => forms().find(form => form.waiting())?.element,
+    first: () => forms().filter(form => form.waiting() && form.element.isConnected)
+      .sort((a, b) => a.element.compareDocumentPosition(b.element) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)[0]?.element,
     register: (element: HTMLElement, waiting: () => boolean) => {
       const form = { element, waiting }
       setForms(all => [...all, form])
