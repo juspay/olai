@@ -68,6 +68,7 @@ Then("the chat location picker has section {string}", async function(this: OlaiW
   await this.page.locator(picker).getByRole("heading", { name: section, exact: true }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 Then("the chat location picker omits section {string}", async function(this: OlaiWorld, section: string) {
+  await this.page.locator(`${picker}${attr("data-ready", "true")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.equal(await this.page.locator(picker).getByRole("heading", { name: section, exact: true }).count(), 0);
 });
 Then("chat on node {string} itself is not offered", async function(this: OlaiWorld, name: string) {
@@ -160,9 +161,23 @@ Then("the chat location picker is closed", async function(this: OlaiWorld) {
   await this.page.locator(picker).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 Then("the new chat location picker excludes the default container", async function(this: OlaiWorld) {
+  await this.page.locator(`${picker}${attr("data-ready", "true")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.equal(await this.page.locator(`${picker} ${attr("data-location", "chats")}`).count(), 0);
 });
 
 When("I press outside the chat location picker", async function(this: OlaiWorld) {
   await this.page.locator(input).click();
+});
+
+When("I select the last chat location with the keyboard", async function(this: OlaiWorld) {
+  await this.page.locator(`${picker}${attr("data-ready", "true")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const box = this.page.getByRole("combobox", { name: "Find a chat location" });
+  await box.press("ArrowUp");
+  await this.waitUntil(async () => {
+    const id = await box.getAttribute("aria-activedescendant");
+    if (id === null) return false;
+    const row = await this.page.locator(attr("id", id)).boundingBox();
+    const list = await this.page.getByRole("listbox", { name: "Chat locations" }).boundingBox();
+    return row !== null && list !== null && row.y >= list.y && row.y + row.height <= list.y + list.height + 1;
+  }, "the keyboard selection scrolls into view");
 });

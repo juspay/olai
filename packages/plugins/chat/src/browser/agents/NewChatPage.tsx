@@ -58,6 +58,7 @@ function LocationPicker(props: { readonly trigger: () => HTMLElement | undefined
   const [filter, setFilter] = createSignal("")
   const [nodes, setNodes] = createSignal<readonly LocationNode[]>([])
   const [failure, fail] = createSignal<string>()
+  const [ready, setReady] = createSignal(false)
   const suggestions = createSearch(() => props.draft.trim() || null, "node")
   const [defaultParent, setDefaultParent] = createSignal<string | null>(null)
   const listId = createUniqueId()
@@ -67,11 +68,12 @@ function LocationPicker(props: { readonly trigger: () => HTMLElement | undefined
     const recent = byActivity(agents.rows()).slice(0, 32).map(row => row.id)
     const ids = [...(props.here === null ? [] : [props.here]), ...suggestions.hits().slice(0, 5).map(hit => hit.id), ...recent]
     const query = { filter: filter(), limit: 20, ids, parents: recent }
+    setReady(false)
     let alive = true
     onCleanup(() => { alive = false })
     void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
       if (!alive) return
-      if (result._tag === "Success") { setNodes(result.success.nodes); setDefaultParent(result.success.defaultParent) }
+      if (result._tag === "Success") { setNodes(result.success.nodes); setDefaultParent(result.success.defaultParent); setReady(true) }
       else fail(result.failure.message)
     })
   })
@@ -93,7 +95,7 @@ function LocationPicker(props: { readonly trigger: () => HTMLElement | undefined
     else if (on && agents.at(row.node.id) !== undefined) fail("This node already has an agent. Press Enter to start under it.")
     else props.choose({ kind: on ? "on" : "under", node: row.node })
   }
-  return <div ref={element} class="mb-3 rounded-control border border-rule bg-panel p-2" data-testid={TESTID.newChatPicker}>
+  return <div ref={element} class="mb-3 rounded-control border border-rule bg-panel p-2" data-testid={TESTID.newChatPicker} data-ready={ready()}>
     <input role="combobox" aria-expanded="true" aria-controls={listId} aria-activedescendant={rows().length > 0 ? `${listId}-${selected()}` : undefined} aria-label="Find a chat location" placeholder="Find a node…" class="w-full bg-transparent p-2" ref={element => onMount(() => element.focus())}
       value={filter()} onInput={event => { setFilter(event.currentTarget.value); fail(undefined) }}
       onKeyDown={event => {

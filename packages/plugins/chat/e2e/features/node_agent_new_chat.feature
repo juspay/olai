@@ -406,7 +406,7 @@ Feature: A new chat asks where it belongs before creating anything
     And I open the new chat location picker
     Then the chat location selection is accessible
     When I filter chat locations by "house"
-    And I press "ArrowDown"
+    And I select the last chat location with the keyboard
     Then the chat location selection is accessible
     When I press outside the chat location picker
     Then the chat location picker is closed
