@@ -3,7 +3,7 @@ import { TESTID } from "@olai/tests/harness/testids.ts"
 import * as assert from "node:assert";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 
-import type { OlaiWorld } from "@olai/tests/harness/world.ts";
+import { attr, type OlaiWorld } from "@olai/tests/harness/world.ts";
 Then("the palette input has keyboard focus", async function(this: OlaiWorld) {
   await this.page.waitForFunction(id => document.activeElement?.getAttribute("data-testid") === id, TESTID.paletteInput);
 });
@@ -132,7 +132,7 @@ Then("only the injected page failure was reported", function(this: OlaiWorld) {
 });
 
 When("I click the retained page link to {string}", async function(this: OlaiWorld, id: string) {
-  await this.page.getByTestId(TESTID.pane).locator(`a[href="/#${id}"]`).first().click();
+  await this.page.getByTestId(TESTID.pane).locator(`a${attr("href", `/#${id}`)}`).first().click();
 });
 
 Then("browser keys and outside typing remain available", async function(this: OlaiWorld) {
@@ -148,8 +148,7 @@ Then("normal node navigation records its pending intervals", async function(this
   const samples: number[] = [];
   for (let index = 0; index < 20; index++) {
     const id = index % 2 === 0 ? "mint" : "order";
-    const milliseconds = await this.page.evaluate(({ id, paneId }) => new Promise<number>(resolve => {
-      const pane = document.querySelector(`[data-testid="${paneId}"]`)!;
+    const milliseconds = await this.page.getByTestId(TESTID.pane).evaluate((pane, id) => new Promise<number>(resolve => {
       const body = pane.querySelector("[aria-busy]")!;
       let start: number | undefined;
       const observer = new MutationObserver(() => {
@@ -161,7 +160,7 @@ Then("normal node navigation records its pending intervals", async function(this
       });
       observer.observe(body, { attributes: true, attributeFilter: ["aria-busy"] });
       location.hash = id;
-    }), { id, paneId: TESTID.pane });
+    }), id);
     samples.push(milliseconds);
   }
   const sorted = [...samples].sort((a, b) => a - b);

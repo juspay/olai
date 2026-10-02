@@ -147,3 +147,16 @@ Feature: Page actions wait for their reading while navigation stays available
     Then the zoomed node is "mint"
     And "house.olai" holds a node marked doing titled "order the new cabinets"
     And there should be no page errors
+
+  Scenario: Bulk shortcuts cannot edit a retained selection
+    Given requested page answers can be held
+    And I open the node "kitchen"
+    Then the zoomed node is "kitchen"
+    When I pick the title of "order"
+    Then 1 rows are picked
+    When I request the node "mint" while its page answer is held
+    And I press "ControlOrMeta+Enter" without waiting
+    And the requested page reading is released
+    Then the zoomed node is "mint"
+    And "house.olai" holds a node marked doing titled "order the new cabinets"
+    And there should be no page errors
