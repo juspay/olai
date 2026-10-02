@@ -254,15 +254,15 @@ the chat wire service and retains its existing ownership and cleanup.
 
 A visited tab keeps its conversation mounted while hidden. An opened outline
 agent fold keeps its conversation and its server idle hold under the row owner
-when folded shut; closing
-the row or pane releases that reading. Unvisited restored tabs open no chat.
+when folded shut; closing the row or pane releases that reading. Unvisited restored tabs open no chat.
 Only shown conversation surfaces count as watched for badges, chimes and
 notifications. A hidden tab can therefore acquire its needs-you dot, and a
 notification reveals a shown copy or requests a visible conversation.
 
 Hidden transcripts never scroll. On return they follow the latest line only
 if the reader had been following before hiding. Completion key handlers obey
-the same visibility boundary. Tool details, question fields, terminal output
+the same visibility boundary, and only the focused composer claims completion
+keyboard priority when several folds offer menus. Tool details, question fields, terminal output
 and sign-in output update their existing elements as wire rows are replaced.
 
 Conversation UI belongs to the chat activation, keyed by engine and session.

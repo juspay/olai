@@ -78,7 +78,8 @@ Feature: A split chat tab keeps its conversation
     And there should be no page errors
 
   Scenario: A hidden completion does not block keys in the shown conversation
-    Given I open the outline "house.olai"
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
     And I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     When I type "look at @pick the hinges" into the chat
