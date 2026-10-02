@@ -72,23 +72,6 @@ Feature: A node agent's conversation unfolds in the outline
     When I use the fold on node "order"
     Then the chat has not answered "hinges question"
 
-  Scenario: The palette carries a focused row question to New chat
-    When I point at row "hinges" in outline "house.olai"
-    And I press the palette shortcut
-    And I ask the palette "> keep these words"
-    Then the new chat draft is "keep these words"
-    And the new chat location contains "pick the hinges"
-    And the Inbox contains no chat children
-    And there should be no page errors
-
-  Scenario: The palette carries an unlocated question to the default
-    When I press the palette shortcut
-    And I ask the palette "> keep these words"
-    Then the new chat draft is "keep these words"
-    And the new chat location contains "In: Inbox › Chats"
-    And the Inbox contains no chat children
-    And there should be no page errors
-
   Scenario: Reload folds every conversation
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready

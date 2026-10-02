@@ -1,22 +1,37 @@
 @scratch:chat
-Feature: A new chat asks where it belongs before creating anything
-  Scenario Outline: Opening and leaving are read-only on <screen>
+Feature: A new chat asks where, then what to say, inside the palette
+  New chat is a palette row whose first level asks where the chat belongs
+  (Default, Here, Recent, and any node once something is typed) and whose
+  second takes the first message and the engine. Nothing is created until the
+  message is sent; the chat lands on its own page and answers once.
+
+  Scenario Outline: Opening and backing out create nothing on <screen>
     Given I open the outline "house.olai"
     When the agent starts so far are counted
-    And I press new chat in Chats
-    Then the new chat composer is focused
-    And the Inbox contains no chat children
-    And no further agent process has started
+    And I press the palette shortcut
+    And I open new chat from the palette
+    Then the palette path is "new-chat"
+    And the palette crumbs read "New chat"
+    And the palette placeholder is "Where? Find a node…"
+    And the palette hint says "Type to find any node"
+    And the new chat places are "default"
+    And the palette sections are "Default"
+    When I choose the new chat place "default"
+    Then the palette path is "new-chat, new-chat-default"
+    And the palette placeholder is "Say something to start…"
+    And the palette footer mentions "Start chat"
+    When I press "Backspace"
+    Then the palette path is "new-chat"
+    When I press "Escape"
+    Then the command palette is closed
     When I press new chat in Chats
-    Then the new chat composer is focused
-    When I type new chat draft "keep these words"
-    And I open the new chat location picker
-    And I choose new chat under node "kitchen"
-    And I click the outline "house.olai"
-    And I press new chat in Chats
-    Then the new chat draft is "keep these words"
-    And the new chat location contains "kitchen"
-    And the Inbox contains no chat children
+    Then the palette path is "new-chat"
+    And the new chat places are "default"
+    When I choose the new chat place "default"
+    And I press the palette crumb "new-chat"
+    Then the palette path is "new-chat"
+    When I press "Escape"
+    Then the Inbox contains no chat children
     And no further agent process has started
     And there should be no page errors
 
@@ -31,11 +46,13 @@ Feature: A new chat asks where it belongs before creating anything
   Scenario Outline: Default sends once to a titled Inbox node page on <screen>
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    Then the new chat location contains "In: Inbox › Chats"
-    When I type new chat draft "done hinges"
     And I press "Enter"
-    Then the chat child under "chats" in "_olai/Inbox.olai" is titled "done hinges"
+    And I type new chat draft "done hinges"
+    And I press "Enter"
+    Then the command palette is closed
+    And the chat child under "chats" in "_olai/Inbox.olai" is titled "done hinges"
     And the agent is idle
+    And the agent has answered "done hinges" exactly once
     And "house.olai" holds a node marked done titled "pick the hinges"
     And the new chat receives the ordinary node contract
     And the Inbox has 1 filed conversations
@@ -49,150 +66,172 @@ Feature: A new chat asks where it belongs before creating anything
       | screen |
       | phone  |
 
-  Scenario: Multiline prose gives the node a clipped first nonempty line
+  Scenario: A long first message names the node clipped at a word
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    And I type new chat draft "\nPlan the kitchen renovation with enough detail to cover every cabinet and hinge"
-    And I press "Shift+Enter"
-    And I type "Second line stays in the message"
+    And I choose the new chat place "default"
+    And I type new chat draft "Plan the kitchen renovation with enough detail to cover every cabinet and hinge"
     And I send the new chat draft
     Then the chat child under "chats" in "_olai/Inbox.olai" is titled "Plan the kitchen renovation with enough detail to cover…"
-    And the agent's answer mentions "Second line stays in the message"
+    And the agent has answered "Plan the kitchen renovation with enough detail to cover every cabinet and hinge" exactly once
     And there should be no page errors
 
-  Scenario: Here and Suggested use the origin and draft; choosing another parent is visible
+  Scenario Outline: Here is the focused row or the zoomed node, and nothing otherwise, on <screen>
+    Given I open the outline "house.olai"
+    When I press the palette shortcut
+    And I open new chat from the palette
+    Then the new chat places are "default"
+    When I press "Escape"
+    And I zoom into the node "install"
+    And I press new chat in Chats
+    Then the new chat places are "default, install"
+    And the palette sections are "Default, Here"
+    And the palette row "new-chat-at-install" is placed "kitchen remodel #home"
+    When I choose the new chat place "install"
+    Then the palette crumbs read "New chat, install the cabinets"
+    When I type new chat draft "hinges please"
+    And I send the new chat draft
+    Then the chat child under "install" in "house.olai" is titled "hinges please"
+    And the agent has answered "hinges please" exactly once
+    And there should be no page errors
+
+    Examples:
+      | screen  |
+      | desktop |
+    @phone
+    Examples:
+      | screen |
+      | phone  |
+
+  Scenario: A focused row is Here
+    Given I open the outline "house.olai"
+    When I point at row "hinges" in outline "house.olai"
+    And I press the palette shortcut
+    And I open new chat from the palette
+    Then the new chat places are "default, hinges"
+    And there should be no page errors
+
+  Scenario: Recent lists the parents of earlier chats, never the default container
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "into the inbox"
+    And I send the new chat draft
+    Then the chat child under "chats" in "_olai/Inbox.olai" is titled "into the inbox"
+    And the agent has answered "into the inbox" exactly once
+    When I click the outline "house.olai"
+    And I press new chat in Chats
+    Then the new chat places are "default"
+    When I type "kitchen" into the palette
+    And I choose the new chat place "kitchen"
+    And I type new chat draft "under the kitchen"
+    And I send the new chat draft
+    Then the chat child under "kitchen" in "house.olai" is titled "under the kitchen"
+    And the agent has answered "under the kitchen" exactly once
+    When I click the outline "house.olai"
+    And I press new chat in Chats
+    Then the new chat places are "default, kitchen"
+    And the palette sections are "Default, Recent"
+    And the new chat places do not include "chats"
+    And there should be no page errors
+
+  Scenario: Typing finds any node and filters every section, never the vault's machinery
     Given I open the outline "house.olai"
     When I zoom into the node "install"
     And I press new chat in Chats
-    And I type new chat draft "hinges"
-    And I open the new chat location picker
-    Then the chat location picker has section "Default"
-    And the chat location picker has section "Here"
-    And the chat location picker has section "Suggested"
-    When I choose new chat under node "kitchen"
-    Then the new chat composer is focused
-    And the new chat location contains "In: house.olai"
-    When I send the new chat draft
-    Then the chat child under "kitchen" in "house.olai" is titled "hinges"
-    And the agent has answered "hinges" exactly once
-    When I press new chat in Chats
-    And I open the new chat location picker
-    Then the chat location picker has section "Recent"
-    And there should be no page errors
-
-  @rows-off:search
-  Scenario: Search is optional and no origin invents no Here
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I type new chat draft "hinges"
-    And I open the new chat location picker
-    Then the chat location picker omits section "Suggested"
-    And the chat location picker omits section "Here"
-    When I filter chat locations by "kitchen"
-    And I choose new chat under node "kitchen"
-    And I send the new chat draft
-    Then the chat child under "kitchen" in "house.olai" is titled "hinges"
-    And the agent has answered "hinges" exactly once
-    And there should be no page errors
-
-  Scenario: On this node preserves its title and creates no child
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I type new chat draft "hello here"
-    And I open the new chat location picker
-    And I choose new chat on node "install"
-    Then the new chat location contains "On: house.olai"
-    When I send the new chat draft
-    Then the node page conversation is ready for "install"
-    And the agent has answered "hello here" exactly once
-    And node "install" keeps title "install the cabinets" and has no new chat child
-    When I press new chat in Chats
-    And I open the new chat location picker
-    Then chat on node "install" itself is not offered
+    And I type "supplier" into the palette
+    Then the new chat places are "chase-supplier, chase-tiler"
+    And the palette sections are "Nodes"
+    When I type "settings" into the palette
+    Then the new chat places name nothing in "_olai/Settings.olai"
+    When I type "inbox" into the palette
+    Then the new chat places include "default"
     And there should be no page errors
 
   @codex
-  Scenario: The palette and plus share the page and engine selection
+  Scenario Outline: The engine is chosen by arrows or by a press on <screen>
     Given I open the outline "house.olai"
-    When I press "Enter" on new chat in Chats
-    Then the new chat composer is focused
-    And the new chat offers engines "Claude Code|Codex"
+    When I press new chat in Chats
+    And I choose the new chat place "default"
+    Then the palette options are "claude, codex"
+    And the palette option "claude" is chosen
+    When I press "ArrowDown"
+    Then the palette option "codex" is chosen
+    When I press "ArrowDown"
+    Then the palette option "claude" is chosen
+    When I press the palette option "codex"
+    Then the palette option "codex" is chosen
     When I type new chat draft "chosen in the palette"
-    And I click the outline "house.olai"
-    And I press the palette shortcut
-    And I type "Agents" into the palette
-    And I pick new chat in the Agents palette
-    Then the new chat composer is focused
-    And the new chat draft is "chosen in the palette"
-    When I choose new chat engine "Codex"
-    And I send the new chat draft
+    And I press the palette submit
     Then the new Inbox conversation is unfolded as "new-chat" with engine "codex"
     And the agent has answered "chosen in the palette" exactly once
     And there should be no page errors
 
-  Scenario: Capture returning permits default retry without losing words
+    Examples:
+      | screen  |
+      | desktop |
+    @phone
+    Examples:
+      | screen |
+      | phone  |
+
+  Scenario: A single engine is still shown as the one option
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I choose the new chat place "default"
+    Then the palette options are "claude"
+    And the palette option "claude" is chosen
+    And there should be no page errors
+
+  Scenario: An empty message is refused in place and backing out creates nothing
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "   "
+    And I send the new chat draft
+    Then the palette refuses with "Type a message first."
+    And the palette path is "new-chat, new-chat-default"
+    When I type new chat draft ""
+    And I press "Backspace"
+    Then the palette path is "new-chat"
+    When I press "Backspace"
+    Then the palette path is ""
+    And the Inbox contains no chat children
+    And there should be no page errors
+
+  Scenario: With capture off there is no Default, another parent still works, and Default returns with it
     Given I open the outline "house.olai"
     When I open the plugins panel
     And I switch the plugin "capture" off
-    And I press "Escape"
+    And I close the plugins panel
     And I press new chat in Chats
-    And I type new chat draft "retry default"
-    And I send the new chat draft
-    Then new chat says "the Inbox is unavailable; no conversation was created"
-    And the new chat draft is "retry default"
-    And the Inbox contains no chat children
-    When I open the plugins panel
-    And I switch the plugin "capture" on
-    And I press "Escape"
-    And I send the new chat draft
-    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
-    And the agent has answered "retry default" exactly once
-    And there should be no page errors
-
-  @rows-off:capture
-  Scenario: Capture absence does not prevent another parent
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
+    Then the new chat places are ""
+    When I type "kitchen" into the palette
+    Then the new chat places do not include "default"
+    When I choose the new chat place "kitchen"
     And I type new chat draft "another location"
-    And I send the new chat draft
-    Then new chat says "the Inbox is unavailable; no conversation was created"
-    When I open the new chat location picker
-    And I choose new chat under node "kitchen"
     And I send the new chat draft
     Then the chat child under "kitchen" in "house.olai" is titled "another location"
     And the agent has answered "another location" exactly once
-    And there should be no page errors
-
-  Scenario: A held creation cannot be spent twice across the two doors
-    Given I open the outline "house.olai"
-    When the next agent boot will hang
+    When I open the plugins panel
+    And I switch the plugin "capture" on
+    And I close the plugins panel
     And I press new chat in Chats
-    And I type new chat draft "only once"
-    And I send the new chat draft
-    Then new chat in Chats is starting
-    When I type new chat draft "later words"
-    And I press the palette shortcut
-    And I type "Agents" into the palette
-    And I pick new chat in the Agents palette
-    And I send the new chat draft
-    Then new chat says "A new chat is already starting"
-    When the agent is released
-    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
-    And the agent has answered "only once" exactly once
-    And the chat input reads "later words"
-    And the Inbox has 1 filed conversations
-    When I press new chat in Chats
-    Then the new chat page has no refusal
+    Then the new chat places include "default"
     And there should be no page errors
 
-  @no-agent
-  Scenario: With no engine the page explains absence and the palette omits the door
+  Scenario: A parent that vanishes between choosing and sending refuses and keeps the words
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    Then new chat shows the no-agent face
-    When I press the palette shortcut
-    And I type "Agents" into the palette
-    Then the palette does not offer "New chat"
+    And I type "order the new" into the palette
+    And I choose the new chat place "order"
+    And I type new chat draft "keep after trash"
+    And another writer removes the node "order" from "house.olai"
+    And I send the new chat draft
+    Then the palette refuses with "The chosen parent vanished, was trashed, or can no longer hold a chat; no conversation was created"
+    And the new chat draft is "keep after trash"
+    And the palette path is "new-chat, new-chat-at-order"
+    And node "order" has no chat children
     And the Inbox contains no chat children
     And there should be no page errors
 
@@ -201,10 +240,12 @@ Feature: A new chat asks where it belongs before creating anything
     Given I open the outline "house.olai"
     When the agent refuses to new a conversation
     And I press new chat in Chats
+    And I choose the new chat place "default"
     And I choose new chat engine "Codex"
     And I type new chat draft "retry on its own node"
     And I send the new chat draft
-    Then the refused new chat leaves a plain Inbox node as "new-chat"
+    Then the command palette is closed
+    And the refused new chat leaves a plain Inbox node as "new-chat"
     And the plain retry draft is "retry on its own node"
     And the plain retry engine is "codex"
     When the agent will new a conversation again
@@ -213,6 +254,93 @@ Feature: A new chat asks where it belongs before creating anything
     And the agent has answered "retry on its own node" exactly once
     And the Inbox has 1 filed conversations
     And there should be no page errors
+
+  Scenario: A held creation refuses a second one, from a level opened again
+    Given I open the outline "house.olai"
+    When the next agent boot will hang
+    And I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "only once"
+    And I send the new chat draft
+    Then the palette level is busy
+    And new chat in Chats is starting
+    When I send the new chat draft
+    Then the palette level is busy
+    When I press "Escape"
+    And I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "a second one"
+    And I send the new chat draft
+    Then the palette refuses with "A new chat is already starting"
+    And the new chat draft is "a second one"
+    When I press "Escape"
+    And the agent is released
+    Then new chat in Chats is not starting
+    And the Inbox holds a chat titled "only once" as "first"
+    And the Inbox has 1 filed conversations
+    And there should be no page errors
+
+  Scenario: Closing the palette mid-creation does not navigate and keeps the words as the chat's draft
+    Given I open the outline "house.olai"
+    When the next agent boot will hang
+    And I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "keep this first message"
+    And I send the new chat draft
+    Then new chat in Chats is starting
+    When I press "Escape"
+    And the agent is released
+    Then the Inbox holds a chat titled "keep this first message" as "kept"
+    And new chat in Chats is not starting
+    And no page shows node "kept"
+    When I press the agent "kept"
+    Then the node page conversation is ready for "kept"
+    And the chat input reads "keep this first message"
+    And there should be no page errors
+
+  Scenario: Closing the palette before a refused start keeps the words on the plain node
+    Given I open the outline "house.olai"
+    When the next agent boot will hang
+    And I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "keep after leaving"
+    And I send the new chat draft
+    Then new chat in Chats is starting
+    When I press "Escape"
+    And the agent refuses to new a conversation
+    And the agent is released
+    Then the Inbox holds a chat titled "keep after leaving" as "plain"
+    And new chat in Chats is not starting
+    And no page shows node "plain"
+    When I go to node "plain" from the palette
+    Then the plain retry draft is "keep after leaving"
+    And there should be no page errors
+
+  @no-agent
+  Scenario: With no engine there is no New chat row and the + says so
+    Given I open the outline "house.olai"
+    When I press the palette shortcut
+    And I type "new chat" into the palette
+    Then the palette does not offer "New chat"
+    When I press "Escape"
+    And I press new chat in Chats
+    Then the agent menu says no agent is set up
+    And the Inbox contains no chat children
+    And there should be no page errors
+
+  Scenario: Chat switched off while its level is open falls back without errors
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "never sent"
+    And the non-UI controller sets plugin "chat" off
+    Then the palette path is ""
+    And the palette remarks "“New chat” is no longer available."
+    When the non-UI controller sets plugin "chat" on
+    Then the palette path is ""
+    And the Inbox contains no chat children
+    And there should be no page errors
+
   @new-chat-review
   Scenario: New chat leaves another node's pending question and draft intact
     Given the harness keeps distinct sessions on disk
@@ -224,6 +352,7 @@ Feature: A new chat asks where it belongs before creating anything
     Then the chat shows a question
     When I type "kept while another node starts" into the question's "note" box
     And I press new chat in Chats
+    And I choose the new chat place "default"
     And I type new chat draft "independent new conversation"
     And I send the new chat draft
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
@@ -238,232 +367,13 @@ Feature: A new chat asks where it belongs before creating anything
     And the agent's answer mentions "kept while another node starts"
     And there should be no page errors
 
-  Scenario: A parent put away after picking refuses without losing words or location
+  Scenario: A > typed at the root is no longer a command
     Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I type new chat draft "keep after trash"
-    And I open the new chat location picker
-    And I choose new chat under node "kitchen"
-    And I click the outline "house.olai"
-    And I open the node menu of "kitchen"
-    And I choose "Move to Trash" from the node menu
-    And I choose "Move to Trash" from the node menu
-    Then "house.olai" no longer holds the node "kitchen"
-    When I press new chat in Chats
-    And I send the new chat draft
-    Then new chat says "The chosen parent vanished, was trashed, or can no longer hold a chat"
-    And the new chat draft is "keep after trash"
-    And the new chat location contains "kitchen"
-    And the Inbox contains no chat children
-    And there should be no page errors
-
-  Scenario: Alt Enter selects the plain node itself
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I open the new chat location picker
-    And I filter chat locations by "pick the hinges"
-    And I press "Alt+Enter"
-    Then the new chat location contains "On: house.olai"
-    And the new chat composer is focused
-    When I type new chat draft "on hinges"
-    And I send the new chat draft
-    Then the node page conversation is ready for "hinges"
-    And the agent has answered "on hinges" exactly once
-    And there should be no page errors
-
-  Scenario: Rebuilding chat releases the old draft and pending callback
-    Given I open the outline "house.olai"
-    When the next agent boot will hang
-    And I press new chat in Chats
-    And I type new chat draft "old activation"
-    And I send the new chat draft
-    Then new chat in Chats is starting
-    When I open the plugins panel
-    And I switch the plugin "chat" off
-    And I switch the plugin "chat" on
-    And I close the plugins panel
-    And the agent is released
-    And I press new chat in Chats
-    Then the new chat draft is ""
-    And the new chat location contains "In: Inbox › Chats"
-    And there should be no page errors
-
-  Scenario: Appending from the palette preserves the chosen location
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I type new chat draft "first words"
-    And I open the new chat location picker
-    And I choose new chat under node "kitchen"
+    When I point at row "hinges" in outline "house.olai"
     And I press the palette shortcut
-    And I ask the palette "> more words"
-    Then the new chat draft is "first words\nmore words"
-    And the new chat location contains "kitchen"
-    And there should be no page errors
-
-  Scenario: A pending creation refuses a palette append without losing either text
-    Given I open the outline "house.olai"
-    When the next agent boot will hang
-    And I press new chat in Chats
-    And I type new chat draft "first words"
-    And I send the new chat draft
-    Then new chat in Chats is starting
-    When I press the palette shortcut
-    And I ask the palette "> later words"
-    Then the palette refuses with "A new chat is already starting" and retains "> later words"
-    When I press "Escape"
-    And the agent is released
-    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
-    And the agent has answered "first words" exactly once
-    And there should be no page errors
-
-  Scenario: Recent does not repeat the default Chats container
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I type new chat draft "hello"
-    And I send the new chat draft
-    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
-    And the agent has answered "hello" exactly once
-    When I press new chat in Chats
-    And I open the new chat location picker
-    Then the chat location picker has section "Default"
-    And the chat location picker omits section "All nodes"
-    And the new chat location picker excludes the default container
-    And there should be no page errors
-
-  @codex
-  Scenario: Withdrawing the selected engine falls back to an available engine
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I choose new chat engine "Codex"
-    And I type new chat draft "fallback engine"
-    And I open the plugins panel
-    And I switch the plugin "codex" off
-    And I close the plugins panel
-    Then the selected new chat engine is "claude"
-    When I send the new chat draft
-    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
-    And the agent has answered "fallback engine" exactly once
-    And there should be no page errors
-
-  Scenario: An already mounted second pane consumes a later arrival once
-    Given I open the outline "house.olai"
-    When I alt-click the zoom of "install"
-    And I focus pane 0
-    And I press new chat in Chats
-    And I open the new chat location picker
-    And I choose new chat on node "install"
-    And I type new chat draft "arriving in an existing page"
-    And the next agent boot will hang
-    And I send the new chat draft
-    Then new chat in Chats is starting
-    When I focus pane 1
-    And the agent is released
-    Then the node page conversation is ready for "install"
-    And the agent has answered "arriving in an existing page" exactly once
-    When I close the focused pane
-    Then new chat is ready to send
-    And there should be no page errors
-
-  Scenario: Leaving before the page mounts keeps the first message as a conversation draft
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I open the new chat location picker
-    And I choose new chat on node "install"
-    And I type new chat draft "keep this first message"
-    And the next agent boot will hang
-    And I send the new chat draft
-    Then new chat in Chats is starting
-    When I click the outline "house.olai"
-    And the agent is released
-    And I press new chat in Chats
-    Then new chat is ready to send
-    When I click the outline "house.olai"
-    And I zoom into the node "install"
-    Then the node page conversation is ready for "install"
-    And the chat input reads "keep this first message"
-    And there should be no page errors
-
-  Scenario: A refused start after departure restores the words to New chat
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I open the new chat location picker
-    And I choose new chat on node "install"
-    And I type new chat draft "keep after departure"
-    And the next agent boot will hang
-    And I send the new chat draft
-    Then new chat in Chats is starting
-    When I click the outline "house.olai"
-    And the agent refuses to new a conversation
-    And the agent is released
-    And I press new chat in Chats
-    Then new chat is ready to send
-    And the new chat draft is "keep after departure"
-    And there should be no page errors
-
-  Scenario: The picker exposes its keyboard selection and dismisses outside
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I open the new chat location picker
-    Then the chat location selection is accessible
-    When I filter chat locations by "house"
-    And I select the last chat location with the keyboard
-    Then the chat location selection is accessible
-    When I press outside the chat location picker
-    Then the chat location picker is closed
-    And there should be no page errors
-
-  Scenario: Alt Enter explains why a bound node cannot be selected itself
-    Given I open the outline "house.olai"
-    When I zoom into the node "install"
-    And I send "hello" from the plain node composer
-    Then the node page conversation is ready for "install"
-    When I press new chat in Chats
-    And I open the new chat location picker
-    And I filter chat locations by "install the cabinets"
-    And I press "Alt+Enter"
-    Then new chat says "This node already has an agent"
+    And I type "> keep these words" into the palette
+    Then the palette does not offer "Ask the agent"
     When I press "Enter"
-    Then the new chat location contains "In: house.olai"
-    And there should be no page errors
-
-  Scenario: The palette targets the zoomed bound node without a focused memory row
-    Given I open the outline "house.olai"
-    When I zoom into the node "install"
-    And I send "hello" from the plain node composer
-    Then the node page conversation is ready for "install"
-    When I press the palette shortcut
-    And I ask the palette "> zoomed bound question"
-    Then the agent has answered "zoomed bound question" exactly once
-    And there should be no page errors
-
-  Scenario: Trashing the destination during boot releases the permit and preserves the words
-    Given I open the outline "house.olai"
-    When I press new chat in Chats
-    And I open the new chat location picker
-    And I choose new chat on node "install"
-    And I type new chat draft "keep after destination trash"
-    And the next agent boot will hang
-    And I send the new chat draft
-    Then new chat in Chats is starting
-    When I click the outline "house.olai"
-    And I open the node menu of "install"
-    And I choose "Move to Trash" from the node menu
-    And I choose "Move to Trash" from the node menu
-    Then "house.olai" no longer holds the node "install"
-    When the agent is released
-    And I press new chat in Chats
-    Then new chat is ready to send
-    And the new chat draft is "keep after destination trash"
-    And there should be no page errors
-
-  Scenario: New chat has no outline subject or file commands
-    Given I open the outline "house.olai"
-    When I zoom into the node "install"
-    And I press new chat in Chats
-    Then the new chat composer is focused
-    And new chat has no outline file context
-    When I press the palette shortcut
-    Then the palette offers "Go to today"
-    And the palette does not offer "Mark: To do"
-    And the palette does not offer "Move to Trash"
+    Then no agent fold is open
+    And the Inbox contains no chat children
     And there should be no page errors

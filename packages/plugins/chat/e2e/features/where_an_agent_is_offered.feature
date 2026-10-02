@@ -1,29 +1,45 @@
 Feature: An agent is offered only where one can start
-  The Chats + opens a page with an engine select. Row start pills and menus
-  still start directly when only one engine is available. All selectors offer
-  only engines this machine can start; the page explains an empty table.
+  Chat offers an agent in three places: the `+` on the sidebar's Chats heading,
+  the start pill on a row, and `Start an agent` on a row's `•••`. Each lists
+  only the agents this machine can start — an agent it lacks is explained in
+  the plugins panel, not drawn as a row nobody can pick. The `+` opens the
+  palette's New chat, whose message level offers those agents as its options;
+  with none, the `+` says so and points at the plugins panel. On a row, with
+  exactly one agent there is nothing to choose, so the gesture starts it. A
+  row's standing is a fact
+  about the row and is always drawn; the start pill is an offer and follows
+  what can start.
+
+  # ── the Chats + ──────────────────────────────────────────────────────
 
   @codex @scratch:chat
-  Scenario: The new chat page lists only engines that can start
+  Scenario: With several agents New chat offers only those that can start
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    Then the new chat offers engines "Claude Code|Codex"
+    And I choose the new chat place "default"
+    Then the palette options are "claude, codex"
+    When I press "Escape"
+    Then the command palette is closed
     And the Inbox contains no chat children
-    And there should be no page errors
 
   @no-agent @scratch:chat
-  Scenario: The new chat page explains engine absence
+  Scenario: With no agent the Chats + says so and opens the plugins panel
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    Then new chat shows the no-agent face
+    Then the agent menu says no agent is set up
+    And the agent menu offers to open plugins
+    When I choose Open plugins in the agent menu
+    Then the agent menu is shut
+    And the plugins panel is open
     And the Inbox contains no chat children
     And there should be no page errors
 
   @no-agent @rows-off:plugin-inspector @scratch:chat
-  Scenario: Engine absence can be shown without the plugin inspector
+  Scenario: Without the plugin inspector there is no plugins door to offer
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    Then new chat shows the no-agent face
+    Then the agent menu says no agent is set up
+    And the agent menu does not offer to open plugins
     And there should be no page errors
 
   # ── a row's •••: Start an agent ─────────────────────────────────────
@@ -78,7 +94,10 @@ Feature: An agent is offered only where one can start
     Then chat's "Start an agent" in the node menu runs at once
     When I press "Escape"
     And I press new chat in Chats
-    And I type new chat draft "engine selection"
+    And I choose the new chat place "default"
+    # One agent left: it is the one option.
+    Then the palette options are "claude"
+    When I type new chat draft "engine selection"
     And I send the new chat draft
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
     When I open the plugins panel

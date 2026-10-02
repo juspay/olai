@@ -516,10 +516,13 @@ const chat = async (
   const panel = page.locator('[data-testid="chat-panel"]')
   await page.goto(base)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
-  // New chat creates its node only when the first message is sent.
+  // A NEW CHAT, the way a person starts one: the `+` on the sidebar's Chats
+  // heading opens the palette at New chat; the default place (Inbox › Chats)
+  // and the first engine are taken, and the first message creates the node.
   await page.locator('[data-testid="chat-new"]').click()
-  await page.locator('[data-testid="new-chat-input"]').fill("Hello")
-  await page.locator('[data-testid="new-chat-send"]').click()
+  await page.locator('[data-testid="palette-item"][data-id="new-chat-default"]').click()
+  await page.locator('[data-testid="palette-input"]').fill("Hello")
+  await page.locator('[data-testid="palette-input"]').press("Enter")
   await panel.waitFor({ state: "visible", timeout: 30_000 })
   // THE AGENT HAS FINISHED HANDSHAKING, or there is not one — and the second
   // is said HERE, in the words of the thing that is wrong, rather than left to

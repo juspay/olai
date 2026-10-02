@@ -10,10 +10,12 @@ const b = await chromium.launch({ args: [...BROWSER_ARGS] })
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } })
 await p.goto(url)
 await p.waitForSelector('[data-testid="outline-list"]')
-// Compose before creating the chat node.
+// A new chat from the `+` on the sidebar's Chats heading: the palette opens
+// at New chat, the default place is taken, and the first message creates it.
 await p.locator('[data-testid="chat-new"]').click()
-await p.locator('[data-testid="new-chat-input"]').fill("hold")
-await p.locator('[data-testid="new-chat-send"]').click()
+await p.locator('[data-testid="palette-item"][data-id="new-chat-default"]').click()
+await p.locator('[data-testid="palette-input"]').fill("hold")
+await p.locator('[data-testid="palette-input"]').press("Enter")
 await p.locator('[data-testid="chat-input"]').waitFor()
 await p.waitForTimeout(1200)
 await p.screenshot({ path: "/tmp/merged.png" })
