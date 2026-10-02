@@ -374,6 +374,13 @@ function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps
   const [local, rest] = splitProps(props, ["children"])
   return <RetainedContent draw={content => <DropdownMenu.Content
     {...rest}
+    // Retained item owners sit outside this replaceable layer. Kobalte's menu
+    // context still owns the nested menu registry across every suspension.
+    onPointerDownOutside={event => {
+      rest.onPointerDownOutside?.(event)
+      const target = event.detail.originalEvent.target
+      if (target instanceof Node && menu.nestedMenus().some(element => element.contains(target))) event.preventDefault()
+    }}
     // The primitive measures from the viewport edge. An upward menu must
     // reserve the header and strip as well, or its first entries sit behind it.
     // Portal mount={overlayRoot()} is on document.body, so this inherits the
