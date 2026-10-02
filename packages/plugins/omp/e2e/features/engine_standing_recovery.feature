@@ -27,7 +27,7 @@ Feature: Enabled engines explain what this machine is missing
     When I close the plugins panel
     And I press the agent start pill on "kitchen"
     Then the agent menu offers every engine in bundle order
-    When I choose new chat engine "Oh My Pi"
+    When I choose agent menu engine "Oh My Pi"
     And the node agent's fold is ready
     And I ask the agent "hello after installation"
     Then the agent's answer mentions "hello after installation"
@@ -37,7 +37,7 @@ Feature: Enabled engines explain what this machine is missing
 
   @opencode
   Scenario: Chat withdrawal removes the scoped engine advice and return restores it
-    When I press new chat in Chats
+    When I press the agent start pill on "kitchen"
     Then the agent menu offers what this machine has, and not omp
     When I press "Escape"
     And I open the plugins panel

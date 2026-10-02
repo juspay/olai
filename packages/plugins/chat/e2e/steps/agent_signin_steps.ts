@@ -283,7 +283,6 @@ Then("the pending Inbox conversation is unfolded as {string} with engine {string
   let id: string | undefined;
   await this.waitUntil(async () => {
     const found = this.servedNodesSoFar("_olai/Inbox.olai").find(node => node.parent === "chats"
-      && node.title === "new conversation"
       && ((node.custom as Record<string, unknown> | undefined)?.["chat-agent-session"]
         ?? (node.custom as Record<string, unknown> | undefined)?.["agent-session"]) === engine);
     id = found?.id as string | undefined;
