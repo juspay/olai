@@ -63,8 +63,8 @@ export const holdFocusState = focusState.hold
 const focused = () => focusState.read()?.focused() ?? null
 const setFocused = (id: string | null) => focusState.read()?.setFocused(id)
 
-/** The node being pointed at, or `null`. Read by every row of the tree
- *  (`./Tree.tsx`), which is why it is one signal and not a store. */
+/** The node being pointed at, or `null`. Each page shares one selector over
+ * this reading, so changing focus notifies only the old and new rows. */
 export const focusedNode: Accessor<string | null> = focused
 const FocusContext = createContext<(id: string) => boolean>()
 export function FocusProvider(props: { readonly children: JSX.Element }) {

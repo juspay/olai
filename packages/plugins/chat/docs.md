@@ -273,3 +273,8 @@ Roster lookups and per-tool choices notify only their dependent consumers.
 A folded conversation remains a live reader and therefore occupies its node
 agent slot. Capacity and idle eviction become possible when its row or pane
 leaves and no other reader or operation holds it.
+
+A refused fresh start is addressed by its node until a new session binds, even
+when the previous session is still recorded on disk. Signing in and retrying
+there cannot target that previous session. An explicit History visit still
+leases the selected session and recovers its retained UI.

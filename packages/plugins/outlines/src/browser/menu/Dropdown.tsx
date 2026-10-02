@@ -1,3 +1,4 @@
+import { createEffect } from "solid-js"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 import { useShown, useHere } from "olai-plugin-navigation/routing"
 import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
@@ -158,6 +159,16 @@ export function Dropdown(props: {
 }) {
   const shown = useShown()
   const here = useHere()
+  let lastFocused: HTMLElement | undefined
+  const rememberFocus = (event: FocusEvent) => {
+    if (event.target instanceof HTMLElement) lastFocused = event.target
+  }
+  createEffect(() => {
+    if (!shown() || !props.door.open()) return
+    queueMicrotask(() => {
+      if (shown() && props.door.open() && lastFocused?.isConnected) lastFocused.focus({ preventScroll: true })
+    })
+  })
   /** The `•••` once this row is armed — where the caret goes back to. */
   let trigger: HTMLElement | undefined
   /** What last touched this menu: the two gestures leave the caret in
@@ -320,6 +331,7 @@ export function Dropdown(props: {
         // else must not be pulled off it.
         onCloseAutoFocus={(event: Event) => event.preventDefault()}
         onFocusOutside={(event: Event) => event.preventDefault()}
+        onFocusIn={rememberFocus}
         // WHICH GESTURE is driving this menu, for the caret's way home. A
         // key anywhere in the panel (Escape, an entry chosen with Enter,
         // the arrows) is the one that gets it back; a press inside or
@@ -331,8 +343,11 @@ export function Dropdown(props: {
         onPointerDown={() => {
           lastGesture = "pointer"
         }}
-        onPointerDownOutside={() => {
+        onPointerDownOutside={(event) => {
           lastGesture = "pointer"
+          // A tab press suspends this page; it is not a dismissal of its menu.
+          const target = event.detail.originalEvent.target
+          if (target instanceof Element && target.closest('[role="tab"]')) event.preventDefault()
         }}
         // ...and the tap that any of it leaves behind (see above).
         onPointerUp={tappedInPanel}
@@ -341,6 +356,7 @@ export function Dropdown(props: {
             the gestures above are handed to it too: a key there is the
             keyboard driving this menu, and a tap there leaves the same ghost. */}
         <Panel actions={props.actions} onPick={props.onPick} onGone={handBack} gestures={{
+          onFocusIn: rememberFocus,
           onKeyDown: () => { lastGesture = "key" },
           onPointerDown: () => { lastGesture = "pointer" },
           onPointerUp: tappedInPanel,

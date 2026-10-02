@@ -13,9 +13,12 @@ export const createNodeConversation = (node: Accessor<string>) => {
   const shown = useShown()
   const pair = createMemo(() => {
     const agent = reading?.agents.at(node())
-    if (agent?.session == null) return null
     const visited = reading?.visiting(node())
-    return { agent: visited?.agent ?? agent.engine, session: visited?.session ?? agent.session }
+    if (visited !== undefined) return visited
+    // A refused fresh start still has the previous binding on disk. Its
+    // sign-in/retry belongs to the unbound node, not that previous session.
+    if (agent?.session == null || agent.unopened === true) return null
+    return { agent: agent.engine, session: agent.session }
   }, null, { equals: (a, b) => a?.agent === b?.agent && a?.session === b?.session })
   const hasPanel = createMemo(() => {
     const agent = reading?.agents.at(node())

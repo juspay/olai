@@ -32,6 +32,7 @@ import { overlayRoot } from "../overlay.ts"
 /** What the root panel listens for, handed to each submenu too: a submenu is
  *  portalled beside the panel, not inside it (`./Dropdown.tsx`). */
 export interface Gestures {
+  readonly onFocusIn: (event: FocusEvent) => void
   readonly onKeyDown: () => void
   readonly onPointerDown: () => void
   readonly onPointerUp: (event: PointerEvent) => void
@@ -73,10 +74,12 @@ export function Panel(props: {
    * asks first swaps the ROOT panel for the question, which takes the submenu
    * down with the list it hung off.
    */
-  const Sub = (sub: { readonly entry: MenuSub }) => (
+  const Sub = (sub: { readonly entry: MenuSub }) => {
+    const [open, setOpen] = createSignal(false)
+    return (
     // `overlap`: on a phone there is no room beside the panel, so the submenu
     // may slide back over it rather than hang off the screen's edge.
-    <DropdownMenu.Sub gutter={2} shift={-5} overlap>
+    <DropdownMenu.Sub gutter={2} shift={-5} overlap open={open()} onOpenChange={next => { if (shown()) setOpen(next) }}>
       <DropdownMenu.SubTrigger
         ref={(el: HTMLElement) => entries.set(sub.entry.id, el)}
         class={`${MENU_ITEM} flex items-center justify-between gap-6 data-[expanded]:bg-rule`}
@@ -100,7 +103,7 @@ export function Panel(props: {
             // following arrow move off it. A caret already inside the submenu
             // is left where the arrows put it.
             const focusFirst = () => {
-              if (!el.isConnected) return
+              if (!shown() || !el.isConnected) return
               const active = document.activeElement
               if (active !== el && el.contains(active)) return
               const first = el.querySelector('[role="menuitem"]')
@@ -113,6 +116,12 @@ export function Panel(props: {
           data-testid={TESTID.nodeMenuSub}
           data-sub={sub.entry.id}
           aria-label={sub.entry.label}
+          onFocusIn={props.gestures.onFocusIn}
+          onFocusOutside={event => event.preventDefault()}
+          onPointerDownOutside={event => {
+            const target = event.detail.originalEvent.target
+            if (target instanceof Element && target.closest('[role="tab"]')) event.preventDefault()
+          }}
           onKeyDown={props.gestures.onKeyDown}
           onPointerDown={props.gestures.onPointerDown}
           onPointerUp={props.gestures.onPointerUp}
@@ -121,7 +130,8 @@ export function Panel(props: {
         </DropdownMenu.SubContent>
       </DropdownMenu.Portal>
     </DropdownMenu.Sub>
-  )
+    )
+  }
 
   const Entries = (list: { readonly entries: ReadonlyArray<MenuEntry> }) => (
     <Key each={list.entries} by="id">

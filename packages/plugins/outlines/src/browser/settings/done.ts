@@ -58,12 +58,10 @@ import { heldService } from "@olai/ui-primitives/held.ts"
  * itself holds the exception.
  */
 
-import { withoutDone } from "@olai/format"
 import { type Accessor, createSignal } from "solid-js"
 
 import type { Shown } from "@olai/format"
 
-import type { Drawn } from "../page.ts"
 import { boolCodec, createPreference } from "@olai/web/client/preference.ts"
 
 import { DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "../../contracts/preferences.ts"
@@ -161,7 +159,7 @@ export const letDoneFollow = (file: string): void => {
 
 /**
  * THE REVEAL's table: the places a landing asked this page to keep drawn,
- * per file — `visibleIn` reads it the way it reads the pick, so the one door
+ * per file — `createDoneRows` reads it the way it reads the pick, so the one door
  * the page composition asks stays one door.
  */
 /**
@@ -253,7 +251,7 @@ export const concealDone = (
  * done preference reaching a page it was never about.
  *
  * A PAGE is only about an outline: the Held completion filter owns "is this
- * work that finished" (`../filter/completion.ts`), and `visibleIn` below is
+ * work that finished" (`../filter/completion.ts`), and `createDoneRows` is
  * what the pick instructs. It does NOT reach the page that does not have
  * one: a day records what happened (and half of what happened is work that
  * finished); the agenda's done lane IS its claim; the trash is what was put
@@ -269,38 +267,6 @@ export const pageFileOf = (page: Shown | undefined): string | undefined => {
     return page.zoomed.shows.file
   }
   return undefined
-}
-
-/**
- * The rows this page actually draws — the one door to the pick for the page
- * composition. The pick and what it does to a tree are one thing, so every
- * page asks the same question rather than each re-deciding what "hidden"
- * means — and a page in step with its pick is handed back THE VERY VALUE it
- * was given: that identity is what `../filter/narrowing.ts`'s count of
- * held-back matches reads as its zero, and a fresh wrapper per frame would
- * make it walk the page twice to prove the answer was nothing. An empty zoom
- * wraps there (a tree with no file to be about) and is not pruned: the
- * default the row holds is not the thing such a page says.
- *
- * The LANDING's reveal rides the same sweep as `keep` — places spared rather
- * than rows forgiven, and scoped to the ONE PANE the arrival was owed:
- * the pick still SAYS what the reader left it saying, and the kept chain is
- * the one spelling of "except this, for the visit" the page knows.
- *
- * THE EDGE IS WHERE THE PAGE SAYS WHAT THE PAGE IS (../filter/narrowing.ts's
- * split of what a page holds from what it draws): here, "which pages is the
- * default answering for"; there, "which rows of the answer show through".
- * Both are the same sentence read from its two ends.
- */
-export const visibleIn = (
-  drawn: Drawn,
-  file: string | undefined,
-  pane: string,
-): Drawn => {
-  if (file === undefined || drawn.kind !== "tree") return drawn
-  if (doneHiddenOn(file))
-    return { ...drawn, rows: withoutDone(drawn.rows, landingReveal(file, pane)) }
-  return drawn
 }
 
 /** Follow both halves for as long as this document lives — the same shape as

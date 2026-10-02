@@ -110,3 +110,7 @@ Caret, selection, fold and focus selectors notify only affected rows. Names,
 doors and licences expose stable per-key readings. Row elements register with
 the outlines activation for scoped landings; declaration batches, focus work
 and temporary done reveals also leave with that activation.
+
+Switching tabs suspends an open row menu, including its confirmation, submenu,
+and focused entry. Returning restores that entry without recreating the panel.
+A pointer elsewhere on the current page still dismisses the menu normally.

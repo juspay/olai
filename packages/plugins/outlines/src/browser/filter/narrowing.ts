@@ -274,13 +274,9 @@ export const createNarrowing = (source: {
      * rows rather than over the set, because "2 matches are hidden" is a claim
      * about what is not on this screen.
      *
-     * The identity check is exact rather than an optimisation that hopes: the
-     * preference hands back THE SAME VALUE when this page is not hiding
-     * anything at all, and for every page it does not reach
-     * (`../settings/done.ts` is exact about which case that is), so two
-     * identical readings cannot differ by a match. A page that IS hiding
-     * finished work gets a fresh value whether or not anything was hidden, and
-     * then this does the subtraction it exists to do.
+     * Done pruning keeps row owners stable, while its membership can change.
+     * Compare the selected matches in the full and visible readings; the
+     * identity shortcut applies only when the outer readings are identical.
      *
      * BY VALUE rather than by identity, because everything upstream of it is a
      * fresh value on every revision the store publishes: without this the

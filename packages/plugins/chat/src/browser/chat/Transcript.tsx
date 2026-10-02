@@ -161,8 +161,12 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   }
 
   let listening: Window | HTMLElement | undefined
+  let scrollMode: string | undefined
   const bindScroll = () => {
     if (!props.page || !pane || !shown()) return
+    const mode = `${router?.split() === true}:${window.matchMedia("(min-width: 48rem)").matches}`
+    if (outer !== undefined && scrollMode === mode) return
+    scrollMode = mode
     let parent = pane.parentElement
     while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
     const next = parent ?? document.documentElement

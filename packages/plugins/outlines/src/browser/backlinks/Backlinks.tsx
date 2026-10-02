@@ -86,10 +86,8 @@ function Section(props: {
   readonly reading: () => PageReading | undefined
 }) {
   const pane = usePaneId()()
-  // The KEY is (pane, node) — the pane INDEX, which revs on the layout clock
-  // when a pane is reordered or closed (the shared section's header says why
-  // that is what there is): a remount of the same pane and node — a rebuild —
-  // must find the same key, and the answer that was left under it.
+  // Stable pane id plus node: reorder and closing a neighbour preserve this
+  // visit, while two panes reading the same node keep independent toggles.
   const key = JSON.stringify([pane, `backlinks:${props.id}`])
   const memory = backlinksMemory.read()
   // The "still shown" answer the shared section's own forget rule reads at the

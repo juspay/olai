@@ -434,10 +434,8 @@ export const createEditor = (
     const blank = ghostOf(held)
     if (blank === null) return { place: held.place, pending: null, field: held.field }
     const at = seatKept(held.row, placements()) ?? { kind: "after", id: held.row }
-    // `field` is what a WALK of the tree is gated on (`drawn`, below), and it
-    // is the one thing the two halves of this answer differ about: a line with
-    // no row behind it is nothing to walk for, while a line whose row the
-    // frame is about to draw is exactly what `follow` walks the tree to find.
+    // This pending seat does not itself walk the tree. The shared `drawn`
+    // memo is gated by a row draft; `follow` uses it once the new row arrives.
     return { place: null, pending: besideOf(at), field: held.field }
   }, NOWHERE, {
     equals: (a, b) =>
@@ -1226,7 +1224,7 @@ export const createEditor = (
    *
    * DECIDED BEFORE THE COMMIT: the parent row is looked up in `drawn`, which
    * is the tree through the caret's eyes and answers with nothing the moment
-   * the draft closes (`drawn`'s `where` gate, above) — so the destination is
+   * the draft closes (`drawn`'s row-draft gate, above) — so the destination is
    * worked out while the caret is still standing in it, and only then is the
    * line let go. `picking` could not order that: its callback runs after the
    * draft is gone.

@@ -22,7 +22,9 @@ import { useShown } from "olai-plugin-navigation/routing"
  * Completions hang from Kobalte's popper (absolute, so this socket is the
  * origin). The line beside the `•••` measures in viewport pixels and needs
  * the same origin. Drop lines and the sweep band compute document
- * coordinates and stay on the body.
+ * coordinates and pass the body as their parent. Each caller owns a child
+ * container whose visibility follows its page; hiding a lane keeps the
+ * overlay mounted, and releasing the page removes that child.
  *
  * ## IT HAS AN OWNER NOW, and it had none
  *

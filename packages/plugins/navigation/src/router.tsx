@@ -311,8 +311,9 @@ export const createRouter = (): NavigationRouter => {
    * Without `to` nothing on screen moves and the address is left alone: a lane
    * taken over the first paint arrives before every tenant has claimed its URL,
    * and a plugin's page printed then would be the front page. With `to` it is
-   * an arrival the way a traversal is one — no landing, and the place `to.key`
-   * was left, which is the top for a key this document never saw.
+   * a previously visited lane keeps its landing and the scroll place `to.key`
+   * was left. A newly created lane performs the workspace's initial `#row`
+   * landing, just as opening that address in the first lane does.
    */
   const switchLane = (next: string | null, to?: { readonly workspace: Workspace; readonly key?: string }): string => {
     scroll.leave()
