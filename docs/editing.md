@@ -6,6 +6,10 @@ Escape cancels a held row drag: the drop indicator disappears and releasing the 
 
 While an input method is composing text, its keys select and confirm candidates. They do not send chat, split outline rows, choose app completions or submit forms. After composition ends, ordinary shortcuts resume.
 
+When you navigate, the previous page stays visible until the requested page arrives. During that interval, a **Loading…** line appears and edits to the retained page are unavailable. You can still follow links, go Back, search in the command palette, and type outside the old page. The palette omits the old node’s actions until the new reading arrives. Browser shortcuts such as reload and find keep working.
+
+If the requested page fails, the loading line becomes an error. The previous page stays visible but cannot be edited as the new page; navigate elsewhere to recover. Text aimed at a still-focused old row during loading is not applied or replayed on the new page. Undo remains available for recorded edits; changing files clears that history even while a save is pending. The loading cue preserves the page’s layout and scroll position.
+
 | | |
 |---|---|
 | **Enter** | commit, and open the next line |

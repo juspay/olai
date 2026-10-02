@@ -212,25 +212,14 @@ test: install
 kolu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh kolu "$OLAI_KOLU_EXTERNALS"'
 
-# EVERY PLUGIN'S declared npm externals, asked the same three questions by
-# the same script, folded once through `OLAI_PLUGIN_EXTERNALS` so a future
-# pin (or a new plugin) lands here by composition rather than by a second
-# recipe. `@odu/run-client` declares `effect` at this tree's pinned version
-# (and an override is how bun SILENTLY REWRITES one); every other tenant's
-# manifest agreement is its own entry in the same JSON map, with the plugin's
-# name inside it so a failure still names its pin.
+# The bundle exports ONE merged map of plugin npm externals. Its fold rejects
+# conflicting declarations before this check runs; compare that canonical map
+# against root/workspace manifests and overrides using the shared checker.
+# OLAI_PLUGIN_EXTERNALS contains dependency names/versions, not plugin names;
+# per-plugin attribution is lost by that fold (already true on master).
 [doc("Check dependency versions against every plugin's pin")]
 plugin-deps:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    JQ=$({{ nix_shell }} which jq | tail -1)
-    while IFS= read -r entry; do
-      name=$(printf '%s' "$entry" | "$JQ" -r '.name')
-      manifest=$(printf '%s' "$entry" | "$JQ" -r '.externals')
-      if [ "$manifest" != "{}" ]; then
-        {{ nix_shell }} sh -c "sh scripts/check-hydrated-deps.sh \"$name\" '$manifest'"
-      fi
-    done < <(printf '%s' "$OLAI_PLUGIN_EXTERNALS" | "$JQ" -c 'to_entries[] | {name: .key, externals: .value}')
+    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh plugins "$OLAI_PLUGIN_EXTERNALS"'
 
 # EVERY PLUGIN'S SANDBOXED surface check, run as one `nix build` over the
 # fold's `checks` attrset. The odu plugin's row runs the real probe

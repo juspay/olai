@@ -30,6 +30,7 @@ export const palette = definePlugin({ name: "palette", needs: [browserState, ren
     return dispose
   })), dispose => Effect.sync(dispose))
   yield* slots.contribute(paletteAdapters, {
+    available: () => nav.focused()?.pending !== true,
     items: () => {
       const shows = focused()
       const zoomed = shows === undefined ? undefined : only(shows, "node")?.zoomed

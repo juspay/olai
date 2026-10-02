@@ -2,7 +2,7 @@
  * A registration carries behavior, never a transport name or an enable flag. */
 import { serviceTag } from "./index.ts"
 import type { Effect, FileSystem, Layer, Path, Scope } from "effect"
-import type { HttpPlatform, HttpRouter, HttpServerRequest } from "effect/unstable/http"
+import type { HttpPlatform, HttpRouter, HttpServerRequest } from "effect/http"
 import type { IncomingMessage } from "node:http"
 import type { Duplex } from "node:stream"
 import type { ServedGeneration } from "@kolu/surface/expose"

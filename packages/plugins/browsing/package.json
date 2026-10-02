@@ -16,7 +16,7 @@
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "@olai/plugin-kit": "workspace:*",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0",
     "@olai/effect-cordis": "workspace:*"
   },
   "devDependencies": {

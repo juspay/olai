@@ -50,7 +50,7 @@
  * address does not.
  */
 
-import type { PageReading, PageRequest } from "@olai/format"
+import { samePageRequest, type PageReading, type PageRequest } from "@olai/format"
 import {
   type Accessor,
   createContext,
@@ -59,6 +59,7 @@ import {
   type JSX,
   onCleanup,
   useContext,
+  untrack,
 } from "solid-js"
 
 import { createDoors, type Doors } from "./doors.ts"
@@ -93,6 +94,11 @@ import { client } from "../client.ts"
  */
 export interface Reading {
   readonly page: Accessor<PageReading | undefined>
+  /** The requested page has not replaced the retained reading yet. Painting
+   * the old answer is safe; spending an action on it is not. */
+  readonly pending: Accessor<boolean>
+  /** A failed request does not make the retained page current. */
+  readonly failure: Accessor<Error | undefined>
   /**
    * A GENERATION: a number that moves exactly when this page's answer moved,
    * for the one reader that needs to know THAT rather than what changed — the
@@ -185,7 +191,8 @@ export interface Reading {
    * WHICH QUESTION the page in hand is an answer TO — `null` before the first
    * one, and the PREVIOUS address for as long as {@link page} is holding one.
    *
-   * ONE READER, and it is the other half of the join {@link createReading}'s
+   * It also gates page input while the requested address differs. The other
+   * reader is the other half of the join {@link createReading}'s
    * `holding` is: a narrowed pane draws a page and a narrowing that are two
    * members and two frames, and holding the page covers only the order where the
    * PAGE lands first — which is the order that happens. The other one would
@@ -274,17 +281,28 @@ export const createReading = (
    * with a second reading of this page still in flight says so, and the answer
    * in hand goes on being the answer.
    */
+  // Capture the question ONLY when the subscription value arrives. Tracking
+  // request here would relabel the old answer before the subscription's effect
+  // clears it. Keep this separate from holding: releasing a filter's hold must
+  // not stamp an unchanged answer with a newer question either.
+  const answered = createMemo<Answered | undefined>(() => {
+    const arrived = answer()
+    return arrived === undefined ? undefined : { page: arrived, about: untrack(request) }
+  })
   const held = createMemo<Answered | undefined>((was) => {
     if (holding?.() === true) return was
-    const arrived = answer()
-    // WHICH QUESTION THIS ANSWER IS TO, captured as it lands: the framework
-    // delivers a frame for the input the subscription is open on, so the
-    // request read here is the one that produced it.
-    return arrived === undefined ? was : { page: arrived, about: request() }
+    return answered() ?? was
   }, undefined)
   const page = createMemo(() => held()?.page)
+  const pending = createMemo(() => {
+    const wanted = request()
+    const drawn = held()?.about
+    return wanted !== null && (drawn == null || !samePageRequest(wanted, drawn))
+  })
   return {
     page,
+    pending,
+    failure: () => answer.error?.(),
     at,
     names: createNames(page),
     doors: createDoors(page),

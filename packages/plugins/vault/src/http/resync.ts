@@ -33,7 +33,7 @@
 import { NO_DIRECTORY, type Ops, type Store } from "@olai/ops"
 import type { PlatformFailure } from "@olai/store"
 import { Effect, Option } from "effect"
-import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/http"
 
 import { fromLoopback } from "@olai/plugin-api/http"
 

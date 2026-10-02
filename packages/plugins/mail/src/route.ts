@@ -36,7 +36,7 @@
  */
 
 import { Effect } from "effect"
-import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/http"
 
 import type { AccountMachine } from "./account.ts"
 import { type Callback, parseCallback } from "./oauth.ts"

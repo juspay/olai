@@ -30,7 +30,7 @@
   "dependencies": {
     "@olai/acp": "workspace:*",
     "@olai/effect-cordis": "workspace:*",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0",
     "solid-js": "^1.9.0",
     "@olai/format": "workspace:*",
     "@olai/store": "workspace:*"

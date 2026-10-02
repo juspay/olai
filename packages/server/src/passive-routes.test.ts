@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { Effect, Exit, Scope } from "effect"
-import { HttpRouter, HttpServerResponse } from "effect/unstable/http"
+import { HttpRouter, HttpServerResponse } from "effect/http"
 import { listener } from "./listener.ts"
 
 test("supplemental routes never open a port and follow the last transport", () => Effect.runPromise(Effect.scoped(Effect.gen(function*() {

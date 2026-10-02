@@ -250,6 +250,7 @@ function EditablePage(props: EditableProps) {
         editor.press("cancel")
         return
       }
+      if ((router as import("olai-plugin-navigation/contract").Navigation).info(pane)?.pending === true) return
       if (selection.rows().length === 0) return
       // Never over a field. The pick is live across the whole window, so a
       // handler that fired while somebody was typing in the composer would be a

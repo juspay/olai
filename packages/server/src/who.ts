@@ -63,7 +63,7 @@
 import type { Identity, Person, RequestHeaders } from "@olai/plugin-api/services"
 import { WHO_PATH, type Who } from "@olai/surface"
 import { Context, Effect } from "effect"
-import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/http"
 
 /** Who this connection is, already resolved — or nobody. Provided per
  *  websocket by `serveSurfaceApp`'s `services` from the upgrade headers. */
