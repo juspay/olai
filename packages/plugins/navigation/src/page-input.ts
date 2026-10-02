@@ -1,20 +1,25 @@
-import type { PageInfo } from "./index.ts"
+import { editKey, isEditingTarget } from "@olai/web/client/keys.ts"
+import { PAGE_SUBJECT, type Navigation } from "./index.ts"
 
-/** A retained page may stay painted while its replacement arrives, but no
- * gesture may spend it as the requested page. Capture precedes the palette,
- * global chords and row handlers, including clicks on an already-open menu.
- *
- * The report belongs to the pane; this listener belongs to navigation's
- * activation. With no report (no layout or a different content owner), there
- * is no retained-page claim to block. Connection reachability is independent.
+/** Row handlers have no common command dispatcher. Limit this DOM guard to
+ * controls explicitly owned by a page reading (including its portalled menus).
+ * Links, browser keys, navigation, and input outside that scope remain usable.
+ * Palette writes and global page commands are gated at their dispatchers.
  */
-export function guardPageInput(focused: () => PageInfo | undefined): () => void {
-  const events = ["keydown", "pointerdown", "click", "dblclick", "contextmenu"] as const
+export function guardPageInput(navigation: Pick<Navigation, "info">): () => void {
+  const events = ["keydown", "beforeinput", "pointerdown", "click", "dblclick"] as const
   const guard = (event: Event) => {
-    if (focused()?.pending !== true) return
-    // A native modal owns input above the page (notably the offline dialog's
-    // Reload button). Its recovery must remain usable while a page is pending.
-    if (event.target instanceof Element && event.target.closest("dialog:modal") !== null) return
+    if (!(event.target instanceof Element)) return
+    const subject = event.target.closest(`[${PAGE_SUBJECT}]`)
+    if (subject === null || event.target.closest("a[href]") !== null) return
+    const report = navigation.info(Number(subject.getAttribute(PAGE_SUBJECT)))
+    if (report?.pending !== true) return
+    if (event.type === "keydown") {
+      if (!isEditingTarget(event.target)) return
+      const action = editKey(event as KeyboardEvent, event.target.tagName === "TEXTAREA" ? "block" : "line")
+      // Unbound chords belong to the browser; these three are escape routes.
+      if (action === null || action === "cancel" || action === "zoomIn" || action === "zoomOut") return
+    }
     event.preventDefault()
     event.stopImmediatePropagation()
   }

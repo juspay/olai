@@ -64,7 +64,7 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => ({
     value: createNavigation(), dispose,
   }))), ({ dispose }) => Effect.sync(dispose))
-  yield* Effect.acquireRelease(Effect.sync(() => guardPageInput(state.value.focused)), stop => Effect.sync(stop))
+  yield* Effect.acquireRelease(Effect.sync(() => guardPageInput(state.value)), stop => Effect.sync(stop))
   const offers = yield* Offers
   yield* offers.own("state", () => ({...state.value, routes: routing, page: (index: number | (()=>number)) => <RouterProvider router={state.value}><PaneProvider index={typeof index==="function"?index():index}><PageView /></PaneProvider></RouterProvider>}))
   yield* offers.own("links", () => ({ File }))

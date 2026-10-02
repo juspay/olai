@@ -1,3 +1,4 @@
+import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
  *
@@ -170,7 +171,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   // derived beside it (`../App.tsx`).
   useReadings().join(here, reading)
   const navigation = useRouter() as import("olai-plugin-navigation/contract").Navigation
-  navigation.report(here, () => ({ pending: reading.pending(), history: useUndo(), title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
+  navigation.report(here, () => ({ pending: reading.pending(), failure: reading.failure()?.message, history: reading.pending() ? undefined : useUndo(), title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
 
   const page = createMemo(() => reading.page()?.shows)
 
@@ -289,9 +290,15 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
             narrowing={narrowing}
             asked={asked}
             onType={narrow}
-            doneAt={pageFileOf(page())}
+            doneAt={reading.pending() ? undefined : pageFileOf(page())}
           />
         </Show>
+        <Show when={reading.pending() && page() !== undefined}>
+          <p class="m-0 py-8 text-muted" role="status">
+            {reading.failure() === undefined ? "Loading…" : `Could not load page: ${reading.failure()!.message}`}
+          </p>
+        </Show>
+        <div {...{ [PAGE_SUBJECT]: String(here()) }} aria-busy={reading.pending()}>
         {/* NOTHING YET, AND ONLY EVER ONCE PER PANE: navigation asks the server
             (the design's §5a ruling — round-tripping is acceptable and nothing
             is cached), so there is one honest beat between an address and the
@@ -356,6 +363,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
             </Switch>
           )}
         </Show>
+        </div>
       </NarrowedProvider>
       </ReadingProvider>
     </main>

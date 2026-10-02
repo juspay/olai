@@ -97,6 +97,8 @@ export interface Reading {
   /** The requested page has not replaced the retained reading yet. Painting
    * the old answer is safe; spending an action on it is not. */
   readonly pending: Accessor<boolean>
+  /** A failed request does not make the retained page current. */
+  readonly failure: Accessor<Error | undefined>
   /**
    * A GENERATION: a number that moves exactly when this page's answer moved,
    * for the one reader that needs to know THAT rather than what changed — the
@@ -300,6 +302,7 @@ export const createReading = (
   return {
     page,
     pending,
+    failure: () => answer.error?.(),
     at,
     names: createNames(page),
     doors: createDoors(page),

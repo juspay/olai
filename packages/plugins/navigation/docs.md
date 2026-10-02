@@ -134,20 +134,35 @@ for keyboard users who cannot drag its handle.
 
 ### Retained pages and input
 
-A pane can keep its previous reading painted while a new address is loading.
-Outlines captures the answered address when a subscription value arrives;
+Outlines captures the answered address only when a subscription value arrives;
 changing the request or releasing a filter hold cannot relabel an old answer.
-It computes `Reading.pending` beside that held answer in `createReading`
-and reports it through the declared `navigation.state` service's pane-owned
-`PageInfo`. Navigation's activation owns a capture-phase input guard, removed
-before its state is disposed. The guard reads the focused report at dispatch,
-so palette opening, global shortcuts, row handlers and clicks on an already-open
-palette cannot act on a retained page. Native modal dialogs retain their own
-input, so the offline dialog's Reload button still works. With no report, the layout-independent
-palette shortcut remains available. Reports are withdrawn with their panes.
+`createReading` derives `Reading.pending` beside that held answer. Outlines
+reports it and any request failure through the declared `navigation.state`
+service's pane-owned `PageInfo`. Reports withdraw with their panes.
 
-The connection's `degraded` state remains reachable: a late subscription is not
-itself a reason to freeze the app. The guard releases when the requested page's
-reading arrives, not on a timer or when unrelated subscriptions recover.
-`palette_startup.feature` holds real page frames to cover reconnect, an
-already-open palette, and navigation over a healthy connection.
+There is no dispatcher shared by palette writes, editor DOM handlers and bulk
+selection. Each boundary reads that same fact:
+
+- Contextual palette adapters declare availability. The palette omits their
+  items and refuses pending confirmations at write dispatch. Search, shell
+  commands, capture and navigation remain available.
+- A pending page withdraws its history actions and Finished control. Bulk
+  selection ignores page commands; the palette skips unavailable adapters'
+  shortcuts.
+- Page content and its portalled outline controls carry the static
+  `PAGE_SUBJECT` marker. Navigation's activation-owned capture listener only
+  blocks gestures on those retained controls. It permits links and editor
+  escape/zoom gestures; it never cancels unbound browser keys or input outside
+  the retained controls. The listener is removed before navigation is disposed.
+
+The retained page and palette reuse **Loading…** as the cue. A stream error is
+shown explicitly instead. Failure does not make an old answer current:
+`pending` remains true until another request is answered, but links, Back and
+search remain usable, so the reader can leave a failed or indefinitely held
+request. The connection's `degraded` state remains reachable.
+
+No keystrokes are buffered or replayed across page subjects. During ordinary
+navigation, edits aimed at a still-focused old row are declined until the new
+reading arrives. `palette_startup.feature` measures that interval without a
+held frame, and tests explicit frame holds for reconnect, normal navigation,
+link/Back recovery, an already-open palette/confirmation, and a failed request.

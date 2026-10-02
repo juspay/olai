@@ -1,52 +1,49 @@
 import { expect, test } from "bun:test"
 import type { PageInfo } from "./index.ts"
+import { PAGE_SUBJECT } from "./index.ts"
 import { guardPageInput } from "./page-input.ts"
 
-test("the input guard follows the focused report, respects modals, and leaves with its owner", () => {
-  const priorWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+test("only retained-page controls are blocked; navigation, other input and withdrawal remain usable", () => {
+  const prior = Object.getOwnPropertyDescriptor(globalThis, "window")
   const priorElement = Object.getOwnPropertyDescriptor(globalThis, "Element")
   const target = new EventTarget()
-  class ModalControl {
-    closest(selector: string) {
-      expect(selector).toBe("dialog:modal")
-      return this
+  class Control {
+    constructor(readonly subject: boolean, readonly link = false, readonly pane = 0) {}
+    getAttribute() { return String(this.pane) }
+    closest(selector: string): Control | null {
+      if (selector === `[${PAGE_SUBJECT}]`) return this.subject ? this : null
+      if (selector === "a[href]") return this.link ? this : null
+      return null
     }
   }
   Object.defineProperty(globalThis, "window", { configurable: true, value: target })
-  Object.defineProperty(globalThis, "Element", { configurable: true, value: ModalControl })
+  Object.defineProperty(globalThis, "Element", { configurable: true, value: Control })
   let focused: PageInfo | undefined
-  const stop = guardPageInput(() => focused)
-  let handled = 0
-  const handle = () => { handled += 1 }
-  target.addEventListener("keydown", handle)
-  target.addEventListener("click", handle)
-  const press = (type = "keydown", modal = false) => {
+  const stop = guardPageInput({ info: index => index === 0 ? focused : { pending: false } })
+  const press = (control: Control, type = "click") => {
     const event = new Event(type, { cancelable: true })
-    if (modal) Object.defineProperty(event, "target", { value: new ModalControl() })
+    Object.defineProperty(event, "target", { value: control })
     target.dispatchEvent(event)
     return event.defaultPrevented
   }
   try {
-    expect(press()).toBe(false) // no layout yet
+    const row = new Control(true)
+    expect(press(row)).toBe(false)
     focused = { pending: true }
-    expect(press()).toBe(true)
-    expect(press("click")).toBe(true) // palette already open
-    expect(handled).toBe(1)
-    expect(press("click", true)).toBe(false) // offline recovery owns its input
-    expect(handled).toBe(2)
-    focused = { pending: false }
-    expect(press()).toBe(false) // answer arrived or focus moved
+    expect(press(row)).toBe(true)
+    expect(press(row, "beforeinput")).toBe(true)
+    expect(press(new Control(true, true))).toBe(false) // a retained link
+    expect(press(new Control(false))).toBe(false) // chrome/recovery controls
+    expect(press(new Control(false), "beforeinput")).toBe(false) // chat/search
+    expect(press(new Control(true, false, 1))).toBe(false) // another, current pane
     focused = undefined
-    expect(press()).toBe(false) // pane withdrew
+    expect(press(row)).toBe(false)
     focused = { pending: true }
     stop()
-    expect(press()).toBe(false) // navigation withdrew
-    expect(handled).toBe(5)
+    expect(press(row)).toBe(false)
   } finally {
     stop()
-    target.removeEventListener("keydown", handle)
-    target.removeEventListener("click", handle)
-    for (const [key, previous] of [["window", priorWindow], ["Element", priorElement]] as const) {
+    for (const [key, previous] of [["window", prior], ["Element", priorElement]] as const) {
       if (previous) Object.defineProperty(globalThis, key, previous)
       else Reflect.deleteProperty(globalThis, key)
     }

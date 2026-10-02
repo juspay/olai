@@ -5,10 +5,14 @@ import type { Accessor, JSX } from "solid-js"
 import type { Route } from "./routes.ts"
 import type { Router } from "./routing.tsx"
 export const name = "navigation"
+/** Marks controls whose subject is a pane reading. The attribute value is
+ * the owning pane index, including for controls portalled outside that pane. */
+export const PAGE_SUBJECT = "data-page-subject"
 export interface PageInfo {
   /** The pane is still waiting for the page requested by its address. The
    * content owner reports this; navigation must not infer it from wire health. */
   readonly pending?: boolean
+  readonly failure?: string
   readonly file?: string
   readonly title?: string
   readonly history?: Pick<import("@olai/edit-history/undoing.ts").Undo, "undo" | "redo" | "record">
@@ -49,6 +53,8 @@ export type { Route, Router }
 /** Palette integrations own contextual commands and their writes. The palette
  * dispatches opaque requests through the entry that claims them. */
 export interface PaletteAdapter {
+ /** Availability of contextual actions; navigation/search remain independent. */
+ readonly available?: () => boolean
  readonly items?: () => ReadonlyArray<import("./palette/items.ts").PaletteItem>
  readonly accepts?: (request: unknown) => boolean
  readonly write?: (request: unknown) => Promise<import("@olai/web/client/saying.ts").Said | undefined>

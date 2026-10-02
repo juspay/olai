@@ -4,6 +4,8 @@ import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"
 
 export interface AppPageAnswer {
   (): unknown | undefined
+  /** Present for streams that can fail; pure local page accessors cannot. */
+  readonly error?: () => Error | undefined
   readonly changed?: (handler: () => void) => () => void
 }
 
