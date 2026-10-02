@@ -51,7 +51,10 @@ Backspace on an empty box goes back one level. Pressing a crumb closes that
 level and every level after it, which is the way back on a phone. Escape closes
 the palette; reopening starts at the root.
 
-There are two kinds of level (`palette/levels.ts`):
+The pure rules are `palette/levels.ts`. The owner of the open levels is
+`palette/level-owner.ts`, and the drawing of an open level is
+`palette/LevelView.tsx`; `palette/Palette.tsx` composes them with the root list
+and the box. There are two kinds of level:
 
 - A **group** (`kind: "group"`) lists `children`, which are ordinary palette
   rows: they route, run, write, or open a further level, with no depth limit. A
@@ -104,16 +107,19 @@ Ownership:
 
 - The open path (`Step`s: row id, crumb, typed text, chosen option, busy flag,
   an `AbortController`, the level the step opened, and the adapter its path
-  came from) is the palette's memory, owned by navigation's activation and
-  reset with it. A draft typed in a level, its chosen option and a submit in
+  came from) is `level-owner.ts`'s memory, owned by navigation's activation
+  and reset with it (`resetLevelMemory`, beside the palette's own memory). A draft typed in a level, its chosen option and a submit in
   flight therefore survive the overlay being redrawn when an unrelated plugin
   changes. A redraw rebuilds only each step's rows from the level it kept; it
   does not look the row up again, so a level reached through rows that arrive
   later is still there.
-- Each step's rows are computed in a Solid root owned by the palette overlay
-  (the `palette` component), created when the level is opened or the overlay is
-  redrawn, and disposed when the level is popped, the palette closes, the
-  contributing adapter is withdrawn, or the overlay goes. A level function's
+- Each step's rows are computed in a Solid root (`Live`) made by
+  `createLevelOwner`, which the palette overlay (the `palette` component)
+  calls once per drawing. The roots are created when the level is opened or
+  the overlay is redrawn, and disposed when the level is popped, the palette
+  closes, the level stops standing, or the overlay goes, through the owner's
+  single `onCleanup`. The owner reaches the box only through a `LevelHost` of
+  callbacks; it holds no root-list or box state. A level function's
   memos, subscriptions and `onCleanup` live in that root.
 - A step's controller is its lifetime. Popping, closing, withdrawal or
   navigation's own withdrawal aborts it, and the palette drops any answer from
