@@ -23,6 +23,8 @@ Feature: Node agents recover their durable sessions after capacity eviction
     Then the agent has answered "message for task 1" exactly once
     When I remember this conversation as "first"
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     And I open the node menu of "task-2"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 2"
@@ -30,6 +32,8 @@ Feature: Node agents recover their durable sessions after capacity eviction
     And I ask the agent "message for task 2"
     Then the agent has answered "message for task 2" exactly once
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     And I open the node menu of "task-3"
     Then the node menu stays below the app header
     And I choose "Start an agent" from the node menu
@@ -38,6 +42,8 @@ Feature: Node agents recover their durable sessions after capacity eviction
     And I ask the agent "message for task 3"
     Then the agent has answered "message for task 3" exactly once
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     And I open the node menu of "task-4"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 4"
@@ -45,6 +51,8 @@ Feature: Node agents recover their durable sessions after capacity eviction
     And I ask the agent "message for task 4"
     Then the agent has answered "message for task 4" exactly once
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     And I open the node menu of "task-5"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 5"
@@ -52,6 +60,8 @@ Feature: Node agents recover their durable sessions after capacity eviction
     And I ask the agent "message for task 5"
     Then the agent has answered "message for task 5" exactly once
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     And I open the node menu of "task-6"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 6"
@@ -59,6 +69,8 @@ Feature: Node agents recover their durable sessions after capacity eviction
     And I ask the agent "message for task 6"
     Then the agent has answered "message for task 6" exactly once
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     And I open the node menu of "task-7"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 7"
@@ -66,6 +78,8 @@ Feature: Node agents recover their durable sessions after capacity eviction
     And I ask the agent "message for task 7"
     Then the agent has answered "message for task 7" exactly once
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     And I open the node menu of "task-8"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 8"
@@ -73,6 +87,8 @@ Feature: Node agents recover their durable sessions after capacity eviction
     And I ask the agent "message for task 8"
     Then the agent has answered "message for task 8" exactly once
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     And I open the node menu of "task-9"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 9"

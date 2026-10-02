@@ -77,7 +77,7 @@ export const createRouter = (): Router => {
   const inFront = createSelector(front)
   const lanes = createMemo(() => live().map(one => one.value))
   const workspace = () => front().value.workspace()
-  const setWorkspace = (next: Workspace) => front().setWorkspace(next)
+  const setWorkspace = (next: Workspace) => front().setWorkspace(next, here())
   const setLandings = (next: Landings) => front().setLandings(next)
 
   // THE NAME OF THE ENTRY UNDER THE READER, kept turn and turn about — the

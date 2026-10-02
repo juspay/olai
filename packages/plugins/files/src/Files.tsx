@@ -6,7 +6,7 @@ import type { CarriedPath } from "./carry.ts"
  *  drawn here — it is the trash row's own entry at the column's foot. */
 
 import { TESTID } from "olai-plugin-files/testids"
-import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, nameOf } from "@olai/format"
+import { type BrokenFile, fileKind, inOlaiDir, isTrashed, nameOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
 createMemo,
@@ -113,32 +113,12 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
 
   // THE VAULT'S OWN FILES — the `_olai/` outlines, every one the directory
   // holds except the archive (which the `isTrashed` rule above already
-  // spends): the quiet group at the column's foot. Reading the PATHS off the
-  // same list the tree reads is the `inboxIn` argument one memo down: no
-  // records are walked here, and path-only membership equality (`./served.tsx`)
-  // is what keeps this answer from minting on a frame.
+  // spends): the quiet group at the column's foot. No records are walked here;
+  // the directory supplies path membership.
   const vault = createMemo(() => {
     const claims = servedDirectory()?.claims()
     return claims === undefined ? [] : served().filter(file => !isTrashed(claims, file) && inOlaiDir(file))
   })
-
-  // WHICH FILE THE INBOX IS, read off the same resolver the server captures
-  // through (`@olai/format`'s `inboxIn`) — never a path this column composes,
-  // or a directory keeping `notes/inbox.olai` would be offered a door onto a
-  // file that does not exist. `undefined` is a directory that has never
-  // captured, and then there is no entry: minting one is the capture's job.
-  //
-  // The whole served list rather than the outlines alone: the walk matches a
-  // full basename, so nothing but an outline can answer it.
-  //
-  // AND IT IS READ HERE rather than published, which is the line the shelf
-  // sits on the other side of: a browser holds no view of the DIRECTORY's
-  // records any more (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md), so resolving a
-  // shelf — every pin's live title — is the server's. This is a reading of the
-  // PATHS, and a browser holds every one of those already: it is the same list
-  // the tree above is built from, and one more pass over it is not a vault
-  // walk.
-
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -384,40 +364,6 @@ function VaultFile(props: {
     </DoorRow>
   )
 }
-
-/** The way to what has been CAPTURED — the outline a `⌘K` `+` lands in, one
- *  click from wherever the reader is, beside Agenda.
- *
- *  It is an entry rather than a tree row for the reason the Trash is one: the
- *  file it opens is a file olai named for itself, and the tree does not draw
- *  those — the vault group at the column's foot now holds those rows, so
- *  that is never the reason the door exists. It is a door beside Agenda
- *  because that is where you REACH it (human, 2026-08-20). Unlike the Trash:
- *  it is a FILE PAGE —
- *  an ordinary outline you can type into — so the entry lights up the way a
- *  tree row does, off the open page's file, rather than off the route.
- *
- *  DRAWN ONLY WHEN THERE IS ONE. A directory that has never captured has no
- *  inbox, and minting one is the capture's job — a door offering to create a
- *  file is a second way to mint the one file whose whole promise is that it is
- *  minted by the write that fills it (`@olai/server`'s `edit.ts`: one op, so a
- *  refused capture leaves nothing behind).
- *
- *  A reader whose inbox is their OWN file — a root `Inbox.olai`, a
- *  `notes/inbox.olai` — sees it here and in the tree, which is the double the
- *  shelf has always had for a root `Pins.olai`: this entry is a door onto
- *  whichever file the directory's inbox is, and a reader's own outline is
- *  never the vault group's business.
- *
- *  AND IT IS MARKED when its file could not be read, exactly as a tree row is:
- *  this is the door onto an ordinary outline, so an outline that will not parse
- *  has to say so where the reader meets it.
- *
- *  THE COUNT is Agenda's own badge (`./layout/CountChip.tsx`, the quiet
- *  paint), of the rows the inbox holds that are marked `todo` or `doing`,
- *  at any depth — unmarked rows are furniture and a placement is not a
- *  node. Hidden at zero, which is the same ruling the agenda's quiet face
- *  already keeps — and an inbox holding nothing marked is that zero. */
 
 function Entry(props: {
   readonly row: FileRow

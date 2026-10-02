@@ -67,7 +67,6 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   const route = createMemo(() => router.panes()[here()]!.route())
   const opened = createMemo(route, undefined, { equals: samePage })
   const memory = editorMemory()
-  createEffect(on(opened, () => batch(() => resetEditorMemory(memory)), { defer: true }))
   const missing = createMemo(() => props.source === null && opened().kind === "plugin")
 
   /**
@@ -172,6 +171,9 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
    * measured NOT to happen; what it buys is that the page below may assert so.
    */
   const reading = createReading(request, asked.awaiting, () => props.source?.route.stream)
+  // The old page and its editor stand until the requested subject arrives.
+  const answered = createMemo(previous => reading.pending() ? previous : opened(), opened(), { equals: samePage })
+  createEffect(on(answered, () => batch(() => resetEditorMemory(memory)), { defer: true }))
   // …and the pane joins the workspace's register with it, so the chrome outside
   // the panes can read whichever one is focused — the page AND the names table
   // derived beside it (`../App.tsx`).

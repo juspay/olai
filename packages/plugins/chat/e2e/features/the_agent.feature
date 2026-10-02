@@ -1474,6 +1474,8 @@ Feature: Talking to a node agent
     And the transcript is scrolled to the newest line
     When I scroll the transcript to the top
     And I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "house.olai"
     And I open the agent fold again
     Then the chat eventually shows "line 39"
     And the transcript is scrolled to the newest line

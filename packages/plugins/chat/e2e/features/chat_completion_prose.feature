@@ -58,6 +58,8 @@ Feature: Enter preserves prose that happens to match a node's note
     When I press "ArrowDown" in the chat
     Then the selected chat completion is "review-hinges"
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "house.olai"
     And the node agent's fold is ready
     Then the completion offers "review-hinges"
     And no chat completion is selected

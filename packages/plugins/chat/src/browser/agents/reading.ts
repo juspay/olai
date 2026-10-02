@@ -19,12 +19,13 @@ export const createAgentReadings = (agents: Roster) => {
   const shown = new Map<Chat, () => boolean>()
   const owner = getOwner()
   const cache = new Map<string, { value: ReturnType<typeof createConversationUI>; dispose: () => void }>()
+  const awaitingEmpty = new Map<ReturnType<typeof createConversationUI>, () => void>()
   const joined = new Map<ReturnType<typeof createConversationUI>, number>()
   const [visits, setVisits] = createStore<Record<string, Conversing | undefined>>({})
   const waiting = new Set<() => void>()
   const needsSurfaces = new Set<HTMLElement>()
   let alive = true
-  onCleanup(() => { alive = false; for (const stop of [...waiting]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
+  onCleanup(() => { alive = false; for (const stop of [...awaitingEmpty.values()]) stop(); for (const stop of [...waiting]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
   const ui = (to: PanelAddress) => {
     const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
     let entry = cache.get(key)
@@ -34,18 +35,36 @@ export const createAgentReadings = (agents: Roster) => {
     }
     return entry.value
   }
-  const releaseUI = (value: ReturnType<typeof createConversationUI>) => {
-    const count = (joined.get(value) ?? 1) - 1
-    if (count > 0) { joined.set(value, count); return }
-    joined.delete(value)
-    if ([...value.messages.values()].some(([read]) => read().text !== "") ||
-        [...value.holding.values()].some(bin => bin.pending().length > 0 || bin.sending() > 0) ||
-        !value.drafts.empty() || value.pendingSends[0]() > 0) return
+  const emptyUI = (value: ReturnType<typeof createConversationUI>) =>
+    ![...value.messages.values()].some(([read]) => read().text !== "") &&
+    ![...value.holding.values()].some(bin => bin.pending().length > 0 || bin.sending() > 0) &&
+    value.drafts.empty() && value.pendingSends[0]() === 0
+  const evictUI = (value: ReturnType<typeof createConversationUI>) => {
     for (const [key, entry] of cache) if (entry.value === value) {
       cache.delete(key)
       entry.dispose()
     }
   }
+  const releaseUI = (value: ReturnType<typeof createConversationUI>) => {
+    if (!alive) { evictUI(value); return }
+    const count = (joined.get(value) ?? 1) - 1
+    if (count > 0) { joined.set(value, count); return }
+    joined.delete(value)
+    if (emptyUI(value)) { evictUI(value); return }
+    // A dispatched upload/send can finish after its last page leaves. Its UI
+    // stays until that work clears, then releases without needing another visit.
+    runWithOwner(owner, () => createRoot(dispose => {
+      awaitingEmpty.set(value, dispose)
+      onCleanup(() => awaitingEmpty.delete(value))
+      createEffect(() => {
+        if (!emptyUI(value)) return
+        if (joined.has(value)) return
+        dispose()
+        evictUI(value)
+      })
+    }))
+  }
+
 
   const [readings, setReadings] = createStore<Record<string, ReadonlySet<Chat> | undefined>>({})
   return {
@@ -86,6 +105,7 @@ export const createAgentReadings = (agents: Roster) => {
     at: (node: string) => readings[node],
     isShown: (chat: Chat) => shown.get(chat)?.() === true,
     join: (node: string, chat: Chat, visible: () => boolean) => {
+      awaitingEmpty.get(chat.ui)?.()
       joined.set(chat.ui, (joined.get(chat.ui) ?? 0) + 1)
       shown.set(chat, visible)
       createEffect(() => { if (visible() && reveals.delete(node)) chat.ui.reveal[1](true) })

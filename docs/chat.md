@@ -703,8 +703,9 @@ with a last-heard line shows its age. Press the standing to unfold the
 conversation under the row, above its children. Press again to fold it. An
 unbound standing says **no session bound** and cannot be pressed.
 
-Several rows can be unfolded at once. Each fold owns its reading and releases
-it when folded, removed, trashed, navigated away from, or withdrawn during a
+Several rows can be unfolded at once. A fold first acquires its reading when
+opened and keeps it while hidden; the row or pane leaving releases
+it when removed, trashed, navigated away from, or withdrawn during a
 plugin rebuild. Releasing one reading does not stop another fold or tab reading
 the same conversation, and does not cancel ongoing work.
 

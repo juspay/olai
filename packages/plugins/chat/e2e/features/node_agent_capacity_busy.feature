@@ -91,6 +91,8 @@ Feature: A full pool of busy node agents refuses new work visibly
     Then the agent is idle
     And the agent's answer mentions "settle the first task"
     When I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "capacity.olai"
     When I press the agent "task-8"
     And I open the node menu of "task-9"
     And I choose "Start an agent" from the node menu

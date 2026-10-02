@@ -253,7 +253,8 @@ the chat wire service and retains its existing ownership and cleanup.
 ## Retained conversations and attention
 
 A visited tab keeps its conversation mounted while hidden. An opened outline
-agent fold keeps its conversation under the row owner when folded shut; closing
+agent fold keeps its conversation and its server idle hold under the row owner
+when folded shut; closing
 the row or pane releases that reading. Unvisited restored tabs open no chat.
 Only shown conversation surfaces count as watched for badges, chimes and
 notifications. A hidden tab can therefore acquire its needs-you dot, and a

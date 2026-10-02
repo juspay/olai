@@ -84,9 +84,12 @@ const tick = () => new Promise((go) => setTimeout(go, 10))
  * `createDeclared` holds an effect, and an effect outside an owner is a leak
  * the next test would inherit.
  */
+const messages: Array<() => void> = []
+afterAll(() => { for (const dispose of messages) dispose() })
 const asking = async (id: string): Promise<Outstanding> => {
   const before = calls.length
-  createRoot(() => {
+  createRoot(dispose => {
+    messages.push(dispose)
     createDeclared().want([id])
   })
   await tick()

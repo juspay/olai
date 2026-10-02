@@ -36,7 +36,7 @@ import { useShown } from "olai-plugin-navigation/routing"
  * parent is folded — are places the tree draws no body under.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
-import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
 import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"
 import { createCompletion } from "../complete/completing.tsx"
@@ -465,6 +465,8 @@ const takeCaret = (
   } = {},
 ): void => {
   const shown = useShown()
+  // A keyed ghost can receive a fresh value without changing who owns focus.
+  const armed = createMemo(() => said.armed?.() !== false)
   const editor = useEditor()
   let opening = true
   const draft = editor.draft()
@@ -479,7 +481,7 @@ const takeCaret = (
   // bumps and structural row redraws keep their existing placement rules.
   const retained = editor.takeRange(slot) ?? (was === undefined ? undefined : editor.takeForwarded(was))
   const remember = () => {
-    if (said.armed?.() === false || slot === undefined) return
+    if (!armed() || slot === undefined) return
     const field = element()
     editor.rememberRange({ slot, start: field.selectionStart ?? 0,
       end: field.selectionEnd ?? 0, direction: field.selectionDirection ?? "none" })
@@ -505,7 +507,7 @@ const takeCaret = (
     const pending = editor.resuming()
     if (pending !== null) {
       if (slot?.field !== "new" || slot.row !== pending) return
-    } else if (said.armed?.() === false) return
+    } else if (!armed()) return
     const field = element()
     const range = opening ? retained : undefined
     const at = opening
@@ -517,7 +519,12 @@ const takeCaret = (
     said.then?.()
   }
   onCleanup(editor.onCaret(takeCaret))
-  createEffect(on(() => [editor.resuming(), said.armed?.(), shown()], takeCaret))
+  createEffect(on(() => [editor.resuming(), armed(), shown()], () => {
+    // Keyed rows may move after effects in this update. Focus the final DOM.
+    let current = true
+    queueMicrotask(() => { if (current) takeCaret() })
+    onCleanup(() => { current = false })
+  }))
 }
 
 /**

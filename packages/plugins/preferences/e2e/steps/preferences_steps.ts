@@ -463,12 +463,12 @@ const outlineNamedBy = (href: string | null): string | undefined => {
  *  remounts it. */
 const flipOfAddressed = async (page: Page) => {
   const href = await page
-    .locator(`${PANE}${FOCUSED_PANE}`)
+    .locator(`${PANE}${FOCUSED_PANE}:visible`)
     .getAttribute("data-href");
   const named = outlineNamedBy(href);
   return named === undefined
-    ? page.locator(`${FOCUSED_PANE} ${DONE_FLIP}`)
-    : page.locator(`${FOCUSED_PANE} ${DONE_FLIP}${attr("data-file", named)}`);
+    ? page.locator(`${FOCUSED_PANE}:visible ${DONE_FLIP}`)
+    : page.locator(`${FOCUSED_PANE}:visible ${DONE_FLIP}${attr("data-file", named)}`);
 };
 
 /** The `finished` box beside the FOCUSED pane's filter: this page's own say.
@@ -712,7 +712,7 @@ Then(
  *  document — there is no flip to press: the question it answers was never
  *  there (client/filter/DoneFlip.tsx's reaching argument). */
 Then("this page offers no Done flip", async function (this: OlaiWorld) {
-  const flips = this.page.locator(`${FOCUSED_PANE} ${DONE_FLIP}`);
+  const flips = this.page.locator(`${FOCUSED_PANE}:visible ${DONE_FLIP}`);
   await flips
     .first()
     .waitFor({ state: "detached", timeout: POLL_TIMEOUT })

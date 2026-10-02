@@ -1997,7 +1997,7 @@ export class OlaiWorld extends World {
   nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }
 
   node(id: string): Locator {
-    return this.frontLane().locator(nodeSelector(this.nodeId(id)));
+    return this.frontLane().locator(`${nodeSelector(this.nodeId(id))}:visible`);
   }
 
   /** The same node, only if it is on screen. `:visible` because dropping a row

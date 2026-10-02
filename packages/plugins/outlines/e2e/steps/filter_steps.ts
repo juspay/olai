@@ -43,7 +43,7 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 /** Every row the tree draws — the ones a reader counts. Scoped to the tree, so
  *  a zoomed page's own heading (which is a node too, and says so) is not one. */
-const rows = (world: OlaiWorld) => world.page.locator(`${OUTLINE_TREE} ${NODE}`);
+const rows = (world: OlaiWorld) => world.frontLane().locator(`${OUTLINE_TREE}:visible ${NODE}:visible`);
 
 // ── typing ─────────────────────────────────────────────────────────────
 

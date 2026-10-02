@@ -16,3 +16,26 @@ test("palette ancestor metadata shares the conversation's UI, not its pending no
     } finally { dispose() }
   })
 })
+
+
+test("the last reader releases empty UI and a pending send releases after completion", () => {
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
+  const pair = { agent: "claude", session: "session" }
+  const ui = owner.reading.ui(pair)
+  const first = createRoot(dispose => {
+    owner.reading.join("node", { ui } as import("../chat/state.ts").Chat, () => true)
+    return dispose
+  })
+  const second = createRoot(dispose => {
+    owner.reading.join("node", { ui } as import("../chat/state.ts").Chat, () => true)
+    return dispose
+  })
+  first()
+  expect(owner.reading.ui(pair)).toBe(ui)
+  ui.pendingSends[1](1)
+  second()
+  expect(owner.reading.ui(pair)).toBe(ui)
+  ui.pendingSends[1](0)
+  expect(owner.reading.ui(pair)).not.toBe(ui)
+  owner.dispose()
+})

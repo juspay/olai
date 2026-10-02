@@ -181,5 +181,5 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lanes" | "lane
     },
 
   }
-  return { value, setWorkspace: (next: Workspace) => { address = hrefOfWorkspace(routing, next); setWorkspace(next) }, setLandings }
+  return { value, setWorkspace: (next: Workspace, requested?: string) => { address = requested ?? hrefOfWorkspace(routing, next); setWorkspace(next) }, setLandings }
 }
