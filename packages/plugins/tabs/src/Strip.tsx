@@ -13,7 +13,7 @@
  * It draws the list and nothing else: every verb is `tabs.state`'s.
  */
 import { Key } from "@solid-primitives/keyed"
-import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
+import { createEffect, createMemo, createSelector, createSignal, on, Show } from "solid-js"
 
 import { DOT } from "@olai/web/client/readout.ts"
 import { createDrags } from "@olai/web/client/pointer.ts"
@@ -22,7 +22,7 @@ import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { lone } from "olai-plugin-navigation/workspace"
 
 import type { Tab, TabsState } from "./contract.ts"
-import { facesOf, glyphOf } from "./face.ts"
+import { createFaces, glyphOf } from "./face.ts"
 import { PointMenu } from "./chunk.ts"
 import { TESTID } from "./testids.ts"
 
@@ -54,7 +54,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
 
   /** Every tab's name and tooltip, read together: a name shared by two
    *  different pages is spelled out on both (`./face.ts`). */
-  const faces = createMemo(() => facesOf(props.router.routes, tabs.tabs()))
+  const faces = createFaces(props.router.routes, tabs.tabs)
 
   /** The tab's address as a link somebody can paste. A clipboard the browser
    *  refuses (plain http to another machine is the usual one) is not
@@ -73,6 +73,8 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
   // row scrolls, sideways: `scrollIntoView` could also move ancestor scroll
   // containers despite the strip being pinned, and the front id is compared so a
   // navigation inside the tab (which rewrites its record) moves nothing.
+  const isFront = createSelector(tabs.front)
+  const lifting = createSelector(lifted)
   const front = createMemo(() => tabs.front())
   createEffect(on(front, (id) => queueMicrotask(() => {
     if (row === undefined || !row.isConnected) return
@@ -122,11 +124,13 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
       <div ref={row} role="tablist" aria-label="Open tabs"
         class="flex h-full min-w-0 flex-1 items-end gap-0.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]">
         <Key each={tabs.tabs()} by="id">{(tab, index) => {
-          const front = () => tabs.front() === tab().id
-          const face = () => faces().get(tab().id)
+          const front = () => isFront(tab().id)
+          const href = createMemo(() => tab().href)
+          const glyph = createMemo(() => glyphOf(props.router.routes, href()))
+          const face = createMemo(() => faces().get(tab().id), undefined, { equals: (a, b) => a?.title === b?.title && a?.tip === b?.tip })
           const title = () => face()?.title ?? tab().title
           const dot = () => tabs.dotted().get(tab().id)
-          const isLifted = () => lifted() === tab().id
+          const isLifted = () => lifting(tab().id)
           const drop = () => (over()?.id === tab().id ? over()!.side : undefined)
           return (
             <div
@@ -174,7 +178,7 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
                 <span aria-hidden="true" class="pointer-events-none absolute bottom-1 top-1.5 w-0.5 rounded-full bg-accent"
                   classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
               }</Show>
-              <span aria-hidden="true" class="shrink-0 text-label opacity-75">{glyphOf(props.router.routes, tab().href)}</span>
+              <span aria-hidden="true" class="shrink-0 text-label opacity-75">{glyph()}</span>
               <span data-testid={TESTID.tabsTitle} class="min-w-0 flex-1 truncate">{title()}</span>
               <Show when={dot()}>{(paint) =>
                 <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label="Needs you" class={`${DOT} ${paint()}`} />

@@ -11,6 +11,7 @@
  * dot on a tab says the page there is waiting on an answer, and an agent that
  * is not running asks nothing of the page it is on.
  */
+import { keyArray } from "@solid-primitives/keyed"
 import { type Accessor, createMemo } from "solid-js"
 
 import { type Attention, isCurrent, NEEDS_YOU_DOT } from "olai-plugin-chat/attention"
@@ -23,12 +24,20 @@ export const needingYou = (
   chat: Attention,
   routes: Routing,
   tabs: Accessor<ReadonlyArray<Tab>>,
-): Dots => ({
+): Dots => {
+  const parsed = keyArray(tabs, tab => tab.id, tab => {
+    const id = tab().id
+    const href = createMemo(() => tab().href)
+    const panes = createMemo(() => panesOf(workspaceOf(routes, href())))
+    return { id, panes }
+  })
+  return ({
   paint: NEEDS_YOU_DOT,
   ids: createMemo(() => {
     const waiting = chat.agents.rows().filter((row) => row.standing === "needs-you")
     if (waiting.length === 0) return new Set<string>()
-    return new Set(tabs().filter((tab) => panesOf(workspaceOf(routes, tab.href)).some(({ route }) =>
+    return new Set(parsed().filter((tab) => tab.panes().some(({ route }) =>
       waiting.some((row) => isCurrent(route, row, chat.folding.unfolded(row.id))))).map((tab) => tab.id))
   }),
 })
+}

@@ -35,7 +35,7 @@ import { Portal } from "solid-js/web"
 
 import { LAYER } from "./layer.ts"
 
-import { clampedLeft, clampedTop, hideTip, liftedTop, showTip, takeTip, tipShowing } from "./tip.ts"
+import { clampedLeft, clampedTop, createTips, liftedTop } from "./tip.ts"
 
 /**
  * Where the tip ASKS to be — never where it landed: `place` writes the
@@ -50,6 +50,11 @@ interface At {
    *  (`./tip.ts`'s `liftedTop`) adds its own gap on top, so it is carried
    *  with the ask: a RE-ask on new words must answer with the same floor. */
   readonly floor: number
+}
+
+const Tips = createContext<ReturnType<typeof createTips>>()
+export function TipScope(props: { readonly children: JSX.Element }) {
+  return <Tips.Provider value={createTips()}>{props.children}</Tips.Provider>
 }
 
 export const TipFloor = createContext<() => number>(() => 0)
@@ -76,6 +81,7 @@ export function Tip(props: {
    */
   readonly layer?: typeof LAYER.page | typeof LAYER.over
 }) {
+  const { takeTip, showTip, hideTip, tipShowing } = useContext(Tips) ?? createTips()
   const me = takeTip()
   const tipFloor = useContext(TipFloor)
   const [at, setAt] = createSignal<At | undefined>()

@@ -103,25 +103,28 @@ export const liftedTop = (
  * So opening one closes every other by construction: they all read this, and
  * the one whose token is not in it draws nothing.
  */
-export type Tipped = { readonly opened: unique symbol }
+export type Tipped = { readonly shown: () => boolean }
 
-const [open, setOpen] = createSignal<Tipped | undefined>()
-
-/** A tip's identity. Object identity IS the token: nothing about a tip
- *  distinguishes it from another with the same text, and nothing needs to. */
-export const takeTip = (): Tipped => ({}) as Tipped
-
-export const showTip = (tip: Tipped): void => {
-  // The VALUE form, not the updater one: for a signal whose type includes
-  // `undefined`, Solid's setter reads a function argument as the no-argument
-  // overload, and the tip would be set to nothing at all.
-  setOpen(tip)
+/** One coordinator per rendered app. Each tip subscribes only to itself. */
+export const createTips = () => {
+  type Token = Tipped & { shown: () => boolean; set: (value: boolean) => void }
+  let open: Token | undefined
+  return {
+    takeTip: (): Token => {
+      const [shown, set] = createSignal(false)
+      return { shown, set } as Token
+    },
+    showTip: (tip: Token): void => {
+      if (open === tip) return
+      open?.set(false)
+      open = tip
+      tip.set(true)
+    },
+    hideTip: (tip: Token): void => {
+      if (open !== tip) return
+      open = undefined
+      tip.set(false)
+    },
+    tipShowing: (tip: Token): boolean => tip.shown(),
+  }
 }
-
-/** Close it, if it is still the one open — a tip that was superseded while it
- *  was closing must not close its successor. */
-export const hideTip = (tip: Tipped): void => {
-  if (open() === tip) setOpen(undefined)
-}
-
-export const tipShowing = (tip: Tipped): boolean => open() === tip

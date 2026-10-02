@@ -184,6 +184,11 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
   // Keep the authored query and fragment after resolving the file once.
   const cut = /[?#]/.exec(written)?.index ?? written.length
   const resolved = deadLinkTarget(from, written)
+  if (resolved !== null) {
+    element.properties = { ...element.properties,
+      "data-link-path": resolved, "data-link-written": written,
+      "data-link-title": typeof element.properties["title"] === "string" ? element.properties["title"] : "" }
+  }
   if (resolved !== null && members !== undefined && !members.has(resolved)) {
     const warning = deadLinkSaid({ written, resolved, suggest: [] })
     const authored = element.properties["title"]

@@ -39,8 +39,8 @@
  * document whose renderer never came would otherwise be a page of source with
  * no explanation.
  */
-import type { Claims } from "@olai/format"
-import { createMemo, Show } from "solid-js"
+import { deadLinkSaid, type Claims } from "@olai/format"
+import { createEffect, createMemo, Show } from "solid-js"
 
 import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
 import { renderMarkdown, renderStreaming, renderLineLanding } from "./render.ts"
@@ -61,6 +61,7 @@ export function Markdown(props: {
   readonly live?: boolean
   readonly landing?: { readonly line: number; readonly needles: ReadonlyArray<string> }
 }) {
+  let container: HTMLDivElement | undefined
   // `markdownReady()` both answers and asks — reading it here is what starts
   // the fetch, and what re-runs this memo when the file lands.
   const html = createMemo(() =>
@@ -68,10 +69,28 @@ export function Markdown(props: {
       ? props.live === true
         ? renderStreaming(props.claims, props.source, props.from)
         : props.landing !== undefined
-          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles, props.members)
-          : renderMarkdown(props.claims, props.source, props.from, props.members)
+          ? renderLineLanding(props.claims, props.source, props.from, props.landing.line, props.landing.needles)
+          : renderMarkdown(props.claims, props.source, props.from)
       : undefined
   )
+  // File membership changes link decoration, never the rendered prose or its
+  // selection/details state. The rewrite pass records authored link metadata.
+  createEffect(() => {
+    html()
+    const members = props.members
+    for (const link of container?.querySelectorAll<HTMLAnchorElement>("a[data-link-path]") ?? []) {
+      const path = link.dataset["linkPath"]!
+      const dead = members !== undefined && !members.has(path)
+      link.classList.toggle("olai-dead-link", dead)
+      if (dead) link.setAttribute("data-dead", "true")
+      else link.removeAttribute("data-dead")
+      const authored = link.dataset["linkTitle"] ?? ""
+      const warning = dead ? deadLinkSaid({ written: link.dataset["linkWritten"]!, resolved: path, suggest: [] }) : ""
+      const title = [authored, warning].filter(Boolean).join(" — ")
+      if (title) link.title = title
+      else link.removeAttribute("title")
+    }
+  })
   /** Is this block still WAITING on the renderer — the arrival's own answer
    *  (./chunk.ts), not `html() === undefined`, which is "not rendered" and is
    *  true of a page whose renderer failed as well. The two agree inside this
@@ -85,7 +104,7 @@ export function Markdown(props: {
     <Show
       when={markdownFailure()}
       fallback={
-        <div
+        <div ref={container}
           // The SAME element either way — nothing remounts when the rendering
           // replaces the source, so nothing on the page moves but the words
           // themselves. What it LOOKS like while it waits, down to its

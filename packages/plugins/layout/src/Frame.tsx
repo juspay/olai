@@ -49,6 +49,8 @@ import { SidebarHandle } from "./layout/Handle.tsx"
 import { Tools } from "./Tools.tsx"
 
 export default function Frame(props: { readonly slots: RendererSlots; readonly router: import("olai-plugin-navigation/contract").Navigation }) {
+  let header: HTMLElement | undefined
+  let stripElement: HTMLDivElement | undefined
   const router = props.router
   // THE CARET'S MEMORY, for the freeze this frame draws: the dialog takes the
   // keyboard when the wire goes and hands it back when it returns, and the
@@ -71,11 +73,11 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
   const split = router.split
   const ready = createMemo(() => props.slots.read(contentStatus).every(({ value }) => value.ready()))
   const started = createMemo((was: boolean) => was || ready(), false)
-  const closet = <Tools slots={props.slots} where="closet" />
+  const closet = <Show when={!desktop()}><Tools slots={props.slots} where="closet" /></Show>
 
   return (
       <RouterProvider router={router}>
-      <TipFloor.Provider value={() => (document.querySelector(`[data-testid="${LAYOUT_TESTID.mainStrip}"]`) ?? document.querySelector(`[data-testid="${LAYOUT_TESTID.appHeader}"]`))?.getBoundingClientRect().bottom ?? 0}>
+      <TipFloor.Provider value={() => (stripElement?.isConnected ? stripElement : header)?.getBoundingClientRect().bottom ?? 0}>
       <PluginsMounted>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
@@ -108,7 +110,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
         class="flex min-h-dvh flex-col"
 
       >
-        <Header
+        <Header ref={element => { header = element }}
           slots={props.slots}
           docked={true}
           menu={
@@ -165,7 +167,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                           through the static --height-chrome contract. Layout owns
                           the opaque desk ground; the occupant fills this seat. */}
                       <Show when={desktop() && props.slots.read(strip).length > 0}>
-                        <div data-testid={LAYOUT_TESTID.mainStrip} class={`sticky top-[var(--height-header)] h-[var(--height-strip)] bg-desk ${LAYER.strip}`}>
+                        <div ref={stripElement} data-testid={LAYOUT_TESTID.mainStrip} class={`sticky top-[var(--height-header)] h-[var(--height-strip)] bg-desk ${LAYER.strip}`}>
                           <For each={props.slots.read(strip)}>{({value: Strip})=><Strip/>}</For>
                         </div>
                       </Show>
