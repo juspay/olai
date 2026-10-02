@@ -134,3 +134,6 @@ submenus; each menu still chooses its focus target. The timer leaves with its
 content shell, while item and confirmation owners survive suspension.
 On a keyboard reopen, root-menu focus leaves an already focused entry alone,
 keeping Kobalte's focus manager and the DOM in agreement for Home and Enter.
+Submenus also refuse Kobalte's outside-focus close request, which ignores
+`preventDefault`; restoring the parent's content shell must not close a retained
+submenu. Pointer dismissal and keyboard close gestures still close it normally.

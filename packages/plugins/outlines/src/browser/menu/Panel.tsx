@@ -80,6 +80,7 @@ export function Panel(props: {
   const Sub = (sub: { readonly entry: MenuSub }) => {
     const [open, setOpen] = createSignal(false)
     const afterGesture = createAfterGesture()
+    let focusOutside = false
     let lastFocused: HTMLElement | undefined
     const [nestedMenus, setNestedMenus] = createSignal<(() => Element[])>()
     const insideChild = (target: EventTarget | null) => target instanceof Node && nestedMenus()?.().some(element => element.contains(target))
@@ -112,7 +113,14 @@ export function Panel(props: {
             if (event.target instanceof HTMLElement) lastFocused = event.target
             props.gestures.onFocusIn(event)
           }}
-          onFocusOutside={event => event.preventDefault()}
+          onFocusOutside={event => {
+            event.preventDefault()
+            // Kobalte's SubContent calls close even after preventDefault.
+            // Keep that synchronous request from closing a retained submenu
+            // while its parent content shell restores focus on show.
+            focusOutside = true
+            queueMicrotask(() => { focusOutside = false })
+          }}
           onPointerDownOutside={event => {
             if (insideChild(event.detail.originalEvent.target)) event.preventDefault()
           }}
@@ -128,7 +136,7 @@ export function Panel(props: {
     // `overlap`: on a phone there is no room beside the panel, so the submenu
     // may slide back over it rather than hang off the screen's edge.
     <DropdownMenu.Sub gutter={2} shift={-5} overlap open={open()} onOpenChange={next => {
-      if (!shown()) return
+      if (!shown() || (!next && focusOutside)) return
       if (next) setOpen(true)
       else afterGesture(() => { if (shown() && !insideChild(document.activeElement)) setOpen(false) })
     }}>
