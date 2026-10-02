@@ -1,5 +1,5 @@
 import { useShown } from "olai-plugin-navigation/routing"
-import { createEffect, createMemo, type Accessor } from "solid-js"
+import { createEffect, createMemo, createRoot, createSignal, onCleanup, untrack, type Accessor } from "solid-js"
 import type { PanelAddress } from "../../wire/session.ts"
 import { createChat } from "../chat/state.ts"
 import { createAsked } from "../chat/attention/asked.ts"
@@ -22,16 +22,25 @@ export const createNodeConversation = (node: Accessor<string>) => {
     return agent !== undefined && (agent.session !== null || agent.unopened === true)
   })
   const address = createMemo<PanelAddress>(() => reading?.visiting(node()) ?? { node: node() }, { node: node() },
-    { equals: (a, b) => JSON.stringify(a) === JSON.stringify(b) })
-  const chat = createMemo(() => {
+    { equals: (a, b) => "node" in a ? "node" in b && a.node === b.node : "session" in b && a.agent === b.agent && a.session === b.session })
+  const [chat, setChat] = createSignal<ReturnType<typeof createChat> | null>(null)
+  createEffect(() => {
     const to = pair()
-    if (!hasPanel()) return null
+    const available = hasPanel()
     const at = address()
-    const chat = createChat(at, { expected: to, ui: reading?.ui(to ?? at), visit: to => reading?.visit(node(), to) })
-    readAgent(node(), chat, shown)
-    const question = createAsked(chat)
-    createEffect(() => chat.ui.question[1](question()))
-    return chat
+    const id = node()
+    if (!available) { setChat(null); return }
+    const dispose = untrack(() => createRoot(dispose => {
+      onCleanup(() => setChat(null))
+      const owned = createChat(at, { expected: to, ui: reading?.ui(to ?? at), visit: to => reading?.visit(id, to) })
+      readAgent(id, owned, shown)
+      const question = createAsked(owned)
+      owned.ui.question.bind(question)
+      setChat(owned)
+      // Register this explicit root with the effect that owns the address.
+      return dispose
+    }))
+    onCleanup(dispose)
   })
   return { pair, chat }
 }

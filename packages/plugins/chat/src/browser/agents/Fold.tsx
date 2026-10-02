@@ -1,3 +1,5 @@
+import { createMemo } from "solid-js"
+import { ShownProvider, useShown } from "olai-plugin-navigation/routing"
 import { createEffect, createSignal, onCleanup } from "solid-js"
 import { documentBox } from "@olai/web/client/carry.ts"
 import { carriedNodes } from "olai-plugin-outlines/carry"
@@ -30,15 +32,19 @@ import { SignIn } from "../chat/SignIn.tsx"
 
 export function Fold(props: { readonly node: string; readonly record?: string }) {
   const agents = useAgents()
-  return <Show when={unfolded(props.record ?? props.node)}>{_open => {
+  const parentShown = useShown()
+  const open = createMemo(() => unfolded(props.record ?? props.node))
+  const started = createMemo((was: boolean) => was || open(), false)
+  const shown = () => parentShown() && open()
+  return <ShownProvider shown={shown}><Show when={started()}>{_open => {
     const { chat: conversation } = createNodeConversation(() => props.node)
     return <Show when={conversation()} keyed>{chat =>
-    <ConversationUIProvider value={chat.ui}><section class="my-2 rounded-control border border-rule bg-panel" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
+    <ConversationUIProvider value={chat.ui}><section style={{ display: open() ? undefined : "none" }} class="my-2 rounded-control border border-rule bg-panel" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
       <AgentLine chat={chat} node={props.node} />
       <Conversation chat={chat} node={props.node} />
     </section></ConversationUIProvider>
     }</Show>
-  }}</Show>
+  }}</Show></ShownProvider>
 }
 
 /** `page` is the node page's face: the pane is the scroll, so the transcript is

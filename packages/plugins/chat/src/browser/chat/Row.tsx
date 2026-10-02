@@ -1,3 +1,4 @@
+import { hasText } from "./carried.ts"
 import { Grip, textCarry } from "./Grip.tsx"
 import { textOf } from "./carried.ts"
 /**
@@ -107,7 +108,7 @@ export function Row(props: {
           </p>
         )}
       </Show>
-      <div class="absolute -left-4 top-0"><Grip text={words()} carry={carry} /></div>
+      <div class="absolute -left-4 top-0"><Grip has={hasText(props.chat.entry(props.entry.id)() ?? props.entry)} carry={carry} /></div>
       <Entry entry={props.entry} chat={props.chat} />
       {/* THE LIVE RAIL, dropping out of the row the moment an agent is sent out
           or a task is armed, rather than one that appears whenever something

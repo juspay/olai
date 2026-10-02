@@ -49,5 +49,5 @@ const forgetDraft = (ask: string): void => {
   })
 }
 
-return { draftOf, setDraft, draftAnswers, forgetDraft }
+return { empty: () => [...drafts().values()].every(values => values.length === 0), draftOf, setDraft, draftAnswers, forgetDraft }
 }

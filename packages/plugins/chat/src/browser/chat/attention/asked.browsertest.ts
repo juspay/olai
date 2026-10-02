@@ -86,3 +86,14 @@ test("two conversations own independent pending questions", () => {
   expect(other.value()).toBeUndefined()
   other.stop()
 })
+
+
+test("appending a question does not reread the preceding transcript", () => {
+  const chat = live(createAsked)
+  for (let n = 0; n < 200; n++) chat.add(`p${n}`, agent(n, `line ${n}`))
+  const before = chat.reads()
+  chat.add("q", ask(201, "ask:new", "Which door?"))
+  expect(chat.value()?.id).toBe("ask:new")
+  expect(chat.reads() - before).toBeLessThanOrEqual(2)
+  chat.stop()
+})

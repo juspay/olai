@@ -1,6 +1,7 @@
+import { createStore } from "solid-js/store"
 import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
-import { createEffect, createRoot, createSignal, onCleanup } from "solid-js"
+import { createEffect, createRoot, getOwner, runWithOwner, onCleanup } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { PanelAddress } from "../../wire/session.ts"
 import type { Conversing } from "../../sessions.ts"
@@ -16,27 +17,46 @@ export const createAgentReadings = (agents: Roster) => {
   const previews = createPreviews()
   const reveals = new Set<string>()
   const shown = new Map<Chat, () => boolean>()
-  const cache = new Map<string, ReturnType<typeof createConversationUI>>()
-  const [visits, setVisits] = createSignal<ReadonlyMap<string, Conversing>>(new Map())
+  const owner = getOwner()
+  const cache = new Map<string, { value: ReturnType<typeof createConversationUI>; dispose: () => void }>()
+  const joined = new Map<ReturnType<typeof createConversationUI>, number>()
+  const [visits, setVisits] = createStore<Record<string, Conversing | undefined>>({})
   const waiting = new Set<() => void>()
+  const needsSurfaces = new Set<HTMLElement>()
   let alive = true
-  onCleanup(() => { alive = false; for (const stop of [...waiting]) stop(); cache.clear() })
+  onCleanup(() => { alive = false; for (const stop of [...waiting]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
   const ui = (to: PanelAddress) => {
     const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
-    let value = cache.get(key)
-    if (value === undefined) { value = createConversationUI(previews); cache.set(key, value) }
-    return value
+    let entry = cache.get(key)
+    if (entry === undefined) {
+      entry = runWithOwner(owner, () => createRoot(dispose => ({ value: createConversationUI(previews), dispose })))!
+      cache.set(key, entry)
+    }
+    return entry.value
   }
-  const [readings, setReadings] = createSignal<ReadonlyMap<string, ReadonlySet<Chat>>>(new Map())
+  const releaseUI = (value: ReturnType<typeof createConversationUI>) => {
+    const count = (joined.get(value) ?? 1) - 1
+    if (count > 0) { joined.set(value, count); return }
+    joined.delete(value)
+    if ([...value.messages.values()].some(([read]) => read().text !== "") ||
+        [...value.holding.values()].some(bin => bin.pending().length > 0 || bin.sending() > 0) ||
+        !value.drafts.empty() || value.pendingSends[0]() > 0) return
+    for (const [key, entry] of cache) if (entry.value === value) {
+      cache.delete(key)
+      entry.dispose()
+    }
+  }
+
+  const [readings, setReadings] = createStore<Record<string, ReadonlySet<Chat> | undefined>>({})
   return {
     agents, ui, page, newChat,
-    visiting: (node: string) => visits().get(node),
-    visit: (node: string, to?: Conversing) => setVisits(before => {
-      const next = new Map(before)
-      if (to === undefined) next.delete(node)
-      else next.set(node, to)
-      return next
-    }),
+    needsSurface: (element: HTMLElement) => {
+      needsSurfaces.add(element)
+      onCleanup(() => needsSurfaces.delete(element))
+    },
+    focusNeeds: () => { [...needsSurfaces].find(element => element.isConnected && element.getClientRects().length > 0)?.focus() },
+    visiting: (node: string) => visits[node],
+    visit: (node: string, to?: Conversing) => { setVisits(node, to) },
     ready: (node: string, to: Conversing): Promise<Chat | string> => new Promise(resolve => {
       if (!alive) { resolve("Chat stopped"); return }
       createRoot(dispose => {
@@ -47,7 +67,7 @@ export const createAgentReadings = (agents: Roster) => {
           if (current === undefined || current.engine !== to.agent || current.session !== to.session) {
             waiting.delete(stop); dispose(); resolve("The agent's chat changed. Try again."); return
           }
-          const chat = [...(readings().get(node) ?? [])].find(chat => chat.ui === ui(to))
+          const chat = [...(readings[node] ?? [])].find(chat => chat.ui === ui(to))
           if (chat === undefined) return
           const state = chat.state()
           if (state.unopened) {
@@ -59,25 +79,24 @@ export const createAgentReadings = (agents: Roster) => {
       })
     }),
     reveal: (node: string) => {
-      const live = [...(readings().get(node) ?? [])].filter(chat => shown.get(chat)?.())
+      const live = [...(readings[node] ?? [])].filter(chat => shown.get(chat)?.())
       if (live.length === 0) reveals.add(node)
       else for (const chat of live) chat.ui.reveal[1](true)
     },
-    at: (node: string) => readings().get(node),
+    at: (node: string) => readings[node],
     isShown: (chat: Chat) => shown.get(chat)?.() === true,
     join: (node: string, chat: Chat, visible: () => boolean) => {
+      joined.set(chat.ui, (joined.get(chat.ui) ?? 0) + 1)
       shown.set(chat, visible)
       createEffect(() => { if (visible() && reveals.delete(node)) chat.ui.reveal[1](true) })
-      setReadings(before => new Map(before).set(node, new Set([...(before.get(node) ?? []), chat])))
-      onCleanup(() => setReadings(before => {
+      setReadings(node, new Set([...(readings[node] ?? []), chat]))
+      onCleanup(() => {
         shown.delete(chat)
-        const next = new Map(before)
-        const members = new Set(next.get(node))
+        releaseUI(chat.ui)
+        const members = new Set(readings[node])
         members.delete(chat)
-        if (members.size === 0) next.delete(node)
-        else next.set(node, members)
-        return next
-      }))
+        setReadings(node, members.size === 0 ? undefined : members)
+      })
     },
   }
 }

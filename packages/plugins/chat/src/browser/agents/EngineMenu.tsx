@@ -5,7 +5,7 @@
  * you**, which is where a person goes to fix it. With nothing to start, the
  * menu is one quiet line and — while the inspector is up — its door. */
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
-import { For, onCleanup, Show } from "solid-js"
+import { createEffect, For, onCleanup, Show } from "solid-js"
 import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
@@ -25,10 +25,10 @@ export default function EngineMenu(props: {
   readonly close: () => void
 }) {
   // Kobalte restores focus after the enclosing Show has withdrawn the menu.
-  const layer = props.layer ?? LAYER.row
-  const anchor = props.anchor
+  const layer = () => props.layer ?? LAYER.row
+  const anchor = () => props.anchor
   const portal = document.createElement("div")
-  portal.className = `fixed left-0 top-0 ${layer}`
+  createEffect(() => { portal.className = `fixed left-0 top-0 ${layer()}` })
   document.body.append(portal)
   onCleanup(() => portal.remove())
   const topmost = topmostWhileOpen(() => true)
@@ -37,13 +37,13 @@ export default function EngineMenu(props: {
    *  this serve mounted and cannot start, or chat's own row when none is. */
   const explains = () => props.engines.find(engine => engine.standing === "not-here")?.id ?? "chat"
   return <DropdownMenu open modal={false} placement="bottom-start" gutter={2}
-    getAnchorRect={() => anchor.getBoundingClientRect()}
+    getAnchorRect={() => anchor().getBoundingClientRect()}
     onOpenChange={open => { if (!open && topmost()) props.close() }}>
     <DropdownMenu.Portal mount={portal}>
-      <DropdownMenu.Content class={`${MENU_PANEL} ${layer}`} aria-label="Choose an agent"
+      <DropdownMenu.Content class={`${MENU_PANEL} ${layer()}`} aria-label="Choose an agent"
         data-testid={TESTID.agentEngineMenu}
         ref={element => queueMicrotask(() => { if (element.isConnected) element.focus({ preventScroll: true }) })}
-        onCloseAutoFocus={event => { event.preventDefault(); anchor.isConnected && anchor.focus({ preventScroll: true }) }}>
+        onCloseAutoFocus={event => { event.preventDefault(); anchor().isConnected && anchor().focus({ preventScroll: true }) }}>
         <Show when={here().length > 0} fallback={<>
           <p class="m-0 px-3 py-1.5 text-muted" data-testid={TESTID.agentEngineNone}>No agent is set up</p>
           <Show when={pluginsDoor()}>{door =>

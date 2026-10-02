@@ -8,11 +8,15 @@ import {
   createContext,
   createEffect,
   createMemo,
+  createRenderEffect,
+  mapArray,
   createSignal,
   type JSX,
   useContext,
   onCleanup,
 } from "solid-js"
+
+import { createStore } from "solid-js/store"
 
 import {
   type AgentChoice,
@@ -57,7 +61,13 @@ export function createAgents(): Roster {
   const engineCell = chatWire().cells.engines.use()
   const cell = chatWire().cells.agents.use()
   const rows = createMemo(() => cell.value() ?? NO_AGENT_ROSTER)
-  const byNode = createMemo(() => new Map(rows().map(row => [row.id, row])))
+  const [byNode, setByNode] = createStore<Record<string, Row | undefined>>({})
+  const indexed = mapArray(rows, row => {
+    setByNode(row.id, row)
+    onCleanup(() => setByNode(row.id, undefined))
+    return row.id
+  })
+  createRenderEffect(() => { indexed() })
   let active = true
   onCleanup(() => { active = false })
   // THE WHOLE TABLE FIRST ({@link Roster.standings}), then the fold: a reader
@@ -153,7 +163,7 @@ export function createAgents(): Roster {
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
 
 
-  return { rows, at: node => byNode().get(node), engines, standings, only,
+  return { rows, at: node => byNode[node], engines, standings, only,
     missing: engine => engine === undefined ? null : missing().get(engine) ?? null,
     chats,
     unreachable, chatsRefusal, askChats }

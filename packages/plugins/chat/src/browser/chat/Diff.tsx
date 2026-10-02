@@ -73,7 +73,9 @@ export function Diff(props: {
   // Recomputed when the texts change and not on every render: an agent
   // rewriting a file reports the call twice, and the second report is the same
   // two texts with a status beside them.
-  const computed = createMemo(() => diffOf(props.diff.oldText, props.diff.newText))
+  const texts = createMemo(() => [props.diff.oldText, props.diff.newText] as const, undefined,
+    { equals: (a, b) => a[0] === b[0] && a[1] === b[1] })
+  const computed = createMemo(() => diffOf(...texts()))
   // A MEMO, because the fold set is one signal for every diff on screen: any
   // fold anywhere re-runs this, and a memo over the boolean is what stops that
   // reaching the slice and the list below it. Without it, opening one diff
@@ -97,7 +99,7 @@ export function Diff(props: {
       data-expanded={open()}
     >
       <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-caption">
-        <Grip text={words()} carry={carry} />
+        <Grip has={true} carry={carry} />
         <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
         </span>

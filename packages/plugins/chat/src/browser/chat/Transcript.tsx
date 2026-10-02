@@ -1,3 +1,4 @@
+import { createWaitingForms, WaitingFormsProvider } from "./waiting-forms.ts"
 /**
  * The conversation, drawn.
  *
@@ -90,7 +91,6 @@ import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "sol
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { useShowNode } from "../references.ts"
 import { useFollow, useShown } from "olai-plugin-navigation/routing"
-import { selector } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "../../testids.ts"
 import { wholeYet } from "./attention/whole.ts"
 import { declaringFailure } from "../references.ts"
@@ -110,7 +110,6 @@ import type { Chat } from "./state.ts"
 /** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
  *  flag still on. The one thing a press of the attention banner is looking
  *  for, spelled off the panel's own declared handles rather than off a class. */
-const WAITING_ASK = `${selector(TESTID.chatAsk)}[data-asking="true"]`
 
 export function Transcript(props: { readonly chat: Chat; readonly page?: boolean }) {
   const [revealing, setRevealing] = props.chat.ui.reveal
@@ -254,9 +253,10 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
    * is restored either way — a press is a person arriving at the conversation,
    * like opening it.
    */
+  const waitingForms = createWaitingForms()
   createEffect(() => {
     if (!shown() || !revealing()) return
-    const waiting = pane?.querySelector(WAITING_ASK) ?? null
+    const waiting = waitingForms.first() ?? null
     // Nothing to show and the conversation is still arriving: stay asked. The
     // `wholeYet` read subscribes this to the first row it is waiting on, so
     // that row landing is what brings it back.
@@ -368,6 +368,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   )
 
   return (
+    <WaitingFormsProvider value={waitingForms}>
     <div
       // `min-h-0` is what makes THIS the scroller. `flex-1` with the default
       // `min-height: auto` will not shrink below the content, so a long turn
@@ -420,8 +421,8 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
              *
              *  Its own memo rather than folded into the lane below, and that
              *  is a reactivity decision rather than a stylistic one: what
-             *  comes out is an ENTRY, whose identity survives a frame (the
-             *  collection reconciles in place), so a re-run here stops here.
+             *  comes out is the previous ENTRY. Its upserts replace the leaf,
+             *  so downstream views compare the particular values they use.
              *  Reading the row list straight into the lane would tie every
              *  lane to the list instead — and a lane is a fresh object every
              *  time it is computed, so one row arriving would re-run the
@@ -433,7 +434,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
                 ? undefined
                 : props.chat.entry(previous)()
             })
-            const lane = createMemo(() => laneOf(entry(), above(), titleOf))
+            const lane = createMemo(() => laneOf(entry(), above(), titleOf), undefined, { equals: (a, b) => a?.parent === b?.parent && a?.label === b?.label })
             /** ... and the live RAIL under this row, whichever of the two it
              *  is: a spawned agent still out, or a background task still
              *  running ({@link ./rail.ts}, which owns the precedence and
@@ -460,7 +461,9 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
             const speaker = createMemo((): Faced | null => {
               const party = facedAt(entry(), above())
               return party === null ? null : { party, agent: agent() }
-            })
+            }, null, { equals: (a, b) => a?.party.of === b?.party.of &&
+              (a?.party.of !== "plugin" || b?.party.of === "plugin" && a.party.name === b.party.name) &&
+              a?.agent?.id === b?.agent?.id && a?.agent?.name === b?.agent?.name })
             return (
               <Show when={entry()}>
                 {(row) => (
@@ -518,5 +521,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
 
       </div>
     </div>
+    </WaitingFormsProvider>
   )
 }

@@ -1,3 +1,4 @@
+import { agentReadings } from "./reading.ts"
 import { NewChat, NewChatSaid } from "./NewChat.tsx"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
@@ -17,11 +18,12 @@ import { byActivity } from "./activity-order.ts"
 import { unfolded } from "./folding.ts"
 
 export function NeedsYou() {
+  const readings = agentReadings()
   const agents = useAgents()
   const focus = createFocus()
   const rows = () => needing(agents.rows())
   return <Show when={rows().length > 0}>
-    <section class={REGION} data-testid={TESTID.agentNeedsYou} data-agent-needs-you tabIndex={-1}>
+    <section ref={element => readings?.needsSurface(element)} class={REGION} data-testid={TESTID.agentNeedsYou} data-agent-needs-you tabIndex={-1}>
       <div class={REGION_HEAD}><h2 class={REGION_LABEL}>Needs you</h2></div>
       <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
         <button type="button" class={`${ENTRY_SHAPE} w-full gap-2 text-left text-doing`} data-testid={TESTID.agentNeedRow}

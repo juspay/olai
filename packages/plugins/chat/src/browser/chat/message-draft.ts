@@ -64,11 +64,11 @@ export const createMessageDraft = (conversation: Accessor<string | null>, memory
     return () => owner[1](now => restored(failed, now))
   }
   return {
-    draft: () => current()[0]().text, setDraft: field("text"),
-    retry: () => current()[0]().retry, setRetry: field("retry"),
-    taken: () => current()[0]().taken, setTaken: field("taken"),
-    caret: () => current()[0]().caret, setCaret: field("caret"),
-    dismissed: () => current()[0]().dismissed, setDismissed: field("dismissed"),
+    draft: createMemo(() => current()[0]().text), setDraft: field("text"),
+    retry: createMemo(() => current()[0]().retry), setRetry: field("retry"),
+    taken: createMemo(() => current()[0]().taken), setTaken: field("taken"),
+    caret: createMemo(() => current()[0]().caret), setCaret: field("caret"),
+    dismissed: createMemo(() => current()[0]().dismissed), setDismissed: field("dismissed"),
     recover,
   }
 }

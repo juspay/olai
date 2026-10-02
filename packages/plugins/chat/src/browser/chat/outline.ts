@@ -4,16 +4,16 @@ import type { FileDiff } from "@olai/acp/wire"
 import type { Directory } from "olai-plugin-vault/file-state"
 import type { OutlineDiff } from "olai-plugin-vault/surface"
 import { Effect } from "effect"
-import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, type Accessor } from "solid-js"
 export const outlineDiffOf = (vault: Pick<Directory, "outlineDiff">, diff: FileDiff) =>
   vault.outlineDiff(diff.path, diff.oldText, diff.newText)
 
 export const createOutlineDiff = (vault: Accessor<Pick<Directory, "outlineDiff"> | undefined>, diff: Accessor<FileDiff>) => {
   const [read, setRead] = createSignal<OutlineDiff | undefined>()
   const [failed, setFailed] = createSignal(false)
+  const request = createMemo(diff, undefined, { equals: (a, b) => a.path === b.path && a.oldText === b.oldText && a.newText === b.newText })
   createEffect(() => {
-    const directory = vault(), change = diff()
-    setRead(undefined)
+    const directory = vault(), change = request()
     setFailed(false)
     if (directory === undefined) { setFailed(true); return }
     const controller = new AbortController()

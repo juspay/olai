@@ -72,7 +72,7 @@ export function OutlineDiff(props: {
       data-expanded={open()}
     >
       <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-caption">
-        <Grip text={words()} carry={carry} />
+        <Grip has={true} carry={carry} />
         <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
         </span>

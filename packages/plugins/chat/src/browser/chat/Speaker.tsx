@@ -167,8 +167,8 @@ export function Speaker(props: Faced) {
               mark for "an agent, and this panel has not been told which". */}
           <AgentMark id={props.agent?.id ?? ""} />
         </Match>
-        <Match when={props.party.of === "plugin" ? props.party : undefined} keyed>
-          {(plugin) => <PluginMark name={plugin.name} />}
+        <Match when={props.party.of === "plugin" ? props.party.name : undefined}>
+          {(name) => <PluginMark name={name()} />}
         </Match>
       </Switch>
       {/* The full account of who this is goes under the POINTER rather than on
