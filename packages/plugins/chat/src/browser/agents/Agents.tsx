@@ -4,7 +4,7 @@ import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, REGION, REGION_HEAD, REGION_LABEL } from "olai-plugin-layout/entry"
-import { useRouter } from "olai-plugin-navigation/routing"
+import { useShown, useRouter } from "olai-plugin-navigation/routing"
 import { isCurrent } from "../../attention.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { agoOf, createNow } from "@olai/web/client/ago.ts"
@@ -18,12 +18,13 @@ import { byActivity } from "./activity-order.ts"
 import { unfolded } from "./folding.ts"
 
 export function NeedsYou() {
+  const shown = useShown()
   const readings = agentReadings()
   const agents = useAgents()
   const focus = createFocus()
   const rows = () => needing(agents.rows())
   return <Show when={rows().length > 0}>
-    <section ref={element => readings?.needsSurface(element)} class={REGION} data-testid={TESTID.agentNeedsYou} data-agent-needs-you tabIndex={-1}>
+    <section ref={element => readings?.needsSurface(element, shown)} class={REGION} data-testid={TESTID.agentNeedsYou} data-agent-needs-you tabIndex={-1}>
       <div class={REGION_HEAD}><h2 class={REGION_LABEL}>Needs you</h2></div>
       <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
         <button type="button" class={`${ENTRY_SHAPE} w-full gap-2 text-left text-doing`} data-testid={TESTID.agentNeedRow}

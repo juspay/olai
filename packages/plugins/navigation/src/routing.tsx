@@ -106,7 +106,8 @@ export interface Router {
  * the lane router handed to a page. */
 export interface NavigationRouter extends Router {
   readonly lanes: Accessor<readonly Lane[]>
-  /** Layout leases the visibility of content without owning lane state. */
+  /** Layouts register content visibility independently. Any shown registration draws
+   * the front lane; with no registrations the front lane is shown. */
   readonly drawContent: (shown: Accessor<boolean>) => () => void
   /**
    * WHICH TAB THE HISTORY BELONGS TO, or `null` for the window's own.

@@ -258,6 +258,18 @@ export function LivePane(props: {
     () => { setSays("Couldn't load the terminal viewer. Check your connection and open it again.") },
   )
 
+  // Retained hidden hosts can keep their size, so showing is also a fit edge.
+  createEffect(on(shown, visible => {
+    if (!visible) return
+    const frame = requestAnimationFrame(() => {
+      if (!shown() || !term || !host || host.clientWidth === 0 || host.clientHeight === 0) return
+      const before = { cols: term.cols, rows: term.rows }
+      fit?.fit()
+      if (generation() === 0 || !gridsEqual(before, term)) setGeneration(g => g + 1)
+    })
+    onCleanup(() => cancelAnimationFrame(frame))
+  }))
+
   // Initial mount applies the current theme; later theme changes repaint
   // without coupling palette work to connection retries.
   createEffect(() => {

@@ -120,7 +120,9 @@ not URL or storage fields. Reports and page memories use those ids.
 the front lane. `usePane()` supplies the id, reactive index and mounted element.
 `useShown()` reports whether the page is currently drawn (including narrow-pane
 and folded-chat visibility). A lane is shown only while it is in front and
-layout declares content ready. Outside a visibility provider, `useShown()`
+at least one registered layout declares content ready. Each registration has its
+own release token; with no registrations the front lane is shown. Outside a lane,
+the service router reports shown even while page content is loading. Outside a visibility provider, `useShown()`
 falls back to the enclosing router and then to true if there is no router.
 Page listeners, overlays, focus and scrolling must honour that reading.
 

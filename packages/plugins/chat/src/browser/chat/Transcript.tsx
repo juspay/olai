@@ -182,13 +182,12 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     target.addEventListener("scroll", scrolled, { passive: true })
   }
   onCleanup(() => listening?.removeEventListener("scroll", scrolled))
-  createEffect(() => {
+  createEffect(on([shown, () => router?.split()], ([visible]) => {
     restoringVisibility = true
-    router?.split()
-    if (!shown()) return
+    if (!visible) return
     const frame = requestAnimationFrame(() => { bindScroll(); if (following) jump(); restoringVisibility = false })
     onCleanup(() => cancelAnimationFrame(frame))
-  })
+  }))
   onMount(() => {
     if (content === undefined || pane === undefined) return
     bindScroll()

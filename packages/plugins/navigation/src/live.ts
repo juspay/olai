@@ -77,7 +77,7 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
   })
 
 
-  const commit = (next: Workspace, how: "push" | "replace", land: (all: Landings) => Landings, keys: readonly string[] = ids()) => {
+  const commit = (next: Workspace, how: "push" | "replace", land: (all: Landings) => Landings, keys?: readonly string[]) => {
     write(next, how, () => batch(() => { address = hrefOfWorkspace(routing, next); setLandings(land); setWorkspace(next, keys) }))
   }
   const [reports, setReports] = createStore<Record<string, (() => PageInfo) | undefined>>({})

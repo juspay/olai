@@ -13,7 +13,7 @@ import { definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { desktop, holdShell } from "./browser/shell.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
 import { Effect } from "effect"
-import { createRoot, createSignal, createEffect, onCleanup, Show } from "solid-js"
+import { createRoot, createSignal, createMemo, onCleanup, Show } from "solid-js"
 
 import { Commit } from "./browser/commit/Commit.tsx"
 import { createGitStatus } from "./browser/commit/status.ts"
@@ -54,18 +54,18 @@ export default definePlugin({
      * unmounts rather than re-rendering into a half-torn-down row.
      */
     const [live, setLive] = createSignal(true)
-    const [prepared, setPrepared] = createSignal(false)
-    yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+    const preparation = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const identity = gitWire().cells.repository.use()
-      createEffect(() => {
-        const repository = identity.value()
-        if (repository == null) return
-        const release = prepareForRepository(repository)
-        setPrepared(true)
-        onCleanup(() => { setPrepared(false); release() })
+      // A reconnect temporarily withdraws the cell, not the repository owner.
+      const repository = createMemo<string | undefined>(previous => identity.value() ?? previous)
+      const ready = createMemo(() => {
+        const current = repository()
+        if (current === undefined) return false
+        onCleanup(prepareForRepository(current))
+        return true
       })
-      return dispose
-    })), dispose => Effect.sync(dispose))
+      return { dispose, ready }
+    })), owned => Effect.sync(owned.dispose))
 
     // THE READOUT'S STATUS for the bar's health dot, read while the popover
     // that draws the row is shut (`./browser/commit/status.ts`). Its own root,
@@ -79,12 +79,12 @@ export default definePlugin({
 
     yield* slots.register("app.header", {
       place: "cluster",
-      body: () => <Show when={live() && prepared()}><Commit /></Show>,
+      body: () => <Show when={live() && preparation.ready()}><Commit /></Show>,
       status: status.read,
     })
     // The phone's news belongs below the header, before the page content.
     yield* slots.register("app.banner", () => (
-      <Show when={live() && !desktop()}>
+      <Show when={live() && preparation.ready() && !desktop()}>
         <Commit />
       </Show>
     ))

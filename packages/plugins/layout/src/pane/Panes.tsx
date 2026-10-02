@@ -13,7 +13,7 @@
  */
 import { TESTID } from "olai-plugin-layout/testids"
 import type {Navigation} from "olai-plugin-navigation/contract"
-import { createSignal,createMemo,createSelector,For,onCleanup,Show } from "solid-js"
+import { createSignal,createMemo,createSelector,createComputed,createEffect,on,For,onCleanup,Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
@@ -50,24 +50,26 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   const columns = createMemo(() => router.split() && desktop())
   const focused = createSelector(router.focusIndex)
   let host: HTMLDivElement | undefined
-  let laneBox: DOMRect | undefined
+  const [laneBox, setLaneBox] = createSignal<DOMRect>()
   const scrolls = new Map<HTMLElement, { top: number; left: number }>()
   let alive = true
   onCleanup(() => { alive = false; scrolls.clear() })
   // Read positions and the lane box before hiding its contents. Restore after
   // it has geometry, before transcript followers perform their next-frame jump.
-  const visible = createMemo(() => {
-    const shown = router.shown()
+  const visible = router.shown
+  createComputed(on(visible, shown => {
     if (!shown) {
       const box = host?.getBoundingClientRect()
-      if (box && box.width > 0 && box.height > 0) laneBox = box
+      if (box && box.width > 0 && box.height > 0) setLaneBox(box)
       for (const host of scrolls.keys()) scrolls.set(host, { top: host.scrollTop, left: host.scrollLeft })
-    } else queueMicrotask(() => {
+    }
+  }))
+  createEffect(on(visible, shown => {
+    if (shown) queueMicrotask(() => {
       if (!alive || !router.shown()) return
       for (const [host, at] of scrolls) { host.scrollTop = at.top; host.scrollLeft = at.left }
     })
-    return shown
-  })
+  }))
   let row: HTMLDivElement | undefined
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
   const grow = createMemo(() => live() ?? flexOf(router.panes().map(pane => ({ route: pane.route(), width: pane.width() }))))
@@ -79,10 +81,10 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
       position: visible() ? undefined : "fixed",
       "pointer-events": visible() ? undefined : "none",
       overflow: visible() ? undefined : "hidden",
-      left: visible() ? undefined : `${laneBox?.x ?? 0}px`,
-      top: visible() ? undefined : `${laneBox?.y ?? 0}px`,
-      width: visible() ? undefined : `${laneBox?.width ?? 0}px`,
-      height: visible() ? undefined : `${laneBox?.height ?? 0}px`,
+      left: visible() ? undefined : `${laneBox()?.x ?? 0}px`,
+      top: visible() ? undefined : `${laneBox()?.y ?? 0}px`,
+      width: visible() ? undefined : `${laneBox()?.width ?? 0}px`,
+      height: visible() ? undefined : `${laneBox()?.height ?? 0}px`,
       "overflow-anchor": "none",
     }}
     classList={{ [PANES_SPLIT]: router.split(), [PANES_LONE]: !router.split() }}>

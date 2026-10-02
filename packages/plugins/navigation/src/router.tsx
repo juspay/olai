@@ -74,8 +74,8 @@ export const createRouter = (): NavigationRouter => {
   type Live = ReturnType<typeof createLane> & { dispose: () => void; name: ReturnType<typeof createSignal<string | null>> }
   const [live, setLive] = createSignal<readonly Live[]>([])
   const [front, setFront] = createSignal<Live>(undefined!)
-  const [contentVisibility, setContentVisibility] = createSignal<(() => boolean) | undefined>()
-  const drawn = createMemo(() => contentVisibility()?.() ?? true)
+  const [contentVisibility, setContentVisibility] = createSignal<readonly { shown: () => boolean }[]>([])
+  const drawn = createMemo(() => contentVisibility().length === 0 || contentVisibility().some(row => row.shown()))
   const retiring = new Set<Live>()
   const inFront = createSelector(front)
   const lanes = createMemo(() => live().map(one => one.value))
@@ -385,9 +385,9 @@ export const createRouter = (): NavigationRouter => {
   const current = (): Lane => front().value
   return {
     drawContent(shown) {
-      if (untrack(contentVisibility)) throw new Error("navigation content already has a layout owner")
-      setContentVisibility(() => shown)
-      return () => { if (untrack(contentVisibility) === shown) setContentVisibility(undefined) }
+      const row = { shown }
+      setContentVisibility(rows => [...rows, row])
+      return () => setContentVisibility(rows => rows.filter(one => one !== row))
     },
     lanes, lane, entryKey: () => currentKey, switchLane, forgetLane,
     routes: routing,
@@ -399,7 +399,7 @@ export const createRouter = (): NavigationRouter => {
     info: index => current().info(index),
     focused: createMemo(() => current().focused()),
     report: (index, info) => current().report(index, info),
-    shown: drawn,
+    shown: () => true,
     landing: index => current().landing(index),
     landed: (...args) => current().landed(...args),
     go: (...args) => current().go(...args),

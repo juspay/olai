@@ -27,7 +27,7 @@ export const createAgentReadings = (agents: Roster) => {
   const joined = new Map<ReturnType<typeof createConversationUI>, number>()
   const [visits, setVisits] = createStore<Record<string, Conversing | undefined>>({})
   const waiting = new Set<() => void>()
-  const needsSurfaces = new Set<HTMLElement>()
+  const needsSurfaces = new Set<{ element: HTMLElement; shown: () => boolean }>()
   let alive = true
   onCleanup(() => { alive = false; for (const entry of conversations.values()) entry.dispose(); conversations.clear(); for (const stop of [...awaitingEmpty.values()]) stop(); for (const stop of [...waiting]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
   const ui = (to: PanelAddress) => {
@@ -105,11 +105,12 @@ export const createAgentReadings = (agents: Roster) => {
       })
       return held.value
     },
-    needsSurface: (element: HTMLElement) => {
-      needsSurfaces.add(element)
-      onCleanup(() => needsSurfaces.delete(element))
+    needsSurface: (element: HTMLElement, shown: () => boolean) => {
+      const row = { element, shown }
+      needsSurfaces.add(row)
+      onCleanup(() => needsSurfaces.delete(row))
     },
-    focusNeeds: () => { [...needsSurfaces].find(element => element.isConnected && element.getClientRects().length > 0)?.focus() },
+    focusNeeds: () => { [...needsSurfaces].find(row => row.shown() && row.element.isConnected)?.element.focus() },
     visiting: (node: string) => visits[node],
     visit: (node: string, to?: Conversing) => { setVisits(node, to) },
     ready: (node: string, to: Conversing): Promise<Chat | string> => new Promise(resolve => {

@@ -117,10 +117,11 @@ export function DatePicker(props: {
   const incomplete = (): keyof typeof UNFINISHED | null =>
     unfinishedDay() ? "day" : unfinishedTime() ? "time" : null
   let dayBox: HTMLInputElement | undefined
+  let lastFocused: HTMLElement | undefined
   const shown = useShown()
   createEffect(() => {
     if (!shown()) return
-    queueMicrotask(() => { if (shown()) dayBox?.focus({ preventScroll: true }) })
+    queueMicrotask(() => { if (shown()) (lastFocused ?? dayBox)?.focus({ preventScroll: true }) })
   })
   let timeBox: HTMLInputElement | undefined
   /** A half-typed box leaves the DRAFT where it was. Its value reads as
@@ -191,6 +192,7 @@ export function DatePicker(props: {
           // the element is not in the document at the instant the signal
           // flips.
           ref={element => { dayBox = element }}
+          onFocus={event => { lastFocused = event.currentTarget }}
           onInput={(event) => readDay(event.currentTarget)}
           onKeyUp={(event) => readDay(event.currentTarget)}
         />
@@ -206,6 +208,7 @@ export function DatePicker(props: {
           data-testid={TESTID.datePickerTime}
           value={props.chosen.time}
           ref={(element) => { timeBox = element }}
+          onFocus={event => { lastFocused = event.currentTarget }}
           onInput={(event) => readTime(event.currentTarget)}
           onKeyUp={(event) => readTime(event.currentTarget)}
         />

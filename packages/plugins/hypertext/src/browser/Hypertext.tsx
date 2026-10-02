@@ -610,6 +610,10 @@ export function Hypertext(props: { readonly file: string }) {
     })
   }
 
+  createEffect(() => {
+    if (shown() && latest !== undefined) reported(latest)
+  })
+
   /** The file itself, at its own address on the media route — a fresh URL every
    *  time, for {@link VISIT}'s reason. */
   const show = () => {
