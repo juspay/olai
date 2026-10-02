@@ -1249,7 +1249,7 @@ export function Palette(props: {
             class="min-w-[8rem] flex-1 bg-transparent font-serif text-title italic text-ink outline-none placeholder:text-muted md:text-title"
             data-testid={TESTID.paletteInput}
             data-depth={inLevel() ? depth() : 0}
-            aria-label={inLevel() ? standingLives().map((live) => path().find((step) => step.serial === live.serial)?.label).join(" › ") : "Command palette"}
+            aria-label={inLevel() ? standingLives().map((live) => path().find((step) => step.serial === live.serial)?.label).join(" › ") : undefined}
             placeholder={boxSays()}
             value={boxText()}
             onInput={(e) => {
