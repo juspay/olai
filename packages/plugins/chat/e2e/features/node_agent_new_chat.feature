@@ -294,6 +294,7 @@ Feature: A new chat asks where it belongs before creating anything
     And I type new chat draft "first words"
     And I open the new chat location picker
     And I choose new chat under node "kitchen"
+    And I press the palette shortcut
     And I ask the palette "> more words"
     Then the new chat draft is "first words\nmore words"
     And the new chat location contains "kitchen"
@@ -306,7 +307,8 @@ Feature: A new chat asks where it belongs before creating anything
     And I type new chat draft "first words"
     And I send the new chat draft
     Then new chat in Chats is starting
-    When I ask the palette "> later words"
+    When I press the palette shortcut
+    And I ask the palette "> later words"
     Then the palette refuses with "A new chat is already starting" and retains "> later words"
     When I press "Escape"
     And the agent is released
@@ -358,7 +360,7 @@ Feature: A new chat asks where it belongs before creating anything
     And the agent is released
     Then the node page conversation is ready for "install"
     And the agent has answered "arriving in an existing page" exactly once
-    When I press new chat in Chats
+    When I close the focused pane
     Then new chat is ready to send
     And there should be no page errors
 
@@ -429,7 +431,8 @@ Feature: A new chat asks where it belongs before creating anything
     When I zoom into the node "install"
     And I send "hello" from the plain node composer
     Then the node page conversation is ready for "install"
-    When I ask the palette "> zoomed bound question"
+    When I press the palette shortcut
+    And I ask the palette "> zoomed bound question"
     Then the agent has answered "zoomed bound question" exactly once
     And there should be no page errors
 
