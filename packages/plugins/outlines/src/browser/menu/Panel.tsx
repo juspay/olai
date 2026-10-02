@@ -100,9 +100,9 @@ export function Panel(props: {
             const remembered = lastFocused
             const focusFirst = () => {
               if (!shown() || !el.isConnected) return
+              if (remembered?.isConnected) { remembered.focus({ preventScroll: true }); return }
               const active = document.activeElement
               if (active !== el && el.contains(active)) return
-              if (remembered?.isConnected) { remembered.focus({ preventScroll: true }); return }
               const first = el.querySelector('[role="menuitem"]')
               if (first instanceof HTMLElement) first.focus({ preventScroll: true })
             }
