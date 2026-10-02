@@ -19,12 +19,13 @@ Feature: The sidebar and command palette
     Then the sidebar width survived the reload
 
   @no-agent @scratch:chat
-  Scenario: A palette > ask that fails is shown, not swallowed
+  Scenario: A palette question without an engine opens the absence face
     Given I open the app
     When I press the palette shortcut
     And I ask the palette "> please do the thing"
-    Then the palette shows an ask error
-    And the command palette is open
+    Then new chat shows the no-agent face
+    And the Inbox contains no chat children
+    And there should be no page errors
 
   @corpus:good
   Scenario: The command palette opens from the keyboard
