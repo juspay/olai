@@ -152,7 +152,8 @@ Then("no page shows node {string}", async function(this: OlaiWorld, name: string
   await this.page.waitForTimeout(500);
   assert.equal(await this.page.locator(`${selector(PLUGIN_TESTID.agentPageFoot)}${attr("data-agent", this.nodeId(name))}`).count(), 0);
 });
-/** In-app, so this tab's memory (an unsent draft) survives the trip. */
+/** In-app, so this tab's memory (an unsent draft) survives the trip: the
+ *  palette's node hit lands on the node's own page. */
 When("I go to node {string} from the palette", async function(this: OlaiWorld, name: string) {
   const id = this.nodeId(name);
   await this.page.keyboard.press("ControlOrMeta+k");

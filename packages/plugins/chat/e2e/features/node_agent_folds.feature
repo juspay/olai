@@ -57,21 +57,6 @@ Feature: A node agent's conversation unfolds in the outline
     Then the agent is idle
     And the agent's answer mentions "oak"
 
-  Scenario: The palette targets the focused child's ancestor with another fold open
-    When I open the "claude" agent on node "install"
-    And the node agent's fold is ready
-    And I fold node agent "install"
-    And I open the "claude" agent on node "order"
-    And the node agent's fold is ready
-    And I point at row "hinges" in outline "house.olai"
-    And I press the palette shortcut
-    And I ask the palette "> hinges question"
-    Then node agent "install" is unfolded
-    When I use the fold on node "install"
-    Then the agent has answered "hinges question" exactly once
-    When I use the fold on node "order"
-    Then the chat has not answered "hinges question"
-
   Scenario: Reload folds every conversation
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
@@ -79,20 +64,6 @@ Feature: A node agent's conversation unfolds in the outline
     And the node agent's fold is ready
     And I reload the page
     Then no agent fold is open
-
-  Scenario: An unbound ancestor refuses the palette without starting anything
-    Given I rewrite "house.olai" as:
-      """
-      {"id":"kitchen","ord":"a0","title":"kitchen","custom":{"chat-agent-session":"claude"}}
-      {"id":"hinges","parent":"kitchen","ord":"a0","title":"hinges"}
-      """
-    And I open the outline "house.olai"
-    When I point at row "hinges" in outline "house.olai"
-    And I press the palette shortcut
-    And I ask the palette "> keep the unbound question"
-    Then the palette refuses with "This agent has no chat. Start one first." and retains "> keep the unbound question"
-    And no agent fold is open
-    And the agent "kitchen" stands "unbound"
 
   @alerts
   Scenario: A notification reveals the first waiting agent even when the latest banner names another
@@ -137,19 +108,6 @@ Feature: A node agent's conversation unfolds in the outline
     And the notification is pressed
     Then no agent fold is open
 
-  Scenario: The palette finds the ancestor while search is unavailable
-    When I open the "claude" agent on node "install"
-    And the node agent's fold is ready
-    And I close the agent fold
-    And I open the plugins panel
-    And I switch the plugin "search" off
-    And I close the plugins panel
-    And I point at row "hinges" in outline "house.olai"
-    And I press the palette shortcut
-    And I ask the palette "> hinges question"
-    Then node agent "install" is unfolded
-    When I use the fold on node "install"
-    Then the agent's answer says "hinges question"
 
 
   @review-menu

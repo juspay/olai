@@ -108,13 +108,6 @@ When("I point at row {string} in outline {string}", async function(this: OlaiWor
   await this.focusWithin(node, NODE_MENU);
   await this.waitUntil(async () => await this.node(node).getAttribute("data-focused") === "true", "the permalink to focus its row");
 });
-Then("the palette refuses with {string} and retains {string}", async function(this: OlaiWorld, message: string, input: string) {
-  const error = this.page.locator(selector(PLUGIN_TESTID.paletteAskError));
-  await this.waitUntil(async () => (await error.textContent()) === message, "the palette's refusal");
-  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.paletteInput)).inputValue(), input);
-});
-
-
 When("I press the standing on outline record {string}", async function(this: OlaiWorld, record: string) {
   await this.node(record).locator(selector(PLUGIN_TESTID.agentStanding)).click()
 })

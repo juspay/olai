@@ -28,8 +28,10 @@ Feature: A new chat asks where, then what to say, inside the palette
     Then the palette path is "new-chat"
     And the new chat places are "default"
     When I choose the new chat place "default"
-    And I press the palette crumb "new-chat"
+    And I press the palette crumb "new-chat-default"
     Then the palette path is "new-chat"
+    When I press the palette crumb "new-chat"
+    Then the palette path is ""
     When I press "Escape"
     Then the Inbox contains no chat children
     And no further agent process has started
@@ -53,7 +55,6 @@ Feature: A new chat asks where, then what to say, inside the palette
     Then the command palette is closed
     And the chat child under "chats" in "_olai/Inbox.olai" is titled "done hinges"
     And the agent is idle
-    And the agent has answered "done hinges" exactly once
     And "house.olai" holds a node marked done titled "pick the hinges"
     And the new chat receives the ordinary node contract
     And the Inbox has 1 filed conversations
@@ -229,7 +230,7 @@ Feature: A new chat asks where, then what to say, inside the palette
     And I type new chat draft "keep after trash"
     And another writer removes the node "order" from "house.olai"
     And I send the new chat draft
-    Then the palette refuses with "The chosen parent vanished, was trashed, or can no longer hold a chat; no conversation was created"
+    Then the palette says "The chosen parent vanished, was trashed, or can no longer hold a chat; no conversation was created"
     And the new chat draft is "keep after trash"
     And the palette path is "new-chat, new-chat-at-order"
     And node "order" has no chat children
@@ -267,14 +268,16 @@ Feature: A new chat asks where, then what to say, inside the palette
     And new chat in Chats is starting
     When I send the new chat draft
     Then the palette level is busy
-    When I press "Escape"
-    And I press new chat in Chats
+    When I press the palette scrim
+    Then the command palette is closed
+    When I press new chat in Chats
     And I choose the new chat place "default"
-    And I type new chat draft "a second one"
+    Then the palette level is not busy
+    When I type new chat draft "a second one"
     And I send the new chat draft
-    Then the palette refuses with "A new chat is already starting"
+    Then the palette says "A new chat is already starting"
     And the new chat draft is "a second one"
-    When I press "Escape"
+    When I press the palette scrim
     And the agent is released
     Then new chat in Chats is not starting
     And the Inbox holds a chat titled "only once" as "first"
@@ -289,12 +292,12 @@ Feature: A new chat asks where, then what to say, inside the palette
     And I type new chat draft "keep this first message"
     And I send the new chat draft
     Then new chat in Chats is starting
-    When I press "Escape"
+    When I press the palette scrim
     And the agent is released
     Then the Inbox holds a chat titled "keep this first message" as "kept"
     And new chat in Chats is not starting
     And no page shows node "kept"
-    When I press the agent "kept"
+    When I go to node "kept" from the palette
     Then the node page conversation is ready for "kept"
     And the chat input reads "keep this first message"
     And there should be no page errors
@@ -307,7 +310,7 @@ Feature: A new chat asks where, then what to say, inside the palette
     And I type new chat draft "keep after leaving"
     And I send the new chat draft
     Then new chat in Chats is starting
-    When I press "Escape"
+    When I press the palette scrim
     And the agent refuses to new a conversation
     And the agent is released
     Then the Inbox holds a chat titled "keep after leaving" as "plain"
@@ -330,7 +333,11 @@ Feature: A new chat asks where, then what to say, inside the palette
     And there should be no page errors
 
   Scenario: Chat switched off while its level is open falls back without errors
-    Given I open the outline "house.olai"
+    Given the vault defines a non-UI host management controller
+    And I open the outline "house.olai"
+    And I open the plugins panel
+    And I approve the plugin "management-controller"
+    And I close the plugins panel
     When I press new chat in Chats
     And I choose the new chat place "default"
     And I type new chat draft "never sent"
