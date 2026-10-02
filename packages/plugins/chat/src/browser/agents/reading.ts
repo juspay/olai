@@ -35,7 +35,8 @@ export const createAgentReadings = (agents: Roster) => {
     const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
     let entry = cache.get(key)
     if (entry === undefined) {
-      entry = runWithOwner(owner, () => createRoot(dispose => ({ to, value: createConversationUI(previews), dispose })))!
+      const address: PanelAddress = "session" in to ? { agent: to.agent, session: to.session } : { node: to.node }
+      entry = runWithOwner(owner, () => createRoot(dispose => ({ to: address, value: createConversationUI(previews), dispose })))!
       cache.set(key, entry)
     }
     return entry.value
