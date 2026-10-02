@@ -23,6 +23,7 @@ import { useHere } from "olai-plugin-navigation/routing"
 import { Key } from "@solid-primitives/keyed"
 import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
+import { useMenuContext } from "@kobalte/core/menu"
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { LAYER } from "@olai/web/client/layer.ts"
@@ -80,27 +81,13 @@ export function Panel(props: {
     const [open, setOpen] = createSignal(false)
     const afterGesture = createAfterGesture()
     let lastFocused: HTMLElement | undefined
-    return (
-    // `overlap`: on a phone there is no room beside the panel, so the submenu
-    // may slide back over it rather than hang off the screen's edge.
-    <DropdownMenu.Sub gutter={2} shift={-5} overlap open={open()} onOpenChange={next => {
-      if (!shown()) return
-      if (next) setOpen(true)
-      else afterGesture(() => { if (shown()) setOpen(false) })
-    }}>
-      <DropdownMenu.SubTrigger
-        ref={(el: HTMLElement) => entries.set(sub.entry.id, el)}
-        class={`${MENU_ITEM} flex items-center justify-between gap-6 data-[expanded]:bg-rule`}
-        data-testid={TESTID.nodeMenuItem}
-        data-action={sub.entry.id}
-        // Opens on its click, which a tap's ghost-eater must leave alone
-        // (`./Dropdown.tsx`'s `tappedInPanel`).
-        data-opens=""
-      >
-        <span>{sub.entry.label}</span>
-        <span class="text-muted" aria-hidden="true">›</span>
-      </DropdownMenu.SubTrigger>
-      <DropdownMenu.Portal mount={overlayRoot()}>
+    let nestedMenus: () => Element[] = () => []
+    const insideChild = (target: EventTarget | null) => target instanceof Node && nestedMenus().some(element => element.contains(target))
+    const Surface = () => {
+      const menu = useMenuContext()
+      nestedMenus = menu.nestedMenus
+      onCleanup(() => { nestedMenus = () => [] })
+      return (
         <RetainedContent draw={content => <DropdownMenu.SubContent
           style={{ display: shown() ? undefined : "none" }}
         {...{ [PAGE_SUBJECT]: String(here()) }}
@@ -133,12 +120,39 @@ export function Panel(props: {
             props.gestures.onFocusIn(event)
           }}
           onFocusOutside={event => event.preventDefault()}
+          onPointerDownOutside={event => {
+            if (insideChild(event.detail.originalEvent.target)) event.preventDefault()
+          }}
           onKeyDown={props.gestures.onKeyDown}
           onPointerDown={props.gestures.onPointerDown}
           onPointerUp={props.gestures.onPointerUp}
         >{content}</DropdownMenu.SubContent>}>
           <Entries entries={sub.entry.entries} />
         </RetainedContent>
+      )
+    }
+    return (
+    // `overlap`: on a phone there is no room beside the panel, so the submenu
+    // may slide back over it rather than hang off the screen's edge.
+    <DropdownMenu.Sub gutter={2} shift={-5} overlap open={open()} onOpenChange={next => {
+      if (!shown()) return
+      if (next) setOpen(true)
+      else afterGesture(() => { if (shown() && !insideChild(document.activeElement)) setOpen(false) })
+    }}>
+      <DropdownMenu.SubTrigger
+        ref={(el: HTMLElement) => entries.set(sub.entry.id, el)}
+        class={`${MENU_ITEM} flex items-center justify-between gap-6 data-[expanded]:bg-rule`}
+        data-testid={TESTID.nodeMenuItem}
+        data-action={sub.entry.id}
+        // Opens on its click, which a tap's ghost-eater must leave alone
+        // (`./Dropdown.tsx`'s `tappedInPanel`).
+        data-opens=""
+      >
+        <span>{sub.entry.label}</span>
+        <span class="text-muted" aria-hidden="true">›</span>
+      </DropdownMenu.SubTrigger>
+      <DropdownMenu.Portal mount={overlayRoot()}>
+        <Surface />
       </DropdownMenu.Portal>
     </DropdownMenu.Sub>
     )
