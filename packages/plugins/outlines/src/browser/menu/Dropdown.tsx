@@ -1,6 +1,6 @@
 import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
 import { RetainedContent } from "./RetainedContent.tsx"
-import { createEffect, splitProps } from "solid-js"
+import { createEffect, onMount, onCleanup, splitProps } from "solid-js"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 import { useShown, useHere } from "olai-plugin-navigation/routing"
 import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
@@ -292,7 +292,15 @@ export function Dropdown(props: {
           // `preventScroll`: a portal mounts the panel before floating-ui
           // has placed it, and a focus that scrolled to that first box
           // jumped the page out from under the row the menu belongs to.
-          queueMicrotask(() => { if (shown()) (lastFocused?.isConnected ? lastFocused : el).focus({ preventScroll: true }) })
+          const remembered = lastFocused
+          onMount(() => {
+            // Kobalte defers its list autofocus. Restore this menu's entry
+            // afterwards, so reopening the layer cannot reset the highlight.
+            const timer = setTimeout(() => {
+              if (shown() && el.isConnected) (remembered?.isConnected ? remembered : el).focus({ preventScroll: true })
+            }, 0)
+            onCleanup(() => clearTimeout(timer))
+          })
         }}
         data-testid={TESTID.nodeMenuPanel}
         // NAMED here rather than by the trigger Kobalte would point at

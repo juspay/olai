@@ -24,7 +24,7 @@ import { Key } from "@solid-primitives/keyed"
 import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
-import { createSignal, For, onCleanup, Show } from "solid-js"
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 import { asks, isSub, type MenuAction, type MenuEntry, type MenuSub } from "./action.ts"
@@ -110,16 +110,19 @@ export function Panel(props: {
             // Focusing the row runs its own onFocus, which is what makes the
             // following arrow move off it. A caret already inside the submenu
             // is left where the arrows put it.
+            const remembered = lastFocused
             const focusFirst = () => {
               if (!shown() || !el.isConnected) return
               const active = document.activeElement
               if (active !== el && el.contains(active)) return
-              if (lastFocused?.isConnected) { lastFocused.focus({ preventScroll: true }); return }
+              if (remembered?.isConnected) { remembered.focus({ preventScroll: true }); return }
               const first = el.querySelector('[role="menuitem"]')
               if (first instanceof HTMLElement) first.focus({ preventScroll: true })
             }
-            focusFirst()
-            queueMicrotask(focusFirst)
+            onMount(() => {
+              const timer = setTimeout(focusFirst, 0)
+              onCleanup(() => clearTimeout(timer))
+            })
           }}
           class={`${MENU_PANEL} ${LAYER.row} pointer-events-auto`}
           data-testid={TESTID.nodeMenuSub}

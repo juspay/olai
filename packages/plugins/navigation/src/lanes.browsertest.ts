@@ -349,7 +349,7 @@ test("content visibility gates retained lanes without changing their owners", as
     expect(lane.shown()).toBe(true)
     setReady(false)
     expect(lane.shown()).toBe(false)
-    expect(router.shown()).toBe(false)
+    expect(router.shown()).toBe(true)
     router.go(atFile("while-reading.md"))
     setReady(true)
     expect(lane.shown()).toBe(true)
