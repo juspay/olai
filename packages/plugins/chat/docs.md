@@ -107,8 +107,8 @@ available engine in bundle order in its composer select. Fresh start
 uses it only to decide whether to open a menu; its direct request always names
 the node's current engine.
 
-Optional dependencies remain in separate scoped components. Navigation and its
-existing palette control supply route changes and palette availability;
+Optional dependencies remain in separate scoped components. Navigation supplies
+route changes; the retired palette engine chooser no longer holds palette control;
 outline references supply focused-row context; the search reading supplies
 completions. The `plugins` component needs the inspector's declared
 `plugin-inspector.configuration` service and holds its `open` in a
