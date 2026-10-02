@@ -12,6 +12,7 @@ import { hitRow } from "olai-plugin-search/ui/row.ts"
 import { atOnce,type Taking } from "@olai/web/client/settled.ts"
 import { HOME_ROUTE,type Route } from "olai-plugin-navigation/routes"
 import type { Asking } from "./asking.ts"
+import type { PaletteLevel, PaletteRunResult } from "./levels.ts"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -28,7 +29,13 @@ export type PaletteAction =
    * shelf that may have moved.
    */
   | { readonly kind: "pin" }
-  | { readonly kind: "run"; readonly run: () => Promise<{readonly keepOpen?: boolean; readonly said?: import("@olai/web/client/saying.ts").Said}> }
+  | { readonly kind: "run"; readonly run: () => Promise<PaletteRunResult> }
+  /**
+   * OPEN A LEVEL — the row's children replace the list and its label becomes
+   * a crumb before the input (`./levels.ts`). Found by its own label at the
+   * root like any command; its children are never searched from the root.
+   */
+  | { readonly kind: "level"; readonly level: PaletteLevel }
   /**
    * ONE OP, at the write gate every other write in this app goes through
    * (`../writes.ts`) — the row carries the {@link Edit} it will send, decided
@@ -71,6 +78,9 @@ export interface PaletteItem {
    *  construction, which is why it may sit beside the label without ever
    *  starving it. */
   readonly hint?: string
+  /** A heading the row is drawn under inside a level. Ignored at the root,
+   *  whose order is the palette's own. */
+  readonly section?: string
   /**
    * WHERE this row's node lives, drawn on a SECOND line under the title.
    *
@@ -363,17 +373,30 @@ export type Mode =
  * draws. Read as ONE value, a question EXCLUDES a prefix and a filter by
  * construction, and the ordering rule stops being a rule.
  */
-export type Box = Mode | { readonly kind: "answering"; readonly question: Asking }
+export type Box =
+  | Mode
+  | { readonly kind: "answering"; readonly question: Asking }
+  /** A level is open (`./levels.ts`): the box is that level's own text, so
+   *  neither a prefix nor the root filter reads it — a `+` typed here is a
+   *  character. */
+  | { readonly kind: "level" }
 
-/** What the box is doing, from the three things that decide it: the question
- *  that is up, if any, the words in the box, and which prefixes are on offer at
- *  the moment they were typed. */
+/** What the box is doing, from the four things that decide it: the question
+ *  that is up, if any, whether a level is open, the words in the box, and
+ *  which prefixes are on offer at the moment they were typed. A question
+ *  stands over a level; prefixes apply only at the root. */
 export const boxOf = (
   raw: string,
   question: Asking | null,
   commands: ReadonlyArray<AppCommand>,
   prefixes: ReadonlyArray<PalettePrefix> = [],
-): Box => question === null ? modeOf(raw, commands, prefixes) : { kind: "answering", question }
+  inLevel = false,
+): Box =>
+  question !== null
+    ? { kind: "answering", question }
+    : inLevel
+      ? { kind: "level" }
+      : modeOf(raw, commands, prefixes)
 
 /** Parse only contributions that are active in this composition. */
 export const modeOf = (raw: string, commands: ReadonlyArray<AppCommand>, prefixes: ReadonlyArray<PalettePrefix> = []): Mode => {

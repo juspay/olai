@@ -60,20 +60,25 @@ import type {} from "olai-plugin-search/box"
 import { paletteOnly } from "../faces.ts"
 import { TESTID } from "olai-plugin-navigation/testids"
 import type { AppCommand } from "olai-plugin-navigation/slots"
-import { type Navigation,paletteAdapters } from "../index.ts"
+import { type Navigation,type PaletteAdapter,paletteAdapters } from "../index.ts"
 import { readLocation } from "../locations.ts"
 import { Key } from "@solid-primitives/keyed"
 import {
+type Accessor,
+batch,
 createEffect,
 createMemo,
+createRoot,
 createSelector,
 createSignal,
+For,
 Match,
 on,
 onCleanup,
 onMount,
 Show,
 Switch,
+untrack,
 } from "solid-js"
 
 import { needlesFrom } from "@olai/format"
@@ -116,9 +121,26 @@ import {
 askInPalette,
 closePalette,
 dropQuestion,
+type OpenAt,
 paletteAsking,
+paletteAt,
 paletteOpen,
 } from "./state.ts"
+import {
+chosenOption,
+drill,
+type LevelRows,
+type LevelScope,
+openStep,
+type PaletteLevel,
+type PaletteOption,
+popTo,
+resolvePath,
+type Step,
+stepOption,
+submitting,
+updateStep,
+} from "./levels.ts"
 import { Question } from "./Question.tsx"
 import { Shortcuts } from "./Shortcuts.tsx"
 
@@ -145,6 +167,27 @@ const memory = {
   askError: createSignal<string | null>(null),
   said: createSignal<Said | null>(null),
   sending: createSignal(false),
+  /** THE OPEN LEVELS, root first (`./levels.ts`'s `Step`). Held here rather
+   *  than in the drawing so a draft typed at a level, and a submit in flight
+   *  from it, outlive a redraw; each step's controller is its lifetime. */
+  path: createSignal<ReadonlyArray<Step>>([]),
+}
+/** The last `showAt` request a drawing acted on, so a redraw does not act on
+ *  it twice. */
+let handledAt: OpenAt | null = null
+/** End these levels' lifetimes: whatever they started is told to stop, and
+ *  any answer they get from here on is dropped. */
+const abortSteps = (steps: ReadonlyArray<Step>) => { for (const step of steps) step.controller.abort() }
+/** One open level's live rows, in a Solid root the drawing owns. */
+interface Live {
+  readonly serial: number
+  readonly level: PaletteLevel
+  /** The adapter the root of this path came from. Its withdrawal is the
+   *  level's. */
+  readonly adapter: PaletteAdapter
+  readonly rows: Accessor<ReadonlyArray<PaletteItem>>
+  readonly options: Accessor<ReadonlyArray<PaletteOption>>
+  readonly dispose: () => void
 }
 let queryRevision = 0
 let paletteRevision = 0
@@ -165,6 +208,16 @@ export function Palette(props: {
   const setQuery = (value: string) => {
     queryRevision++
     writeQuery(value)
+  }
+  /** Type into the box: the level's own text while one owns it. */
+  const setBoxText = (value: string) => {
+    const at = untrack(top)
+    if (at === undefined || !untrack(inLevel)) {
+      setQuery(value)
+      return
+    }
+    queryRevision++
+    setPath((steps) => updateStep(steps, at.step.serial, (step) => ({ ...step, text: value })))
   }
   /** A late action can answer only the opening and input that invoked it. */
   const currentInteraction = () => {
@@ -297,7 +350,73 @@ export function Palette(props: {
    *  `chordsIn`). */
   const chords = createMemo(() => chordsIn(paletteFaces("app.keys"), CHORDS))
 
-  const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes()))
+  // ── LEVELS ───────────────────────────────────────────────────────────────
+  //
+  // The path is `memory.path` (data, owned by navigation's activation); each
+  // step's ROWS are computed in a Solid root this drawing owns — `Live` —
+  // opened when the step is drilled into or the drawing is rebuilt, disposed
+  // when the step is popped, the palette closes, the contributing adapter is
+  // withdrawn, or this drawing goes.
+  const [path, setPath] = memory.path
+  const [lives, setLives] = createSignal<ReadonlyArray<Live>>([])
+  onCleanup(() => { for (const live of untrack(lives)) live.dispose() })
+  const NONE: Accessor<ReadonlyArray<never>> = () => []
+  const openLive = (step: Step, level: PaletteLevel, adapter: PaletteAdapter): Live =>
+    createRoot((dispose) => {
+      const typed = createMemo(() => path().find((one) => one.serial === step.serial)?.text ?? "")
+      const scope: LevelScope = { typed, signal: step.controller.signal }
+      const computed = <R,>(rows: LevelRows<R>, filter: (text: string, rows: ReadonlyArray<R>) => ReadonlyArray<R>): Accessor<ReadonlyArray<R>> => {
+        if (typeof rows !== "function") return createMemo(() => filter(typed(), rows))
+        try {
+          return rows(scope)
+        } catch (fault) {
+          console.error(`olai: the palette level "${step.label}" failed to list its rows`, fault)
+          return NONE
+        }
+      }
+      return {
+        serial: step.serial,
+        level,
+        adapter,
+        rows: level.kind === "group" ? computed(level.children, (text, rows) => filterItems(text, rows)) : NONE,
+        options: level.kind === "value" ? computed(level.options, (_text, rows) => rows) : NONE,
+        dispose,
+      }
+    })
+  /** The levels still standing: cut at the first whose adapter has been
+   *  withdrawn, so nothing is drawn from a dead contribution even for the
+   *  moment before the effect below takes it down. */
+  const standingLives = createMemo(() => {
+    const live = adapters()
+    const all = lives()
+    const dead = all.findIndex((one) => !live.includes(one.adapter))
+    return dead === -1 ? all : all.slice(0, dead)
+  })
+  const depth = () => standingLives().length
+  /** The level on top, with its step — or `undefined` at the root. */
+  const top = createMemo(() => {
+    const live = standingLives().at(-1)
+    if (live === undefined) return undefined
+    const step = path().find((one) => one.serial === live.serial)
+    return step === undefined ? undefined : { live, step }
+  })
+  /** What a screen reader is told when the level changes. */
+  const [announced, setAnnounced] = createSignal("")
+  const announce = (to: ReadonlyArray<Step>) =>
+    setAnnounced(to.length === 0 ? "All commands" : to.map((step) => step.label).join(", "))
+  /** Root rows that open a level, with the adapter that contributed each. */
+  const levelRoots = () =>
+    adapters().flatMap((adapter) =>
+      adapter.available?.() === false ? [] : (adapter.items?.() ?? []).map((item) => ({ item, adapter })))
+
+  const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes(), depth() > 0))
+  /** A level owns the box — unless a question has borrowed it. */
+  const inLevel = () => box().kind === "level"
+  /** The text in the box, wherever it is kept. */
+  const boxText = () => {
+    const at = top()
+    return inLevel() && at !== undefined ? at.step.text : query()
+  }
   const listing = () => box().kind === "filter"
 
   /** What the box is FOR, said in it while it is empty — or, while a typed
@@ -312,6 +431,10 @@ export function Palette(props: {
    *  does nothing. */
   const boxSays = () => {
     const it = box()
+    if (it.kind === "level") {
+      const level = top()?.live.level
+      return level?.placeholder ?? (level?.kind === "value" ? "Type…" : "Filter…")
+    }
     if (it.kind === "answering" && it.question.kind === "line") {
       return it.question.placeholder
     }
@@ -375,7 +498,14 @@ export function Palette(props: {
     // (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.5). Solid re-tracks
     // per run, so while the palette is shut this depends on `paletteOpen()`
     // and nothing else.
-    if (!paletteOpen() || !listing()) return [] as ReadonlyArray<PaletteItem>
+    if (!paletteOpen()) return [] as ReadonlyArray<PaletteItem>
+    // A GROUP LEVEL'S ROWS are the list while it is on top; a value level's
+    // options are not rows and are walked by their own arrows.
+    if (box().kind === "level") {
+      const live = top()?.live
+      return live?.level.kind === "group" ? live.rows() : []
+    }
+    if (!listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what
     // the reader is looking at — a list whose contextual half is below the
     // fold is a list nobody finds them in. What makes that safe is
@@ -427,6 +557,7 @@ export function Palette(props: {
    *  them. `text` is what the box starts with: empty, or a primed prefix. */
   const blank = (text = "") => {
     paletteRevision++
+    popLevels(0, false)
     setQuery(text)
     cursor.top()
     setChosen(false)
@@ -456,6 +587,179 @@ export function Palette(props: {
   }
 
   /**
+   * GO BACK to `to` levels open — Backspace on an empty box, a crumb, a
+   * close. What is popped is aborted and its rows' scope disposed, so no work
+   * a level started outlives it.
+   */
+  function popLevels(to: number, focus = true) {
+    const { kept, dropped } = popTo(untrack(path), to)
+    if (dropped.length === 0) return
+    abortSteps(dropped)
+    const gone = untrack(lives).slice(kept.length)
+    batch(() => {
+      queryRevision++
+      setPath(kept)
+      setLives((all) => all.slice(0, kept.length))
+      cursor.top()
+      setChosen(kept.length > 0)
+      setAskError(null)
+      setSaid(null)
+      announce(kept)
+    })
+    for (const live of gone) live.dispose()
+    if (focus) input?.focus()
+  }
+
+  /** Open the level a row names, on top of the path. */
+  const drillInto = (item: PaletteItem, level: PaletteLevel) => {
+    const below = untrack(top)
+    const adapter = below?.live.adapter
+      ?? untrack(levelRoots).find((one) => one.item.id === item.id && one.item.action.kind === "level")?.adapter
+    if (adapter === undefined) return
+    const step = openStep(item.id, item.label, level.kind === "value" ? level.initial ?? "" : "")
+    const live = openLive(step, level, adapter)
+    batch(() => {
+      queryRevision++
+      if (below === undefined) writeQuery("")
+      setPath((steps) => drill(steps, step))
+      setLives((all) => [...all, live])
+      cursor.top()
+      setChosen(true)
+      setAskError(null)
+      setSaid(null)
+      announce(untrack(path))
+    })
+    input?.focus()
+  }
+
+  /**
+   * Re-open a path of row ids against the LIVE contributions, level by
+   * level — what a redraw does with the remembered path, and what `showAt`
+   * does with a requested one. It stops at the first id that does not
+   * resolve; `make` says what each found step is.
+   */
+  const resolveLevels = (
+    ids: ReadonlyArray<string>,
+    make: (depth: number, item: PaletteItem, level: PaletteLevel) => Step,
+  ): ReadonlyArray<{ readonly step: Step; readonly live: Live }> => {
+    const opened: Array<{ readonly step: Step; readonly live: Live }> = []
+    const found = resolvePath(ids, (at, id) => untrack(() => {
+      const below = opened.at(-1)?.live
+      const candidates = below === undefined
+        ? levelRoots()
+        : below.level.kind === "group"
+          ? below.rows().map((item) => ({ item, adapter: below.adapter }))
+          : []
+      const hit = candidates.find((one) => one.item.id === id && one.item.action.kind === "level")
+      if (hit === undefined || hit.item.action.kind !== "level") return undefined
+      const level = hit.item.action.level
+      const step = make(at, hit.item, level)
+      opened.push({ step, live: openLive(step, level, hit.adapter) })
+      return step
+    }))
+    return opened.slice(0, found.length)
+  }
+
+  /** Put a resolved path in place of whatever was open. */
+  const installLevels = (opened: ReadonlyArray<{ readonly step: Step; readonly live: Live }>) => {
+    const gone = untrack(lives)
+    batch(() => {
+      queryRevision++
+      setPath(opened.map((one) => one.step))
+      setLives(opened.map((one) => one.live))
+      cursor.top()
+      setChosen(opened.length > 0)
+      announce(opened.map((one) => one.step))
+    })
+    for (const live of gone) live.dispose()
+  }
+
+  /** A drawing rebuilt over open levels: re-resolve the remembered path. What
+   *  no longer resolves — its plugin was withdrawn — falls back, and says so;
+   *  its return will not re-open it. */
+  const restoreLevels = () => {
+    const remembered = untrack(path)
+    if (remembered.length === 0) return
+    const opened = resolveLevels(remembered.map((step) => step.id), (at) => remembered[at]!)
+    abortSteps(remembered.slice(opened.length))
+    installLevels(opened)
+    if (opened.length < remembered.length) fellBack(remembered[opened.length]!)
+  }
+
+  /** `showAt`: open at a path of ids, as deep as it resolves. */
+  const openAt = (at: OpenAt) => {
+    abortSteps(untrack(path))
+    const opened = resolveLevels(at.path, (depth, item, level) =>
+      openStep(item.id, item.label, level.kind === "value" ? level.initial ?? "" : ""))
+    const last = opened.at(-1)
+    const full = opened.length === at.path.length
+    installLevels(
+      full && last !== undefined && at.text !== undefined
+        ? [...opened.slice(0, -1), { ...last, step: { ...last.step, text: at.text } }]
+        : opened,
+    )
+    if (opened.length === 0) setQuery("")
+    input?.focus()
+  }
+
+  /** The level named was withdrawn under the person: say so, in the aside
+   *  tone — nothing they did was refused. */
+  const fellBack = (step: Step) => setSaid({ tone: "aside", text: `“${step.label}” is no longer available.` })
+
+  /** A value level's chosen option, and the arrows that move it. */
+  const valueTop = () => {
+    const at = top()
+    if (at === undefined || at.live.level.kind !== "value") return undefined
+    const level = at.live.level
+    const options = at.live.options()
+    return { ...at, level, options, chosen: chosenOption(options, at.step.option, level.chosen) }
+  }
+  const chooseOption = (option: PaletteOption | undefined) => {
+    const at = untrack(top)
+    if (at === undefined || option === undefined) return
+    setPath((steps) => updateStep(steps, at.step.serial, (step) => ({ ...step, option: option.id })))
+  }
+
+  /**
+   * SUBMIT A VALUE LEVEL — the typed text with the chosen option. Refused in
+   * place by the level's validator; refused while one is in flight; and its
+   * answer, like a `run` row's, closes the palette or keeps it up with
+   * something said. An answer for a level that is gone — popped, closed,
+   * withdrawn — changes nothing.
+   */
+  const submitValue = () => {
+    const at = untrack(valueTop)
+    if (at === undefined) return
+    const verdict = submitting(at.level, at.step, at.options)
+    if (verdict.kind === "busy") return
+    if (verdict.kind === "refused") {
+      setAskError(verdict.sentence)
+      return
+    }
+    const { serial, controller } = at.step
+    const settle = () => setPath((steps) => updateStep(steps, serial, (step) => ({ ...step, busy: false })))
+    setPath((steps) => updateStep(steps, serial, (step) => ({ ...step, busy: true })))
+    setAskError(null)
+    setSaid(null)
+    void Promise.resolve()
+      .then(() => at.level.submit(verdict.text, verdict.option, controller.signal))
+      .then(
+        (result) => {
+          if (controller.signal.aborted) return
+          settle()
+          if (result.said) setSaid(result.said)
+          else if (!result.keepOpen) close()
+        },
+        (fault: unknown) => {
+          if (controller.signal.aborted) return
+          settle()
+          console.error(`olai: the palette level "${at.step.label}" failed to submit`, fault)
+          setSaid({ tone: "alarm", text: "That didn't work. Try again." })
+        },
+      )
+  }
+
+  /**
    * Opening is an EFFECT of the signal rather than something a door does, so
    * every door opens the same palette: the chord below, and the header's
    * magnifier on a phone, which sets the signal and knows nothing about a
@@ -469,6 +773,7 @@ export function Palette(props: {
       ? document.activeElement
       : null
     if (!(firstOpening && resuming)) blank()
+    else untrack(restoreLevels)
     firstOpening = false
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
@@ -486,6 +791,25 @@ export function Palette(props: {
    * filter it is drawn over, which is not what backing out of one has ever
    * done.
    */
+  /** …and a request to open AT a path (`PaletteControl.showAt`), acted on
+   *  once — after the opening above, which is what blanks the box first. */
+  createEffect(on(paletteAt, (at) => {
+    if (at === null || at === handledAt) return
+    handledAt = at
+    openAt(at)
+  }))
+
+  /** THE CONTRIBUTING PLUGIN LEFT while its level was open: take down what
+   *  it opened (its scopes, its submits) and stand at the deepest level that
+   *  is still there. `standingLives` already stopped drawing it. */
+  createEffect(() => {
+    const standing = standingLives()
+    if (standing.length === untrack(lives).length) return
+    const lost = untrack(path)[standing.length]
+    untrack(() => popLevels(standing.length, false))
+    if (lost !== undefined) fellBack(lost)
+  })
+
   let firstQuestion = true
   createEffect(
     on(paletteAsking, (question) => {
@@ -520,8 +844,15 @@ export function Palette(props: {
       return
     }
     if (action.kind === "prefix") {
+      // A prefix is the ROOT's grammar, so choosing one inside a level goes
+      // back there first.
+      popLevels(0, false)
       setSaid(null)
       prime(action.prefix)
+      return
+    }
+    if (action.kind === "level") {
+      drillInto(item, action.level)
       return
     }
     if (action.kind === "run") {
@@ -704,6 +1035,10 @@ export function Palette(props: {
       answer(it.question)
       return
     }
+    if (it.kind === "level" && untrack(valueTop) !== undefined) {
+      submitValue()
+      return
+    }
     if (it.kind === "command") {
       runCommand(it.command, it.text)
       return
@@ -738,6 +1073,11 @@ export function Palette(props: {
    * where it is standing before anybody has chosen is the top.
    */
   const walk = (by: 1 | -1) => {
+    const value = valueTop()
+    if (inLevel() && value !== undefined) {
+      chooseOption(stepOption(value.options, value.chosen, by))
+      return
+    }
     const many = items().length
     if (many === 0) return
     if (!chosen()) {
@@ -873,20 +1213,50 @@ export function Palette(props: {
         <div
           class={`relative ${WITHIN.raised} flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule/40 md:h-auto`}
         >
+          {/* THE BOX ROW: a crumb per open level, then the input. A crumb is
+              the pointer's and the finger's way back — pressing one closes
+              that level and every level after it. */}
+          <div class="flex w-full shrink-0 flex-wrap items-center gap-1.5 border-b border-rule px-4 py-3 md:px-5 md:py-4">
+            <Show when={inLevel()}>
+              <For each={standingLives()}>
+                {(live, index) => (
+                  <button
+                    type="button"
+                    class="max-w-full shrink-0 cursor-pointer truncate rounded-control bg-rule/60 px-2 py-0.5 text-caption font-medium text-ink hover:bg-rule"
+                    data-testid={TESTID.paletteCrumb}
+                    data-id={path().find((step) => step.serial === live.serial)?.id}
+                    aria-label={`Back from ${path().find((step) => step.serial === live.serial)?.label ?? ""}`}
+                    // The caret stays in the box: a crumb is pressed, not focused.
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => popLevels(index())}
+                  >
+                    {path().find((step) => step.serial === live.serial)?.label} ›
+                  </button>
+                )}
+              </For>
+            </Show>
           <input
             ref={input}
             type="text"
-            class="w-full shrink-0 border-b border-rule bg-transparent px-4 py-3 font-serif text-title italic text-ink outline-none placeholder:text-muted md:px-5 md:py-4 md:text-title"
+            class="min-w-[8rem] flex-1 bg-transparent font-serif text-title italic text-ink outline-none placeholder:text-muted md:text-title"
             data-testid={TESTID.paletteInput}
+            data-depth={inLevel() ? depth() : 0}
+            aria-label={inLevel() ? standingLives().map((live) => path().find((step) => step.serial === live.serial)?.label).join(" › ") : "Command palette"}
             placeholder={boxSays()}
-            value={query()}
+            value={boxText()}
             onInput={(e) => {
-              setQuery(e.currentTarget.value)
+              setBoxText(e.currentTarget.value)
+              // A value level's options are a choice, not a list being
+              // searched: typing neither filters nor moves them.
+              if (valueTop() !== undefined && inLevel()) {
+                setAskError(null)
+                return
+              }
               cursor.top()
               // The first character typed IS the choice — it lights the best
               // match, which is what a type-ahead is. An emptied box goes back
-              // to having chosen nothing.
-              setChosen(e.currentTarget.value.trim() !== "")
+              // to having chosen nothing; inside a level, opening it was.
+              setChosen(inLevel() || e.currentTarget.value.trim() !== "")
               setAskError(null)
             }}
             // WHICH key is the registry's (`../keys.ts`'s list layer, the same
@@ -902,6 +1272,13 @@ export function Palette(props: {
             // answered once, on the window, where every layer has already been
             // asked (`onMount` above, and `../topmost.ts`).
             onKeyDown={(e) => {
+              // BACKSPACE ON AN EMPTY BOX GOES BACK one level. Never mid-IME:
+              // a composition's own Backspace is not ours.
+              if (e.key === "Backspace" && !e.isComposing && inLevel() && e.currentTarget.value === "") {
+                e.preventDefault()
+                popLevels(depth() - 1)
+                return
+              }
               const action = listKey(e, true)
               if (action === "cycle") {
                 const face = listing() ? below() : undefined
@@ -915,6 +1292,12 @@ export function Palette(props: {
               if (action === "take") confirm()
             }}
           />
+          </div>
+          {/* WHERE THE PERSON IS, said when it changes — the crumbs are drawn,
+              and this is their spoken half. The caret never leaves the box. */}
+          <p class="sr-only" role="status" aria-live="polite" data-testid={TESTID.paletteLevelStatus}>
+            {announced()}
+          </p>
           <Show when={askError()}>
             {(err) => (
               <SaidLine
@@ -1007,7 +1390,7 @@ export function Palette(props: {
 
                           from={item().from}
                           needles={needles()}
-                          hint={item().hint}
+                          hint={item().hint ?? (item().action.kind === "level" ? "›" : undefined)}
                           place={item().place}
                           props={item().props}
                           active={lit(index())}
@@ -1042,6 +1425,28 @@ export function Palette(props: {
             {/* THE QUESTION FIRST, above both prefixes: it is up because
                 somebody chose the verb that asks it, and nothing they type
                 next may quietly become the answer. */}
+            <Match when={inLevel() ? top() : undefined}>
+              {(at) => (
+                <LevelView
+                  live={at().live}
+                  step={at().step}
+                  items={items()}
+                  lit={lit}
+                  value={valueTop()}
+                  needles={needles()}
+                  onHover={(index) => {
+                    setChosen(true)
+                    cursor.to(index)
+                  }}
+                  onSelect={runItem}
+                  onOption={(option) => {
+                    chooseOption(option)
+                    submitValue()
+                  }}
+                  onSubmit={submitValue}
+                />
+              )}
+            </Match>
             <Match when={only(box(), "answering")}>
               {(it) => (
                 <Question
@@ -1125,10 +1530,182 @@ function Composing(props: {
   )
 }
 
+/**
+ * AN OPEN LEVEL, drawn in the list's place: a group's rows under their
+ * section headings, or a value level's options as one radio group — then the
+ * level's hint, and a footer naming the keys (and, for a value level, the
+ * submit a pointer or a finger can reach).
+ */
+function LevelView(props: {
+  readonly live: Live
+  readonly step: Step
+  readonly items: ReadonlyArray<PaletteItem>
+  readonly lit: (index: number) => boolean
+  readonly value: { readonly options: ReadonlyArray<PaletteOption>; readonly chosen: PaletteOption | undefined } | undefined
+  readonly needles: ReturnType<typeof needlesFrom>
+  readonly onHover: (index: number) => void
+  readonly onSelect: (item: PaletteItem) => void
+  readonly onOption: (option: PaletteOption) => void
+  readonly onSubmit: () => void
+}) {
+  const heading = (rows: ReadonlyArray<{ readonly section?: string }>, index: number) => {
+    const section = rows[index]?.section
+    return section !== undefined && section !== rows[index - 1]?.section ? section : undefined
+  }
+  const SectionHeading = (heading: { readonly text: string }) => (
+    <p
+      class="m-0 px-3 pb-0.5 pt-2 text-caption font-semibold uppercase tracking-wider text-muted"
+      data-testid={TESTID.paletteSection}
+      role="presentation"
+    >
+      {heading.text}
+    </p>
+  )
+  const busy = () => props.step.busy
+  return (
+    <div
+      class="flex min-h-0 flex-1 flex-col md:flex-none"
+      data-testid={TESTID.paletteLevel}
+      data-id={props.step.id}
+      data-kind={props.live.level.kind}
+      data-busy={busy() ? "true" : "false"}
+      aria-busy={busy()}
+    >
+      <Show
+        when={props.value}
+        fallback={
+          <ul
+            class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
+            data-testid={TESTID.paletteList}
+          >
+            <Key
+              each={props.items}
+              by="id"
+              fallback={
+                <Show when={props.live.level.hint === undefined}>
+                  <li class="px-3 py-2 text-label text-muted">No matches</li>
+                </Show>
+              }
+            >
+              {(item, index) => (
+                <li>
+                  <Show when={heading(props.items, index())}>{(text) => <SectionHeading text={text()} />}</Show>
+                  <Result
+                    claims={fileClaims()}
+                    label={item().label}
+                    from={item().from}
+                    needles={props.needles}
+                    hint={item().hint ?? (item().action.kind === "level" ? "›" : undefined)}
+                    place={item().place}
+                    props={item().props}
+                    active={props.lit(index())}
+                    testids={PALETTE_ROW}
+                    id={item().id}
+                    onHover={() => props.onHover(index())}
+                    onSelect={() => props.onSelect(item())}
+                  />
+                </li>
+              )}
+            </Key>
+            <LevelHint text={props.live.level.hint} />
+          </ul>
+        }
+      >
+        {(value) => (
+          <div
+            class="m-0 min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
+            role="radiogroup"
+            aria-label={props.step.label}
+            data-testid={TESTID.paletteList}
+          >
+            <For each={value().options}>
+              {(option, index) => (
+                <>
+                  <Show when={heading(value().options, index())}>{(text) => <SectionHeading text={text()} />}</Show>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={value().chosen?.id === option.id}
+                    class={`flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-control px-3 py-2 text-left text-body text-ink ${
+                      value().chosen?.id === option.id ? "bg-rule" : "hover:bg-rule/60"
+                    }`}
+                    data-testid={TESTID.paletteOption}
+                    data-id={option.id}
+                    data-chosen={value().chosen?.id === option.id ? "true" : "false"}
+                    // Pressed, not focused: the caret stays in the box with
+                    // the words it is about to send.
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => props.onOption(option)}
+                  >
+                    <span
+                      class={`size-3 shrink-0 rounded-full border-2 ${
+                        value().chosen?.id === option.id ? "border-accent bg-accent" : "border-muted"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <span class="flex min-w-0 flex-1 flex-col">
+                      <span class="truncate">{option.label}</span>
+                      <Show when={option.place}>
+                        {(place) => <span class="truncate text-caption text-muted">{place()}</span>}
+                      </Show>
+                    </span>
+                    <Show when={option.hint}>
+                      {(hint) => <span class="shrink-0 text-caption text-muted">{hint()}</span>}
+                    </Show>
+                  </button>
+                </>
+              )}
+            </For>
+            <LevelHint text={props.live.level.hint} tag="p" />
+          </div>
+        )}
+      </Show>
+      <div
+        class="flex shrink-0 flex-wrap items-center gap-x-3.5 gap-y-1 border-t border-rule px-4 py-2 text-caption text-muted"
+        data-testid={TESTID.paletteFooter}
+      >
+        <Show
+          when={props.value !== undefined && props.live.level.kind === "value" ? props.live.level : undefined}
+          fallback={<span><kbd class="text-ink">↵</kbd> choose</span>}
+        >
+          {(level) => (
+            <>
+              <button
+                type="button"
+                class="cursor-pointer rounded-control bg-rule/60 px-2 py-0.5 font-medium text-ink hover:bg-rule disabled:cursor-default disabled:opacity-60"
+                data-testid={TESTID.paletteSubmit}
+                disabled={busy()}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => props.onSubmit()}
+              >
+                {busy() ? "Working…" : <><kbd>↵</kbd> {level().submitLabel ?? "Submit"}</>}
+              </button>
+              <span><kbd class="text-ink">↑↓</kbd> choose</span>
+            </>
+          )}
+        </Show>
+        <span><kbd class="text-ink">⌫</kbd> back</span>
+      </div>
+    </div>
+  )
+}
+
+/** A level's non-interactive line ("Type to find any node"). */
+function LevelHint(props: { readonly text: string | undefined; readonly tag?: "li" | "p" }) {
+  return (
+    <Show when={props.text}>
+      {(text) => props.tag === "p"
+        ? <p class="m-0 px-3 py-2 text-label text-muted" data-testid={TESTID.paletteHint}>{text()}</p>
+        : <li class="px-3 py-2 text-label text-muted" data-testid={TESTID.paletteHint}>{text()}</li>}
+    </Show>
+  )
+}
+
 /** Surviving navigation retains palette input across layout changes; withdrawing
  * navigation itself drops pending UI memory and invalidates late replies. */
 export function resetPaletteMemory():void {
  queryRevision++;paletteRevision++
  memory.query[1]("");memory.askError[1](null);memory.said[1](null);memory.sending[1](false)
+ abortSteps(memory.path[0]());memory.path[1]([]);handledAt=null
  closePalette()
 }
