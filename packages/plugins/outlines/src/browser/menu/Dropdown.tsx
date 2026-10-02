@@ -290,7 +290,15 @@ export function Dropdown(props: {
           // has placed it, and a focus that scrolled to that first box
           // jumped the page out from under the row the menu belongs to.
           const remembered = lastFocused
-          focusMenuAfterMount(el, shown, () => remembered?.isConnected ? remembered : el)
+          focusMenuAfterMount(el, shown, () => {
+            if (remembered?.isConnected) return remembered
+            // Reopening with the keyboard lets Kobalte focus its first item.
+            // Moving back to the panel would leave that item selected in its
+            // focus manager, so Home could not focus it again and Enter did
+            // nothing. Keep a caret that has already reached an entry.
+            const active = document.activeElement
+            return active !== el && el.contains(active) ? undefined : el
+          })
         }}
         data-testid={TESTID.nodeMenuPanel}
         // NAMED here rather than by the trigger Kobalte would point at

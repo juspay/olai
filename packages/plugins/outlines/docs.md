@@ -132,3 +132,5 @@ need no display override because they leave the DOM and dismissal stack.
 The retained-menu helper owns the post-mount focus timer used by root menus and
 submenus; each menu still chooses its focus target. The timer leaves with its
 content shell, while item and confirmation owners survive suspension.
+On a keyboard reopen, root-menu focus leaves an already focused entry alone,
+keeping Kobalte's focus manager and the DOM in agreement for Home and Enter.
