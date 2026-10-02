@@ -13,7 +13,7 @@ import { definePlugin, Slots, Wired } from "@olai/plugin-api"
 import { desktop, holdShell } from "./browser/shell.ts"
 import { shell as appShell } from "olai-plugin-layout/contract"
 import { Effect } from "effect"
-import { createRoot, createSignal, createMemo, onCleanup, Show } from "solid-js"
+import { createRoot, createSignal, createMemo, createComputed, on, onCleanup, Show } from "solid-js"
 
 import { Commit } from "./browser/commit/Commit.tsx"
 import { createGitStatus } from "./browser/commit/status.ts"
@@ -58,12 +58,11 @@ export default definePlugin({
       const identity = gitWire().cells.repository.use()
       // A reconnect temporarily withdraws the cell, not the repository owner.
       const repository = createMemo<string | undefined>(previous => identity.value() ?? previous)
-      const ready = createMemo(() => {
-        const current = repository()
-        if (current === undefined) return false
-        onCleanup(prepareForRepository(current))
-        return true
-      })
+      // Acquire before faces can mount; release the old claim before replacing it.
+      createComputed(on(repository, current => {
+        if (current !== undefined) onCleanup(prepareForRepository(current))
+      }))
+      const ready = createMemo(() => repository() !== undefined)
       return { dispose, ready }
     })), owned => Effect.sync(owned.dispose))
 

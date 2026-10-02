@@ -81,16 +81,14 @@ export function Panel(props: {
     const [open, setOpen] = createSignal(false)
     const afterGesture = createAfterGesture()
     let lastFocused: HTMLElement | undefined
-    let nestedMenus: () => Element[] = () => []
-    const insideChild = (target: EventTarget | null) => target instanceof Node && nestedMenus().some(element => element.contains(target))
-    const Surface = () => {
+    const [nestedMenus, setNestedMenus] = createSignal<(() => Element[])>()
+    const insideChild = (target: EventTarget | null) => target instanceof Node && nestedMenus()?.().some(element => element.contains(target))
+    const Surface = (surface: { readonly register: (read: () => Element[]) => () => void }) => {
       const menu = useMenuContext()
-      nestedMenus = menu.nestedMenus
-      onCleanup(() => { nestedMenus = () => [] })
+      onCleanup(surface.register(menu.nestedMenus))
       return (
         <RetainedContent draw={content => <DropdownMenu.SubContent
-          style={{ display: shown() ? undefined : "none" }}
-        {...{ [PAGE_SUBJECT]: String(here()) }}
+          {...{ [PAGE_SUBJECT]: String(here()) }}
           ref={(el: HTMLElement) => {
             // Kobalte preventDefault's its own focus of the first row, and the
             // list's deferred autofocus is a timer the next key can beat.
@@ -152,7 +150,10 @@ export function Panel(props: {
         <span class="text-muted" aria-hidden="true">›</span>
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
-        <Surface />
+        <Surface register={read => {
+          setNestedMenus(() => read)
+          return () => setNestedMenus(current => current === read ? undefined : current)
+        }} />
       </DropdownMenu.Portal>
     </DropdownMenu.Sub>
     )

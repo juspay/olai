@@ -186,4 +186,3 @@ export const createAgentReadings = (agents: Roster) => {
 const held = heldService<ReturnType<typeof createAgentReadings>>()
 export const holdAgentReadings = held.hold
 export const agentReadings = held.read
-export const readAgent = (node: string, chat: Chat, shown: () => boolean = () => true) => held.read()?.join(() => node, () => chat, shown)

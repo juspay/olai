@@ -62,12 +62,11 @@ import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
  *     asked from, and a menu that read that as "focus left" would shut on its
  *     own Cancel.
  *
- * ## AND IT DEFERS, which is the one thing the primitive cannot decide alone
+ * ## Dismissal and retained menus
  *
- * Kobalte keeps a stack of its own layers and gives a gesture to the topmost —
- * but the panels this client draws itself do not all join that stack. Hidden
- * menus withdraw their content layers; the shared stack below also accounts
- * for the visible popovers that are not Kobalte layers.
+ * RetainedContent preserves item owners while replacing the content shell.
+ * Hidden menus have no Kobalte layer; shown menus rejoin its dismissal stack.
+ * The shared stack also accounts for visible non-Kobalte popovers.
  *
  * The stack every dismissable in this client is on is `../topmost.ts`'s, and
  * this file joins it with {@link topmostWhileOpen} — the same call the popovers
@@ -378,7 +377,6 @@ export function Dropdown(props: {
 /** The placement belongs to the menu context inside the dropdown provider. */
 function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps<"div">>) {
   const menu = useMenuContext()
-  const shown = useShown()
   const [local, rest] = splitProps(props, ["children"])
   return <RetainedContent draw={content => <DropdownMenu.Content
     {...rest}
@@ -394,7 +392,7 @@ function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps
     // Portal mount={overlayRoot()} is on document.body, so this inherits the
     // root reserve even when the trigger lives in a pane with a zero offset.
     // Downward menus reserve any bottom chrome reported by the phone strip.
-    style={{ display: shown() ? undefined : "none", "max-height": menu.currentPlacement().startsWith("top")
+    style={{ "max-height": menu.currentPlacement().startsWith("top")
       ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-chrome)))"
       : "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-bottom-chrome, 0px)))" }}
   >{content()}</DropdownMenu.Content>}>{local.children}</RetainedContent>

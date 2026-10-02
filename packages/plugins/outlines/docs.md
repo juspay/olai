@@ -122,3 +122,7 @@ the page's declared visibility; they do not infer navigation from tab markup.
 Editor seats are projected into a keyed store with `reconcile`, so unchanged
 seats do not wake other rows. A native context menu ends a pending gesture too;
 owner cleanup delivers queued blur/close reports before dropping the helper.
+
+Each submenu surface explicitly registers its nested-menu accessor with its
+parent. Surface cleanup releases only that registration; hidden content shells
+need no display override because they leave the DOM and dismissal stack.

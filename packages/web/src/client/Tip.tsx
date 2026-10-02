@@ -30,7 +30,7 @@
  * is a fact about the text and the window rather than one we can be told.
  */
 import { TESTID } from "@olai/ui-primitives/testids.ts"
-import { createContext, useContext, createEffect, createMemo, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
+import { createContext, useContext, createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { LAYER } from "./layer.ts"
@@ -86,126 +86,135 @@ export function Tip(props: {
   if (tips === undefined) throw new Error("a tooltip outside <TipScope>")
   const { takeTip, showTip, hideTip, tipShowing } = tips
   const tipFloor = useContext(TipFloor)
-  // Disabled controls retain their element without allocating tooltip state.
-  const active = createMemo(() => {
-    if (props.disabled) return undefined
+  let anchor: HTMLSpanElement | undefined
+
+  // Only tooltip state follows enabledness; the control keeps its DOM and focus.
+  const Enabled = () => {
     const me = takeTip()
     const [at, setAt] = createSignal<At>()
     onCleanup(() => hideTip(me))
-    return { me, at, setAt }
-  })
-  const at = () => active()?.at()
-  let anchor: HTMLSpanElement | undefined
 
-  const show = (): void => {
-    const tip = active()
-    if (!tip) return
-    // The CONTROL's box, not this wrapper's. The wrapper is `display:
-    // contents` so that it adds no box to the gutter's flex row — and an
-    // element with no box has no rectangle either: `getBoundingClientRect`
-    // answers all zeros, which put the first tip in the top-left corner of the
-    // window, over the sidebar, nowhere near what it was about.
-    const box = anchor?.firstElementChild?.getBoundingClientRect()
-    if (box === undefined) return
-    // Under the anchor and starting at it — but never under the header.
-    // A header pill's box ends inside the bar; `./tip.ts` lifts the tip
-    // to the bar's bottom edge so the coral rule cannot cut the sentence.
-    // The effect below then pulls it back if that ran past the window's
-    // right edge.
-    const floor = tipFloor()
-    tip.setAt({ left: box.left, top: clampedTop(box.bottom, floor), floor })
-    showTip(tip.me)
-  }
+    const show = (): void => {
+      // The CONTROL's box, not this wrapper's. The wrapper is `display:
+      // contents` so that it adds no box to the gutter's flex row — and an
+      // element with no box has no rectangle either: `getBoundingClientRect`
+      // answers all zeros, which put the first tip in the top-left corner of the
+      // window, over the sidebar, nowhere near what it was about.
+      const box = anchor?.firstElementChild?.getBoundingClientRect()
+      if (box === undefined) return
+      // Under the anchor and starting at it — but never under the header.
+      // A header pill's box ends inside the bar; `./tip.ts` lifts the tip
+      // to the bar's bottom edge so the coral rule cannot cut the sentence.
+      // The effect below then pulls it back if that ran past the window's
+      // right edge.
+      const floor = tipFloor()
+      setAt({ left: box.left, top: clampedTop(box.bottom, floor), floor })
+      showTip(me)
+    }
 
-  const hide = (): void => {
-    const tip = active()
-    if (tip) hideTip(tip.me)
-  }
+    const hide = (): void => {
+      hideTip(me)
+    }
 
-  const place = (tip: HTMLDivElement): void => {
-    const want = at()
-    if (want === undefined) return
-    // Read the TRUE box by parking it at the window's edge for the read:
-    // where the tip first draws — under a control that hugs the window's
-    // right edge — the box's own room is only what was left of the window
-    // past it, and the box wraps to THAT floor before the clamp ever
-    // slides it (the wrap never un-winds). Parked at the edge, the read is
-    // the wide box the words ask for, and it is THAT box the clamp may
-    // have to move — never a width-starved one.
-    tip.style.left = "0px"
-    const box = tip.getBoundingClientRect()
-    const left = clampedLeft(want.left, box.width, window.innerWidth)
-    // The vertical half of the same settling, now that the drawn height is
-    // a fact: `./tip.ts`'s table, clampedLeft's sibling — under the last
-    // row of a page it is a LIFT, and it never crosses the bar's floor.
-    const top = liftedTop(want.top, box.height, window.innerHeight, want.floor)
-    tip.style.left = `${left}px`
-    tip.style.top = `${top}px`
-  }
+    const place = (tip: HTMLDivElement): void => {
+      const want = at()
+      if (want === undefined) return
+      // Read the TRUE box by parking it at the window's edge for the read:
+      // where the tip first draws — under a control that hugs the window's
+      // right edge — the box's own room is only what was left of the window
+      // past it, and the box wraps to THAT floor before the clamp ever
+      // slides it (the wrap never un-winds). Parked at the edge, the read is
+      // the wide box the words ask for, and it is THAT box the clamp may
+      // have to move — never a width-starved one.
+      tip.style.left = "0px"
+      const box = tip.getBoundingClientRect()
+      const left = clampedLeft(want.left, box.width, window.innerWidth)
+      // The vertical half of the same settling, now that the drawn height is
+      // a fact: `./tip.ts`'s table, clampedLeft's sibling — under the last
+      // row of a page it is a LIFT, and it never crosses the bar's floor.
+      const top = liftedTop(want.top, box.height, window.innerHeight, want.floor)
+      tip.style.left = `${left}px`
+      tip.style.top = `${top}px`
+    }
 
-  /** The tip itself, in a portal at the end of the document. Its own component
-   *  so that `onMount` belongs to IT — the measurement has to happen once the
-   *  tip is in the page, and the row that owns the hover mounted long ago. */
-  const Drawn = (drawn: { readonly at: At }) => {
-    let tip: HTMLDivElement | undefined
-    // `onMount`, not the `ref` callback: a ref fires while the element is still
-    // detached, where its rectangle is all zeros — which read as "this tip
-    // starts at the left edge of the window" and pinned every one to the
-    // margin.
+    /** The tip itself, in a portal at the end of the document. Its own component
+     *  so that `onMount` belongs to IT — the measurement has to happen once the
+     *  tip is in the page, and the row that owns the hover mounted long ago. */
+    const Drawn = (drawn: { readonly at: At }) => {
+      let tip: HTMLDivElement | undefined
+      // `onMount`, not the `ref` callback: a ref fires while the element is still
+      // detached, where its rectangle is all zeros — which read as "this tip
+      // starts at the left edge of the window" and pinned every one to the
+      // margin.
+      onMount(() => {
+        if (tip !== undefined) place(tip)
+        // A fixed tip does not scroll with what it is about, so the pane moving
+        // under it is the same news as the pointer leaving. Captured, because it
+        // is the pane that scrolls rather than the window.
+        window.addEventListener("scroll", hide, { capture: true, passive: true })
+        onCleanup(() => window.removeEventListener("scroll", hide, true))
+      })
+      // The clamp was measured for the text AS DRAWN. A tip that MOVES — the
+      // ⏱ chip's story ticks — can widen past the edge it was measured
+      // against, so a change in the words asks the clamp again; the run's own
+      // effect wrote the new text ahead of this one (creation order), so the
+      // rectangle read here is already the widened one.
+      createEffect(() => {
+        props.text
+        if (tip !== undefined) place(tip)
+      })
+
+      return (
+        <div
+          ref={tip}
+          // `whitespace-pre-line` rather than plain wrapping: a story told in
+          // LINES (the ⏱ chip's rounds, one per line) must not collapse into
+          // one run — and a text without newlines is drawn exactly as before.
+          class={`pointer-events-none fixed ${props.layer ?? LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-control border border-rule/60 bg-panel px-2 py-1 text-label whitespace-pre-line text-ink shadow-raised`}
+          style={{ left: `${drawn.at.left}px`, top: `${drawn.at.top}px` }}
+          data-testid={TESTID.tip}
+          role="presentation"
+        >
+          {props.text}
+        </div>
+      )
+    }
+
     onMount(() => {
-      if (tip !== undefined) place(tip)
-      // A fixed tip does not scroll with what it is about, so the pane moving
-      // under it is the same news as the pointer leaving. Captured, because it
-      // is the pane that scrolls rather than the window.
-      window.addEventListener("scroll", hide, { capture: true, passive: true })
-      onCleanup(() => window.removeEventListener("scroll", hide, true))
-    })
-    // The clamp was measured for the text AS DRAWN. A tip that MOVES — the
-    // ⏱ chip's story ticks — can widen past the edge it was measured
-    // against, so a change in the words asks the clamp again; the run's own
-    // effect wrote the new text ahead of this one (creation order), so the
-    // rectangle read here is already the widened one.
-    createEffect(() => {
-      props.text
-      if (tip !== undefined) place(tip)
+      const element = anchor
+      if (!element) return
+      const keydown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") hide()
+      }
+      element.addEventListener("mouseenter", show)
+      element.addEventListener("mouseleave", hide)
+      element.addEventListener("focusin", show)
+      element.addEventListener("focusout", hide)
+      element.addEventListener("keydown", keydown)
+      onCleanup(() => {
+        element.removeEventListener("mouseenter", show)
+        element.removeEventListener("mouseleave", hide)
+        element.removeEventListener("focusin", show)
+        element.removeEventListener("focusout", hide)
+        element.removeEventListener("keydown", keydown)
+      })
     })
 
     return (
-      <div
-        ref={tip}
-        // `whitespace-pre-line` rather than plain wrapping: a story told in
-        // LINES (the ⏱ chip's rounds, one per line) must not collapse into
-        // one run — and a text without newlines is drawn exactly as before.
-        class={`pointer-events-none fixed ${props.layer ?? LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-control border border-rule/60 bg-panel px-2 py-1 text-label whitespace-pre-line text-ink shadow-raised`}
-        style={{ left: `${drawn.at.left}px`, top: `${drawn.at.top}px` }}
-        data-testid={TESTID.tip}
-        role="presentation"
-      >
-        {props.text}
-      </div>
-    )
-  }
-
-  return (
-    <span
-      ref={anchor}
-      class="contents"
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocusIn={show}
-      onFocusOut={hide}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") hide()
-      }}
-    >
-      {props.children}
-      <Show when={active() && tipShowing(active()!.me) ? at() : undefined}>
+      <Show when={tipShowing(me) ? at() : undefined}>
         {(spot) => (
           <Portal>
             <Drawn at={spot()} />
           </Portal>
         )}
       </Show>
+    )
+  }
+
+  return (
+    <span ref={anchor} class="contents">
+      {props.children}
+      <Show when={!props.disabled}><Enabled /></Show>
     </span>
   )
 }

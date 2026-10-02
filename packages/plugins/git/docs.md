@@ -56,3 +56,9 @@ They are on the browser face. The MCP tools an agent calls are `git_commit` and 
 | `app.banner` | `layout` — where a banner sits over the page | the phone banner (news only) |
 
 The panel travels with the readout, portalled against the viewport, the way it always did.
+
+The browser activation owns repository preparation in a synchronous computed
+resource scope, acquired before its faces mount. Readiness is derived separately.
+A transient repository-cell withdrawal retains the same claim; changing the
+repository releases the previous claim before acquiring the next, and activation
+cleanup releases it after the faces withdraw.
