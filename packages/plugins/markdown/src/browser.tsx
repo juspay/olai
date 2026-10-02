@@ -89,6 +89,14 @@ export const components = {
         const route = pane.route()
         return [pane.id, route.kind === "at" && route.address !== null && route.address.kind !== "node" ? route.address.path : undefined] as const
       })))))
+      createEffect(() => {
+        const panes = new Set(nav.lanes().flatMap(lane => lane.panes().map(pane => pane.id)))
+        const memory = referrersMemory.read()
+        for (const key of memory?.opened?.keys() ?? []) {
+          const [pane] = JSON.parse(key) as [string, string]
+          if (!panes.has(pane)) memory?.forget(key)
+        }
+      })
       onCleanup(() => documents.retainEditors(new Map()))
       return dispose
     })), dispose => Effect.sync(dispose))

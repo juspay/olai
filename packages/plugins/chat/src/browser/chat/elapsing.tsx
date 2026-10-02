@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * How long a call has been running, reachable from the row that draws one.
  *
@@ -49,7 +50,8 @@ export function ElapsedProvider(props: {
   readonly live: boolean
   readonly children: JSX.Element
 }) {
-  const now = createNow(() => props.live)
+  const shown = useShown()
+  const now = createNow(() => shown() && props.live)
   return (
     <ElapsedContext.Provider value={(entry) => elapsedOf(entry, now)}>
       {props.children}

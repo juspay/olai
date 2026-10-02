@@ -36,10 +36,11 @@ export function DayMint(props: { readonly date: string }) {
     setSending(true)
     setSaid(null)
     try {
-      const started = router.panes()[here()]?.route()
+      const pane = router.panes()[here()]
+      const started = pane?.route()
       const answer = await runAsync(journalWire().procedures.note.mint({ date }))
       if (Result.isFailure(answer)) { if (props.date === date) setSaid(answer.failure.message) }
-      else if (router.panes()[here()]?.route() === started && useDocumentActions() === actions) actions.openCreated(answer.success.file, router)
+      else if (pane !== undefined && router.panes().includes(pane) && pane.route() === started && useDocumentActions() === actions) actions.openCreated(answer.success.file, { ...router, go: route => router.goIn(pane.index(), route) })
 
     } finally {
       setSending(false)

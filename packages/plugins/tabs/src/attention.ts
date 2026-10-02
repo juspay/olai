@@ -25,19 +25,20 @@ export const needingYou = (
   routes: Routing,
   tabs: Accessor<ReadonlyArray<Tab>>,
 ): Dots => {
+  const waiting = createMemo(() => chat.agents.rows().filter(row => row.standing === "needs-you"))
+  const active = createMemo(() => waiting().length > 0)
   const parsed = keyArray(tabs, tab => tab.id, tab => {
     const id = tab().id
     const href = createMemo(() => tab().href)
-    const panes = createMemo(() => panesOf(workspaceOf(routes, href())))
+    const panes = createMemo(() => active() ? panesOf(workspaceOf(routes, href())) : [])
     return { id, panes }
   })
   return ({
   paint: NEEDS_YOU_DOT,
   ids: createMemo(() => {
-    const waiting = chat.agents.rows().filter((row) => row.standing === "needs-you")
-    if (waiting.length === 0) return new Set<string>()
+    if (!active()) return new Set<string>()
     return new Set(parsed().filter((tab) => tab.panes().some(({ route }) =>
-      waiting.some((row) => isCurrent(route, row, chat.folding.unfolded(row.id))))).map((tab) => tab.id))
+      waiting().some((row) => isCurrent(route, row, chat.folding.unfolded(row.id))))).map((tab) => tab.id))
   }),
 })
 }

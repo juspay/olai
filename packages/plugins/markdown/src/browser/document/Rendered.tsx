@@ -3,9 +3,7 @@ import { useShown } from "olai-plugin-navigation/routing"
 /** Markdown's own reading face, including heading and source-line landings. */
 import { servedDirectory } from "../vault.ts"
 import { lineAt } from "olai-plugin-navigation/routes"
-import { panesOf } from "olai-plugin-navigation/workspace"
 import { TESTID as IDS_MARKDOWN } from "olai-plugin-markdown/testids"
-import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { today } from "../clock.ts"
 import { proseIn, proseLineOffset, needlesFrom } from "@olai/format"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
@@ -133,7 +131,8 @@ export function Rendered(props: { readonly file: string }) {
     const route = router.panes()[here()]?.route()
     const query = route?.kind === "at" ? route.filter ?? "" : ""
     return { line: line - proseLineOffset(entry.text), needles: needlesFrom(query, today()) }
-  })
+  }, undefined, { equals: (a, b) => a?.line === b?.line && a?.needles.length === b?.needles.length
+    && (a?.needles.every((needle, index) => needle === b?.needles[index]) ?? true) })
   createEffect(() => {
     const at = landing.owed()
     if (!shown() || at === undefined || !markdownReady()) return

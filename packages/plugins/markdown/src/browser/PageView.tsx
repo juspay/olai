@@ -13,7 +13,6 @@ import { useHistory } from "./history.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { useRouter, useHere, useFollow } from "olai-plugin-navigation/routing"
 import { hrefOf } from "./routing.ts"
-import { panesOf } from "olai-plugin-navigation/workspace"
 import { client } from "../client.ts"
 
 import { CLEARANCE } from "olai-plugin-layout/clearance"
@@ -26,7 +25,7 @@ export function MarkdownPageView() {
   const router = useRouter() as Navigation
   const here = useHere()
   const follow = useFollow()
-  const route = () => panesOf(router.workspace())[here()]!.route
+  const route = () => router.panes()[here()]!.route()
   const file = () => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? undefined : documentFile(claims, route()) })()
   const request = createMemo<DocumentPageRequest | null>(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? null : documentRequest(claims, route()) })(), null, {
     equals: (a,b) => a === null || b === null ? a === b : samePageRequest(a,b),
@@ -37,7 +36,7 @@ export function MarkdownPageView() {
   router.report(here, () => ({ history, file: file(), title: nameOf(route(),undefined) }))
   return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${!desktop() ? "pb-16" : ""}`}
     data-testid={IDS_NAVIGATION.pane} data-pane={String(here())}
-    data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
+    data-pane-focused={here() === router.focusIndex() ? "true" : undefined}
     data-href={hrefOf(route())} onPointerDown={() => router.focus(here())} onClick={follow}>
     <DocumentReading value={page}>
       <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Loading…</p>}>

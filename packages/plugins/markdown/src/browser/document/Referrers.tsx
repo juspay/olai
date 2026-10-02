@@ -56,7 +56,6 @@ import { createMemo, Show, untrack } from "solid-js"
 import { makeReferrerWays, referrerRowOf, ReferrersSection, type ReferrerRow } from "@olai/markdown-ui/ReferrersSection.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { atFile, atNode, type Route } from "olai-plugin-navigation/routes"
-import { useHere } from "olai-plugin-navigation/routing"
 import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 
 export function Referrers(props: {

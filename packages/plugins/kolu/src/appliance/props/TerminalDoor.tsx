@@ -1,4 +1,4 @@
-import { createMemo, createEffect, on } from "solid-js"
+import { createMemo } from "solid-js"
 /**
  * THE TERMINAL DOOR — kolu's own Dock row, drawn where the property is, and
  * the live pane it opens.
@@ -85,14 +85,16 @@ import { TESTID } from "../../contracts/appliance-testids.ts"
  */
 export function TerminalBlock(context: BlockContext) {
   const fleet = useFleet()
-  const [open, setOpen] = createSignal(false)
-  const reading = createMemo(() => readingOf(context.entry.value, fleet.link(), fleet.terminals()))
-  const resolvedAt = createMemo<{ value: string; row: FleetTerminal | undefined }>(previous => ({
+  const [openedFor, setOpenedFor] = createSignal<string>()
+  const open = () => openedFor() === context.entry.value
+  const setOpen = (value: boolean) => setOpenedFor(value ? context.entry.value : undefined)
+  const reading = createMemo(() => readingOf(context.entry.value, fleet.link(), fleet.terminals()), undefined,
+    { equals: (a, b) => a?.row === b?.row && a?.says === b?.says })
+  const resolvedAt = createMemo<{ value: string; row: FleetTerminal | undefined }, undefined>(previous => ({
     value: context.entry.value,
     row: reading().row ?? (previous?.value === context.entry.value ? previous.row : undefined),
-  }))
+  }), undefined, { equals: (a, b) => a?.value === b?.value && a?.row === b?.row })
   const resolved = () => resolvedAt().row
-  createEffect(on(() => context.entry.value, () => setOpen(false), { defer: true }))
   return (
     <div class="mb-1" data-testid={TESTID.terminalBlock} data-terminal={context.entry.value}>
       {/* MUTED and small, deliberately: the value is a fact ABOUT the row, not
@@ -134,7 +136,7 @@ export function TerminalBlock(context: BlockContext) {
           <Row
             row={row()}
             pressable={fleet.read !== undefined}
-            onSelect={() => setOpen((was) => !was)}
+            onSelect={() => setOpen(!open())}
           />
         )}
       </Show>

@@ -42,7 +42,7 @@ import { useShown } from "olai-plugin-navigation/routing"
  * knows how wide this box is.
  */
 
-import { createEffect, createSignal, on, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js"
 
 import type { FitAddon } from "@xterm/addon-fit"
 import type { Terminal } from "@xterm/xterm"
@@ -102,8 +102,9 @@ export function LivePane(props: {
    * specificity and the later one wins. Colour is xterm's door; the shape
    * (`styles.css`) is the part it has no key for.
    */
-  const theme = () => {
-    const base = getThemeByName(props.themeName ?? undefined)
+  const themeName = createMemo(() => props.themeName)
+  const theme = createMemo(() => {
+    const base = getThemeByName(themeName() ?? undefined)
     const edge = base.brightBlack ?? base.foreground
     if (edge === undefined) return base
     return {
@@ -112,7 +113,7 @@ export function LivePane(props: {
       scrollbarSliderHoverBackground: edge,
       scrollbarSliderActiveBackground: edge,
     }
-  }
+  })
   const [says, setSays] = createSignal<string>()
   /** Bumped to re-attach. A SIGNAL rather than a call, so the effect below is
    *  the only thing that ever opens a stream — one place a subscription is
@@ -257,6 +258,13 @@ export function LivePane(props: {
     () => { setSays("Couldn't load the terminal viewer. Check your connection and open it again.") },
   )
 
+  // Initial mount applies the current theme; later theme changes repaint
+  // without coupling palette work to connection retries.
+  createEffect(() => {
+    const palette = theme()
+    if (term !== undefined) term.options.theme = palette
+  })
+
   /**
    * ONE ATTACH PER GENERATION.
    *
@@ -264,12 +272,6 @@ export function LivePane(props: {
    * the generation moves and NOT when anything else it touches does, because
    * re-running is what tears a subscription down and opens another one.
    */
-  createEffect(() => {
-    generation()
-    const palette = theme()
-    if (term !== undefined) term.options.theme = palette
-  })
-
   createEffect(
     on(generation, (g) => {
       if (g === 0 || term === undefined) return

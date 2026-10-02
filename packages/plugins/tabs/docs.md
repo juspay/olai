@@ -151,3 +151,15 @@ ordinary navigation (`Router.open`). The strip is the `strip` component, contrib
 layout's `layout.strip` seat and waiting for `layout.shell`; the link menu is
 the `links` component, contributed to `layout.overlays`; the needs-you dot is
 the `attention` component, waiting for `chat.state`.
+
+Layout records each split scrollport's horizontal and vertical position before
+hiding its lane and restores them after the host is shown. Window positions
+remain navigation's history-entry memory. Transcript followers can then advance
+to new text on their next frame; a reader who stopped following keeps the saved
+position.
+
+On a phone, opening another tab's address retargets the single lane's workspace.
+The pane owner survives, but changing its page subject ends that page's local
+editing visit. Phone navigation does not cache the visited desktop tabs' live
+pages. Crossing the breakpoint preserves the current workspace and its surviving
+pane elements; returning to desktop mounts other saved tabs only on demand.

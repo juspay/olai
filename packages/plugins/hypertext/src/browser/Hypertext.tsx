@@ -604,7 +604,7 @@ export function Hypertext(props: { readonly file: string }) {
     sizing = requestAnimationFrame((at) => {
       sizing = undefined
       const said = latest
-      if (said === undefined || frame === undefined) return
+      if (!shown() || said === undefined || frame === undefined || said <= 0) return
       if (!heights.takes({ height: said, frame: frame.clientHeight, at })) return
       setMeasured(`${said}px`)
     })
@@ -918,7 +918,9 @@ export function Hypertext(props: { readonly file: string }) {
    * up, and that is what this reads. {@link UNMOVED} is how much of it is noise.
    */
   createEffect(() => {
+    clearTimeout(correcting)
     if (!shown()) return
+    onCleanup(() => clearTimeout(correcting))
     const top = landedAt()
     // Tracked, not read: the frame's height is what makes the arithmetic below
     // land where the reader will be looking — and whether the hang detector

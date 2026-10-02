@@ -82,7 +82,9 @@ export function Tip(props: {
    */
   readonly layer?: typeof LAYER.page | typeof LAYER.over
 }) {
-  const { takeTip, showTip, hideTip, tipShowing } = useContext(Tips) ?? createTips()
+  const tips = useContext(Tips)
+  if (tips === undefined) throw new Error("a tooltip outside <TipScope>")
+  const { takeTip, showTip, hideTip, tipShowing } = tips
   const me = takeTip()
   const tipFloor = useContext(TipFloor)
   const [at, setAt] = createSignal<At | undefined>()

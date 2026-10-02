@@ -49,12 +49,27 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   const router = useRouter()
   const columns = createMemo(() => router.split() && desktop())
   const focused = createSelector(router.focusIndex)
+  const scrolls = new Map<HTMLElement, { top: number; left: number }>()
+  let alive = true
+  onCleanup(() => { alive = false; scrolls.clear() })
+  // Read positions before the host's display binding hides it. Restore after
+  // it has geometry, before transcript followers perform their next-frame jump.
+  const visible = createMemo(() => {
+    const shown = router.shown()
+    if (!shown) {
+      for (const host of scrolls.keys()) scrolls.set(host, { top: host.scrollTop, left: host.scrollLeft })
+    } else queueMicrotask(() => {
+      if (!alive || !router.shown()) return
+      for (const [host, at] of scrolls) { host.scrollTop = at.top; host.scrollLeft = at.left }
+    })
+    return shown
+  })
   let row: HTMLDivElement | undefined
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
   const grow = createMemo(() => live() ?? flexOf(router.panes().map(pane => ({ route: pane.route(), width: pane.width() }))))
-  return <div data-testid={TESTID.lane} data-lane-front={String(router.shown())}
+  return <div data-testid={TESTID.lane} data-lane-front={String(visible())}
     class="flex min-w-0 flex-col bg-paper"
-    style={{ display: router.shown() ? undefined : "none", "overflow-anchor": "none" }}
+    style={{ display: visible() ? undefined : "none", "overflow-anchor": "none" }}
     classList={{ [PANES_SPLIT]: router.split(), [PANES_LONE]: !router.split() }}>
     <Show when={router.split() && !desktop()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
@@ -74,7 +89,7 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
             style={{ display: drawn() ? undefined : "none", "flex-grow": columns() ? String(share()) : "1", "flex-basis": "0" }}
             classList={{ "ring-2 ring-inset ring-accent": columns() && focused(pane.index()) }}>
             <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} focused={() => focused(pane.index())} /></Show>
-            <div class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
+            <div ref={host => { scrolls.set(host, { top: 0, left: 0 }); onCleanup(() => scrolls.delete(host)) }} class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
               style={{ "--height-chrome": columns() ? "0px" : undefined }}>
               <ShownProvider shown={shown}>
                 <PaneProvider index={pane.index()} id={pane.id} element={element}>{props.page(pane.index)}</PaneProvider>

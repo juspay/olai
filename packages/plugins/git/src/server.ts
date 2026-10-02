@@ -130,6 +130,7 @@ export default definePlugin({
       tools,
       deps: {
         cells: {
+          repository: { store: inMemoryStore<string | null>(vault.served) },
           git: { store: inMemoryStore<GitState>(GIT_OFF) },
           pending: { store: inMemoryStore<Pending>(NOTHING_PENDING) },
         },
