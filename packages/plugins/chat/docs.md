@@ -183,7 +183,12 @@ open path and each level's scope. What chat runs inside a level — the bounded
 `conversation.locations` query and its memos — lives in the `LevelScope` the
 palette hands the level's function, and is disposed with that level; a late
 answer after the level is gone changes nothing. Here is read once, when the
-where level opens. The shortlist rules are pure (`browser/agents/where.ts`).
+where level opens; the query is asked at once and then again only after typing
+pauses (`TYPING_PAUSE_MS`). Until an opening's first answer lands, Default is
+drawn from the default container the previous answer named, which the
+adapter's activation remembers, so a plain Enter at once can take it; the
+answer corrects it. The first opening in an activation waits for its answer.
+The shortlist rules are pure (`browser/agents/where.ts`).
 
 The one creation in flight is NOT the palette's: it is the browser activation's
 permit (`browser/agents/new-chat.ts`), shared by every submit, so a level opened

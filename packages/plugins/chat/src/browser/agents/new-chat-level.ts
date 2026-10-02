@@ -39,6 +39,15 @@ const recentAgents = (agents: Roster) => createMemo(
 
 type NewChatOwner = ReturnType<typeof createNewChat>
 
+/** What the last answer said the default container was — kept by the adapter's
+ *  activation (`./AgentPalette.ts`) across openings, so a level can draw
+ *  Default at once and let its own answer correct it. `undefined`: not yet
+ *  asked in this activation. */
+export interface DefaultMemory {
+  readonly last: Accessor<string | null | undefined>
+  readonly remember: (defaultParent: string | null) => void
+}
+
 /** The message level for one chosen place: the engines that can start, the
  *  first chosen, and one submit through the shared permit. */
 const messageLevel = (owner: NewChatOwner, agents: Roster, parent: string | null): PaletteValue => ({
@@ -60,23 +69,46 @@ const rowOf = (owner: NewChatOwner, agents: Roster) => (row: WhereRow): PaletteI
   : { id: `new-chat-at-${row.node.id}`, label: row.node.title, place: nodePlace(row.node), section: row.section,
     search: row.node.title.toLowerCase(), taking: atOnce, action: { kind: "level", level: messageLevel(owner, agents, row.node.id) } }
 
+/** How long typing must pause before the where level asks again. The first
+ *  question, as the level opens, is asked at once. */
+export const TYPING_PAUSE_MS = 120
+
+/** The typed text, settled: the first value at once, later ones after a pause.
+ *  The timer is the level's and stops with it. */
+const settled = (typed: Accessor<string>): Accessor<string> => {
+  const [value, setValue] = createSignal(untrack(typed))
+  let first = true
+  createEffect(() => {
+    const now = typed()
+    if (first) { first = false; return }
+    const timer = setTimeout(() => setValue(now), TYPING_PAUSE_MS)
+    onCleanup(() => clearTimeout(timer))
+  })
+  return value
+}
+
 /** The where level's rows, for one opening: Here is read once, as it opens;
- *  the query follows the typed text, and an answer to a superseded question,
- *  or one landing after the level is gone, changes nothing. The Default row
- *  waits for the server's answer, because whether the vault's Inbox registry
- *  has an entry is the server's to say (`defaultParent`). */
-const whereLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): Accessor<ReadonlyArray<PaletteItem>> => {
+ *  the query follows the typed text once typing pauses, and an answer to a
+ *  superseded question, or one landing after the level is gone, changes
+ *  nothing. Whether the vault's Inbox registry has an entry is the server's to
+ *  say (`defaultParent`); until this opening's answer lands, Default is drawn
+ *  from what the last opening was told, so a plain Enter at once can take it. */
+const whereLevel = (owner: NewChatOwner, agents: Roster, memory: DefaultMemory) => (scope: LevelScope): Accessor<ReadonlyArray<PaletteItem>> => {
   const here = untrack(hereNow)
   const recent = recentAgents(agents)
+  const filter = settled(scope.typed)
   const [answer, setAnswer] = createSignal<{ readonly nodes: readonly LocationNode[]; readonly defaultParent: string | null }>(
-    { nodes: [], defaultParent: null })
+    { nodes: [], defaultParent: untrack(memory.last) ?? null })
   createEffect(() => {
     const ids = recent()
-    const query = { filter: scope.typed(), limit: NODES_LIMIT, ids: here === null ? ids : [here, ...ids], parents: ids }
+    const query = { filter: filter(), limit: NODES_LIMIT, ids: here === null ? ids : [here, ...ids], parents: ids }
     let current = true
     onCleanup(() => { current = false })
     void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
-      if (current && !scope.signal.aborted && result._tag === "Success") setAnswer(result.success)
+      if (current && !scope.signal.aborted && result._tag === "Success") {
+        setAnswer(result.success)
+        memory.remember(result.success.defaultParent)
+      }
     })
   })
   return createMemo(() => whereRows({
@@ -86,10 +118,10 @@ const whereLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope):
 }
 
 /** The palette row. Offered only while an engine can start. */
-export const newChatRow = (owner: NewChatOwner, agents: Roster): PaletteItem => ({
+export const newChatRow = (owner: NewChatOwner, agents: Roster, memory: DefaultMemory): PaletteItem => ({
   id: NEW_CHAT_ROW, label: "New chat", place: "Agents", search: "agents new chat", taking: atOnce,
   action: { kind: "level", level: {
     kind: "group", placeholder: "Where? Find a node…", hint: "Type to find any node",
-    children: whereLevel(owner, agents),
+    children: whereLevel(owner, agents, memory),
   } },
 })
