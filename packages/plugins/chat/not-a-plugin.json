@@ -37,6 +37,7 @@
   "navigation": [
     "src/browser.tsx",
     "src/browser/agents/AgentPalette.ts",
+    "src/browser/agents/handoff.ts",
     "src/browser/agents/new-chat.ts",
     "src/browser/navigation.ts",
     "src/browser/verbs.tsx"

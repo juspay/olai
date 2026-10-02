@@ -183,7 +183,10 @@ The route supplies its tab title/breadcrumb and its local face. The renderer
 draws that face without fabricating an outline, so every reading consumer sees
 no file or node. It acquires no vault page or conversation until Send.
 The mounted picker owns its read-only location query and optional search reading;
-leaving releases those while the draft remains. The activation publishes
+leaving releases those while the draft remains. The hand-off of a sent draft —
+the arrivals, and the watches that return them — is one module (`handoff.ts`),
+and what a chosen location means on the wire is another (`destination.ts`). The
+activation publishes
 reactive arrivals; existing and newly mounted page sessions atomically take
 them once. A page then owns delivery and keeps refused text on disposal. An
 untaken arrival is reclaimed when the focused route leaves its node or its
