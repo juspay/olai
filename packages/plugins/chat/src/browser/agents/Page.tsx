@@ -20,6 +20,7 @@ import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
 import { NoAgent } from "../chat/NoAgent.tsx"
 import { EngineAbsence } from "./EngineAbsence.tsx"
+import { receive } from "./handoff.ts"
 
 export interface PageSession {
   readonly preferredEngine: Accessor<string | undefined>
@@ -83,17 +84,15 @@ function createPageSession(node: string): PageSession {
   createEffect(() => {
     const arrival = reading.newChat.take(node)
     if (arrival === undefined) return
-    untrack(() => {
-      prefer(arrival.engine)
-      setFailure(arrival.refusal)
-      if (arrival.to === null) {
-        setDraft(now => now === "" ? arrival.text : `${arrival.text}\n${now}`)
-        arrival.done()
-      } else {
+    untrack(() => receive(arrival, {
+      prefer,
+      refuse: setFailure,
+      redraft: words => setDraft(now => now === "" ? words : `${words}\n${now}`),
+      deliver: (to, text) => {
         setStarting(true)
-        void deliver(arrival.to, arrival.text, "").finally(() => { setStarting(false); arrival.done() })
-      }
-    })
+        return deliver(to, text, "").finally(() => setStarting(false))
+      },
+    }))
   })
   const start = async (engine: string) => {
     const text = draft()

@@ -43,6 +43,34 @@ export interface Arrival {
   readonly done: () => void
 }
 
+/** What a node's page lends an arrival: its own surfaces, and nothing about
+ *  what an arrival means. */
+export interface Receiving {
+  /** The engine the page's composer should offer first. */
+  readonly prefer: (engine: string) => void
+  /** What the start said, or `null`. */
+  readonly refuse: (refusal: string | null) => void
+  /** Put words in front of the page's plain draft. */
+  readonly redraft: (words: string) => void
+  /** Send the words to the conversation; settles once they are placed. */
+  readonly deliver: (to: Conversing, text: string) => Promise<void>
+}
+
+/**
+ * WHAT A CLAIMED ARRIVAL MEANS ON ITS PAGE — the policy, here beside the
+ * hand-off that made it rather than in each page: the engine it was sent with
+ * is preferred and the start's refusal is shown; words with a conversation
+ * are delivered to it; words without one (a refused start) become the plain
+ * draft, ready for one more Send. Either way the sender is released once the
+ * words are placed.
+ */
+export const receive = (arrival: Arrival, page: Receiving): void => {
+  page.prefer(arrival.engine)
+  page.refuse(arrival.refusal)
+  if (arrival.to === null) { page.redraft(arrival.text); arrival.done(); return }
+  void page.deliver(arrival.to, arrival.text).finally(arrival.done)
+}
+
 export const createHandoff = (input: {
   /** A claimed arrival's words, delivered to the conversation it named. */
   readonly keep: (to: Conversing, text: string) => void

@@ -197,8 +197,13 @@ again while one is starting is refused rather than spending a second
 
 The hand-off of the first message — the arrivals, and the watches that return
 them — is one module (`handoff.ts`). The activation publishes reactive
-arrivals; existing and newly mounted page sessions atomically take them once. A
-page then owns delivery and keeps refused text on disposal. An untaken arrival
+arrivals; existing and newly mounted page sessions atomically take them once.
+What a claimed arrival means — prefer its engine, show its start's refusal,
+deliver to its conversation or else put the words in the plain draft — is the
+hand-off's `receive`; the page only lends its surfaces, owns the delivery it
+was handed and keeps refused text on disposal. Landing (open the page, or
+reclaim at once when the asking level is gone) is the hand-off's `land`; the
+sender only holds the permit and asks the server. An untaken arrival
 is reclaimed when the focused route leaves its node or its reading becomes
 unavailable/put away, and at once when the level that asked was aborted
 (popped or closed) before the server answered — in that case nothing
