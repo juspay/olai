@@ -7452,6 +7452,7 @@
   "olai-plugin-tabs" = copyPathToStore ./packages/plugins/tabs;
   "olai-plugin-test-counter" = copyPathToStore ./packages/plugins/test-counter;
   "olai-plugin-test-layout" = copyPathToStore ./packages/plugins/test-layout;
+  "olai-plugin-test-palette" = copyPathToStore ./packages/plugins/test-palette;
   "olai-plugin-theme" = copyPathToStore ./packages/plugins/theme;
   "olai-plugin-trash" = copyPathToStore ./packages/plugins/trash;
   "olai-plugin-ui-renderer" = copyPathToStore ./packages/plugins/ui-renderer;
