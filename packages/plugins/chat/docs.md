@@ -265,11 +265,14 @@ the same visibility boundary, and only the focused composer claims completion
 keyboard priority when several folds offer menus. Tool details, question fields, terminal output
 and sign-in output update their existing elements as wire rows are replaced.
 
-Conversation UI belongs to the chat activation, keyed by engine and session,
+Conversation UI is owned within the chat activation by engine and session,
 or by node before binding. Joined readers share it. The final reader releases
 an empty UI after a same-turn handoff opportunity. Opened tool details, question
 answers, armed references, previews, refusals, pending starts, sends, uploads and
-unsent drafts keep that UI until their state clears or the activation ends.
+unsent drafts retain UI while its node/session remains in the roster or answered
+stored-session listing. After the final view/work lease, an empty UI or a
+conversation absent from both is released. Unavailable listings do not prove
+absence; activation teardown releases everything.
 Roster lookups and per-tool choices notify only their dependent consumers.
 
 A folded conversation remains a live reader and therefore occupies its node
@@ -287,8 +290,5 @@ belongs to the node view. Changing the selected conversation replaces only the
 conversation-specific body and strips. A fresh-start refusal therefore remains
 visible even if the server transitions from a bound session to an unopened node.
 
-Retained conversation UI is released after its final view/work lease ends when
-it is empty, or when the roster and answered stored-session listing no longer
-contain its node/session. An unavailable listing does not prove absence.
 A refused fresh start resumes the unchanged live binding; it does not turn
 that reader into a history visit that masks later binding changes.

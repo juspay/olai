@@ -462,8 +462,9 @@ streaming with both scroll intentions, hidden-tab attention, and independent com
 
 Existing history, missing-file recovery, independent phone-pane drafts, terminal
 target changes and plugin withdrawal scenarios remain behavioural constraints.
-Helpers scope page content to the front lane; visibility assertions distinguish
-retained hidden elements from disposed owners. The alternate-layout fixture
+Core helpers scope page content to the front lane, with the scoping and
+visible-only absence exceptions described below. Visibility checks distinguish
+shown elements from hidden or disposed ones; they do not prove disposal. The alternate-layout fixture
 remains supported without requiring layout's lane markup.
 
 The PageView frame scenario exercises done/filter pruning with a live property
