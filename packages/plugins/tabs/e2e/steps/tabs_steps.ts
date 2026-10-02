@@ -23,7 +23,9 @@ const tabAt = (world: OlaiWorld, index: number) => world.page.locator(`${TAB}${a
 // Playwright's automatic scrollIntoView moves window scroll for a pinned strip.
 // A real pointer presses it where it is. Reveal clipped tabs horizontally only.
 const pressPinned = async (world: OlaiWorld, target: ReturnType<OlaiWorld["pane"]>) => {
-  await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // The first press may precede the tabs integration attaching to the shell.
+  // Use the same first-paint budget as the strip-count assertion.
+  await target.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await target.evaluate(element => {
     const row = element.closest<HTMLElement>('[role="tablist"]');
     if (!row) return;
