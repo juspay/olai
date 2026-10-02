@@ -46,7 +46,8 @@ Feature: A new chat asks where, then what to say, inside the palette
   Scenario Outline: Default sends once to a titled Inbox node page on <screen>
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    And I press "Enter"
+    Then the new chat places are "default"
+    When I press "Enter"
     And I type new chat draft "done hinges"
     And I press "Enter"
     Then the command palette is closed

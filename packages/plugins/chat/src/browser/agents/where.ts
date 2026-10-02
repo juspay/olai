@@ -28,7 +28,8 @@ const trail = (node: LocationNode) => [node.file, ...node.path, node.title].join
  *  something is typed — Nodes; a node is listed once, typing filters every
  *  section, and an empty section is simply absent. */
 export const whereRows = (input: {
-  /** The vault's Inbox registry has an entry, so the default can be minted. */
+  /** The vault's Inbox registry has an entry, so the default can be minted
+   *  (the server answers a `defaultParent` exactly then). */
   readonly defaultOffered: boolean
   /** The default container's id, once the server has said; never Recent. */
   readonly defaultParent: string | null

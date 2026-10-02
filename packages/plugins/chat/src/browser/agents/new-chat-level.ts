@@ -9,13 +9,11 @@
  * is this activation's {@link createNewChat} permit, which every submit shares.
  */
 import { createEffect, createMemo, createSignal, onCleanup, untrack, type Accessor } from "solid-js"
-import { inboxIn } from "@olai/format"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import type { LevelScope, PaletteItem, PaletteValue } from "olai-plugin-navigation/contract"
 import { nodePlace } from "olai-plugin-search/ui/place.ts"
 import { chatWire } from "../wire.ts"
-import { servedDirectory } from "../vault.ts"
 import { navigation } from "../navigation.ts"
 import { focusedNode } from "../references.ts"
 import { pageReadings } from "../pages.ts"
@@ -31,14 +29,6 @@ const hereNow = (): string | null => {
   const nav = navigation()
   const page = nav === undefined ? undefined : pageReadings()?.at(nav.workspace().focus)?.shows
   return focusedNode() ?? (page?.kind === "node" && page.zoomed.kind === "node" ? page.zoomed.shows.node.id : null)
-}
-
-/** The vault's Inbox registry names a served outline, so the default can be
- *  minted. Read off the claims, as capture's own door is, without naming it. */
-const inboxOffered = (): boolean => {
-  const served = servedDirectory()
-  const claims = served?.claims()
-  return served !== undefined && claims !== undefined && inboxIn(claims, served.paths()) !== undefined
 }
 
 /** Recent agent ids; activity ticking without reordering asks nothing new. */
@@ -72,7 +62,9 @@ const rowOf = (owner: NewChatOwner, agents: Roster) => (row: WhereRow): PaletteI
 
 /** The where level's rows, for one opening: Here is read once, as it opens;
  *  the query follows the typed text, and an answer to a superseded question,
- *  or one landing after the level is gone, changes nothing. */
+ *  or one landing after the level is gone, changes nothing. The Default row
+ *  waits for the server's answer, because whether the vault's Inbox registry
+ *  has an entry is the server's to say (`defaultParent`). */
 const whereLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): Accessor<ReadonlyArray<PaletteItem>> => {
   const here = untrack(hereNow)
   const recent = recentAgents(agents)
@@ -88,7 +80,7 @@ const whereLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope):
     })
   })
   return createMemo(() => whereRows({
-    defaultOffered: inboxOffered(), defaultParent: answer().defaultParent, here, recent: recent(),
+    defaultOffered: answer().defaultParent !== null, defaultParent: answer().defaultParent, here, recent: recent(),
     nodes: answer().nodes, typed: scope.typed(),
   }).map(rowOf(owner, agents)))
 }
