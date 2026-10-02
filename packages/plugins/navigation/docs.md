@@ -150,7 +150,8 @@ selection. Each boundary reads that same fact:
   selection ignores page commands; the palette skips unavailable adapters'
   shortcuts.
 - Page content and its portalled outline controls carry the static
-  `PAGE_SUBJECT` marker. Navigation's activation-owned capture listener only
+  `PAGE_SUBJECT` marker with their owning pane index, including in portals.
+  Navigation's activation-owned capture listener only
   blocks gestures on those retained controls. It permits links and editor
   escape/zoom gestures; it never cancels unbound browser keys or input outside
   the retained controls. The listener is removed before navigation is disposed.

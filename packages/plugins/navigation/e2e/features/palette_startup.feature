@@ -1,5 +1,5 @@
 @scratch:good
-Feature: Navigation owns the palette shortcut before its layout arrives
+Feature: Page actions wait for their reading while navigation stays available
   Scenario: A shortcut without layout is preserved until the palette can render
     Given the vault defines a non-UI host management controller
     And I open the node "mint"
@@ -23,8 +23,8 @@ Feature: Navigation owns the palette shortcut before its layout arrives
     Then the zoomed node is "order"
     When I open the node "mint" through a held reconnect
     Then the zoomed node is "order"
-    And the retained page shows its loading cue
     And page shortcuts leave the retained page untouched
+    And the retained page shows its loading cue
     And browser keys and outside typing remain available
     And "house.olai" holds a node marked doing titled "order the new cabinets"
     When the requested page reading is released
@@ -61,8 +61,8 @@ Feature: Navigation owns the palette shortcut before its layout arrives
     Then the zoomed node is "order"
     When I request the node "mint" while its page answer is held
     Then the zoomed node is "order"
-    And the retained page shows its loading cue
     And page shortcuts leave the retained page untouched
+    And the retained page shows its loading cue
     And browser keys and outside typing remain available
     When the requested page reading is released
     Then the zoomed node is "mint"

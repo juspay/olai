@@ -85,10 +85,6 @@ When("the requested page reading is released", function(this: OlaiWorld) {
 });
 
 Then("page shortcuts leave the retained page untouched", async function(this: OlaiWorld) {
-  const before = await this.page.evaluate(key => localStorage.getItem(key), DONE_OVERRIDES_KEY);
-  await this.page.keyboard.press("ControlOrMeta+o");
-  await this.waitForFrame();
-  assert.equal(await this.page.evaluate(key => localStorage.getItem(key), DONE_OVERRIDES_KEY), before);
   await this.page.keyboard.press("ControlOrMeta+k");
   await this.page.getByTestId(TESTID.paletteInput).waitFor();
   assert.equal(await this.page.getByTestId(TESTID.paletteItem).filter({ hasText: "Mark: Done" }).count(), 0,
@@ -97,6 +93,10 @@ Then("page shortcuts leave the retained page untouched", async function(this: Ol
   await this.page.keyboard.type("cabinet");
   assert.equal(await this.page.getByTestId(TESTID.paletteInput).inputValue(), "cabinet");
   await this.page.keyboard.press("Escape");
+  const before = await this.page.evaluate(key => localStorage.getItem(key), DONE_OVERRIDES_KEY);
+  await this.page.keyboard.press("ControlOrMeta+o");
+  await this.waitForFrame();
+  assert.equal(await this.page.evaluate(key => localStorage.getItem(key), DONE_OVERRIDES_KEY), before);
 });
 
 Then("the retained page shows its loading cue", async function(this: OlaiWorld) {
