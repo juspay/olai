@@ -22,6 +22,7 @@ export const createNewChat = () => {
   const [location, choose] = createSignal<ChatLocation>({ kind: "default" })
   const [here, setHere] = createSignal<string | null>(null)
   const [chosen, chooseEngine] = createSignal<string>()
+  const [focusRequest, requestFocus] = createSignal(0)
   const arrivals = new Map<string, Arrival>()
   let alive = true
   onCleanup(() => { alive = false; for (const arrival of arrivals.values()) arrival.done(); arrivals.clear() })
@@ -49,6 +50,7 @@ export const createNewChat = () => {
       }
     }
     nav.go(newChatRoute.to(true))
+    requestFocus(value => value + 1)
     return null
   }
   const start = async (agent: string) => {
@@ -82,6 +84,6 @@ export const createNewChat = () => {
       choose({ kind: "default" })
     } finally { if (!handed) setPending(false) }
   }
-  return { pending, failure, draft, setDraft, location, choose, here, chosen, chooseEngine, open, start,
+  return { focusRequest, pending, failure, draft, setDraft, location, choose, here, chosen, chooseEngine, open, start,
     origin, take: (node: string) => { const value = arrivals.get(node); arrivals.delete(node); return value } }
 }

@@ -1,5 +1,5 @@
 import { TESTID } from "../../testids.ts"
-import { createMemo, createSignal, For, onMount, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, onMount, onCleanup, Show } from "solid-js"
 import { runAsync } from "@olai/web/client/run.ts"
 import { nodePlace } from "olai-plugin-search/ui/place.ts"
 import { chatWire } from "../wire.ts"
@@ -21,7 +21,8 @@ export function NewChatPage() {
   const send = () => { const id = engine(); if (id !== undefined) void owner.start(id) }
   const label = () => { const at = owner.location(); return at.kind === "default" ? "In: Inbox › Chats" : `${at.kind === "on" ? "On" : "In"}: ${trail(at.node)}` }
   const focus = () => input?.focus()
-  onMount(() => {
+  createEffect(() => {
+    owner.focusRequest()
     // Palette actions close and restore their old focus after navigation's
     // microtasks. This face owns the later focus, and cancels it on departure.
     const frame = requestAnimationFrame(focus)

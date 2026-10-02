@@ -7,6 +7,8 @@ Feature: A new chat asks where it belongs before creating anything
     Then the new chat composer is focused
     And the Inbox contains no chat children
     And no further agent process has started
+    When I press new chat in Chats
+    Then the new chat composer is focused
     When I type new chat draft "keep these words"
     And I open the new chat location picker
     And I choose new chat under node "kitchen"
