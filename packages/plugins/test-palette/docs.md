@@ -16,5 +16,5 @@ restore the fixture's adapter while the row stays on, and read what was
 submitted. A held submit waits on a gate the page keeps, so a scenario can
 answer it after the fixture has gone and check that nothing changes.
 
-[`palette_levels.feature`](navigation.md#palette-levels) drives the real palette
+`palette_levels.feature` ([navigation.md](navigation.md#palette-levels)) drives the real palette
 with it on desktop and phone. This is not a feature anyone turns on.

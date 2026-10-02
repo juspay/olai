@@ -16,8 +16,8 @@ front page. The PURE grammar — the constructors, the address reading,
 roster in it.
 
 Two more of this row's verbs cross the same way. `navigation.palette` is what
-a sibling may do to the ⌘K box — open it, ask a question in it, put one down,
-shut it, and the two readings behind them — which search's header control and
+a sibling may do to the ⌘K box — open it, open it at a level (`showAt`), ask a
+question in it, put one down, shut it, and the two readings behind them — which search's header control and
 the pins rename both spend. `navigation.gestures` is the arbiter that eats the
 synthetic click a touch browser makes after a long press, which the outline's
 row menu asks for. Neither is on the row's own `needs`: history and focus
@@ -40,6 +40,89 @@ contributions. Disabling capture removes its command and makes `+` ordinary
 query text. Duplicate prefixes are reported and resolved in contribution order.
 The keyboard-settling observer belongs to navigation, so keyboard workflows and
 their observable completion work with alternative layouts too.
+
+## Palette levels
+
+A palette row can open a LEVEL instead of acting at once. The row is an
+ordinary `PaletteItem` contributed through `navigation.palette-adapters`; its
+action is `{ kind: "level", level }`. Pressing it, or Enter on it, replaces the
+list with the level, puts a crumb for it before the input, and empties the box.
+Backspace on an empty box goes back one level. Pressing a crumb closes that
+level and every level after it, which is the way back on a phone. Escape closes
+the palette; reopening starts at the root.
+
+There are two kinds of level (`palette/levels.ts`):
+
+- A **group** (`kind: "group"`) lists `children`, which are ordinary palette
+  rows: they route, run, write, or open a further level, with no depth limit. A
+  static list is filtered by the typed text. A function
+  `(scope) => Accessor<rows>` does its own matching against `scope.typed()`.
+  Rows may carry a `section` heading and a second-line `place`; the level may
+  show a non-interactive `hint`.
+- A **value** level (`kind: "value"`) makes the box a free-text field with its
+  own `placeholder` and `initial` text. Its `options` are not filtered by typing.
+  Exactly one is chosen (the first, or `chosen`), and the arrows move it. Enter,
+  a press on an option, or the footer's submit button calls
+  `submit(text, option, signal)`. An optional `validate` returns a sentence
+  that is drawn in the palette's refusal line, and the level stays up. `submit`
+  answers like a `run` row (`keepOpen`, `said`). While it is in flight the
+  level shows that it is busy and refuses another submit.
+
+```ts
+yield* slots.contribute(paletteAdapters, { items: () => [{
+  id: "notes-new", label: "New note", taking: atOnce, search: "new note",
+  action: { kind: "level", level: {
+    kind: "value", placeholder: "Say something…",
+    options: [{ id: "here", label: "Here" }, { id: "inbox", label: "Inbox" }],
+    validate: (text) => text.trim() === "" ? "Type something first." : null,
+    submit: async (text, where, signal) => {
+      await save(text, where?.id)
+      return signal.aborted ? {} : { said: { tone: "aside", text: "Saved." } }
+    },
+  } },
+}] })
+```
+
+At the root nothing changes. A group row is found by its own label like any
+command, its children are not searched from the root, and prefixes, questions
+and `taking` gating behave as before. Inside a level the box belongs to the
+level: a typed `+` or `>` is text. A palette question (`ask`) still stands over
+an open level. A value level differs from a question in that it is
+contributed as a row, has options, and can be nested and opened at a path;
+`Asking` remains the way a run row asks one more thing on the spot.
+
+`navigation.palette`'s `showAt(path, text?)` opens the palette already drilled
+into a path of row ids, never labels, and puts `text` in the deepest level when
+the whole path resolves. If the path stops resolving (the contributing plugin
+is off), the palette opens at the deepest level that does.
+
+Ownership:
+
+- The open path (`Step`s: row id, crumb, typed text, chosen option, busy flag
+  and an `AbortController`) is the palette's memory, owned by navigation's
+  activation and reset with it. A draft typed in a level and a submit in
+  flight therefore survive the overlay being redrawn when an unrelated plugin
+  changes.
+- Each step's rows are computed in a Solid root owned by the palette overlay
+  (the `palette` component), created when the level is opened or the overlay is
+  redrawn, and disposed when the level is popped, the palette closes, the
+  contributing adapter is withdrawn, or the overlay goes. A level function's
+  memos, subscriptions and `onCleanup` live in that root.
+- A step's controller is its lifetime. Popping, closing, withdrawal or
+  navigation's own withdrawal aborts it, and the palette drops any answer from
+  that submit: it does not close, speak, or move the palette the person is now
+  looking at. The `signal` passed to `submit` and to a level function is that
+  controller's, so the contributor can stop work no one is waiting for.
+- The open path is resolved against live contributions. When the adapter that
+  contributed the root of the path is withdrawn, its levels stop being drawn
+  immediately and are then disposed. The palette stands at the deepest level
+  still there and says “… is no longer available”. The adapter coming back
+  does not reopen the level. A redraw re-resolves the remembered path by id
+  in the same way.
+
+`palette_levels.feature` drives all of this through the maintained
+`test-palette` fixture ([test-palette.md](test-palette.md)), on desktop and
+phone.
 
 Touch ghost-click suppression belongs to the navigation activation. Disabling
 navigation removes its capture listener and clears an armed gesture; retained
