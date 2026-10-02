@@ -8,6 +8,7 @@
   "layout": [
     "src/address/Face.tsx",
     "src/address/address.ts",
+    "src/pane/state.ts",
     "src/workspace.ts"
   ],
   "search": [

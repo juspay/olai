@@ -6,7 +6,23 @@ import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route,type Routing } from "./routes.ts"
 import type { Workspace,WorkspaceRouting } from "./workspace.ts"
+export interface LivePane {
+  readonly id: string
+  readonly index: Accessor<number>
+  readonly route: Accessor<Route>
+  readonly width: Accessor<number | undefined>
+}
+export interface Lane extends Router {}
 export interface Router {
+  readonly lanes: Accessor<readonly Lane[]>
+  readonly panes: Accessor<readonly LivePane[]>
+  readonly focusIndex: Accessor<number>
+  readonly split: Accessor<boolean>
+  readonly shown: Accessor<boolean>
+  readonly info: (index: number) => import("./index.ts").PageInfo | undefined
+  readonly focused: Accessor<import("./index.ts").PageInfo | undefined>
+  readonly report: (index: Accessor<number>, info: Accessor<import("./index.ts").PageInfo>) => void
+
   /**
    * THE ROUTE OPERATIONS THAT READ THE MOUNTED ROSTER — printing a URL,
    * parsing one, finding the tenant behind one, and the three narrowing
@@ -114,6 +130,18 @@ export function RouterProvider(
       {props.children}
     </RouterContext.Provider>
   )
+}
+
+export const useMaybeRouter = (): Router | undefined => useContext(RouterContext)
+const ShownContext = createContext<Accessor<boolean>>()
+export function ShownProvider(props: { readonly shown: Accessor<boolean>; readonly children: JSX.Element }) {
+  return <ShownContext.Provider value={props.shown}>{props.children}</ShownContext.Provider>
+}
+export const useShown = (): Accessor<boolean> => {
+  const shown = useContext(ShownContext)
+  if (shown) return shown
+  const router = useContext(RouterContext)
+  return router?.shown ?? (() => true)
 }
 
 export const useRouter = (): Router => {

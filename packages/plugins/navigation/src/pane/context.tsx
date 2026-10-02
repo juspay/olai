@@ -10,12 +10,14 @@
 import { createContext,type JSX,useContext } from "solid-js"
 
 export interface PaneHere {
+  readonly id: string
   readonly index: number
 }
 
 const PaneContext = createContext<PaneHere>()
 
 export function PaneProvider(props: {
+  readonly id?: string
   readonly index: number
   readonly children: JSX.Element
 }) {
@@ -24,7 +26,9 @@ export function PaneProvider(props: {
   // object per focus change would leave it holding the index the pane
   // was born with, so a narrow-screen tab tap would light the tab and
   // leave the page, and a close would read a slot that is gone.
+  const fallbackId = crypto.randomUUID()
   const here: PaneHere = {
+    get id() { return props.id ?? fallbackId },
     get index() {
       return props.index
     },

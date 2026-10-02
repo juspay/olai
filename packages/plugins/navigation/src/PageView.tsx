@@ -15,7 +15,7 @@ import { Empty } from "@olai/web/client/Empty.tsx"
 
 export function PageView() {
   const router = useRouter(), here = useHere()
-  const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
+  const route = createMemo(() => router.panes()[here()]!.route())
   const address = createMemo(() => {
     const at = route()
     return at.kind === "at" && at.address !== null && at.address.kind !== "node" ? at.address : undefined

@@ -1,3 +1,4 @@
+import { createLane } from "./live.ts"
 /**
  * The address bar, as a signal — and the one component allowed to change it.
  *
@@ -17,46 +18,25 @@
  * a tree of a thousand rows does not thread a navigate callback through every
  * one of them.
  */
-import type { Router } from "./routing.tsx"
+import type { Lane, Router } from "./routing.tsx"
 import {
 batch,
 createEffect,
 createSignal,
+createMemo,
+createSelector,
+createRoot,
+getOwner,
+runWithOwner,
 onCleanup,
 untrack
 } from "solid-js"
 
-import {
-asTheyWere,
-landingOf,
-type Landings,
-landingsOf,
-marked,
-NOWHERE,
-spent
-} from "./landing.ts"
+import { type Landings, landingsOf, NOWHERE } from "./landing.ts"
 import { adopted, forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
-import type { Route } from "./routes.ts"
 import { routing } from "./pages.ts"
 import { createScrollMemory } from "./scroll.ts"
-import {
-closeAt,
-closeFocused,
-collapseAt,
-expandAt,
-focusAt,
-focusBy,
-focusedRoute,
-hrefOfWorkspace,
-isLone,
-navigateIn,
-openRight,
-panesOf,
-reorder as reorderPanes,
-resizeTo,
-type Workspace,
-workspaceOf,
-} from "./workspace.ts"
+import { hrefOfWorkspace, type Workspace, workspaceOf } from "./workspace.ts"
 
 /** What this app keeps on a history entry, which is a NAME for it and nothing
  *  else: what was on screen is derived from the address, and a second copy of
@@ -90,34 +70,15 @@ const here = (): string =>
   location.pathname + location.search + location.hash
 
 export const createRouter = (): Router => {
-  const first = workspaceOf(routing, here())
-  const [workspace, setWorkspace] = createSignal<Workspace>(first)
-  const [landings, setLandings] = createSignal<Landings>(landingsOf(first))
-
-  // A newly available plugin can claim the address already in the bar (for
-  // example, Back into a disabled journal followed by enabling journal).
-  // Reinterpret those routes when the claim table changes without navigating
-  // or replacing the route objects that still mean the same thing.
-  createEffect(() => {
-    const parsed = workspaceOf(routing, here())
-    const current = untrack(workspace)
-    let next = current
-    let arrivals = untrack(landings)
-    const previous = panesOf(current)
-    for (const [index, pane] of panesOf(parsed).entries()) {
-      const before = previous[index]?.route
-      if (before === undefined) continue
-      if (before.kind === pane.route.kind && routing.href(before) === routing.href(pane.route)
-        && (before.kind !== "plugin" || pane.route.kind !== "plugin"
-          || before.source === pane.route.source)) continue
-      next = navigateIn(next, index, pane.route)
-      arrivals = marked(arrivals, index, landingOf(pane.route))
-    }
-    if (next !== current) batch(() => {
-      setLandings(arrivals)
-      setWorkspace({ ...next, focus: current.focus })
-    })
-  })
+  const owner = getOwner()
+  type Live = ReturnType<typeof createLane> & { dispose: () => void; name: ReturnType<typeof createSignal<string | null>> }
+  const [live, setLive] = createSignal<readonly Live[]>([])
+  const [front, setFront] = createSignal<Live>(undefined!)
+  const inFront = createSelector(front)
+  const lanes = createMemo(() => live().map(one => one.value))
+  const workspace = () => front().value.workspace()
+  const setWorkspace = (next: Workspace) => front().setWorkspace(next)
+  const setLandings = (next: Landings) => front().setLandings(next)
 
   // THE NAME OF THE ENTRY UNDER THE READER, kept turn and turn about — the
   // one question a popstate cannot answer from its payload alone: did the
@@ -193,7 +154,7 @@ export const createRouter = (): Router => {
   const commit = (
     next: Workspace,
     how: "push" | "replace",
-    land: (all: Landings) => Landings,
+    apply: () => void,
   ): void => {
     const href = hrefOfWorkspace(routing, next)
     if (how === "push") {
@@ -206,10 +167,7 @@ export const createRouter = (): Router => {
     // ONE PROPAGATION, not two: without this every pane's landing memo re-runs
     // on the first write and everything drawn from the workspace on the second,
     // for one navigation.
-    batch(() => {
-      setLandings(land)
-      setWorkspace(next)
-    })
+    apply()
     if (how === "push") {
       // A page you asked for, so: the top. Always, even when the address
       // names a place inside the page — see the long argument this
@@ -231,8 +189,10 @@ export const createRouter = (): Router => {
     // to that entry — what it owes you then is the position you left, which is
     // the scroll memory's. One statement about the whole address, because a
     // `popstate` IS one: every pane on it is the pane the reader left.
-    setLandings(NOWHERE)
-    setWorkspace(workspaceOf(routing, here()))
+    batch(() => {
+      setLandings(NOWHERE)
+      setWorkspace(workspaceOf(routing, here()))
+    })
     scroll.restore(nameHere())
   }
 
@@ -337,24 +297,6 @@ export const createRouter = (): Router => {
     seeking = undefined
   })
 
-  const goIn = (index: number, next: Route): void => {
-    commit(
-      navigateIn(workspace(), index, next),
-      "push",
-      (all) => marked(all, index, landingOf(next)),
-    )
-  }
-  const replaceIn = (index: number, next: Route): void => {
-    // A REPLACE IS NOT AN ARRIVAL — it is the same page at a different address
-    // (a filter narrowed, a focus recorded), and the scroll is deliberately
-    // left where it is. So this pane is owed nothing, and no other pane hears.
-    commit(
-      navigateIn(workspace(), index, next),
-      "replace",
-      (all) => marked(all, index, undefined),
-    )
-  }
-
   /**
    * NAME THE LANE THE ENTRY UNDER THE READER BELONGS TO — and, given `to`, put
    * that lane's workspace on it, which is what a tab brought to the front is.
@@ -368,96 +310,89 @@ export const createRouter = (): Router => {
    * was left, which is the top for a key this document never saw.
    */
   const switchLane = (next: string | null, to?: { readonly workspace: Workspace; readonly key?: string }): string => {
-    const name = to === undefined ? currentKey : (to.key ?? mintKey())
-    // The entries this document wrote while no lane was in force belong to no
-    // tab yet; the lane taken over them is the tab that was showing them.
-    const owned = untrack(lane) === null && next !== null ? adopted(rows, next) : rows
-    setLane(next)
-    currentKey = name
-    rows = new Map(owned).set(currentAt, next)
-    const href = to === undefined ? undefined : hrefOfWorkspace(routing, to.workspace)
-    const write = () => history.replaceState(stamp(name), "", href)
-    // MID-TRAVEL the browser is on some other entry, so the write waits until
-    // the traversal has taken it back to this one (`onTravel`).
-    if (seeking !== undefined) seeking.pending = write
-    else write()
-    if (to === undefined) return name
-    batch(() => {
-      setLandings(NOWHERE)
-      setWorkspace(to.workspace)
+    return batch(() => {
+      const previous = untrack(front)
+      const adopting = untrack(lane) === null && next !== null
+      let target = next === null || adopting ? previous : untrack(live).find(one => one.name[0]() === next)
+      if (!target) target = makeLane(next, to?.workspace ?? previous.value.workspace())
+      target.name[1](next)
+      const name = to === undefined ? currentKey : (to.key ?? mintKey())
+      const owned = adopting ? adopted(rows, next!) : rows
+      setLane(next)
+      currentKey = name
+      rows = new Map(owned).set(currentAt, next)
+      const href = to === undefined ? undefined : hrefOfWorkspace(routing, target.value.workspace())
+      const write = () => history.replaceState(stamp(name), "", href)
+      if (seeking !== undefined) seeking.pending = write
+      else write()
+      setFront(target)
+      if (next === null) {
+        const gone = untrack(live).filter(one => one !== target)
+        setLive([target])
+        for (const one of gone) one.dispose()
+      }
+      if (to !== undefined) scroll.restore(name)
+      return name
     })
-    scroll.restore(name)
-    return name
   }
 
+  const forgetLane = (gone: string) => {
+    rows = forgotten(rows, gone)
+    const target = untrack(live).find(one => one.name[0]() === gone)
+    // The tab store may forget the front immediately before switching it.
+    // Keep that view until the replacement is installed in the same transaction.
+    if (target === untrack(front)) {
+      rows = new Map(rows).set(currentAt, gone)
+    }
+    if (target) {
+      setLive(all => all.filter(one => one !== target))
+      target.dispose()
+    }
+  }
+  const makeLane = (name: string | null, seed: Workspace): Live => {
+    const one = runWithOwner(owner, () => createRoot(dispose => {
+      const nameSignal = createSignal(name)
+      const state = createLane(seed, { lanes, lane: nameSignal[0], entryKey: () => currentKey, switchLane, forgetLane },
+        () => inFront(result), (next, how, apply) => {
+          if (untrack(front) === result) commit(next, how, apply)
+          else apply()
+        }, name === null ? here() : undefined)
+      const result: Live = { ...state, dispose, name: nameSignal }
+      return result
+    }))!
+    setLive(all => [...all, one])
+    return one
+  }
+  setFront(makeLane(null, workspaceOf(routing, here())))
+  onCleanup(() => { for (const one of untrack(live)) one.dispose() })
+  // Service readers follow the front; lane readers retain their own view.
+  const current = (): Lane => front().value
   return {
-    lane,
-    entryKey: () => currentKey,
-    switchLane,
-    forgetLane: (gone) => {
-      rows = forgotten(rows, gone)
-      // Forgetting the lane in force keeps the entry under the reader alive,
-      // so Back and Forward still have somewhere to come home to until the
-      // next `switchLane` puts another lane on it.
-      if (gone === untrack(lane)) rows = new Map(rows).set(currentAt, gone)
-    },
-    // THE ROSTER-DEPENDENT HALF OF THE GRAMMAR, on the router that holds the
-    // routes — one binding over this row's own claim table (`./pages.ts`), so
-    // every `<Link>`, every pane label and every consuming row asks one thing.
+    lanes, lane, entryKey: () => currentKey, switchLane, forgetLane,
     routes: routing,
     workspace,
-    route: () => focusedRoute(workspace()),
-    landing: (index) => landings().get(index),
-    landed: (index, file, at) =>
-      setLandings((all) => spent(all, index, file, at)),
-    go: (next) => goIn(workspace().focus, next),
-    goIn,
-    replace: (next) => replaceIn(workspace().focus, next),
-    replaceIn,
-    open: (next) => commit(next, "push", () => NOWHERE),
-    openRight: (from, next, forceNew) => {
-      const after = openRight(workspace(), from, next, forceNew === true)
-      // A PANE IS BORN, so every index at or after it means a different pane
-      // than it did a moment ago: only the arrival this verb is about survives.
-      commit(after, "push", () => marked(NOWHERE, after.focus, landingOf(next)))
-    },
-    close: (index) => {
-      const here = workspace()
-      const after = index === undefined ? closeFocused(here) : closeAt(here, index)
-      if (after === here) return
-      // Closing the second-to-last returns a plain page: push, so Back
-      // restores the split. A pane is gone, so the indices moved.
-      commit(after, "push", () => NOWHERE)
-    },
-    focus: (index) => {
-      const here = workspace()
-      const after = focusAt(here, index)
-      if (after.focus === here.focus) return
-      // Focus is part of the address so a reload restores it, but it is
-      // not a page you went TO: replace, so Back is not an un-focus. No pane
-      // changed page, so no pane's landing changed either.
-      commit(after, "replace", asTheyWere)
-    },
-    stepFocus: (delta) => {
-      const here = workspace()
-      if (isLone(here)) return
-      const after = focusBy(here, delta)
-      if (after.focus === here.focus) return
-      commit(after, "replace", asTheyWere)
-    },
-    collapse: (index) => {
-      commit(collapseAt(workspace(), index), "replace", asTheyWere)
-    },
-    expand: (index) => {
-      commit(expandAt(workspace(), index), "replace", asTheyWere)
-    },
-    resize: (widths) => {
-      commit(resizeTo(workspace(), widths), "replace", asTheyWere)
-    },
-    reorder: (from, to) => {
-      // The panes are permuted, so every mark names the wrong one.
-      commit(reorderPanes(workspace(), from, to), "push", () => NOWHERE)
-    },
+    panes: createMemo(() => current().panes()),
+    focusIndex: createMemo(() => current().focusIndex()),
+    split: createMemo(() => current().split()),
+    route: createMemo(() => current().route()),
+    info: index => current().info(index),
+    focused: createMemo(() => current().focused()),
+    report: (index, info) => current().report(index, info),
+    shown: () => true,
+    landing: index => current().landing(index),
+    landed: (...args) => current().landed(...args),
+    go: (...args) => current().go(...args),
+    goIn: (...args) => current().goIn(...args),
+    replace: (...args) => current().replace(...args),
+    replaceIn: (...args) => current().replaceIn(...args),
+    open: (...args) => current().open(...args),
+    openRight: (...args) => current().openRight(...args),
+    close: (...args) => current().close(...args),
+    focus: (...args) => current().focus(...args),
+    stepFocus: (...args) => current().stepFocus(...args),
+    collapse: (...args) => current().collapse(...args),
+    expand: (...args) => current().expand(...args),
+    resize: (...args) => current().resize(...args),
+    reorder: (...args) => current().reorder(...args),
   }
 }
-
