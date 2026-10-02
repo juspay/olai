@@ -181,6 +181,8 @@ Feature: A new chat asks where it belongs before creating anything
     And the agent has answered "only once" exactly once
     And the chat input reads "later words"
     And the Inbox has 1 filed conversations
+    When I press new chat in Chats
+    Then the new chat page has no refusal
     And there should be no page errors
 
   @no-agent

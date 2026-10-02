@@ -80,6 +80,7 @@ export const createNewChat = () => {
       arrivals.set(node, { engine: agent, text, later, to, refusal: created?.refusal ?? null, done: () => { if (alive) setPending(false) } })
       // A replaced navigation provider is not the one this gesture opened in.
       if (navigation() !== nav) { arrivals.delete(node); setDraft(later); restore(); fail("Navigation changed. Try again."); handed = false; return }
+      fail(null)
       nav.go(atNode(node))
       choose({ kind: "default" })
     } finally { if (!handed) setPending(false) }

@@ -129,3 +129,8 @@ Then("node {string} keeps title {string} and has no new chat child", function(th
 Then("the plain retry engine is {string}", async function(this: OlaiWorld, engine: string) {
   assert.equal(await this.page.locator(selector(PLUGIN_TESTID.agentPlainEngine)).inputValue(), engine);
 });
+
+Then("the new chat page has no refusal", async function(this: OlaiWorld) {
+  await this.page.locator(selector(PLUGIN_TESTID.newChatPage)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.newChatPage)).getByRole("alert").count(), 0);
+});
