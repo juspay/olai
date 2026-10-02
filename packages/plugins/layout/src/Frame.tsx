@@ -26,6 +26,7 @@ import { For } from "solid-js"
 import { contentStatus,overlays,sidebar,strip } from "./index.ts"
 import {
 createEffect,
+createMemo,
 onCleanup,
 Show
 } from "solid-js"
@@ -67,7 +68,10 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
     if (desktop()) setMenuOpen(false)
   })
 
-  const split = () => !isLone(router.workspace())
+  const split = router.split
+  const ready = createMemo(() => props.slots.read(contentStatus).every(({ value }) => value.ready()))
+  const started = createMemo((was: boolean) => was || ready(), false)
+  const closet = <Tools slots={props.slots} where="closet" />
 
   return (
       <RouterProvider router={router}>
@@ -138,7 +142,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     <Show when={desktop() && !sidebarOpen()}>
                       <parts.Rail home={() => router.go(HOME_ROUTE)} />
                     </Show>
-                    <Show when={desktop() ? sidebarOpen() : true}>
+                    <div style={{ display: desktop() && !sidebarOpen() ? "none" : "contents" }}>
                       <parts.Sidebar
                         Resize={SidebarHandle}
                         open={desktop() ? true : menuOpen()}
@@ -149,14 +153,10 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                           // preferences, which is the order the desktop bar
                           // reads left to right — a reader who learnt one
                           // arrangement does not have to learn a second.
-                          desktop() ? undefined : (
-                            <>
-                              <Tools slots={props.slots} where="closet" />
-                            </>
-                          )
+                          desktop() ? undefined : closet
                         }
                       />
-                    </Show>
+                    </div>
                     </>}</For>
                     <div class="min-w-0 bg-paper">
                       {/* THE SEAT ABOVE THE PANES (`./index.ts`'s `strip`), on a
@@ -170,7 +170,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                         </div>
                       </Show>
                       <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
-                      <Show when={props.slots.read(contentStatus).every(({value})=>value.ready())}><Panes/></Show>
+                      <Show when={started()}><Panes/></Show>
                     </div>
                   </div>
         </div>
