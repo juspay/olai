@@ -119,9 +119,11 @@ Retained lanes keep open menu state, including confirmations, submenus and the
 focused entry. Hidden menus withdraw Kobalte content layers and rejoin on show.
 Blur and outside dismissal settle the current pointer gesture before consulting
 the page's declared visibility; they do not infer navigation from tab markup.
-Editor seats are projected into a keyed store with `reconcile`, so unchanged
-seats do not wake other rows. A native context menu ends a pending gesture too;
+Editor seats are projected into a keyed store with per-key identity comparisons,
+so unchanged seats do not wake other rows and shared drafts are never reconciled
+in place. A native context menu ends a pending gesture too;
 owner cleanup delivers queued blur/close reports before dropping the helper.
+Blur delivered by DOM removal after cleanup still runs in a microtask.
 
 Each submenu surface explicitly registers its nested-menu accessor with its
 parent. Surface cleanup releases only that registration; hidden content shells

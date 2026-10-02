@@ -59,7 +59,7 @@ import {
   useContext,
   createSelector,
 } from "solid-js"
-import { createStore, reconcile } from "solid-js/store"
+import { createStore, unwrap } from "solid-js/store"
 import { Result } from "effect"
 
 import { datePick } from "../date/pick.ts"
@@ -445,17 +445,18 @@ export const createEditor = (
 
   // One atomic publication contains both halves of every seat. A resumed
   // draft cannot disappear between a parked-list update and a live selector.
+  const [locations, setLocations] = createStore<Record<string, { live: boolean; parked: ReadonlyArray<Pending> } | undefined>>({})
   const locationKey = (kind: Beside["kind"], id: string) => `${kind}\0${id}`
   const noGhosts: ReadonlyArray<Pending> = []
-  const [locations, setLocations] = createStore<Record<string, { live: boolean; parked: Pending[] }>>({})
-  // Project derived seats into a keyed store rather than a memo: reconcile
-  // leaves unchanged keys silent, so moving the caret does not wake every row.
+  // Project derived seats into a keyed store rather than a memo: unchanged
+  // keys stay silent. Compare draft identities; reconciliation mutates drafts
+  // owned by the editor when a parked line moves to another array index.
   createComputed(() => {
-    const next: Record<string, { live: boolean; parked: Pending[] }> = {}
+    const next = new Map<string, { live: boolean; parked: Pending[] }>()
     const seat = (at: Beside) => {
       const key = locationKey(at.kind, at.id)
-      let value = next[key]
-      if (!value) next[key] = value = { live: false, parked: [] }
+      let value = next.get(key)
+      if (!value) next.set(key, value = { live: false, parked: [] })
       return value
     }
     const pending = where().pending
@@ -464,7 +465,15 @@ export const createEditor = (
       const at = besideOf(displayAt(ghost.at))
       if (at) seat(at).parked.push(ghost)
     }
-    setLocations(reconcile(next))
+    untrack(() => batch(() => {
+      for (const key of Object.keys(locations)) if (!next.has(key)) setLocations(key, undefined)
+      for (const [key, value] of next) {
+        const old = locations[key]
+        if (old?.live === value.live && old.parked.length === value.parked.length
+          && unwrap(old.parked).every((ghost, index) => ghost === value.parked[index])) continue
+        setLocations(key, value)
+      }
+    }))
   })
 
   /**

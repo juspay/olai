@@ -40,7 +40,8 @@ export function createAfterGesture() {
     for (const task of tasks) task()
   })
   return (task: () => void) => {
-    if (!alive) return
+    // Removal can deliver blur after the owner has already been disposed.
+    if (!alive) { queueMicrotask(task); return }
     pending.add(task)
     if (!pointer) queueMicrotask(flush)
   }
