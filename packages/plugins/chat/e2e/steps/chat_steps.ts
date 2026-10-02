@@ -3825,6 +3825,9 @@ When("I attach a text file named {string} containing {string}", async function (
   const choosing = this.page.waitForEvent("filechooser");
   await this.chat(CHAT_ATTACH_BUTTON).click();
   await (await choosing).setFiles({ name, mimeType: "text/plain", buffer: Buffer.from(text) });
+  // The chooser dispatches input before the asynchronous upload finishes.
+  // Sending immediately can legitimately send only the typed message.
+  await this.chat(pendingChip(name)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then("the pending attachment {string} shows size {string}", async function (this: OlaiWorld, name: string, size: string) {

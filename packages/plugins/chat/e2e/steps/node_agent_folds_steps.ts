@@ -24,7 +24,9 @@ const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`$
 export const openFold = async (world: OlaiWorld, node: string) => {
   world.activeAgent = node;
   const control = standing(world, node);
-  if (await control.count() === 0) {
+  // A newly opened browser can draw the outline before its agent property
+  // face arrives. Use the sidebar only when the target row is absent.
+  if (!(await world.node(node).isVisible())) {
     await world.showSidebar();
     const row = world.page.locator(`${selector(PLUGIN_TESTID.agentRoster)} ${selector(PLUGIN_TESTID.agentRow)}${attr("data-agent", world.nodeId(node))}`);
     await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
