@@ -172,3 +172,6 @@ navigation, edits aimed at a still-focused old row are declined until the new
 reading arrives. `palette_startup.feature` measures that interval without a
 held frame, and tests explicit frame holds for reconnect, normal navigation,
 link/Back recovery, an already-open palette/confirmation, and a failed request.
+Browser setup that opens an outline waits for both its drawn file and a
+non-busy reading. The home route can already draw that file, so matching the
+filename alone would let the next action hit the retained page.

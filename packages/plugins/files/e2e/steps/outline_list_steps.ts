@@ -157,7 +157,9 @@ Then(
  */
 const treeOf = (world: OlaiWorld, file: string) =>
   world.page
-    .locator(`${PANE}[data-pane-focused="true"]${attr("data-drawn-file", file)} ${OUTLINE_TREE}`)
+    // `/` can already draw this file. Its retained tree is not proof that
+    // the explicit file request has arrived or that its controls are ready.
+    .locator(`${PANE}[data-pane-focused="true"]${attr("data-drawn-file", file)} ${attr("aria-busy", "false")} ${OUTLINE_TREE}`)
     .first();
 
 /** The same click one kind over from "I click the document": the entry in the
