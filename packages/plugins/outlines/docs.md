@@ -95,3 +95,18 @@ share the same scoped, batched lookup and withdraw with the provider.
 
 Beside its tools, the outlines sibling carries one `charter` paragraph that the MCP row composes into `initialize`'s `instructions` while this row stands ([mcp.md](mcp.md), "What `initialize` says"): a node's note is read by a person — `Note.tsx` draws it as markdown under the title and as the node's page — so an agent writes it as well-formed markdown for that reader, never a raw tool result or a wall of text. The tool line on `outlines_desc` says the note is stored verbatim; this says who reads it back. `src/charter.ts` argues the sentence, and the paragraph leaves the wire with the row.
 
+## Retained pane state
+
+The pane owns its editor memory, selection and landing state. Pane indices can
+change without resetting them. Navigating to another subject resets editing;
+a temporarily missing file can recover its unfinished draft in the same pane.
+Hidden panes ignore bulk keys and focus requests and hide their overlays.
+Temporary finished-row reveals are keyed by pane id, so two tabs of one file
+share saved edits while keeping separate landing courtesy.
+
+Done and filter pruning preserve each surviving store row's identity. Property
+faces are keyed by property name, and replacement values update their props.
+Caret, selection, fold and focus selectors notify only affected rows. Names,
+doors and licences expose stable per-key readings. Row elements register with
+the outlines activation for scoped landings; declaration batches, focus work
+and temporary done reveals also leave with that activation.

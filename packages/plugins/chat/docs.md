@@ -249,3 +249,22 @@ it when the bound node/engine/session changes. Row actions carry an optional
 static confirmation sentence through the outlines slot contract; the existing
 row menu owns that question and its dismissal. Session work still runs through
 the chat wire service and retains its existing ownership and cleanup.
+
+## Retained conversations and attention
+
+A visited tab keeps its conversation mounted while hidden. An opened outline
+agent fold keeps its conversation under the row owner when folded shut; closing
+the row or pane releases that reading. Unvisited restored tabs open no chat.
+Only shown conversation surfaces count as watched for badges, chimes and
+notifications. A hidden tab can therefore acquire its needs-you dot, and a
+notification reveals a shown copy or requests a visible conversation.
+
+Hidden transcripts never scroll. On return they follow the latest line only
+if the reader had been following before hiding. Completion key handlers obey
+the same visibility boundary. Tool details, question fields, terminal output
+and sign-in output update their existing elements as wire rows are replaced.
+
+Conversation UI belongs to the chat activation, keyed by engine and session.
+Joined readers share it. The final reader releases an empty UI; pending sends,
+uploads and unsent drafts keep their operation's state until it can be released.
+Roster lookups and per-tool choices notify only their dependent consumers.

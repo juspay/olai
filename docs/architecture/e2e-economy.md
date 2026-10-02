@@ -72,3 +72,25 @@ Timings come from reports of past runs, so they bound the suite's cost loosely r
 - Reconnect cases spend about 10s waiting for the production connection state to become "reconnecting". That wait is doing real work, unlike the Escape wait corrected above.
 - The audit supports these specific merges and the one synchronization fix. It does not support the claim that no browser test covers anything a unit test covers, nor the claim that all redundancy has been ruled out.
 - Future additions should name the browser-specific failure they catch, and extend an existing workflow whenever its setup and outcome already cover the same path.
+
+
+## Retained lanes and Solid reactivity (#642)
+
+`tabs/retained.feature` checks actual element identity across tab switches,
+close, lazy reload, split/close/reorder, rails and breakpoint changes. It also
+covers hidden selection, filters and window scroll. `tabs/retained_chat.feature`
+adds split conversation identity, unsent words, open tool details, hidden
+streaming with both scroll intentions, and hidden-tab attention.
+
+Existing history, missing-file recovery, independent phone-pane drafts, terminal
+target changes and plugin withdrawal scenarios remain behavioural constraints.
+Helpers scope page content to the front lane; visibility assertions distinguish
+retained hidden elements from disposed owners. The alternate-layout fixture
+remains supported without requiring layout's lane markup.
+
+The PageView frame scenario exercises done/filter pruning with a live property
+drawer, and calendar collapse checks month retention. Cheap browser-unit tests
+measure row binding counts, per-key lookups, tool selectors and composer text
+invalidation; pure tests cover pane reconciliation and transcript ordering.
+These do not replace the DOM identity and user-action scenarios. Coverage is
+organised around ownership transitions rather than repeated loading delays.

@@ -449,3 +449,25 @@ turn).
 - Open: no live `claude auth login` or Codex device-code flow is driven — the
   command and the page are the fakes — and the card's browser-side look (its
   colours, its phone layout) has no visual assertion.
+
+
+## Retained lanes and Solid reactivity (#642)
+
+`tabs/retained.feature` checks actual element identity across tab switches,
+close, lazy reload, split/close/reorder, rails and breakpoint changes. It also
+covers hidden selection, filters and window scroll. `tabs/retained_chat.feature`
+adds split conversation identity, unsent words, open tool details, hidden
+streaming with both scroll intentions, and hidden-tab attention.
+
+Existing history, missing-file recovery, independent phone-pane drafts, terminal
+target changes and plugin withdrawal scenarios remain behavioural constraints.
+Helpers scope page content to the front lane; visibility assertions distinguish
+retained hidden elements from disposed owners. The alternate-layout fixture
+remains supported without requiring layout's lane markup.
+
+The PageView frame scenario exercises done/filter pruning with a live property
+drawer, and calendar collapse checks month retention. Cheap browser-unit tests
+measure row binding counts, per-key lookups, tool selectors and composer text
+invalidation; pure tests cover pane reconciliation and transcript ordering.
+These do not replace the DOM identity and user-action scenarios. Coverage is
+organised around ownership transitions rather than repeated loading delays.

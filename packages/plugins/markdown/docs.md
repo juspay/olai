@@ -42,3 +42,15 @@ identity, so callers cannot pair a changing predicate with a stale revision. Cod
 code fences and frontmatter cannot introduce missing-link warnings; queries
 and fragments are excluded from membership checks. Authored link titles are
 preserved alongside the warning.
+
+## Draft and rendering lifetime
+
+A live pane keeps its document page across tab switches and layout changes.
+Drafts belong to the Markdown activation and are keyed by pane id and file.
+The declared navigation integration retains only files still addressed by live
+panes, so closing a pane or navigating away abandons that visit's draft. A
+missing file restored during the same visit can resume it. Plugin presentation
+changes do not use Route-object caches to carry editor state.
+
+Landing marks use the pane's own element. Changes to the vault's path membership
+update internal-link metadata without rebuilding unrelated Markdown HTML.
