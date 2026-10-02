@@ -163,8 +163,9 @@ export function Dropdown(props: {
   let lastFocused: HTMLElement | undefined
   const rememberFocus = (event: FocusEvent) => {
     // Mount autofocus visits the replaceable shell before restoring its items.
-    // That shell must not overwrite the entry remembered across suspension.
-    if (event.target instanceof HTMLElement && event.target !== event.currentTarget) lastFocused = event.target
+    // Neither this shell nor a portalled submenu shell may overwrite the
+    // entry remembered across suspension.
+    if (event.target instanceof HTMLElement && event.target.getAttribute("role") !== "menu") lastFocused = event.target
   }
   createEffect(() => {
     if (!shown() || !props.door.open()) return

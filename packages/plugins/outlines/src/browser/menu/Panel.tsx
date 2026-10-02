@@ -110,7 +110,7 @@ export function Panel(props: {
           data-sub={sub.entry.id}
           aria-label={sub.entry.label}
           onFocusIn={event => {
-            if (event.target instanceof HTMLElement && event.target !== event.currentTarget) lastFocused = event.target
+            if (event.target instanceof HTMLElement && event.target.getAttribute("role") !== "menu") lastFocused = event.target
             props.gestures.onFocusIn(event)
           }}
           onFocusOutside={event => {
