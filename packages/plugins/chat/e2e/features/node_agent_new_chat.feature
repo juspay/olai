@@ -50,7 +50,9 @@ Feature: A new chat asks where it belongs before creating anything
   Scenario: Multiline prose gives the node a clipped first nonempty line
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    And I type new chat draft "\nPlan the kitchen renovation with enough detail to cover every cabinet and hinge\nSecond line stays in the message"
+    And I type new chat draft "\nPlan the kitchen renovation with enough detail to cover every cabinet and hinge"
+    And I press "Shift+Enter"
+    And I type "Second line stays in the message"
     And I send the new chat draft
     Then the chat child under "chats" in "_olai/Inbox.olai" is titled "Plan the kitchen renovation with enough detail to cover…"
     And the agent's answer mentions "Second line stays in the message"
@@ -209,7 +211,7 @@ Feature: A new chat asks where it belongs before creating anything
   @new-chat-review
   Scenario: New chat leaves another node's pending question and draft intact
     Given the harness keeps distinct sessions on disk
-    And I click the outline "house.olai"
+    And I open the outline "house.olai"
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I remember this conversation as "waiting"
