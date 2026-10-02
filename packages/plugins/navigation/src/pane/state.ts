@@ -28,10 +28,16 @@ export function createPaneState(seed: Workspace, routes: WorkspaceRouting) {
     const previous = held
     const unused = new Set(previous)
     const stable: Route[] = []
-    held = incoming.map((pane, index) => {
+    // Reserve address matches before positional fallbacks: a changed address
+    // must not steal the owner of an unchanged pane later in the list.
+    const matches = incoming.map((pane, index) => {
       const old = keys ? previous.find(one => one.value.id === keys[index])
-        : incoming.length === previous.length ? previous[index]
-        : previous.find(one => unused.has(one) && sameRoute(one.value.route(), pane.route))
+        : [previous[index], ...previous].find(one => one && unused.has(one) && sameRoute(one.value.route(), pane.route))
+      if (old) unused.delete(old)
+      return old
+    })
+    held = incoming.map((pane, index) => {
+      const old = matches[index] ?? (!keys && incoming.length === previous.length && unused.has(previous[index]!) ? previous[index] : undefined)
       if (old) unused.delete(old)
       const route = old && sameRoute(old.value.route(), pane.route) ? old.value.route() : pane.route
       stable.push(route)

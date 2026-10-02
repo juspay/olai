@@ -16,7 +16,6 @@ export interface LivePane {
 }
 export interface Lane extends Router {}
 export interface Router {
-  readonly lanes: Accessor<readonly Lane[]>
   readonly panes: Accessor<readonly LivePane[]>
   readonly focusIndex: Accessor<number>
   readonly split: Accessor<boolean>
@@ -99,6 +98,16 @@ export interface Router {
   readonly expand: (index: number) => void
   readonly resize: (widths: ReadonlyArray<number>) => void
   readonly reorder: (from: number, to: number) => void
+  readonly lane: Accessor<string | null>
+
+}
+
+/** Window-wide controls belong to the declared navigation service, never to
+ * the lane router handed to a page. */
+export interface NavigationRouter extends Router {
+  readonly lanes: Accessor<readonly Lane[]>
+  /** Layout leases the visibility of content without owning lane state. */
+  readonly drawContent: (shown: Accessor<boolean>) => () => void
   /**
    * WHICH TAB THE HISTORY BELONGS TO, or `null` for the window's own.
    *
@@ -164,7 +173,7 @@ export const usePaneId = (): Accessor<string> => {
 export const useHere = (): (() => number) => {
   const router = useRouter()
   const pane = usePane()
-  return () => pane?.index ?? router.workspace().focus
+  return () => pane?.index ?? router.focusIndex()
 }
 
 /**
@@ -258,7 +267,7 @@ export const useMaybeGo = (): ((route: Route) => void) | null => {
   const router = useContext(RouterContext)
   const pane = usePane()
   if (router === undefined) return null
-  return (route) => router.goIn(pane?.index ?? router.workspace().focus, route)
+  return (route) => router.goIn(pane?.index ?? router.focusIndex(), route)
 }
 
 export interface LinkProps {

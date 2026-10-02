@@ -4,11 +4,13 @@
     "src/browser.tsx",
     "src/pages.ts"
   ],
-  "//layout": "Saved-layout vocabulary names a workspace target, not the layout plugin.",
+  "//layout": "Workspace tree fields and the content visibility owner use layout vocabulary, not a lookup of the layout plugin.",
   "layout": [
     "src/address/Face.tsx",
     "src/address/address.ts",
+    "src/live.ts",
     "src/pane/state.ts",
+    "src/router.tsx",
     "src/workspace.ts"
   ],
   "search": [

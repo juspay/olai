@@ -95,27 +95,33 @@ writes the entry once the browser is back on it.
 with that lane's current workspace; `to.workspace` seeds only a lane that has
 not been shown. The current entry takes that lane's address and reuses `to.key`
 when supplied for scroll restoration. The first named lane adopts the window
-lane and its mounted pages. `forgetLane` disposes a lane's root and marks its
-history entries dead. `switchLane(null)` adopts the front lane as the window's,
+lane and its mounted pages. `forgetLane` marks its history entries dead and
+disposes a background lane immediately. A forgotten front lane remains live
+until `switchLane` installs its replacement; calls in between still update its
+readings and page. `switchLane(null)` adopts the front lane as the window's,
 disposes all others, and restores ordinary window history.
 
 Navigation owns each lane's reactive root, workspace, landings and reports.
-`lanes()` returns stable lane objects. Each provides the same navigation verbs,
-scoped to its own workspace. A background verb changes only that lane; only the
+`lanes()` returns stable lane objects. Each provides page navigation verbs scoped to its own workspace.
+Only the declared navigation service exposes the lane roster, entry key and
+switch/forget controls; page routers cannot alter other lanes. A background verb changes only that lane; only the
 front lane writes window history. Every lane reparses routes when the roster
 changes. The service's own readings still describe the lane in front.
 
 Each lane exposes stable `panes()` objects with `id`, reactive `index()`,
 `route()` and `width()`, plus `focusIndex()` and `split()` slices. Navigation
 keeps ids through navigation, reorder and neighbour removal. Address reparses
-keep ids by position at equal counts and otherwise match addresses in order.
+reserve address matches first, using position to break duplicate-address ties
+and then to reuse remaining owners for changed addresses at equal counts.
 Unchanged addresses reuse their Route objects. Pane ids are runtime identities,
 not URL or storage fields. Reports and page memories use those ids.
 
 `navigation.page()` honours an enclosing `RouterProvider`; without one it uses
 the front lane. `usePane()` supplies the id, reactive index and mounted element.
 `useShown()` reports whether the page is currently drawn (including narrow-pane
-and folded-chat visibility); outside a visibility provider it returns true.
+and folded-chat visibility). A lane is shown only while it is in front and
+layout declares content ready. Outside a visibility provider, `useShown()`
+falls back to the enclosing router and then to true if there is no router.
 Page listeners, overlays, focus and scrolling must honour that reading.
 
 History is per document. The router only knows the entries this document wrote,

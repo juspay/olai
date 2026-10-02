@@ -1,3 +1,4 @@
+import { createStore } from "solid-js/store"
 import type { Lane, Router } from "./routing.tsx"
 import {
 batch,
@@ -43,7 +44,7 @@ import { createPaneState } from "./pane/state.ts"
 
 /** One workspace and its reports. Its root belongs to navigation, not to the
  * tab strip or to a particular layout mode. Only the front lane writes history. */
-export function createLane(seed: Workspace, shared: Pick<Router, "lanes" | "lane" | "entryKey" | "switchLane" | "forgetLane">,
+export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
   shown: () => boolean, write: (next: Workspace, how: "push" | "replace", apply: () => void) => void, initialAddress?: string) {
   let address = initialAddress ?? hrefOfWorkspace(routing, seed)
   const first = seed
@@ -76,11 +77,11 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lanes" | "lane
   })
 
 
-  const commit = (next: Workspace, how: "push" | "replace", land: (all: Landings) => Landings, keys?: readonly string[]) => {
+  const commit = (next: Workspace, how: "push" | "replace", land: (all: Landings) => Landings, keys: readonly string[] = ids()) => {
     write(next, how, () => batch(() => { address = hrefOfWorkspace(routing, next); setLandings(land); setWorkspace(next, keys) }))
   }
-  const [reports, setReports] = createSignal<ReadonlyMap<string, () => PageInfo>>(new Map())
-  const info = (index: number) => reports().get(panes()[index]?.id ?? "")?.()
+  const [reports, setReports] = createStore<Record<string, (() => PageInfo) | undefined>>({})
+  const info = (index: number) => reports[panes()[index]?.id ?? ""]?.()
   const focused = createMemo(() => info(focusIndex()), undefined, { equals: (a, b) =>
     a?.file === b?.file && a?.title === b?.title && a?.history === b?.history && a?.pending === b?.pending && a?.failure === b?.failure })
   const goIn = (index: number, next: Route): void => {
@@ -108,11 +109,8 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lanes" | "lane
       const id = ids()[untrack(index)]!
       const row = createMemo(reading, undefined, { equals: (a, b) =>
         a?.file === b?.file && a?.title === b?.title && a?.history === b?.history && a?.pending === b?.pending && a?.failure === b?.failure })
-      setReports(all => new Map(all).set(id, row))
-      onCleanup(() => setReports(all => {
-        if (all.get(id) !== row) return all
-        const next = new Map(all); next.delete(id); return next
-      }))
+      setReports(id, () => row)
+      onCleanup(() => { if (untrack(() => reports[id]) === row) setReports(id, undefined) })
     },
     // THE ROSTER-DEPENDENT HALF OF THE GRAMMAR, on the router that holds the
     // routes — one binding over this row's own claim table (`./pages.ts`), so
@@ -175,8 +173,11 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lanes" | "lane
       // The panes are permuted, so every mark names the wrong one.
       const after = reorderPanes(workspace(), from, to)
       if (after === workspace()) return
-      const nextIds = [...ids()]
-      nextIds.splice(to, 0, nextIds.splice(from, 1)[0]!)
+      const leaves = (layout: import("./workspace.ts").Layout): readonly import("./workspace.ts").Leaf[] => layout.kind === "leaf" ? [layout] : layout.children.flatMap(child => leaves(child.layout))
+      const before = leaves(workspace().layout)
+      const keys = ids()
+      // Reorder moves sibling subtrees, which can contain several leaves.
+      const nextIds = leaves(after.layout).map(pane => keys[before.indexOf(pane)]!)
       commit(after, "push", () => NOWHERE, nextIds)
     },
 

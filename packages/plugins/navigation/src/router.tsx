@@ -18,7 +18,7 @@ import { createLane } from "./live.ts"
  * a tree of a thousand rows does not thread a navigate callback through every
  * one of them.
  */
-import type { Lane, Router } from "./routing.tsx"
+import type { Lane, NavigationRouter } from "./routing.tsx"
 import {
 batch,
 createEffect,
@@ -69,11 +69,14 @@ const atIn = (state: unknown): number | undefined => {
 const here = (): string =>
   location.pathname + location.search + location.hash
 
-export const createRouter = (): Router => {
+export const createRouter = (): NavigationRouter => {
   const owner = getOwner()
   type Live = ReturnType<typeof createLane> & { dispose: () => void; name: ReturnType<typeof createSignal<string | null>> }
   const [live, setLive] = createSignal<readonly Live[]>([])
   const [front, setFront] = createSignal<Live>(undefined!)
+  const [contentVisibility, setContentVisibility] = createSignal<(() => boolean) | undefined>()
+  const drawn = createMemo(() => contentVisibility()?.() ?? true)
+  const retiring = new Set<Live>()
   const inFront = createSelector(front)
   const lanes = createMemo(() => live().map(one => one.value))
   const workspace = () => front().value.workspace()
@@ -329,6 +332,13 @@ export const createRouter = (): Router => {
       if (seeking !== undefined) seeking.pending = write
       else write()
       setFront(target)
+      retiring.delete(target)
+      const retired = [...retiring]
+      retiring.clear()
+      if (retired.length) {
+        setLive(all => all.filter(one => !retired.includes(one)))
+        for (const one of retired) one.dispose()
+      }
       if (next === null) {
         const gone = untrack(live).filter(one => one !== target)
         setLive([target])
@@ -346,6 +356,8 @@ export const createRouter = (): Router => {
     // Keep that view until the replacement is installed in the same transaction.
     if (target === untrack(front)) {
       rows = new Map(rows).set(currentAt, gone)
+      retiring.add(target)
+      return
     }
     if (target) {
       setLive(all => all.filter(one => one !== target))
@@ -355,8 +367,8 @@ export const createRouter = (): Router => {
   const makeLane = (name: string | null, seed: Workspace): Live => {
     const one = runWithOwner(owner, () => createRoot(dispose => {
       const nameSignal = createSignal(name)
-      const state = createLane(seed, { lanes, lane: nameSignal[0], entryKey: () => currentKey, switchLane, forgetLane },
-        () => inFront(result), (next, how, apply) => {
+      const state = createLane(seed, { lane: nameSignal[0] },
+        () => inFront(result) && drawn(), (next, how, apply) => {
           if (untrack(front) === result) commit(next, how, apply)
           else apply()
         }, name === null ? here() : undefined)
@@ -371,6 +383,11 @@ export const createRouter = (): Router => {
   // Service readers follow the front; lane readers retain their own view.
   const current = (): Lane => front().value
   return {
+    drawContent(shown) {
+      if (untrack(contentVisibility)) throw new Error("navigation content already has a layout owner")
+      setContentVisibility(() => shown)
+      return () => { if (untrack(contentVisibility) === shown) setContentVisibility(undefined) }
+    },
     lanes, lane, entryKey: () => currentKey, switchLane, forgetLane,
     routes: routing,
     workspace,
@@ -381,7 +398,7 @@ export const createRouter = (): Router => {
     info: index => current().info(index),
     focused: createMemo(() => current().focused()),
     report: (index, info) => current().report(index, info),
-    shown: () => true,
+    shown: drawn,
     landing: index => current().landing(index),
     landed: (...args) => current().landed(...args),
     go: (...args) => current().go(...args),

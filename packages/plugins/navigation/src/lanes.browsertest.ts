@@ -324,3 +324,76 @@ test("a history arrival keeps its unavailable address until a provider returns",
     }, "/d/2019-11-05")
   } finally { release() }
 })
+
+test("forgetting the front keeps its live readings until a replacement is installed", async () => {
+  await withRouter(async router => {
+    router.switchLane("a")
+    const retained = router.lanes()[0]!
+    router.forgetLane("a")
+    router.openRight(0, atFile("second.md"), true)
+    expect(router.lanes()).toEqual([retained])
+    expect(retained.split()).toBe(true)
+    expect(retained.focusIndex()).toBe(1)
+    expect(router.routes.href(retained.route())).toBe("/second.md")
+    router.switchLane("b", { workspace: lone(HOME_ROUTE) })
+    expect(router.lanes()).not.toContain(retained)
+  })
+})
+
+test("content visibility gates retained lanes without changing their owners", async () => {
+  await withRouter(async router => {
+    const lane = router.lanes()[0]!
+    const pane = lane.panes()[0]!
+    const [ready, setReady] = createSignal(true)
+    const release = router.drawContent(ready)
+    expect(lane.shown()).toBe(true)
+    setReady(false)
+    expect(lane.shown()).toBe(false)
+    expect(router.shown()).toBe(false)
+    router.go(atFile("while-reading.md"))
+    setReady(true)
+    expect(lane.shown()).toBe(true)
+    expect(lane.panes()[0]).toBe(pane)
+    expect(router.routes.href(pane.route())).toBe("/while-reading.md")
+    expect("switchLane" in lane).toBe(false)
+    expect("forgetLane" in lane).toBe(false)
+    expect("lanes" in lane).toBe(false)
+    expect("entryKey" in lane).toBe(false)
+    release()
+  })
+})
+
+test("Back and Forward across reorder preserve each address's pane owner", async () => {
+  await withRouter(async (router, page) => {
+    router.go(atFile("first.md"))
+    router.openRight(0, atFile("second.md"), true)
+    const [first, second] = router.panes()
+    router.reorder(0, 1)
+    expect(router.panes()).toEqual([second!, first!])
+    page.back()
+    await settled()
+    expect(router.panes()[0]).toBe(first!)
+    expect(router.panes()[1]).toBe(second!)
+    expect(router.routes.href(first!.route())).toBe("/first.md")
+    page.forward()
+    await settled()
+    expect(router.panes()[0]).toBe(second!)
+    expect(router.panes()[1]).toBe(first!)
+  })
+})
+
+test("reordering leaves across a nested sibling subtree keeps the actual permutation", async () => {
+  await withRouter(async router => {
+    router.open({ focus: 0, layout: { kind: "split", axis: "row", children: [
+      { layout: { kind: "leaf", route: HOME_ROUTE } },
+      { layout: { kind: "split", axis: "col", children: [
+        { layout: { kind: "leaf", route: HOME_ROUTE } },
+        { layout: { kind: "leaf", route: atFile("inner.md") } },
+      ] } },
+      { layout: { kind: "leaf", route: atFile("last.md") } },
+    ] } })
+    const before = [...router.panes()]
+    router.reorder(0, 3)
+    expect(router.panes().map(pane => pane.id)).toEqual([before[1]!.id, before[2]!.id, before[3]!.id, before[0]!.id])
+  })
+})

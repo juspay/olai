@@ -43,7 +43,6 @@ import { drawerOpen as menuOpen,setDrawerOpen as setMenuOpen,sidebarOpen,toggleS
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { RouterProvider } from "olai-plugin-navigation/routing"
-import { isLone } from "olai-plugin-navigation/workspace"
 import { Header } from "./Header.tsx"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { Tools } from "./Tools.tsx"
@@ -72,6 +71,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
 
   const split = router.split
   const ready = createMemo(() => props.slots.read(contentStatus).every(({ value }) => value.ready()))
+  onCleanup(router.drawContent(ready))
   const started = createMemo((was: boolean) => was || ready(), false)
 
   return (
@@ -171,7 +171,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                         </div>
                       </Show>
                       <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
-                      <Show when={started()}><Panes/></Show>
+                      <div style={{ display: ready() ? "contents" : "none" }}><Show when={started()}><Panes/></Show></div>
                     </div>
                   </div>
         </div>

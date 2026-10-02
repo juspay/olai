@@ -68,12 +68,12 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
           <Show when={columns() && pane.index() > 0}>
             <Divider left={pane.index() - 1} right={pane.index()} row={() => row} onLive={setLive} />
           </Show>
-          <Show when={columns() && share() === 0}><Rail index={pane.index()} pane={reading()} /></Show>
+          <Show when={columns() && share() === 0}><Rail index={pane.index()} pane={reading()} focused={() => focused(pane.index())} /></Show>
           <div ref={root => { element = root; onCleanup(pane.mount(root)) }} class="flex min-h-0 min-w-0 flex-col"
             data-pane-id={pane.id}
             style={{ display: drawn() ? undefined : "none", "flex-grow": columns() ? String(share()) : "1", "flex-basis": "0" }}
             classList={{ "ring-2 ring-inset ring-accent": columns() && focused(pane.index()) }}>
-            <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} /></Show>
+            <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} focused={() => focused(pane.index())} /></Show>
             <div class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
               style={{ "--height-chrome": columns() ? "0px" : undefined }}>
               <ShownProvider shown={shown}>
@@ -87,10 +87,9 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   </div>
 }
 
-function Header(props: { readonly index: number; readonly pane: Pane; readonly row: () => HTMLDivElement | undefined }) {
+function Header(props: { readonly index: number; readonly pane: Pane; readonly row: () => HTMLDivElement | undefined; readonly focused: () => boolean }) {
   const router = useRouter()
-  const isFocused = createSelector(router.focusIndex)
-  const focused = () => isFocused(props.index)
+  const focused = props.focused
   let stop: (() => void) | undefined
   onCleanup(() => stop?.())
 
@@ -142,10 +141,9 @@ function Header(props: { readonly index: number; readonly pane: Pane; readonly r
   )
 }
 
-function Rail(props: { readonly index: number; readonly pane: Pane }) {
+function Rail(props: { readonly index: number; readonly pane: Pane; readonly focused: () => boolean }) {
   const router = useRouter()
-  const isFocused = createSelector(router.focusIndex)
-  const focused = () => isFocused(props.index)
+  const focused = props.focused
   return (
     <button
       type="button"

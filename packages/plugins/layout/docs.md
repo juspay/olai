@@ -175,7 +175,9 @@ the surviving page elements. A lone lane scrolls the window; split columns
 scroll independently. Navigation owns window scroll restoration.
 
 After its first ready state the content-status gate keeps those hosts mounted
-through a temporary reading state. Collapsing the desktop sidebar hides its
+through reading and failure states, but hides them and withdraws their shown
+status until content is ready again. Layout leases this visibility through
+`navigation.drawContent`; releasing layout releases the lease. Collapsing the desktop sidebar hides its
 body, preserving the calendar month and its subscriptions. The phone footer
 resolves its contributed JSX once per owner, so there is one closet controls
 tree. Layout geometry belongs to the layout activation and leaves with it.
