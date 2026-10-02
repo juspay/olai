@@ -68,7 +68,6 @@ export const createNoteExpand = (
   fallback: () => boolean,
 ): NoteExpand => {
   const shown = useShown()
-  const afterGesture = createAfterGesture()
   const [touched, setTouched] = createSignal<boolean | undefined>(undefined)
   const expanded = (): boolean => touched() ?? fallback()
   let root: HTMLElement | undefined
@@ -80,6 +79,7 @@ export const createNoteExpand = (
   // not on the dismissal stack.
   createEffect(() => {
     if (touched() !== true) return
+    const afterGesture = createAfterGesture()
     untrack(() => dismissOn({
     open: () => shown() && touched() === true,
     root: () => root,

@@ -8,7 +8,7 @@ test("palette ancestor metadata shares the conversation's UI, not its pending no
   createRoot(dispose => {
     try {
       // No roster query is needed to acquire a draft owner.
-      const reading = createAgentReadings({} as Roster)
+      const reading = createAgentReadings({ rows: () => [], chats: () => null } as unknown as Roster)
       const ancestor = { node: "install", file: "house.olai", agent: "claude", session: "stored" }
       const conversation = reading.ui({ agent: ancestor.agent, session: ancestor.session })
       expect(reading.ui(ancestor)).toBe(conversation)
@@ -20,15 +20,15 @@ test("palette ancestor metadata shares the conversation's UI, not its pending no
 
 
 test("the last reader releases empty UI and a pending send releases after completion", async () => {
-  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ rows: () => [], chats: () => null } as unknown as Roster) }))
   const pair = { agent: "claude", session: "session" }
   const ui = owner.reading.ui(pair)
   const first = createRoot(dispose => {
-    owner.reading.join("node", { ui } as Chat, () => true)
+    owner.reading.join(() => "node", () => ({ ui } as Chat), () => true)
     return dispose
   })
   const second = createRoot(dispose => {
-    owner.reading.join("node", { ui } as Chat, () => true)
+    owner.reading.join(() => "node", () => ({ ui } as Chat), () => true)
     return dispose
   })
   first()
@@ -43,7 +43,7 @@ test("the last reader releases empty UI and a pending send releases after comple
 })
 
 test("UI leases retain folds, armed context, previews and starting operations", async () => {
-  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ rows: () => [], chats: () => null } as unknown as Roster) }))
   const pair = { agent: "claude", session: "kept" }
   try {
     const ui = owner.reading.ui(pair)
@@ -65,7 +65,7 @@ test("UI leases retain folds, armed context, previews and starting operations", 
 })
 
 test("a same-update UI handover acquires before empty state can be evicted", async () => {
-  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ rows: () => [], chats: () => null } as unknown as Roster) }))
   const pair = { agent: "claude", session: "handover" }
   try {
     const ui = owner.reading.ui(pair)
