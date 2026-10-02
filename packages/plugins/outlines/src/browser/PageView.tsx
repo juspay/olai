@@ -170,7 +170,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   // derived beside it (`../App.tsx`).
   useReadings().join(here, reading)
   const navigation = useRouter() as import("olai-plugin-navigation/contract").Navigation
-  navigation.report(here, () => ({ history: useUndo(), title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
+  navigation.report(here, () => ({ pending: reading.pending(), history: useUndo(), title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
 
   const page = createMemo(() => reading.page()?.shows)
 

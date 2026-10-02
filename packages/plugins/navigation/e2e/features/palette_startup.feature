@@ -17,15 +17,53 @@ Feature: Navigation owns the palette shortcut before its layout arrives
     Then "garden.olai" holds a node marked done titled "split the mint"
     And there should be no page errors
 
-  Scenario: Opening a node waits for the frozen connection before the first shortcut
-    Given I open the node "order"
+  Scenario: Shortcuts wait for the requested page after the connection recovers
+    Given requested page answers can be held
+    And I open the node "order"
+    Then the zoomed node is "order"
     When I open the node "mint" through a held reconnect
-    # Reconnection thaws shortcuts before the next page reading arrives. The
-    # previous page deliberately stays painted until then; act on the new one.
+    Then the zoomed node is "order"
+    And page shortcuts leave the retained page untouched
+    And "house.olai" holds a node marked doing titled "order the new cabinets"
+    When the requested page reading is released
     Then the zoomed node is "mint"
     When I press "ControlOrMeta+k"
     Then the command palette is open
     And the palette offers "Mark: Done"
+    When I choose "Mark: Done" from the palette
+    Then "garden.olai" holds a node marked done titled "split the mint"
+    And "house.olai" holds a node marked doing titled "order the new cabinets"
+    And there should be no page errors
+
+  Scenario: An already open palette cannot write the retained node during reconnect
+    Given requested page answers can be held
+    And I open the node "order"
+    Then the zoomed node is "order"
+    When I press "ControlOrMeta+k"
+    Then the command palette is open
+    And the palette offers "Mark: Done"
+    When I open the node "mint" through a held reconnect
+    Then the zoomed node is "order"
+    When I try the retained palette's Mark Done action
+    Then "house.olai" holds a node marked doing titled "order the new cabinets"
+    When the requested page reading is released
+    Then the zoomed node is "mint"
+    When I choose "Mark: Done" from the palette
+    Then "garden.olai" holds a node marked done titled "split the mint"
+    And "house.olai" holds a node marked doing titled "order the new cabinets"
+    And there should be no page errors
+
+  Scenario: A healthy connection does not license shortcuts on a retained page
+    Given requested page answers can be held
+    And I open the node "order"
+    Then the zoomed node is "order"
+    When I request the node "mint" while its page answer is held
+    Then the zoomed node is "order"
+    And page shortcuts leave the retained page untouched
+    When the requested page reading is released
+    Then the zoomed node is "mint"
+    When I press "ControlOrMeta+k"
+    Then the command palette is open
     When I choose "Mark: Done" from the palette
     Then "garden.olai" holds a node marked done titled "split the mint"
     And "house.olai" holds a node marked doing titled "order the new cabinets"

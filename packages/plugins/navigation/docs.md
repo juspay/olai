@@ -131,3 +131,23 @@ a collapsed pane's rail is named `Expand garden`.
 
 The palette's `Reset sidebar width` puts the sidebar back to its default width,
 for keyboard users who cannot drag its handle.
+
+### Retained pages and input
+
+A pane can keep its previous reading painted while a new address is loading.
+Outlines captures the answered address when a subscription value arrives;
+changing the request or releasing a filter hold cannot relabel an old answer.
+It computes `Reading.pending` beside that held answer in `createReading`
+and reports it through the declared `navigation.state` service's pane-owned
+`PageInfo`. Navigation's activation owns a capture-phase input guard, removed
+before its state is disposed. The guard reads the focused report at dispatch,
+so palette opening, global shortcuts, row handlers and clicks on an already-open
+palette cannot act on a retained page. Native modal dialogs retain their own
+input, so the offline dialog's Reload button still works. With no report, the layout-independent
+palette shortcut remains available. Reports are withdrawn with their panes.
+
+The connection's `degraded` state remains reachable: a late subscription is not
+itself a reason to freeze the app. The guard releases when the requested page's
+reading arrives, not on a timer or when unrelated subscriptions recover.
+`palette_startup.feature` holds real page frames to cover reconnect, an
+already-open palette, and navigation over a healthy connection.

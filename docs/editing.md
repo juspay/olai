@@ -6,6 +6,8 @@ Escape cancels a held row drag: the drop indicator disappears and releasing the 
 
 While an input method is composing text, its keys select and confirm candidates. They do not send chat, split outline rows, choose app completions or submit forms. After composition ends, ordinary shortcuts resume.
 
+When you navigate, the previous page stays visible until the requested page arrives. During that interval, keyboard shortcuts and clicks are paused, including actions in an already-open command palette. They resume as soon as the new page is ready, even if the connection recovered earlier.
+
 | | |
 |---|---|
 | **Enter** | commit, and open the next line |
