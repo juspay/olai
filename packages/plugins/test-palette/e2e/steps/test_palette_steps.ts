@@ -5,6 +5,8 @@
  * submitted.
  */
 import * as assert from "node:assert";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_CONFIRM, PLUGIN_CONFIRM_OFF, PLUGIN_SWITCH, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
@@ -13,6 +15,8 @@ interface Hand {
   readonly showAt: (path: ReadonlyArray<string>, text?: string) => void
   readonly withdraw: () => Promise<void>
   readonly restore: () => Promise<void>
+  readonly setAvailable: (available: boolean) => void
+  readonly setOffered: (offered: boolean) => void
   readonly submitted: ReadonlyArray<{ readonly text: string; readonly option: string | undefined }>
 }
 type Gate = { readonly text: string; readonly answer: (result: unknown) => void }
@@ -44,6 +48,25 @@ When("the fixture withdraws its palette rows", async function (this: OlaiWorld) 
 When("the fixture restores its palette rows", async function (this: OlaiWorld) {
   await handReady(this);
   await this.page.evaluate(() => (window as Fixture).olaiTestPalette!.restore());
+  await this.waitForFrame();
+});
+
+When("the fixture makes its palette rows {word}", async function (this: OlaiWorld, which: string) {
+  assert.ok(which === "available" || which === "unavailable", `available or unavailable, not ${which}`);
+  await handReady(this);
+  await this.page.evaluate((on) => (window as Fixture).olaiTestPalette!.setAvailable(on), which === "available");
+  await this.waitForFrame();
+});
+
+When("the fixture stops offering its palette row", async function (this: OlaiWorld) {
+  await handReady(this);
+  await this.page.evaluate(() => (window as Fixture).olaiTestPalette!.setOffered(false));
+  await this.waitForFrame();
+});
+
+When("the fixture offers its palette row again", async function (this: OlaiWorld) {
+  await handReady(this);
+  await this.page.evaluate(() => (window as Fixture).olaiTestPalette!.setOffered(true));
   await this.waitForFrame();
 });
 
@@ -107,6 +130,31 @@ When("I switch the palette fixture off", { timeout: 90_000 }, async function (th
   await this.waitUntil(
     async () => (await this.pluginsPanel().locator('[data-pref="plugin-test-palette"]').count()) === 0,
     "the palette fixture's row to leave the plugins panel",
+    60_000,
+  );
+});
+
+/**
+ * A ROW SWITCHED IN THE VAULT'S OWN SETTINGS FILE, which the serve reads and
+ * recomposes from — the way to switch the LAYOUT row, whose own panel goes
+ * with it. The palette's overlay is drawn by layout, so switching layout off
+ * and on is a real redraw of the palette, with every other row left standing.
+ */
+When("the settings file switches the row {string} {word}", function (this: OlaiWorld, id: string, pick: string) {
+  assert.ok(pick === "on" || pick === "off", `on or off, not ${pick}`);
+  const path = join(this.scratch(), "_olai/Settings.olai");
+  const nodes = readFileSync(path, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  let row = nodes.find((node) => node.parent === undefined && node.title === id);
+  if (row === undefined) { row = { id: `test-palette-setting-${id}`, ord: "a9999", title: id }; nodes.push(row) }
+  row.custom = { ...row.custom, on: pick === "on" ? "yes" : "no" };
+  writeFileSync(path, nodes.map((node) => JSON.stringify(node)).join("\n") + "\n");
+});
+
+/** The palette's overlay is gone with the row that draws it — not closed. */
+Then("the palette is not drawn", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator('[data-testid="palette"]').count()) === 0,
+    "the palette's overlay to leave with its layout",
     60_000,
   );
 });

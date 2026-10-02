@@ -136,7 +136,9 @@ type PaletteLevel,
 type PaletteOption,
 popTo,
 resolvePath,
-type Step,
+rootStands,
+standing,
+type Step as StepOf,
 stepOption,
 submitting,
 updateStep,
@@ -178,12 +180,13 @@ let handledAt: OpenAt | null = null
 /** End these levels' lifetimes: whatever they started is told to stop, and
  *  any answer they get from here on is dropped. */
 const abortSteps = (steps: ReadonlyArray<Step>) => { for (const step of steps) step.controller.abort() }
+/** An open level, remembered with the adapter its path came from. */
+type Step = StepOf<PaletteAdapter>
 /** One open level's live rows, in a Solid root the drawing owns. */
 interface Live {
   readonly serial: number
+  /** The step's own level and adapter, for the drawing's convenience. */
   readonly level: PaletteLevel
-  /** The adapter the root of this path came from. Its withdrawal is the
-   *  level's. */
   readonly adapter: PaletteAdapter
   readonly rows: Accessor<ReadonlyArray<PaletteItem>>
   readonly options: Accessor<ReadonlyArray<PaletteOption>>
@@ -361,8 +364,9 @@ export function Palette(props: {
   const [lives, setLives] = createSignal<ReadonlyArray<Live>>([])
   onCleanup(() => { for (const live of untrack(lives)) live.dispose() })
   const NONE: Accessor<ReadonlyArray<never>> = () => []
-  const openLive = (step: Step, level: PaletteLevel, adapter: PaletteAdapter): Live =>
+  const openLive = (step: Step): Live =>
     createRoot((dispose) => {
+      const { level, source: adapter } = step
       const typed = createMemo(() => path().find((one) => one.serial === step.serial)?.text ?? "")
       const scope: LevelScope = { typed, signal: step.controller.signal }
       const computed = <R,>(rows: LevelRows<R>, filter: (text: string, rows: ReadonlyArray<R>) => ReadonlyArray<R>): Accessor<ReadonlyArray<R>> => {
@@ -383,16 +387,41 @@ export function Palette(props: {
         dispose,
       }
     })
-  /** The levels still standing: cut at the first whose adapter has been
-   *  withdrawn, so nothing is drawn from a dead contribution even for the
-   *  moment before the effect below takes it down. */
+  /**
+   * DOES THIS STEP STILL STAND? The root of the path stands while its adapter
+   * is contributed, `available`, and still offers that row id as a level; a
+   * deeper step while its adapter is contributed — its parent's rows may move
+   * under it without anything being withdrawn (`./levels.ts`'s `rootStands`).
+   */
+  const stands = (live: ReadonlyArray<PaletteAdapter>) => (depth: number, step: Step) =>
+    depth === 0
+      ? rootStands(live.includes(step.source), step.source.available?.() !== false, step.source.items?.() ?? [], step.id)
+      : live.includes(step.source)
+  /** The levels still standing: cut at the first that does not, so nothing is
+   *  drawn from a dead or withdrawn contribution even for the moment before
+   *  the effect below takes it down. */
   const standingLives = createMemo(() => {
-    const live = adapters()
+    const steps = path()
     const all = lives()
-    const dead = all.findIndex((one) => !live.includes(one.adapter))
-    return dead === -1 ? all : all.slice(0, dead)
+    const aligned = all.findIndex((one, at) => steps[at]?.serial !== one.serial)
+    const upTo = Math.min(standing(steps, stands(adapters())), aligned === -1 ? all.length : aligned)
+    return upTo === all.length ? all : all.slice(0, upTo)
   })
   const depth = () => standingLives().length
+  /** THE CRUMBS — one `{ serial, id, label }` per standing level, read once
+   *  by the crumb buttons and the box's name. Equal while the same levels
+   *  stand, so typing at a level does not redraw them. */
+  const crumbs = createMemo(
+    () => {
+      const steps = path()
+      return standingLives().map((live, at) => {
+        const step = steps[at]!
+        return { serial: live.serial, id: step.id, label: step.label }
+      })
+    },
+    [],
+    { equals: (was, now) => was.length === now.length && was.every((one, at) => one.serial === now[at]!.serial) },
+  )
   /** The level on top, with its step — or `undefined` at the root. */
   const top = createMemo(() => {
     const live = standingLives().at(-1)
@@ -613,11 +642,11 @@ export function Palette(props: {
   /** Open the level a row names, on top of the path. */
   const drillInto = (item: PaletteItem, level: PaletteLevel) => {
     const below = untrack(top)
-    const adapter = below?.live.adapter
+    const adapter = below?.step.source
       ?? untrack(levelRoots).find((one) => one.item.id === item.id && one.item.action.kind === "level")?.adapter
     if (adapter === undefined) return
-    const step = openStep(item.id, item.label, level.kind === "value" ? level.initial ?? "" : "")
-    const live = openLive(step, level, adapter)
+    const step = openStep(item.id, item.label, level, adapter)
+    const live = openLive(step)
     batch(() => {
       queryRevision++
       if (below === undefined) writeQuery("")
@@ -633,14 +662,15 @@ export function Palette(props: {
   }
 
   /**
-   * Re-open a path of row ids against the LIVE contributions, level by
-   * level — what a redraw does with the remembered path, and what `showAt`
-   * does with a requested one. It stops at the first id that does not
-   * resolve; `make` says what each found step is.
+   * Open a path of row ids against the LIVE contributions, level by level —
+   * what `showAt` does with a requested one. Each id is looked up in the rows
+   * the level below lists AT THAT MOMENT, so it resolves through levels whose
+   * rows are listed synchronously; it stops at the first id that does not
+   * resolve. (A redraw does not come through here: it already knows what was
+   * open — {@link restoreLevels}.)
    */
   const resolveLevels = (
     ids: ReadonlyArray<string>,
-    make: (depth: number, item: PaletteItem, level: PaletteLevel) => Step,
   ): ReadonlyArray<{ readonly step: Step; readonly live: Live }> => {
     const opened: Array<{ readonly step: Step; readonly live: Live }> = []
     const found = resolvePath(ids, (at, id) => untrack(() => {
@@ -652,9 +682,8 @@ export function Palette(props: {
           : []
       const hit = candidates.find((one) => one.item.id === id && one.item.action.kind === "level")
       if (hit === undefined || hit.item.action.kind !== "level") return undefined
-      const level = hit.item.action.level
-      const step = make(at, hit.item, level)
-      opened.push({ step, live: openLive(step, level, hit.adapter) })
+      const step = openStep(hit.item.id, hit.item.label, hit.item.action.level, hit.adapter)
+      opened.push({ step, live: openLive(step) })
       return step
     }))
     return opened.slice(0, found.length)
@@ -674,23 +703,27 @@ export function Palette(props: {
     for (const live of gone) live.dispose()
   }
 
-  /** A drawing rebuilt over open levels: re-resolve the remembered path. What
-   *  no longer resolves — its plugin was withdrawn — falls back, and says so;
-   *  its return will not re-open it. */
+  /**
+   * A drawing rebuilt over open levels. The remembered steps already carry the
+   * level each opened and the adapter its path came from, so only the rows'
+   * scope is rebuilt — nothing is looked up again among rows that may not have
+   * arrived yet, and the text, option and busy flag are the steps' own. What no
+   * longer stands — its adapter was withdrawn, or stopped offering the row —
+   * falls back and says so; its return will not reopen it.
+   */
   const restoreLevels = () => {
     const remembered = untrack(path)
     if (remembered.length === 0) return
-    const opened = resolveLevels(remembered.map((step) => step.id), (at) => remembered[at]!)
-    abortSteps(remembered.slice(opened.length))
-    installLevels(opened)
-    if (opened.length < remembered.length) fellBack(remembered[opened.length]!)
+    const kept = untrack(() => standing(remembered, stands(adapters())))
+    abortSteps(remembered.slice(kept))
+    installLevels(remembered.slice(0, kept).map((step) => ({ step, live: openLive(step) })))
+    if (kept < remembered.length) fellBack(remembered[kept]!)
   }
 
   /** `showAt`: a blank box, then a path of ids, as deep as it resolves. */
   const openAt = (at: OpenAt) => {
     blank()
-    const opened = resolveLevels(at.path, (depth, item, level) =>
-      openStep(item.id, item.label, level.kind === "value" ? level.initial ?? "" : ""))
+    const opened = resolveLevels(at.path)
     const last = opened.at(-1)
     const full = opened.length === at.path.length
     installLevels(
@@ -1226,19 +1259,19 @@ export function Palette(props: {
               that level and every level after it. */}
           <div class="flex w-full shrink-0 flex-wrap items-center gap-1.5 border-b border-rule px-4 py-3 md:px-5 md:py-4">
             <Show when={inLevel()}>
-              <For each={standingLives()}>
-                {(live, index) => (
+              <For each={crumbs()}>
+                {(crumb, index) => (
                   <button
                     type="button"
                     class="max-w-full shrink-0 cursor-pointer truncate rounded-control bg-rule/60 px-2 py-0.5 text-caption font-medium text-ink hover:bg-rule"
                     data-testid={TESTID.paletteCrumb}
-                    data-id={path().find((step) => step.serial === live.serial)?.id}
-                    aria-label={`Back from ${path().find((step) => step.serial === live.serial)?.label ?? ""}`}
+                    data-id={crumb.id}
+                    aria-label={`Back from ${crumb.label}`}
                     // The caret stays in the box: a crumb is pressed, not focused.
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => popLevels(index())}
                   >
-                    {path().find((step) => step.serial === live.serial)?.label} ›
+                    {crumb.label} ›
                   </button>
                 )}
               </For>
@@ -1249,7 +1282,7 @@ export function Palette(props: {
             class="min-w-[8rem] flex-1 bg-transparent font-serif text-title italic text-ink outline-none placeholder:text-muted md:text-title"
             data-testid={TESTID.paletteInput}
             data-depth={inLevel() ? depth() : 0}
-            aria-label={inLevel() ? standingLives().map((live) => path().find((step) => step.serial === live.serial)?.label).join(" › ") : undefined}
+            aria-label={inLevel() ? crumbs().map((crumb) => crumb.label).join(" › ") : undefined}
             placeholder={boxSays()}
             value={boxText()}
             onInput={(e) => {

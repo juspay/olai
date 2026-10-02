@@ -8,6 +8,7 @@
 import { expect, test } from "bun:test"
 
 import { boxOf } from "./items.ts"
+import type { PaletteItem } from "./items.ts"
 import {
   chosenOption,
   drill,
@@ -16,6 +17,7 @@ import {
   type PaletteValue,
   popTo,
   resolvePath,
+  rootStands,
   type Step,
   standing,
   stepOption,
@@ -29,6 +31,9 @@ const OPTIONS: ReadonlyArray<PaletteOption> = [
   { id: "c", label: "Cherry" },
 ]
 
+const GROUP = { kind: "group" as const, children: [] }
+const SOURCE = { adapter: "the fixture's" }
+
 const value = (more: Partial<PaletteValue> = {}): PaletteValue => ({
   kind: "value",
   options: OPTIONS,
@@ -37,18 +42,46 @@ const value = (more: Partial<PaletteValue> = {}): PaletteValue => ({
 })
 
 test("each opening is its own step, even of the same row", () => {
-  const one = openStep("fruit", "Fruit")
-  const two = openStep("fruit", "Fruit")
+  const one = openStep("fruit", "Fruit", GROUP, SOURCE)
+  const two = openStep("fruit", "Fruit", GROUP, SOURCE)
   expect(one.serial).not.toBe(two.serial)
   expect(one.controller).not.toBe(two.controller)
   expect(one.busy).toBe(false)
-  expect(openStep("note", "Note", "draft").text).toBe("draft")
+  expect(openStep("note", "Note", GROUP, SOURCE, "draft").text).toBe("draft")
+})
+
+test("a step keeps the level it opened and where its path came from, for a redraw to rebuild", () => {
+  const level = value({ initial: "draft" })
+  const step = openStep("v", "V", level, SOURCE)
+  expect(step.level).toBe(level)
+  expect(step.source).toBe(SOURCE)
+  // A value level starts with its own text unless the opener says otherwise.
+  expect(step.text).toBe("draft")
+  expect(openStep("v", "V", level, SOURCE, "carried").text).toBe("carried")
+  expect(openStep("g", "G", GROUP, SOURCE).text).toBe("")
+})
+
+test("the root of a path stands while its source is present, available and still offers the row as a level", () => {
+  const row = (id: string, opens: boolean): PaletteItem => ({
+    id,
+    label: id,
+    action: opens ? { kind: "level", level: GROUP } : { kind: "run", run: () => Promise.resolve({}) },
+    taking: (act) => act(),
+    search: id,
+  })
+  const offered = [row("fruit", true), row("plain", false)]
+  expect(rootStands(true, true, offered, "fruit")).toBe(true)
+  expect(rootStands(false, true, offered, "fruit")).toBe(false)
+  expect(rootStands(true, false, offered, "fruit")).toBe(false)
+  expect(rootStands(true, true, [], "fruit")).toBe(false)
+  // Still offered, but no longer as a level.
+  expect(rootStands(true, true, offered, "plain")).toBe(false)
 })
 
 test("drilling pushes; popping keeps the prefix, empties the new top and names what went", () => {
-  const a = { ...openStep("a", "A"), text: "typed at a" }
-  const b = openStep("b", "B")
-  const c = openStep("c", "C")
+  const a = { ...openStep("a", "A", GROUP, SOURCE), text: "typed at a" }
+  const b = openStep("b", "B", GROUP, SOURCE)
+  const c = openStep("c", "C", GROUP, SOURCE)
   const path = drill(drill(drill([], a), b), c)
   expect(path.map((step) => step.id)).toEqual(["a", "b", "c"])
 
@@ -68,7 +101,7 @@ test("drilling pushes; popping keeps the prefix, empties the new top and names w
 })
 
 test("popping to where the path already is changes nothing, and out-of-range depths clamp", () => {
-  const path = [openStep("a", "A")]
+  const path = [openStep("a", "A", GROUP, SOURCE)]
   expect(popTo(path, 1).kept).toBe(path)
   expect(popTo(path, 1).dropped).toEqual([])
   expect(popTo(path, 9).kept).toBe(path)
@@ -76,14 +109,14 @@ test("popping to where the path already is changes nothing, and out-of-range dep
 })
 
 test("a step is updated by serial, and an update for a step that is gone is nothing", () => {
-  const a = openStep("a", "A")
+  const a = openStep("a", "A", GROUP, SOURCE)
   const path = [a]
   expect(updateStep(path, a.serial, (step) => ({ ...step, text: "x" }))[0]!.text).toBe("x")
   expect(updateStep(path, a.serial + 1000, (step) => ({ ...step, text: "x" }))).toEqual(path)
 })
 
 test("the path stands as far as the live contributions still offer it", () => {
-  const path = [openStep("a", "A"), openStep("b", "B"), openStep("c", "C")]
+  const path = [openStep("a", "A", GROUP, SOURCE), openStep("b", "B", GROUP, SOURCE), openStep("c", "C", GROUP, SOURCE)]
   expect(standing(path, () => true)).toBe(3)
   expect(standing(path, (_depth, step) => step.id !== "b")).toBe(1)
   expect(standing(path, (depth) => depth !== 0)).toBe(0)
@@ -119,9 +152,9 @@ test("the arrows move the choice and wrap at both ends", () => {
 })
 
 test("submit sends the text with the chosen option", () => {
-  const step: Step = { ...openStep("v", "V"), text: "hello", option: "b" }
+  const step: Step = { ...openStep("v", "V", GROUP, SOURCE), text: "hello", option: "b" }
   expect(submitting(value(), step, OPTIONS)).toEqual({ kind: "send", text: "hello", option: OPTIONS[1] })
-  const fresh: Step = { ...openStep("v", "V"), text: "hello" }
+  const fresh: Step = { ...openStep("v", "V", GROUP, SOURCE), text: "hello" }
   expect(submitting(value({ chosen: "c" }), fresh, OPTIONS)).toEqual({ kind: "send", text: "hello", option: OPTIONS[2] })
 })
 
@@ -133,16 +166,16 @@ test("the validator's sentence refuses the submit, and sees the text and the opt
       return text.trim() === "" ? "Type something first." : null
     },
   })
-  expect(submitting(level, { ...openStep("v", "V"), text: "  " }, OPTIONS))
+  expect(submitting(level, { ...openStep("v", "V", GROUP, SOURCE), text: "  " }, OPTIONS))
     .toEqual({ kind: "refused", sentence: "Type something first." })
-  expect(submitting(level, { ...openStep("v", "V"), text: "ok", option: "c" }, OPTIONS).kind).toBe("send")
+  expect(submitting(level, { ...openStep("v", "V", GROUP, SOURCE), text: "ok", option: "c" }, OPTIONS).kind).toBe("send")
   expect(seen).toEqual([["  ", "a"], ["ok", "c"]])
 })
 
 test("a second submit while one is in flight is refused before anything else is asked", () => {
   let asked = 0
   const level = value({ validate: () => { asked++; return null } })
-  const busy: Step = { ...openStep("v", "V"), text: "hello", busy: true }
+  const busy: Step = { ...openStep("v", "V", GROUP, SOURCE), text: "hello", busy: true }
   expect(submitting(level, busy, OPTIONS)).toEqual({ kind: "busy" })
   expect(asked).toBe(0)
 })

@@ -110,7 +110,7 @@ export type PaletteLevel = PaletteGroup | PaletteValue
 
 /**
  * ONE OPEN LEVEL, as the palette remembers it — everything except its live
- * rows, which are rebuilt from {@link PaletteLevel} whenever the palette is
+ * rows, which are rebuilt from {@link Step.level} whenever the palette is
  * drawn again.
  *
  * Kept as a value, apart from the Solid scope that computes its rows, because
@@ -119,8 +119,13 @@ export type PaletteLevel = PaletteGroup | PaletteValue
  * palette being redrawn when an unrelated plugin changes; the rows' scope lives
  * as long as the drawing. `controller` is the level's lifetime: aborted when
  * the level is popped, closed or withdrawn, never by a redraw.
+ *
+ * A step keeps the LEVEL it opened and the SOURCE its path came from (the
+ * contributing adapter), because a redraw already knows what was open: it
+ * rebuilds the rows' scope from these rather than finding the row again among
+ * rows that may not have arrived yet. Both are released with the step.
  */
-export interface Step {
+export interface Step<S = unknown> {
   /** Unique per opening, so a late answer can tell its level from a later
    *  opening of the same row. */
   readonly serial: number
@@ -135,20 +140,34 @@ export interface Step {
   /** A submit is in flight. */
   readonly busy: boolean
   readonly controller: AbortController
+  /** The level this step opened. */
+  readonly level: PaletteLevel
+  /** Where the root of the path came from; its withdrawal is the step's. */
+  readonly source: S
 }
 
 let serials = 0
-export const openStep = (id: string, label: string, text = ""): Step => ({
+/** A fresh opening of `level`. A value level starts with its own `initial`
+ *  text unless `text` says otherwise. */
+export const openStep = <S>(
+  id: string,
+  label: string,
+  level: PaletteLevel,
+  source: S,
+  text: string = level.kind === "value" ? level.initial ?? "" : "",
+): Step<S> => ({
   serial: ++serials,
   id,
   label,
   text,
   busy: false,
   controller: new AbortController(),
+  level,
+  source,
 })
 
 /** Push a level. */
-export const drill = (path: ReadonlyArray<Step>, step: Step): ReadonlyArray<Step> => [...path, step]
+export const drill = <S>(path: ReadonlyArray<Step<S>>, step: Step<S>): ReadonlyArray<Step<S>> => [...path, step]
 
 /**
  * Back to `depth` levels open: what stays, and what went. The caller aborts
@@ -157,10 +176,10 @@ export const drill = (path: ReadonlyArray<Step>, step: Step): ReadonlyArray<Step
  * The level left on top has nothing typed: going back is going back to the
  * list, not to the words that were in the box when the next level opened.
  */
-export const popTo = (
-  path: ReadonlyArray<Step>,
+export const popTo = <S>(
+  path: ReadonlyArray<Step<S>>,
   depth: number,
-): { readonly kept: ReadonlyArray<Step>; readonly dropped: ReadonlyArray<Step> } => {
+): { readonly kept: ReadonlyArray<Step<S>>; readonly dropped: ReadonlyArray<Step<S>> } => {
   const at = Math.max(0, Math.min(depth, path.length))
   if (at === path.length) return { kept: path, dropped: [] }
   const kept = path.slice(0, at)
@@ -172,17 +191,17 @@ export const popTo = (
 }
 
 /** Replace the step with this serial; the path is unchanged if it is gone. */
-export const updateStep = (
-  path: ReadonlyArray<Step>,
+export const updateStep = <S>(
+  path: ReadonlyArray<Step<S>>,
   serial: number,
-  change: (step: Step) => Step,
-): ReadonlyArray<Step> => path.map((step) => (step.serial === serial ? change(step) : step))
+  change: (step: Step<S>) => Step<S>,
+): ReadonlyArray<Step<S>> => path.map((step) => (step.serial === serial ? change(step) : step))
 
 /** How many leading steps still resolve — `stands(depth, step)` asks the
  *  live contributions about one. The rest is what falls back. */
-export const standing = (
-  path: ReadonlyArray<Step>,
-  stands: (depth: number, step: Step) => boolean,
+export const standing = <S>(
+  path: ReadonlyArray<Step<S>>,
+  stands: (depth: number, step: Step<S>) => boolean,
 ): number => {
   const miss = path.findIndex((step, depth) => !stands(depth, step))
   return miss === -1 ? path.length : miss
@@ -202,6 +221,19 @@ export const resolvePath = <R>(
   }
   return found
 }
+
+/**
+ * DOES THE ROOT OF A PATH STILL STAND? Its source must still be contributed,
+ * still `available`, and still offer that row id as a level. A deeper step
+ * asks only the first of those: its parent's rows may change under it (a
+ * search answering again, a filter typed in), and that is not a withdrawal.
+ */
+export const rootStands = (
+  present: boolean,
+  available: boolean,
+  offered: ReadonlyArray<PaletteItem>,
+  id: string,
+): boolean => present && available && offered.some((item) => item.id === id && item.action.kind === "level")
 
 // ── a value level's choice and submit ─────────────────────────────────────
 
@@ -237,7 +269,7 @@ export type Submitting =
 
 export const submitting = (
   level: PaletteValue,
-  step: Step,
+  step: Step<unknown>,
   options: ReadonlyArray<PaletteOption>,
 ): Submitting => {
   if (step.busy) return { kind: "busy" }

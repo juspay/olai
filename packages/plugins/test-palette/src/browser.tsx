@@ -10,8 +10,9 @@
  * answer one after this row is gone and watch that nothing changes. */
 import { definePlugin } from "@olai/plugin-api"
 import { Effect, Exit, Scope } from "effect"
-import { createMemo } from "solid-js"
+import { type Accessor, createMemo, createSignal, onCleanup } from "solid-js"
 import {
+  type LevelScope,
   type PaletteAdapter,
   type PaletteItem,
   type PaletteOption,
@@ -28,6 +29,11 @@ interface Hand {
   readonly showAt: (path: ReadonlyArray<string>, text?: string) => void
   readonly withdraw: () => Promise<void>
   readonly restore: () => Promise<void>
+  /** The adapter stays contributed but answers `available() === false`. */
+  readonly setAvailable: (available: boolean) => void
+  /** The adapter stays contributed and available but stops offering its
+   *  root row. */
+  readonly setOffered: (offered: boolean) => void
   readonly submitted: Array<Submitted>
 }
 interface Gate { readonly text: string; readonly answer: (result: PaletteRunResult) => void }
@@ -71,8 +77,40 @@ const submitNote = (submitted: Array<Submitted>) => (text: string, option: Palet
   return Promise.resolve({})
 }
 
-const adapterOf = (submitted: Array<Submitted>): PaletteAdapter => ({
-  items: () => [{
+/** The note's value level — also opened from a row that arrives late. */
+const noteLevel = (submitted: Array<Submitted>) => ({
+  kind: "value" as const,
+  placeholder: "Write a note…",
+  initial: "draft",
+  options: TONES,
+  chosen: "urgent",
+  submitLabel: "Save note",
+  hint: "The tone is chosen with the arrows",
+  validate: (text: string) => (text.trim() === "" ? "Type a note first." : null),
+  submit: submitNote(submitted),
+})
+
+/** Rows that ANSWER LATER, the way a server search does: nothing at first,
+ *  then one row that opens the note. The timer is the level's and stops with
+ *  it. */
+const lateRows = (submitted: Array<Submitted>) => (scope: LevelScope): Accessor<ReadonlyArray<PaletteItem>> => {
+  const [rows, setRows] = createSignal<ReadonlyArray<PaletteItem>>([])
+  const timer = setTimeout(() => {
+    if (!scope.signal.aborted) {
+      setRows([row("test-late-note", "Late note", { action: { kind: "level", level: noteLevel(submitted) } })])
+    }
+  }, 400)
+  onCleanup(() => clearTimeout(timer))
+  return rows
+}
+
+const adapterOf = (
+  submitted: Array<Submitted>,
+  available: Accessor<boolean>,
+  offered: Accessor<boolean>,
+): PaletteAdapter => ({
+  available,
+  items: () => !offered() ? [] : [{
     id: "test-levels",
     label: "Test levels",
     action: {
@@ -114,19 +152,13 @@ const adapterOf = (submitted: Array<Submitted>): PaletteAdapter => ({
           }),
           row("test-note", "Write a note", {
             section: "Nested",
+            action: { kind: "level", level: noteLevel(submitted) },
+          }),
+          row("test-late", "Late rows", {
+            section: "Nested",
             action: {
               kind: "level",
-              level: {
-                kind: "value",
-                placeholder: "Write a note…",
-                initial: "draft",
-                options: TONES,
-                chosen: "urgent",
-                submitLabel: "Save note",
-                hint: "The tone is chosen with the arrows",
-                validate: (text) => (text.trim() === "" ? "Type a note first." : null),
-                submit: submitNote(submitted),
-              },
+              level: { kind: "group", placeholder: "Wait for a row…", hint: "Rows arrive shortly", children: lateRows(submitted) },
             },
           }),
         ],
@@ -141,7 +173,9 @@ export default definePlugin({ name, needs: [rendererSlots, paletteControl], appl
   const slots = yield* rendererSlots
   const palette = yield* paletteControl
   const submitted: Array<Submitted> = []
-  const adapter = adapterOf(submitted)
+  const [available, setAvailable] = createSignal(true)
+  const [offered, setOffered] = createSignal(true)
+  const adapter = adapterOf(submitted, available, offered)
   // THE ADAPTER'S OWN SCOPE, inside this activation's: the scenario may close
   // it (a withdrawal while the row stays on) and open it again, and this
   // activation's release closes whatever is open.
@@ -164,6 +198,8 @@ export default definePlugin({ name, needs: [rendererSlots, paletteControl], appl
         showAt: palette.showAt,
         withdraw: () => Effect.runPromise(withdraw),
         restore: () => Effect.runPromise(offer),
+        setAvailable,
+        setOffered,
         submitted,
       }
       window.olaiTestPalette = hand

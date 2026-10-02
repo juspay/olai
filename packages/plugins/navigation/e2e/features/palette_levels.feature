@@ -24,7 +24,7 @@ Feature: Levels in the command palette
     And the palette crumbs read "Test levels"
     And the palette box holds ""
     And the palette placeholder is "Pick a fixture row…"
-    And the palette rows are "test-apple, test-banana, test-citrus, test-lookup, test-note"
+    And the palette rows are "test-apple, test-banana, test-citrus, test-lookup, test-note, test-late"
     And the palette sections are "Fruit, Nested"
     And the palette row "test-apple" is placed "orchard"
     And the palette footer mentions "back"
@@ -288,6 +288,69 @@ Feature: Levels in the command palette
     Then the palette remarks "“Test levels” is no longer available."
     And the command palette is open
     And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A redraw keeps a level opened from rows that arrived late, with its text, option and submit
+    # The overlay is layout's, so switching layout off and on draws the palette
+    # again with the fixture left standing. What was open is remembered with
+    # the level it opened, so a level reached through rows a function lists
+    # later is not looked for again among rows that are not there yet.
+    When the fixture opens the palette at "test-levels, test-late"
+    Then the palette path is "test-levels, test-late"
+    And the palette hint says "Rows arrive shortly"
+    And the palette rows are "test-late-note"
+    When I press the palette row "test-late-note"
+    Then the palette path is "test-levels, test-late, test-late-note"
+    When I type "hold late" into the palette
+    And I press "ArrowDown"
+    Then the palette option "quiet" is chosen
+    When I press "Enter"
+    Then the palette level is busy
+    When the settings file switches the row "layout" off
+    Then the palette is not drawn
+    When the settings file switches the row "layout" on
+    Then the command palette is open
+    And the palette path is "test-levels, test-late, test-late-note"
+    And the palette crumbs read "Test levels, Late rows, Late note"
+    And the palette box holds "hold late"
+    And the palette option "quiet" is chosen
+    And the palette level is busy
+    And the palette has no write response
+    When the fixture answers its held notes with nothing to say
+    Then the command palette is closed
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: An adapter that stops being available under an open level falls back, and its late answer changes nothing
+    When the fixture opens the palette at "test-levels, test-note" with "hold unavailable"
+    And I press "Enter"
+    Then the palette level is busy
+    When the fixture makes its palette rows unavailable
+    Then the palette path is ""
+    And the palette remarks "“Test levels” is no longer available."
+    And the palette does not offer "Test levels"
+    When the fixture answers its held notes saying "Too late."
+    Then the palette remarks "“Test levels” is no longer available."
+    And the command palette is open
+    When the fixture makes its palette rows available
+    Then the palette offers "Test levels"
+    And the palette path is ""
+    And there should be no page errors
+
+  Scenario: An adapter that stops offering the open level's row falls back, and its late answer changes nothing
+    When the fixture opens the palette at "test-levels, test-note" with "hold unoffered"
+    And I press "Enter"
+    Then the palette level is busy
+    When the fixture stops offering its palette row
+    Then the palette path is ""
+    And the palette remarks "“Test levels” is no longer available."
+    And the palette does not offer "Test levels"
+    When the fixture answers its held notes saying "Too late."
+    Then the palette remarks "“Test levels” is no longer available."
+    And the command palette is open
+    When the fixture offers its palette row again
+    Then the palette offers "Test levels"
+    And the palette path is ""
     And there should be no page errors
 
   Scenario: Prefixes and questions still belong to the root

@@ -93,16 +93,23 @@ contributed as a row, has options, and can be nested and opened at a path;
 
 `navigation.palette`'s `showAt(path, text?)` opens the palette already drilled
 into a path of row ids, never labels, and puts `text` in the deepest level when
-the whole path resolves. If the path stops resolving (the contributing plugin
-is off), the palette opens at the deepest level that does.
+the whole path resolves. Each id is looked up in the rows the level below lists
+at that moment, so `showAt` resolves through levels whose rows are listed
+synchronously. A level whose rows a function answers later (a server search)
+can be the last step of a path, but not a step in the middle of one. If the
+path stops resolving (the contributing plugin is off), the palette opens at the
+deepest level that does.
 
 Ownership:
 
-- The open path (`Step`s: row id, crumb, typed text, chosen option, busy flag
-  and an `AbortController`) is the palette's memory, owned by navigation's
-  activation and reset with it. A draft typed in a level and a submit in
+- The open path (`Step`s: row id, crumb, typed text, chosen option, busy flag,
+  an `AbortController`, the level the step opened, and the adapter its path
+  came from) is the palette's memory, owned by navigation's activation and
+  reset with it. A draft typed in a level, its chosen option and a submit in
   flight therefore survive the overlay being redrawn when an unrelated plugin
-  changes.
+  changes. A redraw rebuilds only each step's rows from the level it kept; it
+  does not look the row up again, so a level reached through rows that arrive
+  later is still there.
 - Each step's rows are computed in a Solid root owned by the palette overlay
   (the `palette` component), created when the level is opened or the overlay is
   redrawn, and disposed when the level is popped, the palette closes, the
@@ -113,12 +120,20 @@ Ownership:
   that submit: it does not close, speak, or move the palette the person is now
   looking at. The `signal` passed to `submit` and to a level function is that
   controller's, so the contributor can stop work no one is waiting for.
-- The open path is resolved against live contributions. When the adapter that
-  contributed the root of the path is withdrawn, its levels stop being drawn
-  immediately and are then disposed. The palette stands at the deepest level
-  still there and says “… is no longer available”. The adapter coming back
-  does not reopen the level. A redraw re-resolves the remembered path by id
-  in the same way.
+- **Popping or closing mid-submit does not undo what the submit already did
+  elsewhere.** The palette only stops listening. A contributor whose submit
+  goes on to act on its answer (navigate, open a panel, say something
+  somewhere else) must check `signal.aborted` first and do nothing if it is
+  set.
+- The open path is checked against live contributions. The root of the path
+  stands while its adapter is still contributed, still `available()`, and still
+  offers that row id as a level. A deeper level stands while its adapter is
+  contributed; its parent's rows may change under it without anything being
+  withdrawn. When a level stops standing, it and everything after it stop being
+  drawn immediately and are then disposed. The palette stands at the deepest
+  level still there and says “… is no longer available”. The adapter coming
+  back, becoming available again, or offering the row again does not reopen
+  the level. A redraw applies the same check to the remembered steps.
 
 `palette_levels.feature` drives all of this through the maintained
 `test-palette` fixture ([test-palette.md](test-palette.md)), on desktop and
