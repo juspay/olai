@@ -189,14 +189,17 @@ Feature: A new chat asks where it belongs before creating anything
     And the Inbox contains no chat children
     And there should be no page errors
 
-  Scenario: A refused start lands the words on its titled plain node for retry
+  @codex
+  Scenario: A refused start lands the words and chosen engine on its titled plain node for retry
     Given I open the outline "house.olai"
     When the agent refuses to new a conversation
     And I press new chat in Chats
+    And I choose new chat engine "Codex"
     And I type new chat draft "retry on its own node"
     And I send the new chat draft
     Then the refused new chat leaves a plain Inbox node as "new-chat"
     And the plain retry draft is "retry on its own node"
+    And the plain retry engine is "codex"
     When the agent will new a conversation again
     And I retry the plain chat draft
     Then the node page conversation is ready for "new-chat"
@@ -259,4 +262,21 @@ Feature: A new chat asks where it belongs before creating anything
     And I send the new chat draft
     Then the node page conversation is ready for "hinges"
     And the agent has answered "on hinges" exactly once
+    And there should be no page errors
+
+  Scenario: Rebuilding chat releases the old draft and pending callback
+    Given I open the outline "house.olai"
+    When the next agent boot will hang
+    And I press new chat in Chats
+    And I type new chat draft "old activation"
+    And I send the new chat draft
+    Then new chat in Chats is starting
+    When I open the plugins panel
+    And I switch the plugin "chat" off
+    And I switch the plugin "chat" on
+    And I close the plugins panel
+    And the agent is released
+    And I press new chat in Chats
+    Then the new chat draft is ""
+    And the new chat location contains "In: Inbox › Chats"
     And there should be no page errors

@@ -53,7 +53,7 @@ When("I open the new chat location picker", async function(this: OlaiWorld) {
   await this.page.locator(selector(PLUGIN_TESTID.newChatLocation)).click();
 });
 When("I choose new chat {word} node {string}", async function(this: OlaiWorld, mode: string, name: string) {
-  const row = this.page.locator(`${picker} [data-location="${this.nodeId(name)}"]`);
+  const row = this.page.locator(`${picker} ${attr("data-location", this.nodeId(name))}`);
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await row.getByRole("button").nth(mode === "on" ? 1 : 0).click();
 });
@@ -68,7 +68,7 @@ Then("the chat location picker omits section {string}", async function(this: Ola
   assert.equal(await this.page.locator(picker).getByRole("heading", { name: section, exact: true }).count(), 0);
 });
 Then("chat on node {string} itself is not offered", async function(this: OlaiWorld, name: string) {
-  const row = this.page.locator(`${picker} [data-location="${this.nodeId(name)}"]`);
+  const row = this.page.locator(`${picker} ${attr("data-location", this.nodeId(name))}`);
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.equal(await row.getByRole("button").count(), 1);
 });
@@ -124,4 +124,8 @@ Then("node {string} keeps title {string} and has no new chat child", function(th
   const nodes = this.servedNodes("house.olai");
   assert.equal(nodes.find(node => node.id === this.nodeId(id))?.title, title);
   assert.equal(nodes.filter(node => node.parent === this.nodeId(id) && String((node.custom as Record<string, unknown> | undefined)?.["chat-agent-session"] ?? "").includes(":" )).length, 0);
+});
+
+Then("the plain retry engine is {string}", async function(this: OlaiWorld, engine: string) {
+  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.agentPlainEngine)).inputValue(), engine);
 });

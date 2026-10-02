@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { UsageFailure, isRegular, type WriteRequest } from "@olai/format"
 import { TEST_CLAIMS, readingOf, setOf, planning } from "@olai/ops/testlib"
-import { newChat, type NewChat } from "./new-chat.ts"
+import { newChat, chatLocations, type NewChat } from "./new-chat.ts"
 
 const fixture = () => {
   const texts: Record<string, string> = {}
@@ -101,4 +101,13 @@ test("a missing or trashed explicit parent refuses before spending", async () =>
     expect(result._tag).toBe("Failure")
     expect(it.events).toEqual([])
   }
+})
+
+test("a mirror cannot be a parent and is absent from the picker", async () => {
+  const it = fixture()
+  it.texts["work.olai"] = '{"id":"work","title":"Work","ord":"a0"}\n{"id":"mirror","mirror":"work","ord":"a1"}\n'
+  const result = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "Planning", parent: "mirror" })))
+  expect(result._tag).toBe("Failure")
+  expect(it.events).toEqual([])
+  expect(chatLocations(await Effect.runPromise(it.owner.read)).map(node => node.id)).toEqual(["work"])
 })

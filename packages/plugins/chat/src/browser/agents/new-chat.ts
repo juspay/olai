@@ -11,7 +11,7 @@ import type { Conversing } from "../../sessions.ts"
 
 export interface LocationNode { readonly id: string; readonly title: string; readonly file: string; readonly path: readonly string[]; readonly parent: string | null }
 export type ChatLocation = { readonly kind: "default" } | { readonly kind: "under" | "on"; readonly node: LocationNode }
-export interface Arrival { readonly text: string; readonly later: string; readonly to: Conversing | null; readonly refusal: string | null; readonly done: () => void }
+export interface Arrival { readonly engine: string; readonly text: string; readonly later: string; readonly to: Conversing | null; readonly refusal: string | null; readonly done: () => void }
 
 /** Both doors and every mounted face share this activation's draft and permit.
  * Leaving a face releases its queries, never the unsent words. */
@@ -75,9 +75,9 @@ export const createNewChat = () => {
       const later = draft()
       setDraft("")
       handed = true
-      arrivals.set(node, { text, later, to, refusal: created?.refusal ?? null, done: () => { if (alive) setPending(false) } })
+      arrivals.set(node, { engine: agent, text, later, to, refusal: created?.refusal ?? null, done: () => { if (alive) setPending(false) } })
       // A replaced navigation provider is not the one this gesture opened in.
-      if (navigation() !== nav) { arrivals.delete(node); restore(); fail("Navigation changed. Try again."); handed = false; return }
+      if (navigation() !== nav) { arrivals.delete(node); setDraft(later); restore(); fail("Navigation changed. Try again."); handed = false; return }
       nav.go(atNode(node))
       choose({ kind: "default" })
     } finally { if (!handed) setPending(false) }

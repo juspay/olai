@@ -22,6 +22,7 @@ import { NoAgent } from "../chat/NoAgent.tsx"
 import { EngineAbsence } from "./EngineAbsence.tsx"
 
 export interface PageSession {
+  readonly preferredEngine?: string
   readonly chat: Accessor<Chat | null>
   readonly draft: Accessor<string>
   readonly setDraft: (text: string) => void
@@ -110,7 +111,7 @@ function createPageSession(node: string): PageSession {
       await deliver(to, text, later)
     } finally { setStarting(false) }
   }
-  return { chat, draft, setDraft, starting, failure, start }
+  return { chat, draft, setDraft, starting, failure, start, preferredEngine: arrival?.engine }
 }
 
 function usePage(node: Accessor<string>) {
@@ -150,7 +151,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const pane = usePane()
   const agents = useAgents()
   const [chosen, choose] = createSignal<string>()
-  const engine = () => agents.at(props.node)?.engine ?? chosen() ?? agents.engines()[0]?.id
+  const engine = () => agents.at(props.node)?.engine ?? chosen() ?? props.page.preferredEngine ?? agents.engines()[0]?.id
   const missing = () => agents.missing(engine())
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.index)?.shows
