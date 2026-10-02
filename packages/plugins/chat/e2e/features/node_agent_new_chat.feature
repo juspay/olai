@@ -120,7 +120,8 @@ Feature: A new chat asks where it belongs before creating anything
     And I press the palette shortcut
     And I type "Agents" into the palette
     And I pick new chat in the Agents palette
-    Then the new chat draft is "chosen in the palette"
+    Then the new chat composer is focused
+    And the new chat draft is "chosen in the palette"
     When I choose new chat engine "Codex"
     And I send the new chat draft
     Then the new Inbox conversation is unfolded as "new-chat" with engine "codex"
