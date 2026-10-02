@@ -97,6 +97,7 @@
         "olai-plugin-tabs": "workspace:*",
         "olai-plugin-test-counter": "workspace:*",
         "olai-plugin-test-layout": "workspace:*",
+        "olai-plugin-test-palette": "workspace:*",
         "olai-plugin-theme": "workspace:*",
         "olai-plugin-trash": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
@@ -975,6 +976,21 @@
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0",
+        "olai-plugin-navigation": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
+        "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
+    },
+    "packages/plugins/test-palette": {
+      "name": "olai-plugin-test-palette",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "@olai/web": "workspace:*",
         "effect": "4.0.0",
         "olai-plugin-navigation": "workspace:*",
         "olai-plugin-ui-renderer": "workspace:*",
@@ -2107,6 +2123,8 @@
     "olai-plugin-test-counter": ["olai-plugin-test-counter@workspace:packages/plugins/test-counter"],
 
     "olai-plugin-test-layout": ["olai-plugin-test-layout@workspace:packages/plugins/test-layout"],
+
+    "olai-plugin-test-palette": ["olai-plugin-test-palette@workspace:packages/plugins/test-palette"],
 
     "olai-plugin-theme": ["olai-plugin-theme@workspace:packages/plugins/theme"],
 

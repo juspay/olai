@@ -286,6 +286,13 @@
   quiet: true
   disabled: true
   profiles: [test-minimal]
+- id: test-palette
+  name: olai-plugin-test-palette
+  section: Test fixtures
+  label: Test palette
+  quiet: true
+  disabled: true
+  profiles: [test-minimal]
 - id: vault-plugins
   name: olai-plugin-vault-plugins/server
   section: Notes

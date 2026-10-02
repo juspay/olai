@@ -1,0 +1,1 @@
+../../packages/plugins/test-palette/docs.md

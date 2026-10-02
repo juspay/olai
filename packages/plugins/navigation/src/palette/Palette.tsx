@@ -68,12 +68,14 @@ createEffect,
 createMemo,
 createSelector,
 createSignal,
+For,
 Match,
 on,
 onCleanup,
 onMount,
 Show,
 Switch,
+untrack,
 } from "solid-js"
 
 import { needlesFrom } from "@olai/format"
@@ -91,7 +93,7 @@ import type { Said } from "@olai/web/client/saying.ts"
 import { SearchCount } from "olai-plugin-search/ui/Count.tsx"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
 import { createSearch } from "./reading.ts"
-import { Result,type RowTestids } from "olai-plugin-search/ui/Result.tsx"
+import { Result } from "olai-plugin-search/ui/Result.tsx"
 import { atOnce,spend } from "@olai/web/client/settled.ts"
 
 import { useToday } from "./clock.ts"
@@ -116,10 +118,15 @@ import {
 askInPalette,
 closePalette,
 dropQuestion,
+type OpenAt,
 paletteAsking,
+paletteAt,
 paletteOpen,
 } from "./state.ts"
 import { Question } from "./Question.tsx"
+import { createLevelOwner, resetLevelMemory } from "./level-owner.ts"
+import { LevelView } from "./LevelView.tsx"
+import { PALETTE_ROW } from "./row-testids.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
 /** WHERE an alarm sits in this panel: a full-width band between the box and
@@ -130,13 +137,6 @@ import { Shortcuts } from "./Shortcuts.tsx"
  *  fell over, a token the grammar cannot read — and one band. */
 const ALERT_ROW = `${ALARM_BAND} px-4`
 
-/** What this door calls its rows — see `../search/Result.tsx`'s `RowTestids`
- *  for why the three travel as one value. */
-const PALETTE_ROW: RowTestids = {
-  row: TESTID.paletteItem,
-  place: TESTID.paletteItemPlace,
-  prop: TESTID.paletteItemProp,
-}
 
 // The open/question state already outlives a plugin provider change. Keep its input
 // and pending responses with it; subscriptions, focus and cursors are rebuilt.
@@ -146,6 +146,9 @@ const memory = {
   said: createSignal<Said | null>(null),
   sending: createSignal(false),
 }
+/** The last `showAt` request a drawing acted on, so a redraw does not act on
+ *  it twice. */
+let handledAt: OpenAt | null = null
 let queryRevision = 0
 let paletteRevision = 0
 
@@ -165,6 +168,11 @@ export function Palette(props: {
   const setQuery = (value: string) => {
     queryRevision++
     writeQuery(value)
+  }
+  /** Type into the box: the level's own text while one owns it. */
+  const setBoxText = (value: string) => {
+    if (untrack(inLevel)) levels.type(value)
+    else setQuery(value)
   }
   /** A late action can answer only the opening and input that invoked it. */
   const currentInteraction = () => {
@@ -297,7 +305,40 @@ export function Palette(props: {
    *  `chordsIn`). */
   const chords = createMemo(() => chordsIn(paletteFaces("app.keys"), CHORDS))
 
-  const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes()))
+  // ── LEVELS ───────────────────────────────────────────────────────────────
+  //
+  // The open path, each level's live rows, and every way a level opens,
+  // stands, answers and goes, are `./level-owner.ts`'s. Its rows' scopes are
+  // owned by this drawing and disposed with it; this file composes them with
+  // the root list and the box.
+  const levels = createLevelOwner({
+    adapters,
+    touched: () => { queryRevision++ },
+    leaveRoot: () => writeQuery(""),
+    relist: (lit) => {
+      cursor.top()
+      setChosen(lit)
+    },
+    hush: () => {
+      setAskError(null)
+      setSaid(null)
+    },
+    say: (line) => setSaid(line),
+    refuse: (sentence) => setAskError(sentence),
+    close: () => close(),
+    focus: () => input?.focus(),
+  })
+  const { top, valueTop, crumbs } = levels
+  const depth = levels.depth
+
+  const box = createMemo(() => boxOf(query(), paletteAsking(), commands(), prefixes(), depth() > 0))
+  /** A level owns the box — unless a question has borrowed it. */
+  const inLevel = () => box().kind === "level"
+  /** The text in the box, wherever it is kept. */
+  const boxText = () => {
+    const at = top()
+    return inLevel() && at !== undefined ? at.step.text : query()
+  }
   const listing = () => box().kind === "filter"
 
   /** What the box is FOR, said in it while it is empty — or, while a typed
@@ -312,6 +353,10 @@ export function Palette(props: {
    *  does nothing. */
   const boxSays = () => {
     const it = box()
+    if (it.kind === "level") {
+      const level = top()?.live.level
+      return level?.placeholder ?? (level?.kind === "value" ? "Type…" : "Filter…")
+    }
     if (it.kind === "answering" && it.question.kind === "line") {
       return it.question.placeholder
     }
@@ -375,7 +420,14 @@ export function Palette(props: {
     // (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.5). Solid re-tracks
     // per run, so while the palette is shut this depends on `paletteOpen()`
     // and nothing else.
-    if (!paletteOpen() || !listing()) return [] as ReadonlyArray<PaletteItem>
+    if (!paletteOpen()) return [] as ReadonlyArray<PaletteItem>
+    // A GROUP LEVEL'S ROWS are the list while it is on top; a value level's
+    // options are not rows and are walked by their own arrows.
+    if (box().kind === "level") {
+      const live = top()?.live
+      return live?.level.kind === "group" ? live.rows() : []
+    }
+    if (!listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what
     // the reader is looking at — a list whose contextual half is below the
     // fold is a list nobody finds them in. What makes that safe is
@@ -427,6 +479,7 @@ export function Palette(props: {
    *  them. `text` is what the box starts with: empty, or a primed prefix. */
   const blank = (text = "") => {
     paletteRevision++
+    levels.pop(0, false)
     setQuery(text)
     cursor.top()
     setChosen(false)
@@ -455,6 +508,12 @@ export function Palette(props: {
     input?.focus()
   }
 
+  /** `showAt`: a blank box, then the requested path (`./level-owner.ts`). */
+  const openAt = (at: OpenAt) => {
+    blank()
+    levels.openAt(at)
+  }
+
   /**
    * Opening is an EFFECT of the signal rather than something a door does, so
    * every door opens the same palette: the chord below, and the header's
@@ -468,7 +527,17 @@ export function Palette(props: {
     previousFocus = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-    if (!(firstOpening && resuming)) blank()
+    // A drawing rebuilt over an open palette restores what was open; an
+    // opening that came with a path (`showAt`) goes there; any other opening
+    // is a blank box at the root. Whichever of this and the request effect
+    // below runs first acts on a request, and the other leaves it alone.
+    const at = untrack(paletteAt)
+    if (firstOpening && resuming) untrack(levels.restore)
+    else if (at === null) blank()
+    else if (at !== handledAt) {
+      handledAt = at
+      untrack(() => openAt(at))
+    }
     firstOpening = false
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
@@ -486,6 +555,14 @@ export function Palette(props: {
    * filter it is drawn over, which is not what backing out of one has ever
    * done.
    */
+  /** …and a request to open AT a path (`PaletteControl.showAt`), acted on
+   *  once — after the opening above, which is what blanks the box first. */
+  createEffect(on(paletteAt, (at) => {
+    if (at === null || at === handledAt || !untrack(paletteOpen)) return
+    handledAt = at
+    untrack(() => openAt(at))
+  }))
+
   let firstQuestion = true
   createEffect(
     on(paletteAsking, (question) => {
@@ -520,8 +597,15 @@ export function Palette(props: {
       return
     }
     if (action.kind === "prefix") {
+      // A prefix is the ROOT's grammar, so choosing one inside a level goes
+      // back there first.
+      levels.pop(0, false)
       setSaid(null)
       prime(action.prefix)
+      return
+    }
+    if (action.kind === "level") {
+      levels.drill(item, action.level)
       return
     }
     if (action.kind === "run") {
@@ -704,6 +788,10 @@ export function Palette(props: {
       answer(it.question)
       return
     }
+    if (it.kind === "level" && untrack(valueTop) !== undefined) {
+      levels.submit()
+      return
+    }
     if (it.kind === "command") {
       runCommand(it.command, it.text)
       return
@@ -738,6 +826,10 @@ export function Palette(props: {
    * where it is standing before anybody has chosen is the top.
    */
   const walk = (by: 1 | -1) => {
+    if (inLevel() && valueTop() !== undefined) {
+      levels.move(by)
+      return
+    }
     const many = items().length
     if (many === 0) return
     if (!chosen()) {
@@ -873,20 +965,50 @@ export function Palette(props: {
         <div
           class={`relative ${WITHIN.raised} flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule/40 md:h-auto`}
         >
+          {/* THE BOX ROW: a crumb per open level, then the input. A crumb is
+              the pointer's and the finger's way back — pressing one closes
+              that level and every level after it. */}
+          <div class="flex w-full shrink-0 flex-wrap items-center gap-1.5 border-b border-rule px-4 py-3 md:px-5 md:py-4">
+            <Show when={inLevel()}>
+              <For each={crumbs()}>
+                {(crumb, index) => (
+                  <button
+                    type="button"
+                    class="max-w-full shrink-0 cursor-pointer truncate rounded-control bg-rule/60 px-2 py-0.5 text-caption font-medium text-ink hover:bg-rule"
+                    data-testid={TESTID.paletteCrumb}
+                    data-id={crumb.id}
+                    aria-label={`Back from ${crumb.label}`}
+                    // The caret stays in the box: a crumb is pressed, not focused.
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => levels.pop(index())}
+                  >
+                    {crumb.label} ›
+                  </button>
+                )}
+              </For>
+            </Show>
           <input
             ref={input}
             type="text"
-            class="w-full shrink-0 border-b border-rule bg-transparent px-4 py-3 font-serif text-title italic text-ink outline-none placeholder:text-muted md:px-5 md:py-4 md:text-title"
+            class="min-w-[8rem] flex-1 bg-transparent font-serif text-title italic text-ink outline-none placeholder:text-muted md:text-title"
             data-testid={TESTID.paletteInput}
+            data-depth={inLevel() ? depth() : 0}
+            aria-label={inLevel() ? crumbs().map((crumb) => crumb.label).join(" › ") : undefined}
             placeholder={boxSays()}
-            value={query()}
+            value={boxText()}
             onInput={(e) => {
-              setQuery(e.currentTarget.value)
+              setBoxText(e.currentTarget.value)
+              // A value level's options are a choice, not a list being
+              // searched: typing neither filters nor moves them.
+              if (valueTop() !== undefined && inLevel()) {
+                setAskError(null)
+                return
+              }
               cursor.top()
               // The first character typed IS the choice — it lights the best
               // match, which is what a type-ahead is. An emptied box goes back
-              // to having chosen nothing.
-              setChosen(e.currentTarget.value.trim() !== "")
+              // to having chosen nothing; inside a level, opening it was.
+              setChosen(inLevel() || e.currentTarget.value.trim() !== "")
               setAskError(null)
             }}
             // WHICH key is the registry's (`../keys.ts`'s list layer, the same
@@ -902,6 +1024,13 @@ export function Palette(props: {
             // answered once, on the window, where every layer has already been
             // asked (`onMount` above, and `../topmost.ts`).
             onKeyDown={(e) => {
+              // BACKSPACE ON AN EMPTY BOX GOES BACK one level. Never mid-IME:
+              // a composition's own Backspace is not ours.
+              if (e.key === "Backspace" && !e.isComposing && inLevel() && e.currentTarget.value === "") {
+                e.preventDefault()
+                levels.pop(depth() - 1)
+                return
+              }
               const action = listKey(e, true)
               if (action === "cycle") {
                 const face = listing() ? below() : undefined
@@ -915,6 +1044,12 @@ export function Palette(props: {
               if (action === "take") confirm()
             }}
           />
+          </div>
+          {/* WHERE THE PERSON IS, said when it changes — the crumbs are drawn,
+              and this is their spoken half. The caret never leaves the box. */}
+          <p class="sr-only" role="status" aria-live="polite" data-testid={TESTID.paletteLevelStatus}>
+            {levels.announced()}
+          </p>
           <Show when={askError()}>
             {(err) => (
               <SaidLine
@@ -1007,7 +1142,7 @@ export function Palette(props: {
 
                           from={item().from}
                           needles={needles()}
-                          hint={item().hint}
+                          hint={item().hint ?? (item().action.kind === "level" ? "›" : undefined)}
                           place={item().place}
                           props={item().props}
                           active={lit(index())}
@@ -1042,6 +1177,28 @@ export function Palette(props: {
             {/* THE QUESTION FIRST, above both prefixes: it is up because
                 somebody chose the verb that asks it, and nothing they type
                 next may quietly become the answer. */}
+            <Match when={inLevel() ? top() : undefined}>
+              {(at) => (
+                <LevelView
+                  live={at().live}
+                  step={at().step}
+                  items={items()}
+                  lit={lit}
+                  value={valueTop()}
+                  needles={needles()}
+                  onHover={(index) => {
+                    setChosen(true)
+                    cursor.to(index)
+                  }}
+                  onSelect={runItem}
+                  onOption={(option) => {
+                    levels.choose(option)
+                    levels.submit()
+                  }}
+                  onSubmit={levels.submit}
+                />
+              )}
+            </Match>
             <Match when={only(box(), "answering")}>
               {(it) => (
                 <Question
@@ -1130,5 +1287,6 @@ function Composing(props: {
 export function resetPaletteMemory():void {
  queryRevision++;paletteRevision++
  memory.query[1]("");memory.askError[1](null);memory.said[1](null);memory.sending[1](false)
+ resetLevelMemory();handledAt=null
  closePalette()
 }

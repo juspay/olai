@@ -21,7 +21,7 @@ import { overlays } from "olai-plugin-layout/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createMemo,createRoot,createRenderEffect } from "solid-js"
 import { name,navigation,content,pages,type PaletteControl } from "./index.ts"
-import { askInPalette,closePalette,dropQuestion,openPalette,paletteAsking } from "./palette/state.ts"
+import { askInPalette,closePalette,dropQuestion,openPalette,openPaletteAt,paletteAsking } from "./palette/state.ts"
 import { paletteOpen } from "./palette/state.ts"
 import { PageView } from "./PageView.tsx"
 import { followPaletteShortcut } from "./palette/shortcut.ts"
@@ -57,7 +57,7 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   // through a module variable in a declared door (`./index.ts`'s
   // `PaletteControl`, `./palette/state.ts`).
   yield* (yield* Offers).own("palette",():PaletteControl=>({
-    open:paletteOpen, asking:paletteAsking, show:openPalette, ask:askInPalette, dropQuestion, close:closePalette,
+    open:paletteOpen, asking:paletteAsking, show:openPalette, showAt:openPaletteAt, ask:askInPalette, dropQuestion, close:closePalette,
   }))
   yield* Effect.acquireRelease(Effect.sync(resetPaletteMemory),()=>Effect.sync(resetPaletteMemory))
   yield* Effect.acquireRelease(Effect.sync(followPaletteShortcut),stop=>Effect.sync(stop))
