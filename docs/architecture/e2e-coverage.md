@@ -8,6 +8,11 @@ sidebar and pane to exist: the header can paint earlier. The probe and its
 post-navigation remount assertions remain immediate, so setup readiness does
 not hide a remount caused by the gesture.
 
+The agent-fold helper waits for a requested `.olai` file's `data-drawn-file`
+before deciding its row is absent. A new tab's header can arrive before the
+outline; taking the sidebar fallback during that gap would navigate away from
+the fold the scenario meant to open.
+
 `a_failed_mcp_server.feature` also exercises two failed MCP connections at
 once. Reason assertions select the named server's row, so another failure
 neither makes the locator ambiguous nor supplies the wrong server's reason.

@@ -8,6 +8,7 @@ import {
   NODE_MENU,
   NODE_MENU_ITEM,
   NODE_MENU_PANEL,
+  PANE,
   POLL_TIMEOUT,
   HYDRATION_TIMEOUT,
   CHAT_PANEL,
@@ -24,6 +25,13 @@ const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`$
 export const openFold = async (world: OlaiWorld, node: string) => {
   world.activeAgent = node;
   const control = standing(world, node);
+  // A new tab can paint its header before its requested outline arrives.
+  // Absence during that gap is not a reason to navigate via the sidebar.
+  const file = decodeURIComponent(new URL(world.page.url()).pathname).slice(1);
+  if (file.endsWith(".olai")) {
+    await world.frontLane().locator(`${PANE}${attr("data-drawn-file", file)}`).first()
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  }
   // A newly opened browser can draw the outline before its agent property
   // face arrives. Use the sidebar only when the target row is absent.
   if (!(await world.node(node).isVisible())) {
