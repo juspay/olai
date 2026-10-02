@@ -162,7 +162,9 @@ export function Dropdown(props: {
   const afterGesture = createAfterGesture()
   let lastFocused: HTMLElement | undefined
   const rememberFocus = (event: FocusEvent) => {
-    if (event.target instanceof HTMLElement) lastFocused = event.target
+    // Mount autofocus visits the replaceable shell before restoring its items.
+    // That shell must not overwrite the entry remembered across suspension.
+    if (event.target instanceof HTMLElement && event.target !== event.currentTarget) lastFocused = event.target
   }
   createEffect(() => {
     if (!shown() || !props.door.open()) return

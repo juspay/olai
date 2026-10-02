@@ -137,3 +137,5 @@ keeping Kobalte's focus manager and the DOM in agreement for Home and Enter.
 Submenus also refuse Kobalte's outside-focus close request, which ignores
 `preventDefault`; restoring the parent's content shell must not close a retained
 submenu. Pointer dismissal and keyboard close gestures still close it normally.
+Focus memory records entries and confirmation controls, not the replaceable
+menu shell visited by mount autofocus, so resuming preserves the chosen entry.
