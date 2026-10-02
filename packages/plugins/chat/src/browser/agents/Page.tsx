@@ -68,6 +68,27 @@ function createPageSession(node: string): PageSession {
       })
     })
   })
+  const deliver = async (to: Conversing, text: string, later: string) => {
+    const ui = reading.ui(to)
+    const key = JSON.stringify([to.agent, to.session])
+    keepMessage(ui.messages, key, later)
+    const value = await ready(to)
+    if (value === null) {
+      ui.refused[1](new UsageFailure({ reason: "The chat changed, so this didn't happen. Try again." }))
+      keepMessage(ui.messages, key, text, true)
+    } else if (!await value.send(text, [], [])) keepMessage(ui.messages, key, text, true)
+  }
+  const arrival = reading.newChat.take(node)
+  if (arrival !== undefined) {
+    setFailure(arrival.refusal)
+    if (arrival.to === null) {
+      setDraft(arrival.later === "" ? arrival.text : `${arrival.text}\n${arrival.later}`)
+      arrival.done()
+    } else {
+      setStarting(true)
+      void deliver(arrival.to, arrival.text, arrival.later).finally(() => { setStarting(false); arrival.done() })
+    }
+  }
   const start = async (engine: string) => {
     const text = draft()
     if (starting() || text.trim() === "") return
@@ -84,18 +105,9 @@ function createPageSession(node: string): PageSession {
       }
       const to = result.success
       if (to === null) { setDraft(text); return }
-      const ui = reading.ui(to)
-      const key = JSON.stringify([to.agent, to.session])
-      // Preserve words typed after the first send as an ordinary unsent draft.
-      keepMessage(ui.messages, key, draft())
+      const later = draft()
       setDraft("")
-      const value = await ready(to)
-      if (value === null) {
-        ui.refused[1](new UsageFailure({ reason: "The chat changed, so this didn't happen. Try again." }))
-        keepMessage(ui.messages, key, text, true)
-      } else if (!await value.send(text, [], [])) {
-        keepMessage(ui.messages, key, text, true)
-      }
+      await deliver(to, text, later)
     } finally { setStarting(false) }
   }
   return { chat, draft, setDraft, starting, failure, start }

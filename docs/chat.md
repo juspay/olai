@@ -30,13 +30,12 @@ probe and choices without disabling the other engines. Choices follow the
 server's current engine roster.
 
 A conversation belongs to one engine for its lifetime. The *start an agent*
-pill and the Chats heading's `+` (new chat) appear when at least one engine is available. They
-start immediately when exactly one engine is available. With two or more, the
-menu lists all enabled engines in bundle order: available engines are pickable;
-missing ones are greyed out with their reason, without a link inside the
-disabled choice. Installation links remain in the plugins panel and no-agent
-face. Row-menu verbs and the command palette offer only available engines.
-A plain node page shows its selected engine beside the composer.
+pill starts immediately with one available engine and offers a menu with several.
+The Chats heading's **+** always opens **New chat**. Its composer has an engine
+select beside Send, defaulting to the first available engine in bundle order.
+With no engine available the page explains the absence. The palette offers
+**New chat** only when an engine can start. Opening either door creates nothing.
+A plain node page also shows its selected engine beside the composer.
 
 A **fresh start may pick a different engine**, but only by an explicit choice.
 With at most one startable engine, the press asks for the node's current engine;
@@ -300,11 +299,12 @@ outlines, and document pages do not take these carries. A transcript row dropped
 between outline rows becomes a node: first line title, remaining lines note,
 with one undo entry.
 
-The palette's `>` sends to the focused row's same nearest ancestor after
-unfolding it. This lookup uses the outlines reading and works with search off.
-No focused row or no ancestor refuses with **no agent above this row — start one**.
-An unbound ancestor refuses with **this agent has no session — start one**.
-Both refusals preserve the palette text and start nothing.
+The palette's `>` sends to the focused row's nearest ancestor agent after
+unfolding it. This lookup works with search off. With no agent above the focused
+row (or zoomed node), it opens **New chat** carrying the words and presets that
+node as the visible location. With neither, the location is **Inbox › Chats**.
+Nothing is sent until Send. An unbound ancestor still refuses with **This agent
+has no chat. Start one first.**, preserving the palette text.
 
 An armed chip displays the node title returned by the outline reference service;
 it falls back to the ID while unresolved or while that service is unavailable.
@@ -759,13 +759,32 @@ or a title in the palette to reach every agent, including those beyond the Chats
 cap. Palette rows name their standing and use the same navigation rule. Both
 regions and the palette contribution withdraw with chat.
 
-The **`+`** on the Chats heading, and the **new chat** row of the Agents palette, are one action. It ensures `Chats` in
-the Inbox, mints a child titled **new conversation**, then starts its chosen
-engine and unfolds that child. With one engine it starts immediately; several
-offer engine names, in the sidebar menu or as palette rows. Both faces share one
-pending creation gesture. No Inbox entry means a refusal without creating a
-conversation. A refused start leaves its already-created plain node available
-for another start; independent Ops writes are not rolled back.
+The **+** on Chats and **New chat** in the Agents palette open one page in the
+focused pane, with one shared draft, location and pending send per chat activation.
+Leaving and returning keeps the unsent words and chosen location; it writes
+nothing and starts no process. A fresh draft defaults to **In: Inbox › Chats**.
+
+Press the location line to pick across the vault. The picker reuses the `@`
+completion's title, file and ancestor trail. It lists **Default**, **Here** (the
+focused row or zoomed node when opened), **Suggested** (draft matches, when search
+is available), **Recent** (parents of recently active chats), then other matching
+nodes. Enter or pressing a row chooses a parent. **Alt+Enter** or **On this node**
+seats a plain node itself; an existing agent offers only a child chat. The line
+always shows where Send will land, as **In:** or **On:**.
+
+Send creates a child titled from the first nonempty message line, trimmed and
+clipped at a word boundary to 60 characters including **…**. It starts the chosen
+engine and opens the child's own page, delivering the message once. On a plain
+node itself, Send preserves the title and creates no child. Shift+Enter inserts a
+newline. Words typed while starting become an ordinary unsent draft on the page.
+A second send while starting says so and spends nothing.
+
+An absent Inbox or a parent removed or trashed after selection refuses without
+losing words or resetting the location. Another parent works with capture off;
+restoring capture permits a default retry. If engine start refuses after minting,
+the titled plain node remains and its page holds the draft for retry. Independent
+Ops writes are not rolled back. Authentication refusal keeps the engine-only node
+and its sign-in panel.
 
 ### Where the binding lives, and what a second machine sees
 

@@ -247,10 +247,16 @@ export const surface = defineSurface({
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, value: Schema.String }),
         error: ChatFailure,
       },
-      /** Ensure an Inbox node, start its engine, then return the node id. */
+      /** Mint under the visible location and return the node even if start refuses. */
       newChat: {
-        input: Schema.Struct({ agent: Schema.String }),
-        output: Schema.String,
+        input: Schema.Struct({ agent: Schema.String, title: Schema.String, parent: Schema.NullOr(Schema.String) }),
+        output: Schema.Struct({ node: Schema.String, to: Schema.NullOr(Schema.Struct({ agent: Schema.String, session: Schema.String })), refusal: Schema.NullOr(Schema.String) }),
+        error: ChatFailure,
+      },
+      locations: {
+        input: Schema.Void,
+        output: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, file: Schema.String,
+          path: Schema.Array(Schema.String), parent: Schema.NullOr(Schema.String) })),
         error: ChatFailure,
       },
       /** Resolve the focused row's nearest ancestor agent, including itself. */
@@ -265,6 +271,7 @@ export const surface = defineSurface({
           /** The node whose property is about to name the session — the id the
            *  roster answers with. */
           node: Schema.String,
+          plain: Schema.optionalKey(Schema.Boolean),
           /** ... and the engine to open it with, off that node's property. */
           agent: Schema.String,
         }),
@@ -425,6 +432,7 @@ export const faces = {
     "conversation.setModel": "tool",
     "conversation.setSetting": "tool",
     "conversation.newChat": "tool",
+    "conversation.locations": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.closeAgent": "tool",
     "conversation.agentAbove": "tool",

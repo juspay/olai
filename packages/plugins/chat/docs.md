@@ -68,15 +68,15 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that starts at once with exactly one available agent and otherwise opens the agent menu; each Chats row puts its standing dot before its age |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the shared draft page without creating anything; each Chats row puts its standing dot before its age |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
 | `outline.page.head` | outlines, under title above property drawer | agent line |
 | `outline.page.foot` | outlines, after the zoomed subtree | unbounded conversation and composer, or a plain-node composer |
 | `outline.row.action` | outlines' row menu | Start an agent on a plain row; Fresh start and Close the agent on a row with an agent. Start and Fresh start are one entry each — the verb with one available agent, a submenu of available agents with several, absent with none; Close the agent is always offered |
-| `app.command` | navigation's text-command grammar | `>` with nearest-ancestor targeting |
-| `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents, and New chat with agent choices while an agent is available |
+| `app.command` | navigation's text-command grammar | `>` with nearest-ancestor targeting, or a draft on New chat with Here/default visible |
+| `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents, and New chat opening the shared page while an engine is available |
 
 Chat no longer contributes `app.panel` or `app.header` and names no layout shell
 service. Its four node faces are registered under `AgentsProvider`, reading one
@@ -102,13 +102,13 @@ and interface. Each engine defines its own `row` component and registers the
 supplied face under its own identity. The component waits for chat and the
 inspector slot, and withdraws before chat releases its renderer.
 The activation-owned roster publishes `only` beside `engines` and `standings`:
-exactly one startable engine, irrespective of missing siblings. Sidebar,
-outline start, fresh start and command palette read that same memo. Fresh start
+exactly one startable engine, irrespective of missing siblings. Outline start and fresh start read that same memo. New chat uses the first
+available engine in bundle order in its composer select. Fresh start
 uses it only to decide whether to open a menu; its direct request always names
 the node's current engine.
 
 Optional dependencies remain in separate scoped components. Navigation and its
-existing palette control supply route changes and choice reset on dismissal;
+existing palette control supply route changes and palette availability;
 outline references supply focused-row context; the search reading supplies
 completions. The `plugins` component needs the inspector's declared
 `plugin-inspector.configuration` service and holds its `open` in a
@@ -128,9 +128,15 @@ stale scope tokens refuse rather than acting on another conversation. Multiple b
 share the server's conversation scope. A server restart reopens each retained
 reading and replays its transcript.
 
-`conversation.newChat` ensures Chats, mints a child through Ops as `filer`, starts
-its node session, and returns the node id. The browser resolves its current
-location through the existing node lookup before navigating and unfolding.
+`conversation.newChat` takes the engine, title and nullable parent (null means
+the current Inbox's Chats container). Under the existing creation permit it
+validates an explicit parent or ensures Chats on demand with the Inbox recheck,
+mints a child through Ops as `filer`, and starts its session. Its result carries
+the node, session pair or auth-pending null, and any start refusal. Returning a
+minted plain node on refusal lets the browser land its draft there for retry.
+`conversation.locations` is a read-only projection of seatable outline nodes,
+including parents and ancestor titles, independent of optional search. The
+existing `startAgentSession` accepts a plain-node guard for the picker’s On mode.
 There are no free-floating new/choose/load procedures and no global
 conversation selection. History changes the fold's local visiting pair without editing the
 node binding. `conversation.sessions` remains the stored-history listing.
@@ -164,8 +170,14 @@ The second is the one to reach for by habit. The first is a deployment's word, o
 Chat's browser activation owns the roster, fold state, visiting pairs and the
 conversation UI cache. Each rendered fold owns its subscriptions; each page
 shares one reading between head and foot. Releasing one leaves other readers
-and ongoing work alone. The new-chat action is shared by the sidebar and palette
-for one pending creation at a time and is disposed with the activation.
+and ongoing work alone. The New chat route, draft, selected destination, engine choice and pending send
+belong to the browser activation, shared by sidebar and palette. The route uses
+an empty local page reading: it acquires no vault page or conversation until Send.
+The mounted picker owns its read-only location query and optional search reading;
+leaving releases those while the draft remains. Send hands the committed node's
+message to its page session, which delivers through the ordinary conversation
+send and keeps later typing or refused text. Activation cleanup invalidates late
+callbacks and releases pending handoffs; no callback navigates a rebuilt owner.
 
 Chat's attention component names `alerts.channel` and owns its scoped watching,
 cross-tab beat and question subscriptions. It clears its badge claim on release.

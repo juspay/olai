@@ -87,7 +87,8 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
 export const createAskCommand = (): AppCommand => ({
   prefix: ">", said: "Ask the agent", placeholder: "Ask the agent…",
   run: async line => {
-    const agent = await target(focusedNode())
+    const agent = await target(agentReadings()?.newChat.origin() ?? focusedNode())
+    if (agent === NO_AGENT) return await agentReadings()?.newChat.open(line) ?? null
     if (typeof agent === "string") return agent
     const held = agentReadings()
     if (held === undefined) return "Chat stopped"

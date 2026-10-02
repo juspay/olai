@@ -1,3 +1,6 @@
+import { defineAppPage } from "olai-plugin-navigation/routes"
+import { newChatRoute } from "./browser/agents/new-chat-route.ts"
+import { NewChatPage } from "./browser/agents/NewChatPage.tsx"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
 import { SESSION_KIND } from "./binding.ts"
@@ -106,6 +109,7 @@ export default definePlugin({
     yield* slots.register("outline.page.foot", props => <AgentsProvider value={state.agents}><PageFoot {...props} /></AgentsProvider>)
     yield* slots.register("sidebar.section", { said: "Needs you", body: () => <AgentsProvider value={state.agents}><NeedsYou /></AgentsProvider> })
     yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Chats /></AgentsProvider> })
+    yield* slots.register("app.route", defineAppPage(newChatRoute, () => <AgentsProvider value={state.agents}><NewChatPage /></AgentsProvider>))
     const palette = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       let value!: ReturnType<typeof createAgentPalette>
       createComponent(AgentsProvider, { value: state.agents, get children() {

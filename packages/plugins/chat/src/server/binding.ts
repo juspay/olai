@@ -123,10 +123,11 @@ export const closeAgent = (
 export const startAgentSession = (
   chat: Chat,
   binding: Binding,
-  input: { readonly node: string; readonly agent: string },
+  input: { readonly node: string; readonly agent: string; readonly plain?: boolean },
 ): Effect.Effect<Conversing | null, OpFailure> =>
   Effect.gen(function*() {
     const was = yield* binding.exclusive(Effect.sync(() => binding.boundAt(input.node)))
+    if (input.plain && was !== null) return yield* new UsageFailure({ reason: "The chosen node already has an agent. Choose a plain node or start under it." })
     let expected = was
     const unchanged = () => {
       const at = binding.boundAt(input.node)
