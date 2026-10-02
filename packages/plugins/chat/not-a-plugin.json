@@ -44,14 +44,13 @@
   "outlines": [
     "src/adapter.ts"
   ],
-  "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin. new-chat-title.ts uses String.search to find a clipping boundary.",
+  "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin.",
   "search": [
     "src/agents/roster.ts",
     "src/browser/agents/AgentPalette.ts",
     "src/browser/chat/Composer.tsx",
     "src/browser/chat/Model.tsx",
     "src/browser/chat/completion.ts",
-    "src/new-chat-title.ts",
     "src/testids.ts"
   ],
   "settings": [

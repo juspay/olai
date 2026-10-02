@@ -109,5 +109,33 @@ test("a mirror cannot be a parent and is absent from the picker", async () => {
   const result = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "Planning", parent: "mirror" })))
   expect(result._tag).toBe("Failure")
   expect(it.events).toEqual([])
-  expect(chatLocations(await Effect.runPromise(it.owner.read)).map(node => node.id)).toEqual(["work"])
+  expect(chatLocations(await Effect.runPromise(it.owner.read), { filter: "Work", limit: 20, ids: [], parents: [] }).nodes.map(node => node.id)).toEqual(["work"])
+})
+
+
+test("server normalizes long multiline titles and refuses empty titles before any writes", async () => {
+  const it = fixture()
+  const empty = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: " \n\t", parent: null })))
+  expect(empty._tag).toBe("Failure")
+  expect(it.events).toEqual([])
+  const result = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: `\n  ${"x".repeat(80)}  \nignored`, parent: null }))
+  const row = readingOf(setOf(it.texts)).derived.byId.get(result.node)!
+  expect(isRegular(row) && row.node.title).toBe(`${"x".repeat(59)}…`)
+})
+
+test("location queries cap matches, resolve ids and parents, and exclude machinery except Inbox", () => {
+  const rows = Array.from({ length: 100 }, (_, index) => ({ id: `n${index}`, title: `Work ${index}`, ord: `a${index}` }))
+  const reading = readingOf(setOf({
+    "work.olai": rows.map(row => JSON.stringify(row)).join("\n"),
+    "_olai/Inbox.olai": '{"id":"chats","title":"Chats","ord":"a0"}\n{"id":"child","title":"Conversation","parent":"chats","ord":"a0"}',
+    "_olai/Settings.olai": '{"id":"settings","title":"Work settings","ord":"a0"}',
+    "_olai/Properties.olai": '{"id":"prop","title":"Work property","ord":"a0"}',
+  }))
+  const query = { filter: "Work", limit: 5, ids: [], parents: [] }
+  expect(chatLocations(reading, query).nodes).toHaveLength(5)
+  expect(chatLocations(reading, { ...query, limit: 1000 }).nodes).toHaveLength(20)
+  expect(chatLocations(reading, { ...query, filter: "" }).nodes).toEqual([])
+  const lookup = chatLocations(reading, { ...query, filter: "", ids: ["n99", "settings", "prop"], parents: ["child"] }, "_olai/Inbox.olai")
+  expect(lookup.nodes.map(node => node.id)).toEqual(["n99", "chats"])
+  expect(lookup.defaultParent).toBe("chats")
 })

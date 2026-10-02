@@ -131,13 +131,18 @@ reading and replays its transcript.
 
 `conversation.newChat` takes the engine, title and nullable parent (null means
 the current Inbox's Chats container). Under the existing creation permit it
-validates an explicit parent or ensures Chats on demand with the Inbox recheck,
+normalizes the title with the shared 60-character rule and refuses an empty
+title before any write, then validates an explicit parent or ensures Chats on demand with the Inbox recheck,
 mints a child through Ops as `filer`, and starts its session. Its result carries
 the node, session pair or auth-pending null, and any start refusal. Returning a
 minted plain node on refusal lets the browser land its draft there for retry.
-`conversation.locations` is a read-only projection of seatable outline nodes,
-including parents and ancestor titles, independent of optional search. The
-existing `startAgentSession` accepts a plain-node guard for the picker’s On mode.
+`conversation.locations` accepts filter/limit plus bounded exact id and parent
+lookups. It returns at most 20 filter matches plus those lookups, ancestor titles
+and the current default container id, independently of optional search. The
+outline-path set is built once per query; machinery under `_olai` is excluded
+except Inbox. The picker caps Suggested and Recent at five and removes the
+default container from Recent. `startAgentSession.expectPlain` checks the
+On-mode precondition atomically under the binding permit.
 There are no free-floating new/choose/load procedures and no global
 conversation selection. History changes the fold's local visiting pair without editing the
 node binding. `conversation.sessions` remains the stored-history listing.
@@ -173,12 +178,21 @@ conversation UI cache. Each rendered fold owns its subscriptions; each page
 shares one reading between head and foot. Releasing one leaves other readers
 and ongoing work alone. The New chat route, draft, selected destination, engine choice and pending send
 belong to the browser activation, shared by sidebar and palette. The route uses
-an empty local page reading: it acquires no vault page or conversation until Send.
+an empty local page reading because AppRoute has no readingless contract. Its
+route supplies the tab title/breadcrumb and face, `fileOf` treats its empty file
+as absent, and chat’s node consumers reject it as an origin/metadata source. It
+acquires no vault page or conversation until Send.
 The mounted picker owns its read-only location query and optional search reading;
-leaving releases those while the draft remains. Send hands the committed node's
-message to its page session, which delivers through the ordinary conversation
-send and keeps later typing or refused text. Activation cleanup invalidates late
-callbacks and releases pending handoffs; no callback navigates a rebuilt owner.
+leaving releases those while the draft remains. The activation publishes
+reactive arrivals; existing and newly mounted page sessions atomically take
+them once. A page then owns delivery and keeps refused text on disposal. An
+untaken arrival is reclaimed when the focused route leaves its node or its
+reading becomes unavailable/put away: words return to the session’s kept draft,
+or to New chat when no session exists. Departure during startup applies the
+same rule unless the destination is already focused. Every release clears the
+pending permit. Activation cleanup releases arrivals and invalidates late
+callbacks; no callback navigates a rebuilt owner. Picker keyboard handling shares
+the completion’s list keys, cursor and topmost dismissal ownership.
 
 Chat's attention component names `alerts.channel` and owns its scoped watching,
 cross-tab beat and question subscriptions. It clears its badge claim on release.

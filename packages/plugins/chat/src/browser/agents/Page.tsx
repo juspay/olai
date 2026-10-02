@@ -2,7 +2,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
-import { type Accessor, createEffect, createMemo, createRoot, createSignal, For, onCleanup, Show } from "solid-js"
+import { type Accessor, createEffect, createMemo, createRoot, createSignal, untrack, For, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
 import { runAsync } from "@olai/web/client/run.ts"
 import { TESTID } from "../../testids.ts"
@@ -22,7 +22,7 @@ import { NoAgent } from "../chat/NoAgent.tsx"
 import { EngineAbsence } from "./EngineAbsence.tsx"
 
 export interface PageSession {
-  readonly preferredEngine?: string
+  readonly preferredEngine: Accessor<string | undefined>
   readonly chat: Accessor<Chat | null>
   readonly draft: Accessor<string>
   readonly setDraft: (text: string) => void
@@ -79,17 +79,22 @@ function createPageSession(node: string): PageSession {
       keepMessage(ui.messages, key, text, true)
     } else if (!await value.send(text, [], [])) keepMessage(ui.messages, key, text, true)
   }
-  const arrival = reading.newChat.take(node)
-  if (arrival !== undefined) {
-    setFailure(arrival.refusal)
-    if (arrival.to === null) {
-      setDraft(arrival.later === "" ? arrival.text : `${arrival.text}\n${arrival.later}`)
-      arrival.done()
-    } else {
-      setStarting(true)
-      void deliver(arrival.to, arrival.text, arrival.later).finally(() => { setStarting(false); arrival.done() })
-    }
-  }
+  const [preferredEngine, prefer] = createSignal<string>()
+  createEffect(() => {
+    const arrival = reading.newChat.take(node)
+    if (arrival === undefined) return
+    untrack(() => {
+      prefer(arrival.engine)
+      setFailure(arrival.refusal)
+      if (arrival.to === null) {
+        setDraft(arrival.later === "" ? arrival.text : `${arrival.text}\n${arrival.later}`)
+        arrival.done()
+      } else {
+        setStarting(true)
+        void deliver(arrival.to, arrival.text, arrival.later).finally(() => { setStarting(false); arrival.done() })
+      }
+    })
+  })
   const start = async (engine: string) => {
     const text = draft()
     if (starting() || text.trim() === "") return
@@ -111,7 +116,7 @@ function createPageSession(node: string): PageSession {
       await deliver(to, text, later)
     } finally { setStarting(false) }
   }
-  return { chat, draft, setDraft, starting, failure, start, preferredEngine: arrival?.engine }
+  return { chat, draft, setDraft, starting, failure, start, preferredEngine }
 }
 
 function usePage(node: Accessor<string>) {
@@ -151,7 +156,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const pane = usePane()
   const agents = useAgents()
   const [chosen, choose] = createSignal<string>()
-  const engine = () => agents.at(props.node)?.engine ?? chosen() ?? props.page.preferredEngine ?? agents.engines()[0]?.id
+  const engine = () => agents.at(props.node)?.engine ?? chosen() ?? props.page.preferredEngine() ?? agents.engines()[0]?.id
   const missing = () => agents.missing(engine())
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.index)?.shows

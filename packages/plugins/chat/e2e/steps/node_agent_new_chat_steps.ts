@@ -53,12 +53,15 @@ When("I open the new chat location picker", async function(this: OlaiWorld) {
   await this.page.locator(selector(PLUGIN_TESTID.newChatLocation)).click();
 });
 When("I choose new chat {word} node {string}", async function(this: OlaiWorld, mode: string, name: string) {
-  const row = this.page.locator(`${picker} ${attr("data-location", this.nodeId(name))}`);
+  const id = this.nodeId(name);
+  const title = this.servedNodesSoFar("house.olai").find(node => node.id === id)?.title;
+  if (typeof title === "string") await this.page.getByRole("combobox", { name: "Find a chat location" }).fill(title);
+  const row = this.page.locator(`${picker} ${attr("data-location", id)}`);
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await row.getByRole("button").nth(mode === "on" ? 1 : 0).click();
 });
 When("I filter chat locations by {string}", async function(this: OlaiWorld, text: string) {
-  await this.page.getByRole("textbox", { name: "Find a chat location" }).fill(text);
+  await this.page.getByRole("combobox", { name: "Find a chat location" }).fill(text);
   await this.page.locator(`${picker} [data-location]`).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 Then("the chat location picker has section {string}", async function(this: OlaiWorld, section: string) {
@@ -68,7 +71,10 @@ Then("the chat location picker omits section {string}", async function(this: Ola
   assert.equal(await this.page.locator(picker).getByRole("heading", { name: section, exact: true }).count(), 0);
 });
 Then("chat on node {string} itself is not offered", async function(this: OlaiWorld, name: string) {
-  const row = this.page.locator(`${picker} ${attr("data-location", this.nodeId(name))}`);
+  const id = this.nodeId(name);
+  const title = this.servedNodesSoFar("house.olai").find(node => node.id === id)?.title;
+  if (typeof title === "string") await this.page.getByRole("combobox", { name: "Find a chat location" }).fill(title);
+  const row = this.page.locator(`${picker} ${attr("data-location", id)}`);
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.equal(await row.getByRole("button").count(), 1);
 });
@@ -133,4 +139,30 @@ Then("the plain retry engine is {string}", async function(this: OlaiWorld, engin
 Then("the new chat page has no refusal", async function(this: OlaiWorld) {
   await this.page.locator(selector(PLUGIN_TESTID.newChatPage)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.equal(await this.page.locator(selector(PLUGIN_TESTID.newChatPage)).getByRole("alert").count(), 0);
+});
+
+Then("new chat is ready to send", async function(this: OlaiWorld) {
+  await this.page.locator(selector(PLUGIN_TESTID.newChatSend)).filter({ hasText: /^Send$/ }).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+Then("the selected new chat engine is {string}", async function(this: OlaiWorld, engine: string) {
+  await this.waitUntil(async () => await this.page.locator(selector(PLUGIN_TESTID.newChatEngine)).inputValue() === engine, "live engine fallback");
+});
+Then("the chat location selection is accessible", async function(this: OlaiWorld) {
+  const box = this.page.getByRole("combobox", { name: "Find a chat location" });
+  const selected = await box.getAttribute("aria-activedescendant");
+  assert.ok(selected);
+  const row = this.page.locator(attr("id", selected));
+  assert.equal(await row.getAttribute("role"), "option");
+  assert.equal(await row.getAttribute("aria-selected"), "true");
+  assert.ok(await row.isVisible());
+});
+Then("the chat location picker is closed", async function(this: OlaiWorld) {
+  await this.page.locator(picker).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+Then("the new chat location picker excludes the default container", async function(this: OlaiWorld) {
+  assert.equal(await this.page.locator(`${picker} ${attr("data-location", "chats")}`).count(), 0);
+});
+
+When("I press outside the chat location picker", async function(this: OlaiWorld) {
+  await this.page.locator(input).click();
 });

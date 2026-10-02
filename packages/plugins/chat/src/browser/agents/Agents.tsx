@@ -49,7 +49,6 @@ export function Chats() {
       <h2 class={REGION_LABEL}>Chats</h2>
       <NewChat />
     </div>
-
     <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
       <button type="button" class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row()) ? "page" : undefined}

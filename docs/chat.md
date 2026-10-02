@@ -300,9 +300,12 @@ between outline rows becomes a node: first line title, remaining lines note,
 with one undo entry.
 
 The palette's `>` sends to the focused row's nearest ancestor agent after
-unfolding it. This lookup works with search off. With no agent above the focused
+unfolding it. With no focused row, a zoomed node supplies that target, including
+a node that already has a bound agent. This lookup works with search off. With no agent above the focused
 row (or zoomed node), it opens **New chat** carrying the words and presets that
-node as the visible location. With neither, the location is **Inbox › Chats**.
+node as the visible location. With neither, it preserves the current New chat
+location (initially **Inbox › Chats**). Repeated `>` appends to that draft; while
+a send is starting it refuses and retains the new words in the palette.
 Nothing is sent until Send. An unbound ancestor still refuses with **This agent
 has no chat. Start one first.**, preserving the palette text.
 
@@ -767,17 +770,25 @@ nothing and starts no process. A fresh draft defaults to **In: Inbox › Chats**
 Press the location line to pick across the vault. The picker reuses the `@`
 completion's title, file and ancestor trail. It lists **Default**, **Here** (the
 focused row or zoomed node when opened), **Suggested** (draft matches, when search
-is available), **Recent** (parents of recently active chats), then other matching
-nodes. Enter or pressing a row chooses a parent. **Alt+Enter** or **On this node**
+is available), and **Recent** (up to five distinct parents of recently active
+chats, excluding the current default Chats container). Typing reveals up to 20
+matching nodes; Suggested is capped at five. Machinery files such as Settings
+and Properties are excluded; Inbox remains available. Enter or pressing a row chooses a parent. **Alt+Enter** or **On this node**
 seats a plain node itself; an existing agent offers only a child chat. The line
-always shows where Send will land, as **In:** or **On:**.
+always shows where Send will land, as **In:** or **On:**. The keyboard selection
+is announced and scrolled into view; Escape or a press outside dismisses the
+picker. Alt+Enter on a bound node explains that only a child can be chosen.
 
 Send creates a child titled from the first nonempty message line, trimmed and
 clipped at a word boundary to 60 characters including **…**. It starts the chosen
 engine and opens the child's own page, delivering the message once. On a plain
 node itself, Send preserves the title and creates no child. Shift+Enter inserts a
 newline. Words typed while starting become an ordinary unsent draft on the page.
-A second send while starting says so and spends nothing.
+A second send while starting says so and spends nothing. If the chosen engine
+is withdrawn before Send, the selector falls back to the first available engine.
+An already open destination page can receive the first message. Leaving during
+startup keeps undelivered words in the resulting conversation’s draft, or back
+on New chat if no session was created, and releases the pending send.
 
 An absent Inbox or a parent removed or trashed after selection refuses without
 losing words or resetting the location. Another parent works with capture off;

@@ -4,6 +4,6 @@ export function newChatTitle(message: string): string {
   const characters = Array.from(line)
   if (characters.length <= 60) return line
   const head = characters.slice(0, 59).join("")
-  const boundary = /\s/.test(characters[59]!) ? -1 : head.search(/\s+\S*$/)
+  const boundary = /\s/.test(characters[59]!) ? -1 : (/\s+\S*$/.exec(head)?.index ?? -1)
   return `${(boundary > 0 ? head.slice(0, boundary) : head).trimEnd()}…`
 }

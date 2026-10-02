@@ -287,3 +287,168 @@ Feature: A new chat asks where it belongs before creating anything
     Then the new chat draft is ""
     And the new chat location contains "In: Inbox › Chats"
     And there should be no page errors
+
+  Scenario: Appending from the palette preserves the chosen location
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I type new chat draft "first words"
+    And I open the new chat location picker
+    And I choose new chat under node "kitchen"
+    And I ask the palette "> more words"
+    Then the new chat draft is "first words\nmore words"
+    And the new chat location contains "kitchen"
+    And there should be no page errors
+
+  Scenario: A pending creation refuses a palette append without losing either text
+    Given I open the outline "house.olai"
+    When the next agent boot will hang
+    And I press new chat in Chats
+    And I type new chat draft "first words"
+    And I send the new chat draft
+    Then new chat in Chats is starting
+    When I ask the palette "> later words"
+    Then the palette refuses with "A new chat is already starting" and retains "> later words"
+    When I press "Escape"
+    And the agent is released
+    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
+    And the agent has answered "first words" exactly once
+    And there should be no page errors
+
+  Scenario: Recent does not repeat the default Chats container
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I type new chat draft "hello"
+    And I send the new chat draft
+    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
+    And the agent has answered "hello" exactly once
+    When I press new chat in Chats
+    And I open the new chat location picker
+    Then the chat location picker has section "Default"
+    And the chat location picker omits section "All nodes"
+    And the new chat location picker excludes the default container
+    And there should be no page errors
+
+  @codex
+  Scenario: Withdrawing the selected engine falls back to an available engine
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I choose new chat engine "Codex"
+    And I type new chat draft "fallback engine"
+    And I open the plugins panel
+    And I switch the plugin "codex" off
+    And I close the plugins panel
+    Then the selected new chat engine is "claude"
+    When I send the new chat draft
+    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
+    And the agent has answered "fallback engine" exactly once
+    And there should be no page errors
+
+  Scenario: An already mounted second pane consumes a later arrival once
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    And I focus pane 0
+    And I press new chat in Chats
+    And I open the new chat location picker
+    And I choose new chat on node "install"
+    And I type new chat draft "arriving in an existing page"
+    And the next agent boot will hang
+    And I send the new chat draft
+    Then new chat in Chats is starting
+    When I focus pane 1
+    And the agent is released
+    Then the node page conversation is ready for "install"
+    And the agent has answered "arriving in an existing page" exactly once
+    When I press new chat in Chats
+    Then new chat is ready to send
+    And there should be no page errors
+
+  Scenario: Leaving before the page mounts keeps the first message as a conversation draft
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I open the new chat location picker
+    And I choose new chat on node "install"
+    And I type new chat draft "keep this first message"
+    And the next agent boot will hang
+    And I send the new chat draft
+    Then new chat in Chats is starting
+    When I click the outline "house.olai"
+    And the agent is released
+    And I press new chat in Chats
+    Then new chat is ready to send
+    When I click the outline "house.olai"
+    And I zoom into the node "install"
+    Then the node page conversation is ready for "install"
+    And the chat input reads "keep this first message"
+    And there should be no page errors
+
+  Scenario: A refused start after departure restores the words to New chat
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I open the new chat location picker
+    And I choose new chat on node "install"
+    And I type new chat draft "keep after departure"
+    And the next agent boot will hang
+    And I send the new chat draft
+    Then new chat in Chats is starting
+    When I click the outline "house.olai"
+    And the agent refuses to new a conversation
+    And the agent is released
+    And I press new chat in Chats
+    Then new chat is ready to send
+    And the new chat draft is "keep after departure"
+    And there should be no page errors
+
+  Scenario: The picker exposes its keyboard selection and dismisses outside
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I open the new chat location picker
+    Then the chat location selection is accessible
+    When I filter chat locations by "house"
+    And I press "ArrowDown"
+    Then the chat location selection is accessible
+    When I press outside the chat location picker
+    Then the chat location picker is closed
+    And there should be no page errors
+
+  Scenario: Alt Enter explains why a bound node cannot be selected itself
+    Given I open the outline "house.olai"
+    When I zoom into the node "install"
+    And I send "hello" from the plain node composer
+    Then the node page conversation is ready for "install"
+    When I press new chat in Chats
+    And I open the new chat location picker
+    And I filter chat locations by "install the cabinets"
+    And I press "Alt+Enter"
+    Then new chat says "This node already has an agent"
+    When I press "Enter"
+    Then the new chat location contains "In: house.olai"
+    And there should be no page errors
+
+  Scenario: The palette targets the zoomed bound node without a focused memory row
+    Given I open the outline "house.olai"
+    When I zoom into the node "install"
+    And I send "hello" from the plain node composer
+    Then the node page conversation is ready for "install"
+    When I ask the palette "> zoomed bound question"
+    Then the agent has answered "zoomed bound question" exactly once
+    And there should be no page errors
+
+  Scenario: Trashing the destination during boot releases the permit and preserves the words
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I open the new chat location picker
+    And I choose new chat on node "install"
+    And I type new chat draft "keep after destination trash"
+    And the next agent boot will hang
+    And I send the new chat draft
+    Then new chat in Chats is starting
+    When I click the outline "house.olai"
+    And I open the node menu of "install"
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
+    Then "house.olai" no longer holds the node "install"
+    When the agent is released
+    And I press new chat in Chats
+    Then new chat is ready to send
+    And the new chat draft is "keep after destination trash"
+    And there should be no page errors

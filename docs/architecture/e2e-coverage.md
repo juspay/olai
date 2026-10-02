@@ -449,3 +449,8 @@ turn).
 - Open: no live `claude auth login` or Codex device-code flow is driven — the
   command and the page are the fakes — and the card's browser-side look (its
   colours, its phone layout) has no visual assertion.
+
+New chat review regressions cover existing-pane arrivals, departure before mount,
+refused departure recovery, palette append/pending refusal, default-free Recent,
+engine withdrawal, accessible picker selection/outside dismissal, and bound
+zoomed-node palette targeting (`node_agent_new_chat.feature`).

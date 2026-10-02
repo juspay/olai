@@ -1,4 +1,4 @@
-import { newChat, chatLocations, type NewChatInput } from "./server/new-chat.ts"
+import { newChat, chatLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -594,7 +594,7 @@ export default definePlugin({
         withChat((open) => open.inConversation(input, undefined, panel => panel.setSetting(input.agent, input.session, input.config, input.value))),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
         withChat((open) => open.inConversation(input, undefined, panel => panel.setModel(input.agent, input.session, input.value))),
-      locations: () => Effect.map(ops.reading, reading => chatLocations(reading as Reading)),
+      locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => chatLocations(reading as Reading, input, vault.inbox.current())),
       newChat: ({ input }: { input: NewChatInput }) =>
         withChat(open => {
           const gate = ops.gate as WriteGate
@@ -619,7 +619,7 @@ export default definePlugin({
         const node = id === null ? null : nodeAgents.nodeAt(id)
         return node === null ? null : { node: node.id, file: node.file, agent: node.engine, session: node.session }
       }),
-      startAgentSession: ({ input }: { input: { node: string; agent: string; plain?: boolean } }) =>
+      startAgentSession: ({ input }: { input: { node: string; agent: string; expectPlain?: boolean } }) =>
         withChat((open) => startAgentSession(open, binding, input)).pipe(
           // Publish after both the binding and its history link are written.
           Effect.tap(() => Effect.gen(function*() {

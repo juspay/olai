@@ -254,9 +254,9 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       locations: {
-        input: Schema.Void,
-        output: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, file: Schema.String,
-          path: Schema.Array(Schema.String), parent: Schema.NullOr(Schema.String) })),
+        input: Schema.Struct({ filter: Schema.String, limit: Schema.Number, ids: Schema.Array(Schema.String), parents: Schema.Array(Schema.String) }),
+        output: Schema.Struct({ nodes: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, file: Schema.String,
+          path: Schema.Array(Schema.String), parent: Schema.NullOr(Schema.String) })), defaultParent: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       /** Resolve the focused row's nearest ancestor agent, including itself. */
@@ -271,7 +271,8 @@ export const surface = defineSurface({
           /** The node whose property is about to name the session — the id the
            *  roster answers with. */
           node: Schema.String,
-          plain: Schema.optionalKey(Schema.Boolean),
+          /** Refuse atomically if another agent already owns the node. */
+          expectPlain: Schema.optionalKey(Schema.Boolean),
           /** ... and the engine to open it with, off that node's property. */
           agent: Schema.String,
         }),

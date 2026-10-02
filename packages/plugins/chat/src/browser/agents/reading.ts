@@ -1,3 +1,4 @@
+import { keepMessage } from "../chat/message-draft.ts"
 import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
 import { createEffect, createRoot, createSignal, onCleanup } from "solid-js"
@@ -11,7 +12,7 @@ import { createPageOwners } from "./page-owners.ts"
 import type { PageSession } from "./Page.tsx"
 
 export const createAgentReadings = (agents: Roster) => {
-  const newChat = createNewChat()
+  const newChat = createNewChat((to, text) => keepMessage(ui(to).messages, JSON.stringify([to.agent, to.session]), text, true))
   const page = createPageOwners<PageSession>()
   const previews = createPreviews()
   const reveals = new Set<string>()
