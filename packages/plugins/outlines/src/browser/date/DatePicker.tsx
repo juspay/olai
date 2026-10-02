@@ -1,3 +1,5 @@
+import { useShown } from "olai-plugin-navigation/routing"
+import { createEffect } from "solid-js"
 /**
  * The date picker: a day, and optionally a time of day, chosen on a row that
  * already exists.
@@ -114,6 +116,12 @@ export function DatePicker(props: {
   const [unfinishedTime, setUnfinishedTime] = createSignal(false)
   const incomplete = (): keyof typeof UNFINISHED | null =>
     unfinishedDay() ? "day" : unfinishedTime() ? "time" : null
+  let dayBox: HTMLInputElement | undefined
+  const shown = useShown()
+  createEffect(() => {
+    if (!shown()) return
+    queueMicrotask(() => { if (shown()) dayBox?.focus({ preventScroll: true }) })
+  })
   let timeBox: HTMLInputElement | undefined
   /** A half-typed box leaves the DRAFT where it was. Its value reads as
    *  nothing, and a draft set to nothing is pushed back into the box by its
@@ -182,7 +190,7 @@ export function DatePicker(props: {
           // `queueMicrotask` for the reason the command palette uses one —
           // the element is not in the document at the instant the signal
           // flips.
-          ref={(element) => queueMicrotask(() => element.focus())}
+          ref={element => { dayBox = element }}
           onInput={(event) => readDay(event.currentTarget)}
           onKeyUp={(event) => readDay(event.currentTarget)}
         />

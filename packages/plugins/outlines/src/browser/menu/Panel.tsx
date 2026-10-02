@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 import { useHere } from "olai-plugin-navigation/routing"
 /**
@@ -42,6 +43,7 @@ export function Panel(props: {
   readonly onGone: () => void
   readonly gestures: Gestures
 }) {
+  const shown = useShown()
   const here = useHere()
   const [asking, setAsking] = createSignal<MenuAction | null>(null)
   onCleanup(() => props.onGone())
@@ -89,6 +91,7 @@ export function Panel(props: {
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
         <DropdownMenu.SubContent
+          style={{ display: shown() ? undefined : "none" }}
         {...{ [PAGE_SUBJECT]: String(here()) }}
           ref={(el: HTMLElement) => {
             // Kobalte preventDefault's its own focus of the first row, and the

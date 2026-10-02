@@ -61,7 +61,7 @@
  * `getAnchorRect`. There is no media query in this file at all.
  */
 
-import { Show, getOwner, runWithOwner, createSignal } from "solid-js"
+import { Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
 import type { MenuEntry } from "./action.ts"
@@ -82,13 +82,8 @@ export function NodeMenu(props: {
   /** Running a verb, and what it had to say (`./picking.ts`). Created in the
    *  ROW's owner rather than the panel's: the menu is closed by the time most
    *  answers arrive. */
-  const owner = getOwner()
-  const [picking, setPicking] = createSignal<ReturnType<typeof createPicking>>()
-  const pick = (action: Parameters<ReturnType<typeof createPicking>["pick"]>[0]) => {
-    const held = picking() ?? runWithOwner(owner, createPicking)!
-    setPicking(held)
-    return held.pick(action)
-  }
+  const picking = createPicking()
+  const pick = picking.pick
 
   /**
    * What the line beside the `•••` shows — a verb's answer, or the reason the
@@ -107,7 +102,7 @@ export function NodeMenu(props: {
   const said = (): Said | null => {
     const failed = props.door.armed() ? menuFailure() : undefined
     return failed === undefined
-      ? picking()?.said() ?? null
+      ? picking.said()
       : { tone: "alarm", text: `The menu didn’t load. Reload the page to try again. (${failed.message})` }
   }
 

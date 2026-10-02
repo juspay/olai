@@ -42,6 +42,7 @@
  * appears to leave — is the optimistic UI this whole design is written
  * against.
  */
+import { createStore, unwrap } from "solid-js/store"
 import { writeEdit } from "../writes.ts"
 import type { Row } from "@olai/format"
 import type { Anchor, Edit } from "@olai/surface"
@@ -50,6 +51,7 @@ import {
   type Accessor,
   type Signal,
   createContext,
+  createComputed,
   createEffect,
   createMemo,
   type JSX,
@@ -141,6 +143,8 @@ export interface Editor {
    *  line's SEAT, as three primitives every row may compare; this is the line
    *  itself, and only the row that matched reads it. */
   readonly live: Accessor<Ghost | null>
+  readonly pendingAt: (kind: Beside["kind"], id: string) => boolean
+  readonly ghostsAt: (kind: Beside["kind"], id: string) => ReadonlyArray<Pending>
   /** Put the caret in a parked empty draft. Clicking a ghost that is already
    *  on screen is how a skeleton gets filled in. */
   readonly resume: (slot: string) => void
@@ -439,6 +443,36 @@ export const createEditor = (
     equals: (a, b) =>
       a.place === b.place && a.field === b.field &&
       a.pending?.kind === b.pending?.kind && a.pending?.id === b.pending?.id,
+  })
+
+  // One atomic publication contains both halves of every seat. A resumed
+  // draft cannot disappear between a parked-list update and a live selector.
+  const [locations, setLocations] = createStore<Record<string, { live: boolean; parked: ReadonlyArray<Pending> } | undefined>>({})
+  const locationKey = (kind: Beside["kind"], id: string) => `${kind}\0${id}`
+  const noGhosts: ReadonlyArray<Pending> = []
+  createComputed(() => {
+    const next = new Map<string, { live: boolean; parked: Pending[] }>()
+    const seat = (at: Beside) => {
+      const key = locationKey(at.kind, at.id)
+      let value = next.get(key)
+      if (!value) next.set(key, value = { live: false, parked: [] })
+      return value
+    }
+    const pending = where().pending
+    if (pending) seat(pending).live = true
+    for (const ghost of ghosts()) {
+      const at = besideOf(displayAt(ghost.at))
+      if (at) seat(at).parked.push(ghost)
+    }
+    untrack(() => batch(() => {
+      for (const key of Object.keys(locations)) if (!next.has(key)) setLocations(key, undefined)
+      for (const [key, value] of next) {
+        const old = locations[key]
+        if (old?.live === value.live && old.parked.length === value.parked.length
+          && unwrap(old.parked).every((ghost, index) => ghost === value.parked[index])) continue
+        setLocations(key, value)
+      }
+    }))
   })
 
   /**
@@ -1372,6 +1406,8 @@ export const createEditor = (
     draft,
     ghosts,
     live: () => ghostOf(draft()),
+    pendingAt: (kind, id) => locations[locationKey(kind, id)]?.live === true,
+    ghostsAt: (kind, id) => locations[locationKey(kind, id)]?.parked ?? noGhosts,
     resume,
     resuming,
     displayAt,

@@ -208,7 +208,7 @@ export function Dropdown(props: {
       modal={false}
       placement="bottom-start"
       gutter={2}
-      open={shown() && props.door.open()}
+      open={props.door.open()}
       // ...and AN ASK TO SHUT IS ONLY HEARD WHILE THIS MENU IS THE PANEL A
       // DISMISSAL IS FOR. One rule, in one place, for every way the primitive
       // can decide to close — the pointer outside, Escape, its own trigger,
@@ -219,7 +219,7 @@ export function Dropdown(props: {
       // settles inside that same write, so this reads the stack as it is by
       // then).
       onOpenChange={(open: boolean) => {
-        if (open || topmost()) props.door.setOpen(open)
+        if (shown() && (open || topmost())) props.door.setOpen(open)
       }}
       // WHAT THE PANEL HANGS OFF: the `•••` where one is DRAWN, and the
       // row's own line where it is not. Below md the `•••` is `hidden` —
@@ -278,7 +278,7 @@ export function Dropdown(props: {
           // `preventScroll`: a portal mounts the panel before floating-ui
           // has placed it, and a focus that scrolled to that first box
           // jumped the page out from under the row the menu belongs to.
-          queueMicrotask(() => el.focus({ preventScroll: true }))
+          queueMicrotask(() => { if (shown()) el.focus({ preventScroll: true }) })
         }}
         data-testid={TESTID.nodeMenuPanel}
         // NAMED here rather than by the trigger Kobalte would point at
@@ -354,6 +354,7 @@ export function Dropdown(props: {
 /** The placement belongs to the menu context inside the dropdown provider. */
 function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps<"div">>) {
   const menu = useMenuContext()
+  const shown = useShown()
   return <DropdownMenu.Content
     {...props}
     // The primitive measures from the viewport edge. An upward menu must
@@ -361,7 +362,7 @@ function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps
     // Portal mount={overlayRoot()} is on document.body, so this inherits the
     // root reserve even when the trigger lives in a pane with a zero offset.
     // Downward menus reserve any bottom chrome reported by the phone strip.
-    style={{ "max-height": menu.currentPlacement().startsWith("top")
+    style={{ display: shown() ? undefined : "none", "max-height": menu.currentPlacement().startsWith("top")
       ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-chrome)))"
       : "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-bottom-chrome, 0px)))" }}
   />

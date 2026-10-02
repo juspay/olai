@@ -70,7 +70,7 @@ import { useUndo } from "./undoing.ts"
  */
 
 import { printAddress, type Row } from "@olai/format"
-import { type Accessor, batch, createMemo, on, type JSX, onCleanup, onMount, Show } from "solid-js"
+import { type Accessor, createMemo, type JSX, onCleanup, onMount, Show } from "solid-js"
 
 import { createFoldReading } from "../fold/reading.ts"
 import { Aiming } from "../drag/Aiming.tsx"
@@ -87,7 +87,7 @@ import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
 import { createEditor, EditorProvider, type Zooming } from "./editing.tsx"
-import { useEditorMemory, resetEditorMemory } from "./memory.ts"
+import { useEditorMemory } from "./memory.ts"
 
 interface EditableProps {
   /** What is drawn — half of where `↑`/`↓` go, of where a row that has moved
@@ -124,8 +124,6 @@ function EditablePage(props: EditableProps) {
   const memory = useEditorMemory()
   // Navigation changes the editor's subject, not its component owner. Rows
   // common to both views keep their own notes, property panes and DOM.
-  const identity = createMemo(() => JSON.stringify([props.file, props.within]))
-  createEffect(on(identity, () => batch(() => resetEditorMemory(memory)), { defer: true }))
   const page = {
     rows: () => props.rows(),
     // What is folded FOR THIS READING rather than what this browser has folded
