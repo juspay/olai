@@ -31,10 +31,11 @@ server's current engine roster.
 
 A conversation belongs to one engine for its lifetime. The *start an agent*
 pill starts immediately with one available engine and offers a menu with several.
-The Chats heading's **+** always opens **New chat**. Its composer has an engine
-select beside Send, defaulting to the first available engine in bundle order.
-With no engine available the page explains the absence. The palette offers
-**New chat** only when an engine can start. Opening either door creates nothing.
+The Chats heading's **+** opens **New chat** in the ⌘K palette. Its message
+step offers the engines that can start as its options, the first in bundle
+order chosen. With no engine available the **+** opens a menu that says no
+agent is set up, with a door to Plugins, and the palette offers no **New chat**
+row. Opening either door creates nothing.
 A plain node page also shows its selected engine beside the composer.
 
 A **fresh start may pick a different engine**, but only by an explicit choice.
@@ -752,40 +753,48 @@ or a title in the palette to reach every agent, including those beyond the Chats
 cap. Palette rows name their standing and use the same navigation rule. Both
 regions and the palette contribution withdraw with chat.
 
-The **+** on Chats and **New chat** in the Agents palette open one page in the
-focused pane, with one shared draft, location and pending send per chat activation.
-Leaving and returning keeps the unsent words and chosen location; it writes
-nothing and starts no process. A fresh draft defaults to **In: Inbox › Chats**.
+**New chat** is a row in the ⌘K palette (search **New chat** or **Agents**),
+and the **+** on Chats opens the palette already on it. It asks two things,
+one level each, and nothing is written or started until the second is sent.
 
-Press the location line to pick across the vault. The picker reuses the `@`
-completion's title, file and ancestor trail. It lists **Default**, **Here** (the
-focused row or zoomed node when opened), **Suggested** (draft matches, when search
-is available), and **Recent** (up to five distinct parents of recently active
-chats, excluding the current default Chats container). Typing reveals up to 20
-matching nodes; Suggested is capped at five. Machinery files such as Settings
-and Properties are excluded; Inbox remains available. Enter or pressing a row chooses a parent. **Alt+Enter** or **On this node**
-seats a plain node itself; an existing agent offers only a child chat. The line
-always shows where Send will land, as **In:** or **On:**. The keyboard selection
-is announced and scrolled into view; Escape or a press outside dismisses the
-picker. Alt+Enter on a bound node explains that only a child can be chosen.
+**Where?** The first level lists, in this order and each only when it has
+something:
 
-Send creates a child titled from the first nonempty message line, trimmed and
-clipped at a word boundary to 60 characters including **…**. It starts the chosen
-engine and opens the child's own page, delivering the message once. On a plain
-node itself, Send preserves the title and creates no child. Shift+Enter inserts a
-newline. Words typed while starting become an ordinary unsent draft on the page.
-A second send while starting says so and spends nothing. If the chosen engine
-is withdrawn before Send, the selector falls back to the first available engine.
-An already open destination page can receive the first message. Leaving during
-startup keeps undelivered words in the resulting conversation’s draft, or back
-on New chat if no session was created, and releases the pending send.
+- **Default** — **Inbox › Chats**, offered while the vault has an Inbox. It is
+  first, so a plain Enter takes it.
+- **Here** — the focused row, or else the zoomed node, of the focused pane, as
+  it was when New chat opened.
+- **Recent** — up to five distinct parents of the most recently active chats,
+  never the default Chats container.
+- **Nodes** — once something is typed, up to twenty nodes whose title or trail
+  matches.
 
-An absent Inbox or a parent removed or trashed after selection refuses without
-losing words or resetting the location. Another parent works with capture off;
-restoring capture permits a default retry. If engine start refuses after minting,
-the titled plain node remains and its page holds the draft for retry. Independent
-Ops writes are not rolled back. Authentication refusal keeps the engine-only node
-and its sign-in panel.
+Typing filters every section. Each row shows the node's title and, under it,
+where it lives. Machinery files such as Settings and Properties are never
+offered; the Inbox is.
+
+**What to say?** Choosing a place opens the second level, its crumb the place's
+title. The box takes one line; the engines that can start are its options, the
+first chosen, and the arrows or a press choose another. Enter (or **Start
+chat**) creates a child of the chosen place titled from the first nonempty line,
+trimmed and clipped at a word boundary to 60 characters including **…**, starts
+the chosen engine, closes the palette and opens the child's own page, where the
+message is delivered once. An empty message is refused in place. Backspace on
+an empty box, or a press on a crumb, goes back a level with nothing created.
+
+While one new chat is starting, another is refused with **A new chat is
+already starting**, from any door, and the words stay in the box. Closing the
+palette while it starts does not take you anywhere: the chat is still created,
+and the message becomes that conversation's unsent draft (or the plain node's,
+if its start was refused), waiting on its page.
+
+No Inbox, or a parent removed or trashed after it was chosen, refuses with the
+reason and keeps the level and its words; nothing is created. Another parent
+works with capture off, and Default returns with capture. If engine start
+refuses after the child was minted, the titled plain node remains and its page
+holds the words and the chosen engine for a retry. Independent Ops writes are
+not rolled back. Authentication refusal keeps the engine-only node and its
+sign-in panel.
 
 ### Where the binding lives, and what a second machine sees
 

@@ -38,7 +38,7 @@ Every heading in the column (Pinned, Needs you, Chats, Outlines) wears one
 treatment: the words are written in Sentence case and styled as small, spaced
 capitals (`olai-plugin-layout/entry`'s `REGION_LABEL`), so an accessible name
 or a test reads `Outlines`, not `OUTLINES`. A heading that carries an action
-(the `+` beside Chats, which opens the New chat draft page, and the `+` beside Outlines,
+(the `+` beside Chats, which opens the palette at New chat, and the `+` beside Outlines,
 which opens the New outline / New document menu) is drawn by the plugin that owns both the heading and the action,
 using the shared `REGION_HEAD` and `HEAD_ACTION` paint. When that plugin's row
 switches off, the heading and its `+` leave together.
