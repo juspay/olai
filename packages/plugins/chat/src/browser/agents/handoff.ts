@@ -13,9 +13,10 @@
  *   - disposal: the activation going away claims nothing, so every unclaimed
  *     arrival is returned.
  *
- * The sender reclaims at once when the level that asked is gone before the
- * server answered (`reclaim`). An arrival is reclaimed exactly once, and a
- * claimed one is never reclaimed.
+ * Landing is this module's too (`land`): an arrival whose asking level is
+ * already gone, or whose navigation was replaced, is reclaimed at once and
+ * nothing navigates; otherwise its node's page is opened. An arrival is
+ * reclaimed exactly once, and a claimed one is never reclaimed.
  *
  * Returned words become the conversation's unsent draft. A node whose start
  * was refused has no conversation yet, so its words are PARKED for that node:
@@ -23,6 +24,8 @@
  */
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js"
 import { isPutAway } from "@olai/format"
+import type { Navigation } from "olai-plugin-navigation/contract"
+import { atNode } from "olai-plugin-navigation/routes"
 import { servedDirectory } from "../vault.ts"
 import { navigation } from "../navigation.ts"
 import { pageReadings } from "../pages.ts"
@@ -30,7 +33,8 @@ import type { Conversing } from "../../sessions.ts"
 
 /** The words one send handed to a conversation, and who owes them an answer.
  * `to === null` is the node that was minted but whose start was refused: its
- * own page takes the words, so one more Send retries on that node. */
+ * own page takes the words, so one more Send retries on that node. `done`
+ * releases what the sender held for it, once the words are placed. */
 export interface Arrival {
   readonly engine: string
   readonly text: string
@@ -73,14 +77,15 @@ export const createHandoff = (input: {
     parked.clear()
   })
   return {
-    /** Hand the words to the conversation that will answer them. Announcing is
-     *  the sender's, after it has decided the hand-off stands. */
-    record: (node: string, arrival: Arrival) => { arrivals.set(node, arrival) },
-    reclaim: (node: string) => {
-      const arrival = arrivals.get(node)
-      if (arrival !== undefined) abandon(node, arrival)
+    /** Hand the words to `node`'s page and open it — unless the level that
+     *  asked is gone, or navigation was replaced since it asked, in which case
+     *  the words are returned at once and nothing navigates. */
+    land: (node: string, arrival: Arrival, from: { readonly nav: Navigation; readonly signal: AbortSignal }) => {
+      arrivals.set(node, arrival)
+      if (from.signal.aborted || navigation() !== from.nav) { abandon(node, arrival); return }
+      from.nav.go(atNode(node))
+      announce()
     },
-    announce,
     take: (node: string) => {
       revision()
       const value = arrivals.get(node) ?? parked.get(node)
