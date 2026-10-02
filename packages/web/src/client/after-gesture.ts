@@ -23,18 +23,24 @@ export function createAfterGesture() {
   document.addEventListener("pointerup", finish, true)
   document.addEventListener("pointercancel", finish, true)
   document.addEventListener("dragend", finish, true)
+  document.addEventListener("contextmenu", finish, true)
   window.addEventListener("blur", finish)
   onCleanup(() => {
     alive = false
+    const tasks = [...pending]
     pending.clear()
     clearTimeout(timer)
     document.removeEventListener("pointerdown", start, true)
     document.removeEventListener("pointerup", finish, true)
     document.removeEventListener("pointercancel", finish, true)
     document.removeEventListener("dragend", finish, true)
+    document.removeEventListener("contextmenu", finish, true)
     window.removeEventListener("blur", finish)
+    // A click may dispose the editor before the deferred blur commits it.
+    for (const task of tasks) task()
   })
   return (task: () => void) => {
+    if (!alive) return
     pending.add(task)
     if (!pointer) queueMicrotask(flush)
   }

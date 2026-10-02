@@ -394,13 +394,8 @@ function Branch(props: {
     const draft = editor.draft()
     return draft?.kind === "row" ? draft : undefined
   }
-  const seat = (kind: "after" | "before" | "under") => createMemo(() => ({
-    live: editor.pendingAt(kind, props.row.at.node.id),
-    parked: editor.ghostsAt(kind, props.row.at.node.id),
-  }), undefined, { equals: (a, b) => a.live === b.live && a.parked === b.parked })
-  const seats = { after: seat("after"), before: seat("before"), under: seat("under") }
   const live = (kind: "after" | "before" | "under") => {
-    if (!seats[kind]().live) return undefined
+    if (!editor.pendingAt(kind, props.row.at.node.id)) return undefined
     // The line itself, which may be a pending OR the row it became a moment
     // ago — the same seat, the same editor, and the same words
     // (`./edit/draft.ts`'s `ghostOf`). Only the row that matched reads it.
@@ -426,7 +421,7 @@ function Branch(props: {
     />
   )
   const parked = (kind: "after" | "before" | "under") =>
-    seats[kind]().parked
+    editor.ghostsAt(kind, props.row.at.node.id)
 
   /** Is the caret in THIS row? What the row draws to say so, and what a
    *  scenario asks. A blinking text cursor at the end of a title was the whole

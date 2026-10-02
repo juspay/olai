@@ -49,6 +49,7 @@ import { debounce } from "@solid-primitives/scheduled"
 import {
   type Accessor,
   type Signal,
+  createComputed,
   createContext,
   createEffect,
   createMemo,
@@ -58,6 +59,7 @@ import {
   useContext,
   createSelector,
 } from "solid-js"
+import { createStore, reconcile } from "solid-js/store"
 import { Result } from "effect"
 
 import { datePick } from "../date/pick.ts"
@@ -445,12 +447,15 @@ export const createEditor = (
   // draft cannot disappear between a parked-list update and a live selector.
   const locationKey = (kind: Beside["kind"], id: string) => `${kind}\0${id}`
   const noGhosts: ReadonlyArray<Pending> = []
-  const locations = createMemo((previous: ReadonlyMap<string, { live: boolean; parked: Pending[] }> | undefined) => {
-    const next = new Map<string, { live: boolean; parked: Pending[] }>()
+  const [locations, setLocations] = createStore<Record<string, { live: boolean; parked: Pending[] }>>({})
+  // Project derived seats into a keyed store rather than a memo: reconcile
+  // leaves unchanged keys silent, so moving the caret does not wake every row.
+  createComputed(() => {
+    const next: Record<string, { live: boolean; parked: Pending[] }> = {}
     const seat = (at: Beside) => {
       const key = locationKey(at.kind, at.id)
-      let value = next.get(key)
-      if (!value) next.set(key, value = { live: false, parked: [] })
+      let value = next[key]
+      if (!value) next[key] = value = { live: false, parked: [] }
       return value
     }
     const pending = where().pending
@@ -459,12 +464,7 @@ export const createEditor = (
       const at = besideOf(displayAt(ghost.at))
       if (at) seat(at).parked.push(ghost)
     }
-    for (const [key, value] of next) {
-      const old = previous?.get(key)
-      if (old?.live === value.live && old.parked.length === value.parked.length
-        && old.parked.every((ghost, index) => ghost === value.parked[index])) next.set(key, old)
-    }
-    return next
+    setLocations(reconcile(next))
   })
 
   /**
@@ -1398,8 +1398,8 @@ export const createEditor = (
     draft,
     ghosts,
     live: () => ghostOf(draft()),
-    pendingAt: (kind, id) => locations().get(locationKey(kind, id))?.live === true,
-    ghostsAt: (kind, id) => locations().get(locationKey(kind, id))?.parked ?? noGhosts,
+    pendingAt: (kind, id) => locations[locationKey(kind, id)]?.live === true,
+    ghostsAt: (kind, id) => locations[locationKey(kind, id)]?.parked ?? noGhosts,
     resume,
     resuming,
     displayAt,

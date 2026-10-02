@@ -119,4 +119,6 @@ Retained lanes keep open menu state, including confirmations, submenus and the
 focused entry. Hidden menus withdraw Kobalte content layers and rejoin on show.
 Blur and outside dismissal settle the current pointer gesture before consulting
 the page's declared visibility; they do not infer navigation from tab markup.
-Editor seats are one derived location map with row-owned projections.
+Editor seats are projected into a keyed store with `reconcile`, so unchanged
+seats do not wake other rows. A native context menu ends a pending gesture too;
+owner cleanup delivers queued blur/close reports before dropping the helper.
