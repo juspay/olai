@@ -2,7 +2,7 @@ import * as assert from "node:assert";
 import { Given, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 import type { OlaiWorld } from "../support/world.ts";
-import { PALETTE_INPUT, PANE, HYDRATION_TIMEOUT } from "../support/world.ts";
+import { PALETTE_INPUT, PANE, NOTHING, HYDRATION_TIMEOUT } from "../support/world.ts";
 
 interface Tabs {
   original: Page;
@@ -48,7 +48,8 @@ When("I open another browser tab", async function (this: OlaiWorld) {
   await this.open("/house.olai");
   // The header can paint before the requested outline. A following fold
   // action must not mistake that loading gap for an absent node.
-  await this.frontLane().locator(`${PANE}[data-drawn-file="house.olai"]`).first()
+  // Some fixtures omit house.olai and deliberately navigate from its missing page.
+  await this.frontLane().locator(`${PANE}[data-drawn-file="house.olai"], ${NOTHING}`).first()
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 

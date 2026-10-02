@@ -9,7 +9,8 @@ post-navigation remount assertions remain immediate, so setup readiness does
 not hide a remount caused by the gesture.
 
 The second-browser-tab step waits for its requested `house.olai` fixture's
-`data-drawn-file`, not only the header. A following fold-opening step must not
+`data-drawn-file` (or its missing-page view when the fixture omits that file),
+not only the header. A following fold-opening step must not
 mistake the outline's loading gap for an absent row and navigate via the sidebar.
 
 `a_failed_mcp_server.feature` also exercises two failed MCP connections at
