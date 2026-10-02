@@ -269,3 +269,7 @@ Conversation UI belongs to the chat activation, keyed by engine and session.
 Joined readers share it. The final reader releases an empty UI; pending sends,
 uploads and unsent drafts keep their operation's state until it can be released.
 Roster lookups and per-tool choices notify only their dependent consumers.
+
+A folded conversation remains a live reader and therefore occupies its node
+agent slot. Capacity and idle eviction become possible when its row or pane
+leaves and no other reader or operation holds it.

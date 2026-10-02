@@ -78,9 +78,10 @@ Timings come from reports of past runs, so they bound the suite's cost loosely r
 
 `tabs/retained.feature` checks actual element identity across tab switches,
 close, lazy reload, split/close/reorder, rails and breakpoint changes. It also
-covers hidden selection, filters and window scroll. `tabs/retained_chat.feature`
+covers hidden selection, filters, window scroll and a nonzero split-column
+scroll position. `tabs/retained_chat.feature`
 adds split conversation identity, unsent words, open tool details, hidden
-streaming with both scroll intentions, and hidden-tab attention.
+streaming with both scroll intentions, hidden-tab attention, and independent completion keys with a hidden menu.
 
 Existing history, missing-file recovery, independent phone-pane drafts, terminal
 target changes and plugin withdrawal scenarios remain behavioural constraints.
@@ -94,3 +95,13 @@ measure row binding counts, per-key lookups, tool selectors and composer text
 invalidation; pure tests cover pane reconciliation and transcript ordering.
 These do not replace the DOM identity and user-action scenarios. Coverage is
 organised around ownership transitions rather than repeated loading delays.
+
+The fold idle/capacity tests release the retained row by navigating away before
+expecting eviction. Folding alone retains its reader; actual page departure
+still releases it. Transcript remount tests likewise leave the page owner explicitly;
+completion selection survives folding and reopening. Inspector per-key isolation and reference-collapse
+round trips are browser-unit tests, avoiding another server/browser setup.
+
+Pinned-tab presses use pointer coordinates after hit-testing the visible control.
+Playwright's automatic scroll-into-view moved the window before the press,
+invalidating what the scroll-restoration scenarios claimed to measure.

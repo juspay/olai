@@ -235,3 +235,7 @@ Then(
     );
   },
 );
+
+When("I press Escape in the date picker", async function (this: OlaiWorld) {
+  await box(this).press("Escape");
+});

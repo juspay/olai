@@ -67,10 +67,35 @@ Feature: A split chat tab keeps its conversation
     When I ask for a tall page answer
     Then the agent is idle
     When I ask the agent "hold"
+    And I scroll pane 1 to the bottom
+    Then pane 1 is at its bottom
     And I choose "Open in new tab" from the menu of the outline link "yard.olai"
     And I press tab 1
     And the agent is released
     And I press tab 0
     Then the agent is idle
     And pane 1 is at its bottom
+    And there should be no page errors
+
+  Scenario: A hidden completion does not block keys in the shown conversation
+    Given I open the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    When I type "look at @pick the knobs" into the chat
+    Then the completion offers "knobs"
+    When I choose "Open in new tab" from the menu of the outline link "house.olai"
+    And I press tab 1
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And I type "also @pick the knobs" into the chat
+    Then the completion offers "knobs"
+    When I press tab 0
+    And I use the fold on node "kitchen"
+    And I press "ArrowDown" in the chat
+    Then the selected chat completion is "knobs"
+    When I press "Enter" in the chat
+    Then the chat input reads "look at @knobs "
+    When I press tab 1
+    And I use the fold on node "install"
+    Then the chat input reads "also @pick the knobs"
     And there should be no page errors

@@ -1,5 +1,5 @@
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
-import { useHere } from "olai-plugin-navigation/routing"
+import { useShown, useHere } from "olai-plugin-navigation/routing"
 import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 /**
  * The PRIMITIVE and its wiring — everything about the `•••` menu that is
@@ -156,6 +156,7 @@ export function Dropdown(props: {
    *  answers arrive, and this file is gone with it. */
   readonly onPick: (action: MenuAction) => void | Promise<void>
 }) {
+  const shown = useShown()
   const here = useHere()
   /** The `•••` once this row is armed — where the caret goes back to. */
   let trigger: HTMLElement | undefined
@@ -167,7 +168,7 @@ export function Dropdown(props: {
    *  still up, across everything this client can put on screen
    *  (`../topmost.ts`)? Kobalte's own stack cannot answer that, because this
    *  menu is the only layer on it. */
-  const topmost = topmostWhileOpen(() => props.door.open())
+  const topmost = topmostWhileOpen(() => shown() && props.door.open())
 
   /**
    * THE CARET COMES BACK when the panel that had it goes.
@@ -193,12 +194,12 @@ export function Dropdown(props: {
    *     on to — and this menu does not get to overrule that.
    */
   const handBack = (): void => {
-    if (lastGesture !== "key") return
+    if (!shown() || lastGesture !== "key") return
     // After the frame that removes the panel: until then the caret is still on
     // an element that is on its way out, and `<body>` is what it becomes.
     queueMicrotask(() => {
       const caret = document.activeElement
-      if (caret === null || caret === document.body) trigger?.focus()
+      if (shown() && (caret === null || caret === document.body)) trigger?.focus()
     })
   }
 
@@ -207,7 +208,7 @@ export function Dropdown(props: {
       modal={false}
       placement="bottom-start"
       gutter={2}
-      open={props.door.open()}
+      open={shown() && props.door.open()}
       // ...and AN ASK TO SHUT IS ONLY HEARD WHILE THIS MENU IS THE PANEL A
       // DISMISSAL IS FOR. One rule, in one place, for every way the primitive
       // can decide to close — the pointer outside, Escape, its own trigger,

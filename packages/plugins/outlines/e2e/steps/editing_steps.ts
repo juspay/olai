@@ -129,12 +129,12 @@ When(
     }
     await this.waitForFrame();
     await this.page
-      .locator(TITLE_EDITOR)
+      .locator(`${TITLE_EDITOR}:visible`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // This general editing step means the end, including truncated titles.
     // The near-start step separately tests pointer caret placement.
-    await this.page.locator(TITLE_EDITOR).first().press("ControlOrMeta+End");
+    await this.page.locator(`${TITLE_EDITOR}:visible`).first().press("ControlOrMeta+End");
   },
 );
 
@@ -153,7 +153,7 @@ When(
     });
     await this.waitForFrame();
     await this.page
-      .locator(TITLE_EDITOR)
+      .locator(`${TITLE_EDITOR}:visible`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
@@ -176,7 +176,7 @@ When(
 When("I start the first line", async function (this: OlaiWorld) {
   await this.press(this.page.locator(START_LINE).first());
   await this.page
-    .locator(TITLE_EDITOR)
+    .locator(`${TITLE_EDITOR}:visible`)
     .first()
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
@@ -224,7 +224,7 @@ When("a DOM reorder briefly removes and refocuses the title editor", async funct
   // Force the browser ordering that a keyed row move can produce: blur fires
   // during removal while isConnected is still true; focus returns before the
   // DOM update task ends. A synchronous blur handler mistakes this for leaving.
-  await this.page.locator(TITLE_EDITOR).first().evaluate((element) => {
+  await this.page.locator(`${TITLE_EDITOR}:visible`).first().evaluate((element) => {
     if (document.activeElement !== element) throw new Error("title editor is not focused");
     const parent = element.parentNode!;
     const next = element.nextSibling;
@@ -287,7 +287,7 @@ When(
  *  rather than counting `ArrowLeft` presses — what a scenario is about is
  *  "mid-word", not "five characters in". */
 const openEditor = async (world: OlaiWorld): Promise<Locator> => {
-  const editor = world.page.locator(TITLE_EDITOR).first();
+  const editor = world.page.locator(`${TITLE_EDITOR}:visible`).first();
   await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return editor;
 };
@@ -422,7 +422,7 @@ When("I click away from the editor", async function (this: OlaiWorld) {
 Then(
   "the row being typed holds {string}",
   async function (this: OlaiWorld, text: string) {
-    const editor = this.page.locator(TITLE_EDITOR).first();
+    const editor = this.page.locator(`${TITLE_EDITOR}:visible`).first();
     await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
       async () => (await editor.inputValue()) === text,
@@ -446,7 +446,7 @@ Then("the row being typed has the focus", async function (this: OlaiWorld) {
 });
 
 When("I return to the row being typed", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(TITLE_EDITOR).first());
+  await this.press(this.page.locator(`${TITLE_EDITOR}:visible`).first());
 });
 
 /** Where a line's text starts, on screen. What "the same depth" means to a
@@ -718,7 +718,7 @@ Then(
     await belowTitle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await aboveTitle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(async () => {
-      const editor = this.page.locator(TITLE_EDITOR).first();
+      const editor = this.page.locator(`${TITLE_EDITOR}:visible`).first();
       if ((await editor.count()) === 0) return false;
       const b = await belowTitle.boundingBox();
       const a = await aboveTitle.boundingBox();
@@ -1144,7 +1144,13 @@ When("I remember the first parked input", async function (this: OlaiWorld) {
 Then("the remembered parked input still holds the caret", async function (this: OlaiWorld) {
   const input = parkedInputs.get(this);
   assert.ok(input);
-  assert.equal(await input.evaluate((element) => element.isConnected && document.activeElement === element), true);
+  const state = await input.evaluate((element) => ({
+    connected: element.isConnected,
+    focused: document.activeElement === element,
+    active: document.activeElement?.outerHTML,
+    remembered: element.outerHTML,
+  }));
+  assert.ok(state.connected && state.focused, JSON.stringify(state));
 });
 
 // ── the facts a row draws after its title ──────────────────────────────
@@ -1219,7 +1225,7 @@ Then("the facts of {string} sit where they sat", async function (this: OlaiWorld
 /** The editor is drawn IN the title cell — the cell rather than the line, which
  *  is the whole of what keeps everything after it still (`../browser/NodeLine.tsx`). */
 Then("the title of {string} is being typed", async function (this: OlaiWorld, id: string) {
-  await this.node(id).locator(NODE_TITLE).first().locator(TITLE_EDITOR)
+  await this.node(id).locator(NODE_TITLE).first().locator(`${TITLE_EDITOR}:visible`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
@@ -1283,7 +1289,7 @@ When("I write down the boxes of the line being typed", async function (this: Ola
   const blank = this.frontLane().locator(`${NEW_ROW}:visible`).first();
   lineBoxes.set(this, {
     glyph: await readyBox(this, blank.locator(GLYPH).first(), "the bullet of the line being typed"),
-    field: await readyBox(this, blank.locator(TITLE_EDITOR).first(), "the caret of the line being typed"),
+    field: await readyBox(this, blank.locator(`${TITLE_EDITOR}:visible`).first(), "the caret of the line being typed"),
   });
 });
 
@@ -1294,7 +1300,7 @@ Then("the row it became stands in the same boxes", async function (this: OlaiWor
   const row = this.node(id);
   const now = {
     glyph: await readyBox(this, row.locator(GLYPH).first(), `the bullet of "${id}"`),
-    field: await readyBox(this, row.locator(TITLE_EDITOR).first(), `the caret of "${id}"`),
+    field: await readyBox(this, row.locator(`${TITLE_EDITOR}:visible`).first(), `the caret of "${id}"`),
   };
   // X, Y AND HEIGHT, and not the width: a blank's field is the rest of its LINE
   // (`./RowEditor.tsx`'s `fillsLine`) while a row's title is as wide as its own

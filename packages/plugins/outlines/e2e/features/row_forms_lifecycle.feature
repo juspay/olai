@@ -168,7 +168,7 @@ Feature: Row forms retain drafts and submission state across page changes
     And I draft the date "2026-11-18"
     And I tap pane tab 0
     Then the date picker holds "2026-10-14"
-    When I press "Escape"
+    When I press Escape in the date picker
     And I tap pane tab 1
     Then the date picker holds "2026-11-18"
     When I press the date picker's button

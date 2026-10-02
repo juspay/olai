@@ -57,3 +57,27 @@ When("I drag pane header {int} to pane header {int}", async function (this: Olai
   await this.page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 })
   await this.page.mouse.up()
 })
+
+const savedPaneScroll = new WeakMap<OlaiWorld, Map<number, number>>()
+When("I leave pane {int} halfway down", async function (this: OlaiWorld, index: number) {
+  const top = await this.pane(index).evaluate(root => {
+    let host = root.parentElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    if (!host) throw new Error("no pane scroller")
+    host.scrollTop = (host.scrollHeight - host.clientHeight) / 2
+    return host.scrollTop
+  })
+  assert.ok(top > 50, "the pane must overflow enough to prove its scroll survives")
+  let saved = savedPaneScroll.get(this)
+  if (!saved) { saved = new Map(); savedPaneScroll.set(this, saved) }
+  saved.set(index, top)
+})
+Then("pane {int} keeps its nonzero scroll position", async function (this: OlaiWorld, index: number) {
+  const expected = savedPaneScroll.get(this)?.get(index)
+  assert.ok(expected !== undefined && expected > 50)
+  await this.waitUntil(() => this.pane(index).evaluate((root, expected) => {
+    let host = root.parentElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    return host !== null && Math.abs(host.scrollTop - expected) < 2
+  }, expected), "the split column to retain the reader's position")
+})

@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /** Loaded on the first engine-choice press, with a portal owned by that menu.
  *
  * ONLY WHAT WORKS: an engine this machine cannot start is not a row here. Its
@@ -24,6 +25,7 @@ export default function EngineMenu(props: {
   readonly pick: (engine: string) => void
   readonly close: () => void
 }) {
+  const shown = useShown()
   // Kobalte restores focus after the enclosing Show has withdrawn the menu.
   const layer = createMemo(() => props.layer ?? LAYER.row)
   const anchor = createMemo(() => props.anchor)
@@ -31,19 +33,19 @@ export default function EngineMenu(props: {
   createEffect(() => { portal.className = `fixed left-0 top-0 ${layer()}` })
   document.body.append(portal)
   onCleanup(() => portal.remove())
-  const topmost = topmostWhileOpen(() => true)
+  const topmost = topmostWhileOpen(shown)
   const here = () => props.engines.filter(engine => engine.standing === "here")
   /** Which row of the plugins panel explains the absence: the first engine
    *  this serve mounted and cannot start, or chat's own row when none is. */
   const explains = () => props.engines.find(engine => engine.standing === "not-here")?.id ?? "chat"
-  return <DropdownMenu open modal={false} placement="bottom-start" gutter={2}
+  return <DropdownMenu open={shown()} modal={false} placement="bottom-start" gutter={2}
     getAnchorRect={() => anchor().getBoundingClientRect()}
     onOpenChange={open => { if (!open && topmost()) props.close() }}>
     <DropdownMenu.Portal mount={portal}>
       <DropdownMenu.Content class={`${MENU_PANEL} ${layer()}`} aria-label="Choose an agent"
         data-testid={TESTID.agentEngineMenu}
-        ref={element => queueMicrotask(() => { if (element.isConnected) element.focus({ preventScroll: true }) })}
-        onCloseAutoFocus={event => { event.preventDefault(); anchor().isConnected && anchor().focus({ preventScroll: true }) }}>
+        ref={element => queueMicrotask(() => { if (shown() && element.isConnected) element.focus({ preventScroll: true }) })}
+        onCloseAutoFocus={event => { event.preventDefault(); shown() && anchor().isConnected && anchor().focus({ preventScroll: true }) }}>
         <Show when={here().length > 0} fallback={<>
           <p class="m-0 px-3 py-1.5 text-muted" data-testid={TESTID.agentEngineNone}>No agent is set up</p>
           <Show when={pluginsDoor()}>{door =>

@@ -1,3 +1,4 @@
+import type { Chat } from "../chat/state.ts"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import type { Roster } from "./answered.tsx"
@@ -23,11 +24,11 @@ test("the last reader releases empty UI and a pending send releases after comple
   const pair = { agent: "claude", session: "session" }
   const ui = owner.reading.ui(pair)
   const first = createRoot(dispose => {
-    owner.reading.join("node", { ui } as import("../chat/state.ts").Chat, () => true)
+    owner.reading.join("node", { ui } as Chat, () => true)
     return dispose
   })
   const second = createRoot(dispose => {
-    owner.reading.join("node", { ui } as import("../chat/state.ts").Chat, () => true)
+    owner.reading.join("node", { ui } as Chat, () => true)
     return dispose
   })
   first()

@@ -152,3 +152,15 @@ Feature: Tabs retain their pages
     Then pane 0 is still "front"
     And there are 1 live lanes
     And there should be no page errors
+
+  @scratch:good
+  Scenario: A split column keeps a nonzero scroll position across tab switches
+    Given an outline and a taller document for scroll history
+    And I open the address "/s/scroll-history.olai/garden.olai"
+    Then the node "scroll-row-39" is shown
+    When I leave pane 0 halfway down
+    And I choose "Open in new tab" from the menu of the outline link "house.olai"
+    And I press tab 1
+    And I press tab 0
+    Then pane 0 keeps its nonzero scroll position
+    And there should be no page errors

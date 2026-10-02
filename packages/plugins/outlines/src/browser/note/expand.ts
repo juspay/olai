@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * Whether a row is OPEN, and who decided.
  *
@@ -65,6 +66,7 @@ export const createNoteExpand = (
    *  screen. */
   fallback: () => boolean,
 ): NoteExpand => {
+  const shown = useShown()
   const [touched, setTouched] = createSignal<boolean | undefined>(undefined)
   const expanded = (): boolean => touched() ?? fallback()
   let root: HTMLElement | undefined
@@ -77,7 +79,7 @@ export const createNoteExpand = (
   createEffect(() => {
     if (touched() !== true) return
     untrack(() => dismissOn({
-    open: () => touched() === true,
+    open: () => shown() && touched() === true,
     root: () => root,
     trigger: () => trigger,
     dismiss: () => setTouched(false),

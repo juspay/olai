@@ -1,6 +1,6 @@
 /** Unsubmitted row forms are owned by the retained tree pane. */
 import { edgeMemory } from "../edges/memory.ts"
-import { createContext, createSignal, onCleanup, useContext, type JSX } from "solid-js"
+import { createComponent, createContext, createSignal, onCleanup, useContext, type JSX } from "solid-js"
 import { createSubmission } from "../edit/submission.ts"
 import type { Chosen } from "./pick.ts"
 
@@ -15,30 +15,33 @@ export const createRowForm = () => {
   return { edges: edgeMemory(), date, setDate, rule, setRule, dateSubmission: createSubmission(), repeatSubmission: createSubmission() }
 }
 export type RowForm = ReturnType<typeof createRowForm>
-type Rows = Map<string, RowForm>
+type HeldForm = { readonly value: RowForm; readers: number }
+type Rows = Map<string, HeldForm>
 const Context = createContext<{ rows: Rows; disposed: boolean }>()
 
 export function RowForms(props: { readonly children: JSX.Element; readonly namespace?: string }) {
-  const scope = { rows: new Map<string, RowForm>(), disposed: false }
+  const scope = { rows: new Map<string, HeldForm>(), disposed: false }
   onCleanup(() => { scope.disposed = true; scope.rows.clear() })
-  return <Context.Provider value={scope}>{props.children}</Context.Provider>
+  return createComponent(Context.Provider, { value: scope, get children() { return props.children } })
 }
 
 export const useRowForms = (key: string): RowForm => {
   const scope = useContext(Context)
   if (scope === undefined) throw new Error("row forms need their tree pane")
-  let value = scope.rows.get(key)
-  if (value === undefined) {
-    value = createRowForm()
-    scope.rows.set(key, value)
+  let held = scope.rows.get(key)
+  if (held === undefined) {
+    held = { value: createRowForm(), readers: 0 }
+    scope.rows.set(key, held)
   }
-  const held = value
+  const entry = held
+  entry.readers++
   onCleanup(() => {
-    // Solid cleans children before their provider. By the microtask we know
-    // whether the whole tree left, or just this row was removed/collapsed.
+    entry.readers--
+    // A replacement row can acquire the same forms during this update.
+    // Its lease must survive the outgoing row's deferred cleanup.
     queueMicrotask(() => {
-      if (!scope.disposed && scope.rows.get(key) === held) scope.rows.delete(key)
+      if (!scope.disposed && entry.readers === 0 && scope.rows.get(key) === entry) scope.rows.delete(key)
     })
   })
-  return value
+  return entry.value
 }

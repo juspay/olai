@@ -294,3 +294,33 @@ test("lane reports propagate loading and failure changes with an unchanged title
     owner.dispose()
   })
 })
+
+test("a history arrival keeps its unavailable address until a provider returns", async () => {
+  const { holdRoutePages } = await import("./pages.ts")
+  const { defineAppPage, defineAppRoute, settleRoutePages, NO_PAGES } = await import("./routes.ts")
+  const day = defineAppPage(defineAppRoute<{ date: string }, { kind: "day"; date: string }>({
+    claims: [{ kind: "prefix", path: "/d/" }],
+    parse: path => path.startsWith("/d/") ? { date: path.slice(3) } : null,
+    href: value => `/d/${value.date}`,
+    breadcrumb: value => value.date,
+    narrowable: true,
+    request: value => ({ kind: "day", date: value.date }),
+    stream: { use: () => () => undefined },
+  }), () => null)
+  const pages = settleRoutePages([{ plugin: "journal", face: day }])
+  const [claims, setClaims] = createSignal(pages)
+  const release = holdRoutePages(claims)
+  try {
+    await withRouter(async (router, page) => {
+      router.go(atFile("other.olai"))
+      setClaims(NO_PAGES)
+      page.back()
+      await settled()
+      expect(page.path()).toBe("/d/2019-11-05")
+      expect(router.route().kind).not.toBe("plugin")
+      setClaims(pages)
+      expect(router.route().kind).toBe("plugin")
+      expect(drawn(router)).toBe("/d/2019-11-05")
+    }, "/d/2019-11-05")
+  } finally { release() }
+})

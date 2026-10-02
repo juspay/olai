@@ -488,6 +488,7 @@ export const createEditor = (
    */
   let settling = false
   let takingDraft = false
+  let restoringCaret = false
 
   /** The caret is settled on the frame that redraws the row, and again when
    *  the write answers — because the two arrive in either order. The server
@@ -516,7 +517,11 @@ export const createEditor = (
     // frame-driven restoration until its queued activation has completed.
     if (!settling && resuming() === null) return
     settling = false
+    restoringCaret = true
     requestCaret()
+    // A moved, still-connected input can report blur before the queued focus.
+    // Protect this update only, not a later reader gesture during a write.
+    queueMicrotask(() => { restoringCaret = false })
   }
   createEffect(settle)
 
@@ -1412,7 +1417,7 @@ export const createEditor = (
       // A pending redraw may remove an editor, but does not own a reader's
       // later click away from an attached editor. RowEditor has already
       // deferred this report past synchronous DOM moves and refocusing.
-      if (takingDraft || (settling && !left)) return
+      if (takingDraft || restoringCaret || (settling && !left)) return
       if (left) settling = false
       // A blur nobody caused on purpose: the editor's element is not in the
       // document any more, so it was REMOVED by a re-render rather than left

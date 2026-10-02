@@ -52,19 +52,19 @@ Feature: Enter preserves prose that happens to match a node's note
     Then the chat shows my message "look at @Review hinges and decide what to do about the doors"
     And there should be no page errors
 
-  Scenario: Remounting an arrow-selected multi-word query restores Enter as Send
+  Scenario: Reopening a fold keeps its explicit completion selection
     When I type "look at @Review hinges" into the chat
     Then the completion offers "review-hinges"
     When I press "ArrowDown" in the chat
     Then the selected chat completion is "review-hinges"
     When I close the agent fold
-    And I open the outline "yard.olai"
-    And I open the outline "house.olai"
     And the node agent's fold is ready
     Then the completion offers "review-hinges"
-    And no chat completion is selected
+    And the selected chat completion is "review-hinges"
     When I press "Enter" in the chat
-    Then the chat shows my message "look at @Review hinges"
+    Then the chat input reads "look at @review-hinges "
+    When I press "Enter" in the chat
+    Then the chat shows my message "look at @review-hinges"
     And there should be no page errors
 
   Scenario: Moving to another occurrence of the same query clears selection

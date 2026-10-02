@@ -18,7 +18,7 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-const fold = (world: OlaiWorld, node: string) => world.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}`);
+const fold = (world: OlaiWorld, node: string) => world.frontLane().locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}:visible`);
 const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", world.nodeId(node))}`);
 
 export const openFold = async (world: OlaiWorld, node: string) => {

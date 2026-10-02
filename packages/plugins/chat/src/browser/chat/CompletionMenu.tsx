@@ -166,10 +166,9 @@ export function CompletionMenu(props: {
   /**
    * This list on the client's one dismissal stack (`../topmost.ts`).
    *
-   * `() => true` because BEING HERE is being open: the composer mounts this
-   * component only while there is a list to draw, so the ticket is taken at
-   * mount and given back at disposal. Every other layer holds a state its
-   * caller owns; this one's state is its own existence.
+   * The list stays mounted with its composer, but holds a dismissal ticket
+   * only while shown. A hidden completion must not outrank the visible page's
+   * menu or consume its keys.
    *
    * It matters because the listener below is capture-phase on the DOCUMENT and
    * takes the key outright — which is the stack's rule inverted when something
@@ -177,7 +176,7 @@ export function CompletionMenu(props: {
    * that stays true; what this adds is that "first" means first among the
    * layers on screen, not first regardless of them.
    */
-  const topmost = topmostWhileOpen(() => true)
+  const topmost = topmostWhileOpen(shown)
 
   /**
    * Bound on the document, in the CAPTURE phase, because the input owns Enter
