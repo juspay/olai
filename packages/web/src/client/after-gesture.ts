@@ -7,12 +7,12 @@ export function createAfterGesture() {
   let alive = true
   let timer: ReturnType<typeof setTimeout> | undefined
   const pending = new Set<() => void>()
-  const flush = () => {
-    if (!alive) return
+  const drain = () => {
     const tasks = [...pending]
     pending.clear()
     for (const task of tasks) task()
   }
+  const flush = () => { if (alive) drain() }
   const start = () => { pointer = true }
   const finish = () => {
     pointer = false
@@ -27,8 +27,6 @@ export function createAfterGesture() {
   window.addEventListener("blur", finish)
   onCleanup(() => {
     alive = false
-    const tasks = [...pending]
-    pending.clear()
     clearTimeout(timer)
     document.removeEventListener("pointerdown", start, true)
     document.removeEventListener("pointerup", finish, true)
@@ -37,7 +35,7 @@ export function createAfterGesture() {
     document.removeEventListener("contextmenu", finish, true)
     window.removeEventListener("blur", finish)
     // A click may dispose the editor before the deferred blur commits it.
-    for (const task of tasks) task()
+    drain()
   })
   return (task: () => void) => {
     // Removal can deliver blur after the owner has already been disposed.

@@ -128,3 +128,7 @@ Blur delivered by DOM removal after cleanup still runs in a microtask.
 Each submenu surface explicitly registers its nested-menu accessor with its
 parent. Surface cleanup releases only that registration; hidden content shells
 need no display override because they leave the DOM and dismissal stack.
+
+The retained-menu helper owns the post-mount focus timer used by root menus and
+submenus; each menu still chooses its focus target. The timer leaves with its
+content shell, while item and confirmation owners survive suspension.

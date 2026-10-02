@@ -1,5 +1,5 @@
 import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
-import { RetainedContent } from "./RetainedContent.tsx"
+import { focusMenuAfterMount, RetainedContent } from "./RetainedContent.tsx"
 import { useShown } from "olai-plugin-navigation/routing"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 import { useHere } from "olai-plugin-navigation/routing"
@@ -25,7 +25,7 @@ import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import { useMenuContext } from "@kobalte/core/menu"
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
+import { createSignal, For, onCleanup, Show } from "solid-js"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 import { asks, isSub, type MenuAction, type MenuEntry, type MenuSub } from "./action.ts"
@@ -96,17 +96,12 @@ export function Panel(props: {
             // following arrow move off it. A caret already inside the submenu
             // is left where the arrows put it.
             const remembered = lastFocused
-            const focusFirst = () => {
-              if (!shown() || !el.isConnected) return
-              if (remembered?.isConnected) { remembered.focus({ preventScroll: true }); return }
+            focusMenuAfterMount(el, shown, () => {
+              if (remembered?.isConnected) return remembered
               const active = document.activeElement
-              if (active !== el && el.contains(active)) return
+              if (active !== el && el.contains(active)) return undefined
               const first = el.querySelector('[role="menuitem"]')
-              if (first instanceof HTMLElement) first.focus({ preventScroll: true })
-            }
-            onMount(() => {
-              const timer = setTimeout(focusFirst, 0)
-              onCleanup(() => clearTimeout(timer))
+              return first instanceof HTMLElement ? first : undefined
             })
           }}
           class={`${MENU_PANEL} ${LAYER.row} pointer-events-auto`}

@@ -42,6 +42,10 @@ workspaceOf,
 import type { PageInfo } from "./index.ts"
 import { createPaneState } from "./pane/state.ts"
 
+// A report and the focused-page projection expose the same semantic fields.
+const samePageInfo = (a: PageInfo | undefined, b: PageInfo | undefined) =>
+  a?.file === b?.file && a?.title === b?.title && a?.history === b?.history && a?.pending === b?.pending && a?.failure === b?.failure
+
 /** One workspace and its reports. Its root belongs to navigation, not to the
  * tab strip or to a particular layout mode. Only the front lane writes history. */
 export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
@@ -82,8 +86,7 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
   }
   const [reports, setReports] = createStore<Record<string, (() => PageInfo) | undefined>>({})
   const info = (index: number) => reports[panes()[index]?.id ?? ""]?.()
-  const focused = createMemo(() => info(focusIndex()), undefined, { equals: (a, b) =>
-    a?.file === b?.file && a?.title === b?.title && a?.history === b?.history && a?.pending === b?.pending && a?.failure === b?.failure })
+  const focused = createMemo(() => info(focusIndex()), undefined, { equals: samePageInfo })
   const goIn = (index: number, next: Route): void => {
     commit(
       navigateIn(workspace(), index, next),
@@ -107,8 +110,7 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     ...shared, shown, panes, focusIndex, split, info, focused,
     report(index, reading) {
       const id = ids()[untrack(index)]!
-      const row = createMemo(reading, undefined, { equals: (a, b) =>
-        a?.file === b?.file && a?.title === b?.title && a?.history === b?.history && a?.pending === b?.pending && a?.failure === b?.failure })
+      const row = createMemo(reading, undefined, { equals: samePageInfo })
       setReports(id, () => row)
       onCleanup(() => { if (untrack(() => reports[id]) === row) setReports(id, undefined) })
     },
