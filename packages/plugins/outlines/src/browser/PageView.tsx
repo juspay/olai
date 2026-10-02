@@ -1,6 +1,7 @@
 import { createDoneRows } from "./pruning.ts"
 import { FocusProvider } from "./focus.ts"
 import { usePaneId } from "olai-plugin-navigation/routing"
+import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
  *
@@ -172,8 +173,10 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   // derived beside it (`../App.tsx`).
   useReadings().join(usePaneId(), reading)
   const navigation = useRouter() as import("olai-plugin-navigation/contract").Navigation
+  // History owns explicit inverse edits. Pending readings block subject actions,
+  // while history keeps its existing file boundary and empty-stack feedback.
   const undo = useUndo()
-  navigation.report(here, () => ({ history: undo, title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
+  navigation.report(here, () => ({ pending: reading.pending(), failure: reading.failure()?.message, history: undo, title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
 
   const page = createMemo(() => reading.page()?.shows)
 
@@ -241,7 +244,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
 
   return (
     <main
-      class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
+      class={`relative flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
         !desktop() ? "pb-16" : ""
       }`}
       data-testid={IDS_NAVIGATION.pane}
@@ -298,9 +301,15 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
             narrowing={narrowing}
             asked={asked}
             onType={narrow}
-            doneAt={pageFileOf(page())}
+            doneAt={reading.pending() ? undefined : pageFileOf(page())}
           />
         </Show>
+        <Show when={reading.pending() && page() !== undefined}>
+          <p class="pointer-events-none absolute top-0 m-0 text-muted" role="status">
+            {reading.failure() === undefined ? "Loading…" : `Could not load page: ${reading.failure()!.message}`}
+          </p>
+        </Show>
+        <div class="contents" {...{ [PAGE_SUBJECT]: String(here()) }} aria-busy={reading.pending()}>
         {/* NOTHING YET, AND ONLY EVER ONCE PER PANE: navigation asks the server
             (the design's §5a ruling — round-tripping is acceptable and nothing
             is cached), so there is one honest beat between an address and the
@@ -365,6 +374,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
             </Switch>
           )}
         </Show>
+        </div>
       </NarrowedProvider>
       </ReadingProvider>
     </main>

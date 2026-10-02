@@ -1,3 +1,5 @@
+import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
+import { useHere } from "olai-plugin-navigation/routing"
 /**
  * What is INSIDE the open panel: the list, or the question one verb asks first
  * (`./Confirm.tsx`).
@@ -40,6 +42,7 @@ export function Panel(props: {
   readonly onGone: () => void
   readonly gestures: Gestures
 }) {
+  const here = useHere()
   const [asking, setAsking] = createSignal<MenuAction | null>(null)
   onCleanup(() => props.onGone())
   /** The entries as they stand, by the verb each one is for — so cancelling
@@ -86,6 +89,7 @@ export function Panel(props: {
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
         <DropdownMenu.SubContent
+        {...{ [PAGE_SUBJECT]: String(here()) }}
           ref={(el: HTMLElement) => {
             // Kobalte preventDefault's its own focus of the first row, and the
             // list's deferred autofocus is a timer the next key can beat.

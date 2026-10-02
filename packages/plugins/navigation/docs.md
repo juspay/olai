@@ -131,3 +131,47 @@ a collapsed pane's rail is named `Expand garden`.
 
 The palette's `Reset sidebar width` puts the sidebar back to its default width,
 for keyboard users who cannot drag its handle.
+
+### Retained pages and input
+
+Outlines captures the answered address only when a subscription value arrives;
+changing the request or releasing a filter hold cannot relabel an old answer.
+`createReading` derives `Reading.pending` beside that held answer. Outlines
+reports it and any request failure through the declared `navigation.state`
+service's pane-owned `PageInfo`. Reports withdraw with their panes.
+
+There is no dispatcher shared by palette writes, editor DOM handlers and bulk
+selection. Each boundary reads that same fact:
+
+- Contextual palette adapters declare availability. The palette omits their
+  items and refuses pending confirmations at write dispatch. Search, shell
+  commands, capture and navigation remain available.
+- A pending page withdraws its Finished control. Bulk
+  selection ignores page commands; the palette skips unavailable adapters'
+  shortcuts.
+- Undo remains available: its inverse edits already name their subjects, and
+  its owner clears the stack when the file changes, including pending saves.
+  It does not infer an edit target from the retained page.
+- Page content and its portalled outline controls carry the static
+  `PAGE_SUBJECT` marker with their owning pane index, including in portals.
+  Navigation's activation-owned capture listener only
+  blocks gestures on those retained controls. It permits links and editor
+  escape/zoom gestures; it never cancels unbound browser keys or input outside
+  the retained controls. The listener is removed before navigation is disposed.
+
+The retained page and palette reuse **Loading…** as the cue. The page cue takes
+no layout space, preserving scroll restoration, and the input marker uses
+`display: contents` so the editable page still fills its flex parent. A stream error is
+shown explicitly instead. Failure does not make an old answer current:
+`pending` remains true until another request is answered, but links, Back and
+search remain usable, so the reader can leave a failed or indefinitely held
+request. The connection's `degraded` state remains reachable.
+
+No keystrokes are buffered or replayed across page subjects. During ordinary
+navigation, edits aimed at a still-focused old row are declined until the new
+reading arrives. `palette_startup.feature` measures that interval without a
+held frame, and tests explicit frame holds for reconnect, normal navigation,
+link/Back recovery, an already-open palette/confirmation, and a failed request.
+Browser setup that opens an outline waits for both its drawn file and a
+non-busy reading. The home route can already draw that file, so matching the
+filename alone would let the next action hit the retained page.

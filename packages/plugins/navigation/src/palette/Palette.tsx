@@ -363,7 +363,7 @@ export function Palette(props: {
    * per run, so while the palette is closed this depends on `paletteOpen()` and
    * nothing else.
    */
-  const opRows = createMemo(() => paletteOpen() ? adapters().flatMap(adapter=>adapter.items?.()??[]) : [])
+  const opRows = createMemo(() => paletteOpen() ? adapters().flatMap(adapter=>adapter.available?.() === false ? [] : adapter.items?.()??[]) : [])
 
   const items = createMemo(() => {
     // NOTHING FOR A MODAL NOBODY CAN SEE, and it is the first line for the
@@ -551,10 +551,14 @@ export function Palette(props: {
    */
   const sendEdit = (edit: Edit) => {
     if (sending()) return
+    const adapter = adapters().find(adapter=>adapter.accepts?.(edit))
+    if (adapter?.available?.() === false) {
+      setSaid({ tone: "aside", text: (router as Navigation).focused()?.failure ?? "Loading…" })
+      return
+    }
     const current = currentInteraction()
     setSending(true)
     setSaid(null)
-    const adapter = adapters().find(adapter=>adapter.accepts?.(edit))
     void (adapter?.write?.(edit) ?? Promise.resolve({tone:"alarm" as const,text:"Nothing here can do that right now."})).then((line) => {
       setSending(false)
       if (!current()) return
@@ -575,7 +579,7 @@ export function Palette(props: {
    * outlives where the default stands. A page with no flip gives the chord
    * nothing to be about, and it says nothing.
    */
-  const flipDone = (): void => { for(const adapter of adapters()) adapter.key?.("done") }
+  const flipDone = (): void => { for(const adapter of adapters()) if (adapter.available?.() !== false) adapter.key?.("done") }
 
 
 
@@ -964,6 +968,11 @@ export function Palette(props: {
                     scrolls down, never sideways. The rows are already built not
                     to overflow; this makes that a property of the container
                     rather than of every future row. */}
+                <Show when={(router as Navigation).focused()?.pending}>
+                  <p class="m-0 px-3 py-2 text-label text-muted" role="status">
+                    {(router as Navigation).focused()?.failure ?? "Loading…"}
+                  </p>
+                </Show>
                 <ul
                   class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
                   data-testid={TESTID.paletteList}

@@ -1,3 +1,5 @@
+import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
+import { useHere } from "olai-plugin-navigation/routing"
 /**
  * The shortlist under a caret — one box for all three widgets.
  *
@@ -59,6 +61,7 @@ const COMPLETION_ROW: RowTestids = {
 import type { Listing } from "./completing.tsx"
 
 export function Completions(props: { readonly listing: Listing }) {
+  const here = useHere()
   /** The host is `contents` and has no box of its own; the parent is the
    *  title cell `../edit/RowEditor.tsx` wraps the input in. Popper observes
    *  this node for scroll/resize; `rectOf` is what it actually hangs from. */
@@ -94,6 +97,7 @@ export function Completions(props: { readonly listing: Listing }) {
       <Portal mount={overlayRoot()}>
       <Popper.Positioner>
       <div
+        {...{ [PAGE_SUBJECT]: String(here()) }}
         ref={setContent}
         // `LAYER.row` is the whole stacking claim, and it is the `•••` menu's
         // (`../layer.ts`): this hangs off a ROW, so it covers the rows under
