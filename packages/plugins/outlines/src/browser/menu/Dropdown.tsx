@@ -1,3 +1,5 @@
+import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
+import { useHere } from "olai-plugin-navigation/routing"
 import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 /**
  * The PRIMITIVE and its wiring — everything about the `•••` menu that is
@@ -154,6 +156,7 @@ export function Dropdown(props: {
    *  answers arrive, and this file is gone with it. */
   readonly onPick: (action: MenuAction) => void | Promise<void>
 }) {
+  const here = useHere()
   /** The `•••` once this row is armed — where the caret goes back to. */
   let trigger: HTMLElement | undefined
   /** What last touched this menu: the two gestures leave the caret in
@@ -255,6 +258,7 @@ export function Dropdown(props: {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
       <ViewportContent
+        {...{ [PAGE_SUBJECT]: String(here()) }}
         ref={(el: HTMLElement) => {
           // AND THE CARET GOES IN. Kobalte's own mount focus
           // (`onOpenAutoFocus`) is the same job, and a portal makes it
