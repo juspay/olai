@@ -82,7 +82,7 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lanes" | "lane
   const [reports, setReports] = createSignal<ReadonlyMap<string, () => PageInfo>>(new Map())
   const info = (index: number) => reports().get(panes()[index]?.id ?? "")?.()
   const focused = createMemo(() => info(focusIndex()), undefined, { equals: (a, b) =>
-    a?.file === b?.file && a?.title === b?.title && a?.history === b?.history })
+    a?.file === b?.file && a?.title === b?.title && a?.history === b?.history && a?.pending === b?.pending && a?.failure === b?.failure })
   const goIn = (index: number, next: Route): void => {
     commit(
       navigateIn(workspace(), index, next),
@@ -107,7 +107,7 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lanes" | "lane
     report(index, reading) {
       const id = ids()[untrack(index)]!
       const row = createMemo(reading, undefined, { equals: (a, b) =>
-        a?.file === b?.file && a?.title === b?.title && a?.history === b?.history })
+        a?.file === b?.file && a?.title === b?.title && a?.history === b?.history && a?.pending === b?.pending && a?.failure === b?.failure })
       setReports(all => new Map(all).set(id, row))
       onCleanup(() => setReports(all => {
         if (all.get(id) !== row) return all

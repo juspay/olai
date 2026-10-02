@@ -1,3 +1,4 @@
+import { heldService } from "@olai/ui-primitives/held.ts"
 /**
  * Whether finished work is drawn: a browser-wide default, and the pages that
  * out-vote it.
@@ -167,9 +168,17 @@ export const letDoneFollow = (file: string): void => {
  * THE REVEAL's table, OUTER-KEYED per pane: the places a landing asked THIS
  * pane's copy of THIS page to keep drawn.
  */
-const [revealed, setRevealed] = createSignal<
-  ReadonlyMap<string, ReadonlyMap<string, ReadonlySet<string>>>
->(new Map())
+type Reveals = ReadonlyMap<string, ReadonlyMap<string, ReadonlySet<string>>>
+export const createDoneReveals = () => {
+  const [read, set] = createSignal<Reveals>(new Map())
+  return { read, set }
+}
+const heldReveals = heldService<ReturnType<typeof createDoneReveals>>()
+export const holdDoneReveals = heldReveals.hold
+const emptyReveals: Reveals = new Map()
+const revealed = (): Reveals => heldReveals.read()?.read() ?? emptyReveals
+const setRevealed = (next: (before: Reveals) => Reveals) => heldReveals.read()?.set(next)
+
 
 /** The places the pick's sweep spares for pane `pane` on `file`, or nothing
  *  — DELIBERATELY not exported: what spares a row is a question the sweep
@@ -303,6 +312,5 @@ export const followDonePrefs = (): (() => void) => {
   setOverrides(makeOverrides())
   const stopDefault = pref().follow()
   const stopOverrides = overrides().follow()
-  setRevealed(new Map())
-  return () => { stopDefault(); stopOverrides(); setRevealed(new Map()) }
+  return () => { stopDefault(); stopOverrides() }
 }

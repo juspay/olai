@@ -4122,10 +4122,13 @@ When("the chat box reports its unchanged caret", async function(this: OlaiWorld)
 
 When("I mark the terminal output element", async function (this: OlaiWorld) {
   await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).first().locator("pre").evaluate(element => {
-    (element as HTMLElement & { retainedOutput?: boolean }).retainedOutput = true
+    if (element.scrollHeight <= element.clientHeight) throw new Error("terminal output is not scrollable")
+    element.scrollTop = 80
+    if (element.scrollTop !== 80) throw new Error("terminal output did not accept its reading position")
+    ;(element as HTMLElement & { retainedOutput?: boolean }).retainedOutput = true
   })
 })
 Then("the terminal output keeps its element", async function (this: OlaiWorld) {
   assert.equal(await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).first().locator("pre").evaluate(element =>
-    (element as HTMLElement & { retainedOutput?: boolean }).retainedOutput === true), true)
+    (element as HTMLElement & { retainedOutput?: boolean }).retainedOutput === true && element.scrollTop === 80), true)
 })

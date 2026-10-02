@@ -117,3 +117,38 @@ Feature: Tabs retain their pages
     And the row "handles" is picked
     And the row "knobs" is picked
     And there should be no page errors
+
+  @scratch:good
+  Scenario: Two tabs share edits while a finished-row reveal stays in its own pane
+    Given I open the address "/garden.olai#basil"
+    Then the node "basil" is shown
+    When I choose "Open in new tab" from the menu of the outline link "garden.olai"
+    And I press tab 1
+    Then the node "basil" is not shown
+    When I click the title of "mint"
+    And I select all and type "mint shared between tabs"
+    And I press "Enter"
+    And I press "Escape"
+    And I press tab 0
+    Then the node "mint" has the title "mint shared between tabs"
+    And the node "basil" is shown
+    And this page's Done flip says "hidden"
+    When I press tab 1
+    Then the node "basil" is not shown
+    And there should be no page errors
+
+  Scenario: A phone adopts the front page and releases other live lanes
+    Given I open the outline "house.olai"
+    When I remember pane 0 as "background"
+    And I choose "Open in new tab" from the menu of the outline link "garden.olai"
+    And I press tab 1
+    And I remember pane 0 as "front"
+    Then there are 2 live lanes
+    When I shrink the window to a phone
+    Then there are 1 live lanes
+    And pane 0 is still "front"
+    And remembered pane "background" is removed
+    When I widen the window to a desk
+    Then pane 0 is still "front"
+    And there are 1 live lanes
+    And there should be no page errors

@@ -80,7 +80,7 @@ When(
 /** The table on screen — what every csv step starts from, so a failure says
  *  "there is no table" rather than timing out on a cell inside one. */
 const table = async (world: OlaiWorld) => {
-  const found = world.page.locator(CSV_TABLE);
+  const found = world.frontLane().locator(CSV_TABLE);
   await found.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   return found;
 };
@@ -354,3 +354,13 @@ Then("the picture's natural size is {int} by {int}", async function (this: OlaiW
     return image.complete && image.naturalWidth === size.width && image.naturalHeight === size.height;
   }, { width, height }), `the loaded picture to measure ${width} by ${height}`);
 });
+
+When("I remember the CSV table", async function(this: OlaiWorld) {
+  await (await table(this)).evaluate(element => {
+    (element as HTMLElement & { retainedTable?: boolean }).retainedTable = true
+  })
+})
+Then("the CSV table stayed mounted during its revision", async function(this: OlaiWorld) {
+  assert.equal(await (await table(this)).evaluate(element =>
+    (element as HTMLElement & { retainedTable?: boolean }).retainedTable), true)
+})

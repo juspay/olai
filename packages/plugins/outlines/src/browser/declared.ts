@@ -1,3 +1,4 @@
+import { heldService } from "@olai/ui-primitives/held.ts"
 /**
  * WHICH OF THE IDS IN A MESSAGE THE SET DECLARES — asked of the server, once
  * per message, remembered.
@@ -137,13 +138,50 @@ interface Batch {
   readonly answer: Promise<Result.Result<Told, OpFailure>>
 }
 
+/** What one message has been told about the ids in it. */
+export interface Declared {
+  /** The returned title; identity resolution below remains an ID lookup. */
+  readonly title: (id: string) => string | null
+  /**
+   * The node an id names, or `null` — which is the answer for an id the set
+   * does not declare AND for one nothing has answered about yet, because they
+   * are the same span on screen (`./refs.ts` argues why there is no third
+   * state).
+   *
+   * A SCOPE THAT HAS A THIRD STATE — the outline's landing, which owes a
+   * sentence exactly once the set has answered — reads {@link told} over
+   * the same map.
+   *
+   * The rule's own `resolve` shape, so it is handed straight to
+   * `markNodeRefs` rather than unwrapped at the call site. Reading it is what
+   * SUBSCRIBES the caller: the marking pass runs inside an effect, so the pass
+   * re-runs when an answer lands.
+   */
+  readonly named: (id: string) => string | null
+  /** These are the ids this message is asking about — the whole current list,
+   *  not an addition, since a message's spans are re-read from its rendered
+   *  answer on every frame. Asking twice about one id costs nothing. */
+  readonly want: (ids: ReadonlyArray<string>) => void
+  /**
+   * THE SET'S ANSWER to this id, all three ways: the node it names, `null`
+   * when the set declares nothing by it, `undefined` while the question has
+   * not come back — {@link named}'s own map, uncollapsed. A span merges the
+   * third state into the second and `./refs.ts` says why that is right FOR A
+   * SPAN; a reader that CAN tell them apart — the outline's landing, which
+   * must not say a miss while its answer is still in the air — reads this.
+   */
+  readonly told: (id: string) => string | null | undefined
+}
+
+
+export const createDeclarations = () => {
 /** How many questions have left this tab. The batch's own name, minted where
  *  the question is made. */
 let asked = 0
 
 /** The ids gathered for the next question, and the one answer they all ride.
- *  Module-level because the batch is every asker on screen — one message
- *  cannot see the others, and this is what they share. */
+ *  Owned by the outlines activation: askers share a wire batch, while each
+ *  message retains its own resolved ids. */
 let gathering: Batch | null = null
 
 /**
@@ -207,7 +245,7 @@ const askAll = (ids: ReadonlyArray<string>): Batch => {
  */
 
 const [failed, setFailed] = createSignal<string | null>(null)
-export const declaringFailure: Accessor<string | null> = failed
+const declaringFailure: Accessor<string | null> = failed
 
 /** The newest batch the slot has been told about. Batches overlap — the gather
  *  is cleared before its call goes, so the ids wanted while one is in flight
@@ -245,40 +283,6 @@ const said = (seq: number, message: string | null): void => {
   setFailed(message)
 }
 
-/** What one message has been told about the ids in it. */
-export interface Declared {
-  /** The returned title; identity resolution below remains an ID lookup. */
-  readonly title: (id: string) => string | null
-  /**
-   * The node an id names, or `null` — which is the answer for an id the set
-   * does not declare AND for one nothing has answered about yet, because they
-   * are the same span on screen (`./refs.ts` argues why there is no third
-   * state).
-   *
-   * A SCOPE THAT HAS A THIRD STATE — the outline's landing, which owes a
-   * sentence exactly once the set has answered — reads {@link told} over
-   * the same map.
-   *
-   * The rule's own `resolve` shape, so it is handed straight to
-   * `markNodeRefs` rather than unwrapped at the call site. Reading it is what
-   * SUBSCRIBES the caller: the marking pass runs inside an effect, so the pass
-   * re-runs when an answer lands.
-   */
-  readonly named: (id: string) => string | null
-  /** These are the ids this message is asking about — the whole current list,
-   *  not an addition, since a message's spans are re-read from its rendered
-   *  answer on every frame. Asking twice about one id costs nothing. */
-  readonly want: (ids: ReadonlyArray<string>) => void
-  /**
-   * THE SET'S ANSWER to this id, all three ways: the node it names, `null`
-   * when the set declares nothing by it, `undefined` while the question has
-   * not come back — {@link named}'s own map, uncollapsed. A span merges the
-   * third state into the second and `./refs.ts` says why that is right FOR A
-   * SPAN; a reader that CAN tell them apart — the outline's landing, which
-   * must not say a miss while its answer is still in the air — reads this.
-   */
-  readonly told: (id: string) => string | null | undefined
-}
 
 /**
  * One scope's asker — a message's spans, or one outline page's landings.
@@ -290,7 +294,7 @@ export interface Declared {
  * a live-socket failure is exactly the dead-link silence that scope exists
  * against, and the connection pill says *connected* for it.
  */
-export const createDeclared = (
+const createDeclared = (
   failure?: (message: string, ids: ReadonlyArray<string>) => void,
 ): Declared => {
   let alive = true
@@ -379,4 +383,16 @@ export const createDeclared = (
 }
 
 
-export const clearDeclared = (): void => { ++generation; cancelGather?.(); cancelGather = undefined; gathering = null; setFailed(null) }
+const clearDeclared = (): void => { ++generation; cancelGather?.(); cancelGather = undefined; gathering = null; setFailed(null) }
+
+  onCleanup(clearDeclared)
+  return { create: createDeclared, failure: declaringFailure, clear: clearDeclared }
+}
+const heldDeclarations = heldService<ReturnType<typeof createDeclarations>>()
+export const holdDeclarations = heldDeclarations.hold
+export const createDeclared = (failure?: (message: string, ids: ReadonlyArray<string>) => void): Declared => {
+  const owner = heldDeclarations.read()
+  if (!owner) throw new Error("declarations outside the outlines activation")
+  return owner.create(failure)
+}
+export const declaringFailure: Accessor<string | null> = () => heldDeclarations.read()?.failure() ?? null

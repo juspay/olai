@@ -30,6 +30,7 @@ Feature: Open media pages follow replaced and restored files
     And I mark the page
     Then the table draws 499 rows under the header
     And the csv page says "Showing the first 500 rows."
+    When I remember the CSV table
     When I rewrite "data/live.csv" as:
       """
       product,note
@@ -38,6 +39,7 @@ Feature: Open media pages follow replaced and restored files
     Then the table's header is "product, note"
     And the table's row 1 is "hinges|new, smaller export"
     And the table draws 1 rows under the header
+    And the CSV table stayed mounted during its revision
     And the csv page says nothing was left out
     And this file has no editor
     And the page has not reloaded

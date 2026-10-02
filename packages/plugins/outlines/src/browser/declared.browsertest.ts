@@ -68,7 +68,9 @@ mock.module("@olai/web/client/wire.ts", () => ({
   connectionReadout: () => ({ status: "live" }),
 }))
 
-const { createDeclared, declaringFailure } = await import("./declared.ts")
+const { createDeclared, declaringFailure, createDeclarations, holdDeclarations } = await import("./declared.ts")
+const declarations = createRoot(dispose => ({ dispose, release: holdDeclarations(createDeclarations()) }))
+afterAll(() => { declarations.dispose(); declarations.release() })
 
 /** Past the gather (`GATHER_MS` is a zero timeout, which is "after this task")
  *  and past the continuation an answered call resolves on. Real timers, because
@@ -166,4 +168,19 @@ test("a declaration retains titles without replacing resolved identities or miss
     await tick()
     expect(calls.length).toBe(before + 1)
   } finally { dispose() }
+})
+
+
+test("withdrawing the declaration owner cancels its gathered wire work", async () => {
+  const before = calls.length
+  const owner = createRoot(dispose => {
+    const declarations = createDeclarations()
+    const reader = declarations.create()
+    reader.want(["withdrawn-before-send"])
+    return { dispose, declarations }
+  })
+  owner.dispose()
+  await tick()
+  expect(calls.length).toBe(before)
+  expect(owner.declarations.failure()).toBe(null)
 })

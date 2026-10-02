@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
@@ -270,5 +271,26 @@ test("a switch asked for mid-travel is written once the browser is back on its e
     page.back()
     await settled()
     expect(drawn(router)).toBe("/c.md")
+  })
+})
+
+
+test("lane reports propagate loading and failure changes with an unchanged title", async () => {
+  await withRouter(async router => {
+    const owner = createRoot(dispose => {
+      const [pending, setPending] = createSignal(true)
+      const [failure, setFailure] = createSignal<string>()
+      router.report(() => 0, () => ({ title: "same page", file: "one.md", pending: pending(), failure: failure() }))
+      return { dispose, setPending, setFailure }
+    })
+    expect(router.info(0)?.pending).toBe(true)
+    owner.setPending(false)
+    expect(router.info(0)?.pending).toBe(false)
+    expect(router.focused()?.pending).toBe(false)
+    owner.setFailure("read refused")
+    expect(router.focused()?.failure).toBe("read refused")
+    owner.setFailure(undefined)
+    expect(router.info(0)?.failure).toBeUndefined()
+    owner.dispose()
   })
 })

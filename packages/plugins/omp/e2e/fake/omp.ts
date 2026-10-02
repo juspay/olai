@@ -332,6 +332,7 @@ const heldCommand = (): string => {
   const marker = JSON.stringify(`${cwd}/${MARKER.release}`);
   return (
     `process.stdout.write("omp command started\\n");` +
+    `process.stdout.write(Array.from({length: 60}, (_, i) => "output line " + i).join("\\n") + "\\n");` +
     `const t = setInterval(() => { if (require("fs").existsSync(${marker}))` +
     ` { process.stdout.write("omp command done\\n"); process.exit(0) } }, 25);`
   );

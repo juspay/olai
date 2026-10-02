@@ -16,11 +16,12 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { derive, rowsOf, zoom } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 
 import { remembering } from "@olai/web/client/preference.testlib.ts"
 
 import {
+  createDoneReveals, holdDoneReveals,
   concealDone,
   doneHidden,
   doneHiddenOn,
@@ -33,6 +34,9 @@ import {
   setDoneHidden,
   visibleIn,
 } from "./done.ts"
+
+const releaseReveals = holdDoneReveals(createDoneReveals())
+afterAll(releaseReveals)
 
 /** The two circuits ARE module-level: a test file shares them, the way two
  *  tabs would — and the union-write discipline the tests are FOR is exactly
