@@ -6,7 +6,7 @@
  */
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
-import { POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { PLUGIN_CONFIRM, PLUGIN_CONFIRM_OFF, PLUGIN_SWITCH, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 interface Hand {
@@ -87,4 +87,26 @@ Then("the only page errors are the fixture's deliberate failure", function (this
   const others = errors.filter((error) => !error.includes("failed to submit") && !error.includes("failed on purpose"));
   assert.deepStrictEqual(others, [], "page errors other than the deliberate one");
   assert.ok(errors.length > 0, "the deliberate failure was logged");
+});
+
+/**
+ * THE FIXTURE'S OWN SWITCH, put off from the plugins panel.
+ *
+ * Not the panel's generic `I switch the plugin … off`, which waits for the row
+ * to say "off": the panel hides a group whose every row is an opt-in fixture
+ * nobody is running, so when this is the only fixture on, its row leaves the
+ * panel instead. That leaving is the receipt here.
+ */
+When("I switch the palette fixture off", { timeout: 90_000 }, async function (this: OlaiWorld) {
+  const row = await this.showPluginRow("test-palette", { detail: false });
+  await this.press(row.locator(PLUGIN_SWITCH).first());
+  const confirm = row.locator(PLUGIN_CONFIRM);
+  if ((await confirm.count()) > 0 && (await confirm.isVisible().catch(() => false))) {
+    await this.press(row.locator(PLUGIN_CONFIRM_OFF));
+  }
+  await this.waitUntil(
+    async () => (await this.pluginsPanel().locator('[data-pref="plugin-test-palette"]').count()) === 0,
+    "the palette fixture's row to leave the plugins panel",
+    60_000,
+  );
 });

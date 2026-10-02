@@ -278,7 +278,7 @@ Feature: Levels in the command palette
     Then the palette level is busy
     When I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "test-palette" off
+    And I switch the palette fixture off
     And I close the plugins panel
     And I use the original browser tab
     Then the palette path is ""
