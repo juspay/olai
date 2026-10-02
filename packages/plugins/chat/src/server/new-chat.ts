@@ -21,9 +21,9 @@ const parentFiles = (reading: Reading) => {
   const inbox = inboxIn(reading.derived.claims, paths)
   return new Set(paths.filter(file => !inOlaiDir(file) || file === inbox))
 }
-export const canParent = (reading: Reading, id: string, files = parentFiles(reading)): boolean => {
+export const canParent = (reading: Reading, id: string, paths = parentFiles(reading)): boolean => {
   const row = reading.derived.byId.get(id)
-  return row !== undefined && isRegular(row) && seatableIn(reading.derived, id) && files.has(row.file)
+  return row !== undefined && isRegular(row) && seatableIn(reading.derived, id) && paths.has(row.file)
 }
 /** The caller holds creationPermit across all three independent acts. Once
  * minted, the node survives a refused start and is returned for a page retry. */
@@ -52,7 +52,7 @@ export interface LocationQuery {
 }
 /** Bounded projection; exact lookups never require shipping the vault. */
 export const chatLocations = (reading: Reading, query: LocationQuery, inbox: string | null = null) => {
-  const files = parentFiles(reading)
+  const paths = parentFiles(reading)
   const limit = Math.max(0, Math.min(20, Math.floor(query.limit)))
   const ids = new Set(query.ids.slice(0, 64))
   for (const id of query.parents.slice(0, 64)) {
@@ -61,7 +61,7 @@ export const chatLocations = (reading: Reading, query: LocationQuery, inbox: str
   }
   const project = (id: string) => {
     const row = reading.derived.byId.get(id)
-    if (row === undefined || !isRegular(row) || !canParent(reading, id, files)) return null
+    if (row === undefined || !isRegular(row) || !canParent(reading, id, paths)) return null
     const path: string[] = []
     const seen = new Set([id])
     let parent = row.node.parent

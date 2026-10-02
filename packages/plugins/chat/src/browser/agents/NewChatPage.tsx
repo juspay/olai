@@ -1,7 +1,7 @@
 import { TESTID } from "../../testids.ts"
 import { createEffect, createMemo, createSignal, For, createUniqueId, onMount, onCleanup, Show } from "solid-js"
 import { listKey } from "@olai/web/client/keys.ts"
-import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
+import { dismissOn } from "@olai/web/client/dismiss.ts"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { nodePlace } from "olai-plugin-search/ui/place.ts"
@@ -19,6 +19,7 @@ export function NewChatPage() {
   const owner = agentReadings()!.newChat
   const agents = useAgents()
   let input: HTMLTextAreaElement | undefined
+  let locationButton: HTMLButtonElement | undefined
   const [picking, pick] = createSignal(false)
   const engine = () => agents.engines().find(one => one.id === owner.chosen())?.id ?? agents.engines()[0]?.id
   const send = () => { const id = engine(); if (id !== undefined) void owner.start(id) }
@@ -33,8 +34,8 @@ export function NewChatPage() {
   })
   return <section class="mx-auto w-full max-w-2xl p-4" data-testid={TESTID.newChatPage}>
     <h1 class="text-title">New chat</h1>
-    <button type="button" class="mb-3 rounded-control border border-rule px-3 py-2 text-body" data-testid={TESTID.newChatLocation} onClick={() => pick(!picking())}>{label()} ▾</button>
-    <Show when={picking()}><LocationPicker draft={owner.draft()} here={owner.here()} choose={value => { owner.choose(value); pick(false); focus() }} close={() => { pick(false); focus() }} /></Show>
+    <button ref={locationButton} type="button" class="mb-3 rounded-control border border-rule px-3 py-2 text-body" data-testid={TESTID.newChatLocation} onClick={() => pick(!picking())}>{label()} ▾</button>
+    <Show when={picking()}><LocationPicker trigger={() => locationButton} draft={owner.draft()} here={owner.here()} choose={value => { owner.choose(value); pick(false); focus() }} close={() => pick(false)} /></Show>
     <Show when={agents.engines().length > 0} fallback={<NoAgent />}>
       <textarea ref={input} aria-label="New chat message" data-testid={TESTID.newChatInput} placeholder="What would you like to discuss?"
         class="min-h-32 w-full resize-y rounded-control border border-rule bg-paper p-3 text-body outline-none"
@@ -52,14 +53,13 @@ export function NewChatPage() {
   </section>
 }
 
-function LocationPicker(props: { readonly draft: string; readonly here: string | null; readonly choose: (value: ChatLocation) => void; readonly close: () => void }) {
+function LocationPicker(props: { readonly trigger: () => HTMLElement | undefined; readonly draft: string; readonly here: string | null; readonly choose: (value: ChatLocation) => void; readonly close: () => void }) {
   const agents = useAgents()
   const [filter, setFilter] = createSignal("")
   const [nodes, setNodes] = createSignal<readonly LocationNode[]>([])
   const [failure, fail] = createSignal<string>()
   const suggestions = createSearch(() => props.draft.trim() || null, "node")
   const [defaultParent, setDefaultParent] = createSignal<string | null>(null)
-  const topmost = topmostWhileOpen(() => true)
   const listId = createUniqueId()
   let element: HTMLDivElement | undefined
   const options = new Map<string, HTMLDivElement>()
@@ -75,11 +75,7 @@ function LocationPicker(props: { readonly draft: string; readonly here: string |
       else fail(result.failure.message)
     })
   })
-  onMount(() => {
-    const outside = (event: PointerEvent) => { if (topmost() && event.target instanceof Node && !element?.contains(event.target)) props.close() }
-    document.addEventListener("pointerdown", outside)
-    onCleanup(() => document.removeEventListener("pointerdown", outside))
-  })
+  dismissOn({ open: () => true, root: () => element, trigger: props.trigger, dismiss: props.close })
   const rows = createMemo(() => locationRows({
     nodes: nodes(), here: props.here, filter: filter(), defaultParent: defaultParent(),
     // Late search answers must not suggest destinations for replaced words.
@@ -101,11 +97,9 @@ function LocationPicker(props: { readonly draft: string; readonly here: string |
     <input role="combobox" aria-expanded="true" aria-controls={listId} aria-activedescendant={rows().length > 0 ? `${listId}-${selected()}` : undefined} aria-label="Find a chat location" placeholder="Find a node…" class="w-full bg-transparent p-2" ref={element => onMount(() => element.focus())}
       value={filter()} onInput={event => { setFilter(event.currentTarget.value); fail(undefined) }}
       onKeyDown={event => {
-        if (!topmost()) return
         const action = event.key === "Enter" && event.altKey ? "take" : listKey(event)
-        if (action === null) return
+        if (action === null || action === "dismiss") return
         event.preventDefault(); event.stopPropagation()
-        if (action === "dismiss") props.close()
         if (action === "next") cursor.step(1)
         if (action === "prev") cursor.step(-1)
         if (action === "take") take(selected(), event.altKey)
