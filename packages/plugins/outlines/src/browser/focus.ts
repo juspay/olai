@@ -1,6 +1,5 @@
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { rowElements } from "./row-elements.ts"
-import { usePane } from "olai-plugin-navigation/pane"
 /**
  * Which node the reader was just pointed AT, and how the page answers.
  *
@@ -171,14 +170,13 @@ const bringFocusedOntoScreen = (pane: string, id: string): boolean => {
  * wear it yet when this returns, and asking the DOM before then would find
  * nothing and navigate away from a node that is right there.
  */
-const focusNode = (id: string, pane: () => string | undefined, elsewhere: () => void): void => {
+const focusNode = (id: string, panes: () => readonly string[], elsewhere: () => void): void => {
   const own = focusState.read()
   if (own === undefined) return
   setFocused(id)
   const frame = requestAnimationFrame(() => {
     own.frames.delete(frame)
-    const within = pane()
-    if (!within || !bringFocusedOntoScreen(within, id)) elsewhere()
+    if (!panes().some(pane => bringFocusedOntoScreen(pane, id))) elsewhere()
   })
   own.frames.add(frame)
 }
@@ -252,13 +250,12 @@ const landOnRow = (go: (route: Route) => void, id: string, mine: number, before:
  */
 export const useShowNode = (): ((id: string) => void) => {
   const router = useRouter()
-  const pane = usePane()
   return (id) => {
     const own = focusState.read()
     if (own === undefined) return
     const mine = ++own.pointed
     const before = focused()
-    focusNode(id, () => pane?.id ?? router.panes()[router.focusIndex()]?.id, () => landOnRow(router.go, id, mine, before))
+    focusNode(id, () => router.shown() ? router.panes().map(pane => pane.id) : [], () => landOnRow(router.go, id, mine, before))
   }
 }
 

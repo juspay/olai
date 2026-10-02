@@ -2,7 +2,7 @@ import { useShowNode } from "./focus.ts"
 import { writeIn } from "./reply.ts"
 export { fileOf } from "./reply.ts"
 import { servedDirectory } from "./vault.ts"
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { GLYPH, SAID } from "../contracts/changes.ts"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
@@ -10,10 +10,12 @@ import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../testids.ts"
 
 export function story(input: { reply: unknown }) {
-  const wrote = writeIn(input.reply)
-  if (wrote === undefined) return null
+  const wrote = createMemo(() => writeIn(input.reply))
+  return <Show when={wrote()}>{value => <Story wrote={value()} />}</Show>
+}
+
+function Story(props: { readonly wrote: NonNullable<ReturnType<typeof writeIn>> }) {
   const show = useShowNode()
-  const props = { wrote }
   /** A write that changed no record has no honest word for what it did, and
    *  this is what it says instead — the one case the table cannot cover. */
   const said = () => (props.wrote.sort === null ? "No change" : SAID[props.wrote.sort])

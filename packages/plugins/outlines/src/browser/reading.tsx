@@ -1,4 +1,4 @@
-import { createRenderEffect, untrack } from "solid-js"
+import { untrack } from "solid-js"
 /**
  * WHAT THE PAGE IN FRONT OF SOMEBODY SAYS — asked of the server, once per open
  * pane.
@@ -238,15 +238,14 @@ export const createReading = (
   stream?: Accessor<NodePageRoute["stream"] | undefined>,
 ): Reading => {
   const [at, setAt] = createSignal(0)
-  const [subscription, setSubscription] = createSignal<Accessor<PageReading | undefined> & { readonly error?: Accessor<Error | undefined> }>()
   // Only a change of stream replaces this owner. The stream itself follows
   // request changes; the held page below spans that handover.
-  createRenderEffect(() => {
+  const subscription = createMemo(() => {
     const channel = stream?.()
     const answer = untrack(() => channel === undefined ? client().streams.page.use(request) : channel.use(request))
     const stop = answer.changed?.(() => setAt(was => was + 1))
     if (stop) onCleanup(stop)
-    setSubscription(() => answer)
+    return answer
   })
   const answer = () => subscription()?.()
   /**

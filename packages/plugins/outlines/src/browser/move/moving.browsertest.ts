@@ -69,3 +69,15 @@ test("a shortlist unmount during a write cannot reopen the move subscription wit
   await tick()
   expect(requests.at(-1)).toEqual({ record: "child", to: ["destination"] })
 }))
+
+test("a vanished row ends its gesture even if the record returns", () => bench(async ({ moving, rows, requests }) => {
+  moving.aim(() => ["destination"])
+  rows([row("/destination", "destination", "destination")])
+  await tick()
+  expect(moving.standing()).toBeNull()
+  expect(moving.showing("/child")).toBe(false)
+  rows([row("/child", "child", "child"), row("/destination", "destination", "destination")])
+  await tick()
+  expect(moving.standing()).toBeNull()
+  expect(requests.at(-1)).toBeNull()
+}))

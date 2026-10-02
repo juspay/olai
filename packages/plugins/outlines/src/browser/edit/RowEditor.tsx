@@ -509,7 +509,8 @@ const takeCaret = (
       if (slot?.field !== "new" || slot.row !== pending) return
     } else if (!armed()) return
     const field = element()
-    const range = opening ? retained : undefined
+    const range = opening ? retained : { start: field.selectionStart ?? field.value.length,
+      end: field.selectionEnd ?? field.value.length, direction: field.selectionDirection ?? "none" }
     const at = opening
       ? said.at?.() ?? field.value.length
       : field.selectionStart ?? field.value.length

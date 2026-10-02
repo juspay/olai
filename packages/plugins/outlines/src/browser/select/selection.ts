@@ -43,7 +43,7 @@ import {
   createSelector, batch,
 } from "solid-js"
 
-import { flatten, neighbour, refound } from "../edit/order.ts"
+import { flatten, neighbour } from "../edit/order.ts"
 import { selectionMemory } from "./memory.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 import { useUndo } from "../edit/undoing.ts"
@@ -147,21 +147,30 @@ export const createSelection = (
    */
   // Each source pick starts a new selection. Subsequent frames relocate its
   // surviving records; a removed record stays removed even if it returns.
-  const located = createMemo((previous: { pick: ReadonlySet<string>; keys: ReadonlySet<string> } | undefined) => {
+  type Located = { pick: ReadonlySet<string>; keys: ReadonlySet<string>; anchor: string | null; focus: string | null; rows: ReadonlyArray<Row> }
+  const located = createMemo<Located>((previous) => {
     const pick = picked()
-    const held = previous?.pick === pick ? previous.keys : pick
-    const rows = held.size === 0 ? [] : drawn()
-    return { pick, keys: new Set([...held].flatMap(key => {
-      const found = refound(rows, recordOf(key), key)
-      return found === undefined ? [] : [found]
-    })) }
+    const continuing = previous?.pick === pick
+    const held = continuing ? previous.keys : pick
+    const at = continuing ? previous.anchor : pickedAnchor()
+    const end = continuing ? previous.focus : pickedFocus()
+    if (held.size === 0 && at === null && end === null) return { pick, keys: held, anchor: null, focus: null, rows: NOTHING_PICKED }
+    const rows = drawn()
+    const places = new Set<string>(), records = new Map<string, string>()
+    for (const row of rows) {
+      places.add(row.key)
+      if (!records.has(row.at.node.id)) records.set(row.at.node.id, row.key)
+    }
+    const find = (key: string | null) => key === null ? null : places.has(key) ? key : records.get(recordOf(key)) ?? null
+    return { pick, keys: new Set([...held].flatMap(key => { const found = find(key); return found === null ? [] : [found] })),
+      anchor: find(at), focus: find(end), rows }
   })
   const keys = createMemo(() => located().keys, new Set<string>(), {
     equals: (a, b) => a.size === b.size && [...a].every(key => b.has(key)),
   })
-  const currentEnd = (held: string | null): string | null => held === null ? null : refound(drawn(), recordOf(held), held) ?? null
-  const anchor = createMemo(() => currentEnd(pickedAnchor()))
-  const focus = createMemo(() => currentEnd(pickedFocus()))
+  const anchor = () => located().anchor
+  const focus = () => located().focus
+
 
 
   /** A MEMO, because three readers ask for it and one of them is a window key
@@ -175,7 +184,7 @@ export const createSelection = (
    *  in the app — and it handed back a FRESH empty array each time, which woke
    *  the bar and the key listener for nothing. */
   const rows = createMemo<ReadonlyArray<Row>>(() =>
-    keys().size === 0 ? NOTHING_PICKED : topmost(drawn(), keys())
+    keys().size === 0 ? NOTHING_PICKED : topmost(located().rows, keys())
   )
 
   const run = async (verb: Bulk): Promise<void> => {

@@ -212,7 +212,7 @@ export function OutlinePage(props: {
       if (props.file !== owing.file || at !== undefined) conceal()
       owing = { file: props.file, id: at, said: undefined }
     }
-    if (at === undefined) return
+    if (at === undefined || !shown()) return
     // WHERE THE REVEAL MAY BE ASKED: the pick prunes this page, and nothing
     // typed does — a filter on the page is the reader's own question, and
     // the act writes nothing over it (the fold half's own discipline,

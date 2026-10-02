@@ -1,5 +1,5 @@
 /** The page-owned move gesture. Its state and write lifetime outlive the picker view. */
-import { type Accessor, batch, createEffect, createMemo, createSignal } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createSelector, createSignal } from "solid-js"
 import { type Moved, type MovingRequest, type Row, sameMovingRequest } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { moveMemory } from "./memory.ts"
@@ -118,15 +118,21 @@ export const createMoving = (
 
   /** Keep the gesture's record and original place; resolve its current place
    * from the drawn tree without publishing a second corrective state. */
-  const standing = createMemo(() => {
-    const held = heldStanding()
+  const located = createMemo((previous: { source: Standing | null; value: Standing | null } | undefined) => {
+    const source = heldStanding()
+    const held = previous?.source === source ? previous.value : source
+    const resolve = (): Standing | null => {
     if (held === null || sending()) return held
     if (held.kind === "landed" && saying.said() === null) return null
     const drawn = flatten(page.rows(), page.collapsed())
     const moved = refound(drawn, held.record, held.place) ??
       (held.kind === "picking" ? undefined : refound(drawn, held.under, null))
     return moved === undefined ? null : moved === held.place ? held : { ...held, place: moved }
+    }
+    return { source, value: resolve() }
   })
+  const standing = () => located().value
+  const showing = createSelector(() => standing()?.place)
 
   /**
    * WHAT THE SET SAYS ABOUT THIS MOVE — the row as it stands, and a verdict per
@@ -224,7 +230,7 @@ export const createMoving = (
     // one's sentence, and that reads as this one's answer.
     saying.say(null)
     void applying(edit, undo.record)
-      .then((said) => {
+      .then((said) => batch(() => {
         saying.say(said)
         // …and a landed write SPENDS the picker: the row is somewhere else now,
         // so the panel goes rather than offering to move it again from a list
@@ -237,7 +243,7 @@ export const createMoving = (
             ? null
             : { kind: "landed", record: held.record, place: held.place, under }
         )
-      })
+      }))
       .finally(() => setSending(false))
   }
 
@@ -293,11 +299,7 @@ export const createMoving = (
         setStanding({ kind: "picking", ...at })
       })
     },
-    showing: (key: string) => {
-      const held = standing()
-      return held !== null && held.place === key &&
-        (held.kind === "picking" || saying.said() !== null)
-    },
+    showing,
   }
 }
 

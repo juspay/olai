@@ -324,9 +324,13 @@ export const createEditor = (
     const held = storedDraft()
     return held?.kind === "row" ? { row: held.row, place: held.place } : null
   }, null, { equals: (a, b) => a?.row === b?.row && a?.place === b?.place })
+  const hasRowDraft = createMemo(() => storedDraft()?.kind === "row")
+  const drawn = createMemo<ReadonlyArray<Row>>(() =>
+    hasRowDraft() ? flatten(page.rows(), page.collapsed()) : NO_ROWS
+  )
   const currentPlace = createMemo(() => {
     const held = subject()
-    return held === null ? undefined : refound(flatten(page.rows(), page.collapsed()), held.row, held.place)
+    return held === null ? undefined : refound(drawn(), held.row, held.place)
   })
   const draft = createMemo(() => {
     const held = storedDraft()
@@ -458,9 +462,6 @@ export const createEditor = (
    * row draft is the one state all three readers are reachable from, and it is
    * the one state with a `field` on it.
    */
-  const drawn = createMemo<ReadonlyArray<Row>>(() =>
-    where().field === null ? NO_ROWS : flatten(page.rows(), page.collapsed())
-  )
 
   /** Every blank ON THE PAGE — the parked ones, and the live draft when it is
    *  one. What the wire is drawn from, so the three keys that walk it
