@@ -455,3 +455,15 @@ Feature: A new chat asks where it belongs before creating anything
     Then new chat is ready to send
     And the new chat draft is "keep after destination trash"
     And there should be no page errors
+
+  Scenario: New chat has no outline subject or file commands
+    Given I open the outline "house.olai"
+    When I zoom into the node "install"
+    And I press new chat in Chats
+    Then the new chat composer is focused
+    And new chat has no outline file context
+    When I press the palette shortcut
+    Then the palette offers "Go to today"
+    And the palette does not offer "Mark: To do"
+    And the palette does not offer "Move to Trash"
+    And there should be no page errors

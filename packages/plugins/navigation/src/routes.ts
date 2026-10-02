@@ -165,7 +165,8 @@ export interface NodePageRoute {
   readonly href: (page: unknown) => string
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean
-  readonly request: (page: unknown, today: string) => PageRequest
+  readonly local: boolean
+  readonly request: (page: unknown, today: string) => PageRequest | null
   readonly stream: {
     readonly use: (input: Accessor<PageRequest | null>) => PageAnswer
   }
@@ -179,6 +180,8 @@ export interface PageAnswer {
 }
 
 export interface MountedAppPage {
+  /** A local face has no reading and must not receive fabricated page data. */
+  readonly local?: () => JSX.Element
   readonly route: NodePageRoute
   readonly face: (props: {
     readonly page: Shown
@@ -234,7 +237,7 @@ export type Route =
  */
 export type PlainRoute = Exclude<Route, { readonly kind: "plugin" }>
 
-export interface DefinedAppRoute<Value, Request extends PageRequest> {
+export interface DefinedAppRoute<Value, Request extends PageRequest | null> {
   readonly source: NodePageRoute
   readonly to: (value: Value) => Route
   readonly value: (route: Route) => Value | null
@@ -247,27 +250,37 @@ export interface DefinedAppRoute<Value, Request extends PageRequest> {
 
 /** Define one typed node-page grammar. This is the sole erasure point between
  * a tenant's value/request types and the heterogeneous route slot. */
-export const defineAppRoute = <Value, Request extends PageRequest>(spec: {
+interface AppGrammar<Value> {
   readonly claims: ReadonlyArray<AppRouteClaim>
   readonly parse: (pathname: string) => Value | null
   readonly href: (value: Value) => `/${string}`
   readonly breadcrumb: (value: Value) => string
+}
+interface StreamedRoute<Value, Request extends PageRequest> extends AppGrammar<Value> {
   readonly narrowable: boolean
   readonly request: (value: Value, today: string) => Request
-  readonly stream: {
-    readonly use: (input: Accessor<Request | null>) => PageAnswer
-  }
-}): DefinedAppRoute<Value, Request> => {
+  readonly stream: { readonly use: (input: Accessor<Request | null>) => PageAnswer }
+}
+interface LocalRoute<Value> extends AppGrammar<Value> {
+  /** Local UI owns no vault query, page reading, or narrowing. */
+  readonly local: true
+}
+export function defineAppRoute<Value>(spec: LocalRoute<Value>): DefinedAppRoute<Value, null>
+export function defineAppRoute<Value, Request extends PageRequest>(spec: StreamedRoute<Value, Request>): DefinedAppRoute<Value, Request>
+export function defineAppRoute<Value, Request extends PageRequest>(spec: LocalRoute<Value> | StreamedRoute<Value, Request>): DefinedAppRoute<Value, Request | null> {
+  const local = "local" in spec
+  const request = (value: Value, today: string) => "local" in spec ? null : spec.request(value, today)
   const source: NodePageRoute = {
     [APP_ROUTE]: true,
     claims: spec.claims,
     parse: spec.parse as (pathname: string) => unknown | null,
     href: (value) => spec.href(value as Value),
     breadcrumb: (value) => spec.breadcrumb(value as Value),
-    narrowable: spec.narrowable,
-    request: (value, today) => spec.request(value as Value, today),
+    local,
+    narrowable: "local" in spec ? false : spec.narrowable,
+    request: (value, today) => request(value as Value, today),
     stream: {
-      use: (input) => spec.stream.use(input as Accessor<Request | null>),
+      use: (input) => "local" in spec ? () => undefined : spec.stream.use(input as Accessor<Request | null>),
     },
   }
   return {
@@ -278,21 +291,22 @@ export const defineAppRoute = <Value, Request extends PageRequest>(spec: {
     parse: spec.parse,
     href: spec.href,
     breadcrumb: spec.breadcrumb,
-    request: spec.request,
+    request,
   }
 }
 
 /** Join a typed route to the face mounted in the same plugin scope. */
-export const defineAppPage = <Value, Request extends PageRequest>(
+export const defineAppPage = <Value, Request extends PageRequest | null>(
   route: DefinedAppRoute<Value, Request>,
-  face: (props: {
-    readonly page: Extract<Shown, { readonly kind: Request["kind"] }>
+  face: (props: Request extends null ? {} : {
+    readonly page: Extract<Shown, { readonly kind: NonNullable<Request>["kind"] }>
     readonly drawn: Drawn
     readonly today: string
   }) => JSX.Element,
 ): AppPage => {
   const page = {
     [APP_PAGE]: true,
+    local: route.source.local ? face as () => JSX.Element : undefined,
     route: route.source as unknown as AppRoute,
     face: face as AppPage["face"],
   }

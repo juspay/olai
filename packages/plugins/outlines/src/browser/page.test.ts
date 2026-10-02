@@ -74,7 +74,6 @@ const OUTLINE: Shown = { kind: "outline", file: "house.olai", rows: [ROW] }
 
 test("the open outline is the one the page is of", () => {
   expect(fileOf(OUTLINE)).toBe("house.olai")
-  expect(fileOf({ kind: "outline", file: "", rows: [] })).toBeUndefined()
   expect(fileOf({ kind: "document", file: "notes/finishes.md", referrers: [], props: {} }))
     .toBe("notes/finishes.md")
 })

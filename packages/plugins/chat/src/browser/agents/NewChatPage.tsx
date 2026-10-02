@@ -11,8 +11,8 @@ import { CompletionRow } from "../chat/CompletionMenu.tsx"
 import { NoAgent } from "../chat/NoAgent.tsx"
 import { useAgents } from "./answered.tsx"
 import { agentReadings } from "./reading.ts"
-import { byActivity } from "./activity-order.ts"
-import type { ChatLocation, LocationNode } from "./new-chat.ts"
+import { createLocationQuery, recentLocationIds } from "./location-query.ts"
+import type { ChatLocation } from "./new-chat.ts"
 
 import { locationRows, locationTrail as trail } from "./location-rows.ts"
 export function NewChatPage() {
@@ -56,33 +56,22 @@ export function NewChatPage() {
 function LocationPicker(props: { readonly trigger: () => HTMLElement | undefined; readonly draft: string; readonly here: string | null; readonly choose: (value: ChatLocation) => void; readonly close: () => void }) {
   const agents = useAgents()
   const [filter, setFilter] = createSignal("")
-  const [nodes, setNodes] = createSignal<readonly LocationNode[]>([])
-  const [failure, fail] = createSignal<string>()
-  const [ready, setReady] = createSignal(false)
   const suggestions = createSearch(() => props.draft.trim() || null, "node")
-  const [defaultParent, setDefaultParent] = createSignal<string | null>(null)
   const listId = createUniqueId()
   let element: HTMLDivElement | undefined
   const options = new Map<string, HTMLDivElement>()
-  createEffect(() => {
-    const recent = byActivity(agents.rows()).slice(0, 32).map(row => row.id)
-    const ids = [...(props.here === null ? [] : [props.here]), ...suggestions.hits().slice(0, 5).map(hit => hit.id), ...recent]
-    const query = { filter: filter(), limit: 20, ids, parents: recent }
-    setReady(false)
-    let alive = true
-    onCleanup(() => { alive = false })
-    void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
-      if (!alive) return
-      if (result._tag === "Success") { setNodes(result.success.nodes); setDefaultParent(result.success.defaultParent); setReady(true) }
-      else fail(result.failure.message)
-    })
-  })
+  const recent = recentLocationIds(agents.rows)
+  const { nodes, defaultParent, failure, fail, ready } = createLocationQuery(() => ({
+    filter: filter(), limit: 20,
+    ids: [...(props.here === null ? [] : [props.here]), ...suggestions.hits().slice(0, 5).map(hit => hit.id), ...recent()],
+    parents: recent(),
+  }), query => runAsync(chatWire().procedures.conversation.locations(query)))
   dismissOn({ open: () => true, root: () => element, trigger: props.trigger, dismiss: props.close })
   const rows = createMemo(() => locationRows({
     nodes: nodes(), here: props.here, filter: filter(), defaultParent: defaultParent(),
     // Late search answers must not suggest destinations for replaced words.
     suggested: suggestions.answering() === props.draft.trim() ? suggestions.hits().map(hit => hit.id) : [],
-    recent: byActivity(agents.rows()).slice(0, 32).map(row => row.id),
+    recent: recent(),
   }))
   const cursor = createCursor(() => rows().length)
   const selected = cursor.at

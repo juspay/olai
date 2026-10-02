@@ -111,7 +111,7 @@ export const opensAt = (
  *  node belongs to the file its CANONICAL record is in, whichever file the
  *  mirror that was clicked lived in; a document belongs to itself. */
 export const fileOf = (shows: Shown): string | undefined => {
-  if (shows.kind === "outline") return shows.file || undefined
+  if (shows.kind === "outline") return shows.file
   if (shows.kind === "document") return shows.file
   if (shows.kind === "broken") return shows.file.file
   if (shows.kind === "node" && shows.zoomed.kind === "node") return shows.zoomed.shows.file

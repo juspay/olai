@@ -178,10 +178,10 @@ conversation UI cache. Each rendered fold owns its subscriptions; each page
 shares one reading between head and foot. Releasing one leaves other readers
 and ongoing work alone. The New chat route, draft, selected destination, engine choice and pending send
 belong to the browser activation, shared by sidebar and palette. The route uses
-an empty local page reading because AppRoute has no readingless contract. Its
-route supplies the tab title/breadcrumb and face, `fileOf` treats its empty file
-as absent, and chat’s node consumers reject it as an origin/metadata source. It
-acquires no vault page or conversation until Send.
+navigation’s `local: true` route contract: no request, page reading, or narrowing.
+The route supplies its tab title/breadcrumb and its local face. The renderer
+draws that face without fabricating an outline, so every reading consumer sees
+no file or node. It acquires no vault page or conversation until Send.
 The mounted picker owns its read-only location query and optional search reading;
 leaving releases those while the draft remains. The activation publishes
 reactive arrivals; existing and newly mounted page sessions atomically take
@@ -276,3 +276,8 @@ it when the bound node/engine/session changes. Row actions carry an optional
 static confirmation sentence through the outlines slot contract; the existing
 row menu owns that question and its dismissal. Session work still runs through
 the chat wire service and retains its existing ownership and cleanup.
+
+Location queries depend on the ordered recent ids, not activity-only roster
+updates. Superseded replies are ignored; a successful retry clears a prior
+query refusal. Sidebar opening refusals use the shared timed SaidLine below
+the Chats heading.

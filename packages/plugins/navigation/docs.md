@@ -175,3 +175,10 @@ link/Back recovery, an already-open palette/confirmation, and a failed request.
 Browser setup that opens an outline waits for both its drawn file and a
 non-busy reading. The home route can already draw that file, so matching the
 filename alone would let the next action hit the retained page.
+
+`defineAppRoute` also accepts `local: true` for an application page with no
+vault subject. Navigation supplies a null request and an unanswered local
+accessor, disables narrowing, and mounts the face without page-data props. The
+renderer draws this face without waiting for a page reading; reading consumers
+see absence rather than a fabricated outline. Streamed routes retain their
+existing typed request/reading contract.

@@ -181,3 +181,9 @@ When("I select the last chat location with the keyboard", async function(this: O
     return row !== null && list !== null && row.y >= list.y && row.y + row.height <= list.y + list.height + 1;
   }, "the keyboard selection scrolls into view");
 });
+
+Then("new chat has no outline file context", async function(this: OlaiWorld) {
+  const pane = this.page.locator(selector(PLUGIN_TESTID.newChatPage)).locator("xpath:ancestor::main");
+  assert.equal(await pane.getAttribute("data-drawn-file"), null);
+  assert.equal(await pane.getAttribute("data-narrowable"), null);
+});

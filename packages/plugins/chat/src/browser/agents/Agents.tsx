@@ -1,3 +1,5 @@
+import { createSaying } from "@olai/web/client/saying.ts"
+import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { NewChat } from "./NewChat.tsx"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
@@ -38,6 +40,7 @@ export function NeedsYou() {
 }
 
 export function Chats() {
+  const opening = createSaying()
   const agents = useAgents()
   const focus = createFocus()
   const router = useRouter()
@@ -47,8 +50,9 @@ export function Chats() {
   return <section class={REGION} data-testid={TESTID.agentRoster}>
     <div class={REGION_HEAD}>
       <h2 class={REGION_LABEL}>Chats</h2>
-      <NewChat />
+      <NewChat say={opening.say} />
     </div>
+    <Show when={opening.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="px-2.5 text-label" />}</Show>
     <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
       <button type="button" class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row()) ? "page" : undefined}
