@@ -1,3 +1,4 @@
+import { useRowElement } from "./row-elements.ts"
 /**
  * One dated node, on a day's page — and on the agenda, which asks the same
  * question forward (../agenda/AgendaPage.tsx). One component, because they are
@@ -118,6 +119,7 @@ export function DatedRow(props: {
 }) {
   const isFocused = useFocused()
   const node = () => props.dated.shows.node
+  const rowElement = useRowElement(() => node().id, () => node().id)
   const note = createNoteExpand(() => startsOpen(density()))
   const today = useToday()
   const narrowed = useNarrowed()
@@ -159,7 +161,7 @@ export function DatedRow(props: {
   return (
     <li
       class="mb-3"
-      data-testid={TESTID.node}
+      ref={rowElement} data-testid={TESTID.node}
       data-node-id={node().id}
       data-status={props.dated.status}
       data-file={props.dated.shows.file}

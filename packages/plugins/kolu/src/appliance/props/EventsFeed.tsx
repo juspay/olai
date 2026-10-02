@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 /**
  * THE EVENTS FEED — what recently wanted attention, as a log.
  *
@@ -55,7 +56,7 @@ export function EventRow(props: {
   readonly event: KoluEvent
   readonly now: () => number
 }): JSX.Element {
-  const line = () => eventLine(props.event, props.now())
+  const line = createMemo(() => eventLine(props.event, props.now()))
   const row = () => props.event.row
   // THE NARROWING over the FROZEN bag — one fold, the same as the live
   // door's: the vocabulary on the wire is not typed until kolu's row package
@@ -140,7 +141,7 @@ export function EventRow(props: {
 export function EventsFeed(): JSX.Element {
   const fleet = useFleet()
   // ATTENTION ONLY — the one knockout this drawer keeps (see the header).
-  const events = () => [...fleet.events().values()].reverse().filter((e) => e.kind !== "heartbeat")
+  const events = createMemo(() => [...fleet.events().values()].reverse().filter((e) => e.kind !== "heartbeat"))
   return (
     <Show
       when={events().length !== 0}

@@ -39,9 +39,9 @@ import {
 export const createLayoutState = () => {
   const [desktop, setDesktop] = createSignal(false)
   const [width, setWidth] = createSignal(10_000)
-  const [preferences, setPreferences] = createSignal<LayoutPreferences>()
+  const [prefs, setPreferences] = createSignal<LayoutPreferences>()
   const [drawer, setDrawer] = createSignal(false)
-  return { desktop, setDesktop, width, setWidth, preferences, setPreferences, drawer, setDrawer }
+  return { desktop, setDesktop, width, setWidth, prefs, setPreferences, drawer, setDrawer }
 }
 const held = heldService<ReturnType<typeof createLayoutState>>()
 export const holdLayoutState = held.hold
@@ -58,11 +58,11 @@ const viewportWidth = () => state()?.width() ?? 10_000
 // a width — and the accessors stay because a width is fitted to the viewport
 // on the way out, which is a fact about layout and not about storage.
 
-const active = () => state()?.preferences()
+const active = () => state()?.prefs()
 export const holdLayoutPreferences = (value: LayoutPreferences): (() => void) => {
   const owner = state()
   owner?.setPreferences(value)
-  return () => { if (owner?.preferences() === value) owner?.setPreferences(undefined) }
+  return () => { if (owner?.prefs() === value) owner?.setPreferences(undefined) }
 }
 export const publishViewportWidth = (value: number): void => { state()?.setWidth(value) }
 // ── sidebar open (desktop: full column vs icon rail) ──────────────────────

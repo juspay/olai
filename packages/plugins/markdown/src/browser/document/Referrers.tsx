@@ -102,7 +102,6 @@ function Section(props: {
 }) {
   const pane = usePaneId()()
   const key = JSON.stringify([pane, `referrers:${props.file}`])
-  const memory = props.memory
   const stillShown = () => {
     const shows = untrack(props.reading)?.shows
     const doc = shows === undefined ? undefined : only(shows, "document")
@@ -123,7 +122,7 @@ function Section(props: {
       testid={TESTID.documentReferrers}
       summaryTestid={TESTID.documentReferrersSummary}
       linkTestid={TESTID.documentReferrer}
-      memory={memory}
+      memory={props.memory}
     />
   )
 }

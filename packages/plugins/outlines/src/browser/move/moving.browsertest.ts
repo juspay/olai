@@ -51,7 +51,7 @@ test("a revision before the write reply preserves the move and places its nudge 
   expect(memory.sending[0]()).toBe(true)
   release()
   await tick()
-  expect(memory.standing[0]()).toEqual({ kind: "landed", record: "child", place: "/destination", under: "destination" })
+  expect(moving.standing()).toEqual({ kind: "landed", record: "child", place: "/destination", under: "destination" })
   expect(moving.showing("/destination")).toBe(true)
 }))
 

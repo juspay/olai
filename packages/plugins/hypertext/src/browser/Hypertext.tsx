@@ -1085,8 +1085,7 @@ export function Hypertext(props: { readonly file: string }) {
       <Show when={unreadable()}>
         <RefusedBody />
       </Show>
-      <Show when={!unreadable()}>
-      <iframe
+      <iframe hidden={unreadable()}
       // The element, and its first address, in one step: assigning `src` here
       // happens before insertion, so there is no `about:blank` load ahead of
       // the sealed one and the count starts honest.
@@ -1155,7 +1154,7 @@ export function Hypertext(props: { readonly file: string }) {
       class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded-control border border-rule bg-white"
       data-testid={TESTID.hypertextPreview}
       />
-      </Show>
+
     </>
   )
 }

@@ -101,12 +101,8 @@ export const components = {
       Effect.sync(() => createRoot((dispose) => {
         const roster = management.roster()
         createEffect(() => {
-          // EVERY FRAME REACHES THE RECONCILER, with no signature to dedupe it
-          // away: a claim that FAILED is not in `held`, and a frame the roster
-          // did not change is the only other one that could try it again —
-          // `reconcile` is idempotent, so a frame that changed nothing costs a
-          // scan of the map and nothing else. (Dedupe by names here would have
-          // made a failed claim permanent until a plugin was switched.)
+          // Retry reconciliation when promotion inputs change. The wire
+          // reconciles identical frames, so an unchanged frame is not a retry.
           Queue.offerUnsafe(found, promotingPlugins(roster() ?? NO_ROSTER))
         })
         return dispose

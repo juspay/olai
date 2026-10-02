@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 /**
  * THE TERMINAL DOOR — kolu's own Dock row, drawn where the property is, and
  * the live pane it opens.
@@ -85,7 +86,8 @@ import { TESTID } from "../../contracts/appliance-testids.ts"
 export function TerminalBlock(context: BlockContext) {
   const fleet = useFleet()
   const [open, setOpen] = createSignal(false)
-  const reading = () => readingOf(context.entry.value, fleet.link(), fleet.terminals())
+  const reading = createMemo(() => readingOf(context.entry.value, fleet.link(), fleet.terminals()))
+  const resolved = createMemo<FleetTerminal | undefined>(previous => reading().row ?? previous, undefined)
   return (
     <div class="mb-1" data-testid={TESTID.terminalBlock} data-terminal={context.entry.value}>
       {/* MUTED and small, deliberately: the value is a fact ABOUT the row, not
@@ -131,7 +133,7 @@ export function TerminalBlock(context: BlockContext) {
           />
         )}
       </Show>
-      <Show when={open() && reading().row}>
+      <Show when={open() && resolved()}>
         {(row) => (
           <LivePane
             value={row().id}
@@ -232,7 +234,7 @@ function Row(props: {
    * while the order bucket ranks it `idle`). Flattening them would assert one
    * derives from the other.
    */
-  const vocab = () => narrowRowVocab({ pip: props.row.pip, bucket: props.row.bucket })
+  const vocab = createMemo(() => narrowRowVocab({ pip: props.row.pip, bucket: props.row.bucket }))
   const pip = () => vocab().pip
   /**
    * THE RECENCY VALUE, and it is kolu's whole answer rather than olai's

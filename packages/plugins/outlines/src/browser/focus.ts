@@ -1,3 +1,5 @@
+import { heldService } from "@olai/ui-primitives/held.ts"
+import { rowElements } from "./row-elements.ts"
 import { usePane } from "olai-plugin-navigation/pane"
 /**
  * Which node the reader was just pointed AT, and how the page answers.
@@ -41,9 +43,8 @@ import { usePane } from "olai-plugin-navigation/pane"
  * this module's one statement, reached for directly ({@link bringOntoScreen}).
  */
 import { servedDirectory } from "./vault.ts"
-import { TESTID } from "olai-plugin-outlines/testids"
 import { Result } from "effect"
-import { type Accessor, createSignal, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
+import { type Accessor, createSignal, onCleanup, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
 
 import { atElement, type Route } from "olai-plugin-navigation/routes"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -51,7 +52,17 @@ import { useRouter, useShown } from "olai-plugin-navigation/routing"
 
 import { client } from "../client.ts"
 
-const [focused, setFocused] = createSignal<string | null>(null)
+export const createFocusState = () => {
+  const [focused, setFocused] = createSignal<string | null>(null)
+  const frames = new Set<number>()
+  const state = { focused, setFocused, frames, pointed: 0 }
+  onCleanup(() => { ++state.pointed; for (const frame of frames) cancelAnimationFrame(frame); frames.clear() })
+  return state
+}
+const focusState = heldService<ReturnType<typeof createFocusState>>()
+export const holdFocusState = focusState.hold
+const focused = () => focusState.read()?.focused() ?? null
+const setFocused = (id: string | null) => focusState.read()?.setFocused(id)
 
 /** The node being pointed at, or `null`. Read by every row of the tree
  *  (`./Tree.tsx`), which is why it is one signal and not a store. */
@@ -70,7 +81,6 @@ export const useFocused = (): ((id: string) => boolean) => useContext(FocusConte
  *  below aims at: the row that wears it is the row to bring on screen,
  *  wherever in the tree it turned out to be, and a mirror of the node wears it
  *  too. */
-const FOCUSED = "data-focused"
 
 /**
  * SELECT the row an address asked for — the same "this is the row" a
@@ -121,8 +131,7 @@ export const clearNode = (): void => {
  *  and never walked a collapsed node to its own address. Panes now wear
  *  `data-pane-focused`. The selector still names the row so that fact cannot
  *  sit in front of this one again. */
-const focusedRowIn = (root: ParentNode): Element | null =>
-  root.querySelector(`[data-testid="${TESTID.node}"][${FOCUSED}="true"]`)
+
 
 /** THE SCROLL this vocabulary owns — one statement, both callers: a press
  *  aims it at the focused row of the whole DOM (through the helper below);
@@ -142,9 +151,9 @@ export const bringOntoScreen = (row: Element): void => {
 /** What a press adds to THE SCROLL: WHICH row — the focused one, in the
  *  frame after the attribute landed — and whether there was one at all,
  *  since `false` is what a press's `elsewhere` walks out. */
-const bringFocusedOntoScreen = (root: ParentNode): boolean => {
-  const row = focusedRowIn(root)
-  if (row === null) return false
+const bringFocusedOntoScreen = (pane: string, id: string): boolean => {
+  const row = rowElements.read()?.find(pane, id, "shown")
+  if (row === undefined) return false
   bringOntoScreen(row)
   return true
 }
@@ -162,22 +171,22 @@ const bringFocusedOntoScreen = (root: ParentNode): boolean => {
  * wear it yet when this returns, and asking the DOM before then would find
  * nothing and navigate away from a node that is right there.
  */
-const focusFrames = new Set<number>()
-const focusNode = (id: string, root: () => ParentNode | undefined, elsewhere: () => void): void => {
+const focusNode = (id: string, pane: () => string | undefined, elsewhere: () => void): void => {
+  const own = focusState.read()
+  if (own === undefined) return
   setFocused(id)
   const frame = requestAnimationFrame(() => {
-    focusFrames.delete(frame)
-    const within = root()
-    if (!within || !bringFocusedOntoScreen(within)) elsewhere()
+    own.frames.delete(frame)
+    const within = pane()
+    if (!within || !bringFocusedOntoScreen(within, id)) elsewhere()
   })
-  focusFrames.add(frame)
+  own.frames.add(frame)
 }
 
 /** How many times the reader has pointed at a node. The press the page
  *  follows is the LATEST one, and the elsewhere half of `useShowNode` is a
  *  round trip: a reader who pressed a second reference while the first was
  *  still asking where its node lives must not be walked back to the first. */
-let pointed = 0
 
 /**
  * Where a reference goes when its node is NOT on the open page: the node's
@@ -204,8 +213,9 @@ let pointed = 0
  * belongs to the newer one.
  */
 const landOnRow = (go: (route: Route) => void, id: string, mine: number, before: string | null): void => {
+  const own = focusState.read()
   void runAsync(client().procedures.nodes.homes({ ids: [id], files: [] })).then((outcome) => {
-    if (mine !== pointed) return
+    if (own === undefined || focusState.read() !== own || mine !== own.pointed) return
     if (Result.isFailure(outcome)) {
       console.warn(
         "olai: could not ask where the pressed node lives, so the reference went nowhere —",
@@ -244,10 +254,19 @@ export const useShowNode = (): ((id: string) => void) => {
   const router = useRouter()
   const pane = usePane()
   return (id) => {
-    const mine = ++pointed
+    const own = focusState.read()
+    if (own === undefined) return
+    const mine = ++own.pointed
     const before = focused()
-    focusNode(id, () => pane?.element ?? router.panes()[router.focusIndex()]?.element(), () => landOnRow(router.go, id, mine, before))
+    focusNode(id, () => pane?.id ?? router.panes()[router.focusIndex()]?.id, () => landOnRow(router.go, id, mine, before))
   }
 }
 
-export const clearFocus = (): void => { ++pointed; for (const frame of focusFrames) cancelAnimationFrame(frame); focusFrames.clear(); setFocused(null) }
+export const clearFocus = (): void => {
+  const own = focusState.read()
+  if (own === undefined) return
+  ++own.pointed
+  for (const frame of own.frames) cancelAnimationFrame(frame)
+  own.frames.clear()
+  own.setFocused(null)
+}

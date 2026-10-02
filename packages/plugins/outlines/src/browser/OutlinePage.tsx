@@ -1,3 +1,4 @@
+import { rowElements } from "./row-elements.ts"
 import { usePane } from "olai-plugin-navigation/pane"
 import { usePaneId, useShown } from "olai-plugin-navigation/routing"
 /**
@@ -282,25 +283,9 @@ export function OutlinePage(props: {
     const frame = requestAnimationFrame(() => {
       // The landing belongs to THIS pane: the SAME outline can sit in two
       // columns, and the scroll is the pane whose address named the row.
-      const root = pane?.element
-      if (!shown() || root === undefined) return
-      // Aim at the landing's OWN row — the chain's last placement, found by
-      // the record id its row wears — not at the accent: the accent is one
-      // signal for the whole app and a landing is a fact per pane, so two at
-      // once (a shared view naming a row in each of this file's columns)
-      // would scroll one pane to the other's row and say its own arrival
-      // paid — the wrong-row spend `./landing.ts`'s header was once and
-      // forever written against. Rows wear `data-node-id` for exactly this
-      // (`./Tree.tsx`), even mirrors — the placement stays put.
-      //
-      // An id is a string somebody typed one day: `CSS.escape`, because a
-      // quote in it would be a selector that throws, and a throw inside the
-      // frame is a landing this pane will never spend. Markdown's heading
-      // landing uses the same escaping rule.
-      const row = root.querySelector(
-        `[data-testid="${IDS_OUTLINES.node}"][data-node-id="${CSS.escape(last.at.node.id)}"]`,
-      )
-      if (row === null) return
+      if (!shown()) return
+      const row = rowElements.read()?.find(pane?.id, last.at.node.id, "record")
+      if (row === undefined) return
       bringOntoScreen(row)
       landing.landed(at)
     })

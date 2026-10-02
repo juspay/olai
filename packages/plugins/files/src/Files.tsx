@@ -70,10 +70,11 @@ interface TreeView {
 export function Files(props: SidebarRegionProps & {readonly active: string | undefined}) {
   // The open file's parent chain, as a set for O(1) membership in each Dir.
   // Memoised on the active path alone: folding a folder must not rewalk it.
+  const active = createMemo(() => props.active)
   const openAncestry = createMemo(() => {
-    const file = props.active
+    const file = active()
     return file === undefined ? new Set<string>() : new Set(ancestorDirs(file))
-  })
+  }, undefined, { equals: (a, b) => a.size === b.size && [...a].every(key => b.has(key)) })
 
   // `createSelector` rather than `props.active === file` in each row: that
   // form subscribes every entry to the open page. This notifies exactly the
@@ -108,7 +109,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
     const claims = servedDirectory()?.claims()
     return claims === undefined ? [] : fileTree(claims, references(), "reference")
   })
-  const reference = createReferenceFold(() => props.active, file => references().includes(file))
+  const reference = createReferenceFold(active, file => references().includes(file))
 
   // THE VAULT'S OWN FILES — the `_olai/` outlines, every one the directory
   // holds except the archive (which the `isTrashed` rule above already
@@ -137,10 +138,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // PATHS, and a browser holds every one of those already: it is the same list
   // the tree above is built from, and one more pass over it is not a vault
   // walk.
-  const inbox = createMemo(() => {
-    const claims = servedDirectory()?.claims()
-    return claims === undefined ? undefined : inboxIn(claims, served())
-  })
+
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -165,7 +163,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
   // right now (no outline row configured) has none. No kinds, no `+` — a
   // button that opens an empty menu is a dead control.
   const kinds = () => props.slots.read(fileTypes)
-  const makings = () => kinds().flatMap(({ value }) => { const making = value.making(); return making === undefined ? [] : [making] })
+  const makings = createMemo(() => kinds().flatMap(({ value }) => { const making = value.making(); return making === undefined ? [] : [making] }))
 
   return <>
           <section class={REGION} data-testid={TESTID.sidebarFiles}>

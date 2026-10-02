@@ -320,14 +320,30 @@ export const createEditor = (
   zooming: Zooming,
   memory: EditorMemory = editorMemory(),
 ): Editor => {
-  const { draft, setDraft, ghosts, setGhosts, requestCaret, onCaret, resuming, setResuming, mintSlot, enqueue } = memory
+  const { draft: storedDraft, setDraft: setStoredDraft, ghosts, setGhosts, requestCaret, onCaret, resuming, setResuming, mintSlot, enqueue } = memory
+  const subject = createMemo(() => {
+    const held = storedDraft()
+    return held?.kind === "row" ? { row: held.row, place: held.place } : null
+  }, null, { equals: (a, b) => a?.row === b?.row && a?.place === b?.place })
+  const currentPlace = createMemo(() => {
+    const held = subject()
+    return held === null ? undefined : refound(flatten(page.rows(), page.collapsed()), held.row, held.place)
+  })
+  const draft = createMemo(() => {
+    const held = storedDraft()
+    const place = currentPlace()
+    return held?.kind === "row" && place !== undefined && place !== held.place ? { ...held, place } : held
+  })
+  const setDraft = (next: Draft | null | ((before: Draft | null) => Draft | null)): Draft | null => {
+    const value = typeof next === "function" ? next(untrack(draft)) : next
+    return batch(() => {
+      if (value === null) { memory.completion.slot = undefined; memory.completion.dismissed[1](null) }
+      return setStoredDraft(value)
+    })
+  }
   let retainedRange = memory.range
   memory.range = undefined
-  createEffect(() => {
-    if (draft() !== null) return
-    memory.completion.slot = undefined
-    memory.completion.dismissed[1](null)
-  })
+
   /** Leave an empty pending on screen without it holding the caret. Same
    *  slot is a no-op, so parking twice cannot duplicate a ghost. A titled
    *  draft, or nothing, is left alone — parking is not how a write happens. */
@@ -379,19 +395,16 @@ export const createEditor = (
   })
   /** The walk itself is `./draft.ts`'s (`walked`): the same rule a blank's
    *  seat is read by, and the same one a start line matches its anchor with. */
-  const displayAt = (at: Anchor): Anchor => walked(at, memory.placements(), present())
-  createEffect(() => {
-    const held = memory.placements()
-    const next = new Map([...held].filter(([id]) => !present().has(id)))
-    if (next.size !== held.size) memory.setPlacements(next)
-  })
+  const displayAt = (at: Anchor): Anchor => walked(at, placements(), present())
+  const placements = createMemo(() => new Map([...memory.placements()].filter(([id]) => !present().has(id))))
+
 
   /** The caret's own three facts, memoised so typing does not move them. */
   const where = createMemo<Where>(() => {
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
-      return { place: null, pending: seatOf(held, memory.placements(), present()), field: null }
+      return { place: null, pending: seatOf(held, placements(), present()), field: null }
     }
     // A LINE THAT LANDED KEEPS ITS SEAT — and it keeps it by a different rule
     // from the blank above, which is why the two call different walks: a
@@ -413,7 +426,7 @@ export const createEditor = (
     // frame, rather than vanishing for it.
     const blank = ghostOf(held)
     if (blank === null) return { place: held.place, pending: null, field: held.field }
-    const at = seatKept(held.row, memory.placements()) ?? { kind: "after", id: held.row }
+    const at = seatKept(held.row, placements()) ?? { kind: "after", id: held.row }
     // `field` is what a WALK of the tree is gated on (`drawn`, below), and it
     // is the one thing the two halves of this answer differ about: a line with
     // no row behind it is nothing to walk for, while a line whose row the
@@ -508,32 +521,6 @@ export const createEditor = (
   createEffect(settle)
 
   /**
-   * The row a draft is drawn at, found again when it has moved.
-   *
-   * A draft names a ROW, and where that row is drawn is a `Row.key` — the
-   * chain of ids from the root of the page — so `Tab` changes it: the row that
-   * was `…/install/measure` is `…/handles/measure` the moment the file says
-   * so. That is the honest consequence of having no optimistic UI. It is also
-   * how a row that did not exist when `Enter` was pressed gets located:
-   * `landed` leaves the place `null` and the frame carrying the new row fills
-   * it in.
-   *
-   * The RULE itself is `./order.ts`'s (`refound`), because a multi-selection
-   * needs the same one over a set of places — this is the effect that applies
-   * it to the one place a caret is in.
-   */
-  const follow = () => {
-    // The PRIMITIVES, so typing does not run this: what it needs is where the
-    // caret is and which record it is about, and neither moves per keystroke.
-    const at = where().place
-    const held = untrack(draft)
-    if (held === null || held.kind !== "row") return
-    const moved = refound(drawn(), held.row, at)
-    if (moved !== undefined && moved !== at) setDraft({ ...held, place: moved })
-  }
-  createEffect(follow)
-
-  /**
    * The write. Answers what the edit turned out to be about — the node, and
    * whatever the rollup had to say about it — or `null` when it was refused,
    * in which case the reason is on the draft that CAUSED it.
@@ -581,7 +568,7 @@ export const createEditor = (
     if (done === null) return false
     batch(() => {
     if (current.kind === "new") {
-      memory.setPlacements((held) => new Map(held).set(done.id, current.at))
+      memory.setPlacements((held) => new Map(placements()).set(done.id, current.at))
     }
     // Only when the editor is still on the same draft: a commit that landed
     // while the reader had already moved on must not drag them back.

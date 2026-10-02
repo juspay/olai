@@ -205,7 +205,7 @@ export function LivePane(props: {
         const fitted = new FitAddon()
         created.loadAddon(fitted)
         created.open(host)
-        fitted.fit()
+        if (shown() && host.clientWidth > 0 && host.clientHeight > 0) fitted.fit()
         term = created
         fit = fitted
         // A RESIZE IS A RE-ATTACH. The pane asks padi for the grid it can show, and
@@ -231,11 +231,11 @@ export function LivePane(props: {
         fit?.fit()
         const now = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
         if (was === undefined || now === undefined) return
-        if (!gridsEqual(was, now)) setGeneration((g) => g + 1)
+        if (generation() === 0 || !gridsEqual(was, now)) setGeneration((g) => g + 1)
         })
         observer.observe(host)
-        // The terminal exists now, so the first attach can ask at a real grid.
-        setGeneration((g) => g + 1)
+        // A hidden page has no grid to offer the shared terminal.
+        if (shown() && host.clientWidth > 0 && host.clientHeight > 0) setGeneration(g => g + 1)
         // ...and the way back out, handed to the mount rather than registered here:
         // what made the terminal is what says how to take it away. The same
         // `undo` the failure path above spends, because there is one way to put
@@ -264,6 +264,12 @@ export function LivePane(props: {
    * the generation moves and NOT when anything else it touches does, because
    * re-running is what tears a subscription down and opens another one.
    */
+  createEffect(() => {
+    generation()
+    const palette = theme()
+    if (term !== undefined) term.options.theme = palette
+  })
+
   createEffect(
     on(generation, (g) => {
       if (g === 0 || term === undefined) return
@@ -447,20 +453,11 @@ export function LivePane(props: {
       {/* THE SENTENCE, in the reading face, IN PLACE OF the terminal — a pane
           that said why it stopped underneath a frozen screen would be a pane
           claiming to be live while it is not. */}
-      <Show
-        when={says()}
-        fallback={
-          <div
-            ref={host}
-            class="olai-live-screen"
-            style={{
-              "background-color": theme().background ?? "transparent",
-            }}
-            data-testid={TESTID.terminalScreen}
-            data-state="attached"
-          />
-        }
-      >
+      <div ref={host} class="olai-live-screen" style={{
+        display: says() ? "none" : undefined,
+        "background-color": theme().background ?? "transparent",
+      }} data-testid={says() ? undefined : TESTID.terminalScreen} data-state="attached" />
+      <Show when={says()}>
         {(said) => (
           <p
             class="text-body text-muted"

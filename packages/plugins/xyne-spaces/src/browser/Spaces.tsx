@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 /**
  * THE SPACES READOUT — whether this olai can post to a bound channel.
  *
@@ -17,7 +18,7 @@ import { TONE } from "olai-plugin-layout/slots"
 
 export function Spaces(props: { readonly app: SpacesApp }) {
   const link = useLink()
-  const said = () => spacesSaid(link())
+  const said = createMemo(() => spacesSaid(link()))
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>

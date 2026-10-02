@@ -1,12 +1,6 @@
-import { usePaneId, useShown } from "olai-plugin-navigation/routing"
-/** Unsubmitted row forms belong to a tree pane, across plugin provider changes and
- * phone tab switches. Leaving that route or removing the row discards them. */
+/** Unsubmitted row forms are owned by the retained tree pane. */
 import { edgeMemory } from "../edges/memory.ts"
-import { printAddress } from "@olai/format"
 import { createContext, createSignal, onCleanup, useContext, type JSX } from "solid-js"
-import { useHere, useRouter } from "olai-plugin-navigation/routing"
-import type { Route } from "olai-plugin-navigation/routes"
-import { panesOf } from "olai-plugin-navigation/workspace"
 import { createSubmission } from "../edit/submission.ts"
 import type { Chosen } from "./pick.ts"
 
@@ -22,33 +16,11 @@ export const createRowForm = () => {
 }
 export type RowForm = ReturnType<typeof createRowForm>
 type Rows = Map<string, RowForm>
-let saved = new WeakMap<Route, Map<string, Rows>>()
 const Context = createContext<{ rows: Rows; disposed: boolean }>()
 
 export function RowForms(props: { readonly children: JSX.Element; readonly namespace?: string }) {
-  const router = useRouter()
-  const here = useHere()
-  const pane = usePaneId()()
-  const key = JSON.stringify([pane, props.namespace ?? "tree"])
-  const route = router.panes()[here()]?.route()
-  const panes = route === undefined ? undefined : saved.get(route)
-  const rows = panes?.get(key) ?? new Map<string, RowForm>()
-  panes?.delete(key)
-  const scope = { rows, disposed: false }
-  onCleanup(() => {
-    scope.disposed = true
-    const now = router.panes()[here()]?.route()
-    // Filtering changes the route while this tree stays mounted. A later
-    // rebuild must retain its drafts under the current route object.
-    if (route?.kind !== "at" || now?.kind !== "at"
-      || (now.address === null ? null : printAddress(now.address))
-        !== (route.address === null ? null : printAddress(route.address))) return
-    const open = new Map([...rows].filter(([, value]) => value.date() !== null || value.rule() !== null || value.edges.open[0]() !== null))
-    if (open.size === 0) return
-    const entries = saved.get(now) ?? new Map<string, Rows>()
-    entries.set(key, open)
-    saved.set(now, entries)
-  })
+  const scope = { rows: new Map<string, RowForm>(), disposed: false }
+  onCleanup(() => { scope.disposed = true; scope.rows.clear() })
   return <Context.Provider value={scope}>{props.children}</Context.Provider>
 }
 
@@ -70,5 +42,3 @@ export const useRowForms = (key: string): RowForm => {
   })
   return value
 }
-
-export const clearRowForms = (): void => { saved = new WeakMap() }

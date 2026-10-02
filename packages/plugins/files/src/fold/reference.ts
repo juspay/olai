@@ -20,8 +20,8 @@ export const createReferenceFold = (
   active: Accessor<string | undefined>,
   contains: (file: string) => boolean,
 ) => {
-  const [collapsed, setCollapsed] = createSignal(false)
-  createEffect(on(active, () => setCollapsed(false)))
+  const [collapsedAt, setCollapsedAt] = createSignal<string | undefined | null>(null)
+  const collapsed = () => collapsedAt() === active()
   const selected = () => {
     const file = active()
     return file !== undefined && contains(file)
@@ -31,7 +31,7 @@ export const createReferenceFold = (
     open,
     toggle: () => {
       const next = !open()
-      setCollapsed(!next)
+      setCollapsedAt(next ? null : active())
       preference.set(next)
     },
   }

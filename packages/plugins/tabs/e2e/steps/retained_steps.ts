@@ -27,3 +27,33 @@ Then("remembered pane {string} is {word}", async function (this: OlaiWorld, name
 Then("there are {int} live lanes", async function (this: OlaiWorld, count: number) {
   await this.waitUntil(async () => await this.page.locator(selector(TESTID.lane)).count() === count, `${count} live lanes`)
 })
+
+Then("pane {int} remains at its saved scroll position", async function (this: OlaiWorld, index: number) {
+  const top = await this.pane(index).evaluate(root => {
+    let host: HTMLElement | null = root as HTMLElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    if (host === null) throw new Error("no pane scroller")
+    return host.scrollTop
+  })
+  assert.equal(top, 0)
+})
+
+
+Then("pane {int} is at its bottom", async function (this: OlaiWorld, index: number) {
+  await this.waitUntil(() => this.pane(index).evaluate(root => {
+    let host = root.parentElement
+    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
+    return host !== null && host.scrollHeight > host.clientHeight && host.scrollHeight - host.scrollTop - host.clientHeight < 2
+  }), "the retained pane to resume following")
+})
+
+When("I drag pane header {int} to pane header {int}", async function (this: OlaiWorld, from: number, to: number) {
+  const headers = this.frontLane().locator(selector(TESTID.paneHeader))
+  const source = await headers.nth(from).boundingBox()
+  const target = await headers.nth(to).boundingBox()
+  assert.ok(source && target)
+  await this.page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
+  await this.page.mouse.down()
+  await this.page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 })
+  await this.page.mouse.up()
+})

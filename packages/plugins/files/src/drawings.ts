@@ -9,7 +9,7 @@ import { servedDirectory } from "./vault.ts"
 
 const drawings = heldService<Accessor<readonly FileKindDrawing[]>>()
 export const holdKindDrawings = (read: Locations["read"]): (() => void) => createRoot(dispose => {
-  const entries = createMemo(() => read(fileKinds).map(entry => entry.value))
+  const entries = createMemo(() => read(fileKinds).map(entry => entry.value), undefined, { equals: (a, b) => a.length === b.length && a.every((one, i) => one === b[i]) })
   const release = drawings.hold(entries)
   return () => { release(); dispose() }
 })

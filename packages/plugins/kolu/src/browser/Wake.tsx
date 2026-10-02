@@ -19,8 +19,9 @@ export function Wake(props: { context: WakeContext; directory: Directory }) {
   const picker = createInlinePicker<string>({ opening: () => "" })
   const offerable = createMemo(() => !picker.open() ? [] : folded(paths()).filter(one => claims().byKind.get(fileKind(claims(), one.path) ?? "")?.holds === "nodes" && !isPutAway(claims(), one.path) && !inOlaiDir(one.path)))
   const offered = createMemo(() => matchFiles(offerable(), picker.showing() ?? "", 12).map(one => one.path))
+  const fault = createMemo(() => file() === null ? null : !paths().includes(file()!) ? "gone" : claims().byKind.get(fileKind(claims(), file()!) ?? "")?.holds !== "nodes" ? "unwatchable" : null)
   return <FileWake plugin="kolu" subject={wake.subject} from="terminals from" file={file()}
-    fault={file() === null ? null : !paths().includes(file()!) ? "gone" : claims().byKind.get(fileKind(claims(), file()!) ?? "")?.holds !== "nodes" ? "unwatchable" : null}
+    fault={fault()}
     paths={offered()} picker={picker} triggerClass={QUIET_PILL}
     listClass={`absolute inset-x-3 top-full ${WITHIN.pop} mt-1 max-h-80 overflow-x-hidden overflow-y-auto rounded-surface border border-rule/60 bg-panel p-1 shadow-raised`}
     ids={{ picker: TESTID.chatWakePicker, fault: TESTID.chatWakeFault, clear: TESTID.chatWakeClear, list: TESTID.chatWakeList, query: TESTID.chatWakeQuery, file: TESTID.chatWakeFile }}

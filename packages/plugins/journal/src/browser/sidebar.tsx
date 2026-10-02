@@ -11,11 +11,11 @@ import { markOf, unchanged } from "./agenda/owed.ts"
 import { Calendar } from "./calendar/Calendar.tsx"
 import { calendarOpen, setCalendarOpen } from "./calendar/fold.ts"
 import { shortDay } from "./calendar/month.ts"
-import { createOwed } from "./dates.ts"
+import { owedToday } from "./owed.ts"
 import { agenda, agendaRoute, day, dayRoute, todayRoute } from "./routes.ts"
 
 const createAgendaMark = (today: () => string) => {
-  const owed = createOwed(today)
+  const owed = owedToday
   return createMemo(() => markOf(owed()), undefined, { equals: unchanged })
 }
 

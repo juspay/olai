@@ -23,7 +23,6 @@ import { fileTypes, fileState } from "olai-plugin-files/contract"
 import { holdFileControls } from "./browser/files.tsx"
 import { createUndo } from "@olai/edit-history/undoing.ts"
 import { createDocuments, holdDocuments } from "./browser/document/documents.tsx"
-import { clearDocumentDrafts } from "./browser/document/drafts.ts"
 import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { holdServed } from "./browser/vault.ts"
@@ -61,7 +60,7 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
     const release = [holdDocuments(documents), holdHistory(history)]
     return {
       value: { client, documents, history, editing: { openCreated } } satisfies MarkdownBrowser,
-      dispose: () => { dispose(); for (const stop of release) stop(); clearDocumentDrafts(); clearMinted() },
+      dispose: () => { dispose(); for (const stop of release) stop(); clearMinted() },
     }
   })), state => Effect.sync(state.dispose))
   // THE SECTION'S OPEN-STATE MEMORY, minted on THIS activation's scope and

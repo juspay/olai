@@ -8,6 +8,7 @@ import { documentEditing } from "olai-plugin-markdown/contract"
 import { holdDocumentActions } from "./browser/editing.ts"
 import { holdServed, servedDirectory } from "./browser/vault.ts"
 import { useToday } from "./browser/clock.ts"
+import { holdOwed, owedToday } from "./browser/owed.ts"
 import { createOwed } from "./browser/dates.ts"
 import { holdReady, journalReady } from "./browser/ready.ts"
 import { holdClocks } from "./browser/clock.ts"
@@ -40,7 +41,7 @@ function DayFace(props: {
       date={props.page.date}
       groups={drawn()?.groups ?? []}
       notes={drawn()?.notes ?? []}
-      noted={props.page.notes.length > 0}
+      noted={(only(props.page, "day")?.notes.length ?? 0) > 0}
       today={props.today}
     />
   )
@@ -74,6 +75,12 @@ export default definePlugin({
     yield* Effect.acquireRelease(Effect.sync(() => holdClocks(clock)), stop => Effect.sync(stop))
     const wired = yield* Wired
     yield* holdJournalWire(() => wired.client() as JournalClient)
+    const owed = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      const today = useToday()
+      return { value: createOwed(() => today() || undefined), dispose }
+    })), state => Effect.sync(state.dispose))
+    yield* Effect.acquireRelease(Effect.sync(() => holdOwed(owed.value)), stop => Effect.sync(stop))
+
 
     yield* slots.register("app.route", defineAppPage(dayKind, DayFace))
     yield* slots.register("app.route", defineAppPage(agendaKind, AgendaFace))
@@ -111,7 +118,7 @@ import { alertsChannel } from "olai-plugin-alerts/contract"
 import { navigation } from "olai-plugin-navigation/contract"
 import { deployment } from "olai-plugin-layout/contract"
 import { sections } from "olai-plugin-preferences/contract"
-import { Show, createEffect, createRoot, untrack } from "solid-js"
+import { Show, createEffect, createMemo, createRoot, untrack } from "solid-js"
 import { createRemindersState } from "./browser/reminders/said.ts"
 import { reminderServices, reminderState } from "./browser/reminders/held.ts"
 import { createReminders } from "./browser/reminders/circuit.ts"
@@ -127,15 +134,16 @@ export const components = {
     const state = yield* createRemindersState
     yield* Effect.acquireRelease(Effect.sync(() => reminderState.hold(state)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      const ready = createMemo(() => !!journalReady() && !!route.routes.face(agendaRoute))
       createEffect(() => {
         // Registration finishes before navigation publishes the route face.
         // Leave a cold press with alerts until go can name the agenda; an
         // unknown plugin route otherwise prints as the home address.
-        if (!journalReady() || !route.routes.face(agendaRoute)) return
+        if (!ready()) return
         untrack(() => {
           const services = reminderServices.read()!
           const today = useToday()
-          createReminders({ today, owed: createOwed(() => today() || undefined), state,
+          createReminders({ today, owed: owedToday, state,
             channel: services.channel, called: services.deployment.called, go: services.navigation.go })
         })
       })

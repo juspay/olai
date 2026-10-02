@@ -1669,7 +1669,7 @@ export class OlaiWorld extends World {
     if ((await fault.count()) > 0) {
       throw new Error(
         `the client threw while drawing ${path}, so the app is a fault card:\n` +
-          oneLine(await fault.innerText()),
+          oneLine(await fault.textContent() ?? ""),
       );
     }
     // The header can paint while a socket is still connecting or redialling.
@@ -1952,7 +1952,7 @@ export class OlaiWorld extends World {
    *  SCREEN: two panes showing one file draw every row of it twice, so
    *  "the bullet of `knobs`" has no answer until a step says which column it
    *  means. Spelled once here for the reason every other selector is. */
-  frontLane(): Locator { return this.page.locator(`${selector(PLUGIN_TESTID.lane)}[data-lane-front="true"]`); }
+  frontLane(): Locator { return this.page.locator(`${selector(PLUGIN_TESTID.lane)}[data-lane-front="true"], main[aria-label="Alternate layout fixture"]`); }
 
   pane(index: number): Locator {
     return this.frontLane().locator(`${PANE}${attr("data-pane", String(index))}`);

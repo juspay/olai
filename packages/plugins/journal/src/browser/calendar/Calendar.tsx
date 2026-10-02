@@ -1,3 +1,4 @@
+import { Index } from "solid-js"
 /**
  * The month, in the sidebar — the way into the journal, folded under the
  * `Today` row until a reader opens it (`../sidebar.tsx`, `./fold.ts`).
@@ -130,9 +131,9 @@ export function Calendar(props: {
             </div>
           )}
         </For>
-        <For each={monthGrid(month())}>
+        <Index each={monthGrid(month())}>
           {(date) => (
-            <Show when={date} fallback={<span aria-hidden="true" />}>
+            <Show when={date()} fallback={<span aria-hidden="true" />}>
               {(day) => (
                 <Day
                   date={day()}
@@ -144,7 +145,7 @@ export function Calendar(props: {
               )}
             </Show>
           )}
-        </For>
+        </Index>
       </div>
     </section>
   )

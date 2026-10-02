@@ -127,7 +127,7 @@ Then(
       `the pane says ${JSON.stringify(detail)}, which does not name the missing ${noun}`,
     );
     assert.strictEqual(
-      await this.page.locator(DOCUMENT_PAGE).count(),
+      await this.frontLane().locator(DOCUMENT_PAGE).count(),
       0,
       "a document page is on screen for a document the directory does not have",
     );
@@ -210,7 +210,7 @@ Then("the document shows no properties", async function (this: OlaiWorld) {
   // this section is on screen the run is either there or it is not — waiting
   // for absence to become true would be green on the frame before the
   // reading landed.
-  await this.page.locator(DOCUMENT_PAGE).waitFor({
+  await this.frontLane().locator(DOCUMENT_PAGE).waitFor({
     state: "visible",
     timeout: HYDRATION_TIMEOUT,
   });
@@ -381,7 +381,7 @@ Then(
   "what points at the document is {string}",
   async function (this: OlaiWorld, expected: string) {
     const wanted = expected.split(",").map((one) => one.trim());
-    const rows = this.page.locator(DOCUMENT_REFERRER);
+    const rows = this.frontLane().locator(DOCUMENT_REFERRER);
     await this.waitUntil(
       async () => (await rows.count()) === wanted.length,
       `${wanted.length} referrer(s)`,
@@ -414,7 +414,7 @@ Then(
 Then(
   "the what-points-at section is still open",
   async function (this: OlaiWorld) {
-    const section = this.page.locator(DOCUMENT_REFERRERS).first();
+    const section = this.frontLane().locator(DOCUMENT_REFERRERS).first();
     await section.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.ok(
       await detailsOpen(section),
@@ -429,7 +429,7 @@ Then(
   "the document's page draws no what-points-at section",
   async function (this: OlaiWorld) {
     await this.waitUntil(
-      async () => (await this.page.locator(DOCUMENT_REFERRERS).count()) === 0,
+      async () => (await this.frontLane().locator(DOCUMENT_REFERRERS).count()) === 0,
       "what points at the document to be absent",
     );
   },

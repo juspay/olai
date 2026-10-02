@@ -13,15 +13,14 @@ import { TESTID as PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 export function AlertRows(props: { readonly channel: Channel }) {
-  const { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } = props.channel
   return <>
     <Row label="Alerts" pref="alerts" hint={alertsHint(props.channel)} under={<AllowNotify channel={props.channel} />}>
-      <Switch label="Alerts" on={alertsOn()} testid={PRIMITIVES.prefsSwitch}
-        onPick={(value) => setAlertsOn(value === "on")} />
+      <Switch label="Alerts" on={props.channel.alertsOn()} testid={PRIMITIVES.prefsSwitch}
+        onPick={(value) => props.channel.setAlertsOn(value === "on")} />
     </Row>
     <Row label="Sound" pref="alert-sound">
-      <Switch label="Sound" on={alertSoundOn()} frozen={!alertsOn()} testid={PRIMITIVES.prefsSwitch}
-        onPick={(value) => setAlertSoundOn(value === "on")} />
+      <Switch label="Sound" on={props.channel.alertSoundOn()} frozen={!props.channel.alertsOn()} testid={PRIMITIVES.prefsSwitch}
+        onPick={(value) => props.channel.setAlertSoundOn(value === "on")} />
     </Row>
   </>
 }
@@ -36,14 +35,13 @@ export function AlertRows(props: { readonly channel: Channel }) {
  * it, and a button here would do nothing.
  */
 function AllowNotify(props: { readonly channel: Channel }) {
-  const { alertsOn, consent: notifyConsent, ask: askToNotify } = props.channel
   return (
-    <Show when={alertsOn() && notifyConsent() === "default"}>
+    <Show when={props.channel.alertsOn() && props.channel.consent() === "default"}>
       <button
         type="button"
         class={`${TARGET} mb-1 mt-1.5 rounded-full border border-rule px-3 text-label text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
         data-testid={TESTID.prefsAllowNotify}
-        onClick={() => void askToNotify(true)}
+        onClick={() => void props.channel.ask(true)}
       >
         Allow notifications
       </button>

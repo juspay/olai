@@ -178,7 +178,6 @@ const resolvePicture = (element: Element, claims: Claims | undefined, from: stri
  * relative would send the reader somewhere with nothing to say at all.
  */
 const resolveDocument = (element: Element, claims: Claims | undefined, from: string, members?: ReadonlySet<string>): void => {
-  if (claims === undefined) return
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
   // Keep the authored query and fragment after resolving the file once.
@@ -197,6 +196,7 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
       title: typeof authored === "string" ? `${authored} — ${warning}` : warning,
       className: [...(Array.isArray(classes) ? classes : []), "olai-dead-link"] }
   }
+  if (claims === undefined) return
   const document = resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
   if (document === null) return
   const address = addressOf(claims, document, null)

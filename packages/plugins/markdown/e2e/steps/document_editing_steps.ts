@@ -39,12 +39,12 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 // ── the editor ─────────────────────────────────────────────────────────
 
 When("I start editing the document", async function (this: OlaiWorld) {
-  const edit = this.page.locator(DOCUMENT_EDIT);
+  const edit = this.frontLane().locator(DOCUMENT_EDIT);
   // The hydration wait is its own: the control appears when the page has a
   // body to edit. `press` is the click and the frame after it.
   await edit.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.press(edit);
-  await this.page
+  await this.frontLane()
     .locator(DOCUMENT_EDITOR)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
@@ -52,7 +52,7 @@ When("I start editing the document", async function (this: OlaiWorld) {
 Then(
   "the document editor holds text containing {string}",
   async function (this: OlaiWorld, text: string) {
-    const editor = this.page.locator(DOCUMENT_EDITOR);
+    const editor = this.frontLane().locator(DOCUMENT_EDITOR);
     await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const held = await editor.inputValue();
     assert.ok(
@@ -66,7 +66,7 @@ Then(
 Then(
   "the document editor holds no text containing {string}",
   async function (this: OlaiWorld, text: string) {
-    const editor = this.page.locator(DOCUMENT_EDITOR);
+    const editor = this.frontLane().locator(DOCUMENT_EDITOR);
     await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const held = await editor.inputValue();
     assert.ok(
@@ -79,31 +79,31 @@ Then(
 );
 
 When("I retype the document as:", async function (this: OlaiWorld, source: string) {
-  const editor = this.page.locator(DOCUMENT_EDITOR);
+  const editor = this.frontLane().locator(DOCUMENT_EDITOR);
   await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await editor.fill(source);
 });
 
 When("I save the document", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(DOCUMENT_SAVE));
+  await this.press(this.frontLane().locator(DOCUMENT_SAVE));
 });
 
 When("I cancel the document editor", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(DOCUMENT_CANCEL));
+  await this.press(this.frontLane().locator(DOCUMENT_CANCEL));
 });
 
 When("I overwrite the document anyway", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(DOCUMENT_OVERWRITE));
+  await this.press(this.frontLane().locator(DOCUMENT_OVERWRITE));
 });
 
 Then("the document editor is open", async function (this: OlaiWorld) {
-  await this.page
+  await this.frontLane()
     .locator(DOCUMENT_EDITOR)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then("the document editor is gone", async function (this: OlaiWorld) {
-  await this.page
+  await this.frontLane()
     .locator(DOCUMENT_EDITOR)
     .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
@@ -111,7 +111,7 @@ Then("the document editor is gone", async function (this: OlaiWorld) {
 // ── the conflict story ─────────────────────────────────────────────────
 
 Then("the editor notices the file changed on disk", async function (this: OlaiWorld) {
-  await this.page
+  await this.frontLane()
     .locator(DOCUMENT_DRIFTED)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
@@ -119,7 +119,7 @@ Then("the editor notices the file changed on disk", async function (this: OlaiWo
 Then(
   "the save is refused saying {string}",
   async function (this: OlaiWorld, said: string) {
-    const refusal = this.page.locator(DOCUMENT_SAID);
+    const refusal = this.frontLane().locator(DOCUMENT_SAID);
     await refusal.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(await refusal.getAttribute("data-tone"), "alarm");
     const text = oneLine(await refusal.innerText());
@@ -253,14 +253,14 @@ Then(
 );
 
 When("I mark the document editor element", async function (this: OlaiWorld) {
-  await this.page.locator(DOCUMENT_EDITOR).evaluate((element) => {
+  await this.frontLane().locator(DOCUMENT_EDITOR).evaluate((element) => {
     element.setAttribute("data-e2e-retained-editor", "original");
   });
 });
 
 Then("the original document editor element is still mounted", async function (this: OlaiWorld) {
   assert.strictEqual(
-    await this.page.locator(DOCUMENT_EDITOR).getAttribute("data-e2e-retained-editor"),
+    await this.frontLane().locator(DOCUMENT_EDITOR).getAttribute("data-e2e-retained-editor"),
     "original",
     "a roster change replaced the editor DOM element",
   );

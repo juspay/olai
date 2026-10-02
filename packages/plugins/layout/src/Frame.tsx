@@ -73,7 +73,6 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
   const split = router.split
   const ready = createMemo(() => props.slots.read(contentStatus).every(({ value }) => value.ready()))
   const started = createMemo((was: boolean) => was || ready(), false)
-  const closet = <Show when={!desktop()}><Tools slots={props.slots} where="closet" /></Show>
 
   return (
       <RouterProvider router={router}>
@@ -155,7 +154,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                           // preferences, which is the order the desktop bar
                           // reads left to right — a reader who learnt one
                           // arrangement does not have to learn a second.
-                          desktop() ? undefined : closet
+                          desktop() ? undefined : <Tools slots={props.slots} where="closet" />
                         }
                       />
                     </div>

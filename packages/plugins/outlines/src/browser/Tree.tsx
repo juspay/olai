@@ -1,3 +1,4 @@
+import { useRowElement } from "./row-elements.ts"
 import { useLicences } from "./reading.tsx"
 import { dressed } from "./faces.ts"
 /**
@@ -451,6 +452,7 @@ function Branch(props: {
    *  drawn. A memo because four bindings read it, and `props.row` is a fresh
    *  object on every frame the store publishes. */
   const shownId = createMemo(() => shownRecord(props.row).node.id)
+  const rowElement = useRowElement(() => props.row.at.node.id, shownId)
 
   /** Is this row PICKED, and is it in the air? Two facts about the same row and
    *  neither is the caret's: a pick is a set of places
@@ -528,6 +530,7 @@ function Branch(props: {
       // (./drag/sweeping.ts). Everything WITH words in it is a descendant and
       // wears no such mark, which is what keeps the rule an allowlist.
       data-sweep=""
+      ref={rowElement}
       data-testid={TESTID.node}
       data-node-id={props.row.at.node.id}
       data-status={props.row.status}

@@ -18,13 +18,14 @@ import { createSignal, Show } from "solid-js"
 import { useDocumentActions } from "../editing.ts"
 import { Result } from "effect"
 import { Refused } from "@olai/web/client/Refused.tsx"
-import { useRouter } from "olai-plugin-navigation/routing"
+import { useRouter, useHere } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { journalWire } from "../wire.ts"
 
 export function DayMint(props: { readonly date: string }) {
   const router = useRouter()
+  const here = useHere()
   const [said, setSaid] = createSignal<string | null>(null)
   const [sending, setSending] = createSignal(false)
 
@@ -35,10 +36,10 @@ export function DayMint(props: { readonly date: string }) {
     setSending(true)
     setSaid(null)
     try {
-      const started = router.workspace()
+      const started = router.panes()[here()]?.route()
       const answer = await runAsync(journalWire().procedures.note.mint({ date }))
       if (Result.isFailure(answer)) { if (props.date === date) setSaid(answer.failure.message) }
-      else if (router.workspace() === started && useDocumentActions() === actions) actions.openCreated(answer.success.file, router)
+      else if (router.panes()[here()]?.route() === started && useDocumentActions() === actions) actions.openCreated(answer.success.file, router)
 
     } finally {
       setSending(false)

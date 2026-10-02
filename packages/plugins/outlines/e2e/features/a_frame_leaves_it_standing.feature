@@ -141,3 +141,24 @@ Feature: A frame leaves the rest of the page standing
     And the "pinned shelf" kept every element it had
     And the page has not reloaded
     And there should be no page errors
+
+  Scenario: PageView pruning preserves an unrelated live property face
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"handles","ord":"a0","title":"cabinet handles"}
+      {"id":"hinges","ord":"a1","title":"cabinet hinges","custom":{"pr":"https://example.invalid/1","stage":"review"}}
+      {"id":"finished","ord":"a2","title":"cabinet finished","done":true}
+      """
+    And I open the outline "house.olai"
+    When I filter the page by "cabinet"
+    Then the node "hinges" shows the property "pr" holding "https://example.invalid/1"
+    When I mark every element of the "property drawer"
+    And I rewrite "house.olai" as:
+      """
+      {"id":"handles","ord":"a0","title":"cabinet handles today"}
+      {"id":"hinges","ord":"a1","title":"cabinet hinges","custom":{"pr":"https://example.invalid/1","stage":"review"}}
+      {"id":"finished","ord":"a2","title":"cabinet finished","done":true}
+      """
+    Then the node "handles" has the title "cabinet handles today"
+    And the "property drawer" kept every element it had
+    And there should be no page errors

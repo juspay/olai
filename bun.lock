@@ -1045,6 +1045,7 @@
       "name": "olai-plugin-vault",
       "version": "0.1.0",
       "dependencies": {
+        "@solid-primitives/keyed": "^1.5.3",
         "@effect/platform-node": "4.0.0",
         "@olai/edit-intents": "workspace:*",
         "@olai/format": "workspace:*",

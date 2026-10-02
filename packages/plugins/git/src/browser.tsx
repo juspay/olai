@@ -1,3 +1,4 @@
+import { prepareForRepository } from "./browser/commit/preparation.ts"
 /**
  * GIT'S BROWSER HALF — the pill, the phone banner, and the commit panel.
  *
@@ -26,6 +27,7 @@ export default definePlugin({
   needs: [Slots, Wired, fileAccess],
   apply: Effect.gen(function*() {
     const files = yield* fileAccess
+    prepareForRepository(files)
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(files)), stop => Effect.sync(stop))
     const slots = yield* Slots
     const wired = yield* Wired

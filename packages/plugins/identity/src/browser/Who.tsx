@@ -43,11 +43,10 @@ import { type Viewer, saying, UserIcon } from "./viewer/index.ts"
 export type Face = "asking" | "none" | "yes" | "error"
 
 export function Who(props: { readonly viewer: Viewer }) {
-  const asking = props.viewer
-  const person = () => asking.who()
+  const person = () => props.viewer.who()
   const face = (): Face => {
-    if (!asking.heard()) return "asking"
-    if (asking.failed()) return "error"
+    if (!props.viewer.heard()) return "asking"
+    if (props.viewer.failed()) return "error"
     return person() == null ? "none" : "yes"
   }
   return (

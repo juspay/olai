@@ -38,7 +38,6 @@ import type { Row } from "@olai/format"
 import {
   type Accessor,
   createContext,
-  createEffect,
   createMemo,
   useContext,
   createSelector, batch,
@@ -113,14 +112,14 @@ export const createSelection = (
   },
   memory = selectionMemory(),
 ): Selection => {
-  const [keys, setKeys] = memory.keys
+  const [picked, setKeys] = memory.keys
   const [said, setSaid] = memory.said
   /** The two ends of the range gestures: where the selection was started, and
    *  which end an arrow or a shift-click moves. Held apart from `keys` because
    *  a modifier-click can leave a set no span describes, and the next
    *  shift-click still has to know where to measure from. */
-  const [anchor, setAnchor] = memory.anchor
-  const [focus, setFocus] = memory.focus
+  const [pickedAnchor, setAnchor] = memory.anchor
+  const [pickedFocus, setFocus] = memory.focus
   const undo = useUndo()
   /** One bulk run at a time, and one edit at a time inside it — the editor's
    *  own queue, for the editor's own reason: each edit is judged against what
@@ -146,34 +145,21 @@ export const createSelection = (
    * still holding the old chain would go dark on the frame that proved it
    * worked.
    */
-  createEffect(() => {
-    // THE PICK IS READ FIRST, and that ordering is the whole cost of this
-    // effect on a page nobody has picked anything on: `drawn` FLATTENS the
-    // visible tree, and it ran before the guard — so every frame of every page
-    // in the app walked the whole tree to discover there was nothing to
-    // re-find. Tracking is unchanged either way (a pick landing is what re-runs
-    // this and subscribes it to the rows); what changes is that the walk
-    // happens when there is something to walk for.
-    const held = keys()
-    if (held.size === 0) return
+  const keys = createMemo<ReadonlySet<string>>(() => {
+    const held = picked()
+    if (held.size === 0) return held
     const rows = drawn()
-    // THE ORDINARY FRAME IS THE FAST ONE, and it has to be: this runs on every
-    // revision the store publishes, and `refound` scans the drawn rows — asking
-    // it per picked row per frame would be the pick times the tree for an answer
-    // that is almost always "nothing moved". One Set, one pass.
-    const places = new Set(rows.map((row) => row.key))
-    if ([...held].every((key) => places.has(key))) return
-
-    const again = (key: string): string | undefined => refound(rows, recordOf(key), key)
-    setKeys(new Set([...held].flatMap((key) => {
-      const found = again(key)
+    const places = new Set(rows.map(row => row.key))
+    if ([...held].every(key => places.has(key))) return held
+    return new Set([...held].flatMap(key => {
+      const found = refound(rows, recordOf(key), key)
       return found === undefined ? [] : [found]
-    })))
-    const at = anchor()
-    if (at !== null) setAnchor(again(at) ?? null)
-    const end = focus()
-    if (end !== null) setFocus(again(end) ?? null)
-  })
+    }))
+  }, new Set<string>(), { equals: (a, b) => a.size === b.size && [...a].every(key => b.has(key)) })
+  const currentEnd = (held: string | null): string | null => held === null ? null : refound(drawn(), recordOf(held), held) ?? null
+  const anchor = createMemo(() => currentEnd(pickedAnchor()))
+  const focus = createMemo(() => currentEnd(pickedFocus()))
+
 
   /** A MEMO, because three readers ask for it and one of them is a window key
    *  listener: the bar draws it, the verbs are asked of it, and every keystroke

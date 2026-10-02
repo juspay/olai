@@ -2000,7 +2000,6 @@ describe("a module another package can open holds no live value", () => {
     // is on screen" is a fact about the DOCUMENT, its lifetime is the
     // document's, and a row that owned it would be a row whose withdrawal
     // decided what a pointer resting somewhere else is showing.
-    "web/src/client/tip.ts": "which tip the document has open, with no owner but the page",
 
     // THE E2E RUN ITSELF, and it is a door because the suite stopped being one
     // package: a row keeps the steps that drive its own surface under its own

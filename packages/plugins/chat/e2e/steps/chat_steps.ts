@@ -887,7 +887,7 @@ Then(
 When("I close the agent fold", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
   await this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(this.activeAgent))}`).click();
-  await this.chat(CHAT_PANEL).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  await this.chat(CHAT_PANEL).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 When("I open the agent fold again", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
@@ -4117,4 +4117,15 @@ Then("the selected chat completion is {string}", async function (this: OlaiWorld
 });
 When("the chat box reports its unchanged caret", async function(this: OlaiWorld) {
   await this.chat(CHAT_INPUT).evaluate(field => field.dispatchEvent(new Event("select", { bubbles: true })))
+})
+
+
+When("I mark the terminal output element", async function (this: OlaiWorld) {
+  await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).first().locator("pre").evaluate(element => {
+    (element as HTMLElement & { retainedOutput?: boolean }).retainedOutput = true
+  })
+})
+Then("the terminal output keeps its element", async function (this: OlaiWorld) {
+  assert.equal(await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).first().locator("pre").evaluate(element =>
+    (element as HTMLElement & { retainedOutput?: boolean }).retainedOutput === true), true)
 })

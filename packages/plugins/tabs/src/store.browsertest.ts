@@ -24,6 +24,7 @@ const fakeRouter = (first: string) => {
   const router = {
     routes,
     workspace,
+    lanes: () => [{ workspace, info: () => undefined, lane: () => lane, routes }],
     info: () => undefined,
     entryKey: () => key,
     lane: () => lane,

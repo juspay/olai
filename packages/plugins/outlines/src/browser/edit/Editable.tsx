@@ -127,6 +127,8 @@ function EditablePage(props: EditableProps) {
   const identity = createMemo(() => JSON.stringify([props.file, props.within]))
   createEffect(on(identity, () => batch(() => {
     memory.setDraft(null)
+      memory.completion.slot = undefined
+      memory.completion.dismissed[1](null)
     memory.setGhosts([])
     memory.setPlacements(new Map())
     memory.setResuming(null)

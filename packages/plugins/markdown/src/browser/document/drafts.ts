@@ -1,8 +1,7 @@
-/** Editor state kept across a rebuild of the same pane and route.
- * It is consumed on remount, never stored on disk, and includes the original
- * baseline so a rebuild cannot turn a conflicting save into an overwrite. */
-import { createSignal } from "solid-js"
-import type { Route } from "olai-plugin-navigation/routes"
+/** Editors belong to the documents activation, keyed by the pane and file.
+ * Page presentation may withdraw independently; the baseline stays with the
+ * document owner until that owner stops. No Route object is used as storage. */
+import { createSignal, onCleanup } from "solid-js"
 
 const draftOf = (base: string) => {
   const [text, setText] = createSignal(base)
@@ -29,21 +28,14 @@ const editorOf = () => {
   }
 }
 export type DocumentEditor = ReturnType<typeof editorOf>
-let saved = new WeakMap<Route, Map<string, DocumentEditor>>()
-const key = (file: string, pane: string) => JSON.stringify([pane, file])
-
-export const takeDraft = (file: string, pane: string, route: Route | undefined): DocumentEditor => {
-  const at = key(file, pane)
-  const entries = route === undefined ? undefined : saved.get(route)
-  const editor = entries?.get(at) ?? editorOf()
-  entries?.delete(at)
-  return editor
+export const createDocumentEditors = () => {
+  const panes = new Map<string, Map<string, DocumentEditor>>()
+  onCleanup(() => panes.clear())
+  return (pane: string, file: string): DocumentEditor => {
+    let entries = panes.get(pane)
+    if (entries === undefined) panes.set(pane, entries = new Map())
+    let editor = entries.get(file)
+    if (editor === undefined) entries.set(file, editor = editorOf())
+    return editor
+  }
 }
-export const keepDraft = (file: string, pane: string, route: Route, editor: DocumentEditor): void => {
-  if (!editor.editing()) return
-  const entries = saved.get(route) ?? new Map<string, DocumentEditor>()
-  entries.set(key(file, pane), editor)
-  saved.set(route, entries)
-}
-
-export const clearDocumentDrafts = (): void => { saved = new WeakMap() }

@@ -1,3 +1,4 @@
+import { sameList } from "@olai/web/client/same.ts"
 /**
  * THE BAR'S ONE HEALTH DOT, and the popover it opens.
  *
@@ -43,7 +44,7 @@
 import { TESTID } from "olai-plugin-layout/testids"
 import type { Hung } from "@olai/plugin-api"
 import { createMemo, createSignal, For, Show } from "solid-js"
-import { Dynamic, Portal } from "solid-js/web"
+import { Portal } from "solid-js/web"
 
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
@@ -77,7 +78,7 @@ const CONNECTION = "connection"
 type Row = typeof CONNECTION | Hung<BarSeat>
 
 export function Health(props: { readonly slots: RendererSlots }) {
-  const seats = createMemo(() => hung("app.header").filter((one) => one.face.place === "cluster"))
+  const seats = createMemo(() => hung("app.header").filter((one) => one.face.place === "cluster"), undefined, { equals: sameList })
   /** Every status standing now: the connection first, then each cluster
    *  seat's in mount order. A seat with no `status` has no vote. */
   const statuses = createMemo((): ReadonlyArray<BarStatus> => [
@@ -138,7 +139,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
               <For each={rows()}>
                 {(row) => row === CONNECTION
                   ? <Indicator readout={connectionReadout()} />
-                  : <Dynamic component={row.face.body} />}
+                  : <row.face.body />}
               </For>
               <Uptime />
               <div ref={setFoot} class="mt-1 border-t border-rule/60 pt-1" />

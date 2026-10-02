@@ -14,14 +14,18 @@ export const createNodeConversation = (node: Accessor<string>) => {
   const shown = useShown()
   const pair = createMemo(() => {
     const agent = reading?.agents.at(node())
-    return agent?.session == null ? null
-      : reading?.visiting(node()) ?? { agent: agent.engine, session: agent.session }
+    if (agent?.session == null) return null
+    const visited = reading?.visiting(node())
+    return { agent: visited?.agent ?? agent.engine, session: visited?.session ?? agent.session }
   }, null, { equals: (a, b) => a?.agent === b?.agent && a?.session === b?.session })
   const hasPanel = createMemo(() => {
     const agent = reading?.agents.at(node())
     return agent !== undefined && (agent.session !== null || agent.unopened === true)
   })
-  const address = createMemo<PanelAddress>(() => reading?.visiting(node()) ?? { node: node() }, { node: node() },
+  const address = createMemo<PanelAddress>(() => {
+    const visited = reading?.visiting(node())
+    return visited === undefined ? { node: node() } : { agent: visited.agent, session: visited.session }
+  }, { node: node() },
     { equals: (a, b) => "node" in a ? "node" in b && a.node === b.node : "session" in b && a.agent === b.agent && a.session === b.session })
   const [chat, setChat] = createSignal<ReturnType<typeof createChat> | null>(null)
   createEffect(() => {

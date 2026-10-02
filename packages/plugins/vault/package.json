@@ -27,6 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@solid-primitives/keyed": "^1.5.3",
     "@effect/platform-node": "4.0.0",
     "@olai/format": "workspace:*",
     "@olai/log": "workspace:*",
