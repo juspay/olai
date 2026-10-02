@@ -394,8 +394,15 @@ function Branch(props: {
     const draft = editor.draft()
     return draft?.kind === "row" ? draft : undefined
   }
+  // This gate participates in the same memo as the parked list. A selector
+  // updates its subscribers after derived values, briefly dropping a resumed
+  // slot from both lists. A memo sees the final seat within that same update.
+  const pendingKind = createMemo(() => {
+    const at = editor.where().pending
+    return at?.id === props.row.at.node.id ? at.kind : undefined
+  })
   const live = (kind: "after" | "before" | "under") => {
-    if (!editor.isPending(`${kind}:${props.row.at.node.id}`)) return undefined
+    if (pendingKind() !== kind) return undefined
     // The line itself, which may be a pending OR the row it became a moment
     // ago — the same seat, the same editor, and the same words
     // (`./edit/draft.ts`'s `ghostOf`). Only the row that matched reads it.

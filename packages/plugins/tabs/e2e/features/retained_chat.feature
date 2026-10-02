@@ -81,21 +81,22 @@ Feature: A split chat tab keeps its conversation
     Given I open the outline "house.olai"
     And I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    When I type "look at @pick the knobs" into the chat
-    Then the completion offers "knobs"
+    When I type "look at @pick the hinges" into the chat
+    Then the completion offers "hinges"
     When I choose "Open in new tab" from the menu of the outline link "house.olai"
     And I press tab 1
     And I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    And I type "also @pick the knobs" into the chat
-    Then the completion offers "knobs"
+    And I type "also @pick the hinges" into the chat
+    Then the completion offers "hinges"
     When I press tab 0
     And I use the fold on node "kitchen"
-    And I press "ArrowDown" in the chat
-    Then the selected chat completion is "knobs"
+    Then the completion offers "hinges"
+    When I press "ArrowDown" in the chat
+    Then the selected chat completion is "hinges"
     When I press "Enter" in the chat
-    Then the chat input reads "look at @knobs "
+    Then the chat input reads "look at @hinges "
     When I press tab 1
     And I use the fold on node "install"
-    Then the chat input reads "also @pick the knobs"
+    Then the chat input reads "also @pick the hinges"
     And there should be no page errors

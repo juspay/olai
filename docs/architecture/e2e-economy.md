@@ -81,7 +81,7 @@ close, lazy reload, split/close/reorder, rails and breakpoint changes. It also
 covers hidden selection, filters, window scroll and a nonzero split-column
 scroll position. `tabs/retained_chat.feature`
 adds split conversation identity, unsent words, open tool details, hidden
-streaming with both scroll intentions, hidden-tab attention, and independent completion keys with a hidden menu.
+streaming with both scroll intentions, hidden-tab attention, and independent completion keys with a hidden menu. Completion keyboard priority follows the focused composer when several retained folds offer menus.
 
 Existing history, missing-file recovery, independent phone-pane drafts, terminal
 target changes and plugin withdrawal scenarios remain behavioural constraints.

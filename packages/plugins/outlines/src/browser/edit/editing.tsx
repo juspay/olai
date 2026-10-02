@@ -153,7 +153,6 @@ export interface Editor {
    *  before, and which field. Primitives, so they answer the same value while
    *  a person types and a row's match stops propagating. */
   readonly isEditing: (key: string) => boolean
-  readonly isPending: (key: string) => boolean
   readonly where: Accessor<Where>
   /** Subscribe the live field to an explicit request to recover focus. */
   readonly onCaret: (take: () => void) => () => void
@@ -1376,7 +1375,6 @@ export const createEditor = (
     resuming,
     displayAt,
     isEditing: createSelector(() => where().place),
-    isPending: createSelector(() => { const at = where().pending; return at ? `${at.kind}:${at.id}` : undefined }),
     where,
     onCaret,
     open: (at, field, here) => {

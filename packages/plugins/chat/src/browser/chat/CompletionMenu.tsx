@@ -24,7 +24,7 @@ import { useShown } from "olai-plugin-navigation/routing"
 import { servedDirectory } from "../vault.ts"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
-import { createMemo, Index, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, createSignal, Index, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "@olai/web/client/keys.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
@@ -176,7 +176,23 @@ export function CompletionMenu(props: {
    * that stays true; what this adds is that "first" means first among the
    * layers on screen, not first regardless of them.
    */
-  const topmost = topmostWhileOpen(shown)
+  // Several retained folds can offer completions at once. Only the menu
+  // whose composer owns focus participates in keyboard priority.
+  const [focused, setFocused] = createSignal(false)
+  onMount(() => {
+    const input = props.within()
+    if (!input) return
+    const focus = () => setFocused(true)
+    const blur = () => setFocused(false)
+    setFocused(document.activeElement === input)
+    input.addEventListener("focus", focus)
+    input.addEventListener("blur", blur)
+    onCleanup(() => {
+      input.removeEventListener("focus", focus)
+      input.removeEventListener("blur", blur)
+    })
+  })
+  const topmost = topmostWhileOpen(() => shown() && focused())
 
   /**
    * Bound on the document, in the CAPTURE phase, because the input owns Enter

@@ -164,7 +164,7 @@ Post-merge:
 Phase 18 covers two things: shell entry points that fail to load, and handing a draft over while a plugin activates.
 
 - `shell_rows.feature` makes a real static import of both the renderer and sidebar entry points fail, checks that retrying the entry cannot clear the failure Chromium has cached, and recovers only through an explicit page reload. The sidebar case checks the content element is the same one before that reload.
-- `draft_handoff.feature` checks that the parked input keeps its actual DOM element during activation, and its text across a save reply that is held back. Browser event traces revealed a gap where no input existed before the new anchor's frame was drawn, and a blur caused by removal that was misread as the user clicking away; both are fixed. Six isolated scenarios also cover a real click-away and filling in a blank row after a plugin rebuild.
+- `draft_handoff.feature` checks that the parked input keeps its actual DOM element during activation (including the atomic transfer from the parked list to the active slot), and its text across a save reply that is held back. Browser event traces revealed a gap where no input existed before the new anchor's frame was drawn, and a blur caused by removal that was misread as the user clicking away; both are fixed. Six isolated scenarios also cover a real click-away and filling in a blank row after a plugin rebuild.
 - The held-reply assignment case in `node_agents.feature` checks that Done cannot return to the composer before the session handoff has finished.
 - These cases pin specific behavior. They do not finish the Phase 18 checklist, and they do not explain every earlier intermittent failure.
 
