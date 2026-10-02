@@ -496,5 +496,5 @@ while its conversation is hidden and checked again on return.
 
 Review 1 follow-up scope: the owner deferred remaining E3/E5 coverage expansion.
 Completed scenarios remain; the unfinished PageView counting fixture was removed.
-This PR does not claim
-a regression test for every audited notification or ownership boundary.
+This PR does not claim a regression test for every audited notification or
+ownership boundary.

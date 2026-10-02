@@ -178,7 +178,7 @@ export const createSelection = (
    *  on the page asks whether anything is picked at all. Recomputed only when
    *  the pick or the rows move.
    *
-   *  EMPTY IS ANSWERED BEFORE THE WALK, for the effect above's reason and one
+   *  EMPTY IS ANSWERED BEFORE THE WALK, for the relocation memo's reason and one
    *  more of its own: `topmost` over no keys is empty whatever the page holds,
    *  so flattening the tree to arrive there was a walk per frame on every page
    *  in the app — and it handed back a FRESH empty array each time, which woke
