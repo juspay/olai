@@ -75,6 +75,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 | `outline.page.head` | outlines, under title above property drawer | agent line |
 | `outline.page.foot` | outlines, after the zoomed subtree | unbounded conversation and composer, or a plain-node composer |
 | `outline.row.action` | outlines' row menu | Start an agent on a plain row; Fresh start and Close the agent on a row with an agent. Start and Fresh start are one entry each — the verb with one available agent, a submenu of available agents with several, absent with none; Close the agent is always offered |
+| `app.route` | navigation's route grammar and page face | `/new-chat`, a local draft page with no vault page or conversation subscription |
 | `app.command` | navigation's text-command grammar | `>` with nearest-ancestor targeting, or a draft on New chat with Here/default visible |
 | `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents, and New chat opening the shared page while an engine is available |
 
