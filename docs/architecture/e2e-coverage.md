@@ -8,10 +8,9 @@ sidebar and pane to exist: the header can paint earlier. The probe and its
 post-navigation remount assertions remain immediate, so setup readiness does
 not hide a remount caused by the gesture.
 
-The agent-fold helper waits for a requested `.olai` file's `data-drawn-file`
-before deciding its row is absent. A new tab's header can arrive before the
-outline; taking the sidebar fallback during that gap would navigate away from
-the fold the scenario meant to open.
+The second-browser-tab step waits for its requested `house.olai` fixture's
+`data-drawn-file`, not only the header. A following fold-opening step must not
+mistake the outline's loading gap for an absent row and navigate via the sidebar.
 
 `a_failed_mcp_server.feature` also exercises two failed MCP connections at
 once. Reason assertions select the named server's row, so another failure
