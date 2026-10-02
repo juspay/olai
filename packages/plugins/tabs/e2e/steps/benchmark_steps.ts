@@ -11,7 +11,7 @@ When("I open every benchmark tool detail", { timeout: 120_000 }, async function 
   const rows = this.chat(selector(CHAT.chatEntry))
   await this.waitUntil(async () => await rows.count() >= 300, "300 transcript rows")
   const folds = this.chat(selector(CHAT.chatToolFold))
-  assert.equal(await folds.count(), 150)
+  await this.waitUntil(async () => await folds.count() === 150, "all 150 benchmark tool rows")
   // Fixture preparation; measured switches below use real pointer events.
   await folds.evaluateAll(elements => elements.forEach(element => (element as HTMLElement).click()))
   await this.waitForFrame()
