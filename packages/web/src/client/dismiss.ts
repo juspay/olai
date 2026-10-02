@@ -103,8 +103,6 @@ export interface Dismissable {
   /** Shut it. Only that: where the caret goes is above, and everything else a
    *  close MEANS — whether anything is remembered, whether the trigger toggles
    *  instead — is the caller's, because it differs at every site. */
-  /** A caller may keep its state for a pointer that suspends its page. */
-  readonly excludePointer?: (element: Element) => boolean
   readonly dismiss: () => void
 }
 
@@ -125,7 +123,7 @@ export const dismissOn = (on: Dismissable): void => {
       // The trigger counts as inside, and only ever the trigger: the root is
       // the ref below, and Kobalte checks that one itself.
       shouldExcludeElement: (element) =>
-        on.trigger?.()?.contains(element) === true || on.excludePointer?.(element) === true,
+        on.trigger?.()?.contains(element) === true,
       // Outside THIS panel, and outside everything over it: a press that shut
       // the menu above is not also a press that shuts this. The caret stays
       // where the press put it (see `trigger`).

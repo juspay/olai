@@ -48,6 +48,7 @@ export function FreshStart(props: {
     confirm.begin()
     const reading = agentReadings()
     const node = props.agent.id
+    reading?.visit(node)
     const previous = { engine: props.agent.engine, session: props.agent.session }
     saying.say(undefined)
     run(
@@ -61,7 +62,7 @@ export function FreshStart(props: {
         // node-scoped panel available for sign-in in the success arm below.
         if (agentReadings() === reading && previous.session !== null
           && props.agent.engine === previous.engine && props.agent.session === previous.session) {
-          reading?.visit(node, { agent: previous.engine, session: previous.session })
+          reading?.resume(node, { agent: previous.engine, session: previous.session })
         }
         confirm.done()
         saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })

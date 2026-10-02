@@ -1,3 +1,5 @@
+import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
+import { RetainedContent } from "./RetainedContent.tsx"
 import { useShown } from "olai-plugin-navigation/routing"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 import { useHere } from "olai-plugin-navigation/routing"
@@ -76,15 +78,15 @@ export function Panel(props: {
    */
   const Sub = (sub: { readonly entry: MenuSub }) => {
     const [open, setOpen] = createSignal(false)
-    let tabFocus = false
+    const afterGesture = createAfterGesture()
+    let lastFocused: HTMLElement | undefined
     return (
     // `overlap`: on a phone there is no room beside the panel, so the submenu
     // may slide back over it rather than hang off the screen's edge.
     <DropdownMenu.Sub gutter={2} shift={-5} overlap open={open()} onOpenChange={next => {
-      // MenuSubContent closes on focus-out even when prevented. A tab owns
-      // that focus transition; retain the submenu until its page returns.
-      if (!next && tabFocus) { tabFocus = false; return }
-      if (shown()) setOpen(next)
+      if (!shown()) return
+      if (next) setOpen(true)
+      else afterGesture(() => { if (shown()) setOpen(false) })
     }}>
       <DropdownMenu.SubTrigger
         ref={(el: HTMLElement) => entries.set(sub.entry.id, el)}
@@ -99,7 +101,7 @@ export function Panel(props: {
         <span class="text-muted" aria-hidden="true">›</span>
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal mount={overlayRoot()}>
-        <DropdownMenu.SubContent
+        <RetainedContent draw={content => <DropdownMenu.SubContent
           style={{ display: shown() ? undefined : "none" }}
         {...{ [PAGE_SUBJECT]: String(here()) }}
           ref={(el: HTMLElement) => {
@@ -112,6 +114,7 @@ export function Panel(props: {
               if (!shown() || !el.isConnected) return
               const active = document.activeElement
               if (active !== el && el.contains(active)) return
+              if (lastFocused?.isConnected) { lastFocused.focus({ preventScroll: true }); return }
               const first = el.querySelector('[role="menuitem"]')
               if (first instanceof HTMLElement) first.focus({ preventScroll: true })
             }
@@ -122,21 +125,17 @@ export function Panel(props: {
           data-testid={TESTID.nodeMenuSub}
           data-sub={sub.entry.id}
           aria-label={sub.entry.label}
-          onFocusIn={props.gestures.onFocusIn}
-          onFocusOutside={event => {
-            event.preventDefault()
-            tabFocus = event.target instanceof Element && event.target.closest('[role="tab"]') !== null
+          onFocusIn={event => {
+            if (event.target instanceof HTMLElement) lastFocused = event.target
+            props.gestures.onFocusIn(event)
           }}
-          onPointerDownOutside={event => {
-            const target = event.detail.originalEvent.target
-            if (target instanceof Element && target.closest('[role="tab"]')) event.preventDefault()
-          }}
+          onFocusOutside={event => event.preventDefault()}
           onKeyDown={props.gestures.onKeyDown}
           onPointerDown={props.gestures.onPointerDown}
           onPointerUp={props.gestures.onPointerUp}
-        >
+        >{content}</DropdownMenu.SubContent>}>
           <Entries entries={sub.entry.entries} />
-        </DropdownMenu.SubContent>
+        </RetainedContent>
       </DropdownMenu.Portal>
     </DropdownMenu.Sub>
     )

@@ -1,3 +1,4 @@
+@skip
 @scratch:chat
 Feature: Measure retained transcript switches
   Scenario: Compare browser layout costs for a split with hundreds of chat rows

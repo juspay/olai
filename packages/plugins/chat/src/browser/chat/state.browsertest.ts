@@ -209,7 +209,7 @@ test("conversation views lease one activation-owned reading until the last view 
   const view = () => createRoot(dispose => {
     const chat = owner.reading.conversation(pair, pair)
     const [shown, setShown] = createSignal(true)
-    owner.reading.join("node", chat, shown)
+    owner.reading.join(() => "node", () => chat, shown)
     return { dispose, chat, setShown }
   })
   const first = view(), second = view()

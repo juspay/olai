@@ -114,3 +114,9 @@ and temporary done reveals also leave with that activation.
 Switching tabs suspends an open row menu, including its confirmation, submenu,
 and focused entry. Returning restores that entry without recreating the panel.
 A pointer elsewhere on the current page still dismisses the menu normally.
+
+Retained lanes keep open menu state, including confirmations, submenus and the
+focused entry. Hidden menus withdraw Kobalte content layers and rejoin on show.
+Blur and outside dismissal settle the current pointer gesture before consulting
+the page's declared visibility; they do not infer navigation from tab markup.
+Editor seats are one derived location map with row-owned projections.

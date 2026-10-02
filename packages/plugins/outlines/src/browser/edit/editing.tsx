@@ -42,7 +42,6 @@
  * appears to leave — is the optimistic UI this whole design is written
  * against.
  */
-import { createStore, unwrap } from "solid-js/store"
 import { writeEdit } from "../writes.ts"
 import type { Row } from "@olai/format"
 import type { Anchor, Edit } from "@olai/surface"
@@ -51,7 +50,6 @@ import {
   type Accessor,
   type Signal,
   createContext,
-  createComputed,
   createEffect,
   createMemo,
   type JSX,
@@ -445,10 +443,9 @@ export const createEditor = (
 
   // One atomic publication contains both halves of every seat. A resumed
   // draft cannot disappear between a parked-list update and a live selector.
-  const [locations, setLocations] = createStore<Record<string, { live: boolean; parked: ReadonlyArray<Pending> } | undefined>>({})
   const locationKey = (kind: Beside["kind"], id: string) => `${kind}\0${id}`
   const noGhosts: ReadonlyArray<Pending> = []
-  createComputed(() => {
+  const locations = createMemo((previous: ReadonlyMap<string, { live: boolean; parked: Pending[] }> | undefined) => {
     const next = new Map<string, { live: boolean; parked: Pending[] }>()
     const seat = (at: Beside) => {
       const key = locationKey(at.kind, at.id)
@@ -462,15 +459,12 @@ export const createEditor = (
       const at = besideOf(displayAt(ghost.at))
       if (at) seat(at).parked.push(ghost)
     }
-    untrack(() => batch(() => {
-      for (const key of Object.keys(locations)) if (!next.has(key)) setLocations(key, undefined)
-      for (const [key, value] of next) {
-        const old = locations[key]
-        if (old?.live === value.live && old.parked.length === value.parked.length
-          && unwrap(old.parked).every((ghost, index) => ghost === value.parked[index])) continue
-        setLocations(key, value)
-      }
-    }))
+    for (const [key, value] of next) {
+      const old = previous?.get(key)
+      if (old?.live === value.live && old.parked.length === value.parked.length
+        && old.parked.every((ghost, index) => ghost === value.parked[index])) next.set(key, old)
+    }
+    return next
   })
 
   /**
@@ -1404,8 +1398,8 @@ export const createEditor = (
     draft,
     ghosts,
     live: () => ghostOf(draft()),
-    pendingAt: (kind, id) => locations[locationKey(kind, id)]?.live === true,
-    ghostsAt: (kind, id) => locations[locationKey(kind, id)]?.parked ?? noGhosts,
+    pendingAt: (kind, id) => locations().get(locationKey(kind, id))?.live === true,
+    ghostsAt: (kind, id) => locations().get(locationKey(kind, id))?.parked ?? noGhosts,
     resume,
     resuming,
     displayAt,

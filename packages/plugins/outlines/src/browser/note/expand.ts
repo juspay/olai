@@ -1,3 +1,4 @@
+import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
 import { useShown } from "olai-plugin-navigation/routing"
 /**
  * Whether a row is OPEN, and who decided.
@@ -67,6 +68,7 @@ export const createNoteExpand = (
   fallback: () => boolean,
 ): NoteExpand => {
   const shown = useShown()
+  const afterGesture = createAfterGesture()
   const [touched, setTouched] = createSignal<boolean | undefined>(undefined)
   const expanded = (): boolean => touched() ?? fallback()
   let root: HTMLElement | undefined
@@ -82,8 +84,7 @@ export const createNoteExpand = (
     open: () => shown() && touched() === true,
     root: () => root,
     trigger: () => trigger,
-    excludePointer: element => element.closest('[role="tab"]') !== null,
-    dismiss: () => setTouched(false),
+    dismiss: () => afterGesture(() => { if (shown()) setTouched(false) }),
   }))
   })
 

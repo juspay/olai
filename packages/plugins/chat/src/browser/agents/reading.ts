@@ -1,7 +1,7 @@
 import { createStore } from "solid-js/store"
 import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
-import { createEffect, createRoot, getOwner, runWithOwner, onCleanup } from "solid-js"
+import { createEffect, createMemo, createSignal, on, createRoot, getOwner, runWithOwner, onCleanup } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { PanelAddress } from "../../wire/session.ts"
 import type { Conversing } from "../../sessions.ts"
@@ -17,15 +17,16 @@ export const createAgentReadings = (agents: Roster) => {
   const page = createPageOwners<PageSession>()
   const previews = createPreviews()
   const reveals = new Set<string>()
-  const shown = new Map<Chat, Set<() => boolean>>()
-  const isShown = (chat: Chat) => [...(shown.get(chat) ?? [])].some(visible => visible())
-  const memberships = new Map<string, Map<Chat, number>>()
+  type View = { node: () => string; chat: () => Chat | null; shown: () => boolean }
+  const [views, setViews] = createSignal<readonly View[]>([])
+  const isShown = (chat: Chat) => views().some(view => view.chat() === chat && view.shown())
   const owner = getOwner()
-  const cache = new Map<string, { value: ReturnType<typeof createConversationUI>; dispose: () => void }>()
+  const cache = new Map<string, { to: PanelAddress; value: ReturnType<typeof createConversationUI>; dispose: () => void }>()
   const conversations = new Map<string, { value: Chat; dispose: () => void; leases: number }>()
   const awaitingEmpty = new Map<ReturnType<typeof createConversationUI>, () => void>()
   const joined = new Map<ReturnType<typeof createConversationUI>, number>()
   const [visits, setVisits] = createStore<Record<string, Conversing | undefined>>({})
+  const [resumed, setResumed] = createStore<Record<string, Conversing | undefined>>({})
   const waiting = new Set<() => void>()
   const needsSurfaces = new Set<{ element: HTMLElement; shown: () => boolean }>()
   let alive = true
@@ -34,7 +35,7 @@ export const createAgentReadings = (agents: Roster) => {
     const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
     let entry = cache.get(key)
     if (entry === undefined) {
-      entry = runWithOwner(owner, () => createRoot(dispose => ({ value: createConversationUI(previews), dispose })))!
+      entry = runWithOwner(owner, () => createRoot(dispose => ({ to, value: createConversationUI(previews), dispose })))!
       cache.set(key, entry)
     }
     return entry.value
@@ -51,6 +52,17 @@ export const createAgentReadings = (agents: Roster) => {
       entry.dispose()
     }
   }
+  const belongs = (value: ReturnType<typeof createConversationUI>) => {
+    const entry = [...cache.values()].find(entry => entry.value === value)
+    if (!entry) return false
+    const to = entry.to
+    if ("node" in to) return agents.at(to.node) !== undefined
+    if (agents.rows().some(row => row.engine === to.agent && row.session === to.session)) return true
+    const listed = agents.chats()
+    // A missing or refused listing is not evidence that the session is gone.
+    return listed === null || listed.unreachable.some(row => row.agent === to.agent)
+      || listed.sessions.some(row => row.agent === to.agent && row.id === to.session)
+  }
   const releaseUI = (value: ReturnType<typeof createConversationUI>) => {
     if (!alive) { evictUI(value); return }
     const count = (joined.get(value) ?? 1) - 1
@@ -60,14 +72,14 @@ export const createAgentReadings = (agents: Roster) => {
     // Give that owner a chance to lease the same UI before considering eviction.
     queueMicrotask(() => {
     if (!alive || joined.has(value) || awaitingEmpty.has(value)) return
-    if (emptyUI(value)) { evictUI(value); return }
+    if (emptyUI(value) || !belongs(value)) { evictUI(value); return }
     // A dispatched upload/send can finish after its last page leaves. Its UI
     // stays until that work clears, then releases without needing another visit.
     runWithOwner(owner, () => createRoot(dispose => {
       awaitingEmpty.set(value, dispose)
       onCleanup(() => awaitingEmpty.delete(value))
       createEffect(() => {
-        if (!emptyUI(value)) return
+        if (!emptyUI(value) && belongs(value)) return
         if (joined.has(value)) return
         dispose()
         evictUI(value)
@@ -82,7 +94,18 @@ export const createAgentReadings = (agents: Roster) => {
     return () => { if (held) { held = false; releaseUI(value) } }
   }
 
-  const [readings, setReadings] = createStore<Record<string, ReadonlySet<Chat> | undefined>>({})
+  const readings = createMemo(() => {
+    const result = new Map<string, Set<Chat>>()
+    for (const view of views()) {
+      const chat = view.chat()
+      if (!chat) continue
+      const node = view.node()
+      const members = result.get(node) ?? new Set<Chat>()
+      members.add(chat)
+      result.set(node, members)
+    }
+    return result
+  })
   return {
     agents, ui, page, newChat, retainUI,
     conversation: (to: PanelAddress, expected: Conversing | null) => {
@@ -112,7 +135,9 @@ export const createAgentReadings = (agents: Roster) => {
     },
     focusNeeds: () => { [...needsSurfaces].find(row => row.shown() && row.element.isConnected)?.element.focus() },
     visiting: (node: string) => visits[node],
-    visit: (node: string, to?: Conversing) => { setVisits(node, to) },
+    visit: (node: string, to?: Conversing) => { setVisits(node, to); setResumed(node, undefined) },
+    resume: (node: string, to: Conversing) => { setVisits(node, undefined); setResumed(node, to) },
+    resuming: (node: string) => resumed[node],
     ready: (node: string, to: Conversing): Promise<Chat | string> => new Promise(resolve => {
       if (!alive) { resolve("Chat stopped"); return }
       createRoot(dispose => {
@@ -123,7 +148,7 @@ export const createAgentReadings = (agents: Roster) => {
           if (current === undefined || current.engine !== to.agent || current.session !== to.session) {
             waiting.delete(stop); dispose(); resolve("The agent's chat changed. Try again."); return
           }
-          const chat = [...(readings[node] ?? [])].find(chat => chat.ui === ui(to))
+          const chat = [...(readings().get(node) ?? [])].find(chat => chat.ui === ui(to))
           if (chat === undefined) return
           const state = chat.state()
           if (state.unopened) {
@@ -135,33 +160,24 @@ export const createAgentReadings = (agents: Roster) => {
       })
     }),
     reveal: (node: string) => {
-      const live = [...(readings[node] ?? [])].filter(chat => isShown(chat))
+      const live = [...(readings().get(node) ?? [])].filter(chat => isShown(chat))
       if (live.length === 0) reveals.add(node)
       else for (const chat of live) chat.ui.reveal[1](true)
     },
-    at: (node: string) => readings[node],
+    at: (node: string) => readings().get(node),
     isShown,
-    join: (node: string, chat: Chat, visible: () => boolean) => {
-      const release = retainUI(chat.ui)
-      const views = shown.get(chat) ?? new Set<() => boolean>()
-      views.add(visible)
-      shown.set(chat, views)
-      const members = memberships.get(node) ?? new Map<Chat, number>()
-      members.set(chat, (members.get(chat) ?? 0) + 1)
-      memberships.set(node, members)
-      createEffect(() => { if (visible() && reveals.delete(node)) chat.ui.reveal[1](true) })
-      setReadings(node, new Set([...(readings[node] ?? []), chat]))
-      onCleanup(() => {
-        views.delete(visible)
-        if (views.size === 0) shown.delete(chat)
-        release()
-        const remaining = members.get(chat)! - 1
-        if (remaining > 0) { members.set(chat, remaining); return }
-        members.delete(chat)
-        if (members.size === 0) memberships.delete(node)
-        const kept = new Set(readings[node])
-        kept.delete(chat)
-        setReadings(node, kept.size === 0 ? undefined : kept)
+    join: (node: () => string, chat: () => Chat | null, visible: () => boolean) => {
+      // The view registers once at mount. Its changing conversation is a
+      // derivation, not a memo publishing into another store.
+      const view = { node, chat, shown: visible }
+      setViews(all => [...all, view])
+      onCleanup(() => setViews(all => all.filter(one => one !== view)))
+      createEffect(on(chat, current => {
+        if (current) onCleanup(retainUI(current.ui))
+      }))
+      createEffect(() => {
+        const current = chat()
+        if (current && visible() && reveals.delete(node())) current.ui.reveal[1](true)
       })
     },
   }
@@ -169,4 +185,4 @@ export const createAgentReadings = (agents: Roster) => {
 const held = heldService<ReturnType<typeof createAgentReadings>>()
 export const holdAgentReadings = held.hold
 export const agentReadings = held.read
-export const readAgent = (node: string, chat: Chat, shown: () => boolean = () => true) => held.read()?.join(node, chat, shown)
+export const readAgent = (node: string, chat: Chat, shown: () => boolean = () => true) => held.read()?.join(() => node, () => chat, shown)

@@ -15,7 +15,9 @@ export const createConversation = (
     if (visited !== undefined) return { agent: visited.agent, session: visited.session }
     // A refused fresh start still has the previous binding on disk. Its
     // sign-in/retry belongs to the unbound node, not that previous session.
-    if (agent?.session == null || agent.unopened === true) return null
+    const resumed = reading?.resuming(node())
+    if (agent?.session == null || (agent.unopened === true
+      && (resumed?.agent !== agent.engine || resumed.session !== agent.session))) return null
     return { agent: agent.engine, session: agent.session }
   }, null, { equals: (a, b) => a?.agent === b?.agent && a?.session === b?.session })
   const hasPanel = createMemo(() => {
@@ -37,9 +39,9 @@ export const createConversation = (
     return untrack(() => {
       const shared = reading.conversation(at, to)
       const view: Chat = { ...shared, loadSession: (agent, session) => reading.visit(id, { agent, session }) }
-      reading.join(id, view, shown)
       return view
     })
   })
+  reading?.join(node, chat, shown)
   return { pair, chat }
 }

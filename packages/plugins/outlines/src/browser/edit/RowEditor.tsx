@@ -1,3 +1,4 @@
+import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
 import { useShown } from "olai-plugin-navigation/routing"
 /**
  * The caret: a title being typed, a note being written, and what the last
@@ -92,6 +93,7 @@ export function TitleEditor(props: {
   readonly fillsLine?: boolean
 }) {
   const shown = useShown()
+  const afterGesture = createAfterGesture()
   let element!: HTMLInputElement
 
   /**
@@ -234,14 +236,14 @@ export function TitleEditor(props: {
           readCaret()
           if (props.active === false) props.onActivate?.()
         }}
-        onBlur={(event) => {
-          if (takingOfflineFocus() || (event.relatedTarget instanceof Element && event.relatedTarget.closest('[role="tab"]'))) return
+        onBlur={() => {
+          if (takingOfflineFocus()) return
           const blur = props.onBlur
           // Removal fires blur before isConnected becomes false. Read after
           // Solid finishes this DOM update, when a redraw can be distinguished
           // from leaving the editor. Moving the same input may already have
           // restored its focus, in which case there was no departure at all.
-          queueMicrotask(() => {
+          afterGesture(() => {
             if (shown() && document.activeElement !== element) blur(element.isConnected)
           })
         }}
@@ -279,6 +281,7 @@ export function DescEditor(props: {
   readonly caret?: number
 }) {
   const shown = useShown()
+  const afterGesture = createAfterGesture()
   let element!: HTMLTextAreaElement
   takeCaret(() => element, { at: () => props.caret, then: () => grow(element) })
 
@@ -294,9 +297,9 @@ export function DescEditor(props: {
         props.onInput(event.currentTarget.value)
       }}
       onKeyDown={(event) => props.onKey(event)}
-      onBlur={(event) => {
-        if (takingOfflineFocus() || (event.relatedTarget instanceof Element && event.relatedTarget.closest('[role="tab"]'))) return
-        queueMicrotask(() => { if (shown() && document.activeElement !== element) props.onBlur(element.isConnected) })
+      onBlur={() => {
+        if (takingOfflineFocus()) return
+        afterGesture(() => { if (shown() && document.activeElement !== element) props.onBlur(element.isConnected) })
       }}
     />
   )

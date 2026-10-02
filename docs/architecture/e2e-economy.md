@@ -85,7 +85,7 @@ streaming with both scroll intentions, hidden-tab attention, and independent com
 
 Existing history, missing-file recovery, independent phone-pane drafts, terminal
 target changes and plugin withdrawal scenarios remain behavioural constraints.
-Helpers scope page content to the front lane; visibility assertions distinguish
+Core helpers scope page content to the front lane (some geometry/order helpers remain page-wide, and attached-state checks can match hidden panes within it); visibility assertions distinguish
 retained hidden elements from disposed owners. The alternate-layout fixture
 remains supported without requiring layout's lane markup.
 

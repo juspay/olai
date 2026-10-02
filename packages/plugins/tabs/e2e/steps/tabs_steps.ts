@@ -33,8 +33,8 @@ const tabsFailure = async (world: OlaiWorld, error: unknown): Promise<never> => 
 };
 
 const pressPinned = async (world: OlaiWorld, target: ReturnType<OlaiWorld["pane"]>) => {
-  // The first press may precede the tabs integration attaching to the shell.
-  // Use the same first-paint budget as the strip-count assertion.
+  // Use the strip-count assertion's first-paint budget and report activation
+  // state if the target is missing. A wait cannot repair a mutated fixture.
   try { await target.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT }); }
   catch (error) { await tabsFailure(world, error); }
   await target.evaluate(element => {

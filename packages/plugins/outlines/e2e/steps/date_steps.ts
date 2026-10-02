@@ -61,7 +61,7 @@ Then("the date picker is open", async function (this: OlaiWorld) {
 Then("the date picker is closed", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await panel(this).count()) === 0,
-    "the date picker to be gone from the page",
+    "no date picker to be visible",
   );
 });
 

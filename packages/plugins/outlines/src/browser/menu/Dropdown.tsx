@@ -1,4 +1,6 @@
-import { createEffect } from "solid-js"
+import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
+import { RetainedContent } from "./RetainedContent.tsx"
+import { createEffect, splitProps } from "solid-js"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 import { useShown, useHere } from "olai-plugin-navigation/routing"
 import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
@@ -63,10 +65,9 @@ import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
  * ## AND IT DEFERS, which is the one thing the primitive cannot decide alone
  *
  * Kobalte keeps a stack of its own layers and gives a gesture to the topmost —
- * but this menu is the only layer on it, because the panels this client draws
- * itself are not components wrapping an element and cannot join one
- * (`../topmost.ts` has the whole argument). So the primitive always believes it
- * is on top, and an Escape with a popover opened OVER a menu shut both.
+ * but the panels this client draws itself do not all join that stack. Hidden
+ * menus withdraw their content layers; the shared stack below also accounts
+ * for the visible popovers that are not Kobalte layers.
  *
  * The stack every dismissable in this client is on is `../topmost.ts`'s, and
  * this file joins it with {@link topmostWhileOpen} — the same call the popovers
@@ -159,6 +160,7 @@ export function Dropdown(props: {
 }) {
   const shown = useShown()
   const here = useHere()
+  const afterGesture = createAfterGesture()
   let lastFocused: HTMLElement | undefined
   const rememberFocus = (event: FocusEvent) => {
     if (event.target instanceof HTMLElement) lastFocused = event.target
@@ -177,8 +179,7 @@ export function Dropdown(props: {
 
   /** Is this menu the panel a dismissal is for — the last thing opened that is
    *  still up, across everything this client can put on screen
-   *  (`../topmost.ts`)? Kobalte's own stack cannot answer that, because this
-   *  menu is the only layer on it. */
+   *  (`../topmost.ts`)? Kobalte's own stack does not include every kind of panel. */
   const topmost = topmostWhileOpen(() => shown() && props.door.open())
 
   /**
@@ -230,7 +231,9 @@ export function Dropdown(props: {
       // settles inside that same write, so this reads the stack as it is by
       // then).
       onOpenChange={(open: boolean) => {
-        if (shown() && (open || topmost())) props.door.setOpen(open)
+        if (!shown() || (!open && !topmost())) return
+        if (open) props.door.setOpen(true)
+        else afterGesture(() => { if (shown()) props.door.setOpen(false) })
       }}
       // WHAT THE PANEL HANGS OFF: the `•••` where one is DRAWN, and the
       // row's own line where it is not. Below md the `•••` is `hidden` —
@@ -289,7 +292,7 @@ export function Dropdown(props: {
           // `preventScroll`: a portal mounts the panel before floating-ui
           // has placed it, and a focus that scrolled to that first box
           // jumped the page out from under the row the menu belongs to.
-          queueMicrotask(() => { if (shown()) el.focus({ preventScroll: true }) })
+          queueMicrotask(() => { if (shown()) (lastFocused?.isConnected ? lastFocused : el).focus({ preventScroll: true }) })
         }}
         data-testid={TESTID.nodeMenuPanel}
         // NAMED here rather than by the trigger Kobalte would point at
@@ -343,11 +346,8 @@ export function Dropdown(props: {
         onPointerDown={() => {
           lastGesture = "pointer"
         }}
-        onPointerDownOutside={(event) => {
+        onPointerDownOutside={() => {
           lastGesture = "pointer"
-          // A tab press suspends this page; it is not a dismissal of its menu.
-          const target = event.detail.originalEvent.target
-          if (target instanceof Element && target.closest('[role="tab"]')) event.preventDefault()
         }}
         // ...and the tap that any of it leaves behind (see above).
         onPointerUp={tappedInPanel}
@@ -371,8 +371,9 @@ export function Dropdown(props: {
 function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps<"div">>) {
   const menu = useMenuContext()
   const shown = useShown()
-  return <DropdownMenu.Content
-    {...props}
+  const [local, rest] = splitProps(props, ["children"])
+  return <RetainedContent draw={content => <DropdownMenu.Content
+    {...rest}
     // The primitive measures from the viewport edge. An upward menu must
     // reserve the header and strip as well, or its first entries sit behind it.
     // Portal mount={overlayRoot()} is on document.body, so this inherits the
@@ -381,5 +382,5 @@ function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps
     style={{ display: shown() ? undefined : "none", "max-height": menu.currentPlacement().startsWith("top")
       ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-chrome)))"
       : "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-bottom-chrome, 0px)))" }}
-  />
+  >{content}</DropdownMenu.Content>}>{local.children}</RetainedContent>
 }

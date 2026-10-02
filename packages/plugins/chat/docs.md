@@ -286,3 +286,9 @@ The node's agent line, including a pending fresh-start request and its refusal,
 belongs to the node view. Changing the selected conversation replaces only the
 conversation-specific body and strips. A fresh-start refusal therefore remains
 visible even if the server transitions from a bound session to an unopened node.
+
+Retained conversation UI is released after its final view/work lease ends when
+it is empty, or when the roster and answered stored-session listing no longer
+contain its node/session. An unavailable listing does not prove absence.
+A refused fresh start resumes the unchanged live binding; it does not turn
+that reader into a history visit that masks later binding changes.

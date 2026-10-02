@@ -175,3 +175,6 @@ from pointer press through the second animation frame in remote Chromium,
 returned in 73.6 ms median / 79.1 ms p95 with `display: none`, versus
 32.3 ms / 38.6 ms with hidden content visibility (10 measured returns each).
 The benchmark reports measurements without a timing pass/fail threshold.
+
+The switch benchmark is tagged `@skip` and excluded from default runs. It remains
+available for explicit measurement; its timings are observational, not assertions.
