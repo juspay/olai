@@ -306,8 +306,8 @@ const refuses = (
   token: string,
   teaching: string,
 ): Promise<void> =>
-  saysThat(world, line, token, what, "alarm")
-    .then(() => saysThat(world, line, teaching, what));
+  saysThat(world, line, token, what, "alarm", line === SEARCH_REFUSAL ? world.page : world.frontLane())
+    .then(() => saysThat(world, line, teaching, what, undefined, line === SEARCH_REFUSAL ? world.page : world.frontLane()));
 
 /** The BAR's own refusal line, which is the grammar refusing in this tab: the
  *  filter parses what is typed here rather than asking, so this line is up

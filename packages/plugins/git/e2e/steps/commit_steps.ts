@@ -63,7 +63,7 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 const COMMIT_BANNER = selector(PLUGIN_TESTID.gitNews);
 
 Then("the phone commit banner says {int} uncommitted", async function (this: OlaiWorld, count: number) {
-  await this.expectAttribute(COMMIT_BANNER, "data-uncommitted", String(count), "the phone commit banner");
+  await this.expectChromeAttribute(COMMIT_BANNER, "data-uncommitted", String(count), "the phone commit banner");
 });
 
 When("I tap the commit banner", async function (this: OlaiWorld) {
@@ -86,7 +86,7 @@ Then("the phone commit banner sits below the header", async function (this: Olai
 Then(
   "the commit pill says {int} uncommitted",
   async function (this: OlaiWorld, count: number) {
-    await this.readStatus(() => this.expectAttribute(
+    await this.readStatus(() => this.expectChromeAttribute(
       COMMIT_PILL,
       "data-uncommitted",
       String(count),
@@ -105,7 +105,7 @@ Then(
 Then(
   "the commit pill says {string}",
   async function (this: OlaiWorld, state: string) {
-    await this.readStatus(() => this.expectAttribute(
+    await this.readStatus(() => this.expectChromeAttribute(
       COMMIT_PILL,
       "data-state",
       state,
@@ -268,7 +268,7 @@ Then("the commit pill cannot be pressed", async function (this: OlaiWorld) {
   // its inert faces on purpose, because the sentence explaining why nothing is
   // being recorded is the whole of the control in exactly those states, and a
   // disabled button takes no focus and so cannot be asked.
-  await this.readStatus(() => this.expectAttribute(
+  await this.readStatus(() => this.expectChromeAttribute(
       COMMIT_PILL,
     "aria-disabled",
     "true",
@@ -361,7 +361,7 @@ Then("the commit panel is shut", async function (this: OlaiWorld) {
 Then(
   "the change to {string} is {string}",
   async function (this: OlaiWorld, id: string, sort: string) {
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       `${COMMIT_CHANGE}${attr("data-node-id", id)}`,
       "data-sort",
       sort,
@@ -454,7 +454,7 @@ Then(
 Then(
   "the commit pill says auto-commit is {string}",
   async function (this: OlaiWorld, state: string) {
-    await this.readStatus(() => this.expectAttribute(
+    await this.readStatus(() => this.expectChromeAttribute(
       COMMIT_PILL,
       "data-auto",
       state,
@@ -477,7 +477,7 @@ Then(
 Then(
   "the commit pill says the push was refused",
   async function (this: OlaiWorld) {
-    await this.readStatus(() => this.expectAttribute(
+    await this.readStatus(() => this.expectChromeAttribute(
       COMMIT_PILL,
       "data-push-refused",
       "true",
@@ -500,7 +500,7 @@ Then(
   "the flurry records itself",
   { timeout: QUIET_WINDOW_STEP_TIMEOUT },
   async function (this: OlaiWorld) {
-    await this.readStatus(() => this.expectAttribute(
+    await this.readStatus(() => this.expectChromeAttribute(
       COMMIT_PILL,
       "data-state",
       "committed",
@@ -674,7 +674,7 @@ When("HEAD is detached in the served repository", function (this: OlaiWorld) {
 Then(
   "the panel lists {string} as {string}",
   async function (this: OlaiWorld, file: string, how: string) {
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       `${COMMIT_OTHER}${attr("data-path", file)}`,
       "data-how",
       how,
@@ -766,7 +766,7 @@ Given("the served repository has a remote", function (this: OlaiWorld) {
 Then(
   "the commit pill says {int} unpushed",
   async function (this: OlaiWorld, count: number) {
-    await this.readStatus(() => this.expectAttribute(
+    await this.readStatus(() => this.expectChromeAttribute(
       COMMIT_PILL,
       "data-unpushed",
       String(count),
@@ -778,7 +778,7 @@ Then(
 Then(
   "the panel offers to push {int} commits",
   async function (this: OlaiWorld, count: number) {
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       COMMIT_UNPUSHED,
       "data-commits",
       String(count),

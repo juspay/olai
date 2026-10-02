@@ -105,3 +105,10 @@ round trips are browser-unit tests, avoiding another server/browser setup.
 Pinned-tab presses use pointer coordinates after hit-testing the visible control.
 Playwright's automatic scroll-into-view moved the window before the press,
 invalidating what the scroll-restoration scenarios claimed to measure.
+
+A plugin switch writes `_olai/Settings.olai`, so its scenario must use a
+scratch fixture. The retained-tabs withdrawal scenario previously used the
+worker's read-only corpus and disabled Tabs for later scenarios on that worker;
+this caused the intermittent missing strip/menu at startup. It now owns a
+scratch fixture, and the switch step refuses a shared read-only corpus before
+writing. Increasing the startup wait cannot repair this fixture leak.

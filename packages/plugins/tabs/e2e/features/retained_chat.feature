@@ -32,13 +32,13 @@ Feature: A split chat tab keeps its conversation
     When I ask for a tall page answer
     Then the agent is idle
     When I ask the agent "hold"
-    And I scroll pane 1 back to its memory
+    And I leave pane 1 halfway down
     And I choose "Open in new tab" from the menu of the outline link "yard.olai"
     And I press tab 1
     And the agent is released
     And I press tab 0
     Then the agent is idle
-    And pane 1 remains at its saved scroll position
+    And pane 1 keeps its nonzero scroll position
     And there should be no page errors
 
   @alerts

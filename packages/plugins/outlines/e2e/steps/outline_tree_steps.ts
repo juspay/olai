@@ -47,7 +47,7 @@ import {
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 Then("the tree is shown", async function (this: OlaiWorld) {
-  await this.page
+  await this.frontLane()
     .locator(OUTLINE_TREE)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });

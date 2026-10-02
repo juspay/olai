@@ -365,7 +365,7 @@ const setSwitch = async (
   const wanted = value === "on" ? "true" : "false";
   if ((await control.getAttribute("aria-checked")) !== wanted) await world.press(control);
   await world
-    .expectAttribute(`${PREFS_ROW}${attr("data-pref", pref)} ${selector(TESTID.prefsSwitch)}`, "aria-checked", wanted, `the ${pref} switch`);
+    .expectChromeAttribute(`${PREFS_ROW}${attr("data-pref", pref)} ${selector(TESTID.prefsSwitch)}`, "aria-checked", wanted, `the ${pref} switch`);
 };
 
 /** A row by the label a person reads beside its control. */
@@ -1216,7 +1216,7 @@ Then(
     // a permanently reconnecting or degraded wire still fails this bound. The
     // health dot carries the connection's state; the connection's ROW (in the
     // popover the dot opens) carries `data-stopped` beside it.
-    await this.expectAttribute(HEALTH, "data-connection", "live", "the connection", HYDRATION_TIMEOUT);
+    await this.expectChromeAttribute(HEALTH, "data-connection", "live", "the connection", HYDRATION_TIMEOUT);
     const [stopped, state] = await this.readStatus(async () => {
       const chip = this.page.locator(CONNECTION).first();
       await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -1360,6 +1360,7 @@ const FLIP_STEP_TIMEOUT = 90_000;
 When(
   "I request that the plugin {string} be {word}",
   async function (this: OlaiWorld, plugin: string, pick: string) {
+    assert.ok(this.served, "switching a plugin writes Settings.olai; tag this scenario @scratch:good");
     await pressOnRow(this, plugin, PLUGIN_SWITCH);
   },
 );
@@ -1461,6 +1462,7 @@ When(
   // stages did not happen.
   { timeout: FLIP_STEP_TIMEOUT },
   async function (this: OlaiWorld, plugin: string, pick: string) {
+    assert.ok(this.served, "switching a plugin writes Settings.olai; tag this scenario @scratch:good");
     // A serve that just re-read its settings file may be redialling: the
     // reconnecting dialog takes every press until the wire is back, so wait
     // for it to go first, as closing the panel does.

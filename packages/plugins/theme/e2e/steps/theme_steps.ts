@@ -104,7 +104,7 @@ const showChips = async (
 const pick = async (world: OlaiWorld, theme: string): Promise<void> => {
   await showChips(world);
   await world.press(world.page.locator(`${THEME_CHIP}${attr("data-value", theme)}`));
-  await world.expectAttribute("html", THEME_ATTRIBUTE, theme, "the page");
+  await world.expectChromeAttribute("html", THEME_ATTRIBUTE, theme, "the page");
 };
 
 // ── what the page is in ────────────────────────────────────────────────
@@ -224,7 +224,7 @@ Then(
 Then(
   "the page is in the theme {string}",
   async function (this: OlaiWorld, theme: string) {
-    await this.expectAttribute("html", THEME_ATTRIBUTE, theme, "the page");
+    await this.expectChromeAttribute("html", THEME_ATTRIBUTE, theme, "the page");
   },
 );
 
@@ -247,7 +247,7 @@ Then("the lit theme chip is the default", async function (this: OlaiWorld) {
  *  One locator: Playwright retries it, and the attribute IS the claim. */
 const litChipIs = async (world: OlaiWorld, theme: string): Promise<void> => {
   await showChips(world);
-  await world.expectAttribute(
+  await world.expectChromeAttribute(
     `${THEME_CHIP}${attr("data-value", theme)}`,
     "aria-pressed",
     "true",

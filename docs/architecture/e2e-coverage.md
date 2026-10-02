@@ -478,3 +478,10 @@ expecting eviction. Folding alone retains its reader; actual page departure
 still releases it. Transcript remount tests likewise leave the page owner explicitly;
 completion selection survives folding and reopening. Inspector per-key isolation and reference-collapse
 round trips are browser-unit tests, avoiding another server/browser setup.
+
+Attribute assertions default to the front lane, including node assertions.
+Chrome callers explicitly select the page scope; said-line assertions use the
+same scope for both text and tone. Phone pane interactions select visible rows,
+while removal assertions retain structural locators so a hidden element cannot
+satisfy a claim that it was detached. Retained split-scroll coverage leaves the
+column at a nonzero intermediate position before switching away.

@@ -70,6 +70,7 @@ Feature: Tabs retain their pages
     And pane 0 is still "filtered"
     And there should be no page errors
 
+  @scratch:good
   Scenario: With the tabs row off only the current lane remains
     Given I open the outline "house.olai"
     When I remember pane 0 as "house"

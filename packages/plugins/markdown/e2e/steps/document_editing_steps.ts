@@ -104,7 +104,7 @@ Then("the document editor is open", async function (this: OlaiWorld) {
 
 Then("the document editor is gone", async function (this: OlaiWorld) {
   await this.frontLane()
-    .locator(`${DOCUMENT_EDITOR}:visible`)
+    .locator(`${DOCUMENT_PAGE}:visible`).locator(DOCUMENT_EDITOR)
     .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
 
@@ -160,7 +160,7 @@ When("I save document pane {int}", async function (this: OlaiWorld, index: numbe
 });
 
 Then("document pane {int} has no editor", async function (this: OlaiWorld, index: number) {
-  await this.pane(index).locator(`${DOCUMENT_EDITOR}:visible`)
+  await this.pane(index).locator(`${DOCUMENT_PAGE}:visible`).locator(DOCUMENT_EDITOR)
     .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
 });
 
@@ -170,7 +170,7 @@ Given(
     other = await this.context.newPage();
     await other.goto(`${this.baseUrl}/${file}`);
     await other
-      .locator(`${DOCUMENT_EDITOR}:visible`)
+      .locator(DOCUMENT_EDITOR)
       .waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT });
   },
 );

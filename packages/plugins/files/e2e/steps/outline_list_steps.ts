@@ -156,7 +156,7 @@ Then(
  * pane asks `paneAt` instead.
  */
 const treeOf = (world: OlaiWorld, file: string) =>
-  world.page
+  world.frontLane()
     // `/` can already draw this file. Its retained tree is not proof that
     // the explicit file request has arrived or that its controls are ready.
     .locator(`${PANE}[data-pane-focused="true"]${attr("data-drawn-file", file)} ${attr("aria-busy", "false")} ${OUTLINE_TREE}`)
@@ -195,7 +195,7 @@ When(
 Then(
   "the focused pane is drawing the outline {string}",
   async function (this: OlaiWorld, file: string) {
-    await this.page
+    await this.frontLane()
       .locator(`${PANE}[data-pane-focused="true"]${attr("data-drawn-file", file)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -261,7 +261,7 @@ Then(
 Then(
   "the folder {string} is expanded",
   async function (this: OlaiWorld, path: string) {
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       folderSelector(path),
       "data-collapsed",
       "false",
@@ -273,7 +273,7 @@ Then(
 Then(
   "the folder {string} is collapsed",
   async function (this: OlaiWorld, path: string) {
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       folderSelector(path),
       "data-collapsed",
       "true",
@@ -291,7 +291,7 @@ When(
     await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await folder.getAttribute("data-collapsed")) === "true") return;
     await folderToggle(this, path).click();
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       folderSelector(path),
       "data-collapsed",
       "true",
@@ -309,7 +309,7 @@ When(
     await folder.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     if ((await folder.getAttribute("data-collapsed")) === "false") return;
     await folderToggle(this, path).click();
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       folderSelector(path),
       "data-collapsed",
       "false",
@@ -420,7 +420,7 @@ const drawnAs = async (
   what: string,
 ): Promise<void> => {
   await world.showSidebar();
-  await world.expectAttribute(
+  await world.expectChromeAttribute(
     `${testid}${attr("data-file", file)} ${FILE_GLYPH}`,
     "data-glyph",
     kind,
@@ -438,10 +438,10 @@ When("I collapse the reference section", async function(this: OlaiWorld) {
 });
 Then("the reference section is {word}", async function(this: OlaiWorld, state: string) {
   assert.ok(state === "expanded" || state === "collapsed");
-  await this.expectAttribute(attr("data-testid", TESTID.referenceToggle), "aria-expanded", String(state === "expanded"), "Reference");
+  await this.expectChromeAttribute(attr("data-testid", TESTID.referenceToggle), "aria-expanded", String(state === "expanded"), "Reference");
 });
 Then("the reference section lists {int} files", async function(this: OlaiWorld, count: number) {
-  await this.expectAttribute(attr("data-testid", TESTID.reference), "data-count", String(count), "Reference file count");
+  await this.expectChromeAttribute(attr("data-testid", TESTID.reference), "data-count", String(count), "Reference file count");
 });
 Then("there is no reference section", async function(this: OlaiWorld) {
   await this.page.getByTestId(TESTID.reference).waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT });
@@ -455,7 +455,7 @@ Then("the folder {string} appears in both sidebar trees", async function(this: O
   }
 });
 Then("Reference marks {string} as the open file", async function(this: OlaiWorld, file: string) {
-  await this.expectAttribute(`${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}${attr("data-file", file)}`, "aria-current", "page", "the selected Reference row");
+  await this.expectChromeAttribute(`${attr("data-testid", TESTID.referenceList)} ${DOCUMENT_LINK}${attr("data-file", file)}`, "aria-current", "page", "the selected Reference row");
 });
 
 Then("Reference has no stored fold preference", async function(this: OlaiWorld) {

@@ -90,7 +90,7 @@ Then(
 Then(
   "the drop is refused by {string}",
   async function (this: OlaiWorld, file: string) {
-    await this.expectAttribute(DROP_REFUSED, "data-file", file, "the refusal");
+    await this.expectChromeAttribute(DROP_REFUSED, "data-file", file, "the refusal");
   },
 );
 

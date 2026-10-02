@@ -29,7 +29,7 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 Then("the health dot is {string}", async function (this: OlaiWorld, tone: string) {
   // HYDRATION: a tone moves when the wire does (a dropped socket, a survey
   // landing), which is a network's clock rather than a render's.
-  await this.expectAttribute(HEALTH, "data-health", tone, "the health dot", HYDRATION_TIMEOUT);
+  await this.expectChromeAttribute(HEALTH, "data-health", tone, "the health dot", HYDRATION_TIMEOUT);
 });
 
 /** Its accessible name, which is also the first line of its tip. Contains
@@ -51,7 +51,7 @@ Then("the health dot names {string}", async function (this: OlaiWorld, words: st
 });
 
 Then("the health dot says all is well", async function (this: OlaiWorld) {
-  await this.expectAttribute(HEALTH, "aria-label", "Status: all good", "the health dot", HYDRATION_TIMEOUT);
+  await this.expectChromeAttribute(HEALTH, "aria-label", "Status: all good", "the health dot", HYDRATION_TIMEOUT);
 });
 
 When("I open the health popover", async function (this: OlaiWorld) {
@@ -71,12 +71,12 @@ When("I press {word} on the health dot", async function (this: OlaiWorld, key: s
 
 Then("the health popover is open", async function (this: OlaiWorld) {
   await this.page.locator(HEALTH_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await this.expectAttribute(HEALTH, "aria-expanded", "true", "the health dot");
+  await this.expectChromeAttribute(HEALTH, "aria-expanded", "true", "the health dot");
 });
 
 Then("the health popover is shut", async function (this: OlaiWorld) {
   await this.page.locator(HEALTH_PANEL).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-  await this.expectAttribute(HEALTH, "aria-expanded", "false", "the health dot");
+  await this.expectChromeAttribute(HEALTH, "aria-expanded", "false", "the health dot");
 });
 
 Then("the health dot has the focus", async function (this: OlaiWorld) {
@@ -129,7 +129,7 @@ Then("the health popover has no {string} row", async function (this: OlaiWorld, 
  *  the health dot's own words). */
 Then("the {string} row wears a {string} dot", async function (this: OlaiWorld, id: string, tone: string) {
   const dot = `${HEALTH_PANEL} ${attr("data-testid", id)} [data-health]`;
-  await this.expectAttribute(dot,"data-health", tone, `the ${id} row's dot`, HYDRATION_TIMEOUT);
+  await this.expectChromeAttribute(dot,"data-health", tone, `the ${id} row's dot`, HYDRATION_TIMEOUT);
 });
 
 /** Rows stand worst first: the first row (the first owner's test id in the

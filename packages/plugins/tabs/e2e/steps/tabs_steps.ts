@@ -22,10 +22,21 @@ const tabAt = (world: OlaiWorld, index: number) => world.page.locator(`${TAB}${a
 
 // Playwright's automatic scrollIntoView moves window scroll for a pinned strip.
 // A real pointer presses it where it is. Reveal clipped tabs horizontally only.
+const tabsFailure = async (world: OlaiWorld, error: unknown): Promise<never> => {
+  let state: string;
+  try {
+    await world.showPlugins();
+    const row = await world.showPluginRow("tabs");
+    state = `${await row.innerText()}\n${await row.evaluate(element => element.outerHTML)}`;
+  } catch (inspection) { state = `Could not inspect tabs: ${String(inspection)}`; }
+  throw new Error(`${String(error)}\nTabs activation at failure:\n${state}`);
+};
+
 const pressPinned = async (world: OlaiWorld, target: ReturnType<OlaiWorld["pane"]>) => {
   // The first press may precede the tabs integration attaching to the shell.
   // Use the same first-paint budget as the strip-count assertion.
-  await target.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  try { await target.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT }); }
+  catch (error) { await tabsFailure(world, error); }
   await target.evaluate(element => {
     const row = element.closest<HTMLElement>('[role="tablist"]');
     if (!row) return;
@@ -220,7 +231,8 @@ When("I drag tab {int} onto tab {int}", async function (this: OlaiWorld, from: n
 
 const chooseFromMenu = async (world: OlaiWorld, entry: string): Promise<void> => {
   const menu = world.page.locator(MENU);
-  await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  try { await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT }); }
+  catch (error) { await tabsFailure(world, error); }
   await menu.getByRole("menuitem", { name: entry, exact: true }).click();
   await world.page.locator(MENU).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
   await settled(world);

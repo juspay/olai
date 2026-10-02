@@ -1876,7 +1876,7 @@ export class OlaiWorld extends World {
    *  than in a step file because two of them now ask (`document_steps.ts`,
    *  `toc_steps.ts`), and `.first()` being the right answer is one decision. */
   documentBody(): Locator {
-    return this.page.locator(DOCUMENT_BODY).first();
+    return this.frontLane().locator(DOCUMENT_BODY).first();
   }
 
   /**
@@ -1997,7 +1997,7 @@ export class OlaiWorld extends World {
   nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }
 
   node(id: string): Locator {
-    return this.frontLane().locator(`${nodeSelector(this.nodeId(id))}:visible`);
+    return this.frontLane().locator(nodeSelector(this.nodeId(id)));
   }
 
   /** The same node, only if it is on screen. `:visible` because dropping a row
@@ -2016,7 +2016,7 @@ export class OlaiWorld extends World {
    *  matches inside the scope too, and the node's own is rendered before any
    *  child's. */
   within(id: string, control: string): Locator {
-    return this.node(id).locator(control).first();
+    return this.visibleNode(id).locator(control).first();
   }
 
   /**
@@ -2501,7 +2501,7 @@ export class OlaiWorld extends World {
    *  inside the scope — `.first()` is the node's own because the title is
    *  rendered before the children. */
   nodeTitle(id: string): Locator {
-    return this.node(id).locator(NODE_TITLE).first();
+    return this.visibleNode(id).locator(NODE_TITLE).first();
   }
 
   /** The nodes rendered INSIDE a node — its children, or, for a mirror, the
@@ -2523,23 +2523,29 @@ export class OlaiWorld extends World {
    *  attribute that is waiting on the NETWORK rather than on a render (a wire
    *  re-dialling through its backoff after a server restart) is a different
    *  scale, and passing `HYDRATION_TIMEOUT` says which one this is. */
+  /** Chrome is explicitly outside the retained page lanes. */
+  async expectChromeAttribute(selector: string, attribute: string, expected: string, what: string, timeout = POLL_TIMEOUT): Promise<void> {
+    return this.expectAttribute(selector, attribute, expected, what, timeout, this.page);
+  }
+
   async expectAttribute(
     selector: string,
     attribute: string,
     expected: string,
     what: string,
     timeout = POLL_TIMEOUT,
+    scope: Page | Locator = this.frontLane(),
   ): Promise<void> {
     try {
-      await this.page
+      await scope
         .locator(`${selector}${attr(attribute, expected)}`)
         .first()
         .waitFor({ state: "attached", timeout });
     } catch {
-      const actual = await this.page
+      const actual = await scope
         .locator(selector)
         .first()
-        .getAttribute(attribute)
+        .getAttribute(attribute, { timeout: 1000 })
         .catch(() => null);
       throw new Error(
         `expected ${what} to have ${attribute}="${expected}", ` +
@@ -2558,17 +2564,18 @@ export class OlaiWorld extends World {
     attribute: string,
     what: string,
     timeout = POLL_TIMEOUT,
+    scope: Page | Locator = this.frontLane(),
   ): Promise<void> {
     try {
-      await this.page
+      await scope
         .locator(`${selector}:not([${attribute}])`)
         .first()
         .waitFor({ state: "attached", timeout });
     } catch {
-      const actual = await this.page
+      const actual = await scope
         .locator(selector)
         .first()
-        .getAttribute(attribute)
+        .getAttribute(attribute, { timeout: 1000 })
         .catch(() => null);
       throw new Error(
         `expected ${what} to carry no ${attribute}, but it is ` +
@@ -2612,7 +2619,7 @@ export class OlaiWorld extends World {
     expected: boolean,
   ): Promise<void> {
     await this.openCalendar();
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       daySelector(date),
       fact,
       String(expected),

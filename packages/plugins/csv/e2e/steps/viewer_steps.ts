@@ -295,7 +295,7 @@ Then(
   "the {string} row {string} wears its own glyph",
   async function (this: OlaiWorld, kind: string, file: string) {
     await this.showSidebar();
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       `${rowsOfKind(kind)}${attr("data-file", file)} ${FILE_GLYPH}`,
       "data-glyph",
       kind,

@@ -28,17 +28,6 @@ Then("there are {int} live lanes", async function (this: OlaiWorld, count: numbe
   await this.waitUntil(async () => await this.page.locator(selector(TESTID.lane)).count() === count, `${count} live lanes`)
 })
 
-Then("pane {int} remains at its saved scroll position", async function (this: OlaiWorld, index: number) {
-  const top = await this.pane(index).evaluate(root => {
-    let host: HTMLElement | null = root as HTMLElement
-    while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
-    if (host === null) throw new Error("no pane scroller")
-    return host.scrollTop
-  })
-  assert.equal(top, 0)
-})
-
-
 Then("pane {int} is at its bottom", async function (this: OlaiWorld, index: number) {
   await this.waitUntil(() => this.pane(index).evaluate(root => {
     let host = root.parentElement
