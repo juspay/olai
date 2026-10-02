@@ -180,7 +180,7 @@ Then("no snapshot pane is open", async function (this: OlaiWorld) {
     .first()
     .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
     .catch(async () => {
-      assert.equal(await this.page.locator(PANE).count(), 0);
+      assert.equal(await this.frontLane().locator(PANE).count(), 0);
     });
 });
 
@@ -273,7 +273,7 @@ Then(
 Then(
   "the pane is a live window rather than a snapshot",
   async function (this: OlaiWorld) {
-    const pane = this.page.locator(PANE).first();
+    const pane = this.frontLane().locator(PANE).first();
     // THE TWO WAYS IT SAYS SO, asserted together because either alone would let
     // the pane make a promise it cannot keep. The solid border is the class the
     // still-frame pane deliberately does NOT have; the tag is the word.

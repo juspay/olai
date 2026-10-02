@@ -69,7 +69,7 @@ When("I focus pane {int}", async function (this: OlaiWorld, index: number) {
 });
 
 When("I close the focused pane", async function (this: OlaiWorld) {
-  const close = this.page.locator(`${PANE_HEADER}[data-pane-focused="true"] ${PANE_CLOSE}`);
+  const close = this.frontLane().locator(`${PANE_HEADER}[data-pane-focused="true"] ${PANE_CLOSE}`);
   await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await close.click();
   await this.waitForFrame();
@@ -86,7 +86,7 @@ When("I open the address {string}", async function (this: OlaiWorld, address: st
 When(
   "I collapse pane {int} by dragging its divider",
   async function (this: OlaiWorld, index: number) {
-    const handle = this.page.locator(
+    const handle = this.frontLane().locator(
       `${PANE_RESIZE}${attr("data-left", String(index))}, ${PANE_RESIZE}${attr("data-right", String(index))}`,
     ).first();
     await handle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -110,7 +110,7 @@ When(
 );
 
 When("I expand the pane rail {int}", async function (this: OlaiWorld, index: number) {
-  const rail = this.page.locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
+  const rail = this.frontLane().locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
   await rail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await rail.click();
   await this.waitForFrame();
@@ -122,7 +122,7 @@ When("I shrink the window to a phone", async function (this: OlaiWorld) {
 });
 
 When("I tap pane tab {int}", async function (this: OlaiWorld, index: number) {
-  const tab = this.page.locator(`${PANE_TAB}${attr("data-pane", String(index))}`);
+  const tab = this.frontLane().locator(`${PANE_TAB}${attr("data-pane", String(index))}`);
   await tab.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await tab.click();
   await this.waitForFrame();
@@ -169,7 +169,7 @@ When(
 
 Then("there are {int} panes", async function (this: OlaiWorld, n: number) {
   await this.waitUntil(
-    async () => (await this.page.locator(PANE).count()) === n,
+    async () => (await this.frontLane().locator(PANE).count()) === n,
     `${n} panes on screen`,
   );
 });
@@ -190,7 +190,7 @@ Then("there are {int} panes", async function (this: OlaiWorld, n: number) {
 Then(
   "pane {int} is already drawing the outline {string}",
   async function (this: OlaiWorld, index: number, file: string) {
-    const drawn = await this.page
+    const drawn = await this.frontLane()
       .locator(`${PANE}${attr("data-pane", String(index))}`)
       .first()
       .getAttribute("data-drawn-file");
@@ -241,18 +241,18 @@ Then("a pane rail is shown for pane {int}", async function (this: OlaiWorld, ind
 
 Then("no pane rail is shown", async function (this: OlaiWorld) {
   await this.waitUntil(
-    async () => (await this.page.locator(PANE_RAIL).count()) === 0,
+    async () => (await this.frontLane().locator(PANE_RAIL).count()) === 0,
     "no pane rail on screen",
   );
 });
 
 Then("the pane tabs are shown", async function (this: OlaiWorld) {
-  await this.page.locator(PANE_TABS).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.frontLane().locator(PANE_TABS).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then("there are {int} pane tabs", async function (this: OlaiWorld, n: number) {
   await this.waitUntil(
-    async () => (await this.page.locator(PANE_TAB).count()) === n,
+    async () => (await this.frontLane().locator(PANE_TAB).count()) === n,
     `${n} pane tabs`,
   );
 });
@@ -267,12 +267,12 @@ When("I scroll pane {int} to its middle", async function(this: OlaiWorld, index:
 })
 
 Then("pane {int} keeps its title {string} above its scroller", async function(this: OlaiWorld, index: number, title: string) {
-  const heading = this.page.locator(`${PANE_HEADER}${attr("data-pane", String(index))}`)
+  const heading = this.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))}`)
   assert.ok((await heading.innerText()).includes(title))
   // UNDER WHATEVER SITS ABOVE THE PANES: the bar, and the seat under it where a
   // row fills it (the tab strip).
-  const strip = await this.page.locator(MAIN_STRIP).boundingBox()
-  const bar = strip ?? await this.page.locator(APP_HEADER).boundingBox()
+  const strip = await this.frontLane().locator(MAIN_STRIP).boundingBox()
+  const bar = strip ?? await this.frontLane().locator(APP_HEADER).boundingBox()
   const box = await heading.boundingBox()
   const top = await this.pane(index).evaluate(root => {
     let host = root.parentElement
@@ -298,7 +298,7 @@ const words = async (locator: ReturnType<OlaiWorld["page"]["locator"]>): Promise
 Then(
   "pane {int}'s header reads {string}, and its close button is called {string}",
   async function (this: OlaiWorld, index: number, name: string, close: string) {
-    const header = this.page.locator(`${PANE_HEADER}${attr("data-pane", String(index))}`);
+    const header = this.frontLane().locator(`${PANE_HEADER}${attr("data-pane", String(index))}`);
     await header.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(async () => (await words(header)) === name,
       `pane ${index}'s header to read ${JSON.stringify(name)}`);
@@ -309,7 +309,7 @@ Then(
 Then(
   "the pane rail {int} reads {string}, and is called {string}",
   async function (this: OlaiWorld, index: number, name: string, expand: string) {
-    const rail = this.page.locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
+    const rail = this.frontLane().locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
     await rail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual((await rail.innerText()).trim(), name);
     assert.strictEqual(await rail.getAttribute("aria-label"), expand);
@@ -318,13 +318,13 @@ Then(
 
 Then("the pane tabs read {string}", async function (this: OlaiWorld, names: string) {
   await this.waitUntil(
-    async () => (await this.page.locator(PANE_TAB).allInnerTexts()).map((one) => one.trim()).join(" | ") === names,
+    async () => (await this.frontLane().locator(PANE_TAB).allInnerTexts()).map((one) => one.trim()).join(" | ") === names,
     `the pane tabs to read ${JSON.stringify(names)}`,
   );
 });
 
 When("I widen the first pane by dragging its divider", async function (this: OlaiWorld) {
-  const handle = this.page.locator(PANE_RESIZE).first();
+  const handle = this.frontLane().locator(PANE_RESIZE).first();
   const box = await handle.boundingBox();
   assert.ok(box !== null, "the divider has no box");
   const before = new URL(this.page.url()).searchParams.get("w");

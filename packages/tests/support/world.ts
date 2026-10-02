@@ -1952,15 +1952,17 @@ export class OlaiWorld extends World {
    *  SCREEN: two panes showing one file draw every row of it twice, so
    *  "the bullet of `knobs`" has no answer until a step says which column it
    *  means. Spelled once here for the reason every other selector is. */
+  frontLane(): Locator { return this.page.locator(`${selector(PLUGIN_TESTID.lane)}[data-lane-front="true"]`); }
+
   pane(index: number): Locator {
-    return this.page.locator(`${PANE}${attr("data-pane", String(index))}`);
+    return this.frontLane().locator(`${PANE}${attr("data-pane", String(index))}`);
   }
 
   /** Where a row is looked for when the step does NOT name a pane: the whole
    *  page. The unscoped answer, as a scope — so the helpers that take one do
    *  not need a second arity for the lone case. */
   everywhere(): Locator {
-    return this.page.locator("body");
+    return this.frontLane();
   }
 
   /** One node in the tree, by id. Ids are unique across the whole loaded set,
@@ -1980,34 +1982,34 @@ export class OlaiWorld extends World {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
     return `:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
   }
-  chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
+  chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.frontLane().locator(this.chatSelector(control), options); }
   /** Settings and the standing strips (plan, tools, still running, alerts)
    *  live in the fold or the zoomed page's pinned head. */
   chatLine(): Locator {
     assert.ok(this.activeAgent, "select a node agent before addressing its agent line");
-    return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+    return this.frontLane().locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
   }
   chatRoot(): Locator {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
-    return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+    return this.frontLane().locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
   }
   readonly nodeNames = new Map<string, string>();
   nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }
 
   node(id: string): Locator {
-    return this.page.locator(nodeSelector(this.nodeId(id)));
+    return this.frontLane().locator(nodeSelector(this.nodeId(id)));
   }
 
   /** The same node, only if it is on screen. `:visible` because dropping a row
    *  and hiding it are both legitimate ways to hide something, and they read
    *  the same to the person looking at the page. */
   visibleNode(id: string): Locator {
-    return this.page.locator(`${nodeSelector(this.nodeId(id))}:visible`);
+    return this.frontLane().locator(`${nodeSelector(this.nodeId(id))}:visible`);
   }
 
   /** The trail above a zoomed node, crumb by crumb, in order. */
   crumbs(): Locator {
-    return this.page.locator(`${BREADCRUMBS} ${CRUMB}`);
+    return this.frontLane().locator(`${BREADCRUMBS} ${CRUMB}`);
   }
 
   /** A node's OWN control. `.first()` is the node's own: a descendant's
@@ -2420,7 +2422,7 @@ export class OlaiWorld extends World {
    * inside it would pass by dismissing nothing.
    */
   async tapAway(): Promise<void> {
-    const tree = await this.box(this.page.locator(OUTLINE_TREE).first(), "the outline tree");
+    const tree = await this.box(this.frontLane().locator(OUTLINE_TREE).first(), "the outline tree");
     const view = this.viewport();
     // Clear of the bottom of the screen, where a phone keeps the agent's strip.
     const at = { x: view.width - 12, y: Math.min(tree.y + tree.height + 24, view.height - 80) };
