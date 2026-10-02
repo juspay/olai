@@ -38,9 +38,9 @@
     "src/browser.tsx",
     "src/browser/agents/AgentPalette.ts",
     "src/browser/agents/handoff.ts",
+    "src/browser/agents/new-chat-level.ts",
     "src/browser/agents/new-chat.ts",
-    "src/browser/navigation.ts",
-    "src/browser/verbs.tsx"
+    "src/browser/navigation.ts"
   ],
   "outlines": [
     "src/adapter.ts"
@@ -49,6 +49,7 @@
   "search": [
     "src/agents/roster.ts",
     "src/browser/agents/AgentPalette.ts",
+    "src/browser/agents/new-chat-level.ts",
     "src/browser/chat/Composer.tsx",
     "src/browser/chat/Model.tsx",
     "src/browser/chat/completion.ts",
