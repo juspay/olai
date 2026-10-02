@@ -686,9 +686,9 @@ export function Palette(props: {
     if (opened.length < remembered.length) fellBack(remembered[opened.length]!)
   }
 
-  /** `showAt`: open at a path of ids, as deep as it resolves. */
+  /** `showAt`: a blank box, then a path of ids, as deep as it resolves. */
   const openAt = (at: OpenAt) => {
-    abortSteps(untrack(path))
+    blank()
     const opened = resolveLevels(at.path, (depth, item, level) =>
       openStep(item.id, item.label, level.kind === "value" ? level.initial ?? "" : ""))
     const last = opened.at(-1)
@@ -698,8 +698,7 @@ export function Palette(props: {
         ? [...opened.slice(0, -1), { ...last, step: { ...last.step, text: at.text } }]
         : opened,
     )
-    if (opened.length === 0) setQuery("")
-    input?.focus()
+    queueMicrotask(() => input?.focus())
   }
 
   /** The level named was withdrawn under the person: say so, in the aside
@@ -772,8 +771,17 @@ export function Palette(props: {
     previousFocus = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-    if (!(firstOpening && resuming)) blank()
-    else untrack(restoreLevels)
+    // A drawing rebuilt over an open palette restores what was open; an
+    // opening that came with a path (`showAt`) goes there; any other opening
+    // is a blank box at the root. Whichever of this and the request effect
+    // below runs first acts on a request, and the other leaves it alone.
+    const at = untrack(paletteAt)
+    if (firstOpening && resuming) untrack(restoreLevels)
+    else if (at === null) blank()
+    else if (at !== handledAt) {
+      handledAt = at
+      untrack(() => openAt(at))
+    }
     firstOpening = false
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
@@ -794,9 +802,9 @@ export function Palette(props: {
   /** …and a request to open AT a path (`PaletteControl.showAt`), acted on
    *  once — after the opening above, which is what blanks the box first. */
   createEffect(on(paletteAt, (at) => {
-    if (at === null || at === handledAt) return
+    if (at === null || at === handledAt || !untrack(paletteOpen)) return
     handledAt = at
-    openAt(at)
+    untrack(() => openAt(at))
   }))
 
   /** THE CONTRIBUTING PLUGIN LEFT while its level was open: take down what
