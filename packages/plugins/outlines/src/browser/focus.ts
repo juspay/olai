@@ -1,3 +1,4 @@
+import { usePane } from "olai-plugin-navigation/pane"
 /**
  * Which node the reader was just pointed AT, and how the page answers.
  *
@@ -155,11 +156,12 @@ const bringFocusedOntoScreen = (root: ParentNode): boolean => {
  * nothing and navigate away from a node that is right there.
  */
 const focusFrames = new Set<number>()
-const focusNode = (id: string, elsewhere: () => void): void => {
+const focusNode = (id: string, root: () => ParentNode | undefined, elsewhere: () => void): void => {
   setFocused(id)
   const frame = requestAnimationFrame(() => {
     focusFrames.delete(frame)
-    if (!bringFocusedOntoScreen(document)) elsewhere()
+    const within = root()
+    if (!within || !bringFocusedOntoScreen(within)) elsewhere()
   })
   focusFrames.add(frame)
 }
@@ -233,10 +235,11 @@ const landOnRow = (go: (route: Route) => void, id: string, mine: number, before:
  */
 export const useShowNode = (): ((id: string) => void) => {
   const router = useRouter()
+  const pane = usePane()
   return (id) => {
     const mine = ++pointed
     const before = focused()
-    focusNode(id, () => landOnRow(router.go, id, mine, before))
+    focusNode(id, () => pane?.element ?? router.panes()[router.focusIndex()]?.element(), () => landOnRow(router.go, id, mine, before))
   }
 }
 

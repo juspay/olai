@@ -1,3 +1,5 @@
+import { usePane } from "olai-plugin-navigation/pane"
+import { usePaneId, useShown } from "olai-plugin-navigation/routing"
 /**
  * One whole outline: the roots of a file, expanded.
  *
@@ -55,6 +57,9 @@ export function OutlinePage(props: {
 }) {
   const narrowed = useNarrowed()
   const folds = createFoldReading()
+  const pane = usePane()
+  const paneId = usePaneId()
+  const shown = useShown()
   const here = useHere()
   const landing = useLanding(() => props.file)
 
@@ -176,7 +181,7 @@ export function OutlinePage(props: {
    *  page the reader is READING, not to the arrival that put it there — it
    *  outlives `owed` and dies with the page. */
   let minted:
-    | { readonly file: string; readonly pane: number; readonly keys: ReadonlySet<string> }
+    | { readonly file: string; readonly pane: string; readonly keys: ReadonlySet<string> }
     | undefined
   const conceal = (): void => {
     if (minted !== undefined) {
@@ -255,8 +260,8 @@ export function OutlinePage(props: {
       const keys = new Set(aimAt.chain.map((row) => row.key))
       minted = {
         file: props.file,
-        pane: here(),
-        keys: revealDone(props.file, here(), keys),
+        pane: paneId(),
+        keys: revealDone(props.file, paneId(), keys),
       }
       return
     }
@@ -277,10 +282,8 @@ export function OutlinePage(props: {
     const frame = requestAnimationFrame(() => {
       // The landing belongs to THIS pane: the SAME outline can sit in two
       // columns, and the scroll is the pane whose address named the row.
-      const root = document.querySelector(
-        `[data-testid="${IDS_NAVIGATION.pane}"][data-pane="${String(here())}"]`,
-      )
-      if (root === null) return
+      const root = pane?.element
+      if (!shown() || root === undefined) return
       // Aim at the landing's OWN row — the chain's last placement, found by
       // the record id its row wears — not at the accent: the accent is one
       // signal for the whole app and a landing is a fact per pane, so two at

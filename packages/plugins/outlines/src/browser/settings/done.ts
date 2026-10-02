@@ -168,7 +168,7 @@ export const letDoneFollow = (file: string): void => {
  * pane's copy of THIS page to keep drawn.
  */
 const [revealed, setRevealed] = createSignal<
-  ReadonlyMap<number, ReadonlyMap<string, ReadonlySet<string>>>
+  ReadonlyMap<string, ReadonlyMap<string, ReadonlySet<string>>>
 >(new Map())
 
 /** The places the pick's sweep spares for pane `pane` on `file`, or nothing
@@ -177,7 +177,7 @@ const [revealed, setRevealed] = createSignal<
  *  for the page and somebody else to disagree about the same row. */
 const landingReveal = (
   file: string,
-  pane: number,
+  pane: string,
 ): ReadonlySet<string> | undefined => revealed().get(pane)?.get(file)
 
 /**
@@ -196,7 +196,7 @@ const landingReveal = (
  */
 export const revealDone = (
   file: string,
-  pane: number,
+  pane: string,
   keys: ReadonlySet<string>,
 ): ReadonlySet<string> => {
   const standing = revealed().get(pane)?.get(file)
@@ -225,7 +225,7 @@ export const revealDone = (
  */
 export const concealDone = (
   file: string,
-  pane: number,
+  pane: string,
   keys: ReadonlySet<string>,
 ): void => {
   if (revealed().get(pane)?.get(file) !== keys) return
@@ -286,7 +286,7 @@ export const pageFileOf = (page: Shown | undefined): string | undefined => {
 export const visibleIn = (
   drawn: Drawn,
   file: string | undefined,
-  pane: number,
+  pane: string,
 ): Drawn => {
   if (file === undefined || drawn.kind !== "tree") return drawn
   if (doneHiddenOn(file))

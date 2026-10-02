@@ -40,9 +40,9 @@ export const editorMemory = () => {
 export type EditorMemory = ReturnType<typeof editorMemory>
 
 let saved = new WeakMap<Route, Map<string, EditorMemory>>()
-const key = (pane: number, page: string) => JSON.stringify([pane, page])
+const key = (pane: string, page: string) => JSON.stringify([pane, page])
 
-export const takeEditor = (pane: number, page: string, route: Route | undefined): EditorMemory => {
+export const takeEditor = (pane: string, page: string, route: Route | undefined): EditorMemory => {
   const at = key(pane, page)
   const entries = route === undefined ? undefined : saved.get(route)
   const memory = entries?.get(at) ?? editorMemory()
@@ -50,7 +50,7 @@ export const takeEditor = (pane: number, page: string, route: Route | undefined)
   return memory
 }
 
-export const keepEditor = (pane: number, page: string, route: Route, memory: EditorMemory): void => {
+export const keepEditor = (pane: string, page: string, route: Route, memory: EditorMemory): void => {
   if (memory.draft() === null && memory.ghosts().length === 0
     && memory.selection.keys[0]().size === 0 && memory.selection.said[0]() === null
     && memory.moving.standing[0]() === null) return

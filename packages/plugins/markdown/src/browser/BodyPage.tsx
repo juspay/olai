@@ -3,7 +3,7 @@
 import { createMemo, Show, Switch, Match, type JSX } from "solid-js"
 import type { Directory } from "olai-plugin-vault/file-state"
 import type { Navigation } from "olai-plugin-navigation/contract"
-import { useHere, useFollow } from "olai-plugin-navigation/routing"
+import { useHere, useFollow, useRouter } from "olai-plugin-navigation/routing"
 import { panesOf } from "olai-plugin-navigation/workspace"
 import { samePageRequest, type DocumentPageRequest, type PageReading } from "@olai/format"
 import { TESTID as NAV } from "olai-plugin-navigation/testids"
@@ -29,19 +29,19 @@ export function BodyPage(props: {
   readonly memory: ReferrerMemory | undefined
   readonly Body: (props: { readonly file: string }) => JSX.Element
 }) {
-  const here = useHere(), follow = useFollow()
-  const route = () => panesOf(props.navigation.workspace())[here()]!.route
+  const here = useHere(), follow = useFollow(), navigation = useRouter()
+  const route = createMemo(() => navigation.panes()[here()]!.route())
   const request = createMemo<DocumentPageRequest | null>(() => documentRequest(props.directory.claims(), route()), null, {
     equals: (a, b) => a === null || b === null ? a === b : samePageRequest(a, b),
   })
   const reading = props.directory.bodyPage(request)
   const page = createMemo<PageReading | undefined>(previous => reading() ?? previous)
   const file = () => request()?.address.path
-  props.navigation.report(here, () => ({ file: file(), title: file() }))
+  navigation.report(here, () => ({ file: file(), title: file() }))
   return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 pb-16 ${CLEARANCE} md:px-10 md:py-10`}
     data-testid={NAV.pane} data-pane={String(here())}
-    data-pane-focused={here() === props.navigation.workspace().focus ? "true" : undefined}
-    data-href={props.navigation.routes.href(route())} onPointerDown={() => props.navigation.focus(here())} onClick={follow}>
+    data-pane-focused={here() === navigation.workspace().focus ? "true" : undefined}
+    data-href={navigation.routes.href(route())} onPointerDown={() => navigation.focus(here())} onClick={follow}>
     <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Loading…</p>}>
       {shows => <Switch>
         <Match when={only(shows(), "nothing")}>{missing => <Empty testid={UI.nothing} line="Page not found" detail={`There is no ${props.directory.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested}.`} />}</Match>
@@ -49,7 +49,7 @@ export function BodyPage(props: {
           <section data-testid={TESTID.documentPage} data-file={path}>
             <header class="mb-8"><h1 class="m-0 max-w-full break-all font-mono text-body tracking-tight text-muted">{path}</h1></header>
             <props.Body file={path} />
-            <Referrers file={path} reading={page} claims={props.directory.claims()} href={props.navigation.routes.href} memory={props.memory} />
+            <Referrers file={path} reading={page} claims={props.directory.claims()} href={navigation.routes.href} memory={props.memory} />
           </section>
         }</Show>}</Match>
       </Switch>}

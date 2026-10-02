@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 import { createEffect, createMemo, type Accessor } from "solid-js"
 import type { PanelAddress } from "../../wire/session.ts"
 import { createChat } from "../chat/state.ts"
@@ -10,6 +11,7 @@ import { agentReadings, readAgent } from "./reading.ts"
  */
 export const createNodeConversation = (node: Accessor<string>) => {
   const reading = agentReadings()
+  const shown = useShown()
   const pair = createMemo(() => {
     const agent = reading?.agents.at(node())
     return agent?.session == null ? null
@@ -26,7 +28,7 @@ export const createNodeConversation = (node: Accessor<string>) => {
     if (!hasPanel()) return null
     const at = address()
     const chat = createChat(at, { expected: to, ui: reading?.ui(to ?? at), visit: to => reading?.visit(node(), to) })
-    readAgent(node(), chat)
+    readAgent(node(), chat, shown)
     const question = createAsked(chat)
     createEffect(() => chat.ui.question[1](question()))
     return chat

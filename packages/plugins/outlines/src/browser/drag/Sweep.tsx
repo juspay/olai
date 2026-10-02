@@ -1,3 +1,4 @@
+import { overlayRoot } from "../overlay.ts"
 /**
  * The band a drag-across pulls, drawn.
  *
@@ -31,7 +32,7 @@ export function SweepBand(props: { readonly sweep: Sweep | null }) {
   return (
     <Show when={props.sweep}>
       {(sweep) => (
-        <Portal>
+        <Portal mount={overlayRoot(document.body)}>
           <div
             class={`pointer-events-none absolute ${LAYER.row} rounded-control border border-accent/40 bg-accent/10`}
             style={{

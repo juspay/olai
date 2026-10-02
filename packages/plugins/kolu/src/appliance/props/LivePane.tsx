@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * THE LIVE PANE — a window on a terminal, not a photograph of one.
  *
@@ -72,6 +73,7 @@ export function LivePane(props: {
   readonly themeName: string | null
   readonly onClose: () => void
 }) {
+  const shown = useShown()
   const fleet = useFleet()
   /** THE TERMINAL'S OWN THEME, resolved once and read twice: xterm paints the
    *  glyphs with it, and the wrapper paints the padding around them with its
@@ -217,6 +219,7 @@ export function LivePane(props: {
         // and none of the three ways the scaled version came apart on a real busy
         // terminal.
         observer = new ResizeObserver(() => {
+        if (!shown() || !host || host.clientWidth === 0 || host.clientHeight === 0) return
         // ONLY WHEN THE GRID ACTUALLY MOVED. `fit()` resizes the terminal, which
         // resizes the DOM, which fires this observer again — so an unguarded
         // re-attach here is a loop that never settles: every attach is torn down

@@ -1,3 +1,4 @@
+import { usePaneId, useShown } from "olai-plugin-navigation/routing"
 import { createEffect, createSignal } from "solid-js"
 import { carriedText } from "olai-plugin-chat/carry"
 import { documentBox } from "@olai/web/client/carry.ts"
@@ -113,19 +114,21 @@ interface EditableProps {
 }
 
 export function Editable(props: EditableProps) {
-  const here = useHere()
-  const identity = createMemo(() => JSON.stringify([here(), props.file, props.within]))
+  const here = usePaneId()
+  const identity = createMemo(() => JSON.stringify([props.file, props.within]))
   return <Show when={identity()} keyed>{(_identity) => <EditablePage {...props} />}</Show>
 }
 
 function EditablePage(props: EditableProps) {
-  const pane = useHere()()
+  const shown = useShown()
+  const here = useHere()
+  const pane = usePaneId()()
   const router = useRouter()
-  const route = panesOf(router.workspace())[pane]?.route
+  const route = router.panes()[here()]?.route()
   const identity = JSON.stringify([props.file, props.within])
   const memory = takeEditor(pane, identity, route)
   onCleanup(() => {
-    const now = panesOf(router.workspace())[pane]?.route
+    const now = router.panes()[here()]?.route()
     if (now?.kind === "at" && route?.kind === "at"
       && (now.address === null ? null : printAddress(now.address))
         === (route.address === null ? null : printAddress(route.address))) {
@@ -228,6 +231,7 @@ function EditablePage(props: EditableProps) {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (!shown()) return
       // A STRUCTURAL REPLY CAN LEAVE THE CARET IN A ROW WITH NO BOX AT ALL.
       // `opening` puts it on the row the write answered with, whose `place` is
       // `null` until the frame draws that row — and for a SPLIT or a MERGE the
@@ -243,7 +247,7 @@ function EditablePage(props: EditableProps) {
       // still focused, and hears the key for itself. The `kind` here is what
       // says so — a pending is not this case either.
       if (!event.defaultPrevented && event.key === "Escape"
-        && router.workspace().focus === pane
+        && router.focusIndex() === here()
         && (event.target === document.body || event.target === document.documentElement)
         && editor.draft()?.kind === "row" && editor.where().place === null) {
         event.preventDefault()

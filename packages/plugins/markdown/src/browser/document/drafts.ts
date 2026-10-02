@@ -30,16 +30,16 @@ const editorOf = () => {
 }
 export type DocumentEditor = ReturnType<typeof editorOf>
 let saved = new WeakMap<Route, Map<string, DocumentEditor>>()
-const key = (file: string, pane: number) => JSON.stringify([pane, file])
+const key = (file: string, pane: string) => JSON.stringify([pane, file])
 
-export const takeDraft = (file: string, pane: number, route: Route | undefined): DocumentEditor => {
+export const takeDraft = (file: string, pane: string, route: Route | undefined): DocumentEditor => {
   const at = key(file, pane)
   const entries = route === undefined ? undefined : saved.get(route)
   const editor = entries?.get(at) ?? editorOf()
   entries?.delete(at)
   return editor
 }
-export const keepDraft = (file: string, pane: number, route: Route, editor: DocumentEditor): void => {
+export const keepDraft = (file: string, pane: string, route: Route, editor: DocumentEditor): void => {
   if (!editor.editing()) return
   const entries = saved.get(route) ?? new Map<string, DocumentEditor>()
   entries.set(key(file, pane), editor)

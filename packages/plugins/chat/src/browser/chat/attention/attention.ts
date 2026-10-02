@@ -32,7 +32,7 @@ export const createAttention = (router: Router): void => {
           const current = reading()
           if (held === undefined || current?.session == null) return undefined
           const ui = held.ui({ agent: current.engine, session: current.session })
-          return [...(held.at(row.id) ?? [])].find(chat => chat.ui === ui)
+          return [...(held.at(row.id) ?? [])].find(chat => chat.ui === ui && held.isShown(chat))
         }
         const watched = createWatching(() => currentChat() !== undefined, row.id)
         createEffect<Awaiting | undefined>(before => {

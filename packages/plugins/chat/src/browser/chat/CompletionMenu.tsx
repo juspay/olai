@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * The completion over the message box — one list for both of the things the
  * composer completes.
@@ -159,6 +160,7 @@ export function CompletionMenu(props: {
   readonly within: () => HTMLElement | undefined
   readonly onDismiss: () => void
 }) {
+  const shown = useShown()
   const selection = createCompletionSelection(() => props.completing, () => props.rows)
 
   /**
@@ -211,6 +213,7 @@ export function CompletionMenu(props: {
   // here and means nothing to the other lists, so it stays a case of this
   // handler rather than an arm of the shared matcher.
   const onKey = (event: KeyboardEvent) => {
+    if (!shown()) return
     // Aimed at the box this list completes, or it is not this list's (see
     // `within`). First, because it is the older and stronger of the two
     // questions: a key somewhere else is not this menu's however topmost the

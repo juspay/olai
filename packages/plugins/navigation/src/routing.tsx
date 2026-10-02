@@ -7,6 +7,8 @@ import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route,type Routing } from "./routes.ts"
 import type { Workspace,WorkspaceRouting } from "./workspace.ts"
 export interface LivePane {
+  readonly element: Accessor<HTMLElement | undefined>
+  readonly mount: (element: HTMLElement) => () => void
   readonly id: string
   readonly index: Accessor<number>
   readonly route: Accessor<Route>
@@ -154,6 +156,11 @@ export const useRouter = (): Router => {
 
 /** Which pane a gesture in this component is about: the one we are
  *  drawn in, or the focused pane when we sit outside every pane. */
+export const usePaneId = (): Accessor<string> => {
+  const router = useRouter(), pane = usePane()
+  return () => pane?.id ?? router.panes()[router.focusIndex()]!.id
+}
+
 export const useHere = (): (() => number) => {
   const router = useRouter()
   const pane = usePane()

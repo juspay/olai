@@ -1,3 +1,4 @@
+import { usePaneId } from "olai-plugin-navigation/routing"
 /**
  * WHAT POINTS AT THIS DOCUMENT, under its heading — the reverse reading a
  * `.md` could not have.
@@ -99,7 +100,7 @@ function Section(props: {
   readonly reading: Accessor<PageReading | undefined>
   readonly memory: ReferrerMemory | undefined
 }) {
-  const pane = useHere()()
+  const pane = usePaneId()()
   const key = JSON.stringify([pane, `referrers:${props.file}`])
   const memory = props.memory
   const stillShown = () => {

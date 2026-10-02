@@ -15,6 +15,7 @@ export const createAgentReadings = (agents: Roster) => {
   const page = createPageOwners<PageSession>()
   const previews = createPreviews()
   const reveals = new Set<string>()
+  const shown = new Map<Chat, () => boolean>()
   const cache = new Map<string, ReturnType<typeof createConversationUI>>()
   const [visits, setVisits] = createSignal<ReadonlyMap<string, Conversing>>(new Map())
   const waiting = new Set<() => void>()
@@ -58,15 +59,18 @@ export const createAgentReadings = (agents: Roster) => {
       })
     }),
     reveal: (node: string) => {
-      const live = readings().get(node)
-      if (live === undefined) reveals.add(node)
+      const live = [...(readings().get(node) ?? [])].filter(chat => shown.get(chat)?.())
+      if (live.length === 0) reveals.add(node)
       else for (const chat of live) chat.ui.reveal[1](true)
     },
     at: (node: string) => readings().get(node),
-    join: (node: string, chat: Chat) => {
-      if (reveals.delete(node)) chat.ui.reveal[1](true)
+    isShown: (chat: Chat) => shown.get(chat)?.() === true,
+    join: (node: string, chat: Chat, visible: () => boolean) => {
+      shown.set(chat, visible)
+      createEffect(() => { if (visible() && reveals.delete(node)) chat.ui.reveal[1](true) })
       setReadings(before => new Map(before).set(node, new Set([...(before.get(node) ?? []), chat])))
       onCleanup(() => setReadings(before => {
+        shown.delete(chat)
         const next = new Map(before)
         const members = new Set(next.get(node))
         members.delete(chat)
@@ -80,4 +84,4 @@ export const createAgentReadings = (agents: Roster) => {
 const held = heldService<ReturnType<typeof createAgentReadings>>()
 export const holdAgentReadings = held.hold
 export const agentReadings = held.read
-export const readAgent = (node: string, chat: Chat) => held.read()?.join(node, chat)
+export const readAgent = (node: string, chat: Chat, shown: () => boolean = () => true) => held.read()?.join(node, chat, shown)

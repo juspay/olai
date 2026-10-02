@@ -19,7 +19,7 @@
  * from the attention component, which names `chat.state`). Each is registered
  * by its owner and released with it.
  */
-import { type Accessor, createEffect, createMemo, createRoot, createSignal, on, untrack } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, on, untrack } from "solid-js"
 
 import { createPreference } from "@olai/web/client/preference.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
@@ -104,7 +104,7 @@ export const createTabs = (router: Navigation): TabsStore => {
    * their lanes forgotten, and a new front tab has its lane switched in, after
    * the outgoing tab has recorded which entry it was left on.
    */
-  const commit = (next: TabList): void => {
+  const commit = (next: TabList): void => batch(() => {
     const before = untrack(list)
     if (next === before) return
     const gone = before.tabs.filter((tab) => !next.tabs.some((kept) => kept.id === tab.id))
@@ -124,7 +124,7 @@ export const createTabs = (router: Navigation): TabsStore => {
       // window's own history, so Back returns to the page it came from.
       router.open(workspace)
     }
-  }
+  })
 
   const home = (from: TabList) => (): Tab => tabFor(nextId(from), lone(HOME_ROUTE))
 
@@ -179,16 +179,21 @@ export const createTabs = (router: Navigation): TabsStore => {
     }),
     follow: () => createRoot((dispose) => {
       createEffect(() => {
-        const workspace = router.workspace()
-        const href = hrefOf(workspace)
-        const reported = reportedName(router, workspace)
-        const label = labelOf(router.routes, workspace)
-        // A TAB COMING BACK KEEPS ITS NAME while its page arrives, rather than
-        // flickering through its stand-ins; only a page at a new address takes
-        // its label before it has a real name.
-        setList((all) => {
-          const front = all.tabs.find((tab) => tab.id === all.front)
-          return updateTab(all, all.front, { href, title: reported ?? (front?.href === href ? front.title : label) })
+        const live = router.lanes()
+        const readings = live.map(lane => {
+          const workspace = lane.workspace()
+          return { id: lane.lane(), href: hrefOf(workspace), reported: reportedName(lane, workspace), label: labelOf(router.routes, workspace) }
+        })
+        setList(all => {
+          let next = all
+          for (const reading of readings) {
+            const id = reading.id ?? all.front
+            const tab = next.tabs.find(tab => tab.id === id)
+            if (!tab) continue
+            next = updateTab(next, id, { href: reading.href,
+              title: reading.reported ?? (tab.href === reading.href ? tab.title : reading.label) })
+          }
+          return next
         })
       })
       // A WRITE ONLY WHEN WHAT IS KEPT CHANGES. The front tab's address and

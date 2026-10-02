@@ -11,7 +11,11 @@ export function createPaneState(seed: Workspace, routes: WorkspaceRouting) {
     const [at, setIndex] = createSignal(index)
     const [page, setRoute] = createSignal(route)
     const [size, setWidth] = createSignal(width)
-    const value: LivePane = { id, index: at, route: page, width: size }
+    const [element, setElement] = createSignal<HTMLElement>()
+    const value: LivePane = { element, mount: root => {
+      setElement(root)
+      return () => { if (untrack(element) === root) setElement(undefined) }
+    }, id, index: at, route: page, width: size }
     return { value, setIndex, setRoute, setWidth }
   }
   let held = panesOf(seed).map((pane, index) => make(crypto.randomUUID(), index, pane.route, pane.width))

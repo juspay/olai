@@ -554,6 +554,7 @@
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/xterm": "^6.0.0",
         "effect": "4.0.0",
+        "olai-plugin-navigation": "workspace:*",
         "olai-plugin-plugin-inspector": "workspace:*",
         "solid-js": "^1.9.0",
       },

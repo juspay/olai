@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * A served `.html`, drawn — and, since the ruling of 2026-08-16, RUNNING.
  *
@@ -403,6 +404,7 @@ function RefusedBody() {
 }
 
 export function Hypertext(props: { readonly file: string }) {
+  const shown = useShown()
   // WHICH REVISION THIS FILE IS AT, which is the whole of what this component
   // asks the wire for — the effect at the bottom is what spends it. A number,
   // off the one stream the tab's file list already arrives on
@@ -916,6 +918,7 @@ export function Hypertext(props: { readonly file: string }) {
    * up, and that is what this reads. {@link UNMOVED} is how much of it is noise.
    */
   createEffect(() => {
+    if (!shown()) return
     const top = landedAt()
     // Tracked, not read: the frame's height is what makes the arithmetic below
     // land where the reader will be looking — and whether the hang detector
@@ -935,6 +938,7 @@ export function Hypertext(props: { readonly file: string }) {
       if (stood !== undefined && Math.abs(box.getBoundingClientRect().top - stood) > UNMOVED) {
         return done()
       }
+      if (!shown()) return
       box.scrollIntoView({ block: "start" })
       if (top !== 0) {
         // THE NEAREST SCROLLPORT, not always the window. A split pane is

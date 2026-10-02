@@ -1,3 +1,4 @@
+import { usePaneId, useShown } from "olai-plugin-navigation/routing"
 /** Unsubmitted row forms belong to a tree pane, across plugin provider changes and
  * phone tab switches. Leaving that route or removing the row discards them. */
 import { edgeMemory } from "../edges/memory.ts"
@@ -26,16 +27,17 @@ const Context = createContext<{ rows: Rows; disposed: boolean }>()
 
 export function RowForms(props: { readonly children: JSX.Element; readonly namespace?: string }) {
   const router = useRouter()
-  const pane = useHere()()
+  const here = useHere()
+  const pane = usePaneId()()
   const key = JSON.stringify([pane, props.namespace ?? "tree"])
-  const route = panesOf(router.workspace())[pane]?.route
+  const route = router.panes()[here()]?.route()
   const panes = route === undefined ? undefined : saved.get(route)
   const rows = panes?.get(key) ?? new Map<string, RowForm>()
   panes?.delete(key)
   const scope = { rows, disposed: false }
   onCleanup(() => {
     scope.disposed = true
-    const now = panesOf(router.workspace())[pane]?.route
+    const now = router.panes()[here()]?.route()
     // Filtering changes the route while this tree stays mounted. A later
     // rebuild must retain its drafts under the current route object.
     if (route?.kind !== "at" || now?.kind !== "at"

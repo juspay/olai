@@ -89,7 +89,7 @@ import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "sol
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { useShowNode } from "../references.ts"
-import { useFollow } from "olai-plugin-navigation/routing"
+import { useFollow, useShown } from "olai-plugin-navigation/routing"
 import { selector } from "@olai/ui-primitives/testids.ts"
 import { TESTID } from "../../testids.ts"
 import { wholeYet } from "./attention/whole.ts"
@@ -118,6 +118,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   const { previewing } = useConversationUI().previewing
   const show = useShowNode()
   const follow = useFollow()
+  const shown = useShown()
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
   let outer: HTMLElement | undefined
@@ -136,12 +137,15 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   }
 
   const jump = (): void => {
+    if (!shown()) return
+    bindScroll()
     const host = scrollPane()
     if (host === undefined) return
     host.scrollTop = host.scrollHeight
     assignedTop = host.scrollTop
   }
   const scrolled = () => {
+    if (!shown()) return
     const host = scrollPane()
     if (host === undefined) return
     // Browser anchoring can move the scroll forward before ResizeObserver
@@ -155,17 +159,28 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     following = atBottom()
   }
 
+  let listening: Window | HTMLElement | undefined
+  const bindScroll = () => {
+    if (!props.page || !pane || !shown()) return
+    let parent = pane.parentElement
+    while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
+    outer = parent ?? document.documentElement
+    const target = outer === document.documentElement ? window : outer
+    if (listening === target) return
+    listening?.removeEventListener("scroll", scrolled)
+    listening = target
+    target.addEventListener("scroll", scrolled, { passive: true })
+  }
+  onCleanup(() => listening?.removeEventListener("scroll", scrolled))
+  createEffect(() => {
+    if (!shown()) return
+    const frame = requestAnimationFrame(() => { bindScroll(); if (following) jump() })
+    onCleanup(() => cancelAnimationFrame(frame))
+  })
   onMount(() => {
     if (content === undefined || pane === undefined) return
-    if (props.page) {
-      let parent = pane.parentElement
-      while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
-      outer = parent ?? document.documentElement
-      const target = outer === document.documentElement ? window : outer
-      target.addEventListener("scroll", scrolled, { passive: true })
-      onCleanup(() => target.removeEventListener("scroll", scrolled))
-      jump()
-    }
+    bindScroll()
+    if (props.page) jump()
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
     // event for it. New text is followed from here. The jump's own `scroll`
     // arrives later and is recognised by `assignedTop`, not by a flag.
@@ -240,7 +255,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
    * like opening it.
    */
   createEffect(() => {
-    if (!revealing()) return
+    if (!shown() || !revealing()) return
     const waiting = pane?.querySelector(WAITING_ASK) ?? null
     // Nothing to show and the conversation is still arriving: stay asked. The
     // `wholeYet` read subscribes this to the first row it is waiting on, so

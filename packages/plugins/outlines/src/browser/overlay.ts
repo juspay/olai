@@ -1,3 +1,5 @@
+import { createRenderEffect, onCleanup } from "solid-js"
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * The document-level socket an overlay hangs from — and the row that owns it.
  *
@@ -60,7 +62,7 @@ export const openOverlaySocket = (): (() => void) => {
 }
 
 /** The socket, for an overlay that is being drawn. */
-export const overlayRoot = (): HTMLDivElement => {
+export const overlayRoot = (parent?: HTMLElement): HTMLDivElement => {
   const root = socket.read()
   if (root === undefined) {
     // Unreachable from a face of this row: every caller draws inside a page
@@ -71,5 +73,10 @@ export const overlayRoot = (): HTMLDivElement => {
       "olai-plugin-outlines: an overlay asked for the socket outside the row's activation",
     )
   }
-  return root
+  const shown = useShown()
+  const page = document.createElement("div")
+  ;(parent ?? root).append(page)
+  createRenderEffect(() => { page.style.display = shown() ? "contents" : "none" })
+  onCleanup(() => page.remove())
+  return page
 }

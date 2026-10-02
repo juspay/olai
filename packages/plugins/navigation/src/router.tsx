@@ -124,6 +124,8 @@ export const createRouter = (): Router => {
 
   let currentKey = nameHere()
   const scroll = createScrollMemory(() => keyIn(history.state))
+  let alive = true
+  onCleanup(() => { alive = false })
 
   /**
    * WHAT THE LANDINGS ARE AFTERWARDS is every caller's to say, and each of them
@@ -310,6 +312,7 @@ export const createRouter = (): Router => {
    * was left, which is the top for a key this document never saw.
    */
   const switchLane = (next: string | null, to?: { readonly workspace: Workspace; readonly key?: string }): string => {
+    scroll.leave()
     return batch(() => {
       const previous = untrack(front)
       const adopting = untrack(lane) === null && next !== null
@@ -331,7 +334,7 @@ export const createRouter = (): Router => {
         setLive([target])
         for (const one of gone) one.dispose()
       }
-      if (to !== undefined) scroll.restore(name)
+      if (to !== undefined) queueMicrotask(() => { if (alive && currentKey === name) scroll.restore(name) })
       return name
     })
   }

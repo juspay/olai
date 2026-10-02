@@ -378,14 +378,14 @@ export const useLicences = (): Accessor<Licences> => {
  *  one — see the header. */
 export interface Readings {
   /** Draw this pane for as long as the component calling it lives. */
-  readonly join: (pane: () => number, reading: Reading) => void
+  readonly join: (pane: () => string, reading: Reading) => void
   /** What the pane at `index` is showing, or `undefined` for a pane that has
    *  not mounted or has not been answered yet. */
-  readonly at: (index: number) => PageReading | undefined
+  readonly at: (index: string) => PageReading | undefined
   /** What the ids that pane's page points at are called — the same table the
    *  pane's leaves read. An empty lookup for a pane that has not mounted,
    *  which is what `createNames` hands back for an unanswered reading. */
-  readonly names: (index: number) => Names
+  readonly names: (index: string) => Names
 }
 
 const ReadingsContext = createContext<Readings>()
@@ -418,7 +418,7 @@ const unnamed: Names = () => undefined
 export const createReadings = (): Readings => {
   const [joined, setJoined] = createSignal<
     ReadonlyArray<{
-      readonly pane: () => number
+      readonly pane: () => string
       readonly reading: Reading
     }>
   >([])

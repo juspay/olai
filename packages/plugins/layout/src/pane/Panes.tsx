@@ -37,10 +37,10 @@ export { PANE_MIN_PX,PANE_RAIL_PX } from "./geometry.ts"
 /** Layout owns hosts, navigation owns lane state. Visibility never replaces a
  * host or its page; a lane leaving the declared list is the disposal boundary. */
 export function Panes() {
-  const navigation = useRouter() as Navigation
-  return <For each={navigation.lanes()}>{lane =>
+  const nav = useRouter() as Navigation
+  return <For each={nav.lanes()}>{lane =>
     <RouterProvider router={lane}>
-      <LanePanes page={navigation.page} />
+      <LanePanes page={nav.page} />
     </RouterProvider>
   }</For>
 }
@@ -52,13 +52,14 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   let row: HTMLDivElement | undefined
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
   const grow = createMemo(() => live() ?? flexOf(router.panes().map(pane => ({ route: pane.route(), width: pane.width() }))))
-  return <div data-testid="lane" data-lane-front={String(router.shown())}
+  return <div data-testid={TESTID.lane} data-lane-front={String(router.shown())}
     class="flex min-w-0 flex-col bg-paper"
     style={{ display: router.shown() ? undefined : "none" }}
     classList={{ [PANES_SPLIT]: router.split(), [PANES_LONE]: !router.split() }}>
     <Show when={router.split() && !desktop()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
       <For each={router.panes()}>{pane => {
+        let element: HTMLDivElement | undefined
         const share = createMemo(() => grow()[pane.index()] ?? 0)
         const drawn = createMemo(() => !router.split() || (columns() ? share() > 0 : focused(pane.index())))
         const shown = createMemo(() => router.shown() && drawn())
@@ -68,7 +69,7 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
             <Divider left={pane.index() - 1} right={pane.index()} row={() => row} onLive={setLive} />
           </Show>
           <Show when={columns() && share() === 0}><Rail index={pane.index()} pane={reading()} /></Show>
-          <div class="flex min-h-0 min-w-0 flex-col"
+          <div ref={root => { element = root; onCleanup(pane.mount(root)) }} class="flex min-h-0 min-w-0 flex-col"
             data-pane-id={pane.id}
             style={{ display: drawn() ? undefined : "none", "flex-grow": columns() ? String(share()) : "1", "flex-basis": "0" }}
             classList={{ "ring-2 ring-inset ring-accent": columns() && focused(pane.index()) }}>
@@ -76,7 +77,7 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
             <div class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
               style={{ "--height-chrome": columns() ? "0px" : undefined }}>
               <ShownProvider shown={shown}>
-                <PaneProvider index={pane.index()} id={pane.id}>{props.page(pane.index)}</PaneProvider>
+                <PaneProvider index={pane.index()} id={pane.id} element={element}>{props.page(pane.index)}</PaneProvider>
               </ShownProvider>
             </div>
           </div>

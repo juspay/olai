@@ -1,3 +1,4 @@
+import { usePaneId, useShown } from "olai-plugin-navigation/routing"
 /** Markdown's page and editor. The path keys its draft; leaving another
  * capability does not dispose it. Properties and referrers use the metadata
  * reading, while the editor holds the current body as its write baseline. */
@@ -52,7 +53,7 @@ export function DocumentPage(props: {
    *  the body. Empty when the file wrote none. */
   readonly custom: Custom
 }) {
-  const here = useHere()
+  const here = usePaneId()
   const identity = createMemo(() => ({ file: props.file, pane: here() }), undefined, {
     equals: (a, b) => a.file === b.file && a.pane === b.pane,
   })
@@ -68,16 +69,17 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
   const reading = useDocumentReading()
   // The body is the editor's baseline and the reading face's text.
   const served = useDocument(() => props.file)
-  const pane = useHere()()
+  const here = useHere()
+  const pane = usePaneId()()
   const router = useRouter()
-  const route = panesOf(router.workspace())[pane]?.route
+  const route = router.panes()[here()]?.route()
   const editor = takeDraft(props.file, pane, route)
   const editing = editor.editing
   if (consumeMinted(props.file)) editor.open()
   onCleanup(() => {
     // Navigation discards the departing editor as before. Rebuilding this
     // same pane keeps its draft, including when another tab changed plugins.
-    const now = panesOf(router.workspace())[pane]?.route
+    const now = router.panes()[here()]?.route()
     if (now?.kind === "at" && now.address !== null && "path" in now.address && now.address.path === props.file) {
       keepDraft(props.file, pane, now, editor)
     }

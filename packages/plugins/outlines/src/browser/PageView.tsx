@@ -1,3 +1,4 @@
+import { usePaneId } from "olai-plugin-navigation/routing"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
  *
@@ -46,7 +47,7 @@ import { pageFileOf, visibleIn } from "./settings/done.ts"
 export function OutlinePageView(props: {readonly render?: (props: import("../index.ts").PageBodyProps) => import("solid-js").JSX.Element} = {}) {
   const router = useRouter()
   const here = useHere()
-  const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
+  const route = createMemo(() => router.panes()[here()]!.route())
   const source = createMemo(() => routeFace(route()))
   return (
     <Show when={source()} keyed fallback={<PageAt source={null} render={props.render} />}>
@@ -60,7 +61,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   const here = useHere()
   const follow = useFollow()
   const today = useToday()
-  const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
+  const route = createMemo(() => router.panes()[here()]!.route())
   const opened = createMemo(route, undefined, { equals: samePage })
   const missing = createMemo(() => props.source === null && opened().kind === "plugin")
 
@@ -168,9 +169,10 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   // …and the pane joins the workspace's register with it, so the chrome outside
   // the panes can read whichever one is focused — the page AND the names table
   // derived beside it (`../App.tsx`).
-  useReadings().join(here, reading)
+  useReadings().join(usePaneId(), reading)
   const navigation = useRouter() as import("olai-plugin-navigation/contract").Navigation
-  navigation.report(here, () => ({ history: useUndo(), title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
+  const undo = useUndo()
+  navigation.report(here, () => ({ history: undo, title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
 
   const page = createMemo(() => reading.page()?.shows)
 
@@ -181,8 +183,9 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   // zoomed view is the same page (../settings/done.ts) — and WHICH PANE: the
   // landing's reveal is one pane's courtesy, so a pane the address never
   // reached must sweep the row what the flip said.
+  const paneId = usePaneId()
   const shownDrawn = createMemo(() =>
-    visibleIn(allDrawn(), pageFileOf(page()), here())
+    visibleIn(allDrawn(), pageFileOf(page()), paneId())
   )
 
   /**

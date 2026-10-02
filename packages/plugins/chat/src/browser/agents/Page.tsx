@@ -141,7 +141,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const engine = () => agents.at(props.node)?.engine ?? chosen() ?? agents.engines()[0]?.id
   const missing = () => agents.missing(engine())
   const metadata = () => {
-    const page = pane === undefined ? undefined : pageReadings()?.at(pane.index)?.shows
+    const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
     return page?.kind === "node" && page.zoomed.kind === "node" && page.zoomed.shows.node.id === props.node
       ? { title: page.zoomed.shows.node.title, memory: page.zoomed.under } : null
   }
