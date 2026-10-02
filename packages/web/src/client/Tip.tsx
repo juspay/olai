@@ -30,7 +30,7 @@
  * is a fact about the text and the window rather than one we can be told.
  */
 import { TESTID } from "@olai/ui-primitives/testids.ts"
-import { createContext, useContext, createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
+import { createContext, useContext, createEffect, createMemo, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { LAYER } from "./layer.ts"
@@ -85,13 +85,21 @@ export function Tip(props: {
   const tips = useContext(Tips)
   if (tips === undefined) throw new Error("a tooltip outside <TipScope>")
   const { takeTip, showTip, hideTip, tipShowing } = tips
-  const me = takeTip()
   const tipFloor = useContext(TipFloor)
-  const [at, setAt] = createSignal<At | undefined>()
+  // Disabled controls retain their element without allocating tooltip state.
+  const active = createMemo(() => {
+    if (props.disabled) return undefined
+    const me = takeTip()
+    const [at, setAt] = createSignal<At>()
+    onCleanup(() => hideTip(me))
+    return { me, at, setAt }
+  })
+  const at = () => active()?.at()
   let anchor: HTMLSpanElement | undefined
 
   const show = (): void => {
-    if (props.disabled) return
+    const tip = active()
+    if (!tip) return
     // The CONTROL's box, not this wrapper's. The wrapper is `display:
     // contents` so that it adds no box to the gutter's flex row — and an
     // element with no box has no rectangle either: `getBoundingClientRect`
@@ -105,15 +113,14 @@ export function Tip(props: {
     // The effect below then pulls it back if that ran past the window's
     // right edge.
     const floor = tipFloor()
-    setAt({ left: box.left, top: clampedTop(box.bottom, floor), floor })
-    showTip(me)
+    tip.setAt({ left: box.left, top: clampedTop(box.bottom, floor), floor })
+    showTip(tip.me)
   }
 
-  const hide = (): void => hideTip(me)
-  createEffect(() => { if (props.disabled) hide() })
-  // A control that goes away under the pointer takes its tip with it: a row
-  // that was folded away, a page that was left.
-  onCleanup(hide)
+  const hide = (): void => {
+    const tip = active()
+    if (tip) hideTip(tip.me)
+  }
 
   const place = (tip: HTMLDivElement): void => {
     const want = at()
@@ -192,7 +199,7 @@ export function Tip(props: {
       }}
     >
       {props.children}
-      <Show when={tipShowing(me) ? at() : undefined}>
+      <Show when={active() && tipShowing(active()!.me) ? at() : undefined}>
         {(spot) => (
           <Portal>
             <Drawn at={spot()} />
