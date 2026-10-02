@@ -278,3 +278,8 @@ A refused fresh start is addressed by its node until a new session binds, even
 when the previous session is still recorded on disk. Signing in and retrying
 there cannot target that previous session. An explicit History visit still
 leases the selected session and recovers its retained UI.
+
+The node's agent line, including a pending fresh-start request and its refusal,
+belongs to the node view. Changing the selected conversation replaces only the
+conversation-specific body and strips. A fresh-start refusal therefore remains
+visible even if the server transitions from a bound session to an unopened node.

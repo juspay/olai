@@ -197,3 +197,36 @@ test("two dot readings with the same paint are two registrations", () => {
     expect(tabs.dotted().size).toBe(0)
   })
 })
+
+test("mirroring one lane never rereads another lane's workspace or labels", () => {
+  const saved = storage()
+  const counts = [0, 0, 0]
+  let dispose = () => {}
+  try {
+    const state = createRoot(stop => {
+      dispose = stop
+      const fake = fakeRouter("/house.olai")
+      const pages = ["house.olai", "garden.olai", "finishes.md"]
+      const lanes = pages.map((file, index) => {
+        const [workspace, setWorkspace] = createSignal(lone(atFile(file)))
+        const pane = { route: () => panesOf(workspace())[0]!.route }
+        return {
+          workspace: () => { counts[index]!++; return workspace() },
+          panes: () => [pane], info: () => undefined,
+          lane: () => `t${index + 1}`, setWorkspace,
+        }
+      })
+      Object.assign(fake.router, { lanes: () => lanes })
+      const tabs = createTabs(fake.router)
+      tabs.open(lone(atFile("garden.olai")), { behind: true })
+      tabs.open(lone(atFile("finishes.md")), { behind: true })
+      tabs.follow()
+      return { tabs, lanes }
+    })
+    const before = [...counts]
+    state.lanes[1]!.setWorkspace(lone(atFile("changed.olai")))
+    expect(counts.map((count, i) => count - before[i]!)).toEqual([0, 1, 0])
+    expect(state.tabs.tabs().find(tab => tab.id === "t2")?.href).toBe("/changed.olai")
+    expect(state.tabs.tabs().find(tab => tab.id === "t1")?.href).toBe("/house.olai")
+  } finally { dispose(); saved.restore() }
+})

@@ -163,3 +163,15 @@ The pane owner survives, but changing its page subject ends that page's local
 editing visit. Phone navigation does not cache the visited desktop tabs' live
 pages. Crossing the breakpoint preserves the current workspace and its surviving
 pane elements; returning to desktop mounts other saved tabs only on demand.
+
+Hidden lane contents use `content-visibility: hidden` in a fixed box matching
+the lane's last drawn size and position. `visibility: hidden` and disabled
+pointer events keep the box noninteractive. This preserves browser layout
+work while taking the lane out of document flow. Layout explicitly snapshots
+and restores column scroll offsets; transcript following runs after restoration.
+
+The 300-row split-chat fixture (150 code blocks and opened diffs), measured
+from pointer press through the second animation frame in remote Chromium,
+returned in 73.6 ms median / 79.1 ms p95 with `display: none`, versus
+32.3 ms / 38.6 ms with hidden content visibility (10 measured returns each).
+The benchmark reports measurements without a timing pass/fail threshold.

@@ -1,8 +1,8 @@
 /**
  * What a tab WEARS: a glyph for the kind of page it holds, the name it goes by,
  * and the address it holds as its tooltip. All of it is read off the address,
- * so a tab in the background — which has no page mounted — wears the same face
- * it wore in front.
+ * so a restored tab that has not been visited can draw its face before its
+ * page is mounted. Live background lanes also update their reported titles.
  */
 import { keyArray } from "@solid-primitives/keyed"
 import { createMemo, type Accessor } from "solid-js"

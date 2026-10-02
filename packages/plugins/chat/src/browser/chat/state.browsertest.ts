@@ -1,6 +1,6 @@
-import { createNodeConversation } from "../agents/conversation.ts"
+import { createConversation } from "../agents/conversation-reading.ts"
 import type { Row } from "../agents/roster.ts"
-import { createAgentReadings, holdAgentReadings } from "../agents/reading.ts"
+import { createAgentReadings } from "../agents/reading.ts"
 import type { Roster } from "../agents/answered.tsx"
 import { expect, test } from "bun:test"
 import { buildSurfaceClient } from "@kolu/surface/solid"
@@ -251,8 +251,7 @@ test("a refused fresh start signs in through the node while keeping the previous
   await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
   const [row, setRow] = createSignal<Row>({ id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "old", memory: 1, standing: "idle", waiting: 0, said: null })
   const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ at: () => row(), rows: () => [row()], engines: () => [], standings: () => [], only: () => null, missing: () => null, chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {} }) }))
-  const release = holdAgentReadings(owner.reading)
-  const view = createRoot(dispose => ({ dispose, reading: createNodeConversation(() => "one") }))
+  const view = createRoot(dispose => ({ dispose, reading: createConversation(owner.reading, () => "one", () => true) }))
   try {
     await settle()
     const previous = view.reading.chat()!.ui
@@ -268,8 +267,12 @@ test("a refused fresh start signs in through the node while keeping the previous
     await settle()
     expect(view.reading.pair()).toEqual({ agent: "alpha", session: "old" })
     expect(view.reading.chat()!.ui).toBe(previous)
+    view.reading.chat()!.loadSession("alpha", "next")
+    expect(view.reading.pair()).toEqual({ agent: "alpha", session: "next" })
+    view.reading.chat()!.loadSession("alpha", "old")
+    expect(view.reading.pair()).toEqual({ agent: "alpha", session: "old" })
   } finally {
-    view.dispose(); release(); owner.dispose(); wire.dispose()
+    view.dispose(); owner.dispose(); wire.dispose()
     await Effect.runPromise(Scope.close(activation, Exit.void))
   }
 })

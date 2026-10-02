@@ -67,6 +67,22 @@ Feature: Enter preserves prose that happens to match a node's note
     Then the chat shows my message "look at @review-hinges"
     And there should be no page errors
 
+  Scenario: A real conversation remount clears its explicit completion selection
+    When I type "look at @Review hinges" into the chat
+    Then the completion offers "review-hinges"
+    When I press "ArrowDown" in the chat
+    Then the selected chat completion is "review-hinges"
+    When I remember the chat composer before leaving
+    And I click the outline "yard.olai"
+    Then the remembered chat composer is detached
+    When I click the outline "house.olai"
+    And I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    Then the completion offers "review-hinges"
+    And no chat completion is selected
+    When I press "Enter" in the chat
+    Then the chat shows my message "look at @Review hinges"
+
   Scenario: Moving to another occurrence of the same query clears selection
     When I type "compare @Review hinges and @Review hinges" into the chat
     Then the completion offers "review-hinges"

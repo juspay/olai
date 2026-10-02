@@ -76,10 +76,16 @@ export function Panel(props: {
    */
   const Sub = (sub: { readonly entry: MenuSub }) => {
     const [open, setOpen] = createSignal(false)
+    let tabFocus = false
     return (
     // `overlap`: on a phone there is no room beside the panel, so the submenu
     // may slide back over it rather than hang off the screen's edge.
-    <DropdownMenu.Sub gutter={2} shift={-5} overlap open={open()} onOpenChange={next => { if (shown()) setOpen(next) }}>
+    <DropdownMenu.Sub gutter={2} shift={-5} overlap open={open()} onOpenChange={next => {
+      // MenuSubContent closes on focus-out even when prevented. A tab owns
+      // that focus transition; retain the submenu until its page returns.
+      if (!next && tabFocus) { tabFocus = false; return }
+      if (shown()) setOpen(next)
+    }}>
       <DropdownMenu.SubTrigger
         ref={(el: HTMLElement) => entries.set(sub.entry.id, el)}
         class={`${MENU_ITEM} flex items-center justify-between gap-6 data-[expanded]:bg-rule`}
@@ -117,7 +123,10 @@ export function Panel(props: {
           data-sub={sub.entry.id}
           aria-label={sub.entry.label}
           onFocusIn={props.gestures.onFocusIn}
-          onFocusOutside={event => event.preventDefault()}
+          onFocusOutside={event => {
+            event.preventDefault()
+            tabFocus = event.target instanceof Element && event.target.closest('[role="tab"]') !== null
+          }}
           onPointerDownOutside={event => {
             const target = event.detail.originalEvent.target
             if (target instanceof Element && target.closest('[role="tab"]')) event.preventDefault()

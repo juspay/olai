@@ -32,12 +32,15 @@ Feature: A split chat tab keeps its conversation
     When I ask for a tall page answer
     Then the agent is idle
     When I ask the agent "hold"
+    And I remember pane 1 as "streaming"
     And I leave pane 1 halfway down
     And I choose "Open in new tab" from the menu of the outline link "yard.olai"
     And I press tab 1
-    And the agent is released
+    Then remembered pane "streaming" keeps receiving text while hidden
+    When the agent is released
     And I press tab 0
     Then the agent is idle
+    And pane 1 contains the text received while hidden
     And pane 1 keeps its nonzero scroll position
     And there should be no page errors
 
@@ -67,13 +70,16 @@ Feature: A split chat tab keeps its conversation
     When I ask for a tall page answer
     Then the agent is idle
     When I ask the agent "hold"
+    And I remember pane 1 as "streaming"
     And I scroll pane 1 to the bottom
     Then pane 1 is at its bottom
     And I choose "Open in new tab" from the menu of the outline link "yard.olai"
     And I press tab 1
-    And the agent is released
+    Then remembered pane "streaming" keeps receiving text while hidden
+    When the agent is released
     And I press tab 0
     Then the agent is idle
+    And pane 1 contains the text received while hidden
     And pane 1 is at its bottom
     And there should be no page errors
 
@@ -101,3 +107,17 @@ Feature: A split chat tab keeps its conversation
     And I use the fold on node "install"
     Then the chat input reads "also @pick the hinges"
     And there should be no page errors
+
+  Scenario: A chat reference finds the outline in its neighbouring pane
+    Given I open the outline "house.olai"
+    When I show the done nodes
+    And I alt-click the zoom of "install"
+    And I send "hello" from the plain node composer
+    Then the node page conversation is ready for "install"
+    When I remember pane 1 as "chat-reference"
+    And I ask the agent "done order"
+    Then the agent's answer names the node "order"
+    When I press the node "order" in the answer
+    Then the node "order" is focused
+    And pane 1 is still "chat-reference"
+    And the zoomed node in pane 1 is "install"

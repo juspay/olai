@@ -49,14 +49,18 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   const router = useRouter()
   const columns = createMemo(() => router.split() && desktop())
   const focused = createSelector(router.focusIndex)
+  let host: HTMLDivElement | undefined
+  let laneBox: DOMRect | undefined
   const scrolls = new Map<HTMLElement, { top: number; left: number }>()
   let alive = true
   onCleanup(() => { alive = false; scrolls.clear() })
-  // Read positions before the host's display binding hides it. Restore after
+  // Read positions and the lane box before hiding its contents. Restore after
   // it has geometry, before transcript followers perform their next-frame jump.
   const visible = createMemo(() => {
     const shown = router.shown()
     if (!shown) {
+      const box = host?.getBoundingClientRect()
+      if (box && box.width > 0 && box.height > 0) laneBox = box
       for (const host of scrolls.keys()) scrolls.set(host, { top: host.scrollTop, left: host.scrollLeft })
     } else queueMicrotask(() => {
       if (!alive || !router.shown()) return
@@ -67,9 +71,20 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   let row: HTMLDivElement | undefined
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
   const grow = createMemo(() => live() ?? flexOf(router.panes().map(pane => ({ route: pane.route(), width: pane.width() }))))
-  return <div data-testid={TESTID.lane} data-lane-front={String(visible())}
+  return <div ref={host} data-testid={TESTID.lane} data-lane-front={String(visible())}
     class="flex min-w-0 flex-col bg-paper"
-    style={{ display: visible() ? undefined : "none", "overflow-anchor": "none" }}
+    style={{
+      "content-visibility": visible() ? undefined : "hidden",
+      visibility: visible() ? undefined : "hidden",
+      position: visible() ? undefined : "fixed",
+      "pointer-events": visible() ? undefined : "none",
+      overflow: visible() ? undefined : "hidden",
+      left: visible() ? undefined : `${laneBox?.x ?? 0}px`,
+      top: visible() ? undefined : `${laneBox?.y ?? 0}px`,
+      width: visible() ? undefined : `${laneBox?.width ?? 0}px`,
+      height: visible() ? undefined : `${laneBox?.height ?? 0}px`,
+      "overflow-anchor": "none",
+    }}
     classList={{ [PANES_SPLIT]: router.split(), [PANES_LONE]: !router.split() }}>
     <Show when={router.split() && !desktop()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">

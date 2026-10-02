@@ -4132,3 +4132,16 @@ Then("the terminal output keeps its element", async function (this: OlaiWorld) {
   assert.equal(await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).first().locator("pre").evaluate(element =>
     (element as HTMLElement & { retainedOutput?: boolean }).retainedOutput === true && element.scrollTop === 80), true)
 })
+
+
+const rememberedComposers = new WeakMap<OlaiWorld, NonNullable<Awaited<ReturnType<Locator["elementHandle"]>>>>();
+When("I remember the chat composer before leaving", async function (this: OlaiWorld) {
+  const composer = await this.chat(CHAT_INPUT).elementHandle();
+  assert.ok(composer);
+  rememberedComposers.set(this, composer);
+});
+Then("the remembered chat composer is detached", async function (this: OlaiWorld) {
+  const composer = rememberedComposers.get(this);
+  assert.ok(composer);
+  await this.waitUntil(async () => !(await composer.evaluate(node => node.isConnected)), "the old composer to be detached");
+});

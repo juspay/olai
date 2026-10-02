@@ -97,7 +97,7 @@ Then(
 Then(
   "the refused pane says {string}",
   async function (this: OlaiWorld, said: string) {
-    await saysThat(this, DROP_REFUSED, said, "refusal over the pane");
+    await saysThat(this, DROP_REFUSED, said, "refusal over the pane", undefined, this.page);
   },
 );
 

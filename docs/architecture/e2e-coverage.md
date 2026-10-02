@@ -485,3 +485,11 @@ same scope for both text and tone. Phone pane interactions select visible rows,
 while removal assertions retain structural locators so a hidden element cannot
 satisfy a claim that it was detached. Retained split-scroll coverage leaves the
 column at a nonzero intermediate position before switching away.
+
+The alternate-layout fixture can draw the real outlines `pageView`
+contribution with a counting body. It records row binding reads across remote
+file revisions, including the production done/filter pruning path; its counts
+live outside the row owners so remounting cannot erase the evidence. Retained
+page scenarios now cover an opened note, confirmation and submenu, parked
+inputs, a hidden HTML frame, a background-tab close, and text observed growing
+while its conversation is hidden and checked again on return.

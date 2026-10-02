@@ -82,6 +82,7 @@ export const createNoteExpand = (
     open: () => shown() && touched() === true,
     root: () => root,
     trigger: () => trigger,
+    excludePointer: element => element.closest('[role="tab"]') !== null,
     dismiss: () => setTouched(false),
   }))
   })

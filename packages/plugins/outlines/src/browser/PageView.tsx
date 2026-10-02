@@ -255,7 +255,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
       }`}
       data-testid={IDS_NAVIGATION.pane}
       data-pane={String(here())}
-      data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
+      data-pane-focused={here() === router.focusIndex() ? "true" : undefined}
       data-href={hrefOf(route())}
       /**
        * WHICH PAGE THIS PANE IS DRAWING — which is not the same fact as
