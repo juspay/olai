@@ -263,13 +263,6 @@ export const TESTID = {
    *  `0/…`, so an absent line means nothing was said rather than nothing spent. */
   chatUsage: "chat-usage",
   chatNew: "chat-new",
-  newChatPage: "new-chat-page",
-  newChatLocation: "new-chat-location",
-  newChatInput: "new-chat-input",
-  newChatEngine: "new-chat-engine",
-  newChatSend: "new-chat-send",
-  newChatPicker: "new-chat-picker",
-
   /** Drawn beside the model while a turn is running. Beside, not instead:
    *  what it runs on and whether it is running are two facts. */
   chatWorking: "chat-working",

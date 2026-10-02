@@ -1,7 +1,7 @@
 import { keepMessage } from "../chat/message-draft.ts"
 import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
-import { createEffect, createRoot, createSignal, onCleanup } from "solid-js"
+import { createSignal, onCleanup } from "solid-js"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { PanelAddress } from "../../wire/session.ts"
 import type { Conversing } from "../../sessions.ts"
@@ -18,9 +18,7 @@ export const createAgentReadings = (agents: Roster) => {
   const reveals = new Set<string>()
   const cache = new Map<string, ReturnType<typeof createConversationUI>>()
   const [visits, setVisits] = createSignal<ReadonlyMap<string, Conversing>>(new Map())
-  const waiting = new Set<() => void>()
-  let alive = true
-  onCleanup(() => { alive = false; for (const stop of [...waiting]) stop(); cache.clear() })
+  onCleanup(() => { cache.clear() })
   const ui = (to: PanelAddress) => {
     const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
     let value = cache.get(key)
@@ -36,27 +34,6 @@ export const createAgentReadings = (agents: Roster) => {
       if (to === undefined) next.delete(node)
       else next.set(node, to)
       return next
-    }),
-    ready: (node: string, to: Conversing): Promise<Chat | string> => new Promise(resolve => {
-      if (!alive) { resolve("Chat stopped"); return }
-      createRoot(dispose => {
-        const stop = () => { waiting.delete(stop); dispose(); resolve("Chat stopped") }
-        waiting.add(stop)
-        createEffect(() => {
-          const current = agents.at(node)
-          if (current === undefined || current.engine !== to.agent || current.session !== to.session) {
-            waiting.delete(stop); dispose(); resolve("The agent's chat changed. Try again."); return
-          }
-          const chat = [...(readings().get(node) ?? [])].find(chat => chat.ui === ui(to))
-          if (chat === undefined) return
-          const state = chat.state()
-          if (state.unopened) {
-            waiting.delete(stop); dispose(); resolve("Couldn't open the chat"); return
-          }
-          if (state.session?.id !== to.session || state.uploadScope === null) return
-          waiting.delete(stop); dispose(); resolve(chat)
-        })
-      })
     }),
     reveal: (node: string) => {
       const live = readings().get(node)

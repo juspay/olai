@@ -87,11 +87,11 @@ function createPageSession(node: string): PageSession {
       prefer(arrival.engine)
       setFailure(arrival.refusal)
       if (arrival.to === null) {
-        setDraft(arrival.later === "" ? arrival.text : `${arrival.text}\n${arrival.later}`)
+        setDraft(now => now === "" ? arrival.text : `${arrival.text}\n${now}`)
         arrival.done()
       } else {
         setStarting(true)
-        void deliver(arrival.to, arrival.text, arrival.later).finally(() => { setStarting(false); arrival.done() })
+        void deliver(arrival.to, arrival.text, "").finally(() => { setStarting(false); arrival.done() })
       }
     })
   })

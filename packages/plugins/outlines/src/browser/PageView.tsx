@@ -274,7 +274,6 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
         follow(event)
       }}
     >
-      <Show when={props.source?.local} fallback={<>
       <ReadingProvider reading={reading}>
       <NarrowedProvider narrowed={narrowing}>
         {/* THE BOX BELONGS TO THE ADDRESS, so it is drawn on what the ADDRESS
@@ -370,7 +369,6 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
         </div>
       </NarrowedProvider>
       </ReadingProvider>
-      </>}>{face => face()()}</Show>
     </main>
   )
 }

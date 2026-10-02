@@ -250,6 +250,7 @@ test("every dynamic import() this tree spells takes a literal the bundler can re
   // surely as one in core's, and this is where that is asked of the panel.
   expect(filesSpelling(/\bimport\s*\(/)).toEqual([
     path.join("agents", "FreshStart.tsx"),
+    path.join("agents", "NewChat.tsx"),
     path.join("agents", "Standing.tsx"),
   ])
 })

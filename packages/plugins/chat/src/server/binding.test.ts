@@ -244,13 +244,3 @@ for (const changed of [false, true]) {
     expect(writes).toEqual(changed ? ["codex"] : ["codex", "codex:opened"])
   })
 }
-
-test("the New chat On gesture refuses a node that became an agent after picking", async () => {
-  const it = chatOpening(["must-not-open"])
-  const at = binding({ engine: "claude", session: "existing", title: "a" })
-  const result = await Effect.runPromise(Effect.result(startAgentSession(it.chat, at, { node: "a", agent: "claude", expectPlain: true })))
-  expect(result._tag).toBe("Failure")
-  expect(it.chat.state().session).toBeNull()
-  expect(at.wrote).toEqual([])
-  expect(it.replaced).toEqual([])
-})

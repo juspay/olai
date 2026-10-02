@@ -97,7 +97,7 @@ export interface MenuRow {
  *  the list re-derives on every keystroke, and `sameDrawing` is what keeps a
  *  title whose HTML has not moved from rewriting its own DOM
  *  (`../search/Result.tsx`, the same arrangement). */
-function RowLabel(props: { readonly row: Pick<MenuRow, "label" | "from"> }) {
+function RowLabel(props: { readonly row: MenuRow }) {
   const drawing = createMemo(
     () =>
       props.row.from === undefined
@@ -123,12 +123,6 @@ function RowLabel(props: { readonly row: Pick<MenuRow, "label" | "from"> }) {
       {(drawn) => <TitleHtml drawing={drawn()} />}
     </Show>
   )
-}
-
-/** Shared node/file presentation for completion and the new-chat location picker. */
-export function CompletionRow(props: { readonly row: Pick<MenuRow, "label" | "from" | "hint" | "place"> }) {
-  return <><RowLabel row={props.row} />{" "}<span class="ml-1 text-muted">{props.row.hint}</span>{" "}
-    <Show when={props.row.place}>{place => <PlaceLine claims={servedDirectory()?.claims()} place={place()} />}</Show></>
 }
 
 /** A section's heading in words a person reads. The section KEY stays what
@@ -307,7 +301,9 @@ export function CompletionMenu(props: {
                 {/* The space between them is a real character as well as a
                     margin: what the eye reads as two words has to be two words
                     when the row is copied or read aloud, and `ml-2` is neither. */}
-                <CompletionRow row={row()} />
+                <RowLabel row={row()} />{" "}
+                <span class="ml-1 text-muted">{row().hint}</span>
+                {" "}<Show when={row().place}>{place => <PlaceLine claims={servedDirectory()?.claims()} place={place()} />}</Show>
               </button>
             </li>
           </>

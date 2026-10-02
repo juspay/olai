@@ -1,6 +1,3 @@
-import { defineAppPage } from "olai-plugin-navigation/routes"
-import { newChatRoute } from "./browser/agents/new-chat-route.ts"
-import { NewChatPage } from "./browser/agents/NewChatPage.tsx"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
 import { SESSION_KIND } from "./binding.ts"
@@ -29,7 +26,7 @@ import { Standing } from "./browser/agents/Standing.tsx"
 import { createFolding, holdFolding } from "./browser/agents/folding.ts"
 import { NeedsYou, Chats } from "./browser/agents/Agents.tsx"
 import { AgentsProvider, createAgents, useAgents } from "./browser/agents/answered.tsx"
-import { createAskCommand, rowVerbs } from "./browser/verbs.tsx"
+import { rowVerbs } from "./browser/verbs.tsx"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Fold } from "./browser/agents/Fold.tsx"
 import { PageHead, PageFoot } from "./browser/agents/Page.tsx"
@@ -38,8 +35,8 @@ import { holdPages } from "./browser/pages.ts"
 import { createAgentReadings, holdAgentReadings } from "./browser/agents/reading.ts"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createAgentPalette } from "./browser/agents/AgentPalette.ts"
-import { navigation as navigationService, paletteAdapters } from "olai-plugin-navigation/contract"
-import { holdNavigation } from "./browser/navigation.ts"
+import { navigation as navigationService, paletteAdapters, paletteControl } from "olai-plugin-navigation/contract"
+import { holdNavigation, holdPalette } from "./browser/navigation.ts"
 import { holdFaces } from "./browser/faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
@@ -109,7 +106,6 @@ export default definePlugin({
     yield* slots.register("outline.page.foot", props => <AgentsProvider value={state.agents}><PageFoot {...props} /></AgentsProvider>)
     yield* slots.register("sidebar.section", { said: "Needs you", body: () => <AgentsProvider value={state.agents}><NeedsYou /></AgentsProvider> })
     yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Chats /></AgentsProvider> })
-    yield* slots.register("app.route", defineAppPage(newChatRoute, () => <AgentsProvider value={state.agents}><NewChatPage /></AgentsProvider>))
     const palette = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       let value!: ReturnType<typeof createAgentPalette>
       createComponent(AgentsProvider, { value: state.agents, get children() {
@@ -154,10 +150,11 @@ export const components = {
     const named = yield* appDeployment
     yield* Effect.acquireRelease(Effect.sync(() => holdDeployment(named)), stop => Effect.sync(stop))
   }) }),
-  navigation: definePlugin({ name: "navigation", needs: [navigationService, Slots], apply: Effect.gen(function*() {
+  navigation: definePlugin({ name: "navigation", needs: [navigationService, paletteControl], apply: Effect.gen(function*() {
+    const control = yield* paletteControl
+    yield* Effect.acquireRelease(Effect.sync(() => holdPalette(control)), stop => Effect.sync(stop))
     const router = yield* navigationService
     yield* Effect.acquireRelease(Effect.sync(() => holdNavigation(router)), stop => Effect.sync(stop))
-    yield* (yield* Slots).register("app.command", createAskCommand())
   }) }),
   /** The matcher, DECLARED — a component of its own so the panel, the
    *  transcript and the roster keep working with no matcher mounted

@@ -259,20 +259,12 @@ export const surface = defineSurface({
           path: Schema.Array(Schema.String), parent: Schema.NullOr(Schema.String) })), defaultParent: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
-      /** Resolve the focused row's nearest ancestor agent, including itself. */
-      agentAbove: {
-        input: Schema.Struct({ node: Schema.String }),
-        output: Schema.NullOr(Schema.Struct({ node: Schema.String, file: Schema.String, agent: Schema.String, session: Schema.NullOr(Schema.String) })),
-        error: ChatFailure,
-      },
       /** Null means the node panel holds an auth-refused open for sign-in. */
       startAgentSession: {
         input: Schema.Struct({
           /** The node whose property is about to name the session — the id the
            *  roster answers with. */
           node: Schema.String,
-          /** Refuse atomically if another agent already owns the node. */
-          expectPlain: Schema.optionalKey(Schema.Boolean),
           /** ... and the engine to open it with, off that node's property. */
           agent: Schema.String,
         }),
@@ -436,7 +428,6 @@ export const faces = {
     "conversation.locations": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.closeAgent": "tool",
-    "conversation.agentAbove": "tool",
     "conversation.reopen": "tool",
     "conversation.sessions": "tool",
     "conversation.answer": "tool",

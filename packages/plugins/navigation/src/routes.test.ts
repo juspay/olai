@@ -410,13 +410,3 @@ test("a document is named by the files sidebar's stem, and a file that is not on
   // ...and nothing before the claims have been read.
   expect(nameIn(undefined, atFile("garden.olai"))).toBeUndefined()
 })
-
-test("a local app route supplies neither a vault request nor a fabricated reading", () => {
-  const route = defineAppRoute({ local: true, claims: [{ kind: "exact", path: "/local" }],
-    parse: path => path === "/local" ? true : null, href: () => "/local", breadcrumb: () => "Local" })
-  expect(route.request(true, "2026-10-02")).toBeNull()
-  expect(route.source.stream.use(() => null)()).toBeUndefined()
-  expect(route.source.narrowable).toBe(false)
-  const pages = settleRoutePages([{ plugin: "local", face: defineAppPage(route, () => "local face") }], () => {})
-  expect(pages[0]!.page.local?.()).toBe("local face")
-})
