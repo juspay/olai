@@ -91,6 +91,7 @@ export function TitleEditor(props: {
    */
   readonly fillsLine?: boolean
 }) {
+  const shown = useShown()
   let element!: HTMLInputElement
 
   /**
@@ -233,15 +234,15 @@ export function TitleEditor(props: {
           readCaret()
           if (props.active === false) props.onActivate?.()
         }}
-        onBlur={() => {
-          if (takingOfflineFocus()) return
+        onBlur={(event) => {
+          if (takingOfflineFocus() || (event.relatedTarget instanceof Element && event.relatedTarget.closest('[role="tab"]'))) return
           const blur = props.onBlur
           // Removal fires blur before isConnected becomes false. Read after
           // Solid finishes this DOM update, when a redraw can be distinguished
           // from leaving the editor. Moving the same input may already have
           // restored its focus, in which case there was no departure at all.
           queueMicrotask(() => {
-            if (document.activeElement !== element) blur(element.isConnected)
+            if (shown() && document.activeElement !== element) blur(element.isConnected)
           })
         }}
       />
@@ -277,6 +278,7 @@ export function DescEditor(props: {
    *  continued. */
   readonly caret?: number
 }) {
+  const shown = useShown()
   let element!: HTMLTextAreaElement
   takeCaret(() => element, { at: () => props.caret, then: () => grow(element) })
 
@@ -292,7 +294,10 @@ export function DescEditor(props: {
         props.onInput(event.currentTarget.value)
       }}
       onKeyDown={(event) => props.onKey(event)}
-      onBlur={() => { if (!takingOfflineFocus()) props.onBlur(element.isConnected) }}
+      onBlur={(event) => {
+        if (takingOfflineFocus() || (event.relatedTarget instanceof Element && event.relatedTarget.closest('[role="tab"]'))) return
+        queueMicrotask(() => { if (shown() && document.activeElement !== element) props.onBlur(element.isConnected) })
+      }}
     />
   )
 }

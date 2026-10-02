@@ -23,17 +23,3 @@ Feature: Content runs under an independent layout
     And the address is "/house.olai"
     And the page has not reloaded
     And there should be no page errors
-
-  Scenario: Production PageView pruning preserves unrelated row bindings
-    When I open the alternate layout at "/house.olai"
-    And I measure the outline bindings
-    Then row "handles" has 1 outline binding readings
-    And row "knobs" has 1 outline binding readings
-    When another writer retitles "knobs" to "a changed title" in "house.olai"
-    Then the measured row "knobs" reads "a changed title"
-    And row "knobs" has 2 outline binding readings
-    And row "handles" has 1 outline binding readings
-    When another writer retitles "knobs" to "another changed title" in "house.olai"
-    Then the measured row "knobs" reads "another changed title"
-    And row "knobs" has 3 outline binding readings
-    And row "handles" has 1 outline binding readings

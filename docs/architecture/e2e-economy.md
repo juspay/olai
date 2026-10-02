@@ -112,3 +112,8 @@ worker's read-only corpus and disabled Tabs for later scenarios on that worker;
 this caused the intermittent missing strip/menu at startup. It now owns a
 scratch fixture, and the switch step refuses a shared read-only corpus before
 writing. Increasing the startup wait cannot repair this fixture leak.
+
+Review 1 follow-up scope: the owner deferred remaining E3/E5 coverage expansion.
+Completed scenarios remain; the unfinished PageView counting fixture was removed.
+This PR does not claim
+a regression test for every audited notification or ownership boundary.

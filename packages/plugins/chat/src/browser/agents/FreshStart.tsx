@@ -48,6 +48,7 @@ export function FreshStart(props: {
     confirm.begin()
     const reading = agentReadings()
     const node = props.agent.id
+    const previous = { engine: props.agent.engine, session: props.agent.session }
     saying.say(undefined)
     run(
       chatWire().procedures.conversation.startAgentSession({
@@ -55,6 +56,13 @@ export function FreshStart(props: {
         agent: engine,
       }),
       (failure) => {
+        // A non-auth refusal ends this attempt, not the previous conversation.
+        // Auth-required returns successfully with no binding and keeps the
+        // node-scoped panel available for sign-in in the success arm below.
+        if (agentReadings() === reading && previous.session !== null
+          && props.agent.engine === previous.engine && props.agent.session === previous.session) {
+          reading?.visit(node, { agent: previous.engine, session: previous.session })
+        }
         confirm.done()
         saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })
       },

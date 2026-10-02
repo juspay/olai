@@ -178,10 +178,8 @@ const revealed = (): Reveals => heldReveals.read()?.read() ?? emptyReveals
 const setRevealed = (next: (before: Reveals) => Reveals) => heldReveals.read()?.set(next)
 
 
-/** The places the pick's sweep spares for pane `pane` on `file`, or nothing
- *  — DELIBERATELY not exported: what spares a row is a question the sweep
- *  answers by sweeping, and a second door onto the raw table is a second way
- *  for the page and somebody else to disagree about the same row. */
+/** The pane's temporary landing reveal, consumed by the drawn-row sweep.
+ *  The reveal registry owns its lifetime; readers never mutate its sets. */
 export const landingReveal = (
   file: string,
   pane: string,

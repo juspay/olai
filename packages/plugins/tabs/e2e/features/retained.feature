@@ -270,7 +270,7 @@ Feature: Tabs retain their pages
   Scenario: Closing the left neighbour reindexes the surviving page without losing state
     Given I open the address "/s/garden.olai/house.olai"
     When I focus pane 1
-    And I filter the page by "cabinets"
+    And I filter pane 1 by "cabinets"
     And I remember pane 1 as "survivor"
     And I focus pane 0
     And I close the focused pane

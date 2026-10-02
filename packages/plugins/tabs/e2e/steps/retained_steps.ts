@@ -132,3 +132,8 @@ Then("the remembered HTML frame is shown unchanged", async function (this: OlaiW
 Then("pane {int} keeps the filter {string}", async function (this: OlaiWorld, index: number, text: string) {
   await this.waitUntil(async () => await this.pane(index).locator(FILTER_INPUT).inputValue() === text, `pane ${index} to retain its filter`)
 })
+
+When("I filter pane {int} by {string}", async function (this: OlaiWorld, index: number, text: string) {
+  await this.pane(index).locator(FILTER_INPUT).fill(text)
+  await this.waitForFrame()
+})

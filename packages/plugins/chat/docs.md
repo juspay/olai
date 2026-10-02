@@ -81,11 +81,11 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 Chat no longer contributes `app.panel` or `app.header` and names no layout shell
 service. Its four node faces are registered under `AgentsProvider`, reading one
 activation-owned roster. Outlines owns rendering placement and row lifetimes;
-chat owns each conversation reading. A page's head and foot lease one owner
-keyed by pane and node. Last release disposes that owner; a different pane keeps
-its own. Conversation UI state is keyed by engine/session within the activation,
-so drafts, refusals, question state and dismissed completions do not leak across
-conversations.
+chat owns each conversation reading. A page's head and foot lease one view owner
+keyed by pane and node. Those views and outline folds lease a shared reading
+keyed by engine/session, or by node while unbound. The last view lease releases
+the reading. Conversation UI has the same activation-owned keys, so drafts,
+refusals, question state and dismissed completions do not leak across conversations.
 
 Chat declares `delivery.mark` and `conversation.wake`. The fold registration
 owns these shared child locations once; page faces consume the same locations.
@@ -265,19 +265,22 @@ the same visibility boundary, and only the focused composer claims completion
 keyboard priority when several folds offer menus. Tool details, question fields, terminal output
 and sign-in output update their existing elements as wire rows are replaced.
 
-Conversation UI belongs to the chat activation, keyed by engine and session.
-Joined readers share it. The final reader releases an empty UI; pending sends,
-uploads and unsent drafts keep their operation's state until it can be released.
+Conversation UI belongs to the chat activation, keyed by engine and session,
+or by node before binding. Joined readers share it. The final reader releases
+an empty UI after a same-turn handoff opportunity. Opened tool details, question
+answers, armed references, previews, refusals, pending starts, sends, uploads and
+unsent drafts keep that UI until their state clears or the activation ends.
 Roster lookups and per-tool choices notify only their dependent consumers.
 
 A folded conversation remains a live reader and therefore occupies its node
 agent slot. Capacity and idle eviction become possible when its row or pane
 leaves and no other reader or operation holds it.
 
-A refused fresh start is addressed by its node until a new session binds, even
-when the previous session is still recorded on disk. Signing in and retrying
-there cannot target that previous session. An explicit History visit still
-leases the selected session and recovers its retained UI.
+A fresh start that needs authentication is addressed by its node until a new
+session binds, even when the previous session is still recorded on disk.
+Signing in and retrying there cannot target that previous session. An ordinary
+failed fresh start returns to the previous conversation and keeps its roster.
+An explicit History visit leases the selected session and recovers its retained UI.
 
 The node's agent line, including a pending fresh-start request and its refusal,
 belongs to the node view. Changing the selected conversation replaces only the

@@ -10,8 +10,3 @@ same history service used by the normal layout.
 its domain provider, Markdown renders under the same fixture, and navigation
 between them preserves the mounted application. This is not a second production
 shell or a settings option.
-
-The optional “Measure outline bindings” view consumes the outlines page-view
-location through the renderer service. Its counting body receives the real
-PageView's pruned rows and records reads outside row owners. This is an
-integration fixture for unrelated-row updates, not a replacement page pipeline.
