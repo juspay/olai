@@ -27,7 +27,7 @@
     "@olai/plugin-api": "workspace:*",
     "@olai/store": "workspace:*",
     "@olai/web": "workspace:*",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0",
     "solid-js": "^1.9.0",
     "@olai/markdown-ui": "workspace:*",
     "olai-plugin-outlines": "workspace:*",
@@ -38,7 +38,7 @@
     "olai-plugin-vault": "workspace:*"
   },
   "devDependencies": {
-    "@effect/platform-node": "4.0.0-rc.112",
+    "@effect/platform-node": "4.0.0",
     "@olai/ops": "workspace:*",
     "@olai/surface": "workspace:*",
     "@types/node": "^22.0.0",

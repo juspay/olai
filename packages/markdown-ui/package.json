@@ -13,7 +13,7 @@
     "@olai/format": "workspace:*",
     "@solid-primitives/keyed": "^1.5.3",
     "@solid-primitives/scheduled": "^1.5.3",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0",
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
     "mdast-util-to-string": "^4.0.0",

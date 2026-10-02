@@ -72,7 +72,7 @@ import {
   HttpServerRequest,
   HttpServerResponse,
   HttpStaticServer,
-} from "effect/unstable/http"
+} from "effect/http"
 
 /**
  * The route, over one served directory.

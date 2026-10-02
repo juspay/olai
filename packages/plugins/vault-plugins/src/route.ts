@@ -32,7 +32,7 @@
 
 import { PLUGIN_CHUNK_PREFIX } from "@olai/surface"
 import { Effect } from "effect"
-import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/http"
 
 import type { DynamicRuntime } from "./runtime.ts"
 

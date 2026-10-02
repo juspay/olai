@@ -18,6 +18,6 @@
   "//dependencies": "SolidJS belongs to the rendering root. Effect belongs to the scoped stdio transport. Neither server door imports a UI runtime.",
   "dependencies": {
     "solid-js": "^1.9.0",
-    "effect": "4.0.0-rc.112"
+    "effect": "4.0.0"
   }
 }

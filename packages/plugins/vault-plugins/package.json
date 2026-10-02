@@ -22,7 +22,7 @@
     "@olai/ops": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/store": "workspace:*",
-    "effect": "4.0.0-rc.112"
+    "effect": "4.0.0"
   },
   "olai": {
     "contracts": [

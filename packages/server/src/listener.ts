@@ -46,7 +46,7 @@ import { NodeHttpServer } from "@effect/platform-node"
 import { codeOf } from "@olai/log"
 import type { ListenerContribution } from "@olai/plugin-api/transport"
 import { Data, Effect, Exit, Layer, Scope, Semaphore } from "effect"
-import { HttpRouter } from "effect/unstable/http"
+import { HttpRouter } from "effect/http"
 import type { Socket } from "node:net"
 import { createServer, type RequestListener } from "node:http"
 

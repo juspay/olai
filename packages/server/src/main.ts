@@ -48,7 +48,7 @@ import { addressOf, printAddress } from "@olai/format"
 import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import { toStdout } from "@olai/log"
 import { Effect, Layer, Option } from "effect"
-import { Argument, CliConfig, Command, Flag, GlobalFlag } from "effect/unstable/cli"
+import { Argument, CliConfig, Command, Flag, GlobalFlag } from "effect/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
@@ -61,7 +61,7 @@ import { serve } from "./serve.ts"
 import { installSigtermGuard } from "@olai/sigterm"
 
 /** The directory of outlines the server operates on. */
-const directory = Argument.directory("directory", { mustExist: true }).pipe(
+const directory = Argument.Directory("directory", { mustExist: true }).pipe(
   Argument.withDescription("the directory of outlines, read recursively"),
 )
 
@@ -74,17 +74,17 @@ const DEFAULT_PORT = 0
 
 const web = Command.make("web", {
   directory,
-  profile: Flag.choice("profile", ["web", "surface", "test-minimal"] as const).pipe(
+  profile: Flag.Literals("profile", ["web", "surface", "test-minimal"] as const).pipe(
     Flag.withDescription("row bundle: web, MCP-only surface, or no transports"),
     Flag.withDefault("web"),
   ),
-  port: Flag.integer("port").pipe(
+  port: Flag.Int("port").pipe(
     Flag.withDescription(
       "TCP port to listen on; 0 (the default) asks the OS for one",
     ),
     Flag.optional,
   ),
-  host: Flag.string("host").pipe(
+  host: Flag.String("host").pipe(
     Flag.withDescription(
       "interface to bind; loopback by default, because the surface is unauthenticated",
     ),

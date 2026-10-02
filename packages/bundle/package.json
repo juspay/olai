@@ -37,7 +37,7 @@
     "@olai/effect-cordis": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/plugin-api": "workspace:*",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0",
     "olai-plugin-chat": "workspace:*",
     "olai-plugin-claude": "workspace:*",
     "olai-plugin-codex": "workspace:*",

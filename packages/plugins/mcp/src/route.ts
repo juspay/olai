@@ -52,7 +52,7 @@
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
 import { Effect, Layer, Option } from "effect"
-import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/http"
 import { AsyncLocalStorage } from "node:async_hooks"
 
 import type { TransportSurface } from "@olai/plugin-api/transport"

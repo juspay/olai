@@ -21,7 +21,7 @@
     "@olai/format": "workspace:*",
     "@olai/surface": "workspace:*",
     "@solid-primitives/scheduled": "^1.5.3",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0",
     "solid-js": "^1.9.0",
     "@olai/bundle": "workspace:*",
     "@olai/plugin-api": "workspace:*",

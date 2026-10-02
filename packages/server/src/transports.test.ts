@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { Deferred, Effect, Exit, Scope } from "effect"
-import { HttpRouter, HttpServerResponse } from "effect/unstable/http"
+import { HttpRouter, HttpServerResponse } from "effect/http"
 import { listener } from "./listener.ts"
 
 // No known transport names: any scoped route provider can share the port.

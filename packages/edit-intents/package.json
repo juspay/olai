@@ -14,7 +14,7 @@
     "@olai/format": "workspace:*",
     "@olai/ops": "workspace:*",
     "@olai/surface": "workspace:*",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0",
     "@olai/plugin-api": "workspace:*"
   }
 }
