@@ -1,3 +1,4 @@
+import { createMatchedRows } from "../pruning.ts"
 /**
  * The page's filter, as one reading — the BROWSER's half of it.
  *
@@ -209,9 +210,12 @@ export const createNarrowing = (source: {
    * a question nobody has answered. The bar says the rows are a question behind
    * instead ({@link Narrowing.answering}).
    */
+  const treeRows = createMemo(() => { const shown = source.visible(); return shown.kind === "tree" ? shown.rows : [] })
+  const matches = createMatchedRows(treeRows, selected)
   const drawn = createMemo(() => {
     const found = selected()
-    return found === null ? source.visible() : narrowed(source.visible(), found)
+    const shown = source.visible()
+    return shown.kind === "tree" ? { ...shown, rows: matches() } : found === null ? shown : narrowed(shown, found)
   })
 
   /**

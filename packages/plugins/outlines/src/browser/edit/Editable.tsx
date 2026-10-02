@@ -70,7 +70,7 @@ import { useUndo } from "./undoing.ts"
  */
 
 import { printAddress, type Row } from "@olai/format"
-import { type Accessor, createMemo, type JSX, onCleanup, onMount, Show } from "solid-js"
+import { type Accessor, batch, createMemo, on, type JSX, onCleanup, onMount, Show } from "solid-js"
 
 import { createFoldReading } from "../fold/reading.ts"
 import { Aiming } from "../drag/Aiming.tsx"
@@ -87,7 +87,7 @@ import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
 import { createEditor, EditorProvider, type Zooming } from "./editing.tsx"
-import { keepEditor, takeEditor } from "./memory.ts"
+import { editorMemory } from "./memory.ts"
 
 interface EditableProps {
   /** What is drawn — half of where `↑`/`↓` go, of where a row that has moved
@@ -114,27 +114,31 @@ interface EditableProps {
 }
 
 export function Editable(props: EditableProps) {
-  const here = usePaneId()
-  const identity = createMemo(() => JSON.stringify([props.file, props.within]))
-  return <Show when={identity()} keyed>{(_identity) => <EditablePage {...props} />}</Show>
+  return <EditablePage {...props} />
 }
 
 function EditablePage(props: EditableProps) {
   const shown = useShown()
   const here = useHere()
-  const pane = usePaneId()()
   const router = useRouter()
-  const route = router.panes()[here()]?.route()
-  const identity = JSON.stringify([props.file, props.within])
-  const memory = takeEditor(pane, identity, route)
-  onCleanup(() => {
-    const now = router.panes()[here()]?.route()
-    if (now?.kind === "at" && route?.kind === "at"
-      && (now.address === null ? null : printAddress(now.address))
-        === (route.address === null ? null : printAddress(route.address))) {
-      keepEditor(pane, identity, now, memory)
-    }
-  })
+  const memory = editorMemory()
+  // Navigation changes the editor's subject, not its component owner. Rows
+  // common to both views keep their own notes, property panes and DOM.
+  const identity = createMemo(() => JSON.stringify([props.file, props.within]))
+  createEffect(on(identity, () => batch(() => {
+    memory.setDraft(null)
+    memory.setGhosts([])
+    memory.setPlacements(new Map())
+    memory.setResuming(null)
+    memory.range = undefined
+    memory.selection.keys[1](new Set<string>())
+    memory.selection.anchor[1](null)
+    memory.selection.focus[1](null)
+    memory.selection.said[1](null)
+    memory.moving.standing[1](null)
+    memory.moving.query[1]("")
+    memory.moving.judging[1](null)
+  }), { defer: true }))
   const page = {
     rows: () => props.rows(),
     // What is folded FOR THIS READING rather than what this browser has folded

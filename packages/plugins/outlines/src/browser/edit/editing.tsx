@@ -56,6 +56,7 @@ import {
   batch,
   untrack,
   useContext,
+  createSelector,
 } from "solid-js"
 import { Result } from "effect"
 
@@ -151,12 +152,11 @@ export interface Editor {
    *  `Row.key` of the row being edited, the row a new line is drawn after or
    *  before, and which field. Primitives, so they answer the same value while
    *  a person types and a row's match stops propagating. */
+  readonly isEditing: (key: string) => boolean
+  readonly isPending: (key: string) => boolean
   readonly where: Accessor<Where>
-  /** A counter the open editor watches: every bump means "take the caret
-   *  back". It is bumped after the ops that redraw the row the key was pressed
-   *  in, because moving an element in the document is what takes focus off it
-   *  (`./RowEditor.tsx` says the rest). */
-  readonly caret: Accessor<number>
+  /** Subscribe the live field to an explicit request to recover focus. */
+  readonly onCaret: (take: () => void) => () => void
   /**
    * Start editing a row's title (a click on it) or its note.
    *
@@ -320,7 +320,7 @@ export const createEditor = (
   zooming: Zooming,
   memory: EditorMemory = editorMemory(),
 ): Editor => {
-  const { draft, setDraft, ghosts, setGhosts, caret, setCaret, resuming, setResuming, mintSlot, enqueue } = memory
+  const { draft, setDraft, ghosts, setGhosts, requestCaret, onCaret, resuming, setResuming, mintSlot, enqueue } = memory
   let retainedRange = memory.range
   memory.range = undefined
   createEffect(() => {
@@ -339,7 +339,7 @@ export const createEditor = (
    *  about the three fields a new row starts with. */
   const openPending = (at: Anchor): void => {
     setDraft(emptyPending(at, mintSlot()))
-    setCaret((n) => n + 1)
+    requestCaret()
   }
   /** Where a write's inverse goes. Read once, here, rather than at every
    *  write: it is the app's, it does not move, and a context read inside a
@@ -503,7 +503,7 @@ export const createEditor = (
     // frame-driven restoration until its queued activation has completed.
     if (!settling && resuming() === null) return
     settling = false
-    setCaret((n) => n + 1)
+    requestCaret()
   }
   createEffect(settle)
 
@@ -579,6 +579,7 @@ export const createEditor = (
     idle.clear()
     const done = await send(edit, slotOf(current))
     if (done === null) return false
+    batch(() => {
     if (current.kind === "new") {
       memory.setPlacements((held) => new Map(held).set(done.id, current.at))
     }
@@ -592,6 +593,7 @@ export const createEditor = (
     if (current.kind === "new") {
       setGhosts((list) => reaimed(list, current.at, done.id))
     }
+    })
     return true
   }
 
@@ -743,8 +745,10 @@ export const createEditor = (
     // The caret is taken again because a row that merely moved among its
     // siblings keeps its editor and loses the focus anyway — the document
     // moved the element.
-    setDraft((current) => kept(current, held, moved?.nudge))
-    setCaret((n) => n + 1)
+    batch(() => {
+      setDraft((current) => kept(current, held, moved?.nudge))
+      requestCaret()
+    })
   }
 
   /** `Enter`: commit this row, and open an editor where the next one goes. The
@@ -830,7 +834,7 @@ export const createEditor = (
     const current = draft()
     if (done === null || current === null || !sameSlot(slotOf(current), slotOf(held))) return
     setDraft(opening(done, 0))
-    setCaret((n) => n + 1)
+    requestCaret()
   }
 
   /**
@@ -911,7 +915,7 @@ export const createEditor = (
       )
       if (done === null) return
       setDraft(opening(done, done.title.length - before.text.length))
-      setCaret((n) => n + 1)
+      requestCaret()
       return
     }
     if (!(await commit())) return
@@ -920,7 +924,7 @@ export const createEditor = (
     const done = await redrawing({ verb: "merge", id: held.row }, slotOf(held))
     if (done === null) return
     setDraft(opening(done, done.title.length - held.text.length))
-    setCaret((n) => n + 1)
+    requestCaret()
   }
 
   /** The row a compound key left the caret in, as the draft that edits it —
@@ -1296,7 +1300,7 @@ export const createEditor = (
         setGhosts((list) => list.filter((g) => g.slot !== slot))
         setDraft(found)
         setResuming(null)
-        setCaret((n) => n + 1)
+        requestCaret()
       })
     } finally {
       // A surrounding Solid update may flush the DOM after this nested batch
@@ -1325,7 +1329,7 @@ export const createEditor = (
         // refused. Focus is still in the parked input, whose keys we
         // swallow — put the caret back on the draft that is holding the
         // reason.
-        setCaret((n) => n + 1)
+        requestCaret()
         return
       }
       // AFTER the commit: that is the call that re-aims parked `before`
@@ -1379,8 +1383,10 @@ export const createEditor = (
     resume,
     resuming,
     displayAt,
+    isEditing: createSelector(() => where().place),
+    isPending: createSelector(() => { const at = where().pending; return at ? `${at.kind}:${at.id}` : undefined }),
     where,
-    caret,
+    onCaret,
     open: (at, field, here) => {
       const next = opened(at, field, here)
       if (next === null) return

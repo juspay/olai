@@ -15,6 +15,7 @@
  * behaves. That is the seam the primitive drew: the two used to be one file
  * and had no reason left to be.
  */
+import { Key } from "@solid-primitives/keyed"
 import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
@@ -116,27 +117,27 @@ export function Panel(props: {
   )
 
   const Entries = (list: { readonly entries: ReadonlyArray<MenuEntry> }) => (
-    <For each={list.entries}>
+    <Key each={list.entries} by="id">
       {(entry) => (
         <>
           {/* The rule between groups, as a `role="separator"` rather than as
               a border on the entry below it: the same 4px above, hairline,
               4px below the `<li>` used to draw, and this way the hover band
               is still exactly the entry. */}
-          <Show when={entry.divider}>
+          <Show when={entry().divider}>
             <DropdownMenu.Separator class="my-1 border-t border-rule" />
           </Show>
-          {isSub(entry) ? <Sub entry={entry} /> : <Verb action={entry} />}
+          <Show when={isSub(entry())} fallback={<Verb action={entry() as MenuAction} />}><Sub entry={entry() as MenuSub} /></Show>
         </>
       )}
-    </For>
+    </Key>
   )
 
   const Verb = (one: { readonly action: MenuAction }) => {
-    const action = one.action
+    const action = () => one.action
     return (
               <DropdownMenu.Item
-                ref={(el: HTMLElement) => entries.set(action.id, el)}
+                ref={(el: HTMLElement) => entries.set(action().id, el)}
                 // The classes are this app's own — Kobalte ships no styles —
                 // so this is the same box the hand-rolled `<button>` was, in a
                 // `role="menuitem"` this time. `data-[highlighted]` is where
@@ -147,12 +148,12 @@ export function Panel(props: {
                 // Chromium draws that one for pointer opens too.
                 class={MENU_ITEM}
                 data-testid={TESTID.nodeMenuItem}
-                data-action={action.id}
-                closeOnSelect={!asks(action)}
+                data-action={action().id}
+                closeOnSelect={!asks(action())}
                 onSelect={() =>
-                  asks(action) ? setAsking(action) : void props.onPick(action)}
+                  asks(action()) ? setAsking(action()) : void props.onPick(action())}
               >
-                {action.label}
+                {action().label}
               </DropdownMenu.Item>
     )
   }

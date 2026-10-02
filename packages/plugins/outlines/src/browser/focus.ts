@@ -43,11 +43,11 @@ import { usePane } from "olai-plugin-navigation/pane"
 import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import { Result } from "effect"
-import { type Accessor, createSignal } from "solid-js"
+import { type Accessor, createSignal, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
 
 import { atElement, type Route } from "olai-plugin-navigation/routes"
 import { runAsync } from "@olai/web/client/run.ts"
-import { useRouter } from "olai-plugin-navigation/routing"
+import { useRouter, useShown } from "olai-plugin-navigation/routing"
 
 import { client } from "../client.ts"
 
@@ -56,6 +56,13 @@ const [focused, setFocused] = createSignal<string | null>(null)
 /** The node being pointed at, or `null`. Read by every row of the tree
  *  (`./Tree.tsx`), which is why it is one signal and not a store. */
 export const focusedNode: Accessor<string | null> = focused
+const FocusContext = createContext<(id: string) => boolean>()
+export function FocusProvider(props: { readonly children: JSX.Element }) {
+  const shown = useShown()
+  const matches = createSelector(() => shown() ? focused() : null)
+  return createComponent(FocusContext.Provider, { value: matches, get children() { return props.children } })
+}
+export const useFocused = (): ((id: string) => boolean) => useContext(FocusContext) ?? createSelector(focused)
 
 /** The attribute a focused row carries — a FACT in the markup rather than a
  *  colour, so a scenario asking "which row is being pointed at" is not asking

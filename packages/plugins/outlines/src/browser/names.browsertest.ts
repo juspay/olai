@@ -48,16 +48,13 @@ const driving = <A>(
     write: (next: PageReading) => void,
     table: () => (id: string) => Named | undefined,
   ) => A,
-): A =>
-  createRoot((dispose) => {
-    const [reading, setReading] = createSignal<PageReading>(first)
-    const names = createNames(reading)
-    try {
-      return body((next) => setReading(next), names)
-    } finally {
-      dispose()
-    }
+): A => {
+  const state = createRoot((dispose) => {
+    const [reading, write] = createSignal<PageReading>(first)
+    return { dispose, write, table: createNames(reading) }
   })
+  try { return body(state.write, state.table) } finally { state.dispose() }
+}
 
 test("an identical frame is not a new table", () =>
   driving(frame(["herbs", "the herb bed"]), (write, table) => {
@@ -68,24 +65,24 @@ test("an identical frame is not a new table", () =>
     expect(table()).toBe(held)
   }))
 
-test("a title that changed IS a new table", () =>
+test("a title that changed updates the same table", () =>
   driving(frame(["herbs", "the herb bed"]), (write, table) => {
     const held = table()
     write(frame(["herbs", "the herb bed by the gate"]))
-    expect(table()).not.toBe(held)
+    expect(table()).toBe(held)
     expect(table()("herbs")?.title).toBe("the herb bed by the gate")
   }))
 
-test("a name arriving or leaving IS a new table", () =>
+test("a name arriving or leaving updates the same table", () =>
   driving(frame(["herbs", "the herb bed"]), (write, table) => {
     const one = table()
     write(frame(["herbs", "the herb bed"], ["mint", "split the mint"]))
     const two = table()
-    expect(two).not.toBe(one)
+    expect(two).toBe(one)
     expect(two("mint")?.title).toBe("split the mint")
     write(frame(["herbs", "the herb bed"]))
     const three = table()
-    expect(three).not.toBe(two)
+    expect(three).toBe(two)
     expect(three("mint")).toBeUndefined()
   }))
 
@@ -209,7 +206,7 @@ test("...and a name that actually changed is still a new table across one", () =
   const table = store.table()
   store.blank()
   store.write(reading("the herb bed", "the herb bed by the gate"))
-  expect(store.table()).not.toBe(table)
+  expect(store.table()).toBe(table)
   expect(store.table()("herbs")?.title).toBe("the herb bed by the gate")
   store.stop()
 })
@@ -242,4 +239,23 @@ test("a navigation with the pane AND the chrome looking up builds the table once
   expect(store.copies()).toBe(ran + 1)
   expect(chrome()).toBe(pane())
   store.stop()
+})
+
+test("renaming one reference leaves other titles' bindings alone", () => {
+  const drive = createRoot(dispose => {
+    const [reading, write] = createSignal(frame(["herbs", "bed"], ["mint", "mint"]))
+    const table = createNames(reading)
+    let herbs = 0
+    let mint = 0
+    const herbTitle = createMemo(() => { herbs++; return table()("herbs")?.title })
+    const mintTitle = createMemo(() => { mint++; return table()("mint")?.title })
+    return { dispose, write, herbTitle, mintTitle, counts: () => [herbs, mint] }
+  })
+  try {
+    expect(drive.counts()).toEqual([1, 1])
+    drive.write(frame(["herbs", "new bed"], ["mint", "mint"]))
+    expect(drive.herbTitle()).toBe("new bed")
+    expect(drive.mintTitle()).toBe("mint")
+    expect(drive.counts()).toEqual([2, 1])
+  } finally { drive.dispose() }
 })

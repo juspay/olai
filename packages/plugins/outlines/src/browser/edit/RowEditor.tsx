@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * The caret: a title being typed, a note being written, and what the last
  * write said back.
@@ -423,13 +424,8 @@ const caretOf = (target: EventTarget | null): Caret | undefined => {
  * reorder moves its element among its siblings — and moving or replacing a
  * focused element in the document takes the focus off it. So a person who
  * presses `Tab` and then types would be typing into the page. The editor
- * bumps a counter after every op that can do that (`Editor.caret`), and this
- * is what listens: one number, one effect, and no polling of
- * `document.activeElement`.
- *
- * The counter is read from the EDITOR rather than passed in: every one of
- * these is drawn inside the provider by construction, and a magic number
- * threaded through three components is a prop the next editor site forgets.
+ * requests its registered field to take focus after an operation. The
+ * registration leaves with the field, and a hidden page declines the request.
  *
  * WHERE the caret lands differs between the two halves, and that is what
  * `opening` is for: a fresh editor without an offset puts it at the end of
@@ -468,6 +464,7 @@ const takeCaret = (
     readonly armed?: () => boolean
   } = {},
 ): void => {
+  const shown = useShown()
   const editor = useEditor()
   let opening = true
   const draft = editor.draft()
@@ -503,7 +500,8 @@ const takeCaret = (
       document.removeEventListener("selectionchange", selectionChanged)
     })
   })
-  createEffect(on([editor.caret, editor.resuming], () => {
+  const takeCaret = () => {
+    if (!shown()) return
     const pending = editor.resuming()
     if (pending !== null) {
       if (slot?.field !== "new" || slot.row !== pending) return
@@ -517,7 +515,9 @@ const takeCaret = (
     field.focus()
     field.setSelectionRange(range?.start ?? at, range?.end ?? at, range?.direction)
     said.then?.()
-  }))
+  }
+  onCleanup(editor.onCaret(takeCaret))
+  createEffect(on(editor.resuming, takeCaret))
 }
 
 /**

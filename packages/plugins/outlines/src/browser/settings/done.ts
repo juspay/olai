@@ -78,7 +78,7 @@ type DoneWord = "shown" | "hidden"
 /** Hidden, for a browser that has never been asked — and for a value nothing
  *  here ever wrote, which is `boolCodec`'s rule and not this file's. */
 const makePref = () => createPreference(DONE_HIDDEN_KEY, boolCodec(true))
-let pref = makePref()
+const [pref, setPref] = createSignal(makePref())
 
 /** The overrides circuit: parse all-or-nothing the symmetric codec cannot help
  *  with, print SORTED for idempotency — the `fold/memory.ts` discipline, where
@@ -109,21 +109,21 @@ const makeOverrides = () => createPreference(DONE_OVERRIDES_KEY, {
           ),
         ),
 })
-let overrides = makeOverrides()
+const [overrides, setOverrides] = createSignal(makeOverrides())
 
 /** Whether this browser hides what is done, where no page has said otherwise. */
-export const doneHidden: Accessor<boolean> = () => pref.value()
+export const doneHidden: Accessor<boolean> = () => pref().value()
 
-/** Persist it — `pref.set` writes `olai.done.hidden`. The write is fenced by
+/** Persist it — `pref().set` writes `olai.done.hidden`. The write is fenced by
  * `preferences.feature`'s stored-key step; the reload scenario fences the boot
  * read, not this setter. */
-export const setDoneHidden = (value: boolean): void => pref.set(value)
+export const setDoneHidden = (value: boolean): void => pref().set(value)
 
 /** What this page asked for, or NOTHING — and the nothing is a real answer:
  *  "follow the default". There is no stored value for it: a page whose pick
  *  is the panel's holds no entry. */
 export const doneOverride = (file: string): DoneWord | undefined =>
-  overrides.value().get(file)
+  overrides().value().get(file)
 
 /**
  * The pick a PAGE answers to: its own word if it has one, the default's
@@ -132,7 +132,7 @@ export const doneOverride = (file: string): DoneWord | undefined =>
  * is one module.
  */
 export const doneHiddenOn = (file: string): boolean =>
-  (overrides.value().get(file) ?? (doneHidden() ? "hidden" : "shown")) ===
+  (overrides().value().get(file) ?? (doneHidden() ? "hidden" : "shown")) ===
   "hidden"
 
 /**
@@ -144,18 +144,18 @@ export const setDoneFor = (file: string, word: DoneWord): void => {
   // stored() LAST: a key in both places is the SIBLING's fresher answer, and
   // spreads do not delete, so this tab's never-written entries survive
   // either way (the pick trace is in done.test.ts).
-  const combined = new Map([...overrides.value(), ...overrides.stored()])
+  const combined = new Map([...overrides().value(), ...overrides().stored()])
   combined.set(file, word)
-  overrides.set(combined)
+  overrides().set(combined)
 }
 
 /** Hand a page back to the panel: drop its entry, with the same union
  *  discipline ranked after everything it was unioned with — the removal is
  *  this tab's own say-so, the way `fold/memory.ts`'s clear is. */
 export const letDoneFollow = (file: string): void => {
-  const combined = new Map([...overrides.value(), ...overrides.stored()])
+  const combined = new Map([...overrides().value(), ...overrides().stored()])
   combined.delete(file)
-  overrides.set(combined)
+  overrides().set(combined)
 }
 
 /**
@@ -175,7 +175,7 @@ const [revealed, setRevealed] = createSignal<
  *  — DELIBERATELY not exported: what spares a row is a question the sweep
  *  answers by sweeping, and a second door onto the raw table is a second way
  *  for the page and somebody else to disagree about the same row. */
-const landingReveal = (
+export const landingReveal = (
   file: string,
   pane: string,
 ): ReadonlySet<string> | undefined => revealed().get(pane)?.get(file)
@@ -299,10 +299,10 @@ export const visibleIn = (
  *  preference belongs to the browser: the panel writes the default once, and
  *  every page holds the answers to what the default does not say. */
 export const followDonePrefs = (): (() => void) => {
-  pref = makePref()
-  overrides = makeOverrides()
-  const stopDefault = pref.follow()
-  const stopOverrides = overrides.follow()
+  setPref(makePref())
+  setOverrides(makeOverrides())
+  const stopDefault = pref().follow()
+  const stopOverrides = overrides().follow()
   setRevealed(new Map())
   return () => { stopDefault(); stopOverrides(); setRevealed(new Map()) }
 }

@@ -35,7 +35,7 @@
  * leaves.
  */
 
-import { type Accessor, createSignal } from "solid-js"
+import { type Accessor, createEffect, createSignal, untrack } from "solid-js"
 
 import { dismissOn } from "@olai/web/client/dismiss.ts"
 
@@ -74,11 +74,14 @@ export const createNoteExpand = (
   // it — see `setTrigger` for the bug that costs. Open only counts as a row
   // this reader OPENED: see the header for why the preference's own rows are
   // not on the dismissal stack.
-  dismissOn({
+  createEffect(() => {
+    if (touched() !== true) return
+    untrack(() => dismissOn({
     open: () => touched() === true,
     root: () => root,
     trigger: () => trigger,
     dismiss: () => setTouched(false),
+  }))
   })
 
   return {

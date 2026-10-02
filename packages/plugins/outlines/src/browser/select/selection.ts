@@ -41,6 +41,7 @@ import {
   createEffect,
   createMemo,
   useContext,
+  createSelector, batch,
 } from "solid-js"
 
 import { flatten, neighbour, refound } from "../edit/order.ts"
@@ -54,6 +55,7 @@ import { alongside, recordOf, spanning, topmost } from "./range.ts"
 export interface Selection {
   /** The places picked, as `Row.key`s. Read by a row to tone itself; every
    *  other question is answered by a method here. */
+  readonly has: (key: string) => boolean
   readonly keys: Accessor<ReadonlySet<string>>
   /** What a verb is asked of: the picked rows nothing else picked contains, in
    *  drawn order (`./range.ts`). Empty means nothing is selected. */
@@ -128,13 +130,13 @@ export const createSelection = (
 
   const drawn = (): ReadonlyArray<Row> => flatten(page.rows(), page.collapsed())
 
-  const pick = (chosen: Iterable<string>, at: string | null, end: string | null) => {
+  const pick = (chosen: Iterable<string>, at: string | null, end: string | null) => batch(() => {
     memory.widened = 0
     setKeys(new Set(chosen))
     setAnchor(at)
     setFocus(end)
     setSaid(null)
-  }
+  })
 
   /**
    * The picked places, found again wherever their records are drawn now.
@@ -195,6 +197,7 @@ export const createSelection = (
   }
 
   return {
+    has: createSelector(keys, (key: string, set) => set.has(key)),
     keys,
     rows,
     start: (key) => pick([key], key, key),

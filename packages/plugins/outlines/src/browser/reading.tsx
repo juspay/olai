@@ -1,3 +1,4 @@
+import { createRenderEffect, untrack } from "solid-js"
 /**
  * WHAT THE PAGE IN FRONT OF SOMEBODY SAYS — asked of the server, once per open
  * pane.
@@ -228,18 +229,20 @@ export const createReading = (
    * been.
    */
   holding?: Accessor<boolean>,
-  stream?: NodePageRoute["stream"],
+  stream?: Accessor<NodePageRoute["stream"] | undefined>,
 ): Reading => {
-  const answer = stream === undefined ? client().streams.page.use(request) : stream.use(request)
-  /** The generation — see {@link Reading.at}. `changed` rather than `updated`
-   *  because the payload is the one thing this does not want, and the handler
-   *  survives an input change (the framework resets the tracker, which re-arms
-   *  the first-frame rule; the handlers belong to the caller). The `?.` is the
-   *  channel's own optionality: a hand-assembled `Subscription`-shaped value
-   *  may omit it, and every subscription the framework mints provides it. */
   const [at, setAt] = createSignal(0)
-  const stop = answer.changed?.(() => setAt((was) => was + 1))
-  if (stop !== undefined) onCleanup(stop)
+  const [subscription, setSubscription] = createSignal<Accessor<PageReading | undefined>>()
+  // Only a change of stream replaces this owner. The stream itself follows
+  // request changes; the held page below spans that handover.
+  createRenderEffect(() => {
+    const channel = stream?.()
+    const answer = untrack(() => channel === undefined ? client().streams.page.use(request) : channel.use(request))
+    const stop = answer.changed?.(() => setAt(was => was + 1))
+    if (stop) onCleanup(stop)
+    setSubscription(() => answer)
+  })
+  const answer = () => subscription()?.()
   /**
    * THE LAST ANSWER, HELD ACROSS THE NEXT QUESTION.
    *

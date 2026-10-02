@@ -1,3 +1,5 @@
+import { createDoneRows } from "./pruning.ts"
+import { FocusProvider } from "./focus.ts"
 import { usePaneId } from "olai-plugin-navigation/routing"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
@@ -41,7 +43,7 @@ import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { TESTID } from "../testids.ts"
 import { filterOf, hrefOf, narrowable, narrowedTo, routeFace, samePage } from "./routing.ts"
 import { panesOf } from "olai-plugin-navigation/workspace"
-import { pageFileOf, visibleIn } from "./settings/done.ts"
+import { pageFileOf, doneHiddenOn, landingReveal } from "./settings/done.ts"
 
 
 export function OutlinePageView(props: {readonly render?: (props: import("../index.ts").PageBodyProps) => import("solid-js").JSX.Element} = {}) {
@@ -50,9 +52,7 @@ export function OutlinePageView(props: {readonly render?: (props: import("../ind
   const route = createMemo(() => router.panes()[here()]!.route())
   const source = createMemo(() => routeFace(route()))
   return (
-    <Show when={source()} keyed fallback={<PageAt source={null} render={props.render} />}>
-      {(tenant) => <PageAt source={tenant} render={props.render} />}
-    </Show>
+    <FocusProvider><PageAt source={source() ?? null} render={props.render} /></FocusProvider>
   )
 }
 
@@ -118,7 +118,8 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
    * front of the reader. Reading a ticking clock to mint a bound no one uses
    * would buy nothing and cost the tab its one answer about what time it is.
    */
-  const query = createMemo(() => parseFilter(filterOf(route()), today()))
+  const filter = createMemo(() => filterOf(route()))
+  const query = createMemo(() => parseFilter(filter(), today()))
 
   /**
    * WHICH NODES the query selects on this page — a second subscription beside
@@ -165,7 +166,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
    * licenses for a navigation). {@link together} covers the other, which is
    * measured NOT to happen; what it buys is that the page below may assert so.
    */
-  const reading = createReading(request, asked.awaiting, props.source?.route.stream)
+  const reading = createReading(request, asked.awaiting, () => props.source?.route.stream)
   // …and the pane joins the workspace's register with it, so the chrome outside
   // the panes can read whichever one is focused — the page AND the names table
   // derived beside it (`../App.tsx`).
@@ -184,9 +185,14 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   // landing's reveal is one pane's courtesy, so a pane the address never
   // reached must sweep the row what the flip said.
   const paneId = usePaneId()
-  const shownDrawn = createMemo(() =>
-    visibleIn(allDrawn(), pageFileOf(page()), paneId())
-  )
+  const treeRows = createMemo(() => { const drawn = allDrawn(); return drawn.kind === "tree" ? drawn.rows : [] })
+  const doneRows = createDoneRows(treeRows,
+    () => { const file = pageFileOf(page()); return file !== undefined && doneHiddenOn(file) },
+    () => { const file = pageFileOf(page()); return file === undefined ? undefined : landingReveal(file, paneId()) })
+  const shownDrawn = createMemo(() => {
+    const drawn = allDrawn()
+    return drawn.kind === "tree" ? { ...drawn, rows: doneRows() } : drawn
+  })
 
   /**
    * ARE THE TWO READINGS ABOUT THE SAME PAGE?

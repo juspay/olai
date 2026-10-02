@@ -63,6 +63,7 @@ export function Tip(props: {
   /** What the tip says. The control it wraps says the same thing in its
    *  `aria-label`, so this is never the only copy. */
   readonly text: string
+  readonly disabled?: boolean
   /** The control being explained. It MUST be the wrapper's first element
    *  child: the tip's rectangle is read off exactly that (the wrapper is
    *  `display: contents` and has no box of its own). Companions that are
@@ -88,6 +89,7 @@ export function Tip(props: {
   let anchor: HTMLSpanElement | undefined
 
   const show = (): void => {
+    if (props.disabled) return
     // The CONTROL's box, not this wrapper's. The wrapper is `display:
     // contents` so that it adds no box to the gutter's flex row — and an
     // element with no box has no rectangle either: `getBoundingClientRect`
@@ -106,6 +108,7 @@ export function Tip(props: {
   }
 
   const hide = (): void => hideTip(me)
+  createEffect(() => { if (props.disabled) hide() })
   // A control that goes away under the pointer takes its tip with it: a row
   // that was folded away, a page that was left.
   onCleanup(hide)

@@ -1,3 +1,4 @@
+import { Dynamic } from "solid-js/web"
 /**
  * A node's properties, as a RUN OF CHIPS: `key value` pairs on one wrapping
  * line, the key small and muted, the value first-class — a compact byline under
@@ -405,18 +406,16 @@ export function PropsDrawer(props: {
                   the toggle rather than holding either, so pressing a second
                   one closes the first; the toggle is withheld from a dressing
                   that registered no pane, and then the face is a readout. */}
-              {laid().chip?.({
-                entry: laid().entry,
-                onOpen: props.onSet === undefined
-                  ? undefined
-                  : () => setEditing({ key: laid().entry.key, value: laid().entry.value }),
-                chrome: BLOCK_CHROME,
-                opened: paned() === laid().entry.key,
-                onToggle: laid().pane === undefined ? undefined : () => {
+              <Dynamic component={laid().chip}
+                entry={laid().entry}
+                onOpen={props.onSet === undefined ? undefined : () => setEditing({ key: laid().entry.key, value: laid().entry.value })}
+                chrome={BLOCK_CHROME}
+                opened={paned() === laid().entry.key}
+                onToggle={laid().pane === undefined ? undefined : () => {
                   const key = laid().entry.key
-                  setPaned((was) => (was === key ? undefined : key))
-                },
-              })}
+                  setPaned(was => was === key ? undefined : key)
+                }}
+              />
             </>
           )}
         </Key>
@@ -456,16 +455,10 @@ export function PropsDrawer(props: {
           belongs to the block, because a block already owns the width a chip
           never had. Outside the run's `<Show>` for the said line's reason
           below: a run can be empty of chips and still have blocks in it. */}
-      <For each={laid().blocks}>
-        {(laid) =>
-          laid.block({
-            entry: laid.entry,
-            onOpen: props.onSet === undefined
-              ? undefined
-              : () => setEditing({ key: laid.entry.key, value: laid.entry.value }),
-            chrome: BLOCK_CHROME,
-          })}
-      </For>
+      <Key each={laid().blocks} by={one => one.entry.key}>{one =>
+        <Dynamic component={one().block} entry={one().entry} chrome={BLOCK_CHROME}
+          onOpen={props.onSet === undefined ? undefined : () => setEditing({ key: one().entry.key, value: one().entry.value })} />
+      }</Key>
       {/* THE OPEN LIVE PANE — what a chip's press opened, drawn HERE rather
           than beside the chip for the reason a block is a block: a chip is an
           inline box in a wrapping line and cannot carry a grid, so the pane
@@ -475,16 +468,10 @@ export function PropsDrawer(props: {
           matrix's own clock cost a person looking at it (`../ci/RunMatrix.tsx`).
           Placed after the blocks so a node with both keeps the door-and-row
           reading order the file's own key order gives it. */}
-      <For each={laid().run.filter((one) => one.pane !== undefined && paned() === one.entry.key)}>
-        {(laid) =>
-          laid.pane?.({
-            entry: laid.entry,
-            onOpen: props.onSet === undefined
-              ? undefined
-              : () => setEditing({ key: laid.entry.key, value: laid.entry.value }),
-            chrome: BLOCK_CHROME,
-          })}
-      </For>
+      <Key each={laid().run.filter(one => one.pane !== undefined && paned() === one.entry.key)} by={one => one.entry.key}>{one =>
+        <Dynamic component={one().pane} entry={one().entry} chrome={BLOCK_CHROME}
+          onOpen={props.onSet === undefined ? undefined : () => setEditing({ key: one().entry.key, value: one().entry.value })} />
+      }</Key>
       {/* THE ANSWER OUTLIVES THE RUN. The line hangs off the drawer's own
           component rather than beside the chips, because one answer needs
           exactly that: a chip whose key was dropped under its open, typed
