@@ -31,11 +31,18 @@ export type DocumentEditor = ReturnType<typeof editorOf>
 export const createDocumentEditors = () => {
   const panes = new Map<string, Map<string, DocumentEditor>>()
   onCleanup(() => panes.clear())
-  return (pane: string, file: string): DocumentEditor => {
+  const editor = (pane: string, file: string): DocumentEditor => {
     let entries = panes.get(pane)
     if (entries === undefined) panes.set(pane, entries = new Map())
     let editor = entries.get(file)
     if (editor === undefined) entries.set(file, editor = editorOf())
     return editor
   }
+  return { editor, retain: (active: ReadonlyMap<string, string | undefined>): void => {
+    for (const [pane, entries] of panes) {
+      const file = active.get(pane)
+      for (const key of entries.keys()) if (key !== file) entries.delete(key)
+      if (entries.size === 0) panes.delete(pane)
+    }
+  } }
 }

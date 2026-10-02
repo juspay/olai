@@ -145,17 +145,20 @@ export const createSelection = (
    * still holding the old chain would go dark on the frame that proved it
    * worked.
    */
-  const keys = createMemo<ReadonlySet<string>>(() => {
-    const held = picked()
-    if (held.size === 0) return held
-    const rows = drawn()
-    const places = new Set(rows.map(row => row.key))
-    if ([...held].every(key => places.has(key))) return held
-    return new Set([...held].flatMap(key => {
+  // Each source pick starts a new selection. Subsequent frames relocate its
+  // surviving records; a removed record stays removed even if it returns.
+  const located = createMemo((previous: { pick: ReadonlySet<string>; keys: ReadonlySet<string> } | undefined) => {
+    const pick = picked()
+    const held = previous?.pick === pick ? previous.keys : pick
+    const rows = held.size === 0 ? [] : drawn()
+    return { pick, keys: new Set([...held].flatMap(key => {
       const found = refound(rows, recordOf(key), key)
       return found === undefined ? [] : [found]
-    }))
-  }, new Set<string>(), { equals: (a, b) => a.size === b.size && [...a].every(key => b.has(key)) })
+    })) }
+  })
+  const keys = createMemo(() => located().keys, new Set<string>(), {
+    equals: (a, b) => a.size === b.size && [...a].every(key => b.has(key)),
+  })
   const currentEnd = (held: string | null): string | null => held === null ? null : refound(drawn(), recordOf(held), held) ?? null
   const anchor = createMemo(() => currentEnd(pickedAnchor()))
   const focus = createMemo(() => currentEnd(pickedFocus()))

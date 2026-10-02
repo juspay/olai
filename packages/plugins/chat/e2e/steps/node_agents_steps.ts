@@ -744,7 +744,7 @@ Then("the unassigned list waits for the assignment to finish", async function (t
 When("I fold node agent {string}", async function (this: OlaiWorld, node: string) {
   const standing = this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(node))}`);
   await this.press(standing);
-  await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(node))}`).waitFor({ state: "detached" });
+  await this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(node))}`).waitFor({ state: "hidden" });
 });
 
 const asideFor = (world: OlaiWorld, node: string) =>

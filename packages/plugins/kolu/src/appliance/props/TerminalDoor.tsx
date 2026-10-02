@@ -1,4 +1,4 @@
-import { createMemo } from "solid-js"
+import { createMemo, createEffect, on } from "solid-js"
 /**
  * THE TERMINAL DOOR — kolu's own Dock row, drawn where the property is, and
  * the live pane it opens.
@@ -87,7 +87,12 @@ export function TerminalBlock(context: BlockContext) {
   const fleet = useFleet()
   const [open, setOpen] = createSignal(false)
   const reading = createMemo(() => readingOf(context.entry.value, fleet.link(), fleet.terminals()))
-  const resolved = createMemo<FleetTerminal | undefined>(previous => reading().row ?? previous, undefined)
+  const resolvedAt = createMemo<{ value: string; row: FleetTerminal | undefined }>(previous => ({
+    value: context.entry.value,
+    row: reading().row ?? (previous?.value === context.entry.value ? previous.row : undefined),
+  }))
+  const resolved = () => resolvedAt().row
+  createEffect(on(() => context.entry.value, () => setOpen(false), { defer: true }))
   return (
     <div class="mb-1" data-testid={TESTID.terminalBlock} data-terminal={context.entry.value}>
       {/* MUTED and small, deliberately: the value is a fact ABOUT the row, not

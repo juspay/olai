@@ -125,6 +125,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   /** Should new text pull the view down with it? True until the reader scrolls
    *  away from the bottom, and true again the moment they come back. */
   let following = true
+  let restoringVisibility = true
   /** The `scrollTop` we last assigned. A later `scroll` event that still sits
    *  here is our jump, not the reader — the event is dispatched after the
    *  assignment returns, so a boolean around the write cannot see it. */
@@ -144,7 +145,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     assignedTop = host.scrollTop
   }
   const scrolled = () => {
-    if (!shown()) return
+    if (!shown() || restoringVisibility) return
     const host = scrollPane()
     if (host === undefined) return
     // Browser anchoring can move the scroll forward before ResizeObserver
@@ -172,8 +173,9 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   }
   onCleanup(() => listening?.removeEventListener("scroll", scrolled))
   createEffect(() => {
+    restoringVisibility = true
     if (!shown()) return
-    const frame = requestAnimationFrame(() => { bindScroll(); if (following) jump() })
+    const frame = requestAnimationFrame(() => { bindScroll(); if (following) jump(); restoringVisibility = false })
     onCleanup(() => cancelAnimationFrame(frame))
   })
   onMount(() => {

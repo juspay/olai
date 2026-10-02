@@ -517,7 +517,7 @@ const takeCaret = (
     said.then?.()
   }
   onCleanup(editor.onCaret(takeCaret))
-  createEffect(on(editor.resuming, takeCaret))
+  createEffect(on(() => [editor.resuming(), said.armed?.(), shown()], takeCaret))
 }
 
 /**

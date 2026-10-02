@@ -15,7 +15,7 @@ import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
 import {Clocks} from "@olai/plugin-api"
 import { definePlugin, Offers, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
-import { createRoot, createMemo, createEffect, on } from "solid-js"
+import { createRoot, createMemo, createEffect, on, onCleanup } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { navigation, content } from "olai-plugin-navigation/contract"
 import {fileAccess} from "olai-plugin-vault/contract"
@@ -81,6 +81,18 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
   yield* offers.own("referrer-memory", () => memory)
 }) })
 export const components = {
+  drafts: definePlugin({ name: "drafts", needs: [browserState, navigation], apply: Effect.gen(function*() {
+    const { documents } = yield* browserState
+    const nav = yield* navigation
+    yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      createEffect(() => documents.retainEditors(new Map(nav.lanes().flatMap(lane => lane.panes().map(pane => {
+        const route = pane.route()
+        return [pane.id, route.kind === "at" && route.address !== null && route.address.kind !== "node" ? route.address.path : undefined] as const
+      })))))
+      onCleanup(() => documents.retainEditors(new Map()))
+      return dispose
+    })), dispose => Effect.sync(dispose))
+  }) }),
   glyph: definePlugin({ name: "glyph", needs: [rendererSlots], apply: Effect.gen(function*() {
     const by = { kind: "markdown" } as const
     yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: "document", article: "a", testid: KIND_IDS.documentLink }, { key: fileKindKey(by) })

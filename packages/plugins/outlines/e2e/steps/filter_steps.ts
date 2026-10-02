@@ -66,7 +66,7 @@ const rows = (world: OlaiWorld) => world.page.locator(`${OUTLINE_TREE} ${NODE}`)
 When(
   "I filter the page by {string}",
   async function (this: OlaiWorld, text: string) {
-    const box = this.page.locator(FILTER_INPUT);
+    const box = this.frontLane().locator(`${FILTER_INPUT}:visible`);
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await box.fill(text);
     // A LOCATOR, because a selector can express this question — the suite's own
@@ -351,7 +351,7 @@ Then(
 Then(
   "the filter box holds {string}",
   async function (this: OlaiWorld, text: string) {
-    const box = this.page.locator(FILTER_INPUT);
+    const box = this.frontLane().locator(`${FILTER_INPUT}:visible`);
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(await box.inputValue(), text);
   },
@@ -360,7 +360,7 @@ Then(
 Then(
   "the filter box says {string} when empty",
   async function (this: OlaiWorld, placeholder: string) {
-    const box = this.page.locator(FILTER_INPUT);
+    const box = this.frontLane().locator(`${FILTER_INPUT}:visible`);
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(await box.getAttribute("placeholder"), placeholder);
   },
@@ -373,18 +373,18 @@ Then(
 const HINT = `${COMPLETIONS}${attr("data-kind", "filter")}`;
 
 When("I focus the filter box", async function (this: OlaiWorld) {
-  const box = this.page.locator(FILTER_INPUT);
+  const box = this.frontLane().locator(`${FILTER_INPUT}:visible`);
   await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await box.focus();
 });
 
 When("I press {string} in the filter box", async function (this: OlaiWorld, key: string) {
-  await this.page.locator(FILTER_INPUT).press(key);
+  await this.frontLane().locator(`${FILTER_INPUT}:visible`).press(key);
   await this.waitForFrame();
 });
 
 When("I type {string} into the filter box", async function (this: OlaiWorld, text: string) {
-  await this.page.locator(FILTER_INPUT).pressSequentially(text);
+  await this.frontLane().locator(`${FILTER_INPUT}:visible`).pressSequentially(text);
   await this.waitForFrame();
 });
 
@@ -428,7 +428,7 @@ Then("the filter box has the focus", async function (this: OlaiWorld) {
 
 /** What typing would write over: the part of a form a person replaces. */
 Then("the filter box has {string} selected", async function (this: OlaiWorld, selected: string) {
-  await this.waitUntil(async () => (await this.page.locator(FILTER_INPUT).evaluate((box) => {
+  await this.waitUntil(async () => (await this.frontLane().locator(`${FILTER_INPUT}:visible`).evaluate((box) => {
     const input = box as HTMLInputElement;
     return input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0);
   })) === selected, `the filter box to have "${selected}" selected`);

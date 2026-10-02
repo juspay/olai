@@ -54,7 +54,7 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   const grow = createMemo(() => live() ?? flexOf(router.panes().map(pane => ({ route: pane.route(), width: pane.width() }))))
   return <div data-testid={TESTID.lane} data-lane-front={String(router.shown())}
     class="flex min-w-0 flex-col bg-paper"
-    style={{ display: router.shown() ? undefined : "none" }}
+    style={{ display: router.shown() ? undefined : "none", "overflow-anchor": "none" }}
     classList={{ [PANES_SPLIT]: router.split(), [PANES_LONE]: !router.split() }}>
     <Show when={router.split() && !desktop()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">

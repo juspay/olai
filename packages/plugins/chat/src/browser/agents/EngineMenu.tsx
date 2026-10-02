@@ -5,7 +5,7 @@
  * you**, which is where a person goes to fix it. With nothing to start, the
  * menu is one quiet line and — while the inspector is up — its door. */
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
-import { createEffect, For, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, For, onCleanup, Show } from "solid-js"
 import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
@@ -25,8 +25,8 @@ export default function EngineMenu(props: {
   readonly close: () => void
 }) {
   // Kobalte restores focus after the enclosing Show has withdrawn the menu.
-  const layer = () => props.layer ?? LAYER.row
-  const anchor = () => props.anchor
+  const layer = createMemo(() => props.layer ?? LAYER.row)
+  const anchor = createMemo(() => props.anchor)
   const portal = document.createElement("div")
   createEffect(() => { portal.className = `fixed left-0 top-0 ${layer()}` })
   document.body.append(portal)
@@ -48,7 +48,7 @@ export default function EngineMenu(props: {
           <p class="m-0 px-3 py-1.5 text-muted" data-testid={TESTID.agentEngineNone}>No agent is set up</p>
           <Show when={pluginsDoor()}>{door =>
             <DropdownMenu.Item class={MENU_ITEM} data-action="open-plugins"
-              onSelect={() => { props.close(); door().open(explains()) }}>Open plugins</DropdownMenu.Item>
+              onSelect={() => { const open = door().open; const id = explains(); props.close(); open(id) }}>Open plugins</DropdownMenu.Item>
           }</Show>
         </>}>
           <For each={here()}>{engine =>

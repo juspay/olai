@@ -46,13 +46,13 @@ When(
 
 /** The panel, the box, and the button — one spelling each, so the steps below
  *  cannot wait on them four slightly different ways. */
-const panel = (world: OlaiWorld) => world.page.locator(DATE_PICKER);
+const panel = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER}:visible`);
 
-const box = (world: OlaiWorld) => world.page.locator(DATE_PICKER_DAY);
+const box = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER_DAY}:visible`);
 
-const time = (world: OlaiWorld) => world.page.locator(DATE_PICKER_TIME);
+const time = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER_TIME}:visible`);
 
-const button = (world: OlaiWorld) => world.page.locator(DATE_PICKER_SET);
+const button = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER_SET}:visible`);
 
 Then("the date picker is open", async function (this: OlaiWorld) {
   await panel(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });

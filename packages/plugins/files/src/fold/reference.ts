@@ -5,7 +5,7 @@
  * The Files activation follows storage; each mounted section owns its collapse
  * override, which expires on navigation or disposal (including reload).
  */
-import { type Accessor, createEffect, createSignal, on } from "solid-js"
+import { type Accessor, createMemo, createSignal } from "solid-js"
 import { createPreference } from "@olai/web/client/preference.ts"
 
 const preference = createPreference("olai.sidebar.reference", {
@@ -20,8 +20,12 @@ export const createReferenceFold = (
   active: Accessor<string | undefined>,
   contains: (file: string) => boolean,
 ) => {
-  const [collapsedAt, setCollapsedAt] = createSignal<string | undefined | null>(null)
-  const collapsed = () => collapsedAt() === active()
+  const [collapsedAt, setCollapsedAt] = createSignal<{ readonly at: string | undefined } | null>(null)
+  const collapse = createMemo((previous: { chosen: { readonly at: string | undefined } | null; at: string | undefined; collapsed: boolean } | undefined) => {
+    const chosen = collapsedAt(), at = active()
+    return { chosen, at, collapsed: previous !== undefined && previous.chosen === chosen && previous.at !== at ? false : previous !== undefined && previous.chosen === chosen ? previous.collapsed : chosen !== null && chosen.at === at }
+  })
+  const collapsed = () => collapse().collapsed
   const selected = () => {
     const file = active()
     return file !== undefined && contains(file)
@@ -31,7 +35,7 @@ export const createReferenceFold = (
     open,
     toggle: () => {
       const next = !open()
-      setCollapsedAt(next ? null : active())
+      setCollapsedAt(next ? null : { at: active() })
       preference.set(next)
     },
   }

@@ -534,7 +534,7 @@ Then("a new row is being typed", async function (this: OlaiWorld) {
 
 Then("{int} new rows are being typed", async function (this: OlaiWorld, n: number) {
   await this.waitUntil(
-    async () => (await this.page.locator(NEW_ROW).count()) === n,
+    async () => (await this.frontLane().locator(`${NEW_ROW}:visible`).count()) === n,
     `${n} new rows to be on the page`,
   );
 });
@@ -1280,7 +1280,7 @@ const readyBox = async (world: OlaiWorld, where: Locator, what: string): Promise
 };
 
 When("I write down the boxes of the line being typed", async function (this: OlaiWorld) {
-  const blank = this.page.locator(NEW_ROW).first();
+  const blank = this.frontLane().locator(`${NEW_ROW}:visible`).first();
   lineBoxes.set(this, {
     glyph: await readyBox(this, blank.locator(GLYPH).first(), "the bullet of the line being typed"),
     field: await readyBox(this, blank.locator(TITLE_EDITOR).first(), "the caret of the line being typed"),

@@ -1,6 +1,8 @@
 import { createDoneRows } from "./pruning.ts"
 import { FocusProvider } from "./focus.ts"
 import { usePaneId } from "olai-plugin-navigation/routing"
+import { EditorMemoryProvider, editorMemory, resetEditorMemory } from "./edit/memory.ts"
+import { Dynamic } from "solid-js/web"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
@@ -18,7 +20,7 @@ import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 import { shownIn } from "olai-plugin-navigation/address/address.ts"
 import { nameOf } from "./routing.ts"
 import { useUndo } from "./edit/undoing.ts"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { batch, createEffect, on, createMemo, Match, Show, Switch } from "solid-js"
 
 import { parseFilter, samePageRequest } from "@olai/format"
 
@@ -64,6 +66,8 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   const today = useToday()
   const route = createMemo(() => router.panes()[here()]!.route())
   const opened = createMemo(route, undefined, { equals: samePage })
+  const memory = editorMemory()
+  createEffect(on(opened, () => batch(() => resetEditorMemory(memory)), { defer: true }))
   const missing = createMemo(() => props.source === null && opened().kind === "plugin")
 
   /**
@@ -282,7 +286,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
         follow(event)
       }}
     >
-      <ReadingProvider reading={reading}>
+      <EditorMemoryProvider value={memory}><ReadingProvider reading={reading}>
       <NarrowedProvider narrowed={narrowing}>
         {/* THE BOX BELONGS TO THE ADDRESS, so it is drawn on what the ADDRESS
             says: every page but a document's may carry a `?q=` (`../routes.ts`'s
@@ -343,10 +347,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
             <Switch>
               <Match when={props.render}>{render => render()({get page() { return open() }, get drawn() { return narrowing.drawn() }, get held() { return allDrawn() }, get today() { return today() }})}</Match>
               <Match when={props.source}>
-                {(source) => {
-                  const Face = source().face
-                  return <Face page={open()} drawn={narrowing.drawn()} today={today()} />
-                }}
+                {(source) => <Dynamic component={source().face} page={open()} drawn={narrowing.drawn()} today={today()} />}
               </Match>
               <Match when={only(open(), "broken")}>
                 {(file) => <Broken file={file().file} />}
@@ -376,7 +377,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
         </Show>
         </div>
       </NarrowedProvider>
-      </ReadingProvider>
+      </ReadingProvider></EditorMemoryProvider>
     </main>
   )
 }

@@ -169,7 +169,7 @@ When(
 
 Then("there are {int} panes", async function (this: OlaiWorld, n: number) {
   await this.waitUntil(
-    async () => (await this.frontLane().locator(PANE).count()) === n,
+    async () => (await this.frontLane().locator(`${PANE}:visible`).count()) === n,
     `${n} panes on screen`,
   );
 });
@@ -271,8 +271,8 @@ Then("pane {int} keeps its title {string} above its scroller", async function(th
   assert.ok((await heading.innerText()).includes(title))
   // UNDER WHATEVER SITS ABOVE THE PANES: the bar, and the seat under it where a
   // row fills it (the tab strip).
-  const strip = await this.frontLane().locator(MAIN_STRIP).boundingBox()
-  const bar = strip ?? await this.frontLane().locator(APP_HEADER).boundingBox()
+  const strip = await this.page.locator(MAIN_STRIP).boundingBox()
+  const bar = strip ?? await this.page.locator(APP_HEADER).boundingBox()
   const box = await heading.boundingBox()
   const top = await this.pane(index).evaluate(root => {
     let host = root.parentElement
