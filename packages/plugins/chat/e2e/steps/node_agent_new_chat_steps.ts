@@ -183,7 +183,7 @@ When("I select the last chat location with the keyboard", async function(this: O
 });
 
 Then("new chat has no outline file context", async function(this: OlaiWorld) {
-  const pane = this.page.locator(selector(PLUGIN_TESTID.newChatPage)).locator("xpath:ancestor::main");
+  const pane = this.page.getByRole("main").filter({ has: this.page.locator(selector(PLUGIN_TESTID.newChatPage)) });
   assert.equal(await pane.getAttribute("data-drawn-file"), null);
   assert.equal(await pane.getAttribute("data-narrowable"), null);
 });
