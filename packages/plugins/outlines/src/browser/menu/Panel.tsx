@@ -126,7 +126,7 @@ export function Panel(props: {
           onKeyDown={props.gestures.onKeyDown}
           onPointerDown={props.gestures.onPointerDown}
           onPointerUp={props.gestures.onPointerUp}
-        >{content}</DropdownMenu.SubContent>}>
+        >{content()}</DropdownMenu.SubContent>}>
           <Entries entries={sub.entry.entries} />
         </RetainedContent>
       )

@@ -397,5 +397,5 @@ function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps
     style={{ display: shown() ? undefined : "none", "max-height": menu.currentPlacement().startsWith("top")
       ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-chrome)))"
       : "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-bottom-chrome, 0px)))" }}
-  >{content}</DropdownMenu.Content>}>{local.children}</RetainedContent>
+  >{content()}</DropdownMenu.Content>}>{local.children}</RetainedContent>
 }
