@@ -182,7 +182,8 @@ navigation’s `local: true` route contract: no request, page reading, or narrow
 The route supplies its tab title/breadcrumb and its local face. The renderer
 draws that face without fabricating an outline, so every reading consumer sees
 no file or node. It acquires no vault page or conversation until Send.
-The mounted picker owns its read-only location query and optional search reading;
+The mounted picker owns its read-only location query and optional search reading,
+its shortlist policy and key handling in one module (`location-picker.ts`);
 leaving releases those while the draft remains. The hand-off of a sent draft —
 the arrivals, and the watches that return them — is one module (`handoff.ts`),
 and what a chosen location means on the wire is another (`destination.ts`). The

@@ -1,20 +1,15 @@
 import { TESTID } from "../../testids.ts"
-import { createEffect, createMemo, createSignal, For, createUniqueId, onMount, onCleanup, Show } from "solid-js"
-import { listKey } from "@olai/web/client/keys.ts"
+import { createEffect, createSignal, For, createUniqueId, onMount, onCleanup, Show } from "solid-js"
 import { dismissOn } from "@olai/web/client/dismiss.ts"
-import { createCursor } from "@olai/ui-primitives/cursor.ts"
-import { runAsync } from "@olai/web/client/run.ts"
 import { nodePlace } from "olai-plugin-search/ui/place.ts"
-import { chatWire } from "../wire.ts"
-import { createSearch } from "../search.ts"
 import { CompletionRow } from "../chat/CompletionMenu.tsx"
 import { NoAgent } from "../chat/NoAgent.tsx"
 import { useAgents } from "./answered.tsx"
 import { agentReadings } from "./reading.ts"
-import { createLocationQuery, recentLocationIds } from "./location-query.ts"
+import { createLocationPicker } from "./location-picker.ts"
+import { locationTrail as trail } from "./location-rows.ts"
 import type { ChatLocation } from "./new-chat.ts"
 
-import { locationRows, locationTrail as trail } from "./location-rows.ts"
 export function NewChatPage() {
   const owner = agentReadings()!.newChat
   const agents = useAgents()
@@ -55,61 +50,34 @@ export function NewChatPage() {
 
 function LocationPicker(props: { readonly trigger: () => HTMLElement | undefined; readonly draft: string; readonly here: string | null; readonly choose: (value: ChatLocation) => void; readonly close: () => void }) {
   const agents = useAgents()
-  const [filter, setFilter] = createSignal("")
-  const suggestions = createSearch(() => props.draft.trim() || null, "node")
+  const picker = createLocationPicker({
+    rows: agents.rows, here: () => props.here, draft: () => props.draft,
+    hasAgent: node => agents.at(node) !== undefined, choose: props.choose,
+  })
   const listId = createUniqueId()
   let element: HTMLDivElement | undefined
   const options = new Map<string, HTMLDivElement>()
-  const recent = recentLocationIds(agents.rows)
-  const { nodes, defaultParent, failure, fail, ready } = createLocationQuery(() => ({
-    filter: filter(), limit: 20,
-    ids: [...(props.here === null ? [] : [props.here]), ...suggestions.hits().slice(0, 5).map(hit => hit.id), ...recent()],
-    parents: recent(),
-  }), query => runAsync(chatWire().procedures.conversation.locations(query)))
   dismissOn({ open: () => true, root: () => element, trigger: props.trigger, dismiss: props.close })
-  const rows = createMemo(() => locationRows({
-    nodes: nodes(), here: props.here, filter: filter(), defaultParent: defaultParent(),
-    // Late search answers must not suggest destinations for replaced words.
-    suggested: suggestions.answering() === props.draft.trim() ? suggestions.hits().map(hit => hit.id) : [],
-    recent: recent(),
-  }))
-  const cursor = createCursor(() => rows().length)
-  const selected = cursor.at
-  createEffect(() => { filter(); cursor.top() })
-  createEffect(() => { rows(); options.get(rows()[selected()]?.node?.id ?? "default")?.scrollIntoView({ block: "nearest" }) })
-  const take = (index: number, on = false) => {
-    const row = rows()[index]
-    if (row === undefined) return
-    if (row.node === undefined) props.choose({ kind: "default" })
-    else if (on && agents.at(row.node.id) !== undefined) fail("This node already has an agent. Press Enter to start under it.")
-    else props.choose({ kind: on ? "on" : "under", node: row.node })
-  }
-  return <div ref={element} class="mb-3 rounded-control border border-rule bg-panel p-2" data-testid={TESTID.newChatPicker} data-ready={ready()}>
-    <input role="combobox" aria-expanded="true" aria-controls={listId} aria-activedescendant={rows().length > 0 ? `${listId}-${selected()}` : undefined} aria-label="Find a chat location" placeholder="Find a node…" class="w-full bg-transparent p-2" ref={element => onMount(() => element.focus())}
-      value={filter()} onInput={event => { setFilter(event.currentTarget.value); fail(undefined) }}
-      onKeyDown={event => {
-        const action = event.key === "Enter" && event.altKey ? "take" : listKey(event)
-        if (action === null || action === "dismiss") return
-        event.preventDefault(); event.stopPropagation()
-        if (action === "next") cursor.step(1)
-        if (action === "prev") cursor.step(-1)
-        if (action === "take") take(selected(), event.altKey)
-      }} />
+  createEffect(() => { picker.rows(); options.get(picker.rows()[picker.selected()]?.node?.id ?? "default")?.scrollIntoView({ block: "nearest" }) })
+  return <div ref={element} class="mb-3 rounded-control border border-rule bg-panel p-2" data-testid={TESTID.newChatPicker} data-ready={picker.ready()}>
+    <input role="combobox" aria-expanded="true" aria-controls={listId} aria-activedescendant={picker.rows().length > 0 ? `${listId}-${picker.selected()}` : undefined} aria-label="Find a chat location" placeholder="Find a node…" class="w-full bg-transparent p-2" ref={element => onMount(() => element.focus())}
+      value={picker.filter()} onInput={event => picker.typed(event.currentTarget.value)}
+      onKeyDown={event => { if (!picker.press(event)) return; event.preventDefault(); event.stopPropagation() }} />
     <div id={listId} role="listbox" aria-label="Chat locations" class="max-h-64 overflow-y-auto">
-      <For each={rows()}>{(row, index) => <>
-        <Show when={row.section !== rows()[index() - 1]?.section}><h2 class="px-2 text-caption uppercase text-muted">{row.section}</h2></Show>
-        <div ref={el => { const key = row.node?.id ?? "default"; options.set(key, el); onCleanup(() => options.delete(key)) }} id={`${listId}-${index()}`} role="option" aria-selected={selected() === index()} class={`flex items-center rounded-control ${selected() === index() ? "bg-rule" : ""}`} data-location={row.node?.id ?? "default"}>
-          <button type="button" class="min-w-0 flex-1 px-2 py-1 text-left text-label" onClick={() => take(index())}
-            onKeyDown={event => { if (event.key === "Enter" && event.altKey) { event.preventDefault(); take(index(), true) } }}>
+      <For each={picker.rows()}>{(row, index) => <>
+        <Show when={row.section !== picker.rows()[index() - 1]?.section}><h2 class="px-2 text-caption uppercase text-muted">{row.section}</h2></Show>
+        <div ref={el => { const key = row.node?.id ?? "default"; options.set(key, el); onCleanup(() => options.delete(key)) }} id={`${listId}-${index()}`} role="option" aria-selected={picker.selected() === index()} class={`flex items-center rounded-control ${picker.selected() === index() ? "bg-rule" : ""}`} data-location={row.node?.id ?? "default"}>
+          <button type="button" class="min-w-0 flex-1 px-2 py-1 text-left text-label" onClick={() => picker.take(index())}
+            onKeyDown={event => { if (event.key === "Enter" && event.altKey) { event.preventDefault(); picker.take(index(), true) } }}>
             <Show when={row.node} fallback={"Inbox › Chats"}>{node => <CompletionRow row={{ label: node().title, from: node().file, place: nodePlace(node()) }} />}</Show>
           </button>
-          <Show when={row.node !== undefined && agents.at(row.node.id) === undefined}>
-            <button type="button" class="px-2 text-label text-muted" aria-label={`Chat on ${row.node?.title} itself`} onClick={() => take(index(), true)}>On this node</button>
+          <Show when={row.node !== undefined && !picker.hasAgent(row.node.id)}>
+            <button type="button" class="px-2 text-label text-muted" aria-label={`Chat on ${row.node?.title} itself`} onClick={() => picker.take(index(), true)}>On this node</button>
           </Show>
         </div>
       </>}</For>
     </div>
-    <Show when={failure()}>{message => <p role="alert">{message()}</p>}</Show>
+    <Show when={picker.failure()}>{message => <p role="alert">{message()}</p>}</Show>
     <p class="m-1 hidden md:block text-caption text-muted">Enter: under this node · Alt+Enter: on this node</p>
   </div>
 }
