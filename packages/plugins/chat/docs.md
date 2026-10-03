@@ -197,7 +197,9 @@ again while one is starting is refused rather than spending a second
 
 The hand-off of the first message — the arrivals, and the watches that return
 them — is one module (`handoff.ts`). The activation publishes reactive
-arrivals; existing and newly mounted page sessions atomically take them once.
+arrivals; existing and newly mounted page sessions atomically take them once,
+each waking only for its own node, and the standing watch reads nothing while
+no arrival is outstanding.
 What a claimed arrival means — prefer its engine, show its start's refusal,
 deliver to its conversation or else put the words in the plain draft — is the
 hand-off's `receive`; the page only lends its surfaces, owns the delivery it
