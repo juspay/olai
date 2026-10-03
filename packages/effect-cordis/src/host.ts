@@ -37,7 +37,7 @@ import type { Fiber } from "cordis"
 import { Context, Effect, Queue, Scope, Stream } from "effect"
 
 import { moduleFibers } from "./module.ts"
-import { hostActivations, interrupt } from "./lifecycle.ts"
+import { hostActivations, interrupt, lastStartThrew } from "./lifecycle.ts"
 import type { Plugin } from "./plugin.ts"
 import type { Provision, ServiceKey } from "./service.ts"
 
@@ -542,10 +542,16 @@ const singleReport = (fiber: Fiber): RowReport => {
 
 /** ...and the plugin's own words for a fiber that has already stopped. Safe to
  *  ask late for the reason the header gives: a fault is a fact about a fiber
- *  that is not going to move again. */
+ *  that is not going to move again. What the bridge's own start threw comes
+ *  first ({@link lastStartThrew}); Cordis's re-throw speaks for the rest. The
+ *  record is keyed by the fiber itself, and `ctx.fiber` is that fiber whether
+ *  this holds it or the view `ctx.plugin` returned, which inherits from it. */
 const faulted = async (fiber: Fiber): Promise<RowReport> => {
   const failed = moduleFibers(fiber).find((part) => part.state === FiberState.FAILED) ?? fiber
-  const fault = await failed.await().then(() => undefined, faultOf)
+  const fault = await failed.await().then(
+    () => undefined,
+    (reason: unknown) => faultOf((lastStartThrew(failed.ctx.fiber) ?? { reason }).reason),
+  )
   return fault === undefined ? { state: "failed" } : { state: "failed", fault }
 }
 

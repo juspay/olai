@@ -105,6 +105,34 @@ export const hostActivations = (ctx: CordisContext): ReadonlyArray<Live> =>
 
 export const interrupt = (fiber: CordisFiber): void => live.get(fiber)?.interrupt()
 
+/** ONE SYNCHRONOUS CALL INTO THE PIN WITH STACKS ON. Cordis composes a refusal
+ * it raises inside `fiber.effect` with a long-stack splice that reads `.stack`
+ * as a string, and under Bun an Error built while `Error.stackTraceLimit` is 0
+ * has none: the splice throws its own TypeError and the refusal (a duplicate
+ * provider, say) never reaches the caller. Raised only when it is not already
+ * a positive number, and put back before this returns. */
+const withStacks = <A>(call: () => A): A => {
+  const limit = Error.stackTraceLimit
+  if (typeof limit === "number" && limit > 0) return call()
+  Error.stackTraceLimit = 10
+  try {
+    return call()
+  } finally {
+    Error.stackTraceLimit = limit
+  }
+}
+
+/** WHAT A FIBER'S LAST START THREW, as the bridge threw it. Cordis re-throws a
+ * failed fiber's error from `await()`, but only after its long-stack splice,
+ * which reads `.stack` as a string and throws its own TypeError when an error
+ * has none (Bun, `Error.stackTraceLimit` 0). A row's fault is the plugin's
+ * words, so the activation that threw them keeps them. Weak, so the record
+ * lives exactly as long as the fiber; cleared when the next start begins. */
+const thrown = new WeakMap<CordisFiber, { readonly reason: unknown }>()
+export const startThrew = (fiber: CordisFiber, reason: unknown): void => { thrown.set(fiber, { reason }) }
+export const startBegins = (fiber: CordisFiber): void => { thrown.delete(fiber) }
+export const lastStartThrew = (fiber: CordisFiber): { readonly reason: unknown } | undefined => thrown.get(fiber)
+
 export const activate = (ctx: CordisContext, services: Context.Context<never>): Activation => {
   const scope = Scope.makeUnsafe()
   const drained = Promise.withResolvers<void>()
@@ -209,7 +237,7 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
       if (closing !== undefined) throw new Error("effect-cordis: offer requires an open plugin activation")
       let revoke: () => void
       try {
-        revoke = ctx.provide(key.cordis, provision)
+        revoke = withStacks(() => ctx.provide(key.cordis, provision))
       } catch (cause) {
         // The pinned runtime exposes no typed duplicate error. Recognize its
         // exact sentence here, beside the call it belongs to; callers neither

@@ -230,14 +230,15 @@ Each coupling is argued where it is MADE; this is the index, not a second copy.
 | disabling a row before disposing it keeps the loader from rewriting the bundle file | [`src/loader.ts`](src/loader.ts)'s `flipRow` | the update arm reads `disabled` first | [`src/lifecycle.test.ts`](src/lifecycle.test.ts) asserts the file's bytes are unchanged |
 | `ctx.loader.await()` walks the LOADER's tree, which the include's rows were never linked into | [`src/loader.ts`](src/loader.ts)'s header, [`src/host.ts`](src/host.ts)'s `fibersOf` | the include is an `EntryTree` mounted as an ordinary plugin | SILENT — `settled` is the real guarantee, and is why it exists |
 | a symbol key on the reflect proxy passes straight through to the object | [`src/host.ts`](src/host.ts), [`src/loader.ts`](src/loader.ts), [`src/module.ts`](src/module.ts) | the proxy routes strings, not symbols | a host, or a row list, becomes a service a plugin could name |
+| a failed fiber's error, and a refusal `ctx.provide` raises, come back as thrown — but both pass through a long-stack splice that reads `.stack` as a string, and under Bun an Error built while `Error.stackTraceLimit` is 0 has none | [`src/lifecycle.ts`](src/lifecycle.ts)'s `startThrew` and `withStacks`, [`src/plugin.ts`](src/plugin.ts)'s `apply`, [`src/host.ts`](src/host.ts)'s `faulted` | `handleError` in `composeError` throws its own TypeError in place of the error it was splicing | CHECKED — [`src/plugin.test.ts`](src/plugin.test.ts) and [`src/lifecycle.test.ts`](src/lifecycle.test.ts) run a failed start and a duplicate offer with the limit at 0 |
 | the root fiber's `dispose()` is a RESTART, leaving an empty ACTIVE root | [`src/host.ts`](src/host.ts)'s `closeHost` | disposal of the root re-enters it | a mount after close succeeds, which `mountPlugin` refuses by remembering |
 
-Three of the four upstream ASKS in `nix/cordis.nix` come from this list — the
-resolver seam, the untyped duplicate error and the concurrent unload — so a bump
-has one place to look for what olai wants the pin to grow. The fourth, the
-strictness delta behind the `@ts-nocheck` stamp, is about how the pin is
-HYDRATED rather than about anything the bridge assumes at runtime, and is
-argued there alone.
+Four of the five upstream ASKS in `nix/cordis.nix` come from this list — the
+resolver seam, the untyped duplicate error, the concurrent unload and the
+stackless error — so a bump has one place to look for what olai wants the pin
+to grow. The remaining one, the strictness delta behind the `@ts-nocheck`
+stamp, is about how the pin is HYDRATED rather than about anything the bridge
+assumes at runtime, and is argued there alone.
 
 ### Two things this package does NOT claim
 

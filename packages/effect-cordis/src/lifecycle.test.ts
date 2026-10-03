@@ -633,6 +633,35 @@ test("a second offer of one key is an OfferConflict naming the first provider", 
   expect(offered(host, Resource)).toBeDefined()
 })))
 
+test("a duplicate offer is still an OfferConflict while errors carry no stack", async () => {
+  // Cordis builds the refusal inside its long-stack composition, which reads
+  // `.stack` as a string; under Bun an Error built with the limit at 0 has
+  // none, and the pin threw its own TypeError in place of the refusal.
+  const limit = Error.stackTraceLimit
+  Error.stackTraceLimit = 0
+  try {
+    await run(Effect.gen(function*() {
+      const host = yield* openHost
+      const refused: Array<unknown> = []
+      yield* mountPlugin(host, definePlugin({
+        name: "first-provider", needs: [], apply: offer(Resource, () => ({ use: () => {} })),
+      }))
+      yield* mountPlugin(host, definePlugin({
+        name: "second-provider", needs: [], apply: Effect.gen(function*() {
+          refused.push(yield* Effect.catchDefect(
+            offer(Resource, () => ({ use: () => {} })),
+            (defect) => Effect.succeed(defect),
+          ))
+        }),
+      }))
+      expect(refused[0]).toBeInstanceOf(OfferConflict)
+      expect((refused[0] as OfferConflict).owner).toBe("first-provider")
+    }))
+  } finally {
+    Error.stackTraceLimit = limit
+  }
+})
+
 test("an unhandled duplicate offer fails only the row that offered second", () => run(Effect.gen(function*() {
   const host = yield* openHost
   yield* mountPlugin(host, definePlugin({

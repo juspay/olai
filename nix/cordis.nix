@@ -65,13 +65,13 @@
 # in olai's source. What the stamp hides is Cordis's authoring, not Cordis's
 # shape.
 #
-# ## THE FOUR UPSTREAM ASKS, kept together because they are the same class
+# ## THE FIVE UPSTREAM ASKS, kept together because they are the same class
 #
 # Every one of them is a place olai cannot use the pin as written, and every one
 # is written down here rather than worked around silently. The code-side ledger
 # of what each workaround costs is `packages/effect-cordis/README.md`'s "Where
 # the pin's instability lives", which names the file, the test and the failure
-# shape for asks 2 to 4; this list is the ASK. The first has no row there and
+# shape for asks 2 to 5; this list is the ASK. The first has no row there and
 # could not: it is a property of how the pin is HYDRATED rather than an
 # assumption the bridge makes about its behaviour, and it is argued here alone.
 #
@@ -102,8 +102,16 @@
 #      running them itself in order (`lifecycle.ts`'s `offer` and `close`), which
 #      is the pin coupling with the sharpest edge: it asserts the handoff so a
 #      revision that changes disposer ownership names itself.
+#   5. AN ERROR WITHOUT A STACK SURVIVES `composeError`. Its `handleError`
+#      splits `.stack` on the error it is splicing and on two it made itself;
+#      under Bun an Error built while `Error.stackTraceLimit` is 0 has no
+#      `stack`, so the splice throws a TypeError ("undefined is not an object")
+#      in place of a failed start or a `ctx.provide` refusal. olai keeps what a
+#      start threw itself and raises the limit around its `ctx.provide`
+#      (`packages/effect-cordis/src/lifecycle.ts`); a `typeof` guard upstream
+#      would retire both.
 #
-# None is a blocker: the tree works. All four are the pin's own shape asking to
+# None is a blocker: the tree works. All five are the pin's own shape asking to
 # be a little wider, and a note here is how they stay askable.
 #
 # cosmokit, `@standard-schema/spec` and js-yaml stay on npm, declared at the

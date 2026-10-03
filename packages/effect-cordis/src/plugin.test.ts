@@ -263,6 +263,36 @@ test("a finalizer that dies on the way out does not steal the plugin's fault", a
   expect(said.some((line) => line.includes(`"broken"`))).toBe(true)
 })
 
+test("a start that fails while errors carry no stack still reports the plugin's own words", async () => {
+  // THE PIN'S LONG-STACK COMPOSITION reads `.stack` as a string, on the errors
+  // it makes and on the one it was thrown. Under Bun an Error built while
+  // `Error.stackTraceLimit` is 0 has no `stack` at all, so that splice threw
+  // its own TypeError and Cordis recorded THAT as the fiber's error: the row
+  // read "undefined is not an object" instead of anything the plugin said.
+  // Master's full unit run hit it in `@olai/plugin-api`'s services bench.
+  const limit = Error.stackTraceLimit
+  Error.stackTraceLimit = 0
+  try {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const host = yield* openHost
+      const broken = yield* mountPlugin(
+        host,
+        definePlugin({
+          name: "broken",
+          needs: [],
+          apply: Effect.die(new Error("the socket is not there")),
+        }),
+      )
+      expect(yield* broken.report).toEqual({
+        state: "failed",
+        fault: "the socket is not there",
+      })
+    })).pipe(Effect.provide(Logger.layer([]))))
+  } finally {
+    Error.stackTraceLimit = limit
+  }
+})
+
 test("a defect in detached work is said, with the plugin's word on it", async () => {
   // FIRE AND FORGET IS NOT SILENT, and for a round it was: the fiber `detached`
   // forks is discarded and effect's error reporting is opt-in, so a defect in
