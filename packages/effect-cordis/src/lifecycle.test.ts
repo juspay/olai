@@ -156,6 +156,44 @@ for (const shutdown of [false, true]) {
   })))
 }
 
+/** A config patch whose restart fails reports a failed row, and the patch itself
+ * completes. Since cordis 4.0.0-rc.10 `Fiber.update` answers with the restart
+ * and the loader awaits it, so a refused start reaches `entry.update`'s caller
+ * as a rejection; the row's fault is where that failure belongs. */
+test("a loader config patch that the plugin refuses lands failed and the patch completes", () => run(Effect.gen(function*() {
+  const { mkdtemp, writeFile, readFile, rm } = yield* Effect.promise(() => import("node:fs/promises"))
+  const { tmpdir } = yield* Effect.promise(() => import("node:os"))
+  const { pathToFileURL } = yield* Effect.promise(() => import("node:url"))
+  const { mountRows, patchRow } = yield* Effect.promise(() => import("./loader.ts"))
+  const { rowReport } = yield* Effect.promise(() => import("./host.ts"))
+  const { Schema } = yield* Effect.promise(() => import("effect"))
+  const dir = yield* Effect.acquireRelease(
+    Effect.promise(() => mkdtemp(`${tmpdir()}/bridge-config-`)),
+    (path) => Effect.promise(() => rm(path, { recursive: true, force: true })),
+  )
+  const path = `${dir}/plugins.yml`
+  const source = "- id: scribe\n  name: scribe\n"
+  yield* Effect.promise(() => writeFile(path, source))
+  const host = yield* openHost
+  const seen: string[] = []
+  const plugin = definePlugin({
+    name: "scribe", needs: [],
+    config: Schema.Struct({ commit: Schema.Literals(["manual", "auto"]) }),
+    apply: (config) => Effect.sync(() => { seen.push(config.commit) }),
+  })
+  yield* mountRows(host, { baseUrl: pathToFileURL(`${dir}/`).href, path: "plugins.yml", patches: [{ id: "scribe", config: { commit: "manual" } }], resolve: async () => ({ default: plugin }) })
+  yield* settled(host, ["scribe"])
+  expect(yield* patchRow(host, "scribe", { config: { commit: "nope" } })).toBe(true)
+  yield* settled(host, ["scribe"])
+  const refused = (yield* rowReport(host, ["scribe"])).get("scribe")
+  expect(refused?.state).toBe("failed")
+  expect(yield* patchRow(host, "scribe", { config: { commit: "auto" } })).toBe(true)
+  yield* settled(host, ["scribe"])
+  expect((yield* rowReport(host, ["scribe"])).get("scribe")).toEqual({ state: "running" })
+  expect(seen).toEqual(["manual", "auto"])
+  expect(yield* Effect.promise(() => readFile(path, "utf8"))).toBe(source)
+})))
+
 test("host close joins cleanup that already left the registry", () => run(Effect.gen(function*() {
   const host = yield* openHost
   const cleaning = Deferred.makeUnsafe<void>()

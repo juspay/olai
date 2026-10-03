@@ -33,6 +33,7 @@
 import Include from "@cordisjs/plugin-include"
 import type { Entry } from "@cordisjs/plugin-loader"
 import Loader from "@cordisjs/plugin-loader"
+import { FiberState } from "cordis"
 import { Effect } from "effect"
 
 import { pluginModule } from "./module.ts"
@@ -71,7 +72,7 @@ export interface Row {
  * reachable, which under bun is always. `EntryTree.import` calls exactly one
  * method on it, so what is assigned is one method and a version tag, cast:
  * upstream types the slot as the whole `ModuleLoader`. **Verified against
- * `@cordisjs/plugin-loader@1.0.0-rc.6`** (the pinned revision —
+ * `@cordisjs/plugin-loader@1.0.0-rc.7`** (the pinned revision —
  * `npins/sources.json`, name `cordis`). A revision that renames the slot,
  * reshapes it, or starts calling a second method on it fails at RUNTIME rather
  * than at typecheck, because the cast is what makes the assignment legal at all;
@@ -80,6 +81,15 @@ export interface Row {
  * `resolve` option on `Loader.Config`, or a documented `import` hook — so a
  * consumer whose module graph the loader cannot walk is a supported case rather
  * than a cast.
+ *
+ * rc.7's own answer to bare specifiers does not retire the cast. With no
+ * `internal`, it now writes a `.cordis/resolve.mjs` helper into the nearest
+ * directory above `baseUrl` that has a `package.json`, and resolves from there.
+ * That is still not a seam a consumer can supply: it writes into the
+ * source tree, it falls back to the loader's own `import()` where the tree is
+ * read-only (a Nix store build), and it cannot carry {@link pluginModule}'s
+ * component wrapping. Filling `internal` skips that branch entirely, so a serve
+ * writes no `.cordis/` directory.
  *
  * ## What it RETURNS having done, exactly
  *
@@ -183,9 +193,11 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  *
  * ## IT WRITES NOTHING, and that took choosing the right field
  *
- * `EntryTree.update(id, …)` — the tree-level verb — calls `tree.write()`, and
- * the include's `write()` dumps the whole entry list back over `olai.yml`. That
- * is the loader's own answer for a settings page that OWNS its config file, and
+ * `EntryTree.update(id, …)` — the tree-level verb — calls `tree.commit(change)`,
+ * and the include records the change in its journal and writes it back: a key
+ * the file owns goes into `olai.yml`, and a key a patch owns goes into the
+ * patch list. That is the loader's own answer for a settings page that OWNS its
+ * config file, and
  * this generic operation only reconciles the instance. Its caller owns durable
  * policy and any file writes. Reaching the ENTRY and calling `entry.update`
  * preserves that boundary instead of rewriting the build declaration.
@@ -193,9 +205,10 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * The other way a write can happen is subtler and is closed by ORDER rather than
  * by avoidance. Cordis tells the loader about every dispose, and the loader
  * reads a dispose it did not cause as *the plugin turned itself off* — it sets
- * `options.disabled = true` and writes the file. `entry.update` sets the option
- * BEFORE it disposes, and the loader's handler returns early on an entry that is
- * already disabled, so the branch that writes is unreachable from here.
+ * `options.disabled = true` and commits that to the tree. `entry.update` sets
+ * the option BEFORE it disposes, and the loader's handler returns early on an
+ * entry that is already disabled, so the branch that commits is unreachable
+ * from here.
  *
  * ## What each direction actually does
  *
@@ -239,6 +252,17 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * ONLY ON THE WAY OUT. Coming back, the fiber is IN the registry and `settled`
  * can see it, which is where waiting for a row to finish applying belongs.
  *
+ * ## A config patch that fails
+ *
+ * A config change on a running row restarts its fiber, and since
+ * `cordis@4.0.0-rc.10` the loader AWAITS that restart (`Fiber.update` answers
+ * with it, and `Entry.update` waits on it). A plugin that refuses the new config
+ * therefore reaches this call as a rejection. It is not a failure of the patch:
+ * the fiber has already recorded it and the row reads `failed` with the plugin's
+ * own words, exactly as a row that fails at mount does. So a rejection is
+ * absorbed only when the row's fiber is FAILED, the state that holds it; any
+ * other rejection is still thrown.
+ *
  * NEITHER DIRECTION WAITS for the REST of the bundle to stop moving. That is
  * `./host.ts`'s `settled`, and `@olai/bundle` is where the two are one call —
  * exactly as they are for the mount.
@@ -254,7 +278,11 @@ export const patchRow = (host: Host, id: string, patch: { readonly disabled?: bo
     if (!changed && !force) return true
     const going = patch.disabled === true || patch.config !== undefined ? entry.fiber : undefined
     if (going !== undefined) interrupt(going)
-    await entry.update(patch)
+    await entry.update(patch).catch((cause: unknown) => {
+      // A REFUSED RESTART IS THE ROW'S, not the patch's — see "A config patch
+      // that fails" above. Anything else the loader throws is still ours.
+      if (entry.fiber?.state !== FiberState.FAILED) throw cause
+    })
     for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) await going.inertia
     return true
   })

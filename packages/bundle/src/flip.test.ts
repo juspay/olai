@@ -228,12 +228,13 @@ test("turning it back on re-applies the rows that were waiting on it", async () 
  * separately owns durable policy writes. Two things upstream would break
  * that and both are one call away from `flipRow`: `EntryTree.update` — the
  * tree-level verb, which the entry-level one is deliberately used instead of —
- * dumps the entry list back over the file, and the loader writes it again when
- * it reads a dispose as the plugin having turned ITSELF off. Neither is visible
- * in the code under test, so the file is the only honest assertion.
+ * commits the change to the include, which writes it back into the file, and
+ * the loader commits again when it reads a dispose as the plugin having turned
+ * ITSELF off. Neither is visible in the code under test, so the file is the only
+ * honest assertion.
  *
- * BOTH DIRECTIONS, and after a settle: the include's own write is on a
- * `setTimeout(0)`, so a comparison taken synchronously after the flip would pass
+ * BOTH DIRECTIONS, and after a settle: the include drains its journal
+ * asynchronously, so a comparison taken synchronously after the flip would pass
  * against a version that writes.
  */
 test("a flip writes nothing — the bundle file is byte-identical after both directions", async () => {
