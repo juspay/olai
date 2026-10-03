@@ -18,7 +18,7 @@
  *   drawing is, disposed when the step goes or the drawing does — one
  *   `onCleanup`, here.
  */
-import { batch, createEffect, createMemo, createRoot, createSignal, onCleanup, untrack, type Accessor } from "solid-js"
+import { batch, createEffect, createMemo, createRoot, createSignal, mapArray, onCleanup, untrack, type Accessor } from "solid-js"
 import type { Said } from "@olai/web/client/saying.ts"
 import type { PaletteAdapter } from "../index.ts"
 import { filterItems, type PaletteItem } from "./items.ts"
@@ -99,9 +99,17 @@ export interface LevelOwner {
   /** How many levels stand. */
   readonly depth: Accessor<number>
   readonly top: Accessor<TopLevel | undefined>
+  /** The top level's live rows; changes only when another level is on top. */
+  readonly topLive: Accessor<Live | undefined>
   /** The top level when it is a value level, with its options and choice. */
   readonly valueTop: Accessor<ValueTop | undefined>
   readonly crumbs: Accessor<ReadonlyArray<Crumb>>
+  /** A submit is in flight at the top level. */
+  readonly busy: Accessor<boolean>
+  /** The top value level's options, or `undefined` at a group. */
+  readonly options: Accessor<ReadonlyArray<PaletteOption> | undefined>
+  /** The id of the option chosen at the top value level. */
+  readonly chosenId: Accessor<string | undefined>
   /** What a screen reader is told when the level changes. */
   readonly announced: Accessor<string>
   /** Type at the top level. */
@@ -163,28 +171,40 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
   /** The levels still standing: cut at the first that does not, so nothing is
    *  drawn from a dead or withdrawn contribution even for the moment before
    *  the effect below takes it down. */
+  /**
+   * THE PATH'S SHAPE — which levels are open, not what is typed in them. A
+   * keystroke replaces the path (a step's text is a field of it), and every
+   * question below about WHICH levels stand reads this instead, so typing
+   * re-runs none of them: not the standing check, which asks the root
+   * adapter's `items()`, and not the crumbs.
+   */
+  const shape = createMemo(() => path(), [], {
+    equals: (was, now) => was.length === now.length && was.every((step, at) => step.serial === now[at]!.serial),
+  })
   const standingLives = createMemo(() => {
-    const steps = path()
+    const steps = shape()
     const all = lives()
     const aligned = all.findIndex((one, at) => steps[at]?.serial !== one.serial)
     const upTo = Math.min(standing(steps, stands(host.adapters())), aligned === -1 ? all.length : aligned)
     return upTo === all.length ? all : all.slice(0, upTo)
   })
   const depth = () => standingLives().length
-  /** One `{ serial, id, label }` per standing level, read by the crumbs and
-   *  the box's name. Equal while the same levels stand, so typing at a level
-   *  does not redraw them. */
-  const crumbs = createMemo(
-    () => {
-      const steps = path()
-      return standingLives().map((live, at) => {
-        const step = steps[at]!
-        return { serial: live.serial, id: step.id, label: step.label }
-      })
-    },
-    [],
-    { equals: (was, now) => was.length === now.length && was.every((one, at) => one.serial === now[at]!.serial) },
-  )
+  /** The top level's live rows — the same object for as long as that level is
+   *  on top, so what draws it is not woken by typing. */
+  const topLive = createMemo(() => standingLives().at(-1))
+  /**
+   * One `{ serial, id, label }` per standing level, read by the crumb buttons
+   * and the box's name. `mapArray` over the serials makes each crumb ONE
+   * OBJECT for as long as its level stands, so a `<For>` over these keeps the
+   * crumbs it already drew when a level is added or popped.
+   */
+  const serials = createMemo(() => standingLives().map((live) => live.serial), [], {
+    equals: (was, now) => was.length === now.length && was.every((serial, at) => serial === now[at]),
+  })
+  const crumbs = createMemo(mapArray(serials, (serial): Crumb => {
+    const step = untrack(shape).find((one) => one.serial === serial)!
+    return { serial, id: step.id, label: step.label }
+  }))
   const top = createMemo(() => {
     const live = standingLives().at(-1)
     if (live === undefined) return undefined
@@ -198,6 +218,14 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
     const options = at.live.options()
     return { ...at, level, options, chosen: chosenOption(options, at.step.option, level.chosen) }
   }
+  /** The top level's own few facts, each its own memo so a keystroke — which
+   *  replaces the step — wakes only what reads the text. */
+  const busy = createMemo(() => top()?.step.busy ?? false)
+  const chosenId = createMemo(() => valueTop()?.chosen?.id)
+  const options = createMemo(() => {
+    const at = top()
+    return at?.live.level.kind === "value" ? at.live.options() : undefined
+  })
 
   const [announced, setAnnounced] = createSignal("")
   const announce = (to: ReadonlyArray<Step>) =>
@@ -390,8 +418,12 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
   return {
     depth,
     top,
+    topLive,
     valueTop,
     crumbs,
+    busy,
+    options,
+    chosenId,
     announced,
     type,
     drill: drillInto,
