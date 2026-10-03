@@ -517,6 +517,8 @@ A refusal, or a nudge from a write that landed, is drawn in the palette and the 
 
 Those responses belong to the query that sent them. Typing a newer query or closing and reopening the palette prevents an older write or plugin command from closing it or displaying its old response there. The original action still takes effect.
 
+**Some rows open a level**, marked `›`. Choosing one replaces the list with that row's own choices and puts its name before the box as a crumb; the box then filters those choices. A level that asks for words turns the box into a line to type in, with its choices listed underneath, one of them always picked (↑↓ moves it), and Enter sends both. If it cannot take what you typed, it says why in place and stays open. **Backspace on an empty box goes back one level**, a press on a crumb goes back to before it (the way back on a phone), and Escape closes the palette, which opens at the top again next time.
+
 ## Quick capture
 
 **`⌘K`, `+`, the line, Enter** — and nothing moves. The page you were reading, your scroll and the address stay exactly where they were; the line becomes a node; the box empties for the next one, so several thoughts arriving at once cost one chord.

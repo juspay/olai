@@ -85,6 +85,13 @@ export interface PaletteControl {
   readonly asking: Accessor<import("./palette/asking.ts").Asking | null>
   /** Open it on the ordinary list. */
   readonly show: () => void
+  /**
+   * ...or already drilled into a path of ROW IDS (never labels), level by
+   * level from the root — with `text` in the deepest level's box when the
+   * whole path resolves. Where it stops resolving (the plugin that contributes
+   * a level is off), it opens at the deepest level that did.
+   */
+  readonly showAt: (path: ReadonlyArray<string>, text?: string) => void
   /** ...or open it on a question. */
   readonly ask: (asking: import("./palette/asking.ts").Asking) => void
   /** Put a question down without shutting the box. */
@@ -94,6 +101,9 @@ export interface PaletteControl {
 export const paletteControl = serviceTag<PaletteControl>("navigation.palette")
 
 export type {PaletteItem, PalettePrefix} from "./palette/items.ts"
+export type {
+  LevelRows, LevelScope, PaletteGroup, PaletteLevel, PaletteOption, PaletteRunResult, PaletteValue,
+} from "./palette/levels.ts"
 export const fileLinks=serviceTag<import("./opens.tsx").Opens>("navigation.file-links")
 
 /**
