@@ -17,7 +17,6 @@
     "src/tools.ts"
   ],
   "identity": [
-    "src/browser/edit/Editable.tsx",
     "src/tools.ts"
   ],
   "journal": [

@@ -52,7 +52,7 @@
 import type { Claims } from "@olai/format"
 import type { Signal } from "solid-js"
 import type { NodeHit } from "@olai/format"
-import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "solid-js"
+import { type Accessor, createMemo, createSelector, createSignal, Index, onMount, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { listKey } from "@olai/web/client/keys.ts"
@@ -160,6 +160,7 @@ export function Shortlist(props: {
   const found = props.nodes(() => query(), "node")
   const hits = found.hits
   const cursor = createCursor(() => hits().length)
+  const isCurrent = createSelector(cursor.at)
 
   /**
    * The verdict on every hit, in the order they are drawn — all `null` where
@@ -345,7 +346,7 @@ export function Shortlist(props: {
 
                 place={row(index).place}
                 props={row(index).props}
-                active={index === cursor.at()}
+                active={isCurrent(index)}
                 testids={props.testids.row}
                 id={row(index).id}
                 onHover={() => cursor.to(index)}

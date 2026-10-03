@@ -85,6 +85,8 @@ function createPageSession(node: string): PageSession {
       const to = result.success
       if (to === null) { setDraft(text); return }
       const ui = reading.ui(to)
+      const releaseUI = reading.retainUI(ui)
+      try {
       const key = JSON.stringify([to.agent, to.session])
       // Preserve words typed after the first send as an ordinary unsent draft.
       keepMessage(ui.messages, key, draft())
@@ -96,6 +98,7 @@ function createPageSession(node: string): PageSession {
       } else if (!await value.send(text, [], [])) {
         keepMessage(ui.messages, key, text, true)
       }
+      } finally { releaseUI() }
     } finally { setStarting(false) }
   }
   return { chat, draft, setDraft, starting, failure, start }
@@ -111,15 +114,13 @@ function usePage(node: Accessor<string>) {
  * what the pane's scroll cannot carry away (`../chat/Strips.tsx`). */
 export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
-  return <Show when={page()?.chat()} keyed>{chat =>
-    <ConversationUIProvider value={chat.ui}>
-      <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
-        <AgentLine chat={chat} node={props.node} page />
-        {/* What the conversation has standing, where the pane's scroll cannot
-            carry it off (`../chat/Strips.tsx`). */}
+  return <Show when={page()?.chat()}>{current =>
+    <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
+      <AgentLine chat={current()} node={props.node} page />
+      <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Strips chat={chat} />
-      </div>
-    </ConversationUIProvider>
+      </ConversationUIProvider>}</Show>
+    </div>
   }</Show>
 }
 
@@ -141,7 +142,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const engine = () => agents.at(props.node)?.engine ?? chosen() ?? agents.engines()[0]?.id
   const missing = () => agents.missing(engine())
   const metadata = () => {
-    const page = pane === undefined ? undefined : pageReadings()?.at(pane.index)?.shows
+    const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
     return page?.kind === "node" && page.zoomed.kind === "node" && page.zoomed.shows.node.id === props.node
       ? { title: page.zoomed.shows.node.title, memory: page.zoomed.under } : null
   }

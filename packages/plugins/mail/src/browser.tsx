@@ -75,10 +75,12 @@ export default definePlugin({
      *  signal read after the row left would be a face drawing a sibling that is
      *  gone. */
     const owned = yield* Effect.acquireRelease(
-      Effect.sync(() => createRoot(dispose => ({
+      Effect.sync(() => createRoot(dispose => {
+      const value = client.cells.account.use().value
+      return ({
         dispose,
-        account: (): Account => client.cells.account.use().value() ?? MAIL_UNCONNECTED,
-      }))),
+        account: (): Account => value() ?? MAIL_UNCONNECTED,
+      })})),
       (held) => Effect.sync(held.dispose),
     )
 

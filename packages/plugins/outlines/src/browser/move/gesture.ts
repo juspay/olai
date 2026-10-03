@@ -1,5 +1,5 @@
 /** The page-owned move gesture. Its state and write lifetime outlive the picker view. */
-import { type Accessor, batch, createEffect, createMemo, createSignal } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createSelector, createSignal } from "solid-js"
 import { type Moved, type MovingRequest, type Row, sameMovingRequest } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { moveMemory } from "./memory.ts"
@@ -69,7 +69,7 @@ export const createMoving = (
   memory = moveMemory(),
 ) => {
   const undo = useUndo()
-  const [standing, setStanding] = memory.standing
+  const [heldStanding, setStanding] = memory.standing
   /**
    * THE DESTINATIONS BEING JUDGED — the ids the picker's shortlist is drawing
    * right now.
@@ -116,62 +116,23 @@ export const createMoving = (
   const [sending, setSending] = memory.sending
   const [judging, setJudging] = memory.judging
 
-  /**
-   * The row the panel is under, found again when it has moved.
-   *
-   * `../edit/order.ts`'s rule, applied to this one place — answered unchanged
-   * while the row is still drawn where it was, and `undefined` when the record
-   * has left the page altogether (another writer archived it, a filter narrowed
-   * it away), which closes the panel rather than leaving it pointing at
-   * nothing.
-   */
-  createEffect(() => {
-    // The CHEAP tracked read first, and the walk only behind it — `../edit/
-    // editing.tsx`'s `follow` makes the same move for the same two reasons.
-    // With nothing open this effect depends on one signal instead of on every
-    // frame the store publishes; and it must depend on SOMETHING, or an early
-    // return before the first tracked read would leave it with no dependencies
-    // at all — an effect that runs once, at creation, and never again.
-    const held = standing()
-    if (held === null || sending()) return
-    // A revision may arrive before the write reply. Keep the gesture until
-    // the reply supplies its destination, so a newly hidden row can leave
-    // its confirmation under that destination instead of losing it.
+  /** Keep the gesture's record and original place; resolve its current place
+   * from the drawn tree without publishing a second corrective state. */
+  const located = createMemo((previous: { source: Standing | null; value: Standing | null } | undefined) => {
+    const source = heldStanding()
+    const held = previous?.source === source ? previous.value : source
+    const resolve = (): Standing | null => {
+    if (held === null || sending()) return held
+    if (held.kind === "landed" && saying.said() === null) return null
     const drawn = flatten(page.rows(), page.collapsed())
     const moved = refound(drawn, held.record, held.place) ??
-      // …or the row it landed in, for a destination this page does not draw —
-      // which is a fact the `landed` arm has and the `picking` one does not.
-      // `null` for the place it came from, because that is a place the
-      // destination row was never at.
       (held.kind === "picking" ? undefined : refound(drawn, held.under, null))
-    if (moved === held.place) return
-    setStanding(moved === undefined ? null : { ...held, place: moved })
+    return moved === undefined ? null : moved === held.place ? held : { ...held, place: moved }
+    }
+    return { source, value: resolve() }
   })
-
-  /**
-   * …and the SPENT gesture, put down when its sentence goes.
-   *
-   * `landed` is the arm that outlives the panel: the picker is gone, and what
-   * stands is a line under the row, wherever the row went. When the line takes
-   * itself away (`../saying.ts`'s six seconds) there is nothing left of the
-   * gesture at all — and nothing was putting it down. `close` is reachable only
-   * from the picker, which is unmounted by then, and the effect above only
-   * nulls a record that has LEFT the page.
-   *
-   * What a `landed` nobody lets go of costs is not on screen, which is why it
-   * went unseen: the subscription below stays open FOR EVER with the last
-   * move's request, and the effect above goes on flattening the whole visible
-   * tree on every frame this page publishes, for a panel nobody can see.
-   *
-   * BOTH READS ARE TRACKED, so this answers whichever of the two arrives last:
-   * a write with a sentence is put down when the sentence expires, and a write
-   * with nothing to say — the ops layer answers with `Said | void` — is put
-   * down the moment it lands, because there was never a line to wait for.
-   */
-  createEffect(() => {
-    const held = standing()
-    if (held?.kind === "landed" && saying.said() === null) setStanding(null)
-  })
+  const standing = () => located().value
+  const showing = createSelector(() => standing()?.place)
 
   /**
    * WHAT THE SET SAYS ABOUT THIS MOVE — the row as it stands, and a verdict per
@@ -269,7 +230,7 @@ export const createMoving = (
     // one's sentence, and that reads as this one's answer.
     saying.say(null)
     void applying(edit, undo.record)
-      .then((said) => {
+      .then((said) => batch(() => {
         saying.say(said)
         // …and a landed write SPENDS the picker: the row is somewhere else now,
         // so the panel goes rather than offering to move it again from a list
@@ -282,7 +243,7 @@ export const createMoving = (
             ? null
             : { kind: "landed", record: held.record, place: held.place, under }
         )
-      })
+      }))
       .finally(() => setSending(false))
   }
 
@@ -338,11 +299,7 @@ export const createMoving = (
         setStanding({ kind: "picking", ...at })
       })
     },
-    showing: (key: string) => {
-      const held = standing()
-      return held !== null && held.place === key &&
-        (held.kind === "picking" || saying.said() !== null)
-    },
+    showing,
   }
 }
 

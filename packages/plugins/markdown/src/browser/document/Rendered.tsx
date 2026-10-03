@@ -1,9 +1,9 @@
+import { usePane } from "olai-plugin-navigation/pane"
+import { useShown } from "olai-plugin-navigation/routing"
 /** Markdown's own reading face, including heading and source-line landings. */
 import { servedDirectory } from "../vault.ts"
 import { lineAt } from "olai-plugin-navigation/routes"
-import { panesOf } from "olai-plugin-navigation/workspace"
 import { TESTID as IDS_MARKDOWN } from "olai-plugin-markdown/testids"
-import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { today } from "../clock.ts"
 import { proseIn, proseLineOffset, needlesFrom } from "@olai/format"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
@@ -122,18 +122,20 @@ export function Rendered(props: { readonly file: string }) {
   // points a frame, because for a `.html` the pointing IS the act.
   const landing = useLanding(() => props.file)
   const router = useRouter()
+  const pane = usePane(), shown = useShown()
   const sourceLine = () => lineAt(landing.at())
   const lineDrawing = createMemo(() => {
     const line = sourceLine()
     const entry = served()
     if (line === undefined || !isServed(entry)) return undefined
-    const route = panesOf(router.workspace())[here()]?.route
+    const route = router.panes()[here()]?.route()
     const query = route?.kind === "at" ? route.filter ?? "" : ""
     return { line: line - proseLineOffset(entry.text), needles: needlesFrom(query, today()) }
-  })
+  }, undefined, { equals: (a, b) => a?.line === b?.line && a?.needles.length === b?.needles.length
+    && (a?.needles.every((needle, index) => needle === b?.needles[index]) ?? true) })
   createEffect(() => {
     const at = landing.owed()
-    if (at === undefined || !markdownReady()) return
+    if (!shown() || at === undefined || !markdownReady()) return
     const id = landingId(text(), props.file, at)
     const line = sourceLine()
     const entry = served()
@@ -141,9 +143,7 @@ export function Rendered(props: { readonly file: string }) {
     const frame = requestAnimationFrame(() => {
       // Two panes of the SAME file mint the same heading ids. Look
       // under THIS pane's root, not the first copy in document order.
-      const root = document.querySelector(
-        `[data-testid="${IDS_NAVIGATION.pane}"][data-pane="${String(here())}"]`,
-      )
+      const root = pane?.element
       if (line !== undefined && line > entry.text.split("\n").length) {
         root?.scrollTo({ top: 0 })
         landing.landed(at)

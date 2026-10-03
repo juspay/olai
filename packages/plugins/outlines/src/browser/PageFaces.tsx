@@ -1,9 +1,9 @@
 import type {} from "../slots.ts"
-import { createMemo, For } from "solid-js"
-import { hung } from "./faces.ts"
+import { For } from "solid-js"
+import { pageHeads, pageFeet } from "./faces.ts"
 
 export function PluginPageHead(props: { readonly node: string }) {
-  const faces = createMemo(() => hung("outline.page.head"))
+  const faces = pageHeads
   return <For each={faces()}>{(one) => {
     const Face = one.face
     return <Face node={props.node} />
@@ -11,7 +11,7 @@ export function PluginPageHead(props: { readonly node: string }) {
 }
 
 export function PluginPageFoot(props: { readonly node: string }) {
-  const faces = createMemo(() => hung("outline.page.foot"))
+  const faces = pageFeet
   return <For each={faces()}>{(one) => {
     const Face = one.face
     return <Face node={props.node} />

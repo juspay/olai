@@ -1,3 +1,5 @@
+import { useWaitingForms } from "./waiting-forms.ts"
+import { Key } from "@solid-primitives/keyed"
 /**
  * A question the agent asked, as a form in the conversation.
  *
@@ -49,6 +51,7 @@ export function AskForm(props: {
   readonly chat: Chat
 }) {
   const { draftAnswers, draftOf, forgetDraft, setDraft } = useConversationUI().drafts
+  const forms = useWaitingForms()
   const ask = () => props.entry.ask
   const waiting = () => ask().outcome === null
   /** WHERE THIS QUESTION SENDS THEM, for the one elicitation that asks for no
@@ -121,7 +124,7 @@ export function AskForm(props: {
   })
 
   return (
-    <div
+    <div ref={element => forms?.register(element, waiting)}
       class={`rounded-control border-l-[3px] py-1.5 pl-3 pr-2 ${
         waiting() ? "border-doing bg-doing/10" : "border-rule"
       }`}
@@ -159,29 +162,29 @@ export function AskForm(props: {
       </Show>
 
       <div class="mt-2 flex flex-col gap-3">
-        <For each={blocks()}>
+        <Key each={blocks()} by="key">
           {(field) => (
-            <div data-testid={TESTID.chatAskField} data-field={field.key}>
-              <Show when={field.label}>
+            <div data-testid={TESTID.chatAskField} data-field={field().key}>
+              <Show when={field().label}>
                 {(label) => (
                   <p class="m-0 text-label text-muted">
                     {label()}
-                    <Show when={field.required}>
+                    <Show when={field().required}>
                       <span class="text-alarm" aria-label="Required">*</span>
                     </Show>
                   </p>
                 )}
               </Show>
-              <Show when={field.hint}>
+              <Show when={field().hint}>
                 {(hint) => <p class="m-0 text-label text-muted">{hint()}</p>}
               </Show>
 
               <div class="mt-1">
                 <AskControl
-                  field={field}
-                  values={values(field.key)}
+                  field={field()}
+                  values={values(field().key)}
                   disabled={!waiting() || sending()}
-                  onChange={(next) => setDraft(props.entry.id, field.key, next)}
+                  onChange={(next) => setDraft(props.entry.id, field().key, next)}
                 />
               </div>
 
@@ -189,7 +192,7 @@ export function AskForm(props: {
                   The agent reads a typed answer as taking PRECEDENCE over
                   whichever chip is pressed, so the two live together and
                   neither is hidden behind the other. */}
-              <Show when={companion(field)}>
+              <Show when={companion(field())}>
                 {(other) => (
                   <div class="mt-1.5">
                     <AskControl
@@ -203,7 +206,7 @@ export function AskForm(props: {
               </Show>
             </div>
           )}
-        </For>
+        </Key>
       </div>
 
       <Show

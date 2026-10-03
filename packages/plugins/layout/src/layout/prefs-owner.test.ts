@@ -1,7 +1,7 @@
 import {expect,test} from "bun:test"
 import {followLayout} from "./prefs-owner.ts"
 import {PANEL_OPEN_KEY,SIDEBAR_WIDTH_KEY} from "./prefs.ts"
-import {setSidebarWidth,sidebarWidth} from "./live.ts"
+import {createLayoutState,holdLayoutState,setSidebarWidth,sidebarWidth} from "./live.ts"
 
 test("layout owns fresh preferences, listeners and stopped setters",()=>{
  const oldWindow=Object.getOwnPropertyDescriptor(globalThis,"window")
@@ -15,6 +15,7 @@ test("layout owns fresh preferences, listeners and stopped setters",()=>{
  Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{
   getItem:(key:string)=>stored.get(key)??null,setItem:(key:string,value:string)=>stored.set(key,value),removeItem:(key:string)=>stored.delete(key),
  }})
+ const release = holdLayoutState(createLayoutState())
  let stop:undefined|(()=>void)
  try {
   stop=followLayout()
@@ -38,6 +39,7 @@ test("layout owns fresh preferences, listeners and stopped setters",()=>{
   expect(sidebarWidth()).toBe(320)
  } finally {
   stop?.()
+  release()
   if(oldWindow)Object.defineProperty(globalThis,"window",oldWindow);else Reflect.deleteProperty(globalThis,"window")
   if(oldStorage)Object.defineProperty(globalThis,"localStorage",oldStorage);else Reflect.deleteProperty(globalThis,"localStorage")
  }

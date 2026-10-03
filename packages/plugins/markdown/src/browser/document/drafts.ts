@@ -1,8 +1,7 @@
-/** Editor state kept across a rebuild of the same pane and route.
- * It is consumed on remount, never stored on disk, and includes the original
- * baseline so a rebuild cannot turn a conflicting save into an overwrite. */
-import { createSignal } from "solid-js"
-import type { Route } from "olai-plugin-navigation/routes"
+/** Editors belong to the documents activation, keyed by the pane and file.
+ * Page presentation may withdraw independently; the baseline stays with the
+ * document owner until that owner stops. No Route object is used as storage. */
+import { createSignal, onCleanup } from "solid-js"
 
 const draftOf = (base: string) => {
   const [text, setText] = createSignal(base)
@@ -29,21 +28,21 @@ const editorOf = () => {
   }
 }
 export type DocumentEditor = ReturnType<typeof editorOf>
-let saved = new WeakMap<Route, Map<string, DocumentEditor>>()
-const key = (file: string, pane: number) => JSON.stringify([pane, file])
-
-export const takeDraft = (file: string, pane: number, route: Route | undefined): DocumentEditor => {
-  const at = key(file, pane)
-  const entries = route === undefined ? undefined : saved.get(route)
-  const editor = entries?.get(at) ?? editorOf()
-  entries?.delete(at)
-  return editor
+export const createDocumentEditors = () => {
+  const panes = new Map<string, Map<string, DocumentEditor>>()
+  onCleanup(() => panes.clear())
+  const editor = (pane: string, file: string): DocumentEditor => {
+    let entries = panes.get(pane)
+    if (entries === undefined) panes.set(pane, entries = new Map())
+    let editor = entries.get(file)
+    if (editor === undefined) entries.set(file, editor = editorOf())
+    return editor
+  }
+  return { editor, retain: (active: ReadonlyMap<string, string | undefined>): void => {
+    for (const [pane, entries] of panes) {
+      const file = active.get(pane)
+      for (const key of entries.keys()) if (key !== file) entries.delete(key)
+      if (entries.size === 0) panes.delete(pane)
+    }
+  } }
 }
-export const keepDraft = (file: string, pane: number, route: Route, editor: DocumentEditor): void => {
-  if (!editor.editing()) return
-  const entries = saved.get(route) ?? new Map<string, DocumentEditor>()
-  entries.set(key(file, pane), editor)
-  saved.set(route, entries)
-}
-
-export const clearDocumentDrafts = (): void => { saved = new WeakMap() }

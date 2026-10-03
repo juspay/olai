@@ -394,7 +394,7 @@ When("I {word}-click the layout pin {string}", async function (this: OlaiWorld, 
 
 Then("the layout panes have equal widths", async function (this: OlaiWorld) {
   await this.waitUntil(async () => {
-    const panes = await this.page.locator(PANE).all();
+    const panes = await this.frontLane().locator(PANE).all();
     const boxes = await Promise.all(panes.map(pane => pane.boundingBox()));
     const first = boxes[0];
     return boxes.length >= 2 && first != null

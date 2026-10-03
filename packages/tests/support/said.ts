@@ -16,6 +16,7 @@
  */
 
 import * as assert from "node:assert";
+import type { Page, Locator } from "./playwright.ts";
 
 import { POLL_TIMEOUT } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
@@ -55,8 +56,9 @@ export const saysThat = async (
   said: string,
   what: string,
   tone?: "alarm" | "aside",
+  scope: Page | Locator = world.frontLane(),
 ): Promise<void> => {
-  const line = world.page.locator(locator).first();
+  const line = scope.locator(`${locator}:visible`).first();
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const text = (await line.innerText()).trim();
   assert.ok(
@@ -66,7 +68,7 @@ export const saysThat = async (
     }`,
   );
   if (tone === undefined) return;
-  await inTheMood(world, locator, tone, what);
+  await inTheMood(world, locator, tone, what, scope);
 };
 
 /** WHICH MOOD a line is in, on its own — for the rows whose text a step has
@@ -82,8 +84,9 @@ export const inTheMood = async (
   locator: string,
   tone: "alarm" | "aside",
   what: string,
+  scope: Page | Locator = world.frontLane(),
 ): Promise<void> => {
-  await world.expectAttribute(locator, "data-tone", tone, what);
+  await world.expectAttribute(`${locator}:visible`, "data-tone", tone, what, POLL_TIMEOUT, scope);
 };
 
 /** The other half: nothing is being said at all. Its own function because

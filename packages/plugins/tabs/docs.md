@@ -28,7 +28,7 @@ A tab holding a file is named the way the files sidebar names it: a document
 tabs would say the same name for different files (`notes.md` and
 `notes.olai`, or `a/x.olai` and `b/x.olai`), both show their whole path
 instead, until one of them closes. Other pages show the title the page reported
-when it was last in front, or the page's label before it has reported one. A
+by its live page, even while the tab is behind another, or the page's label before it has reported one. A
 split tab's title is its panes' names joined with " + ". A tab brought back to
 the front keeps its title until its page reports a real name, and every tab in
 the strip is the same width, so nothing moves while a page arrives.
@@ -85,6 +85,16 @@ phone, or with the layout row off, Back and Forward are the window's own.
 
 ## What is kept
 
+A tab mounts its pages the first time it is shown. Those same page elements,
+subscriptions, composer drafts, open tool details, filters and scroll positions
+stay with it until it closes. Switching tabs hides the old lane and shows the
+new one; background page reports continue updating their own tab titles.
+A restored tab that has never been shown keeps only its saved address and title.
+It opens no page subscription until pressed. Closing a tab disposes its pages.
+Hidden pages do not handle keyboard gestures or draw their portalled menus.
+A hidden chat can still notify you when it needs an answer.
+
+
 The set of tabs, their order, their addresses and titles, and which tab is in
 front are kept per browser under the `olai.tabs` preference. The tab in front is
 kept as its id alone, since opening olai always shows the address being opened
@@ -99,15 +109,17 @@ on or off since the tab was opened is honoured when the tab comes back.
 
 ## Phones
 
-Below the desktop breakpoint there is no strip, and the existing pane strip is
-unchanged. The set is still kept and still written, so visiting on a phone does
+Below the desktop breakpoint there is no strip. The front lane becomes the
+window's single lane and all background live lanes are disposed. Its pane
+subtrees remain mounted, with only the focused pane visible in a narrow split. The set is still kept and still written, so visiting on a phone does
 not erase the tabs of a desk. Open in new tab shows the page at once, since
 there is no strip to find it in, and Back returns to the page before it, in the
 window's own history. The chords do nothing.
 
 ## When rows are switched off
 
-- **tabs** off: the strip goes, the page in front stays, and Back and Forward
+- **tabs** off: the strip goes, the page in front stays in the sole live lane,
+  background pages are disposed, and Back and Forward
   walk the window's whole history again. Switching it back on restores the
   stored set.
 - **chat** off: tabs have no needs-you dot.
@@ -139,3 +151,30 @@ ordinary navigation (`Router.open`). The strip is the `strip` component, contrib
 layout's `layout.strip` seat and waiting for `layout.shell`; the link menu is
 the `links` component, contributed to `layout.overlays`; the needs-you dot is
 the `attention` component, waiting for `chat.state`.
+
+Layout records each split scrollport's horizontal and vertical position before
+hiding its lane and restores them after the host is shown. Window positions
+remain navigation's history-entry memory. Transcript followers can then advance
+to new text on their next frame; a reader who stopped following keeps the saved
+position.
+
+On a phone, opening another tab's address retargets the single lane's workspace.
+The pane owner survives, but changing its page subject ends that page's local
+editing visit. Phone navigation does not cache the visited desktop tabs' live
+pages. Crossing the breakpoint preserves the current workspace and its surviving
+pane elements; returning to desktop mounts other saved tabs only on demand.
+
+Hidden lane contents use `content-visibility: hidden` in a fixed box matching
+the lane's last drawn size and position. `visibility: hidden` and disabled
+pointer events keep the box noninteractive. This preserves browser layout
+work while taking the lane out of document flow. Layout explicitly snapshots
+and restores column scroll offsets; transcript following runs after restoration.
+
+The 300-row split-chat fixture (150 code blocks and opened diffs), measured
+from pointer press through the second animation frame in remote Chromium,
+returned in 73.6 ms median / 79.1 ms p95 with `display: none`, versus
+32.3 ms / 38.6 ms with hidden content visibility (10 measured returns each).
+The benchmark reports measurements without a timing pass/fail threshold.
+
+The switch benchmark is tagged `@skip` and excluded from default runs. It remains
+available for explicit measurement; its timings are observational, not assertions.

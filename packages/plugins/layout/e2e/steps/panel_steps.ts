@@ -87,7 +87,7 @@ Then("the sidebar rail is showing", async function (this: OlaiWorld) {
 Then(
   "the outline {string} is still on screen",
   async function (this: OlaiWorld, _file: string) {
-    await this.page
+    await this.frontLane()
       .locator(OUTLINE_TREE)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },

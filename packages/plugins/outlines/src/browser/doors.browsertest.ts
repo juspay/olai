@@ -55,16 +55,13 @@ const agent = (titled: boolean): Door => ({
 const driving = <A>(
   first: PageReading,
   body: (write: (next: PageReading) => void, table: () => Doors) => A,
-): A =>
-  createRoot((dispose) => {
-    const [reading, setReading] = createSignal<PageReading>(first)
-    const doors = createDoors(reading)
-    try {
-      return body((next) => setReading(next), doors)
-    } finally {
-      dispose()
-    }
+): A => {
+  const state = createRoot((dispose) => {
+    const [reading, write] = createSignal<PageReading>(first)
+    return { dispose, write, table: createDoors(reading) }
   })
+  try { return body(state.write, state.table) } finally { state.dispose() }
+}
 
 const asked = (table: Doors, prop: string, value: string) =>
   table("roadmap/features.olai", prop, value)
@@ -79,11 +76,11 @@ test("an identical frame is not a new table", () =>
     expect(table()).toBe(held)
   }))
 
-test("an answer that changed IS a new table", () =>
+test("an answer that changed updates the same table", () =>
   driving(frame(brief("briefs/tp.md")), (write, table) => {
     const held = table()
     write(frame(brief("briefs/renamed.md")))
-    expect(table()).not.toBe(held)
+    expect(table()).toBe(held)
     expect(asked(table(), "brief", "briefs/tp.md"))
       .toEqual({ kind: "document", file: "briefs/renamed.md" })
   }))
@@ -94,21 +91,21 @@ test("...and so does a face that changed, with the value standing still", () =>
   driving(frame(agent(false)), (write, table) => {
     const held = table()
     write(frame(agent(true)))
-    expect(table()).not.toBe(held)
+    expect(table()).toBe(held)
     expect(asked(table(), "agent", "grok"))
       .toEqual({ kind: "node", id: "grok", titled: true })
   }))
 
-test("a door arriving or leaving IS a new table", () =>
+test("a door arriving or leaving updates the same table", () =>
   driving(frame(brief("briefs/tp.md")), (write, table) => {
     const one = table()
     write(frame(brief("briefs/tp.md"), agent(true)))
     const two = table()
-    expect(two).not.toBe(one)
+    expect(two).toBe(one)
     expect(asked(two, "agent", "grok")).toEqual({ kind: "node", id: "grok", titled: true })
     write(frame(brief("briefs/tp.md")))
     const three = table()
-    expect(three).not.toBe(two)
+    expect(three).toBe(two)
     expect(asked(three, "agent", "grok")).toBeUndefined()
   }))
 

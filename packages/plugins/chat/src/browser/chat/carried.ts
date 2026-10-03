@@ -13,3 +13,13 @@ export const textOf = (entry: ChatEntry): string | null => {
 }
 export const textOfDiff = (path: string, before: string | null, after: string): string =>
   [path, ...diffOf(before, after).lines.filter(line => line.kind === "add" || line.kind === "remove").map(line => `${line.kind === "add" ? "+" : "-"}${line.text}`)].join("\n")
+
+/** Availability is cheap; serialization belongs to the drag gesture. */
+export const hasText = (entry: ChatEntry): boolean => {
+  switch (entry.kind) {
+    case "agent": return !entry.streaming && entry.text.trim().length > 0
+    case "user": return entry.text.trim().length > 0
+    case "tool": return !!(entry.text.trim() || entry.detail?.trim() || entry.reply !== undefined)
+    default: return false
+  }
+}

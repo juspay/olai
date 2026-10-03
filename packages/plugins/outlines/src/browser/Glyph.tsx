@@ -139,13 +139,8 @@ export function Glyph(props: {
     </Link>
   )
 
-  // The tip is the pointer's half of the waiting sentence, and it wraps only
-  // the face that has one to say.
+  // Keep the link and its focus when its waiting face changes.
   return (
-    <Show when={waiting()} fallback={<Cell />}>
-      <Tip text={blockedBy(props.blocked)}>
-        <Cell />
-      </Tip>
-    </Show>
+    <Tip disabled={!waiting()} text={waiting() ? blockedBy(props.blocked) : ""}><Cell /></Tip>
   )
 }

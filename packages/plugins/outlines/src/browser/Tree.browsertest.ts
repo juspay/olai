@@ -63,6 +63,7 @@ import { $TRACK, createEffect, createMemo, createRoot } from "solid-js"
 import type { PageReading, Row } from "@olai/format"
 import { surface } from "../surface.ts"
 
+import { createDoneRows, createMatchedRows } from "./pruning.ts"
 import { page, row, wired } from "./frame.testlib.ts"
 
 /** What the app ships — see the header. */
@@ -115,14 +116,19 @@ interface Drive {
  *  Solid queues effects and flushes them when the enclosing update completes,
  *  so a body running inside `createRoot` would take its readings before a
  *  single effect had run and report nothing happening, whatever happened. */
-const driving = (arrayKey: string | undefined): Drive =>
+const driving = (arrayKey: string | undefined, prune = false): Drive =>
   createRoot((dispose) => {
     const store = wired(arrayKey)
     const shows = (): { rows: ReadonlyArray<Row> } | undefined => {
       const held = store.reading()?.shows
       return held !== undefined && held.kind === "outline" ? held : undefined
     }
-    const rows = (): ReadonlyArray<Row> => shows()?.rows ?? []
+    const raw = (): ReadonlyArray<Row> => shows()?.rows ?? []
+    // PageView's two row transformations, in their actual order. Both used to
+    // clone every row even though the wire preserved all unrelated records.
+    const done = createDoneRows(raw, () => true, () => undefined)
+    const matched = createMatchedRows(done, () => ({ has: () => true }))
+    const rows = prune ? matched : raw
 
     let bindings = 0
     let tracks = 0
@@ -247,4 +253,18 @@ test("the key this measures is the key the app declares", () => {
   // case here read exactly like its UNDECLARED twin, which would otherwise be a
   // suite quietly measuring master.
   expect(DECLARED).toBe("key")
+})
+
+test("PageView done and filter pipeline updates only the changed row binding", () => {
+  const drive = driving(DECLARED, true)
+  try {
+    drive.write(THREE())
+    const before = drive.bindings()
+    drive.write(THREE({ order: "order the new cabinets today" }))
+    expect(drive.bindings() - before).toBe(1)
+    expect(drive.titles()).toEqual(RETITLED)
+    const updated = drive.bindings()
+    drive.write(THREE({ order: "order the new cabinets today", child: "changed child" }))
+    expect(drive.bindings()).toBe(updated)
+  } finally { drive.stop() }
 })

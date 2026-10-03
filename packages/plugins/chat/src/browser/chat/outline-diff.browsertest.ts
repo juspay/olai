@@ -34,3 +34,22 @@ test("a disposed browser diff cancels its request and an absent vault never thro
   })
   await turn()
 })
+
+test("a successful diff is cleared before a replacement request and stays cleared on failure", async () => {
+  let calls = 0
+  const [change, replace] = createSignal({ path: "a.olai", oldText: null, newText: "first" })
+  const view = createRoot(dispose => ({ dispose, ...createOutlineDiff(() => ({ outlineDiff: () => {
+    calls++
+    return calls === 1 ? Effect.succeed({ _tag: "Changes" as const, changes: [] }) : Effect.die(new Error("refetch refused"))
+  } }), change) }))
+  try {
+    await turn()
+    expect(view.read()?._tag).toBe("Changes")
+    replace({ path: "a.olai", oldText: null, newText: "second" })
+    expect(view.read()).toBeUndefined()
+    await turn()
+    expect(view.read()).toBeUndefined()
+    expect(view.line()).toContain("Can't read")
+    expect(calls).toBe(2)
+  } finally { view.dispose() }
+})

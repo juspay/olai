@@ -1,3 +1,6 @@
+import { rowElements } from "./row-elements.ts"
+import { usePane } from "olai-plugin-navigation/pane"
+import { usePaneId, useShown } from "olai-plugin-navigation/routing"
 /**
  * One whole outline: the roots of a file, expanded.
  *
@@ -55,6 +58,9 @@ export function OutlinePage(props: {
 }) {
   const narrowed = useNarrowed()
   const folds = createFoldReading()
+  const pane = usePane()
+  const paneId = usePaneId()
+  const shown = useShown()
   const here = useHere()
   const landing = useLanding(() => props.file)
 
@@ -176,7 +182,7 @@ export function OutlinePage(props: {
    *  page the reader is READING, not to the arrival that put it there — it
    *  outlives `owed` and dies with the page. */
   let minted:
-    | { readonly file: string; readonly pane: number; readonly keys: ReadonlySet<string> }
+    | { readonly file: string; readonly pane: string; readonly keys: ReadonlySet<string> }
     | undefined
   const conceal = (): void => {
     if (minted !== undefined) {
@@ -206,7 +212,7 @@ export function OutlinePage(props: {
       if (props.file !== owing.file || at !== undefined) conceal()
       owing = { file: props.file, id: at, said: undefined }
     }
-    if (at === undefined) return
+    if (at === undefined || !shown()) return
     // WHERE THE REVEAL MAY BE ASKED: the pick prunes this page, and nothing
     // typed does — a filter on the page is the reader's own question, and
     // the act writes nothing over it (the fold half's own discipline,
@@ -255,8 +261,8 @@ export function OutlinePage(props: {
       const keys = new Set(aimAt.chain.map((row) => row.key))
       minted = {
         file: props.file,
-        pane: here(),
-        keys: revealDone(props.file, here(), keys),
+        pane: paneId(),
+        keys: revealDone(props.file, paneId(), keys),
       }
       return
     }
@@ -277,27 +283,9 @@ export function OutlinePage(props: {
     const frame = requestAnimationFrame(() => {
       // The landing belongs to THIS pane: the SAME outline can sit in two
       // columns, and the scroll is the pane whose address named the row.
-      const root = document.querySelector(
-        `[data-testid="${IDS_NAVIGATION.pane}"][data-pane="${String(here())}"]`,
-      )
-      if (root === null) return
-      // Aim at the landing's OWN row — the chain's last placement, found by
-      // the record id its row wears — not at the accent: the accent is one
-      // signal for the whole app and a landing is a fact per pane, so two at
-      // once (a shared view naming a row in each of this file's columns)
-      // would scroll one pane to the other's row and say its own arrival
-      // paid — the wrong-row spend `./landing.ts`'s header was once and
-      // forever written against. Rows wear `data-node-id` for exactly this
-      // (`./Tree.tsx`), even mirrors — the placement stays put.
-      //
-      // An id is a string somebody typed one day: `CSS.escape`, because a
-      // quote in it would be a selector that throws, and a throw inside the
-      // frame is a landing this pane will never spend. Markdown's heading
-      // landing uses the same escaping rule.
-      const row = root.querySelector(
-        `[data-testid="${IDS_OUTLINES.node}"][data-node-id="${CSS.escape(last.at.node.id)}"]`,
-      )
-      if (row === null) return
+      if (!shown()) return
+      const row = rowElements.read()?.find(pane?.id, last.at.node.id, "record")
+      if (row === undefined) return
       bringOntoScreen(row)
       landing.landed(at)
     })

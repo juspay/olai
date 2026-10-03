@@ -116,6 +116,7 @@ import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Tools } from "./Tools.tsx"
 
 export function Header(props: {
+  readonly ref?: (element: HTMLElement) => void
   readonly slots: RendererSlots
   /** When a sidebar exists: whether its sheet is open, and the way to toggle
    *  it. Absent on the screens with no sidebar (error report, waiting), where
@@ -135,7 +136,7 @@ export function Header(props: {
 }) {
   return (
     <>
-    <header
+    <header ref={props.ref}
       class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 border-b-2 border-accent px-3 font-sans md:px-6`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}

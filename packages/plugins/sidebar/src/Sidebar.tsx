@@ -6,12 +6,13 @@ import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
 import { PluginEntries,PluginSections } from "./Seats.tsx"
 
 import { setSidebarOpen } from "./shell.ts"
-import { For,Show } from "solid-js"
+import { children, For, Show } from "solid-js"
 import { regions,type SidebarRegionProps } from "./contract.ts"
 function Regions(props: { at: string; props: SidebarRegionProps }) {
   return <For each={props.props.slots.read(regions).filter(({ value }) => value.at === props.at)}>{({ value }) => <value.Body {...props.props} />}</For>
 }
 export function Sidebar(props: SidebarRegionProps) {
+  const foot = children(() => props.foot)
   return (
     <>
       {/* Mobile scrim: under the header so app chrome stays tappable (#101). */}
@@ -104,7 +105,7 @@ export function Sidebar(props: SidebarRegionProps) {
         >
           <PluginEntries place="foot" />
         </div>
-        <Show when={props.foot}>
+        <Show when={foot()}>
           {(foot) => (
             <div class="shrink-0 border-t border-paper/10 p-3">
               {foot()}

@@ -7,13 +7,17 @@
  * walk that folded back up on that remount would be the same unusable panel
  * the live roster already was. Closing the activation forgets both. */
 import type { FileLink } from "@olai/plugin-api"
+import { createStore, reconcile } from "solid-js/store"
 import { createSignal } from "solid-js"
 import type { HeldOpen } from "@olai/web/client/popover.ts"
 export const createInspectorState = () => {
   const [open, setOpen] = createSignal(false)
-  const [read, setRead] = createSignal<ReadonlyMap<string, string>>(new Map())
-  const [opened, setOpened] = createSignal<Readonly<Record<string, boolean>>>({})
-  const [expanded, setExpandedRows] = createSignal<Readonly<Record<string, boolean>>>({})
+  const [versions, setRead] = createStore<Record<string, string | undefined>>({})
+  const read = () => ({ get: (name: string) => versions[name], get size() { return Object.keys(versions).length } })
+  const [groups, setOpened] = createStore<Record<string, boolean | undefined>>({})
+  const opened = () => groups
+  const [rows, setExpandedRows] = createStore<Record<string, boolean | undefined>>({})
+  const expanded = () => rows
   const [file, setFile] = createSignal<FileLink>()
   const [requested, setRequested] = createSignal<string>()
   let active = true
@@ -33,19 +37,19 @@ export const createInspectorState = () => {
     },
     nowRead: (name: string, version: string) => {
       if (!active) throw new Error("The inspector activation has closed")
-      setRead((was) => new Map(was).set(name, version))
+      setRead(name, version)
     },
     setGroupOpen: (label: string, open: boolean) => {
       if (!active) throw new Error("The inspector activation has closed")
-      setOpened((was) => (was[label] === open ? was : { ...was, [label]: open }))
+      setOpened(label, open)
     },
     /** A row's detail shown or hidden, by the row's plugin name. Absent is the
      *  row's own default: expanded while it needs attention, shut otherwise. */
     setExpanded: (name: string, open: boolean) => {
       if (!active) throw new Error("The inspector activation has closed")
-      setExpandedRows((was) => (was[name] === open ? was : { ...was, [name]: open }))
+      setExpandedRows(name, open)
     },
-    close: () => { active = false; setRequested(undefined); setFile(undefined); setOpen(false); setRead(new Map()); setOpened({}); setExpandedRows({}) },
+    close: () => { active = false; setRequested(undefined); setFile(undefined); setOpen(false); setRead(reconcile({})); setOpened(reconcile({})); setExpandedRows(reconcile({})) },
   }
 }
 export type InspectorState = ReturnType<typeof createInspectorState>

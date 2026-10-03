@@ -83,3 +83,8 @@ Live properties come from plugins, and a serve can be run without one — the fi
 **And it happens while you watch.** The vocabulary follows the fibers rather than the boot: switch a plugin off and its words leave the running serve with it, the values under them go back to being plain text on the next reading, and switching it back on brings both the words and the faces back. The switch writes `on` to the policy file. Existing content values remain unchanged; their interpretation follows the running vocabulary.
 
 A DECLARATION is judged differently from a VALUE, and the difference is worth knowing before you go looking for a bug: `{"type":"kolu-terminal"}` is a clean row on a serve running only odu, because a file's verdict may not depend on the machine’s current enablement policy. Only the FACE is missing.
+
+Terminal blocks compare their resolved reading by value, and a live terminal's
+theme updates only when its theme name changes. Reattaching a stream does not
+reapply the palette. An open terminal remains attached while its lane is hidden;
+its measurements and visible interactions resume when the lane is shown.

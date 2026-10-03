@@ -56,16 +56,13 @@ const checkout: Licence = {
 const driving = <A>(
   first: PageReading,
   body: (write: (next: PageReading) => void, table: () => Licences) => A,
-): A =>
-  createRoot((dispose) => {
-    const [reading, setReading] = createSignal<PageReading>(first)
-    const licences = createLicences(reading)
-    try {
-      return body((next) => setReading(next), licences)
-    } finally {
-      dispose()
-    }
+): A => {
+  const state = createRoot((dispose) => {
+    const [reading, write] = createSignal<PageReading>(first)
+    return { dispose, write, table: createLicences(reading) }
   })
+  try { return body(state.write, state.table) } finally { state.dispose() }
+}
 
 const asked = (table: Licences, prop: string, value: string) =>
   table("roadmap/lanes.olai", prop, value)
@@ -79,17 +76,17 @@ test("an identical frame is not a new table", () =>
     expect(table()).toBe(held)
   }))
 
-test("a WORD that changed IS a new table", () =>
+test("a WORD that changed updates the same table", () =>
   // A vault re-declaring a key from one plugin's kind to another's: the value
   // stands still and the face it wears is a different plugin's.
   driving(frame(pty("terminal")), (write, table) => {
     const held = table()
     write(frame(pty("worktree")))
-    expect(table()).not.toBe(held)
+    expect(table()).toBe(held)
     expect(asked(table(), "pty", "c56b6183")).toBe("worktree")
   }))
 
-test("a licence arriving or leaving IS a new table", () =>
+test("a licence arriving or leaving updates the same table", () =>
   // LEAVING is the one that matters most here and is not symmetric with the
   // doors table's: a licence withdrawn is a live face coming OFF the page —
   // the vault stopped declaring the key, or the serve stopped running the
@@ -98,11 +95,11 @@ test("a licence arriving or leaving IS a new table", () =>
     const one = table()
     write(frame(pty("terminal"), checkout))
     const two = table()
-    expect(two).not.toBe(one)
+    expect(two).toBe(one)
     expect(asked(two, "checkout", ".worktrees/tp")).toBe("worktree")
     write(frame(pty("terminal")))
     const three = table()
-    expect(three).not.toBe(two)
+    expect(three).toBe(two)
     expect(asked(three, "checkout", ".worktrees/tp")).toBeUndefined()
   }))
 

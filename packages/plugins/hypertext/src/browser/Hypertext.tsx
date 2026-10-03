@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * A served `.html`, drawn — and, since the ruling of 2026-08-16, RUNNING.
  *
@@ -403,6 +404,7 @@ function RefusedBody() {
 }
 
 export function Hypertext(props: { readonly file: string }) {
+  const shown = useShown()
   // WHICH REVISION THIS FILE IS AT, which is the whole of what this component
   // asks the wire for — the effect at the bottom is what spends it. A number,
   // off the one stream the tab's file list already arrives on
@@ -602,11 +604,15 @@ export function Hypertext(props: { readonly file: string }) {
     sizing = requestAnimationFrame((at) => {
       sizing = undefined
       const said = latest
-      if (said === undefined || frame === undefined) return
+      if (!shown() || said === undefined || frame === undefined || said <= 0) return
       if (!heights.takes({ height: said, frame: frame.clientHeight, at })) return
       setMeasured(`${said}px`)
     })
   }
+
+  createEffect(() => {
+    if (shown() && latest !== undefined) reported(latest)
+  })
 
   /** The file itself, at its own address on the media route — a fresh URL every
    *  time, for {@link VISIT}'s reason. */
@@ -916,6 +922,9 @@ export function Hypertext(props: { readonly file: string }) {
    * up, and that is what this reads. {@link UNMOVED} is how much of it is noise.
    */
   createEffect(() => {
+    clearTimeout(correcting)
+    if (!shown()) return
+    onCleanup(() => clearTimeout(correcting))
     const top = landedAt()
     // Tracked, not read: the frame's height is what makes the arithmetic below
     // land where the reader will be looking — and whether the hang detector
@@ -935,6 +944,7 @@ export function Hypertext(props: { readonly file: string }) {
       if (stood !== undefined && Math.abs(box.getBoundingClientRect().top - stood) > UNMOVED) {
         return done()
       }
+      if (!shown()) return
       box.scrollIntoView({ block: "start" })
       if (top !== 0) {
         // THE NEAREST SCROLLPORT, not always the window. A split pane is
@@ -1081,8 +1091,7 @@ export function Hypertext(props: { readonly file: string }) {
       <Show when={unreadable()}>
         <RefusedBody />
       </Show>
-      <Show when={!unreadable()}>
-      <iframe
+      <iframe hidden={unreadable()}
       // The element, and its first address, in one step: assigning `src` here
       // happens before insertion, so there is no `about:blank` load ahead of
       // the sealed one and the count starts honest.
@@ -1151,7 +1160,7 @@ export function Hypertext(props: { readonly file: string }) {
       class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded-control border border-rule bg-white"
       data-testid={TESTID.hypertextPreview}
       />
-      </Show>
+
     </>
   )
 }

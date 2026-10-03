@@ -184,7 +184,7 @@ Then(
   "the day {string} is announced as {string}",
   async function (this: OlaiWorld, date: string, said: string) {
     await this.openCalendar();
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       `${daySelector(date)} a`,
       "aria-label",
       said,

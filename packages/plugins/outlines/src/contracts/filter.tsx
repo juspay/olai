@@ -27,7 +27,7 @@
  * throw because "no filter" is a real thing to be, unlike a missing router.
  */
 
-import { createContext, type JSX, useContext } from "solid-js"
+import { createContext, createMemo, createSelector, type JSX, useContext } from "solid-js"
 
 const NO_NEEDLES: ReadonlyArray<string> = []
 import type { Accessor } from "solid-js"
@@ -43,7 +43,7 @@ import type { MatchedNode } from "@olai/format"
  * same thing is a second place for the two to drift. What it adds is a DEFAULT
  * (below), which is the whole reason a row asks a context instead of the page.
  */
-export interface Narrowed { readonly active: Accessor<boolean>; readonly selected: Accessor<ReadonlyMap<string,MatchedNode> | null>; readonly needles: Accessor<ReadonlyArray<string>> }
+export interface Narrowed { readonly matchOf?: (id: string) => boolean | undefined; readonly behind?: (id: string) => boolean; readonly active: Accessor<boolean>; readonly selected: Accessor<ReadonlyMap<string,MatchedNode> | null>; readonly needles: Accessor<ReadonlyArray<string>> }
 
 const NOTHING: Narrowed = {
   active: () => false,
@@ -60,8 +60,18 @@ export function NarrowedProvider(props: {
   readonly narrowed: Narrowed
   readonly children: JSX.Element
 }) {
+  const selected = () => props.narrowed.selected()
+  const answered = createMemo(() => selected() !== null)
+  const matches = createSelector(selected, (id: string, found) => found?.has(id) === true)
+  const behind = createSelector(selected, (id: string, found) => found?.get(id)?.matched === "desc")
+  const narrowed: Narrowed = {
+    active: () => props.narrowed.active(), selected,
+    needles: () => props.narrowed.needles(),
+    matchOf: id => answered() ? matches(id) : undefined,
+    behind,
+  }
   return (
-    <NarrowedContext.Provider value={props.narrowed}>
+    <NarrowedContext.Provider value={narrowed}>
       {props.children}
     </NarrowedContext.Provider>
   )

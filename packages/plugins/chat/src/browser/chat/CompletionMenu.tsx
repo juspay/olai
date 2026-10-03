@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * The completion over the message box — one list for both of the things the
  * composer completes.
@@ -23,7 +24,7 @@
 import { servedDirectory } from "../vault.ts"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
-import { createMemo, Index, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, createSignal, Index, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "@olai/web/client/keys.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
@@ -159,15 +160,15 @@ export function CompletionMenu(props: {
   readonly within: () => HTMLElement | undefined
   readonly onDismiss: () => void
 }) {
+  const shown = useShown()
   const selection = createCompletionSelection(() => props.completing, () => props.rows)
 
   /**
    * This list on the client's one dismissal stack (`../topmost.ts`).
    *
-   * `() => true` because BEING HERE is being open: the composer mounts this
-   * component only while there is a list to draw, so the ticket is taken at
-   * mount and given back at disposal. Every other layer holds a state its
-   * caller owns; this one's state is its own existence.
+   * The list stays mounted with its composer, but holds a dismissal ticket
+   * only while shown. A hidden completion must not outrank the visible page's
+   * menu or consume its keys.
    *
    * It matters because the listener below is capture-phase on the DOCUMENT and
    * takes the key outright — which is the stack's rule inverted when something
@@ -175,7 +176,23 @@ export function CompletionMenu(props: {
    * that stays true; what this adds is that "first" means first among the
    * layers on screen, not first regardless of them.
    */
-  const topmost = topmostWhileOpen(() => true)
+  // Several retained folds can offer completions at once. Only the menu
+  // whose composer owns focus participates in keyboard priority.
+  const [focused, setFocused] = createSignal(false)
+  onMount(() => {
+    const input = props.within()
+    if (!input) return
+    const focus = () => setFocused(true)
+    const blur = () => setFocused(false)
+    setFocused(document.activeElement === input)
+    input.addEventListener("focus", focus)
+    input.addEventListener("blur", blur)
+    onCleanup(() => {
+      input.removeEventListener("focus", focus)
+      input.removeEventListener("blur", blur)
+    })
+  })
+  const topmost = topmostWhileOpen(() => shown() && focused())
 
   /**
    * Bound on the document, in the CAPTURE phase, because the input owns Enter
@@ -211,6 +228,7 @@ export function CompletionMenu(props: {
   // here and means nothing to the other lists, so it stays a case of this
   // handler rather than an arm of the shared matcher.
   const onKey = (event: KeyboardEvent) => {
+    if (!shown()) return
     // Aimed at the box this list completes, or it is not this list's (see
     // `within`). First, because it is the older and stronger of the two
     // questions: a key somewhere else is not this menu's however topmost the

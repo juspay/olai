@@ -36,7 +36,7 @@ function PlainProperties(props: { readonly custom: Custom; readonly from: string
 
 export function Properties(props: { readonly custom: Custom; readonly from: string }) {
   const reading = useDocumentReading()
-  return <Show when={readLocation(properties)[0]} fallback={<PlainProperties custom={props.custom} from={props.from} />}>
-    {entry => entry().value({get custom() {return props.custom},get from() {return props.from},reading})}
+  return <Show when={readLocation(properties)[0]} keyed fallback={<PlainProperties custom={props.custom} from={props.from} />}>
+    {entry => entry.value({get custom() {return props.custom},get from() {return props.from},reading})}
   </Show>
 }

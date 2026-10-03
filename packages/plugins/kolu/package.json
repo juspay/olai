@@ -53,6 +53,7 @@
     "@olai/surface": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
     "olai-plugin-plugin-inspector": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
     "@olai/web": "workspace:*"
   },
   "olai": {

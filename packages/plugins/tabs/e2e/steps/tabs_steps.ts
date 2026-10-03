@@ -20,6 +20,39 @@ import { CLOSE, DOT, MENU, NEW, SHORTCUT, STRIP, TAB, TITLE } from "../selectors
 
 const tabAt = (world: OlaiWorld, index: number) => world.page.locator(`${TAB}${attr("data-tab", String(index))}`);
 
+// Playwright's automatic scrollIntoView moves window scroll for a pinned strip.
+// A real pointer presses it where it is. Reveal clipped tabs horizontally only.
+const tabsFailure = async (world: OlaiWorld, error: unknown): Promise<never> => {
+  let state: string;
+  try {
+    await world.showPlugins();
+    const row = await world.showPluginRow("tabs");
+    state = `${await row.innerText()}\n${await row.evaluate(element => element.outerHTML)}`;
+  } catch (inspection) { state = `Could not inspect tabs: ${String(inspection)}`; }
+  throw new Error(`${String(error)}\nTabs activation at failure:\n${state}`);
+};
+
+const pressPinned = async (world: OlaiWorld, target: ReturnType<OlaiWorld["pane"]>) => {
+  // Use the strip-count assertion's first-paint budget and report activation
+  // state if the target is missing. A wait cannot repair a mutated fixture.
+  try { await target.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT }); }
+  catch (error) { await tabsFailure(world, error); }
+  await target.evaluate(element => {
+    const row = element.closest<HTMLElement>('[role="tablist"]');
+    if (!row) return;
+    const box = element.getBoundingClientRect(), within = row.getBoundingClientRect();
+    if (box.left < within.left) row.scrollLeft -= within.left - box.left;
+    else if (box.right > within.right) row.scrollLeft += box.right - within.right;
+  });
+  const point = await target.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    const x = box.x + Math.min(12, box.width / 2), y = box.y + Math.min(12, box.height / 2);
+    if (!element.contains(document.elementFromPoint(x, y))) throw new Error("pinned tab control is covered");
+    return { x, y };
+  });
+  await world.page.mouse.click(point.x, point.y);
+};
+
 const tabsNow = async (world: OlaiWorld) =>
   world.page.locator(TAB).evaluateAll((faces, title) => faces.map((face) => ({
     href: face.getAttribute("data-href"),
@@ -121,7 +154,7 @@ Then("tab {int} wears no dot", async function (this: OlaiWorld, index: number) {
 When("I press tab {int}", async function (this: OlaiWorld, index: number) {
   const tab = tabAt(this, index);
   await tab.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await tab.click({ position: { x: 12, y: 12 } });
+  await pressPinned(this, tab);
   await settled(this);
 });
 
@@ -172,7 +205,7 @@ Then(
 );
 
 When("I press the new tab button", async function (this: OlaiWorld) {
-  await this.page.locator(NEW).click();
+  await pressPinned(this, this.page.locator(NEW));
   await settled(this);
 });
 
@@ -198,7 +231,8 @@ When("I drag tab {int} onto tab {int}", async function (this: OlaiWorld, from: n
 
 const chooseFromMenu = async (world: OlaiWorld, entry: string): Promise<void> => {
   const menu = world.page.locator(MENU);
-  await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  try { await menu.waitFor({ state: "visible", timeout: POLL_TIMEOUT }); }
+  catch (error) { await tabsFailure(world, error); }
   await menu.getByRole("menuitem", { name: entry, exact: true }).click();
   await world.page.locator(MENU).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
   await settled(world);

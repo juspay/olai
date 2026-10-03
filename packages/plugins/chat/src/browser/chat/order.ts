@@ -194,6 +194,9 @@ export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered>
   },
   step: (held, { upserts, removes }) => {
     let moved = false
+    let appendable = removes.length === 0 && held.under.size === 0
+    let maximum = held.keys.length === 0 ? -Infinity : held.seq.get(held.keys.at(-1)!)!
+    const appended: string[] = []
     for (const key of removes) {
       if (held.seq.delete(key)) moved = true
       // ... and out of the filing with it. A lane that kept a removed key would
@@ -203,6 +206,10 @@ export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered>
     }
     for (const [key, entry] of upserts) {
       if (held.seq.get(key) !== entry.seq) {
+        if (!held.seq.has(key) && entry.seq >= maximum) {
+          appended.push(key)
+          maximum = entry.seq
+        } else appendable = false
         held.seq.set(key, entry.seq)
         moved = true
       }
@@ -212,10 +219,12 @@ export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered>
       // column's and always was. What is guarded is the frame that ADDS it.
       const parent = filedUnder(entry)
       if (parent !== null && held.under.get(key) !== parent) {
+        appendable = false
         held.under.set(key, parent)
         moved = true
       }
     }
+    if (moved && appendable) return { ...held, keys: [...held.keys, ...appended] }
     return moved ? { ...cut(held.seq, held.under), seq: held.seq, under: held.under } : held
   },
 }

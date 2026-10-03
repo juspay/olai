@@ -14,7 +14,8 @@
  * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md` §4.4 recorded and
  * `./last.browsertest.ts` was written to hold. The key list is `chat.rows()`,
  * which is the fold's own and hands back THE SAME ARRAY for a frame that added
- * no row (`./order.ts`), so nothing but membership wakes this.
+ * no row (`./order.ts`), so membership creates and releases per-row owners. Each owner updates an
+ * indexed maximum heap; appending a row does not read earlier row values.
  *
  * **Except where the caller says otherwise.** {@link pick} is handed the row
  * AND its accessor, so a caller whose answer depends on something that MOVES
@@ -24,12 +25,13 @@
  * them rather than a second copy of everything around it.
  *
  * A key whose value has not landed yet is the one thing membership cannot say,
- * so THAT read is always tracked: it is what wakes the scan when the row
+ * so THAT read is always tracked: it is what wakes its owner when the row
  * arrives.
  */
 
-import { type Accessor, createMemo, untrack } from "solid-js"
+import { type Accessor, createComputed, createSignal, mapArray, onCleanup, untrack } from "solid-js"
 
+import { createRanking } from "./ranking.ts"
 import type { Chat } from "./state.ts"
 import type { ChatEntry } from "olai-plugin-chat/wire"
 /**
@@ -49,23 +51,23 @@ export type Pick<T> = (row: ChatEntry, at: Accessor<ChatEntry | undefined>) => T
  * `>=` rather than `>`: two rows can share a `seq` — the transcript's order is
  * the server's — and the later one in the list is the later one.
  */
-export const createNewest = <T>(chat: Chat, pick: Pick<T>): Accessor<T | undefined> =>
-  createMemo<T | undefined>(() => {
-    let best: T | undefined
-    let bestSeq = -1
-    for (const key of chat.rows()) {
-      const at = chat.entry(key)
+export const createNewest = <T>(chat: Chat, pick: Pick<T>): Accessor<T | undefined> => {
+  const ranked = createRanking<T>()
+  const [newest, setNewest] = createSignal<T>()
+  const publish = () => setNewest(() => ranked.top())
+  const rows = mapArray(chat.rows, (key, position) => {
+    const at = chat.entry(key)
+    createComputed(() => {
       const row = untrack(at)
-      if (row === undefined) {
-        at()
-        continue
-      }
-      const taken = pick(row, at)
-      if (taken === undefined) continue
-      if (row.seq >= bestSeq) {
-        bestSeq = row.seq
-        best = taken
-      }
-    }
-    return best
+      // Only a missing row or an explicitly tracked pick subscribes to values.
+      if (row === undefined) at()
+      const value = row === undefined ? undefined : pick(row, at)
+      if (value === undefined || row === undefined) ranked.drop(key)
+      else ranked.put(key, row.seq, position(), value)
+      publish()
+    })
+    onCleanup(() => { ranked.drop(key); publish() })
   })
+  createComputed(rows)
+  return newest
+}

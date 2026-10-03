@@ -1,7 +1,9 @@
 import type { Undo } from "@olai/edit-history/undoing.ts"
-let held: Undo | undefined
+import { heldService } from "@olai/ui-primitives/held.ts"
+const held = heldService<Undo>()
 export const useTrashUndo = (): Undo => {
- if(held===undefined) throw new Error("trash history is not active")
- return held
+ const value = held.read()
+ if (value === undefined) throw new Error("trash history is not active")
+ return value
 }
-export function holdTrashUndo(value:Undo):()=>void {held=value;return ()=>{if(held===value)held=undefined}}
+export const holdTrashUndo = held.hold

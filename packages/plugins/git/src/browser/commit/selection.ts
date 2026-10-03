@@ -1,3 +1,4 @@
+import { createSelector } from "solid-js"
 /**
  * WHICH of the waiting files this commit is going to record.
  *
@@ -68,7 +69,7 @@ export const createSelection = (
   excluded: Signal<ReadonlySet<string>> = createSignal<ReadonlySet<string>>(new Set()),
 ): Selection => {
   const [dropped, setDropped] = excluded
-  const ticked = (path: string): boolean => !dropped().has(path)
+  const ticked = createSelector(dropped, (path: string, keys) => !keys.has(path))
 
   const toggle = (path: string) => {
     setDropped((was) => {
@@ -90,7 +91,7 @@ export const createSelection = (
     return kept
   }
 
-  const changes = () => pending().changes.filter((change) => files().has(change.file))
+  const changes = () => { const kept = files(); return pending().changes.filter(change => kept.has(change.file)) }
   const others = () => pending().others.filter((other) => ticked(other.path))
 
   const paths = (): ReadonlyArray<string> | undefined => {

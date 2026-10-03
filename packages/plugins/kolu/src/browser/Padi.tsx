@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 /**
  * THE PADI READOUT — whether this olai can see kolu's terminals.
  *
@@ -60,7 +61,7 @@ export function Padi(props: { readonly app: KoluApp }) {
   // report, the waiting page) `useFleet` stands a hollow, which draws as the
   // unwatched face and is the truth for a page with no wire under it.
   const fleet = useFleet()
-  const said = () => padiSaid(fleet.link(), fleet.pulse(), fleet.now())
+  const said = createMemo(() => padiSaid(fleet.link(), fleet.pulse(), fleet.now()))
   const quiet = () => said().beat?.kind === "quiet"
   const popover = props.app.popover()
   const pill = props.app.pill

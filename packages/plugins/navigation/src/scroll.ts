@@ -131,6 +131,7 @@ const TAKEOVER = ["wheel", "touchstart", "keydown", "pointerdown"] as const
  *  deserves is the router's to say, because a push and a pop are the only
  *  thing here it knows and this module does not. */
 export interface ScrollMemory {
+  readonly leave: () => void
   /** A page the reader ASKED for. */
   readonly toTop: () => void
   /** A page the reader is COMING BACK to: where the entry keyed `key` was
@@ -253,6 +254,7 @@ export const createScrollMemory = (
   // these is a gesture. One is a page starting where pages start; the other is
   // the page being where the reader already was.
   return {
+    leave: () => { record(); giveUp?.() },
     toTop: () => {
       giveUp?.()
       go(0)

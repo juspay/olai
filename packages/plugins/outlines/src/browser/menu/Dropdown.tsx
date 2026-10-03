@@ -1,5 +1,8 @@
+import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
+import { focusMenuAfterMount, RetainedContent } from "./RetainedContent.tsx"
+import { createEffect, splitProps } from "solid-js"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
-import { useHere } from "olai-plugin-navigation/routing"
+import { useShown, useHere } from "olai-plugin-navigation/routing"
 import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 /**
  * The PRIMITIVE and its wiring — everything about the `•••` menu that is
@@ -59,13 +62,11 @@ import { MENU_PANEL } from "@olai/ui-primitives/menu.ts"
  *     asked from, and a menu that read that as "focus left" would shut on its
  *     own Cancel.
  *
- * ## AND IT DEFERS, which is the one thing the primitive cannot decide alone
+ * ## Dismissal and retained menus
  *
- * Kobalte keeps a stack of its own layers and gives a gesture to the topmost —
- * but this menu is the only layer on it, because the panels this client draws
- * itself are not components wrapping an element and cannot join one
- * (`../topmost.ts` has the whole argument). So the primitive always believes it
- * is on top, and an Escape with a popover opened OVER a menu shut both.
+ * RetainedContent preserves item owners while replacing the content shell.
+ * Hidden menus have no Kobalte layer; shown menus rejoin its dismissal stack.
+ * The shared stack also accounts for visible non-Kobalte popovers.
  *
  * The stack every dismissable in this client is on is `../topmost.ts`'s, and
  * this file joins it with {@link topmostWhileOpen} — the same call the popovers
@@ -156,7 +157,22 @@ export function Dropdown(props: {
    *  answers arrive, and this file is gone with it. */
   readonly onPick: (action: MenuAction) => void | Promise<void>
 }) {
+  const shown = useShown()
   const here = useHere()
+  const afterGesture = createAfterGesture()
+  let lastFocused: HTMLElement | undefined
+  const rememberFocus = (event: FocusEvent) => {
+    // Mount autofocus visits the replaceable shell before restoring its items.
+    // Neither this shell nor a portalled submenu shell may overwrite the
+    // entry remembered across suspension.
+    if (event.target instanceof HTMLElement && event.target.getAttribute("role") !== "menu") lastFocused = event.target
+  }
+  createEffect(() => {
+    if (!shown() || !props.door.open()) return
+    queueMicrotask(() => {
+      if (shown() && props.door.open() && lastFocused?.isConnected) lastFocused.focus({ preventScroll: true })
+    })
+  })
   /** The `•••` once this row is armed — where the caret goes back to. */
   let trigger: HTMLElement | undefined
   /** What last touched this menu: the two gestures leave the caret in
@@ -165,9 +181,8 @@ export function Dropdown(props: {
 
   /** Is this menu the panel a dismissal is for — the last thing opened that is
    *  still up, across everything this client can put on screen
-   *  (`../topmost.ts`)? Kobalte's own stack cannot answer that, because this
-   *  menu is the only layer on it. */
-  const topmost = topmostWhileOpen(() => props.door.open())
+   *  (`../topmost.ts`)? Kobalte's own stack does not include every kind of panel. */
+  const topmost = topmostWhileOpen(() => shown() && props.door.open())
 
   /**
    * THE CARET COMES BACK when the panel that had it goes.
@@ -193,12 +208,12 @@ export function Dropdown(props: {
    *     on to — and this menu does not get to overrule that.
    */
   const handBack = (): void => {
-    if (lastGesture !== "key") return
+    if (!shown() || lastGesture !== "key") return
     // After the frame that removes the panel: until then the caret is still on
     // an element that is on its way out, and `<body>` is what it becomes.
     queueMicrotask(() => {
       const caret = document.activeElement
-      if (caret === null || caret === document.body) trigger?.focus()
+      if (shown() && (caret === null || caret === document.body)) trigger?.focus()
     })
   }
 
@@ -218,7 +233,9 @@ export function Dropdown(props: {
       // settles inside that same write, so this reads the stack as it is by
       // then).
       onOpenChange={(open: boolean) => {
-        if (open || topmost()) props.door.setOpen(open)
+        if (!shown() || (!open && !topmost())) return
+        if (open) props.door.setOpen(true)
+        else afterGesture(() => { if (shown()) props.door.setOpen(false) })
       }}
       // WHAT THE PANEL HANGS OFF: the `•••` where one is DRAWN, and the
       // row's own line where it is not. Below md the `•••` is `hidden` —
@@ -272,12 +289,19 @@ export function Dropdown(props: {
           // A menu opened with a POINTER still ends up with the caret on
           // the button that was pressed, exactly as the panel this replaces
           // did: the press focuses the trigger back immediately afterwards.
-          // `queueMicrotask` for the same reason `../popover.ts` uses one:
-          // the element is not attached at the instant the ref runs.
           // `preventScroll`: a portal mounts the panel before floating-ui
           // has placed it, and a focus that scrolled to that first box
           // jumped the page out from under the row the menu belongs to.
-          queueMicrotask(() => el.focus({ preventScroll: true }))
+          const remembered = lastFocused
+          focusMenuAfterMount(el, shown, () => {
+            if (remembered?.isConnected) return remembered
+            // Reopening with the keyboard lets Kobalte focus its first item.
+            // Moving back to the panel would leave that item selected in its
+            // focus manager, so Home could not focus it again and Enter did
+            // nothing. Keep a caret that has already reached an entry.
+            const active = document.activeElement
+            return active !== el && el.contains(active) ? undefined : el
+          })
         }}
         data-testid={TESTID.nodeMenuPanel}
         // NAMED here rather than by the trigger Kobalte would point at
@@ -319,6 +343,7 @@ export function Dropdown(props: {
         // else must not be pulled off it.
         onCloseAutoFocus={(event: Event) => event.preventDefault()}
         onFocusOutside={(event: Event) => event.preventDefault()}
+        onFocusIn={rememberFocus}
         // WHICH GESTURE is driving this menu, for the caret's way home. A
         // key anywhere in the panel (Escape, an entry chosen with Enter,
         // the arrows) is the one that gets it back; a press inside or
@@ -340,6 +365,7 @@ export function Dropdown(props: {
             the gestures above are handed to it too: a key there is the
             keyboard driving this menu, and a tap there leaves the same ghost. */}
         <Panel actions={props.actions} onPick={props.onPick} onGone={handBack} gestures={{
+          onFocusIn: rememberFocus,
           onKeyDown: () => { lastGesture = "key" },
           onPointerDown: () => { lastGesture = "pointer" },
           onPointerUp: tappedInPanel,
@@ -353,8 +379,16 @@ export function Dropdown(props: {
 /** The placement belongs to the menu context inside the dropdown provider. */
 function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps<"div">>) {
   const menu = useMenuContext()
-  return <DropdownMenu.Content
-    {...props}
+  const [local, rest] = splitProps(props, ["children"])
+  return <RetainedContent draw={content => <DropdownMenu.Content
+    {...rest}
+    // Retained item owners sit outside this replaceable layer. Kobalte's menu
+    // context still owns the nested menu registry across every suspension.
+    onPointerDownOutside={event => {
+      rest.onPointerDownOutside?.(event)
+      const target = event.detail.originalEvent.target
+      if (target instanceof Node && menu.nestedMenus().some(element => element.contains(target))) event.preventDefault()
+    }}
     // The primitive measures from the viewport edge. An upward menu must
     // reserve the header and strip as well, or its first entries sit behind it.
     // Portal mount={overlayRoot()} is on document.body, so this inherits the
@@ -363,5 +397,5 @@ function ViewportContent(props: PolymorphicProps<"div", DropdownMenuContentProps
     style={{ "max-height": menu.currentPlacement().startsWith("top")
       ? "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-chrome)))"
       : "max(0px, calc(var(--kb-popper-content-available-height) - var(--height-bottom-chrome, 0px)))" }}
-  />
+  >{content()}</DropdownMenu.Content>}>{local.children}</RetainedContent>
 }

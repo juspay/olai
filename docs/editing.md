@@ -631,3 +631,17 @@ until the reply supplies its destination, so a nudge can stand under a collapsed
 destination. Unmounting the shortlist during that write preserves the judged
 destination list and cannot reopen the subscription with an empty question.
 These two orderings are pinned by `outlines/src/browser/move/moving.browsertest.ts`.
+
+References search shown rows across the caller's lane, including adjacent outline
+panes, before navigating. Hidden lanes cannot satisfy that lookup. A retained
+editor restores the full selection range and direction, and an outline landing
+waits until its pane is shown. Selection reconciliation builds one index per
+frame; records and range endpoints that disappear stay removed until a new
+selection gesture. A move picker likewise ends when its target disappears.
+
+The editor publishes pending and parked drafts together through a keyed seat
+index, so a resumed slot stays mounted during the transfer. Rows read only
+their own seat. Descendant pruning readers are created when children are first
+requested and leave with the source row. Reference lookup indexes record and
+shown ids directly. Open menus retain their panel and submenu state while a
+lane is hidden; dismissal priority and portal visibility follow the lane.

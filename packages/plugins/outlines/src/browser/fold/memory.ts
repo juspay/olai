@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js"
 /**
  * Which nodes this browser is keeping folded.
  *
@@ -317,21 +318,21 @@ const makePref = () => createPreference(FOLDS_KEY, {
   parse: (raw) => memoryOf(parseFolds(raw)),
   print: (memory) => memory.printed,
 })
-let pref = makePref()
+const [pref, setPref] = createSignal(makePref())
 
 /** The nodes that are folded right now, by id. */
-export const collapsedNodes: Accessor<ReadonlySet<string>> = () => pref.value().ids
+export const collapsedNodes: Accessor<ReadonlySet<string>> = () => pref().value().ids
 
 /** ...and the whole memory, which is what the QUESTION is built out of
  *  (./refiling.ts): the ids are what to ask about, the files are what their
  *  absence would mean, and the spelling is whether it has moved since. */
-export const folded: Accessor<Memory> = () => pref.value()
+export const folded: Accessor<Memory> = () => pref().value()
 
 /** What a write starts from: the entry as it is now, unioned with what this tab
  *  holds. Its own name because both writers use it — the fold below and the
  *  re-filing beside it — and starting from either half alone is the flattening
  *  {@link combined} exists to forbid. */
-const standing = (): Folds => combined(pref.stored().byFile, pref.value().byFile)
+const standing = (): Folds => combined(pref().stored().byFile, pref().value().byFile)
 
 /**
  * Fold the nodes `given`, or unfold them, and remember which.
@@ -352,7 +353,7 @@ const standing = (): Folds => combined(pref.stored().byFile, pref.value().byFile
  * bounded by what the reader has actually shut.
  */
 export const setFolded = (given: ReadonlyArray<Fold>, collapsed: boolean): void => {
-  pref.set(memoryOf(withFolds(standing(), given, collapsed)))
+  pref().set(memoryOf(withFolds(standing(), given, collapsed)))
 }
 
 /**
@@ -376,7 +377,7 @@ export const refiled = (homes: Homes): void => {
   const now = standing()
   const next = memoryOf(pruned(now, homes))
   if (next.printed === printFolds(now)) return
-  pref.set(next)
+  pref().set(next)
 }
 
 /** Follow it for as long as this document lives — the same shape as
@@ -384,6 +385,6 @@ export const refiled = (homes: Homes): void => {
  *  because a preference belongs to the browser and a browser is more than one
  *  tab. A fold made in another tab lands here without a reload. */
 export const followFolds = (): (() => void) => {
-  pref = makePref()
-  return pref.follow()
+  setPref(makePref())
+  return pref().follow()
 }

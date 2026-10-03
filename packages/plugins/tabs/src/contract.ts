@@ -22,7 +22,7 @@ import type { Workspace } from "olai-plugin-navigation/workspace"
 export interface Tab {
   readonly id: string
   readonly href: string
-  /** A snapshot: a tab in the background has no page mounted to ask. */
+  /** Updated from a live lane; restored unvisited tabs keep their saved title. */
   readonly title: string
   /** The history entry the tab was left on, so its scroll comes back with it. */
   readonly key?: string

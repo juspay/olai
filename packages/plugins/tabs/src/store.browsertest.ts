@@ -3,7 +3,7 @@ import { createRoot, createSignal } from "solid-js"
 
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { atFile, NO_PAGES, routingOver } from "olai-plugin-navigation/routes"
-import { lone, type Workspace, workspaceOf, workspaceRoutingOver } from "olai-plugin-navigation/workspace"
+import { lone, panesOf, type Workspace, workspaceOf, workspaceRoutingOver } from "olai-plugin-navigation/workspace"
 
 import { TABS_KEY } from "./persist.ts"
 import { createTabs } from "./store.ts"
@@ -24,6 +24,7 @@ const fakeRouter = (first: string) => {
   const router = {
     routes,
     workspace,
+    lanes: () => [{ workspace, panes: () => panesOf(workspace()).map(pane => ({ route: () => pane.route })), info: () => undefined, lane: () => lane, routes }],
     info: () => undefined,
     entryKey: () => key,
     lane: () => lane,
@@ -195,4 +196,37 @@ test("two dot readings with the same paint are two registrations", () => {
     second()
     expect(tabs.dotted().size).toBe(0)
   })
+})
+
+test("mirroring one lane never rereads another lane's workspace or labels", () => {
+  const saved = storage()
+  const counts = [0, 0, 0]
+  let dispose = () => {}
+  try {
+    const state = createRoot(stop => {
+      dispose = stop
+      const fake = fakeRouter("/house.olai")
+      const pages = ["house.olai", "garden.olai", "finishes.md"]
+      const lanes = pages.map((file, index) => {
+        const [workspace, setWorkspace] = createSignal(lone(atFile(file)))
+        const pane = { route: () => panesOf(workspace())[0]!.route }
+        return {
+          workspace: () => { counts[index]!++; return workspace() },
+          panes: () => [pane], info: () => undefined,
+          lane: () => `t${index + 1}`, setWorkspace,
+        }
+      })
+      Object.assign(fake.router, { lanes: () => lanes })
+      const tabs = createTabs(fake.router)
+      tabs.open(lone(atFile("garden.olai")), { behind: true })
+      tabs.open(lone(atFile("finishes.md")), { behind: true })
+      tabs.follow()
+      return { tabs, lanes }
+    })
+    const before = [...counts]
+    state.lanes[1]!.setWorkspace(lone(atFile("changed.olai")))
+    expect(counts.map((count, i) => count - before[i]!)).toEqual([0, 1, 0])
+    expect(state.tabs.tabs().find(tab => tab.id === "t2")?.href).toBe("/changed.olai")
+    expect(state.tabs.tabs().find(tab => tab.id === "t1")?.href).toBe("/house.olai")
+  } finally { dispose(); saved.restore() }
 })

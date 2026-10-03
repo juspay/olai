@@ -32,15 +32,10 @@ import { Effect } from "effect"
  * framework's own idiom (`@kolu/surface`'s fleet-top example does exactly this
  * with pids).
  *
- * Handing `<For>` the entry OBJECTS happens to survive today — the collection
- * is served with batched `deltas`, which the client folds into a
- * reconcile-backed store, and reconcile mutates each key's object in place, so
- * the identities never move. That is a property of one delivery path rather
- * than of this panel: the per-key path yields a fresh object per frame, and a
- * collection switched onto it would start rebuilding every row several times a
- * second with nothing here changed. Keys do not have that in them to go wrong,
- * and `packages/plugins/chat/e2e/features/the_agent.feature` asserts the property directly — the same
- * DOM element, before and after an update.
+ * The pinned collection replaces each upserted leaf whole. Entry objects and
+ * their nested arrays therefore change identity on a row update. Rows iterate
+ * keys; nested views key terminals and fields by their ids and compare diff
+ * inputs by value. The DOM identity scenarios exercise that distinction.
  *
  * This module is also the ONE place in the client where an Effect is run
  * ({@link ./run.ts} is the edge itself). A procedure returns an `Effect`, a
@@ -426,9 +421,12 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
    * is a turn we would be lying about, `gone` is a process this tab cannot see,
    * and `off` is a machine with no agent at all.
    */
+  const booting = createMemo(() => new Proxy(served(), {
+    get: (target, key, receiver) => key === "status" ? "booting" : Reflect.get(target, key, receiver),
+  }))
   const state: Accessor<ChatState> = createMemo((): ChatState => {
     const now = served()
-    return starting() > 0 && now.status === "idle" ? { ...now, status: "booting" } : now
+    return starting() > 0 && now.status === "idle" ? booting() : now
   })
 
   // ... and this tab's guess lives only until the SERVER has one. The moment
@@ -489,7 +487,7 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     }, { defer: true }),
   )
 
-  createEffect(() => ui.uploadScope[1](state().uploadScope))
+  ui.uploadScope.bind(() => state().uploadScope)
 
   return {
     state,

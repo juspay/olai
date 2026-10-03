@@ -16,6 +16,7 @@
  * case where the grouping is already on screen — one file's errors, shown where
  * that file's outline would have been.
  */
+import { Key } from "@solid-primitives/keyed"
 import { TESTID } from "olai-plugin-vault/testids"
 import { hasLine, isCrossFile, type OutlineError, type Site } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
@@ -48,14 +49,14 @@ export function Report(props: { readonly errors: ReadonlyArray<OutlineError> }) 
 
   return (
     <>
-      <For each={split().byFile}>
-        {([file, errors]) => (
-          <section data-testid={TESTID.errorFileGroup} data-file={file}>
-            <Heading>{file}</Heading>
-            <Rows errors={errors} />
+      <Key each={split().byFile} by={one => one[0]}>
+        {(group) => (
+          <section data-testid={TESTID.errorFileGroup} data-file={group()[0]}>
+            <Heading>{group()[0]}</Heading>
+            <Rows errors={group()[1]} />
           </section>
         )}
-      </For>
+      </Key>
 
       <Show when={split().across.length > 0}>
         <section data-testid={TESTID.crossFileErrors}>

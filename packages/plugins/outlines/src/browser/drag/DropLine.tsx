@@ -1,3 +1,4 @@
+import { overlayRoot } from "../overlay.ts"
 /**
  * The line that says where a dragged row would land.
  *
@@ -34,7 +35,7 @@ import type { Landing } from "./plan.ts"
 
 export function DropLine(props: { readonly landing: Landing }) {
   return (
-    <Portal>
+    <Portal mount={overlayRoot(document.body)}>
       <div
         // `LAYER.row` — it hangs off the rows, over them and under every
         // piece of chrome, which is the same claim the `•••` panel makes

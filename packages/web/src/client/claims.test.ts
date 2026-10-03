@@ -251,6 +251,9 @@ test("only the entry point registers a service worker", () => {
 test("overlays that hang over the outline mount on overlayRoot", () => {
   expect(filesSpelling(/overlayRoot\s*\(/)).toEqual([
     "plugins/outlines/src/browser/complete/Completions.tsx",
+    "plugins/outlines/src/browser/drag/DropLine.tsx",
+    "plugins/outlines/src/browser/drag/Refusal.tsx",
+    "plugins/outlines/src/browser/drag/Sweep.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
     "plugins/outlines/src/browser/menu/MenuSaid.tsx",
     "plugins/outlines/src/browser/menu/Panel.tsx"
@@ -315,9 +318,7 @@ test("a pane's index is drawn by the workspace and read where two panes must be 
     "plugins/layout/src/pane/Panes.tsx",
     "plugins/markdown/src/browser/BodyPage.tsx",
     "plugins/markdown/src/browser/PageView.tsx",
-    "plugins/markdown/src/browser/document/Rendered.tsx",
     "plugins/navigation/src/PageView.tsx",
-    "plugins/outlines/src/browser/OutlinePage.tsx",
     "plugins/outlines/src/browser/PageView.tsx",
     "plugins/outlines/src/browser/drag/lines.ts"
   ])

@@ -50,7 +50,7 @@
  */
 import { TESTID } from "olai-plugin-csv/testids"
 import { csvTable } from "@olai/format"
-import { createEffect, createSignal, onCleanup, createMemo, For, Show } from "solid-js"
+import { createEffect, createSignal, onCleanup, createMemo, Index, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 
@@ -71,8 +71,7 @@ export function Csv(props: { readonly file: string }) {
     const directory = servedDirectory()
     const file = props.file
     const revision = directory?.head(() => file)()
-    setServed(undefined)
-    if (directory === undefined || revision === undefined) return
+    if (directory === undefined || revision === undefined) { setServed(undefined); return }
     const controller = new AbortController()
     onCleanup(() => controller.abort())
     void Effect.runPromise(directory.body(file), { signal: controller.signal }).then(
@@ -127,29 +126,29 @@ export function Csv(props: { readonly file: string }) {
                 >
                   <thead>
                     <tr>
-                      <For each={header() ?? []}>
+                      <Index each={header() ?? []}>
                         {(cell) => (
                           <th class="border-b border-muted bg-rule/40 px-2 py-1 text-left align-top font-semibold whitespace-pre">
-                            {cell}
+                            {cell()}
                           </th>
                         )}
-                      </For>
+                      </Index>
                     </tr>
                   </thead>
                   <tbody>
-                    <For each={body()}>
+                    <Index each={body()}>
                       {(row) => (
                         <tr>
-                          <For each={row}>
+                          <Index each={row()}>
                             {(cell) => (
                               <td class="border-b border-rule px-2 py-1 text-left align-top whitespace-pre">
-                                {cell}
+                                {cell()}
                               </td>
                             )}
-                          </For>
+                          </Index>
                         </tr>
                       )}
-                    </For>
+                    </Index>
                   </tbody>
                 </table>
               </div>

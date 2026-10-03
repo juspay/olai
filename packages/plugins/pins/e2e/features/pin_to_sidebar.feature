@@ -42,7 +42,8 @@ Feature: Pinning a page to the sidebar
   Scenario: A pinned node is offered the way off the shelf instead
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
-    And I open the node menu of "order"
+    Then the pinned shelf holds "/#order"
+    When I open the node menu of "order"
     Then the node menu offers "Unpin from sidebar"
     And the node menu does not offer "Pin to sidebar"
 

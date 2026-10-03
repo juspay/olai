@@ -1,7 +1,7 @@
 /** Per-conversation previewing state, created by the conversation UI owner.
  * It survives folding within this tab activation and leaves with that owner. */
 
-import { createSignal } from "solid-js"
+import { createSignal, createSelector } from "solid-js"
 
 export const createPreviewing = () => {
 const [open, setOpen] = createSignal<string | null>(null)
@@ -12,7 +12,7 @@ const previewing = open
 
 /** Whether THIS frame is the open one. Spelled here rather than compared at
  *  each door, so that "open" is one question with one answer. */
-const isPreviewing = (row: string): boolean => open() === row
+const isPreviewing = createSelector(open)
 
 /** Open this agent's work — or close it, when it is the one already open. The
  *  door is the same control both ways round, because a reader who presses the

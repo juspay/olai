@@ -171,7 +171,7 @@ Then("the palette shows an ask error", async function (this: OlaiWorld) {
   await this.page
     .locator(PALETTE_ASK_ERROR)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await inTheMood(this, PALETTE_ASK_ERROR, "alarm", "the palette's ask error");
+  await inTheMood(this, PALETTE_ASK_ERROR, "alarm", "the palette's ask error", this.page);
 });
 
 Then(
@@ -480,14 +480,14 @@ Then("the palette is not asking anything", async function (this: OlaiWorld) {
 Then(
   "the palette says {string}",
   async function (this: OlaiWorld, text: string) {
-    await saysThat(this, PALETTE_SAID, text, "palette line", "alarm");
+    await saysThat(this, PALETTE_SAID, text, "palette line", "alarm", this.page);
   },
 );
 
 Then(
   "the palette remarks {string}",
   async function (this: OlaiWorld, text: string) {
-    await saysThat(this, PALETTE_SAID, text, "palette line", "aside");
+    await saysThat(this, PALETTE_SAID, text, "palette line", "aside", this.page);
   },
 );
 

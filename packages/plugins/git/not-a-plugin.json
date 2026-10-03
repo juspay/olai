@@ -12,6 +12,10 @@
     "src/ledger/pending.ts",
     "src/tools.ts"
   ],
+  "identity": [
+    "src/browser.tsx",
+    "src/browser/commit/preparation.ts"
+  ],
   "mcp": [
     "src/browser/commit/said.ts",
     "src/ledger/pending.ts"

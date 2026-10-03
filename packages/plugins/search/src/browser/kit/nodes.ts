@@ -82,7 +82,7 @@ export function createSearch(
     if (wanted() === null || question === null || answer.error() !== undefined) return undefined
     const value = answer()
     return value === undefined ? previous : { question, value }
-  }, undefined)
+  }, undefined, { equals: (a, b) => a?.question === b?.question && a?.value === b?.value })
   const answering = () => {
     const got = held()
     return got !== undefined && got.question.query === wanted()?.query && got.question.kind === wanted()?.kind ? got.question.query : null

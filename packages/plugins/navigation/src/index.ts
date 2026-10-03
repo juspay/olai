@@ -3,7 +3,7 @@
 import { location, serviceTag } from "@olai/plugin-api/contracts"
 import type { Accessor, JSX } from "solid-js"
 import type { Route } from "./routes.ts"
-import type { Router } from "./routing.tsx"
+import type { Router, NavigationRouter } from "./routing.tsx"
 export const name = "navigation"
 /** Marks controls whose subject is a pane reading. The attribute value is
  * the owning pane index, including for controls portalled outside that pane. */
@@ -17,7 +17,7 @@ export interface PageInfo {
   readonly title?: string
   readonly history?: Pick<import("@olai/edit-history/undoing.ts").Undo, "undo" | "redo" | "record">
 }
-export interface Navigation extends Router {
+export interface Navigation extends NavigationRouter {
   readonly page: (index: number | Accessor<number>) => JSX.Element
   /** Live report of an open pane; withdrawn when its owner leaves. */
   readonly info: (index: number) => PageInfo | undefined

@@ -1,3 +1,4 @@
+import { usePaneId } from "olai-plugin-navigation/routing"
 /**
  * WHAT POINTS AT THIS DOCUMENT, under its heading — the reverse reading a
  * `.md` could not have.
@@ -55,7 +56,6 @@ import { createMemo, Show, untrack } from "solid-js"
 import { makeReferrerWays, referrerRowOf, ReferrersSection, type ReferrerRow } from "@olai/markdown-ui/ReferrersSection.tsx"
 import { only } from "@olai/web/client/narrow.ts"
 import { atFile, atNode, type Route } from "olai-plugin-navigation/routes"
-import { useHere } from "olai-plugin-navigation/routing"
 import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
 
 export function Referrers(props: {
@@ -99,9 +99,8 @@ function Section(props: {
   readonly reading: Accessor<PageReading | undefined>
   readonly memory: ReferrerMemory | undefined
 }) {
-  const pane = useHere()()
+  const pane = usePaneId()()
   const key = JSON.stringify([pane, `referrers:${props.file}`])
-  const memory = props.memory
   const stillShown = () => {
     const shows = untrack(props.reading)?.shows
     const doc = shows === undefined ? undefined : only(shows, "document")
@@ -122,7 +121,7 @@ function Section(props: {
       testid={TESTID.documentReferrers}
       summaryTestid={TESTID.documentReferrersSummary}
       linkTestid={TESTID.documentReferrer}
-      memory={memory}
+      memory={props.memory}
     />
   )
 }

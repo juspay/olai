@@ -355,3 +355,10 @@ Files section controller, separately from folder-path preferences; its storage
 listeners stay under the Files activation and its transient state under the
 mounted sidebar. These boundaries preserve the existing withdrawal order and
 optional service reconnection.
+
+Retained navigation lanes own route signals, landings and page reports. Layout
+owns their mounted page subtrees and leases content visibility from navigation;
+a reading or failed content gate hides those subtrees and makes their shown
+accessors false without disposing them. A forgotten front lane stays live until
+its replacement is installed. Page routers contain only lane-local operations;
+window-wide tab controls belong to the declared navigation service.
