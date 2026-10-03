@@ -1,17 +1,17 @@
 /** Per-conversation folds state, created by the conversation UI owner.
  * It survives folding within this tab activation and leaves with that owner. */
 
-import { createSignal } from "solid-js"
+import { createStore } from "solid-js/store"
 
 export const diffKey = (call: string, at: number, path: string): string =>
   `${call}\u0000${at}\u0000${path}`
 
 
 export const createFolds = () => {
-const [unfolded, setUnfolded] = createSignal<ReadonlySet<string>>(new Set())
+const [unfolded, setUnfolded] = createStore<Record<string, boolean>>({})
 
 /** Is this one open? */
-const isUnfolded = (id: string): boolean => unfolded().has(id)
+const isUnfolded = (id: string): boolean => unfolded[id] === true
 
 /**
  * The name of ONE BLOCK of change inside one call: the call, WHERE IN THAT
@@ -44,12 +44,8 @@ const isUnfolded = (id: string): boolean => unfolded().has(id)
  * file nothing can diff or blame line by line is a worse price than any key.
  */
 const toggleFold = (id: string): void => {
-  setUnfolded((open) => {
-    const next = new Set(open)
-    if (!next.delete(id)) next.add(id)
-    return next
-  })
+  setUnfolded(id, value => !value)
 }
 
-return { isUnfolded, toggleFold }
+return { empty: () => !Object.values(unfolded).some(Boolean), isUnfolded, toggleFold }
 }

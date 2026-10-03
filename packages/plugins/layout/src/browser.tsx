@@ -24,7 +24,7 @@ import Frame from "./Frame.tsx"
 import { contentStatus,name,overlays,type Shell,sidebar,strip,tools } from "./index.ts"
 import { trackDesktop } from "./layout/media-owner.ts"
 import {
-  desktop, panelSnap, panelWidth, resetPanelWidths, setPanelSnap,
+  createLayoutState, holdLayoutState, desktop, panelSnap, panelWidth, resetPanelWidths, setPanelSnap,
   revealSidebar, setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, toggleSidebar,
 } from "./layout/live.ts"
 import { followLayout } from "./layout/prefs-owner.ts"
@@ -33,6 +33,7 @@ export default definePlugin({
   name,
   needs: [rendererSlots, Offers, navigation, Faces],
   apply: Effect.gen(function*() {
+    yield* Effect.acquireRelease(Effect.sync(() => holdLayoutState(createLayoutState())), stop => Effect.sync(stop))
     // WHAT OTHER PLUGINS HUNG, held for this activation — `./faces.ts` on why
     // the shell holds it rather than threading it through every seat.
     yield* holdFaces(yield* Faces)

@@ -1,3 +1,4 @@
+import { Key } from "@solid-primitives/keyed"
 /**
  * THE OUTLINES HEADING'S `+`, open: one item per kind of file a reader can
  * start here (`New outline`, `New document`), each contributed by that kind's
@@ -44,10 +45,10 @@ export default function NewMenu(props: {
           // returns focus to the `+` it came from.
           if (!picked && anchor.isConnected) anchor.focus({ preventScroll: true })
         }}>
-        <For each={props.items}>{making =>
-          <DropdownMenu.Item class={`block ${MENU_ITEM}`} data-testid={making.testids.open}
-            onSelect={() => { picked = true; props.pick(making) }}>{making.label}</DropdownMenu.Item>
-        }</For>
+        <Key each={props.items} by="of">{making =>
+          <DropdownMenu.Item class={`block ${MENU_ITEM}`} data-testid={making().testids.open}
+            onSelect={() => { picked = true; props.pick(making()) }}>{making().label}</DropdownMenu.Item>
+        }</Key>
       </DropdownMenu.Content>
     </DropdownMenu.Portal>
   </DropdownMenu>

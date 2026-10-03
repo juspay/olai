@@ -1,3 +1,5 @@
+import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * Whether a row is OPEN, and who decided.
  *
@@ -35,7 +37,7 @@
  * leaves.
  */
 
-import { type Accessor, createSignal } from "solid-js"
+import { type Accessor, createEffect, createSignal, untrack } from "solid-js"
 
 import { dismissOn } from "@olai/web/client/dismiss.ts"
 
@@ -65,6 +67,7 @@ export const createNoteExpand = (
    *  screen. */
   fallback: () => boolean,
 ): NoteExpand => {
+  const shown = useShown()
   const [touched, setTouched] = createSignal<boolean | undefined>(undefined)
   const expanded = (): boolean => touched() ?? fallback()
   let root: HTMLElement | undefined
@@ -74,11 +77,15 @@ export const createNoteExpand = (
   // it — see `setTrigger` for the bug that costs. Open only counts as a row
   // this reader OPENED: see the header for why the preference's own rows are
   // not on the dismissal stack.
-  dismissOn({
-    open: () => touched() === true,
+  createEffect(() => {
+    if (touched() !== true) return
+    const afterGesture = createAfterGesture()
+    untrack(() => dismissOn({
+    open: () => shown() && touched() === true,
     root: () => root,
     trigger: () => trigger,
-    dismiss: () => setTouched(false),
+    dismiss: () => afterGesture(() => { if (shown()) setTouched(false) }),
+  }))
   })
 
   return {

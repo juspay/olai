@@ -173,7 +173,7 @@ When("I follow the outline {string} while updates are delayed", async function (
 });
 
 Then("the new {word} box is ready", async function (this: OlaiWorld, kind: string) {
-  await this.expectAttribute(selector(making(kind).testids.path), "aria-busy", "false", `new ${kind} box`);
+  await this.expectChromeAttribute(selector(making(kind).testids.path), "aria-busy", "false", `new ${kind} box`);
 });
 
 Then("the arriving document editor leaves the new document box focused", async function (this: OlaiWorld) {
@@ -210,6 +210,7 @@ Then(
       said,
       `refusal under the new ${kind} box`,
       "alarm",
+      this.page,
     );
   },
 );

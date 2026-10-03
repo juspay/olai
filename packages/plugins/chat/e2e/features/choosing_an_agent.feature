@@ -901,11 +901,13 @@ Feature: Choosing a node agent's engine
     And I ask the agent "slow"
     Then terminal output contains "omp command started"
     And terminal output contains "Running"
-    When the agent is released
+    When I mark the terminal output element
+    And the agent is released
     Then the agent is idle
     And terminal output contains "Exit 0"
     And terminal output contains "omp command started"
     And terminal output contains "omp command done"
+    And the terminal output keeps its element
 
   @omp @agent-stored @scratch:chat
   Scenario: Reopening the conversation talks to the agent that has it

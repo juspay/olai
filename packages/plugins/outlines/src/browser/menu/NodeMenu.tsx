@@ -83,6 +83,7 @@ export function NodeMenu(props: {
    *  ROW's owner rather than the panel's: the menu is closed by the time most
    *  answers arrive. */
   const picking = createPicking()
+  const pick = picking.pick
 
   /**
    * What the line beside the `•••` shows — a verb's answer, or the reason the
@@ -125,10 +126,10 @@ export function NodeMenu(props: {
           component={dropdownNow()}
           actions={props.actions}
           door={props.door}
-          onPick={picking.pick}
+          onPick={pick}
         />
       </Show>
-      <MenuSaid said={said()} />
+      <Show when={said()}>{message => <MenuSaid said={message()} />}</Show>
     </div>
   )
 }

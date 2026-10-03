@@ -10,8 +10,8 @@
  *
  * THE FRONT TAB MIRRORS THE ROUTER. A door, Back, a pane verb: whatever moves
  * the router's workspace rewrites the front tab's address and title, and
- * nothing else in the list. A tab in the background has no page mounted and
- * does not change while it is there.
+ * nothing else in the list. Visited background tabs retain their own pages
+ * and mirror only their own changes.
  *
  * TWO READINGS ARRIVE FROM COMPONENTS, because the row may not want what they
  * need: whether a strip draws the tabs on a desktop (`draw`, from the strip,
@@ -19,7 +19,7 @@
  * from the attention component, which names `chat.state`). Each is registered
  * by its owner and released with it.
  */
-import { type Accessor, createEffect, createMemo, createRoot, createSignal, on, untrack } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, mapArray, on, untrack } from "solid-js"
 
 import { createPreference } from "@olai/web/client/preference.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
@@ -55,17 +55,6 @@ export interface TabsStore extends TabsState {
  *  split's leaves' labels joined. */
 const labelOf = (routes: Navigation["routes"], workspace: Workspace): string =>
   panesOf(workspace).map((pane) => routes.label(pane.route)).join(" + ")
-
-/**
- * What the lone page being drawn calls itself, once it has really said. A page
- * mounts before it knows its name — no report, then its own address standing in
- * for one (`/#p71164pu`), then the name — and only the last is a name.
- */
-const reportedName = (router: Pick<Navigation, "info" | "routes">, workspace: Workspace): string | undefined => {
-  const [pane, ...more] = panesOf(workspace)
-  const title = router.info(0)?.title?.trim()
-  return more.length > 0 || pane === undefined || !title || title === router.routes.href(pane.route) ? undefined : title
-}
 
 export const createTabs = (router: Navigation): TabsStore => {
   // The stored set as it is PRINTED: read once here, written below only when
@@ -104,7 +93,7 @@ export const createTabs = (router: Navigation): TabsStore => {
    * their lanes forgotten, and a new front tab has its lane switched in, after
    * the outgoing tab has recorded which entry it was left on.
    */
-  const commit = (next: TabList): void => {
+  const commit = (next: TabList): void => batch(() => {
     const before = untrack(list)
     if (next === before) return
     const gone = before.tabs.filter((tab) => !next.tabs.some((kept) => kept.id === tab.id))
@@ -124,7 +113,7 @@ export const createTabs = (router: Navigation): TabsStore => {
       // window's own history, so Back returns to the page it came from.
       router.open(workspace)
     }
-  }
+  })
 
   const home = (from: TabList) => (): Tab => tabFor(nextId(from), lone(HOME_ROUTE))
 
@@ -178,19 +167,27 @@ export const createTabs = (router: Navigation): TabsStore => {
       }
     }),
     follow: () => createRoot((dispose) => {
-      createEffect(() => {
-        const workspace = router.workspace()
-        const href = hrefOf(workspace)
-        const reported = reportedName(router, workspace)
-        const label = labelOf(router.routes, workspace)
-        // A TAB COMING BACK KEEPS ITS NAME while its page arrives, rather than
-        // flickering through its stand-ins; only a page at a new address takes
-        // its label before it has a real name.
-        setList((all) => {
-          const front = all.tabs.find((tab) => tab.id === all.front)
-          return updateTab(all, all.front, { href, title: reported ?? (front?.href === href ? front.title : label) })
+      // Each retained lane owns its mirror. Unrelated lane changes never
+      // re-read this one's routes or page reports.
+      const mirrors = mapArray(router.lanes, lane => {
+        const href = createMemo(() => hrefOf(lane.workspace()))
+        const label = createMemo(() => lane.panes().map(pane => router.routes.label(pane.route())).join(" + "))
+        const reported = createMemo(() => {
+          if (lane.panes().length !== 1) return undefined
+          const title = lane.info(0)?.title?.trim()
+          return title && title !== router.routes.href(lane.panes()[0]!.route()) ? title : undefined
+        })
+        createEffect(() => {
+          const id = lane.lane(), address = href(), title = reported(), fallback = label()
+          setList(all => {
+            const key = id ?? all.front
+            const tab = all.tabs.find(tab => tab.id === key)
+            return tab ? updateTab(all, key, { href: address,
+              title: title ?? (tab.href === address ? tab.title : fallback) }) : all
+          })
         })
       })
+      createEffect(mirrors)
       // A WRITE ONLY WHEN WHAT IS KEPT CHANGES. The front tab's address and
       // name are not kept — the address bar supplies both at activation — so a
       // filter keystroke in the tab in front prints the same string and writes

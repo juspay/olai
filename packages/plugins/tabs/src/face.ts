@@ -1,9 +1,11 @@
 /**
  * What a tab WEARS: a glyph for the kind of page it holds, the name it goes by,
  * and the address it holds as its tooltip. All of it is read off the address,
- * so a tab in the background — which has no page mounted — wears the same face
- * it wore in front.
+ * so a restored tab that has not been visited can draw its face before its
+ * page is mounted. Live background lanes also update their reported titles.
  */
+import { keyArray } from "@solid-primitives/keyed"
+import { createMemo, type Accessor } from "solid-js"
 import type { Routing } from "olai-plugin-navigation/routes"
 import { panesOf, type WorkspaceRouting, workspaceOf } from "olai-plugin-navigation/workspace"
 
@@ -48,7 +50,11 @@ const readable = (href: string): string => {
  * wears the title its page last reported, exactly as before.
  */
 export const facesOf = (routes: WorkspaceRouting, tabs: ReadonlyArray<Tab>): ReadonlyMap<string, TabFace> => {
-  const read = tabs.map((tab) => {
+  const read = tabs.map(tab => readFace(routes, tab))
+  return combineFaces(read)
+}
+
+const readFace = (routes: WorkspaceRouting, tab: Tab) => {
     const panes = panesOf(workspaceOf(routes, tab.href))
     const [lone, ...more] = panes
     if (lone !== undefined && more.length === 0) {
@@ -62,11 +68,24 @@ export const facesOf = (routes: WorkspaceRouting, tabs: ReadonlyArray<Tab>): Rea
       short: panes.map((pane) => routes.name(pane.route) ?? routes.label(pane.route)).join(" + "),
       long: panes.map((pane) => routes.label(pane.route)).join(" + "),
     }
-  })
+  }
+
+const combineFaces = (read: ReadonlyArray<ReturnType<typeof readFace>>): ReadonlyMap<string, TabFace> => {
   const longsBy = new Map<string, Set<string>>()
   for (const one of read) longsBy.set(one.short, (longsBy.get(one.short) ?? new Set<string>()).add(one.long))
   return new Map(read.map(({ tab, short, long }) => [tab.id, {
     title: (longsBy.get(short)?.size ?? 0) > 1 ? long : short,
     tip: readable(tab.href),
   }]))
+}
+
+/** Each tab owns its parse; replacing a sibling or changing the front tab
+ * does not reinterpret this address. Collision labels remain a set reading. */
+export const createFaces = (routes: WorkspaceRouting, tabs: Accessor<ReadonlyArray<Tab>>) => {
+  const rows = keyArray(tabs, tab => tab.id, tab => {
+    const href = createMemo(() => tab().href)
+    const title = createMemo(() => tab().title)
+    return createMemo(() => readFace(routes, { id: tab().id, href: href(), title: title() }))
+  })
+  return createMemo(() => combineFaces(rows().map(row => row())))
 }

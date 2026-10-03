@@ -6,7 +6,24 @@ import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route,type Routing } from "./routes.ts"
 import type { Workspace,WorkspaceRouting } from "./workspace.ts"
+export interface LivePane {
+  readonly element: Accessor<HTMLElement | undefined>
+  readonly mount: (element: HTMLElement) => () => void
+  readonly id: string
+  readonly index: Accessor<number>
+  readonly route: Accessor<Route>
+  readonly width: Accessor<number | undefined>
+}
+export interface Lane extends Router {}
 export interface Router {
+  readonly panes: Accessor<readonly LivePane[]>
+  readonly focusIndex: Accessor<number>
+  readonly split: Accessor<boolean>
+  readonly shown: Accessor<boolean>
+  readonly info: (index: number) => import("./index.ts").PageInfo | undefined
+  readonly focused: Accessor<import("./index.ts").PageInfo | undefined>
+  readonly report: (index: Accessor<number>, info: Accessor<import("./index.ts").PageInfo>) => void
+
   /**
    * THE ROUTE OPERATIONS THAT READ THE MOUNTED ROSTER — printing a URL,
    * parsing one, finding the tenant behind one, and the three narrowing
@@ -81,6 +98,17 @@ export interface Router {
   readonly expand: (index: number) => void
   readonly resize: (widths: ReadonlyArray<number>) => void
   readonly reorder: (from: number, to: number) => void
+  readonly lane: Accessor<string | null>
+
+}
+
+/** Window-wide controls belong to the declared navigation service, never to
+ * the lane router handed to a page. */
+export interface NavigationRouter extends Router {
+  readonly lanes: Accessor<readonly Lane[]>
+  /** Layouts register content visibility independently. Any shown registration draws
+   * the front lane; with no registrations the front lane is shown. */
+  readonly drawContent: (shown: Accessor<boolean>) => () => void
   /**
    * WHICH TAB THE HISTORY BELONGS TO, or `null` for the window's own.
    *
@@ -116,6 +144,18 @@ export function RouterProvider(
   )
 }
 
+export const useMaybeRouter = (): Router | undefined => useContext(RouterContext)
+const ShownContext = createContext<Accessor<boolean>>()
+export function ShownProvider(props: { readonly shown: Accessor<boolean>; readonly children: JSX.Element }) {
+  return <ShownContext.Provider value={props.shown}>{props.children}</ShownContext.Provider>
+}
+export const useShown = (): Accessor<boolean> => {
+  const shown = useContext(ShownContext)
+  if (shown) return shown
+  const router = useContext(RouterContext)
+  return router?.shown ?? (() => true)
+}
+
 export const useRouter = (): Router => {
   const router = useContext(RouterContext)
   if (router === undefined) {
@@ -126,10 +166,15 @@ export const useRouter = (): Router => {
 
 /** Which pane a gesture in this component is about: the one we are
  *  drawn in, or the focused pane when we sit outside every pane. */
+export const usePaneId = (): Accessor<string> => {
+  const router = useRouter(), pane = usePane()
+  return () => pane?.id ?? router.panes()[router.focusIndex()]!.id
+}
+
 export const useHere = (): (() => number) => {
   const router = useRouter()
   const pane = usePane()
-  return () => pane?.index ?? router.workspace().focus
+  return () => pane?.index ?? router.focusIndex()
 }
 
 /**
@@ -223,7 +268,7 @@ export const useMaybeGo = (): ((route: Route) => void) | null => {
   const router = useContext(RouterContext)
   const pane = usePane()
   if (router === undefined) return null
-  return (route) => router.goIn(pane?.index ?? router.workspace().focus, route)
+  return (route) => router.goIn(pane?.index ?? router.focusIndex(), route)
 }
 
 export interface LinkProps {

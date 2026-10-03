@@ -1959,6 +1959,23 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  if (verb === "benchmark-transcript") {
+    // 300 distinct transcript rows, including rendered code and opened diffs.
+    for (let i = 0; i < 150; i++) {
+      say(`Section ${i}\n\n\`\`\`typescript\nconst item${i} = { before: ${i}, after: ${i + 1} };\nconsole.log(item${i});\n\`\`\`\n`)
+      const toolCallId = `call-${++nextMcpId}`
+      notify("session/update", { sessionId, update: {
+        sessionUpdate: "tool_call", toolCallId, title: `Edit benchmark-${i}.md`, status: "completed",
+        rawInput: { file_path: `${cwd}/benchmark-${i}.md` },
+        _meta: { claudeCode: { toolName: "Edit" } },
+        content: [{ type: "diff", path: `${cwd}/benchmark-${i}.md`, oldText: `# Section ${i}\nOld explanation.\nUnchanged ending.\n`, newText: `# Section ${i}\nNew explanation.\nUnchanged ending.\n` }],
+      } })
+    }
+    say("Benchmark transcript ready.")
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "hold") {
     writeFileSync(`${cwd}/.agent-held-pid`, String(process.pid))
     const toolCallId = `call-${++nextMcpId}`

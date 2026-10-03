@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js"
 /**
  * How much of a row this browser wants to see by default.
  *
@@ -51,13 +52,13 @@ const codec: PreferenceCodec<Density> = {
 }
 
 const makePref = () => createPreference(DENSITY_KEY, codec)
-let pref = makePref()
+const [pref, setPref] = createSignal(makePref())
 
 /** How this browser reads a row by default. */
-export const density: Accessor<Density> = () => pref.value()
+export const density: Accessor<Density> = () => pref().value()
 
-/** Pick one — `pref.set` writes `olai.notes.density`. */
-export const setDensity = (value: Density): void => pref.set(value)
+/** Pick one — `pref().set` writes `olai.notes.density`. */
+export const setDensity = (value: Density): void => pref().set(value)
 
 /** Does a CLOSED row draw the clamped one-line preview under its title? True at
  *  `cozy` and nowhere else: `compact` says the title alone and `open` is not
@@ -72,6 +73,6 @@ export const startsOpen = (value: Density): boolean => value === "open"
  *  preference has, started once from `main.tsx`, because a preference belongs
  *  to the browser and a browser is more than one tab. */
 export const followDensity = (): (() => void) => {
-  pref = makePref()
-  return pref.follow()
+  setPref(makePref())
+  return pref().follow()
 }

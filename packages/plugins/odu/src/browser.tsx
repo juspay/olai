@@ -107,11 +107,13 @@ export default definePlugin({
     const slots = yield* Slots
     const wired = yield* Wired
     const client = wired.client() as CiClient
-    const owned = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({
+    const owned = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      const value = client.cells.service.use().value
+      return ({
       dispose,
       runs: createRuns(client.cells.ci.use().value),
-      link: () => client.cells.service.use().value() ?? ODU_UNDIALED,
-    }))), owned => Effect.sync(owned.dispose))
+      link: () => value() ?? ODU_UNDIALED,
+    })})), owned => Effect.sync(owned.dispose))
 
     // THE CHIP AND WHAT ITS PRESS OPENS — this plugin's one dressing.
     //

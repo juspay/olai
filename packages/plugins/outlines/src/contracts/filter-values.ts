@@ -45,8 +45,8 @@ export const matchedAttr = (
   // NOTHING TO NARROW BY is NOTHING SAID — no query, or one whose answer has
   // not arrived. One question, asked once (`./narrowing.ts`'s `selected`), so
   // this file cannot forget half of it in one of its four answers.
-  const found = narrowed.selected()
-  return found === null ? undefined : String(found.has(id))
+  const found = matchOf(narrowed, id)
+  return found === undefined ? undefined : String(found)
 }
 
 /**
@@ -75,7 +75,7 @@ export const lighting = (
   narrowed: Narrowed,
   id: string,
 ): ReadonlyArray<string> =>
-  narrowed.selected()?.has(id) === true ? narrowed.needles() : NO_NEEDLES
+  matchOf(narrowed, id) === true ? narrowed.needles() : NO_NEEDLES
 
 /**
  * Is this row drawn only as the ancestry that LEADS to a match?
@@ -85,7 +85,7 @@ export const lighting = (
  * as context — every row is there because the page draws it.
  */
 export const asContext = (narrowed: Narrowed, id: string): boolean =>
-  narrowed.selected()?.has(id) === false
+  matchOf(narrowed, id) === false
 
 /**
  * How a row says it is context and not an answer — the ink for {@link
@@ -125,4 +125,7 @@ export const behindTheMark = (
   narrowed: Narrowed,
   id: string,
 ): ReadonlyArray<string> =>
-  narrowed.selected()?.get(id)?.matched === "desc" ? narrowed.needles() : NO_NEEDLES
+  (narrowed.behind ? narrowed.behind(id) : narrowed.selected()?.get(id)?.matched === "desc") ? narrowed.needles() : NO_NEEDLES
+
+const matchOf = (narrowed: Narrowed, id: string): boolean | undefined =>
+  narrowed.matchOf ? narrowed.matchOf(id) : narrowed.selected()?.has(id)

@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 /**
  * The Commit pill: what olai wrote, what it last recorded — and, since
  * `one-git-indicator`, whether git is in any state to record anything at all.
@@ -100,14 +101,14 @@ export function Commit() {
   const panel = createPopover()
   const now = createNow()
 
-  const face = () => faceOf(commit.pending(), commit.heard(), commit.git())
+  const face = createMemo(() => faceOf(commit.pending(), commit.heard(), commit.git()))
   const inert = () => isInert(face())
   /** THE ONE READING (`./said.ts`): the tone the dot wears — the same one the
    *  bar's health dot folds — the first words, the riders, and the sentence for
    *  the two places it has to be: the tip a pointer opens, and the label
    *  everything else gets. */
-  const read = () => readingOf(face(), commit.pending(), commit.git())
-  const said = () => read().detail
+  const read = createMemo(() => readingOf(face(), commit.pending(), commit.git()))
+  const said = createMemo(() => read().detail)
 
   /**
    * How long ago the last commit was, for the one face that has one — and `""`
@@ -147,7 +148,7 @@ export function Commit() {
 
   const showPill = () => desktop()
   const showBanner = () => !desktop() && (read().tone === "notice" || read().tone === "alarm")
-  const line = () => newsSays(face(), commit.pending(), commit.git())
+  const line = createMemo(() => newsSays(face(), commit.pending(), commit.git()))
 
   return (
     <>

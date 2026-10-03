@@ -142,7 +142,7 @@ When("I press the palette submit", async function (this: OlaiWorld) {
 
 /** Its refusal, in the palette's refusal line and the alarm's mood. */
 Then("the palette refuses with {string}", async function (this: OlaiWorld, sentence: string) {
-  await saysThat(this, PALETTE_ASK_ERROR, sentence, "the level's refusal", "alarm");
+  await saysThat(this, PALETTE_ASK_ERROR, sentence, "the level's refusal", "alarm", this.page);
 });
 
 Then("the palette level is busy", async function (this: OlaiWorld) {

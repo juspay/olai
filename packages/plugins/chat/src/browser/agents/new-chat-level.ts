@@ -27,7 +27,8 @@ export const NEW_CHAT_ROW = "new-chat"
 /** The focused row, else the zoomed node, of the focused pane. */
 const hereNow = (): string | null => {
   const nav = navigation()
-  const page = nav === undefined ? undefined : pageReadings()?.at(nav.workspace().focus)?.shows
+  const pane = nav?.panes()[nav.focusIndex()]
+  const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
   return focusedNode() ?? (page?.kind === "node" && page.zoomed.kind === "node" ? page.zoomed.shows.node.id : null)
 }
 

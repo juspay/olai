@@ -1,7 +1,7 @@
 import { definePlugin } from "@olai/plugin-api"
 import { fileKindKey } from "@olai/plugin-api/file-kinds"
 import { Effect } from "effect"
-import { pages, navigation } from "olai-plugin-navigation/contract"
+import { pages } from "olai-plugin-navigation/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { fileAccess } from "olai-plugin-vault/contract"
 import { referrerMemory } from "olai-plugin-markdown/contract"
@@ -33,9 +33,9 @@ export const components = {
     const memory = yield* referrerMemory
     yield* Effect.acquireRelease(Effect.sync(() => channel.hold(memory)), stop => Effect.sync(stop))
   }) }),
-  page: definePlugin({ name: "page", needs: [rendererSlots, navigation, fileAccess], apply: Effect.gen(function*() {
-    const slots = yield* rendererSlots, nav = yield* navigation, directory = yield* fileAccess
+  page: definePlugin({ name: "page", needs: [rendererSlots, fileAccess], apply: Effect.gen(function*() {
+    const slots = yield* rendererSlots, directory = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(directory)), stop => Effect.sync(stop))
-    yield* slots.contribute(pages, { by, edits: false, page: () => <BodyPage navigation={nav} directory={directory} memory={channel.read()} Body={Pdf} /> }, { key: fileKindKey(by) })
+    yield* slots.contribute(pages, { by, edits: false, page: () => <BodyPage directory={directory} memory={channel.read()} Body={Pdf} /> }, { key: fileKindKey(by) })
   }) }),
 }

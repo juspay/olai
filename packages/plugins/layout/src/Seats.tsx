@@ -26,9 +26,9 @@ import { only } from "./faces.ts"
 function Seat(props: { readonly slot: "app.panel" | "app.viewer" }) {
   const taken = createMemo(() => only(props.slot))
   return (
-    <Show when={taken()}>
+    <Show when={taken()} keyed>
       {(seat) => {
-        const Face = seat().face
+        const Face = seat.face
         return <Face />
       }}
     </Show>

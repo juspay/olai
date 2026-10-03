@@ -1,3 +1,5 @@
+import { createAfterGesture } from "@olai/web/client/after-gesture.ts"
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * The caret: a title being typed, a note being written, and what the last
  * write said back.
@@ -35,7 +37,7 @@
  * parent is folded — are places the tree draws no body under.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
-import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
 import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"
 import { createCompletion } from "../complete/completing.tsx"
@@ -90,6 +92,8 @@ export function TitleEditor(props: {
    */
   readonly fillsLine?: boolean
 }) {
+  const shown = useShown()
+  const afterGesture = createAfterGesture()
   let element!: HTMLInputElement
 
   /**
@@ -239,8 +243,8 @@ export function TitleEditor(props: {
           // Solid finishes this DOM update, when a redraw can be distinguished
           // from leaving the editor. Moving the same input may already have
           // restored its focus, in which case there was no departure at all.
-          queueMicrotask(() => {
-            if (document.activeElement !== element) blur(element.isConnected)
+          afterGesture(() => {
+            if (shown() && document.activeElement !== element) blur(element.isConnected)
           })
         }}
       />
@@ -276,6 +280,8 @@ export function DescEditor(props: {
    *  continued. */
   readonly caret?: number
 }) {
+  const shown = useShown()
+  const afterGesture = createAfterGesture()
   let element!: HTMLTextAreaElement
   takeCaret(() => element, { at: () => props.caret, then: () => grow(element) })
 
@@ -291,7 +297,10 @@ export function DescEditor(props: {
         props.onInput(event.currentTarget.value)
       }}
       onKeyDown={(event) => props.onKey(event)}
-      onBlur={() => { if (!takingOfflineFocus()) props.onBlur(element.isConnected) }}
+      onBlur={() => {
+        if (takingOfflineFocus()) return
+        afterGesture(() => { if (shown() && document.activeElement !== element) props.onBlur(element.isConnected) })
+      }}
     />
   )
 }
@@ -423,13 +432,8 @@ const caretOf = (target: EventTarget | null): Caret | undefined => {
  * reorder moves its element among its siblings — and moving or replacing a
  * focused element in the document takes the focus off it. So a person who
  * presses `Tab` and then types would be typing into the page. The editor
- * bumps a counter after every op that can do that (`Editor.caret`), and this
- * is what listens: one number, one effect, and no polling of
- * `document.activeElement`.
- *
- * The counter is read from the EDITOR rather than passed in: every one of
- * these is drawn inside the provider by construction, and a magic number
- * threaded through three components is a prop the next editor site forgets.
+ * requests its registered field to take focus after an operation. The
+ * registration leaves with the field, and a hidden page declines the request.
  *
  * WHERE the caret lands differs between the two halves, and that is what
  * `opening` is for: a fresh editor without an offset puts it at the end of
@@ -468,6 +472,9 @@ const takeCaret = (
     readonly armed?: () => boolean
   } = {},
 ): void => {
+  const shown = useShown()
+  // A keyed ghost can receive a fresh value without changing who owns focus.
+  const armed = createMemo(() => said.armed?.() !== false)
   const editor = useEditor()
   let opening = true
   const draft = editor.draft()
@@ -482,7 +489,7 @@ const takeCaret = (
   // bumps and structural row redraws keep their existing placement rules.
   const retained = editor.takeRange(slot) ?? (was === undefined ? undefined : editor.takeForwarded(was))
   const remember = () => {
-    if (said.armed?.() === false || slot === undefined) return
+    if (!armed() || slot === undefined) return
     const field = element()
     editor.rememberRange({ slot, start: field.selectionStart ?? 0,
       end: field.selectionEnd ?? 0, direction: field.selectionDirection ?? "none" })
@@ -503,13 +510,15 @@ const takeCaret = (
       document.removeEventListener("selectionchange", selectionChanged)
     })
   })
-  createEffect(on([editor.caret, editor.resuming], () => {
+  const takeCaret = () => {
+    if (!shown()) return
     const pending = editor.resuming()
     if (pending !== null) {
       if (slot?.field !== "new" || slot.row !== pending) return
-    } else if (said.armed?.() === false) return
+    } else if (!armed()) return
     const field = element()
-    const range = opening ? retained : undefined
+    const range = opening ? retained : { start: field.selectionStart ?? field.value.length,
+      end: field.selectionEnd ?? field.value.length, direction: field.selectionDirection ?? "none" }
     const at = opening
       ? said.at?.() ?? field.value.length
       : field.selectionStart ?? field.value.length
@@ -517,6 +526,13 @@ const takeCaret = (
     field.focus()
     field.setSelectionRange(range?.start ?? at, range?.end ?? at, range?.direction)
     said.then?.()
+  }
+  onCleanup(editor.onCaret(takeCaret))
+  createEffect(on(() => [editor.resuming(), armed(), shown()], () => {
+    // Keyed rows may move after effects in this update. Focus the final DOM.
+    let current = true
+    queueMicrotask(() => { if (current) takeCaret() })
+    onCleanup(() => { current = false })
   }))
 }
 

@@ -47,14 +47,14 @@ import {
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 Then("the tree is shown", async function (this: OlaiWorld) {
-  await this.page
+  await this.frontLane()
     .locator(OUTLINE_TREE)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then("no outline tree is shown", async function (this: OlaiWorld) {
   assert.strictEqual(
-    await this.page.locator(OUTLINE_TREE).count(),
+    await this.frontLane().locator(OUTLINE_TREE).count(),
     0,
     "a tree is on screen; an invalid set shows the error view INSTEAD of one",
   );

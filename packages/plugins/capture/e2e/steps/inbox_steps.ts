@@ -110,7 +110,7 @@ Then(
       async () => (await chip.innerText().catch(() => "")).trim() === shown,
       `the Inbox to show "${shown}"`,
     );
-    await this.expectAttribute(INBOX_HELD, "data-count", shown, "the Inbox");
+    await this.expectChromeAttribute(INBOX_HELD, "data-count", shown, "the Inbox");
   },
 );
 
@@ -128,7 +128,7 @@ Then("the Inbox wears no count", async function (this: OlaiWorld) {
     async () => (await this.page.locator(INBOX_COUNT).count()) === 0,
     "the Inbox to wear no count",
   );
-  await this.expectAttribute(INBOX_HELD, "data-count", "0", "the Inbox");
+  await this.expectChromeAttribute(INBOX_HELD, "data-count", "0", "the Inbox");
 });
 
 When("I open the Inbox from the sidebar", async function (this: OlaiWorld) {
@@ -139,7 +139,7 @@ When("I open the Inbox from the sidebar", async function (this: OlaiWorld) {
   // The tree is the app's answer to the click, exactly as it is for a click in
   // the file list: waiting for it here means the address step after this one
   // reads a page that has arrived.
-  await this.page
+  await this.frontLane()
     .locator(OUTLINE_TREE)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitForFrame();

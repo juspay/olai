@@ -1,7 +1,11 @@
+import { createConversation } from "../agents/conversation-reading.ts"
+import type { Row } from "../agents/roster.ts"
+import { createAgentReadings } from "../agents/reading.ts"
+import type { Roster } from "../agents/answered.tsx"
 import { expect, test } from "bun:test"
 import { buildSurfaceClient } from "@kolu/surface/solid"
 import { Effect, Exit, Queue, Scope, Stream } from "effect"
-import { createMemo, createRoot } from "solid-js"
+import { createMemo, createRoot, createSignal } from "solid-js"
 import { CHAT_OFF, surface, type ChatState, type Conversing } from "../../wire.ts"
 import { holdChatWire } from "../wire.ts"
 import { createChat, createChatState } from "./state.ts"
@@ -184,6 +188,91 @@ test("a node's new session waits for its matching draft owner while auth refusal
     expect(next().unopened?.why).toBe("Authentication required")
   } finally {
     first.dispose(); closeNext(); wire.dispose()
+    await Effect.runPromise(Scope.close(activation, Exit.void))
+  }
+})
+
+test("conversation views lease one activation-owned reading until the last view leaves", async () => {
+  let opened = 0, released = 0
+  const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
+    unary: () => Effect.void,
+    stream: (tag) => Stream.callback<unknown>(queue => Effect.acquireRelease(
+      Effect.sync(() => {
+        opened++
+        Queue.offerUnsafe(queue, tag.split("/").at(-2) === "state" ? CHAT_OFF : { kind: "snapshot", entries: [] })
+      }), () => Effect.sync(() => { released++ }))),
+  }, () => true) }))
+  const activation = Scope.makeUnsafe()
+  await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({} as Roster) }))
+  const pair = { agent: "alpha", session: "shared" }
+  const view = () => createRoot(dispose => {
+    const chat = owner.reading.conversation(pair, pair)
+    const [shown, setShown] = createSignal(true)
+    owner.reading.join(() => "node", () => chat, shown)
+    return { dispose, chat, setShown }
+  })
+  const first = view(), second = view()
+  try {
+    await settle()
+    expect(first.chat).toBe(second.chat)
+    expect(opened).toBe(3)
+    first.setShown(false)
+    await settle()
+    expect(released).toBe(0)
+    first.dispose()
+    await settle()
+    expect(released).toBe(0)
+    second.dispose()
+    await settle()
+    expect(released).toBe(3)
+  } finally {
+    first.dispose(); second.dispose(); owner.dispose(); wire.dispose()
+    await Effect.runPromise(Scope.close(activation, Exit.void))
+  }
+})
+
+
+test("a refused fresh start signs in through the node while keeping the previous session UI", async () => {
+  const sent: unknown[] = []
+  const wire = createRoot(dispose => ({ dispose, client: buildSurfaceClient(surface, {
+    unary: (_tag, input) => Effect.sync(() => { sent.push(input) }),
+    stream: (tag, input) => Stream.callback<unknown>(queue => Effect.sync(() => {
+      const node = "node" in (input as object)
+      Queue.offerUnsafe(queue, tag.split("/").at(-2) === "state" ? {
+        ...CHAT_OFF, status: "idle", uploadScope: node ? "fresh" : "previous",
+        talking: { kind: "agent", id: "alpha", name: "Alpha", steers: false, queues: false, methods: [] },
+        session: node ? null : { id: "old", title: null, updatedAt: null },
+        unopened: node ? { what: null, why: "Authentication required" } : null,
+      } : { kind: "snapshot", entries: [] })
+    })),
+  }, () => true) }))
+  const activation = Scope.makeUnsafe()
+  await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
+  const [row, setRow] = createSignal<Row>({ id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "old", memory: 1, standing: "idle", waiting: 0, said: null })
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ at: () => row(), rows: () => [row()], engines: () => [], standings: () => [], only: () => null, missing: () => null, chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {} }) }))
+  const view = createRoot(dispose => ({ dispose, reading: createConversation(owner.reading, () => "one", () => true) }))
+  try {
+    await settle()
+    const previous = view.reading.chat()!.ui
+    previous.folds.toggleFold("tool")
+    setRow(value => ({ ...value, unopened: true }))
+    await settle()
+    expect(view.reading.pair()).toBeNull()
+    expect(view.reading.chat()!.state().unopened?.why).toBe("Authentication required")
+    view.reading.chat()!.signIn("device-code")
+    await settle()
+    expect(sent).toEqual([{ conv: { node: "one" }, scope: "fresh", method: "device-code" }])
+    owner.reading.visit("one", { agent: "alpha", session: "old" })
+    await settle()
+    expect(view.reading.pair()).toEqual({ agent: "alpha", session: "old" })
+    expect(view.reading.chat()!.ui).toBe(previous)
+    view.reading.chat()!.loadSession("alpha", "next")
+    expect(view.reading.pair()).toEqual({ agent: "alpha", session: "next" })
+    view.reading.chat()!.loadSession("alpha", "old")
+    expect(view.reading.pair()).toEqual({ agent: "alpha", session: "old" })
+  } finally {
+    view.dispose(); owner.dispose(); wire.dispose()
     await Effect.runPromise(Scope.close(activation, Exit.void))
   }
 })

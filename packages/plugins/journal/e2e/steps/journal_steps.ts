@@ -98,7 +98,7 @@ Then("the journal chrome is absent", async function (this: OlaiWorld) {
  * tenant is absent. Require the outliner before checking that neither plugin
  * page appeared. */
 Then("no journal page is drawn", async function (this: OlaiWorld) {
-  await this.page
+  await this.frontLane()
     .locator(OUTLINE_TREE)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(await this.page.locator(DAY_PAGE).count(), 0);
@@ -169,14 +169,14 @@ Then(
 
 Then("the month shown is {string}", async function (this: OlaiWorld, month: string) {
   await this.openCalendar();
-  await this.expectAttribute(CALENDAR, "data-month", month, "the calendar");
+  await this.expectChromeAttribute(CALENDAR, "data-month", month, "the calendar");
 });
 
 /** Today's month, asked of the clock — the month the calendar falls back to
  *  when the page it is chrome for names no day of its own. */
 Then("the month shown is this month", async function (this: OlaiWorld) {
   await this.openCalendar();
-  await this.expectAttribute(
+  await this.expectChromeAttribute(
     CALENDAR,
     "data-month",
     isoDayOf(new Date()).slice(0, "YYYY-MM".length),
@@ -303,7 +303,7 @@ When("I page the calendar forward", async function (this: OlaiWorld) {
 const calendarFolded = async (world: OlaiWorld, open: boolean): Promise<void> => {
   await world.showSidebar();
   await world.page.locator(CALENDAR_TOGGLE).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await world.expectAttribute(CALENDAR_TOGGLE, "aria-expanded", String(open), "the month's chevron");
+  await world.expectChromeAttribute(CALENDAR_TOGGLE, "aria-expanded", String(open), "the month's chevron");
   await world.page.locator(CALENDAR).waitFor({ state: open ? "visible" : "detached", timeout: POLL_TIMEOUT });
 };
 
@@ -349,7 +349,7 @@ When("I follow the Today row", async function (this: OlaiWorld) {
 
 Then("the Today row is the current page", async function (this: OlaiWorld) {
   await this.showSidebar();
-  await this.expectAttribute(CALENDAR_TODAY, "aria-current", "page", "the Today row");
+  await this.expectChromeAttribute(CALENDAR_TODAY, "aria-current", "page", "the Today row");
 });
 
 /** By keyboard, the way a reader without a pointer reaches it: focus the

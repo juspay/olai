@@ -104,11 +104,9 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
   const pins = createMemo(() => pinsOf(routes, shelf()))
   const order = createMemo(() => JSON.stringify(pins().map((pin) => pin.id)))
 
-  const [carrying, setCarrying] = createSignal<Carrying | undefined>(undefined)
-  createEffect(() => {
-    const held = carrying()
-    if (held !== undefined && held.order !== order()) setCarrying(undefined)
-  })
+  const [gesture, setCarrying] = createSignal<Carrying | undefined>(undefined)
+  const carrying = createMemo(() => { const held = gesture(); return held?.order === order() ? held : undefined })
+  const isLifted = createSelector(() => carrying()?.from)
   /**
    * Has the press that is still down TRAVELLED far enough to be a drag?
    *
@@ -215,10 +213,11 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
   // pin to the open page, and this notifies exactly the row that lit and the
   // one that went out. Through the BIJECTION rather than `samePage`, because a
   // pinned filtered page and the same page unfiltered are two different doors.
+  const currentLayout = createMemo(() => routes.layoutHref(router.workspace()))
   const isHere = createSelector(() => routes.href(router.route()))
   const isCurrent = (pin: Pinned): boolean => pin.target.kind === "page"
     ? isHere(routes.href(pin.target.route))
-    : routes.layoutHref(pin.target.workspace) === routes.layoutHref(router.workspace())
+    : routes.layoutHref(pin.target.workspace) === currentLayout()
 
   return (
     <Show when={pins().length > 0}>
@@ -243,7 +242,7 @@ export function Shelf(props: { readonly record: Undo["record"] }) {
               <Pin
                 pin={pin()}
                 current={isCurrent(pin())}
-                lifted={carrying()?.from === at()}
+                lifted={isLifted(at())}
                 onGrab={(event) => grab(at(), event)}
                 dragged={() => travelled}
                 onRemove={() => unpin(pin())}

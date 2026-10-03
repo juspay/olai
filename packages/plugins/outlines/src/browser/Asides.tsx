@@ -1,6 +1,6 @@
 import type {} from "../slots.ts"
-import { createMemo, For } from "solid-js"
-import { hung } from "./faces.ts"
+import { For } from "solid-js"
+import { rowAsides } from "./faces.ts"
 
 /** Each contributed face leaves with the row or page that owns its drawing —
  *  and each says WHOSE it is, which is the one thing that is not visible and
@@ -16,7 +16,7 @@ import { hung } from "./faces.ts"
  * `contents` so the wrapper is not a box: the face's own root stays the flex
  * item of the line it was hung on, which is what its own layout assumes. */
 export function PluginAsides(props: { readonly node: string; readonly record?: string }) {
-  const faces = createMemo(() => hung("outline.row.aside"))
+  const faces = rowAsides
   return <For each={faces()}>{(one) => {
     const Face = one.face
     return (

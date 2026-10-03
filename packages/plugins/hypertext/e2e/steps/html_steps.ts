@@ -119,7 +119,7 @@ Then(
 );
 
 Then("there is no preview frame", async function (this: OlaiWorld) {
-  const count = await this.page.locator(HYPERTEXT_PREVIEW).count();
+  const count = await this.frontLane().locator(`${HYPERTEXT_PREVIEW}:visible`).count();
   assert.strictEqual(
     count,
     0,

@@ -387,7 +387,7 @@ const expectMark = async (
     .locator(AGENDA_OWED)
     .first()
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await world.expectAttribute(AGENDA_OWED, "data-owed", face, "the agenda entry");
+  await world.expectChromeAttribute(AGENDA_OWED, "data-owed", face, "the agenda entry");
   const chip = world.page.locator(AGENDA_COUNT).first();
   await world.waitUntil(
     async () => (await chip.innerText().catch(() => "")).trim() === String(shown),
@@ -402,7 +402,7 @@ const expectCount = async (
   which: "overdue" | "today",
   count: number,
 ): Promise<void> => {
-  await world.expectAttribute(
+  await world.expectChromeAttribute(
     AGENDA_OWED,
     `data-${which}`,
     String(count),
@@ -440,7 +440,7 @@ Then(
 );
 
 Then("the agenda entry is quiet", async function (this: OlaiWorld) {
-  await this.expectAttribute(AGENDA_OWED, "data-owed", "quiet", "the agenda entry");
+  await this.expectChromeAttribute(AGENDA_OWED, "data-owed", "quiet", "the agenda entry");
 });
 
 /**
@@ -451,7 +451,7 @@ Then("the agenda entry is quiet", async function (this: OlaiWorld) {
  * yet is an absence of everything.
  */
 Then("the agenda entry wears no count", async function (this: OlaiWorld) {
-  await this.expectAttribute(AGENDA_OWED, "data-owed", "quiet", "the agenda entry");
+  await this.expectChromeAttribute(AGENDA_OWED, "data-owed", "quiet", "the agenda entry");
   assert.strictEqual(
     await this.page.locator(AGENDA_COUNT).count(),
     0,
@@ -464,7 +464,7 @@ Then("the agenda entry wears no count", async function (this: OlaiWorld) {
 Then(
   "the agenda entry says {string}",
   async function (this: OlaiWorld, said: string) {
-    await this.expectAttribute(AGENDA_LINK, "aria-label", said, "the agenda entry");
+    await this.expectChromeAttribute(AGENDA_LINK, "aria-label", said, "the agenda entry");
   },
 );
 
@@ -475,7 +475,7 @@ Then("the rail's agenda icon is on fire", async function (this: OlaiWorld) {
   await this.page
     .locator(RAIL_AGENDA)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await this.expectAttribute(RAIL_AGENDA, "data-owed", "overdue", "the rail's agenda icon");
+  await this.expectChromeAttribute(RAIL_AGENDA, "data-owed", "overdue", "the rail's agenda icon");
 });
 
 // ── writing into the days the fixtures cannot name ─────────────────────

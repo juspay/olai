@@ -1,3 +1,4 @@
+import { sameList } from "@olai/web/client/same.ts"
 /**
  * THE SIDEBAR'S PLUGIN SECTIONS, under the app's own.
  *
@@ -24,7 +25,7 @@ import type { SidebarPlace } from "./slots.ts"
 import { createMemo, For } from "solid-js"
 import { hung } from "./faces.ts"
 export function PluginSections() {
-  const sections = createMemo(() => hung("sidebar.section"))
+  const sections = createMemo(() => hung("sidebar.section"), undefined, { equals: sameList })
   return (
     <For each={sections()}>
       {(one) => <div data-plugin={one.plugin}>{one.face.body()}</div>}
@@ -35,7 +36,7 @@ export function PluginSections() {
 /** Plugin-owned directory doors, in the shell's ruled placements. */
 export function PluginEntries(props: { readonly place: SidebarPlace }) {
   const entries = createMemo(() =>
-    hung("sidebar.entry").filter((one) => one.face.place === props.place)
+    hung("sidebar.entry").filter((one) => one.face.place === props.place), undefined, { equals: sameList }
   )
   return (
     <For each={entries()}>
@@ -47,7 +48,7 @@ export function PluginEntries(props: { readonly place: SidebarPlace }) {
 /** The collapsed drawing that travels with the same directory entry. */
 export function PluginRailEntries(props: { readonly place: SidebarPlace }) {
   const entries = createMemo(() =>
-    hung("sidebar.entry").filter((one) => one.face.place === props.place)
+    hung("sidebar.entry").filter((one) => one.face.place === props.place), undefined, { equals: sameList }
   )
   return (
     <For each={entries()}>

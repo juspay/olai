@@ -1,3 +1,4 @@
+import { createLayoutState, holdLayoutState } from "./live.ts"
 import { followLayout } from "./prefs-owner.ts"
 import { expect, test } from "bun:test"
 
@@ -64,6 +65,7 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
   remembering((store) => {
     const oldWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
     Object.defineProperty(globalThis, "window", { configurable: true, value: { innerWidth: 1400, addEventListener() {}, removeEventListener() {} } })
+    const release = holdLayoutState(createLayoutState())
     const stop = followLayout()
     try {
     setSidebarWidth(300, { persist: false })
@@ -75,6 +77,7 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
     expect(store.get(PANEL_WIDTH_KEY)).toBe("302")
     } finally {
       stop()
+      release()
       if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow)
       else Reflect.deleteProperty(globalThis, "window")
     }

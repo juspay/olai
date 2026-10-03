@@ -18,13 +18,15 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-const fold = (world: OlaiWorld, node: string) => world.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}`);
+const fold = (world: OlaiWorld, node: string) => world.frontLane().locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}:visible`);
 const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", world.nodeId(node))}`);
 
 export const openFold = async (world: OlaiWorld, node: string) => {
   world.activeAgent = node;
   const control = standing(world, node);
-  if (await control.count() === 0) {
+  // A newly opened browser can draw the outline before its agent property
+  // face arrives. Use the sidebar only when the target row is absent.
+  if (!(await world.node(node).isVisible())) {
     await world.showSidebar();
     const row = world.page.locator(`${selector(PLUGIN_TESTID.agentRoster)} ${selector(PLUGIN_TESTID.agentRow)}${attr("data-agent", world.nodeId(node))}`);
     await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -89,10 +91,10 @@ When("I use the fold on node {string}", async function(this: OlaiWorld, node: st
   this.activeAgent = node;
 });
 Then("node agent {string} is folded", async function(this: OlaiWorld, node: string) {
-  await fold(this, node).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  await fold(this, node).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 Then("no agent fold is open", async function(this: OlaiWorld) {
-  await this.waitUntil(async () => await this.page.locator(selector(PLUGIN_TESTID.agentFold)).count() === 0, "all conversation folds to be disposed");
+  await this.waitUntil(async () => await this.frontLane().locator(`${selector(PLUGIN_TESTID.agentFold)}:visible`).count() === 0, "all conversation folds to be hidden");
 });
 Then("the fold on {string} holds its transcript and composer", async function(this: OlaiWorld, node: string) {
   const owned = fold(this, node);
@@ -112,10 +114,10 @@ When("I press the standing on outline record {string}", async function(this: Ola
   await this.node(record).locator(selector(PLUGIN_TESTID.agentStanding)).click()
 })
 Then("only outline record {string} has an agent fold", async function(this: OlaiWorld, record: string) {
-  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.agentFold)).count(), 1)
+  assert.equal(await this.frontLane().locator(`${selector(PLUGIN_TESTID.agentFold)}:visible`).count(), 1)
   assert.equal(await this.node(record).locator(selector(PLUGIN_TESTID.agentFold)).count(), 1)
 })
 Then("both outline records {string} and {string} have an agent fold", async function(this: OlaiWorld, one: string, two: string) {
   for (const record of [one, two]) await this.node(record).locator(selector(PLUGIN_TESTID.agentFold)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
-  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.agentFold)).count(), 2)
+  assert.equal(await this.frontLane().locator(`${selector(PLUGIN_TESTID.agentFold)}:visible`).count(), 2)
 })

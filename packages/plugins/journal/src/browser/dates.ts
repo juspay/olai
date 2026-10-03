@@ -137,7 +137,7 @@ export const createNoted = (month: Accessor<string>): Accessor<ReadonlySet<strin
   return createMemo(() => {
     const files = servedDirectory()
     return files === undefined ? new Set<string>() : dailyNoteDays(files.claims(), paths(), month())
-  })
+  }, undefined, { equals: (a, b) => a.size === b.size && [...a].every(day => b.has(day)) })
 }
 
 /**

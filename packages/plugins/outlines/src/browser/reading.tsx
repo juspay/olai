@@ -1,3 +1,4 @@
+import { untrack } from "solid-js"
 /**
  * WHAT THE PAGE IN FRONT OF SOMEBODY SAYS — asked of the server, once per open
  * pane.
@@ -59,7 +60,6 @@ import {
   type JSX,
   onCleanup,
   useContext,
-  untrack,
 } from "solid-js"
 
 import { createDoors, type Doors } from "./doors.ts"
@@ -235,18 +235,19 @@ export const createReading = (
    * been.
    */
   holding?: Accessor<boolean>,
-  stream?: NodePageRoute["stream"],
+  stream?: Accessor<NodePageRoute["stream"] | undefined>,
 ): Reading => {
-  const answer = stream === undefined ? client().streams.page.use(request) : stream.use(request)
-  /** The generation — see {@link Reading.at}. `changed` rather than `updated`
-   *  because the payload is the one thing this does not want, and the handler
-   *  survives an input change (the framework resets the tracker, which re-arms
-   *  the first-frame rule; the handlers belong to the caller). The `?.` is the
-   *  channel's own optionality: a hand-assembled `Subscription`-shaped value
-   *  may omit it, and every subscription the framework mints provides it. */
   const [at, setAt] = createSignal(0)
-  const stop = answer.changed?.(() => setAt((was) => was + 1))
-  if (stop !== undefined) onCleanup(stop)
+  // Only a change of stream replaces this owner. The stream itself follows
+  // request changes; the held page below spans that handover.
+  const subscription = createMemo(() => {
+    const channel = stream?.()
+    const answer = untrack(() => channel === undefined ? client().streams.page.use(request) : channel.use(request))
+    const stop = answer.changed?.(() => setAt(was => was + 1))
+    if (stop) onCleanup(stop)
+    return answer
+  })
+  const answer = () => subscription()?.()
   /**
    * THE LAST ANSWER, HELD ACROSS THE NEXT QUESTION.
    *
@@ -302,7 +303,7 @@ export const createReading = (
   return {
     page,
     pending,
-    failure: () => answer.error?.(),
+    failure: () => subscription()?.error?.(),
     at,
     names: createNames(page),
     doors: createDoors(page),
@@ -396,14 +397,14 @@ export const useLicences = (): Accessor<Licences> => {
  *  one — see the header. */
 export interface Readings {
   /** Draw this pane for as long as the component calling it lives. */
-  readonly join: (pane: () => number, reading: Reading) => void
+  readonly join: (pane: () => string, reading: Reading) => void
   /** What the pane at `index` is showing, or `undefined` for a pane that has
    *  not mounted or has not been answered yet. */
-  readonly at: (index: number) => PageReading | undefined
+  readonly at: (index: string) => PageReading | undefined
   /** What the ids that pane's page points at are called — the same table the
    *  pane's leaves read. An empty lookup for a pane that has not mounted,
    *  which is what `createNames` hands back for an unanswered reading. */
-  readonly names: (index: number) => Names
+  readonly names: (index: string) => Names
 }
 
 const ReadingsContext = createContext<Readings>()
@@ -436,7 +437,7 @@ const unnamed: Names = () => undefined
 export const createReadings = (): Readings => {
   const [joined, setJoined] = createSignal<
     ReadonlyArray<{
-      readonly pane: () => number
+      readonly pane: () => string
       readonly reading: Reading
     }>
   >([])

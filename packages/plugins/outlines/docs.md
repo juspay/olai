@@ -95,3 +95,48 @@ share the same scoped, batched lookup and withdraw with the provider.
 
 Beside its tools, the outlines sibling carries one `charter` paragraph that the MCP row composes into `initialize`'s `instructions` while this row stands ([mcp.md](mcp.md), "What `initialize` says"): a node's note is read by a person — `Note.tsx` draws it as markdown under the title and as the node's page — so an agent writes it as well-formed markdown for that reader, never a raw tool result or a wall of text. The tool line on `outlines_desc` says the note is stored verbatim; this says who reads it back. `src/charter.ts` argues the sentence, and the paragraph leaves the wire with the row.
 
+## Retained pane state
+
+The pane owns its editor memory, selection and landing state. Pane indices can
+change without resetting them. Navigating to another subject resets editing;
+a temporarily missing file can recover its unfinished draft in the same pane.
+Hidden panes ignore bulk keys and focus requests and hide their overlays.
+Temporary finished-row reveals are keyed by pane id, so two tabs of one file
+share saved edits while keeping separate landing courtesy.
+
+Done and filter pruning preserve each surviving store row's identity. Property
+faces are keyed by property name, and replacement values update their props.
+Caret, selection, fold and focus selectors notify only affected rows. Names,
+doors and licences expose stable per-key readings. Row elements register with
+the outlines activation for scoped landings; declaration batches, focus work
+and temporary done reveals also leave with that activation.
+
+Switching tabs suspends an open row menu, including its confirmation, submenu,
+and focused entry. Returning restores that entry without recreating the panel.
+A pointer elsewhere on the current page still dismisses the menu normally.
+
+Retained lanes keep open menu state, including confirmations, submenus and the
+focused entry. Hidden menus withdraw Kobalte content layers and rejoin on show.
+Blur and outside dismissal settle the current pointer gesture before consulting
+the page's declared visibility; they do not infer navigation from tab markup.
+Editor seats are projected into a keyed store with per-key identity comparisons,
+so unchanged seats do not wake other rows and shared drafts are never reconciled
+in place. A native context menu ends a pending gesture too;
+owner cleanup delivers queued blur/close reports before dropping the helper.
+Blur delivered by DOM removal after cleanup still runs in a microtask.
+
+Each submenu surface explicitly registers its nested-menu accessor with its
+parent. Surface cleanup releases only that registration; hidden content shells
+need no display override because they leave the DOM and dismissal stack.
+
+The retained-menu helper owns the post-mount focus timer used by root menus and
+submenus; each menu still chooses its focus target. The timer leaves with its
+content shell, while item and confirmation owners survive suspension.
+On a keyboard reopen, root-menu focus leaves an already focused entry alone,
+keeping Kobalte's focus manager and the DOM in agreement for Home and Enter.
+Submenus also refuse Kobalte's outside-focus close request, which ignores
+`preventDefault`; restoring the parent's content shell must not close a retained
+submenu. Pointer dismissal and keyboard close gestures still close it normally.
+Focus memory records entries and confirmation controls, not the replaceable
+menu shells visited by mount autofocus (including portalled submenu shells),
+so resuming preserves the chosen entry.

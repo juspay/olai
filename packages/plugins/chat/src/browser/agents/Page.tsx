@@ -72,13 +72,17 @@ function createPageSession(node: string): PageSession {
   })
   const deliver = async (to: Conversing, text: string, later: string) => {
     const ui = reading.ui(to)
-    const key = JSON.stringify([to.agent, to.session])
-    keepMessage(ui.messages, key, later)
-    const value = await ready(to)
-    if (value === null) {
-      ui.refused[1](new UsageFailure({ reason: "The chat changed, so this didn't happen. Try again." }))
-      keepMessage(ui.messages, key, text, true)
-    } else if (!await value.send(text, [], [])) keepMessage(ui.messages, key, text, true)
+    // The send is work that keeps this conversation's UI, whoever is reading.
+    const releaseUI = reading.retainUI(ui)
+    try {
+      const key = JSON.stringify([to.agent, to.session])
+      keepMessage(ui.messages, key, later)
+      const value = await ready(to)
+      if (value === null) {
+        ui.refused[1](new UsageFailure({ reason: "The chat changed, so this didn't happen. Try again." }))
+        keepMessage(ui.messages, key, text, true)
+      } else if (!await value.send(text, [], [])) keepMessage(ui.messages, key, text, true)
+    } finally { releaseUI() }
   }
   const [preferredEngine, prefer] = createSignal<string>()
   createEffect(() => {
@@ -128,15 +132,13 @@ function usePage(node: Accessor<string>) {
  * what the pane's scroll cannot carry away (`../chat/Strips.tsx`). */
 export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
-  return <Show when={page()?.chat()} keyed>{chat =>
-    <ConversationUIProvider value={chat.ui}>
-      <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
-        <AgentLine chat={chat} node={props.node} page />
-        {/* What the conversation has standing, where the pane's scroll cannot
-            carry it off (`../chat/Strips.tsx`). */}
+  return <Show when={page()?.chat()}>{current =>
+    <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
+      <AgentLine chat={current()} node={props.node} page />
+      <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Strips chat={chat} />
-      </div>
-    </ConversationUIProvider>
+      </ConversationUIProvider>}</Show>
+    </div>
   }</Show>
 }
 
@@ -158,7 +160,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const engine = () => agents.at(props.node)?.engine ?? chosen() ?? props.page.preferredEngine() ?? agents.engines()[0]?.id
   const missing = () => agents.missing(engine())
   const metadata = () => {
-    const page = pane === undefined ? undefined : pageReadings()?.at(pane.index)?.shows
+    const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
     return page?.kind === "node" && page.zoomed.kind === "node" && page.zoomed.shows.node.id === props.node
       ? { title: page.zoomed.shows.node.title, memory: page.zoomed.under } : null
   }

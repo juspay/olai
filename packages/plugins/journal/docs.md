@@ -180,3 +180,11 @@ core knows which rows are connected by this key.
 
 The worked example in [plugins the vault defines](../dynamic-plugins.md) is a
 morning agenda written against it.
+
+## Sidebar lifetime
+
+The journal activation owns one shared owed reading, consumed by the sidebar
+and reminders. Reminder availability is a boolean dependency, so unrelated
+route-table changes do not restart its circuit. The calendar owns its paged
+month and dated subscription inside the retained sidebar; collapsing the
+sidebar and expanding it again keeps that month.

@@ -2979,11 +2979,14 @@ export const keeping = (
   rows: ReadonlyArray<Row>,
   matched: Selected,
 ): ReadonlyArray<Row> =>
-  rows.flatMap((row) => {
+{
+  const kept = rows.flatMap((row) => {
     if (matched.has(shownRecord(row).node.id)) return [row]
     const children = keeping(row.children, matched)
-    return children.length === 0 ? [] : [{ ...row, children }]
+    return children.length === 0 ? [] : [children === row.children ? row : { ...row, children }]
   })
+  return kept.length === rows.length && kept.every((row, index) => row === rows[index]) ? rows : kept
+}
 
 /**
  * How many PLACES in these rows are a match — what a filter bar reports.

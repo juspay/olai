@@ -64,7 +64,7 @@ Then("the Trash door is at least a finger's size", async function (this: OlaiWor
 
 Then("the Trash door is the current page", async function (this: OlaiWorld) {
   await this.showSidebar();
-  await this.expectAttribute(TRASH_LINK, "aria-current", "page", "the Trash door");
+  await this.expectChromeAttribute(TRASH_LINK, "aria-current", "page", "the Trash door");
 });
 
 When("I tap the Trash door", async function (this: OlaiWorld) {

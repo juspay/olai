@@ -1,3 +1,4 @@
+import { Dynamic } from "solid-js/web"
 /**
  * A tool call: one line, foldable.
  *
@@ -142,11 +143,10 @@ function Saying(props: { readonly said: string; readonly tall: boolean }) {
 
 export function ToolFrame(props: { readonly entry: ToolEntry }) {
   const { isUnfolded, toggleFold } = useConversationUI().folds
-  const replyFace = createMemo(() => {
-    const face = faceOf(props.entry.row)
+  const replyFace = createMemo(() => faceOf(props.entry.row))
+  const replyFile = createMemo(() => {
     const reply = props.entry.reply
-    return face === undefined || reply === undefined ? { file: null, story: null }
-      : { file: face.fileOf(reply), story: face.story({ reply }) }
+    return reply === undefined ? null : replyFace()?.fileOf(reply) ?? null
   })
   /** How long this call has been running, or `null` when there is nothing to
    *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
@@ -173,8 +173,8 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
    * framework's reconciliation walks off the end of the array it is patching
    * and throws mid-draw, taking the page with it.
    *
-   * A memo, so the fresh objects are minted when the blocks move and not on
-   * every unrelated frame of the call.
+   * Upserts replace the whole entry, including these nested diffs. Key keeps
+   * each block mounted; each diff compares its text inputs before computing.
    */
   const blocks = createMemo(() =>
     (props.entry.diffs ?? []).map((diff, at) => ({
@@ -324,7 +324,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             </span>
           )}
         </Show>
-        <Show when={replyFace().file}>{file => <span class="min-w-0 max-w-[45%] shrink truncate text-muted/80" data-testid={TESTID.chatToolFile}>{file()}</span>}</Show>
+        <Show when={replyFile()}>{file => <span class="min-w-0 max-w-[45%] shrink truncate text-muted/80" data-testid={TESTID.chatToolFile}>{file()}</span>}</Show>
         {/* HOW LONG IT HAS BEEN GOING, for a call the wire still calls running
             in a conversation that is still live ({@link ./elapsed.ts}). The
             mark at the head of this line has said `·` for a quarter of a second
@@ -377,7 +377,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
           not detail: the arguments are what was asked for, and this is what
           happened to somebody's files. Folding it away would be putting the
           one thing the row is about behind the same click as the JSON. */}
-      {replyFace().story}
+      <Show when={props.entry.reply !== undefined}><Dynamic component={replyFace()?.story} reply={props.entry.reply!} /></Show>
       {/* WHAT THE HARNESS SAID ABOUT THE TASK'S ENDING, outside the fold —
           where a background shell's EXIT CODE is. It is the same `progress`
           the fold draws for every other call, and it is drawn twice nowhere:

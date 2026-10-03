@@ -26,12 +26,12 @@ const showSelect = async (
 When("I pick the font {string}", async function (this: OlaiWorld, name: string) {
   await showSelect(this);
   await this.page.locator(FONT_SELECT).selectOption(name);
-  await this.expectAttribute("html", FONT_ATTRIBUTE, name, "the page");
+  await this.expectChromeAttribute("html", FONT_ATTRIBUTE, name, "the page");
 });
 
 Then(
   "the page is in the font {string}",
   async function (this: OlaiWorld, name: string) {
-    await this.expectAttribute("html", FONT_ATTRIBUTE, name, "the page");
+    await this.expectChromeAttribute("html", FONT_ATTRIBUTE, name, "the page");
   },
 );

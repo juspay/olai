@@ -9,6 +9,7 @@
  * tone already said they were the same fact.
  */
 import { TESTID } from "olai-plugin-markdown/testids"
+import { Dynamic } from "solid-js/web"
 import { BODY_REFUSED } from "@olai/surface"
 
 
@@ -20,14 +21,7 @@ export function BodyRefused(props: {
   /** A span on a row that already has a line; a paragraph everywhere else. */
   readonly as?: "p" | "span"
 }) {
-  const className = props.class ?? "m-0 italic text-alarm"
-  const attrs = {
-    class: className,
-    "data-testid": TESTID.bodyRefused,
-    "data-tone": "alarm" as const,
-    role: "alert" as const,
-  }
-  return props.as === "span" ?
-      <span {...attrs}>{BODY_REFUSED}</span>
-    : <p {...attrs}>{BODY_REFUSED}</p>
+  return <Dynamic component={props.as ?? "p"}
+    class={props.class ?? "m-0 italic text-alarm"}
+    data-testid={TESTID.bodyRefused} data-tone="alarm" role="alert">{BODY_REFUSED}</Dynamic>
 }

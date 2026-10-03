@@ -19,7 +19,7 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       When I remember this conversation as "cabinet"
       And I mark the page
 
-    Scenario: A folded idle node sleeps and resumes the same transcript, and writes still reach the vault
+    Scenario: Leaving a retained conversation lets it sleep and resume the same transcript
       When I ask the agent "before idle eviction"
       Then the agent has answered "before idle eviction" exactly once
       When I fold node agent "install"
@@ -28,9 +28,11 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       Then the panel header names the node agent "order the new cabinets"
       And the node agent's fold is ready
       When I remember this conversation as "foreground"
-      Then the agent "install" stands "asleep"
+      Then the agent "install" remains "idle" across two idle deadlines
       And the agent "order" remains "idle" across two idle deadlines
       And the panel is in the remembered conversation "foreground"
+      When I click the outline "yard.olai"
+      Then the agent "install" stands "asleep"
       When I press the agent "install"
       Then the panel is in the remembered conversation "cabinet"
       And the agent has answered "before idle eviction" exactly once
@@ -64,7 +66,8 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       When I fold node agent "install"
       And I press the agent "order"
       Then the panel header names the node agent "order the new cabinets"
-      And the agent "install" stands "asleep"
+      When I click the outline "yard.olai"
+      Then the agent "install" stands "asleep"
       When I press the agent "install"
       Then the panel is in the remembered conversation "cabinet"
       And the agent's answer mentions "answer after idle deadlines"
@@ -89,6 +92,7 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       And the chat says that task ended "failed"
       When I fold node agent "install"
       And I press the agent "order"
+      When I click the outline "yard.olai"
       Then the agent "install" stands "asleep"
       When I press the agent "install"
       Then the panel is in the remembered conversation "cabinet"

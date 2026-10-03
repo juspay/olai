@@ -11,7 +11,7 @@ export const createReveal = (router: Router) => {
     const held = agentReadings()
     const first = needing(held?.agents.rows() ?? []).find(row => row.standing === "needs-you")
     if (first === undefined) {
-      document.querySelector<HTMLElement>('[data-agent-needs-you]')?.focus()
+      held?.focusNeeds()
       return
     }
     held?.visit(first.id)

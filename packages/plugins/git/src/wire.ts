@@ -36,6 +36,7 @@ export const name = "git"
 
 export const surface = defineSurface({
   cells: {
+    repository: { schema: Schema.NullOr(Schema.String), default: null, verbs: ["get"] },
     git: {
       schema: GitState,
       default: GIT_OFF,
@@ -86,6 +87,7 @@ export const surface = defineSurface({
  */
 export const faces = {
   browser: {
+    repository: "resource",
     git: "resource",
     pending: "resource",
     "git.commit": "tool",

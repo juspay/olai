@@ -90,14 +90,14 @@ Then(
 Then(
   "the drop is refused by {string}",
   async function (this: OlaiWorld, file: string) {
-    await this.expectAttribute(DROP_REFUSED, "data-file", file, "the refusal");
+    await this.expectChromeAttribute(DROP_REFUSED, "data-file", file, "the refusal");
   },
 );
 
 Then(
   "the refused pane says {string}",
   async function (this: OlaiWorld, said: string) {
-    await saysThat(this, DROP_REFUSED, said, "refusal over the pane");
+    await saysThat(this, DROP_REFUSED, said, "refusal over the pane", undefined, this.page);
   },
 );
 

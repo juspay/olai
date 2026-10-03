@@ -91,7 +91,8 @@ export const createHandoff = (input: {
     revision()
     const nav = navigation()
     const route = nav?.route()
-    const shows = nav === undefined ? undefined : pageReadings()?.at(nav.workspace().focus)?.shows
+    const pane = nav?.panes()[nav.focusIndex()]
+    const shows = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
     const claims = servedDirectory()?.claims()
     const unavailable = shows?.kind === "node" && (shows.zoomed.kind !== "node" || claims !== undefined && isPutAway(claims, shows.zoomed.shows.file))
     untrack(() => {

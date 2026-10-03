@@ -1,3 +1,4 @@
+import { useShown } from "olai-plugin-navigation/routing"
 /**
  * THE LIVE PANE — a window on a terminal, not a photograph of one.
  *
@@ -41,7 +42,7 @@
  * knows how wide this box is.
  */
 
-import { createEffect, createSignal, on, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js"
 
 import type { FitAddon } from "@xterm/addon-fit"
 import type { Terminal } from "@xterm/xterm"
@@ -72,6 +73,7 @@ export function LivePane(props: {
   readonly themeName: string | null
   readonly onClose: () => void
 }) {
+  const shown = useShown()
   const fleet = useFleet()
   /** THE TERMINAL'S OWN THEME, resolved once and read twice: xterm paints the
    *  glyphs with it, and the wrapper paints the padding around them with its
@@ -100,8 +102,9 @@ export function LivePane(props: {
    * specificity and the later one wins. Colour is xterm's door; the shape
    * (`styles.css`) is the part it has no key for.
    */
-  const theme = () => {
-    const base = getThemeByName(props.themeName ?? undefined)
+  const themeName = createMemo(() => props.themeName)
+  const theme = createMemo(() => {
+    const base = getThemeByName(themeName() ?? undefined)
     const edge = base.brightBlack ?? base.foreground
     if (edge === undefined) return base
     return {
@@ -110,7 +113,7 @@ export function LivePane(props: {
       scrollbarSliderHoverBackground: edge,
       scrollbarSliderActiveBackground: edge,
     }
-  }
+  })
   const [says, setSays] = createSignal<string>()
   /** Bumped to re-attach. A SIGNAL rather than a call, so the effect below is
    *  the only thing that ever opens a stream — one place a subscription is
@@ -203,7 +206,7 @@ export function LivePane(props: {
         const fitted = new FitAddon()
         created.loadAddon(fitted)
         created.open(host)
-        fitted.fit()
+        if (shown() && host.clientWidth > 0 && host.clientHeight > 0) fitted.fit()
         term = created
         fit = fitted
         // A RESIZE IS A RE-ATTACH. The pane asks padi for the grid it can show, and
@@ -217,6 +220,7 @@ export function LivePane(props: {
         // and none of the three ways the scaled version came apart on a real busy
         // terminal.
         observer = new ResizeObserver(() => {
+        if (!shown() || !host || host.clientWidth === 0 || host.clientHeight === 0) return
         // ONLY WHEN THE GRID ACTUALLY MOVED. `fit()` resizes the terminal, which
         // resizes the DOM, which fires this observer again — so an unguarded
         // re-attach here is a loop that never settles: every attach is torn down
@@ -228,11 +232,11 @@ export function LivePane(props: {
         fit?.fit()
         const now = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
         if (was === undefined || now === undefined) return
-        if (!gridsEqual(was, now)) setGeneration((g) => g + 1)
+        if (generation() === 0 || !gridsEqual(was, now)) setGeneration((g) => g + 1)
         })
         observer.observe(host)
-        // The terminal exists now, so the first attach can ask at a real grid.
-        setGeneration((g) => g + 1)
+        // A hidden page has no grid to offer the shared terminal.
+        if (shown() && host.clientWidth > 0 && host.clientHeight > 0) setGeneration(g => g + 1)
         // ...and the way back out, handed to the mount rather than registered here:
         // what made the terminal is what says how to take it away. The same
         // `undo` the failure path above spends, because there is one way to put
@@ -253,6 +257,25 @@ export function LivePane(props: {
     // why. It says why now, in the same place every other refusal lands.
     () => { setSays("Couldn't load the terminal viewer. Check your connection and open it again.") },
   )
+
+  // Retained hidden hosts can keep their size, so showing is also a fit edge.
+  createEffect(on(shown, visible => {
+    if (!visible) return
+    const frame = requestAnimationFrame(() => {
+      if (!shown() || !term || !host || host.clientWidth === 0 || host.clientHeight === 0) return
+      const before = { cols: term.cols, rows: term.rows }
+      fit?.fit()
+      if (generation() === 0 || !gridsEqual(before, term)) setGeneration(g => g + 1)
+    })
+    onCleanup(() => cancelAnimationFrame(frame))
+  }))
+
+  // Initial mount applies the current theme; later theme changes repaint
+  // without coupling palette work to connection retries.
+  createEffect(() => {
+    const palette = theme()
+    if (term !== undefined) term.options.theme = palette
+  })
 
   /**
    * ONE ATTACH PER GENERATION.
@@ -444,20 +467,11 @@ export function LivePane(props: {
       {/* THE SENTENCE, in the reading face, IN PLACE OF the terminal — a pane
           that said why it stopped underneath a frozen screen would be a pane
           claiming to be live while it is not. */}
-      <Show
-        when={says()}
-        fallback={
-          <div
-            ref={host}
-            class="olai-live-screen"
-            style={{
-              "background-color": theme().background ?? "transparent",
-            }}
-            data-testid={TESTID.terminalScreen}
-            data-state="attached"
-          />
-        }
-      >
+      <div ref={host} class="olai-live-screen" style={{
+        display: says() ? "none" : undefined,
+        "background-color": theme().background ?? "transparent",
+      }} data-testid={says() ? undefined : TESTID.terminalScreen} data-state="attached" />
+      <Show when={says()}>
         {(said) => (
           <p
             class="text-body text-muted"

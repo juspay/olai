@@ -30,7 +30,7 @@ import { Palette,resetPaletteMemory } from "./palette/Palette.tsx"
 import { PaneProvider } from "./pane/context.tsx"
 import { atFile,settleRoutePages } from "./routes.ts"
 import { holdRoutePages,holdFiles,fileClaims,routing } from "./pages.ts"
-import { Link,RouterProvider } from "./routing.tsx"
+import { Link,RouterProvider,useMaybeRouter } from "./routing.tsx"
 import { createNavigation } from "./state.ts"
 import { guardPageInput } from "./page-input.ts"
 
@@ -66,7 +66,11 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
   }))), ({ dispose }) => Effect.sync(dispose))
   yield* Effect.acquireRelease(Effect.sync(() => guardPageInput(state.value)), stop => Effect.sync(stop))
   const offers = yield* Offers
-  yield* offers.own("state", () => ({...state.value, routes: routing, page: (index: number | (()=>number)) => <RouterProvider router={state.value}><PaneProvider index={typeof index==="function"?index():index}><PageView /></PaneProvider></RouterProvider>}))
+  yield* offers.own("state", () => ({...state.value, routes: routing, page: (index: number | (()=>number)) => {
+    const router = useMaybeRouter() ?? state.value
+    const at = () => typeof index === "function" ? index() : index
+    return <RouterProvider router={router}><PaneProvider index={at()} id={router.panes()[at()]?.id}><PageView /></PaneProvider></RouterProvider>
+  }}))
   yield* offers.own("links", () => ({ File }))
   yield* offers.own("gestures", () => ({ swallowGhost: ghosts.swallow }))
 }) })

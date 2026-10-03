@@ -1,3 +1,4 @@
+import { Index } from "solid-js"
 /**
  * SIGN IN, as a row in the panel.
  *
@@ -25,7 +26,7 @@
 
 import type { AuthMethod, SignIn as Attempt, SignInLink } from "olai-plugin-chat/wire"
 import { agentIn } from "olai-plugin-chat/wire"
-import { createSignal, For, type JSX, Show } from "solid-js"
+import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 import { LinkCard } from "./LinkCard.tsx"
@@ -103,15 +104,15 @@ export function SignIn(props: { readonly chat: Chat }) {
    *  rendered, and its URLs clickable — the URL IS why most of this text is
    *  here (a `claude auth login` prints the page and nothing else worth
    *  reading). */
-  const output = (attempt: Terminal): JSX.Element => (
+  const Output = (body: { readonly attempt: Terminal }): JSX.Element => (
     <>
       <pre
         class="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-label"
         data-testid={TESTID.chatSignInOutput}
       >
-        <For each={linkify(attempt.output)}>
+        <Index each={linkify(body.attempt.output)}>
           {(piece) => (
-            <Show when={piece.href} fallback={piece.text}>
+            <Show when={piece().href} fallback={piece().text}>
               {(href) => (
                 <a
                   class="text-accent underline underline-offset-2"
@@ -119,17 +120,17 @@ export function SignIn(props: { readonly chat: Chat }) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  {piece.text}
+                  {piece().text}
                 </a>
               )}
             </Show>
           )}
-        </For>
+        </Index>
       </pre>
       {/* ONE LINE, and only while there is a process to write to: the code a
           sign-in asks for is the whole of what a person types here, and a box
           over a finished process would be one whose contents go nowhere. */}
-      <Show when={attempt.running}>
+      <Show when={body.attempt.running}>
         <input
           class="mt-2 w-full rounded-control border border-rule bg-paper px-2 py-1 font-mono text-label"
           data-testid={TESTID.chatSignInInput}
@@ -148,44 +149,32 @@ export function SignIn(props: { readonly chat: Chat }) {
 
   /** THE PAGE an agent method sent somebody to, which is the whole of what
    *  there is to do about that arm until the agent says it is done. */
-  const card = (link: SignInLink): JSX.Element => (
+  const Card = (body: { readonly link: SignInLink }): JSX.Element => (
     <div class="mt-2">
-      <LinkCard message={link.message} url={link.url} host={link.host} done={link.done} />
+      <LinkCard message={body.link.message} url={body.link.url} host={body.link.host} done={body.link.done} />
     </div>
   )
 
-  const body = (held: Attempt): JSX.Element => {
-    switch (held.kind) {
-      case "choosing":
-        // ONE BUTTON PER METHOD, with the agent's own second line as the
-        // tooltip. `data-method` is the id the press carries, so a scenario
-        // presses a method rather than a translation of its name.
-        return (
-          <div class="mt-2 flex flex-wrap items-center gap-2">
-            <For each={methods()}>
-              {(method) => (
-                <button
-                  type="button"
-                  class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent"
-                  data-testid={TESTID.chatSignInMethod}
-                  data-method={method.id}
-                  title={method.description ?? undefined}
-                  onClick={() => props.chat.signIn(method.id)}
-                >
-                  {method.name}
-                </button>
-              )}
-            </For>
-          </div>
-        )
-      case "terminal":
-        return output(held)
-      case "agent":
-        return held.link === null
-          ? <p class="m-0 mt-2 text-label text-muted">Waiting for the agent…</p>
-          : card(held.link)
-    }
-  }
+  const Body = (body: { readonly attempt: Attempt }) => <Switch>
+    <Match when={body.attempt.kind === "choosing"}>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <For each={methods()}>{method => <button type="button"
+          class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent"
+          data-testid={TESTID.chatSignInMethod} data-method={method.id}
+          title={method.description ?? undefined} onClick={() => props.chat.signIn(method.id)}>
+          {method.name}
+        </button>}</For>
+      </div>
+    </Match>
+    <Match when={body.attempt.kind === "terminal" ? body.attempt : undefined}>
+      {held => <Output attempt={held()} />}
+    </Match>
+    <Match when={body.attempt.kind === "agent" ? body.attempt : undefined}>
+      {held => <Show when={held().link} fallback={<p class="m-0 mt-2 text-label text-muted">Waiting for the agent…</p>}>
+        {link => <Card link={link()} />}
+      </Show>}
+    </Match>
+  </Switch>
 
   return (
     <Show when={attempt()}>
@@ -203,7 +192,7 @@ export function SignIn(props: { readonly chat: Chat }) {
             </span>
           </div>
 
-          {body(held())}
+          <Body attempt={held()} />
 
           {/* THE AGENT'S OWN SENTENCE about why an attempt ended — an exec
               failure, or a refusal. On its own line, because it is the one

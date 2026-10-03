@@ -80,11 +80,11 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 Chat no longer contributes `app.panel` or `app.header` and names no layout shell
 service. Its four node faces are registered under `AgentsProvider`, reading one
 activation-owned roster. Outlines owns rendering placement and row lifetimes;
-chat owns each conversation reading. A page's head and foot lease one owner
-keyed by pane and node. Last release disposes that owner; a different pane keeps
-its own. Conversation UI state is keyed by engine/session within the activation,
-so drafts, refusals, question state and dismissed completions do not leak across
-conversations.
+chat owns each conversation reading. A page's head and foot lease one view owner
+keyed by pane and node. Those views and outline folds lease a shared reading
+keyed by engine/session, or by node while unbound. The last view lease releases
+the reading. Conversation UI has the same activation-owned keys, so drafts,
+refusals, question state and dismissed completions do not leak across conversations.
 
 Chat declares `delivery.mark` and `conversation.wake`. The fold registration
 owns these shared child locations once; page faces consume the same locations.
@@ -300,3 +300,46 @@ Location queries depend on the ordered recent ids, not activity-only roster
 updates. Superseded replies are ignored; a successful retry clears a prior
 query refusal. Sidebar opening refusals use the shared timed SaidLine below
 the Chats heading.
+
+## Retained conversations and attention
+
+A visited tab keeps its conversation mounted while hidden. An opened outline
+agent fold keeps its conversation and its server idle hold under the row owner
+when folded shut; closing the row or pane releases that reading. Unvisited restored tabs open no chat.
+Only shown conversation surfaces count as watched for badges, chimes and
+notifications. A hidden tab can therefore acquire its needs-you dot, and a
+notification reveals a shown copy or requests a visible conversation.
+
+Hidden transcripts never scroll. On return they follow the latest line only
+if the reader had been following before hiding. Completion key handlers obey
+the same visibility boundary, and only the focused composer claims completion
+keyboard priority when several folds offer menus. Tool details, question fields, terminal output
+and sign-in output update their existing elements as wire rows are replaced.
+
+Conversation UI is owned within the chat activation by engine and session,
+or by node before binding. Joined readers share it. The final reader releases
+an empty UI after a same-turn handoff opportunity. Opened tool details, question
+answers, armed references, previews, refusals, pending starts, sends, uploads and
+unsent drafts retain UI while its node/session remains in the roster or answered
+stored-session listing. After the final view/work lease, an empty UI or a
+conversation absent from both is released. Unavailable listings do not prove
+absence; activation teardown releases everything.
+Roster lookups and per-tool choices notify only their dependent consumers.
+
+A folded conversation remains a live reader and therefore occupies its node
+agent slot. Capacity and idle eviction become possible when its row or pane
+leaves and no other reader or operation holds it.
+
+A fresh start that needs authentication is addressed by its node until a new
+session binds, even when the previous session is still recorded on disk.
+Signing in and retrying there cannot target that previous session. An ordinary
+failed fresh start returns to the previous conversation and keeps its roster.
+An explicit History visit leases the selected session and recovers its retained UI.
+
+The node's agent line, including a pending fresh-start request and its refusal,
+belongs to the node view. Changing the selected conversation replaces only the
+conversation-specific body and strips. A fresh-start refusal therefore remains
+visible even if the server transitions from a bound session to an unopened node.
+
+A refused fresh start resumes the unchanged live binding; it does not turn
+that reader into a history visit that masks later binding changes.

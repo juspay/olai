@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 /**
  * THE CI CHIP — an `odu-run` property's living face, drawn beside the id it
  * is about.
@@ -105,7 +106,7 @@ export function CiChip(context: ChipContext) {
         // about a run this server watched (`./words.ts` argues why it stopped
         // declining); "nothing to draw" is a checkout with no reading at all,
         // which is the ordinary state and is this `Show`.
-        const said = () => wordsFor(held(), now(), clocks.tickingOf)
+        const said = createMemo(() => wordsFor(held(), now(), clocks.tickingOf))
         return (
         <Show
           when={context.onToggle}

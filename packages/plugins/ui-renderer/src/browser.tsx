@@ -9,6 +9,7 @@
  * Child declarations and effectful integrations are owned by entries through
  * the registry contract, rather than inferred from what a JSX tree displays.
  */
+import { TipScope } from "@olai/web/client/Tip.tsx"
 import { definePlugin, locations, Offers, slotFacade } from "@olai/plugin-api"
 import { BrowserMount } from "@olai/plugin-api/mount"
 import { Effect } from "effect"
@@ -38,11 +39,11 @@ export default definePlugin({
       ...slots.forOwner(owner), read: slots.read, inspect: slots.inspect,
     }))
     yield* Effect.acquireRelease(
-      Effect.sync(() => render(() => <For each={slots.read(root)}>{(entry) =>
+      Effect.sync(() => render(() => <TipScope><For each={slots.read(root)}>{(entry) =>
         <ErrorBoundary fallback={(error) => <pre role="alert">{String(error)}</pre>}>
           {entry.value()}
         </ErrorBoundary>
-      }</For>, element)),
+      }</For></TipScope>, element)),
       (dispose) => Effect.sync(dispose),
     )
   }),

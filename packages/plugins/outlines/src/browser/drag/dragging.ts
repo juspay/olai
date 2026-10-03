@@ -80,7 +80,8 @@ import type { Said } from "@olai/web/client/saying.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { createLifting } from "@olai/web/client/lifting.ts"
 import { applyingAll } from "../writes.ts"
-import { airborne, useAir } from "./air.ts"
+import { chainOf } from "../select/range.ts"
+import { useAir } from "./air.ts"
 import { type Aim, type Aimed, aimAt } from "./aim.ts"
 import { useFields } from "./fields.ts"
 import { measureBox, paneOf } from "./lines.ts"
@@ -334,7 +335,7 @@ export const createDragging = (
     // Asked of the WORKSPACE's answer rather than this page's, so a subtree
     // lifted in one pane fades in every pane that draws it — and the empty case
     // is still first, for the reason it always was (`./air.ts`).
-    carrying: (key) => airborne(air.held(), key),
+    carrying: (key) => chainOf(key).some(air.has),
     aim,
     grab: gesture.grab,
     heldMenu: gesture.heldMenu,

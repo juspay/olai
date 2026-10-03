@@ -178,12 +178,16 @@ const resolvePicture = (element: Element, claims: Claims | undefined, from: stri
  * relative would send the reader somewhere with nothing to say at all.
  */
 const resolveDocument = (element: Element, claims: Claims | undefined, from: string, members?: ReadonlySet<string>): void => {
-  if (claims === undefined) return
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
   // Keep the authored query and fragment after resolving the file once.
   const cut = /[?#]/.exec(written)?.index ?? written.length
   const resolved = deadLinkTarget(from, written)
+  if (resolved !== null) {
+    element.properties = { ...element.properties,
+      "data-link-path": resolved, "data-link-written": written,
+      "data-link-title": typeof element.properties["title"] === "string" ? element.properties["title"] : "" }
+  }
   if (resolved !== null && members !== undefined && !members.has(resolved)) {
     const warning = deadLinkSaid({ written, resolved, suggest: [] })
     const authored = element.properties["title"]
@@ -192,6 +196,7 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
       title: typeof authored === "string" ? `${authored} — ${warning}` : warning,
       className: [...(Array.isArray(classes) ? classes : []), "olai-dead-link"] }
   }
+  if (claims === undefined) return
   const document = resolved !== null && bodyKind(claims, resolved) !== null ? resolved : null
   if (document === null) return
   const address = addressOf(claims, document, null)

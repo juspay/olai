@@ -1,3 +1,8 @@
+import { createDoneRows } from "./pruning.ts"
+import { FocusProvider } from "./focus.ts"
+import { usePaneId } from "olai-plugin-navigation/routing"
+import { EditorMemoryProvider, editorMemory, resetEditorMemory } from "./edit/memory.ts"
+import { Dynamic } from "solid-js/web"
 import { PAGE_SUBJECT } from "olai-plugin-navigation/contract"
 /**
  * ONE pane's page: the same chrome a lone view has always drawn.
@@ -15,7 +20,7 @@ import { TESTID as IDS_UI_PRIMITIVES } from "@olai/ui-primitives/testids.ts"
 import { shownIn } from "olai-plugin-navigation/address/address.ts"
 import { nameOf } from "./routing.ts"
 import { useUndo } from "./edit/undoing.ts"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { batch, createEffect, on, createMemo, Match, Show, Switch } from "solid-js"
 
 import { parseFilter, samePageRequest } from "@olai/format"
 
@@ -41,18 +46,16 @@ import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { TESTID } from "../testids.ts"
 import { filterOf, hrefOf, narrowable, narrowedTo, routeFace, samePage } from "./routing.ts"
 import { panesOf } from "olai-plugin-navigation/workspace"
-import { pageFileOf, visibleIn } from "./settings/done.ts"
+import { pageFileOf, doneHiddenOn, landingReveal } from "./settings/done.ts"
 
 
 export function OutlinePageView(props: {readonly render?: (props: import("../index.ts").PageBodyProps) => import("solid-js").JSX.Element} = {}) {
   const router = useRouter()
   const here = useHere()
-  const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
+  const route = createMemo(() => router.panes()[here()]!.route())
   const source = createMemo(() => routeFace(route()))
   return (
-    <Show when={source()} keyed fallback={<PageAt source={null} render={props.render} />}>
-      {(tenant) => <PageAt source={tenant} render={props.render} />}
-    </Show>
+    <FocusProvider><PageAt source={source() ?? null} render={props.render} /></FocusProvider>
   )
 }
 
@@ -61,8 +64,9 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   const here = useHere()
   const follow = useFollow()
   const today = useToday()
-  const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
+  const route = createMemo(() => router.panes()[here()]!.route())
   const opened = createMemo(route, undefined, { equals: samePage })
+  const memory = editorMemory()
   const missing = createMemo(() => props.source === null && opened().kind === "plugin")
 
   /**
@@ -118,7 +122,8 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
    * front of the reader. Reading a ticking clock to mint a bound no one uses
    * would buy nothing and cost the tab its one answer about what time it is.
    */
-  const query = createMemo(() => parseFilter(filterOf(route()), today()))
+  const filter = createMemo(() => filterOf(route()))
+  const query = createMemo(() => parseFilter(filter(), today()))
 
   /**
    * WHICH NODES the query selects on this page — a second subscription beside
@@ -165,16 +170,19 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
    * licenses for a navigation). {@link together} covers the other, which is
    * measured NOT to happen; what it buys is that the page below may assert so.
    */
-  const reading = createReading(request, asked.awaiting, props.source?.route.stream)
+  const reading = createReading(request, asked.awaiting, () => props.source?.route.stream)
+  // The old page and its editor stand until the requested subject arrives.
+  const answered = createMemo(previous => reading.pending() ? previous : opened(), opened(), { equals: samePage })
+  createEffect(on(answered, () => batch(() => resetEditorMemory(memory)), { defer: true }))
   // …and the pane joins the workspace's register with it, so the chrome outside
   // the panes can read whichever one is focused — the page AND the names table
   // derived beside it (`../App.tsx`).
-  useReadings().join(here, reading)
+  useReadings().join(usePaneId(), reading)
   const navigation = useRouter() as import("olai-plugin-navigation/contract").Navigation
-  // History owns explicit inverse edits, not a subject inferred from this
-  // reading. Its file boundary is cleared by the outline palette owner even
-  // before the destination arrives; keep its empty-stack feedback available.
-  navigation.report(here, () => ({ pending: reading.pending(), failure: reading.failure()?.message, history: useUndo(), title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
+  // History owns explicit inverse edits. Pending readings block subject actions,
+  // while history keeps its existing file boundary and empty-stack feedback.
+  const undo = useUndo()
+  navigation.report(here, () => ({ pending: reading.pending(), failure: reading.failure()?.message, history: undo, title: nameOf(route(), shownIn(reading.names(), route())), file: reading.page() === undefined ? undefined : fileOf(reading.page()!.shows) }))
 
   const page = createMemo(() => reading.page()?.shows)
 
@@ -185,9 +193,15 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
   // zoomed view is the same page (../settings/done.ts) — and WHICH PANE: the
   // landing's reveal is one pane's courtesy, so a pane the address never
   // reached must sweep the row what the flip said.
-  const shownDrawn = createMemo(() =>
-    visibleIn(allDrawn(), pageFileOf(page()), here())
-  )
+  const paneId = usePaneId()
+  const treeRows = createMemo(() => { const drawn = allDrawn(); return drawn.kind === "tree" ? drawn.rows : [] })
+  const doneRows = createDoneRows(treeRows,
+    () => { const file = pageFileOf(page()); return file !== undefined && doneHiddenOn(file) },
+    () => { const file = pageFileOf(page()); return file === undefined ? undefined : landingReveal(file, paneId()) })
+  const shownDrawn = createMemo(() => {
+    const drawn = allDrawn()
+    return drawn.kind === "tree" ? { ...drawn, rows: doneRows() } : drawn
+  })
 
   /**
    * ARE THE TWO READINGS ABOUT THE SAME PAGE?
@@ -241,7 +255,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
       }`}
       data-testid={IDS_NAVIGATION.pane}
       data-pane={String(here())}
-      data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
+      data-pane-focused={here() === router.focusIndex() ? "true" : undefined}
       data-href={hrefOf(route())}
       /**
        * WHICH PAGE THIS PANE IS DRAWING — which is not the same fact as
@@ -274,7 +288,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
         follow(event)
       }}
     >
-      <ReadingProvider reading={reading}>
+      <EditorMemoryProvider value={memory}><ReadingProvider reading={reading}>
       <NarrowedProvider narrowed={narrowing}>
         {/* THE BOX BELONGS TO THE ADDRESS, so it is drawn on what the ADDRESS
             says: every page but a document's may carry a `?q=` (`../routes.ts`'s
@@ -335,10 +349,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
             <Switch>
               <Match when={props.render}>{render => render()({get page() { return open() }, get drawn() { return narrowing.drawn() }, get held() { return allDrawn() }, get today() { return today() }})}</Match>
               <Match when={props.source}>
-                {(source) => {
-                  const Face = source().face
-                  return <Face page={open()} drawn={narrowing.drawn()} today={today()} />
-                }}
+                {(source) => <Dynamic component={source().face} page={open()} drawn={narrowing.drawn()} today={today()} />}
               </Match>
               <Match when={only(open(), "broken")}>
                 {(file) => <Broken file={file().file} />}
@@ -368,7 +379,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
         </Show>
         </div>
       </NarrowedProvider>
-      </ReadingProvider>
+      </ReadingProvider></EditorMemoryProvider>
     </main>
   )
 }

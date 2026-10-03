@@ -39,7 +39,8 @@
  * receptacle).
  */
 import { TESTID } from "olai-plugin-vault/testids"
-import { For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { Show } from "solid-js"
 
 import { Link } from "olai-plugin-navigation/routing"
 import { atFile } from "olai-plugin-navigation/routes"
@@ -80,13 +81,13 @@ export function Banner(props: { readonly trouble: Trouble }) {
         </Lede>
       </Show>
       <ul class="m-0 mt-2 list-none p-0">
-        <For each={face().files}>
+        <Key each={face().files} by="file">
           {(one) => (
             <li
               class="mb-1 border-l-[3px] border-alarm py-0.5 pl-3"
               data-testid={TESTID.brokenFileLine}
-              data-file={one.file}
-              data-state={one.state}
+              data-file={one().file}
+              data-state={one().state}
             >
               {/* A LINK ONLY WHERE THERE IS A PAGE. A directory that went away
                   names the path it could not read, and that path is the served
@@ -97,25 +98,25 @@ export function Banner(props: { readonly trouble: Trouble }) {
               <Show
                 when={props.trouble.kind === "files"}
                 fallback={
-                  <code class="mr-2 font-mono text-body text-muted">{one.file}</code>
+                  <code class="mr-2 font-mono text-body text-muted">{one().file}</code>
                 }
               >
                 <Link
-                  route={atFile(one.file)}
+                  route={atFile(one().file)}
                   class="mr-2 font-mono text-body text-muted underline"
                   testid={TESTID.brokenFileLink}
                   broken
                 >
-                  {one.file}
+                  {one().file}
                 </Link>
               </Show>
               <span>
-                {SAID[one.state]} — {one.count}{" "}
-                {one.count === 1 ? "error" : "errors"}
+                {SAID[one().state]} — {one().count}{" "}
+                {one().count === 1 ? "error" : "errors"}
               </span>
             </li>
           )}
-        </For>
+        </Key>
       </ul>
       <Show when={face().more > 0}>
         <Lede testid={TESTID.brokenFileMore}>

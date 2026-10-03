@@ -38,12 +38,12 @@ import type { Row } from "@olai/format"
 import {
   type Accessor,
   createContext,
-  createEffect,
   createMemo,
   useContext,
+  createSelector, batch,
 } from "solid-js"
 
-import { flatten, neighbour, refound } from "../edit/order.ts"
+import { flatten, neighbour } from "../edit/order.ts"
 import { selectionMemory } from "./memory.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 import { useUndo } from "../edit/undoing.ts"
@@ -54,6 +54,7 @@ import { alongside, recordOf, spanning, topmost } from "./range.ts"
 export interface Selection {
   /** The places picked, as `Row.key`s. Read by a row to tone itself; every
    *  other question is answered by a method here. */
+  readonly has: (key: string) => boolean
   readonly keys: Accessor<ReadonlySet<string>>
   /** What a verb is asked of: the picked rows nothing else picked contains, in
    *  drawn order (`./range.ts`). Empty means nothing is selected. */
@@ -111,14 +112,14 @@ export const createSelection = (
   },
   memory = selectionMemory(),
 ): Selection => {
-  const [keys, setKeys] = memory.keys
+  const [picked, setKeys] = memory.keys
   const [said, setSaid] = memory.said
   /** The two ends of the range gestures: where the selection was started, and
    *  which end an arrow or a shift-click moves. Held apart from `keys` because
    *  a modifier-click can leave a set no span describes, and the next
    *  shift-click still has to know where to measure from. */
-  const [anchor, setAnchor] = memory.anchor
-  const [focus, setFocus] = memory.focus
+  const [pickedAnchor, setAnchor] = memory.anchor
+  const [pickedFocus, setFocus] = memory.focus
   const undo = useUndo()
   /** One bulk run at a time, and one edit at a time inside it — the editor's
    *  own queue, for the editor's own reason: each edit is judged against what
@@ -128,13 +129,13 @@ export const createSelection = (
 
   const drawn = (): ReadonlyArray<Row> => flatten(page.rows(), page.collapsed())
 
-  const pick = (chosen: Iterable<string>, at: string | null, end: string | null) => {
+  const pick = (chosen: Iterable<string>, at: string | null, end: string | null) => batch(() => {
     memory.widened = 0
     setKeys(new Set(chosen))
     setAnchor(at)
     setFocus(end)
     setSaid(null)
-  }
+  })
 
   /**
    * The picked places, found again wherever their records are drawn now.
@@ -144,47 +145,46 @@ export const createSelection = (
    * still holding the old chain would go dark on the frame that proved it
    * worked.
    */
-  createEffect(() => {
-    // THE PICK IS READ FIRST, and that ordering is the whole cost of this
-    // effect on a page nobody has picked anything on: `drawn` FLATTENS the
-    // visible tree, and it ran before the guard — so every frame of every page
-    // in the app walked the whole tree to discover there was nothing to
-    // re-find. Tracking is unchanged either way (a pick landing is what re-runs
-    // this and subscribes it to the rows); what changes is that the walk
-    // happens when there is something to walk for.
-    const held = keys()
-    if (held.size === 0) return
+  // Each source pick starts a new selection. Subsequent frames relocate its
+  // surviving records; a removed record stays removed even if it returns.
+  type Located = { pick: ReadonlySet<string>; keys: ReadonlySet<string>; anchor: string | null; focus: string | null; rows: ReadonlyArray<Row> }
+  const located = createMemo<Located>((previous) => {
+    const pick = picked()
+    const continuing = previous?.pick === pick
+    const held = continuing ? previous.keys : pick
+    const at = continuing ? previous.anchor : pickedAnchor()
+    const end = continuing ? previous.focus : pickedFocus()
+    if (held.size === 0 && at === null && end === null) return { pick, keys: held, anchor: null, focus: null, rows: NOTHING_PICKED }
     const rows = drawn()
-    // THE ORDINARY FRAME IS THE FAST ONE, and it has to be: this runs on every
-    // revision the store publishes, and `refound` scans the drawn rows — asking
-    // it per picked row per frame would be the pick times the tree for an answer
-    // that is almost always "nothing moved". One Set, one pass.
-    const places = new Set(rows.map((row) => row.key))
-    if ([...held].every((key) => places.has(key))) return
-
-    const again = (key: string): string | undefined => refound(rows, recordOf(key), key)
-    setKeys(new Set([...held].flatMap((key) => {
-      const found = again(key)
-      return found === undefined ? [] : [found]
-    })))
-    const at = anchor()
-    if (at !== null) setAnchor(again(at) ?? null)
-    const end = focus()
-    if (end !== null) setFocus(again(end) ?? null)
+    const places = new Set<string>(), records = new Map<string, string>()
+    for (const row of rows) {
+      places.add(row.key)
+      if (!records.has(row.at.node.id)) records.set(row.at.node.id, row.key)
+    }
+    const find = (key: string | null) => key === null ? null : places.has(key) ? key : records.get(recordOf(key)) ?? null
+    return { pick, keys: new Set([...held].flatMap(key => { const found = find(key); return found === null ? [] : [found] })),
+      anchor: find(at), focus: find(end), rows }
   })
+  const keys = createMemo(() => located().keys, new Set<string>(), {
+    equals: (a, b) => a.size === b.size && [...a].every(key => b.has(key)),
+  })
+  const anchor = () => located().anchor
+  const focus = () => located().focus
+
+
 
   /** A MEMO, because three readers ask for it and one of them is a window key
    *  listener: the bar draws it, the verbs are asked of it, and every keystroke
    *  on the page asks whether anything is picked at all. Recomputed only when
    *  the pick or the rows move.
    *
-   *  EMPTY IS ANSWERED BEFORE THE WALK, for the effect above's reason and one
+   *  EMPTY IS ANSWERED BEFORE THE WALK, for the relocation memo's reason and one
    *  more of its own: `topmost` over no keys is empty whatever the page holds,
    *  so flattening the tree to arrive there was a walk per frame on every page
    *  in the app — and it handed back a FRESH empty array each time, which woke
    *  the bar and the key listener for nothing. */
   const rows = createMemo<ReadonlyArray<Row>>(() =>
-    keys().size === 0 ? NOTHING_PICKED : topmost(drawn(), keys())
+    keys().size === 0 ? NOTHING_PICKED : topmost(located().rows, keys())
   )
 
   const run = async (verb: Bulk): Promise<void> => {
@@ -195,6 +195,7 @@ export const createSelection = (
   }
 
   return {
+    has: createSelector(keys, (key: string, set) => set.has(key)),
     keys,
     rows,
     start: (key) => pick([key], key, key),

@@ -19,6 +19,7 @@
  */
 import { type Accessor, createSignal } from "solid-js"
 
+import { heldService } from "@olai/ui-primitives/held.ts"
 import type { SetOptions } from "@olai/web/client/preference.ts"
 
 import {
@@ -34,16 +35,20 @@ import {
   SIDEBAR_MIN_PX,
 } from "./prefs.ts"
 
-const [isDesktop, setIsDesktop] = createSignal(false)
-
-/** Is the viewport at the phone/desktop split? */
-export const desktop: Accessor<boolean> = isDesktop
-
-export const publishDesktop = (value: boolean): void => { setIsDesktop(value) }
-
-const [viewportWidth, setViewportWidth] = createSignal(10_000)
-
-
+/** Installed before geometry listeners and withdrawn after them. */
+export const createLayoutState = () => {
+  const [desktop, setDesktop] = createSignal(false)
+  const [width, setWidth] = createSignal(10_000)
+  const [prefs, setPreferences] = createSignal<LayoutPreferences>()
+  const [drawer, setDrawer] = createSignal(false)
+  return { desktop, setDesktop, width, setWidth, prefs, setPreferences, drawer, setDrawer }
+}
+const held = heldService<ReturnType<typeof createLayoutState>>()
+export const holdLayoutState = held.hold
+const state = held.read
+export const desktop: Accessor<boolean> = () => state()?.desktop() ?? false
+export const publishDesktop = (value: boolean): void => { state()?.setDesktop(value) }
+const viewportWidth = () => state()?.width() ?? 10_000
 
 // ── the four circuits, one factory ────────────────────────────────────────
 //
@@ -53,9 +58,13 @@ const [viewportWidth, setViewportWidth] = createSignal(10_000)
 // a width — and the accessors stay because a width is fitted to the viewport
 // on the way out, which is a fact about layout and not about storage.
 
-const [active,setActive]=createSignal<LayoutPreferences>()
-export const holdLayoutPreferences=(value:LayoutPreferences):(()=>void)=>{setActive(value);return()=>{if(active()===value)setActive(undefined)}}
-export const publishViewportWidth=(value:number):void=>{setViewportWidth(value)}
+const active = () => state()?.prefs()
+export const holdLayoutPreferences = (value: LayoutPreferences): (() => void) => {
+  const owner = state()
+  owner?.setPreferences(value)
+  return () => { if (owner?.prefs() === value) owner?.setPreferences(undefined) }
+}
+export const publishViewportWidth = (value: number): void => { state()?.setWidth(value) }
 // ── sidebar open (desktop: full column vs icon rail) ──────────────────────
 
 export const sidebarOpen: Accessor<boolean> = () => active()?.sidebarOpenPref.value() ?? true
@@ -70,12 +79,10 @@ export const toggleSidebar = (): void => setSidebarOpen(!sidebarOpen())
 // so nothing stores it. Owned by the frame that draws it (`../Frame.tsx`),
 // which shuts it when it unmounts and whenever the viewport becomes a desktop.
 
-const [drawer, setDrawer] = createSignal(false)
-
 /** Is the phone's sidebar drawer open? Always `false` on a desktop. */
-export const drawerOpen: Accessor<boolean> = drawer
+export const drawerOpen: Accessor<boolean> = () => state()?.drawer() ?? false
 
-export const setDrawerOpen = (open: boolean): void => { setDrawer(open) }
+export const setDrawerOpen = (open: boolean): void => { state()?.setDrawer(open) }
 
 /** Put the sidebar where a person can see it: the column on a desktop (out of
  *  its rail), the drawer on a phone. For a control OUTSIDE the sidebar that

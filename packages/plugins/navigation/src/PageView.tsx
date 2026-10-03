@@ -4,7 +4,6 @@ import { type Address, fileKind } from "@olai/format"
 import { content, pages } from "./index.ts"
 import { useHere, useRouter } from "./routing.tsx"
 import { HOME_ROUTE } from "./routes.ts"
-import { panesOf } from "./workspace.ts"
 import { readLocation } from "./locations.ts"
 import { directory } from "./pages.ts"
 import { forFileClaim } from "@olai/plugin-api/file-kinds"
@@ -15,7 +14,7 @@ import { Empty } from "@olai/web/client/Empty.tsx"
 
 export function PageView() {
   const router = useRouter(), here = useHere()
-  const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
+  const route = createMemo(() => router.panes()[here()]!.route())
   const address = createMemo(() => {
     const at = route()
     return at.kind === "at" && at.address !== null && at.address.kind !== "node" ? at.address : undefined

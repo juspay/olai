@@ -98,7 +98,7 @@ import { CONFIGURATION_FILE, type EnvironmentReading } from "@olai/plugin-api/co
 import { approveDefinition } from "./approval.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSelector, createSignal, For, onCleanup, Show } from "solid-js"
 
 import {
   type BuiltPlugin,
@@ -180,7 +180,7 @@ export function Panel(props: {
   /** WHAT EVERY ROW'S OWN PLUGIN HUNG — one map per publication of the table,
    *  so the grouping below, the row lookups and the drawings all read the same
    *  answer rather than rebuilding it per field getter. */
-  const rowFaces = createMemo(() => props.rows())
+  const rowFaces = createMemo(() => props.rows(), undefined, { equals: (a, b) => a.size === b.size && [...a].every(([key, value]) => b.get(key) === value) })
   // Many controls read the same roster. Derive its groups once per publication,
   // not once per field getter while the browser is trying to settle a press.
   // The fourth argument is the one reading of a FACE the walk makes, asked
@@ -194,38 +194,7 @@ export function Panel(props: {
     (name) => rowFaces().get(name)?.needs() === true,
   ))
   let element: HTMLElement | undefined
-  let active = true
-  onCleanup(() => { active = false })
-  createEffect(() => {
-    const name = props.state.requested()
-    if (name === undefined) return
-    const plugin = rows().find((row) => row.name === name)
-    const group = groups().find(group => group.rows.some(row => row.name === name))
-    if (group === undefined) return
-    // A ROW WHOSE EVERY LEAF IS PROMOTED has nothing to open HERE — the one
-    // control it would reveal is a link to the other panel, and somebody asking
-    // for the row's settings wants the setting, not a door to it. So the
-    // request lands where the settings are, and this panel shuts behind them.
-    if (plugin !== undefined && rowSettings(plugin, preferencesPanel()).allAway) {
-      props.state.revealed(name)
-      // DEFERRED, like the focus below: this effect runs while the panel it
-      // belongs to is being mounted (opening the door is what drew it), and
-      // shutting that door from inside its own render leaves the portal behind.
-      queueMicrotask(() => { if (active) intoPreferences(props.state) })
-      return
-    }
-    props.state.setGroupOpen(group.label, true)
-    props.state.setExpanded(name, true)
-    queueMicrotask(() => {
-      if (!active || props.state.requested() !== name) return
-      const row = element?.querySelector<HTMLElement>(`[data-pref="${CSS.escape(pluginPref(name))}"]`)
-      row?.scrollIntoView({ block: "nearest" })
-      // The first knob in its detail where it has one, else the row's own
-      // disclosure or switch.
-      ;(row?.querySelector<HTMLElement>(".plugins-detail :is(input, select, button)") ?? row?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true })
-      props.state.revealed(name)
-    })
-  })
+  const requested = createSelector(() => props.state.requested())
 
   /** WHICH GROUPS THIS READER HAS OPENED OR SHUT — on inspector state, not
    *  this component: a switch rebuilds the shell, and a walk that lived here
@@ -324,8 +293,8 @@ export function Panel(props: {
     <section ref={el => { element = el; props.inside(el) }} class="plugins-panel" tabindex="-1" data-testid={TESTID.pluginsPanel} aria-label="Plugins">
       <header class="plugins-head">
         <strong class="plugins-title">Plugins</strong>
-        <Show when={props.state.file()} fallback={<span class="plugins-head-file">{rosterFile().split("/").pop()}</span>}>
-          {File => { const Link = File(); return <span class="plugins-head-file" onClick={() => props.state.door.setOpen(false)}><Link
+        <Show when={props.state.file()} keyed fallback={<span class="plugins-head-file">{rosterFile().split("/").pop()}</span>}>
+          {File => { const Link = File; return <span class="plugins-head-file" onClick={() => props.state.door.setOpen(false)}><Link
             file={rosterFile()} label={rosterFile()} title={`Open ${rosterFile()}`} testid={TESTID.pluginsFile}>
             {rosterFile().split("/").pop()} ↗
           </Link></span> }}
@@ -353,8 +322,9 @@ export function Panel(props: {
                 <span class="plugins-heading-count" data-group-count>{group.needs ? group.rows.length : groupCount(group.rows)}</span>
               </summary>
               <div class="plugins-rows">
-                <For each={group.rows.map(plugin => plugin.name)}>{name => <PluginRow plugin={group.rows.find(plugin => plugin.name === name)!}
-                  face={rowFaces().get(name)} needs={group.needs}
+                <For each={group.rows}>{plugin => <PluginRow plugin={plugin}
+                  face={rowFaces().get(plugin.name)} needs={group.needs}
+                  requested={requested(plugin.name)} group={group.label}
                   panel={props} plugins={plugins} flipping={flipping} confirming={confirming} dismissConfirm={() => setConfirming(null)} set={set} approve={approve} approving={approving} />}</For>
               </div>
             </details>
@@ -407,7 +377,7 @@ function Chevron(props: { readonly hidden?: boolean }) {
 }
 
 function NodeLink(props: { readonly node: { readonly file: string; readonly id: string } | undefined; readonly state: InspectorState }) {
-  return <Show when={props.node && props.state.file()}>{File => { const Link = File() as NonNullable<ReturnType<InspectorState["file"]>>; return <span class="plugins-link" onClick={() => props.state.door.setOpen(false)}><Link
+  return <Show when={props.node ? props.state.file() : undefined} keyed>{Link => { return <span class="plugins-link" onClick={() => props.state.door.setOpen(false)}><Link
     file={props.node!.file} at={props.node!.id} label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></span> }}</Show>
 }
 
@@ -428,6 +398,8 @@ function PluginRow(props: {
   readonly face: PluginsRowFace | undefined
   /** Filed under Needs attention: its detail starts expanded. */
   readonly needs: boolean
+  readonly requested: boolean
+  readonly group: string
   readonly panel: {
     readonly state: InspectorState
     readonly management: BrowserManagement
@@ -449,27 +421,47 @@ function PluginRow(props: {
   /** WHAT THIS ROW DRAWS — named for the drawing rather than for the settings
    *  row it is about, which is a plugin's name and may not be spelled here
    *  (`@olai/bundle`'s fence is right about that). */
-  const drawn = (): RowSettings => rowSettings(plugin(), preferencesPanel())
+  const drawn = createMemo((): RowSettings => rowSettings(plugin(), preferencesPanel()))
   const look = () => props.panel.management.look(plugin().name)
   const strip = () => pluginSwitch(plugin(), props.flipping() === plugin().name || props.panel.management.changing())
   const shown = () => displayName(plugin(), look())
-  const condition = () => rowCondition(plugin(), props.panel.management.reports(), props.face?.needs() === true)
+  const condition = createMemo(() => rowCondition(plugin(), props.panel.management.reports(), props.face?.needs() === true))
   const copy = () => { const now = condition(); return now === null ? null : conditionSaid(now) }
   const tone = () => { const now = condition(); return now === null || CONDITION_TONE[now.kind] === undefined ? "" : `plugins-${CONDITION_TONE[now.kind]}` }
   const cost = () => pluginConfirm(plugin(), (one) => props.panel.management.look(one), props.plugins())
   const session = () => plugin().switchPersistence === "session" || props.plugins().configurationAvailable === false
-  const environment = () => (plugin().environment ?? []).filter(environmentVisible)
+  const environment = createMemo(() => (plugin().environment ?? []).filter(environmentVisible))
   const broken = () => condition()?.kind === "tabFailed"
   /** Whether the row has anything to show beyond its short name. A row that
    *  does not draws no chevron and does not open: a press that reveals only
    *  the name already on it is a door to nothing. */
-  const reveals = () => copy() !== null || props.face !== undefined || broken() || plugin().source !== undefined ||
+  const reveals = createMemo(() => copy() !== null || props.face !== undefined || broken() || plugin().source !== undefined ||
     drawn().knobs.length > 0 || drawn().link || environment().length > 0 || session() ||
-    (plugin().configurationNode !== undefined && Boolean(props.panel.state.file()))
+    (plugin().configurationNode !== undefined && Boolean(props.panel.state.file())))
   const open = () => reveals() && (props.panel.state.expanded()[plugin().name] ?? props.needs)
+  let row: HTMLDivElement | undefined
+  createEffect(() => {
+    if (!props.requested) return
+    const name = plugin().name
+    let active = true
+    onCleanup(() => { active = false })
+    const away = drawn().allAway
+    if (!away) {
+      props.panel.state.setGroupOpen(props.group, true)
+      props.panel.state.setExpanded(name, true)
+    }
+    queueMicrotask(() => {
+      if (!active || props.panel.state.requested() !== name) return
+      props.panel.state.revealed(name)
+      if (away) { intoPreferences(props.panel.state); return }
+      row?.scrollIntoView({ block: "nearest" })
+      // Native controls define focus order inside this row's owned element.
+      ;(row?.querySelector<HTMLElement>(".plugins-detail :is(input, select, button)") ?? row?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true })
+    })
+  })
   const detailId = `plugins-detail-${plugin().name}`
   return (
-    <div data-testid={PRIMITIVE.prefsRow} data-pref={pluginPref(plugin().name)} class="plugins-row" data-off={!plugin().running ? "true" : undefined}
+    <div ref={row} data-testid={PRIMITIVE.prefsRow} data-pref={pluginPref(plugin().name)} class="plugins-row" data-off={!plugin().running ? "true" : undefined}
       data-open={open() ? "true" : undefined} data-plugin-line>
       <div class="plugins-line">
         <Show when={reveals()} fallback={

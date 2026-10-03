@@ -1,5 +1,5 @@
 /** Model selection uses ACP configuration, including on adapters with no /model command. */
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, createSelector, onCleanup, For, Show } from "solid-js"
 import { agentIn } from "olai-plugin-chat/wire"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
@@ -40,21 +40,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
     const visible = createMemo(() => visibleModels(state().models, query()))
     const cursor = createCursor(() => visible().length)
 
-    // Keep the row under the cursor ON THE SCREEN: the keys below prevent the
-    // browser's own scrolling and the caret lives in the filter box, so an
-    // arrow-walked row is invisible unless the row itself asks for the pane —
-    // which is the whole story of an 84-model menu otherwise (review of
-    // #600). `nearest`, so a move between already-visible rows moves nothing.
-    // The row is FOUND the same way the DOM names it — the rows below are
-    // the only things carrying `aria-selected` at all — so the effect knows
-    // nothing about where the filter row sits: children arithmetic here was
-    // the first re-review's target, and it went with the caret's keepers in
-    // `@olai/web`'s `inlinePicker.ts`.
-    createEffect(() => {
-      cursor.at()
-      if (visible().length === 0) return
-      picker.list()?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" })
-    })
+    const selected = createSelector(cursor.at)
 
     const key = (event: KeyboardEvent): void => {
       switch (listKey(event)) {
@@ -128,18 +114,20 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
             No model matches "{query().trim()}"
           </li>
         }>
-          {(model, index) => (
-            <li>
-              <button type="button"
+          {(model, index) => {
+            let button: HTMLButtonElement | undefined
+            createEffect(() => { if (selected(index())) button?.scrollIntoView({ block: "nearest" }) })
+            return <li>
+              <button type="button" ref={button}
                 class="block w-full rounded-control px-2 py-1 text-left text-label hover:bg-rule"
-                classList={{ "bg-rule": index() === cursor.at() }}
-                aria-selected={index() === cursor.at()}
+                classList={{ "bg-rule": selected(index()) }}
+                aria-selected={selected(index())}
                 onPointerEnter={() => cursor.to(index())}
                 onClick={() => pick(model)}>
                 {model.name}
               </button>
             </li>
-          )}
+          }}
         </For>
       </>
     )
