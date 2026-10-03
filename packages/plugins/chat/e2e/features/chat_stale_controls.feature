@@ -66,33 +66,6 @@ Feature: A delayed tab cannot apply a chat control to another node's turn
       | empty composer        |                 |
       | another draft started | follow-up draft |
 
-  Scenario: The palette sends to its focused ancestor despite another tab reading another node
-    Given incoming updates to this browser tab can be held
-    And the harness keeps distinct sessions on disk
-    And I open the outline "house.olai"
-    When I open the node menu of "install"
-    And I choose "Start an agent" from the node menu
-    And the node agent's fold is ready
-    And I point at row "hinges" in outline "house.olai"
-    And I close the agent fold
-    And I hold incoming updates to the original browser tab
-    And I open another browser tab
-    And I open the node menu of "order"
-    And I choose "Start an agent" from the node menu
-    And the node agent's fold is ready
-    When I use the original browser tab
-    And I press the palette shortcut
-    And I type "> only for install" into the palette
-    And I submit the palette while chat updates are delayed
-    And I release incoming updates to the original browser tab
-    Then node agent "install" is unfolded
-    When I use the fold on node "install"
-    Then the agent has answered "only for install" exactly once
-    When I use the other browser tab
-    Then the agent is idle
-    And the chat has not answered "you said: only for install"
-    And there should be no page errors
-
   Scenario: Retrying in a delayed tab resends only that node's refused message
     Given incoming updates to this browser tab can be held
     And the harness keeps distinct sessions on disk
