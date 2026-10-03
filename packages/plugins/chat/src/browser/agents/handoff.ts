@@ -22,7 +22,8 @@
  * was refused has no conversation yet, so its words are PARKED for that node:
  * its page claims them like an arrival whenever it is next opened.
  */
-import { createEffect, createSignal, onCleanup, untrack } from "solid-js"
+import { batch, createEffect, createSignal, onCleanup, untrack } from "solid-js"
+import { createStore } from "solid-js/store"
 import { isPutAway } from "@olai/format"
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { atNode } from "olai-plugin-navigation/routes"
@@ -77,18 +78,22 @@ export const createHandoff = (input: {
 }) => {
   const arrivals = new Map<string, Arrival>()
   const parked = new Map<string, Arrival>()
-  const [revision, revise] = createSignal(0)
-  /** Told to the page faces, so a `take` in their effect sees the new arrival. */
-  const announce = () => revise(value => value + 1)
-  const abandon = (node: string, arrival: Arrival) => {
-    arrivals.delete(node)
+  /** How many arrivals are unclaimed: the standing watch reads nothing else
+   *  while there are none. */
+  const [outstanding, count] = createSignal(0)
+  /** One tick per node, so an arrival wakes only that node's page faces. */
+  const [ticks, tick] = createStore<Record<string, number>>({})
+  const announce = (node: string) => tick(node, value => (value ?? 0) + 1)
+  const forget = (node: string) => { if (arrivals.delete(node)) count(arrivals.size) }
+  const abandon = (node: string, arrival: Arrival) => batch(() => {
+    forget(node)
     if (arrival.to === null) parked.set(node, { ...arrival, done: () => {} })
     else input.keep(arrival.to, arrival.text)
     arrival.done()
-    announce()
-  }
+    announce(node)
+  })
   createEffect(() => {
-    revision()
+    if (outstanding() === 0) return
     const nav = navigation()
     const route = nav?.route()
     const pane = nav?.panes()[nav.focusIndex()]
@@ -109,16 +114,21 @@ export const createHandoff = (input: {
     /** Hand the words to `node`'s page and open it — unless the level that
      *  asked is gone, or navigation was replaced since it asked, in which case
      *  the words are returned at once and nothing navigates. */
-    land: (node: string, arrival: Arrival, from: { readonly nav: Navigation; readonly signal: AbortSignal }) => {
+    land: (node: string, arrival: Arrival, from: { readonly nav: Navigation; readonly signal: AbortSignal }) => batch(() => {
       arrivals.set(node, arrival)
+      count(arrivals.size)
       if (from.signal.aborted || navigation() !== from.nav) { abandon(node, arrival); return }
+      // In one batch with the arrival: the standing watch first runs against
+      // the route this lands on, never the one it leaves.
       from.nav.go(atNode(node))
-      announce()
-    },
+      announce(node)
+    }),
+    /** Claim `node`'s arrival (or its parked words), once. Read in a page's
+     *  effect, it subscribes to that node's tick alone. */
     take: (node: string) => {
-      revision()
+      void ticks[node]
       const value = arrivals.get(node) ?? parked.get(node)
-      arrivals.delete(node); parked.delete(node)
+      forget(node); parked.delete(node)
       return value
     },
   }
