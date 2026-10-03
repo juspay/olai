@@ -247,16 +247,16 @@ export const surface = defineSurface({
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, value: Schema.String }),
         error: ChatFailure,
       },
-      /** Ensure an Inbox node, start its engine, then return the node id. */
+      /** Mint under the visible location and return the node even if start refuses. */
       newChat: {
-        input: Schema.Struct({ agent: Schema.String }),
-        output: Schema.String,
+        input: Schema.Struct({ agent: Schema.String, title: Schema.String, parent: Schema.NullOr(Schema.String) }),
+        output: Schema.Struct({ node: Schema.String, to: Schema.NullOr(Schema.Struct({ agent: Schema.String, session: Schema.String })), refusal: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
-      /** Resolve the focused row's nearest ancestor agent, including itself. */
-      agentAbove: {
-        input: Schema.Struct({ node: Schema.String }),
-        output: Schema.NullOr(Schema.Struct({ node: Schema.String, file: Schema.String, agent: Schema.String, session: Schema.NullOr(Schema.String) })),
+      locations: {
+        input: Schema.Struct({ filter: Schema.String, limit: Schema.Number, ids: Schema.Array(Schema.String), parents: Schema.Array(Schema.String) }),
+        output: Schema.Struct({ nodes: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, file: Schema.String,
+          path: Schema.Array(Schema.String), parent: Schema.NullOr(Schema.String) })), defaultParent: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       /** Null means the node panel holds an auth-refused open for sign-in. */
@@ -425,9 +425,9 @@ export const faces = {
     "conversation.setModel": "tool",
     "conversation.setSetting": "tool",
     "conversation.newChat": "tool",
+    "conversation.locations": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.closeAgent": "tool",
-    "conversation.agentAbove": "tool",
     "conversation.reopen": "tool",
     "conversation.sessions": "tool",
     "conversation.answer": "tool",

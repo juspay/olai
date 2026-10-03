@@ -123,17 +123,17 @@ const changed = async (name: Named, from: string | null, ms = 30_000): Promise<s
 // panel with no door on it, is a finding about the panel and not a crash.
 await p.goto(BASE)
 ok("the app came up", await drawn("outline-list"))
-// New conversations start from the `+` on the sidebar's Chats heading; there
-// is no side panel or toggle. The `+` starts at once with one agent and opens
-// the agent menu with several, where this driver picks Claude — the adapter it
-// exists to measure. The conversation folds open under its Inbox row.
+// New conversations start from the `+` on the sidebar's Chats heading, which
+// opens the palette at New chat: the default place (Inbox › Chats), then the
+// first message with Claude — the adapter this driver exists to measure —
+// chosen. Nothing is created until that message is sent; the new node's page
+// opens on its conversation.
 ok("the panel has a door", await drawn("chat-new"))
 await p.locator(selector("chat-new")).click()
-{
-  const agents = p.locator(selector("agent-engine-menu"))
-  await agents.or(p.locator(selector("chat-input"))).first().waitFor({ state: "visible", timeout: 60_000 }).catch(() => {})
-  if (await agents.isVisible()) await agents.locator('[data-engine="claude"]').click()
-}
+await p.locator(`${selector("palette-item")}[data-id="new-chat-default"]`).click()
+await p.locator(`${selector("palette-option")}[data-id="claude"]`).click()
+await p.locator(selector("palette-input")).fill("Reply with exactly READY and nothing else.")
+await p.locator(selector("palette-input")).press("Enter")
 ok("...and it opens on a box to type in", await drawn("chat-input"))
 
 const shot = (name: string): Promise<Buffer> => p.screenshot({ path: `${SHOTS}/${name}.png` })

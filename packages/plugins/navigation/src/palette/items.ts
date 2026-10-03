@@ -1,6 +1,6 @@
 /** Generic palette rows and prefix grammar. Feature providers own the words,
  * character, write behavior and continuation of every contributed prefix. */
-import type { AppChord, AppCommand } from "olai-plugin-navigation/slots"
+import type { AppChord } from "olai-plugin-navigation/slots"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import type {Hung } from "@olai/plugin-api"
 import type { Edit } from "@olai/surface"
@@ -148,32 +148,6 @@ export const prefixesIn = (entries: ReadonlyArray<{ readonly owner: string; read
   })
 }
 
-/** Resolve legacy app.command contributions against active typed prefixes. */
-export const commandsIn = (
-  entries: ReadonlyArray<Hung<AppCommand>>,
-  reserved: ReadonlyArray<PalettePrefix> = [],
-): ReadonlyArray<AppCommand> => {
-  /** Prefix → whoever is holding it, in the words the refusal names them by. */
-  const held = new Map<string, string>(
-    reserved.map((prefix) => [prefix.value, `the active prefix "${prefix.label}"`] as const),
-  )
-  const kept: Array<AppCommand> = []
-  for (const one of entries) {
-    const already = held.get(one.face.prefix)
-    if (already !== undefined) {
-      console.warn(
-        `olai: the plugin "${one.plugin}" claims the palette prefix `
-          + `"${one.face.prefix}", which ${already} already answers — that `
-          + "command is not drawn, and typing the character does what it did before.",
-      )
-      continue
-    }
-    held.set(one.face.prefix, `the plugin "${one.plugin}"`)
-    kept.push(one.face)
-  }
-  return kept
-}
-
 /**
  * THE CHORDS PLUGINS REGISTERED IN `app.keys`, as the palette's key handler
  * answers them — every one whose key and Shift nothing answers yet, in the
@@ -181,8 +155,8 @@ export const commandsIn = (
  *
  * `reserved` is the core table (`@olai/web`'s `CHORDS`), and it wins: a chord a
  * plugin registers over one of those is refused out loud rather than quietly
- * shadowing the app's own key, which is {@link commandsIn}'s rule for prefixes
- * read for keys. Between two plugins the first keeps it.
+ * shadowing the app's own key, which is {@link prefixesIn}'s rule read for
+ * keys. Between two plugins the first keeps it.
  */
 export const chordsIn = (
   entries: ReadonlyArray<Hung<AppChord>>,
@@ -328,7 +302,7 @@ export const filterItems = (
 /**
  * WHAT THE BOX IS DOING, as one value — the whole of what a prefix decides.
  *
- * Three answers and never two at once, which is the point of it being a tagged
+ * Two answers and never both at once, which is the point of it being a tagged
  * union rather than a pair of nullable strings beside a `typing` boolean
  * derived from them. Those spell "asking AND capturing", "capturing while the
  * list is still being filtered", and "neither, but typing" — states nothing can
@@ -344,24 +318,20 @@ export type Mode =
   /** No prefix: the rest is a filter over the rows. */
   | { readonly kind: "filter" }
   /**
-   * A PLUGIN'S PREFIX — the rest is the line its `run` is about to be handed.
+   * A PALETTE ADAPTER'S PREFIX — the rest is the line its adapter is about to
+   * be handed.
    *
-   * The command TRAVELS ON THE MODE rather than being looked up again from the
-   * prefix where the line is drawn and once more where Enter sends it. Those
+   * The prefix TRAVELS ON THE MODE rather than being looked up again from the
+   * character where the line is drawn and once more where Enter sends it. Those
    * two lookups are the same question asked of a table that moves on its own —
-   * a plugin dropped between the keystroke and the press — and the honest
-   * answer to "which verb did the reader type a line under" is the one the
+   * an adapter withdrawn between the keystroke and the press — and the honest
+   * answer to "which prefix did the reader type a line under" is the one the
    * grammar already found.
    */
-  | {
-    readonly kind: "command"
-    readonly command: AppCommand
-    readonly text: string
-  }
   | { readonly kind: "prefix"; readonly prefix: PalettePrefix; readonly text: string }
 
 /**
- * …AND THE FOURTH THING THE BOX CAN BE DOING: answering a question the palette
+ * …AND THE OTHER THINGS THE BOX CAN BE DOING: answering a question the palette
  * put in place of its list (`./asking.ts`).
  *
  * It is an arm of {@link Mode}'s union rather than a flag beside it, and the
@@ -388,7 +358,6 @@ export type Box =
 export const boxOf = (
   raw: string,
   question: Asking | null,
-  commands: ReadonlyArray<AppCommand>,
   prefixes: ReadonlyArray<PalettePrefix> = [],
   inLevel = false,
 ): Box =>
@@ -396,17 +365,13 @@ export const boxOf = (
     ? { kind: "answering", question }
     : inLevel
       ? { kind: "level" }
-      : modeOf(raw, commands, prefixes)
+      : modeOf(raw, prefixes)
 
 /** Parse only contributions that are active in this composition. */
-export const modeOf = (raw: string, commands: ReadonlyArray<AppCommand>, prefixes: ReadonlyArray<PalettePrefix> = []): Mode => {
+export const modeOf = (raw: string, prefixes: ReadonlyArray<PalettePrefix> = []): Mode => {
   for (const prefix of prefixes) {
     const text = afterPrefix(raw, prefix.value)
     if (text !== null) return { kind: "prefix", prefix, text }
-  }
-  for (const command of commands) {
-    const line = afterPrefix(raw, command.prefix)
-    if (line !== null) return { kind: "command", command, text: line }
   }
   return { kind: "filter" }
 }
@@ -415,11 +380,10 @@ export const modeOf = (raw: string, commands: ReadonlyArray<AppCommand>, prefixe
  * What is left of the query after `prefix`, or `null` when it does not carry
  * one.
  *
- * ONE function for both prefixes, because they are one rule read twice: the
+ * ONE function for every prefix, because they are one rule read for each: the
  * leading space is forgiving (a palette opened with a stray space in it is not
- * a different mode), the prefix goes, and the space after it goes too — so `>
- * hello` and `>hello` are the same message and `+ buy milk` and `+buy milk`
- * are the same capture. What comes back is otherwise VERBATIM, including the
+ * a different mode), the prefix goes, and the space after it goes too — so
+ * `+ buy milk` and `+buy milk` are the same capture. What comes back is otherwise VERBATIM, including the
  * trailing space somebody left, because it is on its way to a node's title and
  * this is not the layer that judges one.
  */

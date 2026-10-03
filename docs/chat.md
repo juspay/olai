@@ -30,13 +30,13 @@ probe and choices without disabling the other engines. Choices follow the
 server's current engine roster.
 
 A conversation belongs to one engine for its lifetime. The *start an agent*
-pill and the Chats heading's `+` (new chat) appear when at least one engine is available. They
-start immediately when exactly one engine is available. With two or more, the
-menu lists all enabled engines in bundle order: available engines are pickable;
-missing ones are greyed out with their reason, without a link inside the
-disabled choice. Installation links remain in the plugins panel and no-agent
-face. Row-menu verbs and the command palette offer only available engines.
-A plain node page shows its selected engine beside the composer.
+pill starts immediately with one available engine and offers a menu with several.
+The Chats heading's **+** opens **New chat** in the ⌘K palette. Its message
+step offers the engines that can start as its options, the first in bundle
+order chosen. With no engine available the **+** opens a menu that says no
+agent is set up, with a door to Plugins, and the palette offers no **New chat**
+row. Opening either door creates nothing.
+A plain node page also shows its selected engine beside the composer.
 
 A **fresh start may pick a different engine**, but only by an explicit choice.
 With at most one startable engine, the press asks for the node's current engine;
@@ -231,7 +231,7 @@ What a session has **cost** is on the wire too, and is deliberately not drawn: i
 
 The button says **send** the whole time, because that is what it does the whole time. Cancel sits beside it rather than replacing it: sending and stopping are two things you can want at the same moment, and while a turn runs they are usually the two you are choosing between. `interrupt` appears between them while a turn is running, on an agent that takes one.
 
-**Sending belongs to the conversation shown when you press it.** A delayed tab cannot send, interrupt or retry a message in a different node selected by another tab. Retry controls carry the conversation identity as well as the message ID, since each transcript numbers its messages independently. Refused text, chosen `@` handles and uploaded files return to their original conversation, including after a drawer remount; text typed while the refusal was in flight is retained after the recovered message. Refusals also remain visible when a response arrives after the drawer was reopened. The palette’s `>` command checks the same conversation identity and keeps a refused command in its input.
+**Sending belongs to the conversation shown when you press it.** A delayed tab cannot send, interrupt or retry a message in a different node selected by another tab. Retry controls carry the conversation identity as well as the message ID, since each transcript numbers its messages independently. Refused text, chosen `@` handles and uploaded files return to their original conversation, including after a drawer remount; text typed while the refusal was in flight is retained after the recovered message. Refusals also remain visible when a response arrives after the drawer was reopened.
 
 **Cancel belongs to the conversation shown when you press it.** Another tab opening a different node does not redirect the control: it still cancels this conversation. If this conversation’s process lifetime has changed, the stale control refuses with “the conversation changed”.
 
@@ -299,12 +299,6 @@ The dashed composer on a plain node is not a landing. File rows do not land in
 outlines, and document pages do not take these carries. A transcript row dropped
 between outline rows becomes a node: first line title, remaining lines note,
 with one undo entry.
-
-The palette's `>` sends to the focused row's same nearest ancestor after
-unfolding it. This lookup uses the outlines reading and works with search off.
-No focused row or no ancestor refuses with **no agent above this row — start one**.
-An unbound ancestor refuses with **this agent has no session — start one**.
-Both refusals preserve the palette text and start nothing.
 
 An armed chip displays the node title returned by the outline reference service;
 it falls back to the ID while unresolved or while that service is unavailable.
@@ -760,13 +754,48 @@ or a title in the palette to reach every agent, including those beyond the Chats
 cap. Palette rows name their standing and use the same navigation rule. Both
 regions and the palette contribution withdraw with chat.
 
-The **`+`** on the Chats heading, and the **new chat** row of the Agents palette, are one action. It ensures `Chats` in
-the Inbox, mints a child titled **new conversation**, then starts its chosen
-engine and unfolds that child. With one engine it starts immediately; several
-offer engine names, in the sidebar menu or as palette rows. Both faces share one
-pending creation gesture. No Inbox entry means a refusal without creating a
-conversation. A refused start leaves its already-created plain node available
-for another start; independent Ops writes are not rolled back.
+**New chat** is a row in the ⌘K palette (search **New chat** or **Agents**),
+and the **+** on Chats opens the palette already on it. It asks two things,
+one level each, and nothing is written or started until the second is sent.
+
+**Where?** The first level lists, in this order and each only when it has
+something:
+
+- **Default** — **Inbox › Chats**, offered while the vault has an Inbox. It is
+  first, so a plain Enter takes it.
+- **Here** — the focused row, or else the zoomed node, of the focused pane, as
+  it was when New chat opened.
+- **Recent** — up to five distinct parents of the most recently active chats,
+  never the default Chats container.
+- **Nodes** — once something is typed, up to twenty nodes whose title or trail
+  matches.
+
+Typing filters every section. Each row shows the node's title and, under it,
+where it lives. Machinery files such as Settings and Properties are never
+offered; the Inbox is.
+
+**What to say?** Choosing a place opens the second level, its crumb the place's
+title. The box takes one line; the engines that can start are its options, the
+first chosen, and the arrows or a press choose another. Enter (or **Start
+chat**) creates a child of the chosen place titled from the first nonempty line,
+trimmed and clipped at a word boundary to 60 characters including **…**, starts
+the chosen engine, closes the palette and opens the child's own page, where the
+message is delivered once. An empty message is refused in place. Backspace on
+an empty box, or a press on a crumb, goes back a level with nothing created.
+
+While one new chat is starting, another is refused with **A new chat is
+already starting**, from any door, and the words stay in the box. Closing the
+palette while it starts does not take you anywhere: the chat is still created,
+and the message becomes that conversation's unsent draft (or the plain node's,
+if its start was refused), waiting on its page.
+
+No Inbox, or a parent removed or trashed after it was chosen, refuses with the
+reason and keeps the level and its words; nothing is created. Another parent
+works with capture off, and Default returns with capture. If engine start
+refuses after the child was minted, the titled plain node remains and its page
+holds the words and the chosen engine for a retry. Independent Ops writes are
+not rolled back. Authentication refusal keeps the engine-only node and its
+sign-in panel.
 
 ### Where the binding lives, and what a second machine sees
 

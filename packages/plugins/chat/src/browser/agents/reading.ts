@@ -1,3 +1,4 @@
+import { keepMessage } from "../chat/message-draft.ts"
 import { createStore } from "solid-js/store"
 import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
@@ -13,7 +14,7 @@ import { createPageOwners } from "./page-owners.ts"
 import type { PageSession } from "./Page.tsx"
 
 export const createAgentReadings = (agents: Roster) => {
-  const newChat = createNewChat()
+  const newChat = createNewChat((to, text) => keepMessage(ui(to).messages, JSON.stringify([to.agent, to.session]), text, true))
   const page = createPageOwners<PageSession>()
   const previews = createPreviews()
   const reveals = new Set<string>()
@@ -27,10 +28,9 @@ export const createAgentReadings = (agents: Roster) => {
   const joined = new Map<ReturnType<typeof createConversationUI>, number>()
   const [visits, setVisits] = createStore<Record<string, Conversing | undefined>>({})
   const [resumed, setResumed] = createStore<Record<string, Conversing | undefined>>({})
-  const waiting = new Set<() => void>()
   const needsSurfaces = new Set<{ element: HTMLElement; shown: () => boolean }>()
   let alive = true
-  onCleanup(() => { alive = false; for (const entry of conversations.values()) entry.dispose(); conversations.clear(); for (const stop of [...awaitingEmpty.values()]) stop(); for (const stop of [...waiting]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
+  onCleanup(() => { alive = false; for (const entry of conversations.values()) entry.dispose(); conversations.clear(); for (const stop of [...awaitingEmpty.values()]) stop(); for (const entry of cache.values()) entry.dispose(); cache.clear() })
   const ui = (to: PanelAddress) => {
     const key = JSON.stringify("session" in to ? [to.agent, to.session] : ["node", to.node])
     let entry = cache.get(key)
@@ -139,28 +139,6 @@ export const createAgentReadings = (agents: Roster) => {
     visit: (node: string, to?: Conversing) => { setVisits(node, to); setResumed(node, undefined) },
     resume: (node: string, to: Conversing) => { setVisits(node, undefined); setResumed(node, to) },
     resuming: (node: string) => resumed[node],
-    ready: (node: string, to: Conversing): Promise<Chat | string> => new Promise(resolve => {
-      if (!alive) { resolve("Chat stopped"); return }
-      createRoot(dispose => {
-        const finish = (result: Chat | string) => { waiting.delete(stop); dispose(); resolve(result) }
-        const stop = () => finish("Chat stopped")
-        waiting.add(stop)
-        createEffect(() => {
-          const current = agents.at(node)
-          if (current === undefined || current.engine !== to.agent || current.session !== to.session) {
-            finish("The agent's chat changed. Try again."); return
-          }
-          const chat = [...(readings().get(node) ?? [])].find(chat => chat.ui === ui(to))
-          if (chat === undefined) return
-          const state = chat.state()
-          if (state.unopened) {
-            finish("Couldn't open the chat"); return
-          }
-          if (state.session?.id !== to.session || state.uploadScope === null) return
-          finish(chat)
-        })
-      })
-    }),
     reveal: (node: string) => {
       const live = [...(readings().get(node) ?? [])].filter(chat => isShown(chat))
       if (live.length === 0) reveals.add(node)

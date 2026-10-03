@@ -510,6 +510,20 @@ const refusesToOpen = (verb: "new" | "load"): boolean =>
 const holdsLoad = (): boolean => existsSync(`${cwd}/${MARKER.holdLoad}`)
 
 /**
+ * Whether the next `session/new` WAITS — armed by `.agent-hold-open`, released
+ * by `.agent-release`, the way the opencode- and Oh My Pi-shaped agents honour
+ * it. The marker is removed as it is read, so one arming holds one open. The
+ * hold comes before the refusals are read, so a scenario can arm a refusal
+ * while the open is still waiting.
+ */
+const holdingOpen = (): boolean => {
+  const marker = `${cwd}/${MARKER.holdOpen}`
+  if (!existsSync(marker)) return false
+  rmSync(marker, { force: true })
+  return true
+}
+
+/**
  * Whether this handshake ADVERTISES NOTHING — no queue, no steering.
  *
  * Read at `initialize` and off the filesystem, for `refusesToOpen`'s reason: it
@@ -3287,6 +3301,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/new":
+      if (holdingOpen()) await released()
       if (needsSignature()) {
         refuse(id, -32000, "Authentication required")
         return

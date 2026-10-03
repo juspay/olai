@@ -13,7 +13,6 @@ export const TEST_SLOTS = [
   slotContract<unknown>("app.banner","plugin"),
   slotContract<unknown>("app.viewer","app"),
   slotContract<unknown>("app.keys","nothing"),
-  slotContract<unknown>("app.command","nothing"),
   slotContract<unknown>("app.palette","nothing"),
   slotContract<unknown>("app.mount","plugin"),
   slotContract<unknown>("delivery.mark","plugin"),
@@ -33,7 +32,6 @@ declare module "./slots.ts" {
     "app.banner": SlotDefinition<any,"plugin">
     "app.viewer": SlotDefinition<any,"app">
     "app.keys": SlotDefinition<any,"nothing">
-    "app.command": SlotDefinition<any,"nothing">
     "app.palette": SlotDefinition<any,"nothing">
     "app.mount": SlotDefinition<any,"plugin">
     "delivery.mark": SlotDefinition<any,"plugin">

@@ -2,21 +2,24 @@ Feature: An agent is offered only where one can start
   Chat offers an agent in three places: the `+` on the sidebar's Chats heading,
   the start pill on a row, and `Start an agent` on a row's `•••`. Each lists
   only the agents this machine can start — an agent it lacks is explained in
-  the plugins panel, not drawn as a row nobody can pick. With exactly one
-  agent there is nothing to choose, so the gesture starts it; with none, the
-  `+` says so and points at the plugins panel. A row's standing is a fact
+  the plugins panel, not drawn as a row nobody can pick. The `+` opens the
+  palette's New chat, whose message level offers those agents as its options;
+  with none, the `+` says so and points at the plugins panel. On a row, with
+  exactly one agent there is nothing to choose, so the gesture starts it. A
+  row's standing is a fact
   about the row and is always drawn; the start pill is an offer and follows
   what can start.
 
   # ── the Chats + ──────────────────────────────────────────────────────
 
   @codex @scratch:chat
-  Scenario: With several agents the Chats + lists only those that can start
+  Scenario: With several agents New chat offers only those that can start
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    Then the agent menu offers exactly "Claude Code|Codex"
+    And I choose the new chat place "default"
+    Then the palette options are "claude, codex"
     When I press "Escape"
-    Then the agent menu is shut
+    Then the command palette is closed
     And the Inbox contains no chat children
 
   @no-agent @scratch:chat
@@ -91,7 +94,11 @@ Feature: An agent is offered only where one can start
     Then chat's "Start an agent" in the node menu runs at once
     When I press "Escape"
     And I press new chat in Chats
-    # One agent left: the + starts it rather than asking.
+    And I choose the new chat place "default"
+    # One agent left: it is the one option.
+    Then the palette options are "claude"
+    When I type new chat draft "engine selection"
+    And I send the new chat draft
     Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
     When I open the plugins panel
     And I switch the plugin "codex" on

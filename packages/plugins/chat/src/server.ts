@@ -1,4 +1,4 @@
-import { newChat } from "./server/new-chat.ts"
+import { newChat, chatLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -594,7 +594,8 @@ export default definePlugin({
         withChat((open) => open.inConversation(input, undefined, panel => panel.setSetting(input.agent, input.session, input.config, input.value))),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
         withChat((open) => open.inConversation(input, undefined, panel => panel.setModel(input.agent, input.session, input.value))),
-      newChat: ({ input }: { input: { agent: string } }) =>
+      locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => chatLocations(reading as Reading, input, vault.inbox.current())),
+      newChat: ({ input }: { input: NewChatInput }) =>
         withChat(open => {
           const gate = ops.gate as WriteGate
           return creationPermit.withPermit(newChat({ current: vault.inbox.current, read: gate.read,
@@ -606,18 +607,13 @@ export default definePlugin({
               nodeAgents.seen(committed.derived)
               return yield* startAgentSession(open, binding, { node, agent })
             }),
-          }, input.agent))
+          }, input))
         }).pipe(Effect.tap(() => Effect.gen(function*() {
           mine?.cells.sessionsRevision.set(++sessionsRevision)
           if (filer !== null) yield* filer.full
         }))),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
-      agentAbove: ({ input }: { input: { node: string } }) => Effect.sync(() => {
-        const id = nodeAgents.nearestAt(input.node, new Set(nodeAgents.nodes().map(node => node.id)))
-        const node = id === null ? null : nodeAgents.nodeAt(id)
-        return node === null ? null : { node: node.id, file: node.file, agent: node.engine, session: node.session }
-      }),
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
         withChat((open) => startAgentSession(open, binding, input)).pipe(
           // Publish after both the binding and its history link are written.

@@ -10,18 +10,13 @@ const b = await chromium.launch({ args: [...BROWSER_ARGS] })
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } })
 await p.goto(url)
 await p.waitForSelector('[data-testid="outline-list"]')
-// A new chat from the `+` on the sidebar's Chats heading (there is no chat
-// side panel): it starts at once with one agent and asks which with several,
-// and the conversation folds open under its Inbox row.
+// A new chat from the `+` on the sidebar's Chats heading: the palette opens
+// at New chat, the default place is taken, and the first message creates it.
 await p.locator('[data-testid="chat-new"]').click()
-const agents = p.locator('[data-testid="agent-engine-menu"]')
-const input = p.locator('[data-testid="chat-input"]')
-await agents.or(input).first().waitFor()
-if (await agents.isVisible()) await agents.locator("[data-engine]").first().click()
-await input.waitFor()
-await p.waitForTimeout(1200)
-await input.fill("hold")
-await p.locator('[data-testid="chat-send"]').click()
+await p.locator('[data-testid="palette-item"][data-id="new-chat-default"]').click()
+await p.locator('[data-testid="palette-input"]').fill("hold")
+await p.locator('[data-testid="palette-input"]').press("Enter")
+await p.locator('[data-testid="chat-input"]').waitFor()
 await p.waitForTimeout(1200)
 await p.screenshot({ path: "/tmp/merged.png" })
 await b.close()

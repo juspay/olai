@@ -1,39 +1,27 @@
-import { createEffect, createSignal } from "solid-js"
+import { createSignal } from "solid-js"
 import type { PaletteAdapter, PaletteItem } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
-import { navigation, palette } from "../navigation.ts"
+import { navigation } from "../navigation.ts"
 import { agentReadings } from "./reading.ts"
 import { focusAgent } from "./focus.ts"
 import { byActivity } from "./activity-order.ts"
+import { newChatRow } from "./new-chat-level.ts"
 import { LOOK } from "./roster.ts"
 import type { Roster } from "./answered.tsx"
 
 /** Listing reads the activation's roster; only selection opens a conversation. */
 export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   const creation = agentReadings()?.newChat
-  const [choosing, choose] = createSignal(false)
-  createEffect(() => { if (!palette()?.open()) choose(false) })
-  const start = async (agent: string) => {
-    const said = creation === undefined ? { tone: "alarm" as const, text: "Chat isn't available" } : await creation.start(agent)
-    return said === undefined ? {} : { keepOpen: true, said }
-  }
+  // The last default container New chat was told of, for this activation.
+  const [last, remember] = createSignal<string | null>()
+  const memory = { last, remember: (value: string | null) => { remember(value) } }
+  // One New chat row for the activation: listing again (a roster tick) hands
+  // the palette the same object, so its open path and drawing stay put.
+  const newChat = creation === undefined ? undefined : newChatRow(creation, agents, memory)
   return { items: (): ReadonlyArray<PaletteItem> => {
-    if (choosing()) return agents.engines().map(engine => ({
-      id: `new-chat-engine-${engine.id}`, label: engine.name,
-      search: `agents new chat ${engine.name}`.toLowerCase(), taking: atOnce,
-      action: { kind: "run", run: () => start(engine.id) },
-    }))
     // ONLY WHAT WORKS: with no engine this machine can start, there is no
     // `new chat` row to choose — the plugins panel says why.
-    const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 ? [] : [{
-      id: "new-chat", label: "New chat", place: "Agents", search: "agents new chat", taking: atOnce,
-      action: { kind: "run", run: async () => {
-        const only = agents.only()
-        if (only !== null) return start(only.id)
-        if (agents.engines().length === 0) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
-        choose(true)
-        return { keepOpen: true }
-      } } }]
+    const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 || newChat === undefined ? [] : [newChat]
     return [...creating, ...byActivity(agents.rows()).map((row): PaletteItem => ({
       id: `agent-${row.id}`, label: row.title, hint: LOOK[row.standing].label,
       place: "Agents", search: `agents ${row.title}`.toLowerCase(), taking: atOnce,

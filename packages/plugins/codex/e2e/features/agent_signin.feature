@@ -111,7 +111,10 @@ Feature: Signing in to Codex from inside olai
     And I open the outline "lanes.olai"
     And the agent needs a sign-in
     When I press new chat in Chats
+    And I choose the new chat place "default"
     And I choose new chat engine "Codex"
+    And I type new chat draft "sign in first"
+    And I send the new chat draft
     Then the pending Inbox conversation is unfolded as "new-chat" with engine "codex"
     And the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "Authentication required"

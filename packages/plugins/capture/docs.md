@@ -14,11 +14,13 @@ both; the navigation plugin retains no built-in capture grammar.
 
 Chat uses this registry to file unclaimed conversation heads under a top-level
 `Chats` node, matched by reserved id `chats`, with one ordinary Ops write per
-conversation. Its new-chat gesture creates a child there before starting its
-session. Capture's `+` text prefix remains quick capture; chat contributes its
-own selectable **new chat** row to the palette. Disabling capture removes the
-registry entry, stopping filing and refusing new-chat creation without making
-chat wait for an unavailable service. Existing node agents remain usable.
+conversation. Chat's **New chat** palette row offers **Inbox › Chats** as its
+Default place exactly while this registry has an entry, and creates a child
+here only when that place is chosen. Capture's `+` text prefix remains quick
+capture; New chat is chat's own palette row. Disabling capture removes the
+registry entry, stopping filing and withdrawing the Default place without
+making chat wait for an unavailable service; other places still work. Existing
+node agents remain usable.
 
 Inbox is found by its convention stem directly under `_olai/`, among
 node-holding claims. When the configured outline row is off, the Inbox sidebar

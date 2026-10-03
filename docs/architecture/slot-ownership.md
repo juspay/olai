@@ -7,7 +7,7 @@ The permanent plugin API defines only the generic location reference type and th
 | Owner | Compatibility locations |
 | --- | --- |
 | Outlines | `outline.row.chip`, `.placement`, `.aside`, `.fold`, `.pane`, `.block`, `.action`, `outline.page.head`, `.foot` and property contexts |
-| Navigation | `app.route`, `app.keys`, `app.command`, `app.palette` |
+| Navigation | `app.route`, `app.keys`, `app.palette` |
 | Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount`, `layout.strip`, `layout.tools` |
 | Sidebar | `sidebar.entry`, `sidebar.section` |
 | Chat | `conversation.wake`, `delivery.mark`, `tool.reply` |

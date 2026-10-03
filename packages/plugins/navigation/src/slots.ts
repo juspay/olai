@@ -60,23 +60,10 @@ export interface AppChord {
   readonly press: () => void
 }
 
-export interface AppCommand {
-  /** The character that selects it — `>`. */
-  readonly prefix: string
-  /** The words for the prefix strip. */
-  readonly said: string
-  /** ...and the placeholder in the box once the prefix is typed. */
-  readonly placeholder: string
-  /** What a press does with the line. `null` is "it landed"; a string is the
-   *  refusal, in the plugin’s own words, drawn where the palette draws one. */
-  readonly run: (line: string) => Promise<string | null>
-}
-
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions {
     "app.route": SlotDefinition<AppPage, "nothing">
     "app.keys": SlotDefinition<AppChord, "nothing">
-    "app.command": SlotDefinition<AppCommand, "nothing">
     "app.palette": SlotDefinition<AppPalette, "nothing">
   }
 }
@@ -84,6 +71,5 @@ declare module "@olai/plugin-api/slots" {
 export const slotContracts = {
   "app.route": slotContract<AppPage>("app.route","nothing"),
   "app.keys": slotContract<AppChord>("app.keys","nothing"),
-  "app.command": slotContract<AppCommand>("app.command","nothing"),
   "app.palette": slotContract<AppPalette>("app.palette","nothing"),
 } as const

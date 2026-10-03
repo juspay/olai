@@ -2,7 +2,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
-import { type Accessor, createEffect, createMemo, createRoot, createSignal, For, onCleanup, Show } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, For, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
 import { runAsync } from "@olai/web/client/run.ts"
 import { TESTID } from "../../testids.ts"
@@ -20,8 +20,10 @@ import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
 import { NoAgent } from "../chat/NoAgent.tsx"
 import { EngineAbsence } from "./EngineAbsence.tsx"
+import { receive } from "./handoff.ts"
 
 export interface PageSession {
+  readonly preferredEngine: Accessor<string | undefined>
   readonly chat: Accessor<Chat | null>
   readonly draft: Accessor<string>
   readonly setDraft: (text: string) => void
@@ -68,40 +70,57 @@ function createPageSession(node: string): PageSession {
       })
     })
   })
-  const start = async (engine: string) => {
-    const text = draft()
-    if (starting() || text.trim() === "") return
-    setStarting(true)
-    setFailure(null)
-    setDraft("")
+  const deliver = async (to: Conversing, text: string, later: string) => {
+    const ui = reading.ui(to)
+    // The send is work that keeps this conversation's UI, whoever is reading.
+    const releaseUI = reading.retainUI(ui)
     try {
-      const result = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine }))
-      if (agentReadings() !== reading) return
-      if (Result.isFailure(result)) {
-        setDraft(now => now === "" ? text : `${text}\n${now}`)
-        setFailure(result.failure.message)
-        return
-      }
-      const to = result.success
-      if (to === null) { setDraft(text); return }
-      const ui = reading.ui(to)
-      const releaseUI = reading.retainUI(ui)
-      try {
       const key = JSON.stringify([to.agent, to.session])
-      // Preserve words typed after the first send as an ordinary unsent draft.
-      keepMessage(ui.messages, key, draft())
-      setDraft("")
+      keepMessage(ui.messages, key, later)
       const value = await ready(to)
       if (value === null) {
         ui.refused[1](new UsageFailure({ reason: "The chat changed, so this didn't happen. Try again." }))
         keepMessage(ui.messages, key, text, true)
-      } else if (!await value.send(text, [], [])) {
-        keepMessage(ui.messages, key, text, true)
+      } else if (!await value.send(text, [], [])) keepMessage(ui.messages, key, text, true)
+    } finally { releaseUI() }
+  }
+  const [preferredEngine, prefer] = createSignal<string>()
+  createEffect(() => {
+    const arrival = reading.newChat.take(node)
+    if (arrival === undefined) return
+    untrack(() => receive(arrival, {
+      prefer,
+      refuse: setFailure,
+      redraft: words => setDraft(now => now === "" ? words : `${words}\n${now}`),
+      deliver: (to, text) => {
+        setStarting(true)
+        return deliver(to, text, "").finally(() => setStarting(false))
+      },
+    }))
+  })
+  const start = async (engine: string) => {
+    const text = draft()
+    if (starting() || text.trim() === "") return
+    batch(() => { setStarting(true); setFailure(null); setDraft("") })
+    try {
+      const result = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine }))
+      if (agentReadings() !== reading) return
+      if (Result.isFailure(result)) {
+        // After the await: the words and the refusal appear together.
+        batch(() => {
+          setDraft(now => now === "" ? text : `${text}\n${now}`)
+          setFailure(result.failure.message)
+        })
+        return
       }
-      } finally { releaseUI() }
+      const to = result.success
+      if (to === null) { setDraft(text); return }
+      const later = draft()
+      setDraft("")
+      await deliver(to, text, later)
     } finally { setStarting(false) }
   }
-  return { chat, draft, setDraft, starting, failure, start }
+  return { chat, draft, setDraft, starting, failure, start, preferredEngine }
 }
 
 function usePage(node: Accessor<string>) {
@@ -139,7 +158,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const pane = usePane()
   const agents = useAgents()
   const [chosen, choose] = createSignal<string>()
-  const engine = () => agents.at(props.node)?.engine ?? chosen() ?? agents.engines()[0]?.id
+  const engine = () => agents.at(props.node)?.engine ?? chosen() ?? props.page.preferredEngine() ?? agents.engines()[0]?.id
   const missing = () => agents.missing(engine())
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows

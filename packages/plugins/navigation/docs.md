@@ -89,7 +89,7 @@ yield* slots.contribute(paletteAdapters, { items: () => [{
 At the root nothing changes. A group row is found by its own label like any
 command, its children are not searched from the root, and prefixes, questions
 and `taking` gating behave as before. Inside a level the box belongs to the
-level: a typed `+` or `>` is text. A palette question (`ask`) still stands over
+level: a typed prefix character such as `+` is text. A palette question (`ask`) still stands over
 an open level. A value level differs from a question in that it is
 contributed as a row, has options, and can be nested and opened at a path;
 `Asking` remains the way a run row asks one more thing on the spot.

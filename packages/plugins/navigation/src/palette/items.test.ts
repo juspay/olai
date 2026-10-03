@@ -16,24 +16,14 @@ import type { Hung } from "@olai/plugin-api"
 import { atOnce } from "@olai/web/client/settled.ts"
 
 import { atFile, atNode } from "../routes.ts"
-import type { AppChord, AppCommand } from "../slots.ts"
-import { boxOf, chordsIn, prefixesIn, type PalettePrefix, commandsIn, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
+import type { AppChord } from "../slots.ts"
+import { boxOf, chordsIn, prefixesIn, type PalettePrefix, filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
 
-/** A plugin's command, as the slot hands it over. `run` answers "it landed",
- *  which is the one thing none of these tests presses. */
-const command = (prefix: string, said = "send to agent"): AppCommand => ({
-  prefix,
-  said,
-  placeholder: `type a message after ${prefix} to send it`,
-  run: () => Promise.resolve(null),
-})
-
-/** ...and hung, with the plugin's own word beside it — the shape
+/** A face hung, with the plugin's own word beside it — the shape
  *  `@olai/web`'s `client/plugins/runtime.ts` `hung` reads a list slot back as. */
 const hung = <T,>(plugin: string, face: T): Hung<T> => ({ plugin, face })
 
-/** The one every prefix test is written against: a chat plugin holding `>`. */
-const ASK = command(">")
+/** The one every prefix test is written against: an adapter holding `+`. */
 const PREFIX: PalettePrefix = { value: "+", label: "append", empty: "type text", testid: "append", after: "+ ", run: async () => ({ tone: "aside", text: "appended" }) }
 
 /** A hit on a record, with the address every hit carries. */
@@ -122,96 +112,86 @@ test("a node at the top level is placed by its file", () => {
   expect(top.place).toEqual({ file: "errands.olai" })
 })
 
-test("a line under a plugin's prefix carries the command that will run it", () => {
-  expect(modeOf("> mark kitchen done", [ASK])).toEqual({
-    kind: "command",
-    command: ASK,
-    text: "mark kitchen done",
-  })
-  expect(modeOf("  >  hello", [ASK])).toEqual({ kind: "command", command: ASK, text: "hello" })
-  expect(modeOf(">", [ASK])).toEqual({ kind: "command", command: ASK, text: "" })
-})
+/** A second adapter's prefix, for the tests about more than one. */
+const TILDE: PalettePrefix = { ...PREFIX, value: "~", label: "note", testid: "note", after: "~ " }
 
-/** RULE FOUR, as one call: a serve with no plugin in `app.command` — which is
- *  what a policy with all rows off produces — offers no such prefix, so the character is
- *  ordinary text and the box goes on filtering the rows with it. */
-test("with nothing hung in the slot, a `>` is just text", () => {
-  expect(modeOf("> mark kitchen done", [])).toEqual({ kind: "filter" })
-  expect(modeOf(">", [])).toEqual({ kind: "filter" })
+/** A serve with no palette adapter offering a prefix — which is what a policy
+ *  with all rows off produces — has none, so the character is ordinary text and
+ *  the box goes on filtering the rows with it. */
+test("with no adapter offering it, a prefix character is just text", () => {
+  expect(modeOf("+ buy milk")).toEqual({ kind: "filter" })
+  expect(modeOf("+", [])).toEqual({ kind: "filter" })
 })
 
 test("a `+` line is a capture", () => {
-  expect(modeOf("+ buy milk", [ASK], [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
-  expect(modeOf("+buy milk", [ASK], [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
-  expect(modeOf("  +  buy milk", [ASK], [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
-  expect(modeOf("+", [ASK], [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "" })
+  expect(modeOf("+ buy milk", [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
+  expect(modeOf("+buy milk", [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
+  expect(modeOf("  +  buy milk", [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
+  expect(modeOf("+", [PREFIX])).toEqual({ kind: "prefix", prefix: PREFIX, text: "" })
 })
 
 test("anything else filters the list, and a prefix is only ever the first character", () => {
-  expect(modeOf("toggle", [ASK])).toEqual({ kind: "filter" })
-  expect(modeOf("", [ASK])).toEqual({ kind: "filter" })
-  // A `>` or a `+` INSIDE the line is text, not a mode.
-  expect(modeOf("not > this", [ASK])).toEqual({ kind: "filter" })
-  expect(modeOf("2 + 2", [ASK])).toEqual({ kind: "filter" })
+  expect(modeOf("toggle", [PREFIX, TILDE])).toEqual({ kind: "filter" })
+  expect(modeOf("", [PREFIX, TILDE])).toEqual({ kind: "filter" })
+  // A `~` or a `+` INSIDE the line is text, not a mode.
+  expect(modeOf("not ~ this", [PREFIX, TILDE])).toEqual({ kind: "filter" })
+  expect(modeOf("2 + 2", [PREFIX, TILDE])).toEqual({ kind: "filter" })
 })
 
-test("the box is doing exactly one of the three, whichever prefix opened it", () => {
-  // One value rather than one nullable string per prefix, so "commanding AND
+test("the box is doing exactly one thing, whichever prefix opened it", () => {
+  // One value rather than one nullable string per prefix, so "noting AND
   // capturing" is not a state anything downstream has to not be in.
-  expect(modeOf("> plus a + in it", [ASK])).toEqual({
-    kind: "command",
-    command: ASK,
+  expect(modeOf("~ plus a + in it", [PREFIX, TILDE])).toEqual({
+    kind: "prefix", prefix: TILDE,
     text: "plus a + in it",
   })
-  expect(modeOf("+ and a > in it", [ASK], [PREFIX])).toEqual({
+  expect(modeOf("+ and a ~ in it", [PREFIX, TILDE])).toEqual({
     kind: "prefix", prefix: PREFIX,
-    text: "and a > in it",
+    text: "and a ~ in it",
   })
 })
 
-/** CORE'S OWN PREFIX WINS, and the plugin's entry is skipped rather than
- *  quietly shadowed — a `+` that captured on one serve and asked an agent on
- *  another is the silent disagreement the whole check exists to refuse. */
-test("a plugin claiming a prefix the palette already answers is refused", () => {
-  const taken = command("+", "capture to the agent")
-  expect(commandsIn([hung("chat", taken)], [PREFIX])).toEqual([])
-  // ...and the capture still means capture.
-  expect(modeOf("+ buy milk", commandsIn([hung("chat", taken)], [PREFIX]), [PREFIX])).toEqual({
-    kind: "prefix", prefix: PREFIX,
-    text: "buy milk",
-  })
+/** THE FIRST ADAPTER TO CLAIM A CHARACTER KEEPS IT, and the second is skipped
+ *  out loud rather than quietly shadowing it — a `+` that captured on one serve
+ *  and did something else on another is the silent disagreement the check
+ *  exists to refuse. The list arrives in the bundle's order, so the winner is
+ *  `olai.yml`'s decision rather than the mount race's. */
+test("two adapters claiming one prefix: the first keeps it", () => {
+  const warned = console.warn
+  const warnings: Array<string> = []
+  console.warn = (line: string) => { warnings.push(line) }
+  try {
+    const taken: PalettePrefix = { ...PREFIX, label: "capture elsewhere", testid: "elsewhere" }
+    const kept = prefixesIn([{ owner: "capture", value: PREFIX }, { owner: "other", value: taken }])
+    expect(kept).toEqual([PREFIX])
+    // ...and the capture still means capture.
+    expect(modeOf("+ buy milk", kept)).toEqual({ kind: "prefix", prefix: PREFIX, text: "buy milk" })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain("other")
+    expect(warnings[0]).toContain("capture")
+  } finally {
+    console.warn = warned
+  }
 })
 
-/** ...and so does the FIRST plugin to claim a free one, which — the list
- *  arriving in the bundle's order — makes the winner `olai.yml`'s decision
- *  rather than the mount race's. */
-test("two plugins claiming one prefix: the first keeps it", () => {
-  const second = command(">", "send to the other agent")
-  expect(commandsIn([hung("chat", ASK), hung("other", second)])).toEqual([ASK])
+test("every prefix whose character is free is kept, in the order it arrived", () => {
+  expect(prefixesIn([{ owner: "capture", value: PREFIX }, { owner: "notes", value: TILDE }])).toEqual([PREFIX, TILDE])
 })
 
-test("every command whose character is free is kept, in the order it arrived", () => {
-  const slash = command("/", "run a recipe")
-  expect(commandsIn([hung("chat", ASK), hung("just", slash)])).toEqual([ASK, slash])
-})
-
-test("navigation does not promise a feature-owned command without its provider", () => {
+test("navigation does not promise a feature-owned prefix without its provider", () => {
   expect(SHELL_ITEMS.some(item => item.id === "capture")).toBe(false)
   expect(filterItems("inbox")).toEqual([])
-  expect(modeOf("+ buy milk", [], [])).toEqual({ kind: "filter" })
-  expect(commandsIn([hung("other", command("+"))])).toHaveLength(1)
+  expect(modeOf("+ buy milk", [])).toEqual({ kind: "filter" })
 })
 
 test("an arbitrary prefix survives parsing and disappears with its contribution", () => {
-  const other = { ...PREFIX, value: "~", after: "~ " }
-  expect(modeOf(" ~ text", [], [other])).toEqual({ kind: "prefix", prefix: other, text: "text" })
-  expect(modeOf(" ~ text", [], [])).toEqual({ kind: "filter" })
-  expect(prefixesIn([{ owner: "first", value: other }, { owner: "second", value: { ...other } }])).toEqual([other])
+  expect(modeOf(" ~ text", [TILDE])).toEqual({ kind: "prefix", prefix: TILDE, text: "text" })
+  expect(modeOf(" ~ text", [])).toEqual({ kind: "filter" })
 })
 
 test("a pending question owns Enter even when the box contains a contributed prefix", () => {
   const question = { kind: "line" as const, label: "Rename", question: "Name?", placeholder: "Name", initial: "", resolve: () => { throw new Error("parsing must not execute an action") } }
-  expect(boxOf("+ text", question, [], [PREFIX])).toEqual({ kind: "answering", question })
+  expect(boxOf("+ text", question, [PREFIX])).toEqual({ kind: "answering", question })
 })
 
 const chord = (key: string, shift: boolean, said: string): AppChord => ({ key, shift, said, whileEditing: true, press: () => {} })

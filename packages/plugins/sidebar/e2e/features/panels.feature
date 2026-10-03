@@ -18,14 +18,6 @@ Feature: The sidebar and command palette
     When I reload the page
     Then the sidebar width survived the reload
 
-  @no-agent @scratch:chat
-  Scenario: A palette > ask that fails is shown, not swallowed
-    Given I open the app
-    When I press the palette shortcut
-    And I ask the palette "> please do the thing"
-    Then the palette shows an ask error
-    And the command palette is open
-
   @corpus:good
   Scenario: The command palette opens from the keyboard
     Given I open the outline "house.olai"

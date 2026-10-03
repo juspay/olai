@@ -39,14 +39,20 @@ export const claimed = (reading: Reading, sessions: ReadonlyArray<SessionInfo>):
 
 /** Reuse a moved live Chats container. A trashed or occupied id is kept intact;
  * a numbered reserved id gives subsequent runs the same new live container. */
-export const ensureChats = (filing: Pick<Filing, "read" | "write">, file: string): Effect.Effect<string, OpFailure> => Effect.gen(function*() {
-  const reading = yield* filing.read
+export const chatsId = (reading: Reading): string => {
   let id = CHATS
   for (let suffix = 1; reading.derived.byId.has(id); suffix++) {
     const existing = reading.derived.byId.get(id)!
     if (isRegular(existing) && seatableIn(reading.derived, id)) return id
     id = `${CHATS}-${suffix}`
   }
+  return id
+}
+
+export const ensureChats = (filing: Pick<Filing, "read" | "write">, file: string): Effect.Effect<string, OpFailure> => Effect.gen(function*() {
+  const reading = yield* filing.read
+  const id = chatsId(reading)
+  if (reading.derived.byId.has(id)) return id
   yield* filing.write(outlinePaths(reading.set).includes(file)
     ? { op: "add", file, id, title: "Chats" }
     : { op: "create", file, seed: { id, title: "Chats" } })

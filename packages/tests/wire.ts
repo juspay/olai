@@ -517,14 +517,12 @@ const chat = async (
   await page.goto(base)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
   // A NEW CHAT, the way a person starts one: the `+` on the sidebar's Chats
-  // heading. It starts at once with one agent and asks which with several —
-  // the first one listed is taken. The conversation folds open under its Inbox
-  // row, and the fold carries the same `chat-panel` status the old side panel
-  // did (there is no side panel, and no toggle, any more).
+  // heading opens the palette at New chat; the default place (Inbox › Chats)
+  // and the first engine are taken, and the first message creates the node.
   await page.locator('[data-testid="chat-new"]').click()
-  const agents = page.locator('[data-testid="agent-engine-menu"]')
-  await agents.or(panel).first().waitFor({ state: "visible", timeout: 30_000 })
-  if (await agents.isVisible()) await agents.locator("[data-engine]").first().click()
+  await page.locator('[data-testid="palette-item"][data-id="new-chat-default"]').click()
+  await page.locator('[data-testid="palette-input"]').fill("Hello")
+  await page.locator('[data-testid="palette-input"]').press("Enter")
   await panel.waitFor({ state: "visible", timeout: 30_000 })
   // THE AGENT HAS FINISHED HANDSHAKING, or there is not one — and the second
   // is said HERE, in the words of the thing that is wrong, rather than left to

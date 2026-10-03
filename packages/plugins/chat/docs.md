@@ -1,8 +1,8 @@
 # The conversation
 
 Chat contributes conversations to outline rows and zoomed node pages, plus the
-standing/start aside, Needs you and Chats, an Agents palette adapter, and the
-carry and `>` gestures. These faces arrive with chat's plugin row and leave
+standing/start aside, Needs you and Chats, an Agents palette adapter with New
+chat's two levels, and the carry gesture. These faces arrive with chat's plugin row and leave
 with it. [chat.md](../chat.md) describes the workflows; this page describes their
 ownership.
 
@@ -13,7 +13,7 @@ Nothing. It is on by default, like the appliances and the engines. Two things ta
 Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in `⧉`. The switch writes that same property and the choice survives restart. Turning the row back on restores its services and browser contribution.
 
 Disabling chat removes its wire members, folds, page faces, standings, sidebar
-regions, palette adapter and `>` command. Surviving outline and document editors
+regions and palette adapter, with any New chat level it had open. Surviving outline and document editors
 retain their instances. Enabling it restores the scoped contributions.
 
 ## What waits on it
@@ -68,15 +68,14 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that starts at once with exactly one available agent and otherwise opens the agent menu; each Chats row puts its standing dot before its age |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); each Chats row puts its standing dot before its age |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
 | `outline.page.head` | outlines, under title above property drawer | agent line |
 | `outline.page.foot` | outlines, after the zoomed subtree | unbounded conversation and composer, or a plain-node composer |
 | `outline.row.action` | outlines' row menu | Start an agent on a plain row; Fresh start and Close the agent on a row with an agent. Start and Fresh start are one entry each — the verb with one available agent, a submenu of available agents with several, absent with none; Close the agent is always offered |
-| `app.command` | navigation's text-command grammar | `>` with nearest-ancestor targeting |
-| `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents, and New chat with agent choices while an agent is available |
+| `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents, and — while an engine can start — the **New chat** row (`new-chat`), a group level of places whose rows open a value level for the message and engine |
 
 Chat no longer contributes `app.panel` or `app.header` and names no layout shell
 service. Its four node faces are registered under `AgentsProvider`, reading one
@@ -102,19 +101,21 @@ and interface. Each engine defines its own `row` component and registers the
 supplied face under its own identity. The component waits for chat and the
 inspector slot, and withdraws before chat releases its renderer.
 The activation-owned roster publishes `only` beside `engines` and `standings`:
-exactly one startable engine, irrespective of missing siblings. Sidebar,
-outline start, fresh start and command palette read that same memo. Fresh start
+exactly one startable engine, irrespective of missing siblings. Outline start and fresh start read that same memo. New chat's message
+level lists the startable engines in bundle order, the first chosen. Fresh start
 uses it only to decide whether to open a menu; its direct request always names
 the node's current engine.
 
-Optional dependencies remain in separate scoped components. Navigation and its
-existing palette control supply route changes and choice reset on dismissal;
-outline references supply focused-row context; the search reading supplies
-completions. The `plugins` component needs the inspector's declared
+Optional dependencies remain in separate scoped components. Navigation supplies
+route changes and its declared `navigation.palette` control, which chat's
+`navigation` component holds for that activation only so the Chats `+` can
+open the palette at New chat (`showAt(["new-chat"])`); without it the `+` says
+**Chat isn't available**. Outline references supply focused-row context; the
+search reading supplies completions. The `plugins` component needs the inspector's declared
 `plugin-inspector.configuration` service and holds its `open` in a
 component-owned holder (`src/browser/plugins-door.ts`) for that activation only;
 while the inspector is off the component waits and the agent menu draws no
-**Open plugins** action. The `>` ancestor lookup does not require search. Removing an
+**Open plugins** action. Removing an
 optional provider releases its held service, and reconnection holds the new
 instance. Pending callbacks cannot navigate a later chat activation.
 
@@ -128,9 +129,21 @@ stale scope tokens refuse rather than acting on another conversation. Multiple b
 share the server's conversation scope. A server restart reopens each retained
 reading and replays its transcript.
 
-`conversation.newChat` ensures Chats, mints a child through Ops as `filer`, starts
-its node session, and returns the node id. The browser resolves its current
-location through the existing node lookup before navigating and unfolding.
+`conversation.newChat` takes the engine, title and nullable parent (null means
+the current Inbox's Chats container). Under the existing creation permit it
+normalizes the title with the shared 60-character rule and refuses an empty
+title before any write, then validates an explicit parent or ensures Chats on demand with the Inbox recheck,
+mints a child through Ops as `filer`, and starts its session. Its result carries
+the node, session pair or auth-pending null, and any start refusal. Returning a
+minted plain node on refusal lets the browser land its draft there for retry.
+`conversation.locations` accepts filter/limit plus bounded exact id and parent
+lookups. It returns at most 20 filter matches plus those lookups, ancestor titles
+and the current default container id, independently of optional search. The
+outline-path set is built once per query; machinery under `_olai` is excluded
+except Inbox. A default container id is answered exactly while the vault's
+Inbox registry has an entry, which is how New chat offers its Default row
+without naming capture. The where level caps Recent at five and removes the
+default container from it (`browser/agents/where.ts`).
 There are no free-floating new/choose/load procedures and no global
 conversation selection. History changes the fold's local visiting pair without editing the
 node binding. `conversation.sessions` remains the stored-history listing.
@@ -164,8 +177,43 @@ The second is the one to reach for by habit. The first is a deployment's word, o
 Chat's browser activation owns the roster, fold state, visiting pairs and the
 conversation UI cache. Each rendered fold owns its subscriptions; each page
 shares one reading between head and foot. Releasing one leaves other readers
-and ongoing work alone. The new-chat action is shared by the sidebar and palette
-for one pending creation at a time and is disposed with the activation.
+and ongoing work alone. New chat's two levels are contributed through chat's `paletteAdapters` adapter
+and withdrawn with it (`browser/agents/new-chat-level.ts`); navigation owns the
+open path and each level's scope. What chat runs inside a level — the bounded
+`conversation.locations` query and its memos — lives in the `LevelScope` the
+palette hands the level's function, and is disposed with that level; a late
+answer after the level is gone changes nothing. Here is read once, when the
+where level opens; the query is asked at once and then again only after typing
+pauses (`TYPING_PAUSE_MS`). Until an opening's first answer lands, Default is
+drawn from the default container the previous answer named, which the
+adapter's activation remembers, so a plain Enter at once can take it; the
+answer corrects it. The first opening in an activation waits for its answer.
+The shortlist rules are pure (`browser/agents/where.ts`).
+
+The one creation in flight is NOT the palette's: it is the browser activation's
+permit (`browser/agents/new-chat.ts`), shared by every submit, so a level opened
+again while one is starting is refused rather than spending a second
+`conversation.newChat`. The palette's own busy guard covers only one level.
+
+The hand-off of the first message — the arrivals, and the watches that return
+them — is one module (`handoff.ts`). The activation publishes reactive
+arrivals; existing and newly mounted page sessions atomically take them once,
+each waking only for its own node, and the standing watch reads nothing while
+no arrival is outstanding.
+What a claimed arrival means — prefer its engine, show its start's refusal,
+deliver to its conversation or else put the words in the plain draft — is the
+hand-off's `receive`; the page only lends its surfaces, owns the delivery it
+was handed and keeps refused text on disposal. Landing (open the page, or
+reclaim at once when the asking level is gone) is the hand-off's `land`; the
+sender only holds the permit and asks the server. An untaken arrival
+is reclaimed when the focused route leaves its node or its reading becomes
+unavailable/put away, and at once when the level that asked was aborted
+(popped or closed) before the server answered — in that case nothing
+navigates. Reclaimed words become the conversation's unsent draft; a node whose
+start was refused has no conversation yet, so its words are parked for that
+node and its page takes them when next opened. Every release clears the pending
+permit. Activation cleanup releases arrivals and invalidates late callbacks; no
+callback navigates a rebuilt owner.
 
 Chat's attention component names `alerts.channel` and owns its scoped watching,
 cross-tab beat and question subscriptions. It clears its badge claim on release.
@@ -249,6 +297,11 @@ it when the bound node/engine/session changes. Row actions carry an optional
 static confirmation sentence through the outlines slot contract; the existing
 row menu owns that question and its dismissal. Session work still runs through
 the chat wire service and retains its existing ownership and cleanup.
+
+Location queries depend on the ordered recent ids, not activity-only roster
+updates. Superseded replies are ignored; a successful retry clears a prior
+query refusal. Sidebar opening refusals use the shared timed SaidLine below
+the Chats heading.
 
 ## Retained conversations and attention
 

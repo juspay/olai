@@ -1,6 +1,6 @@
 /**
  * WHAT OTHER PLUGINS HUNG, as navigation reads it — the routes a plugin claims
- * a URL grammar with, and the palette's rows and the verbs behind its prefixes.
+ * a URL grammar with, and the palette's rows and chords.
  *
  * Private to this package, for `olai-plugin-layout`'s `faces.ts` reason. Both
  * readings are held by COMPONENTS rather than by the row: history and focus
@@ -32,8 +32,8 @@
  *
  * So each consumer holds its OWN, and each reading below belongs to exactly one
  * of them — which is what the code already did with the readings themselves:
- * the renderer settles `app.route`, the palette draws `app.command` and
- * `app.palette`, and neither has ever read the other's.
+ * the renderer settles `app.route`, the palette draws `app.palette` and answers
+ * `app.keys`, and neither has ever read the other's.
  */
 import { heldFaces } from "@olai/plugin-api"
 
@@ -41,6 +41,6 @@ import { heldFaces } from "@olai/plugin-api"
  *  `app.route` into `./pages.ts`. */
 export const { hold: holdRouteFaces, hung: routeFaces } = heldFaces()
 
-/** ...and THE PALETTE'S: the commands behind its prefixes and the rows other
- *  rows hang in it (`./palette/Palette.tsx`). */
+/** ...and THE PALETTE'S: the rows other rows hang in it and the chords they
+ *  register (`./palette/Palette.tsx`). */
 export const { hold: holdPaletteFaces, hung: paletteFaces, only: paletteOnly } = heldFaces()
