@@ -37,7 +37,7 @@ import type { Fiber } from "cordis"
 import { Context, Effect, Queue, Scope, Stream } from "effect"
 
 import { moduleFibers } from "./module.ts"
-import { hostActivations, interrupt, lastStartThrew } from "./lifecycle.ts"
+import { hostActivations, interrupt, lastStartThrew, provideExclusive } from "./lifecycle.ts"
 import type { Plugin } from "./plugin.ts"
 import type { Provision, ServiceKey } from "./service.ts"
 
@@ -186,7 +186,7 @@ export const provide = <Shape>(
   provision: Provision<Shape>,
 ): Effect.Effect<void, never, Scope.Scope> =>
   Effect.acquireRelease(
-    Effect.sync(() => ctxOf(host).provide(key.cordis, provision)),
+    Effect.sync(() => provideExclusive(ctxOf(host), key, provision)),
     (revoke) => Effect.promise(async () => void await revoke()),
   ).pipe(Effect.asVoid)
 

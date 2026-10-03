@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { Deferred, Effect, Exit, Fiber, Scope } from "effect"
+import { Cause, Deferred, Effect, Exit, Fiber, Scope } from "effect"
 import { broadcast } from "./broadcast.ts"
 import { closeHost, type Host, mountPlugin, offered, openHost, provide, settled } from "./host.ts"
 import { offer, OfferConflict, Offering } from "./lifecycle.ts"
@@ -633,34 +633,73 @@ test("a second offer of one key is an OfferConflict naming the first provider", 
   expect(offered(host, Resource)).toBeDefined()
 })))
 
-test("a duplicate offer is still an OfferConflict while errors carry no stack", async () => {
-  // Cordis builds the refusal inside its long-stack composition, which reads
-  // `.stack` as a string; under Bun an Error built with the limit at 0 has
-  // none, and the pin threw its own TypeError in place of the refusal.
-  const limit = Error.stackTraceLimit
-  Error.stackTraceLimit = 0
-  try {
-    await run(Effect.gen(function*() {
-      const host = yield* openHost
-      const refused: Array<unknown> = []
-      yield* mountPlugin(host, definePlugin({
-        name: "first-provider", needs: [], apply: offer(Resource, () => ({ use: () => {} })),
+/** TWO WAYS AN ERROR ENDS UP WITHOUT A STACK under Bun: always while the limit
+ *  is 0, and at any limit when `prepareStackTrace` gives nothing back — the
+ *  second is how CI met it, where raising the limit did not help. */
+const STACKLESS = [
+  ["the stack trace limit is 0", () => {
+    const limit = Error.stackTraceLimit
+    Error.stackTraceLimit = 0
+    return () => { Error.stackTraceLimit = limit }
+  }],
+  ["no error has a stack at any limit", () => {
+    const errors = Error as unknown as { prepareStackTrace?: unknown }
+    const prepare = errors.prepareStackTrace
+    errors.prepareStackTrace = () => undefined
+    return () => { errors.prepareStackTrace = prepare }
+  }],
+] as const
+
+for (const [how, lose] of STACKLESS) {
+  test(`a duplicate offer is still an OfferConflict while ${how}`, async () => {
+    // Cordis builds the refusal inside its long-stack composition, which reads
+    // `.stack` as a string; without one the pin threw its own TypeError in
+    // place of the refusal, and the second row's fault named nobody.
+    const restore = lose()
+    try {
+      await run(Effect.gen(function*() {
+        const host = yield* openHost
+        const refused: Array<unknown> = []
+        yield* mountPlugin(host, definePlugin({
+          name: "first-provider", needs: [], apply: offer(Resource, () => ({ use: () => {} })),
+        }))
+        yield* mountPlugin(host, definePlugin({
+          name: "second-provider", needs: [], apply: Effect.gen(function*() {
+            refused.push(yield* Effect.catchDefect(
+              offer(Resource, () => ({ use: () => {} })),
+              (defect) => Effect.succeed(defect),
+            ))
+          }),
+        }))
+        expect(refused[0]).toBeInstanceOf(OfferConflict)
+        expect((refused[0] as OfferConflict).owner).toBe("first-provider")
+        expect((refused[0] as OfferConflict).key).toBe("resource")
       }))
-      yield* mountPlugin(host, definePlugin({
-        name: "second-provider", needs: [], apply: Effect.gen(function*() {
-          refused.push(yield* Effect.catchDefect(
-            offer(Resource, () => ({ use: () => {} })),
-            (defect) => Effect.succeed(defect),
-          ))
-        }),
+    } finally {
+      restore()
+    }
+  })
+
+  test(`a duplicate root provision is an OfferConflict while ${how}`, async () => {
+    // The host's own `provide` is the same Cordis call, so the same refusal is
+    // lost the same way; the plugin offering behind it is the holder named.
+    const restore = lose()
+    try {
+      await run(Effect.gen(function*() {
+        const host = yield* openHost
+        yield* mountPlugin(host, definePlugin({
+          name: "first-provider", needs: [], apply: offer(Resource, () => ({ use: () => {} })),
+        }))
+        const exit = yield* Effect.exit(Scope.provide(yield* Scope.make())(provide(host, Resource, () => ({ use: () => {} }))))
+        const defect = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined
+        expect(defect).toBeInstanceOf(OfferConflict)
+        expect((defect as OfferConflict).owner).toBe("first-provider")
       }))
-      expect(refused[0]).toBeInstanceOf(OfferConflict)
-      expect((refused[0] as OfferConflict).owner).toBe("first-provider")
-    }))
-  } finally {
-    Error.stackTraceLimit = limit
-  }
-})
+    } finally {
+      restore()
+    }
+  })
+}
 
 test("an unhandled duplicate offer fails only the row that offered second", () => run(Effect.gen(function*() {
   const host = yield* openHost
