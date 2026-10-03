@@ -13,8 +13,8 @@ import type { Provision, ServiceKey } from "./service.ts"
 /** A duplicate is a distinct defect so the API can supply its own sentence
  * without accidentally disguising a cancellation or disposer-ownership defect. */
 export class OfferConflict extends Error {
-  constructor(readonly owner: string, readonly key: string, cause: Error) {
-    super(cause.message, { cause })
+  constructor(readonly owner: string, readonly key: string, cause: Error, message = cause.message) {
+    super(message, { cause })
   }
 }
 
@@ -104,23 +104,6 @@ export const hostActivations = (ctx: CordisContext): ReadonlyArray<Live> =>
   [...live.values()].filter((activation) => activation.ctx.root.fiber === ctx.root.fiber)
 
 export const interrupt = (fiber: CordisFiber): void => live.get(fiber)?.interrupt()
-
-/** ONE SYNCHRONOUS CALL INTO THE PIN WITH STACKS ON. Cordis composes a refusal
- * it raises inside `fiber.effect` with a long-stack splice that reads `.stack`
- * as a string, and under Bun an Error built while `Error.stackTraceLimit` is 0
- * has none: the splice throws its own TypeError and the refusal (a duplicate
- * provider, say) never reaches the caller. Raised only when it is not already
- * a positive number, and put back before this returns. */
-const withStacks = <A>(call: () => A): A => {
-  const limit = Error.stackTraceLimit
-  if (typeof limit === "number" && limit > 0) return call()
-  Error.stackTraceLimit = 10
-  try {
-    return call()
-  } finally {
-    Error.stackTraceLimit = limit
-  }
-}
 
 /** WHAT A FIBER'S LAST START THREW, as the bridge threw it. Cordis re-throws a
  * failed fiber's error from `await()`, but only after its long-stack splice,
@@ -237,7 +220,7 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
       if (closing !== undefined) throw new Error("effect-cordis: offer requires an open plugin activation")
       let revoke: () => void
       try {
-        revoke = withStacks(() => ctx.provide(key.cordis, provision))
+        revoke = ctx.provide(key.cordis, provision)
       } catch (cause) {
         // The pinned runtime exposes no typed duplicate error. Recognize its
         // exact sentence here, beside the call it belongs to; callers neither
@@ -245,6 +228,17 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
         const prefix = `service "${key.cordis}" has been registered at <`
         if (cause instanceof Error && cause.message.startsWith(prefix) && cause.message.endsWith(">")) {
           throw new OfferConflict(cause.message.slice(prefix.length, -1), key.cordis, cause)
+        }
+        // ...AND WHEN THE SENTENCE NEVER ARRIVES, the store says the same thing.
+        // The refusal is raised inside `fiber.effect`, whose long-stack splice
+        // reads `.stack` as a string and throws its own TypeError when an
+        // error has none (seen under Bun), so the refusal is lost. It was thrown
+        // before the store was written: another fiber holding the key there IS
+        // the refusal, and names its owner without any prose.
+        const holder = ctx.reflect._getImpl(key.cordis, false)
+        if (holder !== undefined && holder.fiber !== ctx.fiber) {
+          throw new OfferConflict(holder.fiber.name, key.cordis, cause instanceof Error ? cause : new Error(String(cause)),
+            `effect-cordis: service "${key.cordis}" is already provided by <${holder.fiber.name}>`)
         }
         throw cause
       }

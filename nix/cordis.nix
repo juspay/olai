@@ -104,10 +104,11 @@
 #      revision that changes disposer ownership names itself.
 #   5. AN ERROR WITHOUT A STACK SURVIVES `composeError`. Its `handleError`
 #      splits `.stack` on the error it is splicing and on two it made itself;
-#      under Bun an Error built while `Error.stackTraceLimit` is 0 has no
-#      `stack`, so the splice throws a TypeError ("undefined is not an object")
-#      in place of a failed start or a `ctx.provide` refusal. olai keeps what a
-#      start threw itself and raises the limit around its `ctx.provide`
+#      under Bun an Error can have no `stack` (always so while
+#      `Error.stackTraceLimit` is 0), and the splice then throws a TypeError
+#      ("undefined is not an object") in place of a failed start or a
+#      `ctx.provide` refusal. olai keeps what a start threw itself and reads a
+#      lost refusal off the service store
 #      (`packages/effect-cordis/src/lifecycle.ts`); a `typeof` guard upstream
 #      would retire both.
 #
